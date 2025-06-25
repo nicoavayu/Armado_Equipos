@@ -6,6 +6,7 @@ import './styles.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from './Logo.png';
 import Logo2 from './Logo_2.png';
+import Confetti from 'react-confetti';
 
 // ICONOS
 const SunIcon = (
@@ -82,6 +83,11 @@ function App() {
   const [teamNames, setTeamNames] = useState(['', '']);
   const [lockedPlayers, setLockedPlayers] = useState({});
 
+  // Confetti animation control
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [confettiFade, setConfettiFade] = useState(false);
+  const prevPlayerNames = useRef([]);
+
   const mainButtonRef = useRef(null);
   const [showFloatingButton, setShowFloatingButton] = useState(false);
 
@@ -154,6 +160,7 @@ function App() {
     }));
   };
 
+  // ----------- GENERATE TEAMS + CONFETTI LOGIC -----------
   const handleGenerate = () => {
     const lockedInA = teams[0].filter(p => lockedPlayers[p.name]);
     const lockedInB = teams[1].filter(p => lockedPlayers[p.name]);
@@ -181,6 +188,20 @@ function App() {
     }
     t1 = putCaptainFirst(t1);
     t2 = putCaptainFirst(t2);
+
+    // CONFETTI SOLO si cambia la lista de jugadores seleccionados respecto a la última generación
+    const currentPlayerNames = selectedPlayers.map(p => p.name.trim().toLowerCase()).sort();
+    const prevNames = prevPlayerNames.current;
+    const isNewList =
+      currentPlayerNames.length !== prevNames.length ||
+      currentPlayerNames.some((name, idx) => name !== prevNames[idx]);
+    if (isNewList) {
+      setShowConfetti(true);
+      setConfettiFade(false);
+      setTimeout(() => setConfettiFade(true), 3400);
+      setTimeout(() => setShowConfetti(false), 4100);
+      prevPlayerNames.current = currentPlayerNames;
+    }
     setTeams([t1, t2]);
   };
 
@@ -211,6 +232,31 @@ function App() {
 
   return (
     <div>
+      {/* CONFETTI */}
+      {showConfetti && (
+        <div
+          style={{
+            pointerEvents: 'none',
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            opacity: confettiFade ? 0 : 1,
+            transition: 'opacity 0.7s'
+          }}
+        >
+          <Confetti
+            width={window.innerWidth}
+            height={window.innerHeight + 100}
+            numberOfPieces={480}
+            gravity={0.58}
+            wind={0.11}
+            initialVelocityY={18}
+            recycle={false}
+            run={showConfetti}
+          />
+        </div>
+      )}
+
       {/* Barra superior con toggle */}
       <div
         style={{
