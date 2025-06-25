@@ -14,7 +14,7 @@ function FrequentPlayers({ players, onAdd, onDelete, playersInList }) {
   return (
     <aside className="frequent-players-container">
       <details open>
-        <summary className="frequent-title">
+        <summary className="frequent-title" style={{ paddingLeft: 20 }}>
           <span className="frequent-arrow" />
           Jugadores Frecuentes
         </summary>

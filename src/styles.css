@@ -36,6 +36,7 @@
 
 /* --- GENERAL --- */
 body {
+  overflow-x: hidden;
   font-family: 'Inter', Arial, sans-serif;
   background: var(--bg);
   color: var(--fg);
@@ -43,6 +44,7 @@ body {
 }
 .container {
   max-width: 1100px;
+  margin-top: 70px; /* Ajustá el valor según el alto real de tu barra */
   margin: 36px auto;
   padding: 24px 12px 44px 12px;
   background: var(--card-bg);
@@ -191,7 +193,9 @@ body {
   outline: none;
 }
 .player-form button {
-  width: 96%;
+   width: 100%;
+  display: block;
+  margin: 0 0 8px 0;
   background: var(--btn-primary);
   color: #fff;
   border: none;
@@ -417,6 +421,7 @@ body {
   .content { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 800px) {
+  
   .container {
     padding: 10px 2px 18px 2px;
     border-radius: 12px;
@@ -951,4 +956,134 @@ body[data-theme="dark"] .team-name-input::placeholder {
   .team-container {
     padding-bottom: 30px; /* espacio para el botón flotante */
   }
+}
+
+
+.frequent-title {
+  font-size: 1.0rem !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  display: flex !important;
+  align-items: center !important;
+  white-space: nowrap !important;
+}
+
+
+@media (max-width: 800px) {
+  .container {
+    max-width: 100vw;
+    width: 100vw;
+    box-sizing: border-box;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    overflow-x: hidden;
+  }
+  .content {
+    width: 100vw;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  .sidebar, .player-form, .player-list, .team-list {
+    max-width: 100vw;
+    min-width: 0;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+@media (max-width: 800px) {
+  .container {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    /* El resto de las reglas del container pueden quedarse igual */
+  }
+  .content,
+  .sidebar,
+  .player-form,
+  .player-list,
+  .team-list {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+
+@media (max-width: 800px) {
+  .container {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    border-radius: 0 !important;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+  .mobile-padding-wrapper {
+    padding-left: 12px;
+    padding-right: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .player-form input,
+  .player-form button,
+  .team-name-input,
+  .share-teams-button,
+  .generate-teams-button,
+  .button-row button {
+    width: 100%;
+    box-sizing: border-box;
+    display: block;
+    min-width: 0;
+    margin-left: 0;
+    margin-right: 0;
+  }
+  .content, .sidebar, .player-form, .player-list, .team-list {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+
+@media (max-width: 800px) {
+  .container {
+    margin-top: 50px !important;  /* Ajustá este valor si tu barra es más alta o más baja */
+  }
+}
+
+
+@media (max-width: 800px) {
+  .player-form button {
+    width: calc(100% - 24px) !important;
+    margin: 0 auto 8px auto !important;
+    display: block;
+    border-radius: 16px;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 800px) {
+  .team-container {
+    padding-bottom: 100px !important; /* Ajustá este valor al alto de tu botón flotante + margen extra */
+  }
+}
+body[data-theme="dark"] .team-list li {
+  background: #24263a !important;   /* fondo oscuro */
+  color: #e7eafd !important;        /* texto claro */
+}
+body[data-theme="dark"] .team-list li:nth-child(even) {
+  background: #1d1e2b !important;   /* un poco más oscuro para filas pares */
+  border-left-color: #3b72ff !important; /* opcional: azulito en vez de verde */
+}
+body[data-theme="dark"] .team-list li .player-main-content {
+  color: #e7eafd !important;
+}
+body[data-theme="dark"] .team-list li .player-main-content span {
+  color: #e7eafd !important;
+}
+body[data-theme="dark"] .team-score {
+  color: #44adff !important;
 }

@@ -5,12 +5,12 @@ import FrequentPlayers from './components/FrequentPlayers';
 import './styles.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from './Logo.png';
+import Logo2 from './Logo_2.png';
 
-// SVGs Sol/Luna para el toggle
+// ICONOS
 const SunIcon = (
   <svg height="18" width="18" viewBox="0 0 20 20" fill="gold"><circle cx="10" cy="10" r="6"/><g stroke="gold" strokeWidth="2"><line x1="10" y1="1" x2="10" y2="4"/><line x1="10" y1="16" x2="10" y2="19"/><line x1="1" y1="10" x2="4" y2="10"/><line x1="16" y1="10" x2="19" y2="10"/><line x1="4.5" y1="4.5" x2="6.5" y2="6.5"/><line x1="13.5" y1="13.5" x2="15.5" y2="15.5"/><line x1="4.5" y1="15.5" x2="6.5" y2="13.5"/><line x1="13.5" y1="6.5" x2="15.5" y2="4.5"/></g></svg>
 );
-
 const MoonIcon = (
   <svg height="18" width="18" viewBox="0 0 20 20"><path d="M15.5 13.5A7 7 0 0 1 6.5 4.5a6.5 6.5 0 1 0 9 9z" fill="#fff"/><circle cx="14" cy="6" r="1.4" fill="#fff" /></svg>
 );
@@ -25,7 +25,6 @@ function shuffleArray(array) {
   }
   return arr;
 }
-
 function balanceTeamsEquitable(playersList, maxDiff = 5, maxTries = 2000) {
   if (playersList.length < 2) return [[], []];
   let best = null;
@@ -40,7 +39,6 @@ function balanceTeamsEquitable(playersList, maxDiff = 5, maxTries = 2000) {
     const sumB = teamB.reduce((acc, p) => acc + (+p.score || 0), 0);
     const diff = Math.abs(sumA - sumB);
 
-    // Evitar jugadores repetidos en ambos equipos (por si acaso)
     const namesA = new Set(teamA.map(p => p.name));
     const namesB = new Set(teamB.map(p => p.name));
     const hasOverlap = [...namesA].some(n => namesB.has(n));
@@ -54,7 +52,6 @@ function balanceTeamsEquitable(playersList, maxDiff = 5, maxTries = 2000) {
   }
   return [best.teamA, best.teamB];
 }
-
 function getCaptain(team) {
   if (!team.length) return null;
   const maxScore = Math.max(...team.map(j => +j.score || 0));
@@ -62,7 +59,6 @@ function getCaptain(team) {
   if (!tops.length) return null;
   return tops[Math.floor(Math.random() * tops.length)];
 }
-
 function putCaptainFirst(team) {
   const captain = getCaptain(team);
   if (!captain) return team;
@@ -77,7 +73,6 @@ function putCaptainFirst(team) {
 }
 
 // ----------- COMPONENTE PRINCIPAL ---------------
-
 function App() {
   const [players, setPlayers] = useState(() => JSON.parse(localStorage.getItem('players')) || []);
   const [selectedPlayers, setSelectedPlayers] = useState([]);
@@ -85,14 +80,13 @@ function App() {
   const [frequentPlayers, setFrequentPlayers] = useState(() => JSON.parse(localStorage.getItem('frequentPlayers')) || []);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   const [teamNames, setTeamNames] = useState(['', '']);
-  const [lockedPlayers, setLockedPlayers] = useState({}); // { [name]: true }
+  const [lockedPlayers, setLockedPlayers] = useState({});
 
-  // --------- BOTÓN FLOTANTE MOBILE ----------
   const mainButtonRef = useRef(null);
   const [showFloatingButton, setShowFloatingButton] = useState(false);
 
   useEffect(() => {
-    if (window.innerWidth > 800) return; // Solo mobile
+    if (window.innerWidth > 800) return;
     const observer = new window.IntersectionObserver(
       ([entry]) => setShowFloatingButton(!entry.isIntersecting),
       { threshold: 0.01 }
@@ -101,7 +95,6 @@ function App() {
     return () => observer.disconnect();
   }, []);
 
-  // Persistencia
   useEffect(() => {
     localStorage.setItem('players', JSON.stringify(players));
   }, [players]);
@@ -112,8 +105,6 @@ function App() {
     document.body.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
-
-  // Limpiar viejos emojis
   useEffect(() => {
     setPlayers(prev =>
       prev.map(p => ({
@@ -123,14 +114,11 @@ function App() {
     );
   }, []);
 
-  // ----- HANDLERS
-
   const addPlayer = player => {
     setPlayers(prev => [...prev, player]);
     setFrequentPlayers(fp => {
       const existing = fp.find(p => p.name.trim().toLowerCase() === player.name.trim().toLowerCase());
       if (existing) {
-        // Actualiza puntaje y apodo si ya existe
         return fp.map(p =>
           p.name.trim().toLowerCase() === player.name.trim().toLowerCase()
             ? { ...p, score: player.score, nickname: player.nickname }
@@ -150,20 +138,15 @@ function App() {
     setPlayers(p => p.filter(x => x !== player));
     setSelectedPlayers(sp => sp.filter(x => x !== player));
   };
-
   const deleteFrequentPlayer = player =>
     setFrequentPlayers(fp => fp.filter(x => x !== player));
-
   const selectAll = () => setSelectedPlayers(players);
-
   const clearSelected = () => {
     setPlayers(p => p.filter(x => !selectedPlayers.includes(x)));
     setSelectedPlayers([]);
     setTeams([[], []]);
     setLockedPlayers({});
   };
-
-  // Bloquear/desbloquear jugadores en el equipo
   const toggleLock = (teamIdx, player) => {
     setLockedPlayers(prev => ({
       ...prev,
@@ -171,13 +154,9 @@ function App() {
     }));
   };
 
-  // Equipos parejos con “lock” preservado
   const handleGenerate = () => {
-    // Jugadores lockeados en cada equipo actual
     const lockedInA = teams[0].filter(p => lockedPlayers[p.name]);
     const lockedInB = teams[1].filter(p => lockedPlayers[p.name]);
-
-    // Los jugadores que no están lockeados
     const lockedNames = [
       ...lockedInA.map(j => j.name),
       ...lockedInB.map(j => j.name)
@@ -185,40 +164,29 @@ function App() {
     const restPlayers = selectedPlayers.filter(
       p => !lockedNames.includes(p.name)
     );
-
-    // Verificá que los lockeados no se repitan en ambos equipos (seguridad extra)
     const lockedSet = new Set([...lockedInA.map(j => j.name), ...lockedInB.map(j => j.name)]);
     if (lockedSet.size !== lockedInA.length + lockedInB.length) {
       window.alert('Un jugador está lockeado en ambos equipos. Por favor, revisá los bloqueos.');
       return;
     }
-
-    // Randomizás solo el resto para completar equipos, cuidando el balance de puntajes y sin repetir jugadores
     let t1 = [...lockedInA], t2 = [...lockedInB];
     let [randomA, randomB] = balanceTeamsEquitable(restPlayers, 5, 2000);
-
     t1 = [...lockedInA, ...randomA];
     t2 = [...lockedInB, ...randomB];
-
-    // Asegurá que no haya repetidos (extra)
     const allNames = [...t1.map(p => p.name), ...t2.map(p => p.name)];
     const nameSet = new Set(allNames);
     if (nameSet.size !== allNames.length) {
       window.alert('Hay jugadores repetidos en ambos equipos, vuelve a intentar.');
       return;
     }
-
-    // Capitanes SIEMPRE al principio
     t1 = putCaptainFirst(t1);
     t2 = putCaptainFirst(t2);
-
     setTeams([t1, t2]);
   };
 
   const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
   const showToast = (msg) => window.alert(msg);
 
-  // WhatsApp: nombre y apodo solo si existe
   const shareTeams = () => {
     if (teams.every(team => team.length === 0)) {
       showToast("No hay equipos para compartir");
@@ -235,8 +203,6 @@ function App() {
     const url = `https://wa.me/?text=${encodeURIComponent(teamTexts)}`;
     window.open(url, '_blank');
   };
-
-  // Cambiar nombre de equipos
   const handleTeamNameChange = (i, value) => {
     const newNames = [...teamNames];
     newNames[i] = value;
@@ -296,164 +262,165 @@ function App() {
         </button>
       </div>
 
-      <div className="container" style={{ paddingTop: 10 }}>
-        <div className="header-bar">
-          <div style={{ textAlign: 'center', flex: 1 }}>
-            <img
-              src={Logo}
-              alt="Logo Armando Equipos"
-              className="app-logo"
-              style={{
-                height: '130px',
-                width: 'auto',
-                margin: '0 auto -0px auto',
-                display: 'block',
-                objectFit: 'contain'
-              }}
-            />
-            <div className="header-title">Armando Equipos</div>
+      <div className="container">
+        <div className="mobile-padding-wrapper">
+          <div className="header-bar">
+            <div style={{ textAlign: 'center', flex: 1 }}>
+              <img
+                src={theme === 'dark' ? Logo2 : Logo}
+                alt="Logo Armando Equipos"
+                className="app-logo"
+                style={{
+                  height: '130px',
+                  width: 'auto',
+                  margin: '0 auto -0px auto',
+                  display: 'block',
+                  objectFit: 'contain'
+                }}
+              />
+              <div className="header-title">Armando Equipos</div>
+            </div>
           </div>
-        </div>
-        <div className="content">
-          <aside className="sidebar frequent-players">
-            <FrequentPlayers
-              players={frequentPlayers}
-              onAdd={addPlayer}
-              onDelete={deleteFrequentPlayer}
-              playersInList={players}
-            />
-          </aside>
-          <section className="player-form">
-            <PlayerForm onAddPlayer={addPlayer} players={players} />
-            <div className="button-container under-form">
-              <button
-                ref={mainButtonRef}
-                onClick={handleGenerate}
-                className="generate-teams-button big"
-                disabled={
-                  selectedPlayers.length < 10 || selectedPlayers.length % 2 !== 0
-                }
-                type="button"
-                style={{ height: 96, fontSize: '2rem', borderRadius: 18, marginBottom: 15 }}
-              >
-                Generar Equipos
-              </button>
-            </div>
-            <div className="button-row">
-              <button onClick={clearSelected} className="clear-selected-button" type="button">
-                Borrar Seleccionados
-              </button>
-              <button onClick={selectAll} className="select-all-button" type="button">
-                Seleccionar Todos
-              </button>
-            </div>
-          </section>
-          <section className="player-list">
-            <PlayerList
-              players={players}
-              selectedPlayers={selectedPlayers}
-              onSelectPlayer={selectPlayer}
-              onDeletePlayer={deletePlayer}
-            />
-          </section>
-        </div>
-        <div className="team-names-inputs">
-          <input
-            type="text"
-            placeholder="Equipo 1"
-            value={teamNames[0]}
-            onChange={e => handleTeamNameChange(0, e.target.value)}
-            className="team-name-input"
-          />
-          <input
-            type="text"
-            placeholder="Equipo 2"
-            value={teamNames[1]}
-            onChange={e => handleTeamNameChange(1, e.target.value)}
-            className="team-name-input"
-          />
-        </div>
-        <button className="share-teams-button" onClick={shareTeams} type="button">
-          Compartir equipos por WhatsApp
-        </button>
-        <div className="team-container fixed-spacing">
-          <AnimatePresence>
-            {teams.map((team, idx) => {
-              const teamScore = team.reduce((acc, p) => acc + (+p.score || 0), 0);
-              const captain = getCaptain(team);
-              return (
-                <motion.div
-                  key={idx}
-                  className="team-list"
-                  initial={{ opacity: 0, y: 40 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 40 }}
-                  transition={{ duration: 0.4 }}
+          <div className="content">
+            <aside className="sidebar frequent-players">
+              <FrequentPlayers
+                players={frequentPlayers}
+                onAdd={addPlayer}
+                onDelete={deleteFrequentPlayer}
+                playersInList={players}
+              />
+            </aside>
+            <section className="player-form">
+              <PlayerForm onAddPlayer={addPlayer} players={players} />
+              <div className="button-container under-form">
+                <button
+                  ref={mainButtonRef}
+                  onClick={handleGenerate}
+                  className="generate-teams-button big"
+                  disabled={
+                    selectedPlayers.length < 10 || selectedPlayers.length % 2 !== 0
+                  }
+                  type="button"
+                  style={{ height: 96, fontSize: '2rem', borderRadius: 18, marginBottom: 15 }}
                 >
-                  <h2>{teamNames[idx] || `Equipo ${idx + 1}`}</h2>
-                  <ul>
-                    {team.map((p, i) => {
-                      const isCaptain = captain && p.name === captain.name;
-                      const isLocked = !!lockedPlayers[p.name];
-                      const showNick = p.nickname && p.nickname.trim() && p.nickname.trim() !== p.name.trim();
-                      return (
-                        <li key={p.name + i} className="player-item team-player-item">
-                          <span
-                            className="player-main-content"
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              width: '100%',
-                              fontSize: '1.05em',
-                              fontWeight: isCaptain ? 700 : 500,
-                              gap: '0.3em',
-                              color: isLocked ? '#a7aab0' : undefined, // nombre gris si locked
-                              opacity: isLocked ? 0.5 : 1,
-                              transition: 'color .13s, opacity .13s'
-                            }}
-                          >
-                            {showNick
-                              ? <>
-                                  {p.name} <span style={{ fontStyle: 'italic', color: '#313a4e' }}>"{p.nickname}"</span>
-                                  {isCaptain && <span style={{ marginLeft: 8, fontWeight: 600 }}>(C)</span>}
-                                </>
-                              : <>
-                                  {p.name}
-                                  {isCaptain && <span style={{ marginLeft: 8, fontWeight: 600 }}>(C)</span>}
-                                </>
-                            }
-                          </span>
-                          <button
-                            className={`lock-player-button${isLocked ? ' locked' : ''}`}
-                            onClick={() => toggleLock(idx, p)}
-                            title={isLocked ? "Desbloquear jugador" : "Fijar en este equipo"}
-                            style={{
-                              background: "none",
-                              border: "none",
-                              cursor: "pointer",
-                              marginLeft: 7,
-                              fontSize: 19,
-                              color: isLocked ? "#2272b6" : "#babec4",
-                              opacity: isLocked ? 1 : 0.7,
-                              outline: "none"
-                            }}
-                          >
-                            {isLocked ? '🔒' : '🔓'}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <div className="team-score">Puntaje total: <b>{teamScore}</b></div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+                  Generar Equipos
+                </button>
+              </div>
+              <div className="button-row">
+                <button onClick={clearSelected} className="clear-selected-button" type="button">
+                  Borrar Seleccionados
+                </button>
+                <button onClick={selectAll} className="select-all-button" type="button">
+                  Seleccionar Todos
+                </button>
+              </div>
+            </section>
+            <section className="player-list">
+              <PlayerList
+                players={players}
+                selectedPlayers={selectedPlayers}
+                onSelectPlayer={selectPlayer}
+                onDeletePlayer={deletePlayer}
+              />
+            </section>
+          </div>
+          <div className="team-names-inputs">
+            <input
+              type="text"
+              placeholder="Equipo 1"
+              value={teamNames[0]}
+              onChange={e => handleTeamNameChange(0, e.target.value)}
+              className="team-name-input"
+            />
+            <input
+              type="text"
+              placeholder="Equipo 2"
+              value={teamNames[1]}
+              onChange={e => handleTeamNameChange(1, e.target.value)}
+              className="team-name-input"
+            />
+          </div>
+          <button className="share-teams-button" onClick={shareTeams} type="button">
+            Compartir equipos por WhatsApp
+          </button>
+          <div className="team-container fixed-spacing">
+            <AnimatePresence>
+              {teams.map((team, idx) => {
+                const teamScore = team.reduce((acc, p) => acc + (+p.score || 0), 0);
+                const captain = getCaptain(team);
+                return (
+                  <motion.div
+                    key={idx}
+                    className="team-list"
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 40 }}
+                    transition={{ duration: 0.4 }}
+                  >
+                    <h2>{teamNames[idx] || `Equipo ${idx + 1}`}</h2>
+                    <ul>
+                      {team.map((p, i) => {
+                        const isCaptain = captain && p.name === captain.name;
+                        const isLocked = !!lockedPlayers[p.name];
+                        const showNick = p.nickname && p.nickname.trim() && p.nickname.trim() !== p.name.trim();
+                        return (
+                          <li key={p.name + i} className="player-item team-player-item">
+                            <span
+                              className="player-main-content"
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                width: '100%',
+                                fontSize: '1.05em',
+                                fontWeight: isCaptain ? 700 : 500,
+                                gap: '0.3em',
+                                color: isLocked ? '#a7aab0' : undefined,
+                                opacity: isLocked ? 0.5 : 1,
+                                transition: 'color .13s, opacity .13s'
+                              }}
+                            >
+                              {showNick
+                                ? <>
+                                    {p.name} <span style={{ fontStyle: 'italic', color: '#313a4e' }}>"{p.nickname}"</span>
+                                    {isCaptain && <span style={{ marginLeft: 8, fontWeight: 600 }}>(C)</span>}
+                                  </>
+                                : <>
+                                    {p.name}
+                                    {isCaptain && <span style={{ marginLeft: 8, fontWeight: 600 }}>(C)</span>}
+                                  </>
+                              }
+                            </span>
+                            <button
+                              className={`lock-player-button${isLocked ? ' locked' : ''}`}
+                              onClick={() => toggleLock(idx, p)}
+                              title={isLocked ? "Desbloquear jugador" : "Fijar en este equipo"}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                marginLeft: 7,
+                                fontSize: 19,
+                                color: isLocked ? "#2272b6" : "#babec4",
+                                opacity: isLocked ? 1 : 0.7,
+                                outline: "none"
+                              }}
+                            >
+                              {isLocked ? '🔒' : '🔓'}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <div className="team-score">Puntaje total: <b>{teamScore}</b></div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
-      {/* Botón flotante solo mobile */}
       {showFloatingButton && (
         <button
           className="floating-generate-teams-button"
