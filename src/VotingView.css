@@ -1,0 +1,182 @@
+.voting-container {
+  max-width: 390px;
+  margin: 44px auto 0 auto;
+  padding: 26px 24px 36px 24px;
+  background: #fff;
+  border-radius: 32px;
+  box-shadow: 0 2px 18px 0 rgba(34, 40, 80, 0.10);
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  color: #24262b;
+}
+
+.voting-container h2 {
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin-bottom: 1.2em;
+  color: #DE1C49;
+  text-align: center;
+}
+
+.voting-input,
+.voting-input[type="file"] {
+  width: 100%;
+  padding: 13px 22px;
+  margin-bottom: 18px;
+  font-size: 1.1em;
+  border: 1.5px solid #eceaf1;
+  border-radius: 50px;
+  outline: none;
+  background: #f9f9fa;
+  transition: border 0.2s;
+}
+.voting-input:focus {
+  border: 1.5px solid #DE1C49;
+}
+
+.voting-photo {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #f5f5f5;
+  margin: 0 auto 20px auto;
+  display: block;
+  border: 2px solid #eceaf1;
+  overflow: hidden;
+}
+
+.stars-box {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  justify-content: center;
+  margin-bottom: 8px;
+  user-select: none;
+}
+.star {
+  font-size: 2.1em;
+  color: #eceaf1;
+  cursor: pointer;
+  transition: color 0.15s;
+  user-select: none;
+}
+.star.selected {
+  color: #ffbf22;
+  text-shadow: 0 1px 8px #fff3;
+}
+
+.score-label {
+  margin-top: 10px;
+  font-size: 1.28em;
+  font-weight: 700;
+  color: #DE1C49;
+  min-width: 38px;
+  text-align: center;
+  letter-spacing: -1px;
+}
+
+.vote-button,
+.finish-button,
+.edit-button {
+  width: 100%;
+  padding: 12px;
+  margin: 14px 0 0 0;
+  font-size: 1.13em;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(90deg,#DE1C49 0%,#0EA9C6 100%);
+  border: none;
+  border-radius: 32px;
+  cursor: pointer;
+  transition: background .18s, box-shadow .15s;
+  box-shadow: 0 2px 9px 0 rgba(222,28,73,.09);
+}
+.vote-button:active,
+.finish-button:active,
+.edit-button:active {
+  filter: brightness(0.95);
+}
+
+.player-list-summary {
+  margin-top: 18px;
+  padding: 10px 0 0 0;
+}
+.player-list-summary li {
+  margin-bottom: 10px;
+  font-size: 1.08em;
+  font-weight: 600;
+  color: #444;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.player-list-summary .edit-button {
+  width: auto;
+  padding: 5px 15px;
+  margin: 0 0 0 10px;
+  font-size: 0.97em;
+  border-radius: 17px;
+  background: #0EA9C6;
+}
+@media (max-width: 500px) {
+  .voting-container {
+    padding: 15px 3vw 20px 3vw;
+    border-radius: 18px;
+    margin-top: 25px;
+  }
+  .voting-photo {
+    width: 76px;
+    height: 76px;
+  }
+  .star {
+    font-size: 1.6em;
+  }
+}
+
+
+.stars-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 7px;
+}
+
+.stars-box {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  justify-content: center;
+  margin-bottom: 4px;
+  user-select: none;
+}
+
+.star-svg {
+  display: inline-block;
+  transition: transform 0.16s, filter 0.18s;
+  filter: none;
+}
+
+
+.star-svg:active {
+  filter: brightness(0.95) drop-shadow(0 1px 8px #de1c4966);
+}
+
+.score-label-custom {
+  margin-top: 3px;
+  font-size: 1.34em;
+  font-weight: 800;
+  color: #DE1C49;
+  min-width: 38px;
+  text-align: center;
+  letter-spacing: -1px;
+}
+
+@media (max-width: 500px) {
+  .stars-wrapper {
+    margin-bottom: 4px;
+  }
+  .score-label-custom {
+    font-size: 1.1em;
+  }
+}
