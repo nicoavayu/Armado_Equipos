@@ -1,32 +1,38 @@
-import React, { useState } from 'react';
-import VotingView from './VotingView';
-import AppNormal from './AppNormal';
+// src/App.js
+import React, { useState } from "react";
+import Home from "./Home";
+import AppNormal from "./AppNormal";
+import VotingView from "./VotingView";
+import RegistroJugador from "./RegistroJugador";
 
 export default function App() {
-  const [showVoting, setShowVoting] = useState(false);
+  const [modo, setModo] = useState(null);
+  const [jugador, setJugador] = useState(null);
 
-  return (
-    <div>
-      <button
-        style={{
-          position: "fixed",
-          right: 16,
-          top: 16,
-          zIndex: 99,
-          padding: "7px 14px",
-          borderRadius: 18,
-          background: "#DE1C49",
-          color: "#fff",
-          fontWeight: 700,
-          border: "none",
-          boxShadow: "0 2px 8px rgba(30,10,30,0.13)",
-          cursor: "pointer"
-        }}
-        onClick={() => setShowVoting(v => !v)}
-      >
-        {showVoting ? "Ver Armado de Equipos" : "Ver Votación"}
-      </button>
-      {showVoting ? <VotingView /> : <AppNormal />}
+  // Esta función resetea TODO a home:
+  function handleReset() {
+    setModo(null);
+    setJugador(null);
+  }
+
+  if (!modo) return <Home onSelectModo={setModo} />;
+
+  // --- CORREGIDO: Prop correcta para AppNormal ---
+  if (modo === "simple") return <AppNormal onBackToHome={handleReset} />;
+
+  // El modo jugador: primero registrar el jugador, después votar
+  if (modo === "jugador") {
+    if (!jugador) {
+      return <RegistroJugador onRegister={setJugador} />;
+    }
+    // Pasás los datos del jugador y el onReset al VotingView
+    return <VotingView jugadorActual={jugador} onReset={handleReset} />;
+  }
+
+  if (modo === "admin") return (
+    <div style={{ textAlign: "center", marginTop: 100, color: "#0EA9C6" }}>
+      <h1>Panel de Administrador</h1>
+      <p>(En construcción...)</p>
     </div>
   );
 }

@@ -1087,3 +1087,175 @@ body[data-theme="dark"] .team-list li .player-main-content span {
 body[data-theme="dark"] .team-score {
   color: #44adff !important;
 }
+
+
+/* --- Botones de lista de frecuentes (alineados, igual tamaño, hover sutil) --- */
+.frequent-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.add-player-button,
+.delete-player-button,
+.edit-player-button {
+  min-width: 34px;
+  min-height: 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  font-weight: 900;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  outline: none;
+  margin: 0;
+  padding: 0;
+  transition: background 0.18s, box-shadow .12s, filter .12s;
+}
+
+.add-player-button {
+  background: var(--btn-success);
+  color: #fff;
+}
+.add-player-button.disabled {
+  background: #ededed !important;
+  color: #babec4 !important;
+  cursor: not-allowed;
+}
+.add-player-button:not(.disabled):hover { box-shadow: 0 0 7px #38e0a8aa; filter: brightness(1.08);}
+.delete-player-button {
+  background: var(--btn-danger);
+  color: #fff;
+}
+.delete-player-button:hover { background: #c22; box-shadow: 0 0 7px #f19b9baa;}
+.edit-player-button {
+  background: #ffd600;
+  color: #664a00;
+}
+.edit-player-button:hover { box-shadow: 0 0 7px #ffe78eaa; filter: brightness(1.09);}
+
+.frequent-player-row {
+  display: flex;
+  align-items: center;
+  padding: 3px 0 3px 8px;
+  border-radius: 10px;
+  font-size: 1.04em;
+}
+
+/* --- Modal flotante de edición de jugador frecuente --- */
+.modal-backdrop {
+  position: fixed; left: 0; top: 0; width: 100vw; height: 100vh;
+  background: rgba(60, 62, 82, 0.19);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2000;
+}
+.modal-content {
+  background: #fff;
+  padding: 36px 32px 30px 32px;
+  border-radius: 38px;
+  min-width: 380px;
+  max-width: 96vw;
+  box-shadow: 0 10px 50px 0 rgba(40,40,90,0.19);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.modal-content h2 {
+  text-align: center;
+  color: #DE1C49;
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+.modal-content label {
+  font-weight: 700;
+  font-size: 1.22em;
+  margin-bottom: 2px;
+}
+.modal-content input {
+  font-size: 1.17em;
+  padding: 10px;
+  border-radius: 13px;
+  border: 2px solid #eceaf1;
+  margin-bottom: 8px;
+  outline: none;
+  transition: border .16s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.modal-content input.input-error {
+  border-color: #DE1C49;
+}
+.modal-content input[type="number"] {
+  width: 100%;
+  border: 2px solid #0EA9C6;
+}
+.modal-actions {
+  display: flex;
+  gap: 18px;
+  margin-top: 10px;
+  justify-content: center;
+}
+.modal-btn {
+  font-size: 1.18em;
+  font-weight: 700;
+  padding: 14px 0;
+  border-radius: 18px;
+  border: none;
+  min-width: 140px;
+  box-shadow: 0 2px 8px #dde;
+  cursor: pointer;
+  transition: background .14s, color .14s;
+}
+.modal-btn.save {
+  background: #09B1CD;
+  color: #fff;
+}
+.modal-btn.cancel {
+  background: #eee;
+  color: #555;
+}
+.modal-btn.save:hover { filter: brightness(1.06);}
+.modal-btn.cancel:hover { background: #e0e0e0;}
+.modal-error { color: #DE1C49; font-size: 1.02em; margin-top: 3px; }
+
+
+.lock-player-button {
+  font-size: 24px !important;
+  margin-left: 7px;
+  background: none !important;
+  border: none !important;
+  cursor: pointer;
+  transition: color 0.17s, filter 0.17s;
+  color: #bbb;
+  padding: 0 !important;
+  outline: none !important;
+}
+.lock-player-button.locked {
+  color: #b6b8ba !important;
+  filter: grayscale(0.48) brightness(0.86);
+}
+.lock-player-button:active {
+  filter: brightness(1.2) saturate(1.4);
+}
+.lock-player-button:hover {
+  color: #ffd600;
+}
+.frequent-player-name {
+  color: #23A4EC !important;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.edit-modal-content input[name="name"] {
+  font-family: inherit;
+  letter-spacing: 0.02em;
+}
+.edit-modal-content input[name="score"]::-webkit-input-placeholder { color: #bbb; }
+.edit-modal-content input[name="score"]:invalid { border-color: #DE1C49; }
+.edit-modal-content input[name="score"]:valid { border-color: #00b6de; }
+.edit-modal-content input[name="score"] {
+  width: 100%;
+  font-size: 18px;
+}

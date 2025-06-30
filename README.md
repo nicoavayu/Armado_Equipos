@@ -68,3 +68,37 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+
+🟣 Rama votacion-svg-magenta
+✨ Cambios principales
+Nuevo sistema de votación con estrellas SVG animadas y color magenta.
+
+UX mejorada: número debajo de las estrellas, feedback en hover, puntajes se guardan bien.
+
+Edición de puntaje para cada jugador funcionando y reflejando el cambio en el resumen.
+
+Lógica corregida para votaciones y edición.
+
+📂 Archivos principales modificados/agregados
+src/StarRating.js (componente SVG animado)
+
+src/VotingView.js (componente de votación actualizado)
+
+src/VotingView.css (estilos de las estrellas)
+
+src/App.js (importaciones y estructura)
+
+🟢 Estado de la rama
+Cambios subidos y funcionando correctamente en local.
+
+Rama aislada de main. No mergeada todavía.
+
+Puede mergearse a main luego de las pruebas finales.
+
+📝 Pendiente/Testear
+Testear la experiencia de usuario en mobile (responsividad).
+
+Revisar que los puntajes se mantengan después de recargar, si se quiere persistencia mayor (ahora son temporales).
+
+Agregar nuevas features o corregir feedback futuro si surge.

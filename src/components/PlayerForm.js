@@ -1,78 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
-function PlayerForm({ onAddPlayer, players }) {
-  const [name, setName] = useState('');
-  const [score, setScore] = useState('');
-  const [nickname, setNickname] = useState('');
+// Sólo letras y espacios (acentos incluidos)
+const onlyLetters = str => /^[A-Za-záéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(str.trim()) && str.trim().length > 0;
 
-  const exists = n =>
-    players.some(
-      p => p.name.trim().toLowerCase() === n.trim().toLowerCase()
-    );
+export default function PlayerForm({ onAddPlayer, players }) {
+  const [name, setName] = useState("");
+  const [score, setScore] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [foto, setFoto] = useState(null);
 
-  const handleSubmit = e => {
+  function handleSubmit(e) {
     e.preventDefault();
-    const numScore = Number(score);
-
-    if (!name.trim()) return;
-    if (exists(name)) {
-      window.alert('Ese jugador ya está en la lista');
+    // Validación nombre SOLO LETRAS
+    if (!onlyLetters(name)) {
+      alert("Solo se permiten letras y espacios para el nombre.");
       return;
     }
-    if (!numScore || numScore < 1 || numScore > 10) {
-      window.alert('El puntaje debe ser un número del 1 al 10');
+    // Validación puntaje numérico de 1 a 10
+    const puntajeNum = Number(score);
+    if (!Number.isFinite(puntajeNum) || puntajeNum < 1 || puntajeNum > 10) {
+      alert("El puntaje debe ser un número entre 1 y 10.");
       return;
     }
-
     onAddPlayer({
       name: name.trim(),
-      score: numScore,
-      nickname: nickname.trim() || undefined
+      score: puntajeNum,
+      nickname: nickname.trim(),
+      foto: foto || null
     });
-    setName('');
-    setScore('');
-    setNickname('');
-  };
+    setName("");
+    setScore("");
+    setNickname("");
+    setFoto(null);
+  }
 
   return (
-    <form onSubmit={handleSubmit} autoComplete="off">
-      <label>
-        Nombre:
-        <input
-          type="text"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder="Nombre del jugador"
-          required
-        />
-      </label>
-      <label>
-        Puntaje (1-10):
-        <input
-          type="number"
-          value={score}
-          min={1}
-          max={10}
-          step={1}
-          onChange={e => setScore(e.target.value)}
-          placeholder="Puntaje"
-          required
-        />
-      </label>
-      <label>
-        Apodo (opcional):
-        <input
-          type="text"
-          value={nickname}
-          onChange={e => setNickname(e.target.value)}
-          placeholder="Apodo"
-        />
-      </label>
-      <button type="submit" className="main-button">
-        Agregar Jugador
-      </button>
+    <form className="player-form" onSubmit={handleSubmit} autoComplete="off">
+      <label>Nombre</label>
+      <input
+        type="text"
+        value={name}
+        onChange={e =>
+          setName(e.target.value.replace(/[^A-Za-záéíóúÁÉÍÓÚñÑüÜ\s]/g, ""))
+        }
+        placeholder="Nombre"
+        required
+        maxLength={18}
+      />
+      <label>Apodo</label>
+      <input
+        type="text"
+        value={nickname}
+        onChange={e => setNickname(e.target.value)}
+        placeholder="Apodo (opcional)"
+        maxLength={16}
+      />
+      <label>Puntaje</label>
+      <input
+        type="number"
+        value={score}
+        onChange={e => setScore(e.target.value.replace(/[^0-9]/g, ""))}
+        min={1}
+        max={10}
+        placeholder="Puntaje (1-10)"
+        required
+        maxLength={2}
+        inputMode="numeric"
+        pattern="[0-9]*"
+      />
+      <button type="submit" style={{ marginTop: 10 }}>Agregar jugador</button>
     </form>
   );
 }
-
-export default PlayerForm;
