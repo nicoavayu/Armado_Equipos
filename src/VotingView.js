@@ -1,4 +1,21 @@
-import React, { useState } from "react";
+// src/VotingView.js
+import React, { useState, useEffect } from "react";
+import { supabase } from "./supabase";
+
+// Avatar por defecto
+const DefaultAvatar = (
+  <div style={{
+    width: 84, height: 84, borderRadius: "50%",
+    background: "#eceaf1", display: "flex",
+    alignItems: "center", justifyContent: "center"
+  }}>
+    <svg width="44" height="44" viewBox="0 0 38 38" fill="none">
+      <circle cx="19" cy="19" r="19" fill="#eceaf1" />
+      <circle cx="19" cy="14" r="7" fill="#bbb" />
+      <ellipse cx="19" cy="29" rx="11" ry="7" fill="#bbb" />
+    </svg>
+  </div>
+);
 
 // Componente de estrellas
 function StarRating({ value, onChange, max = 10, hovered, setHovered }) {
@@ -7,10 +24,14 @@ function StarRating({ value, onChange, max = 10, hovered, setHovered }) {
       {[...Array(max)].map((_, i) => (
         <svg
           key={i}
-          width="34" height="34" viewBox="0 0 24 24"
+          width="34"
+          height="34"
+          viewBox="0 0 24 24"
           style={{
             cursor: "pointer",
-            transform: hovered !== null ? (i < hovered ? "scale(1.22)" : "scale(1)") : (i < value ? "scale(1.15)" : "scale(1)"),
+            transform: hovered !== null
+              ? (i < hovered ? "scale(1.22)" : "scale(1)")
+              : (i < value ? "scale(1.15)" : "scale(1)"),
             transition: "transform .12s"
           }}
           onMouseEnter={() => setHovered(i + 1)}
@@ -33,205 +54,224 @@ function StarRating({ value, onChange, max = 10, hovered, setHovered }) {
   );
 }
 
-// Tus jugadores de ejemplo
-const initialJugadores = [
-  { nombre: "Nico" },
-  { nombre: "Beto" },
-  { nombre: "Fede" },
-  { nombre: "Alex" }
-];
+export default function VotingView({ onReset }) {
+  // Estados principales
+  const [step, setStep] = useState(0);
+  const [jugadores, setJugadores] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [nombre, setNombre] = useState("");
+  const [jugador, setJugador] = useState(null);
 
-export default function VotingView({ jugadorActual, onReset }) {
-  const [yo, setYo] = useState(jugadorActual || null);
-  const [jugadores, setJugadores] = useState(initialJugadores);
-  const [step, setStep] = useState(jugadorActual ? 1 : 0);
-  const [photoUrl, setPhotoUrl] = useState(null);
-  const [hovered, setHovered] = useState(null);
-
-  // Autopuntaje
-  const [miScore, setMiScore] = useState(5);
+  // Foto
+  const [file, setFile] = useState(null);
+  const [fotoPreview, setFotoPreview] = useState(null);
+  const [fotoUrl, setFotoUrl] = useState(null);
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
 
   // Votación
   const [current, setCurrent] = useState(0);
   const [votos, setVotos] = useState({});
+  const [hovered, setHovered] = useState(null);
+
+  // Edición y confirmación
+  const [editandoIdx, setEditandoIdx] = useState(null);
+  const [confirmando, setConfirmando] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
-  const [editingName, setEditingName] = useState(null);
 
-  // REGISTRO + AUTOPUNTAJE
-  function handleRegistro(e) {
-    e.preventDefault();
-    const nombre = e.target.nombre.value.trim();
-    if (!nombre) return;
-    setYo({ nombre, foto: photoUrl ? { url: photoUrl } : null, score: miScore });
-    // Agrego a jugadores frecuentes con score >= 1
-    const safeScore = Math.max(1, miScore);
-    const jugador = { nombre, foto: photoUrl ? { url: photoUrl } : null, score: safeScore };
-    // Guardar en jugadores frecuentes localStorage
-    const prev = JSON.parse(localStorage.getItem("frequentPlayers")) || [];
-    if (!prev.find(p => (p.nombre || p.name)?.toLowerCase() === nombre.toLowerCase())) {
-      localStorage.setItem("frequentPlayers", JSON.stringify([...prev, jugador]));
-    } else {
-      // Si ya existe, lo actualiza
-      const newList = prev.map(p =>
-        (p.nombre || p.name)?.toLowerCase() === nombre.toLowerCase()
-          ? { ...p, score: safeScore, foto: jugador.foto }
-          : p
-      );
-      localStorage.setItem("frequentPlayers", JSON.stringify(newList));
-    }
-    if (!jugadores.find(j => j.nombre.toLowerCase() === nombre.toLowerCase())) {
-      setJugadores(prev => [...prev, { nombre, foto: photoUrl ? { url: photoUrl } : null }]);
-    }
-    setStep(1);
-  }
-
-  // Mostrar solo jugadores a votar (sin mí mismo)
-  const jugadoresParaVotar = jugadores.filter(j => j.nombre !== (yo && yo.nombre));
-
-  function handleVote(valor) {
-    const target = editingName 
-      ? editingName 
-      : jugadoresParaVotar[current].nombre;
-    setVotos(prev => ({ ...prev, [target]: valor }));
-    setHovered(null);
-    setTimeout(() => {
-      if (editingName) {
-        setEditingName(null);
-        setFinalizado(true);
-      } else if (current < jugadoresParaVotar.length - 1) {
-        setCurrent(c => c + 1);
-      } else {
-        setFinalizado(true);
+  // Cargar jugadores de Supabase al montar
+  useEffect(() => {
+    async function fetchJugadores() {
+      setLoading(true);
+      let { data, error } = await supabase
+        .from("jugadores")
+        .select("id, nombre, foto_url")
+        .order("nombre", { ascending: true });
+      setLoading(false);
+      if (error) {
+        alert("Error cargando jugadores: " + error.message);
+        setJugadores([]);
+        return;
       }
-    }, 170);
-  }
+      setJugadores(data || []);
+    }
+    fetchJugadores();
+  }, []);
 
-  // Edición puntual
-  if (editingName) {
-    const jugadorEditar = jugadoresParaVotar.find(j => j.nombre === editingName);
+  // Al seleccionar nombre, setea jugador y foto
+  useEffect(() => {
+    if (!nombre) return;
+    const j = jugadores.find(j => j.nombre === nombre);
+    setJugador(j || null);
+    setFotoUrl(j?.foto_url || null);
+    setFotoPreview(j?.foto_url || null);
+  }, [nombre, jugadores]);
+
+  // Paso 0: Identificarse
+  if (step === 0) {
     return (
       <div style={{
-        maxWidth: 390,
+        maxWidth: 420,
         margin: "44px auto 0 auto",
-        padding: "26px 24px 36px 24px",
+        padding: "28px 28px 34px 28px",
         background: "#fff",
         borderRadius: 32,
         boxShadow: "0 2px 18px 0 rgba(34, 40, 80, 0.10)",
         fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif"
       }}>
-        <h2 style={{ color: "#DE1C49", textAlign: "center" }}>Editar puntaje</h2>
-        <div style={{ textAlign: "center", fontWeight: 600, fontSize: 22, marginBottom: 12 }}>
-          {jugadorEditar.nombre}
-        </div>
-        <div style={{
-          width: 96, height: 96, borderRadius: "50%", border: "2px solid #eceaf1",
-          background: jugadorEditar.foto ? `url(${jugadorEditar.foto.url}) center/cover` : "#f5f5f5",
-          margin: "0 auto 16px auto", display: "flex", alignItems: "center", justifyContent: "center"
-        }}>
-          {!jugadorEditar.foto && (
-            <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-              <circle cx="28" cy="28" r="28" fill="#eceaf1" />
-              <circle cx="28" cy="23" r="11" fill="#bbb" />
-              <ellipse cx="28" cy="42.5" rx="15" ry="9.5" fill="#bbb" />
-            </svg>
-          )}
-        </div>
-        <StarRating
-          value={votos[jugadorEditar.nombre] || 0}
-          onChange={handleVote}
-          hovered={hovered}
-          setHovered={setHovered}
-        />
-        <div style={{
-          marginTop: 10,
-          fontSize: 24,
-          color: "#DE1C49",
-          fontWeight: 700,
-          letterSpacing: "-1px",
-          textAlign: "center"
-        }}>
-          {hovered !== null ? hovered : (votos[jugadorEditar.nombre] || 0)}
-        </div>
-      </div>
-    );
-  }
-
-  // RESUMEN - solo muestra a los demás jugadores, NO tu nombre
-  if (finalizado) {
-    return (
-      <div style={{
-        maxWidth: 470,
-        margin: "44px auto 0 auto",
-        padding: "26px 24px 36px 24px",
-        background: "#fff",
-        borderRadius: 32,
-        boxShadow: "0 2px 18px 0 rgba(34, 40, 80, 0.10)",
-        fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif"
-      }}>
-        <h2 style={{ color: "#DE1C49", textAlign: "center", fontSize: 38, fontWeight: 800, marginBottom: 30 }}>Tu votación</h2>
-        <ul style={{ padding: 0, margin: "22px 0 0 0", listStyle: "none" }}>
-          {jugadoresParaVotar.map(j => (
-            <li key={j.nombre} style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontWeight: 700,
-              color: "#232a32",
-              marginBottom: 18,
-              fontSize: 25
+        <h2 style={{ color: "#DE1C49", textAlign: "center", marginBottom: 18 }}>¿Quién sos?</h2>
+        {loading && <div style={{ textAlign: "center" }}>Cargando...</div>}
+        <ul style={{ listStyle: "none", padding: 0, margin: "18px 0 28px 0" }}>
+          {jugadores.map(j => (
+            <li key={j.id} style={{
+              margin: "11px 0", fontWeight: 700, fontSize: 21, display: "flex", alignItems: "center"
             }}>
-              <span style={{ fontWeight: 800 }}>{j.nombre}:</span>
-              <span style={{ color: "#DE1C49", minWidth: 36, textAlign: "center", fontWeight: 700 }}>
-                {votos[j.nombre] || 0}
-              </span>
               <button
                 style={{
-                  marginLeft: 16,
-                  padding: "10px 26px",
-                  fontWeight: 700,
-                  borderRadius: 26,
-                  background: "#09B1CD",
-                  color: "#fff",
+                  flex: 1,
+                  background: nombre === j.nombre ? "#0EA9C6" : "#f4f4f4",
+                  color: nombre === j.nombre ? "#fff" : "#232a32",
                   border: "none",
+                  borderRadius: 13,
+                  fontSize: 22,
+                  padding: "15px 0",
+                  fontWeight: 800,
                   cursor: "pointer",
-                  fontSize: 23
+                  transition: "background .18s"
                 }}
-                onClick={() => setEditingName(j.nombre)}
-              >Editar</button>
+                onClick={() => setNombre(j.nombre)}
+              >
+                {j.nombre}
+              </button>
             </li>
           ))}
         </ul>
-        <div style={{ textAlign: "center", marginTop: 28, color: "#aaa", fontSize: 21, fontWeight: 500 }}>
-          ¡Gracias por votar!
-        </div>
-        <div style={{ textAlign: "center", marginTop: 30 }}>
-          <button
-            onClick={() => {
-              // Volver al inicio
-              if (onReset) onReset();
-            }}
-            style={{
-              fontSize: 27,
-              fontWeight: 700,
-              padding: "16px 0",
-              background: "#09B1CD",
-              border: "none",
-              borderRadius: 28,
-              color: "#fff",
-              width: 320,
-              boxShadow: "0 2px 10px #dde",
-              marginTop: 18,
-              cursor: "pointer"
-            }}
-          >Volver al inicio</button>
-        </div>
+        <button
+          style={{
+            width: "100%", marginTop: 10, padding: "14px 0",
+            background: "#DE1C49", color: "#fff", border: "none",
+            borderRadius: 18, fontSize: 19, fontWeight: 700, cursor: "pointer"
+          }}
+          disabled={!nombre}
+          onClick={() => setStep(1)}
+        >
+          Confirmar y continuar
+        </button>
       </div>
     );
   }
 
-  // Votación normal
-  if (step === 1 && yo) {
-    const jugadorVotar = jugadoresParaVotar[current];
+  // Paso 1: Subir foto (opcional)
+  if (step === 1) {
+    const handleFile = (e) => {
+      if (e.target.files && e.target.files[0]) {
+        setFile(e.target.files[0]);
+        setFotoPreview(URL.createObjectURL(e.target.files[0]));
+      }
+    };
+
+    const handleFotoUpload = async () => {
+      if (!file || !jugador) return;
+      setSubiendoFoto(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${jugador.id}_${Date.now()}.${fileExt}`;
+      const { error } = await supabase.storage
+        .from("jugadores-fotos")
+        .upload(fileName, file, { upsert: true });
+      if (error) {
+        alert("Error subiendo foto: " + error.message);
+        setSubiendoFoto(false);
+        return;
+      }
+      const { data: publicUrlData } = supabase.storage
+        .from("jugadores-fotos")
+        .getPublicUrl(fileName);
+      await supabase
+        .from("jugadores")
+        .update({ foto_url: publicUrlData.publicUrl })
+        .eq("id", jugador.id);
+      setFotoUrl(publicUrlData.publicUrl);
+      setFotoPreview(publicUrlData.publicUrl);
+      setSubiendoFoto(false);
+      setFile(null);
+      alert("¡Foto cargada!");
+    };
+
+    return (
+      <div style={{
+        maxWidth: 420,
+        margin: "44px auto 0 auto",
+        padding: "28px 28px 34px 28px",
+        background: "#fff",
+        borderRadius: 32,
+        boxShadow: "0 2px 18px 0 rgba(34, 40, 80, 0.10)",
+        fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif"
+      }}>
+        <h2 style={{ color: "#DE1C49", textAlign: "center", marginBottom: 12 }}>
+          ¡Hola, {nombre}!
+        </h2>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 18 }}>
+          {fotoPreview ? (
+            <img src={fotoPreview} alt="foto" style={{ width: 84, height: 84, borderRadius: "50%", objectFit: "cover" }} />
+          ) : DefaultAvatar}
+          <label style={{ marginTop: 13, cursor: "pointer", color: "#0EA9C6" }}>
+            Cambiar foto
+            <input type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+          </label>
+        </div>
+        {!fotoPreview && (
+          <div style={{ fontSize: 15, color: "#999", textAlign: "center", marginBottom: 18 }}>
+            ¿Querés que tus amigos vean tu foto? Cargala ahora.<br />(Opcional)
+          </div>
+        )}
+        {file && (
+          <button
+            disabled={subiendoFoto}
+            onClick={handleFotoUpload}
+            style={{
+              width: "100%",
+              padding: "12px 0",
+              background: "#0EA9C6",
+              color: "#fff",
+              border: "none",
+              borderRadius: 16,
+              fontWeight: 700,
+              fontSize: 17,
+              marginBottom: 15,
+              cursor: "pointer"
+            }}>
+            {subiendoFoto ? "Subiendo..." : "Guardar foto"}
+          </button>
+        )}
+        <button
+          style={{
+            width: "100%", marginTop: 8, padding: "14px 0",
+            background: "#DE1C49", color: "#fff", border: "none",
+            borderRadius: 18, fontSize: 18, fontWeight: 700, cursor: "pointer"
+          }}
+          onClick={() => setStep(2)}
+        >
+          {fotoPreview ? "Continuar" : "Continuar sin foto"}
+        </button>
+      </div>
+    );
+  }
+
+  // Jugadores a votar: todos menos yo
+  const jugadoresParaVotar = jugadores.filter(j => j.nombre !== nombre);
+
+  // Paso 2: Votar a los demás jugadores (incluye edición)
+  if (step === 2 || editandoIdx !== null) {
+    // ¿Estamos editando alguna calificación?
+    const index = editandoIdx !== null ? editandoIdx : current;
+    if (index >= jugadoresParaVotar.length) {
+      // Ir al resumen
+      setTimeout(() => setStep(3), 300);
+      return null;
+    }
+
+    const jugadorVotar = jugadoresParaVotar[index];
+    const valor = votos[jugadorVotar.id] || 0;
+
     return (
       <div style={{
         maxWidth: 390,
@@ -242,26 +282,31 @@ export default function VotingView({ jugadorActual, onReset }) {
         boxShadow: "0 2px 18px 0 rgba(34, 40, 80, 0.10)",
         fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif"
       }}>
-        <h2 style={{ color: "#DE1C49", textAlign: "center" }}>Calificá a tus compañeros</h2>
-        <div style={{ textAlign: "center", fontWeight: 600, fontSize: 22, marginBottom: 12 }}>
+        <h2 style={{ color: "#DE1C49", textAlign: "center" }}>
+          Calificá a tus compañeros
+        </h2>
+        <div style={{ textAlign: "center", fontWeight: 600, fontSize: 22, margin: "10px 0 8px 0" }}>
           {jugadorVotar.nombre}
         </div>
         <div style={{
           width: 96, height: 96, borderRadius: "50%", border: "2px solid #eceaf1",
-          background: jugadorVotar.foto ? `url(${jugadorVotar.foto.url}) center/cover` : "#f5f5f5",
+          background: jugadorVotar.foto_url ? `url(${jugadorVotar.foto_url}) center/cover` : "#f5f5f5",
           margin: "0 auto 16px auto", display: "flex", alignItems: "center", justifyContent: "center"
         }}>
-          {!jugadorVotar.foto && (
-            <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-              <circle cx="28" cy="28" r="28" fill="#eceaf1" />
-              <circle cx="28" cy="23" r="11" fill="#bbb" />
-              <ellipse cx="28" cy="42.5" rx="15" ry="9.5" fill="#bbb" />
-            </svg>
-          )}
+          {!jugadorVotar.foto_url && DefaultAvatar}
         </div>
         <StarRating
-          value={votos[jugadorVotar.nombre] || 0}
-          onChange={handleVote}
+          value={valor}
+          onChange={valor => {
+            setVotos(prev => ({ ...prev, [jugadorVotar.id]: valor }));
+            if (editandoIdx !== null) {
+              setEditandoIdx(null);
+              setStep(3); // volver al resumen después de editar
+            } else {
+              setCurrent(cur => cur + 1);
+            }
+            setHovered(null);
+          }}
           hovered={hovered}
           setHovered={setHovered}
         />
@@ -273,89 +318,144 @@ export default function VotingView({ jugadorActual, onReset }) {
           letterSpacing: "-1px",
           textAlign: "center"
         }}>
-          {hovered !== null ? hovered : (votos[jugadorVotar.nombre] || 0)}
+          {hovered !== null ? hovered : (valor || 0)}
         </div>
+        <button
+          style={{
+            marginTop: 22,
+            width: "100%",
+            padding: "14px 0",
+            background: "#b2b2af",
+            color: "#fff",
+            border: "none",
+            borderRadius: 14,
+            fontWeight: 700,
+            fontSize: 18,
+            cursor: "pointer"
+          }}
+          onClick={() => {
+            setVotos(prev => ({ ...prev, [jugadorVotar.id]: undefined }));
+            if (editandoIdx !== null) {
+              setEditandoIdx(null);
+              setStep(3);
+            } else {
+              setCurrent(cur => cur + 1);
+            }
+            setHovered(null);
+          }}
+        >
+          No lo conozco
+        </button>
       </div>
     );
   }
 
-  // REGISTRO + AUTOPUNTAJE
-  return (
-    <form onSubmit={handleRegistro} style={{
-      maxWidth: 390, margin: "44px auto 0 auto", padding: "26px 24px 36px 24px",
-      background: "#fff", borderRadius: 32, boxShadow: "0 2px 18px 0 rgba(34, 40, 80, 0.10)",
-      fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif"
-    }}>
-      <h2 style={{ color: "#DE1C49", textAlign: "center" }}>Registrate</h2>
-      <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 18 }}>
-        <label>
-          <input
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={e => {
-              if (e.target.files && e.target.files[0]) {
-                const reader = new FileReader();
-                reader.onload = (e2) => setPhotoUrl(e2.target.result);
-                reader.readAsDataURL(e.target.files[0]);
-              }
-            }}
-          />
-          <div style={{
-            width: 56, height: 56, borderRadius: "50%",
-            background: photoUrl ? `url(${photoUrl}) center/cover` : "#eceaf1",
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: "pointer", border: "2px solid #eceaf1"
-          }}>
-            {!photoUrl && (
-              <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
-                <circle cx="19" cy="19" r="19" fill="#eceaf1" />
-                <circle cx="19" cy="14" r="7" fill="#bbb" />
-                <ellipse cx="19" cy="29" rx="11" ry="7" fill="#bbb" />
-                <text x="19" y="22" textAnchor="middle" fontSize="24" fill="#bbb" dy="0.5em">+</text>
-              </svg>
-            )}
-          </div>
-        </label>
-        <input
-          autoFocus
-          required
-          name="nombre"
-          placeholder="Tu nombre"
-          className="voting-input"
+  // Paso 3: Resumen y edición antes de confirmar
+  if (step === 3 && !finalizado) {
+    return (
+      <div style={{
+        maxWidth: 420,
+        margin: "44px auto 0 auto",
+        padding: "28px 20px 38px 20px",
+        background: "#fff",
+        borderRadius: 32,
+        boxShadow: "0 2px 22px 0 rgba(34, 40, 80, 0.11)",
+        fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
+        textAlign: "center"
+      }}>
+        <h2 style={{ color: "#0EA9C6", fontSize: 23, marginBottom: 20 }}>
+          Confirmá tus calificaciones
+        </h2>
+        <div>
+          {jugadoresParaVotar.map((j, idx) => (
+            <div key={j.id} style={{
+              display: "flex", alignItems: "center", gap: 15,
+              background: "#f6f6f8", borderRadius: 12, padding: "12px 10px", margin: "10px 0"
+            }}>
+              <div>
+                {j.foto_url ?
+                  <img src={j.foto_url} alt="foto" style={{ width: 54, height: 54, borderRadius: "50%", objectFit: "cover" }} />
+                  : DefaultAvatar
+                }
+              </div>
+              <div style={{ flex: 1, textAlign: "left" }}>
+                <div style={{ fontWeight: 700, fontSize: 19, marginBottom: 1 }}>{j.nombre}</div>
+                <div style={{ color: "#DE1C49", fontSize: 19, fontWeight: 800 }}>
+                  {votos[j.id] ? votos[j.id] + "/10" : "No calificado"}
+                </div>
+              </div>
+              <button
+                style={{
+                  background: "#0EA9C6", color: "#fff", border: "none",
+                  borderRadius: 10, padding: "7px 13px", fontWeight: 700, cursor: "pointer"
+                }}
+                onClick={() => setEditandoIdx(idx)}
+              >Editar</button>
+            </div>
+          ))}
+        </div>
+        <button
           style={{
-            flex: 1, fontSize: 18, border: "none", borderBottom: "2px solid #DE1C49",
-            outline: "none", padding: "12px 10px", fontWeight: 600, borderRadius: 7
+            marginTop: 16, width: "100%", padding: "16px 0",
+            background: "#DE1C49", color: "#fff", border: "none",
+            borderRadius: 18, fontSize: 20, fontWeight: 800, cursor: "pointer"
           }}
-        />
+          onClick={async () => {
+            setConfirmando(true);
+            // Busca ID del votante (jugador actual)
+            const votanteId = jugador?.id;
+            // Guarda cada voto en Supabase
+            for (const j of jugadoresParaVotar) {
+              // Solo guarda si hay puntaje (omití "No lo conozco")
+              if (votos[j.id]) {
+                await supabase.from("votos").insert({
+                  votado_id: j.id,
+                  votante_id: votanteId,
+                  puntaje: votos[j.id]
+                });
+              }
+            }
+            setConfirmando(false);
+            setFinalizado(true);
+          }}
+          disabled={confirmando}
+        >
+          {confirmando ? "Guardando..." : "Confirmar mis votos"}
+        </button>
       </div>
-      <div style={{ marginBottom: 22 }}>
-        <label style={{ display: "block", marginBottom: 6, color: "#555", fontWeight: 700, fontSize: 17 }}>
-          ¿Qué puntaje te das?
-        </label>
-        <StarRating
-          value={miScore}
-          onChange={v => setMiScore(Math.max(1, v))}
-          hovered={hovered}
-          setHovered={setHovered}
-        />
-        <div style={{
-          fontSize: 20,
-          color: "#DE1C49",
-          textAlign: "center",
-          fontWeight: 700
-        }}>
-          {hovered !== null ? hovered : miScore}
-        </div>
-        <div style={{ color: "#888", fontSize: 15, marginTop: 2, textAlign: "center", fontStyle: "italic" }}>
-          Sé honesto 😉
-        </div>
+    );
+  }
+
+  // Paso 4: Mensaje final
+  if (finalizado) {
+    return (
+      <div style={{
+        maxWidth: 410,
+        margin: "64px auto 0 auto",
+        padding: "42px 26px 38px 26px",
+        background: "#fff",
+        borderRadius: 32,
+        boxShadow: "0 2px 22px 0 rgba(34, 40, 80, 0.11)",
+        fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
+        textAlign: "center"
+      }}>
+        <h2 style={{ color: "#0EA9C6", fontSize: 27, marginBottom: 16 }}>
+          ¡Gracias por votar!
+        </h2>
+        <p style={{ fontSize: 17, marginBottom: 27 }}>
+          Tus votos fueron registrados.<br />Podés cerrar esta ventana.
+        </p>
+        <button
+          style={{
+            padding: "11px 26px", borderRadius: 14,
+            background: "#0EA9C6", color: "#fff",
+            fontWeight: 700, fontSize: 18, border: "none", cursor: "pointer"
+          }}
+          onClick={onReset}
+        >Volver al inicio</button>
       </div>
-      <button type="submit" style={{
-        width: "100%", padding: "13px 0", fontWeight: 700, borderRadius: 17,
-        background: "#DE1C49", color: "#fff", border: "none", fontSize: 17,
-        boxShadow: "0 2px 8px rgba(30,10,30,0.13)", cursor: "pointer"
-      }}>Entrar</button>
-    </form>
-  );
+    );
+  }
+
+  return null;
 }

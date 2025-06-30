@@ -1,7 +1,7 @@
 // src/RegistroJugador.js
 import React, { useState } from "react";
 
-// Componente de estrellas igual que en la votación
+// Componente de estrellas (igual que antes)
 function StarRating({ value, onChange, max = 10, hovered, setHovered }) {
   return (
     <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 10 }}>
@@ -38,12 +38,13 @@ function StarRating({ value, onChange, max = 10, hovered, setHovered }) {
   );
 }
 
-export default function RegistroJugador({ onRegister }) {
-  const [nombre, setNombre] = useState("");
+export default function RegistroJugador({ onRegister, jugadores = [] }) {
+  const [selectedName, setSelectedName] = useState("");
   const [fotoURL, setFotoURL] = useState(null);
   const [puntaje, setPuntaje] = useState(5);
   const [hovered, setHovered] = useState(null);
   const [error, setError] = useState("");
+  const [step, setStep] = useState(jugadores?.length ? 0 : 1);
 
   function handleFoto(e) {
     if (e.target.files && e.target.files[0]) {
@@ -51,16 +52,22 @@ export default function RegistroJugador({ onRegister }) {
     }
   }
 
+  function handleSelectName(e) {
+    setSelectedName(e.target.value);
+    setStep(1); // Pasa al paso 2 (foto y autopuntaje)
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
-    if (!nombre.trim()) {
-      setError("Ingresá tu nombre");
+    const nombre = jugadores?.length ? selectedName : e.target.nombre.value.trim();
+    if (!nombre) {
+      setError("Elegí tu nombre");
       return;
     }
     setError("");
 
     const jugador = {
-      nombre: nombre.trim(),
+      nombre,
       foto: fotoURL ? { url: fotoURL } : null,
       score: puntaje
     };
@@ -73,6 +80,54 @@ export default function RegistroJugador({ onRegister }) {
     onRegister(jugador);
   }
 
+  // Paso 0: Elegir el nombre
+  if (jugadores?.length && step === 0) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(90deg,#DE1C49 0%,#0EA9C6 100%)"
+      }}>
+        <form
+          style={{
+            background: "#fff",
+            borderRadius: 28,
+            boxShadow: "0 2px 20px #ccc",
+            padding: 32,
+            minWidth: 320,
+            textAlign: "center"
+          }}>
+          <h2 style={{ color: "#DE1C49", fontWeight: 800, marginBottom: 22 }}>
+            Elegí tu nombre
+          </h2>
+          <select
+            value={selectedName}
+            onChange={handleSelectName}
+            style={{
+              width: "100%",
+              padding: "13px 18px",
+              fontSize: 18,
+              borderRadius: 16,
+              border: "1.5px solid #eceaf1",
+              marginBottom: 18,
+              background: "#f9f9fa",
+              textAlign: "center"
+            }}
+          >
+            <option value="">Seleccioná tu nombre...</option>
+            {jugadores.map(n =>
+              <option key={n} value={n}>{n}</option>
+            )}
+          </select>
+          {error && <div style={{ color: "#DE1C49", fontSize: 15, marginBottom: 10 }}>{error}</div>}
+        </form>
+      </div>
+    );
+  }
+
+  // Paso 1: Foto y autopuntaje
   return (
     <div style={{
       minHeight: "100vh",
@@ -92,7 +147,7 @@ export default function RegistroJugador({ onRegister }) {
           textAlign: "center"
         }}>
         <h2 style={{ color: "#DE1C49", fontWeight: 800, marginBottom: 22 }}>
-          Registrate para votar
+          {selectedName || "Registrate para votar"}
         </h2>
         <div style={{ marginBottom: 16 }}>
           <label htmlFor="fotoJugador" style={{
@@ -127,22 +182,24 @@ export default function RegistroJugador({ onRegister }) {
             />
           </label>
         </div>
-        <input
-          type="text"
-          placeholder="Tu nombre"
-          value={nombre}
-          onChange={e => setNombre(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "13px 18px",
-            fontSize: 18,
-            borderRadius: 16,
-            border: "1.5px solid #eceaf1",
-            marginBottom: 18,
-            background: "#f9f9fa",
-            textAlign: "center",
-          }}
-        />
+        {jugadores?.length === 0 &&
+          <input
+            type="text"
+            placeholder="Tu nombre"
+            value={selectedName}
+            onChange={e => setSelectedName(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "13px 18px",
+              fontSize: 18,
+              borderRadius: 16,
+              border: "1.5px solid #eceaf1",
+              marginBottom: 18,
+              background: "#f9f9fa",
+              textAlign: "center",
+            }}
+          />
+        }
         <div style={{ marginBottom: 18 }}>
           <label style={{ display: "block", marginBottom: 7, color: "#555" }}>
             ¿Con qué puntaje te calificás?

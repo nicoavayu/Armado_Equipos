@@ -1,10 +1,11 @@
 // src/Home.js
 import React from "react";
+import logo from "./Logo.png"; // Usá import si tu bundler lo requiere, sino dejá el string
 
 export default function Home({ onSelectModo }) {
   return (
     <div style={{ maxWidth: 390, margin: "80px auto", padding: 32, textAlign: "center" }}>
-      <img src="logo.png" alt="Logo" style={{ width: 100, marginBottom: 30 }} />
+      <img src={logo} alt="Logo" style={{ width: 100, marginBottom: 30 }} />
       <h1 style={{ color: "#DE1C49", marginBottom: 32 }}>Armando Equipos</h1>
       <button
         style={buttonStyle}
