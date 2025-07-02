@@ -1,0 +1,206 @@
+.admin-panel-container {
+  max-width: 480px;
+  margin: 40px auto;
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 2px 18px #ddd;
+  padding: 38px 26px 30px 26px;
+}
+
+.admin-title {
+  color: #0EA9C6;
+  font-weight: 900;
+  font-size: 2.4rem;
+  margin-bottom: 28px;
+  text-align: left;
+}
+
+.admin-add-row {
+  display: flex;
+  gap: 14px;
+  margin: 34px 0 12px 0;
+}
+
+.admin-input {
+  flex: 1;
+  padding: 15px 16px;
+  font-size: 1.15rem;
+  border-radius: 16px;
+  border: 1.5px solid #eceaf1;
+  background: #f9f9fa;
+}
+
+.admin-add-btn {
+  background: #0EA9C6;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.18rem;
+  border: none;
+  border-radius: 16px;
+  padding: 12px 28px;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.admin-list-title {
+  margin-bottom: 10px;
+  color: #DE1C49;
+  font-weight: 800;
+  font-size: 1.4rem;
+  text-align: left;
+}
+
+.admin-jugadores-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.admin-jugador-row {
+  margin: 10px 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-delete-btn {
+  background: #DE1C49;
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 7px 16px;
+  font-weight: 800;
+  font-size: 1rem;
+  margin-left: 12px;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.admin-share-row {
+  display: flex;
+  gap: 16px;
+  margin: 38px 0 15px 0;
+  flex-wrap: wrap;
+}
+
+.admin-link-btn {
+  background: #0EA9C6;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.2rem;
+  border: none;
+  border-radius: 22px;
+  padding: 18px 32px;
+  cursor: pointer;
+  flex: 1 1 230px;
+  min-width: 180px;
+}
+
+.admin-whatsapp-btn {
+  background: #25D366;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.2rem;
+  border: none;
+  border-radius: 22px;
+  padding: 18px 32px;
+  cursor: pointer;
+  flex: 1 1 230px;
+  min-width: 180px;
+}
+
+.admin-copy-msg {
+  color: #0EA9C6;
+  margin: 13px 0;
+  font-weight: 700;
+  text-align: center;
+}
+
+.admin-votos-status {
+  margin: 24px 0 6px 0;
+  font-size: 1.07rem;
+  font-weight: 600;
+}
+
+.admin-cerrar-btn, .admin-generar-btn {
+  margin-top: 24px;
+  width: 100%;
+  background: #0EA9C6;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.24rem;
+  border: none;
+  border-radius: 20px;
+  padding: 19px 0;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.admin-cerrar-btn {
+  margin-bottom: 12px;
+}
+
+.admin-promedios-list, .admin-equipo-list {
+  list-style: none;
+  padding: 0;
+}
+
+.admin-promedio-row {
+  margin: 9px 0;
+  font-weight: 700;
+}
+
+.admin-equipos-row {
+  margin-top: 36px;
+  display: flex;
+  gap: 28px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.admin-equipo-card {
+  background: #f6f8fb;
+  border-radius: 12px;
+  padding: 22px;
+  min-width: 130px;
+}
+
+.admin-equipo-title {
+  color: #DE1C49;
+  margin-bottom: 12px;
+}
+
+.admin-equipo-jugador {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.admin-equipo-promedio {
+  color: #0EA9C6;
+}
+
+.admin-volver-btn {
+  margin-top: 38px;
+  width: 100%;
+  background: #DE1C49;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.18rem;
+  border: none;
+  border-radius: 20px;
+  padding: 18px 0;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+@media (max-width: 600px) {
+  .admin-panel-container {
+    padding: 16px 3vw 30px 3vw;
+  }
+  .admin-share-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+}

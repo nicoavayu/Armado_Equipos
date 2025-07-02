@@ -1,44 +1,32 @@
 // src/Home.js
 import React from "react";
-import logo from "./Logo.png"; // Usá import si tu bundler lo requiere, sino dejá el string
+import "./Home.css";
+import Logo from "./Logo.png";
+import SvgPelota from "./SvgPelota";
+import SvgPeople from "./SvgPeople";
 
-export default function Home({ onSelectModo }) {
+export default function Home({ onModoSeleccionado }) {
   return (
-    <div style={{ maxWidth: 390, margin: "80px auto", padding: 32, textAlign: "center" }}>
-      <img src={logo} alt="Logo" style={{ width: 100, marginBottom: 30 }} />
-      <h1 style={{ color: "#DE1C49", marginBottom: 32 }}>Armando Equipos</h1>
-      <button
-        style={buttonStyle}
-        onClick={() => onSelectModo("simple")}
-      >
-        Modo Simple
-      </button>
-      <button
-        style={buttonStyle}
-        onClick={() => onSelectModo("jugador")}
-      >
-        Soy Jugador
-      </button>
-      <button
-        style={buttonStyle}
-        onClick={() => onSelectModo("admin")}
-      >
-        Panel Admin
-      </button>
+    <div className="home-bg">
+      <div className="logo-container">
+        <img src={Logo} alt="Logo" className="logo-img" />
+      </div>
+      <div className="cards-container">
+        {/* Modo Rápido */}
+        <div className="home-card" onClick={() => onModoSeleccionado("simple")}>
+          <div className="card-title">RAPIDO</div>
+          <div className="card-icon">
+            <SvgPelota style={{ width: "150px", height: "110px" }} />
+          </div>
+        </div>
+        {/* Modo Participativo */}
+        <div className="home-card" onClick={() => onModoSeleccionado("votacion")}>
+          <div className="card-title">PARTICIPATIVO</div>
+          <div className="card-icon">
+            <SvgPeople style={{ width: "150px", height: "110px" }} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
-
-const buttonStyle = {
-  width: "100%",
-  padding: "18px 0",
-  margin: "12px 0",
-  fontSize: 20,
-  borderRadius: 20,
-  border: "none",
-  fontWeight: 700,
-  background: "#0EA9C6",
-  color: "#fff",
-  cursor: "pointer",
-  boxShadow: "0 2px 8px rgba(30,10,30,0.13)"
-};

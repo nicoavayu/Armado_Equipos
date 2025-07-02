@@ -169,28 +169,52 @@ export default function VotingView({ onReset }) {
       }
     };
 
+    // FUNCIÓN PARA SUBIR Y GUARDAR URL PÚBLICA
     const handleFotoUpload = async () => {
       if (!file || !jugador) return;
       setSubiendoFoto(true);
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${jugador.id}_${Date.now()}.${fileExt}`;
-      const { error } = await supabase.storage
+
+      // 1. Subir archivo al bucket público
+      const { error: uploadError } = await supabase.storage
         .from("jugadores-fotos")
         .upload(fileName, file, { upsert: true });
-      if (error) {
-        alert("Error subiendo foto: " + error.message);
+
+      if (uploadError) {
+        alert("Error subiendo foto: " + uploadError.message);
         setSubiendoFoto(false);
         return;
       }
-      const { data: publicUrlData } = supabase.storage
+
+      // 2. Obtener la URL pública correcta
+      const { data } = supabase
+        .storage
         .from("jugadores-fotos")
         .getPublicUrl(fileName);
-      await supabase
+
+      const fotoUrl = data?.publicUrl;
+      if (!fotoUrl) {
+        alert("No se pudo obtener la URL pública de la foto.");
+        setSubiendoFoto(false);
+        return;
+      }
+
+      // 3. Guardar la URL en el campo foto_url de la tabla jugadores
+      const { error: updateError } = await supabase
         .from("jugadores")
-        .update({ foto_url: publicUrlData.publicUrl })
+        .update({ foto_url: fotoUrl })
         .eq("id", jugador.id);
-      setFotoUrl(publicUrlData.publicUrl);
-      setFotoPreview(publicUrlData.publicUrl);
+
+      if (updateError) {
+        alert("Error guardando foto: " + updateError.message);
+        setSubiendoFoto(false);
+        return;
+      }
+
+      setFotoUrl(fotoUrl);
+      setFotoPreview(fotoUrl);
       setSubiendoFoto(false);
       setFile(null);
       alert("¡Foto cargada!");

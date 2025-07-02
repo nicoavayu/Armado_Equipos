@@ -1,64 +1,61 @@
-import React, { useState, useEffect } from "react";
+import "./AdminPanel.css";
+import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 
 export default function AdminPanel({ onBackToHome }) {
   const [jugadores, setJugadores] = useState([]);
   const [nuevoNombre, setNuevoNombre] = useState("");
-  const [editandoId, setEditandoId] = useState(null);
-  const [editNombre, setEditNombre] = useState("");
   const [copyMsg, setCopyMsg] = useState("");
   const [loading, setLoading] = useState(false);
+  const [votantes, setVotantes] = useState([]);
+  const [votacionCerrada, setVotacionCerrada] = useState(false);
+  const [promedios, setPromedios] = useState([]);
+  const [equipos, setEquipos] = useState([]);
+  const inputRef = useRef();
 
-  // Cargar jugadores al inicio
-  useEffect(() => {
-    fetchJugadores();
-    // eslint-disable-next-line
-  }, []);
+  useEffect(() => { fetchJugadores(); }, []);
 
   async function fetchJugadores() {
     setLoading(true);
     let { data, error } = await supabase
       .from("jugadores")
-      .select("id, nombre")
+      .select("id, nombre, foto_url")
       .order("nombre", { ascending: true });
     setLoading(false);
-    if (!error) setJugadores(data || []);
-    else setJugadores([]);
+    setJugadores(!error ? data || [] : []);
   }
 
-  // Agregar jugador a Supabase
-  async function agregarJugador() {
+  useEffect(() => {
+    if (votacionCerrada) return;
+    async function fetchVotantes() {
+      let { data } = await supabase.from("votos").select("votante_id");
+      const ids = Array.from(new Set((data || []).map(v => v.votante_id)));
+      setVotantes(ids);
+    }
+    fetchVotantes();
+    const interval = setInterval(fetchVotantes, 5000);
+    return () => clearInterval(interval);
+  }, [votacionCerrada]);
+
+  async function agregarJugador(e) {
+    if (e) e.preventDefault();
     const nombre = nuevoNombre.trim();
     if (!nombre) return;
-    // Evitar duplicados
     if (jugadores.some(j => j.nombre.toLowerCase() === nombre.toLowerCase())) return;
     setLoading(true);
-    const { error } = await supabase
-      .from("jugadores")
-      .insert([{ nombre }]);
+    const { error } = await supabase.from("jugadores").insert([{ nombre }]);
     setLoading(false);
     setNuevoNombre("");
+    inputRef.current && inputRef.current.blur();
     if (error) alert("Error agregando jugador: " + error.message);
     fetchJugadores();
   }
 
-  // Eliminar jugador de Supabase
   async function eliminarJugador(id) {
     if (!window.confirm("¿Seguro que querés borrar este jugador?")) return;
     setLoading(true);
     await supabase.from("jugadores").delete().eq("id", id);
     setLoading(false);
-    fetchJugadores();
-  }
-
-  // Editar jugador en Supabase
-  async function editarJugador(id) {
-    if (!editNombre.trim()) return;
-    setLoading(true);
-    await supabase.from("jugadores").update({ nombre: editNombre.trim() }).eq("id", id);
-    setLoading(false);
-    setEditandoId(null);
-    setEditNombre("");
     fetchJugadores();
   }
 
@@ -69,106 +66,133 @@ export default function AdminPanel({ onBackToHome }) {
     setTimeout(() => setCopyMsg(""), 2000);
   }
 
-  return (
-    <div style={{
-      maxWidth: 390, margin: "80px auto", padding: 32, textAlign: "center",
-      background: "#fff", borderRadius: 20, boxShadow: "0 2px 18px #ccc"
-    }}>
-      <h1 style={{ color: "#0EA9C6", fontWeight: 900, marginBottom: 28 }}>Panel de Administrador</h1>
-      <button
-        onClick={onBackToHome}
-        style={{
-          background: "#DE1C49", color: "#fff", fontWeight: 800, fontSize: 17,
-          border: "none", borderRadius: 12, padding: "8px 18px", marginBottom: 25, cursor: "pointer"
-        }}>
-        Volver al inicio
-      </button>
+  function handleWhatsApp() {
+    const url = window.location.origin + "/?modo=jugador";
+    window.open(`https://wa.me/?text=${encodeURIComponent("Entrá a votar para armar los equipos: " + url)}`, "_blank");
+  }
 
-      <div style={{ margin: "35px 0" }}>
+  async function calcularPromedios() {
+    let { data: votos } = await supabase.from("votos").select("votado_id, puntaje");
+    let resultado = {};
+    votos.forEach(({ votado_id, puntaje }) => {
+      if (!resultado[votado_id]) resultado[votado_id] = [];
+      resultado[votado_id].push(puntaje);
+    });
+    const lista = jugadores.map(jug => ({
+      ...jug,
+      promedio: resultado[jug.id]?.length
+        ? (resultado[jug.id].reduce((a, b) => a + b, 0) / resultado[jug.id].length).toFixed(2)
+        : "Sin votos"
+    }));
+    setPromedios(lista);
+  }
+
+  function generarEquipos() {
+    const ordenados = [...promedios]
+      .filter(j => j.promedio !== "Sin votos")
+      .sort((a, b) => b.promedio - a.promedio);
+    const equipo1 = [], equipo2 = [];
+    ordenados.forEach((jug, i) => { (i % 2 === 0 ? equipo1 : equipo2).push(jug); });
+    setEquipos([equipo1, equipo2]);
+  }
+
+  return (
+    <div className="admin-panel-container">
+      <h1 className="admin-title">Modo Participativo</h1>
+
+      {/* Agregar jugador */}
+      <form className="admin-add-row" onSubmit={agregarJugador} autoComplete="off">
         <input
+          className="admin-input"
           type="text"
           value={nuevoNombre}
           onChange={e => setNuevoNombre(e.target.value)}
           placeholder="Nombre jugador"
-          style={{
-            padding: "11px 14px", fontSize: 18, borderRadius: 14, border: "1.5px solid #eceaf1",
-            marginRight: 10, background: "#f9f9fa"
-          }}
           disabled={loading}
+          ref={inputRef}
         />
-        <button
-          onClick={agregarJugador}
-          style={{
-            background: "#0EA9C6", color: "#fff", fontWeight: 800, fontSize: 17,
-            border: "none", borderRadius: 12, padding: "10px 18px", cursor: "pointer"
-          }}
-          disabled={loading}
-        >
-          Agregar
-        </button>
-      </div>
+        <button className="admin-add-btn" type="submit" disabled={loading}>Agregar</button>
+      </form>
 
+      {/* Listado de jugadores */}
       <div style={{ marginBottom: 22 }}>
-        <h3 style={{ marginBottom: 10, color: "#DE1C49", fontWeight: 700 }}>
+        <h3 className="admin-list-title">
           Jugadores ({jugadores.length})
         </h3>
-        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        <ul className="admin-jugadores-list">
           {jugadores.map(j => (
-            <li key={j.id} style={{
-              margin: "7px 0", fontSize: 18, fontWeight: 600,
-              display: "flex", alignItems: "center", justifyContent: "space-between"
-            }}>
-              {editandoId === j.id ? (
-                <>
-                  <input
-                    type="text"
-                    value={editNombre}
-                    onChange={e => setEditNombre(e.target.value)}
-                    style={{
-                      fontSize: 18, padding: "5px 8px", borderRadius: 7, border: "1px solid #ccc"
-                    }}
-                  />
-                  <button
-                    style={{ marginLeft: 8, background: "#0EA9C6", color: "#fff", border: "none", borderRadius: 7, padding: "3px 11px", fontWeight: 700, cursor: "pointer" }}
-                    onClick={() => editarJugador(j.id)}
-                  >Guardar</button>
-                  <button
-                    style={{ marginLeft: 5, background: "#DE1C49", color: "#fff", border: "none", borderRadius: 7, padding: "3px 11px", fontWeight: 700, cursor: "pointer" }}
-                    onClick={() => setEditandoId(null)}
-                  >Cancelar</button>
-                </>
-              ) : (
-                <>
-                  <span>{j.nombre}</span>
-                  <span>
-                    <button
-                      style={{ marginLeft: 6, background: "#0EA9C6", color: "#fff", border: "none", borderRadius: 9, padding: "4px 10px", fontWeight: 700, cursor: "pointer" }}
-                      onClick={() => { setEditandoId(j.id); setEditNombre(j.nombre); }}
-                    >Editar</button>
-                    <button
-                      onClick={() => eliminarJugador(j.id)}
-                      style={{
-                        marginLeft: 6, background: "#DE1C49", color: "#fff",
-                        border: "none", borderRadius: 9, padding: "4px 13px",
-                        fontWeight: 700, cursor: "pointer"
-                      }}>X</button>
-                  </span>
-                </>
-              )}
+            <li className="admin-jugador-row" key={j.id}>
+              <span>{j.nombre}</span>
+              <button
+                className="admin-delete-btn"
+                onClick={() => eliminarJugador(j.id)}
+              >X</button>
             </li>
           ))}
         </ul>
       </div>
 
-      <button
-        onClick={handleCopyLink}
-        style={{
-          background: "#0EA9C6", color: "#fff", fontWeight: 800, fontSize: 19,
-          border: "none", borderRadius: 18, padding: "15px 34px", cursor: "pointer"
+      {/* Botones de compartir */}
+      <div className="admin-share-row">
+        <button className="admin-link-btn" onClick={handleCopyLink}>
+          Copiar link para jugadores
+        </button>
+        <button className="admin-whatsapp-btn" onClick={handleWhatsApp}>
+          Compartir por WhatsApp
+        </button>
+      </div>
+      {copyMsg && <div className="admin-copy-msg">{copyMsg}</div>}
+
+      {/* Votación */}
+      <div className="admin-votos-status">
+        Votaron <span style={{ color: "#0EA9C6" }}>{votantes.length}</span> de <span style={{ color: "#DE1C49" }}>{jugadores.length}</span>
+      </div>
+      {!votacionCerrada && (
+        <button className="admin-cerrar-btn" onClick={async () => {
+          setVotacionCerrada(true);
+          await calcularPromedios();
         }}>
-        Copiar link para jugadores
+          Cerrar votación y ver promedios actuales
+        </button>
+      )}
+
+      {votacionCerrada && (
+        <>
+          <h2 style={{ marginTop: 32, color: "#DE1C49" }}>Promedios</h2>
+          <ul className="admin-promedios-list">
+            {promedios.map(j => (
+              <li className="admin-promedio-row" key={j.id}>
+                {j.nombre}: <span style={{ color: "#0EA9C6" }}>{j.promedio}</span>
+              </li>
+            ))}
+          </ul>
+          <button className="admin-generar-btn" onClick={generarEquipos}>
+            Generar equipos balanceados
+          </button>
+        </>
+      )}
+
+      {equipos.length > 0 && (
+        <div className="admin-equipos-row">
+          {equipos.map((equipo, idx) => (
+            <div className="admin-equipo-card" key={idx}>
+              <h3 className="admin-equipo-title">Equipo {idx + 1}</h3>
+              <ul className="admin-equipo-list">
+                {equipo.map(j => (
+                  <li className="admin-equipo-jugador" key={j.id}>
+                    {j.nombre} <span className="admin-equipo-promedio">({j.promedio})</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Botón volver al final */}
+      <button className="admin-volver-btn" onClick={onBackToHome}>
+        Volver al inicio
       </button>
-      {copyMsg && <div style={{ color: "#09B1CD", marginTop: 15, fontWeight: 700 }}>{copyMsg}</div>}
     </div>
   );
 }
