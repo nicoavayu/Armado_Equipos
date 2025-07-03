@@ -78,6 +78,9 @@ export default function VotingView({ onReset }) {
   const [confirmando, setConfirmando] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
 
+  // NUEVO: Estado para saber si ya votó
+  const [yaVoto, setYaVoto] = useState(false);
+
   // Cargar jugadores de Supabase al montar
   useEffect(() => {
     async function fetchJugadores() {
@@ -105,6 +108,24 @@ export default function VotingView({ onReset }) {
     setFotoUrl(j?.foto_url || null);
     setFotoPreview(j?.foto_url || null);
   }, [nombre, jugadores]);
+
+  // NUEVO: Chequear si el jugador ya votó
+  useEffect(() => {
+    async function checkSiYaVoto() {
+      if (jugador && jugador.id) {
+        let { data } = await supabase
+          .from("votos")
+          .select("votante_id")
+          .eq("votante_id", jugador.id);
+        if (data && data.length > 0) {
+          setYaVoto(true);
+          setFinalizado(true);
+        }
+      }
+    }
+    checkSiYaVoto();
+    // También cuando se termina de votar, refuerza el bloqueo
+  }, [jugador, finalizado]);
 
   // Paso 0: Identificarse
   if (step === 0) {
@@ -169,7 +190,6 @@ export default function VotingView({ onReset }) {
       }
     };
 
-    // FUNCIÓN PARA SUBIR Y GUARDAR URL PÚBLICA
     const handleFotoUpload = async () => {
       if (!file || !jugador) return;
       setSubiendoFoto(true);
@@ -177,7 +197,6 @@ export default function VotingView({ onReset }) {
       const fileExt = file.name.split('.').pop();
       const fileName = `${jugador.id}_${Date.now()}.${fileExt}`;
 
-      // 1. Subir archivo al bucket público
       const { error: uploadError } = await supabase.storage
         .from("jugadores-fotos")
         .upload(fileName, file, { upsert: true });
@@ -188,7 +207,6 @@ export default function VotingView({ onReset }) {
         return;
       }
 
-      // 2. Obtener la URL pública correcta
       const { data } = supabase
         .storage
         .from("jugadores-fotos")
@@ -201,7 +219,6 @@ export default function VotingView({ onReset }) {
         return;
       }
 
-      // 3. Guardar la URL en el campo foto_url de la tabla jugadores
       const { error: updateError } = await supabase
         .from("jugadores")
         .update({ foto_url: fotoUrl })
@@ -285,10 +302,8 @@ export default function VotingView({ onReset }) {
 
   // Paso 2: Votar a los demás jugadores (incluye edición)
   if (step === 2 || editandoIdx !== null) {
-    // ¿Estamos editando alguna calificación?
     const index = editandoIdx !== null ? editandoIdx : current;
     if (index >= jugadoresParaVotar.length) {
-      // Ir al resumen
       setTimeout(() => setStep(3), 300);
       return null;
     }
@@ -325,7 +340,7 @@ export default function VotingView({ onReset }) {
             setVotos(prev => ({ ...prev, [jugadorVotar.id]: valor }));
             if (editandoIdx !== null) {
               setEditandoIdx(null);
-              setStep(3); // volver al resumen después de editar
+              setStep(3);
             } else {
               setCurrent(cur => cur + 1);
             }
@@ -375,7 +390,7 @@ export default function VotingView({ onReset }) {
   }
 
   // Paso 3: Resumen y edición antes de confirmar
-  if (step === 3 && !finalizado) {
+  if (step === 3 && !finalizado && !yaVoto) {
     return (
       <div style={{
         maxWidth: 420,
@@ -426,11 +441,10 @@ export default function VotingView({ onReset }) {
           }}
           onClick={async () => {
             setConfirmando(true);
-            // Busca ID del votante (jugador actual)
             const votanteId = jugador?.id;
-            // Guarda cada voto en Supabase
+            // BORRAR votos previos antes de guardar los nuevos
+            await supabase.from("votos").delete().eq("votante_id", votanteId);
             for (const j of jugadoresParaVotar) {
-              // Solo guarda si hay puntaje (omití "No lo conozco")
               if (votos[j.id]) {
                 await supabase.from("votos").insert({
                   votado_id: j.id,
@@ -441,6 +455,7 @@ export default function VotingView({ onReset }) {
             }
             setConfirmando(false);
             setFinalizado(true);
+            setYaVoto(true);
           }}
           disabled={confirmando}
         >
@@ -450,8 +465,8 @@ export default function VotingView({ onReset }) {
     );
   }
 
-  // Paso 4: Mensaje final
-  if (finalizado) {
+  // Paso 4: Mensaje final o ya votó
+  if (finalizado || yaVoto) {
     return (
       <div style={{
         maxWidth: 410,
