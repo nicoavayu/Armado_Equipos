@@ -58,7 +58,7 @@ function Canchita({ equipos, equipoNames, onEquipoNameChange }) {
               maxLength={18}
             />
             {equipo.map(j => (
-              <div key={j.id} style={{
+              <div key={j.uuid} style={{
                 display: "flex", alignItems: "center", gap: 8,
                 background: "#fff", borderRadius: 12, padding: "7px 14px", boxShadow: "0 1px 8px #0001"
               }}>
@@ -101,18 +101,18 @@ export default function AdminPanel({ onBackToHome }) {
   // --- VOTOS Y PROMEDIOS EN VIVO ---
   useEffect(() => {
     async function fetchAll() {
-      // Jugadores
+      // Jugadores (TRAEMOS TAMBIÉN UUID)
       let { data: jugadoresDb } = await supabase
         .from("jugadores")
-        .select("id, nombre, foto_url")
+        .select("id, uuid, nombre, foto_url")
         .order("nombre", { ascending: true });
       setJugadores(jugadoresDb || []);
       // Votos
       let { data: votos } = await supabase
         .from("votos")
         .select("votante_id, votado_id, puntaje");
-      // Votantes (Ajuste: ids a string para comparar bien)
-      const ids = Array.from(new Set((votos || []).map(v => String(v.votante_id))));
+      // Votantes (usamos UUID siempre)
+      const ids = Array.from(new Set((votos || []).map(v => v.votante_id)));
       setVotantes(ids);
       // Promedios
       let resultado = {};
@@ -121,7 +121,7 @@ export default function AdminPanel({ onBackToHome }) {
         resultado[votado_id].push(puntaje);
       });
       const lista = (jugadoresDb || []).map(jug => {
-        const votosJugador = resultado[jug.id] || [];
+        const votosJugador = resultado[jug.uuid] || [];
         let promedio;
         if (votosJugador.length === 0) {
           promedio = 5;
@@ -137,7 +137,7 @@ export default function AdminPanel({ onBackToHome }) {
       setPromedios(lista);
     }
     fetchAll();
-    const interval = setInterval(fetchAll, 2000); // Más frecuente para testear!
+    const interval = setInterval(fetchAll, 2000); // Refresco rápido
     return () => clearInterval(interval);
   }, []);
 
@@ -154,10 +154,10 @@ export default function AdminPanel({ onBackToHome }) {
     if (error) alert("Error agregando jugador: " + error.message);
   }
 
-  async function eliminarJugador(id) {
+  async function eliminarJugador(uuid) {
     if (!window.confirm("¿Seguro que querés borrar este jugador?")) return;
     setLoading(true);
-    await supabase.from("jugadores").delete().eq("id", id);
+    await supabase.from("jugadores").delete().eq("uuid", uuid);
     setLoading(false);
   }
 
@@ -253,8 +253,8 @@ export default function AdminPanel({ onBackToHome }) {
     });
   }
 
-  // Calcular quiénes faltan votar (Ajuste: comparar siempre string)
-  const jugadoresQueFaltanVotar = jugadores.filter(j => !votantes.includes(String(j.id)));
+  // Calcular quiénes faltan votar (usamos UUID siempre)
+  const jugadoresQueFaltanVotar = jugadores.filter(j => !votantes.includes(j.uuid));
 
   // Handler para compartir equipos por WhatsApp
   function compartirEquiposWhatsapp() {
@@ -273,8 +273,7 @@ export default function AdminPanel({ onBackToHome }) {
 
   return (
     <div className="admin-panel-container">
-      <h1 className="admin-title">Modo Participativo</h1>
-
+      <div className="voting-title-modern">Modo Participativo</div>
       {/* Agregar jugador */}
       <form className="admin-add-row" onSubmit={agregarJugador} autoComplete="off">
         <input
@@ -296,15 +295,15 @@ export default function AdminPanel({ onBackToHome }) {
         </h3>
         <ul className="admin-jugadores-list">
           {jugadores.map(j => (
-            <li className="admin-jugador-row" key={j.id}>
+            <li className="admin-jugador-row" key={j.uuid}>
               <MiniAvatar foto_url={j.foto_url} nombre={j.nombre} size={32} />
               <span>
                 {j.nombre}
-                {votantes.includes(String(j.id)) && <span style={{ color: "#0EA9C6", fontWeight: 600, marginLeft: 8 }}>✓ Votó</span>}
+                {votantes.includes(j.uuid) && <span style={{ color: "#0EA9C6", fontWeight: 600, marginLeft: 8 }}>✓ Votó</span>}
               </span>
               <button
                 className="admin-delete-btn"
-                onClick={() => eliminarJugador(j.id)}
+                onClick={() => eliminarJugador(j.uuid)}
               >X</button>
             </li>
           ))}
@@ -359,7 +358,7 @@ export default function AdminPanel({ onBackToHome }) {
               <h2 style={{ marginTop: 18, color: "#DE1C49" }}>Promedios</h2>
               <ul className="admin-promedios-list">
                 {promedios.map(j => (
-                  <li className="admin-promedio-row" key={j.id}>
+                  <li className="admin-promedio-row" key={j.uuid}>
                     <MiniAvatar foto_url={j.foto_url} nombre={j.nombre} size={28} />
                     {j.nombre}: <span style={{ color: "#0EA9C6" }}>{j.promedio}</span>
                   </li>

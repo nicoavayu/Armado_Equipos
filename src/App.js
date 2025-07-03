@@ -1,4 +1,5 @@
 // src/App.js
+import './HomeStyleKit.css';
 import React, { useState } from "react";
 import Home from "./Home";
 import AppNormal from "./AppNormal";

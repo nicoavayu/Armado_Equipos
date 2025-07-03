@@ -1,55 +1,97 @@
 // src/VotingView.js
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabase";
+import "./HomeStyleKit.css";
 
-// Avatar por defecto
+// Avatar cuadrado por defecto (SVG simple)
 const DefaultAvatar = (
-  <div style={{
-    width: 84, height: 84, borderRadius: "50%",
-    background: "#eceaf1", display: "flex",
-    alignItems: "center", justifyContent: "center"
-  }}>
-    <svg width="44" height="44" viewBox="0 0 38 38" fill="none">
-      <circle cx="19" cy="19" r="19" fill="#eceaf1" />
+  <div className="voting-photo-placeholder">
+    <svg width="80" height="80" viewBox="0 0 38 38" fill="none">
+      <rect width="38" height="38" rx="6" fill="#eceaf1" />
       <circle cx="19" cy="14" r="7" fill="#bbb" />
       <ellipse cx="19" cy="29" rx="11" ry="7" fill="#bbb" />
     </svg>
   </div>
 );
 
-// Componente de estrellas
+// Componente estrellas slider con puntaje central único
 function StarRating({ value, onChange, max = 10, hovered, setHovered }) {
+  // Tamaño adaptativo (más chico en mobile)
+  const [starSize, setStarSize] = useState(48);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setStarSize(window.innerWidth < 600 ? 30 : 48);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Manejador para detección continua en todo el bloque (sin gaps)
+  const handleMouseMove = (e) => {
+    const { left, width } = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - left;
+    const star = Math.ceil((x / width) * max);
+    setHovered(star < 1 ? 1 : star > max ? max : star);
+  };
+
   return (
-    <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 10 }}>
-      {[...Array(max)].map((_, i) => (
-        <svg
-          key={i}
-          width="34"
-          height="34"
-          viewBox="0 0 24 24"
-          style={{
-            cursor: "pointer",
-            transform: hovered !== null
-              ? (i < hovered ? "scale(1.22)" : "scale(1)")
-              : (i < value ? "scale(1.15)" : "scale(1)"),
-            transition: "transform .12s"
-          }}
-          onMouseEnter={() => setHovered(i + 1)}
-          onMouseLeave={() => setHovered(null)}
-          onClick={() => onChange(i + 1)}
-        >
-          <polygon
-            points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"
-            fill={
-              hovered !== null
-                ? (i < hovered ? "#DE1C49" : "#eceaf1")
-                : (i < value ? "#DE1C49" : "#eceaf1")
-            }
-            stroke="#DE1C49"
-            strokeWidth="1"
-          />
-        </svg>
-      ))}
+    <div
+      className="star-rating-mobile"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        marginTop: window.innerWidth < 600 ? 16 : 48,
+        userSelect: "none"
+      }}
+      onMouseLeave={() => setHovered(null)}
+    >
+      <div
+        style={{ display: "flex", gap: 9, marginBottom: 13, cursor: "pointer" }}
+        onMouseMove={handleMouseMove}
+      >
+        {[...Array(max)].map((_, i) => (
+          <svg
+            key={i}
+            width={starSize}
+            height={starSize}
+            viewBox="0 0 24 24"
+            onClick={() => onChange(i + 1)}
+            style={{
+              transition: "filter .18s, transform .12s",
+              filter: (hovered !== null && i < hovered) || (hovered === null && i < value)
+                ? "drop-shadow(0 0 7px #ffd700b0)"
+                : "none",
+              transform: (hovered !== null
+                ? (i < hovered ? "scale(1.15)" : "scale(1)")
+                : (i < value ? "scale(1.09)" : "scale(1)")
+              ),
+            }}
+          >
+            <polygon
+              points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"
+              fill={
+                hovered !== null
+                  ? (i < hovered ? "#FFD700" : "rgba(255,255,255,0.38)")
+                  : (i < value ? "#FFD700" : "rgba(255,255,255,0.38)")
+              }
+            />
+          </svg>
+        ))}
+      </div>
+      <span className="star-score" style={{
+        fontFamily: "'Bebas Neue', 'Oswald', Arial, sans-serif",
+        color: "#fff",
+        fontSize: window.innerWidth < 600 ? 24 : 70,
+        fontWeight: 700,
+        marginTop: 10,
+        marginBottom: 4,
+        letterSpacing: 1.3
+      }}>
+        {hovered !== null ? hovered : (value || 0)}
+      </span>
     </div>
   );
 }
@@ -58,14 +100,12 @@ export default function VotingView({ onReset }) {
   // Estados principales
   const [step, setStep] = useState(0);
   const [jugadores, setJugadores] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [nombre, setNombre] = useState("");
   const [jugador, setJugador] = useState(null);
 
   // Foto
   const [file, setFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
-  const [fotoUrl, setFotoUrl] = useState(null);
   const [subiendoFoto, setSubiendoFoto] = useState(false);
 
   // Votación
@@ -77,19 +117,15 @@ export default function VotingView({ onReset }) {
   const [editandoIdx, setEditandoIdx] = useState(null);
   const [confirmando, setConfirmando] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
-
-  // NUEVO: Estado para saber si ya votó
   const [yaVoto, setYaVoto] = useState(false);
 
-  // Cargar jugadores de Supabase al montar
+  // Cargar jugadores de Supabase al montar (usando uuid)
   useEffect(() => {
     async function fetchJugadores() {
-      setLoading(true);
       let { data, error } = await supabase
         .from("jugadores")
-        .select("id, nombre, foto_url")
+        .select("id, uuid, nombre, foto_url")
         .order("nombre", { ascending: true });
-      setLoading(false);
       if (error) {
         alert("Error cargando jugadores: " + error.message);
         setJugadores([]);
@@ -105,393 +141,340 @@ export default function VotingView({ onReset }) {
     if (!nombre) return;
     const j = jugadores.find(j => j.nombre === nombre);
     setJugador(j || null);
-    setFotoUrl(j?.foto_url || null);
     setFotoPreview(j?.foto_url || null);
   }, [nombre, jugadores]);
 
-  // NUEVO: Chequear si el jugador ya votó
+  // Chequear si ya votó este jugador (uuid) en votos
   useEffect(() => {
-    async function checkSiYaVoto() {
-      if (jugador && jugador.id) {
-        let { data } = await supabase
-          .from("votos")
-          .select("votante_id")
-          .eq("votante_id", jugador.id);
-        if (data && data.length > 0) {
-          setYaVoto(true);
-          setFinalizado(true);
-        }
-      }
+    async function checkIfAlreadyVoted() {
+      if (!jugador || !jugador.uuid) return;
+      const { data, error } = await supabase
+        .from("votos")
+        .select("id")
+        .eq("votante_id", jugador.uuid)
+        .limit(1);
+      if (!error && data && data.length > 0) setYaVoto(true);
+      else setYaVoto(false);
     }
-    checkSiYaVoto();
-    // También cuando se termina de votar, refuerza el bloqueo
-  }, [jugador, finalizado]);
+    checkIfAlreadyVoted();
+  }, [jugador]);
+
+  // BLOQUEO: si ya votó, mostrá mensaje y bloqueá el resto del flujo
+  if (yaVoto) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">
+            ¡YA VOTASTE!
+          </div>
+          <div style={{ color: "#fff", fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30 }}>
+            Ya registraste tus votos. <br />No podés votar de nuevo.
+          </div>
+          <button
+            className="voting-confirm-btn"
+            onClick={onReset}
+            style={{ marginTop: 16 }}
+          >VOLVER AL INICIO</button>
+        </div>
+      </div>
+    );
+  }
 
   // Paso 0: Identificarse
   if (step === 0) {
     return (
-      <div style={{
-        maxWidth: 420,
-        margin: "44px auto 0 auto",
-        padding: "28px 28px 34px 28px",
-        background: "#fff",
-        borderRadius: 32,
-        boxShadow: "0 2px 18px 0 rgba(34, 40, 80, 0.10)",
-        fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif"
-      }}>
-        <h2 style={{ color: "#DE1C49", textAlign: "center", marginBottom: 18 }}>¿Quién sos?</h2>
-        {loading && <div style={{ textAlign: "center" }}>Cargando...</div>}
-        <ul style={{ listStyle: "none", padding: 0, margin: "18px 0 28px 0" }}>
-          {jugadores.map(j => (
-            <li key={j.id} style={{
-              margin: "11px 0", fontWeight: 700, fontSize: 21, display: "flex", alignItems: "center"
-            }}>
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">¿QUIÉN SOS?</div>
+          <div className="player-select-grid">
+            {jugadores.map(j => (
               <button
-                style={{
-                  flex: 1,
-                  background: nombre === j.nombre ? "#0EA9C6" : "#f4f4f4",
-                  color: nombre === j.nombre ? "#fff" : "#232a32",
-                  border: "none",
-                  borderRadius: 13,
-                  fontSize: 22,
-                  padding: "15px 0",
-                  fontWeight: 800,
-                  cursor: "pointer",
-                  transition: "background .18s"
-                }}
+                key={j.uuid}
+                className={`player-select-btn${nombre === j.nombre ? " selected" : ""}`}
                 onClick={() => setNombre(j.nombre)}
+                type="button"
               >
-                {j.nombre}
+                <span className="player-select-txt">{j.nombre}</span>
               </button>
-            </li>
-          ))}
-        </ul>
-        <button
-          style={{
-            width: "100%", marginTop: 10, padding: "14px 0",
-            background: "#DE1C49", color: "#fff", border: "none",
-            borderRadius: 18, fontSize: 19, fontWeight: 700, cursor: "pointer"
-          }}
-          disabled={!nombre}
-          onClick={() => setStep(1)}
-        >
-          Confirmar y continuar
-        </button>
+            ))}
+          </div>
+          <button
+            className="voting-confirm-btn"
+            disabled={!nombre}
+            style={{ opacity: nombre ? 1 : 0.4, pointerEvents: nombre ? "auto" : "none" }}
+            onClick={() => setStep(1)}
+          >
+            CONFIRMAR
+          </button>
+        </div>
       </div>
     );
   }
 
   // Paso 1: Subir foto (opcional)
   if (step === 1) {
-    const handleFile = (e) => {
-      if (e.target.files && e.target.files[0]) {
-        setFile(e.target.files[0]);
-        setFotoPreview(URL.createObjectURL(e.target.files[0]));
-      }
-    };
+  // Manejador de archivo
+  const handleFile = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+      setFotoPreview(URL.createObjectURL(e.target.files[0]));
+    }
+  };
 
-    const handleFotoUpload = async () => {
-      if (!file || !jugador) return;
-      setSubiendoFoto(true);
+  const handleFotoUpload = async () => {
+    if (!file || !jugador) return;
+    setSubiendoFoto(true);
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${jugador.id}_${Date.now()}.${fileExt}`;
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${jugador.uuid}_${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("jugadores-fotos")
-        .upload(fileName, file, { upsert: true });
+    const { error: uploadError } = await supabase.storage
+      .from("jugadores-fotos")
+      .upload(fileName, file, { upsert: true });
 
-      if (uploadError) {
-        alert("Error subiendo foto: " + uploadError.message);
-        setSubiendoFoto(false);
-        return;
-      }
-
-      const { data } = supabase
-        .storage
-        .from("jugadores-fotos")
-        .getPublicUrl(fileName);
-
-      const fotoUrl = data?.publicUrl;
-      if (!fotoUrl) {
-        alert("No se pudo obtener la URL pública de la foto.");
-        setSubiendoFoto(false);
-        return;
-      }
-
-      const { error: updateError } = await supabase
-        .from("jugadores")
-        .update({ foto_url: fotoUrl })
-        .eq("id", jugador.id);
-
-      if (updateError) {
-        alert("Error guardando foto: " + updateError.message);
-        setSubiendoFoto(false);
-        return;
-      }
-
-      setFotoUrl(fotoUrl);
-      setFotoPreview(fotoUrl);
+    if (uploadError) {
+      alert("Error subiendo foto: " + uploadError.message);
       setSubiendoFoto(false);
-      setFile(null);
-      alert("¡Foto cargada!");
-    };
+      return;
+    }
 
-    return (
-      <div style={{
-        maxWidth: 420,
-        margin: "44px auto 0 auto",
-        padding: "28px 28px 34px 28px",
-        background: "#fff",
-        borderRadius: 32,
-        boxShadow: "0 2px 18px 0 rgba(34, 40, 80, 0.10)",
-        fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif"
-      }}>
-        <h2 style={{ color: "#DE1C49", textAlign: "center", marginBottom: 12 }}>
-          ¡Hola, {nombre}!
-        </h2>
+    const { data } = supabase
+      .storage
+      .from("jugadores-fotos")
+      .getPublicUrl(fileName);
+
+    const fotoUrl = data?.publicUrl;
+    if (!fotoUrl) {
+      alert("No se pudo obtener la URL pública de la foto.");
+      setSubiendoFoto(false);
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("jugadores")
+      .update({ foto_url: fotoUrl })
+      .eq("uuid", jugador.uuid);
+
+    if (updateError) {
+      alert("Error guardando foto: " + updateError.message);
+      setSubiendoFoto(false);
+      return;
+    }
+
+    setFotoPreview(fotoUrl);
+    setSubiendoFoto(false);
+    setFile(null);
+    alert("¡Foto cargada!");
+  };
+
+  return (
+    <div className="voting-bg">
+      <div className="voting-modern-card">
+        <div className="voting-title-modern">¡HOLA, {nombre}!</div>
+        
+        {/* FOTO GRANDE CON “+” PARA AGREGAR/CAMBIAR */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 18 }}>
-          {fotoPreview ? (
-            <img src={fotoPreview} alt="foto" style={{ width: 84, height: 84, borderRadius: "50%", objectFit: "cover" }} />
-          ) : DefaultAvatar}
-          <label style={{ marginTop: 13, cursor: "pointer", color: "#0EA9C6" }}>
-            Cambiar foto
-            <input type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
-          </label>
+          <div
+            className="voting-photo-box"
+            onClick={() => document.getElementById("foto-input").click()}
+            style={{ cursor: "pointer" }}
+            title={fotoPreview ? "Cambiar foto" : "Agregar foto"}
+          >
+            {fotoPreview ? (
+              <img
+                src={fotoPreview}
+                alt="foto"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <span className="photo-plus">+</span>
+            )}
+            <input
+              id="foto-input"
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={handleFile}
+            />
+          </div>
         </div>
+
         {!fotoPreview && (
-          <div style={{ fontSize: 15, color: "#999", textAlign: "center", marginBottom: 18 }}>
+          <div style={{
+            fontSize: 18, color: "rgba(255,255,255,0.7)",
+            textAlign: "center", marginBottom: 18, fontFamily: "'Oswald', Arial, sans-serif"
+          }}>
             ¿Querés que tus amigos vean tu foto? Cargala ahora.<br />(Opcional)
           </div>
         )}
         {file && (
           <button
+            className="voting-confirm-btn"
+            style={{ background: "rgba(255,255,255,0.17)", borderColor: "#fff", color: "#fff" }}
             disabled={subiendoFoto}
             onClick={handleFotoUpload}
-            style={{
-              width: "100%",
-              padding: "12px 0",
-              background: "#0EA9C6",
-              color: "#fff",
-              border: "none",
-              borderRadius: 16,
-              fontWeight: 700,
-              fontSize: 17,
-              marginBottom: 15,
-              cursor: "pointer"
-            }}>
-            {subiendoFoto ? "Subiendo..." : "Guardar foto"}
+          >
+            {subiendoFoto ? "SUBIENDO..." : "GUARDAR FOTO"}
           </button>
         )}
         <button
-          style={{
-            width: "100%", marginTop: 8, padding: "14px 0",
-            background: "#DE1C49", color: "#fff", border: "none",
-            borderRadius: 18, fontSize: 18, fontWeight: 700, cursor: "pointer"
-          }}
+          className="voting-confirm-btn"
+          style={{ marginTop: 8 }}
           onClick={() => setStep(2)}
         >
-          {fotoPreview ? "Continuar" : "Continuar sin foto"}
+          {fotoPreview ? "CONTINUAR" : "CONTINUAR SIN FOTO"}
         </button>
       </div>
-    );
-  }
+    </div>
+  );
+}
+
 
   // Jugadores a votar: todos menos yo
   const jugadoresParaVotar = jugadores.filter(j => j.nombre !== nombre);
 
-  // Paso 2: Votar a los demás jugadores (incluye edición)
+  // Paso 2: Votar a los demás jugadores
   if (step === 2 || editandoIdx !== null) {
     const index = editandoIdx !== null ? editandoIdx : current;
     if (index >= jugadoresParaVotar.length) {
       setTimeout(() => setStep(3), 300);
       return null;
     }
-
     const jugadorVotar = jugadoresParaVotar[index];
-    const valor = votos[jugadorVotar.id] || 0;
+    const valor = votos[jugadorVotar.uuid] || 0;
 
     return (
-      <div style={{
-        maxWidth: 390,
-        margin: "44px auto 0 auto",
-        padding: "26px 24px 36px 24px",
-        background: "#fff",
-        borderRadius: 32,
-        boxShadow: "0 2px 18px 0 rgba(34, 40, 80, 0.10)",
-        fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif"
-      }}>
-        <h2 style={{ color: "#DE1C49", textAlign: "center" }}>
-          Calificá a tus compañeros
-        </h2>
-        <div style={{ textAlign: "center", fontWeight: 600, fontSize: 22, margin: "10px 0 8px 0" }}>
-          {jugadorVotar.nombre}
+      <div className="voting-bg">
+        <div className="voting-modern-card" style={{ background: "transparent", boxShadow: "none", padding: 0 }}>
+          <div className="voting-title-modern">
+            CALIFICÁ A TUS COMPAÑEROS
+          </div>
+          <div className="voting-player-name">{jugadorVotar.nombre}</div>
+          <div className="voting-photo-box">
+            {jugadorVotar.foto_url ? (
+              <img src={jugadorVotar.foto_url} alt="foto" />
+            ) : (
+              DefaultAvatar
+            )}
+          </div>
+          <StarRating
+            value={valor}
+            onChange={valor => {
+              setVotos(prev => ({ ...prev, [jugadorVotar.uuid]: valor }));
+              if (editandoIdx !== null) {
+                setEditandoIdx(null);
+                setStep(3);
+              } else {
+                setCurrent(cur => cur + 1);
+              }
+              setHovered(null);
+            }}
+            hovered={hovered}
+            setHovered={setHovered}
+          />
+          <button
+            className="voting-confirm-btn"
+            style={{ marginTop: 35, marginBottom: 0, fontWeight: 400 }}
+            onClick={() => {
+              setVotos(prev => ({ ...prev, [jugadorVotar.uuid]: undefined }));
+              if (editandoIdx !== null) {
+                setEditandoIdx(null);
+                setStep(3);
+              } else {
+                setCurrent(cur => cur + 1);
+              }
+              setHovered(null);
+            }}
+          >
+            NO LO CONOZCO
+          </button>
         </div>
-        <div style={{
-          width: 96, height: 96, borderRadius: "50%", border: "2px solid #eceaf1",
-          background: jugadorVotar.foto_url ? `url(${jugadorVotar.foto_url}) center/cover` : "#f5f5f5",
-          margin: "0 auto 16px auto", display: "flex", alignItems: "center", justifyContent: "center"
-        }}>
-          {!jugadorVotar.foto_url && DefaultAvatar}
-        </div>
-        <StarRating
-          value={valor}
-          onChange={valor => {
-            setVotos(prev => ({ ...prev, [jugadorVotar.id]: valor }));
-            if (editandoIdx !== null) {
-              setEditandoIdx(null);
-              setStep(3);
-            } else {
-              setCurrent(cur => cur + 1);
-            }
-            setHovered(null);
-          }}
-          hovered={hovered}
-          setHovered={setHovered}
-        />
-        <div style={{
-          marginTop: 10,
-          fontSize: 24,
-          color: "#DE1C49",
-          fontWeight: 700,
-          letterSpacing: "-1px",
-          textAlign: "center"
-        }}>
-          {hovered !== null ? hovered : (valor || 0)}
-        </div>
-        <button
-          style={{
-            marginTop: 22,
-            width: "100%",
-            padding: "14px 0",
-            background: "#b2b2af",
-            color: "#fff",
-            border: "none",
-            borderRadius: 14,
-            fontWeight: 700,
-            fontSize: 18,
-            cursor: "pointer"
-          }}
-          onClick={() => {
-            setVotos(prev => ({ ...prev, [jugadorVotar.id]: undefined }));
-            if (editandoIdx !== null) {
-              setEditandoIdx(null);
-              setStep(3);
-            } else {
-              setCurrent(cur => cur + 1);
-            }
-            setHovered(null);
-          }}
-        >
-          No lo conozco
-        </button>
       </div>
     );
   }
 
   // Paso 3: Resumen y edición antes de confirmar
-  if (step === 3 && !finalizado && !yaVoto) {
+  if (step === 3 && !finalizado) {
     return (
-      <div style={{
-        maxWidth: 420,
-        margin: "44px auto 0 auto",
-        padding: "28px 20px 38px 20px",
-        background: "#fff",
-        borderRadius: 32,
-        boxShadow: "0 2px 22px 0 rgba(34, 40, 80, 0.11)",
-        fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
-        textAlign: "center"
-      }}>
-        <h2 style={{ color: "#0EA9C6", fontSize: 23, marginBottom: 20 }}>
-          Confirmá tus calificaciones
-        </h2>
-        <div>
-          {jugadoresParaVotar.map((j, idx) => (
-            <div key={j.id} style={{
-              display: "flex", alignItems: "center", gap: 15,
-              background: "#f6f6f8", borderRadius: 12, padding: "12px 10px", margin: "10px 0"
-            }}>
-              <div>
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">
+            CONFIRMÁ TUS<br />CALIFICACIONES
+          </div>
+          <ul style={{
+            listStyle: "none", padding: 0, width: "100%",
+            maxWidth: 520, margin: "0 auto 24px auto"
+          }}>
+            {jugadoresParaVotar.map((j, idx) => (
+              <li key={j.uuid} style={{
+                display: "flex", alignItems: "center", gap: 16, marginBottom: 10,
+                background: "rgba(255,255,255,0.11)", borderRadius: 14, padding: "11px 13px"
+              }}>
                 {j.foto_url ?
-                  <img src={j.foto_url} alt="foto" style={{ width: 54, height: 54, borderRadius: "50%", objectFit: "cover" }} />
+                  <img src={j.foto_url} alt="foto" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover" }} />
                   : DefaultAvatar
                 }
-              </div>
-              <div style={{ flex: 1, textAlign: "left" }}>
-                <div style={{ fontWeight: 700, fontSize: 19, marginBottom: 1 }}>{j.nombre}</div>
-                <div style={{ color: "#DE1C49", fontSize: 19, fontWeight: 800 }}>
-                  {votos[j.id] ? votos[j.id] + "/10" : "No calificado"}
-                </div>
-              </div>
-              <button
-                style={{
-                  background: "#0EA9C6", color: "#fff", border: "none",
-                  borderRadius: 10, padding: "7px 13px", fontWeight: 700, cursor: "pointer"
-                }}
-                onClick={() => setEditandoIdx(idx)}
-              >Editar</button>
-            </div>
-          ))}
-        </div>
-        <button
-          style={{
-            marginTop: 16, width: "100%", padding: "16px 0",
-            background: "#DE1C49", color: "#fff", border: "none",
-            borderRadius: 18, fontSize: 20, fontWeight: 800, cursor: "pointer"
-          }}
-          onClick={async () => {
-            setConfirmando(true);
-            const votanteId = jugador?.id;
-            // BORRAR votos previos antes de guardar los nuevos
-            await supabase.from("votos").delete().eq("votante_id", votanteId);
-            for (const j of jugadoresParaVotar) {
-              if (votos[j.id]) {
-                await supabase.from("votos").insert({
-                  votado_id: j.id,
-                  votante_id: votanteId,
-                  puntaje: votos[j.id]
-                });
+                <span style={{
+                  flex: 1, fontWeight: 700, fontSize: 25, fontFamily: "'Oswald', Arial, sans-serif", color: "#fff", letterSpacing: 1
+                }}>{j.nombre}</span>
+                <span style={{ color: "#fff", fontSize: 22, fontWeight: 800, minWidth: 70, textAlign: "right", fontFamily: "'Oswald', Arial, sans-serif" }}>
+                  {votos[j.uuid] ? votos[j.uuid] + "/10" : "No calificado"}
+                </span>
+                <button
+                  className="voting-name-btn"
+                  style={{ width: 70, height: 38, fontSize: 18, border: "2px solid #fff", margin: 0 }}
+                  onClick={() => setEditandoIdx(idx)}
+                >EDITAR</button>
+              </li>
+            ))}
+          </ul>
+          <button
+            className="voting-confirm-btn"
+            style={{ marginTop: 8, fontWeight: 700, letterSpacing: 1.2 }}
+            onClick={async () => {
+              setConfirmando(true);
+              const votanteUuid = jugador?.uuid;
+              for (const j of jugadoresParaVotar) {
+                if (votos[j.uuid]) {
+                  await supabase.from("votos").insert({
+                    votado_id: j.uuid,
+                    votante_id: votanteUuid,
+                    puntaje: votos[j.uuid]
+                  });
+                }
               }
-            }
-            setConfirmando(false);
-            setFinalizado(true);
-            setYaVoto(true);
-          }}
-          disabled={confirmando}
-        >
-          {confirmando ? "Guardando..." : "Confirmar mis votos"}
-        </button>
+              setConfirmando(false);
+              setFinalizado(true);
+            }}
+            disabled={confirmando}
+          >
+            {confirmando ? "GUARDANDO..." : "CONFIRMAR MIS VOTOS"}
+          </button>
+        </div>
       </div>
     );
   }
 
-  // Paso 4: Mensaje final o ya votó
-  if (finalizado || yaVoto) {
+  // Paso 4: Mensaje final
+  if (finalizado) {
     return (
-      <div style={{
-        maxWidth: 410,
-        margin: "64px auto 0 auto",
-        padding: "42px 26px 38px 26px",
-        background: "#fff",
-        borderRadius: 32,
-        boxShadow: "0 2px 22px 0 rgba(34, 40, 80, 0.11)",
-        fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
-        textAlign: "center"
-      }}>
-        <h2 style={{ color: "#0EA9C6", fontSize: 27, marginBottom: 16 }}>
-          ¡Gracias por votar!
-        </h2>
-        <p style={{ fontSize: 17, marginBottom: 27 }}>
-          Tus votos fueron registrados.<br />Podés cerrar esta ventana.
-        </p>
-        <button
-          style={{
-            padding: "11px 26px", borderRadius: 14,
-            background: "#0EA9C6", color: "#fff",
-            fontWeight: 700, fontSize: 18, border: "none", cursor: "pointer"
-          }}
-          onClick={onReset}
-        >Volver al inicio</button>
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">
+            ¡GRACIAS POR VOTAR!
+          </div>
+          <div style={{
+            color: "#fff", fontFamily: "'Oswald', Arial, sans-serif",
+            fontSize: 27, marginBottom: 27, letterSpacing: 1.1
+          }}>
+            Tus votos fueron registrados.<br />Podés cerrar esta ventana.
+          </div>
+          <button
+            className="voting-confirm-btn"
+            style={{ marginTop: 16 }}
+            onClick={onReset}
+          >VOLVER AL INICIO</button>
+        </div>
       </div>
     );
   }
