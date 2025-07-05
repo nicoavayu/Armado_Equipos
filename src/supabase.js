@@ -126,13 +126,9 @@ export const closeVotingAndCalculateScores = async () => {
 
   if (fetchError) throw new Error('Error al obtener los votos: ' + fetchError.message);
   
-  if (!votos || votos.length === 0) {
-    return { message: 'No hay votos para calcular. La votación ha sido cerrada.' };
-  }
-
-  // 2. Calculate average scores
+  // 2. Calcular promedios
   const scores = {}; // { votado_id: { total: score, count: num_votes } }
-  for (const voto of votos) {
+  for (const voto of votos || []) {
     if (!scores[voto.votado_id]) {
       scores[voto.votado_id] = { total: 0, count: 0 };
     }
@@ -140,15 +136,24 @@ export const closeVotingAndCalculateScores = async () => {
     scores[voto.votado_id].count += 1;
   }
 
-  const updates = Object.entries(scores).map(([votado_id, data]) => {
-    const avgScore = data.count > 0 ? data.total / data.count : 5;
+  // 3. Obtener todos los jugadores
+  const { data: jugadores, error: jugadoresError } = await supabase
+    .from('jugadores')
+    .select('uuid');
+  if (jugadoresError) throw new Error('Error al obtener jugadores: ' + jugadoresError.message);
+
+  // 4. Actualizar scores: los que recibieron votos con su promedio, los demás con 5
+  const updates = jugadores.map(jugador => {
+    const data = scores[jugador.uuid];
+    const avgScore = data && data.count > 0 ? data.total / data.count : 5;
+    console.log(`[Score] Jugador ${jugador.uuid}: promedio calculado = ${avgScore}`);
     return supabase
       .from('jugadores')
-      .update({ score: avgScore }) // Corregido a 'score'
-      .eq('uuid', votado_id);
+      .update({ score: avgScore })
+      .eq('uuid', jugador.uuid);
   });
 
-  // 3. Update player scores in the database
+  // 5. Ejecutar updates
   const updateResults = await Promise.all(updates);
   const updateErrors = updateResults.filter(res => res.error);
   if (updateErrors.length > 0) {
@@ -156,7 +161,7 @@ export const closeVotingAndCalculateScores = async () => {
     throw new Error(`Error al actualizar los puntajes de ${updateErrors.length} jugadores.`);
   }
 
-  // 4. Delete all votes
+  // 6. Borrar todos los votos
   const { error: deleteError } = await supabase
     .from('votos')
     .delete()
