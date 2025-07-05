@@ -1,6 +1,12 @@
 // src/VotingView.js
 import React, { useState, useEffect } from "react";
-import { supabase } from "./supabase";
+import {
+  checkIfAlreadyVoted,
+  uploadFoto,
+  submitVotos,
+} from "./supabase";
+import { toast } from 'react-toastify';
+import StarRating from "./StarRating";
 import "./HomeStyleKit.css";
 
 // Avatar cuadrado por defecto (SVG simple)
@@ -14,92 +20,9 @@ const DefaultAvatar = (
   </div>
 );
 
-// Componente estrellas slider con puntaje central único
-function StarRating({ value, onChange, max = 10, hovered, setHovered }) {
-  // Tamaño adaptativo (más chico en mobile)
-  const [starSize, setStarSize] = useState(48);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setStarSize(window.innerWidth < 600 ? 30 : 48);
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  // Manejador para detección continua en todo el bloque (sin gaps)
-  const handleMouseMove = (e) => {
-    const { left, width } = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - left;
-    const star = Math.ceil((x / width) * max);
-    setHovered(star < 1 ? 1 : star > max ? max : star);
-  };
-
-  return (
-    <div
-      className="star-rating-mobile"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        marginTop: window.innerWidth < 600 ? 16 : 48,
-        userSelect: "none"
-      }}
-      onMouseLeave={() => setHovered(null)}
-    >
-      <div
-        style={{ display: "flex", gap: 9, marginBottom: 13, cursor: "pointer" }}
-        onMouseMove={handleMouseMove}
-      >
-        {[...Array(max)].map((_, i) => (
-          <svg
-            key={i}
-            width={starSize}
-            height={starSize}
-            viewBox="0 0 24 24"
-            onClick={() => onChange(i + 1)}
-            style={{
-              transition: "filter .18s, transform .12s",
-              filter: (hovered !== null && i < hovered) || (hovered === null && i < value)
-                ? "drop-shadow(0 0 7px #ffd700b0)"
-                : "none",
-              transform: (hovered !== null
-                ? (i < hovered ? "scale(1.15)" : "scale(1)")
-                : (i < value ? "scale(1.09)" : "scale(1)")
-              ),
-            }}
-          >
-            <polygon
-              points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"
-              fill={
-                hovered !== null
-                  ? (i < hovered ? "#FFD700" : "rgba(255,255,255,0.38)")
-                  : (i < value ? "#FFD700" : "rgba(255,255,255,0.38)")
-              }
-            />
-          </svg>
-        ))}
-      </div>
-      <span className="star-score" style={{
-        fontFamily: "'Bebas Neue', 'Oswald', Arial, sans-serif",
-        color: "#fff",
-        fontSize: window.innerWidth < 600 ? 24 : 70,
-        fontWeight: 700,
-        marginTop: 10,
-        marginBottom: 4,
-        letterSpacing: 1.3
-      }}>
-        {hovered !== null ? hovered : (value || 0)}
-      </span>
-    </div>
-  );
-}
-
-export default function VotingView({ onReset }) {
+export default function VotingView({ onReset, jugadores }) {
   // Estados principales
   const [step, setStep] = useState(0);
-  const [jugadores, setJugadores] = useState([]);
   const [nombre, setNombre] = useState("");
   const [jugador, setJugador] = useState(null);
 
@@ -119,22 +42,7 @@ export default function VotingView({ onReset }) {
   const [finalizado, setFinalizado] = useState(false);
   const [yaVoto, setYaVoto] = useState(false);
 
-  // Cargar jugadores de Supabase al montar (usando uuid)
-  useEffect(() => {
-    async function fetchJugadores() {
-      let { data, error } = await supabase
-        .from("jugadores")
-        .select("id, uuid, nombre, foto_url")
-        .order("nombre", { ascending: true });
-      if (error) {
-        alert("Error cargando jugadores: " + error.message);
-        setJugadores([]);
-        return;
-      }
-      setJugadores(data || []);
-    }
-    fetchJugadores();
-  }, []);
+  // No es necesario cargar jugadores aquí, se reciben por props
 
   // Al seleccionar nombre, setea jugador y foto
   useEffect(() => {
@@ -146,17 +54,16 @@ export default function VotingView({ onReset }) {
 
   // Chequear si ya votó este jugador (uuid) en votos
   useEffect(() => {
-    async function checkIfAlreadyVoted() {
+    async function checkVoteStatus() {
       if (!jugador || !jugador.uuid) return;
-      const { data, error } = await supabase
-        .from("votos")
-        .select("id")
-        .eq("votante_id", jugador.uuid)
-        .limit(1);
-      if (!error && data && data.length > 0) setYaVoto(true);
-      else setYaVoto(false);
+      try {
+        const hasVoted = await checkIfAlreadyVoted(jugador.uuid);
+        setYaVoto(hasVoted);
+      } catch (error) {
+        toast.error("Error verificando el estado del voto: " + error.message);
+      }
     }
-    checkIfAlreadyVoted();
+    checkVoteStatus();
   }, [jugador]);
 
   // BLOQUEO: si ya votó, mostrá mensaje y bloqueá el resto del flujo
@@ -224,47 +131,16 @@ export default function VotingView({ onReset }) {
   const handleFotoUpload = async () => {
     if (!file || !jugador) return;
     setSubiendoFoto(true);
-
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${jugador.uuid}_${Date.now()}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("jugadores-fotos")
-      .upload(fileName, file, { upsert: true });
-
-    if (uploadError) {
-      alert("Error subiendo foto: " + uploadError.message);
+    try {
+      const fotoUrl = await uploadFoto(file, jugador);
+      setFotoPreview(fotoUrl);
+      setFile(null);
+      toast.success("¡Foto cargada!");
+    } catch (error) {
+      toast.error("Error al subir la foto: " + error.message);
+    } finally {
       setSubiendoFoto(false);
-      return;
     }
-
-    const { data } = supabase
-      .storage
-      .from("jugadores-fotos")
-      .getPublicUrl(fileName);
-
-    const fotoUrl = data?.publicUrl;
-    if (!fotoUrl) {
-      alert("No se pudo obtener la URL pública de la foto.");
-      setSubiendoFoto(false);
-      return;
-    }
-
-    const { error: updateError } = await supabase
-      .from("jugadores")
-      .update({ foto_url: fotoUrl })
-      .eq("uuid", jugador.uuid);
-
-    if (updateError) {
-      alert("Error guardando foto: " + updateError.message);
-      setSubiendoFoto(false);
-      return;
-    }
-
-    setFotoPreview(fotoUrl);
-    setSubiendoFoto(false);
-    setFile(null);
-    alert("¡Foto cargada!");
   };
 
   return (
@@ -433,18 +309,14 @@ export default function VotingView({ onReset }) {
             style={{ marginTop: 8, fontWeight: 700, letterSpacing: 1.2 }}
             onClick={async () => {
               setConfirmando(true);
-              const votanteUuid = jugador?.uuid;
-              for (const j of jugadoresParaVotar) {
-                if (votos[j.uuid]) {
-                  await supabase.from("votos").insert({
-                    votado_id: j.uuid,
-                    votante_id: votanteUuid,
-                    puntaje: votos[j.uuid]
-                  });
-                }
+              try {
+                await submitVotos(votos, jugador?.uuid);
+                setFinalizado(true);
+              } catch (error) {
+                toast.error("Error al guardar los votos: " + error.message);
+              } finally {
+                setConfirmando(false);
               }
-              setConfirmando(false);
-              setFinalizado(true);
             }}
             disabled={confirmando}
           >

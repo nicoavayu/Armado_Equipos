@@ -1,61 +1,56 @@
 import React, { useState } from "react";
+import { toast } from 'react-toastify';
 
 // Sólo letras y espacios (acentos incluidos)
 const onlyLetters = str => /^[A-Za-záéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(str.trim()) && str.trim().length > 0;
 
-export default function PlayerForm({ onAddPlayer, players }) {
+export default function PlayerForm({ onAddPlayer }) {
   const [name, setName] = useState("");
   const [score, setScore] = useState("");
   const [nickname, setNickname] = useState("");
-  const [foto, setFoto] = useState(null);
 
   function handleSubmit(e) {
     e.preventDefault();
-    // Validación nombre SOLO LETRAS
     if (!onlyLetters(name)) {
-      alert("Solo se permiten letras y espacios para el nombre.");
+      toast.warn("Solo se permiten letras y espacios para el nombre.");
       return;
     }
-    // Validación puntaje numérico de 1 a 10
     const puntajeNum = Number(score);
     if (!Number.isFinite(puntajeNum) || puntajeNum < 1 || puntajeNum > 10) {
-      alert("El puntaje debe ser un número entre 1 y 10.");
+      toast.warn("El puntaje debe ser un número entre 1 y 10.");
       return;
     }
     onAddPlayer({
       name: name.trim(),
       score: puntajeNum,
       nickname: nickname.trim(),
-      foto: foto || null
     });
     setName("");
     setScore("");
     setNickname("");
-    setFoto(null);
   }
 
   return (
-    <form className="player-form" onSubmit={handleSubmit} autoComplete="off">
-      <label>Nombre</label>
+    <form onSubmit={handleSubmit} autoComplete="off" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
       <input
         type="text"
         value={name}
-        onChange={e =>
-          setName(e.target.value.replace(/[^A-Za-záéíóúÁÉÍÓÚñÑüÜ\s]/g, ""))
-        }
-        placeholder="Nombre"
+        onChange={e => setName(e.target.value.replace(/[^A-Za-záéíóúÁÉÍÓÚñÑüÜ\s]/g, ""))}
+        placeholder="Nombre del Jugador"
         required
         maxLength={18}
+        className="input-modern"
+        style={{height: '48px', fontSize: '1.1rem'}}
       />
-      <label>Apodo</label>
       <input
         type="text"
         value={nickname}
         onChange={e => setNickname(e.target.value)}
         placeholder="Apodo (opcional)"
         maxLength={16}
+        className="input-modern"
+        style={{height: '48px', fontSize: '1.1rem'}}
       />
-      <label>Puntaje</label>
       <input
         type="number"
         value={score}
@@ -67,8 +62,12 @@ export default function PlayerForm({ onAddPlayer, players }) {
         maxLength={2}
         inputMode="numeric"
         pattern="[0-9]*"
+        className="input-modern"
+        style={{height: '48px', fontSize: '1.1rem'}}
       />
-      <button type="submit" style={{ marginTop: 10 }}>Agregar jugador</button>
+      <button type="submit" className="voting-confirm-btn wipe-btn" style={{background: 'rgba(52, 152, 219, 0.5)', minWidth: 0, maxWidth: '100%', width: 'auto', fontSize: '1.1rem', letterSpacing: 0, padding: '10px 8px', whiteSpace: 'nowrap', overflow: 'auto', textOverflow: 'unset', marginTop: '10px', marginBottom: '0'}}>
+        Agregar Jugador
+      </button>
     </form>
   );
 }

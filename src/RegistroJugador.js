@@ -72,11 +72,6 @@ export default function RegistroJugador({ onRegister, jugadores = [] }) {
       score: puntaje
     };
 
-    // Guardar en jugadores frecuentes (localStorage)
-    const prev = JSON.parse(localStorage.getItem("frequentPlayers")) || [];
-    if (!prev.find(p => p.nombre?.toLowerCase() === jugador.nombre.toLowerCase())) {
-      localStorage.setItem("frequentPlayers", JSON.stringify([...prev, jugador]));
-    }
     onRegister(jugador);
   }
 
@@ -188,15 +183,17 @@ export default function RegistroJugador({ onRegister, jugadores = [] }) {
             placeholder="Tu nombre"
             value={selectedName}
             onChange={e => setSelectedName(e.target.value)}
+            className="input-modern"
             style={{
-              width: "100%",
-              padding: "13px 18px",
-              fontSize: 18,
-              borderRadius: 16,
-              border: "1.5px solid #eceaf1",
-              marginBottom: 18,
-              background: "#f9f9fa",
               textAlign: "center",
+              marginBottom: 18,
+              fontFamily: "Oswald, Arial, sans-serif",
+              fontSize: 19,
+              color: "#fff",
+              background: "rgba(255,255,255,0.1)",
+              border: "2px solid rgba(255,255,255,0.4)",
+              borderRadius: 0,
+              padding: "0 12px"
             }}
           />
         }
@@ -225,17 +222,9 @@ export default function RegistroJugador({ onRegister, jugadores = [] }) {
         {error && <div style={{ color: "#DE1C49", fontSize: 15, marginBottom: 10 }}>{error}</div>}
         <button
           type="submit"
-          style={{
-            width: "100%",
-            padding: "14px 0",
-            fontSize: 18,
-            fontWeight: 700,
-            color: "#fff",
-            background: "#0EA9C6",
-            border: "none",
-            borderRadius: 16,
-            cursor: "pointer"
-          }}>
+          className="voting-confirm-btn"
+          style={{ borderRadius: 16 }}
+        >
           Registrarme
         </button>
       </form>

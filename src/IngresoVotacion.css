@@ -1,0 +1,173 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;600;700&display=swap');
+
+.ingreso-votacion-bg {
+  min-height: 100vh;
+  background: linear-gradient(137deg, #0EA9C6 0%, #DE1C49 100%);
+  width: 100%;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Oswald', sans-serif;
+  box-sizing: border-box;
+}
+
+.ingreso-votacion-card {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 32px 0 rgba(90, 30, 120, 0.06);
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 38px 32px 32px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: #fff;
+}
+
+.ingreso-votacion-title {
+  font-family: 'Bebas Neue', Arial, sans-serif !important;
+  text-transform: uppercase;
+  font-size: 42px;
+  color: #fff;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  margin-bottom: 25px;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.ingreso-votacion-subtitle {
+    font-family: 'Oswald', Arial, sans-serif;
+    font-size: 18px;
+    font-weight: 400;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 20px;
+    opacity: 0.9;
+}
+
+.ingreso-votacion-list {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+  width: 100%;
+}
+
+.ingreso-votacion-list li {
+  margin: 13px 0;
+}
+
+.player-select-btn {
+  width: 100%;
+  padding: 16px 0;
+  font-size: 22px;
+  border-radius: 0;
+  border: 2px solid #fff;
+  font-weight: 700;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0.05em;
+}
+
+.player-select-btn.selected,
+.player-select-btn:hover {
+  background: #DE1C49;
+  border-color: #DE1C49;
+}
+
+.primary-btn {
+  font-family: 'Bebas Neue', Arial, sans-serif !important;
+  font-size: 24px;
+  color: #fff;
+  background: #0EA9C6;
+  border: 2px solid #fff;
+  border-radius: 0 !important;
+  letter-spacing: 0.05em;
+  padding: 14px 0;
+  margin-top: 16px;
+  width: 100%;
+  cursor: pointer;
+  font-weight: 700;
+  transition: background 0.16s, border-color 0.16s;
+}
+.primary-btn:hover {
+    background: #0c8aa0;
+}
+.primary-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+
+.upload-input-wrapper {
+    border: 2px dashed rgba(255,255,255,0.5);
+    padding: 30px;
+    width: 100%;
+    text-align: center;
+    color: rgba(255,255,255,0.8);
+    margin-bottom: 16px;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.upload-input-wrapper input[type="file"] {
+    display: none;
+}
+
+.player-photo-preview {
+    max-width: 180px;
+    border-radius: 8px;
+    margin: 12px auto;
+    border: 2px solid #fff;
+}
+
+.rating-item {
+    margin: 20px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.rating-item-name {
+    font-weight: 600;
+    font-size: 20px;
+    font-family: 'Oswald', sans-serif;
+    color: #fff;
+    text-align: left;
+}
+
+.rating-input {
+    margin-left: 16px;
+    width: 70px;
+    height: 45px;
+    font-size: 22px;
+    border-radius: 0;
+    border: 2px solid rgba(255,255,255,0.4);
+    padding: 0 12px;
+    color: #fff;
+    background: rgba(255,255,255,0.1);
+    font-family: "Bebas Neue", sans-serif;
+    text-align: center;
+    box-sizing: border-box;
+}
+.rating-input:focus {
+    outline: none;
+    border-color: #0EA9C6;
+}
+
+.thank-you-icon {
+    font-size: 48px;
+    margin: 20px 0 8px;
+}
+
+.thank-you-text {
+    font-size: 18px;
+    color: #eee;
+}

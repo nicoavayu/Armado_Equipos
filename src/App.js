@@ -1,28 +1,68 @@
 // src/App.js
 import './HomeStyleKit.css';
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Home from "./Home";
 import AppNormal from "./AppNormal";
 import VotingView from "./VotingView";
 import AdminPanel from "./AdminPanel";
+import { getJugadores } from "./supabase";
 
 export default function App() {
   const [modo, setModo] = useState(null);
+  const [jugadores, setJugadores] = useState([]);
+
+  useEffect(() => {
+    async function fetchJugadores() {
+      try {
+        const jugadoresDb = await getJugadores();
+        setJugadores(jugadoresDb || []);
+      } catch (error) {
+        console.error("Error cargando jugadores en App:", error);
+      }
+    }
+    fetchJugadores();
+  }, []);
 
   function handleModoSeleccionado(selected) {
     if (selected === "simple") setModo("simple");
-    if (selected === "votacion") setModo("admin"); // <-- ACA CAMBIA
+    if (selected === "votacion") setModo("admin");
   }
 
-  // Detectar si se entra por link para jugador
-  React.useEffect(() => {
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("modo") === "jugador") setModo("jugador");
   }, []);
 
+  const handleJugadoresChange = (nuevosJugadores) => {
+    setJugadores(nuevosJugadores);
+  };
+
   if (!modo) return <Home onModoSeleccionado={handleModoSeleccionado} />;
   if (modo === "simple") return <AppNormal onBack={() => setModo(null)} />;
-  if (modo === "admin") return <AdminPanel onBackToHome={() => setModo(null)} />;
-  if (modo === "jugador") return <VotingView onReset={() => setModo(null)} />;
-  return null;
+  if (modo === "admin") return <AdminPanel onBackToHome={() => setModo(null)} jugadores={jugadores} onJugadoresChange={handleJugadoresChange} />;
+  if (modo === "jugador") return <VotingView onReset={() => setModo(null)} jugadores={jugadores} />;
+  return (
+    <>
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+      {
+        !modo ? <Home onModoSeleccionado={handleModoSeleccionado} /> :
+        modo === "simple" ? <AppNormal onBack={() => setModo(null)} /> :
+        modo === "admin" ? <AdminPanel onBackToHome={() => setModo(null)} jugadores={jugadores} onJugadoresChange={handleJugadoresChange} /> :
+        modo === "jugador" ? <VotingView onReset={() => setModo(null)} /> :
+        null
+      }
+    </>
+  );
 }

@@ -1,6 +1,78 @@
 import React, { useState } from "react";
+import { toast } from 'react-toastify';
 
 const onlyLetters = str => /^[A-Za-záéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(str.trim()) && str.trim().length > 0;
+
+function EditModal({ player, onSave, onCancel }) {
+  const [name, setName] = useState(player.name || "");
+  const [score, setScore] = useState(player.score || "");
+  const [nickname, setNickname] = useState(player.nickname || "");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!onlyLetters(name)) {
+      toast.warn("Solo se permiten letras para el nombre.");
+      return;
+    }
+    const scoreNum = Number(score);
+    if (!Number.isFinite(scoreNum) || scoreNum < 1 || scoreNum > 10) {
+      toast.warn("El puntaje debe ser un número entre 1 y 10.");
+      return;
+    }
+    onSave({ ...player, name: name.trim(), score: scoreNum, nickname: nickname.trim() });
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <div className="voting-modern-card" style={{
+        maxWidth: 320,
+        background: 'rgba(30, 32, 50, 0.97)',
+        border: '1px solid rgba(255,255,255,0.2)',
+        backdropFilter: 'blur(10px)',
+        borderRadius: 18,
+        boxShadow: '0 4px 32px 0 rgba(0,0,0,0.18)',
+        padding: 18,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }} onClick={e => e.stopPropagation()}>
+        <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', alignItems: 'center', justifyContent: 'center'}}>
+          <h2 className="voting-title-modern" style={{fontSize: '1.2rem', marginBottom: 0, textAlign: 'center'}}>Editar Jugador</h2>
+          <input
+            className="input-modern"
+            value={name}
+            onChange={e => setName(e.target.value.replace(/[^A-Za-záéíóúÁÉÍÓÚñÑüÜ\s]/g, ""))}
+            placeholder="Nombre"
+            required
+            style={{height: '44px', fontSize: '1rem', borderRadius: 0, width: '180px', marginBottom: 6, textAlign: 'center'}}
+          />
+          <input
+            className="input-modern"
+            value={nickname}
+            onChange={e => setNickname(e.target.value)}
+            placeholder="Apodo (opcional)"
+            style={{height: '44px', fontSize: '1rem', borderRadius: 0, width: '180px', marginBottom: 6, textAlign: 'center'}}
+          />
+          <input
+            className="input-modern"
+            type="number"
+            value={score}
+            onChange={e => setScore(e.target.value)}
+            placeholder="Puntaje (1-10)"
+            required
+            style={{height: '44px', fontSize: '1rem', borderRadius: 0, width: '180px', marginBottom: 10, textAlign: 'center'}}
+          />
+          <div style={{display: 'flex', gap: '8px', width: '180px', justifyContent: 'center'}}>
+            <button type="submit" className="voting-confirm-btn wipe-btn" style={{flex: 1, borderRadius: 10, height: '36px', fontSize: '1rem', minWidth: 0, margin: 0}}>Guardar</button>
+            <button type="button" onClick={onCancel} className="voting-confirm-btn wipe-btn" style={{background: 'rgba(222, 28, 73, 0.5)', flex: 1, borderRadius: 10, height: '36px', fontSize: '1rem', minWidth: 0, margin: 0}}>Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 
 export default function FrequentPlayers({
   players = [],
@@ -11,255 +83,72 @@ export default function FrequentPlayers({
   onEditGlobal
 }) {
   const [search, setSearch] = useState("");
-  const [editing, setEditing] = useState(null);
-  const [editName, setEditName] = useState("");
-  const [editScore, setEditScore] = useState("");
-  const [editNickname, setEditNickname] = useState("");
+  const [editingPlayer, setEditingPlayer] = useState(null);
 
   const filtered = players.filter(p =>
-    (p.name || "")
-      .toLowerCase()
-      .includes(search.toLowerCase())
+    (p.name || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  const startEdit = (player) => {
-    setEditing(player.id);
-    setEditName(player.name || "");
-    setEditScore(player.score || "");
-    setEditNickname(player.nickname || "");
-    document.body.style.overflow = 'hidden';
-  };
-
-  const cancelEdit = () => {
-    setEditing(null);
-    setEditName("");
-    setEditScore("");
-    setEditNickname("");
-    document.body.style.overflow = '';
-  };
-
-  const handleEditSubmit = (e) => {
-    e.preventDefault();
-    if (!onlyLetters(editName)) {
-      alert("Solo se permiten letras para el nombre.");
-      return;
-    }
-    const score = Number(editScore);
-    if (!Number.isFinite(score) || score < 1 || score > 10) {
-      alert("El puntaje debe ser un número entre 1 y 10.");
-      return;
-    }
-    const idx = players.findIndex(p => p.id === editing);
-    if (idx === -1) {
-      cancelEdit();
-      return;
-    }
-    const nuevaLista = [...players];
-    nuevaLista[idx] = {
-      ...nuevaLista[idx],
-      name: editName.trim(),
-      score,
-      nickname: editNickname,
-    };
-    onEdit(nuevaLista);
-    // NUEVO: también actualizamos la lista global (en AppNormal)
+  const handleSaveEdit = (editedPlayer) => {
+    const newList = players.map(p => p.id === editedPlayer.id ? editedPlayer : p);
+    onEdit(newList);
     if (typeof onEditGlobal === "function") {
-      onEditGlobal(nuevaLista[idx]);
+      onEditGlobal(editedPlayer);
     }
-    cancelEdit();
-  };
-
-  const handleBackdrop = (e) => {
-    if (e.target.className && typeof e.target.className === "string" && e.target.className.includes('modal-backdrop')) {
-      cancelEdit();
-    }
+    setEditingPlayer(null);
   };
 
   return (
     <div>
-      <div className="frequent-header">
-        <span style={{ fontWeight: 700 }}>Jugadores frecuentes</span>
-      </div>
-      <input
-        className="frequent-search"
-        type="text"
-        placeholder="Buscar frecuentes..."
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        style={{ marginBottom: 8 }}
-      />
-      <ul className="frequent-list-ul">
-        {filtered.map(p => (
-          <li key={p.id} className="frequent-player-item" style={{ marginBottom: 5 }}>
-            <span
-              className="frequent-player-name"
-              style={{
-                cursor: "pointer",
-                color: "#0EA9C6",
-                fontWeight: 700,
-                fontSize: "1em",
-                marginRight: 4,
-                textDecoration: "underline",
-                transition: "color .13s"
-              }}
-              title="Editar jugador frecuente"
-              onClick={() => startEdit(p)}
-            >
-              {p.name}
-            </span>
-            <button
-              className="add-player-button"
-              disabled={playersInList.some(j => (j.name || "").toLowerCase() === (p.name || "").toLowerCase())}
-              title="Agregar a la lista"
-              onClick={() => onAdd(p)}
-              style={{ marginLeft: 2, background: "#babec4" }}
-            >
-              +
-            </button>
-            <button
-              className="delete-player-button"
-              title="Eliminar"
-              onClick={() => onDelete(p)}
-            >
-              ×
-            </button>
-          </li>
-        ))}
-      </ul>
+      <details open>
+        <summary className="admin-list-title" style={{cursor: 'pointer', fontWeight: '400'}}>Jugadores Frecuentes</summary>
+        <input
+          className="input-modern"
+          type="text"
+          placeholder="Buscar..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          style={{ marginBottom: 8, width: '100%' }}
+        />
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          {filtered.map(p => {
+            const isAdded = playersInList.some(j => (j.name || "").toLowerCase() === (p.name || "").toLowerCase());
+            return (
+              <li key={p.id} className="admin-jugador-box" style={{padding: '5px'}}>
+                <span
+                  className="admin-jugador-nombre"
+                  onClick={() => setEditingPlayer(p)}
+                  style={{flex: 1, cursor: 'pointer', textDecoration: 'underline'}}>
+                  {p.name}
+                </span>
+                <button
+                  className="remove-btn"
+                  style={{background: isAdded ? '#808080' : '#25D366', cursor: isAdded ? 'not-allowed' : 'pointer'}}
+                  disabled={isAdded}
+                  title="Agregar a la lista"
+                  onClick={() => onAdd(p)}
+                >
+                  +
+                </button>
+                <button
+                  className="remove-btn"
+                  title="Eliminar"
+                  onClick={() => onDelete(p)}
+                >
+                  ×
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </details>
 
-      {/* MODAL */}
-      {editing && (
-        <div
-          className="modal-backdrop"
-          onClick={handleBackdrop}
-          style={{
-            position: "fixed",
-            zIndex: 2000,
-            left: 0, top: 0, width: "100vw", height: "100vh",
-            background: "rgba(32,37,54,0.25)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center"
-          }}
-        >
-          <div
-            className="floating-modal"
-            style={{
-              background: "#fff",
-              borderRadius: 32,
-              boxShadow: "0 8px 38px 0 rgba(34, 40, 80, 0.15)",
-              maxWidth: 420,
-              width: "95vw",
-              padding: "38px 32px 34px 32px",
-              position: "relative",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "stretch"
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{
-              fontSize: 30,
-              color: "#DE1C49",
-              fontWeight: 800,
-              textAlign: "center",
-              marginBottom: 18
-            }}>
-              Editar jugador
-            </div>
-            <form onSubmit={handleEditSubmit}>
-              <div style={{ marginBottom: 15 }}>
-                <label style={{ fontWeight: 700, fontSize: 18, color: "#232a32" }}>Nombre</label>
-                <input
-                  value={editName}
-                  onChange={e => setEditName(e.target.value.replace(/[^A-Za-záéíóúÁÉÍÓÚñÑüÜ\s]/g, ""))}
-                  placeholder="Nombre"
-                  style={{
-                    width: "100%",
-                    border: "2px solid #DE1C49",
-                    borderRadius: 11,
-                    padding: "11px 13px",
-                    fontSize: 20,
-                    fontWeight: 600,
-                    marginBottom: 7
-                  }}
-                  autoFocus
-                  maxLength={18}
-                />
-              </div>
-              <div style={{ marginBottom: 15 }}>
-                <label style={{ fontWeight: 700, fontSize: 18, color: "#232a32" }}>Apodo</label>
-                <input
-                  value={editNickname}
-                  onChange={e => setEditNickname(e.target.value)}
-                  placeholder="Apodo"
-                  style={{
-                    width: "100%",
-                    border: "1.4px solid #bbb",
-                    borderRadius: 11,
-                    padding: "11px 13px",
-                    fontSize: 18,
-                    marginBottom: 7
-                  }}
-                  maxLength={16}
-                />
-              </div>
-              <div style={{ marginBottom: 18 }}>
-                <label style={{ fontWeight: 700, fontSize: 18, color: "#232a32" }}>Puntaje</label>
-                <input
-                  value={editScore}
-                  onChange={e => setEditScore(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="Puntaje"
-                  style={{
-                    width: "100%",
-                    border: "2px solid #0EA9C6",
-                    borderRadius: 11,
-                    padding: "11px 13px",
-                    fontSize: 20,
-                    textAlign: "center",
-                    fontWeight: 600
-                  }}
-                  maxLength={2}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                />
-              </div>
-              <div style={{ display: "flex", gap: 16, marginTop: 26 }}>
-                <button
-                  type="submit"
-                  style={{
-                    background: "#09B1CD",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 18,
-                    padding: "16px 0",
-                    fontWeight: 700,
-                    fontSize: 23,
-                    width: "50%",
-                    boxShadow: "0 2px 10px #dde",
-                    cursor: "pointer"
-                  }}
-                >Aceptar</button>
-                <button
-                  type="button"
-                  onClick={cancelEdit}
-                  style={{
-                    background: "#ececec",
-                    color: "#444",
-                    border: "none",
-                    borderRadius: 18,
-                    padding: "16px 0",
-                    fontWeight: 700,
-                    fontSize: 23,
-                    width: "50%",
-                    boxShadow: "0 2px 10px #dde",
-                    cursor: "pointer"
-                  }}
-                >Cancelar</button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {editingPlayer && (
+        <EditModal
+          player={editingPlayer}
+          onSave={handleSaveEdit}
+          onCancel={() => setEditingPlayer(null)}
+        />
       )}
     </div>
   );

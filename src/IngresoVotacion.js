@@ -126,13 +126,17 @@ export default function IngresoVotacion({ onTerminar }) {
                 max={10}
                 value={puntajes[nombre] || ""}
                 onChange={e => setPuntaje(nombre, Math.max(1, Math.min(10, +e.target.value)))}
+                className="input-modern"
                 style={{
                   marginLeft: 16,
                   width: 56,
-                  fontSize: 20,
-                  borderRadius: 8,
-                  border: "1px solid #b2b2af",
-                  padding: 8
+                  fontSize: 19,
+                  borderRadius: 0,
+                  border: "2px solid rgba(255,255,255,0.4)",
+                  padding: "0 12px",
+                  color: "#fff",
+                  background: "rgba(255,255,255,0.1)",
+                  fontFamily: "Oswald, Arial, sans-serif"
                 }}
               />
             </li>
