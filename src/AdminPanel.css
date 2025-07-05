@@ -228,6 +228,31 @@
   opacity: 0.9;
 }
 
+/* Estilos para el toast de "Link copiado" */
+.admin-copy-msg-toast {
+  position: fixed;
+  top: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #232a32;
+  color: #fff;
+  padding: 16px 32px;
+  border-radius: 12px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+  z-index: 9999;
+  opacity: 0.97;
+  animation: fadeInOut 1.7s;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.95); }
+  10% { opacity: 1; transform: translateX(-50%) scale(1); }
+  90% { opacity: 1; transform: translateX(-50%) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.95); }
+}
+
 /* --- Media Queries para Responsividad --- */
 @media (max-width: 900px) {
   .admin-main-grid {
@@ -243,6 +268,17 @@
 }
 
 @media (max-width: 700px) {
+  .admin-panel-content {
+    margin-top: 24px !important;
+    margin-bottom: 24px !important;
+  }
+  .voting-title-modern {
+    margin-top: 12px !important;
+    margin-bottom: 12px !important;
+  }
+  .admin-actions-row {
+    margin-bottom: 40px !important;
+  }
   .admin-jugadores-grid {
     flex-direction: column;
     gap: 5px;
@@ -259,9 +295,25 @@
     flex-direction: column;
     align-items: stretch;
   }
+  .admin-list-container {
+    width: 100%;
+    box-sizing: border-box;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
 }
 
 @media (max-width: 480px) {
+  .admin-panel-content {
+    margin-top: 14px !important;
+    margin-bottom: 14px !important;
+  }
+  .voting-title-modern {
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
+  }
   .admin-actions-row .voting-confirm-btn {
     font-size: 14px;
     padding: 8px 12px;

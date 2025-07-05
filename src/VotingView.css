@@ -383,8 +383,50 @@
   letter-spacing: 0.06em;
   margin-bottom: 14px;
 }
-@media (max-width: 650px) {
-  .voting-modern-card { max-width: 99vw; padding: 3vw 2vw 6vw 2vw; }
-  .voting-title-modern { font-size: 8vw; }
+
+.player-select-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  width: 100%;
+  justify-items: center;
+  margin-bottom: 18px;
+}
+
+.player-select-btn {
+  width: 100%;
+  max-width: 180px;
+  min-width: 0;
+  background: transparent;
+  border: 2px solid #fff;
+  color: #fff;
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 2rem;
+  padding: 12px 0;
+  border-radius: 0;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  outline: none;
+  margin: 0;
+  box-sizing: border-box;
+}
+.player-select-btn.selected {
+  background: #0EA9C6;
+  color: #fff;
+  border-color: #fff;
+}
+
+@media (max-width: 600px) {
+  .player-select-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 0 2vw;
+  }
+  .player-select-btn {
+    font-size: 1.2rem;
+    padding: 10px 0;
+    max-width: 100%;
+  }
 }
 

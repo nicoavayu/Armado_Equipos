@@ -178,7 +178,9 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange 
 
   const ActionButtons = () => (
     <>
-      <div className="admin-actions-row">
+      {/* Botones juntos, solo 5px después del formulario */}
+      <div style={{ height: 5 }} />
+      <div className="admin-actions-row" style={{marginTop: 0, marginBottom: 0}}>
         <button className="voting-confirm-btn wipe-btn btn-link" onClick={handleCopyLink}>
           LINK PARA JUGADORES
         </button>
@@ -187,8 +189,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange 
           WHATSAPP
         </button>
       </div>
-      <div style={{ height: 35 }} />
-      <div className="admin-actions-row">
+      <div className="admin-actions-row" style={{marginTop: 18, marginBottom: 0}}>
         <button className="voting-confirm-btn wipe-btn btn-cerrar" onClick={handleCerrarVotacion} disabled={isClosing}>
           {isClosing ? "CERRANDO..." : "CERRAR VOTACIÓN Y ARMAR EQUIPOS"}
         </button>
@@ -196,7 +197,10 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange 
           VOLVER AL INICIO
         </button>
       </div>
-      {copyMsg && <div className="admin-copy-msg">{copyMsg}</div>}
+      {/* Alerta flotante de link copiado */}
+      {copyMsg && (
+        <div className="admin-copy-msg-toast">{copyMsg}</div>
+      )}
     </>
   );
 
