@@ -186,6 +186,9 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange 
           <WhatsappIcon />
           WHATSAPP
         </button>
+      </div>
+      <div style={{ height: 35 }} />
+      <div className="admin-actions-row">
         <button className="voting-confirm-btn wipe-btn btn-cerrar" onClick={handleCerrarVotacion} disabled={isClosing}>
           {isClosing ? "CERRANDO..." : "CERRAR VOTACIÓN Y ARMAR EQUIPOS"}
         </button>
@@ -218,64 +221,62 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange 
         ) : (
           <>
             <div className="voting-title-modern">MODO PARTICIPATIVO</div>
-            <div className="admin-main-grid">
-              <div>
-                <div className="admin-subtitle">Ingresa tus jugadores</div>
-                <div className="admin-add-player-container dark-container">
-                  <form className="admin-add-form" onSubmit={agregarJugador} autoComplete="off">
-                    <input
-                      className="input-modern"
-                      type="text"
-                      value={nuevoNombre}
-                      onChange={e => setNuevoNombre(e.target.value)}
-                      placeholder="nombre jugador"
-                      disabled={loading}
-                      ref={inputRef}
-                      maxLength={40}
-                      required
-                    />
-                    <button
-                      className="voting-confirm-btn wipe-btn"
-                      type="submit"
-                      disabled={loading || isClosing}
-                    >
-                      AGREGAR
-                    </button>
-                  </form>
-                </div>
-                {!isMobile && <ActionButtons />}
-              </div>
 
-              <div className="admin-list-container">
-                <div className="admin-list-title">
-                  JUGADORES ({jugadores.length})
-                </div>
-                <div className="admin-jugadores-grid">
-                  {jugadoresPorColumna.map((col, idx) => (
-                    <div key={idx} className="admin-jugadores-col">
-                      {col.map(j => (
-                        <div
-                          key={j.uuid}
-                          className={`admin-jugador-box${votantes.includes(j.uuid) ? " votado" : ""}`}
-                        >
-                          <MiniAvatar foto_url={j.foto_url} nombre={j.nombre} size={29} />
-                          <span className="admin-jugador-nombre">{j.nombre}</span>
-                          <button
-                            className="remove-btn"
-                            onClick={() => eliminarJugador(j.uuid)}
-                            type="button"
-                            aria-label="Eliminar jugador"
-                            disabled={isClosing}
-                          >
-                            X
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
+            <div className="admin-add-player-container dark-container" style={{ margin: "0 auto", maxWidth: 620 }}>
+              <form className="admin-add-form" onSubmit={agregarJugador} autoComplete="off">
+                <input
+                  className="input-modern"
+                  type="text"
+                  value={nuevoNombre}
+                  onChange={e => setNuevoNombre(e.target.value)}
+                  placeholder="nombre jugador"
+                  disabled={loading}
+                  ref={inputRef}
+                  maxLength={40}
+                  required
+                />
+                <button
+                  className="voting-confirm-btn wipe-btn"
+                  type="submit"
+                  disabled={loading || isClosing}
+                >
+                  AGREGAR
+                </button>
+              </form>
+            </div>
+
+            <div className="admin-list-container" style={{ margin: "24px auto 0 auto", maxWidth: 600 }}>
+              <div className="admin-list-title">
+                JUGADORES ({jugadores.length})
               </div>
-              {isMobile && <ActionButtons />}
+              <div className="admin-jugadores-grid">
+                {jugadoresPorColumna.map((col, idx) => (
+                  <div key={idx} className="admin-jugadores-col">
+                    {col.map(j => (
+                      <div
+                        key={j.uuid}
+                        className={`admin-jugador-box${votantes.includes(j.uuid) ? " votado" : ""}`}
+                      >
+                        <MiniAvatar foto_url={j.foto_url} nombre={j.nombre} size={29} />
+                        <span className="admin-jugador-nombre">{j.nombre}</span>
+                        <button
+                          className="remove-btn"
+                          onClick={() => eliminarJugador(j.uuid)}
+                          type="button"
+                          aria-label="Eliminar jugador"
+                          disabled={isClosing}
+                        >
+                          X
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ margin: "32px auto 0 auto", maxWidth: 600 }}>
+              <ActionButtons />
             </div>
           </>
         )}

@@ -205,8 +205,8 @@
 }
 
 .btn-cerrar {
-  background-color: rgba(255, 193, 7, 0.8) !important;
-  color: #111 !important;
+  background-color: rgb(8, 153, 34) !important;
+  color: #fffffffff !important;
   grid-column: span 2;
 }
 

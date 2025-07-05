@@ -915,3 +915,17 @@ body {
   gap: 8px;
   align-content: start;
 }
+
+.team-list-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .team-list-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}

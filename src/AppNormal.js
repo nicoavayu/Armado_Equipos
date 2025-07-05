@@ -296,7 +296,7 @@ function AppNormal({ onBack }) {
             />
           </div>
 
-          <div className="team-container" style={{ display: 'flex', gap: '20px', marginTop: '20px', width: '100%' }}>
+          <div className="team-list-grid">
             <AnimatePresence>
               {teams.map((team, idx) => {
                 const teamScore = team.reduce((acc, p) => acc + (+p.score || 0), 0);
