@@ -7,7 +7,7 @@ import {
 } from "./supabase";
 import { toast } from 'react-toastify';
 import StarRating from "./StarRating";
-import "./HomeStyleKit.css";
+import "./VotingView.css";
 import Logo from "./Logo.png";
 
 // Avatar cuadrado por defecto (SVG simple)
@@ -36,14 +36,13 @@ export default function VotingView({ onReset, jugadores }) {
   const [current, setCurrent] = useState(0);
   const [votos, setVotos] = useState({});
   const [hovered, setHovered] = useState(null);
+  const [animation, setAnimation] = useState('slide-in');
 
   // Edición y confirmación
   const [editandoIdx, setEditandoIdx] = useState(null);
   const [confirmando, setConfirmando] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
   const [yaVoto, setYaVoto] = useState(false);
-
-  // No es necesario cargar jugadores aquí, se reciben por props
 
   // Al seleccionar nombre, setea jugador y foto
   useEffect(() => {
@@ -121,91 +120,88 @@ export default function VotingView({ onReset, jugadores }) {
 
   // Paso 1: Subir foto (opcional)
   if (step === 1) {
-  // Manejador de archivo
-  const handleFile = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      setFotoPreview(URL.createObjectURL(e.target.files[0]));
-    }
-  };
+    // Manejador de archivo
+    const handleFile = (e) => {
+      if (e.target.files && e.target.files[0]) {
+        setFile(e.target.files[0]);
+        setFotoPreview(URL.createObjectURL(e.target.files[0]));
+      }
+    };
 
-  const handleFotoUpload = async () => {
-    if (!file || !jugador) return;
-    setSubiendoFoto(true);
-    try {
-      const fotoUrl = await uploadFoto(file, jugador);
-      setFotoPreview(fotoUrl);
-      setFile(null);
-      toast.success("¡Foto cargada!");
-    } catch (error) {
-      toast.error("Error al subir la foto: " + error.message);
-    } finally {
-      setSubiendoFoto(false);
-    }
-  };
+    const handleFotoUpload = async () => {
+      if (!file || !jugador) return;
+      setSubiendoFoto(true);
+      try {
+        const fotoUrl = await uploadFoto(file, jugador);
+        setFotoPreview(fotoUrl);
+        setFile(null);
+        toast.success("¡Foto cargada!");
+      } catch (error) {
+        toast.error("Error al subir la foto: " + error.message);
+      } finally {
+        setSubiendoFoto(false);
+      }
+    };
 
-  return (
-    <div className="voting-bg">
-      <div className="voting-modern-card">
-        <div className="voting-title-modern">¡HOLA, {nombre}!</div>
-        
-        {/* FOTO GRANDE CON “+” PARA AGREGAR/CAMBIAR */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 18 }}>
-          <div
-            className="voting-photo-box"
-            onClick={() => document.getElementById("foto-input").click()}
-            style={{ cursor: "pointer" }}
-            title={fotoPreview ? "Cambiar foto" : "Agregar foto"}
-          >
-            {fotoPreview ? (
-              <img
-                src={fotoPreview}
-                alt="foto"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">¡HOLA, {nombre}!</div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 18 }}>
+            <div
+              className="voting-photo-box"
+              onClick={() => document.getElementById("foto-input").click()}
+              style={{ cursor: "pointer" }}
+              title={fotoPreview ? "Cambiar foto" : "Agregar foto"}
+            >
+              {fotoPreview ? (
+                <img
+                  src={fotoPreview}
+                  alt="foto"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                <span className="photo-plus">+</span>
+              )}
+              <input
+                id="foto-input"
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={handleFile}
               />
-            ) : (
-              <span className="photo-plus">+</span>
-            )}
-            <input
-              id="foto-input"
-              type="file"
-              accept="image/*"
-              style={{ display: "none" }}
-              onChange={handleFile}
-            />
+            </div>
           </div>
-        </div>
 
-        {!fotoPreview && (
-          <div style={{
-            fontSize: 18, color: "rgba(255,255,255,0.7)",
-            textAlign: "center", marginBottom: 18, fontFamily: "'Oswald', Arial, sans-serif"
-          }}>
-            ¿Querés que tus amigos vean tu foto? Cargala ahora.<br />(Opcional)
-          </div>
-        )}
-        {file && (
+          {!fotoPreview && (
+            <div style={{
+              fontSize: 18, color: "rgba(255,255,255,0.7)",
+              textAlign: "center", marginBottom: 18, fontFamily: "'Oswald', Arial, sans-serif"
+            }}>
+             Mandale Selfie.<br />
+            </div>
+          )}
+          {file && (
+            <button
+              className="voting-confirm-btn"
+              style={{ background: "rgba(255,255,255,0.17)", borderColor: "#fff", color: "#fff" }}
+              disabled={subiendoFoto}
+              onClick={handleFotoUpload}
+            >
+              {subiendoFoto ? "SUBIENDO..." : "GUARDAR FOTO"}
+            </button>
+          )}
           <button
             className="voting-confirm-btn"
-            style={{ background: "rgba(255,255,255,0.17)", borderColor: "#fff", color: "#fff" }}
-            disabled={subiendoFoto}
-            onClick={handleFotoUpload}
+            style={{ marginTop: 8 }}
+            onClick={() => setStep(2)}
           >
-            {subiendoFoto ? "SUBIENDO..." : "GUARDAR FOTO"}
+            {fotoPreview ? "CONTINUAR" : "CONTINUAR SIN FOTO"}
           </button>
-        )}
-        <button
-          className="voting-confirm-btn"
-          style={{ marginTop: 8 }}
-          onClick={() => setStep(2)}
-        >
-          {fotoPreview ? "CONTINUAR" : "CONTINUAR SIN FOTO"}
-        </button>
+        </div>
       </div>
-    </div>
-  );
-}
-
+    );
+  }
 
   // Jugadores a votar: todos menos yo
   const jugadoresParaVotar = jugadores.filter(j => j.nombre !== nombre);
@@ -220,51 +216,55 @@ export default function VotingView({ onReset, jugadores }) {
     const jugadorVotar = jugadoresParaVotar[index];
     const valor = votos[jugadorVotar.uuid] || 0;
 
+    const handleVote = (newValue) => {
+      setVotos(prev => {
+        const nuevosVotos = { ...prev, [jugadorVotar.uuid]: newValue };
+        // Si estoy editando, volver al resumen inmediatamente después de actualizar el voto
+        if (editandoIdx !== null) {
+          setTimeout(() => {
+            setEditandoIdx(null);   // Salgo de la edición y el resumen se refresca enseguida
+          }, 0);
+        } else {
+          setAnimation('slide-out');
+          setTimeout(() => {
+            setCurrent(cur => cur + 1);
+            setAnimation('slide-in');
+          }, 300);
+        }
+        setHovered(null);
+        return nuevosVotos;
+      });
+    };
+
     return (
       <div className="voting-bg">
-        <div className="voting-modern-card" style={{ background: "transparent", boxShadow: "none", padding: 0 }}>
-          <div className="voting-title-modern">
-            CALIFICÁ A TUS COMPAÑEROS
+        <div className={`player-vote-card ${animation}`} key={index}>
+          <div className="voting-modern-card" style={{ background: "transparent", boxShadow: "none", padding: 0 }}>
+            <div className="voting-title-modern">
+              CALIFICÁ A TUS COMPAÑEROS
+            </div>
+            <div className="voting-player-name">{jugadorVotar.nombre}</div>
+            <div className="voting-photo-box">
+              {jugadorVotar.foto_url ? (
+                <img src={jugadorVotar.foto_url} alt="foto" />
+              ) : (
+                DefaultAvatar
+              )}
+            </div>
+            <StarRating
+              value={valor}
+              onChange={handleVote}
+              hovered={hovered}
+              setHovered={setHovered}
+            />
+            <button
+              className="voting-confirm-btn"
+              style={{ marginTop: 35, marginBottom: 0, fontWeight: 400 }}
+              onClick={() => handleVote(undefined)}
+            >
+              NO LO CONOZCO
+            </button>
           </div>
-          <div className="voting-player-name">{jugadorVotar.nombre}</div>
-          <div className="voting-photo-box">
-            {jugadorVotar.foto_url ? (
-              <img src={jugadorVotar.foto_url} alt="foto" />
-            ) : (
-              DefaultAvatar
-            )}
-          </div>
-          <StarRating
-            value={valor}
-            onChange={valor => {
-              setVotos(prev => ({ ...prev, [jugadorVotar.uuid]: valor }));
-              if (editandoIdx !== null) {
-                setEditandoIdx(null);
-                setStep(3);
-              } else {
-                setCurrent(cur => cur + 1);
-              }
-              setHovered(null);
-            }}
-            hovered={hovered}
-            setHovered={setHovered}
-          />
-          <button
-            className="voting-confirm-btn"
-            style={{ marginTop: 35, marginBottom: 0, fontWeight: 400 }}
-            onClick={() => {
-              setVotos(prev => ({ ...prev, [jugadorVotar.uuid]: undefined }));
-              if (editandoIdx !== null) {
-                setEditandoIdx(null);
-                setStep(3);
-              } else {
-                setCurrent(cur => cur + 1);
-              }
-              setHovered(null);
-            }}
-          >
-            NO LO CONOZCO
-          </button>
         </div>
       </div>
     );
@@ -278,28 +278,19 @@ export default function VotingView({ onReset, jugadores }) {
           <div className="voting-title-modern">
             CONFIRMÁ TUS<br />CALIFICACIONES
           </div>
-          <ul style={{
-            listStyle: "none", padding: 0, width: "100%",
-            maxWidth: 520, margin: "0 auto 24px auto"
-          }}>
+          <ul className="confirmation-list">
             {jugadoresParaVotar.map((j, idx) => (
-              <li key={j.uuid} style={{
-                display: "flex", alignItems: "center", gap: 16, marginBottom: 10,
-                background: "rgba(255,255,255,0.11)", borderRadius: 14, padding: "11px 13px"
-              }}>
+              <li key={j.uuid} className="confirmation-item">
                 {j.foto_url ?
-                  <img src={j.foto_url} alt="foto" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover" }} />
-                  : DefaultAvatar
+                  <img src={j.foto_url} alt="foto" className="confirmation-item-photo" />
+                  : <div className="confirmation-item-photo">{DefaultAvatar}</div>
                 }
-                <span style={{
-                  flex: 1, fontWeight: 700, fontSize: 25, fontFamily: "'Oswald', Arial, sans-serif", color: "#fff", letterSpacing: 1
-                }}>{j.nombre}</span>
-                <span style={{ color: "#fff", fontSize: 22, fontWeight: 800, minWidth: 70, textAlign: "right", fontFamily: "'Oswald', Arial, sans-serif" }}>
-                  {votos[j.uuid] ? votos[j.uuid] + "/10" : "No calificado"}
+                <span className="confirmation-item-name">{j.nombre}</span>
+                <span className="confirmation-item-score" style={{ fontSize: 32, fontWeight: 800, minWidth: 88 }}>
+                  {votos[j.uuid] ? `${votos[j.uuid]}/10` : "No calificado"}
                 </span>
                 <button
-                  className="voting-name-btn"
-                  style={{ width: 70, height: 38, fontSize: 18, border: "2px solid #fff", margin: 0 }}
+                  className="confirmation-item-edit-btn"
                   onClick={() => setEditandoIdx(idx)}
                 >EDITAR</button>
               </li>

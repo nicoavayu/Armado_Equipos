@@ -1,52 +1,37 @@
-// src/StarRating.js
-import React, { useState, useEffect } from "react";
+import React from "react";
 
 export default function StarRating({ value, onChange, max = 10, hovered, setHovered }) {
-  // Tamaño adaptativo (más chico en mobile)
-  const [starSize, setStarSize] = useState(48);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setStarSize(window.innerWidth < 600 ? 30 : 48);
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  // Manejador para detección continua en todo el bloque (sin gaps)
   const handleMouseMove = (e) => {
     const { left, width } = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - left;
     const star = Math.ceil((x / width) * max);
-    setHovered(star < 1 ? 1 : star > max ? max : star);
+    setHovered && setHovered(star < 1 ? 1 : star > max ? max : star);
+  };
+
+  const handleClick = (e) => {
+    const { left, width } = e.currentTarget.getBoundingClientRect();
+    const x = e.touches ? e.touches[0].clientX - left : e.clientX - left;
+    const star = Math.ceil((x / width) * max);
+    onChange(star < 1 ? 1 : star > max ? max : star);
   };
 
   return (
     <div
-      className="star-rating-mobile"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        marginTop: window.innerWidth < 600 ? 16 : 48,
-        userSelect: "none"
-      }}
-      onMouseLeave={() => setHovered(null)}
+      className="star-rating-container"
+      onMouseLeave={() => setHovered && setHovered(null)}
     >
       <div
-        style={{ display: "flex", gap: 9, marginBottom: 13, cursor: "pointer" }}
+        className="stars-box"
         onMouseMove={handleMouseMove}
+        onClick={handleClick}
+        onTouchStart={handleClick}
       >
         {[...Array(max)].map((_, i) => (
           <svg
             key={i}
-            width={starSize}
-            height={starSize}
+            className="star-svg"
             viewBox="0 0 24 24"
-            onClick={() => onChange(i + 1)}
             style={{
-              transition: "filter .18s, transform .12s",
               filter: (hovered !== null && i < hovered) || (hovered === null && i < value)
                 ? "drop-shadow(0 0 7px #ffd700b0)"
                 : "none",
@@ -67,15 +52,7 @@ export default function StarRating({ value, onChange, max = 10, hovered, setHove
           </svg>
         ))}
       </div>
-      <span className="star-score" style={{
-        fontFamily: "'Bebas Neue', 'Oswald', Arial, sans-serif",
-        color: "#fff",
-        fontSize: window.innerWidth < 600 ? 24 : 70,
-        fontWeight: 700,
-        marginTop: 10,
-        marginBottom: 4,
-        letterSpacing: 1.3
-      }}>
+      <span className="star-score">
         {hovered !== null ? hovered : (value || 0)}
       </span>
     </div>

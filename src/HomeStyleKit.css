@@ -80,8 +80,8 @@ body {
   background: transparent;
   border-radius: 0 !important;
   height: 72px;
-  min-width: 500px;
-  max-width: 500px;
+  min-width: 800px;
+  max-width: 800px;
   width: 100%;
   cursor: pointer;
   overflow: hidden;
@@ -189,7 +189,7 @@ body {
   .voting-name-btn {
     font-size: 5vw;
     height: 56px;
-    min-width: 50;
+    min-width: 50px;
     max-width: 99vw;
   }
   .voting-confirm-btn {
