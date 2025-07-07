@@ -379,13 +379,7 @@ if (step === 2 || editandoIdx !== null) {
             tus votos quedaron registrados<br />
             podés cerrar esta ventana.
           </div>
-          <button
-            className="voting-confirm-btn"
-            style={{ marginTop: 16 }}
-            onClick={onReset}
-          >
-            VOLVER AL INICIO
-          </button>
+          {/* El botón "VOLVER AL INICIO" ha sido removido para los jugadores */}
         </div>
       </div>
     );
