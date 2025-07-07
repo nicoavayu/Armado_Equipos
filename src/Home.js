@@ -8,7 +8,7 @@ export default function Home({ onModoSeleccionado }) {
     <div className="voting-bg">
       <div className="voting-modern-card">
         <img src={Logo} alt="Logo" style={{ height: '140px', marginBottom: '40px' }} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
+<div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100vw', maxWidth: '100vw', alignItems: 'stretch' }}>
           <div className="player-select-btn" onClick={() => onModoSeleccionado("simple")}>
             <span className="player-select-txt">Rápido</span>
           </div>

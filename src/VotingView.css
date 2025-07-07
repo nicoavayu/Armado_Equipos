@@ -201,7 +201,7 @@
   box-shadow: 0 2px 32px 0 rgba(90,30,120,0.06);
   max-width: 520px;
   margin: 52px auto;
-  padding: 40px 28px 32px 28px;
+  padding: 40px 0 32px 0; /* Remove horizontal padding */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -239,6 +239,17 @@
 .voting-confirm-btn:hover::before { left: 0; }
 .voting-confirm-btn > span { position: relative; z-index: 2; }
 
+.voting-modern-card > .voting-title-modern,
+.voting-modern-card > .voting-player-name,
+.voting-modern-card > .voting-photo-box,
+.voting-modern-card > .voting-confirm-btn,
+.voting-modern-card > .confirmation-list {
+  /* Add padding back to other children */
+  margin-left: 28px;
+  margin-right: 28px;
+  box-sizing: border-box;
+}
+
 .subtitle {
   font-family: 'Oswald', Arial, sans-serif;
   font-size: 21px;
@@ -254,7 +265,7 @@
   padding: 16px 18px;
   font-size: 18px;
   border: 1.5px solid #eceaf1;
-  background: #f9f9fa;
+ 
   border-radius: 0 !important;
   font-family: 'Oswald', Arial, sans-serif;
   outline: none;
@@ -318,7 +329,7 @@
   padding: 15px 18px;
   font-size: 19px;
   border: 1.5px solid #eceaf1;
-  background: #f9f9fa;
+    
   border-radius: 0 !important;
   font-family: 'Oswald', Arial, sans-serif;
   outline: none;
@@ -695,4 +706,172 @@
     font-size: 14px;
     padding: 0 10px;
   }
+}
+.number-rating-container {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 24px 0 12px 0;
+}
+
+.number-btn {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  border: 2.5px solid #fff;
+  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  font-size: 1.6rem;
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  cursor: pointer;
+  transition: background 0.14s, color 0.15s, border-color 0.13s, transform 0.1s;
+  outline: none;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.10);
+}
+
+.number-btn.selected,
+.number-btn:hover {
+  background: #0EA9C6;
+  color: #fff;
+  border-color: #DE1C49;
+  transform: scale(1.08);
+}
+
+.number-btn:active {
+  filter: brightness(0.92);
+}
+
+.number-rating-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin: 24px 0 12px 0;
+  width: 100%;
+  max-width: 98vw;
+  box-sizing: border-box;
+}
+.number-btn {
+  flex: 1 1 34px;
+  min-width: 34px;
+  max-width: 44px;
+  width: 44px;
+  height: 44px;
+  font-size: 1.2rem;
+}
+.number-rating-container {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  box-sizing: border-box;
+  /* No max-width ni overflow:hidden en padres */
+}
+
+.number-btn {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 9px;
+  font-size: 1.3rem;
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+  border: 2px solid #fff;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, border-color 0.18s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.number-btn.selected,
+.number-btn:hover {
+  background: #0EA9C6;
+  color: #fff;
+  border-color: #DE1C49;
+}
+
+@media (max-width: 600px) {
+  .number-rating-container {
+    gap: 8px;
+    padding-bottom: 5px;
+    /* El ancho total se maneja con overflow-x: auto */
+  }
+  .number-btn {
+    width: 38px;
+    height: 38px;
+    font-size: 1rem;
+  }
+}
+.confirmation-item-score.not-graded {
+  font-size: 20px !important;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  opacity: 0.93;
+  text-transform: uppercase;
+}
+.voting-final-message {
+  color: #fff;
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 27px;
+  margin-bottom: 27px;
+  letter-spacing: 1.1px;
+  text-align: center;
+}
+
+
+/* En el card principal */
+.voting-modern-card.confirmaciones-wrapper {
+  display: flex;
+  flex-direction: column;
+  max-width: 520px;
+  width: 100%;
+  min-height: 430px;
+  max-height: 85vh;     /* <--- Ajusta según tu diseño */
+  height: 85vh;
+  background: transparent;
+  justify-content: flex-start;
+}
+
+/* Scroll solo en la lista, nunca en el botón */
+.confirmation-scroll-zone {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  margin-bottom: 14px;
+  min-height: 50px;
+}
+
+/* El botón de confirmar nunca se escapa */
+.voting-confirm-btn {
+  flex-shrink: 0;
+  margin-top: 8px;
+  margin-bottom: 10px;
+}
+
+/* Responsive: en mobile */
+@media (max-width: 700px) {
+  .voting-modern-card.confirmaciones-wrapper {
+    max-width: 99vw;
+    height: 80vh;
+    min-height: 340px;
+    max-height: 92vh;
+  }
+  .confirmation-scroll-zone {
+    max-height: 56vh;
+  }
+}
+
+/* Hace que el placeholder sea gris y se vea siempre */
+input::placeholder,
+.voting-input::placeholder,
+.input-modern::placeholder {
+ 
+  opacity: 1 !important; /* para Safari y otros browsers */
 }

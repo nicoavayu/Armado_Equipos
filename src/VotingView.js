@@ -44,7 +44,22 @@ export default function VotingView({ onReset, jugadores }) {
   const [finalizado, setFinalizado] = useState(false);
   const [yaVoto, setYaVoto] = useState(false);
 
-  // Al seleccionar nombre, setea jugador y foto
+  // Jugadores a votar: todos menos yo
+  const jugadoresParaVotar = jugadores.filter(j => j.nombre !== nombre);
+
+  useEffect(() => {
+    if (step === 2 && current > jugadoresParaVotar.length - 1) {
+      setCurrent(jugadoresParaVotar.length - 1);
+    }
+  }, [jugadoresParaVotar.length, step, current]);
+
+  useEffect(() => {
+    if (step === 3 && Object.keys(votos).length < jugadoresParaVotar.length) {
+      setCurrent(Object.keys(votos).length);
+      setStep(2);
+    }
+  }, [jugadoresParaVotar.length, votos, step]);
+
   useEffect(() => {
     if (!nombre) return;
     const j = jugadores.find(j => j.nombre === nombre);
@@ -52,7 +67,6 @@ export default function VotingView({ onReset, jugadores }) {
     setFotoPreview(j?.foto_url || null);
   }, [nombre, jugadores]);
 
-  // Chequear si ya votó este jugador (uuid) en votos
   useEffect(() => {
     async function checkVoteStatus() {
       if (!jugador || !jugador.uuid) return;
@@ -66,7 +80,6 @@ export default function VotingView({ onReset, jugadores }) {
     checkVoteStatus();
   }, [jugador]);
 
-  // BLOQUEO: si ya votó, mostrá mensaje y bloqueá el resto del flujo
   if (yaVoto) {
     return (
       <div className="voting-bg">
@@ -120,7 +133,6 @@ export default function VotingView({ onReset, jugadores }) {
 
   // Paso 1: Subir foto (opcional)
   if (step === 1) {
-    // Manejador de archivo
     const handleFile = (e) => {
       if (e.target.files && e.target.files[0]) {
         setFile(e.target.files[0]);
@@ -178,7 +190,7 @@ export default function VotingView({ onReset, jugadores }) {
               fontSize: 18, color: "rgba(255,255,255,0.7)",
               textAlign: "center", marginBottom: 18, fontFamily: "'Oswald', Arial, sans-serif"
             }}>
-             Mandale Selfie.<br />
+             Mandale Selfie, asi saben quien sos.<br />
             </div>
           )}
           {file && (
@@ -203,47 +215,60 @@ export default function VotingView({ onReset, jugadores }) {
     );
   }
 
-  // Jugadores a votar: todos menos yo
-  const jugadoresParaVotar = jugadores.filter(j => j.nombre !== nombre);
-
   // Paso 2: Votar a los demás jugadores
-  if (step === 2 || editandoIdx !== null) {
-    const index = editandoIdx !== null ? editandoIdx : current;
-    if (index >= jugadoresParaVotar.length) {
-      setTimeout(() => setStep(3), 300);
-      return null;
-    }
-    const jugadorVotar = jugadoresParaVotar[index];
-    const valor = votos[jugadorVotar.uuid] || 0;
+if (step === 2 || editandoIdx !== null) {
+  const jugadoresNoVotados = jugadoresParaVotar.filter(j => !(j.uuid in votos));
+  let jugadorVotar;
+  if (editandoIdx !== null) {
+    jugadorVotar = jugadoresParaVotar[editandoIdx];
+  } else {
+    jugadorVotar = jugadoresNoVotados[0];
+  }
+
+  if (jugadorVotar) {
+    const valor = votos[jugadorVotar.uuid];
 
     const handleVote = (newValue) => {
       setVotos(prev => {
         const nuevosVotos = { ...prev, [jugadorVotar.uuid]: newValue };
-        // Si estoy editando, volver al resumen inmediatamente después de actualizar el voto
         if (editandoIdx !== null) {
           setTimeout(() => {
-            setEditandoIdx(null);   // Salgo de la edición y el resumen se refresca enseguida
+            setEditandoIdx(null);
           }, 0);
-        } else {
-          setAnimation('slide-out');
-          setTimeout(() => {
-            setCurrent(cur => cur + 1);
-            setAnimation('slide-in');
-          }, 300);
         }
         setHovered(null);
         return nuevosVotos;
       });
+      if (editandoIdx === null) {
+        setAnimation('slide-out');
+        setTimeout(() => {
+          setAnimation('slide-in');
+        }, 300);
+      }
     };
 
     return (
       <div className="voting-bg">
-        <div className={`player-vote-card ${animation}`} key={index}>
+        <div className={`player-vote-card ${animation}`}>
           <div className="voting-modern-card" style={{ background: "transparent", boxShadow: "none", padding: 0 }}>
+            
+            {/* Mensaje agregado */}
+            <div style={{
+              fontSize: 20,
+              fontFamily: "'Oswald', Arial, sans-serif",
+              color: "#fff",
+              marginBottom: 12,
+              textAlign: "center"
+            }}>
+              Los votos son secretos, nadie se entera lo que pones
+            </div>
+
             <div className="voting-title-modern">
               CALIFICÁ A TUS COMPAÑEROS
             </div>
+
             <div className="voting-player-name">{jugadorVotar.nombre}</div>
+
             <div className="voting-photo-box">
               {jugadorVotar.foto_url ? (
                 <img src={jugadorVotar.foto_url} alt="foto" />
@@ -251,16 +276,18 @@ export default function VotingView({ onReset, jugadores }) {
                 DefaultAvatar
               )}
             </div>
+
             <StarRating
               value={valor}
-              onChange={handleVote}
+              onRate={handleVote}
               hovered={hovered}
               setHovered={setHovered}
             />
+
             <button
               className="voting-confirm-btn"
               style={{ marginTop: 35, marginBottom: 0, fontWeight: 400 }}
-              onClick={() => handleVote(undefined)}
+              onClick={() => handleVote(-1)}
             >
               NO LO CONOZCO
             </button>
@@ -268,7 +295,12 @@ export default function VotingView({ onReset, jugadores }) {
         </div>
       </div>
     );
+  } else {
+    setTimeout(() => setStep(3), 200);
+    return null;
   }
+}
+
 
   // Paso 3: Resumen y edición antes de confirmar
   if (step === 3 && !finalizado) {
@@ -286,8 +318,13 @@ export default function VotingView({ onReset, jugadores }) {
                   : <div className="confirmation-item-photo">{DefaultAvatar}</div>
                 }
                 <span className="confirmation-item-name">{j.nombre}</span>
-                <span className="confirmation-item-score" style={{ fontSize: 32, fontWeight: 800, minWidth: 88 }}>
-                  {votos[j.uuid] ? `${votos[j.uuid]}/10` : "No calificado"}
+                <span className="confirmation-item-score" style={{
+                  fontSize: 22, fontWeight: 700, minWidth: 72, textAlign: 'center'
+                }}>
+                  {(votos[j.uuid] && votos[j.uuid] > 0)
+                    ? `${votos[j.uuid]}/10`
+                    : <span style={{ fontSize: 16, fontWeight: 500 }}>No calificado</span>
+                  }
                 </span>
                 <button
                   className="confirmation-item-edit-btn"
@@ -325,19 +362,30 @@ export default function VotingView({ onReset, jugadores }) {
       <div className="voting-bg">
         <div className="voting-modern-card">
           <div className="voting-title-modern">
-            ¡GRACIAS POR VOTAR!
+            YA VOTASTE
           </div>
-          <div style={{
-            color: "#fff", fontFamily: "'Oswald', Arial, sans-serif",
-            fontSize: 27, marginBottom: 27, letterSpacing: 1.1
-          }}>
-            Tus votos fueron registrados.<br />Podés cerrar esta ventana.
+          <div
+            style={{
+              color: "#fff",
+              fontFamily: "'Oswald', Arial, sans-serif",
+              fontSize: 27,
+              marginBottom: 27,
+              letterSpacing: 1.1,
+              textAlign: "center",
+              width: "100%",
+              display: "block"
+            }}
+          >
+            tus votos quedaron registrados<br />
+            podés cerrar esta ventana.
           </div>
           <button
             className="voting-confirm-btn"
             style={{ marginTop: 16 }}
             onClick={onReset}
-          >VOLVER AL INICIO</button>
+          >
+            VOLVER AL INICIO
+          </button>
         </div>
       </div>
     );

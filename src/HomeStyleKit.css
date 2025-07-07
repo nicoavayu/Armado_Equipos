@@ -14,6 +14,9 @@
   --white-transparent: rgba(255,255,255,0.29);
 }
 
+
+
+
 /* Tipografía global */
 body, html {
   font-family: var(--font-main) !important;
@@ -41,13 +44,15 @@ body {
 .voting-modern-card {
   width: 90vw;
   max-width: 1200px;
-  padding: 48px 0 40px 0;
-  background: transparent;
-  border-radius: 0;
+  padding: 80px 0 80px 0;
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
   display: flex;
   flex-direction: column;
   align-items: center;
-   margin: 0 auto;
+  margin: 0 auto;
 }
 .voting-title-modern {
   font-family: 'Bebas Neue', Arial, sans-serif !important;
@@ -928,4 +933,15 @@ body {
     grid-template-columns: 1fr;
     gap: 12px;
   }
+}
+
+
+.player-select-btn, .voting-name-btn {
+  width: 100% !important;       /* Ocuparán el ancho del container */
+  max-width: 360px !important;  /* Un tamaño ancho pero no gigante */
+  min-width: 220px !important;  /* No se achican demasiado */
+  height: 65px !important;
+  font-size: 2.3rem !important; /* Bien grandes, pero no exagerados */
+  margin: 0 auto !important;
+  box-sizing: border-box !important;
 }

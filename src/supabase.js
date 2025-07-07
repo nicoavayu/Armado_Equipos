@@ -34,8 +34,16 @@ export const addJugador = async (nombre) => {
 };
 
 export const deleteJugador = async (uuid) => {
-  const { error } = await supabase.from('jugadores').delete().eq('uuid', uuid);
-  if (error) throw error;
+  // Delete player from 'jugadores' table
+  const { error: playerError } = await supabase.from('jugadores').delete().eq('uuid', uuid);
+  if (playerError) throw playerError;
+
+  // Also delete all votes associated with this player (both as voter and as voted)
+  const { error: votesAsVoterError } = await supabase.from('votos').delete().eq('votante_id', uuid);
+  if (votesAsVoterError) console.error("Error deleting player's cast votes:", votesAsVoterError);
+
+  const { error: votesAsVotadoError } = await supabase.from('votos').delete().eq('votado_id', uuid);
+  if (votesAsVotadoError) console.error("Error deleting player's received votes:", votesAsVotadoError);
 };
 
 export const uploadFoto = async (file, jugador) => {
@@ -86,7 +94,7 @@ export const checkIfAlreadyVoted = async (jugadorUuid) => {
 
 export const submitVotos = async (votos, jugadorUuid) => {
   const votosParaInsertar = Object.entries(votos)
-    .filter(([, puntaje]) => puntaje !== undefined)
+    .filter(([, puntaje]) => puntaje !== undefined && puntaje !== null)
     .map(([votado_id, puntaje]) => ({
       votado_id,
       votante_id: jugadorUuid,
@@ -119,33 +127,53 @@ export const removeSubscription = (subscription) => {
 };
 
 export const closeVotingAndCalculateScores = async () => {
-  // 1. Fetch all votes
-  const { data: votos, error: fetchError } = await supabase
-    .from('votos')
-    .select('votado_id, puntaje');
-
+  // 1. Fetch all votes and all players
+  const { data: votos, error: fetchError } = await supabase.from('votos').select('votado_id, puntaje');
   if (fetchError) throw new Error('Error al obtener los votos: ' + fetchError.message);
-  
-  if (!votos || votos.length === 0) {
-    return { message: 'No hay votos para calcular. La votación ha sido cerrada.' };
+
+  const { data: jugadores, error: playerError } = await supabase.from('jugadores').select('uuid');
+  if (playerError) throw new Error('Error al obtener los jugadores: ' + playerError.message);
+
+  if (!jugadores || jugadores.length === 0) {
+    return { message: 'No hay jugadores para actualizar.' };
   }
 
-  // 2. Calculate average scores
-  const scores = {}; // { votado_id: { total: score, count: num_votes } }
-  for (const voto of votos) {
-    if (!scores[voto.votado_id]) {
-      scores[voto.votado_id] = { total: 0, count: 0 };
+  // 2. Group votes by player
+  const votesByPlayer = {};
+  if (votos) {
+    for (const voto of votos) {
+      if (!votesByPlayer[voto.votado_id]) {
+        votesByPlayer[voto.votado_id] = [];
+      }
+      if (voto.puntaje !== null && voto.puntaje !== undefined) {
+        votesByPlayer[voto.votado_id].push(voto.puntaje);
+      }
     }
-    scores[voto.votado_id].total += voto.puntaje;
-    scores[voto.votado_id].count += 1;
   }
 
-  const updates = Object.entries(scores).map(([votado_id, data]) => {
-    const avgScore = data.count > 0 ? data.total / data.count : 5;
+  // 3. Iterate over ALL players and calculate scores
+  const updates = jugadores.map(jugador => {
+    const playerVotes = votesByPlayer[jugador.uuid] || [];
+    
+    // Filter out non-numerical votes (-1) and ensure all values are numbers
+    const numericalVotes = playerVotes
+      .map(p => Number(p))
+      .filter(p => p !== -1);
+
+    let avgScore;
+    if (numericalVotes.length > 0) {
+      // If there are any numerical votes, calculate the average
+      const total = numericalVotes.reduce((sum, val) => sum + val, 0);
+      avgScore = total / numericalVotes.length;
+    } else {
+      // Otherwise (no votes, or only "No lo conozco" votes), default to 5
+      avgScore = 5;
+    }
+
     return supabase
       .from('jugadores')
-      .update({ score: avgScore }) // Corregido a 'score'
-      .eq('uuid', votado_id);
+      .update({ score: avgScore })
+      .eq('uuid', jugador.uuid);
   });
 
   // 3. Update player scores in the database

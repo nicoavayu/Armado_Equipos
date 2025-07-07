@@ -7,22 +7,34 @@ import Home from "./Home";
 import AppNormal from "./AppNormal";
 import VotingView from "./VotingView";
 import AdminPanel from "./AdminPanel";
-import { getJugadores } from "./supabase";
+import { getJugadores, subscribeToChanges } from "./supabase";
 
 export default function App() {
   const [modo, setModo] = useState(null);
   const [jugadores, setJugadores] = useState([]);
 
   useEffect(() => {
-    async function fetchJugadores() {
+    const fetchJugadores = async () => {
       try {
         const jugadoresDb = await getJugadores();
         setJugadores(jugadoresDb || []);
       } catch (error) {
         console.error("Error cargando jugadores en App:", error);
       }
-    }
+    };
+
     fetchJugadores();
+
+    // Suscribirse a cambios en tiempo real
+    const subscription = subscribeToChanges((payload) => {
+      console.log("Cambio detectado, volviendo a cargar jugadores:", payload);
+      fetchJugadores();
+    });
+
+    // Limpiar la suscripción al desmontar el componente
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   function handleModoSeleccionado(selected) {
@@ -60,7 +72,7 @@ export default function App() {
         !modo ? <Home onModoSeleccionado={handleModoSeleccionado} /> :
         modo === "simple" ? <AppNormal onBack={() => setModo(null)} /> :
         modo === "admin" ? <AdminPanel onBackToHome={() => setModo(null)} jugadores={jugadores} onJugadoresChange={handleJugadoresChange} /> :
-        modo === "jugador" ? <VotingView onReset={() => setModo(null)} /> :
+        modo === "jugador" ? <VotingView onReset={() => setModo(null)} jugadores={jugadores} /> :
         null
       }
     </>
