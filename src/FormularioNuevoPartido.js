@@ -1,13 +1,18 @@
 import React, { useState } from "react";
 import AutocompleteSede from "./AutocompleteSede";
+import { crearPartidoFrecuente } from "./supabase"; // Importá la función
 
-export default function FormularioNuevoPartido({ onConfirmar }) {
+export default function FormularioNuevoPartido({ onConfirmar, jugadoresFrecuentes }) {
   const [fecha, setFecha] = useState("");
   const [hora, setHora] = useState("");
-  const [sede, setSede] = useState(""); // Solo string, para mostrar el nombre
-  const [sedeInfo, setSedeInfo] = useState(null); // Objeto con datos Google Maps
+  const [sede, setSede] = useState("");
+  const [sedeInfo, setSedeInfo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Para partido frecuente
+  const [guardarComoFrecuente, setGuardarComoFrecuente] = useState(false);
+  const [nombreFrecuente, setNombreFrecuente] = useState("");
 
   return (
     <div className="voting-bg">
@@ -32,9 +37,30 @@ export default function FormularioNuevoPartido({ onConfirmar }) {
           value={sede}
           onSelect={(info) => {
             setSede(info.description);
-            setSedeInfo(info); // info = { description, place_id, lat, lng }
+            setSedeInfo(info);
           }}
         />
+
+        {/* NUEVO: Guardar como partido frecuente */}
+        <label style={{ display: "flex", alignItems: "center", margin: "20px 0 6px 0" }}>
+          <input
+            type="checkbox"
+            checked={guardarComoFrecuente}
+            onChange={e => setGuardarComoFrecuente(e.target.checked)}
+            style={{ marginRight: 8 }}
+          />
+          Guardar como partido frecuente
+        </label>
+        {guardarComoFrecuente && (
+          <input
+            className="input-modern"
+            type="text"
+            placeholder="Nombre del partido frecuente"
+            value={nombreFrecuente}
+            onChange={e => setNombreFrecuente(e.target.value)}
+            style={{ marginBottom: 14, width: "100%" }}
+          />
+        )}
 
         {error && (
           <div style={{
@@ -49,7 +75,7 @@ export default function FormularioNuevoPartido({ onConfirmar }) {
             {error}
           </div>
         )}
-        
+
         <button
           className="voting-confirm-btn"
           style={{ width: "100%" }}
@@ -62,8 +88,28 @@ export default function FormularioNuevoPartido({ onConfirmar }) {
                 fecha,
                 hora,
                 sede,
-                sedeMaps: sedeInfo, // PASALO para mostrar después el link exacto
+                sedeMaps: sedeInfo,
               });
+
+              // LÓGICA NUEVA PARA FRECUENTES:
+              if (
+                guardarComoFrecuente &&
+                nombreFrecuente &&
+                jugadoresFrecuentes &&
+                jugadoresFrecuentes.length > 0
+              ) {
+                const diaSemana = new Date(fecha).getDay();
+                await crearPartidoFrecuente({
+                  nombre: nombreFrecuente,
+                  dia_semana: diaSemana,
+                  hora,
+                  sede,
+                  jugadores_frecuentes: jugadoresFrecuentes,
+                  creado_por: null // o el uuid del user si tenés auth
+                });
+                // Mensaje opcional
+                // toast.success("¡Plantilla frecuente guardada!");
+              }
             } catch (err) {
               setError("Error al crear el partido: " + (err.message || "Intenta nuevamente"));
               console.error("Error creating match:", err);

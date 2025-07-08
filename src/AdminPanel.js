@@ -4,9 +4,9 @@ import {
   deleteJugador,
   getJugadores,
   closeVotingAndCalculateScores,
-  getPartidoPorCodigo,
-  updateJugadoresPartido,
+    updateJugadoresPartido,
   getVotantesIds,
+  
 } from "./supabase";
 import { toast } from 'react-toastify';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
@@ -36,6 +36,8 @@ function MiniAvatar({ foto_url, nombre, size = 34 }) {
 export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange, partidoActual }) {
   const [votantes, setVotantes] = useState([]);
   const [nuevoNombre, setNuevoNombre] = useState("");
+  const [addFrecuente, setAddFrecuente] = useState(false);
+  const [jugadoresFrecuentes, setJugadoresFrecuentes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [copyMsg, setCopyMsg] = useState("");
@@ -63,80 +65,92 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     fetchVotantes();
   }, []);
 
-async function agregarJugador(e) {
-  e.preventDefault();
-  const nombre = nuevoNombre.trim();
-  if (!nombre) return;
-  if (jugadores.some(j => j.nombre.toLowerCase() === nombre.toLowerCase())) {
-    toast.warn("Este jugador ya existe.");
-    return;
-  }
-  setLoading(true);
-  try {
-    // 🔥 1. Crear el jugador en la tabla jugadores de Supabase
-    const nuevoJugador = await addJugador(nombre);
-
-    // 🔥 2. Agregarlo al array de jugadores del partido (usando el que vuelve de Supabase)
-    const nuevosJugadores = [...jugadores, nuevoJugador];
-    await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
-    onJugadoresChange(nuevosJugadores);
-    setNuevoNombre("");
-    setTimeout(() => inputRef.current?.focus(), 10);
-  } catch (error) {
-    toast.error("Error agregando jugador: " + error.message);
-  } finally {
-    setLoading(false);
-  }
-}
-
-
- async function eliminarJugador(uuid) {
-  setLoading(true);
-  try {
-    // 🔥 Primero, borrá el jugador de la tabla jugadores
-    await deleteJugador(uuid);
-
-    // Después, borrá el jugador del partido
-    const nuevosJugadores = jugadores.filter(j => j.uuid !== uuid);
-    await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
-    onJugadoresChange(nuevosJugadores);
-  } catch (error) {
-    toast.error("Error eliminando jugador: " + error.message);
-  } finally {
-    setLoading(false);
-  }
-}
-  // NUEVA versión: Equipos con igual cantidad y usando scores actualizados
-  function armarEquipos(jugadores) {
-  const jugadoresOrdenados = [...jugadores].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-  const equipoA = [];
-  const equipoB = [];
-  let puntajeA = 0;
-  let puntajeB = 0;
-
-  jugadoresOrdenados.forEach(jugador => {
-    if (equipoA.length < equipoB.length) {
-      equipoA.push(jugador.uuid); // <<< uuid
-      puntajeA += jugador.score ?? 0;
-    } else if (equipoB.length < equipoA.length) {
-      equipoB.push(jugador.uuid); // <<< uuid
-      puntajeB += jugador.score ?? 0;
-    } else {
-      if (puntajeA <= puntajeB) {
-        equipoA.push(jugador.uuid); // <<< uuid
-        puntajeA += jugador.score ?? 0;
-      } else {
-        equipoB.push(jugador.uuid); // <<< uuid
-        puntajeB += jugador.score ?? 0;
-      }
+  async function agregarJugador(e) {
+    e.preventDefault();
+    const nombre = nuevoNombre.trim();
+    if (!nombre) return;
+    if (jugadores.some(j => j.nombre.toLowerCase() === nombre.toLowerCase())) {
+      toast.warn("Este jugador ya existe.");
+      return;
     }
-  });
+    setLoading(true);
+    try {
+      // 🔥 1. Crear el jugador en la tabla jugadores de Supabase
+      const nuevoJugador = await addJugador(nombre);
 
-  return [
-    { id: "equipoA", name: "Equipo A", players: equipoA, score: puntajeA },
-    { id: "equipoB", name: "Equipo B", players: equipoB, score: puntajeB },
-  ];
-}
+      // 🔥 2. Agregarlo al array de jugadores del partido (usando el que vuelve de Supabase)
+      const nuevosJugadores = [...jugadores, nuevoJugador];
+      await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
+      onJugadoresChange(nuevosJugadores);
+
+      // Si está tildado "Agregar a jugadores frecuentes", agregalo al panel
+      if (addFrecuente && !jugadoresFrecuentes.some(j => j.uuid === nuevoJugador.uuid)) {
+        setJugadoresFrecuentes(prev => [...prev, nuevoJugador]);
+      }
+
+      setNuevoNombre("");
+      setAddFrecuente(false);
+      setTimeout(() => inputRef.current?.focus(), 10);
+    } catch (error) {
+      toast.error("Error agregando jugador: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function eliminarJugador(uuid) {
+    setLoading(true);
+    try {
+      await deleteJugador(uuid);
+      const nuevosJugadores = jugadores.filter(j => j.uuid !== uuid);
+      await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
+      onJugadoresChange(nuevosJugadores);
+
+      // Si estaba en jugadores frecuentes, quitálo del panel también
+      setJugadoresFrecuentes(prev => prev.filter(j => j.uuid !== uuid));
+    } catch (error) {
+      toast.error("Error eliminando jugador: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Quitar jugador del panel de frecuentes (solo del panel, no del partido)
+  function quitarDeFrecuentes(uuid) {
+    setJugadoresFrecuentes(prev => prev.filter(j => j.uuid !== uuid));
+  }
+
+  // Equipos, igual que tu lógica actual
+  function armarEquipos(jugadores) {
+    const jugadoresOrdenados = [...jugadores].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    const equipoA = [];
+    const equipoB = [];
+    let puntajeA = 0;
+    let puntajeB = 0;
+
+    jugadoresOrdenados.forEach(jugador => {
+      if (equipoA.length < equipoB.length) {
+        equipoA.push(jugador.uuid);
+        puntajeA += jugador.score ?? 0;
+      } else if (equipoB.length < equipoA.length) {
+        equipoB.push(jugador.uuid);
+        puntajeB += jugador.score ?? 0;
+      } else {
+        if (puntajeA <= puntajeB) {
+          equipoA.push(jugador.uuid);
+          puntajeA += jugador.score ?? 0;
+        } else {
+          equipoB.push(jugador.uuid);
+          puntajeB += jugador.score ?? 0;
+        }
+      }
+    });
+
+    return [
+      { id: "equipoA", name: "Equipo A", players: equipoA, score: puntajeA },
+      { id: "equipoB", name: "Equipo B", players: equipoB, score: puntajeB },
+    ];
+  }
 
   const safeSetTeams = (newTeams) => {
     if (!Array.isArray(newTeams)) return;
@@ -151,47 +165,33 @@ async function agregarJugador(e) {
     safeSetTeams(newTeams);
   };
 
-  // 💥 ESTE ES EL FIX PRINCIPAL
-async function handleCerrarVotacion() {
-  if (jugadores.length % 2 !== 0) {
-    toast.error("¡La cantidad de jugadores debe ser PAR para armar equipos!");
-    return;
+  async function handleCerrarVotacion() {
+    if (jugadores.length % 2 !== 0) {
+      toast.error("¡La cantidad de jugadores debe ser PAR para armar equipos!");
+      return;
+    }
+    if (!window.confirm("¿Estás seguro de que querés cerrar la votación y armar los equipos?")) {
+      return;
+    }
+    setIsClosing(true);
+    try {
+      const result = await closeVotingAndCalculateScores();
+      const jugadoresConPromedio = await getJugadores();
+      const equiposArmados = armarEquipos(
+        jugadoresConPromedio.filter(j => partidoActual.jugadores.some(pj => pj.uuid === j.uuid))
+      );
+      safeSetTeams(equiposArmados);
+      setShowTeamView(true);
+      toast.success(result.message);
+      onJugadoresChange(
+        jugadoresConPromedio.filter(j => partidoActual.jugadores.some(pj => pj.uuid === j.uuid))
+      );
+    } catch (error) {
+      toast.error("Error al cerrar la votación: " + error.message);
+    } finally {
+      setIsClosing(false);
+    }
   }
-  if (!window.confirm("¿Estás seguro de que querés cerrar la votación y armar los equipos?")) {
-    return;
-  }
-  setIsClosing(true);
-  try {
-    const result = await closeVotingAndCalculateScores();
-
-    // 💥 REFRESCA los jugadores directamente desde la tabla jugadores, así seguro tienen el score actualizado
-    const jugadoresConPromedio = await getJugadores();
-
-    // 💥 Si querés filtrar solo los jugadores de este partido:
-    // const jugadoresDeEstePartido = jugadoresConPromedio.filter(j => 
-    //   partidoActual.jugadores.some(pj => pj.uuid === j.uuid)
-    // );
-
-    // 💥 Arma los equipos con los jugadores actualizados
-    const equiposArmados = armarEquipos(
-      jugadoresConPromedio.filter(j => partidoActual.jugadores.some(pj => pj.uuid === j.uuid))
-    );
-
-    safeSetTeams(equiposArmados);
-    setShowTeamView(true);
-    toast.success(result.message);
-
-    // 💥 Actualizá la lista de jugadores en la UI (por si volvés atrás)
-    onJugadoresChange(
-      jugadoresConPromedio.filter(j => partidoActual.jugadores.some(pj => pj.uuid === j.uuid))
-    );
-  } catch (error) {
-    toast.error("Error al cerrar la votación: " + error.message);
-  } finally {
-    setIsClosing(false);
-  }
-}
-
 
   function handleCopyLink() {
     const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
@@ -299,8 +299,9 @@ async function handleCerrarVotacion() {
             {partidoActual && <PartidoInfoBox partido={partidoActual} />}
 
             {/* resto del contenido */}
-            <div className="admin-add-player-container dark-container" style={{ margin: "0 auto", maxWidth: 620 }}>
-              <form className="admin-add-form" onSubmit={agregarJugador} autoComplete="off">
+            <div className="admin-add-player-container dark-container" style={{ margin: "0 auto", maxWidth: 620, display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 32 }}>
+              {/* FORMULARIO DE AGREGAR JUGADOR */}
+              <form className="admin-add-form" onSubmit={agregarJugador} autoComplete="off" style={{ flex: 1 }}>
                 <input
                   className="input-modern"
                   type="text"
@@ -312,14 +313,65 @@ async function handleCerrarVotacion() {
                   maxLength={40}
                   required
                 />
+                <label style={{ marginTop: 10, display: "flex", alignItems: "center", fontSize: 15 }}>
+                  <input
+                    type="checkbox"
+                    checked={addFrecuente}
+                    onChange={e => setAddFrecuente(e.target.checked)}
+                    style={{ marginRight: 7 }}
+                  />
+                  Agregar a jugadores frecuentes
+                </label>
                 <button
                   className="voting-confirm-btn wipe-btn"
                   type="submit"
                   disabled={loading || isClosing}
+                  style={{ marginTop: 8 }}
                 >
                   AGREGAR
                 </button>
               </form>
+              {/* PANEL LATERAL DE JUGADORES FRECUENTES */}
+              <div className="panel-frecuentes" style={{
+                borderLeft: "2px solid #eee",
+                paddingLeft: 16,
+                minWidth: 180,
+                maxWidth: 230,
+                background: "#fcfcfc",
+                borderRadius: 16,
+                boxShadow: "0 0 6px rgba(0,0,0,0.06)",
+                minHeight: 130
+              }}>
+                <h4 style={{ margin: "8px 0 8px 0", fontSize: 18 }}>Frecuentes</h4>
+                {jugadoresFrecuentes.length === 0 ? (
+                  <div style={{ color: "#aaa", fontSize: 14 }}>Ninguno aún</div>
+                ) : (
+                  <ul style={{ paddingLeft: 12, margin: 0 }}>
+                    {jugadoresFrecuentes.map(j => (
+                      <li key={j.uuid} style={{ display: "flex", alignItems: "center", marginBottom: 7 }}>
+                        <span style={{ marginRight: 8 }}>
+                          <MiniAvatar foto_url={j.foto_url} nombre={j.nombre} size={22} />
+                        </span>
+                        <span style={{ flex: 1, fontSize: 15 }}>{j.nombre}</span>
+                        <button
+                          onClick={() => quitarDeFrecuentes(j.uuid)}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            color: "#e85042",
+                            fontSize: 18,
+                            cursor: "pointer",
+                            marginLeft: 6,
+                            fontWeight: 700,
+                            lineHeight: 1,
+                          }}
+                          title="Quitar de frecuentes"
+                        >×</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
 
             <div className="admin-list-container" style={{ margin: "24px auto 0 auto", maxWidth: 600 }}>

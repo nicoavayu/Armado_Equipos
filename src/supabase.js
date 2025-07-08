@@ -222,3 +222,25 @@ export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
     .eq("id", partidoId);
   if (error) throw error;
 };
+
+
+export const crearPartidoFrecuente = async ({
+  nombre, dia_semana, hora, sede, jugadores_frecuentes, creado_por
+}) => {
+  const { data, error } = await supabase
+    .from("partidos_frecuentes")
+    .insert([{ nombre, dia_semana, hora, sede, jugadores_frecuentes, creado_por }])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+
+export const getPartidosFrecuentes = async () => {
+  const { data, error } = await supabase
+    .from("partidos_frecuentes")
+    .select("*");
+  if (error) throw error;
+  return data;
+};

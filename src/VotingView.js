@@ -8,7 +8,7 @@ import {
 import { toast } from 'react-toastify';
 import StarRating from "./StarRating";
 import "./VotingView.css";
-import Logo from "./Logo.png";
+
 
 // Avatar cuadrado por defecto (SVG simple)
 const DefaultAvatar = (
