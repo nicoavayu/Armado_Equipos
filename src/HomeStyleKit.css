@@ -651,6 +651,7 @@ body {
   padding: 0 12px;
   box-sizing: border-box;
   transition: border-color 0.2s, background 0.2s;
+  height: 60px;
 }
 .input-modern::placeholder {
   color: rgba(255,255,255,0.6); /* Placeholder más claro */
@@ -844,7 +845,7 @@ body {
   }
   .input-modern {
     font-size: 4.5vw !important;
-    height: 44px !important;
+    height: 60px !important;
     padding: 0 10px !important;
   }
   .voting-confirm-btn, .wipe-btn {
@@ -945,3 +946,5 @@ body {
   margin: 0 auto !important;
   box-sizing: border-box !important;
 }
+
+

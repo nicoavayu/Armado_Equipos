@@ -337,16 +337,17 @@ if (step === 2 || editandoIdx !== null) {
             className="voting-confirm-btn"
             style={{ marginTop: 8, fontWeight: 700, letterSpacing: 1.2 }}
             onClick={async () => {
-              setConfirmando(true);
-              try {
-                await submitVotos(votos, jugador?.uuid);
-                setFinalizado(true);
-              } catch (error) {
-                toast.error("Error al guardar los votos: " + error.message);
-              } finally {
-                setConfirmando(false);
-              }
-            }}
+  setConfirmando(true);
+  try {
+    await submitVotos(votos, jugador?.uuid);
+    setFinalizado(true);
+  } catch (error) {
+    toast.error("Error al guardar los votos: " + error.message);
+  } finally {
+    setConfirmando(false);
+  }
+}}
+
             disabled={confirmando}
           >
             {confirmando ? "GUARDANDO..." : "CONFIRMAR MIS VOTOS"}

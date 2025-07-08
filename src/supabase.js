@@ -10,69 +10,47 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export const getJugadores = async () => {
   const { data, error } = await supabase
     .from('jugadores')
-    .select('id, uuid, nombre, foto_url, score') // Corregido a 'score'
+    .select('id, uuid, nombre, foto_url, score')
     .order('nombre', { ascending: true });
   if (error) throw error;
   return data;
 };
 
 export const addJugador = async (nombre) => {
-  console.log(`[Supabase] Recibido para insertar: ${nombre}`);
   const { data, error } = await supabase
     .from('jugadores')
-    .insert([{ nombre, score: 5 }]) // Corregido a 'score'
+    .insert([{ nombre, score: 5 }])
     .select()
     .single();
-  
-  if (error) {
-    console.error('[Supabase] Error al insertar:', error);
-    throw error;
-  }
-  
-  console.log('[Supabase] Datos insertados:', data);
+  if (error) throw error;
   return data;
 };
 
 export const deleteJugador = async (uuid) => {
-  // Delete player from 'jugadores' table
-  const { error: playerError } = await supabase.from('jugadores').delete().eq('uuid', uuid);
-  if (playerError) throw playerError;
-
-  // Also delete all votes associated with this player (both as voter and as voted)
-  const { error: votesAsVoterError } = await supabase.from('votos').delete().eq('votante_id', uuid);
-  if (votesAsVoterError) console.error("Error deleting player's cast votes:", votesAsVoterError);
-
-  const { error: votesAsVotadoError } = await supabase.from('votos').delete().eq('votado_id', uuid);
-  if (votesAsVotadoError) console.error("Error deleting player's received votes:", votesAsVotadoError);
+  await supabase.from('jugadores').delete().eq('uuid', uuid);
+  await supabase.from('votos').delete().eq('votante_id', uuid);
+  await supabase.from('votos').delete().eq('votado_id', uuid);
 };
 
 export const uploadFoto = async (file, jugador) => {
   const fileExt = file.name.split('.').pop();
   const fileName = `${jugador.uuid}_${Date.now()}.${fileExt}`;
-
   const { error: uploadError } = await supabase.storage
     .from('jugadores-fotos')
     .upload(fileName, file, { upsert: true });
-
   if (uploadError) throw uploadError;
-
   const { data } = supabase.storage
     .from('jugadores-fotos')
     .getPublicUrl(fileName);
-
   const fotoUrl = data?.publicUrl;
   if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
-
   const { error: updateError } = await supabase
     .from('jugadores')
     .update({ foto_url: fotoUrl })
     .eq('uuid', jugador.uuid);
-
   if (updateError) throw updateError;
-
   return fotoUrl;
 };
-
 
 // --- API de Votos ---
 
@@ -100,13 +78,17 @@ export const submitVotos = async (votos, jugadorUuid) => {
       votante_id: jugadorUuid,
       puntaje,
     }));
-
-  if (votosParaInsertar.length === 0) return;
-
+  console.log("VOTOS PARA INSERTAR:", votosParaInsertar);
+  if (votosParaInsertar.length === 0) {
+    console.warn("No hay votos para insertar.");
+    return;
+  }
   const { error } = await supabase.from('votos').insert(votosParaInsertar);
-  if (error) throw error;
+  if (error) {
+    console.error("Error insertando votos:", error);
+    throw error;
+  }
 };
-
 
 // --- Suscripciones Realtime ---
 
@@ -118,7 +100,6 @@ export const subscribeToChanges = (callback) => {
       callback(payload);
     })
     .subscribe();
-
   return subscription;
 };
 
@@ -126,8 +107,10 @@ export const removeSubscription = (subscription) => {
   supabase.removeChannel(subscription);
 };
 
+// --- Cierre de votación y cálculo de promedios ---
+
 export const closeVotingAndCalculateScores = async () => {
-  // 1. Fetch all votes and all players
+  // 1. Traer todos los votos y jugadores
   const { data: votos, error: fetchError } = await supabase.from('votos').select('votado_id, puntaje');
   if (fetchError) throw new Error('Error al obtener los votos: ' + fetchError.message);
 
@@ -138,7 +121,7 @@ export const closeVotingAndCalculateScores = async () => {
     return { message: 'No hay jugadores para actualizar.' };
   }
 
-  // 2. Group votes by player
+  // 2. Agrupar votos por jugador
   const votesByPlayer = {};
   if (votos) {
     for (const voto of votos) {
@@ -151,32 +134,27 @@ export const closeVotingAndCalculateScores = async () => {
     }
   }
 
-  // 3. Iterate over ALL players and calculate scores
+  // 3. Calcular promedio y actualizar score de cada jugador
   const updates = jugadores.map(jugador => {
     const playerVotes = votesByPlayer[jugador.uuid] || [];
-    
-    // Filter out non-numerical votes (-1) and ensure all values are numbers
+    // Solo promedia votos válidos, -1 = "no lo conozco"
     const numericalVotes = playerVotes
       .map(p => Number(p))
       .filter(p => p !== -1);
-
     let avgScore;
     if (numericalVotes.length > 0) {
-      // If there are any numerical votes, calculate the average
       const total = numericalVotes.reduce((sum, val) => sum + val, 0);
       avgScore = total / numericalVotes.length;
     } else {
-      // Otherwise (no votes, or only "No lo conozco" votes), default to 5
       avgScore = 5;
     }
-
+    // Actualiza el score en la tabla jugadores
     return supabase
       .from('jugadores')
       .update({ score: avgScore })
       .eq('uuid', jugador.uuid);
   });
 
-  // 3. Update player scores in the database
   const updateResults = await Promise.all(updates);
   const updateErrors = updateResults.filter(res => res.error);
   if (updateErrors.length > 0) {
@@ -184,15 +162,63 @@ export const closeVotingAndCalculateScores = async () => {
     throw new Error(`Error al actualizar los puntajes de ${updateErrors.length} jugadores.`);
   }
 
-  // 4. Delete all votes
+  // 4. Limpiar votos (borra todos)
   const { error: deleteError } = await supabase
     .from('votos')
     .delete()
-    .neq('id', -1); // Trick to delete all rows
-
+    .neq('id', -1);
   if (deleteError) {
     throw new Error('Puntajes actualizados, pero hubo un error al limpiar los votos: ' + deleteError.message);
   }
 
   return { message: `Votación cerrada. Se actualizaron los puntajes de ${updates.length} jugadores.` };
+};
+
+// --- API de Partidos ---
+
+export const crearPartido = async ({ fecha, hora, sede, sedeMaps }) => {
+  const codigo = generarCodigoPartido();
+  const { data, error } = await supabase
+    .from("partidos")
+    .insert([
+      {
+        codigo,
+        fecha,
+        hora,
+        sede,
+        sedeMaps,
+        jugadores: [],
+        estado: "activo"
+      }
+    ])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+function generarCodigoPartido(length = 6) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
+  for (let i = 0; i < length; i++)
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  return result;
+}
+
+export const getPartidoPorCodigo = async (codigo) => {
+  const { data, error } = await supabase
+    .from("partidos")
+    .select("*")
+    .eq("codigo", codigo)
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
+  const { error } = await supabase
+    .from("partidos")
+    .update({ jugadores: nuevosJugadores })
+    .eq("id", partidoId);
+  if (error) throw error;
 };

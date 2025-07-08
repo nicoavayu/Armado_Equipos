@@ -1,0 +1,109 @@
+.ingreso-admin-modal-bg {
+  position: fixed;
+  z-index: 99;
+  left: 0; top: 0; width: 100vw; height: 100vh;
+  background: rgba(30, 20, 70, 0.46); /* Fondo oscuro semitransparente */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ingreso-admin-modal-box {
+  background: #191942;
+  border-radius: 38px;
+  box-shadow: 0 8px 54px 0 rgba(34,40,80,0.18);
+  padding: 54px 50px 40px 50px;
+  max-width: 520px;
+  width: 95vw;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.voting-title-modern {
+  font-size: 2.3rem;
+  font-family: 'Bebas Neue', Oswald, Arial, sans-serif;
+  letter-spacing: 0.03em;
+}
+
+.ingreso-admin-modal-box form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.input-modern {
+  margin-bottom: 26px !important;
+  width: 100% !important;
+  font-size: 32px !important;
+  padding: 14px 20px !important;
+  background: #312e5a !important;
+  border: 3px solid #fff !important;
+  color: #ccc !important;
+  border-radius: 8px !important;
+  font-family: 'Oswald', Arial, sans-serif;
+  font-weight: bold;
+  outline: none;
+}
+
+.ingreso-admin-btn-row {
+  width: 100%;
+  display: flex;
+  gap: 22px;
+  justify-content: center;
+}
+
+.voting-confirm-btn {
+  width: 100%;
+  font-size: 2.1rem;
+  padding: 20px 0;
+  margin: 0;
+  border-radius: 9px;
+  border: 3px solid #fff;
+  font-family: 'Oswald', Arial, sans-serif;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  transition: background .2s, color .2s, box-shadow .2s;
+}
+
+.btn-volver {
+  background: #be3256 !important;
+  color: #fff !important;
+  border: 3px solid #fff !important;
+}
+
+.wipe-btn:active {
+  opacity: 0.93;
+}
+
+.ingreso-admin-error {
+  color: #fff;
+  background: #d13c3c;
+  border-radius: 8px;
+  padding: 9px 10px;
+  margin-top: 22px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .ingreso-admin-modal-box {
+    padding: 28px 10px 24px 10px;
+    max-width: 98vw;
+    border-radius: 14px;
+  }
+  .voting-title-modern {
+    font-size: 1.3rem !important;
+  }
+  .input-modern {
+    font-size: 18px !important;
+  }
+  .voting-confirm-btn {
+    font-size: 1.1rem !important;
+    padding: 12px 0 !important;
+  }
+}

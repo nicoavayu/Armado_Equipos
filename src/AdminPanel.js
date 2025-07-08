@@ -1,12 +1,12 @@
-// src/AdminPanel.js
-
 import React, { useState, useEffect, useRef } from "react";
 import {
-  getJugadores,
   addJugador,
   deleteJugador,
-  getVotantesIds,
+  getJugadores,
   closeVotingAndCalculateScores,
+  getPartidoPorCodigo,
+  updateJugadoresPartido,
+  getVotantesIds,
 } from "./supabase";
 import { toast } from 'react-toastify';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
@@ -15,6 +15,7 @@ import "./HomeStyleKit.css";
 import "./AdminPanel.css";
 import WhatsappIcon from "./components/WhatsappIcon";
 import TeamDisplay from "./components/TeamDisplay";
+import PartidoInfoBox from "./PartidoInfoBox";
 
 function MiniAvatar({ foto_url, nombre, size = 34 }) {
   if (foto_url) {
@@ -32,7 +33,7 @@ function MiniAvatar({ foto_url, nombre, size = 34 }) {
   return <div className="mini-avatar-placeholder" style={{ width: size, height: size }} />;
 }
 
-export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange }) {
+export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange, partidoActual }) {
   const [votantes, setVotantes] = useState([]);
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,12 +41,15 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange 
   const [copyMsg, setCopyMsg] = useState("");
   const [showTeamView, setShowTeamView] = useState(false);
 
-  // SIEMPRE inicializá con ambos equipos (ids fijos)
   const [teams, setTeams] = useState([
     { id: "equipoA", name: "Equipo A", players: [], score: 0 },
     { id: "equipoB", name: "Equipo B", players: [], score: 0 },
   ]);
   const inputRef = useRef();
+
+  // 🟢 Si jugadores viene undefined o null, usá array vacío
+  jugadores = jugadores || [];
+  if (!Array.isArray(jugadores)) jugadores = [];
 
   useEffect(() => {
     async function fetchVotantes() {
@@ -59,61 +63,81 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange 
     fetchVotantes();
   }, []);
 
-  async function agregarJugador(e) {
-    e.preventDefault();
-    const nombre = nuevoNombre.trim();
-    if (!nombre) return;
-    if (jugadores.some(j => j.nombre.toLowerCase() === nombre.toLowerCase())) {
-      toast.warn("Este jugador ya existe.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const nuevoJugador = await addJugador(nombre);
-      onJugadoresChange([...jugadores, nuevoJugador]);
-      setNuevoNombre("");
-      inputRef.current?.blur();
-    } catch (error) {
-      toast.error("Error agregando jugador: " + error.message);
-    } finally {
-      setLoading(false);
-    }
+async function agregarJugador(e) {
+  e.preventDefault();
+  const nombre = nuevoNombre.trim();
+  if (!nombre) return;
+  if (jugadores.some(j => j.nombre.toLowerCase() === nombre.toLowerCase())) {
+    toast.warn("Este jugador ya existe.");
+    return;
   }
+  setLoading(true);
+  try {
+    // 🔥 1. Crear el jugador en la tabla jugadores de Supabase
+    const nuevoJugador = await addJugador(nombre);
 
-  async function eliminarJugador(uuid) {
-    setLoading(true);
-    try {
-      await deleteJugador(uuid);
-      onJugadoresChange(jugadores.filter(j => j.uuid !== uuid));
-    } catch (error) {
-      toast.error("Error eliminando jugador: " + error.message);
-    } finally {
-      setLoading(false);
-    }
+    // 🔥 2. Agregarlo al array de jugadores del partido (usando el que vuelve de Supabase)
+    const nuevosJugadores = [...jugadores, nuevoJugador];
+    await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
+    onJugadoresChange(nuevosJugadores);
+    setNuevoNombre("");
+    setTimeout(() => inputRef.current?.focus(), 10);
+  } catch (error) {
+    toast.error("Error agregando jugador: " + error.message);
+  } finally {
+    setLoading(false);
   }
+}
 
+
+ async function eliminarJugador(uuid) {
+  setLoading(true);
+  try {
+    // 🔥 Primero, borrá el jugador de la tabla jugadores
+    await deleteJugador(uuid);
+
+    // Después, borrá el jugador del partido
+    const nuevosJugadores = jugadores.filter(j => j.uuid !== uuid);
+    await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
+    onJugadoresChange(nuevosJugadores);
+  } catch (error) {
+    toast.error("Error eliminando jugador: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+}
+  // NUEVA versión: Equipos con igual cantidad y usando scores actualizados
   function armarEquipos(jugadores) {
-    const jugadoresOrdenados = [...jugadores].sort((a, b) => b.score - a.score);
-    const equipoA = [];
-    const equipoB = [];
-    let puntajeA = 0;
-    let puntajeB = 0;
-    jugadoresOrdenados.forEach(jugador => {
-      if (puntajeA <= puntajeB) {
-        equipoA.push(jugador.uuid);
-        puntajeA += jugador.score;
-      } else {
-        equipoB.push(jugador.uuid);
-        puntajeB += jugador.score;
-      }
-    });
-    return [
-      { id: "equipoA", name: "Equipo A", players: equipoA, score: puntajeA },
-      { id: "equipoB", name: "Equipo B", players: equipoB, score: puntajeB },
-    ];
-  }
+  const jugadoresOrdenados = [...jugadores].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  const equipoA = [];
+  const equipoB = [];
+  let puntajeA = 0;
+  let puntajeB = 0;
 
-  // Wrapper seguro para setTeams
+  jugadoresOrdenados.forEach(jugador => {
+    if (equipoA.length < equipoB.length) {
+      equipoA.push(jugador.uuid); // <<< uuid
+      puntajeA += jugador.score ?? 0;
+    } else if (equipoB.length < equipoA.length) {
+      equipoB.push(jugador.uuid); // <<< uuid
+      puntajeB += jugador.score ?? 0;
+    } else {
+      if (puntajeA <= puntajeB) {
+        equipoA.push(jugador.uuid); // <<< uuid
+        puntajeA += jugador.score ?? 0;
+      } else {
+        equipoB.push(jugador.uuid); // <<< uuid
+        puntajeB += jugador.score ?? 0;
+      }
+    }
+  });
+
+  return [
+    { id: "equipoA", name: "Equipo A", players: equipoA, score: puntajeA },
+    { id: "equipoB", name: "Equipo B", players: equipoB, score: puntajeB },
+  ];
+}
+
   const safeSetTeams = (newTeams) => {
     if (!Array.isArray(newTeams)) return;
     let equipoA = newTeams.find(t => t && t.id === 'equipoA');
@@ -123,41 +147,61 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange 
     setTeams([equipoA, equipoB]);
   };
 
-  // Reemplaza todos los setTeams y onTeamsChange por safeSetTeams
-  // En handleTeamsChange:
   const handleTeamsChange = (newTeams) => {
     safeSetTeams(newTeams);
   };
 
-  // En handleCerrarVotacion:
-  async function handleCerrarVotacion() {
-    if (!window.confirm("¿Estás seguro de que querés cerrar la votación y armar los equipos?")) {
-      return;
-    }
-    setIsClosing(true);
-    try {
-      const result = await closeVotingAndCalculateScores();
-      const jugadoresConPromedio = await getJugadores();
-      const equiposArmados = armarEquipos(jugadoresConPromedio);
-      safeSetTeams(equiposArmados);
-      setShowTeamView(true);
-      toast.success(result.message);
-    } catch (error) {
-      toast.error("Error al cerrar la votación: " + error.message);
-    } finally {
-      setIsClosing(false);
-    }
+  // 💥 ESTE ES EL FIX PRINCIPAL
+async function handleCerrarVotacion() {
+  if (jugadores.length % 2 !== 0) {
+    toast.error("¡La cantidad de jugadores debe ser PAR para armar equipos!");
+    return;
   }
+  if (!window.confirm("¿Estás seguro de que querés cerrar la votación y armar los equipos?")) {
+    return;
+  }
+  setIsClosing(true);
+  try {
+    const result = await closeVotingAndCalculateScores();
+
+    // 💥 REFRESCA los jugadores directamente desde la tabla jugadores, así seguro tienen el score actualizado
+    const jugadoresConPromedio = await getJugadores();
+
+    // 💥 Si querés filtrar solo los jugadores de este partido:
+    // const jugadoresDeEstePartido = jugadoresConPromedio.filter(j => 
+    //   partidoActual.jugadores.some(pj => pj.uuid === j.uuid)
+    // );
+
+    // 💥 Arma los equipos con los jugadores actualizados
+    const equiposArmados = armarEquipos(
+      jugadoresConPromedio.filter(j => partidoActual.jugadores.some(pj => pj.uuid === j.uuid))
+    );
+
+    safeSetTeams(equiposArmados);
+    setShowTeamView(true);
+    toast.success(result.message);
+
+    // 💥 Actualizá la lista de jugadores en la UI (por si volvés atrás)
+    onJugadoresChange(
+      jugadoresConPromedio.filter(j => partidoActual.jugadores.some(pj => pj.uuid === j.uuid))
+    );
+  } catch (error) {
+    toast.error("Error al cerrar la votación: " + error.message);
+  } finally {
+    setIsClosing(false);
+  }
+}
+
 
   function handleCopyLink() {
-    const url = `${window.location.origin}/?modo=jugador`;
+    const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
     navigator.clipboard.writeText(url);
     setCopyMsg("¡Link copiado!");
     setTimeout(() => setCopyMsg(""), 1700);
   }
 
   function handleWhatsApp() {
-    const url = `${window.location.origin}/?modo=jugador`;
+    const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
     window.open(`https://wa.me/?text=${encodeURIComponent("Entrá a votar para armar los equipos: " + url)}`, "_blank");
   }
 
@@ -175,10 +219,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange 
         jugadores.slice(Math.ceil(jugadores.length / 2)),
       ];
 
-
   const ActionButtons = () => (
     <>
-      {/* Botones juntos, solo 5px después del formulario */}
       <div style={{ height: 5 }} />
       <div className="admin-actions-row" style={{marginTop: 0, marginBottom: 0}}>
         <button className="voting-confirm-btn wipe-btn btn-link" onClick={handleCopyLink}>
@@ -197,20 +239,20 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange 
           VOLVER AL INICIO
         </button>
       </div>
-      {/* Alerta flotante de link copiado */}
       {copyMsg && (
         <div className="admin-copy-msg-toast">{copyMsg}</div>
       )}
     </>
   );
 
-  // 👇 FIX DEFINITIVO: Solo muestra TeamDisplay si hay dos equipos bien formados
   const showTeams =
     showTeamView &&
     Array.isArray(teams) &&
     teams.length === 2 &&
     teams.find(t => t.id === "equipoA") &&
     teams.find(t => t.id === "equipoB");
+
+  if (!partidoActual) return <div style={{color:"red"}}>Sin partido cargado</div>;
 
   return (
     <div className="voting-bg">
@@ -226,6 +268,37 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange 
           <>
             <div className="voting-title-modern">MODO PARTICIPATIVO</div>
 
+            {/* BLOQUE CÓDIGO DEL PARTIDO */}
+            {partidoActual.codigo && (
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                background: "rgba(30,28,54,0.87)", color: "#fff", fontWeight: 600,
+                borderRadius: 16, padding: "14px 22px", marginBottom: 24, fontSize: 19
+              }}>
+                <div>
+                  <span style={{ fontWeight: 700, letterSpacing: 1.5 }}>CÓDIGO DEL PARTIDO:</span>
+                  <span style={{ fontSize: 22, marginLeft: 13, fontFamily: "monospace" }}>{partidoActual.codigo}</span>
+                </div>
+                <button
+                  style={{
+                    background: "#0ea9c6", color: "#fff", border: "none",
+                    borderRadius: 8, padding: "8px 16px", fontWeight: 700,
+                    marginLeft: 16, cursor: "pointer"
+                  }}
+                  onClick={() => {
+                    navigator.clipboard.writeText(partidoActual.codigo);
+                    toast.success("¡Código copiado!");
+                  }}
+                >
+                  COPIAR
+                </button>
+              </div>
+            )}
+
+            {/* PartidoInfoBox SOLO UNA VEZ, justo acá */}
+            {partidoActual && <PartidoInfoBox partido={partidoActual} />}
+
+            {/* resto del contenido */}
             <div className="admin-add-player-container dark-container" style={{ margin: "0 auto", maxWidth: 620 }}>
               <form className="admin-add-form" onSubmit={agregarJugador} autoComplete="off">
                 <input
