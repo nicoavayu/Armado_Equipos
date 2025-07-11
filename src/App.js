@@ -2,36 +2,38 @@ import './HomeStyleKit.css';
 import React, { useState, useEffect } from "react";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { MODES, ADMIN_STEPS } from "./constants";
 import Home from "./Home";
 import AppNormal from "./AppNormal";
 import VotingView from "./VotingView";
 import AdminPanel from "./AdminPanel";
 import FormularioNuevoPartido from "./FormularioNuevoPartido";
 import PartidoInfoBox from "./PartidoInfoBox";
+import ListaPartidosFrecuentes from "./ListaPartidosFrecuentes";
+import EditarPartidoFrecuente from "./EditarPartidoFrecuente";
 import { crearPartido, getPartidoPorCodigo, updateJugadoresPartido } from "./supabase";
 import IngresoAdminPartido from "./IngresoAdminPartido";
 
-function SeleccionarTipoPartido({ onNuevo, onExistente }) {
-  return (
-    <div className="voting-bg">
-      <div className="voting-modern-card">
-        <div className="voting-title-modern" style={{marginBottom: 16}}>¿QUÉ QUERÉS HACER?</div>
-        <button className="voting-confirm-btn wipe-btn" style={{marginBottom: 18}} onClick={onNuevo}>
-          PARTIDO NUEVO
-        </button>
-        <button className="voting-confirm-btn wipe-btn" disabled style={{opacity:0.5}} onClick={onExistente}>
-          PARTIDO FRECUENTE (Próximamente)
-        </button>
-      </div>
+const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
+  <div className="voting-bg">
+    <div className="voting-modern-card">
+      <div className="voting-title-modern" style={{marginBottom: 16}}>¿QUÉ QUERÉS HACER?</div>
+      <button className="voting-confirm-btn wipe-btn" style={{marginBottom: 18}} onClick={onNuevo}>
+        PARTIDO NUEVO
+      </button>
+      <button className="voting-confirm-btn wipe-btn" onClick={onExistente}>
+        PARTIDO FRECUENTE
+      </button>
     </div>
-  );
-}
+  </div>
+);
 
 export default function App() {
-  const [modo, setModo] = useState(null);
+  const [modo, setModo] = useState(MODES.HOME);
   const [partidoActual, setPartidoActual] = useState(null);
-  const [stepPartido, setStepPartido] = useState(0);
+  const [stepPartido, setStepPartido] = useState(ADMIN_STEPS.SELECT_TYPE);
   const [showIngresoAdmin, setShowIngresoAdmin] = useState(false);
+  const [partidoFrecuenteEditando, setPartidoFrecuenteEditando] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -40,9 +42,9 @@ export default function App() {
       getPartidoPorCodigo(codigo)
         .then(partido => {
           setPartidoActual(partido);
-          setModo("jugador");
+          setModo(MODES.PLAYER);
         })
-        .catch(() => setModo(null));
+        .catch(() => setModo(MODES.HOME));
     }
   }, []);
 
@@ -52,16 +54,16 @@ export default function App() {
     setPartidoActual({ ...partidoActual, jugadores: nuevosJugadores });
   };
 
-  if (modo === "admin") {
-    if (stepPartido === 0) {
+  if (modo === MODES.ADMIN) {
+    if (stepPartido === ADMIN_STEPS.SELECT_TYPE) {
       return (
         <SeleccionarTipoPartido
-          onNuevo={() => setStepPartido(1)}
-          onExistente={() => alert("Próximamente partidos frecuentes")}
+          onNuevo={() => setStepPartido(ADMIN_STEPS.CREATE_MATCH)}
+          onExistente={() => setStepPartido(ADMIN_STEPS.SELECT_FREQUENT)}
         />
       );
     }
-    if (stepPartido === 1) {
+    if (stepPartido === ADMIN_STEPS.CREATE_MATCH) {
       return (
         <FormularioNuevoPartido
           onConfirmar={async (data) => {
@@ -69,7 +71,8 @@ export default function App() {
               const partido = await crearPartido(data);
               if (!partido) throw new Error("No se pudo crear el partido. Intenta nuevamente.");
               setPartidoActual(partido);
-              setStepPartido(2);
+              setStepPartido(ADMIN_STEPS.MANAGE);
+              return partido;
             } catch (error) {
               console.error("Error creating match:", error);
               throw error;
@@ -78,7 +81,35 @@ export default function App() {
         />
       );
     }
-    if (stepPartido === 2 && partidoActual) {
+    if (stepPartido === ADMIN_STEPS.SELECT_FREQUENT) {
+      return (
+        <ListaPartidosFrecuentes
+          onEditar={(partido) => {
+            setPartidoFrecuenteEditando(partido);
+            setStepPartido(ADMIN_STEPS.EDIT_FREQUENT);
+          }}
+          onVolver={() => setStepPartido(ADMIN_STEPS.SELECT_TYPE)}
+        />
+      );
+    }
+    if (stepPartido === ADMIN_STEPS.EDIT_FREQUENT && partidoFrecuenteEditando) {
+      return (
+        <EditarPartidoFrecuente
+          partido={partidoFrecuenteEditando}
+          onPartidoCreado={(partido) => {
+            setPartidoActual(partido);
+            setPartidoFrecuenteEditando(null);
+            setStepPartido(ADMIN_STEPS.MANAGE);
+          }}
+          onVolver={() => {
+            setPartidoFrecuenteEditando(null);
+            setStepPartido(ADMIN_STEPS.SELECT_FREQUENT);
+          }}
+        />
+      );
+    }
+
+    if (stepPartido === ADMIN_STEPS.MANAGE && partidoActual) {
       return (
         <div className="voting-bg">
           <div className="voting-modern-card" style={{ maxWidth: 650 }}>
@@ -88,28 +119,29 @@ export default function App() {
               jugadores={partidoActual?.jugadores || []}
               onJugadoresChange={handleJugadoresChange}
               onBackToHome={() => {
-                setModo(null);
+                setModo(MODES.HOME);
                 setPartidoActual(null);
-                setStepPartido(0);
+                setPartidoFrecuenteEditando(null);
+                setStepPartido(ADMIN_STEPS.SELECT_TYPE);
               }}
             />
           </div>
         </div>
       );
     }
-    if (stepPartido === 2 && !partidoActual) {
-      setStepPartido(0);
+    if (stepPartido === ADMIN_STEPS.MANAGE && !partidoActual) {
+      setStepPartido(ADMIN_STEPS.SELECT_TYPE);
       return null;
     }
   }
 
   // HOME: el botón ahora está más arriba, con aire.
-  if (!modo) return (
+  if (modo === MODES.HOME) return (
     <div className="voting-bg">
       <div className="voting-modern-card" style={{maxWidth: 440, display: "flex", flexDirection: "column", alignItems: "center"}}>
         <Home onModoSeleccionado={(m) => {
           setModo(m);
-          if (m === "admin") setStepPartido(0);
+          if (m === MODES.ADMIN) setStepPartido(ADMIN_STEPS.SELECT_TYPE);
         }} />
         {/* Ajustá marginTop según prefieras (ej: 36, 44, 56) */}
         <button
@@ -124,8 +156,8 @@ export default function App() {
         <IngresoAdminPartido
           onAcceder={(partido) => {
             setPartidoActual(partido);
-            setModo("admin");
-            setStepPartido(2);
+            setModo(MODES.ADMIN);
+            setStepPartido(ADMIN_STEPS.MANAGE);
             setShowIngresoAdmin(false);
           }}
           onCancelar={() => setShowIngresoAdmin(false)}
@@ -134,15 +166,20 @@ export default function App() {
     </div>
   );
 
-  if (modo === "simple") return <AppNormal onBack={() => setModo(null)} />;
-  if (modo === "votacion") {
-    setModo("admin");
+  if (modo === MODES.SIMPLE) return <AppNormal onBack={() => setModo(MODES.HOME)} />;
+  if (modo === MODES.VOTING) {
+    setModo(MODES.ADMIN);
     return null;
   }
-  if (modo === "jugador") return (
+  if (modo === MODES.PLAYER) return (
     <VotingView
       jugadores={partidoActual ? partidoActual.jugadores : []}
-      onReset={() => { setModo(null); setPartidoActual(null); setStepPartido(0); }}
+      onReset={() => { 
+        setModo(MODES.HOME); 
+        setPartidoActual(null);
+        setPartidoFrecuenteEditando(null);
+        setStepPartido(ADMIN_STEPS.SELECT_TYPE); 
+      }}
     />
   );
 
@@ -155,7 +192,7 @@ export default function App() {
         </div>
         <button
           className="voting-confirm-btn"
-          onClick={() => setModo(null)}
+          onClick={() => setModo(MODES.HOME)}
           style={{marginTop: "20px"}}
         >
           VOLVER AL INICIO

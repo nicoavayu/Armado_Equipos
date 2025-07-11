@@ -1,16 +1,15 @@
-// src/VotingView.js
 import React, { useState, useEffect } from "react";
+import { toast } from 'react-toastify';
+import { STEPS } from "./constants";
 import {
   checkIfAlreadyVoted,
   uploadFoto,
   submitVotos,
 } from "./supabase";
-import { toast } from 'react-toastify';
 import StarRating from "./StarRating";
 import "./VotingView.css";
 import Logo from "./Logo.png";
 
-// Avatar cuadrado por defecto (SVG simple)
 const DefaultAvatar = (
   <div className="voting-photo-placeholder">
     <svg width="80" height="80" viewBox="0 0 38 38" fill="none">
@@ -22,8 +21,7 @@ const DefaultAvatar = (
 );
 
 export default function VotingView({ onReset, jugadores }) {
-  // Estados principales
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(STEPS.IDENTIFY);
   const [nombre, setNombre] = useState("");
   const [jugador, setJugador] = useState(null);
 
@@ -101,7 +99,7 @@ export default function VotingView({ onReset, jugadores }) {
   }
 
   // Paso 0: Identificarse
-  if (step === 0) {
+  if (step === STEPS.IDENTIFY) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
@@ -122,7 +120,7 @@ export default function VotingView({ onReset, jugadores }) {
             className="voting-confirm-btn"
             disabled={!nombre}
             style={{ opacity: nombre ? 1 : 0.4, pointerEvents: nombre ? "auto" : "none" }}
-            onClick={() => setStep(1)}
+            onClick={() => setStep(STEPS.PHOTO)}
           >
             CONFIRMAR
           </button>
@@ -132,7 +130,7 @@ export default function VotingView({ onReset, jugadores }) {
   }
 
   // Paso 1: Subir foto (opcional)
-  if (step === 1) {
+  if (step === STEPS.PHOTO) {
     const handleFile = (e) => {
       if (e.target.files && e.target.files[0]) {
         setFile(e.target.files[0]);
@@ -206,7 +204,7 @@ export default function VotingView({ onReset, jugadores }) {
           <button
             className="voting-confirm-btn"
             style={{ marginTop: 8 }}
-            onClick={() => setStep(2)}
+            onClick={() => setStep(STEPS.VOTE)}
           >
             {fotoPreview ? "CONTINUAR" : "CONTINUAR SIN FOTO"}
           </button>
@@ -216,7 +214,7 @@ export default function VotingView({ onReset, jugadores }) {
   }
 
   // Paso 2: Votar a los demás jugadores
-if (step === 2 || editandoIdx !== null) {
+if (step === STEPS.VOTE || editandoIdx !== null) {
   const jugadoresNoVotados = jugadoresParaVotar.filter(j => !(j.uuid in votos));
   let jugadorVotar;
   if (editandoIdx !== null) {
@@ -296,14 +294,14 @@ if (step === 2 || editandoIdx !== null) {
       </div>
     );
   } else {
-    setTimeout(() => setStep(3), 200);
+    setTimeout(() => setStep(STEPS.CONFIRM), 200);
     return null;
   }
 }
 
 
   // Paso 3: Resumen y edición antes de confirmar
-  if (step === 3 && !finalizado) {
+  if (step === STEPS.CONFIRM && !finalizado) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">

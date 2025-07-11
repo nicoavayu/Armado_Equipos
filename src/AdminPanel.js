@@ -106,7 +106,6 @@ async function agregarJugador(e) {
     setLoading(false);
   }
 }
-  // NUEVA versión: Equipos con igual cantidad y usando scores actualizados
   function armarEquipos(jugadores) {
   const jugadoresOrdenados = [...jugadores].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   const equipoA = [];
@@ -116,17 +115,17 @@ async function agregarJugador(e) {
 
   jugadoresOrdenados.forEach(jugador => {
     if (equipoA.length < equipoB.length) {
-      equipoA.push(jugador.uuid); // <<< uuid
+      equipoA.push(jugador.uuid);
       puntajeA += jugador.score ?? 0;
     } else if (equipoB.length < equipoA.length) {
-      equipoB.push(jugador.uuid); // <<< uuid
+      equipoB.push(jugador.uuid);
       puntajeB += jugador.score ?? 0;
     } else {
       if (puntajeA <= puntajeB) {
-        equipoA.push(jugador.uuid); // <<< uuid
+        equipoA.push(jugador.uuid);
         puntajeA += jugador.score ?? 0;
       } else {
-        equipoB.push(jugador.uuid); // <<< uuid
+        equipoB.push(jugador.uuid);
         puntajeB += jugador.score ?? 0;
       }
     }
@@ -151,8 +150,8 @@ async function agregarJugador(e) {
     safeSetTeams(newTeams);
   };
 
-  // 💥 ESTE ES EL FIX PRINCIPAL
-async function handleCerrarVotacion() {
+  async function handleCerrarVotacion() {
+  console.log('VOTING: Starting voting close process');
   if (jugadores.length % 2 !== 0) {
     toast.error("¡La cantidad de jugadores debe ser PAR para armar equipos!");
     return;
@@ -162,30 +161,31 @@ async function handleCerrarVotacion() {
   }
   setIsClosing(true);
   try {
+    console.log('VOTING: Closing voting and calculating scores');
     const result = await closeVotingAndCalculateScores();
+    console.log('VOTING: Scores calculated successfully');
 
-    // 💥 REFRESCA los jugadores directamente desde la tabla jugadores, así seguro tienen el score actualizado
+    console.log('VOTING: Fetching updated players');
     const jugadoresConPromedio = await getJugadores();
+    console.log('VOTING: Players with scores:', jugadoresConPromedio.length);
 
-    // 💥 Si querés filtrar solo los jugadores de este partido:
-    // const jugadoresDeEstePartido = jugadoresConPromedio.filter(j => 
-    //   partidoActual.jugadores.some(pj => pj.uuid === j.uuid)
-    // );
-
-    // 💥 Arma los equipos con los jugadores actualizados
+    console.log('VOTING: Creating teams');
     const equiposArmados = armarEquipos(
       jugadoresConPromedio.filter(j => partidoActual.jugadores.some(pj => pj.uuid === j.uuid))
     );
+    console.log('VOTING: Teams created successfully');
 
     safeSetTeams(equiposArmados);
     setShowTeamView(true);
+    console.log('VOTING: Team view activated');
     toast.success(result.message);
 
-    // 💥 Actualizá la lista de jugadores en la UI (por si volvés atrás)
     onJugadoresChange(
       jugadoresConPromedio.filter(j => partidoActual.jugadores.some(pj => pj.uuid === j.uuid))
     );
+    console.log('VOTING: Process completed successfully');
   } catch (error) {
+    console.error('VOTING: Error in voting process:', error);
     toast.error("Error al cerrar la votación: " + error.message);
   } finally {
     setIsClosing(false);

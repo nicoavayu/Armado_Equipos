@@ -12,8 +12,8 @@ export const getJugadores = async () => {
     .from('jugadores')
     .select('id, uuid, nombre, foto_url, score')
     .order('nombre', { ascending: true });
-  if (error) throw error;
-  return data;
+  if (error) throw new Error(`Error fetching players: ${error.message}`);
+  return data || [];
 };
 
 export const addJugador = async (nombre) => {
@@ -61,13 +61,15 @@ export const getVotantesIds = async () => {
 };
 
 export const checkIfAlreadyVoted = async (jugadorUuid) => {
+  if (!jugadorUuid) return false;
   const { data, error } = await supabase
     .from('votos')
     .select('id')
     .eq('votante_id', jugadorUuid)
-    .limit(1);
-  if (error) throw error;
-  return data && data.length > 0;
+    .limit(1)
+    .single();
+  if (error && error.code !== 'PGRST116') throw new Error(`Error checking vote status: ${error.message}`);
+  return !!data;
 };
 
 export const submitVotos = async (votos, jugadorUuid) => {
@@ -197,21 +199,22 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps }) => {
   return data;
 };
 
-function generarCodigoPartido(length = 6) {
+const generarCodigoPartido = (length = 6) => {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
   let result = "";
   for (let i = 0; i < length; i++)
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   return result;
-}
+};
 
 export const getPartidoPorCodigo = async (codigo) => {
+  if (!codigo) throw new Error('Match code is required');
   const { data, error } = await supabase
     .from("partidos")
     .select("*")
     .eq("codigo", codigo)
     .single();
-  if (error) throw error;
+  if (error) throw new Error(`Error fetching match: ${error.message}`);
   return data;
 };
 
@@ -221,4 +224,214 @@ export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
     .update({ jugadores: nuevosJugadores })
     .eq("id", partidoId);
   if (error) throw error;
+};
+
+// --- API de Partidos Frecuentes ---
+
+export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frecuentes, creado_por, dia_semana, habilitado, creado_en }) => {
+  console.log('Creating frequent match with params:', { nombre, sede, hora, jugadores_frecuentes, creado_por, dia_semana, habilitado, creado_en });
+  
+  // Validate required fields
+  if (!nombre || !sede || !hora || dia_semana === undefined) {
+    const missingFields = [];
+    if (!nombre) missingFields.push('nombre');
+    if (!sede) missingFields.push('sede');
+    if (!hora) missingFields.push('hora');
+    if (dia_semana === undefined) missingFields.push('dia_semana');
+    
+    const errorMsg = `Missing required fields: ${missingFields.join(', ')}`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+  
+  const insertData = {
+    nombre: nombre.trim(),
+    sede: sede.trim(),
+    hora: hora.trim(),
+    jugadores_frecuentes: jugadores_frecuentes || [],
+    creado_por,
+    creado_en: creado_en || new Date().toISOString(),
+    habilitado: habilitado !== undefined ? habilitado : true,
+    dia_semana: parseInt(dia_semana)
+  };
+  
+  console.log('Inserting data into partidos_frecuentes:', insertData);
+  
+  const { data, error } = await supabase
+    .from("partidos_frecuentes")
+    .insert([insertData])
+    .select()
+    .single();
+    
+  if (error) {
+    console.error('Supabase error creating frequent match:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint
+    });
+    throw new Error(`Error creating frequent match: ${error.message} (Code: ${error.code})`);
+  }
+  
+  if (!data) {
+    console.error('No data returned from insert operation');
+    throw new Error('No data returned from frequent match creation');
+  }
+  
+  console.log('Frequent match created successfully:', data);
+  return data;
+};
+
+export const getPartidosFrecuentes = async () => {
+  console.log('Fetching frequent matches...');
+  
+  try {
+    // First, let's get ALL records to see what's in the table
+    const { data: allData, error: allError } = await supabase
+      .from("partidos_frecuentes")
+      .select("*");
+    
+    console.log('All frequent matches in table:', allData);
+    console.log('Count of all records:', allData?.length || 0);
+    
+    if (allError) {
+      console.error('Error fetching all frequent matches:', allError);
+    }
+    
+    // Now get only enabled ones
+    const { data, error } = await supabase
+      .from("partidos_frecuentes")
+      .select("*")
+      .eq("habilitado", true)
+      .order("creado_en", { ascending: false });
+      
+    if (error) {
+      console.error('Error fetching enabled frequent matches:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details
+      });
+      throw new Error(`Error fetching frequent matches: ${error.message}`);
+    }
+    
+    console.log('Enabled frequent matches fetched:', data);
+    console.log('Count of enabled records:', data?.length || 0);
+    
+    if (data && data.length > 0) {
+      console.log('Sample record structure:', data[0]);
+    }
+    
+    return data || [];
+    
+  } catch (err) {
+    console.error('Exception in getPartidosFrecuentes:', err);
+    throw err;
+  }
+};
+
+export const updatePartidoFrecuente = async (id, updates) => {
+  const { data, error } = await supabase
+    .from("partidos_frecuentes")
+    .update({
+      ...updates,
+      // Clean jugadores_frecuentes data
+      jugadores_frecuentes: updates.jugadores_frecuentes?.map(j => ({
+        nombre: j.nombre,
+        foto_url: j.foto_url || null,
+        uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      }))
+    })
+    .eq("id", id)
+    .select()
+    .single();
+  if (error) throw new Error(`Error updating frequent match: ${error.message}`);
+  return data;
+};
+
+export const deletePartidoFrecuente = async (id) => {
+  const { error } = await supabase
+    .from("partidos_frecuentes")
+    .update({ habilitado: false })
+    .eq("id", id);
+  if (error) throw new Error(`Error deleting frequent match: ${error.message}`);
+};
+
+export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha) => {
+  const partido = await crearPartido({
+    fecha,
+    hora: partidoFrecuente.hora,
+    sede: partidoFrecuente.sede,
+    sedeMaps: ""
+  });
+  
+  if (partidoFrecuente.jugadores_frecuentes?.length > 0) {
+    // Clean player data - keep only nombre and foto_url
+    const jugadoresLimpios = partidoFrecuente.jugadores_frecuentes.map(j => ({
+      nombre: j.nombre,
+      foto_url: j.foto_url || null,
+      uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    }));
+    
+    await updateJugadoresPartido(partido.id, jugadoresLimpios);
+    partido.jugadores = jugadoresLimpios;
+  }
+  
+  return partido;
+};
+
+export const clearVotesForMatch = async (partidoId) => {
+  const { error } = await supabase
+    .from('votos')
+    .delete()
+    .eq('partido_id', partidoId);
+  if (error && error.code !== 'PGRST116') {
+    throw new Error(`Error clearing votes: ${error.message}`);
+  }
+};
+
+// Debug function to check table schema
+export const checkPartidosFrecuentesSchema = async () => {
+  console.log('Checking partidos_frecuentes table schema...');
+  
+  try {
+    // Try to insert a test record to see what fields are expected
+    const testData = {
+      nombre: 'TEST_SCHEMA_CHECK',
+      sede: 'TEST',
+      hora: '12:00',
+      jugadores_frecuentes: [],
+      creado_por: 'test',
+      dia_semana: 1,
+      habilitado: true,
+      creado_en: new Date().toISOString()
+    };
+    
+    const { data, error } = await supabase
+      .from('partidos_frecuentes')
+      .insert([testData])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Schema check failed:', error);
+      return { success: false, error };
+    }
+    
+    // Clean up test record
+    if (data?.id) {
+      await supabase
+        .from('partidos_frecuentes')
+        .delete()
+        .eq('id', data.id);
+    }
+    
+    console.log('Schema check passed:', data);
+    return { success: true, data };
+    
+  } catch (err) {
+    console.error('Exception during schema check:', err);
+    return { success: false, error: err };
+  }
 };
