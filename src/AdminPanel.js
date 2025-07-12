@@ -419,28 +419,9 @@ async function handleCerrarVotacion() {
         <>
           <div className="voting-title-modern">MODO PARTICIPATIVO</div>
 
-          {/* Match code section */}
-          {partidoActual.codigo && (
-            <div className="admin-match-code">
-              <div className="admin-match-code-content">
-                <div>
-                  <div className="admin-match-code-label">CÓDIGO DEL PARTIDO</div>
-                  <div className="admin-match-code-value">{partidoActual.codigo}</div>
-                </div>
-                <button
-                  className="admin-copy-btn"
-                  onClick={() => {
-                    navigator.clipboard.writeText(partidoActual.codigo);
-                    toast.success("¡Código copiado!");
-                  }}
-                >
-                  COPIAR
-                </button>
-              </div>
-            </div>
-          )}
 
-          {/* PartidoInfoBox */}
+
+          {/* Match info */}
           {partidoActual && <PartidoInfoBox partido={partidoActual} />}
 
           {/* Add player section */}

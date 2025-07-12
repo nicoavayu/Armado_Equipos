@@ -346,11 +346,20 @@ export const getPartidoPorCodigo = async (codigo) => {
 };
 
 export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
+  console.log('Updating match players:', { partidoId, count: nuevosJugadores.length });
   const { error } = await supabase
     .from("partidos")
     .update({ jugadores: nuevosJugadores })
     .eq("id", partidoId);
   if (error) throw error;
+};
+
+// New function to update frequent match players specifically
+export const updateJugadoresFrecuentes = async (partidoFrecuenteId, nuevosJugadores) => {
+  console.log('Updating frequent match players:', { partidoFrecuenteId, count: nuevosJugadores.length });
+  return updatePartidoFrecuente(partidoFrecuenteId, {
+    jugadores_frecuentes: nuevosJugadores
+  });
 };
 
 // --- API de Partidos Frecuentes ---
@@ -469,17 +478,21 @@ export const getPartidosFrecuentes = async () => {
 };
 
 export const updatePartidoFrecuente = async (id, updates) => {
+  // Only update the provided fields, don't touch jugadores_frecuentes unless explicitly provided
+  const updateData = { ...updates };
+  
+  // Only clean jugadores_frecuentes if it's being updated
+  if (updates.jugadores_frecuentes) {
+    updateData.jugadores_frecuentes = updates.jugadores_frecuentes.map(j => ({
+      nombre: j.nombre,
+      foto_url: j.foto_url || null,
+      uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    }));
+  }
+  
   const { data, error } = await supabase
     .from("partidos_frecuentes")
-    .update({
-      ...updates,
-      // Clean jugadores_frecuentes data
-      jugadores_frecuentes: updates.jugadores_frecuentes?.map(j => ({
-        nombre: j.nombre,
-        foto_url: j.foto_url || null,
-        uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      }))
-    })
+    .update(updateData)
     .eq("id", id)
     .select()
     .single();
@@ -496,6 +509,8 @@ export const deletePartidoFrecuente = async (id) => {
 };
 
 export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha) => {
+  console.log('Creating match from frequent match:', partidoFrecuente);
+  
   const partido = await crearPartido({
     fecha,
     hora: partidoFrecuente.hora,
@@ -503,16 +518,23 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha) => {
     sedeMaps: ""
   });
   
-  if (partidoFrecuente.jugadores_frecuentes?.length > 0) {
+  // Always copy the players from the frequent match, even if empty
+  const jugadoresFrecuentes = partidoFrecuente.jugadores_frecuentes || [];
+  
+  if (jugadoresFrecuentes.length > 0) {
     // Clean player data - keep only nombre and foto_url
-    const jugadoresLimpios = partidoFrecuente.jugadores_frecuentes.map(j => ({
+    const jugadoresLimpios = jugadoresFrecuentes.map(j => ({
       nombre: j.nombre,
       foto_url: j.foto_url || null,
-      uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      score: j.score || 5 // Default score
     }));
     
+    console.log('Adding players to new match:', jugadoresLimpios);
     await updateJugadoresPartido(partido.id, jugadoresLimpios);
     partido.jugadores = jugadoresLimpios;
+  } else {
+    partido.jugadores = [];
   }
   
   return partido;

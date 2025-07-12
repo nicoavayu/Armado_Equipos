@@ -1,23 +1,32 @@
 import React, { useState } from "react";
 import AutocompleteSede from "./AutocompleteSede";
-import { crearPartidoFrecuente } from "./supabase";
+import { crearPartidoFrecuente, crearPartidoDesdeFrec } from "./supabase";
 import { handleError, handleSuccess, safeAsync } from "./utils/errorHandler";
 
-const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
-export default function FormularioNuevoPartido({ onConfirmar }) {
+export default function FormularioNuevoPartido({ onConfirmar, onVolver }) {
+  const [nombrePartido, setNombrePartido] = useState("");
   const [fecha, setFecha] = useState("");
   const [hora, setHora] = useState("");
   const [sede, setSede] = useState("");
   const [sedeInfo, setSedeInfo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [guardarFrecuente, setGuardarFrecuente] = useState(false);
-  const [nombreFrecuente, setNombreFrecuente] = useState("");
 
   return (
     <div className="voting-bg">
       <div className="voting-modern-card" style={{ padding: 42, maxWidth: 420 }}>
+        <div className="voting-title-modern" style={{ fontSize: '32px', marginBottom: 24 }}>NUEVO PARTIDO</div>
+        
+        <input
+          className="input-modern"
+          type="text"
+          placeholder="Nombre del partido"
+          value={nombrePartido}
+          onChange={e => setNombrePartido(e.target.value)}
+          style={{ marginBottom: 22, width: "100%" }}
+          required
+        />
+
         <input
           className="input-modern"
           type="date"
@@ -42,27 +51,6 @@ export default function FormularioNuevoPartido({ onConfirmar }) {
           }}
         />
 
-        <div style={{ margin: '20px 0', padding: '16px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', color: '#fff', fontSize: '16px', marginBottom: '12px' }}>
-            <input
-              type="checkbox"
-              checked={guardarFrecuente}
-              onChange={(e) => setGuardarFrecuente(e.target.checked)}
-              style={{ marginRight: '8px', transform: 'scale(1.2)' }}
-            />
-            Guardar como partido frecuente
-          </label>
-          {guardarFrecuente && (
-            <input
-              className="input-modern"
-              placeholder="Nombre del partido frecuente"
-              value={nombreFrecuente}
-              onChange={(e) => setNombreFrecuente(e.target.value)}
-              style={{ marginTop: '8px', height: '45px', fontSize: '16px' }}
-            />
-          )}
-        </div>
-
         {error && (
           <div style={{
             color: "#ff5555",
@@ -79,17 +67,36 @@ export default function FormularioNuevoPartido({ onConfirmar }) {
         
         <button
           className="voting-confirm-btn"
-          style={{ width: "100%" }}
-          disabled={!fecha || !hora || !sede || loading || (guardarFrecuente && !nombreFrecuente.trim())}
+          style={{ width: "100%", marginBottom: 12 }}
+          disabled={!nombrePartido.trim() || !fecha || !hora || !sede || loading}
           onClick={async () => {
             setLoading(true);
             setError("");
             
             try {
-              const partidoData = { fecha, hora, sede, sedeMaps: sedeInfo };
+              // Always create as frequent match
+              const partidoFrecuente = await safeAsync(
+                () => crearPartidoFrecuente({
+                  nombre: nombrePartido.trim(),
+                  sede: sede.trim(),
+                  hora: hora.trim(),
+                  jugadores_frecuentes: [],
+                  creado_por: null,
+                  dia_semana: new Date(fecha).getDay(),
+                  habilitado: true,
+                  creado_en: new Date().toISOString()
+                }),
+                'Error al crear el partido frecuente'
+              );
               
+              if (!partidoFrecuente) {
+                setError("No se pudo crear el partido");
+                return;
+              }
+              
+              // Create regular match from frequent match
               const partido = await safeAsync(
-                () => onConfirmar(partidoData),
+                () => crearPartidoDesdeFrec(partidoFrecuente, fecha),
                 'Error al crear el partido'
               );
               
@@ -98,24 +105,11 @@ export default function FormularioNuevoPartido({ onConfirmar }) {
                 return;
               }
               
-              if (guardarFrecuente && nombreFrecuente.trim()) {
-                await safeAsync(
-                  () => crearPartidoFrecuente({
-                    nombre: nombreFrecuente.trim(),
-                    sede: sede.trim(),
-                    hora: hora.trim(),
-                    jugadores_frecuentes: [],
-                    creado_por: null,
-                    dia_semana: new Date(fecha).getDay(),
-                    habilitado: true,
-                    creado_en: new Date().toISOString()
-                  }),
-                  'Error al guardar partido frecuente'
-                );
-                handleSuccess('Partido y partido frecuente guardados');
-              } else {
-                handleSuccess('Partido creado correctamente');
-              }
+              // Mark this match as created from a frequent match
+              partido.from_frequent_match_id = partidoFrecuente.id;
+              
+              await onConfirmar(partido);
+              handleSuccess('Partido creado correctamente');
               
             } catch (err) {
               setError(err.message || "Error al procesar la solicitud");
@@ -124,7 +118,16 @@ export default function FormularioNuevoPartido({ onConfirmar }) {
             }
           }}
         >
-          {loading ? "Creando..." : "Confirmar"}
+          {loading ? "CREANDO..." : "CREAR PARTIDO"}
+        </button>
+        
+        <button
+          className="voting-confirm-btn"
+          style={{ width: "100%", background: 'transparent', borderColor: 'rgba(255,255,255,0.6)', color: 'rgba(255,255,255,0.9)' }}
+          onClick={onVolver}
+          disabled={loading}
+        >
+          VOLVER AL INICIO
         </button>
       </div>
     </div>

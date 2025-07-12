@@ -11,7 +11,8 @@ import FormularioNuevoPartido from "./FormularioNuevoPartido";
 import PartidoInfoBox from "./PartidoInfoBox";
 import ListaPartidosFrecuentes from "./ListaPartidosFrecuentes";
 import EditarPartidoFrecuente from "./EditarPartidoFrecuente";
-import { crearPartido, getPartidoPorCodigo, updateJugadoresPartido } from "./supabase";
+import { getPartidoPorCodigo, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes } from "./supabase";
+import { toast } from 'react-toastify';
 import IngresoAdminPartido from "./IngresoAdminPartido";
 
 const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
@@ -32,7 +33,7 @@ export default function App() {
   const [modo, setModo] = useState(MODES.HOME);
   const [partidoActual, setPartidoActual] = useState(null);
   const [stepPartido, setStepPartido] = useState(ADMIN_STEPS.SELECT_TYPE);
-  const [showIngresoAdmin, setShowIngresoAdmin] = useState(false);
+  // Removed showIngresoAdmin state as it's no longer needed
   const [partidoFrecuenteEditando, setPartidoFrecuenteEditando] = useState(null);
 
   useEffect(() => {
@@ -52,6 +53,16 @@ export default function App() {
     if (!partidoActual) return;
     await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
     setPartidoActual({ ...partidoActual, jugadores: nuevosJugadores });
+    
+    // If this match was created from a frequent match, update the frequent match players too
+    if (partidoActual.from_frequent_match_id) {
+      try {
+        await updateJugadoresFrecuentes(partidoActual.from_frequent_match_id, nuevosJugadores);
+        console.log('Updated frequent match players');
+      } catch (error) {
+        console.error('Error updating frequent match players:', error);
+      }
+    }
   };
 
   if (modo === MODES.ADMIN) {
@@ -66,24 +77,33 @@ export default function App() {
     if (stepPartido === ADMIN_STEPS.CREATE_MATCH) {
       return (
         <FormularioNuevoPartido
-          onConfirmar={async (data) => {
-            try {
-              const partido = await crearPartido(data);
-              if (!partido) throw new Error("No se pudo crear el partido. Intenta nuevamente.");
-              setPartidoActual(partido);
-              setStepPartido(ADMIN_STEPS.MANAGE);
-              return partido;
-            } catch (error) {
-              console.error("Error creating match:", error);
-              throw error;
-            }
+          onConfirmar={async (partido) => {
+            // Partido is already created, just set it as current
+            setPartidoActual(partido);
+            setStepPartido(ADMIN_STEPS.MANAGE);
+            return partido;
           }}
+          onVolver={() => setStepPartido(ADMIN_STEPS.SELECT_TYPE)}
         />
       );
     }
     if (stepPartido === ADMIN_STEPS.SELECT_FREQUENT) {
       return (
         <ListaPartidosFrecuentes
+          onEntrar={async (partidoFrecuente) => {
+            try {
+              // Create a regular match from the frequent match
+              const hoy = new Date().toISOString().split('T')[0];
+              const partido = await crearPartidoDesdeFrec(partidoFrecuente, hoy);
+              // Mark this match as created from a frequent match
+              partido.from_frequent_match_id = partidoFrecuente.id;
+              setPartidoActual(partido);
+              setStepPartido(ADMIN_STEPS.MANAGE);
+            } catch (error) {
+              console.error('Error creating match from frequent:', error);
+              toast.error('Error al crear el partido');
+            }
+          }}
           onEditar={(partido) => {
             setPartidoFrecuenteEditando(partido);
             setStepPartido(ADMIN_STEPS.EDIT_FREQUENT);
@@ -96,10 +116,9 @@ export default function App() {
       return (
         <EditarPartidoFrecuente
           partido={partidoFrecuenteEditando}
-          onPartidoCreado={(partido) => {
-            setPartidoActual(partido);
+          onGuardado={() => {
             setPartidoFrecuenteEditando(null);
-            setStepPartido(ADMIN_STEPS.MANAGE);
+            setStepPartido(ADMIN_STEPS.SELECT_FREQUENT);
           }}
           onVolver={() => {
             setPartidoFrecuenteEditando(null);
@@ -135,7 +154,7 @@ export default function App() {
     }
   }
 
-  // HOME: el botón ahora está más arriba, con aire.
+  // HOME: simplified without admin button
   if (modo === MODES.HOME) return (
     <div className="voting-bg">
       <div className="voting-modern-card" style={{maxWidth: 440, display: "flex", flexDirection: "column", alignItems: "center"}}>
@@ -143,26 +162,7 @@ export default function App() {
           setModo(m);
           if (m === MODES.ADMIN) setStepPartido(ADMIN_STEPS.SELECT_TYPE);
         }} />
-        {/* Ajustá marginTop según prefieras (ej: 36, 44, 56) */}
-        <button
-          className="voting-confirm-btn wipe-btn"
-          style={{marginTop: -150, width: "100%"}}
-          onClick={() => setShowIngresoAdmin(true)}
-        >
-          ADMIN. PARTIDO
-        </button>
       </div>
-      {showIngresoAdmin && (
-        <IngresoAdminPartido
-          onAcceder={(partido) => {
-            setPartidoActual(partido);
-            setModo(MODES.ADMIN);
-            setStepPartido(ADMIN_STEPS.MANAGE);
-            setShowIngresoAdmin(false);
-          }}
-          onCancelar={() => setShowIngresoAdmin(false)}
-        />
-      )}
     </div>
   );
 

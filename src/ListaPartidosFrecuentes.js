@@ -3,7 +3,7 @@ import { getPartidosFrecuentes, deletePartidoFrecuente, checkPartidosFrecuentesS
 import { toast } from 'react-toastify';
 import { DIAS_SEMANA_CORTO } from './constants';
 
-export default function ListaPartidosFrecuentes({ onEditar, onVolver }) {
+export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }) {
   const [partidosFrecuentes, setPartidosFrecuentes] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -84,6 +84,12 @@ export default function ListaPartidosFrecuentes({ onEditar, onVolver }) {
                   </div>
                 </div>
                 <div className="frequent-item-actions">
+                  <button 
+                    className="frequent-action-btn edit-btn"
+                    onClick={() => onEntrar(partido)}
+                  >
+                    ENTRAR
+                  </button>
                   <button 
                     className="frequent-action-btn edit-btn"
                     onClick={() => onEditar(partido)}
