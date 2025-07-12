@@ -366,7 +366,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
           </button>
           
           <button onClick={handleWhatsAppShare} className="team-action-btn whatsapp-btn wipe-btn">
-            <span>COMPARTIR</span>
+            <span><WhatsappIcon size={20} style={{marginRight: 8}} />COMPARTIR POR WHATSAPP</span>
           </button>
           
           <button onClick={onBackToHome} className="team-action-btn back-btn wipe-btn">

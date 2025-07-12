@@ -518,6 +518,11 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha) => {
     sedeMaps: ""
   });
   
+  // Add frequent match name and reference
+  partido.nombre = partidoFrecuente.nombre;
+  partido.frequent_match_name = partidoFrecuente.nombre;
+  partido.from_frequent_match_id = partidoFrecuente.id;
+  
   // Always copy the players from the frequent match, even if empty
   const jugadoresFrecuentes = partidoFrecuente.jugadores_frecuentes || [];
   

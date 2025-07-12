@@ -405,6 +405,28 @@ async function handleCerrarVotacion() {
   });
 
   if (!partidoActual) return <div style={{color:"red"}}>Sin partido cargado</div>;
+  
+  // Utility function to extract short venue name
+  const getShortVenueName = (venue) => {
+    if (!venue) return '';
+    // Extract text before first comma or parenthesis
+    const shortName = venue.split(/[,(]/)[0].trim();
+    return shortName;
+  };
+  
+  // Get match name from frequent match or regular match
+  const getMatchName = () => {
+    // Try to get name from frequent match first
+    if (partidoActual.from_frequent_match_id && partidoActual.frequent_match_name) {
+      return partidoActual.frequent_match_name;
+    }
+    // Then try regular match name
+    if (partidoActual.nombre) {
+      return partidoActual.nombre;
+    }
+    // Fallback to generic name
+    return 'PARTIDO';
+  };
 
   return (
     <div className="admin-panel-content">
@@ -417,12 +439,33 @@ async function handleCerrarVotacion() {
         />
       ) : (
         <>
-          <div className="voting-title-modern">MODO PARTICIPATIVO</div>
-
-
-
-          {/* Match info */}
-          {partidoActual && <PartidoInfoBox partido={partidoActual} />}
+          {/* Match header with custom name and details */}
+          <div className="match-header">
+            <div className="match-name">
+              {getMatchName()}
+            </div>
+            <div className="match-details">
+              {partidoActual.fecha && new Date(partidoActual.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
+                weekday: 'long', 
+                day: 'numeric', 
+                month: 'numeric' 
+              })}
+              {partidoActual.hora && ` ${partidoActual.hora}`}
+              {partidoActual.sede && (
+                <>
+                  {' – '}
+                  <a 
+                    href={`https://www.google.com/maps/search/${encodeURIComponent(getShortVenueName(partidoActual.sede))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="venue-link"
+                  >
+                    {getShortVenueName(partidoActual.sede)}
+                  </a>
+                </>
+              )}
+            </div>
+          </div>
 
           {/* Add player section */}
           <div className="admin-add-section">
@@ -497,7 +540,8 @@ async function handleCerrarVotacion() {
               className="voting-confirm-btn admin-btn-whatsapp" 
               onClick={handleWhatsApp}
             >
-              📱 WHATSAPP
+              <WhatsappIcon size={20} style={{marginRight: 8}} />
+              COMPARTIR POR WHATSAPP
             </button>
             <div style={{ position: 'relative' }}>
               <button 
