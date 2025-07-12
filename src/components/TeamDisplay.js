@@ -22,9 +22,22 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
     !teams.find(t => t.id === "equipoA") ||
     !teams.find(t => t.id === "equipoB")
   ) {
-    return <div style={{ padding: 40, color: "#DE1C49" }}>
-      Esperando que se armen ambos equipos...
-    </div>;
+    return (
+      <div className="team-display-container">
+        <div style={{ 
+          padding: '40px 20px', 
+          color: '#DE1C49',
+          textAlign: 'center',
+          fontFamily: 'Oswald, Arial, sans-serif',
+          fontSize: '18px',
+          background: 'rgba(222,28,73,0.1)',
+          borderRadius: '16px',
+          border: '2px solid rgba(222,28,73,0.3)'
+        }}>
+          ⏳ Esperando que se armen ambos equipos...
+        </div>
+      </div>
+    );
   }
 
   const getPlayerDetails = (playerId) => {
@@ -117,11 +130,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
       <div className="team-display-container">
-        <h2 className="team-display-title">EQUIPOS</h2>
+        <h2 className="team-display-title">EQUIPOS ARMADOS</h2>
+        
         <div className="teams-wrapper">
           {teams.map((team) => (
-            <div key={team.id} className="team-container dark-container">
+            <div key={team.id} className="team-container">
               <h3 className="team-name">{team.name}</h3>
+              
               <Droppable droppableId={team.id} key={team.id}>
                 {(provided) => (
                   <div
@@ -129,47 +144,77 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
                     {...provided.droppableProps}
                     ref={provided.innerRef}
                   >
-                    {team.players
-                      .filter(playerId => players.some(p => p.uuid === playerId))
-                      .map((playerId, index) => {
-                        const player = getPlayerDetails(playerId);
-                        if (!playerId || !player?.nombre) return null;
+                    {team.players.length === 0 ? (
+                      <div className="team-empty-state">
+                        No hay jugadores asignados
+                      </div>
+                    ) : (
+                      team.players
+                        .filter(playerId => players.some(p => p.uuid === playerId))
+                        .map((playerId, index) => {
+                          const player = getPlayerDetails(playerId);
+                          if (!playerId || !player?.nombre) return null;
 
-                        return (
-                          <Draggable key={String(playerId)} draggableId={String(playerId)} index={index}>
-                            {(provided) => (
-                              <div
-                                className="player-card"
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                              >
-                                <img src={player.foto_url || 'https://api.dicebear.com/6.x/pixel-art/svg?seed=default'} alt={player.nombre} className="player-avatar" />
-                                <span>{player.nombre}</span>
-                                {showAverages && <span className="player-score">{(player.score || 0).toFixed(2)}</span>}
-                              </div>
-                            )}
-                          </Draggable>
-                        );
-                      })}
+                          return (
+                            <Draggable key={String(playerId)} draggableId={String(playerId)} index={index}>
+                              {(provided) => (
+                                <div
+                                  className="player-card"
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                >
+                                  <img 
+                                    src={player.foto_url || 'https://api.dicebear.com/6.x/pixel-art/svg?seed=default'} 
+                                    alt={player.nombre} 
+                                    className="player-avatar" 
+                                  />
+                                  <span>{player.nombre}</span>
+                                  {showAverages && (
+                                    <span className="player-score">
+                                      {(player.score || 5).toFixed(1)}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </Draggable>
+                          );
+                        })
+                    )}
                     {provided.placeholder}
                   </div>
                 )}
               </Droppable>
+              
               <div className="team-score-box">
-                Puntaje: {team.score?.toFixed(2) ?? "0"}
+                PUNTAJE TOTAL: {team.score?.toFixed(1) ?? "0.0"}
               </div>
             </div>
           ))}
         </div>
+        
         <div className="team-actions">
-          <button onClick={randomizeTeams} className="team-action-btn randomize-btn wipe-btn">Randomizar</button>
-          <button onClick={() => setShowAverages(!showAverages)} className="team-action-btn averages-btn wipe-btn">
-            {showAverages ? 'Ocultar Promedios' : 'Ver Promedios'}
+          <button onClick={randomizeTeams} className="team-action-btn randomize-btn">
+            <span>🎲</span>
+            <span>MEZCLAR EQUIPOS</span>
           </button>
-          <button onClick={onBackToHome} className="team-action-btn back-btn wipe-btn">Volver al Inicio</button>
-          <button onClick={handleWhatsAppShare} className="team-action-btn whatsapp-btn wipe-btn">
-            <WhatsappIcon /> Compartir
+          
+          <button 
+            onClick={() => setShowAverages(!showAverages)} 
+            className="team-action-btn averages-btn"
+          >
+            <span>📊</span>
+            <span>{showAverages ? 'OCULTAR PUNTAJES' : 'VER PUNTAJES'}</span>
+          </button>
+          
+          <button onClick={handleWhatsAppShare} className="team-action-btn whatsapp-btn">
+            <span>📱</span>
+            <span>COMPARTIR</span>
+          </button>
+          
+          <button onClick={onBackToHome} className="team-action-btn back-btn">
+            <span>🏠</span>
+            <span>VOLVER AL INICIO</span>
           </button>
         </div>
       </div>

@@ -42,3 +42,20 @@ export const DIAS_SEMANA_CORTO = {
   5: 'Vie',
   6: 'Sáb'
 };
+
+export const UI_MESSAGES = {
+  LOADING: 'Cargando...',
+  ERROR_GENERIC: 'Ha ocurrido un error',
+  SUCCESS_MATCH_CREATED: 'Partido creado correctamente',
+  SUCCESS_FREQUENT_SAVED: 'Partido frecuente guardado',
+  ERROR_EVEN_PLAYERS: '¡La cantidad de jugadores debe ser PAR!',
+  CONFIRM_CLOSE_VOTING: '¿Cerrar votación y armar equipos?'
+};
+
+export const VALIDATION_RULES = {
+  MIN_PLAYERS_FOR_TEAMS: 2,
+  REQUIRED_EVEN_PLAYERS: true,
+  MAX_PLAYER_NAME_LENGTH: 40,
+  RATING_MIN: 1,
+  RATING_MAX: 10
+};

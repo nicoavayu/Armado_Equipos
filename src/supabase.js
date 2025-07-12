@@ -8,12 +8,35 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // --- API de Jugadores ---
 
 export const getJugadores = async () => {
-  const { data, error } = await supabase
-    .from('jugadores')
-    .select('id, uuid, nombre, foto_url, score')
-    .order('nombre', { ascending: true });
-  if (error) throw new Error(`Error fetching players: ${error.message}`);
-  return data || [];
+  console.log('📊 SUPABASE: Fetching all players with scores');
+  
+  try {
+    const { data, error } = await supabase
+      .from('jugadores')
+      .select('id, uuid, nombre, foto_url, score')
+      .order('nombre', { ascending: true });
+      
+    if (error) {
+      console.error('❌ SUPABASE: Error fetching players:', error);
+      throw new Error(`Error fetching players: ${error.message}`);
+    }
+    
+    console.log('✅ SUPABASE: Players fetched successfully:', {
+      count: data?.length || 0,
+      playersWithScores: data?.filter(p => p.score !== null && p.score !== undefined).length || 0,
+      sample: data?.slice(0, 3).map(p => ({ 
+        nombre: p.nombre, 
+        uuid: p.uuid, 
+        score: p.score 
+      })) || []
+    });
+    
+    return data || [];
+    
+  } catch (error) {
+    console.error('❌ SUPABASE: getJugadores failed:', error);
+    throw error;
+  }
 };
 
 export const addJugador = async (nombre) => {
@@ -111,69 +134,173 @@ export const removeSubscription = (subscription) => {
 
 // --- Cierre de votación y cálculo de promedios ---
 
+/**
+ * Closes voting phase and calculates player average scores
+ * Aggregates all votes, calculates averages, updates player scores, and clears votes
+ * @returns {Object} Result message with number of players updated
+ */
 export const closeVotingAndCalculateScores = async () => {
-  // 1. Traer todos los votos y jugadores
-  const { data: votos, error: fetchError } = await supabase.from('votos').select('votado_id, puntaje');
-  if (fetchError) throw new Error('Error al obtener los votos: ' + fetchError.message);
-
-  const { data: jugadores, error: playerError } = await supabase.from('jugadores').select('uuid');
-  if (playerError) throw new Error('Error al obtener los jugadores: ' + playerError.message);
-
-  if (!jugadores || jugadores.length === 0) {
-    return { message: 'No hay jugadores para actualizar.' };
-  }
-
-  // 2. Agrupar votos por jugador
-  const votesByPlayer = {};
-  if (votos) {
-    for (const voto of votos) {
-      if (!votesByPlayer[voto.votado_id]) {
-        votesByPlayer[voto.votado_id] = [];
-      }
-      if (voto.puntaje !== null && voto.puntaje !== undefined) {
-        votesByPlayer[voto.votado_id].push(voto.puntaje);
-      }
+  console.log('📊 SUPABASE: Starting closeVotingAndCalculateScores');
+  
+  try {
+    // Step 1: Fetch all votes
+    console.log('📊 SUPABASE: Step 1 - Fetching votes');
+    const { data: votos, error: fetchError } = await supabase
+      .from('votos')
+      .select('votado_id, puntaje, votante_id');
+      
+    if (fetchError) {
+      console.error('❌ SUPABASE: Error fetching votes:', fetchError);
+      throw new Error('Error al obtener los votos: ' + fetchError.message);
     }
-  }
-
-  // 3. Calcular promedio y actualizar score de cada jugador
-  const updates = jugadores.map(jugador => {
-    const playerVotes = votesByPlayer[jugador.uuid] || [];
-    // Solo promedia votos válidos, -1 = "no lo conozco"
-    const numericalVotes = playerVotes
-      .map(p => Number(p))
-      .filter(p => p !== -1);
-    let avgScore;
-    if (numericalVotes.length > 0) {
-      const total = numericalVotes.reduce((sum, val) => sum + val, 0);
-      avgScore = total / numericalVotes.length;
-    } else {
-      avgScore = 5;
-    }
-    // Actualiza el score en la tabla jugadores
-    return supabase
+    
+    console.log('✅ SUPABASE: Votes fetched:', {
+      count: votos?.length || 0,
+      sample: votos?.slice(0, 3) || []
+    });
+    
+    // Step 2: Fetch all players
+    console.log('📊 SUPABASE: Step 2 - Fetching players');
+    const { data: jugadores, error: playerError } = await supabase
       .from('jugadores')
-      .update({ score: avgScore })
-      .eq('uuid', jugador.uuid);
-  });
-
-  const updateResults = await Promise.all(updates);
-  const updateErrors = updateResults.filter(res => res.error);
-  if (updateErrors.length > 0) {
-    console.error('Error updating scores:', updateErrors.map(e => e.error));
-    throw new Error(`Error al actualizar los puntajes de ${updateErrors.length} jugadores.`);
+      .select('uuid, nombre');
+      
+    if (playerError) {
+      console.error('❌ SUPABASE: Error fetching players:', playerError);
+      throw new Error('Error al obtener los jugadores: ' + playerError.message);
+    }
+    
+    console.log('✅ SUPABASE: Players fetched:', {
+      count: jugadores?.length || 0,
+      players: jugadores?.map(j => ({ uuid: j.uuid, nombre: j.nombre })) || []
+    });
+    
+    if (!jugadores || jugadores.length === 0) {
+      console.warn('⚠️ SUPABASE: No players found');
+      return { message: 'No hay jugadores para actualizar.' };
+    }
+    
+    // Step 3: Group votes by player
+    console.log('📊 SUPABASE: Step 3 - Grouping votes by player');
+    const votesByPlayer = {};
+    let totalValidVotes = 0;
+    let totalInvalidVotes = 0;
+    
+    if (votos && votos.length > 0) {
+      for (const voto of votos) {
+        if (!voto.votado_id) {
+          console.warn('⚠️ SUPABASE: Vote without votado_id:', voto);
+          totalInvalidVotes++;
+          continue;
+        }
+        
+        if (!votesByPlayer[voto.votado_id]) {
+          votesByPlayer[voto.votado_id] = [];
+        }
+        
+        if (voto.puntaje !== null && voto.puntaje !== undefined) {
+          const score = Number(voto.puntaje);
+          if (!isNaN(score)) {
+            votesByPlayer[voto.votado_id].push(score);
+            totalValidVotes++;
+          } else {
+            console.warn('⚠️ SUPABASE: Invalid score:', voto.puntaje);
+            totalInvalidVotes++;
+          }
+        } else {
+          totalInvalidVotes++;
+        }
+      }
+    }
+    
+    console.log('✅ SUPABASE: Votes grouped:', {
+      totalValidVotes,
+      totalInvalidVotes,
+      playersWithVotes: Object.keys(votesByPlayer).length,
+      voteDistribution: Object.entries(votesByPlayer).map(([playerId, votes]) => ({
+        playerId,
+        voteCount: votes.length,
+        votes: votes.filter(v => v !== -1) // Exclude "don't know" votes
+      }))
+    });
+    
+    // Step 4: Calculate averages and update scores
+    console.log('📊 SUPABASE: Step 4 - Calculating averages and updating scores');
+    const updates = [];
+    const scoreUpdates = [];
+    
+    for (const jugador of jugadores) {
+      const playerVotes = votesByPlayer[jugador.uuid] || [];
+      // Filter out "don't know" votes (-1)
+      const numericalVotes = playerVotes
+        .map(p => Number(p))
+        .filter(p => !isNaN(p) && p !== -1 && p >= 1 && p <= 10);
+        
+      let avgScore = 5; // Default score
+      if (numericalVotes.length > 0) {
+        const total = numericalVotes.reduce((sum, val) => sum + val, 0);
+        avgScore = Math.round((total / numericalVotes.length) * 100) / 100; // Round to 2 decimals
+      }
+      
+      scoreUpdates.push({
+        uuid: jugador.uuid,
+        nombre: jugador.nombre,
+        votes: numericalVotes,
+        avgScore
+      });
+      
+      // Create update promise
+      const updatePromise = supabase
+        .from('jugadores')
+        .update({ score: avgScore })
+        .eq('uuid', jugador.uuid);
+        
+      updates.push(updatePromise);
+    }
+    
+    console.log('✅ SUPABASE: Score calculations:', scoreUpdates);
+    
+    // Execute all updates
+    console.log('📊 SUPABASE: Executing score updates');
+    const updateResults = await Promise.all(updates);
+    const updateErrors = updateResults.filter(res => res.error);
+    
+    if (updateErrors.length > 0) {
+      console.error('❌ SUPABASE: Score update errors:', updateErrors.map(e => e.error));
+      throw new Error(`Error al actualizar los puntajes de ${updateErrors.length} jugadores.`);
+    }
+    
+    console.log('✅ SUPABASE: All scores updated successfully');
+    
+    // Step 5: Clear all votes
+    console.log('📊 SUPABASE: Step 5 - Clearing votes');
+    const { error: deleteError, count: deletedCount } = await supabase
+      .from('votos')
+      .delete()
+      .neq('id', -1); // This condition ensures we delete all records
+      
+    if (deleteError) {
+      console.error('❌ SUPABASE: Error clearing votes:', deleteError);
+      throw new Error('Puntajes actualizados, pero hubo un error al limpiar los votos: ' + deleteError.message);
+    }
+    
+    console.log('✅ SUPABASE: Votes cleared:', { deletedCount });
+    
+    const result = {
+      message: `Votación cerrada. Se actualizaron los puntajes de ${jugadores.length} jugadores.`,
+      playersUpdated: jugadores.length,
+      votesProcessed: totalValidVotes,
+      votesCleared: deletedCount || votos?.length || 0
+    };
+    
+    console.log('🎉 SUPABASE: closeVotingAndCalculateScores completed successfully:', result);
+    return result;
+    
+  } catch (error) {
+    console.error('❌ SUPABASE: closeVotingAndCalculateScores failed:', error);
+    console.error('❌ SUPABASE: Error stack:', error.stack);
+    throw error;
   }
-
-  // 4. Limpiar votos (borra todos)
-  const { error: deleteError } = await supabase
-    .from('votos')
-    .delete()
-    .neq('id', -1);
-  if (deleteError) {
-    throw new Error('Puntajes actualizados, pero hubo un error al limpiar los votos: ' + deleteError.message);
-  }
-
-  return { message: `Votación cerrada. Se actualizaron los puntajes de ${updates.length} jugadores.` };
 };
 
 // --- API de Partidos ---
@@ -228,6 +355,16 @@ export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
 
 // --- API de Partidos Frecuentes ---
 
+/**
+ * Creates a new frequent match template
+ * @param {Object} matchData - Frequent match data
+ * @param {string} matchData.nombre - Match name
+ * @param {string} matchData.sede - Venue
+ * @param {string} matchData.hora - Time
+ * @param {Array} matchData.jugadores_frecuentes - Default players
+ * @param {number} matchData.dia_semana - Day of week (0-6)
+ * @returns {Object} Created frequent match record
+ */
 export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frecuentes, creado_por, dia_semana, habilitado, creado_en }) => {
   console.log('Creating frequent match with params:', { nombre, sede, hora, jugadores_frecuentes, creado_por, dia_semana, habilitado, creado_en });
   

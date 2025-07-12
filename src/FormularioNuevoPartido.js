@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import AutocompleteSede from "./AutocompleteSede";
 import { crearPartidoFrecuente } from "./supabase";
-import { toast } from 'react-toastify';
+import { handleError, handleSuccess, safeAsync } from "./utils/errorHandler";
 
 const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -82,81 +82,43 @@ export default function FormularioNuevoPartido({ onConfirmar }) {
           style={{ width: "100%" }}
           disabled={!fecha || !hora || !sede || loading || (guardarFrecuente && !nombreFrecuente.trim())}
           onClick={async () => {
+            setLoading(true);
+            setError("");
+            
             try {
-              setLoading(true);
-              setError("");
+              const partidoData = { fecha, hora, sede, sedeMaps: sedeInfo };
               
-              console.log('Creating match with data:', { fecha, hora, sede });
-              
-              const partidoData = {
-                fecha,
-                hora,
-                sede,
-                sedeMaps: sedeInfo,
-              };
-              
-              // Step 1: Create the regular match
-              const partido = await onConfirmar(partidoData);
-              console.log('Match created:', partido);
+              const partido = await safeAsync(
+                () => onConfirmar(partidoData),
+                'Error al crear el partido'
+              );
               
               if (!partido) {
-                setError("Error: No se pudo crear el partido.");
-                console.error('onConfirmar returned null/undefined');
+                setError("No se pudo crear el partido");
                 return;
               }
               
-              // Step 2: Save as frequent match if requested
               if (guardarFrecuente && nombreFrecuente.trim()) {
-                console.log('Saving as frequent match...');
-                
-                try {
-                  // Validate required data
-                  if (!fecha || !hora || !sede || !nombreFrecuente.trim()) {
-                    throw new Error('Faltan datos requeridos para guardar el partido frecuente');
-                  }
-                  
-                  const fechaObj = new Date(fecha);
-                  const diaSemana = fechaObj.getDay();
-                  
-                  const frecuenteData = {
+                await safeAsync(
+                  () => crearPartidoFrecuente({
                     nombre: nombreFrecuente.trim(),
                     sede: sede.trim(),
                     hora: hora.trim(),
                     jugadores_frecuentes: [],
-                    creado_por: null, // Set to null since we don't have a user UUID
-                    dia_semana: diaSemana,
+                    creado_por: null,
+                    dia_semana: new Date(fecha).getDay(),
                     habilitado: true,
                     creado_en: new Date().toISOString()
-                  };
-                  
-                  console.log('Frequent match data to save:', frecuenteData);
-                  
-                  const result = await crearPartidoFrecuente(frecuenteData);
-                  
-                  if (!result || !result.id) {
-                    setError("No se pudo guardar el partido frecuente.");
-                    console.error("Failed to save frequent match - no result or ID:", result);
-                    toast.error('Error: No se pudo guardar el partido frecuente');
-                    return;
-                  }
-                  
-                  console.log('Frequent match saved successfully:', result);
-                  toast.success('Partido y partido frecuente guardados correctamente');
-                  
-                } catch (freqError) {
-                  console.error('Error saving frequent match:', freqError);
-                  setError('Error al guardar partido frecuente: ' + freqError.message);
-                  toast.error('Partido creado, pero error al guardar como frecuente: ' + freqError.message);
-                }
+                  }),
+                  'Error al guardar partido frecuente'
+                );
+                handleSuccess('Partido y partido frecuente guardados');
               } else {
-                console.log('Not saving as frequent match');
-                toast.success('Partido creado correctamente');
+                handleSuccess('Partido creado correctamente');
               }
               
             } catch (err) {
-              console.error("Error in main flow:", err);
-              setError("Error al crear el partido: " + (err.message || "Intenta nuevamente"));
-              toast.error('Error al crear el partido: ' + (err.message || 'Error desconocido'));
+              setError(err.message || "Error al procesar la solicitud");
             } finally {
               setLoading(false);
             }

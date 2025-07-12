@@ -356,10 +356,10 @@
   border-radius: 0;
   letter-spacing: 0.05em;
   padding: 0;
-  margin-top: 16px;
+  margin-top: var(--spacing-md, 16px);
   margin-bottom: 0;
   width: 100%;
-  height: 54px;
+  min-height: 54px;
   cursor: pointer;
   font-weight: 700;
   transition: all 0.2s ease;
@@ -369,6 +369,38 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: manipulation;
+}
+
+/* Loading Spinner */
+.loading-spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.loading-spinner {
+  border: 3px solid rgba(255,255,255,0.3);
+  border-top: 3px solid #0EA9C6;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  animation: spin 1s linear infinite;
+}
+
+.loading-message {
+  color: #fff;
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 16px;
+  margin-top: 12px;
+  text-align: center;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 .voting-confirm-btn::before {
   content: "";
@@ -1095,10 +1127,23 @@ input::placeholder,
   margin: 0;
 }
 
+/* Design System - Consistent Spacing */
+.spacing-xs { margin: 4px; }
+.spacing-sm { margin: 8px; }
+.spacing-md { margin: 16px; }
+.spacing-lg { margin: 24px; }
+.spacing-xl { margin: 32px; }
+
+.padding-xs { padding: 4px; }
+.padding-sm { padding: 8px; }
+.padding-md { padding: 16px; }
+.padding-lg { padding: 24px; }
+.padding-xl { padding: 32px; }
+
 /* Mobile-first Frequent Matches List */
 .frequent-list-container {
   max-width: 100%;
-  padding: 20px 16px;
+  padding: var(--spacing-lg, 20px) var(--spacing-md, 16px);
 }
 
 .frequent-empty-state {
