@@ -76,10 +76,11 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
             {loading ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
           </button>
           <button 
-            className="voting-confirm-btn secondary-btn"
+            className="voting-confirm-btn wipe-btn"
             onClick={onVolver}
+            style={{ background: '#DE1C49' }}
           >
-            VOLVER
+            VOLVER AL INICIO
           </button>
         </div>
       </div>

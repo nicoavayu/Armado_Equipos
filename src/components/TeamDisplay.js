@@ -1,9 +1,11 @@
 // src/components/TeamDisplay.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from 'react-toastify';
 import './TeamDisplay.css';
 import WhatsappIcon from './WhatsappIcon';
+import PlayerCard from './PlayerCard';
+import { TEAM_BALANCING, ANIMATION_DURATIONS, UI_SIZES } from '../appConstants';
 
 const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
   const [showAverages, setShowAverages] = useState(false);
@@ -12,6 +14,45 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
   const [showPerfectMatch, setShowPerfectMatch] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [lockedPlayers, setLockedPlayers] = useState(new Set());
+  
+  // All hooks must be called before any early returns
+  const getPlayerDetails = useCallback((playerId) => {
+    return players.find(p => p.uuid === playerId) || {};
+  }, [players]);
+  
+  // Memoize all player scores for color coding
+  const allPlayerScores = useMemo(() => {
+    return players.map(p => p.score || TEAM_BALANCING.DEFAULT_PLAYER_SCORE);
+  }, [players]);
+  
+  const togglePlayerLock = useCallback((playerId) => {
+    const teamId = teams.find(t => t.players.includes(playerId))?.id;
+    if (!teamId) return;
+    
+    const teamLockedCount = teams.find(t => t.id === teamId).players.filter(p => lockedPlayers.has(p)).length;
+    
+    if (lockedPlayers.has(playerId)) {
+      const newLocked = new Set(lockedPlayers);
+      newLocked.delete(playerId);
+      setLockedPlayers(newLocked);
+    } else {
+      if (teamLockedCount >= TEAM_BALANCING.MAX_LOCKED_PLAYERS_PER_TEAM) {
+        toast.error('Máximo 3 jugadores bloqueados por equipo');
+        return;
+      }
+      const newLocked = new Set(lockedPlayers);
+      newLocked.add(playerId);
+      setLockedPlayers(newLocked);
+    }
+  }, [teams, lockedPlayers]);
+
+  useEffect(() => {
+    const teamA = teams.find(t => t.id === 'equipoA');
+    const teamB = teams.find(t => t.id === 'equipoB');
+    if (teamA && teamB && Math.abs(teamA.score - teamB.score) < 0.01) {
+      toast.success("¡Match Perfecto! Los equipos están balanceados.");
+    }
+  }, [teams]);
   
   // Get score color class based on value
   const getScoreColorClass = (score, allScores) => {
@@ -26,14 +67,6 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
     if (score > avg + (max - avg) * 0.5) return 'score-high';
     return 'score-above-avg';
   };
-
-  useEffect(() => {
-    const teamA = teams.find(t => t.id === 'equipoA');
-    const teamB = teams.find(t => t.id === 'equipoB');
-    if (teamA && teamB && Math.abs(teamA.score - teamB.score) < 0.01) {
-      toast.success("¡Match Perfecto! Los equipos están balanceados.");
-    }
-  }, [teams]);
 
   if (
     !Array.isArray(teams) ||
@@ -58,10 +91,6 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
       </div>
     );
   }
-
-  const getPlayerDetails = (playerId) => {
-    return players.find(p => p.uuid === playerId) || {};
-  };
 
   const handleDragEnd = (result) => {
     const { source, destination } = result;
@@ -114,28 +143,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
     }
   };
 
-  const togglePlayerLock = (playerId) => {
-    const teamId = teams.find(t => t.players.includes(playerId))?.id;
-    if (!teamId) return;
-    
-    const teamLockedCount = teams.find(t => t.id === teamId).players.filter(p => lockedPlayers.has(p)).length;
-    
-    if (lockedPlayers.has(playerId)) {
-      // Unlock player
-      const newLocked = new Set(lockedPlayers);
-      newLocked.delete(playerId);
-      setLockedPlayers(newLocked);
-    } else {
-      // Lock player (max 3 per team)
-      if (teamLockedCount >= 3) {
-        toast.error('Máximo 3 jugadores bloqueados por equipo');
-        return;
-      }
-      const newLocked = new Set(lockedPlayers);
-      newLocked.add(playerId);
-      setLockedPlayers(newLocked);
-    }
-  };
+
   
   const randomizeTeams = () => {
     const teamA = teams.find(t => t.id === 'equipoA');
@@ -157,8 +165,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
     
     const validCombinations = [];
     
-    // Try up to 500 combinations to find acceptable ones
-    for (let attempt = 0; attempt < 500; attempt++) {
+    // Try up to max attempts to find acceptable ones
+    for (let attempt = 0; attempt < TEAM_BALANCING.MAX_SHUFFLE_ATTEMPTS; attempt++) {
       const shuffled = [...unlockedPlayers].sort(() => Math.random() - 0.5);
       const teamAUnlocked = shuffled.slice(0, unlockedNeededA);
       const teamBUnlocked = shuffled.slice(unlockedNeededA);
@@ -170,7 +178,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
       const scoreB = teamBPlayers.reduce((acc, playerId) => acc + (getPlayerDetails(playerId).score || 0), 0);
       const scoreDiff = Math.abs(scoreA - scoreB);
       
-      if (scoreDiff <= 5) {
+      if (scoreDiff <= TEAM_BALANCING.MAX_SCORE_DIFFERENCE) {
         validCombinations.push({
           teamA: teamAPlayers,
           teamB: teamBPlayers,
@@ -201,13 +209,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
     onTeamsChange(newTeams);
     
     // Only show perfect match celebration for exact ties
-    if (selectedCombo.scoreDiff === 0) {
+    if (selectedCombo.scoreDiff === TEAM_BALANCING.PERFECT_MATCH_SCORE_DIFF) {
       setShowPerfectMatch(true);
       setShowConfetti(true);
       setTimeout(() => {
         setShowPerfectMatch(false);
         setShowConfetti(false);
-      }, 3000);
+      }, ANIMATION_DURATIONS.PERFECT_MATCH_CELEBRATION);
     }
   };
   
@@ -257,6 +265,15 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
                   <h3 
                     className="team-name" 
                     onClick={() => setEditingTeam(team.id)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Editar nombre del ${team.name}`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setEditingTeam(team.id);
+                      }
+                    }}
                   >
                     {team.name}
                   </h3>
@@ -284,17 +301,19 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
                           return (
                             <Draggable key={String(playerId)} draggableId={String(playerId)} index={index}>
                               {(provided, snapshot) => (
-                                <div
-                                  className={`player-card ${
-                                    dragOverPlayer === playerId && !snapshot.isDragging ? 'drag-over' : ''
-                                  } ${
-                                    snapshot.isDragging ? 'dragging' : ''
-                                  } ${
-                                    lockedPlayers.has(playerId) ? 'locked' : ''
-                                  }`}
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
+                                <PlayerCard
+                                  player={player}
+                                  playerId={playerId}
+                                  isLocked={lockedPlayers.has(playerId)}
+                                  isDragging={snapshot.isDragging}
+                                  isDragOver={dragOverPlayer === playerId && !snapshot.isDragging}
+                                  showAverages={showAverages}
+                                  scoreColorClass={getScoreColorClass(
+                                    player.score || TEAM_BALANCING.DEFAULT_PLAYER_SCORE,
+                                    allPlayerScores
+                                  )}
+                                  onToggleLock={togglePlayerLock}
+                                  provided={provided}
                                   onDragEnter={(e) => {
                                     e.preventDefault();
                                     if (!snapshot.isDragging) {
@@ -306,26 +325,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
                                     setDragOverPlayer(null);
                                   }}
                                   onDragOver={(e) => e.preventDefault()}
-                                  onClick={() => togglePlayerLock(playerId)}
-                                >
-                                  <img 
-                                    src={player.foto_url || 'https://api.dicebear.com/6.x/pixel-art/svg?seed=default'} 
-                                    alt={player.nombre} 
-                                    className="player-avatar" 
-                                  />
-                                  <span>{player.nombre}</span>
-                                  {lockedPlayers.has(playerId) && (
-                                    <span className="lock-icon">🔒</span>
-                                  )}
-                                  {showAverages && (
-                                    <span className={`player-score ${getScoreColorClass(
-                                      player.score || 5,
-                                      players.map(p => p.score || 5)
-                                    )}`}>
-                                      {(player.score || 5).toFixed(1)}
-                                    </span>
-                                  )}
-                                </div>
+                                />
                               )}
                             </Draggable>
                           );
@@ -354,22 +354,23 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
         {showConfetti && <div className="confetti-container"></div>}
         
         <div className="team-actions">
-          <button onClick={randomizeTeams} className="team-action-btn randomize-btn wipe-btn">
+          <button onClick={randomizeTeams} className="team-action-btn randomize-btn wipe-btn" aria-label="Mezclar jugadores entre equipos">
             <span>MEZCLAR EQUIPOS</span>
           </button>
           
           <button 
             onClick={() => setShowAverages(!showAverages)} 
             className="team-action-btn averages-btn wipe-btn"
+            aria-label={showAverages ? 'Ocultar puntajes de jugadores' : 'Mostrar puntajes de jugadores'}
           >
             <span>{showAverages ? 'OCULTAR PUNTAJES' : 'VER PUNTAJES'}</span>
           </button>
           
-          <button onClick={handleWhatsAppShare} className="team-action-btn whatsapp-btn wipe-btn">
-            <span><WhatsappIcon size={20} style={{marginRight: 8}} />COMPARTIR POR WHATSAPP</span>
+          <button onClick={handleWhatsAppShare} className="team-action-btn whatsapp-btn wipe-btn" aria-label="Compartir equipos por WhatsApp">
+            <span><WhatsappIcon size={UI_SIZES.WHATSAPP_ICON_SIZE} style={{marginRight: 8}} />COMPARTIR POR WHATSAPP</span>
           </button>
           
-          <button onClick={onBackToHome} className="team-action-btn back-btn wipe-btn">
+          <button onClick={onBackToHome} className="team-action-btn back-btn wipe-btn" aria-label="Volver al menú principal">
             <span>VOLVER AL INICIO</span>
           </button>
         </div>

@@ -122,8 +122,8 @@ export default function FormularioNuevoPartido({ onConfirmar, onVolver }) {
         </button>
         
         <button
-          className="voting-confirm-btn"
-          style={{ width: "100%", background: 'transparent', borderColor: 'rgba(255,255,255,0.6)', color: 'rgba(255,255,255,0.9)' }}
+          className="voting-confirm-btn wipe-btn"
+          style={{ width: "100%", background: '#DE1C49' }}
           onClick={onVolver}
           disabled={loading}
         >

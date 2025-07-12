@@ -11,6 +11,7 @@ import {
 import { toast } from 'react-toastify';
 import { handleError, handleSuccess, safeAsync } from "./utils/errorHandler";
 import { UI_MESSAGES, VALIDATION_RULES } from "./constants";
+import { LOADING_STATES, UI_SIZES } from "./appConstants";
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import "./HomeStyleKit.css";
@@ -18,6 +19,7 @@ import "./AdminPanel.css";
 import WhatsappIcon from "./components/WhatsappIcon";
 import TeamDisplay from "./components/TeamDisplay";
 import PartidoInfoBox from "./PartidoInfoBox";
+import Button from "./components/Button";
 
 function MiniAvatar({ foto_url, nombre, size = 34 }) {
   if (foto_url) {
@@ -56,12 +58,9 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   useEffect(() => {
     async function fetchVotantes() {
       try {
-        console.log('📊 ADMIN: Fetching voters');
         const votantesIds = await getVotantesIds();
-        console.log('✅ ADMIN: Voters fetched:', votantesIds);
         setVotantes(votantesIds || []);
       } catch (error) {
-        console.error('❌ ADMIN: Error fetching voters:', error);
         toast.error("Error cargando votantes: " + error.message);
       }
     }
@@ -76,7 +75,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
           const votantesIds = await getVotantesIds();
           setVotantes(votantesIds || []);
         } catch (error) {
-          console.error('❌ ADMIN: Error refreshing voters:', error);
+          // Silent refresh error - not critical for UX
         }
       }
       refreshVotantes();
@@ -182,39 +181,29 @@ async function agregarJugador(e) {
  * Calculates player averages from votes and forms teams
  */
 async function handleCerrarVotacion() {
-  console.log('🔄 CLOSE VOTING: Starting process');
-  console.log('🔄 CLOSE VOTING: Current players:', jugadores);
-  console.log('🔄 CLOSE VOTING: Current match:', partidoActual);
-  console.log('🔄 CLOSE VOTING: Is closing state:', isClosing);
-  
   // Prevent double execution
   if (isClosing) {
-    console.warn('⚠️ CLOSE VOTING: Already in progress, ignoring');
     toast.warn('Operación en progreso, espera un momento');
     return;
   }
   
   // Validate preconditions
   if (!partidoActual) {
-    console.error('❌ CLOSE VOTING: No current match');
     toast.error('Error: No hay partido activo');
     return;
   }
   
   if (!jugadores || jugadores.length === 0) {
-    console.error('❌ CLOSE VOTING: No players');
     toast.error('Error: No hay jugadores en el partido');
     return;
   }
   
   if (jugadores.length < 2) {
-    console.error('❌ CLOSE VOTING: Not enough players');
     toast.error('Se necesitan al menos 2 jugadores');
     return;
   }
   
   if (jugadores.length % 2 !== 0) {
-    console.error('❌ CLOSE VOTING: Odd number of players');
     toast.error(UI_MESSAGES.ERROR_EVEN_PLAYERS);
     return;
   }
@@ -222,19 +211,16 @@ async function handleCerrarVotacion() {
   // Validate player UUIDs
   const invalidPlayers = jugadores.filter(j => !j.uuid);
   if (invalidPlayers.length > 0) {
-    console.error('❌ CLOSE VOTING: Players without UUID:', invalidPlayers);
     toast.error('Error: Algunos jugadores no tienen ID válido');
     return;
   }
   
   // Check if there are any votes
-  console.log('🔄 CLOSE VOTING: Checking for votes, voters:', votantes);
   if (votantes.length === 0) {
     const shouldContinue = window.confirm(
       'No se detectaron votos. ¿Estás seguro de que querés continuar? Los equipos se formarán con puntajes por defecto.'
     );
     if (!shouldContinue) {
-      console.log('🔄 CLOSE VOTING: User cancelled due to no votes');
       return;
     }
   }
@@ -244,61 +230,37 @@ async function handleCerrarVotacion() {
     : '¿Cerrar votación y armar equipos con puntajes por defecto?';
     
   if (!window.confirm(confirmMessage)) {
-    console.log('🔄 CLOSE VOTING: User cancelled');
     return;
   }
   
-  console.log('🔄 CLOSE VOTING: All validations passed, starting process');
   setIsClosing(true);
   
   try {
-    // Step 1: Close voting and calculate scores
-    console.log('🔄 CLOSE VOTING: Step 1 - Closing voting and calculating scores');
+    // Close voting and calculate scores
     const result = await closeVotingAndCalculateScores();
-    console.log('✅ CLOSE VOTING: Step 1 completed:', result);
     
     if (!result) {
       throw new Error('No se recibió respuesta del cierre de votación');
     }
     
-    // Step 2: Get fresh player data with updated scores
-    console.log('🔄 CLOSE VOTING: Step 2 - Fetching updated players');
+    // Get fresh player data with updated scores
     const updatedPlayers = await getJugadores();
-    console.log('✅ CLOSE VOTING: Step 2 completed, players fetched:', updatedPlayers?.length || 0);
     
     if (!updatedPlayers || updatedPlayers.length === 0) {
       throw new Error('No se pudieron obtener los jugadores actualizados');
     }
     
-    // Step 3: Filter players for this match
-    console.log('🔄 CLOSE VOTING: Step 3 - Filtering match players');
-    console.log('🔄 CLOSE VOTING: Match player UUIDs:', partidoActual.jugadores.map(p => p.uuid));
-    
+    // Filter players for this match
     const matchPlayers = updatedPlayers.filter(j => {
-      const isInMatch = partidoActual.jugadores.some(pj => pj.uuid === j.uuid);
-      if (isInMatch) {
-        console.log(`✅ CLOSE VOTING: Player ${j.nombre} (${j.uuid}) - Score: ${j.score}`);
-      }
-      return isInMatch;
+      return partidoActual.jugadores.some(pj => pj.uuid === j.uuid);
     });
-    
-    console.log('✅ CLOSE VOTING: Step 3 completed, match players:', matchPlayers.length);
     
     if (matchPlayers.length === 0) {
       throw new Error('No se encontraron jugadores del partido con puntajes actualizados');
     }
     
-    if (matchPlayers.length !== jugadores.length) {
-      console.warn('⚠️ CLOSE VOTING: Player count mismatch:', {
-        original: jugadores.length,
-        updated: matchPlayers.length
-      });
-    }
-    
-    // Step 4: Create balanced teams
-    console.log('🔄 CLOSE VOTING: Step 4 - Creating teams');
+    // Create balanced teams
     const teams = armarEquipos(matchPlayers);
-    console.log('✅ CLOSE VOTING: Step 4 completed, teams created:', teams);
     
     if (!teams || teams.length !== 2) {
       throw new Error('Error al crear los equipos');
@@ -311,21 +273,15 @@ async function handleCerrarVotacion() {
       throw new Error('Los equipos creados están vacíos');
     }
     
-    // Step 5: Update UI state
-    console.log('🔄 CLOSE VOTING: Step 5 - Updating UI state');
+    // Update UI state
     safeSetTeams(teams);
     setShowTeamView(true);
     onJugadoresChange(matchPlayers);
-    console.log('✅ CLOSE VOTING: Step 5 completed, UI updated');
     
     // Success!
-    console.log('🎉 CLOSE VOTING: Process completed successfully');
     toast.success(result.message || 'Votación cerrada y equipos creados');
     
   } catch (error) {
-    console.error('❌ CLOSE VOTING: Error occurred:', error);
-    console.error('❌ CLOSE VOTING: Error stack:', error.stack);
-    
     // Provide specific error messages
     let errorMessage = 'Error al cerrar la votación';
     if (error.message.includes('votos')) {
@@ -344,7 +300,6 @@ async function handleCerrarVotacion() {
     setShowTeamView(false);
     
   } finally {
-    console.log('🔄 CLOSE VOTING: Cleaning up, setting isClosing to false');
     setIsClosing(false);
   }
 }
@@ -373,36 +328,10 @@ async function handleCerrarVotacion() {
     teams.find(t => t.id === "equipoA") &&
     teams.find(t => t.id === "equipoB");
 
-  // Button state debugging
-  const buttonStateDebug = {
-    isClosing,
-    loading,
-    jugadoresLength: jugadores.length,
-    isEvenPlayers: jugadores.length % 2 === 0,
-    hasMinPlayers: jugadores.length >= 2,
-    votantesCount: votantes.length
-  };
-  
-  // Log button state conditions
-  console.log('🔘 BUTTON STATE DEBUG:', buttonStateDebug);
-  
   // Determine if button should be disabled
   const isButtonDisabled = isClosing || loading || jugadores.length < 2;
   const hasOddPlayers = jugadores.length > 0 && jugadores.length % 2 !== 0;
   const hasNoVotes = votantes.length === 0 && jugadores.length > 0;
-  
-  console.log('🔘 BUTTON CONDITIONS:', {
-    isButtonDisabled,
-    hasOddPlayers,
-    hasNoVotes,
-    reasons: {
-      isClosing: isClosing ? 'Operation in progress' : null,
-      loading: loading ? 'Loading state active' : null,
-      tooFewPlayers: jugadores.length < 2 ? `Only ${jugadores.length} players (need 2+)` : null,
-      oddPlayers: hasOddPlayers ? `${jugadores.length} players (need even number)` : null,
-      noVotes: hasNoVotes ? 'No votes detected' : null
-    }
-  });
 
   if (!partidoActual) return <div style={{color:"red"}}>Sin partido cargado</div>;
   
@@ -480,13 +409,14 @@ async function handleCerrarVotacion() {
                 ref={inputRef}
                 maxLength={40}
                 required
+                aria-label="Nombre del nuevo jugador"
               />
               <button
                 className="voting-confirm-btn"
                 type="submit"
                 disabled={loading || isClosing}
               >
-                {loading ? "..." : "AGREGAR"}
+                {loading ? LOADING_STATES.ADDING_PLAYER : "AGREGAR"}
               </button>
             </form>
           </div>
@@ -533,14 +463,16 @@ async function handleCerrarVotacion() {
             <button 
               className="voting-confirm-btn admin-btn-primary" 
               onClick={handleCopyLink}
+              aria-label="Copiar enlace para que los jugadores voten"
             >
               LINK PARA JUGADORES
             </button>
             <button 
               className="voting-confirm-btn admin-btn-whatsapp" 
               onClick={handleWhatsApp}
+              aria-label="Compartir enlace por WhatsApp"
             >
-              <WhatsappIcon size={20} style={{marginRight: 8}} />
+              <WhatsappIcon size={UI_SIZES.WHATSAPP_ICON_SIZE} style={{marginRight: 8}} />
               COMPARTIR POR WHATSAPP
             </button>
             <div style={{ position: 'relative' }}>
@@ -552,10 +484,11 @@ async function handleCerrarVotacion() {
                   opacity: isButtonDisabled ? 0.6 : 1,
                   cursor: isButtonDisabled ? 'not-allowed' : 'pointer'
                 }}
+                aria-label={isClosing ? 'Cerrando votación' : `Cerrar votación con ${jugadores.length} jugadores`}
               >
                 {isClosing ? (
                   <>
-                    🔄 CERRANDO VOTACIÓN...
+                    🔄 {LOADING_STATES.CLOSING_VOTING}
                   </>
                 ) : (
                   `CERRAR VOTACIÓN (${jugadores.length} jugadores)`
@@ -614,6 +547,7 @@ async function handleCerrarVotacion() {
             <button 
               className="voting-confirm-btn admin-btn-secondary" 
               onClick={onBackToHome}
+              aria-label="Volver al menú principal"
             >
               VOLVER AL INICIO
             </button>

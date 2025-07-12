@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getPartidosFrecuentes, deletePartidoFrecuente, checkPartidosFrecuentesSchema } from './supabase';
+import { getPartidosFrecuentes, deletePartidoFrecuente } from './supabase';
 import { toast } from 'react-toastify';
 import { DIAS_SEMANA_CORTO } from './constants';
 
@@ -36,20 +36,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
     }
   };
 
-  const testSchema = async () => {
-    console.log('Testing database schema...');
-    try {
-      const result = await checkPartidosFrecuentesSchema();
-      if (result.success) {
-        toast.success('Schema test passed!');
-      } else {
-        toast.error('Schema test failed - check console');
-      }
-    } catch (error) {
-      console.error('Schema test error:', error);
-      toast.error('Schema test error');
-    }
-  };
+
 
   if (loading) {
     return (
@@ -109,18 +96,9 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
         )}
 
         <div className="frequent-footer-actions">
-          <button className="voting-confirm-btn secondary-btn" onClick={onVolver}>
-            VOLVER
+          <button className="voting-confirm-btn wipe-btn" onClick={onVolver} style={{ width: "100%", background: '#DE1C49' }}>
+            VOLVER AL INICIO
           </button>
-          {process.env.NODE_ENV === 'development' && (
-            <button 
-              className="voting-confirm-btn tertiary-btn" 
-              onClick={testSchema}
-              style={{ marginTop: 8, fontSize: 14 }}
-            >
-              TEST SCHEMA (DEV)
-            </button>
-          )}
         </div>
       </div>
     </div>

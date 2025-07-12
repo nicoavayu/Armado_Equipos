@@ -3,6 +3,8 @@ import React, { useState, useEffect } from "react";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { MODES, ADMIN_STEPS } from "./constants";
+import { LOADING_STATES } from "./appConstants";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Home from "./Home";
 import AppNormal from "./AppNormal";
 import VotingView from "./VotingView";
@@ -58,9 +60,9 @@ export default function App() {
     if (partidoActual.from_frequent_match_id) {
       try {
         await updateJugadoresFrecuentes(partidoActual.from_frequent_match_id, nuevosJugadores);
-        console.log('Updated frequent match players');
       } catch (error) {
-        console.error('Error updating frequent match players:', error);
+        // Error handling for frequent match update
+        toast.error('Error actualizando partido frecuente');
       }
     }
   };
@@ -100,7 +102,6 @@ export default function App() {
               setPartidoActual(partido);
               setStepPartido(ADMIN_STEPS.MANAGE);
             } catch (error) {
-              console.error('Error creating match from frequent:', error);
               toast.error('Error al crear el partido');
             }
           }}
@@ -184,31 +185,34 @@ export default function App() {
   );
 
   return (
-    <div className="voting-bg">
-      <div className="voting-modern-card">
-        <div className="voting-title-modern">MODO NO DISPONIBLE</div>
-        <div style={{color:"#fff", padding: "20px", fontSize: "18px", textAlign: "center"}}>
-          El modo seleccionado no está disponible o ha ocurrido un error.
+    <ErrorBoundary>
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">MODO NO DISPONIBLE</div>
+          <div style={{color:"#fff", padding: "20px", fontSize: "18px", textAlign: "center"}}>
+            El modo seleccionado no está disponible o ha ocurrido un error.
+          </div>
+          <button
+            className="voting-confirm-btn"
+            onClick={() => setModo(MODES.HOME)}
+            style={{marginTop: "20px"}}
+            aria-label="Volver al inicio"
+          >
+            VOLVER AL INICIO
+          </button>
+          <ToastContainer
+            position="top-right"
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+          />
         </div>
-        <button
-          className="voting-confirm-btn"
-          onClick={() => setModo(MODES.HOME)}
-          style={{marginTop: "20px"}}
-        >
-          VOLVER AL INICIO
-        </button>
-        <ToastContainer
-          position="top-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-        />
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }
