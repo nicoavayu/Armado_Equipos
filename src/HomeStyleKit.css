@@ -21,6 +21,10 @@
 body, html {
   font-family: var(--font-main) !important;
   letter-spacing: 0.04em;
+    margin: 0;
+  padding: 0;
+  height: 100%;
+
 }
 *, *::before, *::after {
   font-family: inherit !important;
@@ -984,3 +988,26 @@ body {
 }
 
 
+.home-bg {
+  height: 100vh !important;
+  width: 100vw !important;
+  min-height: 100vh !important;
+  min-width: 100vw !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  box-sizing: border-box;
+}
+.voting-modern-card {
+  height: auto !important;
+  width: 100%;
+  max-width: 420px;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}

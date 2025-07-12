@@ -5,10 +5,22 @@ import Logo from "./Logo.png";
 
 export default function Home({ onModoSeleccionado }) {
   return (
-    <div className="voting-bg">
+    <div className="voting-bg home-bg">
       <div className="voting-modern-card">
-        <img src={Logo} alt="Logo" style={{ height: '140px', marginBottom: '40px' }} />
-<div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100vw', maxWidth: '100vw', alignItems: 'stretch' }}>
+        <img
+          src={Logo}
+          alt="Logo"
+          style={{ height: '150px', marginBottom: '20px' }} // Logo más grande y menos espacio abajo
+        />
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            width: '100%',
+            alignItems: 'stretch'
+          }}
+        >
           <div className="player-select-btn" onClick={() => onModoSeleccionado("simple")}>
             <span className="player-select-txt">Rápido</span>
           </div>
