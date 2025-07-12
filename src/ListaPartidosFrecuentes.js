@@ -29,10 +29,11 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
     if (!window.confirm(`¿Eliminar "${nombre}"?`)) return;
     try {
       await deletePartidoFrecuente(id);
-      await cargarPartidos();
-      toast.success('Partido eliminado');
+      setPartidosFrecuentes(prev => prev.filter(p => p.id !== id));
+      toast.success('Partido eliminado correctamente');
     } catch (error) {
-      toast.error('Error al eliminar');
+      console.error('Error deleting frequent match:', error);
+      toast.error('Error al eliminar el partido: ' + error.message);
     }
   };
 
@@ -42,7 +43,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">CARGANDO...</div>
+          <div className="match-name">CARGANDO...</div>
         </div>
       </div>
     );
@@ -50,27 +51,27 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
 
   return (
     <div className="voting-bg">
-      <div className="voting-modern-card frequent-list-container">
-        <div className="voting-title-modern">PARTIDOS FRECUENTES</div>
+      <div className="voting-modern-card" style={{ padding: 42, maxWidth: 420 }}>
+        <div className="match-name" style={{ marginBottom: 24 }}>PARTIDOS FRECUENTES</div>
         
         {partidosFrecuentes.length === 0 ? (
-          <div className="frequent-empty-state">
+          <div style={{ color: '#fff', textAlign: 'center', padding: '20px 0', fontFamily: 'Oswald, Arial, sans-serif' }}>
             <p>No hay partidos frecuentes configurados</p>
           </div>
         ) : (
-          <div className="frequent-list">
+          <div style={{ width: '100%', marginBottom: 22 }}>
             {partidosFrecuentes.map(partido => (
-              <div key={partido.id} className="frequent-list-item">
-                <div className="frequent-item-info">
-                  <div className="frequent-item-name">{partido.nombre}</div>
-                  <div className="frequent-item-details">
+              <div key={partido.id} style={{ background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255,255,255,0.2)', borderRadius: '8px', padding: '16px', marginBottom: '16px', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold', marginBottom: '4px', fontFamily: 'Bebas Neue, Arial, sans-serif' }}>{partido.nombre}</div>
+                  <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginBottom: '2px', fontFamily: 'Oswald, Arial, sans-serif' }}>
                     {DIAS_SEMANA_CORTO[partido.dia_semana] || `Día ${partido.dia_semana}`} • {partido.hora}
                   </div>
-                  <div className="frequent-item-sede">
+                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', fontFamily: 'Oswald, Arial, sans-serif' }}>
                     {partido.sede}
                   </div>
                 </div>
-                <div className="frequent-item-actions">
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <button 
                     className="frequent-action-btn edit-btn"
                     onClick={() => onEntrar(partido)}
@@ -95,11 +96,13 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
           </div>
         )}
 
-        <div className="frequent-footer-actions">
-          <button className="voting-confirm-btn wipe-btn" onClick={onVolver} style={{ width: "100%", background: '#DE1C49' }}>
-            VOLVER AL INICIO
-          </button>
-        </div>
+        <button 
+          className="voting-confirm-btn wipe-btn"
+          style={{ width: "100%", background: '#DE1C49', fontSize: '1.5rem', height: '64px', borderRadius: '9px', marginBottom: '0' }}
+          onClick={onVolver}
+        >
+          VOLVER AL INICIO
+        </button>
       </div>
     </div>
   );

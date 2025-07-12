@@ -31,58 +31,50 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
 
   return (
     <div className="voting-bg">
-      <div className="voting-modern-card edit-frequent-container">
-        <div className="voting-title-modern">EDITAR {partido.nombre}</div>
+      <div className="voting-modern-card" style={{ padding: 42, maxWidth: 420 }}>
+        <div className="match-name" style={{ marginBottom: 24 }}>EDITAR {partido.nombre}</div>
         
-        <div className="edit-frequent-form">
-          <div className="form-group">
-            <label className="form-label">Fecha</label>
-            <input
-              className="input-modern"
-              type="date"
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-            />
-          </div>
+        <input
+          className="input-modern"
+          type="date"
+          placeholder="Fecha"
+          value={fecha}
+          onChange={(e) => setFecha(e.target.value)}
+          style={{ marginBottom: 22, width: "100%" }}
+        />
 
-          <div className="form-group">
-            <label className="form-label">Hora</label>
-            <input
-              className="input-modern"
-              type="time"
-              value={hora}
-              onChange={(e) => setHora(e.target.value)}
-            />
-          </div>
+        <input
+          className="input-modern"
+          type="time"
+          placeholder="Hora"
+          value={hora}
+          onChange={(e) => setHora(e.target.value)}
+          style={{ marginBottom: 22, width: "100%" }}
+        />
 
-          <div className="form-group">
-            <label className="form-label">Sede</label>
-            <AutocompleteSede
-              value={sede}
-              onSelect={(info) => {
-                setSede(info.description);
-                setSedeInfo(info);
-              }}
-            />
-          </div>
-        </div>
+        <AutocompleteSede
+          value={sede}
+          onSelect={(info) => {
+            setSede(info.description);
+            setSedeInfo(info);
+          }}
+        />
 
-        <div className="edit-frequent-actions">
-          <button 
-            className="voting-confirm-btn"
-            onClick={guardarCambios}
-            disabled={loading}
-          >
-            {loading ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
-          </button>
-          <button 
-            className="voting-confirm-btn wipe-btn"
-            onClick={onVolver}
-            style={{ background: '#DE1C49' }}
-          >
-            VOLVER AL INICIO
-          </button>
-        </div>
+        <button 
+          className="voting-confirm-btn"
+          onClick={guardarCambios}
+          disabled={loading}
+          style={{ width: "100%", marginBottom: 12, fontSize: '1.5rem', height: '64px', borderRadius: '9px' }}
+        >
+          {loading ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
+        </button>
+        <button 
+          className="voting-confirm-btn wipe-btn"
+          onClick={onVolver}
+          style={{ background: '#DE1C49', width: '100%', fontSize: '1.5rem', height: '64px', borderRadius: '9px', marginBottom: '0' }}
+        >
+          VOLVER AL INICIO
+        </button>
       </div>
     </div>
   );

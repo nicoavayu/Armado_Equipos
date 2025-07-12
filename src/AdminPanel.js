@@ -514,9 +514,10 @@ async function handleCerrarVotacion() {
               
               {hasNoVotes && !hasOddPlayers && jugadores.length >= 2 && (
                 <div style={{
-                  color: '#0EA9C6',
+                  color: '#fff',
                   fontSize: '14px',
                   fontFamily: 'Oswald, Arial, sans-serif',
+                  fontWeight: 'bold',
                   textAlign: 'center',
                   marginTop: '8px',
                   background: 'rgba(14,169,198,0.1)',
@@ -524,7 +525,7 @@ async function handleCerrarVotacion() {
                   borderRadius: '6px',
                   border: '1px solid rgba(14,169,198,0.3)'
                 }}>
-                  ℹ️ No se detectaron votos. Los equipos se formarán con puntajes por defecto (5/10)
+                  No se detectaron votos. Los equipos se formarán con puntajes por defecto (5/10)
                 </div>
               )}
               
@@ -548,6 +549,7 @@ async function handleCerrarVotacion() {
               className="voting-confirm-btn admin-btn-secondary" 
               onClick={onBackToHome}
               aria-label="Volver al menú principal"
+              style={{ width: '100%', fontSize: '1.5rem' }}
             >
               VOLVER AL INICIO
             </button>

@@ -25,6 +25,7 @@ const initialState = {
   lockedPlayers: {},
   prevPlayerNames: [],
   showConfetti: false,
+  editingTeamName: null,
 };
 
 function reducer(state, action) {
@@ -144,6 +145,10 @@ function reducer(state, action) {
       newTeamNames[index] = value;
       return { ...state, teamNames: newTeamNames };
     }
+    case 'START_EDITING_TEAM_NAME':
+      return { ...state, editingTeamName: action.payload };
+    case 'STOP_EDITING_TEAM_NAME':
+      return { ...state, editingTeamName: null };
     default:
       return state;
   }
@@ -159,6 +164,7 @@ function AppNormal({ onBack }) {
     teamNames,
     lockedPlayers,
     showConfetti,
+    editingTeamName,
   } = state;
 
   const [isClient, setIsClient] = useState(false);
@@ -198,6 +204,18 @@ function AppNormal({ onBack }) {
   const handleEditFrequentGlobal = player => dispatch({ type: 'EDIT_FREQUENT_GLOBAL', payload: player });
   const toggleLock = player => dispatch({ type: 'TOGGLE_LOCK', payload: player });
   const handleTeamNameChange = (index, value) => dispatch({ type: 'SET_TEAM_NAME', payload: { index, value } });
+  const startEditingTeamName = (index) => dispatch({ type: 'START_EDITING_TEAM_NAME', payload: index });
+  const stopEditingTeamName = () => dispatch({ type: 'STOP_EDITING_TEAM_NAME' });
+  
+  const handleTeamNameKeyDown = (e, index) => {
+    if (e.key === 'Enter') {
+      stopEditingTeamName();
+    }
+  };
+  
+  const handleTeamNameBlur = () => {
+    stopEditingTeamName();
+  };
 
   const shareTeams = () => {
     if (teams.every(team => team.length === 0)) {
@@ -227,7 +245,7 @@ function AppNormal({ onBack }) {
         />
       )}
       <div className="voting-modern-card" style={{ maxWidth: '1200px', padding: '30px' }}>
-        <div className="voting-title-modern">Modo Rápido</div>
+        <div className="match-name">Modo Rápido</div>
 
         <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '340px 1fr 340px', gap: '20px', alignItems: 'stretch' }}>
           
@@ -277,25 +295,6 @@ function AppNormal({ onBack }) {
         </div>
         
         <div style={{marginTop: '10px', gridColumn: '1 / -1', width: '100%'}}>
-          <div className="team-name-inputs-container" style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
-            <input
-              type="text"
-              placeholder="Nombre Equipo 1"
-              value={teamNames[0]}
-              onChange={e => handleTeamNameChange(0, e.target.value)}
-              className="input-modern"
-              style={{ flex: 1, textAlign: 'center', fontSize: '1.2rem', borderRadius: 0, height: '48px', marginBottom: 0 }}
-            />
-            <input
-              type="text"
-              placeholder="Nombre Equipo 2"
-              value={teamNames[1]}
-              onChange={e => handleTeamNameChange(1, e.target.value)}
-              className="input-modern"
-              style={{ flex: 1, textAlign: 'center', fontSize: '1.2rem', borderRadius: 0, height: '48px', marginBottom: 0 }}
-            />
-          </div>
-
           <div className="team-list-grid">
             <AnimatePresence>
               {teams.map((team, idx) => {
@@ -310,7 +309,27 @@ function AppNormal({ onBack }) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <h2 className="admin-list-title" style={{color: '#fff', textAlign: 'center'}}>{teamNames[idx] || `Equipo ${idx + 1}`}</h2>
+                    {editingTeamName === idx ? (
+                      <input
+                        type="text"
+                        value={teamNames[idx]}
+                        onChange={e => handleTeamNameChange(idx, e.target.value)}
+                        onKeyDown={e => handleTeamNameKeyDown(e, idx)}
+                        onBlur={handleTeamNameBlur}
+                        className="input-modern"
+                        style={{ textAlign: 'center', fontSize: '1.2rem', marginBottom: '15px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)' }}
+                        placeholder={`Equipo ${String.fromCharCode(65 + idx)}`}
+                        autoFocus
+                      />
+                    ) : (
+                      <h2 
+                        className="admin-list-title" 
+                        style={{color: '#fff', textAlign: 'center', cursor: 'pointer'}} 
+                        onClick={() => startEditingTeamName(idx)}
+                      >
+                        {teamNames[idx] || `Equipo ${String.fromCharCode(65 + idx)}`}
+                      </h2>
+                    )}
                     <ul style={{listStyle: 'none', padding: 0, margin: 0, flexGrow: 1}}>
                       {team.map((p, i) => (
                         <li key={p.id + i} className="team-player-row admin-jugador-box" style={{borderColor: p.id === captain?.id ? '#FFD700' : 'transparent'}}>
@@ -360,6 +379,7 @@ function AppNormal({ onBack }) {
               onBack();
             }}
             className="voting-confirm-btn wipe-btn"
+            style={{ width: '100%', fontSize: '1.5rem' }}
           >
             Volver al inicio
           </button>

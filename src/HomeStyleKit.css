@@ -120,7 +120,7 @@ body {
 /* Botón confirmar */
 .voting-confirm-btn {
   font-family: 'Bebas Neue', Arial, sans-serif !important;
-  font-size: 1.5vw;
+  font-size: 1.5rem;
   text-transform: uppercase;
   color: #fff;
   background: rgb(36, 154, 239); /* Fondo azul vibrante por defecto */
@@ -198,7 +198,7 @@ body {
     max-width: 99vw;
   }
   .voting-confirm-btn {
-    font-size: 4vw;
+    font-size: 1.5rem;
     height: auto;
     min-width: 0;
     max-width: 98vw;
@@ -343,7 +343,7 @@ body {
 .voting-confirm-btn {
   display: block;
   margin: 32px auto 0 auto;
-  font-size: 28px;
+  font-size: 1.5rem;
   height: 56px;
   min-width: 240px;
   max-width: 320px;
@@ -361,7 +361,7 @@ body {
     min-width: 70;
     max-width: 98vw;
     width: auto;
-    font-size: 30px;
+    font-size: 1.5rem;
     height: 44px;
   }
 }
@@ -475,9 +475,33 @@ body {
   line-height: 1.1;
 }
 
+.match-name {
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1.0;
+  margin-bottom: 6px;
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  word-break: break-word;
+}
+
 @media (max-width: 600px) {
   .voting-title-modern {
     font-size: 8vw;
+  }
+  
+  .match-name {
+    font-size: 36px;
+  }
+}
+
+@media (min-width: 768px) {
+  .match-name {
+    font-size: 58px;
   }
 }
 
@@ -849,7 +873,7 @@ body {
     padding: 0 10px !important;
   }
   .voting-confirm-btn, .wipe-btn {
-    font-size: 4.5vw !important;
+    font-size: 1.5rem !important;
     min-width: 0 !important;
     width: 100% !important;
     max-width: 99vw !important;
@@ -945,6 +969,18 @@ body {
   font-size: 2.3rem !important; /* Bien grandes, pero no exagerados */
   margin: 0 auto !important;
   box-sizing: border-box !important;
+}
+
+/* White icons for date/time inputs in all forms */
+.input-modern[type="date"]::-webkit-calendar-picker-indicator,
+.input-modern[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+
+.input-modern[type="date"],
+.input-modern[type="time"] {
+  color-scheme: dark;
 }
 
 

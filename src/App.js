@@ -20,7 +20,7 @@ import IngresoAdminPartido from "./IngresoAdminPartido";
 const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
   <div className="voting-bg">
     <div className="voting-modern-card">
-      <div className="voting-title-modern" style={{marginBottom: 16}}>¿QUÉ QUERÉS HACER?</div>
+      <div className="match-name" style={{ marginBottom: 16 }}>¿QUÉ QUERÉS HACER?</div>
       <button className="voting-confirm-btn wipe-btn" style={{marginBottom: 18}} onClick={onNuevo}>
         PARTIDO NUEVO
       </button>
@@ -188,14 +188,14 @@ export default function App() {
     <ErrorBoundary>
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">MODO NO DISPONIBLE</div>
+          <div className="match-name">MODO NO DISPONIBLE</div>
           <div style={{color:"#fff", padding: "20px", fontSize: "18px", textAlign: "center"}}>
             El modo seleccionado no está disponible o ha ocurrido un error.
           </div>
           <button
             className="voting-confirm-btn"
             onClick={() => setModo(MODES.HOME)}
-            style={{marginTop: "20px"}}
+            style={{marginTop: "34px", marginBottom: "0", width: '100%', maxWidth: '400px', fontSize: '1.5rem', height: '64px', borderRadius: '9px'}}
             aria-label="Volver al inicio"
           >
             VOLVER AL INICIO

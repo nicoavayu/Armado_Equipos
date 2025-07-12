@@ -22,7 +22,7 @@ class ErrorBoundary extends React.Component {
       return (
         <div className="voting-bg">
           <div className="voting-modern-card" style={{ maxWidth: 500 }}>
-            <div className="voting-title-modern" style={{ fontSize: '32px', marginBottom: '20px' }}>
+            <div className="match-name" style={{ marginBottom: '20px' }}>
               ALGO SALIÓ MAL
             </div>
             <div style={{

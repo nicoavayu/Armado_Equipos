@@ -242,7 +242,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
       <div className="team-display-container">
-        <h2 className="team-display-title">EQUIPOS ARMADOS</h2>
+        <h2 className="match-name">EQUIPOS ARMADOS</h2>
         
         <div className="teams-wrapper">
           {teams.map((team) => (
@@ -370,7 +370,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
             <span><WhatsappIcon size={UI_SIZES.WHATSAPP_ICON_SIZE} style={{marginRight: 8}} />COMPARTIR POR WHATSAPP</span>
           </button>
           
-          <button onClick={onBackToHome} className="team-action-btn back-btn wipe-btn" aria-label="Volver al menú principal">
+          <button onClick={onBackToHome} className="team-action-btn back-btn wipe-btn" aria-label="Volver al menú principal" style={{ fontSize: '1.5rem' }}>
             <span>VOLVER AL INICIO</span>
           </button>
         </div>

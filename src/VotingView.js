@@ -82,7 +82,7 @@ export default function VotingView({ onReset, jugadores }) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">
+          <div className="match-name">
             ¡YA VOTASTE!
           </div>
           <div style={{ color: "#fff", fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30 }}>
@@ -91,7 +91,7 @@ export default function VotingView({ onReset, jugadores }) {
           <button
             className="voting-confirm-btn"
             onClick={onReset}
-            style={{ marginTop: 16 }}
+            style={{ marginTop: 16, width: '100%', fontSize: '1.5rem' }}
           >VOLVER AL INICIO</button>
         </div>
       </div>
@@ -103,7 +103,7 @@ export default function VotingView({ onReset, jugadores }) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">¿QUIÉN SOS?</div>
+          <div className="match-name">¿QUIÉN SOS?</div>
           <div className="player-select-grid">
             {jugadores.map(j => (
               <button
@@ -156,7 +156,7 @@ export default function VotingView({ onReset, jugadores }) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">¡HOLA, {nombre}!</div>
+          <div className="match-name">¡HOLA, {nombre}!</div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 18 }}>
             <div
               className="voting-photo-box"
@@ -261,7 +261,7 @@ if (step === STEPS.VOTE || editandoIdx !== null) {
               Los votos son secretos, nadie se entera lo que pones
             </div>
 
-            <div className="voting-title-modern">
+            <div className="match-name">
               CALIFICÁ A TUS COMPAÑEROS
             </div>
 
@@ -305,7 +305,7 @@ if (step === STEPS.VOTE || editandoIdx !== null) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">
+          <div className="match-name">
             CONFIRMÁ TUS<br />CALIFICACIONES
           </div>
           <ul className="confirmation-list">
@@ -360,7 +360,7 @@ if (step === STEPS.VOTE || editandoIdx !== null) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">
+          <div className="match-name">
             YA VOTASTE
           </div>
           <div

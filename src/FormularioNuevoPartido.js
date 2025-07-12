@@ -15,7 +15,7 @@ export default function FormularioNuevoPartido({ onConfirmar, onVolver }) {
   return (
     <div className="voting-bg">
       <div className="voting-modern-card" style={{ padding: 42, maxWidth: 420 }}>
-        <div className="voting-title-modern" style={{ fontSize: '32px', marginBottom: 24 }}>NUEVO PARTIDO</div>
+        <div className="match-name" style={{ marginBottom: 24 }}>NUEVO PARTIDO</div>
         
         <input
           className="input-modern"
@@ -123,7 +123,7 @@ export default function FormularioNuevoPartido({ onConfirmar, onVolver }) {
         
         <button
           className="voting-confirm-btn wipe-btn"
-          style={{ width: "100%", background: '#DE1C49' }}
+          style={{ width: "100%", background: '#DE1C49', fontSize: '1.5rem', height: '64px', borderRadius: '9px', marginBottom: '0' }}
           onClick={onVolver}
           disabled={loading}
         >
