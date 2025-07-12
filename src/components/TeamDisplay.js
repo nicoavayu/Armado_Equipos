@@ -7,6 +7,25 @@ import WhatsappIcon from './WhatsappIcon';
 
 const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
   const [showAverages, setShowAverages] = useState(false);
+  const [editingTeam, setEditingTeam] = useState(null);
+  const [dragOverPlayer, setDragOverPlayer] = useState(null);
+  const [showPerfectMatch, setShowPerfectMatch] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [lockedPlayers, setLockedPlayers] = useState(new Set());
+  
+  // Get score color class based on value
+  const getScoreColorClass = (score, allScores) => {
+    if (!allScores.length) return '';
+    const sortedScores = [...allScores].sort((a, b) => a - b);
+    const min = sortedScores[0];
+    const max = sortedScores[sortedScores.length - 1];
+    const avg = sortedScores.reduce((sum, s) => sum + s, 0) / sortedScores.length;
+    
+    if (score <= min + (max - min) * 0.25) return 'score-low';
+    if (score < avg) return 'score-below-avg';
+    if (score > avg + (max - avg) * 0.5) return 'score-high';
+    return 'score-above-avg';
+  };
 
   useEffect(() => {
     const teamA = teams.find(t => t.id === 'equipoA');
@@ -46,21 +65,21 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
 
   const handleDragEnd = (result) => {
     const { source, destination } = result;
+    setDragOverPlayer(null);
+    
     if (!destination) return;
 
     const sourceTeamIndex = teams.findIndex((t) => t.id === source.droppableId);
     const destTeamIndex = teams.findIndex((t) => t.id === destination.droppableId);
 
+    // True swap behavior - always swap positions
     if (sourceTeamIndex !== destTeamIndex) {
       const sourceTeam = teams[sourceTeamIndex];
       const destTeam = teams[destTeamIndex];
 
-      if (destination.index >= destTeam.players.length) {
-        return;
-      }
-
       const newSourcePlayers = Array.from(sourceTeam.players);
       const newDestPlayers = Array.from(destTeam.players);
+      
       const [movedPlayerId] = newSourcePlayers.splice(source.index, 1);
       const [swappedPlayerId] = newDestPlayers.splice(destination.index, 1, movedPlayerId);
       
@@ -70,49 +89,134 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
       const swappedPlayer = getPlayerDetails(swappedPlayerId);
 
       const newTeams = [...teams];
-      newTeams[sourceTeamIndex] = { ...sourceTeam, players: newSourcePlayers, score: sourceTeam.score - movedPlayer.score + swappedPlayer.score };
-      newTeams[destTeamIndex] = { ...destTeam, players: newDestPlayers, score: destTeam.score - swappedPlayer.score + movedPlayer.score };
-
-      if (Math.abs(newTeams[0].score - newTeams[1].score) > 5) {
-        toast.error("La diferencia de puntaje no puede ser mayor a 5.");
-        return;
-      }
+      newTeams[sourceTeamIndex] = { 
+        ...sourceTeam, 
+        players: newSourcePlayers, 
+        score: sourceTeam.score - (movedPlayer.score || 0) + (swappedPlayer.score || 0)
+      };
+      newTeams[destTeamIndex] = { 
+        ...destTeam, 
+        players: newDestPlayers, 
+        score: destTeam.score - (swappedPlayer.score || 0) + (movedPlayer.score || 0)
+      };
       
       onTeamsChange(newTeams);
-      return;
+    } else {
+      // Same team - reorder
+      const team = teams[sourceTeamIndex];
+      const newPlayerIds = Array.from(team.players);
+      const [removed] = newPlayerIds.splice(source.index, 1);
+      newPlayerIds.splice(destination.index, 0, removed);
+      const newTeams = teams.map((t, i) => (
+        i === sourceTeamIndex ? { ...t, players: newPlayerIds } : t
+      ));
+      onTeamsChange(newTeams);
     }
-
-    const team = teams[sourceTeamIndex];
-    const newPlayerIds = Array.from(team.players);
-    const [removed] = newPlayerIds.splice(source.index, 1);
-    newPlayerIds.splice(destination.index, 0, removed);
-    const newTeams = teams.map((t, i) => (
-      i === sourceTeamIndex ? { ...t, players: newPlayerIds } : t
-    ));
-    onTeamsChange(newTeams);
   };
 
+  const togglePlayerLock = (playerId) => {
+    const teamId = teams.find(t => t.players.includes(playerId))?.id;
+    if (!teamId) return;
+    
+    const teamLockedCount = teams.find(t => t.id === teamId).players.filter(p => lockedPlayers.has(p)).length;
+    
+    if (lockedPlayers.has(playerId)) {
+      // Unlock player
+      const newLocked = new Set(lockedPlayers);
+      newLocked.delete(playerId);
+      setLockedPlayers(newLocked);
+    } else {
+      // Lock player (max 3 per team)
+      if (teamLockedCount >= 3) {
+        toast.error('Máximo 3 jugadores bloqueados por equipo');
+        return;
+      }
+      const newLocked = new Set(lockedPlayers);
+      newLocked.add(playerId);
+      setLockedPlayers(newLocked);
+    }
+  };
+  
   const randomizeTeams = () => {
-    let allPlayers = teams.flatMap(t => t.players);
-    allPlayers.sort(() => Math.random() - 0.5);
-
-    const mitad = Math.ceil(allPlayers.length / 2);
-    const teamAPlayers = allPlayers.slice(0, mitad);
-    const teamBPlayers = allPlayers.slice(mitad);
-
-    const scoreA = teamAPlayers.reduce((acc, playerId) => acc + (getPlayerDetails(playerId).score || 0), 0);
-    const scoreB = teamBPlayers.reduce((acc, playerId) => acc + (getPlayerDetails(playerId).score || 0), 0);
-
+    const teamA = teams.find(t => t.id === 'equipoA');
+    const teamB = teams.find(t => t.id === 'equipoB');
+    
+    const lockedA = teamA.players.filter(p => lockedPlayers.has(p));
+    const lockedB = teamB.players.filter(p => lockedPlayers.has(p));
+    const unlockedPlayers = teams.flatMap(t => t.players).filter(p => !lockedPlayers.has(p));
+    
+    const totalPlayers = teamA.players.length + teamB.players.length;
+    const playersPerTeam = Math.ceil(totalPlayers / 2);
+    const unlockedNeededA = playersPerTeam - lockedA.length;
+    const unlockedNeededB = playersPerTeam - lockedB.length;
+    
+    if (unlockedNeededA < 0 || unlockedNeededB < 0 || unlockedNeededA + unlockedNeededB !== unlockedPlayers.length) {
+      toast.error('No se puede balancear con los jugadores bloqueados actuales');
+      return;
+    }
+    
+    const validCombinations = [];
+    
+    // Try up to 500 combinations to find acceptable ones
+    for (let attempt = 0; attempt < 500; attempt++) {
+      const shuffled = [...unlockedPlayers].sort(() => Math.random() - 0.5);
+      const teamAUnlocked = shuffled.slice(0, unlockedNeededA);
+      const teamBUnlocked = shuffled.slice(unlockedNeededA);
+      
+      const teamAPlayers = [...lockedA, ...teamAUnlocked];
+      const teamBPlayers = [...lockedB, ...teamBUnlocked];
+      
+      const scoreA = teamAPlayers.reduce((acc, playerId) => acc + (getPlayerDetails(playerId).score || 0), 0);
+      const scoreB = teamBPlayers.reduce((acc, playerId) => acc + (getPlayerDetails(playerId).score || 0), 0);
+      const scoreDiff = Math.abs(scoreA - scoreB);
+      
+      if (scoreDiff <= 5) {
+        validCombinations.push({
+          teamA: teamAPlayers,
+          teamB: teamBPlayers,
+          scoreA,
+          scoreB,
+          scoreDiff
+        });
+      }
+    }
+    
+    if (validCombinations.length === 0) {
+      toast.error('No se pudo balancear los equipos. Intenta desbloquear algunos jugadores.');
+      return;
+    }
+    
+    // Pick a random valid combination for variety
+    const selectedCombo = validCombinations[Math.floor(Math.random() * validCombinations.length)];
+    
     const newTeams = teams.map(team => {
       if (team.id === "equipoA") {
-        return { ...team, players: teamAPlayers, score: scoreA };
+        return { ...team, players: selectedCombo.teamA, score: selectedCombo.scoreA };
       } else if (team.id === "equipoB") {
-        return { ...team, players: teamBPlayers, score: scoreB };
+        return { ...team, players: selectedCombo.teamB, score: selectedCombo.scoreB };
       }
       return team;
     });
-
+    
     onTeamsChange(newTeams);
+    
+    // Only show perfect match celebration for exact ties
+    if (selectedCombo.scoreDiff === 0) {
+      setShowPerfectMatch(true);
+      setShowConfetti(true);
+      setTimeout(() => {
+        setShowPerfectMatch(false);
+        setShowConfetti(false);
+      }, 3000);
+    }
+  };
+  
+  const handleTeamNameChange = (teamId, newName) => {
+    const newTeams = teams.map(team => 
+      team.id === teamId ? { ...team, name: newName } : team
+    );
+    onTeamsChange(newTeams);
+    setEditingTeam(null);
   };
 
   const handleWhatsAppShare = () => {
@@ -135,7 +239,29 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
         <div className="teams-wrapper">
           {teams.map((team) => (
             <div key={team.id} className="team-container">
-              <h3 className="team-name">{team.name}</h3>
+              <div className="team-header">
+                {editingTeam === team.id ? (
+                  <input
+                    className="team-name-input"
+                    type="text"
+                    defaultValue={team.name}
+                    autoFocus
+                    onBlur={(e) => handleTeamNameChange(team.id, e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleTeamNameChange(team.id, e.target.value);
+                      }
+                    }}
+                  />
+                ) : (
+                  <h3 
+                    className="team-name" 
+                    onClick={() => setEditingTeam(team.id)}
+                  >
+                    {team.name}
+                  </h3>
+                )}
+              </div>
               
               <Droppable droppableId={team.id} key={team.id}>
                 {(provided) => (
@@ -157,12 +283,30 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
 
                           return (
                             <Draggable key={String(playerId)} draggableId={String(playerId)} index={index}>
-                              {(provided) => (
+                              {(provided, snapshot) => (
                                 <div
-                                  className="player-card"
+                                  className={`player-card ${
+                                    dragOverPlayer === playerId && !snapshot.isDragging ? 'drag-over' : ''
+                                  } ${
+                                    snapshot.isDragging ? 'dragging' : ''
+                                  } ${
+                                    lockedPlayers.has(playerId) ? 'locked' : ''
+                                  }`}
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
+                                  onDragEnter={(e) => {
+                                    e.preventDefault();
+                                    if (!snapshot.isDragging) {
+                                      setDragOverPlayer(playerId);
+                                    }
+                                  }}
+                                  onDragLeave={(e) => {
+                                    e.preventDefault();
+                                    setDragOverPlayer(null);
+                                  }}
+                                  onDragOver={(e) => e.preventDefault()}
+                                  onClick={() => togglePlayerLock(playerId)}
                                 >
                                   <img 
                                     src={player.foto_url || 'https://api.dicebear.com/6.x/pixel-art/svg?seed=default'} 
@@ -170,8 +314,14 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
                                     className="player-avatar" 
                                   />
                                   <span>{player.nombre}</span>
+                                  {lockedPlayers.has(playerId) && (
+                                    <span className="lock-icon">🔒</span>
+                                  )}
                                   {showAverages && (
-                                    <span className="player-score">
+                                    <span className={`player-score ${getScoreColorClass(
+                                      player.score || 5,
+                                      players.map(p => p.score || 5)
+                                    )}`}>
                                       {(player.score || 5).toFixed(1)}
                                     </span>
                                   )}
@@ -193,27 +343,33 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
           ))}
         </div>
         
+        {showPerfectMatch && (
+          <div className="perfect-match-overlay">
+            <div className="perfect-match-message">
+              ¡PARTIDO PAREJO!
+            </div>
+          </div>
+        )}
+        
+        {showConfetti && <div className="confetti-container"></div>}
+        
         <div className="team-actions">
-          <button onClick={randomizeTeams} className="team-action-btn randomize-btn">
-            <span>🎲</span>
+          <button onClick={randomizeTeams} className="team-action-btn randomize-btn wipe-btn">
             <span>MEZCLAR EQUIPOS</span>
           </button>
           
           <button 
             onClick={() => setShowAverages(!showAverages)} 
-            className="team-action-btn averages-btn"
+            className="team-action-btn averages-btn wipe-btn"
           >
-            <span>📊</span>
             <span>{showAverages ? 'OCULTAR PUNTAJES' : 'VER PUNTAJES'}</span>
           </button>
           
-          <button onClick={handleWhatsAppShare} className="team-action-btn whatsapp-btn">
-            <span>📱</span>
+          <button onClick={handleWhatsAppShare} className="team-action-btn whatsapp-btn wipe-btn">
             <span>COMPARTIR</span>
           </button>
           
-          <button onClick={onBackToHome} className="team-action-btn back-btn">
-            <span>🏠</span>
+          <button onClick={onBackToHome} className="team-action-btn back-btn wipe-btn">
             <span>VOLVER AL INICIO</span>
           </button>
         </div>
