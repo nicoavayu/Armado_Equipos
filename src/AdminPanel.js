@@ -42,7 +42,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [loading, setLoading] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [copyMsg, setCopyMsg] = useState("");
+
   const [showTeamView, setShowTeamView] = useState(false);
 
   const [teams, setTeams] = useState([
@@ -57,22 +57,23 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
   useEffect(() => {
     async function fetchVotantes() {
+      if (!partidoActual?.id) return;
       try {
-        const votantesIds = await getVotantesIds();
+        const votantesIds = await getVotantesIds(partidoActual.id);
         setVotantes(votantesIds || []);
       } catch (error) {
         toast.error("Error cargando votantes: " + error.message);
       }
     }
     fetchVotantes();
-  }, []);
+  }, [partidoActual?.id]);
   
   // Refresh voters when players change
   useEffect(() => {
-    if (jugadores.length > 0) {
+    if (jugadores.length > 0 && partidoActual?.id) {
       async function refreshVotantes() {
         try {
-          const votantesIds = await getVotantesIds();
+          const votantesIds = await getVotantesIds(partidoActual.id);
           setVotantes(votantesIds || []);
         } catch (error) {
           // Silent refresh error - not critical for UX
@@ -80,7 +81,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       }
       refreshVotantes();
     }
-  }, [jugadores.length]);
+  }, [jugadores.length, partidoActual?.id]);
 
 /**
  * Adds a new player to the current match
@@ -204,7 +205,7 @@ async function handleCerrarVotacion() {
   }
   
   if (jugadores.length % 2 !== 0) {
-    toast.error(UI_MESSAGES.ERROR_EVEN_PLAYERS);
+    toast.error('NECESITAS UN NÚMERO PAR DE JUGADORES PARA FORMAR EQUIPOS');
     return;
   }
   
@@ -237,7 +238,7 @@ async function handleCerrarVotacion() {
   
   try {
     // Close voting and calculate scores
-    const result = await closeVotingAndCalculateScores();
+    const result = await closeVotingAndCalculateScores(partidoActual.id);
     
     if (!result) {
       throw new Error('No se recibió respuesta del cierre de votación');
@@ -308,8 +309,7 @@ async function handleCerrarVotacion() {
   function handleCopyLink() {
     const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
     navigator.clipboard.writeText(url);
-    setCopyMsg("¡Link copiado!");
-    setTimeout(() => setCopyMsg(""), 1700);
+    toast.success("¡Link copiado!");
   }
 
   function handleWhatsApp() {
@@ -496,21 +496,6 @@ async function handleCerrarVotacion() {
               </button>
               
               {/* Warning messages */}
-              {hasOddPlayers && (
-                <div style={{
-                  color: '#DE1C49',
-                  fontSize: '14px',
-                  fontFamily: 'Oswald, Arial, sans-serif',
-                  textAlign: 'center',
-                  marginTop: '8px',
-                  background: 'rgba(222,28,73,0.1)',
-                  padding: '8px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(222,28,73,0.3)'
-                }}>
-                  ⚠️ Necesitas un número PAR de jugadores para formar equipos
-                </div>
-              )}
               
               {hasNoVotes && !hasOddPlayers && jugadores.length >= 2 && (
                 <div style={{
@@ -555,9 +540,7 @@ async function handleCerrarVotacion() {
             </button>
           </div>
 
-          {copyMsg && (
-            <div className="admin-copy-toast">{copyMsg}</div>
-          )}
+
         </>
       )}
     </div>

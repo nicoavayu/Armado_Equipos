@@ -4,7 +4,7 @@
 .admin-panel-content {
   width: 100% !important;
   max-width: 100% !important;
-  padding: 0 !important;
+  padding: 40px 0 !important;
   margin: 0 !important;
   display: flex !important;
   flex-direction: column !important;
@@ -440,30 +440,14 @@
   color: #fff;
 }
 
-/* Copy toast */
-.admin-copy-toast {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0,0,0,0.8);
-  color: #fff;
-  padding: 12px 20px;
-  border-radius: 8px;
-  font-family: 'Oswald', Arial, sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  z-index: 1000;
-  animation: fadeInOut 1.7s ease-in-out;
-}
 
-@keyframes fadeInOut {
-  0%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
-  20%, 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-}
 
 /* Mobile responsive */
 @media (max-width: 480px) {
+  .admin-panel-content {
+    padding: 20px 0 !important;
+  }
+  
   .match-name {
     font-size: 36px;
   }

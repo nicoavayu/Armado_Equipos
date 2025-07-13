@@ -75,44 +75,227 @@ export const uploadFoto = async (file, jugador) => {
   return fotoUrl;
 };
 
-// --- API de Votos ---
+// --- Guest Session Management ---
 
-export const getVotantesIds = async () => {
-  const { data, error } = await supabase.from('votos').select('votante_id');
-  if (error) throw error;
-  return Array.from(new Set((data || []).map(v => v.votante_id)));
+// Generate or get existing guest session ID for a specific match
+export const getGuestSessionId = (partidoId) => {
+  const storageKey = `guest_session_${partidoId}`;
+  let guestId = localStorage.getItem(storageKey);
+  if (!guestId) {
+    guestId = `guest_${partidoId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem(storageKey, guestId);
+  }
+  return guestId;
 };
 
-export const checkIfAlreadyVoted = async (jugadorUuid) => {
-  if (!jugadorUuid) return false;
+// Get current user ID (authenticated user or guest session)
+export const getCurrentUserId = async (partidoId = null) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user?.id) {
+    return user.id;
+  }
+  // For guests, we need a match-specific ID
+  if (partidoId) {
+    return getGuestSessionId(partidoId);
+  }
+  // Fallback for general guest ID
+  let guestId = localStorage.getItem('guest_session_id');
+  if (!guestId) {
+    guestId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('guest_session_id', guestId);
+  }
+  return guestId;
+};
+
+// --- API de Votos ---
+
+/*
+ * RECOMMENDED DATABASE CONSTRAINT:
+ * To enforce unique votes per player per match, add this constraint to your 'votos' table:
+ * 
+ * ALTER TABLE votos ADD CONSTRAINT unique_vote_per_match 
+ * UNIQUE (votante_id, partido_id);
+ * 
+ * This prevents duplicate votes at the database level.
+ */
+
+export const getVotantesIds = async (partidoId) => {
+  if (!partidoId) {
+    console.warn('getVotantesIds: No partidoId provided');
+    return [];
+  }
+  
+  console.log('Fetching voters for match:', partidoId);
+  
+  const { data, error } = await supabase
+    .from('votos')
+    .select('votante_id')
+    .eq('partido_id', partidoId);
+    
+  if (error) {
+    console.error('Error fetching voters:', error);
+    throw new Error(`Error fetching voters: ${error.message}`);
+  }
+  
+  const votantes = Array.from(new Set((data || []).map(v => v.votante_id).filter(id => id)));
+  const authVoters = votantes.filter(id => !id.startsWith('guest_'));
+  const guestVoters = votantes.filter(id => id.startsWith('guest_'));
+  
+  console.log('Voters found for match:', { 
+    partidoId, 
+    total: votantes.length,
+    authenticated: authVoters.length,
+    guests: guestVoters.length
+  });
+  
+  return votantes;
+};
+
+export const checkIfAlreadyVoted = async (votanteId, partidoId) => {
+  // If no votanteId provided, get current user for this specific match
+  if (!votanteId) {
+    votanteId = await getCurrentUserId(partidoId);
+  }
+  
+  if (!votanteId || !partidoId) {
+    console.warn('checkIfAlreadyVoted: Missing required parameters', { votanteId, partidoId });
+    return false;
+  }
+  
+  console.log('Checking if user has voted:', { votanteId, partidoId, isGuest: votanteId.startsWith('guest_') });
+  
   const { data, error } = await supabase
     .from('votos')
     .select('id')
-    .eq('votante_id', jugadorUuid)
-    .limit(1)
-    .single();
-  if (error && error.code !== 'PGRST116') throw new Error(`Error checking vote status: ${error.message}`);
-  return !!data;
+    .eq('votante_id', votanteId)
+    .eq('partido_id', partidoId)
+    .limit(1);
+    
+  if (error) {
+    console.error('Error checking vote status:', error);
+    throw new Error(`Error checking vote status: ${error.message}`);
+  }
+  
+  const hasVoted = data && data.length > 0;
+  console.log('Vote check result:', { votanteId, partidoId, hasVoted, foundVotes: data?.length || 0 });
+  return hasVoted;
 };
 
-export const submitVotos = async (votos, jugadorUuid) => {
+// Debug function to test voting
+export const debugVoting = async (partidoId) => {
+  console.log('🔍 DEBUG: Testing voting system...');
+  
+  try {
+    const votanteId = await getCurrentUserId(partidoId);
+    console.log('Current user ID:', votanteId);
+    
+    // Test insert
+    const testVote = {
+      votado_id: 'test_player_uuid',
+      votante_id: votanteId,
+      puntaje: 5,
+      partido_id: partidoId
+    };
+    
+    console.log('Testing vote insert:', testVote);
+    const { data, error } = await supabase.from('votos').insert([testVote]).select();
+    
+    if (error) {
+      console.error('❌ Insert failed:', error);
+      return { success: false, error, votanteId, partidoId };
+    }
+    
+    console.log('✅ Insert successful:', data);
+    
+    // Clean up test vote
+    if (data && data[0]) {
+      await supabase.from('votos').delete().eq('id', data[0].id);
+      console.log('🧹 Test vote cleaned up');
+    }
+    
+    return { success: true, data, votanteId, partidoId };
+  } catch (err) {
+    console.error('❌ Debug test failed:', err);
+    return { success: false, error: err };
+  }
+};
+
+export const submitVotos = async (votos, jugadorUuid, partidoId) => {
+  console.log('🚀 SUBMIT VOTOS CALLED:', { votos, jugadorUuid, partidoId });
+  
+  // Validation first
+  if (!jugadorUuid || typeof jugadorUuid !== 'string' || jugadorUuid.trim() === '') {
+    throw new Error('jugadorUuid must be a valid non-empty string');
+  }
+  if (!partidoId || typeof partidoId !== 'number' || partidoId <= 0) {
+    throw new Error('partido_id must be a valid positive number');
+  }
+  if (!votos || typeof votos !== 'object' || Object.keys(votos).length === 0) {
+    throw new Error('votos must be a valid non-empty object');
+  }
+  
+  // Get current user ID (authenticated or guest) for this specific match
+  const votanteId = await getCurrentUserId(partidoId);
+  console.log('Current voter ID:', votanteId, 'Is guest:', votanteId.startsWith('guest_'));
+  
+  // Check if this user (authenticated or guest) has already voted
+  console.log('Checking if already voted...');
+  const hasVoted = await checkIfAlreadyVoted(votanteId, partidoId);
+  console.log('Has voted result:', hasVoted);
+  
+  if (hasVoted) {
+    throw new Error('Ya votaste en este partido');
+  }
+  
   const votosParaInsertar = Object.entries(votos)
     .filter(([, puntaje]) => puntaje !== undefined && puntaje !== null)
-    .map(([votado_id, puntaje]) => ({
-      votado_id,
-      votante_id: jugadorUuid,
-      puntaje,
-    }));
-  console.log("VOTOS PARA INSERTAR:", votosParaInsertar);
+    .map(([votado_id, puntaje]) => {
+      if (!votado_id || typeof votado_id !== 'string' || votado_id.trim() === '') {
+        return null;
+      }
+      return {
+        votado_id: votado_id.trim(),
+        votante_id: votanteId, // Current user (auth or guest)
+        puntaje: Number(puntaje),
+        partido_id: partidoId,
+      };
+    })
+    .filter(voto => voto !== null);
+    
   if (votosParaInsertar.length === 0) {
-    console.warn("No hay votos para insertar.");
-    return;
+    throw new Error('No hay votos válidos para insertar');
   }
-  const { error } = await supabase.from('votos').insert(votosParaInsertar);
+  
+  console.log('INSERTING VOTES:', {
+    count: votosParaInsertar.length,
+    partidoId,
+    jugadorUuid,
+    votanteId,
+    isGuest: votanteId.startsWith('guest_'),
+    votes: votosParaInsertar
+  });
+  
+  const { data, error } = await supabase.from('votos').insert(votosParaInsertar).select();
   if (error) {
-    console.error("Error insertando votos:", error);
-    throw error;
+    console.error('❌ Error insertando votos:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint
+    });
+    
+    if (error.code === '23505') {
+      throw new Error('Ya votaste en este partido');
+    }
+    if (error.code === '42501') {
+      throw new Error('No tienes permisos para votar. Verifica las políticas de Supabase.');
+    }
+    throw new Error(`Error al guardar los votos: ${error.message}`);
   }
+  
+  console.log(`✅ Successfully inserted ${votosParaInsertar.length} votes for match ${partidoId}:`, data);
+  return data;
 };
 
 // --- Suscripciones Realtime ---
@@ -139,15 +322,16 @@ export const removeSubscription = (subscription) => {
  * Aggregates all votes, calculates averages, updates player scores, and clears votes
  * @returns {Object} Result message with number of players updated
  */
-export const closeVotingAndCalculateScores = async () => {
+export const closeVotingAndCalculateScores = async (partidoId) => {
   console.log('📊 SUPABASE: Starting closeVotingAndCalculateScores');
   
   try {
-    // Step 1: Fetch all votes
-    console.log('📊 SUPABASE: Step 1 - Fetching votes');
+    // Step 1: Fetch votes for this match
+    console.log('📊 SUPABASE: Step 1 - Fetching votes for match:', partidoId);
     const { data: votos, error: fetchError } = await supabase
       .from('votos')
-      .select('votado_id, puntaje, votante_id');
+      .select('votado_id, puntaje, votante_id')
+      .eq('partido_id', partidoId);
       
     if (fetchError) {
       console.error('❌ SUPABASE: Error fetching votes:', fetchError);
@@ -272,12 +456,12 @@ export const closeVotingAndCalculateScores = async () => {
     
     console.log('✅ SUPABASE: All scores updated successfully');
     
-    // Step 5: Clear all votes
-    console.log('📊 SUPABASE: Step 5 - Clearing votes');
+    // Step 5: Clear votes for this match
+    console.log('📊 SUPABASE: Step 5 - Clearing votes for match:', partidoId);
     const { error: deleteError, count: deletedCount } = await supabase
       .from('votos')
       .delete()
-      .neq('id', -1); // This condition ensures we delete all records
+      .eq('partido_id', partidoId);
       
     if (deleteError) {
       console.error('❌ SUPABASE: Error clearing votes:', deleteError);
@@ -553,6 +737,66 @@ export const clearVotesForMatch = async (partidoId) => {
     .eq('partido_id', partidoId);
   if (error && error.code !== 'PGRST116') {
     throw new Error(`Error clearing votes: ${error.message}`);
+  }
+};
+
+export const cleanupInvalidVotes = async () => {
+  console.log('🧹 Starting cleanup of invalid votes...');
+  const { data: invalidVotes, error: checkError } = await supabase
+    .from('votos')
+    .select('id, votante_id, partido_id, created_at')
+    .or('partido_id.is.null,votante_id.is.null,votado_id.is.null');
+  if (checkError) throw checkError;
+  console.log(`Found ${invalidVotes?.length || 0} invalid votes`);
+  if (invalidVotes && invalidVotes.length > 0) {
+    const { error: deleteError, count } = await supabase
+      .from('votos')
+      .delete()
+      .or('partido_id.is.null,votante_id.is.null,votado_id.is.null');
+    if (deleteError) throw deleteError;
+    console.log(`✅ Cleaned up ${count || 0} invalid votes`);
+    return { cleaned: count || 0, found: invalidVotes.length };
+  }
+  return { cleaned: 0, found: 0 };
+};
+
+// Clear guest session for a specific match (useful for testing)
+export const clearGuestSession = (partidoId) => {
+  if (partidoId) {
+    localStorage.removeItem(`guest_session_${partidoId}`);
+    console.log(`Cleared guest session for match ${partidoId}`);
+  } else {
+    // Clear all guest sessions
+    const keys = Object.keys(localStorage).filter(key => key.startsWith('guest_session'));
+    keys.forEach(key => localStorage.removeItem(key));
+    console.log(`Cleared ${keys.length} guest sessions`);
+  }
+};
+
+// Debug function to check voting status for current user
+export const debugVotingStatus = async (partidoId) => {
+  console.log('🔍 DEBUG: Checking voting status...');
+  
+  try {
+    const userId = await getCurrentUserId(partidoId);
+    const hasVoted = await checkIfAlreadyVoted(userId, partidoId);
+    const voters = await getVotantesIds(partidoId);
+    
+    const debugInfo = {
+      partidoId,
+      currentUserId: userId,
+      isGuest: userId.startsWith('guest_'),
+      hasVoted,
+      totalVoters: voters.length,
+      allVoters: voters
+    };
+    
+    console.log('📊 Voting Status Debug:', debugInfo);
+    return debugInfo;
+    
+  } catch (error) {
+    console.error('❌ Debug failed:', error);
+    return { error: error.message };
   }
 };
 

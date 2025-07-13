@@ -17,8 +17,6 @@ import EditarPartidoFrecuente from "./EditarPartidoFrecuente";
 import { getPartidoPorCodigo, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes } from "./supabase";
 import { toast } from 'react-toastify';
 import IngresoAdminPartido from "./IngresoAdminPartido";
-import useEnsureProfile from "./useEnsureProfile"; // <--- AGREGADO
-
 const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
   <div className="voting-bg">
     <div className="voting-modern-card">
@@ -34,10 +32,9 @@ const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
 );
 
 export default function App() {
-  useEnsureProfile(); // <-- Esto asegura el perfil cada vez que cargas la app
 
   const [modo, setModo] = useState(MODES.HOME);
-  const [partidoActual, setPartidoActual] = useState(null);
+  const [partidoActual, setPartidoActual] = useState(undefined);
   const [stepPartido, setStepPartido] = useState(ADMIN_STEPS.SELECT_TYPE);
   const [partidoFrecuenteEditando, setPartidoFrecuenteEditando] = useState(null);
 
@@ -45,12 +42,18 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const codigo = params.get("codigo");
     if (codigo) {
+      console.log('Loading match from URL code:', codigo);
+      setModo(MODES.PLAYER); // Set player mode immediately
       getPartidoPorCodigo(codigo)
         .then(partido => {
+          console.log('Match loaded successfully:', partido);
           setPartidoActual(partido);
-          setModo(MODES.PLAYER);
         })
-        .catch(() => setModo(MODES.HOME));
+        .catch(error => {
+          console.error('Error loading match from code:', error);
+          // Keep in player mode but with null partido to show error
+          setPartidoActual(null);
+        });
     }
   }, []);
 
@@ -142,6 +145,17 @@ export default function App() {
               }}
             />
           </div>
+          <ToastContainer
+            position="top-right"
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+          />
         </div>
       );
     }
@@ -174,9 +188,10 @@ export default function App() {
     return null;
   }
   if (modo === MODES.PLAYER) return (
-    <AuthProvider>
+    <div>
       <VotingView
         jugadores={partidoActual ? partidoActual.jugadores : []}
+        partidoActual={partidoActual}
         onReset={() => { 
           setModo(MODES.HOME); 
           setPartidoActual(null);
@@ -184,7 +199,18 @@ export default function App() {
           setStepPartido(ADMIN_STEPS.SELECT_TYPE); 
         }}
       />
-    </AuthProvider>
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+    </div>
   );
 
   return (
