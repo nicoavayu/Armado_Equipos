@@ -5,6 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { MODES, ADMIN_STEPS } from "./constants";
 import { LOADING_STATES } from "./appConstants";
 import ErrorBoundary from "./components/ErrorBoundary";
+import AuthProvider from "./components/AuthProvider";
 import Home from "./Home";
 import AppNormal from "./AppNormal";
 import VotingView from "./VotingView";
@@ -16,6 +17,7 @@ import EditarPartidoFrecuente from "./EditarPartidoFrecuente";
 import { getPartidoPorCodigo, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes } from "./supabase";
 import { toast } from 'react-toastify';
 import IngresoAdminPartido from "./IngresoAdminPartido";
+import useEnsureProfile from "./useEnsureProfile"; // <--- AGREGADO
 
 const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
   <div className="voting-bg">
@@ -32,10 +34,11 @@ const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
 );
 
 export default function App() {
+  useEnsureProfile(); // <-- Esto asegura el perfil cada vez que cargas la app
+
   const [modo, setModo] = useState(MODES.HOME);
   const [partidoActual, setPartidoActual] = useState(null);
   const [stepPartido, setStepPartido] = useState(ADMIN_STEPS.SELECT_TYPE);
-  // Removed showIngresoAdmin state as it's no longer needed
   const [partidoFrecuenteEditando, setPartidoFrecuenteEditando] = useState(null);
 
   useEffect(() => {
@@ -55,13 +58,10 @@ export default function App() {
     if (!partidoActual) return;
     await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
     setPartidoActual({ ...partidoActual, jugadores: nuevosJugadores });
-    
-    // If this match was created from a frequent match, update the frequent match players too
     if (partidoActual.from_frequent_match_id) {
       try {
         await updateJugadoresFrecuentes(partidoActual.from_frequent_match_id, nuevosJugadores);
       } catch (error) {
-        // Error handling for frequent match update
         toast.error('Error actualizando partido frecuente');
       }
     }
@@ -80,7 +80,6 @@ export default function App() {
       return (
         <FormularioNuevoPartido
           onConfirmar={async (partido) => {
-            // Partido is already created, just set it as current
             setPartidoActual(partido);
             setStepPartido(ADMIN_STEPS.MANAGE);
             return partido;
@@ -94,10 +93,8 @@ export default function App() {
         <ListaPartidosFrecuentes
           onEntrar={async (partidoFrecuente) => {
             try {
-              // Create a regular match from the frequent match
               const hoy = new Date().toISOString().split('T')[0];
               const partido = await crearPartidoDesdeFrec(partidoFrecuente, hoy);
-              // Mark this match as created from a frequent match
               partido.from_frequent_match_id = partidoFrecuente.id;
               setPartidoActual(partido);
               setStepPartido(ADMIN_STEPS.MANAGE);
@@ -133,7 +130,6 @@ export default function App() {
       return (
         <div className="voting-bg">
           <div className="voting-modern-card" style={{ maxWidth: 650 }}>
-            
             <AdminPanel
               partidoActual={partidoActual}
               jugadores={partidoActual?.jugadores || []}
@@ -155,64 +151,73 @@ export default function App() {
     }
   }
 
-  // HOME: simplified without admin button
   if (modo === MODES.HOME) return (
-    <div className="voting-bg">
-      <div className="voting-modern-card" style={{maxWidth: 440, display: "flex", flexDirection: "column", alignItems: "center"}}>
-        <Home onModoSeleccionado={(m) => {
-          setModo(m);
-          if (m === MODES.ADMIN) setStepPartido(ADMIN_STEPS.SELECT_TYPE);
-        }} />
+    <AuthProvider>
+      <div className="voting-bg">
+        <div className="voting-modern-card" style={{maxWidth: 440, display: "flex", flexDirection: "column", alignItems: "center"}}>
+          <Home onModoSeleccionado={(m) => {
+            setModo(m);
+            if (m === MODES.ADMIN) setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+          }} />
+        </div>
       </div>
-    </div>
+    </AuthProvider>
   );
 
-  if (modo === MODES.SIMPLE) return <AppNormal onBack={() => setModo(MODES.HOME)} />;
+  if (modo === MODES.SIMPLE) return (
+    <AuthProvider>
+      <AppNormal onBack={() => setModo(MODES.HOME)} />
+    </AuthProvider>
+  );
   if (modo === MODES.VOTING) {
     setModo(MODES.ADMIN);
     return null;
   }
   if (modo === MODES.PLAYER) return (
-    <VotingView
-      jugadores={partidoActual ? partidoActual.jugadores : []}
-      onReset={() => { 
-        setModo(MODES.HOME); 
-        setPartidoActual(null);
-        setPartidoFrecuenteEditando(null);
-        setStepPartido(ADMIN_STEPS.SELECT_TYPE); 
-      }}
-    />
+    <AuthProvider>
+      <VotingView
+        jugadores={partidoActual ? partidoActual.jugadores : []}
+        onReset={() => { 
+          setModo(MODES.HOME); 
+          setPartidoActual(null);
+          setPartidoFrecuenteEditando(null);
+          setStepPartido(ADMIN_STEPS.SELECT_TYPE); 
+        }}
+      />
+    </AuthProvider>
   );
 
   return (
     <ErrorBoundary>
-      <div className="voting-bg">
-        <div className="voting-modern-card">
-          <div className="match-name">MODO NO DISPONIBLE</div>
-          <div style={{color:"#fff", padding: "20px", fontSize: "18px", textAlign: "center"}}>
-            El modo seleccionado no está disponible o ha ocurrido un error.
+      <AuthProvider>
+        <div className="voting-bg">
+          <div className="voting-modern-card">
+            <div className="match-name">MODO NO DISPONIBLE</div>
+            <div style={{color:"#fff", padding: "20px", fontSize: "18px", textAlign: "center"}}>
+              El modo seleccionado no está disponible o ha ocurrido un error.
+            </div>
+            <button
+              className="voting-confirm-btn"
+              onClick={() => setModo(MODES.HOME)}
+              style={{marginTop: "34px", marginBottom: "0", width: '100%', maxWidth: '400px', fontSize: '1.5rem', height: '64px', borderRadius: '9px'}}
+              aria-label="Volver al inicio"
+            >
+              VOLVER AL INICIO
+            </button>
+            <ToastContainer
+              position="top-right"
+              autoClose={5000}
+              hideProgressBar={false}
+              newestOnTop={false}
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+            />
           </div>
-          <button
-            className="voting-confirm-btn"
-            onClick={() => setModo(MODES.HOME)}
-            style={{marginTop: "34px", marginBottom: "0", width: '100%', maxWidth: '400px', fontSize: '1.5rem', height: '64px', borderRadius: '9px'}}
-            aria-label="Volver al inicio"
-          >
-            VOLVER AL INICIO
-          </button>
-          <ToastContainer
-            position="top-right"
-            autoClose={5000}
-            hideProgressBar={false}
-            newestOnTop={false}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-          />
         </div>
-      </div>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

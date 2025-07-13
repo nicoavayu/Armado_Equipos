@@ -117,60 +117,84 @@
   height: auto;
 }
 
-/* Player card - optimized for mobile */
+/* Player card - touch-friendly drag & drop */
 .player-card {
   background: rgba(255,255,255,0.15);
   border: 2px solid rgba(255,255,255,0.2);
   border-radius: 8px;
-  padding: 8px;
+  padding: 12px;
   display: flex;
   align-items: center;
   gap: 8px;
-  cursor: pointer;
+  cursor: grab;
   color: #fff;
   transition: all 0.2s ease;
-  min-height: 40px;
+  min-height: 48px;
   position: relative;
   width: 100%;
   box-sizing: border-box;
   overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
-/* Locked player styling */
+/* Touch feedback */
+.player-card:active {
+  background: rgba(255,255,255,0.25);
+  transform: scale(0.98);
+}
+
+/* Locked player styling - clear visual indication */
 .player-card.locked {
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(255,255,255,0.15);
-  opacity: 0.7;
-  cursor: pointer;
+  background: rgba(255,193,7,0.2);
+  border-color: rgba(255,193,7,0.6);
+  box-shadow: 0 0 8px rgba(255,193,7,0.3);
 }
 
-.player-card.locked:hover {
-  background: rgba(255,255,255,0.12);
-  border-color: rgba(255,255,255,0.25);
-  opacity: 0.85;
+.player-card.locked:hover,
+.player-card.locked:active {
+  background: rgba(255,193,7,0.3);
+  border-color: rgba(255,193,7,0.8);
+  box-shadow: 0 0 12px rgba(255,193,7,0.4);
 }
 
 .player-card:hover {
   background: rgba(255,255,255,0.2);
   border-color: rgba(255,255,255,0.4);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
-.player-card:active,
+/* Dragging state - enhanced visual feedback */
 .player-card.dragging {
   cursor: grabbing;
-  transform: scale(1.02);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-  z-index: 10;
+  transform: scale(1.05) rotate(2deg);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  z-index: 1000;
+  background: rgba(255,255,255,0.3) !important;
+  border-color: rgba(255,255,255,0.8) !important;
+  opacity: 0.9;
 }
 
-/* Drag over highlight */
+/* Drag over highlight - prominent visual feedback */
 .player-card.drag-over {
-  background: rgba(14,169,198,0.4) !important;
+  background: rgba(14,169,198,0.5) !important;
   border-color: #0EA9C6 !important;
-  border-width: 2px !important;
-  transform: scale(1.01);
-  box-shadow: 0 0 12px rgba(14,169,198,0.5) !important;
+  border-width: 3px !important;
+  transform: scale(1.03);
+  box-shadow: 0 0 20px rgba(14,169,198,0.7) !important;
+  animation: dragOverPulse 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes dragOverPulse {
+  0% {
+    box-shadow: 0 0 20px rgba(14,169,198,0.7);
+  }
+  100% {
+    box-shadow: 0 0 30px rgba(14,169,198,0.9);
+  }
 }
 
 /* Player avatar */
@@ -233,14 +257,28 @@
   border-color: rgba(0, 212, 155, 0.5);
 }
 
-/* Lock icon */
+/* Lock icon - enhanced visibility */
 .lock-icon {
-  font-size: 14px;
-  color: #FFA500;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  font-size: 16px;
+  color: #FFC107;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.7);
   flex-shrink: 0;
   margin-left: auto;
   margin-right: 4px;
+  padding: 4px;
+  border-radius: 4px;
+  background: rgba(255,193,7,0.2);
+  border: 1px solid rgba(255,193,7,0.4);
+  animation: lockGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes lockGlow {
+  0% {
+    box-shadow: 0 0 5px rgba(255,193,7,0.3);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(255,193,7,0.5);
+  }
 }
 
 /* Team score box - close to bottom edge */
@@ -507,6 +545,30 @@
   100% {
     transform: translateY(100vh) rotate(-540deg) scale(0.3);
     opacity: 0;
+  }
+}
+
+/* Mobile touch optimizations */
+@media (max-width: 600px) {
+  .player-card {
+    min-height: 52px;
+    padding: 14px;
+    touch-action: manipulation;
+  }
+  
+  .lock-icon {
+    font-size: 18px;
+    padding: 6px;
+    margin-right: 2px;
+  }
+  
+  .player-card.dragging {
+    transform: scale(1.08) rotate(3deg);
+  }
+  
+  .player-card.drag-over {
+    transform: scale(1.05);
+    border-width: 4px !important;
   }
 }
 

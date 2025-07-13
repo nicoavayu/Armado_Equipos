@@ -2,15 +2,19 @@
 import React from "react";
 import "./HomeStyleKit.css";
 import Logo from "./Logo.png";
+import GoogleAuth from "./components/GoogleAuth";
+import { useAuth } from "./components/AuthProvider";
 
 export default function Home({ onModoSeleccionado }) {
+  const { user } = useAuth();
+
   return (
     <div className="voting-bg home-bg">
       <div className="voting-modern-card">
         <img
           src={Logo}
           alt="Logo"
-          style={{ height: '150px', marginBottom: '20px' }} // Logo más grande y menos espacio abajo
+          style={{ height: '150px', marginBottom: '20px' }}
         />
         <div
           style={{
@@ -28,6 +32,7 @@ export default function Home({ onModoSeleccionado }) {
             <span className="player-select-txt">Participativo</span>
           </div>
         </div>
+        <GoogleAuth user={user} />
       </div>
     </div>
   );

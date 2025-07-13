@@ -306,6 +306,12 @@ export const closeVotingAndCalculateScores = async () => {
 // --- API de Partidos ---
 
 export const crearPartido = async ({ fecha, hora, sede, sedeMaps }) => {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
+  if (authError || !user) {
+    throw new Error('User must be authenticated to create matches');
+  }
+  
   const codigo = generarCodigoPartido();
   const { data, error } = await supabase
     .from("partidos")
@@ -317,12 +323,14 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps }) => {
         sede,
         sedeMaps,
         jugadores: [],
-        estado: "activo"
+        estado: "activo",
+        creado_por: user.id
       }
     ])
     .select()
     .single();
-  if (error) throw error;
+  
+  if (error) throw new Error(`Error creating match: ${error.message}`);
   return data;
 };
 
@@ -372,10 +380,16 @@ export const updateJugadoresFrecuentes = async (partidoFrecuenteId, nuevosJugado
  * @param {string} matchData.hora - Time
  * @param {Array} matchData.jugadores_frecuentes - Default players
  * @param {number} matchData.dia_semana - Day of week (0-6)
+ * @param {boolean} matchData.habilitado - Whether the match is enabled
  * @returns {Object} Created frequent match record
  */
-export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frecuentes, creado_por, dia_semana, habilitado, creado_en }) => {
-  console.log('Creating frequent match with params:', { nombre, sede, hora, jugadores_frecuentes, creado_por, dia_semana, habilitado, creado_en });
+export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frecuentes, dia_semana, habilitado }) => {
+  // Get current authenticated user
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
+  if (authError || !user) {
+    throw new Error('User must be authenticated to create frequent matches');
+  }
   
   // Validate required fields
   if (!nombre || !sede || !hora || dia_semana === undefined) {
@@ -385,9 +399,7 @@ export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frec
     if (!hora) missingFields.push('hora');
     if (dia_semana === undefined) missingFields.push('dia_semana');
     
-    const errorMsg = `Missing required fields: ${missingFields.join(', ')}`;
-    console.error(errorMsg);
-    throw new Error(errorMsg);
+    throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
   }
   
   const insertData = {
@@ -395,13 +407,11 @@ export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frec
     sede: sede.trim(),
     hora: hora.trim(),
     jugadores_frecuentes: jugadores_frecuentes || [],
-    creado_por,
-    creado_en: creado_en || new Date().toISOString(),
+    creado_por: user.id, // Automatically set to current user's UID
+    creado_en: new Date().toISOString(),
     habilitado: habilitado !== undefined ? habilitado : true,
     dia_semana: parseInt(dia_semana)
   };
-  
-  console.log('Inserting data into partidos_frecuentes:', insertData);
   
   const { data, error } = await supabase
     .from("partidos_frecuentes")
@@ -410,22 +420,13 @@ export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frec
     .single();
     
   if (error) {
-    console.error('Supabase error creating frequent match:', error);
-    console.error('Error details:', {
-      code: error.code,
-      message: error.message,
-      details: error.details,
-      hint: error.hint
-    });
-    throw new Error(`Error creating frequent match: ${error.message} (Code: ${error.code})`);
+    throw new Error(`Error creating frequent match: ${error.message}`);
   }
   
   if (!data) {
-    console.error('No data returned from insert operation');
     throw new Error('No data returned from frequent match creation');
   }
   
-  console.log('Frequent match created successfully:', data);
   return data;
 };
 
@@ -598,4 +599,73 @@ export const checkPartidosFrecuentesSchema = async () => {
     console.error('Exception during schema check:', err);
     return { success: false, error: err };
   }
+};
+
+// --- Profile Management ---
+
+export const getProfile = async (userId) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  
+  if (error && error.code !== 'PGRST116') {
+    throw error;
+  }
+  
+  return data;
+};
+
+export const updateProfile = async (nombre, avatar_url) => {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
+  if (authError || !user) {
+    throw new Error('User must be authenticated to update profile');
+  }
+  
+  const updateData = {
+    updated_at: new Date().toISOString()
+  };
+  
+  if (nombre !== undefined) updateData.nombre = nombre;
+  if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
+  
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(updateData)
+    .eq('id', user.id)
+    .select()
+    .single();
+  
+  if (error) throw new Error(`Error updating profile: ${error.message}`);
+  return data;
+};
+
+export const upsertProfile = async (profile) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert(profile)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const uploadAvatar = async (userId, file) => {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${userId}_${Date.now()}.${fileExt}`;
+  
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(fileName, file, { upsert: true });
+
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(fileName);
+
+  return data.publicUrl;
 };

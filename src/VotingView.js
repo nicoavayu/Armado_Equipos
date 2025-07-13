@@ -249,18 +249,6 @@ if (step === STEPS.VOTE || editandoIdx !== null) {
       <div className="voting-bg">
         <div className={`player-vote-card ${animation}`}>
           <div className="voting-modern-card" style={{ background: "transparent", boxShadow: "none", padding: 0 }}>
-            
-            {/* Mensaje agregado */}
-            <div style={{
-              fontSize: 20,
-              fontFamily: "'Oswald', Arial, sans-serif",
-              color: "#fff",
-              marginBottom: 12,
-              textAlign: "center"
-            }}>
-              Los votos son secretos, nadie se entera lo que pones
-            </div>
-
             <div className="match-name">
               CALIFICÁ A TUS COMPAÑEROS
             </div>
@@ -289,6 +277,17 @@ if (step === STEPS.VOTE || editandoIdx !== null) {
             >
               NO LO CONOZCO
             </button>
+            
+            <div style={{
+              fontSize: 16,
+              fontFamily: "'Oswald', Arial, sans-serif",
+              color: "rgba(255,255,255,0.7)",
+              marginTop: 20,
+              textAlign: "center",
+              fontStyle: "italic"
+            }}>
+              Los votos son secretos, nadie se entera lo que pones
+            </div>
           </div>
         </div>
       </div>

@@ -1154,7 +1154,7 @@ body[data-theme="dark"] .team-score {
 .modal-content {
   background: #fff;
   padding: 36px 32px 30px 32px;
-  border-radius: 38px;
+  border-radius: 0px;
   min-width: 380px;
   max-width: 96vw;
   box-shadow: 0 10px 50px 0 rgba(40,40,90,0.19);
