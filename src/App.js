@@ -6,6 +6,7 @@ import { MODES, ADMIN_STEPS } from "./constants";
 import { LOADING_STATES } from "./appConstants";
 import ErrorBoundary from "./components/ErrorBoundary";
 import AuthProvider from "./components/AuthProvider";
+import Button from "./components/Button";
 import Home from "./Home";
 import AppNormal from "./AppNormal";
 import VotingView from "./VotingView";
@@ -222,14 +223,13 @@ export default function App() {
             <div style={{color:"#fff", padding: "20px", fontSize: "18px", textAlign: "center"}}>
               El modo seleccionado no está disponible o ha ocurrido un error.
             </div>
-            <button
-              className="voting-confirm-btn"
+            <Button
               onClick={() => setModo(MODES.HOME)}
               style={{marginTop: "34px", marginBottom: "0", width: '100%', maxWidth: '400px', fontSize: '1.5rem', height: '64px', borderRadius: '9px'}}
-              aria-label="Volver al inicio"
+              ariaLabel="Volver al inicio"
             >
               VOLVER AL INICIO
-            </button>
+            </Button>
             <ToastContainer
               position="top-right"
               autoClose={5000}

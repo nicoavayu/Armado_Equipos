@@ -210,6 +210,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       try {
         const fotoUrl = await uploadFoto(file, jugador);
         setFotoPreview(fotoUrl);
+        // Update local jugador object with new photo
+        setJugador(prev => ({ ...prev, foto_url: fotoUrl }));
         setFile(null);
         toast.success("¡Foto cargada!");
       } catch (error) {
@@ -416,7 +418,7 @@ if (step === STEPS.VOTE || editandoIdx !== null) {
   
   setConfirmando(true);
   try {
-    await submitVotos(votos, jugador.uuid, partidoActual.id);
+    await submitVotos(votos, jugador.uuid, partidoActual.id, jugador.nombre, fotoPreview);
     // Immediately update voting status
     setYaVoto(true);
     setFinalizado(true);

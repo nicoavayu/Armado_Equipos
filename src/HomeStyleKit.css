@@ -921,14 +921,7 @@ body {
   color: #fff;
 }
 
-.perfect-match-message {
-  color: #00ff00;
-  font-weight: bold;
-  text-align: center;
-  margin-top: 10px;
-  font-size: 1.2rem;
-  text-shadow: 0 0 5px #00ff00;
-}
+
 
 .dark-container {
   background: rgba(0,0,0,0.22) !important;

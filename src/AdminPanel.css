@@ -305,16 +305,19 @@
 }
 
 .admin-player-item.voted {
-  border-color: #0EA9C6;
-  background: rgba(14,169,198,0.15);
+  border-color: #00ff88 !important;
+  background: rgba(0,255,136,0.25) !important;
+  box-shadow: 0 0 12px rgba(0,255,136,0.4) !important;
+  transform: scale(1.02) !important;
 }
 
 .admin-player-item.voted::after {
   content: '✓';
-  color: #0EA9C6;
+  color: #00ff88;
   font-weight: bold;
-  font-size: 16px;
+  font-size: 18px;
   margin-left: auto;
+  text-shadow: 0 0 4px rgba(0,255,136,0.6);
 }
 
 .admin-player-avatar {

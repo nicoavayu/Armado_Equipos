@@ -353,11 +353,7 @@ function AppNormal({ onBack }) {
             </AnimatePresence>
           </div>
 
-          {teams[0].length > 0 && teams[1].length > 0 && teams[0].reduce((a, p) => a + (+p.score || 0), 0) === teams[1].reduce((a, p) => a + (+p.score || 0), 0) && (
-            <div className="perfect-match-message">
-              ¡MATCH PERFECTO!
-            </div>
-          )}
+
 
           {teams[0].length > 0 && (
             <>

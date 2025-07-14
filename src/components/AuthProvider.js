@@ -1,6 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { supabase, getProfile } from '../supabase';
 import UserHeader from './UserHeader';
+import LoadingSpinner from './LoadingSpinner';
 
 const AuthContext = createContext();
 
@@ -70,15 +71,10 @@ const AuthProvider = ({ children }) => {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        color: '#fff',
-        background: 'var(--gradient-bg)'
-      }}>
-        Loading...
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <LoadingSpinner size="lg" message="Cargando autenticación..." />
+        </div>
       </div>
     );
   }

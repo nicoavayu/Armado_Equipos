@@ -151,6 +151,45 @@ export const getVotantesIds = async (partidoId) => {
   return votantes;
 };
 
+export const getVotantesConNombres = async (partidoId) => {
+  if (!partidoId) {
+    console.warn('getVotantesConNombres: No partidoId provided');
+    return [];
+  }
+  
+  console.log('Fetching voters with names for match:', partidoId);
+  
+  const { data, error } = await supabase
+    .from('votos')
+    .select('votante_id, jugador_nombre, jugador_foto_url')
+    .eq('partido_id', partidoId);
+    
+  if (error) {
+    console.error('Error fetching voters with names:', error);
+    throw new Error(`Error fetching voters: ${error.message}`);
+  }
+  
+  // Group by votante_id and get unique voters with their names
+  const votantesMap = new Map();
+  (data || []).forEach(voto => {
+    if (voto.votante_id && !votantesMap.has(voto.votante_id)) {
+      votantesMap.set(voto.votante_id, {
+        nombre: voto.jugador_nombre || 'Jugador',
+        foto_url: voto.jugador_foto_url
+      });
+    }
+  });
+  
+  const votantes = Array.from(votantesMap.entries()).map(([id, data]) => ({ 
+    id, 
+    nombre: data.nombre,
+    foto_url: data.foto_url
+  }));
+  
+  console.log('Voters with names found:', votantes);
+  return votantes;
+};
+
 export const checkIfAlreadyVoted = async (votanteId, partidoId) => {
   // If no votanteId provided, get current user for this specific match
   if (!votanteId) {
@@ -220,8 +259,8 @@ export const debugVoting = async (partidoId) => {
   }
 };
 
-export const submitVotos = async (votos, jugadorUuid, partidoId) => {
-  console.log('🚀 SUBMIT VOTOS CALLED:', { votos, jugadorUuid, partidoId });
+export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, jugadorFoto) => {
+  console.log('🚀 SUBMIT VOTOS CALLED:', { votos, jugadorUuid, partidoId, jugadorNombre });
   
   // Validation first
   if (!jugadorUuid || typeof jugadorUuid !== 'string' || jugadorUuid.trim() === '') {
@@ -258,6 +297,8 @@ export const submitVotos = async (votos, jugadorUuid, partidoId) => {
         votante_id: votanteId, // Current user (auth or guest)
         puntaje: Number(puntaje),
         partido_id: partidoId,
+        jugador_nombre: jugadorNombre || 'Jugador',
+        jugador_foto_url: jugadorFoto || null
       };
     })
     .filter(voto => voto !== null);
@@ -490,32 +531,63 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
 // --- API de Partidos ---
 
 export const crearPartido = async ({ fecha, hora, sede, sedeMaps }) => {
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  
-  if (authError || !user) {
-    throw new Error('User must be authenticated to create matches');
-  }
-  
-  const codigo = generarCodigoPartido();
-  const { data, error } = await supabase
-    .from("partidos")
-    .insert([
-      {
-        codigo,
-        fecha,
-        hora,
-        sede,
-        sedeMaps,
-        jugadores: [],
-        estado: "activo",
-        creado_por: user.id
+  try {
+    console.log('Creating match with data:', { fecha, hora, sede, sedeMaps });
+    
+    // Get user without throwing error if not authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) {
+      console.warn('Auth error (continuing as guest):', authError);
+    }
+    
+    const codigo = generarCodigoPartido();
+    console.log('Generated match code:', codigo);
+    
+    const matchData = {
+      codigo,
+      fecha,
+      hora,
+      sede,
+      sedeMaps: sedeMaps || "",
+      jugadores: [],
+      estado: "activo",
+      creado_por: user?.id || null
+    };
+    
+    console.log('Inserting match data:', matchData);
+    
+    const { data, error } = await supabase
+      .from("partidos")
+      .insert([matchData])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Supabase insert error:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      
+      if (error.code === '42501') {
+        throw new Error('Permission denied. Please check Supabase RLS policies for partidos table.');
       }
-    ])
-    .select()
-    .single();
-  
-  if (error) throw new Error(`Error creating match: ${error.message}`);
-  return data;
+      if (error.code === '23505') {
+        throw new Error('Match code already exists. Please try again.');
+      }
+      
+      throw new Error(`Error creating match: ${error.message}`);
+    }
+    
+    console.log('Match created successfully:', data);
+    return data;
+    
+  } catch (error) {
+    console.error('crearPartido failed:', error);
+    throw error;
+  }
 };
 
 const generarCodigoPartido = (length = 6) => {

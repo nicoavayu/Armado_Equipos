@@ -1,4 +1,6 @@
 import React from 'react';
+import { motion } from 'framer-motion';
+import LoadingSpinner from './LoadingSpinner';
 
 const Button = ({ 
   children, 
@@ -22,7 +24,7 @@ const Button = ({
   };
 
   return (
-    <button
+    <motion.button
       className={`voting-confirm-btn wipe-btn ${getVariantClass()} ${className}`}
       onClick={onClick}
       disabled={disabled || loading}
@@ -32,10 +34,18 @@ const Button = ({
         ...style
       }}
       aria-label={ariaLabel}
+      whileHover={{ scale: disabled || loading ? 1 : 1.02 }}
+      whileTap={{ scale: disabled || loading ? 1 : 0.98 }}
+      transition={{ type: "spring", stiffness: 400, damping: 17 }}
       {...props}
     >
-      {loading ? loadingText : children}
-    </button>
+      {loading ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <LoadingSpinner size="sm" message="" />
+          {loadingText}
+        </div>
+      ) : children}
+    </motion.button>
   );
 };
 

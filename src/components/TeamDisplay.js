@@ -343,13 +343,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
           ))}
         </div>
         
-        {showPerfectMatch && (
-          <div className="perfect-match-overlay">
-            <div className="perfect-match-message">
-              ¡PARTIDO PAREJO!
-            </div>
-          </div>
-        )}
+
         
         {showConfetti && <div className="confetti-container"></div>}
         

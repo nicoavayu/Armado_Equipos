@@ -7,6 +7,7 @@ import {
   getPartidoPorCodigo,
   updateJugadoresPartido,
   getVotantesIds,
+  getVotantesConNombres,
 } from "./supabase";
 import { toast } from 'react-toastify';
 import { handleError, handleSuccess, safeAsync } from "./utils/errorHandler";
@@ -39,6 +40,7 @@ function MiniAvatar({ foto_url, nombre, size = 34 }) {
 
 export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange, partidoActual }) {
   const [votantes, setVotantes] = useState([]);
+  const [votantesConNombres, setVotantesConNombres] = useState([]);
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [loading, setLoading] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -60,12 +62,18 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       if (!partidoActual?.id) return;
       try {
         const votantesIds = await getVotantesIds(partidoActual.id);
+        const votantesNombres = await getVotantesConNombres(partidoActual.id);
         setVotantes(votantesIds || []);
+        setVotantesConNombres(votantesNombres || []);
       } catch (error) {
-        toast.error("Error cargando votantes: " + error.message);
+        console.error("Error cargando votantes:", error);
       }
     }
     fetchVotantes();
+    
+    // Auto-refresh every 2 seconds for real-time updates
+    const interval = setInterval(fetchVotantes, 2000);
+    return () => clearInterval(interval);
   }, [partidoActual?.id]);
   
   // Refresh voters when players change
@@ -424,7 +432,7 @@ async function handleCerrarVotacion() {
           {/* Players list section */}
           <div className="admin-players-section">
             <div className="admin-players-title">
-              JUGADORES ({jugadores.length})
+              JUGADORES ({jugadores.length}) - VOTARON: {votantesConNombres.map(v => v.nombre).join(', ') || 'Nadie aún'}
             </div>
             {jugadores.length === 0 ? (
               <div className="admin-players-empty">
@@ -432,10 +440,18 @@ async function handleCerrarVotacion() {
               </div>
             ) : (
               <div className="admin-players-grid">
-                {jugadores.map(j => (
+                {jugadores.map(j => {
+                  // Check if this specific player voted by name
+                  const hasVoted = votantesConNombres.some(v => v.nombre === j.nombre);
+                  return (
                   <div
                     key={j.uuid}
-                    className={`admin-player-item${votantes.includes(j.uuid) ? " voted" : ""}`}
+                    className={`admin-player-item${hasVoted ? " voted" : ""}`}
+                    style={hasVoted ? {
+                      background: 'rgba(0,255,136,0.3) !important',
+                      border: '3px solid #00ff88 !important',
+                      boxShadow: '0 0 15px rgba(0,255,136,0.6) !important'
+                    } : {}}
                   >
                     {j.foto_url ? (
                       <img src={j.foto_url} alt={j.nombre} className="admin-player-avatar" />
@@ -453,7 +469,8 @@ async function handleCerrarVotacion() {
                       ×
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -496,23 +513,6 @@ async function handleCerrarVotacion() {
               </button>
               
               {/* Warning messages */}
-              
-              {hasNoVotes && !hasOddPlayers && jugadores.length >= 2 && (
-                <div style={{
-                  color: '#fff',
-                  fontSize: '14px',
-                  fontFamily: 'Oswald, Arial, sans-serif',
-                  fontWeight: 'bold',
-                  textAlign: 'center',
-                  marginTop: '8px',
-                  background: 'rgba(14,169,198,0.1)',
-                  padding: '8px',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(14,169,198,0.3)'
-                }}>
-                  No se detectaron votos. Los equipos se formarán con puntajes por defecto (5/10)
-                </div>
-              )}
               
               {jugadores.length < 2 && (
                 <div style={{

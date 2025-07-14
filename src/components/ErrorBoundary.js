@@ -1,9 +1,11 @@
 import React from 'react';
+import { toast } from 'react-toastify';
+import Button from './Button';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError(error) {
@@ -11,11 +13,36 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    this.setState({ errorInfo });
+    
     // Log error for debugging (only in development)
     if (process.env.NODE_ENV === 'development') {
       console.error('Error caught by boundary:', error, errorInfo);
     }
+    
+    // Show toast notification
+    toast.error('Ha ocurrido un error inesperado');
   }
+
+  handleReportError = () => {
+    const errorReport = {
+      error: this.state.error?.message || 'Unknown error',
+      stack: this.state.error?.stack,
+      componentStack: this.state.errorInfo?.componentStack,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+      url: window.location.href
+    };
+    
+    // For now, just copy to clipboard - can be enhanced to send to error reporting service
+    navigator.clipboard.writeText(JSON.stringify(errorReport, null, 2))
+      .then(() => {
+        toast.success('Información del error copiada al portapapeles');
+      })
+      .catch(() => {
+        toast.error('No se pudo copiar la información del error');
+      });
+  };
 
   render() {
     if (this.state.hasError) {
@@ -35,13 +62,22 @@ class ErrorBoundary extends React.Component {
             }}>
               Ha ocurrido un error inesperado. Por favor, recarga la página para continuar.
             </div>
-            <button
-              className="voting-confirm-btn wipe-btn"
-              onClick={() => window.location.reload()}
-              style={{ margin: '0 auto' }}
-            >
-              RECARGAR PÁGINA
-            </button>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Button
+                onClick={() => window.location.reload()}
+                variant="primary"
+                ariaLabel="Recargar página"
+              >
+                RECARGAR PÁGINA
+              </Button>
+              <Button
+                onClick={this.handleReportError}
+                variant="secondary"
+                ariaLabel="Reportar error"
+              >
+                REPORTAR ERROR
+              </Button>
+            </div>
           </div>
         </div>
       );

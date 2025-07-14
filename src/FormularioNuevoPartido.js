@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import AutocompleteSede from "./AutocompleteSede";
-import { crearPartidoFrecuente, crearPartidoDesdeFrec } from "./supabase";
+import { crearPartidoFrecuente, crearPartidoDesdeFrec, crearPartido, supabase } from "./supabase";
 import { handleError, handleSuccess, safeAsync } from "./utils/errorHandler";
 
 export default function FormularioNuevoPartido({ onConfirmar, onVolver }) {
@@ -74,39 +74,51 @@ export default function FormularioNuevoPartido({ onConfirmar, onVolver }) {
             setError("");
             
             try {
-              // Always create as frequent match
-              const partidoFrecuente = await safeAsync(
-                () => crearPartidoFrecuente({
-                  nombre: nombrePartido.trim(),
-                  sede: sede.trim(),
-                  hora: hora.trim(),
-                  jugadores_frecuentes: [],
-                  creado_por: null,
-                  dia_semana: new Date(fecha).getDay(),
-                  habilitado: true,
-                  creado_en: new Date().toISOString()
-                }),
-                'Error al crear el partido frecuente'
-              );
+              // Check if user is authenticated
+              const { data: { user } } = await supabase.auth.getUser();
               
-              if (!partidoFrecuente) {
-                setError("No se pudo crear el partido");
-                return;
+              let partido;
+              
+              if (user) {
+                // User is authenticated - create frequent match + regular match
+                const partidoFrecuente = await safeAsync(
+                  () => crearPartidoFrecuente({
+                    nombre: nombrePartido.trim(),
+                    sede: sede.trim(),
+                    hora: hora.trim(),
+                    jugadores_frecuentes: [],
+                    dia_semana: new Date(fecha).getDay(),
+                    habilitado: true
+                  }),
+                  'Error al crear el partido frecuente'
+                );
+                
+                partido = await safeAsync(
+                  () => crearPartidoDesdeFrec(partidoFrecuente, fecha),
+                  'Error al crear el partido'
+                );
+                
+                partido.from_frequent_match_id = partidoFrecuente.id;
+              } else {
+                // User is not authenticated - create regular match only
+                partido = await safeAsync(
+                  () => crearPartido({
+                    fecha,
+                    hora: hora.trim(),
+                    sede: sede.trim(),
+                    sedeMaps: sedeInfo?.place_id || ""
+                  }),
+                  'Error al crear el partido'
+                );
+                
+                // Add match name for display
+                partido.nombre = nombrePartido.trim();
               }
-              
-              // Create regular match from frequent match
-              const partido = await safeAsync(
-                () => crearPartidoDesdeFrec(partidoFrecuente, fecha),
-                'Error al crear el partido'
-              );
               
               if (!partido) {
                 setError("No se pudo crear el partido");
                 return;
               }
-              
-              // Mark this match as created from a frequent match
-              partido.from_frequent_match_id = partidoFrecuente.id;
               
               await onConfirmar(partido);
               handleSuccess('Partido creado correctamente');

@@ -102,3 +102,33 @@ Testear la experiencia de usuario en mobile (responsividad).
 Revisar que los puntajes se mantengan después de recargar, si se quiere persistencia mayor (ahora son temporales).
 
 Agregar nuevas features o corregir feedback futuro si surge.
+
+## 🧪 Testing
+
+El proyecto incluye tests unitarios e integración usando React Testing Library + Jest.
+
+### Ejecutar tests
+```bash
+npm test
+```
+
+### Tests incluidos
+- **PlayerForm.test.js**: Tests para agregar jugadores y validación
+- **TeamGenerator.test.js**: Tests para generación de equipos
+- **AuthProvider.test.js**: Tests de integración para autenticación
+
+## ♿ Accesibilidad
+
+La aplicación incluye mejoras de accesibilidad:
+
+- **Navegación por teclado**: Todos los elementos interactivos son accesibles via teclado
+- **ARIA labels**: Etiquetas descriptivas para lectores de pantalla
+- **Gestión de foco**: Focus trap en modales y navegación lógica
+- **Alto contraste**: Soporte para modo de alto contraste
+- **Movimiento reducido**: Respeta las preferencias de movimiento reducido del usuario
+
+### Características de accesibilidad
+- Modales con roles ARIA apropiados
+- Botones con etiquetas descriptivas
+- Indicadores de foco visibles
+- Soporte para lectores de pantalla
