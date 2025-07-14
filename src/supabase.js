@@ -13,7 +13,7 @@ export const getJugadores = async () => {
   try {
     const { data, error } = await supabase
       .from('jugadores')
-      .select('id, uuid, nombre, foto_url, score')
+      .select('id, uuid, nombre, foto_url, score, is_goalkeeper')
       .order('nombre', { ascending: true });
       
     if (error) {
@@ -42,7 +42,7 @@ export const getJugadores = async () => {
 export const addJugador = async (nombre) => {
   const { data, error } = await supabase
     .from('jugadores')
-    .insert([{ nombre, score: 5 }])
+    .insert([{ nombre, score: 5, is_goalkeeper: false }])
     .select()
     .single();
   if (error) throw error;
