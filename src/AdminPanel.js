@@ -307,8 +307,16 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
   }
 
+  const getCorrectDomain = () => {
+    // Si estamos en el dominio con nicoavayus-projects, usar el dominio limpio
+    if (window.location.hostname.includes('nicoavayus-projects')) {
+      return 'https://arma2.vercel.app';
+    }
+    return window.location.origin;
+  };
+
   async function handleCopyLink() {
-    const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
+    const url = `${getCorrectDomain()}/?codigo=${partidoActual.codigo}`;
     try {
       await navigator.clipboard.writeText(url);
       await vibrate('light');
@@ -319,7 +327,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   }
 
   async function handleWhatsApp() {
-    const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
+    const url = `${getCorrectDomain()}/?codigo=${partidoActual.codigo}`;
     const title = "Team Balancer";
     const text = "Entrá a votar para armar los equipos";
     
