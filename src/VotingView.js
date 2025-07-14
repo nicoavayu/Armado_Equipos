@@ -376,25 +376,43 @@ if (step === STEPS.VOTE || editandoIdx !== null) {
               setHovered={setHovered}
             />
 
-            <div style={{ display: 'flex', gap: '10px', marginTop: 35, marginBottom: 0 }}>
-              <button
-                className="voting-confirm-btn"
-                style={{ fontWeight: 400, flex: 1 }}
-                onClick={() => handleVote(-1)}
-              >
-                NO LO CONOZCO
-              </button>
+            <div style={{ marginTop: 35, marginBottom: 0, width: '100%' }}>
+              {(() => {
+                const arquerosCount = Object.values(votos).filter(v => v === -2).length;
+                const isDisabled = arquerosCount >= 2;
+                return (
+                  <button
+                    className="voting-confirm-btn"
+                    style={{ 
+                      fontWeight: 400,
+                      width: '100%',
+                      marginBottom: '10px',
+                      background: isDisabled ? '#666' : '#FF6B35',
+                      border: isDisabled ? '1px solid #666' : '1px solid #FF6B35',
+                      opacity: isDisabled ? 0.6 : 1,
+                      cursor: isDisabled ? 'not-allowed' : 'pointer'
+                    }}
+                    onClick={() => {
+                      if (isDisabled) {
+                        toast.warn('Ya hay 2 arqueros seleccionados');
+                        return;
+                      }
+                      handleVote(-2);
+                    }}
+                  >
+                    ES ARQUERO
+                  </button>
+                );
+              })()}
               <button
                 className="voting-confirm-btn"
                 style={{ 
-                  fontWeight: 400, 
-                  flex: 1,
-                  background: '#FF6B35',
-                  border: '1px solid #FF6B35'
+                  fontWeight: 400,
+                  width: '100%'
                 }}
-                onClick={() => handleVote(-2)}
+                onClick={() => handleVote(-1)}
               >
-                🥅 ARQUERO
+                NO LO CONOZCO
               </button>
             </div>
             
