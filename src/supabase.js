@@ -345,8 +345,7 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
         puntaje: Number(puntaje),
         partido_id: partidoId,
         jugador_nombre: jugadorNombre || 'Jugador',
-        jugador_foto_url: jugadorFoto || null,
-        is_goalkeeper: puntaje === -2 // Marcar como arquero si el puntaje es -2
+        jugador_foto_url: jugadorFoto || null
       };
     })
     .filter(voto => voto !== null);
