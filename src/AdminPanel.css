@@ -1,321 +1,517 @@
-/* Contenedor general del contenido del panel */
+/* AdminPanel.css - Mobile-first redesign */
+
+/* Remove the wrapper card styling since it's handled by App.js */
 .admin-panel-content {
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 40px 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 20px !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
 }
 
-/* Grilla principal para las dos columnas */
-.admin-main-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  width: 100%;
-  margin-top: 20px;
+/* Match header styling */
+.match-header {
+  text-align: center;
+  margin-bottom: 24px;
 }
 
-/* Contenedor para agregar jugadores (columna izquierda) */
-.admin-add-player-container {
-  /* Sobrescribimos el padding de .dark-container para hacerlo más compacto */
-  padding: 12px !important;
-}
-
-/* Título y subtítulo */
-.voting-title-modern {
-  white-space: nowrap;
-}
-.admin-subtitle {
-  color: rgba(255, 255, 255, 0.9);
+.match-name {
   font-family: 'Bebas Neue', Arial, sans-serif;
-  font-size: 22px;
-  text-align: left;
-  margin-bottom: 10px; /* Menos margen */
-  text-transform: uppercase;
-}
-
-/* Formulario para agregar jugador */
-.admin-add-form {
-  display: flex;
-  gap: 10px;
-  width: 100%;
-  align-items: center; /* Alinear verticalmente al centro */
-}
-
-/* Ajuste de altura y fuente para el input */
-.admin-add-form .input-modern {
-  height: 48px;
-  flex: 1;
-  font-size: 18px; /* Tamaño de fuente estándar */
-}
-
-/* Botón de agregar en azul, con altura y fuente ajustadas */
-.admin-add-form .voting-confirm-btn {
-  background-color: var(--color-primary, #0EA9C6);
-  flex-shrink: 0;
-  height: 48px; /* Misma altura que el input */
-  font-size: 20px; /* Fuente más grande para jerarquía */
-  margin-top: 0; /* Eliminar margen superior para alineación */
-  align-self: center; /* Asegurar alineación */
-}
-
-/* Contenedor de la lista de jugadores (columna derecha) */
-.admin-list-container {
-  width: 100%;
-  background: rgba(0, 0, 0, 0.22) !important; /* Mismo fondo que .dark-container */
-  padding: 12px;
-  border-radius: 12px;
-}
-
-/* Título de la lista de jugadores */
-.admin-list-title {
+  font-size: 48px;
+  font-weight: 700;
   color: #fff;
-  font-size: 20px;
-  font-family: 'Bebas Neue', Arial, sans-serif;
+  text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin-bottom: 12px;
-  text-align: center; /* Centrado */
+  line-height: 1.0;
+  margin-bottom: 6px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  word-break: break-word;
+}
+
+.match-details {
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.9);
+  text-transform: capitalize;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Venue link styling */
+.venue-link {
+  color: rgba(255,255,255,0.9);
+  text-decoration: underline;
+  text-decoration-color: rgba(255,255,255,0.6);
+  text-underline-offset: 2px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.venue-link:hover {
+  color: #fff;
+  text-decoration-color: #fff;
+  text-decoration-thickness: 2px;
+  filter: brightness(1.1);
+}
+
+/* Title styling to match other views */
+.voting-title-modern {
+  font-family: 'Bebas Neue', Arial, sans-serif;
   text-transform: uppercase;
-  opacity: 0.8;
+  font-size: 46px;
+  color: #fff;
+  letter-spacing: 0.10em;
+  font-weight: 700;
+  margin-bottom: 20px;
+  text-align: center;
+  line-height: 1.1;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
-/* Grilla para las columnas de jugadores */
-.admin-jugadores-grid {
-  display: flex;
-  flex-direction: row;
-  gap: 12px; /* Menos gap */
-  width: 100%;
-  justify-content: center;
-  align-items: flex-start;
+/* Match code section */
+.admin-match-code {
+  background: rgba(255,255,255,0.12);
+  border: 2px solid rgba(255,255,255,0.25);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
 }
 
-/* Columna individual de jugadores */
-.admin-jugadores-col {
+.admin-match-code-content {
   display: flex;
   flex-direction: column;
-  gap: 5px; /* Menos gap */
-  width: 100%;
+  gap: 12px;
+  align-items: center;
+  text-align: center;
 }
 
-/* Fila de un jugador en la lista */
-.admin-jugador-box {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.05); /* Fondo muy sutil */
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-family: 'Oswald', Arial, sans-serif;
+.admin-match-code-label {
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 16px;
   color: #fff;
-  transition: background 0.2s, border-color 0.2s;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+
+.admin-match-code-value {
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 24px;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+
+.admin-copy-btn {
+  background: #0EA9C6;
+  color: #fff;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 44px;
+  width: 100%;
+  max-width: 200px;
+}
+
+.admin-copy-btn:hover {
+  background: #0c94a8;
+  transform: translateY(-1px);
+}
+
+/* Add player section */
+.admin-add-section {
+  background: rgba(255,255,255,0.12);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  padding: 20px;
   width: 100%;
   box-sizing: border-box;
 }
 
-/* Estilo para jugador que ya ha votado */
-.admin-jugador-box.votado {
-  background: rgba(60, 210, 120, 0.2);
-  border-color: rgba(65, 230, 142, 0.8);
+/* High specificity form layout - overrides global styles */
+.admin-panel-content .admin-add-section .admin-add-form {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
-/* Estilos para el avatar y su placeholder */
-.mini-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 6px;
-  object-fit: cover;
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.1);
-  margin-right: 10px;
-}
-.mini-avatar-placeholder {
-  width: 34px;
-  height: 34px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
-  margin-right: 10px;
+/* Input styling with high specificity */
+.admin-panel-content .admin-add-section .admin-add-form .input-modern {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  font-size: 17px !important;
+  border-radius: 10px !important;
+  margin: 0 !important;
+  margin-bottom: 0 !important;
+  margin-top: 0 !important;
+  background: rgba(255,255,255,0.95) !important;
+  border: 1.5px solid rgba(255,255,255,0.4) !important;
+  color: #333 !important;
+  padding: 0 14px !important;
+  box-sizing: border-box !important;
+  font-family: 'Oswald', Arial, sans-serif !important;
+  font-weight: 500 !important;
 }
 
-/* Nombre del jugador */
-.admin-jugador-nombre {
-  flex: 1;
+.admin-panel-content .admin-add-section .admin-add-form .input-modern:focus {
+  border-color: #0EA9C6 !important;
+  background: #fff !important;
+  outline: none !important;
+}
+
+.admin-panel-content .admin-add-section .admin-add-form .input-modern::placeholder {
+  color: rgba(51,51,51,0.6) !important;
+  font-size: 16px !important;
+}
+
+/* Button styling with high specificity */
+.admin-panel-content .admin-add-section .admin-add-form .voting-confirm-btn {
+  width: 88px !important;
+  min-width: 80px !important;
+  max-width: 100px !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  font-size: 15px !important;
+  border-radius: 10px !important;
+  margin: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  background: #0EA9C6 !important;
+  border: 2px solid #fff !important;
+  color: #fff !important;
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+  font-family: 'Bebas Neue', Arial, sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  padding: 0 8px !important;
+}
+
+.admin-panel-content .admin-add-section .admin-add-form .voting-confirm-btn:hover {
+  background: #0c94a8 !important;
+  transform: translateY(-1px) !important;
+}
+
+.admin-panel-content .admin-add-section .admin-add-form .voting-confirm-btn:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+/* Mobile responsive overrides */
+@media (max-width: 480px) {
+  .admin-panel-content .admin-add-section .admin-add-form {
+    gap: 8px !important;
+  }
+  
+  .admin-panel-content .admin-add-section .admin-add-form .input-modern {
+    font-size: 16px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    padding: 0 12px !important;
+  }
+  
+  .admin-panel-content .admin-add-section .admin-add-form .voting-confirm-btn {
+    width: 76px !important;
+    min-width: 70px !important;
+    max-width: 85px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    font-size: 13px !important;
+    padding: 0 6px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .admin-panel-content .admin-add-section .admin-add-form .input-modern {
+    font-size: 15px !important;
+  }
+  
+  .admin-panel-content .admin-add-section .admin-add-form .voting-confirm-btn {
+    width: 70px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* Players list section */
+.admin-players-section {
+  background: rgba(255,255,255,0.12);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  padding: 20px;
+  min-height: 120px;
+}
+
+.admin-players-title {
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 20px;
   color: #fff;
-  font-weight: 500;
-  font-size: 18px;
-  font-family: 'Oswald', Arial, sans-serif;
-  word-break: break-word;
-  text-align: left;
+  text-align: center;
+  margin-bottom: 16px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
-/* Botón para eliminar jugador, estilo "modo rápido" */
-.remove-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 1.2em;
-  font-weight: bold;
-  border-radius: 6px;
-  cursor: pointer;
-  width: 30px;
-  height: 30px;
-  line-height: 1;
+.admin-players-grid {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-.remove-btn:hover,
-.remove-btn:focus {
-  background: rgba(222, 28, 73, 0.8); /* Color accent al hover */
-  color: #fff;
-  border-color: rgba(222, 28, 73, 1);
-}
-
-/* Fila de botones de acción */
-.admin-actions-row {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr); /* Dos columnas */
-  gap: 10px;
-  margin-top: 15px;
+  flex-direction: column;
+  gap: 8px;
   width: 100%;
 }
 
-/* Estilos base para los botones de acción */
-.admin-actions-row .voting-confirm-btn {
-  height: auto;
-  min-height: 48px;
-  font-size: 16px;
-  padding: 10px 15px;
-  margin-top: 0;
+.admin-player-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 12px;
+  transition: all 0.2s ease;
+  min-height: 44px;
+}
+
+.admin-player-item:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.25);
+}
+
+.admin-player-item.voted {
+  border-color: #00ff88 !important;
+  background: rgba(0,255,136,0.25) !important;
+  box-shadow: 0 0 12px rgba(0,255,136,0.4) !important;
+  transform: scale(1.02) !important;
+}
+
+.admin-player-item.voted::after {
+  content: '✓';
+  color: #00ff88;
+  font-weight: bold;
+  font-size: 18px;
+  margin-left: auto;
+  text-shadow: 0 0 4px rgba(0,255,136,0.6);
+}
+
+.admin-player-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.2);
+  flex-shrink: 0;
+}
+
+.admin-player-avatar-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.3);
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
-/* Colores con opacidad */
-.btn-link {
-  background-color: rgba(0, 123, 255, 0.8) !important;
-}
-
-.btn-cerrar {
-  background-color: rgb(8, 153, 34) !important;
-  color: #fffffffff !important;
-  grid-column: span 2;
-}
-
-.btn-whatsapp {
-  background-color: rgba(37, 211, 102, 0.8) !important;
-}
-
-.btn-volver {
-  background-color: rgba(222, 28, 73, 0.8) !important;
-  grid-column: span 2;
-}
-
-/* Mensaje de "Link copiado" */
-.admin-copy-msg {
+.admin-player-name {
+  flex: 1;
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
   color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.admin-remove-btn {
+  width: 32px;
+  height: 32px;
+  background: #DE1C49;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.admin-remove-btn:hover {
+  background: #c41841;
+  transform: scale(1.1);
+}
+
+.admin-remove-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Empty state */
+.admin-players-empty {
   text-align: center;
-  font-weight: 600;
-  margin: -12px 0 12px 0;
-  opacity: 0.9;
+  color: rgba(255,255,255,0.6);
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 16px;
+  padding: 20px;
+  font-style: italic;
 }
 
-/* Estilos para el toast de "Link copiado" */
-.admin-copy-msg-toast {
-  position: fixed;
-  top: 32px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #232a32;
+/* Action buttons */
+.admin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.admin-actions .voting-confirm-btn {
+  width: 100%;
+  height: 54px;
+  font-size: 1.5rem;
+  border-radius: 8px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  letter-spacing: 0.5px;
+}
+
+.admin-btn-primary {
+  background: #0EA9C6;
+  border: 2px solid #fff;
   color: #fff;
-  padding: 16px 32px;
-  border-radius: 12px;
-  font-size: 1.2rem;
-  font-weight: 600;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
-  z-index: 9999;
-  opacity: 0.97;
-  animation: fadeInOut 1.7s;
 }
 
-@keyframes fadeInOut {
-  0% { opacity: 0; transform: translateX(-50%) scale(0.95); }
-  10% { opacity: 1; transform: translateX(-50%) scale(1); }
-  90% { opacity: 1; transform: translateX(-50%) scale(1); }
-  100% { opacity: 0; transform: translateX(-50%) scale(0.95); }
+.admin-btn-whatsapp {
+  background: #25D366;
+  border: 2px solid #fff;
+  color: #fff;
 }
 
-/* --- Media Queries para Responsividad --- */
-@media (max-width: 900px) {
-  .admin-main-grid {
-    grid-template-columns: 1fr; /* Una sola columna en pantallas más pequeñas */
-    gap: 30px;
-  }
-  .admin-subtitle {
-    text-align: center;
-  }
-  .admin-add-player-container {
-    align-items: center;
-  }
+.admin-btn-danger {
+  background: #DE1C49;
+  border: 2px solid #fff;
+  color: #fff;
 }
 
-@media (max-width: 700px) {
-  .admin-panel-content {
-    margin-top: 24px !important;
-    margin-bottom: 24px !important;
-  }
-  .voting-title-modern {
-    margin-top: 12px !important;
-    margin-bottom: 12px !important;
-  }
-  .admin-actions-row {
-    margin-bottom: 40px !important;
-  }
-  .admin-jugadores-grid {
-    flex-direction: column;
-    gap: 5px;
-  }
-  .admin-actions-row {
-    grid-template-columns: 1fr;
-    gap: 10px;
-    margin-top: 20px;
-  }
-  .btn-cerrar, .btn-volver, .btn-link, .btn-whatsapp {
-    grid-column: span 1;
-  }
-  .admin-add-form {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .admin-list-container {
-    width: 100%;
-    box-sizing: border-box;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-  }
+.admin-btn-secondary {
+  background: transparent;
+  border: 2px solid rgba(255,255,255,0.6);
+  color: rgba(255,255,255,0.9);
 }
 
+.admin-btn-secondary:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: #fff;
+  color: #fff;
+}
+
+
+
+/* Mobile responsive */
 @media (max-width: 480px) {
   .admin-panel-content {
-    margin-top: 14px !important;
-    margin-bottom: 14px !important;
+    padding: 20px 0 !important;
   }
-  .voting-title-modern {
-    margin-top: 8px !important;
-    margin-bottom: 8px !important;
+  
+  .match-name {
+    font-size: 36px;
   }
-  .admin-actions-row .voting-confirm-btn {
-    font-size: 14px;
-    padding: 8px 12px;
+  
+  .match-details {
+    font-size: 18px;
+  }
+}
+
+/* Desktop responsive */
+@media (min-width: 768px) {
+  .match-name {
+    font-size: 58px;
+  }
+  
+  .match-details {
+    font-size: 24px;
+  }
+  
+  .admin-match-code-content {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .admin-copy-btn {
+    width: auto;
+    min-width: 120px;
+  }
+  
+  .admin-players-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  
+  .admin-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  
+  .admin-actions .voting-confirm-btn {
+    flex: 1;
+    min-width: 200px;
+  }
+  
+  /* Desktop input/button sizing */
+  .admin-panel-content .admin-add-section .admin-add-form .input-modern {
+    height: 50px !important;
+    min-height: 50px !important;
+    max-height: 50px !important;
+    font-size: 18px !important;
+  }
+  
+  .admin-panel-content .admin-add-section .admin-add-form .voting-confirm-btn {
+    width: 100px !important;
+    min-width: 90px !important;
+    max-width: 110px !important;
+    height: 50px !important;
+    min-height: 50px !important;
+    max-height: 50px !important;
+    font-size: 16px !important;
   }
 }

@@ -1,36 +1,40 @@
-.star-rating-wrapper {
-  width: 100%;
-  padding-bottom: 8px;
-  margin-top: 12px; /* Margen superior agregado */
-}
-
 .star-rating {
   display: grid;
   grid-template-columns: repeat(10, 1fr);
   gap: 6px;
   width: 100%;
+  padding-bottom: 8px;
+  margin-top: 12px;
 }
 
 .star-button {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.15);
   color: white;
-  border: 3px solid rgba(255, 255, 255, 0.3); /* Stroke blanco */
-  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
   padding: 10px 0;
   font-size: 16px;
-  font-weight: bold;
+  font-weight: 700;
+  font-family: 'Bebas Neue', Arial, sans-serif;
   width: 100%;
   cursor: pointer;
-  transition: background-color 0.3s, border-color 0.3s;
+  transition: all 0.2s ease;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .star-button:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-  border-color: white;
+  background-color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
 }
 
 .star-button.active {
-  background-color: white;
+  background-color: #fff;
   color: #0EA9C6;
-  border-color: white;
+  border-color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }

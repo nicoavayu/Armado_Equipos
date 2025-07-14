@@ -1,7 +1,7 @@
 // src/DemoFlujoPartido.js
 import React, { useState } from "react";
 import SeleccionarTipoPartido from "./SeleccionarTipoPartido";
-import FormularioNuevoPartido from "./FormularioNuevoPartido";
+import FormularioNuevoPartidoFlow from "./FormularioNuevoPartidoFlow";
 import PartidoInfoBox from "./PartidoInfoBox";
 
 export default function DemoFlujoPartido() {
@@ -17,7 +17,7 @@ export default function DemoFlujoPartido() {
     );
   if (step === 1)
     return (
-      <FormularioNuevoPartido
+      <FormularioNuevoPartidoFlow
         onConfirmar={data => {
           setPartido(data);
           setStep(2);

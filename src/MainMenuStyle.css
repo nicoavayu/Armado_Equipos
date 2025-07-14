@@ -1,0 +1,97 @@
+.menu-main-bg {
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Usá el fondo que ya venías usando, no este */
+  background: none !important;
+}
+
+.menu-main-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  box-shadow: none;
+}
+
+.menu-row {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  align-items: center;
+}
+
+.menu-btn-fifa {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  background: rgba(255,255,255,0.30);
+  color: #232a32;
+  border-radius: 0px; /* O 0 para sin nada */
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  cursor: pointer;
+  box-shadow: 0 3px 14px 0 #22285011;
+  transition: box-shadow 0.16s, background 0.14s;
+  overflow: hidden;
+  padding: 0;
+}
+
+.menu-btn-fifa:active,
+.menu-btn-fifa:hover {
+  box-shadow: 0 8px 32px 0 #0EA9C644;
+  background: rgba(255,255,255,0.44);
+}
+
+.menu-btn-label {
+  position: absolute;
+  top: 13px;
+  left: 14px;
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 1.18rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #ffffff;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.menu-btn-icon {
+  position: absolute;
+  bottom: 13px;
+  right: 13px;
+  z-index: 2;
+  font-size: 2.0rem;
+  opacity: 0.75;
+}
+
+@media (max-width: 900px) {
+  .menu-row {
+    flex-direction: column;
+    gap: 13px;
+  }
+  .menu-btn-fifa {
+    width: 92vw;
+    min-width: 0;
+    max-width: 370px;
+    height: 85px;
+    border-radius: 6px;
+  }
+  .menu-btn-label {
+    font-size: 0.93rem;
+    top: 9px;
+    left: 12px;
+  }
+  .menu-btn-icon {
+    font-size: 1.25rem;
+    bottom: 8px;
+    right: 12px;
+  }
+}

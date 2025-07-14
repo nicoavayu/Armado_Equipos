@@ -1,0 +1,155 @@
+.frecuentes-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 26px;
+  justify-content: center;
+  align-items: stretch;
+}
+
+/* Tarjeta principal */
+.frecuente-card {
+  background: rgba(34,40,80,0.17);
+  border-radius: 14px;
+  padding: 20px 18px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  box-shadow: 0 2px 12px 0 rgba(30,38,60,0.08);
+  min-width: 0;
+  max-width: 370px;
+  width: 100%;
+}
+
+.frecuente-main-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.frecuente-img-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.frecuente-img {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 15px;
+  background: #e9eef0;
+  border: 1.5px solid #d3dbe0;
+  box-shadow: 0 1px 7px 0 #e7e7e7;
+}
+
+.frecuente-data-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.frecuente-meta {
+  font-size: 13px;
+  font-family: 'Oswald', Arial, sans-serif;
+  color: #c8d1d7;
+  margin-bottom: 0;
+  line-height: 1.14;
+  font-weight: 500;
+  letter-spacing: .5px;
+  text-align: left;
+}
+
+.frecuente-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.frecuente-title {
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 21px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 1px;
+  line-height: 1;
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.frecuente-btns-inline {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.frecuente-edit-btn,
+.frecuente-del-btn {
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 15px;
+  border-radius: 9px;
+  padding: 7px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+  margin-left: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Editar: celeste */
+.frecuente-edit-btn {
+  background: #e3f5fa;
+  color: #189ab4;
+}
+.frecuente-edit-btn:hover {
+  background: #b8e0eb;
+  color: #155e75;
+}
+
+/* Borrar: rojo claro */
+.frecuente-del-btn {
+  background: #ffeaea;
+  color: #e03535;
+}
+.frecuente-del-btn:hover {
+  background: #f7caca;
+  color: #c70000;
+}
+
+@media (max-width: 650px) {
+  .frecuentes-grid {
+    gap: 13px;
+  }
+  .frecuente-card {
+    padding: 13px 7px 10px 7px;
+    max-width: 98vw;
+  }
+  .frecuente-img {
+    width: 46px;
+    height: 46px;
+    border-radius: 11px;
+  }
+  .frecuente-title {
+    font-size: 17px;
+  }
+  .frecuente-meta {
+    font-size: 12px;
+  }
+  .frecuente-edit-btn,
+  .frecuente-del-btn {
+    padding: 6px 13px;
+    font-size: 13px;
+  }
+}

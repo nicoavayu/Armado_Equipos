@@ -1,16 +1,17 @@
-// src/VotingView.js
 import React, { useState, useEffect } from "react";
+import { toast } from 'react-toastify';
+import { STEPS } from "./constants";
 import {
   checkIfAlreadyVoted,
   uploadFoto,
   submitVotos,
 } from "./supabase";
-import { toast } from 'react-toastify';
 import StarRating from "./StarRating";
 import "./VotingView.css";
 
 
-// Avatar cuadrado por defecto (SVG simple)
+import { useGuestSession } from "./hooks/useGuestSession";
+
 const DefaultAvatar = (
   <div className="voting-photo-placeholder">
     <svg width="80" height="80" viewBox="0 0 38 38" fill="none">
@@ -21,9 +22,12 @@ const DefaultAvatar = (
   </div>
 );
 
-export default function VotingView({ onReset, jugadores }) {
-  // Estados principales
-  const [step, setStep] = useState(0);
+export default function VotingView({ onReset, jugadores, partidoActual }) {
+  // Initialize guest session for this match
+  useGuestSession(partidoActual?.id);
+  
+  // All React hooks must be called at the top level
+  const [step, setStep] = useState(STEPS.IDENTIFY);
   const [nombre, setNombre] = useState("");
   const [jugador, setJugador] = useState(null);
 
@@ -45,7 +49,7 @@ export default function VotingView({ onReset, jugadores }) {
   const [yaVoto, setYaVoto] = useState(false);
 
   // Jugadores a votar: todos menos yo
-  const jugadoresParaVotar = jugadores.filter(j => j.nombre !== nombre);
+  const jugadoresParaVotar = (jugadores || []).filter(j => j.nombre !== nombre);
 
   useEffect(() => {
     if (step === 2 && current > jugadoresParaVotar.length - 1) {
@@ -62,29 +66,81 @@ export default function VotingView({ onReset, jugadores }) {
 
   useEffect(() => {
     if (!nombre) return;
-    const j = jugadores.find(j => j.nombre === nombre);
+    const j = (jugadores || []).find(j => j.nombre === nombre);
     setJugador(j || null);
     setFotoPreview(j?.foto_url || null);
   }, [nombre, jugadores]);
 
   useEffect(() => {
     async function checkVoteStatus() {
-      if (!jugador || !jugador.uuid) return;
+      if (!partidoActual?.id) return;
       try {
-        const hasVoted = await checkIfAlreadyVoted(jugador.uuid);
+        const hasVoted = await checkIfAlreadyVoted(null, partidoActual.id);
+        console.log('Vote status check result:', { partidoId: partidoActual.id, hasVoted });
         setYaVoto(hasVoted);
       } catch (error) {
-        toast.error("Error verificando el estado del voto: " + error.message);
+        console.error('Error checking vote status:', error);
+        // Don't show error toast for vote status check failures
+        setYaVoto(false); // Allow voting if check fails
       }
     }
     checkVoteStatus();
-  }, [jugador]);
+  }, [partidoActual, finalizado]); // Re-check when voting is completed
+
+  // Show loading state while partido is being loaded
+  if (partidoActual === undefined) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="match-name">CARGANDO...</div>
+          <div style={{ color: "#fff", fontSize: 18, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: "center" }}>
+            Cargando información del partido...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error only if partido is explicitly null (failed to load)
+  if (partidoActual === null) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="match-name">ERROR</div>
+          <div style={{ color: "#fff", fontSize: 18, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: "center" }}>
+            No se pudo cargar la información del partido.<br />
+            Verificá el código e intentá de nuevo.
+          </div>
+          <button
+            className="voting-confirm-btn"
+            onClick={() => window.location.reload()}
+            style={{ marginTop: 16, width: '100%', fontSize: '1.5rem' }}
+          >REINTENTAR</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Validation for missing partido ID
+  if (!partidoActual.id) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="match-name">ERROR</div>
+          <div style={{ color: "#fff", fontSize: 18, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: "center" }}>
+            El partido no tiene un ID válido.<br />
+            Contactá al administrador.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (yaVoto) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">
+          <div className="match-name">
             ¡YA VOTASTE!
           </div>
           <div style={{ color: "#fff", fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30 }}>
@@ -93,7 +149,7 @@ export default function VotingView({ onReset, jugadores }) {
           <button
             className="voting-confirm-btn"
             onClick={onReset}
-            style={{ marginTop: 16 }}
+            style={{ marginTop: 16, width: '100%', fontSize: '1.5rem' }}
           >VOLVER AL INICIO</button>
         </div>
       </div>
@@ -101,13 +157,13 @@ export default function VotingView({ onReset, jugadores }) {
   }
 
   // Paso 0: Identificarse
-  if (step === 0) {
+  if (step === STEPS.IDENTIFY) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">¿QUIÉN SOS?</div>
+          <div className="match-name">¿QUIÉN SOS?</div>
           <div className="player-select-grid">
-            {jugadores.map(j => (
+            {(jugadores || []).map(j => (
               <button
                 key={j.uuid}
                 className={`player-select-btn${nombre === j.nombre ? " selected" : ""}`}
@@ -118,11 +174,16 @@ export default function VotingView({ onReset, jugadores }) {
               </button>
             ))}
           </div>
+          {(!jugadores || jugadores.length === 0) && (
+            <div style={{ color: "#fff", fontSize: 18, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: "center" }}>
+              No hay jugadores disponibles para este partido.
+            </div>
+          )}
           <button
             className="voting-confirm-btn"
             disabled={!nombre}
             style={{ opacity: nombre ? 1 : 0.4, pointerEvents: nombre ? "auto" : "none" }}
-            onClick={() => setStep(1)}
+            onClick={() => setStep(STEPS.PHOTO)}
           >
             CONFIRMAR
           </button>
@@ -132,11 +193,28 @@ export default function VotingView({ onReset, jugadores }) {
   }
 
   // Paso 1: Subir foto (opcional)
-  if (step === 1) {
-    const handleFile = (e) => {
+  if (step === STEPS.PHOTO) {
+    const handleFile = async (e) => {
       if (e.target.files && e.target.files[0]) {
-        setFile(e.target.files[0]);
-        setFotoPreview(URL.createObjectURL(e.target.files[0]));
+        const selectedFile = e.target.files[0];
+        setFile(selectedFile);
+        setFotoPreview(URL.createObjectURL(selectedFile));
+        
+        // Auto-upload the photo immediately
+        if (jugador) {
+          setSubiendoFoto(true);
+          try {
+            const fotoUrl = await uploadFoto(selectedFile, jugador);
+            setFotoPreview(fotoUrl);
+            setJugador(prev => ({ ...prev, foto_url: fotoUrl }));
+            setFile(null);
+            toast.success("¡Foto cargada!");
+          } catch (error) {
+            toast.error("Error al subir la foto: " + error.message);
+          } finally {
+            setSubiendoFoto(false);
+          }
+        }
       }
     };
 
@@ -146,6 +224,8 @@ export default function VotingView({ onReset, jugadores }) {
       try {
         const fotoUrl = await uploadFoto(file, jugador);
         setFotoPreview(fotoUrl);
+        // Update local jugador object with new photo
+        setJugador(prev => ({ ...prev, foto_url: fotoUrl }));
         setFile(null);
         toast.success("¡Foto cargada!");
       } catch (error) {
@@ -158,7 +238,7 @@ export default function VotingView({ onReset, jugadores }) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">¡HOLA, {nombre}!</div>
+          <div className="match-name">¡HOLA, {nombre}!</div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 18 }}>
             <div
               className="voting-photo-box"
@@ -193,20 +273,21 @@ export default function VotingView({ onReset, jugadores }) {
              Mandale Selfie, asi saben quien sos.<br />
             </div>
           )}
-          {file && (
-            <button
-              className="voting-confirm-btn"
-              style={{ background: "rgba(255,255,255,0.17)", borderColor: "#fff", color: "#fff" }}
-              disabled={subiendoFoto}
-              onClick={handleFotoUpload}
-            >
-              {subiendoFoto ? "SUBIENDO..." : "GUARDAR FOTO"}
-            </button>
+          {subiendoFoto && (
+            <div style={{
+              fontSize: 16,
+              color: "rgba(255,255,255,0.8)",
+              textAlign: "center",
+              marginTop: 12,
+              fontFamily: "'Oswald', Arial, sans-serif"
+            }}>
+              Subiendo foto...
+            </div>
           )}
           <button
             className="voting-confirm-btn"
             style={{ marginTop: 8 }}
-            onClick={() => setStep(2)}
+            onClick={() => setStep(STEPS.VOTE)}
           >
             {fotoPreview ? "CONTINUAR" : "CONTINUAR SIN FOTO"}
           </button>
@@ -216,7 +297,7 @@ export default function VotingView({ onReset, jugadores }) {
   }
 
   // Paso 2: Votar a los demás jugadores
-if (step === 2 || editandoIdx !== null) {
+if (step === STEPS.VOTE || editandoIdx !== null) {
   const jugadoresNoVotados = jugadoresParaVotar.filter(j => !(j.uuid in votos));
   let jugadorVotar;
   if (editandoIdx !== null) {
@@ -251,19 +332,7 @@ if (step === 2 || editandoIdx !== null) {
       <div className="voting-bg">
         <div className={`player-vote-card ${animation}`}>
           <div className="voting-modern-card" style={{ background: "transparent", boxShadow: "none", padding: 0 }}>
-            
-            {/* Mensaje agregado */}
-            <div style={{
-              fontSize: 20,
-              fontFamily: "'Oswald', Arial, sans-serif",
-              color: "#fff",
-              marginBottom: 12,
-              textAlign: "center"
-            }}>
-              Los votos son secretos, nadie se entera lo que pones
-            </div>
-
-            <div className="voting-title-modern">
+            <div className="match-name">
               CALIFICÁ A TUS COMPAÑEROS
             </div>
 
@@ -291,23 +360,34 @@ if (step === 2 || editandoIdx !== null) {
             >
               NO LO CONOZCO
             </button>
+            
+            <div style={{
+              fontSize: 16,
+              fontFamily: "'Oswald', Arial, sans-serif",
+              color: "rgba(255,255,255,0.7)",
+              marginTop: 20,
+              textAlign: "center",
+              fontStyle: "italic"
+            }}>
+              Los votos son secretos, nadie se entera lo que pones
+            </div>
           </div>
         </div>
       </div>
     );
   } else {
-    setTimeout(() => setStep(3), 200);
+    setTimeout(() => setStep(STEPS.CONFIRM), 200);
     return null;
   }
 }
 
 
   // Paso 3: Resumen y edición antes de confirmar
-  if (step === 3 && !finalizado) {
+  if (step === STEPS.CONFIRM && !finalizado) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">
+          <div className="match-name">
             CONFIRMÁ TUS<br />CALIFICACIONES
           </div>
           <ul className="confirmation-list">
@@ -337,12 +417,30 @@ if (step === 2 || editandoIdx !== null) {
             className="voting-confirm-btn"
             style={{ marginTop: 8, fontWeight: 700, letterSpacing: 1.2 }}
             onClick={async () => {
+  // Validate required data before submitting
+  if (!jugador?.uuid) {
+    toast.error('Error: No se pudo identificar al jugador');
+    return;
+  }
+  if (!partidoActual?.id) {
+    toast.error('Error: No se pudo identificar el partido');
+    return;
+  }
+  if (Object.keys(votos).length === 0) {
+    toast.error('Error: No hay votos para guardar');
+    return;
+  }
+  
   setConfirmando(true);
   try {
-    await submitVotos(votos, jugador?.uuid);
+    await submitVotos(votos, jugador.uuid, partidoActual.id, jugador.nombre, fotoPreview);
+    // Immediately update voting status
+    setYaVoto(true);
     setFinalizado(true);
+    toast.success('¡Votos guardados correctamente!');
   } catch (error) {
-    toast.error("Error al guardar los votos: " + error.message);
+    console.error('Error submitting votes:', error);
+    toast.error(error.message);
   } finally {
     setConfirmando(false);
   }
@@ -362,7 +460,7 @@ if (step === 2 || editandoIdx !== null) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">
+          <div className="match-name">
             YA VOTASTE
           </div>
           <div

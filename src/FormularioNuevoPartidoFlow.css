@@ -1,0 +1,34 @@
+/* Mobile full width for new match flow */
+@media (max-width: 480px) {
+  .new-match-flow .voting-modern-card {
+    padding: 12px !important;
+    margin: 0 !important;
+    width: 100vw !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
+    left: 50% !important;
+    margin-left: -50vw !important;
+    position: relative !important;
+  }
+  
+  .new-match-flow .input-modern {
+    width: calc(100% - 24px) !important;
+    margin-left: 12px !important;
+    margin-right: 12px !important;
+    box-sizing: border-box !important;
+  }
+  
+  .new-match-flow .voting-confirm-btn {
+    width: calc(100% - 24px) !important;
+    margin-left: 12px !important;
+    margin-right: 12px !important;
+    box-sizing: border-box !important;
+  }
+  
+  .new-match-flow .voting-photo-box {
+    width: calc(100vw - 48px) !important;
+    height: calc(100vw - 48px) !important;
+    max-width: 280px !important;
+    max-height: 280px !important;
+  }
+}
