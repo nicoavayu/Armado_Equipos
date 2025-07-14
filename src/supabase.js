@@ -345,7 +345,8 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
         puntaje: Number(puntaje),
         partido_id: partidoId,
         jugador_nombre: jugadorNombre || 'Jugador',
-        jugador_foto_url: jugadorFoto || null
+        jugador_foto_url: jugadorFoto || null,
+        is_goalkeeper: puntaje === -2 // Marcar como arquero si el puntaje es -2
       };
     })
     .filter(voto => voto !== null);
@@ -435,7 +436,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     console.log('📊 SUPABASE: Step 2 - Fetching players');
     const { data: jugadores, error: playerError } = await supabase
       .from('jugadores')
-      .select('uuid, nombre');
+      .select('uuid, nombre, is_goalkeeper');
       
     if (playerError) {
       console.error('❌ SUPABASE: Error fetching players:', playerError);
@@ -452,9 +453,10 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       return { message: 'No hay jugadores para actualizar.' };
     }
     
-    // Step 3: Group votes by player
+    // Step 3: Group votes by player and check for goalkeepers
     console.log('📊 SUPABASE: Step 3 - Grouping votes by player');
     const votesByPlayer = {};
+    const goalkeepers = new Set(); // Track players marked as goalkeepers
     let totalValidVotes = 0;
     let totalInvalidVotes = 0;
     
@@ -473,7 +475,12 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
         if (voto.puntaje !== null && voto.puntaje !== undefined) {
           const score = Number(voto.puntaje);
           if (!isNaN(score)) {
-            votesByPlayer[voto.votado_id].push(score);
+            // Check if player is marked as goalkeeper (score -2)
+            if (score === -2) {
+              goalkeepers.add(voto.votado_id);
+            } else {
+              votesByPlayer[voto.votado_id].push(score);
+            }
             totalValidVotes++;
           } else {
             console.warn('⚠️ SUPABASE: Invalid score:', voto.puntaje);
@@ -503,10 +510,12 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     
     for (const jugador of jugadores) {
       const playerVotes = votesByPlayer[jugador.uuid] || [];
-      // Filter out "don't know" votes (-1)
+      const isGoalkeeper = goalkeepers.has(jugador.uuid);
+      
+      // Filter out "don't know" votes (-1) and goalkeeper votes (-2)
       const numericalVotes = playerVotes
         .map(p => Number(p))
-        .filter(p => !isNaN(p) && p !== -1 && p >= 1 && p <= 10);
+        .filter(p => !isNaN(p) && p !== -1 && p !== -2 && p >= 1 && p <= 10);
         
       let avgScore = 5; // Default score
       if (numericalVotes.length > 0) {
@@ -518,13 +527,17 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
         uuid: jugador.uuid,
         nombre: jugador.nombre,
         votes: numericalVotes,
-        avgScore
+        avgScore,
+        isGoalkeeper
       });
       
-      // Create update promise
+      // Create update promise - update both score and goalkeeper status
       const updatePromise = supabase
         .from('jugadores')
-        .update({ score: avgScore })
+        .update({ 
+          score: avgScore,
+          is_goalkeeper: isGoalkeeper
+        })
         .eq('uuid', jugador.uuid);
         
       updates.push(updatePromise);

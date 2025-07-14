@@ -131,14 +131,30 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   /**
    * Creates balanced teams based on player scores
    * Distributes players to minimize score difference between teams
+   * Arqueros are distributed separately (one per team)
    */
   function armarEquipos(jugadores) {
-    const jugadoresOrdenados = [...jugadores].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    // Separar arqueros de jugadores normales
+    const arqueros = jugadores.filter(j => j.is_goalkeeper);
+    const jugadoresNormales = jugadores.filter(j => !j.is_goalkeeper);
+    
     const equipoA = [];
     const equipoB = [];
     let puntajeA = 0;
     let puntajeB = 0;
 
+    // Distribuir arqueros primero (uno por equipo)
+    arqueros.forEach((arquero, index) => {
+      if (index % 2 === 0) {
+        equipoA.push(arquero.uuid);
+      } else {
+        equipoB.push(arquero.uuid);
+      }
+    });
+
+    // Distribuir jugadores normales por puntaje
+    const jugadoresOrdenados = [...jugadoresNormales].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+    
     jugadoresOrdenados.forEach(jugador => {
       if (equipoA.length < equipoB.length) {
         equipoA.push(jugador.uuid);
@@ -156,7 +172,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         }
       }
     });
-
 
     return [
       { id: "equipoA", name: "Equipo A", players: equipoA, score: puntajeA },

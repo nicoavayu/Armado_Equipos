@@ -376,13 +376,27 @@ if (step === STEPS.VOTE || editandoIdx !== null) {
               setHovered={setHovered}
             />
 
-            <button
-              className="voting-confirm-btn"
-              style={{ marginTop: 35, marginBottom: 0, fontWeight: 400 }}
-              onClick={() => handleVote(-1)}
-            >
-              NO LO CONOZCO
-            </button>
+            <div style={{ display: 'flex', gap: '10px', marginTop: 35, marginBottom: 0 }}>
+              <button
+                className="voting-confirm-btn"
+                style={{ fontWeight: 400, flex: 1 }}
+                onClick={() => handleVote(-1)}
+              >
+                NO LO CONOZCO
+              </button>
+              <button
+                className="voting-confirm-btn"
+                style={{ 
+                  fontWeight: 400, 
+                  flex: 1,
+                  background: '#FF6B35',
+                  border: '1px solid #FF6B35'
+                }}
+                onClick={() => handleVote(-2)}
+              >
+                🥅 ARQUERO
+              </button>
+            </div>
             
             <div style={{
               fontSize: 16,
@@ -424,10 +438,15 @@ if (step === STEPS.VOTE || editandoIdx !== null) {
                 <span className="confirmation-item-score" style={{
                   fontSize: 22, fontWeight: 700, minWidth: 72, textAlign: 'center'
                 }}>
-                  {(votos[j.uuid] && votos[j.uuid] > 0)
-                    ? `${votos[j.uuid]}/10`
-                    : <span style={{ fontSize: 16, fontWeight: 500 }}>No calificado</span>
-                  }
+                  {votos[j.uuid] === -2 ? (
+                    <span style={{ fontSize: 16, fontWeight: 500, color: '#FF6B35' }}>🥅 ARQUERO</span>
+                  ) : votos[j.uuid] === -1 ? (
+                    <span style={{ fontSize: 16, fontWeight: 500 }}>No calificado</span>
+                  ) : (votos[j.uuid] && votos[j.uuid] > 0) ? (
+                    `${votos[j.uuid]}/10`
+                  ) : (
+                    <span style={{ fontSize: 16, fontWeight: 500 }}>No calificado</span>
+                  )}
                 </span>
                 <button
                   className="confirmation-item-edit-btn"
