@@ -766,8 +766,36 @@ export const deletePartidoFrecuente = async (id) => {
 };
 
 export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha) => {
-  console.log('Creating match from frequent match:', partidoFrecuente);
+  console.log('Creating/finding match from frequent match:', partidoFrecuente, 'for date:', fecha);
   
+  // First, check if a match already exists for this frequent match and date
+  const { data: existingMatches, error: searchError } = await supabase
+    .from('partidos')
+    .select('*')
+    .eq('fecha', fecha)
+    .eq('sede', partidoFrecuente.sede)
+    .eq('hora', partidoFrecuente.hora)
+    .eq('estado', 'activo');
+    
+  if (searchError) {
+    console.error('Error searching for existing match:', searchError);
+  }
+  
+  // If we found an existing match, return it
+  if (existingMatches && existingMatches.length > 0) {
+    const existingMatch = existingMatches[0];
+    console.log('Found existing match:', existingMatch.id);
+    
+    // Add frequent match metadata
+    existingMatch.nombre = partidoFrecuente.nombre;
+    existingMatch.frequent_match_name = partidoFrecuente.nombre;
+    existingMatch.from_frequent_match_id = partidoFrecuente.id;
+    
+    return existingMatch;
+  }
+  
+  // If no existing match, create a new one
+  console.log('No existing match found, creating new one');
   const partido = await crearPartido({
     fecha,
     hora: partidoFrecuente.hora,

@@ -4,39 +4,19 @@ import {
   deleteJugador,
   getJugadores,
   closeVotingAndCalculateScores,
-  getPartidoPorCodigo,
   updateJugadoresPartido,
   getVotantesIds,
   getVotantesConNombres,
 } from "./supabase";
 import { toast } from 'react-toastify';
-import { handleError, handleSuccess, safeAsync } from "./utils/errorHandler";
-import { UI_MESSAGES, VALIDATION_RULES } from "./constants";
 import { LOADING_STATES, UI_SIZES } from "./appConstants";
-import { LazyLoadImage } from 'react-lazy-load-image-component';
-import 'react-lazy-load-image-component/src/effects/blur.css';
+
 import "./HomeStyleKit.css";
 import "./AdminPanel.css";
 import WhatsappIcon from "./components/WhatsappIcon";
 import TeamDisplay from "./components/TeamDisplay";
-import PartidoInfoBox from "./PartidoInfoBox";
-import Button from "./components/Button";
 
-function MiniAvatar({ foto_url, nombre, size = 34 }) {
-  if (foto_url) {
-    return (
-      <LazyLoadImage
-        alt={nombre}
-        src={foto_url}
-        effect="blur"
-        width={size}
-        height={size}
-        className="mini-avatar"
-      />
-    );
-  }
-  return <div className="mini-avatar-placeholder" style={{ width: size, height: size }} />;
-}
+
 
 export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange, partidoActual }) {
   const [votantes, setVotantes] = useState([]);
@@ -65,6 +45,15 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         const votantesNombres = await getVotantesConNombres(partidoActual.id);
         setVotantes(votantesIds || []);
         setVotantesConNombres(votantesNombres || []);
+        
+        // Refresh players to get updated photos
+        const updatedPlayers = await getJugadores();
+        const matchPlayers = updatedPlayers.filter(p => 
+          partidoActual.jugadores.some(pj => pj.uuid === p.uuid)
+        );
+        if (matchPlayers.length > 0) {
+          onJugadoresChange(matchPlayers);
+        }
       } catch (error) {
         console.error("Error cargando votantes:", error);
       }
@@ -74,6 +63,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     // Auto-refresh every 2 seconds for real-time updates
     const interval = setInterval(fetchVotantes, 2000);
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partidoActual?.id]);
   
   // Refresh voters when players change
@@ -317,7 +307,7 @@ async function handleCerrarVotacion() {
   function handleCopyLink() {
     const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
     navigator.clipboard.writeText(url);
-    toast.success("¡Link copiado!");
+    toast.success("¡Link copiado!", { autoClose: 2000 });
   }
 
   function handleWhatsApp() {
@@ -338,8 +328,6 @@ async function handleCerrarVotacion() {
 
   // Determine if button should be disabled
   const isButtonDisabled = isClosing || loading || jugadores.length < 2;
-  const hasOddPlayers = jugadores.length > 0 && jugadores.length % 2 !== 0;
-  const hasNoVotes = votantes.length === 0 && jugadores.length > 0;
 
   if (!partidoActual) return <div style={{color:"red"}}>Sin partido cargado</div>;
   
