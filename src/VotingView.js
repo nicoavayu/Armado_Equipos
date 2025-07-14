@@ -265,7 +265,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               <div
                 className="voting-photo-box"
                 style={{ cursor: "pointer" }}
-                title={fotoPreview ? "Cambiar foto" : "Agregar foto"}
+                title={fotoPreview ? "Cambiar foto" : "Tomar foto o subir desde galería"}
               >
                 {fotoPreview ? (
                   <img
@@ -274,25 +274,17 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />
                 ) : (
-                  <span className="photo-plus">📷</span>
+                  <span className="photo-plus">+</span>
                 )}
               </div>
             </CameraUpload>
-            <div
-              className="voting-photo-box"
-              onClick={() => document.getElementById("foto-input").click()}
-              style={{ cursor: "pointer", marginTop: 10 }}
-              title="Subir desde galería"
-            >
-              <span className="photo-plus">📁</span>
-              <input
-                id="foto-input"
-                type="file"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={handleFile}
-              />
-            </div>
+            <input
+              id="foto-input"
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={handleFile}
+            />
           </div>
 
           {!fotoPreview && (
