@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { updatePartidoFrecuente, crearPartidoDesdeFrec, supabase } from './supabase';
 import { toast } from 'react-toastify';
 import AutocompleteSede from './AutocompleteSede';
+import './EditarPartidoFrecuente.css';
 
 export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }) {
   const [nombre, setNombre] = useState(partido.nombre);
@@ -107,32 +108,31 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
           </div>
         </div>
         
-        <input
-          className="input-modern"
-          type="text"
-          placeholder="Nombre del partido"
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-          style={{ marginBottom: 22, width: "100%" }}
-        />
+        <div className="edit-form-container">
+          <input
+            className="input-modern"
+            type="text"
+            placeholder="Nombre del partido"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+          />
 
-        <input
-          className="input-modern"
-          type="date"
-          placeholder="Fecha"
-          value={fecha}
-          onChange={(e) => setFecha(e.target.value)}
-          style={{ marginBottom: 22, width: "100%" }}
-        />
+          <input
+            className="input-modern"
+            type="date"
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+            title="Seleccionar fecha"
+          />
 
-        <input
-          className="input-modern"
-          type="time"
-          placeholder="Hora"
-          value={hora}
-          onChange={(e) => setHora(e.target.value)}
-          style={{ marginBottom: 22, width: "100%" }}
-        />
+          <input
+            className="input-modern"
+            type="time"
+            value={hora}
+            onChange={(e) => setHora(e.target.value)}
+            title="Seleccionar hora"
+          />
+        </div>
 
         <AutocompleteSede
           value={sede}
