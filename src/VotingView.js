@@ -9,7 +9,7 @@ import {
 import StarRating from "./StarRating";
 import "./VotingView.css";
 import Logo from "./Logo.png";
-import VotingDebug from "./VotingDebug";
+
 import { useGuestSession } from "./hooks/useGuestSession";
 
 const DefaultAvatar = (
@@ -105,7 +105,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (partidoActual === null) {
     return (
       <div className="voting-bg">
-        <VotingDebug partidoActual={partidoActual} />
         <div className="voting-modern-card">
           <div className="match-name">ERROR</div>
           <div style={{ color: "#fff", fontSize: 18, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: "center" }}>
@@ -126,7 +125,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (!partidoActual.id) {
     return (
       <div className="voting-bg">
-        <VotingDebug partidoActual={partidoActual} />
         <div className="voting-modern-card">
           <div className="match-name">ERROR</div>
           <div style={{ color: "#fff", fontSize: 18, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: "center" }}>
@@ -162,7 +160,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (step === STEPS.IDENTIFY) {
     return (
       <div className="voting-bg">
-        <VotingDebug partidoActual={partidoActual} />
         <div className="voting-modern-card">
           <div className="match-name">¿QUIÉN SOS?</div>
           <div className="player-select-grid">
@@ -197,10 +194,27 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
   // Paso 1: Subir foto (opcional)
   if (step === STEPS.PHOTO) {
-    const handleFile = (e) => {
+    const handleFile = async (e) => {
       if (e.target.files && e.target.files[0]) {
-        setFile(e.target.files[0]);
-        setFotoPreview(URL.createObjectURL(e.target.files[0]));
+        const selectedFile = e.target.files[0];
+        setFile(selectedFile);
+        setFotoPreview(URL.createObjectURL(selectedFile));
+        
+        // Auto-upload the photo immediately
+        if (jugador) {
+          setSubiendoFoto(true);
+          try {
+            const fotoUrl = await uploadFoto(selectedFile, jugador);
+            setFotoPreview(fotoUrl);
+            setJugador(prev => ({ ...prev, foto_url: fotoUrl }));
+            setFile(null);
+            toast.success("¡Foto cargada!");
+          } catch (error) {
+            toast.error("Error al subir la foto: " + error.message);
+          } finally {
+            setSubiendoFoto(false);
+          }
+        }
       }
     };
 
@@ -259,15 +273,16 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
              Mandale Selfie, asi saben quien sos.<br />
             </div>
           )}
-          {file && (
-            <button
-              className="voting-confirm-btn"
-              style={{ background: "rgba(255,255,255,0.17)", borderColor: "#fff", color: "#fff" }}
-              disabled={subiendoFoto}
-              onClick={handleFotoUpload}
-            >
-              {subiendoFoto ? "SUBIENDO..." : "GUARDAR FOTO"}
-            </button>
+          {subiendoFoto && (
+            <div style={{
+              fontSize: 16,
+              color: "rgba(255,255,255,0.8)",
+              textAlign: "center",
+              marginTop: 12,
+              fontFamily: "'Oswald', Arial, sans-serif"
+            }}>
+              Subiendo foto...
+            </div>
           )}
           <button
             className="voting-confirm-btn"

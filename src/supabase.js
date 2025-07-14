@@ -639,7 +639,7 @@ export const updateJugadoresFrecuentes = async (partidoFrecuenteId, nuevosJugado
  * @param {boolean} matchData.habilitado - Whether the match is enabled
  * @returns {Object} Created frequent match record
  */
-export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frecuentes, dia_semana, habilitado }) => {
+export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frecuentes, dia_semana, habilitado, imagen_url }) => {
   // Get current authenticated user
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   
@@ -666,7 +666,8 @@ export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frec
     creado_por: user.id, // Automatically set to current user's UID
     creado_en: new Date().toISOString(),
     habilitado: habilitado !== undefined ? habilitado : true,
-    dia_semana: parseInt(dia_semana)
+    dia_semana: parseInt(dia_semana),
+    imagen_url: imagen_url || null
   };
   
   const { data, error } = await supabase

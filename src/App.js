@@ -11,22 +11,25 @@ import Home from "./Home";
 import AppNormal from "./AppNormal";
 import VotingView from "./VotingView";
 import AdminPanel from "./AdminPanel";
-import FormularioNuevoPartido from "./FormularioNuevoPartido";
+import FormularioNuevoPartidoFlow from "./FormularioNuevoPartidoFlow";
 import PartidoInfoBox from "./PartidoInfoBox";
 import ListaPartidosFrecuentes from "./ListaPartidosFrecuentes";
 import EditarPartidoFrecuente from "./EditarPartidoFrecuente";
 import { getPartidoPorCodigo, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes } from "./supabase";
 import { toast } from 'react-toastify';
 import IngresoAdminPartido from "./IngresoAdminPartido";
-const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
+const SeleccionarTipoPartido = ({ onNuevo, onExistente, onVolver }) => (
   <div className="voting-bg">
     <div className="voting-modern-card">
-      <div className="match-name" style={{ marginBottom: 16 }}>¿QUÉ QUERÉS HACER?</div>
-      <button className="voting-confirm-btn wipe-btn" style={{marginBottom: 18}} onClick={onNuevo}>
+      <div className="match-name" style={{ marginBottom: 24 }}>¿QUÉ QUERÉS HACER?</div>
+      <button className="voting-confirm-btn wipe-btn" style={{marginBottom: 12}} onClick={onNuevo}>
         PARTIDO NUEVO
       </button>
-      <button className="voting-confirm-btn wipe-btn" onClick={onExistente}>
+      <button className="voting-confirm-btn wipe-btn" style={{marginBottom: 16}} onClick={onExistente}>
         PARTIDO FRECUENTE
+      </button>
+      <button className="voting-confirm-btn" style={{ background: '#DE1C49', marginTop: 64, marginBottom: 16 }} onClick={onVolver}>
+        VOLVER AL INICIO
       </button>
     </div>
   </div>
@@ -77,12 +80,13 @@ export default function App() {
         <SeleccionarTipoPartido
           onNuevo={() => setStepPartido(ADMIN_STEPS.CREATE_MATCH)}
           onExistente={() => setStepPartido(ADMIN_STEPS.SELECT_FREQUENT)}
+          onVolver={() => setModo(MODES.HOME)}
         />
       );
     }
     if (stepPartido === ADMIN_STEPS.CREATE_MATCH) {
       return (
-        <FormularioNuevoPartido
+        <FormularioNuevoPartidoFlow
           onConfirmar={async (partido) => {
             setPartidoActual(partido);
             setStepPartido(ADMIN_STEPS.MANAGE);

@@ -314,10 +314,12 @@
   box-shadow: 0 4px 32px 0 rgba(90,30,120,0.08);
   max-width: 520px;
   margin: 48px auto 0 auto;
-  padding: 38px 28px 32px 28px;
+  padding: 38px 20px 32px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  box-sizing: border-box;
+  width: 100%;
 }
 .voting-bg {
   min-height: 100vh;
@@ -338,6 +340,7 @@
   transition: border 0.18s;
   background: rgba(255,255,255,0.9);
   color: #333;
+  box-sizing: border-box;
 }
 .input-modern:focus { 
   border-color: #0EA9C6;
@@ -346,6 +349,18 @@
 .input-modern option {
   background: #fff;
   color: #333;
+}
+
+/* White icons for date and time inputs */
+.input-modern[type="date"]::-webkit-calendar-picker-indicator,
+.input-modern[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+
+.input-modern[type="date"]::-webkit-inner-spin-button,
+.input-modern[type="time"]::-webkit-inner-spin-button {
+  filter: invert(1);
 }
 .voting-confirm-btn {
   font-family: 'Bebas Neue', Arial, sans-serif !important;
@@ -1382,6 +1397,32 @@ input::placeholder,
   .edit-frequent-actions .voting-confirm-btn {
     flex: 1;
     max-width: 180px;
+  }
+}
+
+/* Mobile full width fixes for new match flow */
+@media (max-width: 480px) {
+  .player-vote-card .voting-modern-card {
+    padding: 12px !important;
+    margin: 0 !important;
+    width: 100vw !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
+    left: 50% !important;
+    margin-left: -50vw !important;
+    position: relative !important;
+  }
+  .player-vote-card .input-modern {
+    width: calc(100% - 24px) !important;
+    margin-left: 12px !important;
+    margin-right: 12px !important;
+    box-sizing: border-box !important;
+  }
+  .player-vote-card .voting-confirm-btn {
+    width: calc(100% - 24px) !important;
+    margin-left: 12px !important;
+    margin-right: 12px !important;
+    box-sizing: border-box !important;
   }
 }
 

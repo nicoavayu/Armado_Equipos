@@ -203,7 +203,7 @@ async function handleCerrarVotacion() {
   }
   
   if (jugadores.length % 2 !== 0) {
-    toast.error('NECESITAS UN NÚMERO PAR DE JUGADORES PARA FORMAR EQUIPOS');
+    toast.warn('Agrega al menos 2 jugadores para formar equipos', { autoClose: 2000 });
     return;
   }
   

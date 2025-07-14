@@ -46,13 +46,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
     }
   }, [teams, lockedPlayers]);
 
-  useEffect(() => {
-    const teamA = teams.find(t => t.id === 'equipoA');
-    const teamB = teams.find(t => t.id === 'equipoB');
-    if (teamA && teamB && Math.abs(teamA.score - teamB.score) < 0.01) {
-      toast.success("¡Match Perfecto! Los equipos están balanceados.");
-    }
-  }, [teams]);
+
   
   // Get score color class based on value
   const getScoreColorClass = (score, allScores) => {
@@ -210,6 +204,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
     
     // Only show perfect match celebration for exact ties
     if (selectedCombo.scoreDiff === TEAM_BALANCING.PERFECT_MATCH_SCORE_DIFF) {
+      toast.success("¡Match Perfecto! Los equipos están balanceados.");
       setShowPerfectMatch(true);
       setShowConfetti(true);
       setTimeout(() => {
