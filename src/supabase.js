@@ -55,12 +55,59 @@ export const deleteJugador = async (uuid) => {
   await supabase.from('votos').delete().eq('votado_id', uuid);
 };
 
+// Compress image to reduce file size
+const compressImage = (file, maxSizeMB = 1.5, quality = 0.8) => {
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = () => {
+      // Calculate new dimensions (max 800px width/height)
+      const maxDimension = 800;
+      let { width, height } = img;
+      
+      if (width > height && width > maxDimension) {
+        height = (height * maxDimension) / width;
+        width = maxDimension;
+      } else if (height > maxDimension) {
+        width = (width * maxDimension) / height;
+        height = maxDimension;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      
+      // Draw and compress
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      canvas.toBlob(
+        (blob) => {
+          resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+        },
+        'image/jpeg',
+        quality
+      );
+    };
+    
+    img.src = URL.createObjectURL(file);
+  });
+};
+
 export const uploadFoto = async (file, jugador) => {
-  const fileExt = file.name.split('.').pop();
+  // Compress image if it's larger than 1.5MB
+  let fileToUpload = file;
+  if (file.size > 1.5 * 1024 * 1024) {
+    console.log('Compressing image:', file.size, 'bytes');
+    fileToUpload = await compressImage(file);
+    console.log('Compressed to:', fileToUpload.size, 'bytes');
+  }
+  
+  const fileExt = 'jpg'; // Always use jpg after compression
   const fileName = `${jugador.uuid}_${Date.now()}.${fileExt}`;
   const { error: uploadError } = await supabase.storage
     .from('jugadores-fotos')
-    .upload(fileName, file, { upsert: true });
+    .upload(fileName, fileToUpload, { upsert: true });
   if (uploadError) throw uploadError;
   const { data } = supabase.storage
     .from('jugadores-fotos')
