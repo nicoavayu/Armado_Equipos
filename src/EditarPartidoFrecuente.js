@@ -132,15 +132,15 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
             onChange={(e) => setHora(e.target.value)}
             title="Seleccionar hora"
           />
-        </div>
 
-        <AutocompleteSede
-          value={sede}
-          onSelect={(info) => {
-            setSede(info.description);
-            setSedeInfo(info);
-          }}
-        />
+          <AutocompleteSede
+            value={sede}
+            onSelect={(info) => {
+              setSede(info.description);
+              setSedeInfo(info);
+            }}
+          />
+        </div>
 
         <button 
           className="voting-confirm-btn"

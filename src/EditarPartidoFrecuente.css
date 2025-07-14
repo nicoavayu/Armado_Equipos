@@ -1,6 +1,8 @@
-/* Estilos específicos para inputs de fecha y hora en móvil */
+/* Estilos unificados para todos los inputs del formulario */
+.edit-form-container .input-modern,
 .input-modern[type="date"],
-.input-modern[type="time"] {
+.input-modern[type="time"],
+.input-modern[type="text"] {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
@@ -14,13 +16,22 @@
   width: 100% !important;
   box-sizing: border-box !important;
   height: 48px !important;
+  transition: all 0.2s ease !important;
 }
 
+.edit-form-container .input-modern:focus,
 .input-modern[type="date"]:focus,
-.input-modern[type="time"]:focus {
+.input-modern[type="time"]:focus,
+.input-modern[type="text"]:focus {
   outline: none !important;
   border-color: rgba(14, 169, 198, 0.8) !important;
   box-shadow: 0 0 0 2px rgba(14, 169, 198, 0.2) !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+.edit-form-container .input-modern::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+  font-family: 'Oswald', Arial, sans-serif !important;
 }
 
 /* Estilos para el calendario y reloj nativos */
@@ -67,8 +78,10 @@
 
 /* Responsive para móvil */
 @media (max-width: 480px) {
+  .edit-form-container .input-modern,
   .input-modern[type="date"],
-  .input-modern[type="time"] {
+  .input-modern[type="time"],
+  .input-modern[type="text"] {
     font-size: 16px !important;
     padding: 14px 16px !important;
     height: 52px !important;
