@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Team Balancer</string>
+    <string name="title_activity_main">Team Balancer</string>
+    <string name="package_name">com.teambalancer.app</string>
+    <string name="custom_url_scheme">com.teambalancer.app</string>
+</resources>

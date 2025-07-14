@@ -7,6 +7,7 @@ import { LOADING_STATES } from "./appConstants";
 import ErrorBoundary from "./components/ErrorBoundary";
 import AuthProvider from "./components/AuthProvider";
 import Button from "./components/Button";
+import NetworkStatus from "./components/NetworkStatus";
 import Home from "./Home";
 import AppNormal from "./AppNormal";
 import VotingView from "./VotingView";
@@ -77,91 +78,101 @@ export default function App() {
   if (modo === MODES.ADMIN) {
     if (stepPartido === ADMIN_STEPS.SELECT_TYPE) {
       return (
-        <SeleccionarTipoPartido
-          onNuevo={() => setStepPartido(ADMIN_STEPS.CREATE_MATCH)}
-          onExistente={() => setStepPartido(ADMIN_STEPS.SELECT_FREQUENT)}
-          onVolver={() => setModo(MODES.HOME)}
-        />
+        <AuthProvider>
+          <SeleccionarTipoPartido
+            onNuevo={() => setStepPartido(ADMIN_STEPS.CREATE_MATCH)}
+            onExistente={() => setStepPartido(ADMIN_STEPS.SELECT_FREQUENT)}
+            onVolver={() => setModo(MODES.HOME)}
+          />
+        </AuthProvider>
       );
     }
     if (stepPartido === ADMIN_STEPS.CREATE_MATCH) {
       return (
-        <FormularioNuevoPartidoFlow
-          onConfirmar={async (partido) => {
-            setPartidoActual(partido);
-            setStepPartido(ADMIN_STEPS.MANAGE);
-            return partido;
-          }}
-          onVolver={() => setStepPartido(ADMIN_STEPS.SELECT_TYPE)}
-        />
+        <AuthProvider>
+          <FormularioNuevoPartidoFlow
+            onConfirmar={async (partido) => {
+              setPartidoActual(partido);
+              setStepPartido(ADMIN_STEPS.MANAGE);
+              return partido;
+            }}
+            onVolver={() => setStepPartido(ADMIN_STEPS.SELECT_TYPE)}
+          />
+        </AuthProvider>
       );
     }
     if (stepPartido === ADMIN_STEPS.SELECT_FREQUENT) {
       return (
-        <ListaPartidosFrecuentes
-          onEntrar={async (partidoFrecuente) => {
-            try {
-              const hoy = new Date().toISOString().split('T')[0];
-              const partido = await crearPartidoDesdeFrec(partidoFrecuente, hoy);
-              partido.from_frequent_match_id = partidoFrecuente.id;
-              setPartidoActual(partido);
-              setStepPartido(ADMIN_STEPS.MANAGE);
-            } catch (error) {
-              toast.error('Error al crear el partido');
-            }
-          }}
-          onEditar={(partido) => {
-            setPartidoFrecuenteEditando(partido);
-            setStepPartido(ADMIN_STEPS.EDIT_FREQUENT);
-          }}
-          onVolver={() => setStepPartido(ADMIN_STEPS.SELECT_TYPE)}
-        />
+        <AuthProvider>
+          <ListaPartidosFrecuentes
+            onEntrar={async (partidoFrecuente) => {
+              try {
+                const hoy = new Date().toISOString().split('T')[0];
+                const partido = await crearPartidoDesdeFrec(partidoFrecuente, hoy);
+                partido.from_frequent_match_id = partidoFrecuente.id;
+                setPartidoActual(partido);
+                setStepPartido(ADMIN_STEPS.MANAGE);
+              } catch (error) {
+                toast.error('Error al crear el partido');
+              }
+            }}
+            onEditar={(partido) => {
+              setPartidoFrecuenteEditando(partido);
+              setStepPartido(ADMIN_STEPS.EDIT_FREQUENT);
+            }}
+            onVolver={() => setStepPartido(ADMIN_STEPS.SELECT_TYPE)}
+          />
+        </AuthProvider>
       );
     }
     if (stepPartido === ADMIN_STEPS.EDIT_FREQUENT && partidoFrecuenteEditando) {
       return (
-        <EditarPartidoFrecuente
-          partido={partidoFrecuenteEditando}
-          onGuardado={() => {
-            setPartidoFrecuenteEditando(null);
-            setStepPartido(ADMIN_STEPS.SELECT_FREQUENT);
-          }}
-          onVolver={() => {
-            setPartidoFrecuenteEditando(null);
-            setStepPartido(ADMIN_STEPS.SELECT_FREQUENT);
-          }}
-        />
+        <AuthProvider>
+          <EditarPartidoFrecuente
+            partido={partidoFrecuenteEditando}
+            onGuardado={() => {
+              setPartidoFrecuenteEditando(null);
+              setStepPartido(ADMIN_STEPS.SELECT_FREQUENT);
+            }}
+            onVolver={() => {
+              setPartidoFrecuenteEditando(null);
+              setStepPartido(ADMIN_STEPS.SELECT_FREQUENT);
+            }}
+          />
+        </AuthProvider>
       );
     }
 
     if (stepPartido === ADMIN_STEPS.MANAGE && partidoActual) {
       return (
-        <div className="voting-bg">
-          <div className="voting-modern-card" style={{ maxWidth: 650 }}>
-            <AdminPanel
-              partidoActual={partidoActual}
-              jugadores={partidoActual?.jugadores || []}
-              onJugadoresChange={handleJugadoresChange}
-              onBackToHome={() => {
-                setModo(MODES.HOME);
-                setPartidoActual(null);
-                setPartidoFrecuenteEditando(null);
-                setStepPartido(ADMIN_STEPS.SELECT_TYPE);
-              }}
+        <AuthProvider>
+          <div className="voting-bg">
+            <div className="voting-modern-card" style={{ maxWidth: 650 }}>
+              <AdminPanel
+                partidoActual={partidoActual}
+                jugadores={partidoActual?.jugadores || []}
+                onJugadoresChange={handleJugadoresChange}
+                onBackToHome={() => {
+                  setModo(MODES.HOME);
+                  setPartidoActual(null);
+                  setPartidoFrecuenteEditando(null);
+                  setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+                }}
+              />
+            </div>
+            <ToastContainer
+              position="top-right"
+              autoClose={5000}
+              hideProgressBar={false}
+              newestOnTop={false}
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
             />
           </div>
-          <ToastContainer
-            position="top-right"
-            autoClose={5000}
-            hideProgressBar={false}
-            newestOnTop={false}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-          />
-        </div>
+        </AuthProvider>
       );
     }
     if (stepPartido === ADMIN_STEPS.MANAGE && !partidoActual) {
@@ -194,6 +205,7 @@ export default function App() {
   }
   if (modo === MODES.PLAYER) return (
     <div>
+      <NetworkStatus />
       <VotingView
         jugadores={partidoActual ? partidoActual.jugadores : []}
         partidoActual={partidoActual}

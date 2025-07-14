@@ -8,7 +8,8 @@ import {
 } from "./supabase";
 import StarRating from "./StarRating";
 import "./VotingView.css";
-
+import { useNativeFeatures } from "./hooks/useNativeFeatures";
+import CameraUpload from "./components/CameraUpload";
 
 import { useGuestSession } from "./hooks/useGuestSession";
 
@@ -25,6 +26,7 @@ const DefaultAvatar = (
 export default function VotingView({ onReset, jugadores, partidoActual }) {
   // Initialize guest session for this match
   useGuestSession(partidoActual?.id);
+  const { vibrate, takePicture, saveData, getData } = useNativeFeatures();
   
   // All React hooks must be called at the top level
   const [step, setStep] = useState(STEPS.IDENTIFY);
@@ -240,21 +242,49 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         <div className="voting-modern-card">
           <div className="match-name">¡HOLA, {nombre}!</div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 18 }}>
+            <CameraUpload onPhotoTaken={async (photo) => {
+              if (jugador) {
+                setSubiendoFoto(true);
+                try {
+                  // Convert data URL to blob for upload
+                  const response = await fetch(photo);
+                  const blob = await response.blob();
+                  const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+                  
+                  const fotoUrl = await uploadFoto(file, jugador);
+                  setFotoPreview(fotoUrl);
+                  setJugador(prev => ({ ...prev, foto_url: fotoUrl }));
+                  toast.success("¡Foto cargada!");
+                } catch (error) {
+                  toast.error("Error al subir la foto: " + error.message);
+                } finally {
+                  setSubiendoFoto(false);
+                }
+              }
+            }}>
+              <div
+                className="voting-photo-box"
+                style={{ cursor: "pointer" }}
+                title={fotoPreview ? "Cambiar foto" : "Agregar foto"}
+              >
+                {fotoPreview ? (
+                  <img
+                    src={fotoPreview}
+                    alt="foto"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <span className="photo-plus">📷</span>
+                )}
+              </div>
+            </CameraUpload>
             <div
               className="voting-photo-box"
               onClick={() => document.getElementById("foto-input").click()}
-              style={{ cursor: "pointer" }}
-              title={fotoPreview ? "Cambiar foto" : "Agregar foto"}
+              style={{ cursor: "pointer", marginTop: 10 }}
+              title="Subir desde galería"
             >
-              {fotoPreview ? (
-                <img
-                  src={fotoPreview}
-                  alt="foto"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                <span className="photo-plus">+</span>
-              )}
+              <span className="photo-plus">📁</span>
               <input
                 id="foto-input"
                 type="file"
@@ -309,7 +339,8 @@ if (step === STEPS.VOTE || editandoIdx !== null) {
   if (jugadorVotar) {
     const valor = votos[jugadorVotar.uuid];
 
-    const handleVote = (newValue) => {
+    const handleVote = async (newValue) => {
+      await vibrate('light');
       setVotos(prev => {
         const nuevosVotos = { ...prev, [jugadorVotar.uuid]: newValue };
         if (editandoIdx !== null) {
@@ -434,6 +465,9 @@ if (step === STEPS.VOTE || editandoIdx !== null) {
   setConfirmando(true);
   try {
     await submitVotos(votos, jugador.uuid, partidoActual.id, jugador.nombre, fotoPreview);
+    // Save voting completion locally
+    await saveData(`voted_${partidoActual.id}`, true);
+    await vibrate('heavy');
     // Immediately update voting status
     setYaVoto(true);
     setFinalizado(true);

@@ -10,6 +10,7 @@ import {
 } from "./supabase";
 import { toast } from 'react-toastify';
 import { LOADING_STATES, UI_SIZES } from "./appConstants";
+import { useNativeFeatures } from "./hooks/useNativeFeatures";
 
 import "./HomeStyleKit.css";
 import "./AdminPanel.css";
@@ -19,6 +20,7 @@ import TeamDisplay from "./components/TeamDisplay";
 
 
 export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange, partidoActual }) {
+  const { shareContent, vibrate, sendNotification, saveData, getData } = useNativeFeatures();
   const [votantes, setVotantes] = useState([]);
   const [votantesConNombres, setVotantesConNombres] = useState([]);
   const [nuevoNombre, setNuevoNombre] = useState("");
@@ -278,6 +280,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       onJugadoresChange(matchPlayers);
       
       // Success!
+      await vibrate('heavy');
+      await sendNotification('Equipos Listos', 'Los equipos han sido creados exitosamente');
       toast.success(result.message || 'Votación cerrada y equipos creados');
       
     } catch (error) {
@@ -303,15 +307,29 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
   }
 
-  function handleCopyLink() {
+  async function handleCopyLink() {
     const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
-    navigator.clipboard.writeText(url);
-    toast.success("¡Link copiado!", { autoClose: 2000 });
+    try {
+      await navigator.clipboard.writeText(url);
+      await vibrate('light');
+      toast.success("¡Link copiado!", { autoClose: 2000 });
+    } catch (error) {
+      toast.error("Error copiando link");
+    }
   }
 
-  function handleWhatsApp() {
+  async function handleWhatsApp() {
     const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent("Entrá a votar para armar los equipos: " + url)}`, "_blank");
+    const title = "Team Balancer";
+    const text = "Entrá a votar para armar los equipos";
+    
+    try {
+      await shareContent(title, text, url);
+      await vibrate('medium');
+    } catch (error) {
+      // Fallback to WhatsApp web
+      window.open(`https://wa.me/?text=${encodeURIComponent(text + ": " + url)}`, "_blank");
+    }
   }
 
 
