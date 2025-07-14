@@ -18,7 +18,7 @@ export default function AutocompleteSede({ value, onSelect }) {
   });
 
   return (
-    <div style={{ position: "relative", marginBottom: 24, width: "100%" }}>
+    <div style={{ position: "relative", marginBottom: 24, width: "100%", boxSizing: "border-box" }}>
       <input
         className="input-modern"
         type="text"
@@ -26,7 +26,7 @@ export default function AutocompleteSede({ value, onSelect }) {
         value={inputValue}
         onChange={e => setValue(e.target.value)}
         disabled={!ready}
-        style={{ width: "100%" }}
+        style={{ width: "100%", boxSizing: "border-box" }}
       />
       {status === "OK" && (
         <div
@@ -41,7 +41,9 @@ export default function AutocompleteSede({ value, onSelect }) {
             top: 48,
             padding: "3px 0",
             maxHeight: 220,
-            overflowY: "auto"
+            overflowY: "auto",
+            width: "100%",
+            boxSizing: "border-box"
           }}
         >
           {data

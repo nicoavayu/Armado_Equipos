@@ -1,34 +1,58 @@
-/* Mobile full width for new match flow */
+/* Mobile responsive design for new match flow */
+.new-match-flow {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+.new-match-flow .voting-modern-card {
+  padding: 20px;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 420px;
+  box-sizing: border-box;
+}
+
+/* Sede field specific spacing */
+.new-match-flow .match-name {
+  margin-bottom: 16px;
+}
+
+.new-match-flow .match-name + div {
+  margin-bottom: 32px; /* Más espacio debajo del subtítulo */
+}
+
+/* AutocompleteSede container fix */
+.new-match-flow div[style*="position: relative"] {
+  width: 100% !important;
+  margin-bottom: 32px !important; /* Más espacio debajo del campo de sede */
+  box-sizing: border-box !important;
+}
+
+.new-match-flow .input-modern {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.new-match-flow .voting-confirm-btn {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
 @media (max-width: 480px) {
   .new-match-flow .voting-modern-card {
-    padding: 12px !important;
-    margin: 0 !important;
-    width: 100vw !important;
-    max-width: none !important;
-    box-sizing: border-box !important;
-    left: 50% !important;
-    margin-left: -50vw !important;
-    position: relative !important;
-  }
-  
-  .new-match-flow .input-modern {
-    width: calc(100% - 24px) !important;
-    margin-left: 12px !important;
-    margin-right: 12px !important;
-    box-sizing: border-box !important;
-  }
-  
-  .new-match-flow .voting-confirm-btn {
-    width: calc(100% - 24px) !important;
-    margin-left: 12px !important;
-    margin-right: 12px !important;
-    box-sizing: border-box !important;
+    padding: 16px;
+    margin: 0 8px;
+    width: calc(100% - 16px);
   }
   
   .new-match-flow .voting-photo-box {
-    width: calc(100vw - 48px) !important;
-    height: calc(100vw - 48px) !important;
-    max-width: 280px !important;
-    max-height: 280px !important;
+    width: calc(100% - 32px);
+    height: calc(100% - 32px);
+    max-width: 240px;
+    max-height: 240px;
   }
 }
