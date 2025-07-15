@@ -16,6 +16,7 @@ import FormularioNuevoPartidoFlow from "./FormularioNuevoPartidoFlow";
 import PartidoInfoBox from "./PartidoInfoBox";
 import ListaPartidosFrecuentes from "./ListaPartidosFrecuentes";
 import EditarPartidoFrecuente from "./EditarPartidoFrecuente";
+import QuieroJugar from "./QuieroJugar";
 import { getPartidoPorCodigo, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes } from "./supabase";
 import { toast } from 'react-toastify';
 import IngresoAdminPartido from "./IngresoAdminPartido";
@@ -197,6 +198,12 @@ export default function App() {
   if (modo === MODES.SIMPLE) return (
     <AuthProvider>
       <AppNormal onBack={() => setModo(MODES.HOME)} />
+    </AuthProvider>
+  );
+  
+  if (modo === 'quiero-jugar') return (
+    <AuthProvider>
+      <QuieroJugar onVolver={() => setModo(MODES.HOME)} />
     </AuthProvider>
   );
   if (modo === MODES.VOTING) {

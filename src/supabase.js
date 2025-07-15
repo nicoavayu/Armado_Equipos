@@ -589,7 +589,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
 
 // --- API de Partidos ---
 
-export const crearPartido = async ({ fecha, hora, sede, sedeMaps }) => {
+export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cupo_jugadores, falta_jugadores }) => {
   try {
     console.log('Creating match with data:', { fecha, hora, sede, sedeMaps });
     
@@ -610,7 +610,10 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps }) => {
       sedeMaps: sedeMaps || "",
       jugadores: [],
       estado: "activo",
-      creado_por: user?.id || null
+      creado_por: user?.id || null,
+      modalidad: modalidad || 'F5',
+      cupo_jugadores: cupo_jugadores || 10,
+      falta_jugadores: falta_jugadores || false
     };
     
     console.log('Inserting match data:', matchData);
@@ -825,7 +828,7 @@ export const deletePartidoFrecuente = async (id) => {
   if (error) throw new Error(`Error deleting frequent match: ${error.message}`);
 };
 
-export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha) => {
+export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad = 'F5', cupo = 10) => {
   console.log('Creating/finding match from frequent match:', partidoFrecuente, 'for date:', fecha);
   
   // First, check if a match already exists for this frequent match and date
@@ -860,7 +863,10 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha) => {
     fecha,
     hora: partidoFrecuente.hora,
     sede: partidoFrecuente.sede,
-    sedeMaps: ""
+    sedeMaps: "",
+    modalidad,
+    cupo_jugadores: cupo,
+    falta_jugadores: false
   });
   
   // Add frequent match name and reference
@@ -931,6 +937,83 @@ export const clearGuestSession = (partidoId) => {
     keys.forEach(key => localStorage.removeItem(key));
     console.log(`Cleared ${keys.length} guest sessions`);
   }
+};
+
+// --- Free Players Management ---
+
+export const addFreePlayer = async () => {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    throw new Error('User must be authenticated');
+  }
+
+  // Get user profile
+  const profile = await getProfile(user.id);
+  if (!profile) {
+    throw new Error('Profile not found. Please complete your profile first.');
+  }
+
+  // Check if already registered
+  const { data: existing } = await supabase
+    .from('jugadores_sin_partido')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('disponible', true)
+    .single();
+
+  if (existing) {
+    throw new Error('Ya estás anotado como disponible');
+  }
+
+  // Add to free players
+  const { error } = await supabase
+    .from('jugadores_sin_partido')
+    .insert([{
+      user_id: user.id,
+      nombre: profile.nombre || 'Usuario',
+      localidad: profile.localidad || 'Sin especificar'
+    }]);
+
+  if (error) throw error;
+};
+
+export const removeFreePlayer = async () => {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    throw new Error('User must be authenticated');
+  }
+
+  const { error } = await supabase
+    .from('jugadores_sin_partido')
+    .update({ disponible: false })
+    .eq('user_id', user.id);
+
+  if (error) throw error;
+};
+
+export const getFreePlayerStatus = async () => {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return false;
+
+  const { data } = await supabase
+    .from('jugadores_sin_partido')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('disponible', true)
+    .single();
+
+  return !!data;
+};
+
+export const getFreePlayersList = async () => {
+  const { data, error } = await supabase
+    .from('jugadores_sin_partido')
+    .select('*')
+    .eq('disponible', true)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
 };
 
 // Debug function to check voting status for current user

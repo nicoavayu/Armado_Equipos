@@ -31,6 +31,9 @@ export default function Home({ onModoSeleccionado }) {
           <div className="player-select-btn" onClick={() => onModoSeleccionado("votacion")}>
             <span className="player-select-txt">Participativo</span>
           </div>
+          <div className="player-select-btn" onClick={() => onModoSeleccionado("quiero-jugar")} style={{ background: '#ff6b35', borderColor: '#ff6b35' }}>
+            <span className="player-select-txt">⚽ Quiero Jugar</span>
+          </div>
         </div>
         <GoogleAuth user={user} />
       </div>

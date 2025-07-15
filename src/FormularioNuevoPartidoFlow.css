@@ -42,6 +42,51 @@
   margin-right: 0 !important;
 }
 
+/* Make select look exactly like input-modern */
+.new-match-flow select.input-modern {
+  width: 100% !important;
+  padding: 15px 18px !important;
+  font-size: 19px !important;
+  border: 1.5px solid #eceaf1 !important;
+  height: 60px !important;
+  border-radius: 0 !important;
+  font-family: 'Oswald', Arial, sans-serif !important;
+  outline: none !important;
+  margin-bottom: 0 !important;
+  background: rgba(255,255,255,0.9) !important;
+  color: #333 !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+  transition: border 0.18s !important;
+  position: static !important;
+  z-index: auto !important;
+  -webkit-appearance: menulist !important;
+  -moz-appearance: menulist !important;
+  appearance: menulist !important;
+}
+
+.new-match-flow select.input-modern:focus {
+  border-color: #0EA9C6 !important;
+  background: #fff !important;
+}
+
+.new-match-flow select.input-modern option {
+  background: #fff !important;
+  color: #333 !important;
+  padding: 8px !important;
+}
+
+/* Mobile specific fixes */
+@media (max-width: 600px) {
+  .new-match-flow select.input-modern {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    position: static !important;
+    transform: none !important;
+    left: auto !important;
+    top: auto !important;
+  }
+}
+
 @media (max-width: 480px) {
   .new-match-flow .voting-modern-card {
     padding: 16px;

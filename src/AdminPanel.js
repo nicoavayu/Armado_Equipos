@@ -4,32 +4,52 @@ import {
   deleteJugador,
   getJugadores,
   closeVotingAndCalculateScores,
+  getPartidoPorCodigo,
   updateJugadoresPartido,
   getVotantesIds,
   getVotantesConNombres,
+  getFreePlayersList,
+  supabase,
 } from "./supabase";
 import { toast } from 'react-toastify';
+import { handleError, handleSuccess, safeAsync } from "./utils/errorHandler";
+import { UI_MESSAGES, VALIDATION_RULES } from "./constants";
 import { LOADING_STATES, UI_SIZES } from "./appConstants";
-import { useNativeFeatures } from "./hooks/useNativeFeatures";
-
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 import "./HomeStyleKit.css";
 import "./AdminPanel.css";
 import WhatsappIcon from "./components/WhatsappIcon";
 import TeamDisplay from "./components/TeamDisplay";
+import PartidoInfoBox from "./PartidoInfoBox";
+import Button from "./components/Button";
+import ChatButton from "./components/ChatButton";
 
-
+function MiniAvatar({ foto_url, nombre, size = 34 }) {
+  if (foto_url) {
+    return (
+      <LazyLoadImage
+        alt={nombre}
+        src={foto_url}
+        effect="blur"
+        width={size}
+        height={size}
+        className="mini-avatar"
+      />
+    );
+  }
+  return <div className="mini-avatar-placeholder" style={{ width: size, height: size }} />;
+}
 
 export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange, partidoActual }) {
-  const { shareContent, vibrate, sendNotification, saveData, getData } = useNativeFeatures();
   const [votantes, setVotantes] = useState([]);
   const [votantesConNombres, setVotantesConNombres] = useState([]);
   const [nuevoNombre, setNuevoNombre] = useState("");
-  const [addFrecuente, setAddFrecuente] = useState(false);
-  const [jugadoresFrecuentes, setJugadoresFrecuentes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-
   const [showTeamView, setShowTeamView] = useState(false);
+  const [freePlayers, setFreePlayers] = useState([]);
+  const [showFreePlayers, setShowFreePlayers] = useState(false);
 
   const [teams, setTeams] = useState([
     { id: "equipoA", name: "Equipo A", players: [], score: 0 },
@@ -50,16 +70,24 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         setVotantes(votantesIds || []);
         setVotantesConNombres(votantesNombres || []);
         
-        // Refresh players to get updated photos
-        const updatedPlayers = await getJugadores();
-        const matchPlayers = updatedPlayers.filter(p => 
-          partidoActual.jugadores.some(pj => pj.uuid === p.uuid)
-        );
-        if (matchPlayers.length > 0) {
-          onJugadoresChange(matchPlayers);
+        // Refresh match data to get updated players from community
+        const { data: updatedMatch, error } = await supabase
+          .from('partidos')
+          .select('*')
+          .eq('id', partidoActual.id)
+          .single();
+          
+        if (!error && updatedMatch && updatedMatch.jugadores) {
+          // Always update if player count has changed
+          const currentCount = jugadores?.length || 0;
+          const newCount = updatedMatch.jugadores.length;
+          if (newCount !== currentCount) {
+            console.log(`Player count changed: ${currentCount} -> ${newCount}`);
+            onJugadoresChange(updatedMatch.jugadores);
+          }
         }
       } catch (error) {
-        console.error("Error cargando votantes:", error);
+        console.error("Error cargando datos:", error);
       }
     }
     fetchVotantes();
@@ -67,7 +95,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     // Auto-refresh every 2 seconds for real-time updates
     const interval = setInterval(fetchVotantes, 2000);
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partidoActual?.id]);
   
   // Refresh voters when players change
@@ -85,76 +112,63 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
   }, [jugadores.length, partidoActual?.id]);
 
-  /**
-   * Adds a new player to the current match
-   * Creates player in database and updates match roster
-   */
-  async function agregarJugador(e) {
-    e.preventDefault();
-    const nombre = nuevoNombre.trim();
-    if (!nombre) return;
-    if (jugadores.some(j => j.nombre.toLowerCase() === nombre.toLowerCase())) {
-      toast.warn("Este jugador ya existe.");
-      return;
-    }
-    setLoading(true);
-    try {
-      // Create player in database
-      const nuevoJugador = await addJugador(nombre);
-      // Add to match roster
-      const nuevosJugadores = [...jugadores, nuevoJugador];
-      await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
-      onJugadoresChange(nuevosJugadores);
-      setNuevoNombre("");
-      setTimeout(() => inputRef.current?.focus(), 10);
-    } catch (error) {
-      toast.error("Error agregando jugador: " + error.message);
-    } finally {
-      setLoading(false);
-    }
+/**
+ * Adds a new player to the current match
+ * Creates player in database and updates match roster
+ */
+async function agregarJugador(e) {
+  e.preventDefault();
+  const nombre = nuevoNombre.trim();
+  if (!nombre) return;
+  if (jugadores.some(j => j.nombre.toLowerCase() === nombre.toLowerCase())) {
+    toast.warn("Este jugador ya existe.");
+    return;
   }
-
-  async function eliminarJugador(uuid) {
-    setLoading(true);
-    try {
-      await deleteJugador(uuid);
-      const nuevosJugadores = jugadores.filter(j => j.uuid !== uuid);
-      await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
-      onJugadoresChange(nuevosJugadores);
-    } catch (error) {
-      toast.error("Error eliminando jugador: " + error.message);
-    } finally {
-      setLoading(false);
-    }
+  setLoading(true);
+  try {
+    // Create player in database
+    const nuevoJugador = await addJugador(nombre);
+    // Add to match roster
+    const nuevosJugadores = [...jugadores, nuevoJugador];
+    await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
+    onJugadoresChange(nuevosJugadores);
+    setNuevoNombre("");
+    setTimeout(() => inputRef.current?.focus(), 10);
+  } catch (error) {
+    toast.error("Error agregando jugador: " + error.message);
+  } finally {
+    setLoading(false);
   }
+}
 
+
+ async function eliminarJugador(uuid) {
+  setLoading(true);
+  try {
+    // 🔥 Primero, borrá el jugador de la tabla jugadores
+    await deleteJugador(uuid);
+
+    // Después, borrá el jugador del partido
+    const nuevosJugadores = jugadores.filter(j => j.uuid !== uuid);
+    await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
+    onJugadoresChange(nuevosJugadores);
+  } catch (error) {
+    toast.error("Error eliminando jugador: " + error.message);
+  } finally {
+    setLoading(false);
+  }
+}
   /**
    * Creates balanced teams based on player scores
    * Distributes players to minimize score difference between teams
-   * Arqueros are distributed separately (one per team)
    */
   function armarEquipos(jugadores) {
-    // Separar arqueros de jugadores normales
-    const arqueros = jugadores.filter(j => j.is_goalkeeper);
-    const jugadoresNormales = jugadores.filter(j => !j.is_goalkeeper);
-    
+    const jugadoresOrdenados = [...jugadores].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     const equipoA = [];
     const equipoB = [];
     let puntajeA = 0;
     let puntajeB = 0;
 
-    // Distribuir arqueros primero (uno por equipo)
-    arqueros.forEach((arquero, index) => {
-      if (index % 2 === 0) {
-        equipoA.push(arquero.uuid);
-      } else {
-        equipoB.push(arquero.uuid);
-      }
-    });
-
-    // Distribuir jugadores normales por puntaje
-    const jugadoresOrdenados = [...jugadoresNormales].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-    
     jugadoresOrdenados.forEach(jugador => {
       if (equipoA.length < equipoB.length) {
         equipoA.push(jugador.uuid);
@@ -193,167 +207,196 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   };
 
   /**
-   * Closes voting phase and creates balanced teams
-   * Calculates player averages from votes and forms teams
-   */
-  async function handleCerrarVotacion() {
-    // Prevent double execution
-    if (isClosing) {
-      toast.warn('Operación en progreso, espera un momento');
+ * Closes voting phase and creates balanced teams
+ * Calculates player averages from votes and forms teams
+ */
+async function handleCerrarVotacion() {
+  // Prevent double execution
+  if (isClosing) {
+    toast.warn('Operación en progreso, espera un momento');
+    return;
+  }
+  
+  // Validate preconditions
+  if (!partidoActual) {
+    toast.error('Error: No hay partido activo');
+    return;
+  }
+  
+  if (!jugadores || jugadores.length === 0) {
+    toast.error('Error: No hay jugadores en el partido');
+    return;
+  }
+  
+  if (jugadores.length < 2) {
+    toast.error('Se necesitan al menos 2 jugadores');
+    return;
+  }
+  
+  if (jugadores.length % 2 !== 0) {
+    toast.error('NECESITAS UN NÚMERO PAR DE JUGADORES PARA FORMAR EQUIPOS');
+    return;
+  }
+  
+  // Validate player UUIDs
+  const invalidPlayers = jugadores.filter(j => !j.uuid);
+  if (invalidPlayers.length > 0) {
+    toast.error('Error: Algunos jugadores no tienen ID válido');
+    return;
+  }
+  
+  // Check if there are any votes
+  if (votantes.length === 0) {
+    const shouldContinue = window.confirm(
+      'No se detectaron votos. ¿Estás seguro de que querés continuar? Los equipos se formarán con puntajes por defecto.'
+    );
+    if (!shouldContinue) {
       return;
     }
+  }
+  
+  const confirmMessage = votantes.length > 0 
+    ? `¿Cerrar votación y armar equipos? Se procesaron ${votantes.length} votos.`
+    : '¿Cerrar votación y armar equipos con puntajes por defecto?';
     
-    // Validate preconditions
-    if (!partidoActual) {
-      toast.error('Error: No hay partido activo');
-      return;
+  if (!window.confirm(confirmMessage)) {
+    return;
+  }
+  
+  setIsClosing(true);
+  
+  try {
+    // Close voting and calculate scores
+    const result = await closeVotingAndCalculateScores(partidoActual.id);
+    
+    if (!result) {
+      throw new Error('No se recibió respuesta del cierre de votación');
     }
     
-    if (!jugadores || jugadores.length === 0) {
-      toast.error('Error: No hay jugadores en el partido');
-      return;
+    // Get fresh player data with updated scores
+    const updatedPlayers = await getJugadores();
+    
+    if (!updatedPlayers || updatedPlayers.length === 0) {
+      throw new Error('No se pudieron obtener los jugadores actualizados');
     }
     
-    if (jugadores.length < 2) {
-      toast.error('Se necesitan al menos 2 jugadores');
-      return;
+    // Filter players for this match
+    const matchPlayers = updatedPlayers.filter(j => {
+      return partidoActual.jugadores.some(pj => pj.uuid === j.uuid);
+    });
+    
+    if (matchPlayers.length === 0) {
+      throw new Error('No se encontraron jugadores del partido con puntajes actualizados');
     }
     
-    if (jugadores.length % 2 !== 0) {
-      toast.warn('Agrega al menos 2 jugadores para formar equipos', { autoClose: 2000 });
-      return;
+    // Create balanced teams
+    const teams = armarEquipos(matchPlayers);
+    
+    if (!teams || teams.length !== 2) {
+      throw new Error('Error al crear los equipos');
     }
     
-    // Validate player UUIDs
-    const invalidPlayers = jugadores.filter(j => !j.uuid);
-    if (invalidPlayers.length > 0) {
-      toast.error('Error: Algunos jugadores no tienen ID válido');
-      return;
+    // Validate teams
+    const teamAPlayers = teams[0]?.players?.length || 0;
+    const teamBPlayers = teams[1]?.players?.length || 0;
+    if (teamAPlayers === 0 || teamBPlayers === 0) {
+      throw new Error('Los equipos creados están vacíos');
     }
     
-    // Check if there are any votes
-    if (votantes.length === 0) {
-      const shouldContinue = window.confirm(
-        'No se detectaron votos. ¿Estás seguro de que querés continuar? Los equipos se formarán con puntajes por defecto.'
-      );
-      if (!shouldContinue) {
-        return;
-      }
+    // Update UI state
+    safeSetTeams(teams);
+    setShowTeamView(true);
+    onJugadoresChange(matchPlayers);
+    
+    // Success!
+    toast.success(result.message || 'Votación cerrada y equipos creados');
+    
+  } catch (error) {
+    // Provide specific error messages
+    let errorMessage = 'Error al cerrar la votación';
+    if (error.message.includes('votos')) {
+      errorMessage = 'Error al procesar los votos';
+    } else if (error.message.includes('jugadores')) {
+      errorMessage = 'Error al actualizar los jugadores';
+    } else if (error.message.includes('equipos')) {
+      errorMessage = 'Error al crear los equipos';
+    } else if (error.message) {
+      errorMessage = error.message;
     }
     
-    const confirmMessage = votantes.length > 0 
-      ? `¿Cerrar votación y armar equipos? Se procesaron ${votantes.length} votos.`
-      : '¿Cerrar votación y armar equipos con puntajes por defecto?';
-      
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+    toast.error(errorMessage);
     
-    setIsClosing(true);
+    // Reset state on error
+    setShowTeamView(false);
     
+  } finally {
+    setIsClosing(false);
+  }
+}
+
+
+  function handleCopyLink() {
+    const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
+    navigator.clipboard.writeText(url);
+    toast.success("¡Link copiado!", { autoClose: 2000 });
+  }
+
+  function handleWhatsApp() {
+    const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent("Entrá a votar para armar los equipos: " + url)}`, "_blank");
+  }
+
+  async function handleFaltanJugadores() {
     try {
-      // Close voting and calculate scores
-      const result = await closeVotingAndCalculateScores(partidoActual.id);
+      const nuevoEstado = !partidoActual.falta_jugadores;
+      const { error } = await supabase
+        .from('partidos')
+        .update({ falta_jugadores: nuevoEstado })
+        .eq('id', partidoActual.id);
       
-      if (!result) {
-        throw new Error('No se recibió respuesta del cierre de votación');
-      }
+      if (error) throw error;
       
-      // Get fresh player data with updated scores
-      const updatedPlayers = await getJugadores();
+      // Update local state
+      partidoActual.falta_jugadores = nuevoEstado;
       
-      if (!updatedPlayers || updatedPlayers.length === 0) {
-        throw new Error('No se pudieron obtener los jugadores actualizados');
-      }
-      
-      // Filter players for this match
-      const matchPlayers = updatedPlayers.filter(j => {
-        return partidoActual.jugadores.some(pj => pj.uuid === j.uuid);
-      });
-      
-      if (matchPlayers.length === 0) {
-        throw new Error('No se encontraron jugadores del partido con puntajes actualizados');
-      }
-      
-      // Create balanced teams
-      const teams = armarEquipos(matchPlayers);
-      
-      if (!teams || teams.length !== 2) {
-        throw new Error('Error al crear los equipos');
-      }
-      
-      // Validate teams
-      const teamAPlayers = teams[0]?.players?.length || 0;
-      const teamBPlayers = teams[1]?.players?.length || 0;
-      if (teamAPlayers === 0 || teamBPlayers === 0) {
-        throw new Error('Los equipos creados están vacíos');
-      }
-      
-      // Update UI state
-      safeSetTeams(teams);
-      setShowTeamView(true);
-      onJugadoresChange(matchPlayers);
-      
-      // Success!
-      await vibrate('heavy');
-      await sendNotification('Equipos Listos', 'Los equipos han sido creados exitosamente');
-      toast.success(result.message || 'Votación cerrada y equipos creados');
-      
+      toast.success(nuevoEstado ? 
+        '¡Partido abierto a la comunidad!' : 
+        'Partido cerrado a nuevos jugadores'
+      );
     } catch (error) {
-      // Provide specific error messages
-      let errorMessage = 'Error al cerrar la votación';
-      if (error.message.includes('votos')) {
-        errorMessage = 'Error al procesar los votos';
-      } else if (error.message.includes('jugadores')) {
-        errorMessage = 'Error al actualizar los jugadores';
-      } else if (error.message.includes('equipos')) {
-        errorMessage = 'Error al crear los equipos';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      toast.error(errorMessage);
-      
-      // Reset state on error
-      setShowTeamView(false);
-      
-    } finally {
-      setIsClosing(false);
+      toast.error('Error al actualizar el partido: ' + error.message);
     }
   }
 
-  const getCorrectDomain = () => {
-    // Si estamos en el dominio con nicoavayus-projects, usar el dominio limpio
-    if (window.location.hostname.includes('nicoavayus-projects')) {
-      return 'https://arma2.vercel.app';
+  async function handleRefreshPlayers() {
+    try {
+      const { data: updatedMatch, error } = await supabase
+        .from('partidos')
+        .select('*')
+        .eq('id', partidoActual.id)
+        .single();
+        
+      if (!error && updatedMatch && updatedMatch.jugadores) {
+        onJugadoresChange(updatedMatch.jugadores);
+        toast.success('Lista de jugadores actualizada');
+      }
+    } catch (error) {
+      toast.error('Error actualizando jugadores: ' + error.message);
     }
-    return window.location.origin;
+  }
+
+  const fetchFreePlayers = async () => {
+    try {
+      const players = await getFreePlayersList();
+      setFreePlayers(players);
+    } catch (error) {
+      console.error('Error fetching free players:', error);
+    }
   };
 
-  async function handleCopyLink() {
-    const url = `${getCorrectDomain()}/?codigo=${partidoActual.codigo}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      await vibrate('light');
-      toast.success("¡Link copiado!", { autoClose: 2000 });
-    } catch (error) {
-      toast.error("Error copiando link");
-    }
-  }
-
-  async function handleWhatsApp() {
-    const url = `${getCorrectDomain()}/?codigo=${partidoActual.codigo}`;
-    const title = "Team Balancer";
-    const text = "Entrá a votar para armar los equipos";
-    
-    try {
-      await shareContent(title, text, url);
-      await vibrate('medium');
-    } catch (error) {
-      // Fallback to WhatsApp web
-      window.open(`https://wa.me/?text=${encodeURIComponent(text + ": " + url)}`, "_blank");
-    }
-  }
+  const handleInvitePlayer = (player) => {
+    toast.info(`Invitación enviada a ${player.nombre} (${player.localidad})`);
+  };
 
 
 
@@ -368,6 +411,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
   // Determine if button should be disabled
   const isButtonDisabled = isClosing || loading || jugadores.length < 2;
+  const hasOddPlayers = jugadores.length > 0 && jugadores.length % 2 !== 0;
+  const hasNoVotes = votantes.length === 0 && jugadores.length > 0;
 
   if (!partidoActual) return <div style={{color:"red"}}>Sin partido cargado</div>;
   
@@ -394,7 +439,9 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   };
 
   return (
-    <div className="admin-panel-content">
+    <>
+      <ChatButton partidoId={partidoActual?.id} />
+      <div className="admin-panel-content">
       {showTeams ? (
         <TeamDisplay
           teams={teams}
@@ -460,7 +507,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
           {/* Players list section */}
           <div className="admin-players-section">
             <div className="admin-players-title">
-              JUGADORES ({jugadores.length}) - VOTARON: {votantesConNombres.map(v => v.nombre).join(', ') || 'Nadie aún'}
+              JUGADORES ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'}) - VOTARON: {votantesConNombres.map(v => v.nombre).join(', ') || 'Nadie aún'}
             </div>
             {jugadores.length === 0 ? (
               <div className="admin-players-empty">
@@ -511,6 +558,51 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
               aria-label="Copiar enlace para que los jugadores voten"
             >
               LINK PARA JUGADORES
+            </button>
+            
+            {/* Botón Faltan Jugadores */}
+            <button 
+              className="voting-confirm-btn" 
+              style={{ 
+                background: partidoActual.falta_jugadores ? '#28a745' : '#ff6b35',
+                borderColor: '#fff',
+                marginBottom: 12
+              }}
+              onClick={handleFaltanJugadores}
+              aria-label='Abrir/cerrar partido a la comunidad'
+            >
+              {partidoActual.falta_jugadores ? '✅ PARTIDO ABIERTO' : '📢 FALTAN JUGADORES'}
+            </button>
+            
+            {/* Botón Actualizar Jugadores */}
+            <button 
+              className="voting-confirm-btn" 
+              style={{ 
+                background: '#17a2b8',
+                borderColor: '#fff',
+                marginBottom: 12
+              }}
+              onClick={handleRefreshPlayers}
+              aria-label='Actualizar lista de jugadores'
+            >
+              🔄 ACTUALIZAR JUGADORES
+            </button>
+            
+            {/* Botón Ver Jugadores Libres */}
+            <button 
+              className="voting-confirm-btn" 
+              style={{ 
+                background: '#6f42c1',
+                borderColor: '#fff',
+                marginBottom: 12
+              }}
+              onClick={() => {
+                setShowFreePlayers(!showFreePlayers);
+                if (!showFreePlayers) fetchFreePlayers();
+              }}
+              aria-label='Ver jugadores disponibles'
+            >
+              🙋 {showFreePlayers ? 'OCULTAR' : 'VER'} JUGADORES LIBRES
             </button>
             <button 
               className="voting-confirm-btn admin-btn-whatsapp" 
@@ -567,10 +659,46 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
               VOLVER AL INICIO
             </button>
           </div>
-
+          
+          {/* Free Players List */}
+          {showFreePlayers && (
+            <div className="admin-players-section" style={{ marginTop: 20 }}>
+              <div className="admin-players-title">
+                JUGADORES DISPONIBLES ({freePlayers.length})
+              </div>
+              {freePlayers.length === 0 ? (
+                <div className="admin-players-empty">
+                  No hay jugadores disponibles
+                </div>
+              ) : (
+                <div className="admin-players-grid">
+                  {freePlayers.map(player => (
+                    <div key={player.id} className="admin-player-item">
+                      <div className="admin-player-avatar-placeholder">🙋</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span className="admin-player-name">{player.nombre}</span>
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
+                          {player.localidad}
+                        </div>
+                      </div>
+                      <button
+                        className="admin-remove-btn"
+                        onClick={() => handleInvitePlayer(player)}
+                        style={{ background: '#28a745' }}
+                        aria-label="Invitar jugador"
+                      >
+                        +
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }

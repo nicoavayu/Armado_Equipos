@@ -351,6 +351,17 @@
   color: #333;
 }
 
+/* Simple select styling */
+select.input-modern {
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  select.input-modern {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+}
+
 /* White icons for date and time inputs */
 .input-modern[type="date"]::-webkit-calendar-picker-indicator,
 .input-modern[type="time"]::-webkit-calendar-picker-indicator {
@@ -1423,6 +1434,13 @@ input::placeholder,
     margin-left: 12px !important;
     margin-right: 12px !important;
     box-sizing: border-box !important;
+  }
+  /* Fix for select in new match flow */
+  .new-match-flow select {
+    font-size: 16px !important;
+    -webkit-appearance: menulist;
+    -moz-appearance: menulist;
+    appearance: menulist;
   }
 }
 

@@ -24,6 +24,22 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const [animation, setAnimation] = useState('slide-in');
   const [editMode, setEditMode] = useState(false);
 
+  // Modalidad y cupo automático
+  const modalidadToCupo = {
+    F5: 10,
+    F6: 12,
+    F7: 14,
+    F8: 16,
+    F9: 18,
+    F11: 22,
+  };
+  const [modalidad, setModalidad] = useState('F5');
+  const [cupo, setCupo] = useState(modalidadToCupo['F5']);
+
+  React.useEffect(() => {
+    setCupo(modalidadToCupo[modalidad]);
+  }, [modalidad]);
+
   // Foto opcional para el partido
   const [file, setFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
@@ -80,40 +96,33 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const handleSubmit = async () => {
     setLoading(true);
     setError("");
-    
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       let partido;
-      
+
       if (user) {
         // Upload image if provided
         let imagenUrl = null;
         if (file) {
           try {
-            // Create a unique filename for the match image
             const fileExt = file.name.split('.').pop();
             const fileName = `partido_${Date.now()}.${fileExt}`;
-            
-            // Upload to supabase storage
             const { error: uploadError } = await supabase.storage
               .from('jugadores-fotos')
               .upload(fileName, file, { upsert: true });
-              
             if (uploadError) throw uploadError;
-            
-            // Get public URL
             const { data } = supabase.storage
               .from('jugadores-fotos')
               .getPublicUrl(fileName);
-              
             imagenUrl = data?.publicUrl;
             console.log('Match image uploaded successfully:', imagenUrl);
           } catch (error) {
             console.error('Error uploading match image:', error);
           }
         }
-        
+
+        // ----> AGREGO MODALIDAD Y CUPO
         const partidoFrecuente = await safeAsync(
           () => crearPartidoFrecuente({
             nombre: nombrePartido.trim(),
@@ -126,35 +135,37 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
           }),
           'Error al crear el partido frecuente'
         );
-        
+
         partido = await safeAsync(
-          () => crearPartidoDesdeFrec(partidoFrecuente, fecha),
+          () => crearPartidoDesdeFrec(partidoFrecuente, fecha, modalidad, cupo),
           'Error al crear el partido'
         );
-        
         partido.from_frequent_match_id = partidoFrecuente.id;
+        // ----< FIN MODALIDAD Y CUPO
       } else {
         partido = await safeAsync(
           () => crearPartido({
             fecha,
             hora: hora.trim(),
             sede: sede.trim(),
-            sedeMaps: sedeInfo?.place_id || ""
+            sedeMaps: sedeInfo?.place_id || "",
+            modalidad,
+            cupo_jugadores: cupo,
+            falta_jugadores: false
           }),
           'Error al crear el partido'
         );
-        
         partido.nombre = nombrePartido.trim();
       }
-      
+
       if (!partido) {
         setError("No se pudo crear el partido");
         return;
       }
-      
+
       await onConfirmar(partido);
       handleSuccess('Partido creado correctamente');
-      
+
     } catch (err) {
       setError(err.message || "Error al procesar la solicitud");
     } finally {
@@ -162,14 +173,14 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     }
   };
 
-  // Paso 1: Nombre del partido
+  // Paso 1: Nombre + Modalidad
   if (step === STEPS.NAME) {
     return (
       <div className="voting-bg new-match-flow">
         <div className="player-vote-card">
           <div className="voting-modern-card" style={{ padding: '20px', maxWidth: 'none', width: '100vw', margin: '0', boxSizing: 'border-box' }}>
             <div className="match-name">INGRESÁ EL NOMBRE<br />DEL PARTIDO</div>
-            
+
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 18 }}>
               <div
                 className="voting-photo-box"
@@ -215,6 +226,49 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               autoFocus
             />
 
+            {/* Selector de modalidad con botones */}
+            <div style={{ width: "100%", marginBottom: 22 }}>
+              <label style={{ fontWeight: 500, color: "#fff", marginBottom: 12, display: "block", fontFamily: "'Oswald', Arial, sans-serif" }}>
+                Modalidad
+              </label>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: "8px",
+                marginBottom: 12,
+                width: "100%"
+              }}>
+                {['F5', 'F6', 'F7', 'F8', 'F9', 'F11'].map(tipo => (
+                  <button
+                    key={tipo}
+                    type="button"
+                    onClick={() => setModalidad(tipo)}
+                    style={{
+                      padding: "12px 8px",
+                      fontSize: "16px",
+                      fontWeight: modalidad === tipo ? "700" : "500",
+                      fontFamily: "'Oswald', Arial, sans-serif",
+                      border: modalidad === tipo ? "2px solid #0EA9C6" : "1.5px solid #eceaf1",
+                      borderRadius: "6px",
+                      background: modalidad === tipo ? "#0EA9C6" : "rgba(255,255,255,0.9)",
+                      color: modalidad === tipo ? "#fff" : "#333",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      minHeight: "44px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    {tipo.replace('F', 'F')}
+                  </button>
+                ))}
+              </div>
+              <div style={{ color: "#fff", fontSize: 16, textAlign: "center" }}>
+                Cupo máximo: <b>{cupo} jugadores</b>
+              </div>
+            </div>
+
             <button
               className="voting-confirm-btn"
               disabled={!nombrePartido.trim()}
@@ -223,7 +277,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             >
               {editMode ? "GUARDAR" : "CONTINUAR"}
             </button>
-            
+
             <button
               className="voting-confirm-btn"
               style={{ background: 'rgba(255,255,255,0.1)', borderColor: '#fff', color: '#fff' }}
@@ -244,13 +298,13 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
         <div className={`player-vote-card ${animation}`}>
           <div className="voting-modern-card" style={{ padding: '20px', maxWidth: 'none', width: '100vw', margin: '0', boxSizing: 'border-box' }}>
             <div className="match-name">¿CUÁNDO SE JUEGA?</div>
-            
-            <div style={{ 
-              fontSize: 18, 
+
+            <div style={{
+              fontSize: 18,
               color: "rgba(255,255,255,0.8)",
-              textAlign: "center", 
-              marginBottom: 24, 
-              fontFamily: "'Oswald', Arial, sans-serif" 
+              textAlign: "center",
+              marginBottom: 24,
+              fontFamily: "'Oswald', Arial, sans-serif"
             }}>
               Seleccioná la fecha y hora del partido
             </div>
@@ -279,7 +333,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             >
               {editMode ? "GUARDAR" : "CONTINUAR"}
             </button>
-            
+
             <button
               className="voting-confirm-btn"
               style={{ background: 'rgba(255,255,255,0.1)', borderColor: '#fff', color: '#fff' }}
@@ -300,13 +354,13 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
         <div className={`player-vote-card ${animation}`}>
           <div className="voting-modern-card" style={{ padding: '20px', maxWidth: 'none', width: '100vw', margin: '0', boxSizing: 'border-box' }}>
             <div className="match-name">¿DÓNDE SE JUEGA?</div>
-            
-            <div style={{ 
-              fontSize: 18, 
+
+            <div style={{
+              fontSize: 18,
               color: "rgba(255,255,255,0.8)",
-              textAlign: "center", 
-              marginBottom: 24, 
-              fontFamily: "'Oswald', Arial, sans-serif" 
+              textAlign: "center",
+              marginBottom: 24,
+              fontFamily: "'Oswald', Arial, sans-serif"
             }}>
               Ingresá la dirección o nombre del lugar
             </div>
@@ -327,7 +381,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             >
               {editMode ? "GUARDAR" : "CONTINUAR"}
             </button>
-            
+
             <button
               className="voting-confirm-btn"
               style={{ background: 'rgba(255,255,255,0.1)', borderColor: '#fff', color: '#fff' }}
@@ -348,16 +402,16 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
         <div className={`player-vote-card ${animation}`}>
           <div className="voting-modern-card" style={{ padding: '20px', maxWidth: 'none', width: '100vw', margin: '0', boxSizing: 'border-box' }}>
             <div className="match-name">CONFIRMÁ LOS DATOS</div>
-            
+
             {fotoPreview && (
               <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
                 <img
                   src={fotoPreview}
                   alt="foto partido"
-                  style={{ 
-                    width: 120, 
-                    height: 120, 
-                    objectFit: "cover", 
+                  style={{
+                    width: 120,
+                    height: 120,
+                    objectFit: "cover",
                     borderRadius: 12,
                     border: "2px solid rgba(255,255,255,0.3)"
                   }}
@@ -369,6 +423,14 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               <li className="confirmation-item">
                 <span className="confirmation-item-name">Nombre:</span>
                 <span className="confirmation-item-score">{nombrePartido}</span>
+                <button
+                  className="confirmation-item-edit-btn"
+                  onClick={() => editField(STEPS.NAME)}
+                >EDITAR</button>
+              </li>
+              <li className="confirmation-item">
+                <span className="confirmation-item-name">Modalidad:</span>
+                <span className="confirmation-item-score">{modalidad.replace("F", "Fútbol ")} ({cupo} jugadores)</span>
                 <button
                   className="confirmation-item-edit-btn"
                   onClick={() => editField(STEPS.NAME)}
@@ -415,7 +477,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 {error}
               </div>
             )}
-            
+
             <button
               className="voting-confirm-btn"
               style={{ marginBottom: 12 }}
@@ -424,14 +486,14 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             >
               {loading ? "CREANDO..." : "CREAR PARTIDO"}
             </button>
-            
+
             <button
               className="voting-confirm-btn"
-              style={{ 
-                background: 'rgba(255,255,255,0.1)', 
-                borderColor: '#fff', 
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                borderColor: '#fff',
                 color: '#fff',
-                fontSize: '1.2rem', 
+                fontSize: '1.2rem',
                 height: '54px'
               }}
               onClick={prevStep}
