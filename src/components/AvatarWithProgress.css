@@ -1,0 +1,99 @@
+.avatar-with-progress {
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.avatar-with-progress:hover {
+  transform: scale(1.05);
+}
+
+.avatar-with-progress.complete {
+  animation: completionPulse 2s ease-in-out infinite;
+}
+
+.progress-ring {
+  pointer-events: none;
+}
+
+.progress-circle {
+  transition: stroke-dashoffset 0.8s ease-in-out, stroke 0.3s ease;
+}
+
+.avatar-container {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.avatar-placeholder {
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.progress-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 24px;
+  height: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'Oswald', Arial, sans-serif;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.completion-glow {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(40, 167, 69, 0.3) 0%, transparent 70%);
+  animation: glowPulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes completionPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* Mobile adjustments */
+@media (max-width: 600px) {
+  .avatar-placeholder {
+    font-size: 20px;
+  }
+  
+  .progress-badge {
+    min-width: 20px;
+    height: 18px;
+    font-size: 9px;
+  }
+}

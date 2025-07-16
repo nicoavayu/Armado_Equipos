@@ -1,0 +1,292 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { toast } from 'react-toastify';
+import { useAuth } from './AuthProvider';
+import { updateProfile, calculateProfileCompletion, uploadFoto, supabase } from '../supabase';
+import AvatarWithProgress from './AvatarWithProgress';
+import ModernToggle from './ModernToggle';
+import './ProfileMenu.css';
+
+export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
+  const { user, profile, refreshProfile } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    nombre: '',
+    email: '',
+    telefono: '',
+    localidad: '',
+    fecha_nacimiento: '',
+    posicion_favorita: '',
+    acepta_invitaciones: true,
+    bio: ''
+  });
+  const [hasChanges, setHasChanges] = useState(false);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (profile) {
+      const newFormData = {
+        nombre: profile.nombre || '',
+        email: profile.email || '',
+        telefono: profile.telefono || '',
+        localidad: profile.localidad || '',
+        fecha_nacimiento: profile.fecha_nacimiento || '',
+        posicion_favorita: profile.posicion_favorita || '',
+        acepta_invitaciones: profile.acepta_invitaciones !== false,
+        bio: profile.bio || ''
+      };
+      setFormData(newFormData);
+      setHasChanges(false);
+      
+      // Initialize live profile
+      if (onProfileChange) {
+        onProfileChange(profile);
+      }
+    }
+  }, [profile, onProfileChange]);
+
+  const handleInputChange = (field, value) => {
+    const newData = { ...formData, [field]: value };
+    setFormData(newData);
+    setHasChanges(true);
+    
+    // Update card in real-time
+    if (onProfileChange) {
+      onProfileChange({ ...profile, ...newData });
+    }
+  };
+
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La imagen debe ser menor a 5MB');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const fotoUrl = await uploadFoto(file, { uuid: user.id });
+      await updateProfile(user.id, { foto_url: fotoUrl });
+      await refreshProfile();
+      toast.success('Foto actualizada');
+    } catch (error) {
+      toast.error('Error subiendo foto: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!formData.nombre.trim()) {
+      toast.error('El nombre es obligatorio');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const updatedData = { ...formData };
+      const updatedProfile = await updateProfile(user.id, updatedData);
+      
+      const completion = calculateProfileCompletion(updatedProfile);
+      if (completion === 100 && (profile?.profile_completion || 0) < 100) {
+        toast.success('¡Perfil completado al 100%! 🎉');
+      } else {
+        toast.success('Perfil actualizado');
+      }
+      
+      await refreshProfile();
+    } catch (error) {
+      toast.error('Error actualizando perfil: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const completion = profile?.profile_completion || 0;
+  const isIncomplete = completion < 100;
+  
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    onClose();
+  };
+  
+  const positions = [
+    { key: 'arquero', label: 'ARQ' },
+    { key: 'defensor', label: 'DEF' },
+    { key: 'mediocampista', label: 'MED' },
+    { key: 'delantero', label: 'DEL' }
+  ];
+
+  if (!isOpen) {
+    console.log('ProfileMenu not open, returning null');
+    return null;
+  }
+  
+  console.log('ProfileMenu rendering with profile:', profile);
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="profile-menu-backdrop" onClick={onClose} />
+      
+      {/* Menu */}
+      <div className={`profile-menu ${isOpen ? 'open' : ''}`}>
+        {/* Header with Avatar */}
+        <div className="profile-menu-header">
+          <div className="profile-menu-avatar">
+            <AvatarWithProgress 
+              profile={profile} 
+              size={80}
+              onClick={() => fileInputRef.current?.click()}
+            />
+          </div>
+          
+          <button 
+            className="change-photo-btn"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading}
+          >
+            {loading ? 'Subiendo...' : 'Cambiar Foto'}
+          </button>
+          
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handlePhotoChange}
+          />
+          
+          <button className="close-menu-btn" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        {/* Completion Banner */}
+        {isIncomplete && (
+          <div className="completion-banner">
+            <span>📋</span>
+            <div>
+              <div className="banner-title">Completá tu perfil</div>
+              <div className="banner-subtitle">Para la mejor experiencia ({completion}% completo)</div>
+            </div>
+          </div>
+        )}
+
+        {/* Form Fields */}
+        <div className="profile-menu-content">
+          <div className="form-group">
+            <label>Nombre *</label>
+            <input
+              className="input-modern"
+              type="text"
+              value={formData.nombre}
+              onChange={(e) => handleInputChange('nombre', e.target.value)}
+              placeholder="Tu nombre completo"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Email</label>
+            <input
+              className="input-modern"
+              type="email"
+              value={formData.email}
+              readOnly
+              style={{ opacity: 0.7, cursor: 'not-allowed' }}
+            />
+            <div className="field-note">El email no se puede modificar</div>
+          </div>
+
+          <div className="form-group">
+            <label>Teléfono</label>
+            <input
+              className="input-modern"
+              type="tel"
+              value={formData.telefono}
+              onChange={(e) => handleInputChange('telefono', e.target.value)}
+              placeholder="Tu número de teléfono"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Ciudad/Localidad</label>
+            <input
+              className="input-modern"
+              type="text"
+              value={formData.localidad}
+              onChange={(e) => handleInputChange('localidad', e.target.value)}
+              placeholder="Tu ciudad o barrio"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Fecha de Nacimiento</label>
+            <input
+              className="input-modern"
+              type="date"
+              value={formData.fecha_nacimiento}
+              onChange={(e) => handleInputChange('fecha_nacimiento', e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Posición</label>
+            <div className="position-buttons">
+              {positions.map(pos => (
+                <button
+                  key={pos.key}
+                  type="button"
+                  className={`position-btn ${formData.posicion_favorita === pos.key ? 'selected' : ''}`}
+                  onClick={() => handleInputChange('posicion_favorita', pos.key)}
+                >
+                  {pos.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Acepta Invitaciones</label>
+            <ModernToggle
+              checked={formData.acepta_invitaciones}
+              onChange={(value) => handleInputChange('acepta_invitaciones', value)}
+              label="Recibir invitaciones a partidos"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Bio</label>
+            <textarea
+              className="input-modern"
+              value={formData.bio}
+              onChange={(e) => handleInputChange('bio', e.target.value)}
+              placeholder="Contanos algo sobre vos..."
+              rows={3}
+            />
+          </div>
+        </div>
+
+        {/* Save Button */}
+        <div className="profile-menu-footer">
+          <button
+            className={`save-profile-btn ${hasChanges ? 'has-changes' : ''}`}
+            onClick={handleSave}
+            disabled={loading || !hasChanges}
+          >
+            {loading ? 'Guardando...' : 'Guardar Perfil'}
+          </button>
+          
+          <button
+            className="logout-btn"
+            onClick={handleLogout}
+            disabled={loading}
+          >
+            Cerrar Sesión
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}

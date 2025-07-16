@@ -939,6 +939,88 @@ export const clearGuestSession = (partidoId) => {
   }
 };
 
+// --- Profile Management ---
+
+export const getProfile = async (userId) => {
+  const { data, error } = await supabase
+    .from('usuarios')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const updateProfile = async (userId, profileData) => {
+  const completion = calculateProfileCompletion(profileData);
+  
+  const { data, error } = await supabase
+    .from('usuarios')
+    .update({ ...profileData, profile_completion: completion })
+    .eq('id', userId)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const createOrUpdateProfile = async (user) => {
+  const profileData = {
+    id: user.id,
+    nombre: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
+    email: user.email,
+    foto_url: user.user_metadata?.avatar_url || null,
+    numero_jugador: '10',
+    nacionalidad: 'argentina',
+    telefono: null,
+    localidad: null,
+    fecha_nacimiento: null,
+    posicion_favorita: 'defensor',
+    acepta_invitaciones: true,
+    bio: null,
+    rating: 4.5,
+    partidos_jugados: '0PJ'
+  };
+  
+  const completion = calculateProfileCompletion(profileData);
+  profileData.profile_completion = completion;
+  
+  const { data, error } = await supabase
+    .from('usuarios')
+    .upsert(profileData, { onConflict: 'id' })
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const calculateProfileCompletion = (profile) => {
+  if (!profile) return 0;
+  
+  const fields = [
+    'nombre', 
+    'foto_url', 
+    'email', 
+    'numero_jugador',
+    'nacionalidad',
+    'telefono', 
+    'localidad', 
+    'fecha_nacimiento',
+    'posicion_favorita',
+    'bio'
+  ];
+  
+  const filledFields = fields.filter(field => {
+    const value = profile[field];
+    return value && value.toString().trim() !== '';
+  });
+  
+  return Math.round((filledFields.length / fields.length) * 100);
+};
+
 // --- Free Players Management ---
 
 export const addFreePlayer = async () => {
@@ -1088,71 +1170,4 @@ export const checkPartidosFrecuentesSchema = async () => {
   }
 };
 
-// --- Profile Management ---
 
-export const getProfile = async (userId) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
-  
-  if (error && error.code !== 'PGRST116') {
-    throw error;
-  }
-  
-  return data;
-};
-
-export const updateProfile = async (nombre, avatar_url) => {
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  
-  if (authError || !user) {
-    throw new Error('User must be authenticated to update profile');
-  }
-  
-  const updateData = {
-    updated_at: new Date().toISOString()
-  };
-  
-  if (nombre !== undefined) updateData.nombre = nombre;
-  if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
-  
-  const { data, error } = await supabase
-    .from('profiles')
-    .update(updateData)
-    .eq('id', user.id)
-    .select()
-    .single();
-  
-  if (error) throw new Error(`Error updating profile: ${error.message}`);
-  return data;
-};
-
-export const upsertProfile = async (profile) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .upsert(profile)
-    .select()
-    .single();
-  
-  if (error) throw error;
-  return data;
-};
-
-export const uploadAvatar = async (userId, file) => {
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${userId}_${Date.now()}.${fileExt}`;
-  
-  const { error: uploadError } = await supabase.storage
-    .from('avatars')
-    .upload(fileName, file, { upsert: true });
-
-  if (uploadError) throw uploadError;
-
-  const { data } = supabase.storage
-    .from('avatars')
-    .getPublicUrl(fileName);
-
-  return data.publicUrl;
-};

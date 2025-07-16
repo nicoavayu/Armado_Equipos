@@ -1,10 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../supabase';
-import ProfileModal from './ProfileModal';
 
 const UserHeader = ({ user, profile, onProfileUpdate }) => {
   const [showDropdown, setShowDropdown] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -38,8 +36,8 @@ const UserHeader = ({ user, profile, onProfileUpdate }) => {
           {showDropdown && (
             <div className="user-dropdown">
               <div className="dropdown-item" onClick={() => {
-                setShowProfile(true);
                 setShowDropdown(false);
+                // Profile functionality moved to ProfileIcon in Home
               }}>
                 <span>👤</span>
                 My Profile
@@ -54,14 +52,7 @@ const UserHeader = ({ user, profile, onProfileUpdate }) => {
         </div>
       </div>
 
-      {showProfile && (
-        <ProfileModal
-          user={user}
-          profile={profile}
-          onClose={() => setShowProfile(false)}
-          onUpdate={onProfileUpdate}
-        />
-      )}
+
     </>
   );
 };
