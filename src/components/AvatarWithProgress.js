@@ -4,7 +4,7 @@ import './AvatarWithProgress.css';
 export default function AvatarWithProgress({ profile, onClick, size = 60 }) {
   const completion = profile?.profile_completion || 0;
   
-  console.log('AvatarWithProgress render:', { profile, completion });
+  // No need for foto_url fallback anymore
   
   // Calculate which quarter we're in and colors
   const getQuarterInfo = (percentage) => {
@@ -93,9 +93,9 @@ export default function AvatarWithProgress({ profile, onClick, size = 60 }) {
 
       {/* Avatar */}
       <div className="avatar-container">
-        {profile?.foto_url ? (
+        {profile?.avatar_url ? (
           <img 
-            src={profile.foto_url} 
+            src={profile.avatar_url} 
             alt="Perfil" 
             className="avatar-image"
           />

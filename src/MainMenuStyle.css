@@ -4,6 +4,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+
   /* Usá el fondo que ya venías usando, no este */
   background: none !important;
 }
@@ -28,9 +29,9 @@
   position: relative;
   width: 200px;
   height: 200px;
-  background: rgba(255,255,255,0.30);
+  background: rgb(255 255 255 / 30%);
   color: #232a32;
-  border-radius: 0px; /* O 0 para sin nada */
+  border-radius: 0; /* O 0 para sin nada */
   border: none;
   display: flex;
   flex-direction: column;
@@ -46,7 +47,7 @@
 .menu-btn-fifa:active,
 .menu-btn-fifa:hover {
   box-shadow: 0 8px 32px 0 #0EA9C644;
-  background: rgba(255,255,255,0.44);
+  background: rgb(255 255 255 / 44%);
 }
 
 .menu-btn-label {
@@ -58,7 +59,7 @@
   font-weight: 700;
   letter-spacing: .06em;
   text-transform: uppercase;
-  color: #ffffff;
+  color: #fff;
   z-index: 2;
   pointer-events: none;
 }
@@ -72,11 +73,12 @@
   opacity: 0.75;
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .menu-row {
     flex-direction: column;
     gap: 13px;
   }
+
   .menu-btn-fifa {
     width: 92vw;
     min-width: 0;
@@ -84,11 +86,13 @@
     height: 85px;
     border-radius: 6px;
   }
+
   .menu-btn-label {
     font-size: 0.93rem;
     top: 9px;
     left: 12px;
   }
+
   .menu-btn-icon {
     font-size: 1.25rem;
     bottom: 8px;

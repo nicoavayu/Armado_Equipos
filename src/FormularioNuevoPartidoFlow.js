@@ -13,6 +13,8 @@ const STEPS = {
 };
 
 export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
+  // Clase para dar espacio al TabBar
+  const containerClass = "voting-bg new-match-flow content-with-tabbar";
   const [step, setStep] = useState(STEPS.NAME);
   const [nombrePartido, setNombrePartido] = useState("");
   const [fecha, setFecha] = useState("");
@@ -176,7 +178,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // Paso 1: Nombre + Modalidad
   if (step === STEPS.NAME) {
     return (
-      <div className="voting-bg new-match-flow">
+      <div className="voting-bg new-match-flow content-with-tabbar">
         <div className="player-vote-card">
           <div className="voting-modern-card" style={{ padding: '20px', maxWidth: 'none', width: '100vw', margin: '0', boxSizing: 'border-box' }}>
             <div className="match-name">INGRESÁ EL NOMBRE<br />DEL PARTIDO</div>
@@ -278,13 +280,15 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               {editMode ? "GUARDAR" : "CONTINUAR"}
             </button>
 
-            <button
-              className="voting-confirm-btn"
-              style={{ background: 'rgba(255,255,255,0.1)', borderColor: '#fff', color: '#fff' }}
-              onClick={editMode ? saveAndReturn : onVolver}
-            >
-              {editMode ? "CANCELAR" : "VOLVER AL INICIO"}
-            </button>
+            {editMode && (
+              <button
+                className="voting-confirm-btn"
+                style={{ background: 'rgba(255,255,255,0.1)', borderColor: '#fff', color: '#fff' }}
+                onClick={saveAndReturn}
+              >
+                CANCELAR
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -294,7 +298,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // Paso 2: Fecha y hora
   if (step === STEPS.WHEN) {
     return (
-      <div className="voting-bg new-match-flow">
+      <div className="voting-bg new-match-flow content-with-tabbar">
         <div className={`player-vote-card ${animation}`}>
           <div className="voting-modern-card" style={{ padding: '20px', maxWidth: 'none', width: '100vw', margin: '0', boxSizing: 'border-box' }}>
             <div className="match-name">¿CUÁNDO SE JUEGA?</div>
@@ -350,7 +354,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // Paso 3: Sede
   if (step === STEPS.WHERE) {
     return (
-      <div className="voting-bg new-match-flow">
+      <div className="voting-bg new-match-flow content-with-tabbar">
         <div className={`player-vote-card ${animation}`}>
           <div className="voting-modern-card" style={{ padding: '20px', maxWidth: 'none', width: '100vw', margin: '0', boxSizing: 'border-box' }}>
             <div className="match-name">¿DÓNDE SE JUEGA?</div>
@@ -398,7 +402,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // Paso 4: Confirmación
   if (step === STEPS.CONFIRM) {
     return (
-      <div className="voting-bg new-match-flow">
+      <div className="voting-bg new-match-flow content-with-tabbar">
         <div className={`player-vote-card ${animation}`}>
           <div className="voting-modern-card" style={{ padding: '20px', maxWidth: 'none', width: '100vw', margin: '0', boxSizing: 'border-box' }}>
             <div className="match-name">CONFIRMÁ LOS DATOS</div>

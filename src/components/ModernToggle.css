@@ -18,9 +18,9 @@
   position: relative;
   width: 60px;
   height: 32px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgb(255 255 255 / 20%);
   border-radius: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgb(255 255 255 / 30%);
   transition: all 0.3s ease;
 }
 
@@ -38,7 +38,7 @@
   background: white;
   border-radius: 50%;
   transition: transform 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 20%);
 }
 
 .modern-toggle-input:checked + .modern-toggle-slider .modern-toggle-thumb {
@@ -49,11 +49,11 @@
   color: white;
   font-size: 14px;
   font-weight: 500;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
 }
 
 .modern-toggle-slider:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgb(255 255 255 / 30%);
 }
 
 .modern-toggle-input:checked + .modern-toggle-slider:hover {

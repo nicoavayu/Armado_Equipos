@@ -72,6 +72,8 @@
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.2",
     "eslint-webpack-plugin": "^4.2.0",
+    "stylelint": "^16.21.1",
+    "stylelint-config-standard": "^38.0.0",
     "webpack": "^5.92.0",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^5.0.4"

@@ -8,13 +8,13 @@
 
 /* Tarjeta principal */
 .frecuente-card {
-  background: rgba(34,40,80,0.17);
+  background: rgb(34 40 80 / 17%);
   border-radius: 14px;
-  padding: 20px 18px 18px 18px;
+  padding: 20px 18px 18px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  box-shadow: 0 2px 12px 0 rgba(30,38,60,0.08);
+  box-shadow: 0 2px 12px 0 rgb(30 38 60 / 8%);
   min-width: 0;
   max-width: 370px;
   width: 100%;
@@ -53,7 +53,7 @@
 
 .frecuente-meta {
   font-size: 13px;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   color: #c8d1d7;
   margin-bottom: 0;
   line-height: 1.14;
@@ -113,6 +113,7 @@
   background: #e3f5fa;
   color: #189ab4;
 }
+
 .frecuente-edit-btn:hover {
   background: #b8e0eb;
   color: #155e75;
@@ -123,30 +124,36 @@
   background: #ffeaea;
   color: #e03535;
 }
+
 .frecuente-del-btn:hover {
   background: #f7caca;
   color: #c70000;
 }
 
-@media (max-width: 650px) {
+@media (width <= 650px) {
   .frecuentes-grid {
     gap: 13px;
   }
+
   .frecuente-card {
-    padding: 13px 7px 10px 7px;
+    padding: 13px 7px 10px;
     max-width: 98vw;
   }
+
   .frecuente-img {
     width: 46px;
     height: 46px;
     border-radius: 11px;
   }
+
   .frecuente-title {
     font-size: 17px;
   }
+
   .frecuente-meta {
     font-size: 12px;
   }
+
   .frecuente-edit-btn,
   .frecuente-del-btn {
     padding: 6px 13px;

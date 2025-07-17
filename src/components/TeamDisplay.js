@@ -144,7 +144,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
                               >
-                                <img src={player.foto_url || 'https://api.dicebear.com/6.x/pixel-art/svg?seed=default'} alt={player.nombre} className="player-avatar" />
+                                <img
+                                  src={player.avatar_url || 'https://api.dicebear.com/6.x/pixel-art/svg?seed=default'}
+                                  alt={player.nombre}
+                                  className="player-avatar"
+                                />
                                 <span>{player.nombre}</span>
                                 {showAverages && <span className="player-score">{(player.score || 0).toFixed(2)}</span>}
                               </div>

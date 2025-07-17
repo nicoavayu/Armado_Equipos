@@ -1,5 +1,5 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { supabase, getProfile, createOrUpdateProfile } from '../supabase';
+import { supabase, getProfile, createOrUpdateProfile, updateProfile } from '../supabase';
 import LoadingSpinner from './LoadingSpinner';
 
 const AuthContext = createContext();
@@ -29,6 +29,13 @@ const AuthProvider = ({ children }) => {
         console.log('Attempting to get existing profile...');
         profileData = await getProfile(currentUser.id);
         console.log('Existing profile found:', profileData);
+        
+        // Siempre actualizar el avatar_url si viene de un proveedor social
+        const metadataAvatar = currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture;
+        if (metadataAvatar) {
+          console.log('Updating profile with avatar from user metadata:', metadataAvatar);
+          profileData = await updateProfile(currentUser.id, { avatar_url: metadataAvatar });
+        }
       } catch (error) {
         // Profile doesn't exist, create it
         console.log('Profile not found, creating new profile for user:', currentUser.id);
@@ -37,6 +44,12 @@ const AuthProvider = ({ children }) => {
       }
       setProfile(profileData);
       console.log('Profile set in state:', profileData);
+      console.log('Profile avatar fields debug:', {
+        avatar_url: profileData?.avatar_url,
+        user_metadata_avatar: currentUser.user_metadata?.avatar_url,
+        user_metadata_picture: currentUser.user_metadata?.picture,
+        all_fields: Object.keys(profileData || {})
+      });
     } catch (error) {
       console.error('Error with profile:', error);
       setProfile(null);

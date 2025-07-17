@@ -7,11 +7,11 @@
   --color-text: #232a32;
   --radius-card: 32px;
   --radius-btn: 18px;
-  --font-main: 'Bebas Neue', Arial, sans-serif;
-  --shadow-card: 0 2px 18px 0 rgba(34, 40, 80, 0.10);
---gradient-bg: linear-gradient(135deg, #55a7ff 0%, #ff66ff 100%);
+  --font-main: 'Bebas Neue', arial, sans-serif;
+  --shadow-card: 0 2px 18px 0 rgb(34 40 80 / 10%);
+--gradient-bg: linear-gradient(135deg, #55a7ff 0%, #f6f 100%);
   --white: #fff;
-  --white-transparent: rgba(255,255,255,0.29);
+  --white-transparent: rgb(255 255 255 / 29%);
 }
 
 
@@ -26,6 +26,7 @@ body, html {
   height: 100%;
 
 }
+
 *, *::before, *::after {
   font-family: inherit !important;
 }
@@ -45,10 +46,11 @@ body {
   align-items: center;
   justify-content: center;
 }
+
 .voting-modern-card {
   width: 90vw;
   max-width: 1200px;
-  padding: 80px 0 80px 0;
+  padding: 80px 0;
   background: transparent !important;
   border-radius: 0 !important;
   box-shadow: none !important;
@@ -58,6 +60,7 @@ body {
   align-items: center;
   margin: 0 auto;
 }
+
 .voting-title-modern {
   font-family: 'Bebas Neue', Arial, sans-serif !important;
   text-transform: uppercase;
@@ -75,9 +78,10 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 18px 30px;
   max-width: 700px;
-  margin: 40px auto 0 auto;
+  margin: 40px auto 0;
   justify-items: center;
 }
+
 .player-select-btn, .voting-name-btn {
   font-family: 'Bebas Neue', Arial, sans-serif !important;
   font-size: 2.3vw;
@@ -85,7 +89,7 @@ body {
   color: #fff;
   font-weight: 400;
   letter-spacing: 0.09em;
-  border: 2.5px solid rgba(255,255,255,0.86);
+  border: 2.5px solid rgb(255 255 255 / 86%);
   background: transparent;
   border-radius: 0 !important;
   height: 72px;
@@ -95,13 +99,14 @@ body {
   cursor: pointer;
   overflow: hidden;
   transition: border-color 0.19s, box-shadow .18s, background .20s;
-  margin: 0 auto 0px auto;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
   box-shadow: 0 0 0 0 #fff;
 }
+
 .player-select-btn .player-select-txt,
 .voting-name-btn .player-select-txt {
   position: relative;
@@ -112,13 +117,14 @@ body {
   text-transform: inherit;
   letter-spacing: inherit;
 }
+
 .player-select-btn.selected,
 .player-select-btn:hover,
 .voting-name-btn.selected,
 .voting-name-btn:hover {
   border-color: #fff;
-  box-shadow: 0 0 16px 2px rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.10);
+  box-shadow: 0 0 16px 2px rgb(255 255 255 / 8%);
+  background: rgb(255 255 255 / 10%);
 }
 
 /* Botón confirmar */
@@ -127,8 +133,8 @@ body {
   font-size: 1.5rem;
   text-transform: uppercase;
   color: #fff;
-  background: rgb(36, 154, 239); /* Fondo azul vibrante por defecto */
-  border: 2.5px solid rgba(255,255,255,0.64);
+  background: rgb(36 154 239); /* Fondo azul vibrante por defecto */
+  border: 2.5px solid rgb(255 255 255 / 64%);
   border-radius: 9px;
   width: max-content;
   max-width: 100vw;
@@ -139,26 +145,28 @@ body {
   transition: border-color 0.15s, background 0.18s, color 0.13s, box-shadow 0.18s;
   letter-spacing: 0.08em;
   white-space: nowrap;
-  overflow: visible;
   text-overflow: unset;
   word-break: normal;
   padding: 0 24px;
   position: relative;
-  box-shadow: 0 0 0 0 rgba(14,169,198,0);
+  box-shadow: 0 0 0 0 rgb(14 169 198 / 0%);
   overflow: hidden !important;
-  opacity: 80%;
+  opacity: 0.8;
 }
+
 .voting-confirm-btn:disabled {
   opacity: 0.42;
   cursor: not-allowed;
 }
+
 .voting-confirm-btn:hover:enabled,
 .voting-confirm-btn:focus:enabled {
   border-color: #fff;
-  background: rgb(4, 163, 237); /* Más intenso al hover */
+  background: rgb(4 163 237); /* Más intenso al hover */
   color: #fff;
-  box-shadow: 0 0 16px 2px rgba(14,169,198,0.18);
+  box-shadow: 0 0 16px 2px rgb(14 169 198 / 18%);
 }
+
 .voting-confirm-btn::before {
   content: "";
   position: absolute;
@@ -166,15 +174,17 @@ body {
   top: 0;
   width: 100%;
   height: 100%;
-  background: rgba(255,255,255,0.13);
+  background: rgb(255 255 255 / 13%);
   transition: left 0.35s cubic-bezier(.77,0,.18,1);
   z-index: 1;
   pointer-events: none;
 }
+
 .voting-confirm-btn:hover::before,
 .voting-confirm-btn:focus::before {
   left: 0;
 }
+
 .voting-confirm-btn > span, .voting-confirm-btn span {
   position: relative;
   z-index: 2;
@@ -193,7 +203,7 @@ body {
 }
 
 /* Responsive Mobile para cajas y fuentes */
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .player-select-btn,
   .voting-name-btn {
     font-size: 5vw;
@@ -201,6 +211,7 @@ body {
     min-width: 50px;
     max-width: 99vw;
   }
+
   .voting-confirm-btn {
     font-size: 1.5rem;
     height: auto;
@@ -210,9 +221,11 @@ body {
     padding: 10px 18px;
     white-space: nowrap; /* Forzar una sola línea en mobile también */
   }
+
   .voting-title-modern {
     font-size: 6vw;
   }
+
   .player-select-grid {
     grid-template-columns: 1fr;
     gap: 12px 0;
@@ -224,17 +237,18 @@ body {
 .voting-photo-box {
   width: 320px;
   height: 320px;
-  background: rgba(255,255,255,0.16);
-  border: 2px solid rgba(255,255,255,0.19);
+  background: rgb(255 255 255 / 16%);
+  border: 2px solid rgb(255 255 255 / 19%);
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  margin: 18px auto 0 auto;
-  box-shadow: 0 2px 32px 0 rgba(90,30,120,0.05);
+  margin: 18px auto 0;
+  box-shadow: 0 2px 32px 0 rgb(90 30 120 / 5%);
   position: relative;
   overflow: hidden;
 }
+
 .voting-photo-box img,
 .voting-photo-box .avatar-svg {
   width: 100%;
@@ -243,16 +257,18 @@ body {
   border-radius: 0 !important;
   background: transparent;
 }
+
 .voting-photo-placeholder {
   width: 100%;
   height: 100%;
   display: flex; align-items: center; justify-content: center;
 }
+
 .voting-player-name {
   width: 320px;
   margin: 0 auto;
-  background: rgba(255,255,255,0.13);
-  border: 2px solid rgba(255,255,255,0.22);
+  background: rgb(255 255 255 / 13%);
+  border: 2px solid rgb(255 255 255 / 22%);
   border-radius: 8px 8px 0 0;
   color: #fff;
   font-family: 'Bebas Neue', Arial, sans-serif;
@@ -265,13 +281,15 @@ body {
   margin-bottom: 0;
   margin-top: 12px;
 }
-@media (max-width: 600px) {
+
+@media (width <= 600px) {
   .voting-photo-box,
   .voting-player-name {
     width: 98vw !important;
     height: 170px !important;
     font-size: 1.3rem;
   }
+
   .voting-photo-box {
     height: 170px !important;
     margin-top: 8px;
@@ -283,12 +301,13 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: 28px 0 10px 0;
+  margin: 28px 0 10px;
   min-height: 36px;
   position: relative;
   width: 380px;
   max-width: 98vw;
 }
+
 .star-svg {
   transition: fill 0.18s, stroke 0.18s;
   width: 48px;
@@ -299,7 +318,7 @@ body {
 
 .voting-score-number {
   font-size: 64px;
-  font-family: 'Bebas Neue', 'Oswald', Arial, sans-serif;
+  font-family: 'Bebas Neue', Oswald, Arial, sans-serif;
   color: #fff;
   margin-top: 20px;
   text-align: center;
@@ -308,15 +327,17 @@ body {
   user-select: none;
 }
 
-@media (max-width: 600px) {
+@media (width <= 600px) {
   .voting-stars-row {
     max-width: 98vw !important;
     width: 99vw !important;
   }
+
   .star-svg {
     width: 32px !important;
     height: 32px !important;
   }
+
   .voting-score-number {
     font-size: 28px !important;
     margin-top: 6px !important;
@@ -329,7 +350,7 @@ body {
   grid-template-columns: auto auto;
   gap: 18px 30px;
   max-width: 700px;
-  margin: 40px auto 0 auto;
+  margin: 40px auto 0;
   justify-content: center;
 }
 
@@ -341,12 +362,13 @@ body {
   width: auto;
   justify-self: center;
   border-radius: 0 !important;
+
   /* ... resto de tu estilo ... */
 }
 
 .voting-confirm-btn {
   display: block;
-  margin: 32px auto 0 auto;
+  margin: 32px auto 0;
   font-size: 1.5rem;
   height: 56px;
   min-width: 240px;
@@ -354,13 +376,14 @@ body {
   width: auto;
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .player-select-grid {
     grid-template-columns: 1fr !important;
     gap: 12px 0;
     max-width: 98vw;
     justify-content: center;
   }
+
   .player-select-btn, .voting-name-btn, .voting-confirm-btn {
     min-width: 70;
     max-width: 98vw;
@@ -374,6 +397,7 @@ body {
 .player-select-btn, .voting-name-btn {
   position: relative;
   overflow: hidden;
+
   /* ...resto de tus reglas... */
 }
 
@@ -385,7 +409,7 @@ body {
   top: 0;
   width: 100%;
   height: 100%;
-  background: rgba(255,255,255,0.10);
+  background: rgb(255 255 255 / 10%);
   transition: left 0.35s cubic-bezier(.77,0,.18,1);
   z-index: 1;
 }
@@ -407,8 +431,10 @@ body {
 .voting-confirm-btn {
   position: relative;
   overflow: hidden;
+
   /* ...tus reglas... */
 }
+
 .voting-confirm-btn::before {
   content: "";
   position: absolute;
@@ -416,11 +442,12 @@ body {
   top: 0;
   width: 100%;
   height: 100%;
-  background: rgba(255,255,255,0.13);
+  background: rgb(255 255 255 / 13%);
   transition: left 0.35s cubic-bezier(.77,0,.18,1);
   z-index: 1;
   pointer-events: none; /* ADD THIS */
 }
+
 .voting-confirm-btn:hover::before,
 .voting-confirm-btn:focus::before {
   left: 0;
@@ -429,22 +456,23 @@ body {
 .voting-photo-box {
   width: 320px;
   height: 320px;
-  background: rgba(255,255,255,0.16);
-  border: 2px solid rgba(255,255,255,0.19);
+  background: rgb(255 255 255 / 16%);
+  border: 2px solid rgb(255 255 255 / 19%);
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 0 !important;
-  margin: 18px auto 0 auto;
-  box-shadow: 0 2px 32px 0 rgba(90,30,120,0.05);
+  margin: 18px auto 0;
+  box-shadow: 0 2px 32px 0 rgb(90 30 120 / 5%);
   position: relative;
   overflow: hidden;
   cursor: pointer;
   transition: border-color .18s, box-shadow .18s;
 }
+
 .voting-photo-box:hover {
   border-color: #fff;
-  box-shadow: 0 0 16px 2px rgba(255,255,255,0.14);
+  box-shadow: 0 0 16px 2px rgb(255 255 255 / 14%);
 }
 
 .photo-plus {
@@ -457,11 +485,12 @@ body {
   user-select: none;
 }
 
-@media (max-width: 600px) {
+@media (width <= 600px) {
   .voting-photo-box {
     width: 98vw !important;
     height: 170px !important;
   }
+
   .photo-plus {
     font-size: 60px;
   }
@@ -474,7 +503,7 @@ body {
   color: #fff;
   letter-spacing: 0.10em;
   font-weight: 700;
-  margin-bottom: 0px;
+  margin-bottom: 0;
   text-align: center;
   line-height: 1.1;
 }
@@ -489,11 +518,11 @@ body {
   line-height: 1.0;
   margin-bottom: 6px;
   text-align: center;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  text-shadow: 0 2px 4px rgb(0 0 0 / 30%);
   word-break: break-word;
 }
 
-@media (max-width: 600px) {
+@media (width <= 600px) {
   .voting-title-modern {
     font-size: 8vw;
   }
@@ -503,7 +532,7 @@ body {
   }
 }
 
-@media (min-width: 768px) {
+@media (width >= 768px) {
   .match-name {
     font-size: 58px;
   }
@@ -513,9 +542,9 @@ body {
 
 .admin-panel-card {
   max-width: 520px;
-  padding: 36px 12px 30px 12px;
+  padding: 36px 12px 30px;
   border-radius: 18px;
-  background: rgba(255,255,255,0.08);
+  background: rgb(255 255 255 / 8%);
 }
 
 .admin-jugadores-grid {
@@ -536,11 +565,11 @@ body {
   display: flex;
   align-items: center;
   gap: 7px;
-  background: rgba(85,167,255,0.19); /* azul claro, 19% opacidad */
+  background: rgb(85 167 255 / 19%); /* azul claro, 19% opacidad */
   border-radius: 8px;
   padding: 7px 14px;
   margin-bottom: 3px;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   font-size: 18px;
   font-weight: 600;
   color: #fff;
@@ -548,8 +577,9 @@ body {
   border: 2px solid transparent;
   width: 100%;
 }
+
 .admin-jugador-box.votado {
-  background: rgba(60, 210, 120, 0.27); /* Verde claro */
+  background: rgb(60 210 120 / 27%); /* Verde claro */
   border: 2px solid #41e68e;
 }
 
@@ -558,7 +588,7 @@ body {
   color: #fff;
   font-weight: 700;
   font-size: 18px;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
 }
 
 .remove-btn {
@@ -578,6 +608,7 @@ body {
   font-weight: bold;
   box-shadow: 0 1px 5px #de1c4912;
 }
+
 .remove-btn:hover,
 .remove-btn:focus {
   background: #b10d2a;
@@ -588,26 +619,29 @@ body {
 .admin-actions-row {
   display: flex;
   gap: 14px;
-  margin: 22px 0 0 0;
+  margin: 22px 0 0;
   justify-content: center;
 }
+
 .admin-copy-msg {
   color: #fff;
   text-align: center;
   font-weight: 600;
-  margin: 12px 0 4px 0;
+  margin: 12px 0 4px;
 }
 
 /* Responsive: una columna en mobile */
-@media (max-width: 700px) {
+@media (width <= 700px) {
   .admin-panel-card {
     max-width: 98vw;
-    padding: 22px 2vw 20px 2vw;
+    padding: 22px 2vw 20px;
   }
+
   .admin-jugadores-grid {
     flex-direction: column;
     gap: 0;
   }
+
   .admin-jugadores-col {
     width: 100%;
   }
@@ -620,8 +654,9 @@ body {
   z-index: 1;
   transition: color 0.17s, background 0.18s, border-color 0.18s, box-shadow 0.18s;
   background: var(--color-primary, #0EA9C6);
-  border: 2.5px solid rgba(255,255,255,0.64);
+  border: 2.5px solid rgb(255 255 255 / 64%);
 }
+
 .wipe-btn::after {
   content: "";
   position: absolute;
@@ -629,26 +664,30 @@ body {
   top: 0;
   width: 120%;
   height: 100%;
-  background: rgba(255,255,255,0.22);
+  background: rgb(255 255 255 / 22%);
   transition: left .21s cubic-bezier(.57,0,.49,1), opacity .16s;
   opacity: 0.46;
   z-index: 0;
 }
+
 .wipe-btn:hover,
 .wipe-btn:focus {
   background: #13b6d6;
   border-color: #fff;
   color: #fff;
-  box-shadow: 0 0 16px 2px rgba(14,169,198,0.18);
+  box-shadow: 0 0 16px 2px rgb(14 169 198 / 18%);
 }
+
 .wipe-btn:hover::after,
 .wipe-btn:focus::after {
   left: 0;
   opacity: 1;
 }
+
 .wipe-btn:active {
   filter: brightness(0.97);
 }
+
 .wipe-btn > * {
   position: relative;
   z-index: 2;
@@ -659,36 +698,38 @@ body {
 /* Ajustes para el card del admin panel */
 .admin-panel-card {
   max-width: 520px;
-  padding: 36px 12px 30px 12px;
+  padding: 36px 12px 30px;
   border-radius: 18px; /* Bordes redondeados para el card */
-  background: rgba(255,255,255,0.08); /* Fondo ligeramente transparente */
-  box-shadow: 0 4px 30px rgba(0,0,0,0.1); /* Sombra sutil */
-  backdrop-filter: blur(5px); /* Efecto de desenfoque */
-  -webkit-backdrop-filter: blur(5px); /* Para compatibilidad con Safari */
-  border: 1px solid rgba(255,255,255,0.3); /* Borde sutil */
+  background: rgb(255 255 255 / 8%); /* Fondo ligeramente transparente */
+  box-shadow: 0 4px 30px rgb(0 0 0 / 10%); /* Sombra sutil */ /* Efecto de desenfoque */
+  backdrop-filter: blur(5px); /* Para compatibilidad con Safari */
+  border: 1px solid rgb(255 255 255 / 30%); /* Borde sutil */
 }
 
 /* Estilo para el input de agregar jugador */
 .input-modern {
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   font-size: 19px;
   color: #fff; /* Texto blanco */
-  background: rgba(255,255,255,0.1); /* Fondo transparente */
-  border: 2px solid rgba(255,255,255,0.4); /* Borde blanco */
+  background: rgb(255 255 255 / 10%); /* Fondo transparente */
+  border: 2px solid rgb(255 255 255 / 40%); /* Borde blanco */
   border-radius: 0; /* Sin bordes redondeados */
   padding: 0 12px;
   box-sizing: border-box;
   transition: border-color 0.2s, background 0.2s;
   height: 60px;
 }
+
 .input-modern::placeholder {
-  color: rgba(255,255,255,0.6); /* Placeholder más claro */
+  color: rgb(255 255 255 / 60%); /* Placeholder más claro */
 }
+
 .input-modern:focus {
   outline: none;
   border-color: #fff; /* Borde blanco al enfocar */
-  background: rgba(255,255,255,0.15); /* Fondo ligeramente más opaco al enfocar */
+  background: rgb(255 255 255 / 15%); /* Fondo ligeramente más opaco al enfocar */
 }
+
 .input-modern:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -729,11 +770,11 @@ body {
   display: flex;
   align-items: center;
   gap: 7px;
-  background: rgba(85,167,255,0.19); /* Azul claro, 19% opacidad */
+  background: rgb(85 167 255 / 19%); /* Azul claro, 19% opacidad */
   border-radius: 8px;
   padding: 7px 14px;
   margin-bottom: 3px;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   font-size: 18px;
   font-weight: 600;
   color: #fff;
@@ -742,8 +783,9 @@ body {
   width: 100%;
   box-sizing: border-box;
 }
+
 .admin-jugador-box.votado {
-  background: rgba(60, 210, 120, 0.27); /* Verde claro */
+  background: rgb(60 210 120 / 27%); /* Verde claro */
   border-color: #41e68e; /* Borde verde para votados */
 }
 
@@ -753,7 +795,7 @@ body {
   color: #fff;
   font-weight: 700;
   font-size: 16px;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   word-break: break-word; /* Evita que nombres largos rompan el layout */
   text-align: center;
 }
@@ -774,19 +816,20 @@ body {
   justify-content: center;
   transition: background .13s, box-shadow .13s;
   font-weight: bold;
-  box-shadow: 0 1px 5px rgba(var(--color-accent), 0.07); /* Sombra con color accent */
+  box-shadow: 0 1px 5px rgb(var(--color-accent), 0.07); /* Sombra con color accent */
 }
+
 .remove-btn:hover,
 .remove-btn:focus {
   background: #b10d2a; /* Un rojo más oscuro al hover */
-  box-shadow: 0 2px 8px rgba(var(--color-accent), 0.15);
+  box-shadow: 0 2px 8px rgb(var(--color-accent), 0.15);
 }
 
 /* Fila de acciones (ya existe) */
 .admin-actions-row {
   display: flex;
   gap: 14px;
-  margin: 22px 0 0 0;
+  margin: 22px 0 0;
   justify-content: center;
   flex-wrap: wrap; /* Para que los botones se envuelvan en pantallas pequeñas */
 }
@@ -796,15 +839,16 @@ body {
   color: #fff;
   text-align: center;
   font-weight: 600;
-  margin: 12px 0 4px 0;
+  margin: 12px 0 4px;
 }
 
 /* Ajustes para los botones voting-confirm-btn dentro del admin panel */
+
 /* Estos sobrescriben los estilos generales para que se vean más integrados */
 .admin-panel-card .voting-confirm-btn {
-  background: rgba(255,255,255,0.2); /* Fondo ligeramente transparente */
+  background: rgb(255 255 255 / 20%); /* Fondo ligeramente transparente */
   color: #fff; /* Texto blanco */
-  border: 2px solid rgba(255,255,255,0.6); /* Borde blanco */
+  border: 2px solid rgb(255 255 255 / 60%); /* Borde blanco */
   border-radius: 8px; /* Bordes redondeados */
   white-space: nowrap; /* Evita que el texto se parta */
   overflow: visible;
@@ -820,26 +864,28 @@ body {
 
 .admin-panel-card .voting-confirm-btn:hover:enabled,
 .admin-panel-card .voting-confirm-btn:focus:enabled {
-  background: rgba(255,255,255,0.3); /* Fondo más opaco al hover */
+  background: rgb(255 255 255 / 30%); /* Fondo más opaco al hover */
   border-color: #fff;
 }
 
 /* Ajustes para el efecto wipe-btn en el admin panel */
 .admin-panel-card .wipe-btn::after {
-  background: rgba(255,255,255,0.5); /* Color de wipe más claro */
+  background: rgb(255 255 255 / 50%); /* Color de wipe más claro */
   opacity: 0.6;
 }
 
 /* --- RESPONSIVE MODO RÁPIDO --- */
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .voting-modern-card {
-    padding: 16px 0 24px 0 !important;
+    padding: 16px 0 24px !important;
     max-width: 99vw !important;
   }
+
   .voting-title-modern {
     font-size: 7vw !important;
     margin-bottom: 18px !important;
   }
+
   .main-quick-grid,
   .voting-modern-card > div[style*='grid-template-columns'] {
     display: flex !important;
@@ -849,15 +895,17 @@ body {
     grid-template-columns: none !important;
     padding: 0 !important;
   }
+
   .dark-container {
     width: 100% !important;
     max-width: 99vw !important;
-    margin: 0 0 10px 0 !important;
+    margin: 0 0 10px !important;
     padding: 10px 4vw !important;
     border-radius: 10px !important;
-    background: rgba(0,0,0,0.13) !important;
-    box-shadow: 0 2px 18px 0 rgba(34,40,80,0.08);
+    background: rgb(0 0 0 / 13%) !important;
+    box-shadow: 0 2px 18px 0 rgb(34 40 80 / 8%);
   }
+
   .team-container {
     flex-direction: column !important;
     gap: 12px !important;
@@ -865,17 +913,20 @@ body {
     margin-top: 10px !important;
     margin-bottom: -80px;
   }
+
   .admin-jugadores-col {
     width: 100% !important;
     max-width: 99vw !important;
-    margin: 0 auto 10px auto !important;
+    margin: 0 auto 10px !important;
     padding: 10px 2vw !important;
   }
+
   .input-modern {
     font-size: 4.5vw !important;
     height: 60px !important;
     padding: 0 10px !important;
   }
+
   .voting-confirm-btn, .wipe-btn {
     font-size: 1.5rem !important;
     min-width: 0 !important;
@@ -885,12 +936,14 @@ body {
     padding: 0 10px !important;
     margin-top: 10px !important;
     margin-bottom: 30 !important;
-    border-radius: 0px !important;
+    border-radius: 0 !important;
   }
+
   .team-score {
     font-size: 4vw !important;
     margin-top: 8px !important;
   }
+
   .team-name-inputs-container {
     flex-direction: column;
     gap: 10px !important;
@@ -900,7 +953,7 @@ body {
 }
 
 .team-player-row {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
   padding: 8px 4px;
 }
 
@@ -912,7 +965,7 @@ body {
   text-align: center;
   margin-top: 15px;
   padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-top: 1px solid rgb(255 255 255 / 20%);
 }
 
 .team-score-value {
@@ -924,9 +977,9 @@ body {
 
 
 .dark-container {
-  background: rgba(0,0,0,0.22) !important;
-  box-shadow: 0 2px 18px 0 rgba(34,40,80,0.10);
-  padding: 28px 32px 22px 32px !important;
+  background: rgb(0 0 0 / 22%) !important;
+  box-shadow: 0 2px 18px 0 rgb(34 40 80 / 10%);
+  padding: 28px 32px 22px !important;
   border-radius: 8px !important;
   margin-bottom: 18px !important;
   width: 100%;
@@ -950,7 +1003,7 @@ body {
   width: 100%;
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
   .team-list-grid {
     grid-template-columns: 1fr;
     gap: 12px;
@@ -993,11 +1046,12 @@ body {
   padding: 0 !important;
   box-sizing: border-box;
 }
+
 .voting-modern-card {
   height: auto !important;
   width: 100%;
   max-width: 420px;
-  padding: 0 !important;
+  padding: 30px !important;
   margin: 0 !important;
   display: flex;
   flex-direction: column;
@@ -1012,25 +1066,25 @@ body {
   justify-content: center;
   background: transparent;
   color: #fff;
-  border: 3px solid rgba(255,255,255,0.6);
+  border: 3px solid rgb(255 255 255 / 60%);
   border-radius: 4px;
   padding: 12px 24px;
-  font-family: 'Roboto', Arial, sans-serif;
+  font-family: Roboto, Arial, sans-serif;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   min-width: 200px;
-  margin: 40px 0 20px 0;
+  margin: 40px 0 20px;
 }
 
 .google-sign-in-btn:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgb(255 255 255 / 10%);
   border-color: #fff;
 }
 
 .google-sign-in-btn:active {
-  background: rgba(255,255,255,0.2);
+  background: rgb(255 255 255 / 20%);
   transform: scale(0.98);
 }
 
@@ -1040,7 +1094,7 @@ body {
   border: none;
   border-radius: 4px;
   padding: 8px 16px;
-  font-family: 'Roboto', Arial, sans-serif;
+  font-family: Roboto, Arial, sans-serif;
   font-size: 14px;
   cursor: pointer;
   transition: background-color 0.2s ease;
@@ -1081,10 +1135,10 @@ body {
   position: absolute;
   top: 60px;
   right: 0;
-  background: rgba(255,255,255,0.95);
+  background: rgb(255 255 255 / 95%);
   backdrop-filter: blur(10px);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  box-shadow: 0 8px 32px rgb(0 0 0 / 30%);
   min-width: 180px;
   overflow: hidden;
   animation: dropdownSlide 0.2s ease-out;
@@ -1095,6 +1149,7 @@ body {
     opacity: 0;
     transform: translateY(-10px) scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -1109,33 +1164,30 @@ body {
   color: #333;
   cursor: pointer;
   transition: background 0.2s ease;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   font-weight: 500;
 }
 
 .dropdown-item:hover {
-  background: rgba(14,169,198,0.1);
+  background: rgb(14 169 198 / 10%);
 }
 
 .dropdown-item.logout:hover {
-  background: rgba(220,53,69,0.1);
+  background: rgb(220 53 69 / 10%);
   color: #dc3545;
 }
 
 .dropdown-divider {
   height: 1px;
-  background: rgba(0,0,0,0.1);
+  background: rgb(0 0 0 / 10%);
   margin: 4px 0;
 }
 
 /* Profile Modal */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.7);
+  inset: 0;
+  background: rgb(0 0 0 / 70%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1150,14 +1202,13 @@ body {
 }
 
 .profile-modal {
-  background: rgba(255,255,255,0.95);
+  background: rgb(255 255 255 / 95%);
   backdrop-filter: blur(15px);
   border-radius: 0;
   width: 90vw;
   max-width: 480px;
   max-height: 90vh;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden auto;
   animation: modalSlide 0.3s ease-out;
   margin: 20px;
   box-sizing: border-box;
@@ -1168,6 +1219,7 @@ body {
     opacity: 0;
     transform: scale(0.9) translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
@@ -1179,7 +1231,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 24px;
-  border-bottom: 1px solid rgba(0,0,0,0.1);
+  border-bottom: 1px solid rgb(0 0 0 / 10%);
 }
 
 .modal-header h2 {
@@ -1206,7 +1258,7 @@ body {
 }
 
 .close-btn:hover {
-  background: rgba(0,0,0,0.1);
+  background: rgb(0 0 0 / 10%);
   color: #333;
 }
 
@@ -1226,7 +1278,7 @@ body {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  border: 3px solid rgba(14,169,198,0.3);
+  border: 3px solid rgb(14 169 198 / 30%);
 }
 
 .change-avatar-btn {
@@ -1236,7 +1288,7 @@ body {
   border-radius: 8px;
   padding: 8px 16px;
   cursor: pointer;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   font-weight: 500;
   transition: background 0.2s ease;
 }
@@ -1258,7 +1310,7 @@ body {
   display: block;
   margin-bottom: 8px;
   color: #333;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   font-weight: 500;
   font-size: 14px;
   text-transform: uppercase;
@@ -1268,9 +1320,9 @@ body {
 .profile-input {
   width: 100%;
   padding: 12px;
-  border: 2px solid rgba(0,0,0,0.1);
+  border: 2px solid rgb(0 0 0 / 10%);
   border-radius: 8px;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   font-size: 16px;
   transition: border-color 0.2s ease;
   box-sizing: border-box;
@@ -1282,7 +1334,7 @@ body {
 }
 
 .profile-input:disabled {
-  background: rgba(0,0,0,0.05);
+  background: rgb(0 0 0 / 5%);
   color: #666;
 }
 
@@ -1298,7 +1350,7 @@ body {
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   font-weight: 500;
   font-size: 14px;
   text-transform: uppercase;
@@ -1307,12 +1359,12 @@ body {
 }
 
 .cancel-btn {
-  background: rgba(0,0,0,0.1);
+  background: rgb(0 0 0 / 10%);
   color: #666;
 }
 
 .cancel-btn:hover {
-  background: rgba(0,0,0,0.15);
+  background: rgb(0 0 0 / 15%);
 }
 
 .save-btn {
@@ -1330,7 +1382,7 @@ body {
 }
 
 /* Mobile Responsive - iPhone 12 and smaller */
-@media (max-width: 430px) {
+@media (width <= 430px) {
   .modal-overlay {
     padding: 0;
     align-items: stretch;
@@ -1346,14 +1398,13 @@ body {
     border-radius: 0;
     display: flex;
     flex-direction: column;
-    overflow-x: hidden;
-    overflow-y: hidden;
+    overflow: hidden;
   }
   
   .modal-header {
     padding: 12px 16px;
     flex-shrink: 0;
-    border-bottom: 1px solid rgba(0,0,0,0.1);
+    border-bottom: 1px solid rgb(0 0 0 / 10%);
   }
   
   .modal-header h2 {
@@ -1363,8 +1414,7 @@ body {
   .modal-content {
     padding: 12px;
     flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden auto;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -1424,7 +1474,7 @@ body {
 }
 
 /* Larger mobile devices */
-@media (min-width: 431px) and (max-width: 600px) {
+@media (width >= 431px) and (width <= 600px) {
   .user-header {
     top: 16px;
     right: 16px;

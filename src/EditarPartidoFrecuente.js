@@ -64,7 +64,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
   };
 
   return (
-    <div className="voting-bg">
+    <div className="voting-bg content-with-tabbar">
       <div className="voting-modern-card" style={{ padding: 42, maxWidth: 420 }}>
         <div className="match-name" style={{ marginBottom: 24 }}>EDITAR PARTIDO FRECUENTE</div>
         
@@ -150,13 +150,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
         >
           {loading ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
         </button>
-        <button 
-          className="voting-confirm-btn wipe-btn"
-          onClick={onVolver}
-          style={{ background: '#DE1C49', width: '100%', fontSize: '1.5rem', height: '64px', borderRadius: '9px', marginBottom: '0' }}
-        >
-          VOLVER AL INICIO
-        </button>
+        {/* Botón de volver eliminado ya que ahora tenemos el TabBar */}
       </div>
     </div>
   );

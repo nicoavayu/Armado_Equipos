@@ -13,7 +13,7 @@ export default function PlayerCard({ profile, user, isVisible }) {
     return positions[position] || 'DEF';
   };
 
-  // Use Google photo as priority
+  // Use usuarios.avatar_url as primary source
   const playerPhoto = profile?.avatar_url || user?.user_metadata?.avatar_url;
   const playerNumber = profile?.numero || 10;
   const playerName = profile?.nombre || 'LIONEL MESSI';

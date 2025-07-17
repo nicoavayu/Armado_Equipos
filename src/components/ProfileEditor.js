@@ -33,6 +33,26 @@ export default function ProfileEditor({ isOpen, onClose }) {
 
   useEffect(() => {
     if (profile) {
+      // Asegurar que tengamos la URL del avatar desde todas las fuentes posibles
+      const avatarUrl = profile.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+      
+      console.log('ProfileEditor: profile loaded', {
+        profile_email: profile.email,
+        user_email: user?.email,
+        profile_avatar_url: profile.avatar_url,
+        user_metadata_avatar: user?.user_metadata?.avatar_url,
+        user_metadata_picture: user?.user_metadata?.picture,
+        final_avatar_url: avatarUrl
+      });
+      
+      // Si tenemos un avatar en los metadatos pero no en el perfil, actualizar el perfil
+      if (!profile.avatar_url && (user?.user_metadata?.avatar_url || user?.user_metadata?.picture)) {
+        console.log('Updating profile with avatar from user metadata');
+        updateProfile(user.id, { avatar_url: avatarUrl })
+          .then(() => refreshProfile())
+          .catch(err => console.error('Error updating profile with avatar:', err));
+      }
+      
       const newFormData = {
         numero: profile.numero || 10,
         nombre: profile.nombre || '',
@@ -51,10 +71,17 @@ export default function ProfileEditor({ isOpen, onClose }) {
         acepta_invitaciones: profile.acepta_invitaciones !== false
       };
       setFormData(newFormData);
-      setLiveProfile({ ...profile, ...newFormData });
+      
+      // Asegurar que el liveProfile tenga el avatar_url correcto
+      setLiveProfile({ 
+        ...profile, 
+        ...newFormData, 
+        avatar_url: avatarUrl, 
+        user: user // Pasar el objeto user completo
+      });
       setHasChanges(false);
     }
-  }, [profile, user]);
+  }, [profile, user, refreshProfile]);
 
   const handleInputChange = (field, value) => {
     const newData = { ...formData, [field]: value };
@@ -74,16 +101,61 @@ export default function ProfileEditor({ isOpen, onClose }) {
       return;
     }
 
+    // Create a local preview immediately
+    const localPreviewUrl = URL.createObjectURL(file);
+    
+    // Update UI immediately with local preview
+    setLiveProfile(prev => ({
+      ...prev,
+      avatar_url: localPreviewUrl
+    }));
+
     setLoading(true);
     try {
-      const fotoUrl = await uploadFoto(file, { uuid: user.id });
+      // Upload to storage
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('jugadores-fotos')
+        .upload(fileName, file, { upsert: true, cacheControl: '0' });
+      
+      if (uploadError) throw uploadError;
+      
+      // Get public URL
+      const { data } = supabase.storage
+        .from('jugadores-fotos')
+        .getPublicUrl(fileName);
+      
+      const fotoUrl = data?.publicUrl;
+      if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
+      
+      // Update profile in database
       await updateProfile(user.id, { avatar_url: fotoUrl });
-      await refreshProfile();
-      setLiveProfile(prev => ({ ...prev, avatar_url: fotoUrl }));
+      
+      // Update user metadata
+      await supabase.auth.updateUser({
+        data: { avatar_url: fotoUrl }
+      });
+      
+      // Update local state with permanent URL
+      setLiveProfile(prev => ({
+        ...prev,
+        avatar_url: fotoUrl
+      }));
+      
       setHasChanges(true);
-      toast.success('Foto actualizada');
+      toast.success('Foto actualizada correctamente');
+      
     } catch (error) {
+      console.error('Error uploading photo:', error);
       toast.error('Error subiendo foto: ' + error.message);
+      
+      // Revert to previous avatar if upload fails
+      setLiveProfile(prev => ({
+        ...prev,
+        avatar_url: profile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture
+      }));
     } finally {
       setLoading(false);
     }
@@ -169,7 +241,14 @@ export default function ProfileEditor({ isOpen, onClose }) {
       <div className="profile-editor-container">
         {/* Left Side - Player Card */}
         <div className="profile-card-side">
-          <ProfileCard profile={liveProfile} isVisible={true} />
+          <ProfileCard
+            profile={{
+              ...liveProfile,
+              avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture
+            }}
+            isVisible={true}
+            key={`profile-card-${Date.now()}`} // Force re-render on every render
+          />
         </div>
 
         {/* Right Side - Edit Menu */}
@@ -184,54 +263,77 @@ export default function ProfileEditor({ isOpen, onClose }) {
             <div className="form-group">
               <label>Foto de Perfil</label>
               <div className="photo-upload-section">
-                <div className="current-photo" onClick={() => fileInputRef.current?.click()}>
-                  {liveProfile?.avatar_url ? (
-                    <img src={liveProfile.avatar_url} alt="Perfil" />
+                <div 
+                  className="current-photo" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (fileInputRef.current) {
+                      fileInputRef.current.click();
+                    }
+                  }}
+                >
+                  {liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture ? (
+                    <img 
+                      src={liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture} 
+                      alt="Perfil" 
+                      key={`profile-photo-${Date.now()}`} // Force re-render
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
                   ) : (
                     <div className="photo-placeholder">👤</div>
                   )}
                 </div>
                 <button 
                   className="change-photo-btn"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (fileInputRef.current) {
+                      fileInputRef.current.click();
+                    }
+                  }}
                   disabled={loading}
+                  type="button"
                 >
                   {loading ? 'Subiendo...' : 'Cambiar Foto'}
                 </button>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg, image/png, image/gif, image/webp"
                   style={{ display: 'none' }}
                   onChange={handlePhotoChange}
+                  onClick={(e) => e.stopPropagation()}
+                  capture="environment"
                 />
               </div>
             </div>
 
-            {/* Player Number */}
-            <div className="form-group">
-              <label>Número de Jugador</label>
-              <input
-                className="input-modern-small"
-                type="number"
-                min="1"
-                max="99"
-                value={formData.numero}
-                onChange={(e) => handleInputChange('numero', parseInt(e.target.value) || 10)}
-                placeholder="10"
-              />
-            </div>
-
-            {/* Name */}
-            <div className="form-group">
-              <label>Nombre *</label>
-              <input
-                className="input-modern-small"
-                type="text"
-                value={formData.nombre}
-                onChange={(e) => handleInputChange('nombre', e.target.value)}
-                placeholder="Tu nombre completo"
-              />
+            {/* Name and Number (FIFA style - on same line) */}
+            <div className="name-number-row">
+              <div className="form-group">
+                <label>Nombre *</label>
+                <input
+                  className="input-modern-small"
+                  type="text"
+                  value={formData.nombre}
+                  onChange={(e) => handleInputChange('nombre', e.target.value)}
+                  placeholder="Tu nombre completo"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Número</label>
+                <input
+                  className="input-modern-small"
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={formData.numero}
+                  onChange={(e) => handleInputChange('numero', parseInt(e.target.value) || 10)}
+                  placeholder="10"
+                />
+              </div>
             </div>
 
             {/* Email */}
@@ -240,13 +342,13 @@ export default function ProfileEditor({ isOpen, onClose }) {
               <input
                 className="input-modern-small"
                 type="email"
-                value={formData.email}
+                value={user?.email || formData.email || ''}
                 readOnly
-                style={{ opacity: 0.7, cursor: 'not-allowed' }}
+                style={{ opacity: 0.8, cursor: 'not-allowed' }}
               />
             </div>
 
-            {/* Nationality */}
+            {/* Nationality (with real-time flag update) */}
             <div className="form-group">
               <label>Nacionalidad</label>
               <select
@@ -256,6 +358,13 @@ export default function ProfileEditor({ isOpen, onClose }) {
                   const country = countries.find(c => c.key === e.target.value);
                   handleInputChange('pais_codigo', e.target.value);
                   handleInputChange('nacionalidad', country?.label || 'Argentina');
+                  
+                  // Ensure immediate update of the profile card
+                  setLiveProfile(prev => ({
+                    ...prev,
+                    pais_codigo: e.target.value,
+                    nacionalidad: country?.label || 'Argentina'
+                  }));
                 }}
               >
                 {countries.map(country => (

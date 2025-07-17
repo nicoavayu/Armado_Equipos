@@ -49,7 +49,8 @@ export default function VotingView({ onReset, jugadores }) {
     if (!nombre) return;
     const j = jugadores.find(j => j.nombre === nombre);
     setJugador(j || null);
-    setFotoPreview(j?.foto_url || null);
+    // Use only avatar_url from usuarios table
+    setFotoPreview(j?.avatar_url || null);
   }, [nombre, jugadores]);
 
   // Chequear si ya votó este jugador (uuid) en votos
@@ -227,8 +228,8 @@ export default function VotingView({ onReset, jugadores }) {
           </div>
           <div className="voting-player-name">{jugadorVotar.nombre}</div>
           <div className="voting-photo-box">
-            {jugadorVotar.foto_url ? (
-              <img src={jugadorVotar.foto_url} alt="foto" />
+            {jugadorVotar.avatar_url ? (
+              <img src={jugadorVotar.avatar_url} alt="foto" />
             ) : (
               DefaultAvatar
             )}
@@ -280,8 +281,8 @@ export default function VotingView({ onReset, jugadores }) {
           <ul className="voting-list-grid">
             {jugadoresParaVotar.map((j, idx) => (
               <li key={j.uuid}>
-                {j.foto_url ?
-                  <img src={j.foto_url} alt="foto" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover" }} />
+                {j.avatar_url ?
+                  <img src={j.avatar_url} alt="foto" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover" }} />
                   : DefaultAvatar
                 }
                 <span style={{

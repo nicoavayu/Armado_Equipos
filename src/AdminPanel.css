@@ -28,26 +28,26 @@
   letter-spacing: 0.08em;
   line-height: 1.0;
   margin-bottom: 6px;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  text-shadow: 0 2px 4px rgb(0 0 0 / 30%);
   word-break: break-word;
 }
 
 .match-details {
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   font-size: 22px;
   font-weight: 500;
-  color: rgba(255,255,255,0.9);
+  color: rgb(255 255 255 / 90%);
   text-transform: capitalize;
   letter-spacing: 0.5px;
   line-height: 1.2;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 20%);
 }
 
 /* Venue link styling */
 .venue-link {
-  color: rgba(255,255,255,0.9);
+  color: rgb(255 255 255 / 90%);
   text-decoration: underline;
-  text-decoration-color: rgba(255,255,255,0.6);
+  text-decoration-color: rgb(255 255 255 / 60%);
   text-underline-offset: 2px;
   transition: all 0.2s ease;
   font-weight: 500;
@@ -71,13 +71,13 @@
   margin-bottom: 20px;
   text-align: center;
   line-height: 1.1;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  text-shadow: 0 2px 4px rgb(0 0 0 / 30%);
 }
 
 /* Match code section */
 .admin-match-code {
-  background: rgba(255,255,255,0.12);
-  border: 2px solid rgba(255,255,255,0.25);
+  background: rgb(255 255 255 / 12%);
+  border: 2px solid rgb(255 255 255 / 25%);
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 20px;
@@ -100,7 +100,7 @@
 }
 
 .admin-match-code-value {
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   font-size: 24px;
   color: #fff;
   font-weight: 700;
@@ -131,8 +131,8 @@
 
 /* Add player section */
 .admin-add-section {
-  background: rgba(255,255,255,0.12);
-  border: 2px solid rgba(255,255,255,0.2);
+  background: rgb(255 255 255 / 12%);
+  border: 2px solid rgb(255 255 255 / 20%);
   border-radius: 12px;
   padding: 20px;
   width: 100%;
@@ -163,12 +163,12 @@
   margin: 0 !important;
   margin-bottom: 0 !important;
   margin-top: 0 !important;
-  background: rgba(255,255,255,0.95) !important;
-  border: 1.5px solid rgba(255,255,255,0.4) !important;
+  background: rgb(255 255 255 / 95%) !important;
+  border: 1.5px solid rgb(255 255 255 / 40%) !important;
   color: #333 !important;
   padding: 0 14px !important;
   box-sizing: border-box !important;
-  font-family: 'Oswald', Arial, sans-serif !important;
+  font-family: Oswald, Arial, sans-serif !important;
   font-weight: 500 !important;
 }
 
@@ -179,7 +179,7 @@
 }
 
 .admin-panel-content .admin-add-section .admin-add-form .input-modern::placeholder {
-  color: rgba(51,51,51,0.6) !important;
+  color: rgb(51 51 51 / 60%) !important;
   font-size: 16px !important;
 }
 
@@ -225,7 +225,7 @@
 }
 
 /* Mobile responsive overrides */
-@media (max-width: 480px) {
+@media (width <= 480px) {
   .admin-panel-content .admin-add-section .admin-add-form {
     gap: 8px !important;
   }
@@ -250,7 +250,7 @@
   }
 }
 
-@media (max-width: 360px) {
+@media (width <= 360px) {
   .admin-panel-content .admin-add-section .admin-add-form .input-modern {
     font-size: 15px !important;
   }
@@ -263,8 +263,8 @@
 
 /* Players list section */
 .admin-players-section {
-  background: rgba(255,255,255,0.12);
-  border: 2px solid rgba(255,255,255,0.2);
+  background: rgb(255 255 255 / 12%);
+  border: 2px solid rgb(255 255 255 / 20%);
   border-radius: 12px;
   padding: 20px;
   min-height: 120px;
@@ -291,8 +291,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(255,255,255,0.1);
-  border: 2px solid rgba(255,255,255,0.15);
+  background: rgb(255 255 255 / 10%);
+  border: 2px solid rgb(255 255 255 / 15%);
   border-radius: 8px;
   padding: 12px;
   transition: all 0.2s ease;
@@ -300,24 +300,24 @@
 }
 
 .admin-player-item:hover {
-  background: rgba(255,255,255,0.15);
-  border-color: rgba(255,255,255,0.25);
+  background: rgb(255 255 255 / 15%);
+  border-color: rgb(255 255 255 / 25%);
 }
 
 .admin-player-item.voted {
-  border-color: #00ff88 !important;
-  background: rgba(0,255,136,0.25) !important;
-  box-shadow: 0 0 12px rgba(0,255,136,0.4) !important;
+  border-color: #0f8 !important;
+  background: rgb(0 255 136 / 25%) !important;
+  box-shadow: 0 0 12px rgb(0 255 136 / 40%) !important;
   transform: scale(1.02) !important;
 }
 
 .admin-player-item.voted::after {
   content: '✓';
-  color: #00ff88;
+  color: #0f8;
   font-weight: bold;
   font-size: 18px;
   margin-left: auto;
-  text-shadow: 0 0 4px rgba(0,255,136,0.6);
+  text-shadow: 0 0 4px rgb(0 255 136 / 60%);
 }
 
 .admin-player-avatar {
@@ -325,8 +325,8 @@
   height: 32px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid rgba(255,255,255,0.3);
-  background: rgba(255,255,255,0.2);
+  border: 2px solid rgb(255 255 255 / 30%);
+  background: rgb(255 255 255 / 20%);
   flex-shrink: 0;
 }
 
@@ -334,8 +334,8 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.2);
-  border: 2px solid rgba(255,255,255,0.3);
+  background: rgb(255 255 255 / 20%);
+  border: 2px solid rgb(255 255 255 / 30%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -345,7 +345,7 @@
 
 .admin-player-name {
   flex: 1;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   font-size: 16px;
   font-weight: 600;
   color: #fff;
@@ -384,8 +384,8 @@
 /* Empty state */
 .admin-players-empty {
   text-align: center;
-  color: rgba(255,255,255,0.6);
-  font-family: 'Oswald', Arial, sans-serif;
+  color: rgb(255 255 255 / 60%);
+  font-family: Oswald, Arial, sans-serif;
   font-size: 16px;
   padding: 20px;
   font-style: italic;
@@ -433,12 +433,12 @@
 
 .admin-btn-secondary {
   background: transparent;
-  border: 2px solid rgba(255,255,255,0.6);
-  color: rgba(255,255,255,0.9);
+  border: 2px solid rgb(255 255 255 / 60%);
+  color: rgb(255 255 255 / 90%);
 }
 
 .admin-btn-secondary:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgb(255 255 255 / 10%);
   border-color: #fff;
   color: #fff;
 }
@@ -446,7 +446,7 @@
 
 
 /* Mobile responsive */
-@media (max-width: 480px) {
+@media (width <= 480px) {
   .admin-panel-content {
     padding: 20px 0 !important;
   }
@@ -461,7 +461,7 @@
 }
 
 /* Desktop responsive */
-@media (min-width: 768px) {
+@media (width >= 768px) {
   .match-name {
     font-size: 58px;
   }
@@ -488,8 +488,7 @@
   }
   
   .admin-actions {
-    flex-direction: row;
-    flex-wrap: wrap;
+    flex-flow: row wrap;
   }
   
   .admin-actions .voting-confirm-btn {

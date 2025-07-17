@@ -8,6 +8,7 @@
   --track-bg-dark: #272839;
   --thumb-bg: #ffd800;
   --thumb-bg-dark: #ffd800;
+
   display: flex;
   align-items: center;
   position: relative;

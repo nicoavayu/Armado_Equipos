@@ -103,22 +103,44 @@ export const uploadFoto = async (file, jugador) => {
     console.log('Compressed to:', fileToUpload.size, 'bytes');
   }
   
-  const fileExt = 'jpg'; // Always use jpg after compression
+  const fileExt = file.name.split('.').pop() || 'jpg';
   const fileName = `${jugador.uuid}_${Date.now()}.${fileExt}`;
   const { error: uploadError } = await supabase.storage
     .from('jugadores-fotos')
     .upload(fileName, fileToUpload, { upsert: true });
   if (uploadError) throw uploadError;
+  
   const { data } = supabase.storage
     .from('jugadores-fotos')
     .getPublicUrl(fileName);
+  
   const fotoUrl = data?.publicUrl;
   if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
+  console.log('uploadFoto updating:', { jugador: jugador.uuid, fotoUrl });
+  
+  // Update usuarios table with avatar_url
   const { error: updateError } = await supabase
-    .from('jugadores')
-    .update({ foto_url: fotoUrl })
-    .eq('uuid', jugador.uuid);
-  if (updateError) throw updateError;
+    .from('usuarios')
+    .update({ avatar_url: fotoUrl })
+    .eq('id', jugador.uuid);
+  
+  if (updateError) {
+    console.error('uploadFoto update error:', updateError);
+    throw updateError;
+  }
+  
+  // Also update user metadata to ensure consistency
+  try {
+    await supabase.auth.updateUser({
+      data: { avatar_url: fotoUrl }
+    });
+    console.log('Updated user metadata with avatar_url:', fotoUrl);
+  } catch (error) {
+    console.error('Error updating user metadata:', error);
+    // Continue even if this fails
+  }
+  
+  console.log('uploadFoto success:', fotoUrl);
   return fotoUrl;
 };
 
@@ -222,15 +244,15 @@ export const getVotantesConNombres = async (partidoId) => {
     if (voto.votante_id && !votantesMap.has(voto.votante_id)) {
       votantesMap.set(voto.votante_id, {
         nombre: voto.jugador_nombre || 'Jugador',
-        foto_url: voto.jugador_foto_url
+        avatar_url: voto.jugador_foto_url // Use avatar_url as the field name
       });
     }
   });
   
-  const votantes = Array.from(votantesMap.entries()).map(([id, data]) => ({ 
-    id, 
+  const votantes = Array.from(votantesMap.entries()).map(([id, data]) => ({
+    id,
     nombre: data.nombre,
-    foto_url: data.foto_url
+    avatar_url: data.avatar_url
   }));
   
   console.log('Voters with names found:', votantes);
@@ -345,7 +367,7 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
         puntaje: Number(puntaje),
         partido_id: partidoId,
         jugador_nombre: jugadorNombre || 'Jugador',
-        jugador_foto_url: jugadorFoto || null
+        jugador_avatar_url: jugadorFoto || null // Use only avatar_url field
       };
     })
     .filter(voto => voto !== null);
@@ -805,7 +827,7 @@ export const updatePartidoFrecuente = async (id, updates) => {
   if (updates.jugadores_frecuentes) {
     updateData.jugadores_frecuentes = updates.jugadores_frecuentes.map(j => ({
       nombre: j.nombre,
-      foto_url: j.foto_url || null,
+      avatar_url: j.avatar_url || null, // Use only avatar_url
       uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     }));
   }
@@ -881,7 +903,7 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     // Clean player data - keep only nombre and foto_url
     const jugadoresLimpios = jugadoresFrecuentes.map(j => ({
       nombre: j.nombre,
-      foto_url: j.foto_url || null,
+      avatar_url: j.avatar_url || null, // Use only avatar_url
       uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       score: j.score || 5 // Default score
     }));
@@ -942,13 +964,25 @@ export const clearGuestSession = (partidoId) => {
 // --- Profile Management ---
 
 export const getProfile = async (userId) => {
+  console.log('getProfile called for userId:', userId);
   const { data, error } = await supabase
     .from('usuarios')
     .select('*')
     .eq('id', userId)
     .single();
   
-  if (error) throw error;
+  if (error) {
+    console.error('getProfile error:', error);
+    throw error;
+  }
+  
+  console.log('getProfile result:', {
+    data: data,
+    avatar_url: data?.avatar_url,
+    foto_url: data?.foto_url,
+    all_fields: Object.keys(data || {})
+  });
+  
   return data;
 };
 
@@ -967,11 +1001,20 @@ export const updateProfile = async (userId, profileData) => {
 };
 
 export const createOrUpdateProfile = async (user) => {
+  // Extract avatar URL from various possible sources
+  const avatarUrl = user.user_metadata?.picture || user.user_metadata?.avatar_url || null;
+  
+  // Check if user already exists
+  const { data: existingUser } = await supabase
+    .from('usuarios')
+    .select('avatar_url')
+    .eq('id', user.id)
+    .single();
+  
   const profileData = {
     id: user.id,
     nombre: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
     email: user.email,
-    foto_url: user.user_metadata?.avatar_url || null,
     numero_jugador: '10',
     nacionalidad: 'argentina',
     telefono: null,
@@ -983,6 +1026,32 @@ export const createOrUpdateProfile = async (user) => {
     rating: 4.5,
     partidos_jugados: '0PJ'
   };
+  
+  // Siempre actualizar avatar_url si viene de un proveedor social
+  if (avatarUrl) {
+    profileData.avatar_url = avatarUrl;
+    
+    // También actualizar los metadatos del usuario para asegurar consistencia
+    try {
+      await supabase.auth.updateUser({
+        data: { avatar_url: avatarUrl }
+      });
+      console.log('Updated user metadata with avatar_url:', avatarUrl);
+    } catch (error) {
+      console.error('Error updating user metadata:', error);
+    }
+  } else if (existingUser?.avatar_url) {
+    // Si no hay avatar nuevo pero existe uno guardado, mantenerlo
+    profileData.avatar_url = existingUser.avatar_url;
+  }
+  
+  console.log('createOrUpdateProfile data:', {
+    userId: user.id,
+    avatar_url: profileData.avatar_url,
+    user_metadata_picture: user.user_metadata?.picture,
+    user_metadata_avatar: user.user_metadata?.avatar_url,
+    existingAvatar: existingUser?.avatar_url
+  });
   
   const completion = calculateProfileCompletion(profileData);
   profileData.profile_completion = completion;
@@ -1001,9 +1070,9 @@ export const calculateProfileCompletion = (profile) => {
   if (!profile) return 0;
   
   const fields = [
-    'nombre', 
-    'foto_url', 
-    'email', 
+    'nombre',
+    'avatar_url',
+    'email',
     'numero_jugador',
     'nacionalidad',
     'telefono', 
@@ -1024,39 +1093,101 @@ export const calculateProfileCompletion = (profile) => {
 // --- Free Players Management ---
 
 export const addFreePlayer = async () => {
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) {
-    throw new Error('User must be authenticated');
+  try {
+    // Get current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('User must be authenticated');
+    }
+
+    console.log('Adding free player for user:', user.id);
+
+    // Get user profile
+    const profile = await getProfile(user.id);
+    console.log('User profile:', profile);
+    
+    if (!profile) {
+      console.warn('Profile not found, creating minimal profile');
+      // Create a minimal profile if none exists
+      const minimalProfile = {
+        nombre: user.email?.split('@')[0] || 'Usuario',
+        localidad: 'Sin especificar'
+      };
+      
+      // Check if already registered
+      const { data: existing, error: checkError } = await supabase
+        .from('jugadores_sin_partido')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('disponible', true);
+      
+      if (checkError) {
+        console.error('Error checking existing free player:', checkError);
+        throw checkError;
+      }
+
+      if (existing && existing.length > 0) {
+        console.log('User already registered as free player');
+        throw new Error('Ya estás anotado como disponible');
+      }
+
+      // Add to free players with minimal profile
+      console.log('Inserting free player with minimal profile:', minimalProfile);
+      const { error: insertError } = await supabase
+        .from('jugadores_sin_partido')
+        .insert([{
+          user_id: user.id,
+          nombre: minimalProfile.nombre,
+          localidad: minimalProfile.localidad
+        }]);
+
+      if (insertError) {
+        console.error('Error inserting free player:', insertError);
+        throw insertError;
+      }
+      
+      return;
+    }
+
+    // Check if already registered
+    const { data: existing, error: checkError } = await supabase
+      .from('jugadores_sin_partido')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('disponible', true);
+    
+    if (checkError) {
+      console.error('Error checking existing free player:', checkError);
+      throw checkError;
+    }
+
+    if (existing && existing.length > 0) {
+      console.log('User already registered as free player');
+      throw new Error('Ya estás anotado como disponible');
+    }
+
+    // Add to free players
+    console.log('Inserting free player with profile:', {
+      nombre: profile.nombre,
+      localidad: profile.localidad
+    });
+    
+    const { error: insertError } = await supabase
+      .from('jugadores_sin_partido')
+      .insert([{
+        user_id: user.id,
+        nombre: profile.nombre || 'Usuario',
+        localidad: profile.localidad || 'Sin especificar'
+      }]);
+
+    if (insertError) {
+      console.error('Error inserting free player:', insertError);
+      throw insertError;
+    }
+  } catch (error) {
+    console.error('addFreePlayer failed:', error);
+    throw error;
   }
-
-  // Get user profile
-  const profile = await getProfile(user.id);
-  if (!profile) {
-    throw new Error('Profile not found. Please complete your profile first.');
-  }
-
-  // Check if already registered
-  const { data: existing } = await supabase
-    .from('jugadores_sin_partido')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('disponible', true)
-    .single();
-
-  if (existing) {
-    throw new Error('Ya estás anotado como disponible');
-  }
-
-  // Add to free players
-  const { error } = await supabase
-    .from('jugadores_sin_partido')
-    .insert([{
-      user_id: user.id,
-      nombre: profile.nombre || 'Usuario',
-      localidad: profile.localidad || 'Sin especificar'
-    }]);
-
-  if (error) throw error;
 };
 
 export const removeFreePlayer = async () => {

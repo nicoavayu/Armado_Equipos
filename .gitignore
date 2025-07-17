@@ -1,1 +1,85 @@
+# Node
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Output / Build
+dist/
+build/
+out/
+coverage/
+.next/
+.tmp/
+.temp/
+.cache/
+.eslintcache
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VSCode/IDE
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Env/Secrets
+.env
+.env.*
+*.local
+
+# Test / Reports
+*.lcov
+coverage/
+*.nyc_output
+
+# Database / Data dumps
+*.sqlite
+*.sqlite3
+*.db
+*.csv
+*.tsv
+*.bak
+
+# Misc
+*.tgz
+*.gz
+*.zip
+*.tar
+*.rar
+*.7z
+
+# Images/Media
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+*.pdf
+*.mp3
+*.mp4
+*.mov
+*.avi
+
+# System backup files
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
+
+# Git
+.git/
+.gitignore
+
+# Custom: tu propio directorio para cosas grandes o irrelevantes
+# por ejemplo, elimina backups viejos, dumps, etc
+/backups/

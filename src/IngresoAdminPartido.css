@@ -2,7 +2,7 @@
   position: fixed;
   z-index: 99;
   left: 0; top: 0; width: 100vw; height: 100vh;
-  background: rgba(30, 20, 70, 0.46); /* Fondo oscuro semitransparente */
+  background: rgb(30 20 70 / 46%); /* Fondo oscuro semitransparente */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -11,8 +11,8 @@
 .ingreso-admin-modal-box {
   background: #191942;
   border-radius: 38px;
-  box-shadow: 0 8px 54px 0 rgba(34,40,80,0.18);
-  padding: 54px 50px 40px 50px;
+  box-shadow: 0 8px 54px 0 rgb(34 40 80 / 18%);
+  padding: 54px 50px 40px;
   max-width: 520px;
   width: 95vw;
   color: #fff;
@@ -43,7 +43,7 @@
   border: 3px solid #fff !important;
   color: #ccc !important;
   border-radius: 8px !important;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   font-weight: bold;
   outline: none;
 }
@@ -62,7 +62,7 @@
   margin: 0;
   border-radius: 9px;
   border: 3px solid #fff;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   font-weight: bold;
   letter-spacing: 0.04em;
   transition: background .2s, color .2s, box-shadow .2s;
@@ -90,18 +90,21 @@
   width: 100%;
 }
 
-@media (max-width: 600px) {
+@media (width <= 600px) {
   .ingreso-admin-modal-box {
-    padding: 28px 10px 24px 10px;
+    padding: 28px 10px 24px;
     max-width: 98vw;
     border-radius: 14px;
   }
+
   .voting-title-modern {
     font-size: 1.3rem !important;
   }
+
   .input-modern {
     font-size: 18px !important;
   }
+
   .voting-confirm-btn {
     font-size: 1.1rem !important;
     padding: 12px 0 !important;

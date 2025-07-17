@@ -1,10 +1,7 @@
 .profile-editor-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  inset: 0;
+  background: rgb(0 0 0 / 80%);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -20,7 +17,7 @@
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 60px rgb(0 0 0 / 50%);
 }
 
 .profile-card-side {
@@ -29,20 +26,20 @@
   align-items: center;
   justify-content: center;
   padding: 40px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(255 255 255 / 10%);
 }
 
 .profile-menu-side {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.05);
-  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgb(255 255 255 / 5%);
+  border-left: 1px solid rgb(255 255 255 / 20%);
 }
 
 .profile-menu-header {
   padding: 20px 30px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1px solid rgb(255 255 255 / 20%);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -52,7 +49,7 @@
   color: white;
   font-size: 24px;
   font-weight: 600;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   margin: 0;
 }
 
@@ -72,7 +69,7 @@
 }
 
 .close-editor-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgb(255 255 255 / 20%);
 }
 
 .profile-menu-content {
@@ -89,17 +86,31 @@
   flex-direction: column;
 }
 
+.name-number-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.name-number-row .form-group {
+  flex: 1;
+}
+
+.name-number-row .form-group:last-child {
+  flex: 0 0 100px;
+}
+
 .form-group label {
   color: white;
   font-size: 13px;
   font-weight: 500;
   margin-bottom: 6px;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
 }
 
 .input-modern-small {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgb(255 255 255 / 10%);
+  border: 1px solid rgb(255 255 255 / 30%);
   color: white;
   padding: 8px 12px;
   border-radius: 6px;
@@ -108,14 +119,14 @@
 }
 
 .input-modern-small::placeholder {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgb(255 255 255 / 60%);
 }
 
 .input-modern-small:focus {
   outline: none;
   border-color: #f4d03f;
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 0 0 2px rgba(244, 208, 63, 0.3);
+  background: rgb(255 255 255 / 15%);
+  box-shadow: 0 0 0 2px rgb(244 208 63 / 30%);
 }
 
 .input-modern-small:read-only {
@@ -134,7 +145,7 @@
   height: 60px;
   border-radius: 50%;
   overflow: hidden;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgb(255 255 255 / 30%);
 }
 
 .current-photo img {
@@ -146,28 +157,34 @@
 .photo-placeholder {
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(255 255 255 / 10%);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgb(255 255 255 / 70%);
 }
 
 .change-photo-btn {
-  background: rgba(244, 208, 63, 0.2);
-  border: 1px solid #f4d03f;
-  color: #f4d03f;
-  padding: 8px 16px;
+  background: rgb(244 208 63 / 50%);
+  border: 2px solid #f4d03f;
+  color: #fff;
+  padding: 10px 18px;
   border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
+  z-index: 100;
+  position: relative;
+  box-shadow: 0 2px 8px rgb(244 208 63 / 40%);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 30%);
 }
 
 .change-photo-btn:hover:not(:disabled) {
-  background: rgba(244, 208, 63, 0.3);
+  background: rgb(244 208 63 / 70%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgb(244 208 63 / 60%);
 }
 
 .change-photo-btn:disabled {
@@ -183,33 +200,33 @@
 }
 
 .position-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgb(255 255 255 / 10%);
+  border: 2px solid rgb(255 255 255 / 30%);
   color: white;
   padding: 10px;
   border-radius: 6px;
   font-size: 14px;
   font-weight: bold;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .position-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: rgb(255 255 255 / 20%);
+  border-color: rgb(255 255 255 / 50%);
 }
 
 .position-btn.selected {
   background: linear-gradient(45deg, #f4d03f, #f7dc6f);
   border-color: #f4d03f;
   color: #000;
-  box-shadow: 0 2px 8px rgba(244, 208, 63, 0.3);
+  box-shadow: 0 2px 8px rgb(244 208 63 / 30%);
 }
 
 .profile-menu-footer {
   padding: 20px 30px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-top: 1px solid rgb(255 255 255 / 20%);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -217,14 +234,14 @@
 
 .save-profile-btn {
   width: 100%;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgb(255 255 255 / 20%);
+  border: 1px solid rgb(255 255 255 / 30%);
   color: white;
   padding: 12px;
   border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -233,7 +250,7 @@
   background: linear-gradient(45deg, #f4d03f, #f7dc6f);
   border-color: #f4d03f;
   color: #000;
-  box-shadow: 0 4px 12px rgba(244, 208, 63, 0.4);
+  box-shadow: 0 4px 12px rgb(244 208 63 / 40%);
   transform: translateY(-2px);
 }
 
@@ -245,20 +262,20 @@
 
 .logout-btn {
   width: 100%;
-  background: rgba(220, 53, 69, 0.2);
+  background: rgb(220 53 69 / 20%);
   border: 1px solid #dc3545;
   color: #dc3545;
   padding: 10px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .logout-btn:hover:not(:disabled) {
-  background: rgba(220, 53, 69, 0.3);
+  background: rgb(220 53 69 / 30%);
   color: white;
 }
 
@@ -273,7 +290,7 @@
 }
 
 .geo-btn {
-  background: rgba(244, 208, 63, 0.2);
+  background: rgb(244 208 63 / 20%);
   border: 1px solid #f4d03f;
   color: #f4d03f;
   padding: 8px 12px;
@@ -289,20 +306,46 @@
 }
 
 .geo-btn:hover {
-  background: rgba(244, 208, 63, 0.3);
+  background: rgb(244 208 63 / 30%);
 }
 
 .photo-upload-section .current-photo {
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: all 0.3s ease;
+  border: 3px solid rgb(255 255 255 / 30%);
+  overflow: hidden;
+  position: relative;
+}
+
+.photo-upload-section .current-photo::after {
+  content: '📷';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 20px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: rgb(0 0 0 / 50%);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .photo-upload-section .current-photo:hover {
   transform: scale(1.05);
+  border-color: #f4d03f;
+  box-shadow: 0 0 15px rgb(244 208 63 / 50%);
+}
+
+.photo-upload-section .current-photo:hover::after {
+  opacity: 1;
 }
 
 /* Mobile Responsive */
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .profile-editor-overlay {
     padding: 10px;
   }
@@ -317,8 +360,8 @@
   .profile-card-side {
     flex: 0 0 auto;
     padding: 20px;
-    background: rgba(255, 255, 255, 0.05);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgb(255 255 255 / 5%);
+    border-bottom: 1px solid rgb(255 255 255 / 20%);
   }
   
   .profile-menu-side {
@@ -364,7 +407,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (width <= 480px) {
   .profile-editor-container {
     width: 100%;
     height: 100vh;

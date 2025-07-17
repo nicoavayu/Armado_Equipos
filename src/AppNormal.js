@@ -5,6 +5,7 @@ import PlayerForm from './components/PlayerForm';
 import PlayerList from './components/PlayerList';
 import FrequentPlayers from './components/FrequentPlayers';
 import './HomeStyleKit.css';
+import './components/EditableTeamName.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import WhatsappIcon from './components/WhatsappIcon';
 import { toast } from 'react-toastify';
@@ -216,7 +217,7 @@ function AppNormal({ onBack }) {
   };
 
   return (
-    <div className="voting-bg">
+    <div className="voting-bg content-with-tabbar">
       {isClient && showConfetti && (
         <Confetti
           width={window.innerWidth}
@@ -226,10 +227,10 @@ function AppNormal({ onBack }) {
           recycle={false}
         />
       )}
-      <div className="voting-modern-card" style={{ maxWidth: '1200px', padding: '30px' }}>
-        <div className="voting-title-modern">Modo Rápido</div>
+      <div className="voting-modern-card" style={{ maxWidth: '1200px', padding: '30px', marginBottom: '150px' }}>
+        <div className="voting-title-modern" style={{ fontSize: '2.2rem', marginTop: '20px', marginBottom: '30px' }}>Modo Rápido</div>
 
-        <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '340px 1fr 340px', gap: '20px', alignItems: 'stretch' }}>
+        <div style={{ width: '100%', display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: '20px', alignItems: 'stretch', maxWidth: '100%', overflowX: 'hidden' }}>
           
           <aside>
             <div className="dark-container">
@@ -277,26 +278,8 @@ function AppNormal({ onBack }) {
         </div>
         
         <div style={{marginTop: '10px', gridColumn: '1 / -1', width: '100%'}}>
-          <div className="team-name-inputs-container" style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
-            <input
-              type="text"
-              placeholder="Nombre Equipo 1"
-              value={teamNames[0]}
-              onChange={e => handleTeamNameChange(0, e.target.value)}
-              className="input-modern"
-              style={{ flex: 1, textAlign: 'center', fontSize: '1.2rem', borderRadius: 0, height: '48px', marginBottom: 0 }}
-            />
-            <input
-              type="text"
-              placeholder="Nombre Equipo 2"
-              value={teamNames[1]}
-              onChange={e => handleTeamNameChange(1, e.target.value)}
-              className="input-modern"
-              style={{ flex: 1, textAlign: 'center', fontSize: '1.2rem', borderRadius: 0, height: '48px', marginBottom: 0 }}
-            />
-          </div>
 
-          <div className="team-list-grid">
+          <div className="team-list-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
             <AnimatePresence>
               {teams.map((team, idx) => {
                 const teamScore = team.reduce((acc, p) => acc + (+p.score || 0), 0);
@@ -305,12 +288,32 @@ function AppNormal({ onBack }) {
                   <motion.div
                     key={idx}
                     className="admin-jugadores-col"
-                    style={{ flex: 1, background: 'rgba(0,0,0,0.1)', padding: '15px', borderRadius: '8px', display: 'flex', flexDirection: 'column' }}
+                    style={{ width: '100%', background: 'rgba(0,0,0,0.1)', padding: '15px', borderRadius: '8px', display: 'flex', flexDirection: 'column' }}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <h2 className="admin-list-title" style={{color: '#fff', textAlign: 'center'}}>{teamNames[idx] || `Equipo ${idx + 1}`}</h2>
+                    <input
+                      type="text"
+                      value={teamNames[idx] || `Equipo ${idx + 1}`}
+                      onChange={(e) => handleTeamNameChange(idx, e.target.value)}
+                      className="admin-list-title editable-team-name"
+                      style={{
+                        color: '#fff',
+                        textAlign: 'center',
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        padding: '10px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        width: '100%',
+                        fontSize: '1.2rem',
+                        fontWeight: 'bold',
+                        marginBottom: '15px',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                      placeholder={`Equipo ${idx + 1}`}
+                    />
                     <ul style={{listStyle: 'none', padding: 0, margin: 0, flexGrow: 1}}>
                       {team.map((p, i) => (
                         <li key={p.id + i} className="team-player-row admin-jugador-box" style={{borderColor: p.id === captain?.id ? '#FFD700' : 'transparent'}}>
@@ -325,7 +328,7 @@ function AppNormal({ onBack }) {
                         </li>
                       ))}
                     </ul>
-                    <div className="team-score-container">
+                    <div className="team-score-container" style={{ marginBottom: '10px', padding: '3px', display: 'inline-block', width: 'auto' }}>
                       <span className="team-score-value">{teamScore}</span>
                     </div>
                   </motion.div>
@@ -345,7 +348,7 @@ function AppNormal({ onBack }) {
               <button onClick={handleGenerate} className="voting-confirm-btn wipe-btn" disabled={selectedPlayers.length < 2 || selectedPlayers.length % 2 !== 0} style={{width: '100%', padding: '15px 0', fontSize: '1.5rem', background: 'rgba(37, 211, 102, 0.5)', marginTop: '10px'}}>
                 Volver a Generar
               </button>
-              <button className="voting-confirm-btn wipe-btn" onClick={shareTeams} style={{background: 'rgba(37, 211, 102, 0.7)', width: '100%', marginTop: '10px', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
+              <button className="voting-confirm-btn wipe-btn" onClick={shareTeams} style={{background: 'rgba(37, 211, 102, 0.7)', width: '100%', marginTop: '10px', marginBottom: '50px', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
                 <WhatsappIcon />
                 Compartir Equipos
               </button>
@@ -353,17 +356,7 @@ function AppNormal({ onBack }) {
           )}
         </div>
         
-        <div style={{ width: "100%", display: "flex", justifyContent: "center", marginTop: 38, gridColumn: '1 / -1' }}>
-          <button
-            onClick={() => {
-              localStorage.setItem('players', JSON.stringify(players));
-              onBack();
-            }}
-            className="voting-confirm-btn wipe-btn"
-          >
-            Volver al inicio
-          </button>
-        </div>
+        {/* Botón de volver eliminado ya que ahora tenemos el TabBar */}
       </div>
     </div>
   );

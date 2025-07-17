@@ -21,7 +21,7 @@
   margin-bottom: 8px;
   text-align: center;
   line-height: 1.1;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  text-shadow: 0 2px 4px rgb(0 0 0 / 30%);
 }
 
 /* Teams wrapper - two columns */
@@ -36,14 +36,14 @@
 
 /* Team container - dynamic height based on content */
 .team-container {
-  background: rgba(255,255,255,0.12);
-  border: 2px solid rgba(255,255,255,0.25);
+  background: rgb(255 255 255 / 12%);
+  border: 2px solid rgb(255 255 255 / 25%);
   border-radius: 16px;
   padding: 16px;
   width: calc(50% - 4px);
   box-sizing: border-box;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
   flex: 0 0 calc(50% - 4px);
   display: flex;
   flex-direction: column;
@@ -51,9 +51,9 @@
 }
 
 .team-container:hover {
-  background: rgba(255,255,255,0.15);
-  border-color: rgba(255,255,255,0.35);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  background: rgb(255 255 255 / 15%);
+  border-color: rgb(255 255 255 / 35%);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
 }
 
 /* Team header - ALWAYS CENTERED */
@@ -73,7 +73,7 @@
   margin: 0;
   letter-spacing: 1px;
   text-transform: uppercase;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 40%);
   cursor: pointer;
   padding: 8px 12px;
   border-radius: 8px;
@@ -87,14 +87,14 @@
 }
 
 .team-name:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgb(255 255 255 / 10%);
 }
 
 .team-name-input {
   font-family: 'Bebas Neue', Arial, sans-serif;
   font-size: 16px;
   color: #333;
-  background: rgba(255,255,255,0.95);
+  background: rgb(255 255 255 / 95%);
   border: 2px solid #0EA9C6;
   border-radius: 8px;
   padding: 8px 12px;
@@ -104,7 +104,7 @@
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 20%);
 }
 
 /* Players grid - dynamic height based on content */
@@ -119,8 +119,8 @@
 
 /* Player card - touch-friendly drag & drop */
 .player-card {
-  background: rgba(255,255,255,0.15);
-  border: 2px solid rgba(255,255,255,0.2);
+  background: rgb(255 255 255 / 15%);
+  border: 2px solid rgb(255 255 255 / 20%);
   border-radius: 8px;
   padding: 12px;
   display: flex;
@@ -136,64 +136,64 @@
   overflow: hidden;
   touch-action: none;
   user-select: none;
-  -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
 
 /* Touch feedback */
 .player-card:active {
-  background: rgba(255,255,255,0.25);
+  background: rgb(255 255 255 / 25%);
   transform: scale(0.98);
 }
 
 /* Locked player styling - clear visual indication */
 .player-card.locked {
-  background: rgba(255,193,7,0.2);
-  border-color: rgba(255,193,7,0.6);
-  box-shadow: 0 0 8px rgba(255,193,7,0.3);
+  background: rgb(255 193 7 / 20%);
+  border-color: rgb(255 193 7 / 60%);
+  box-shadow: 0 0 8px rgb(255 193 7 / 30%);
 }
 
 .player-card.locked:hover,
 .player-card.locked:active {
-  background: rgba(255,193,7,0.3);
-  border-color: rgba(255,193,7,0.8);
-  box-shadow: 0 0 12px rgba(255,193,7,0.4);
+  background: rgb(255 193 7 / 30%);
+  border-color: rgb(255 193 7 / 80%);
+  box-shadow: 0 0 12px rgb(255 193 7 / 40%);
 }
 
 .player-card:hover {
-  background: rgba(255,255,255,0.2);
-  border-color: rgba(255,255,255,0.4);
+  background: rgb(255 255 255 / 20%);
+  border-color: rgb(255 255 255 / 40%);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
 }
 
 /* Dragging state - enhanced visual feedback */
 .player-card.dragging {
   cursor: grabbing;
   transform: scale(1.05) rotate(2deg);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  box-shadow: 0 8px 20px rgb(0 0 0 / 40%);
   z-index: 1000;
-  background: rgba(255,255,255,0.3) !important;
-  border-color: rgba(255,255,255,0.8) !important;
+  background: rgb(255 255 255 / 30%) !important;
+  border-color: rgb(255 255 255 / 80%) !important;
   opacity: 0.9;
 }
 
 /* Drag over highlight - prominent visual feedback */
 .player-card.drag-over {
-  background: rgba(14,169,198,0.5) !important;
+  background: rgb(14 169 198 / 50%) !important;
   border-color: #0EA9C6 !important;
   border-width: 3px !important;
   transform: scale(1.03);
-  box-shadow: 0 0 20px rgba(14,169,198,0.7) !important;
+  box-shadow: 0 0 20px rgb(14 169 198 / 70%) !important;
   animation: dragOverPulse 0.6s ease-in-out infinite alternate;
 }
 
 @keyframes dragOverPulse {
   0% {
-    box-shadow: 0 0 20px rgba(14,169,198,0.7);
+    box-shadow: 0 0 20px rgb(14 169 198 / 70%);
   }
+
   100% {
-    box-shadow: 0 0 30px rgba(14,169,198,0.9);
+    box-shadow: 0 0 30px rgb(14 169 198 / 90%);
   }
 }
 
@@ -203,18 +203,18 @@
   height: 28px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid rgba(255,255,255,0.4);
+  border: 1px solid rgb(255 255 255 / 40%);
   flex-shrink: 0;
 }
 
 /* Player name - responsive text with proper overflow handling */
 .player-card span:first-of-type {
-  font-family: 'Oswald', Arial, sans-serif;
+  font-family: Oswald, Arial, sans-serif;
   font-size: 12px;
   font-weight: 600;
   color: #fff;
   flex: 1;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 30%);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -227,64 +227,65 @@
   font-size: 11px;
   font-weight: 700;
   color: #fff;
-  background: rgba(34, 41, 59, 0.9);
+  background: rgb(34 41 59 / 90%);
   padding: 3px 7px;
   border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.2);
+  border: 1px solid rgb(255 255 255 / 20%);
   flex-shrink: 0;
   white-space: nowrap;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 50%);
 }
 
 /* Score color coding */
 .player-score.score-low {
-  background: rgba(222, 28, 73, 0.9);
-  border-color: rgba(222, 28, 73, 0.5);
+  background: rgb(222 28 73 / 90%);
+  border-color: rgb(222 28 73 / 50%);
 }
 
 .player-score.score-below-avg {
-  background: rgba(255, 165, 0, 0.9);
-  border-color: rgba(255, 165, 0, 0.5);
+  background: rgb(255 165 0 / 90%);
+  border-color: rgb(255 165 0 / 50%);
 }
 
 .player-score.score-above-avg {
-  background: rgba(14, 169, 198, 0.9);
-  border-color: rgba(14, 169, 198, 0.5);
+  background: rgb(14 169 198 / 90%);
+  border-color: rgb(14 169 198 / 50%);
 }
 
 .player-score.score-high {
-  background: rgba(0, 212, 155, 0.9);
-  border-color: rgba(0, 212, 155, 0.5);
+  background: rgb(0 212 155 / 90%);
+  border-color: rgb(0 212 155 / 50%);
 }
 
 /* Lock icon - enhanced visibility */
 .lock-icon {
   font-size: 16px;
   color: #FFC107;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+  text-shadow: 0 2px 4px rgb(0 0 0 / 70%);
   flex-shrink: 0;
   margin-left: auto;
   margin-right: 4px;
   padding: 4px;
   border-radius: 4px;
-  background: rgba(255,193,7,0.2);
-  border: 1px solid rgba(255,193,7,0.4);
+  background: rgb(255 193 7 / 20%);
+  border: 1px solid rgb(255 193 7 / 40%);
   animation: lockGlow 2s ease-in-out infinite alternate;
 }
 
 @keyframes lockGlow {
   0% {
-    box-shadow: 0 0 5px rgba(255,193,7,0.3);
+    box-shadow: 0 0 5px rgb(255 193 7 / 30%);
   }
+
   100% {
-    box-shadow: 0 0 10px rgba(255,193,7,0.5);
+    box-shadow: 0 0 10px rgb(255 193 7 / 50%);
   }
 }
 
 /* Team score box - close to bottom edge */
 .team-score-box {
-  background: rgba(255,255,255,0.2);
-  border: 2px solid rgba(255,255,255,0.3);
+  background: rgb(255 255 255 / 20%);
+  border: 2px solid rgb(255 255 255 / 30%);
   color: #fff;
   padding: 10px 8px;
   border-radius: 8px;
@@ -293,7 +294,7 @@
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 30%);
   width: 100%;
   box-sizing: border-box;
   word-wrap: break-word;
@@ -305,8 +306,8 @@
 /* Empty state */
 .team-empty-state {
   text-align: center;
-  color: rgba(255,255,255,0.6);
-  font-family: 'Oswald', Arial, sans-serif;
+  color: rgb(255 255 255 / 60%);
+  font-family: Oswald, Arial, sans-serif;
   font-size: 11px;
   padding: 16px 8px;
   font-style: italic;
@@ -356,7 +357,7 @@
   top: 0;
   width: 100%;
   height: 100%;
-  background: rgba(255,255,255,0.12);
+  background: rgb(255 255 255 / 12%);
   transition: left 0.3s cubic-bezier(.77,0,.18,1);
   z-index: 1;
 }
@@ -395,6 +396,7 @@
   0%, 70% {
     opacity: 1;
   }
+
   100% {
     opacity: 0;
   }
@@ -461,12 +463,15 @@
     transform: translateY(-100vh) rotate(0deg) scale(1);
     opacity: 1;
   }
+
   10% {
     opacity: 1;
   }
+
   80% {
     opacity: 1;
   }
+
   100% {
     transform: translateY(100vh) rotate(720deg) scale(0.5);
     opacity: 0;
@@ -478,12 +483,15 @@
     transform: translateY(-100vh) rotate(0deg) scale(1.2);
     opacity: 1;
   }
+
   10% {
     opacity: 1;
   }
+
   80% {
     opacity: 1;
   }
+
   100% {
     transform: translateY(100vh) rotate(-540deg) scale(0.3);
     opacity: 0;
@@ -491,7 +499,7 @@
 }
 
 /* Mobile touch optimizations */
-@media (max-width: 600px) {
+@media (width <= 600px) {
   .player-card {
     min-height: 52px;
     padding: 14px;
@@ -515,7 +523,7 @@
 }
 
 /* Responsive scaling - maintaining legibility */
-@media (min-width: 400px) {
+@media (width >= 400px) {
   .team-display-title { font-size: 36px; }
   
 
@@ -555,6 +563,7 @@
   .team-score-box { font-size: 14px; padding: 12px 10px; }
   .team-action-btn { font-size: 1.5rem; height: 50px; }
   .teams-wrapper { gap: 10px; margin-bottom: 0; }
+
   .team-container { 
     width: calc(50% - 5px); 
     flex: 0 0 calc(50% - 5px); 
@@ -564,7 +573,7 @@
   .team-actions { margin-top: 16px; }
 }
 
-@media (min-width: 600px) {
+@media (width >= 600px) {
   .team-display-title { font-size: 42px; }
   .team-name { font-size: 20px; }
   .team-name-input { font-size: 20px; }
@@ -574,17 +583,18 @@
   .team-score-box { font-size: 16px; padding: 14px 12px; }
   .team-action-btn { font-size: 1.5rem; height: 52px; }
   .teams-wrapper { gap: 12px; margin-bottom: 0; }
+
   .team-container { 
     width: calc(50% - 6px); 
     flex: 0 0 calc(50% - 6px); 
     padding: 20px;
     height: auto;
   }
-  .team-actions { flex-direction: row; flex-wrap: wrap; margin-top: 16px; }
+  .team-actions { flex-flow: row wrap; margin-top: 16px; }
   .team-action-btn { flex: 1; min-width: 140px; }
 }
 
-@media (min-width: 768px) {
+@media (width >= 768px) {
   .team-display-title { font-size: 52px; }
   
 
@@ -628,6 +638,7 @@
   .team-score-box { font-size: 18px; padding: 16px 14px; }
   .team-action-btn { font-size: 1.5rem; height: 54px; }
   .teams-wrapper { gap: 16px; margin-bottom: 0; }
+
   .team-container { 
     width: calc(50% - 8px); 
     flex: 0 0 calc(50% - 8px); 
@@ -638,7 +649,7 @@
   .team-actions { margin-top: 16px; }
 }
 
-@media (min-width: 1024px) {
+@media (width >= 1024px) {
   .team-display-container {
     max-width: 900px;
     margin: 0 auto;

@@ -67,7 +67,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
     setLoading(true);
     try {
       const fotoUrl = await uploadFoto(file, { uuid: user.id });
-      await updateProfile(user.id, { foto_url: fotoUrl });
+      await updateProfile(user.id, { avatar_url: fotoUrl });
       await refreshProfile();
       toast.success('Foto actualizada');
     } catch (error) {

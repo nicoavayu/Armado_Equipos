@@ -6,8 +6,10 @@ import { MODES, ADMIN_STEPS } from "./constants";
 import { LOADING_STATES } from "./appConstants";
 import ErrorBoundary from "./components/ErrorBoundary";
 import AuthProvider from "./components/AuthProvider";
+import DirectFix from "./components/DirectFix";
 import Button from "./components/Button";
 import NetworkStatus from "./components/NetworkStatus";
+import TabBar from "./components/TabBar";
 import Home from "./Home";
 import AppNormal from "./AppNormal";
 import VotingView from "./VotingView";
@@ -17,12 +19,13 @@ import PartidoInfoBox from "./PartidoInfoBox";
 import ListaPartidosFrecuentes from "./ListaPartidosFrecuentes";
 import EditarPartidoFrecuente from "./EditarPartidoFrecuente";
 import QuieroJugar from "./QuieroJugar";
+import ProfileEditor from "./components/ProfileEditor";
 import { getPartidoPorCodigo, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes } from "./supabase";
 import { toast } from 'react-toastify';
 import IngresoAdminPartido from "./IngresoAdminPartido";
 
-const SeleccionarTipoPartido = ({ onNuevo, onExistente, onVolver }) => (
-  <div className="voting-bg">
+const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
+  <div className="voting-bg content-with-tabbar">
     <div className="voting-modern-card">
       <div className="match-name" style={{ marginBottom: 24 }}>¿QUÉ QUERÉS HACER?</div>
       <button className="voting-confirm-btn wipe-btn" style={{marginBottom: 12}} onClick={onNuevo}>
@@ -31,9 +34,7 @@ const SeleccionarTipoPartido = ({ onNuevo, onExistente, onVolver }) => (
       <button className="voting-confirm-btn wipe-btn" style={{marginBottom: 16}} onClick={onExistente}>
         PARTIDO FRECUENTE
       </button>
-      <button className="voting-confirm-btn" style={{ background: '#DE1C49', marginTop: 64, marginBottom: 16 }} onClick={onVolver}>
-        VOLVER AL INICIO
-      </button>
+      {/* Botón de volver eliminado ya que ahora tenemos el TabBar */}
     </div>
   </div>
 );
@@ -43,6 +44,7 @@ export default function App() {
   const [partidoActual, setPartidoActual] = useState(undefined);
   const [stepPartido, setStepPartido] = useState(ADMIN_STEPS.SELECT_TYPE);
   const [partidoFrecuenteEditando, setPartidoFrecuenteEditando] = useState(null);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -76,115 +78,99 @@ export default function App() {
     }
   };
 
+  // Renderizar el contenido según el modo seleccionado
+  let content;
+  let showTabBar = true;
+  let activeTab = modo;
+  
   if (modo === MODES.ADMIN) {
+    activeTab = 'votacion';
+    
     if (stepPartido === ADMIN_STEPS.SELECT_TYPE) {
-      return (
-        <AuthProvider>
-          <SeleccionarTipoPartido
-            onNuevo={() => setStepPartido(ADMIN_STEPS.CREATE_MATCH)}
-            onExistente={() => setStepPartido(ADMIN_STEPS.SELECT_FREQUENT)}
-            onVolver={() => setModo(MODES.HOME)}
-          />
-        </AuthProvider>
+      content = (
+        <SeleccionarTipoPartido
+          onNuevo={() => setStepPartido(ADMIN_STEPS.CREATE_MATCH)}
+          onExistente={() => setStepPartido(ADMIN_STEPS.SELECT_FREQUENT)}
+        />
       );
     }
-    if (stepPartido === ADMIN_STEPS.CREATE_MATCH) {
-      return (
-        <AuthProvider>
-          <FormularioNuevoPartidoFlow
-            onConfirmar={async (partido) => {
+    else if (stepPartido === ADMIN_STEPS.CREATE_MATCH) {
+      content = (
+        <FormularioNuevoPartidoFlow
+          onConfirmar={async (partido) => {
+            setPartidoActual(partido);
+            setStepPartido(ADMIN_STEPS.MANAGE);
+            return partido;
+          }}
+          onVolver={() => setStepPartido(ADMIN_STEPS.SELECT_TYPE)}
+        />
+      );
+    }
+    else if (stepPartido === ADMIN_STEPS.SELECT_FREQUENT) {
+      content = (
+        <ListaPartidosFrecuentes
+          onEntrar={async (partidoFrecuente) => {
+            try {
+              const hoy = new Date().toISOString().split('T')[0];
+              const partido = await crearPartidoDesdeFrec(partidoFrecuente, hoy);
+              partido.from_frequent_match_id = partidoFrecuente.id;
               setPartidoActual(partido);
               setStepPartido(ADMIN_STEPS.MANAGE);
-              return partido;
-            }}
-            onVolver={() => setStepPartido(ADMIN_STEPS.SELECT_TYPE)}
-          />
-        </AuthProvider>
+            } catch (error) {
+              toast.error('Error al crear el partido');
+            }
+          }}
+          onEditar={(partido) => {
+            setPartidoFrecuenteEditando(partido);
+            setStepPartido(ADMIN_STEPS.EDIT_FREQUENT);
+          }}
+          onVolver={() => setStepPartido(ADMIN_STEPS.SELECT_TYPE)}
+        />
       );
     }
-    if (stepPartido === ADMIN_STEPS.SELECT_FREQUENT) {
-      return (
-        <AuthProvider>
-          <ListaPartidosFrecuentes
-            onEntrar={async (partidoFrecuente) => {
-              try {
-                const hoy = new Date().toISOString().split('T')[0];
-                const partido = await crearPartidoDesdeFrec(partidoFrecuente, hoy);
-                partido.from_frequent_match_id = partidoFrecuente.id;
-                setPartidoActual(partido);
-                setStepPartido(ADMIN_STEPS.MANAGE);
-              } catch (error) {
-                toast.error('Error al crear el partido');
-              }
-            }}
-            onEditar={(partido) => {
-              setPartidoFrecuenteEditando(partido);
-              setStepPartido(ADMIN_STEPS.EDIT_FREQUENT);
-            }}
-            onVolver={() => setStepPartido(ADMIN_STEPS.SELECT_TYPE)}
-          />
-        </AuthProvider>
-      );
-    }
-    if (stepPartido === ADMIN_STEPS.EDIT_FREQUENT && partidoFrecuenteEditando) {
-      return (
-        <AuthProvider>
-          <EditarPartidoFrecuente
-            partido={partidoFrecuenteEditando}
-            onGuardado={() => {
-              setPartidoFrecuenteEditando(null);
-              setStepPartido(ADMIN_STEPS.SELECT_FREQUENT);
-            }}
-            onVolver={() => {
-              setPartidoFrecuenteEditando(null);
-              setStepPartido(ADMIN_STEPS.SELECT_FREQUENT);
-            }}
-          />
-        </AuthProvider>
+    else if (stepPartido === ADMIN_STEPS.EDIT_FREQUENT && partidoFrecuenteEditando) {
+      content = (
+        <EditarPartidoFrecuente
+          partido={partidoFrecuenteEditando}
+          onGuardado={() => {
+            setPartidoFrecuenteEditando(null);
+            setStepPartido(ADMIN_STEPS.SELECT_FREQUENT);
+          }}
+          onVolver={() => {
+            setPartidoFrecuenteEditando(null);
+            setStepPartido(ADMIN_STEPS.SELECT_FREQUENT);
+          }}
+        />
       );
     }
 
-    if (stepPartido === ADMIN_STEPS.MANAGE && partidoActual) {
-      return (
-        <AuthProvider>
-          <div className="voting-bg">
-            <div className="voting-modern-card" style={{ maxWidth: 650 }}>
-              <AdminPanel
-                partidoActual={partidoActual}
-                jugadores={partidoActual?.jugadores || []}
-                onJugadoresChange={handleJugadoresChange}
-                onBackToHome={() => {
-                  setModo(MODES.HOME);
-                  setPartidoActual(null);
-                  setPartidoFrecuenteEditando(null);
-                  setStepPartido(ADMIN_STEPS.SELECT_TYPE);
-                }}
-              />
-            </div>
-            <ToastContainer
-              position="top-right"
-              autoClose={5000}
-              hideProgressBar={false}
-              newestOnTop={false}
-              closeOnClick
-              rtl={false}
-              pauseOnFocusLoss
-              draggable
-              pauseOnHover
+    else if (stepPartido === ADMIN_STEPS.MANAGE && partidoActual) {
+      content = (
+        <div className="voting-bg content-with-tabbar">
+          <div className="voting-modern-card" style={{ maxWidth: 650 }}>
+            <AdminPanel
+              partidoActual={partidoActual}
+              jugadores={partidoActual?.jugadores || []}
+              onJugadoresChange={handleJugadoresChange}
+              onBackToHome={() => {
+                setModo(MODES.HOME);
+                setPartidoActual(null);
+                setPartidoFrecuenteEditando(null);
+                setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+              }}
             />
           </div>
-        </AuthProvider>
+        </div>
       );
     }
-    if (stepPartido === ADMIN_STEPS.MANAGE && !partidoActual) {
+    else if (stepPartido === ADMIN_STEPS.MANAGE && !partidoActual) {
       setStepPartido(ADMIN_STEPS.SELECT_TYPE);
       return null;
     }
   }
-
-  if (modo === MODES.HOME) return (
-    <AuthProvider>
-      <div className="voting-bg">
+  else if (modo === MODES.HOME) {
+    content = (
+      <div className="voting-bg content-with-tabbar">
         <div className="voting-modern-card" style={{maxWidth: 440, display: "flex", flexDirection: "column", alignItems: "center"}}>
           <Home onModoSeleccionado={(m) => {
             setModo(m);
@@ -192,80 +178,100 @@ export default function App() {
           }} />
         </div>
       </div>
-    </AuthProvider>
-  );
-
-  if (modo === MODES.SIMPLE) return (
-    <AuthProvider>
-      <AppNormal onBack={() => setModo(MODES.HOME)} />
-    </AuthProvider>
-  );
+    );
+  } else if (modo === 'simple') {
+    content = <AppNormal onBack={() => setModo(MODES.HOME)} />;
+  } else if (modo === 'votacion') {
+    setModo(MODES.ADMIN);
+    setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+    return null;
+  } else if (modo === 'quiero-jugar') {
+    content = <QuieroJugar onVolver={() => setModo(MODES.HOME)} />;
+  } else if (modo === 'profile') {
+    content = (
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card" style={{maxWidth: 440, display: "flex", flexDirection: "column", alignItems: "center"}}>
+          <ProfileEditor 
+            isOpen={true} 
+            onClose={() => setModo(MODES.HOME)} 
+          />
+        </div>
+      </div>
+    );
+  } else if (modo === MODES.PLAYER) {
+    activeTab = 'quiero-jugar';
+    content = (
+      <div className="content-with-tabbar">
+        <NetworkStatus />
+        <VotingView
+          jugadores={partidoActual ? partidoActual.jugadores : []}
+          partidoActual={partidoActual}
+          onReset={() => { 
+            setModo(MODES.HOME); 
+            setPartidoActual(null);
+            setPartidoFrecuenteEditando(null);
+            setStepPartido(ADMIN_STEPS.SELECT_TYPE); 
+          }}
+        />
+      </div>
+    );
+  }
   
-  if (modo === 'quiero-jugar') return (
-    <AuthProvider>
-      <QuieroJugar onVolver={() => setModo(MODES.HOME)} />
-    </AuthProvider>
-  );
+  // Mostrar el TabBar en todos los modos
+  showTabBar = true;
+
   if (modo === MODES.VOTING) {
     setModo(MODES.ADMIN);
     return null;
   }
-  if (modo === MODES.PLAYER) return (
-    <div>
-      <NetworkStatus />
-      <VotingView
-        jugadores={partidoActual ? partidoActual.jugadores : []}
-        partidoActual={partidoActual}
-        onReset={() => { 
-          setModo(MODES.HOME); 
-          setPartidoActual(null);
-          setPartidoFrecuenteEditando(null);
-          setStepPartido(ADMIN_STEPS.SELECT_TYPE); 
-        }}
-      />
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
-    </div>
-  );
 
+  // Renderizado para modos no disponibles
+  if (!content) {
+    content = (
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card">
+          <div className="match-name">MODO NO DISPONIBLE</div>
+          <div style={{color:"#fff", padding: "20px", fontSize: "18px", textAlign: "center"}}>
+            El modo seleccionado no está disponible o ha ocurrido un error.
+          </div>
+          <Button
+            onClick={() => setModo(MODES.HOME)}
+            style={{marginTop: "34px", marginBottom: "0", width: '100%', maxWidth: '400px', fontSize: '1.5rem', height: '64px', borderRadius: '9px'}}
+            ariaLabel="Volver al inicio"
+          >
+            VOLVER AL INICIO
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  
+  // Renderizado principal con TabBar
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <div className="voting-bg">
-          <div className="voting-modern-card">
-            <div className="match-name">MODO NO DISPONIBLE</div>
-            <div style={{color:"#fff", padding: "20px", fontSize: "18px", textAlign: "center"}}>
-              El modo seleccionado no está disponible o ha ocurrido un error.
-            </div>
-            <Button
-              onClick={() => setModo(MODES.HOME)}
-              style={{marginTop: "34px", marginBottom: "0", width: '100%', maxWidth: '400px', fontSize: '1.5rem', height: '64px', borderRadius: '9px'}}
-              ariaLabel="Volver al inicio"
-            >
-              VOLVER AL INICIO
-            </Button>
-            <ToastContainer
-              position="top-right"
-              autoClose={5000}
-              hideProgressBar={false}
-              newestOnTop={false}
-              closeOnClick
-              rtl={false}
-              pauseOnFocusLoss
-              draggable
-              pauseOnHover
-            />
-          </div>
-        </div>
+        <DirectFix />
+        {content}
+        {showTabBar && (
+          <TabBar 
+            activeTab={activeTab} 
+            onTabChange={(tab) => {
+              setModo(tab);
+              if (tab === 'votacion') setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+            }} 
+          />
+        )}
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
       </AuthProvider>
     </ErrorBoundary>
   );

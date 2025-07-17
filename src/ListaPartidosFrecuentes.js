@@ -42,7 +42,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
 
   if (loading) {
     return (
-      <div className="voting-bg">
+      <div className="voting-bg content-with-tabbar">
         <div className="voting-modern-card">
           <div className="match-name">CARGANDO...</div>
         </div>
@@ -51,7 +51,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
   }
 
   return (
-    <div className="voting-bg">
+    <div className="voting-bg content-with-tabbar">
       <div className="voting-modern-card" style={{ padding: 42, maxWidth: 420, marginTop: 40, marginBottom: 40 }}>
         <div className="match-name" style={{ marginBottom: 24, marginTop: 20 }}>PARTIDOS FRECUENTES</div>
         
@@ -127,13 +127,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
           </div>
         )}
 
-        <button 
-          className="voting-confirm-btn wipe-btn"
-          style={{ width: "100%", background: '#DE1C49', fontSize: '1.5rem', height: '64px', borderRadius: '9px', marginBottom: '20px' }}
-          onClick={onVolver}
-        >
-          VOLVER AL INICIO
-        </button>
+        {/* Botón de volver eliminado ya que ahora tenemos el TabBar */}
       </div>
     </div>
   );

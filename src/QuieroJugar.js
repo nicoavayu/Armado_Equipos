@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { supabase, addFreePlayer, removeFreePlayer, getFreePlayerStatus, getFreePlayersList } from './supabase';
 import { toast } from 'react-toastify';
 import { useAuth } from './components/AuthProvider';
+import './QuieroJugar.css';
 import './VotingView.css';
 
 export default function QuieroJugar({ onVolver }) {
+  // Clase para dar espacio al TabBar
+  const containerClass = "quiero-jugar-container content-with-tabbar";
   const { user } = useAuth();
   const [partidosAbiertos, setPartidosAbiertos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -181,194 +184,130 @@ export default function QuieroJugar({ onVolver }) {
   }
 
   return (
-    <div className="voting-bg">
-      <div className="voting-modern-card">
-        <div className="match-name">QUIERO JUGAR</div>
-        
-        {/* Tab Navigation */}
-        <div style={{
-          display: 'flex',
-          marginBottom: 20,
-          borderRadius: '8px',
-          overflow: 'hidden',
-          border: '1px solid rgba(255,255,255,0.3)'
-        }}>
-          <button
-            onClick={() => setActiveTab('matches')}
-            style={{
-              flex: 1,
-              padding: '12px',
-              background: activeTab === 'matches' ? '#0EA9C6' : 'transparent',
-              color: '#fff',
-              border: 'none',
-              fontFamily: "'Oswald', Arial, sans-serif",
-              fontSize: '16px',
-              cursor: 'pointer'
-            }}
-          >
-            PARTIDOS ABIERTOS
-          </button>
-          <button
-            onClick={() => setActiveTab('players')}
-            style={{
-              flex: 1,
-              padding: '12px',
-              background: activeTab === 'players' ? '#0EA9C6' : 'transparent',
-              color: '#fff',
-              border: 'none',
-              fontFamily: "'Oswald', Arial, sans-serif",
-              fontSize: '16px',
-              cursor: 'pointer'
-            }}
-          >
-            JUGADORES LIBRES
-          </button>
-        </div>
-
-        {activeTab === 'matches' ? (
-          // Matches Tab
-          partidosAbiertos.length === 0 ? (
-            <div style={{
-              color: "rgba(255,255,255,0.7)",
-              fontSize: 16,
-              textAlign: "center",
-              margin: "40px 0",
-              fontFamily: "'Oswald', Arial, sans-serif"
-            }}>
-              No hay partidos buscando jugadores en este momento
-            </div>
-          ) : (
-            <div className="frequent-list">
-              {partidosAbiertos.map(partido => {
-                const jugadoresCount = partido.jugadores?.length || 0;
-                const cupoMaximo = partido.cupo_jugadores || 20;
-                const faltanJugadores = cupoMaximo - jugadoresCount;
-                
-                return (
-                  <div key={partido.id} className="frequent-list-item">
-                    <div className="frequent-item-info">
-                      <div className="frequent-item-name">
-                        {partido.nombre || `${partido.modalidad || 'Fútbol'}`}
-                      </div>
-                      <div className="frequent-item-details">
-                        {partido.modalidad?.replace('F', 'Fútbol ')} • Faltan {faltanJugadores} jugador{faltanJugadores !== 1 ? 'es' : ''}
-                      </div>
-                      <div className="frequent-item-details">
-                        {new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
-                          weekday: 'long', 
-                          day: 'numeric', 
-                          month: 'numeric' 
-                        })} {partido.hora}
-                      </div>
-                      <div className="frequent-item-sede">
-                        📍 {partido.sede}
-                      </div>
-                    </div>
-                    <div className="frequent-item-actions">
-                      <button
-                        className="frequent-action-btn"
-                        onClick={() => handleSumarse(partido)}
-                        style={{ background: '#0EA9C6', borderColor: '#0EA9C6', flex: 1 }}
-                      >
-                        SUMARME ({jugadoresCount}/{cupoMaximo})
-                      </button>
-                      <button
-                        className="frequent-action-btn"
-                        onClick={() => handleBorrarPartido(partido)}
-                        style={{ background: '#dc3545', borderColor: '#dc3545', marginLeft: '8px', minWidth: '60px' }}
-                        title="Borrar partido"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )
-        ) : (
-          // Free Players Tab
-          <div>
-            {user ? (
-              <div style={{ marginBottom: 20 }}>
-                {!isRegisteredAsFree ? (
-                  <button
-                    className="voting-confirm-btn"
-                    onClick={handleRegisterAsFree}
-                    style={{ background: '#28a745', borderColor: '#28a745', marginBottom: 16 }}
-                  >
-                    🙋 ANOTARME COMO DISPONIBLE
-                  </button>
-                ) : (
-                  <button
-                    className="voting-confirm-btn"
-                    onClick={handleUnregisterAsFree}
-                    style={{ background: '#dc3545', borderColor: '#dc3545', marginBottom: 16 }}
-                  >
-                    ❌ YA NO ESTOY DISPONIBLE
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div style={{
-                color: "rgba(255,255,255,0.7)",
-                fontSize: 16,
-                textAlign: "center",
-                margin: "20px 0",
-                fontFamily: "'Oswald', Arial, sans-serif",
-                background: "rgba(255,255,255,0.1)",
-                padding: "16px",
-                borderRadius: "8px"
-              }}>
-                Inicia sesión para anotarte como jugador disponible
-              </div>
-            )}
-            
-            {freePlayers.length === 0 ? (
-              <div style={{
-                color: "rgba(255,255,255,0.7)",
-                fontSize: 16,
-                textAlign: "center",
-                margin: "40px 0",
-                fontFamily: "'Oswald', Arial, sans-serif"
-              }}>
-                No hay jugadores disponibles en este momento
-              </div>
-            ) : (
-              <div className="frequent-list">
-                {freePlayers.map(player => (
-                  <div key={player.id} className="frequent-list-item">
-                    <div className="frequent-item-info">
-                      <div className="frequent-item-name">
-                        {player.nombre}
-                      </div>
-                      <div className="frequent-item-details">
-                        📍 {player.localidad}
-                      </div>
-                      <div className="frequent-item-sede">
-                        {formatTimeAgo(player.created_at)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
+    <div className={containerClass}>
+      <h1 className="quiero-jugar-title">QUIERO JUGAR</h1>
+      
+      {/* Tab Navigation */}
+      <div className="tab-navigation">
         <button
-          className="voting-confirm-btn"
-          style={{ 
-            background: 'rgba(255,255,255,0.1)', 
-            borderColor: '#fff', 
-            color: '#fff',
-            marginTop: 20
-          }}
-          onClick={onVolver}
+          className={`tab-button ${activeTab === 'matches' ? 'active' : ''}`}
+          onClick={() => setActiveTab('matches')}
         >
-          VOLVER AL INICIO
+          PARTIDOS ABIERTOS
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'players' ? 'active' : ''}`}
+          onClick={() => setActiveTab('players')}
+        >
+          JUGADORES LIBRES
         </button>
       </div>
+
+      {activeTab === 'matches' ? (
+        // Matches Tab
+        partidosAbiertos.length === 0 ? (
+          <div className="empty-message">
+            No hay partidos buscando jugadores en este momento
+          </div>
+        ) : (
+          <>
+            {partidosAbiertos.map(partido => {
+              const jugadoresCount = partido.jugadores?.length || 0;
+              const cupoMaximo = partido.cupo_jugadores || 20;
+              const faltanJugadores = cupoMaximo - jugadoresCount;
+              
+              return (
+                <div key={partido.id} className="match-card">
+                  <div className="match-title">
+                    {partido.nombre || `${partido.modalidad || 'F5'}`}
+                  </div>
+                  <div className="match-details">
+                    {partido.modalidad?.replace('F', 'FÚTBOL ')} • FALTAN {faltanJugadores} JUGADOR{faltanJugadores !== 1 ? 'ES' : ''}
+                  </div>
+                  <div className="match-details">
+                    {new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
+                      weekday: 'long', 
+                      day: 'numeric', 
+                      month: 'numeric' 
+                    }).toUpperCase()} {partido.hora}
+                  </div>
+                  <div className="match-location">
+                    <span>📍</span> {partido.sede}
+                  </div>
+                  <div className="match-actions">
+                    <button
+                      className="sumarme-button"
+                      onClick={() => handleSumarse(partido)}
+                    >
+                      SUMARME <span className="player-count">({jugadoresCount}/{cupoMaximo})</span>
+                    </button>
+                    <button
+                      className="delete-button"
+                      onClick={() => handleBorrarPartido(partido)}
+                      title="Borrar partido"
+                    >
+                      X
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )
+      ) : (
+        // Free Players Tab
+        <>
+          {user ? (
+            <div style={{ width: '100%', maxWidth: '500px', marginBottom: '16px' }}>
+              {!isRegisteredAsFree ? (
+                <button
+                  className="sumarme-button"
+                  onClick={handleRegisterAsFree}
+                  
+                >
+                  ANOTARME COMO DISPONIBLE
+                </button>
+              ) : (
+                <button
+                  className="sumarme-button"
+                  onClick={handleUnregisterAsFree}
+                  style={{ background: '#dc3545' }}
+                >
+                  ❌ YA NO ESTOY DISPONIBLE
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="empty-message">
+              Inicia sesión para anotarte como jugador disponible
+            </div>
+          )}
+          
+          {freePlayers.length === 0 ? (
+            <div className="empty-message">
+              No hay jugadores disponibles en este momento
+            </div>
+          ) : (
+            <>
+              {freePlayers.map(player => (
+                <div key={player.id} className="match-card">
+                  <div className="match-title">
+                    {player.nombre}
+                  </div>
+                  <div className="match-location">
+                    <span>📍</span> {player.localidad || 'Sin especificar'}
+                  </div>
+                  <div className="match-details">
+                    {formatTimeAgo(player.created_at)}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </>
+      )}
+
+      {/* Botón de volver eliminado ya que ahora tenemos el TabBar */}
     </div>
   );
 }

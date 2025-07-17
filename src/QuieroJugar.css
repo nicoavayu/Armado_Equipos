@@ -1,0 +1,352 @@
+.quiero-jugar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  background: #96F;
+  padding: 16px;
+  box-sizing: border-box;
+  font-family: Oswald, Arial, sans-serif;
+}
+
+.quiero-jugar-wrapper {
+  background: rgb(255 255 255 / 20%);
+  border-radius: 50px;
+  width: 100%;
+  max-width: 500px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.quiero-jugar-card {
+  background: rgb(255 255 255 / 20%);
+  border-radius: 50px;
+  width: 100%;
+  max-width: 500px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  padding: 20px;
+}
+
+.quiero-jugar-title {
+  font-family: Oswald, Arial, sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: white;
+  text-align: center;
+  margin-bottom: 24px;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 4px rgb(0 0 0 / 20%);
+}
+
+.tab-navigation {
+  display: flex;
+  margin-bottom: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+  width: 100%;
+  max-width: 500px;
+  background: rgb(255 255 255 / 20%);
+  border: 1px solid rgb(255 255 255 / 30%);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+}
+
+.tab-button {
+  flex: 1;
+  padding: 14px;
+  background: transparent;
+  color: white;
+  border: none;
+  font-family: Oswald, Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+}
+
+.tab-button.active {
+  background: rgb(255 255 255 / 30%);
+  box-shadow: 0 4px 12px rgb(255 255 255 / 20%);
+}
+
+.tab-button:hover:not(.active) {
+  background: rgb(255 255 255 / 10%);
+}
+
+.match-card {
+  background: rgb(255 255 255 / 10%);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid rgb(255 255 255 / 20%);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+  width: 100%;
+  max-width: 500px;
+}
+
+.match-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 16px rgb(0 0 0 / 15%);
+  border-color: rgb(255 255 255 / 40%);
+}
+
+.match-title {
+  font-family: Oswald, Arial, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.match-details {
+  font-family: Oswald, Arial, sans-serif;
+  font-size: 16px;
+  color: rgb(255 255 255 / 90%);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.match-location {
+  font-family: Oswald, Arial, sans-serif;
+  font-size: 14px;
+  color: rgb(255 255 255 / 80%);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.match-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.action-button {
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-family: Oswald, Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 15%);
+  text-transform: uppercase;
+}
+
+.action-button.primary {
+  background: #0EA9C6;
+  color: white;
+  flex: 1;
+}
+
+.action-button.primary:hover {
+  background: #0c95ae;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgb(14 169 198 / 40%);
+}
+
+.action-button.danger {
+  background: rgb(220 53 69 / 70%);
+  color: white;
+  width: 50px;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.action-button.danger:hover {
+  background: rgb(220 53 69 / 90%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgb(220 53 69 / 40%);
+}
+
+.action-button.success {
+  background: #28a745;
+  color: white;
+  width: 100%;
+}
+
+.action-button.success:hover {
+  background: #218838;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgb(40 167 69 / 40%);
+}
+
+.action-button.secondary {
+  background: rgb(255 255 255 / 10%);
+  color: white;
+  border: 1px solid rgb(255 255 255 / 30%);
+  width: 100%;
+  max-width: 500px;
+  margin-top: 16px;
+}
+
+.action-button.secondary:hover {
+  background: rgb(255 255 255 / 20%);
+  transform: translateY(-2px);
+}
+
+.player-count {
+  background: rgb(255 255 255 / 20%);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 14px;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.empty-message {
+  color: rgb(255 255 255 / 70%);
+  font-size: 16px;
+  text-align: center;
+  margin: 40px 0;
+  font-family: Oswald, Arial, sans-serif;
+  background: rgb(255 255 255 / 10%);
+  padding: 20px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 500px;
+  border: 1px solid rgb(255 255 255 / 20%);
+}
+
+.player-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgb(255 255 255 / 10%);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid rgb(255 255 255 / 20%);
+  transition: all 0.3s ease;
+}
+
+.player-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 16px rgb(0 0 0 / 15%);
+  border-color: rgb(255 255 255 / 40%);
+}
+
+.player-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 20%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.player-info {
+  flex: 1;
+}
+
+.player-name {
+  font-family: Oswald, Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.player-location {
+  font-family: Oswald, Arial, sans-serif;
+  font-size: 14px;
+  color: rgb(255 255 255 / 80%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.player-time {
+  font-family: Oswald, Arial, sans-serif;
+  font-size: 12px;
+  color: rgb(255 255 255 / 60%);
+  margin-top: 4px;
+}
+
+.sumarme-button {
+  background: rgb(3 255 150 / 48.1%);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 12px 20px;
+  font-family: Oswald, Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content:center;
+  width: 100%;
+}
+
+.delete-button {
+  background: rgb(220 53 69 / 60%);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.volver-button {
+  background: rgb(255 255 255 / 20%);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 12px 20px;
+  font-family: Oswald, Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  width: 100%;
+  max-width: 500px;
+  margin-top: 16px;
+}
+
+@media (width <= 768px) {
+  .quiero-jugar-card {
+    padding: 20px;
+  }
+  
+  .quiero-jugar-title {
+    font-size: 28px;
+  }
+  
+  .match-title {
+    font-size: 20px;
+  }
+  
+  .match-details {
+    font-size: 14px;
+  }
+  
+  .action-button {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+}

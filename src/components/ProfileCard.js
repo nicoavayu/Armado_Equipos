@@ -79,25 +79,77 @@ const ProfileCardComponent = ({
     return stars;
   };
 
+  // Forzar la obtención del avatar desde todas las fuentes posibles
+  const getAvatarUrl = () => {
+    // Check if we have a direct avatar_url from the profile
+    if (profile?.avatar_url) {
+      // Handle both blob URLs and regular URLs
+      if (profile.avatar_url.startsWith('blob:')) {
+        console.log('Using blob URL directly:', profile.avatar_url);
+        return profile.avatar_url;
+      } else {
+        const cacheBuster = `?t=${Date.now()}`;
+        const url = profile.avatar_url.includes('?') ? profile.avatar_url : profile.avatar_url + cacheBuster;
+        console.log('Using profile.avatar_url with cache buster:', url);
+        return url;
+      }
+    }
+    
+    // If no direct avatar_url, check other sources
+    const sources = [
+      profile?.user?.user_metadata?.avatar_url,
+      profile?.user?.user_metadata?.picture,
+      profile?.user_metadata?.avatar_url,
+      profile?.user_metadata?.picture
+    ];
+    
+    // Use the first valid source
+    for (const source of sources) {
+      if (source) {
+        const cacheBuster = `?t=${Date.now()}`;
+        const url = source.includes('?') ? source : source + cacheBuster;
+        console.log('Using alternative avatar source:', url);
+        return url;
+      }
+    }
+    
+    return null;
+  };
+  
+  // Force avatar URL refresh on each render
+  const avatarUrl = getAvatarUrl();
+  console.log('ProfileCard rendering with avatar URL:', avatarUrl);
+  
   const playerData = {
     name: profile?.nombre || 'JUGADOR',
     handle: profile?.social?.replace('@', '') || 'jugador',
     status: profile?.acepta_invitaciones ? 'Disponible' : 'Ocupado',
-    avatarUrl: profile?.avatar_url || profile?.foto_url,
+    avatarUrl: avatarUrl,
     rating: profile?.calificacion || 4.5,
     matchesPlayed: profile?.partidos_jugados || 0,
     position: getPositionAbbr(profile?.rol_favorito || profile?.posicion_favorita),
     number: profile?.numero || 10,
     countryCode: profile?.pais_codigo || 'AR',
-    countryName: getCountryCode(profile?.pais_codigo)
+    countryName: getCountryCode(profile?.pais_codigo),
+    ageRange: profile?.rango_edad || '31-45'
   };
-
-  // Debug avatar fallback logic
-  // console.log('ProfileCard avatar debug:', {
-  //   avatar_url: profile?.avatar_url,
-  //   foto_url: profile?.foto_url,
-  //   final: playerData.avatarUrl
-  // });
+  
+  // Force avatar URL to be valid
+  if (playerData.avatarUrl && playerData.avatarUrl.startsWith('blob:')) {
+    console.log('Using blob URL for avatar:', playerData.avatarUrl);
+  } else if (!playerData.avatarUrl && profile?.avatar_url) {
+    playerData.avatarUrl = profile.avatar_url;
+    console.log('Using profile.avatar_url directly:', playerData.avatarUrl);
+  }
+  
+  // Debug avatar URL to ensure it's being used
+  console.log('ProfileCard avatar sources:', {
+    profile_avatar_url: profile?.avatar_url,
+    user_metadata_avatar_url: profile?.user_metadata?.avatar_url,
+    user_metadata_picture: profile?.user_metadata?.picture,
+    user_metadata_from_user: profile?.user?.user_metadata,
+    final_avatar_url: avatarUrl
+  });
 
   // --- Animation logic (tilt effect) ---
   const animationHandlers = useMemo(() => {
@@ -254,56 +306,10 @@ const ProfileCardComponent = ({
           <div className="pc-shine" />
           <div className="pc-glare" />
 
-          {/* FOTO Y DATOS */}
-          <div className="pc-content pc-avatar-content">
-            {playerData.avatarUrl ? (
-              <img
-                className="avatar"
-                src={playerData.avatarUrl}
-                alt={`${playerData.name} avatar`}
-                loading="lazy"
-                onError={(e) => {
-                  // Si falla la foto, muestra avatar genérico
-                  e.target.style.display = "none";
-                }}
-              />
-            ) : (
-              <div className="avatar-placeholder">👤</div>
-            )}
-
-            {/* Rating + Social */}
-            <div className="pc-user-info">
-              <div className="pc-user-details">
-                <div className="pc-mini-avatar">
-                  {playerData.avatarUrl ? (
-                    <img
-                      src={playerData.avatarUrl}
-                      alt={`${playerData.name} mini avatar`}
-                      loading="lazy"
-                      onError={(e) => {
-                        e.target.style.display = "none";
-                      }}
-                    />
-                  ) : (
-                    <div className="mini-avatar-placeholder">👤</div>
-                  )}
-                </div>
-                <div className="pc-user-text">
-                  <div className="pc-handle">@{playerData.handle}</div>
-                  <div className="pc-status">{playerData.status}</div>
-                </div>
-              </div>
-              <div className="pc-rating-section">
-                <div className="pc-rating-number">{playerData.rating.toFixed(1)}</div>
-                <div className="pc-stars">{renderStars(playerData.rating)}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* PARTIDOS, BANDERA Y NUMERO/POSICIÓN */}
+          {/* HEADER: NOMBRE Y BANDERA */}
           <div className="pc-content">
             <div className="pc-stats-header">
-              <div className="pc-matches-played">{playerData.matchesPlayed}PJ</div>
+              {/* Bandera a la derecha */}
               <div className="pc-country-badge">
                 <img
                   src={`https://flagcdn.com/w40/${playerData.countryCode.toLowerCase()}.png`}
@@ -316,12 +322,62 @@ const ProfileCardComponent = ({
                 <span className="pc-country-code">{playerData.countryName}</span>
               </div>
             </div>
+            
+            {/* Nombre centrado y grande */}
             <div className="pc-details">
               <h3>{playerData.name}</h3>
+              
+              {/* Posición y número debajo del nombre */}
               <div className="pc-position-number">
                 <span className="pc-position">{playerData.position}</span>
                 <span className="pc-number">#{playerData.number}</span>
               </div>
+            </div>
+          </div>
+
+          {/* FOTO PRINCIPAL (FIFA STYLE) - Centrada */}
+          <div className="pc-content pc-avatar-content">
+            {playerData.avatarUrl ? (
+              <img
+                className="avatar"
+                src={playerData.avatarUrl} // URL already has cache buster from getAvatarUrl
+                alt={`${playerData.name} avatar`}
+                loading="eager"
+                crossOrigin="anonymous"
+                style={{ 
+                  display: 'block', 
+                  maxWidth: '100%', 
+                  maxHeight: '100%',
+                  objectFit: 'cover'
+                }}
+                onError={(e) => {
+                  console.error('Error loading avatar image:', e.target.src);
+                  e.target.style.display = "none";
+                  const placeholder = document.createElement('div');
+                  placeholder.className = 'avatar-placeholder';
+                  placeholder.textContent = '👤';
+                  e.target.parentNode.appendChild(placeholder);
+                }}
+                key={`avatar-${Date.now()}`} // Force re-render on each render
+              />
+            ) : (
+              <div className="avatar-placeholder">👤</div>
+            )}
+          </div>
+          
+          {/* INFORMACIÓN DEL JUGADOR (abajo) */}
+          <div className="pc-user-info">
+            <div className="pc-user-stats">
+              <div className="pc-handle">@{playerData.handle}</div>
+              <div className={`pc-status ${playerData.status === 'Disponible' ? '' : 'unavailable'}`}>{playerData.status}</div>
+              <div className="pc-matches-played">{playerData.matchesPlayed} PJ</div>
+              <div className="pc-age-range">{playerData.ageRange}</div>
+            </div>
+            
+            {/* Rating (grande y dorado) */}
+            <div className="pc-rating-container">
+              <div className="pc-rating-number">{playerData.rating.toFixed(1)}</div>
+              <div className="pc-stars">{renderStars(playerData.rating)}</div>
             </div>
           </div>
         </div>
