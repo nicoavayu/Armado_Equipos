@@ -123,15 +123,15 @@ const ProfileCardComponent = ({
   const playerData = {
     name: profile?.nombre || 'JUGADOR',
     handle: profile?.social?.replace('@', '') || 'jugador',
-    status: profile?.acepta_invitaciones ? 'Disponible' : 'Ocupado',
+    status: profile?.acepta_invitaciones === false ? 'Ocupado' : 'Disponible', // Asegura que sea Disponible por defecto
     avatarUrl: avatarUrl,
     rating: profile?.calificacion || 4.5,
     matchesPlayed: profile?.partidos_jugados || 0,
+    matchesAbandoned: profile?.partidos_abandonados || 0,
     position: getPositionAbbr(profile?.rol_favorito || profile?.posicion_favorita),
     number: profile?.numero || 10,
     countryCode: profile?.pais_codigo || 'AR',
-    countryName: getCountryCode(profile?.pais_codigo),
-    ageRange: profile?.rango_edad || '31-45'
+    countryName: getCountryCode(profile?.pais_codigo)
   };
   
   // Force avatar URL to be valid
@@ -308,8 +308,11 @@ const ProfileCardComponent = ({
 
           {/* HEADER: NOMBRE Y BANDERA */}
           <div className="pc-content">
-            <div className="pc-stats-header">
-              {/* Bandera a la derecha */}
+            {/* LED de disponibilidad en la esquina */}
+            <div className="pc-status-corner">
+              <div className={`pc-status-indicator ${playerData.status === 'Disponible' ? '' : 'unavailable'}`}></div>
+              
+              {/* Bandera debajo del LED */}
               <div className="pc-country-badge">
                 <img
                   src={`https://flagcdn.com/w40/${playerData.countryCode.toLowerCase()}.png`}
@@ -323,15 +326,15 @@ const ProfileCardComponent = ({
               </div>
             </div>
             
+            {/* Stats a la derecha */}
+            <div className="pc-stats-header">
+              <span className="pc-number">#{playerData.number}</span>
+              <span className="pc-position">{playerData.position}</span>
+            </div>
+            
             {/* Nombre centrado y grande */}
             <div className="pc-details">
               <h3>{playerData.name}</h3>
-              
-              {/* Posición y número debajo del nombre */}
-              <div className="pc-position-number">
-                <span className="pc-position">{playerData.position}</span>
-                <span className="pc-number">#{playerData.number}</span>
-              </div>
             </div>
           </div>
 
@@ -369,9 +372,10 @@ const ProfileCardComponent = ({
           <div className="pc-user-info">
             <div className="pc-user-stats">
               <div className="pc-handle">@{playerData.handle}</div>
-              <div className={`pc-status ${playerData.status === 'Disponible' ? '' : 'unavailable'}`}>{playerData.status}</div>
-              <div className="pc-matches-played">{playerData.matchesPlayed} PJ</div>
-              <div className="pc-age-range">{playerData.ageRange}</div>
+              <div className="pc-matches-container">
+                <div className="pc-matches-played">{playerData.matchesPlayed} PJ</div>
+                <div className="pc-matches-abandoned">{playerData.matchesAbandoned} PA</div>
+              </div>
             </div>
             
             {/* Rating (grande y dorado) */}

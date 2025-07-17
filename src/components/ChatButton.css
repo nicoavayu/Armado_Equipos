@@ -1,6 +1,6 @@
 .chat-float-btn {
   position: fixed;
-  bottom: 20px;
+  bottom: 80px; /* Elevado para evitar que la tabbar lo tape */
   right: 20px;
   width: 56px;
   height: 56px;
@@ -49,7 +49,7 @@
 /* Mobile adjustments */
 @media (width <= 600px) {
   .chat-float-btn {
-    bottom: 16px;
+    bottom: 80px; /* Mantiene la elevación en móviles */
     right: 16px;
     width: 52px;
     height: 52px;

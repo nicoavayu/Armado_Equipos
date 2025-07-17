@@ -1,5 +1,5 @@
 :root {
-  --color-primary: #0EA9C6;
+  --color-primary: #rgb(229 119 175);
   --color-accent: #DE1C49;
   --color-bg: #fff;
   --color-bg-secondary: #f8f9fa;
@@ -390,6 +390,7 @@ body {
     width: auto;
     font-size: 1.5rem;
     height: 44px;
+    
   }
 }
 

@@ -40,6 +40,8 @@
   box-sizing: border-box !important;
   margin-left: 0 !important;
   margin-right: 0 !important;
+  background: #8178e5;
+  border-radius: 50px;
 }
 
 /* Make select look exactly like input-modern */
@@ -60,7 +62,7 @@
   transition: border 0.18s !important;
   position: static !important;
   z-index: auto !important;
-  appearance: auto !important;
+  
   appearance: auto !important;
 }
 

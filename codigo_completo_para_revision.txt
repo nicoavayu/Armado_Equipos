@@ -1,0 +1,984 @@
+================ CÓDIGO COMPLETO PARA REVISIÓN POR IA ================
+
+Este archivo contiene el código principal del proyecto Team Balancer para revisión por IA.
+
+================ App.js ================
+
+import './HomeStyleKit.css';
+import React, { useState, useEffect } from "react";
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { MODES, ADMIN_STEPS } from "./constants";
+import { LOADING_STATES } from "./appConstants";
+import ErrorBoundary from "./components/ErrorBoundary";
+import AuthProvider from "./components/AuthProvider";
+import DirectFix from "./components/DirectFix";
+import Button from "./components/Button";
+import NetworkStatus from "./components/NetworkStatus";
+import TabBar from "./components/TabBar";
+import Home from "./Home";
+import AppNormal from "./AppNormal";
+import VotingView from "./VotingView";
+import AdminPanel from "./AdminPanel";
+import FormularioNuevoPartidoFlow from "./FormularioNuevoPartidoFlow";
+import PartidoInfoBox from "./PartidoInfoBox";
+import ListaPartidosFrecuentes from "./ListaPartidosFrecuentes";
+import EditarPartidoFrecuente from "./EditarPartidoFrecuente";
+import QuieroJugar from "./QuieroJugar";
+import ProfileEditor from "./components/ProfileEditor";
+import { getPartidoPorCodigo, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes } from "./supabase";
+import { toast } from 'react-toastify';
+import IngresoAdminPartido from "./IngresoAdminPartido";
+
+const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
+  <div className="voting-bg content-with-tabbar">
+    <div className="voting-modern-card">
+      <div className="match-name" style={{ marginBottom: 24 }}>¿QUÉ QUERÉS HACER?</div>
+      <button className="voting-confirm-btn wipe-btn" style={{marginBottom: 12}} onClick={onNuevo}>
+        PARTIDO NUEVO
+      </button>
+      <button className="voting-confirm-btn wipe-btn" style={{marginBottom: 16}} onClick={onExistente}>
+        PARTIDO FRECUENTE
+      </button>
+      {/* Botón de volver eliminado ya que ahora tenemos el TabBar */}
+    </div>
+  </div>
+);
+
+export default function App() {
+  const [modo, setModo] = useState(MODES.HOME);
+  const [partidoActual, setPartidoActual] = useState(undefined);
+  const [stepPartido, setStepPartido] = useState(ADMIN_STEPS.SELECT_TYPE);
+  const [partidoFrecuenteEditando, setPartidoFrecuenteEditando] = useState(null);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const codigo = params.get("codigo");
+    if (codigo) {
+      console.log('Loading match from URL code:', codigo);
+      setModo(MODES.PLAYER); // Set player mode immediately
+      getPartidoPorCodigo(codigo)
+        .then(partido => {
+          console.log('Match loaded successfully:', partido);
+          setPartidoActual(partido);
+        })
+        .catch(error => {
+          console.error('Error loading match from code:', error);
+          // Keep in player mode but with null partido to show error
+          setPartidoActual(null);
+        });
+    }
+  }, []);
+
+  const handleJugadoresChange = async (nuevosJugadores) => {
+    if (!partidoActual) return;
+    await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
+    setPartidoActual({ ...partidoActual, jugadores: nuevosJugadores });
+    if (partidoActual.from_frequent_match_id) {
+      try {
+        await updateJugadoresFrecuentes(partidoActual.from_frequent_match_id, nuevosJugadores);
+      } catch (error) {
+        toast.error('Error actualizando partido frecuente');
+      }
+    }
+  };
+
+  // Renderizar el contenido según el modo seleccionado
+  let content;
+  let showTabBar = true;
+  let activeTab = modo;
+  
+  if (modo === MODES.ADMIN) {
+    activeTab = 'votacion';
+    
+    if (stepPartido === ADMIN_STEPS.SELECT_TYPE) {
+      content = (
+        <SeleccionarTipoPartido
+          onNuevo={() => setStepPartido(ADMIN_STEPS.CREATE_MATCH)}
+          onExistente={() => setStepPartido(ADMIN_STEPS.SELECT_FREQUENT)}
+        />
+      );
+    }
+    else if (stepPartido === ADMIN_STEPS.CREATE_MATCH) {
+      content = (
+        <FormularioNuevoPartidoFlow
+          onConfirmar={async (partido) => {
+            setPartidoActual(partido);
+            setStepPartido(ADMIN_STEPS.MANAGE);
+            return partido;
+          }}
+          onVolver={() => setStepPartido(ADMIN_STEPS.SELECT_TYPE)}
+        />
+      );
+    }
+    else if (stepPartido === ADMIN_STEPS.SELECT_FREQUENT) {
+      content = (
+        <ListaPartidosFrecuentes
+          onEntrar={async (partidoFrecuente) => {
+            try {
+              const hoy = new Date().toISOString().split('T')[0];
+              const partido = await crearPartidoDesdeFrec(partidoFrecuente, hoy);
+              partido.from_frequent_match_id = partidoFrecuente.id;
+              setPartidoActual(partido);
+              setStepPartido(ADMIN_STEPS.MANAGE);
+            } catch (error) {
+              toast.error('Error al crear el partido');
+            }
+          }}
+          onEditar={(partido) => {
+            setPartidoFrecuenteEditando(partido);
+            setStepPartido(ADMIN_STEPS.EDIT_FREQUENT);
+          }}
+          onVolver={() => setStepPartido(ADMIN_STEPS.SELECT_TYPE)}
+        />
+      );
+    }
+    else if (stepPartido === ADMIN_STEPS.EDIT_FREQUENT && partidoFrecuenteEditando) {
+      content = (
+        <EditarPartidoFrecuente
+          partido={partidoFrecuenteEditando}
+          onGuardado={() => {
+            setPartidoFrecuenteEditando(null);
+            setStepPartido(ADMIN_STEPS.SELECT_FREQUENT);
+          }}
+          onVolver={() => {
+            setPartidoFrecuenteEditando(null);
+            setStepPartido(ADMIN_STEPS.SELECT_FREQUENT);
+          }}
+        />
+      );
+    }
+
+    else if (stepPartido === ADMIN_STEPS.MANAGE && partidoActual) {
+      content = (
+        <div className="voting-bg content-with-tabbar">
+          <div className="voting-modern-card" style={{ maxWidth: 650 }}>
+            <AdminPanel
+              partidoActual={partidoActual}
+              jugadores={partidoActual?.jugadores || []}
+              onJugadoresChange={handleJugadoresChange}
+              onBackToHome={() => {
+                setModo(MODES.HOME);
+                setPartidoActual(null);
+                setPartidoFrecuenteEditando(null);
+                setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+              }}
+            />
+          </div>
+        </div>
+      );
+    }
+    else if (stepPartido === ADMIN_STEPS.MANAGE && !partidoActual) {
+      setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+      return null;
+    }
+  }
+  else if (modo === MODES.HOME) {
+    content = (
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card" style={{maxWidth: 440, display: "flex", flexDirection: "column", alignItems: "center"}}>
+          <Home onModoSeleccionado={(m) => {
+            setModo(m);
+            if (m === MODES.ADMIN) setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+          }} />
+        </div>
+      </div>
+    );
+  } else if (modo === 'simple') {
+    content = <AppNormal onBack={() => setModo(MODES.HOME)} />;
+  } else if (modo === 'votacion') {
+    setModo(MODES.ADMIN);
+    setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+    return null;
+  } else if (modo === 'quiero-jugar') {
+    content = <QuieroJugar onVolver={() => setModo(MODES.HOME)} />;
+  } else if (modo === 'profile') {
+    content = (
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card" style={{maxWidth: 440, display: "flex", flexDirection: "column", alignItems: "center"}}>
+          <ProfileEditor 
+            isOpen={true} 
+            onClose={() => setModo(MODES.HOME)} 
+          />
+        </div>
+      </div>
+    );
+  } else if (modo === MODES.PLAYER) {
+    activeTab = 'quiero-jugar';
+    content = (
+      <div className="content-with-tabbar">
+        <NetworkStatus />
+        <VotingView
+          jugadores={partidoActual ? partidoActual.jugadores : []}
+          partidoActual={partidoActual}
+          onReset={() => { 
+            setModo(MODES.HOME); 
+            setPartidoActual(null);
+            setPartidoFrecuenteEditando(null);
+            setStepPartido(ADMIN_STEPS.SELECT_TYPE); 
+          }}
+        />
+      </div>
+    );
+  }
+  
+  // Mostrar el TabBar en todos los modos
+  showTabBar = true;
+
+  if (modo === MODES.VOTING) {
+    setModo(MODES.ADMIN);
+    return null;
+  }
+
+  // Renderizado para modos no disponibles
+  if (!content) {
+    content = (
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card">
+          <div className="match-name">MODO NO DISPONIBLE</div>
+          <div style={{color:"#fff", padding: "20px", fontSize: "18px", textAlign: "center"}}>
+            El modo seleccionado no está disponible o ha ocurrido un error.
+          </div>
+          <Button
+            onClick={() => setModo(MODES.HOME)}
+            style={{marginTop: "34px", marginBottom: "0", width: '100%', maxWidth: '400px', fontSize: '1.5rem', height: '64px', borderRadius: '9px'}}
+            ariaLabel="Volver al inicio"
+          >
+            VOLVER AL INICIO
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  
+  // Renderizado principal con TabBar
+  return (
+    <ErrorBoundary>
+      <AuthProvider>
+        <DirectFix />
+        {content}
+        {showTabBar && (
+          <TabBar 
+            activeTab={activeTab} 
+            onTabChange={(tab) => {
+              setModo(tab);
+              if (tab === 'votacion') setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+            }} 
+          />
+        )}
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+        />
+      </AuthProvider>
+    </ErrorBoundary>
+  );
+}
+
+================ VotingView.js ================
+
+// src/VotingView.js
+import React, { useState, useEffect } from "react";
+import {
+  checkIfAlreadyVoted,
+  uploadFoto,
+  submitVotos,
+} from "./supabase";
+import { toast } from 'react-toastify';
+import StarRating from "./StarRating";
+import "./HomeStyleKit.css";
+
+// Avatar cuadrado por defecto (SVG simple)
+const DefaultAvatar = (
+  <div className="voting-photo-placeholder">
+    <svg width="80" height="80" viewBox="0 0 38 38" fill="none">
+      <rect width="38" height="38" rx="6" fill="#eceaf1" />
+      <circle cx="19" cy="14" r="7" fill="#bbb" />
+      <ellipse cx="19" cy="29" rx="11" ry="7" fill="#bbb" />
+    </svg>
+  </div>
+);
+
+export default function VotingView({ onReset, jugadores }) {
+  // Estados principales
+  const [step, setStep] = useState(0);
+  const [nombre, setNombre] = useState("");
+  const [jugador, setJugador] = useState(null);
+
+  // Foto
+  const [file, setFile] = useState(null);
+  const [fotoPreview, setFotoPreview] = useState(null);
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+
+  // Votación
+  const [current, setCurrent] = useState(0);
+  const [votos, setVotos] = useState({});
+  const [hovered, setHovered] = useState(null);
+
+  // Edición y confirmación
+  const [editandoIdx, setEditandoIdx] = useState(null);
+  const [confirmando, setConfirmando] = useState(false);
+  const [finalizado, setFinalizado] = useState(false);
+  const [yaVoto, setYaVoto] = useState(false);
+
+  // No es necesario cargar jugadores aquí, se reciben por props
+
+  // Al seleccionar nombre, setea jugador y foto
+  useEffect(() => {
+    if (!nombre) return;
+    const j = jugadores.find(j => j.nombre === nombre);
+    setJugador(j || null);
+    // Use only avatar_url from usuarios table
+    setFotoPreview(j?.avatar_url || null);
+  }, [nombre, jugadores]);
+
+  // Chequear si ya votó este jugador (uuid) en votos
+  useEffect(() => {
+    async function checkVoteStatus() {
+      if (!jugador || !jugador.uuid) return;
+      try {
+        const hasVoted = await checkIfAlreadyVoted(jugador.uuid);
+        setYaVoto(hasVoted);
+      } catch (error) {
+        toast.error("Error verificando el estado del voto: " + error.message);
+      }
+    }
+    checkVoteStatus();
+  }, [jugador]);
+
+  // BLOQUEO: si ya votó, mostrá mensaje y bloqueá el resto del flujo
+  if (yaVoto) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">
+            ¡YA VOTASTE!
+          </div>
+          <div style={{ color: "#fff", fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30 }}>
+            Ya registraste tus votos. <br />No podés votar de nuevo.
+          </div>
+          <button
+            className="voting-confirm-btn"
+            onClick={onReset}
+            style={{ marginTop: 16 }}
+          >VOLVER AL INICIO</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Paso 0: Identificarse
+  if (step === 0) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">¿QUIÉN SOS?</div>
+          <div className="player-select-grid">
+            {jugadores.map(j => (
+              <button
+                key={j.uuid}
+                className={`player-select-btn${nombre === j.nombre ? " selected" : ""}`}
+                onClick={() => setNombre(j.nombre)}
+                type="button"
+              >
+                <span className="player-select-txt">{j.nombre}</span>
+              </button>
+            ))}
+          </div>
+          <button
+            className="voting-confirm-btn"
+            disabled={!nombre}
+            style={{ opacity: nombre ? 1 : 0.4, pointerEvents: nombre ? "auto" : "none" }}
+            onClick={() => setStep(1)}
+          >
+            CONFIRMAR
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Paso 1: Subir foto (opcional)
+  if (step === 1) {
+  // Manejador de archivo
+  const handleFile = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+      setFotoPreview(URL.createObjectURL(e.target.files[0]));
+    }
+  };
+
+  const handleFotoUpload = async () => {
+    if (!file || !jugador) return;
+    setSubiendoFoto(true);
+    try {
+      const fotoUrl = await uploadFoto(file, jugador);
+      setFotoPreview(fotoUrl);
+      setFile(null);
+      toast.success("¡Foto cargada!");
+    } catch (error) {
+      toast.error("Error al subir la foto: " + error.message);
+    } finally {
+      setSubiendoFoto(false);
+    }
+  };
+
+  return (
+    <div className="voting-bg">
+      <div className="voting-modern-card">
+        <div className="voting-title-modern">¡HOLA, {nombre}!</div>
+        
+        {/* FOTO GRANDE CON "+" PARA AGREGAR/CAMBIAR */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 18 }}>
+          <div
+            className="voting-photo-box"
+            onClick={() => document.getElementById("foto-input").click()}
+            style={{ cursor: "pointer" }}
+            title={fotoPreview ? "Cambiar foto" : "Agregar foto"}
+          >
+            {fotoPreview ? (
+              <img
+                src={fotoPreview}
+                alt="foto"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <span className="photo-plus">+</span>
+            )}
+            <input
+              id="foto-input"
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={handleFile}
+            />
+          </div>
+        </div>
+
+        {!fotoPreview && (
+          <div style={{
+            fontSize: 18, color: "rgba(255,255,255,0.7)",
+            textAlign: "center", marginBottom: 18, fontFamily: "'Oswald', Arial, sans-serif"
+          }}>
+            Mandale selfie <br />
+          </div>
+        )}
+        {file && (
+          <button
+            className="voting-confirm-btn"
+            style={{ background: "rgba(255,255,255,0.17)", borderColor: "#fff", color: "#fff" }}
+            disabled={subiendoFoto}
+            onClick={handleFotoUpload}
+          >
+            {subiendoFoto ? "SUBIENDO..." : "GUARDAR FOTO"}
+          </button>
+        )}
+        <button
+          className="voting-confirm-btn"
+          style={{ marginTop: 8 }}
+          onClick={() => setStep(2)}
+        >
+          {fotoPreview ? "CONTINUAR" : "CONTINUAR SIN FOTO"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+  // Jugadores a votar: todos menos yo
+  const jugadoresParaVotar = jugadores.filter(j => j.nombre !== nombre);
+
+  // Paso 2: Votar a los demás jugadores
+  if (step === 2 || editandoIdx !== null) {
+    const index = editandoIdx !== null ? editandoIdx : current;
+    if (index >= jugadoresParaVotar.length) {
+      setTimeout(() => setStep(3), 300);
+      return null;
+    }
+    const jugadorVotar = jugadoresParaVotar[index];
+    const valor = votos[jugadorVotar.uuid] || 0;
+
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card" style={{ background: "transparent", boxShadow: "none", padding: 0 }}>
+          <div className="voting-title-modern">
+            CALIFICÁ A TUS COMPAÑEROS
+          </div>
+          <div className="voting-player-name">{jugadorVotar.nombre}</div>
+          <div className="voting-photo-box">
+            {jugadorVotar.avatar_url ? (
+              <img src={jugadorVotar.avatar_url} alt="foto" />
+            ) : (
+              DefaultAvatar
+            )}
+          </div>
+          <StarRating
+            value={valor}
+            onChange={valor => {
+              setVotos(prev => ({ ...prev, [jugadorVotar.uuid]: valor }));
+              if (editandoIdx !== null) {
+                setEditandoIdx(null);
+                setStep(3);
+              } else {
+                setCurrent(cur => cur + 1);
+              }
+              setHovered(null);
+            }}
+            hovered={hovered}
+            setHovered={setHovered}
+          />
+          <button
+            className="voting-confirm-btn"
+            style={{ marginTop: 35, marginBottom: 0, fontWeight: 400 }}
+            onClick={() => {
+              setVotos(prev => ({ ...prev, [jugadorVotar.uuid]: undefined }));
+              if (editandoIdx !== null) {
+                setEditandoIdx(null);
+                setStep(3);
+              } else {
+                setCurrent(cur => cur + 1);
+              }
+              setHovered(null);
+            }}
+          >
+            NO LO CONOZCO
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Paso 3: Resumen y edición antes de confirmar
+  if (step === 3 && !finalizado) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">
+            CONFIRMÁ TUS<br />CALIFICACIONES
+          </div>
+          <ul className="voting-list-grid">
+            {jugadoresParaVotar.map((j, idx) => (
+              <li key={j.uuid}>
+                {j.avatar_url ?
+                  <img src={j.avatar_url} alt="foto" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover" }} />
+                  : DefaultAvatar
+                }
+                <span style={{
+                  flex: 1, fontWeight: 700, fontSize: 25, fontFamily: "'Oswald', Arial, sans-serif", color: "#fff", letterSpacing: 1
+                }}>{j.nombre}</span>
+                <span style={{ color: "#fff", fontSize: 22, fontWeight: 800, minWidth: 70, textAlign: "right", fontFamily: "'Oswald', Arial, sans-serif" }}>
+                  {votos[j.uuid] ? votos[j.uuid] + "/10" : "No calificado"}
+                </span>
+                <button
+                  className="voting-name-btn"
+                  style={{ width: 70, height: 38, fontSize: 18, border: "2px solid #fff", margin: 0 }}
+                  onClick={() => setEditandoIdx(idx)}
+                >EDITAR</button>
+              </li>
+            ))}
+          </ul>
+          <button
+            className="voting-confirm-btn"
+            style={{ marginTop: 8, fontWeight: 700, letterSpacing: 1.2 }}
+            onClick={async () => {
+              setConfirmando(true);
+              try {
+                await submitVotos(votos, jugador?.uuid);
+                setFinalizado(true);
+              } catch (error) {
+                toast.error("Error al guardar los votos: " + error.message);
+              } finally {
+                setConfirmando(false);
+              }
+            }}
+            disabled={confirmando}
+          >
+            {confirmando ? "GUARDANDO..." : "CONFIRMAR MIS VOTOS"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Paso 4: Mensaje final
+  if (finalizado) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">
+            ¡GRACIAS POR VOTAR!
+          </div>
+          <div style={{
+            color: "#fff", fontFamily: "'Oswald', Arial, sans-serif",
+            fontSize: 27, marginBottom: 27, letterSpacing: 1.1
+          }}>
+            Tus votos fueron registrados.<br />Podés cerrar esta ventana.
+          </div>
+          <button
+            className="voting-confirm-btn"
+            style={{ marginTop: 16 }}
+            onClick={onReset}
+          >VOLVER AL INICIO</button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+================ QuieroJugar.js ================
+
+import React, { useState, useEffect } from 'react';
+import { supabase, addFreePlayer, removeFreePlayer, getFreePlayerStatus, getFreePlayersList } from './supabase';
+
+================ supabase.js ================
+
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Nota: El archivo supabase.js es muy extenso y contiene muchas funciones para interactuar con la base de datos.
+// Se ha incluido solo el inicio del archivo para referencia.
+
+================ NOTAS PARA LA IA QUE REVISARÁ EL CÓDIGO ================
+
+Este archivo contiene el código principal del proyecto Team Balancer, una aplicación para organizar partidos de fútbol, gestionar jugadores y realizar votaciones.
+
+Principales componentes:
+1. App.js - Componente principal que maneja la navegación y los diferentes modos de la aplicación
+2. VotingView.js - Sistema de votación para calificar jugadores
+3. QuieroJugar.js - Gestión de partidos abiertos y jugadores disponibles
+4. supabase.js - Conexión con la base de datos y funciones de interacción
+
+Por favor, revisa el código para identificar:
+- Código redundante o innecesario
+- Posibles mejoras de rendimiento
+- Mejores prácticas de React
+- Optimización de la estructura del código
+- Cualquier problema potencial o bug
+
+Gracias por tu ayuda en la mejora de este proyecto.
+import { toast } from 'react-toastify';
+import { useAuth } from './components/AuthProvider';
+import './QuieroJugar.css';
+import './VotingView.css';
+
+export default function QuieroJugar({ onVolver }) {
+  // Clase para dar espacio al TabBar
+  const containerClass = "quiero-jugar-container content-with-tabbar";
+  const { user } = useAuth();
+  const [partidosAbiertos, setPartidosAbiertos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isRegisteredAsFree, setIsRegisteredAsFree] = useState(false);
+  const [freePlayers, setFreePlayers] = useState([]);
+  const [activeTab, setActiveTab] = useState('matches'); // 'matches' or 'players'
+
+  useEffect(() => {
+    fetchPartidosAbiertos();
+    if (user) {
+      checkFreePlayerStatus();
+      fetchFreePlayers();
+    }
+  }, [user]);
+
+  const fetchPartidosAbiertos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('partidos')
+        .select('*')
+        .eq('falta_jugadores', true)
+        .eq('estado', 'activo')
+        .order('fecha', { ascending: true });
+
+      if (error) throw error;
+      setPartidosAbiertos(data || []);
+    } catch (error) {
+      toast.error('Error cargando partidos: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkFreePlayerStatus = async () => {
+    try {
+      const status = await getFreePlayerStatus();
+      setIsRegisteredAsFree(status);
+    } catch (error) {
+      console.error('Error checking free player status:', error);
+    }
+  };
+
+  const fetchFreePlayers = async () => {
+    try {
+      const players = await getFreePlayersList();
+      setFreePlayers(players);
+    } catch (error) {
+      console.error('Error fetching free players:', error);
+    }
+  };
+
+  const handleRegisterAsFree = async () => {
+    try {
+      await addFreePlayer();
+      setIsRegisteredAsFree(true);
+      fetchFreePlayers();
+      toast.success('¡Te anotaste como disponible!');
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleUnregisterAsFree = async () => {
+    try {
+      await removeFreePlayer();
+      setIsRegisteredAsFree(false);
+      fetchFreePlayers();
+      toast.success('Ya no estás disponible');
+    } catch (error) {
+      toast.error('Error: ' + error.message);
+    }
+  };
+
+  const formatTimeAgo = (timestamp) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInHours = Math.floor((now - time) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Hace menos de 1 hora';
+    if (diffInHours === 1) return 'Hace 1 hora';
+    if (diffInHours < 24) return `Hace ${diffInHours} horas`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) return 'Hace 1 día';
+    return `Hace ${diffInDays} días`;
+  };
+
+  const handleBorrarPartido = async (partido) => {
+    if (!window.confirm(`¿Borrar el partido "${partido.nombre || partido.modalidad}"?`)) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('partidos')
+        .delete()
+        .eq('id', partido.id);
+
+      if (error) throw error;
+
+      toast.success('Partido borrado');
+      fetchPartidosAbiertos(); // Refrescar lista
+    } catch (error) {
+      toast.error('Error al borrar: ' + error.message);
+    }
+  };
+
+  const handleSumarse = async (partido) => {
+    // Verificar si ya se sumó desde este dispositivo
+    const yaSesumo = localStorage.getItem(`sumado_partido_${partido.id}`);
+    if (yaSesumo) {
+      toast.error('Ya te sumaste a este partido desde este dispositivo');
+      return;
+    }
+
+    const nombre = prompt('Ingresá tu nombre para sumarte al partido:');
+    if (!nombre?.trim()) return;
+
+    try {
+      const jugadoresActuales = partido.jugadores || [];
+      const cupoMaximo = partido.cupo_jugadores || 20;
+
+      if (jugadoresActuales.length >= cupoMaximo) {
+        toast.error('El partido ya está completo');
+        return;
+      }
+
+      // Verificar si ya está anotado por nombre
+      if (jugadoresActuales.some(j => j.nombre.toLowerCase() === nombre.trim().toLowerCase())) {
+        toast.error('Ya hay un jugador con ese nombre en el partido');
+        return;
+      }
+
+      const nuevoJugador = {
+        nombre: nombre.trim(),
+        uuid: `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        foto_url: null,
+        score: 5
+      };
+
+      // Don't add to global table, just use in match
+
+      const nuevosJugadores = [...jugadoresActuales, nuevoJugador];
+      const partidoCompleto = nuevosJugadores.length >= cupoMaximo;
+
+      const { error } = await supabase
+        .from('partidos')
+        .update({ 
+          jugadores: nuevosJugadores,
+          falta_jugadores: partidoCompleto ? false : true // Only close when full
+        })
+        .eq('id', partido.id);
+
+      if (error) throw error;
+
+      // Marcar como sumado en este dispositivo
+      localStorage.setItem(`sumado_partido_${partido.id}`, nombre.trim());
+      
+      toast.success('¡Te sumaste al partido!');
+      fetchPartidosAbiertos(); // Refrescar lista
+    } catch (error) {
+      toast.error('Error al sumarse: ' + error.message);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="match-name">CARGANDO...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={containerClass}>
+      <h1 className="quiero-jugar-title">QUIERO JUGAR</h1>
+      
+      {/* Tab Navigation */}
+      <div className="tab-navigation">
+        <button
+          className={`tab-button ${activeTab === 'matches' ? 'active' : ''}`}
+          onClick={() => setActiveTab('matches')}
+        >
+          PARTIDOS ABIERTOS
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'players' ? 'active' : ''}`}
+          onClick={() => setActiveTab('players')}
+        >
+          JUGADORES LIBRES
+        </button>
+      </div>
+
+      {activeTab === 'matches' ? (
+        // Matches Tab
+        partidosAbiertos.length === 0 ? (
+          <div className="empty-message">
+            No hay partidos buscando jugadores en este momento
+          </div>
+        ) : (
+          <>
+            {partidosAbiertos.map(partido => {
+              const jugadoresCount = partido.jugadores?.length || 0;
+              const cupoMaximo = partido.cupo_jugadores || 20;
+              const faltanJugadores = cupoMaximo - jugadoresCount;
+              
+              return (
+                <div key={partido.id} className="match-card">
+                  <div className="match-title">
+                    {partido.nombre || `${partido.modalidad || 'F5'}`}
+                  </div>
+                  <div className="match-details">
+                    {partido.modalidad?.replace('F', 'FÚTBOL ')} • FALTAN {faltanJugadores} JUGADOR{faltanJugadores !== 1 ? 'ES' : ''}
+                  </div>
+                  <div className="match-details">
+                    {new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
+                      weekday: 'long', 
+                      day: 'numeric', 
+                      month: 'numeric' 
+                    }).toUpperCase()} {partido.hora}
+                  </div>
+                  <div className="match-location">
+                    <span>📍</span> {partido.sede}
+                  </div>
+                  <div className="match-actions">
+                    <button
+                      className="sumarme-button"
+                      onClick={() => handleSumarse(partido)}
+                    >
+                      SUMARME <span className="player-count">({jugadoresCount}/{cupoMaximo})</span>
+                    </button>
+                    <button
+                      className="delete-button"
+                      onClick={() => handleBorrarPartido(partido)}
+                      title="Borrar partido"
+                    >
+                      X
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )
+      ) : (
+        // Free Players Tab
+        <>
+          {user ? (
+            <div style={{ width: '100%', maxWidth: '500px', marginBottom: '16px' }}>
+              {!isRegisteredAsFree ? (
+                <button
+                  className="sumarme-button"
+                  onClick={handleRegisterAsFree}
+                  
+                >
+                  ANOTARME COMO DISPONIBLE
+                </button>
+              ) : (
+                <button
+                  className="sumarme-button"
+                  onClick={handleUnregisterAsFree}
+                  style={{ background: '#dc3545' }}
+                >
+                  ❌ YA NO ESTOY DISPONIBLE
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="empty-message">
+              Inicia sesión para anotarte como jugador disponible
+            </div>
+          )}
+          
+          {freePlayers.length === 0 ? (
+            <div className="empty-message">
+              No hay jugadores disponibles en este momento
+            </div>
+          ) : (
+            <>
+              {freePlayers.map(player => (
+                <div key={player.id} className="match-card">
+                  <div className="match-title">
+                    {player.nombre}
+                  </div>
+                  <div className="match-location">
+                    <span>📍</span> {player.localidad || 'Sin especificar'}
+                  </div>
+                  <div className="match-details">
+                    {formatTimeAgo(player.created_at)}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </>
+      )}
+
+      {/* Botón de volver eliminado ya que ahora tenemos el TabBar */}
+    </div>
+  );
+}

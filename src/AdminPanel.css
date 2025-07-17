@@ -4,11 +4,11 @@
 .admin-panel-content {
   width: 100% !important;
   max-width: 100% !important;
-  padding: 40px 0 !important;
+  padding: 15px 0 70px !important; /* Reducido arriba, añadido abajo para la tabbar */
   margin: 0 !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 20px !important;
+  gap: 12px !important; /* Reducido aún más el espacio entre elementos */
   box-sizing: border-box !important;
   overflow-x: hidden !important;
 }
@@ -16,7 +16,7 @@
 /* Match header styling */
 .match-header {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 10px;
 }
 
 .match-name {
@@ -27,20 +27,21 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   line-height: 1.0;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   text-shadow: 0 2px 4px rgb(0 0 0 / 30%);
   word-break: break-word;
 }
 
 .match-details {
   font-family: Oswald, Arial, sans-serif;
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 500;
   color: rgb(255 255 255 / 90%);
   text-transform: capitalize;
   letter-spacing: 0.5px;
   line-height: 1.2;
   text-shadow: 0 1px 2px rgb(0 0 0 / 20%);
+  margin-bottom: 6px;
 }
 
 /* Venue link styling */
@@ -137,6 +138,7 @@
   padding: 20px;
   width: 100%;
   box-sizing: border-box;
+  margin-top: 0;
 }
 
 /* High specificity form layout - overrides global styles */
@@ -448,7 +450,7 @@
 /* Mobile responsive */
 @media (width <= 480px) {
   .admin-panel-content {
-    padding: 20px 0 !important;
+    padding: 15px 0 70px !important;
   }
   
   .match-name {
@@ -456,7 +458,7 @@
   }
   
   .match-details {
-    font-size: 18px;
+    font-size: 22px;
   }
 }
 
@@ -467,7 +469,7 @@
   }
   
   .match-details {
-    font-size: 24px;
+    font-size: 28px;
   }
   
   .admin-match-code-content {

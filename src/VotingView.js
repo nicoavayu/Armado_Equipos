@@ -4,12 +4,13 @@ import {
   checkIfAlreadyVoted,
   uploadFoto,
   submitVotos,
+  supabase,
+  getGuestSessionId, // si no usás guest, podés eliminar esta línea
 } from "./supabase";
 import { toast } from 'react-toastify';
 import StarRating from "./StarRating";
 import "./HomeStyleKit.css";
 
-// Avatar cuadrado por defecto (SVG simple)
 const DefaultAvatar = (
   <div className="voting-photo-placeholder">
     <svg width="80" height="80" viewBox="0 0 38 38" fill="none">
@@ -40,35 +41,80 @@ export default function VotingView({ onReset, jugadores }) {
   const [editandoIdx, setEditandoIdx] = useState(null);
   const [confirmando, setConfirmando] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
-  const [yaVoto, setYaVoto] = useState(false);
 
-  // No es necesario cargar jugadores aquí, se reciben por props
+  // Chequeo global: ¿El usuario actual ya votó?
+  const [usuarioYaVoto, setUsuarioYaVoto] = useState(false);
+  const [cargandoVotoUsuario, setCargandoVotoUsuario] = useState(true);
 
-  // Al seleccionar nombre, setea jugador y foto
+  // -- HOOKS, TODOS ARRIBA --
+
+  // Chequeo global apenas entra a la vista
   useEffect(() => {
-    if (!nombre) return;
+    async function checkVotoUsuarioActual() {
+      setCargandoVotoUsuario(true);
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const codigo = urlParams.get('codigo');
+        if (!codigo) return setCargandoVotoUsuario(false);
+
+        const { data: partido, error } = await supabase
+          .from('partidos')
+          .select('id')
+          .eq('codigo', codigo)
+          .single();
+        if (error || !partido?.id) return setCargandoVotoUsuario(false);
+
+        const partidoId = Math.abs(parseInt(partido.id, 10));
+
+        let userId = null;
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) {
+          userId = user.id;
+        } else if (typeof getGuestSessionId === "function") {
+          userId = getGuestSessionId(partidoId);
+        }
+
+        if (!userId) return setCargandoVotoUsuario(false);
+
+        const hasVoted = await checkIfAlreadyVoted(userId, partidoId);
+        setUsuarioYaVoto(hasVoted);
+      } catch (e) {
+        setUsuarioYaVoto(false);
+      } finally {
+        setCargandoVotoUsuario(false);
+      }
+    }
+    checkVotoUsuarioActual();
+    // eslint-disable-next-line
+  }, []);
+
+  // Setear jugador cuando cambia nombre
+  useEffect(() => {
+    if (!nombre) {
+      setJugador(null);
+      setFotoPreview(null);
+      return;
+    }
     const j = jugadores.find(j => j.nombre === nombre);
     setJugador(j || null);
-    // Use only avatar_url from usuarios table
     setFotoPreview(j?.avatar_url || null);
   }, [nombre, jugadores]);
 
-  // Chequear si ya votó este jugador (uuid) en votos
-  useEffect(() => {
-    async function checkVoteStatus() {
-      if (!jugador || !jugador.uuid) return;
-      try {
-        const hasVoted = await checkIfAlreadyVoted(jugador.uuid);
-        setYaVoto(hasVoted);
-      } catch (error) {
-        toast.error("Error verificando el estado del voto: " + error.message);
-      }
-    }
-    checkVoteStatus();
-  }, [jugador]);
+  // -- FIN HOOKS --
 
-  // BLOQUEO: si ya votó, mostrá mensaje y bloqueá el resto del flujo
-  if (yaVoto) {
+  // Pantalla de carga
+  if (cargandoVotoUsuario) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">Cargando...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Si ya votó, bloquear el flujo entero
+  if (usuarioYaVoto) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
@@ -76,7 +122,7 @@ export default function VotingView({ onReset, jugadores }) {
             ¡YA VOTASTE!
           </div>
           <div style={{ color: "#fff", fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30 }}>
-            Ya registraste tus votos. <br />No podés votar de nuevo.
+            Ya registraste tus votos.<br />No podés votar de nuevo en este partido.
           </div>
           <button
             className="voting-confirm-btn"
@@ -121,91 +167,86 @@ export default function VotingView({ onReset, jugadores }) {
 
   // Paso 1: Subir foto (opcional)
   if (step === 1) {
-  // Manejador de archivo
-  const handleFile = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      setFotoPreview(URL.createObjectURL(e.target.files[0]));
-    }
-  };
+    const handleFile = (e) => {
+      if (e.target.files && e.target.files[0]) {
+        setFile(e.target.files[0]);
+        setFotoPreview(URL.createObjectURL(e.target.files[0]));
+      }
+    };
 
-  const handleFotoUpload = async () => {
-    if (!file || !jugador) return;
-    setSubiendoFoto(true);
-    try {
-      const fotoUrl = await uploadFoto(file, jugador);
-      setFotoPreview(fotoUrl);
-      setFile(null);
-      toast.success("¡Foto cargada!");
-    } catch (error) {
-      toast.error("Error al subir la foto: " + error.message);
-    } finally {
-      setSubiendoFoto(false);
-    }
-  };
+    const handleFotoUpload = async () => {
+      if (!file || !jugador) return;
+      setSubiendoFoto(true);
+      try {
+        const fotoUrl = await uploadFoto(file, jugador);
+        setFotoPreview(fotoUrl);
+        setFile(null);
+        toast.success("¡Foto cargada!");
+      } catch (error) {
+        toast.error("Error al subir la foto: " + error.message);
+      } finally {
+        setSubiendoFoto(false);
+      }
+    };
 
-  return (
-    <div className="voting-bg">
-      <div className="voting-modern-card">
-        <div className="voting-title-modern">¡HOLA, {nombre}!</div>
-        
-        {/* FOTO GRANDE CON “+” PARA AGREGAR/CAMBIAR */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 18 }}>
-          <div
-            className="voting-photo-box"
-            onClick={() => document.getElementById("foto-input").click()}
-            style={{ cursor: "pointer" }}
-            title={fotoPreview ? "Cambiar foto" : "Agregar foto"}
-          >
-            {fotoPreview ? (
-              <img
-                src={fotoPreview}
-                alt="foto"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">¡HOLA, {nombre}!</div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 18 }}>
+            <div
+              className="voting-photo-box"
+              onClick={() => document.getElementById("foto-input").click()}
+              style={{ cursor: "pointer" }}
+              title={fotoPreview ? "Cambiar foto" : "Agregar foto"}
+            >
+              {fotoPreview ? (
+                <img
+                  src={fotoPreview}
+                  alt="foto"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                <span className="photo-plus">+</span>
+              )}
+              <input
+                id="foto-input"
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={handleFile}
               />
-            ) : (
-              <span className="photo-plus">+</span>
-            )}
-            <input
-              id="foto-input"
-              type="file"
-              accept="image/*"
-              style={{ display: "none" }}
-              onChange={handleFile}
-            />
+            </div>
           </div>
-        </div>
-
-        {!fotoPreview && (
-          <div style={{
-            fontSize: 18, color: "rgba(255,255,255,0.7)",
-            textAlign: "center", marginBottom: 18, fontFamily: "'Oswald', Arial, sans-serif"
-          }}>
-            Mandale selfie <br />
-          </div>
-        )}
-        {file && (
+          {!fotoPreview && (
+            <div style={{
+              fontSize: 18, color: "rgba(255,255,255,0.7)",
+              textAlign: "center", marginBottom: 18, fontFamily: "'Oswald', Arial, sans-serif"
+            }}>
+              Mandale selfie <br />
+            </div>
+          )}
+          {file && (
+            <button
+              className="voting-confirm-btn"
+              style={{ background: "rgba(255,255,255,0.17)", borderColor: "#fff", color: "#fff" }}
+              disabled={subiendoFoto}
+              onClick={handleFotoUpload}
+            >
+              {subiendoFoto ? "SUBIENDO..." : "GUARDAR FOTO"}
+            </button>
+          )}
           <button
             className="voting-confirm-btn"
-            style={{ background: "rgba(255,255,255,0.17)", borderColor: "#fff", color: "#fff" }}
-            disabled={subiendoFoto}
-            onClick={handleFotoUpload}
+            style={{ marginTop: 8 }}
+            onClick={() => setStep(2)}
           >
-            {subiendoFoto ? "SUBIENDO..." : "GUARDAR FOTO"}
+            {fotoPreview ? "CONTINUAR" : "CONTINUAR SIN FOTO"}
           </button>
-        )}
-        <button
-          className="voting-confirm-btn"
-          style={{ marginTop: 8 }}
-          onClick={() => setStep(2)}
-        >
-          {fotoPreview ? "CONTINUAR" : "CONTINUAR SIN FOTO"}
-        </button>
+        </div>
       </div>
-    </div>
-  );
-}
-
+    );
+  }
 
   // Jugadores a votar: todos menos yo
   const jugadoresParaVotar = jugadores.filter(j => j.nombre !== nombre);
@@ -226,45 +267,47 @@ export default function VotingView({ onReset, jugadores }) {
           <div className="voting-title-modern">
             CALIFICÁ A TUS COMPAÑEROS
           </div>
-          <div className="voting-player-name">{jugadorVotar.nombre}</div>
-          <div className="voting-photo-box">
-            {jugadorVotar.avatar_url ? (
-              <img src={jugadorVotar.avatar_url} alt="foto" />
-            ) : (
-              DefaultAvatar
-            )}
+          <div className="player-vote-card slide-in">
+            <div className="voting-player-name">{jugadorVotar.nombre}</div>
+            <div className="voting-photo-box">
+              {jugadorVotar.avatar_url ? (
+                <img src={jugadorVotar.avatar_url} alt="foto" />
+              ) : (
+                DefaultAvatar
+              )}
+            </div>
+            <StarRating
+              value={valor}
+              onChange={valor => {
+                setVotos(prev => ({ ...prev, [jugadorVotar.uuid]: valor }));
+                if (editandoIdx !== null) {
+                  setEditandoIdx(null);
+                  setStep(3);
+                } else {
+                  setCurrent(cur => cur + 1);
+                }
+                setHovered(null);
+              }}
+              hovered={hovered}
+              setHovered={setHovered}
+            />
+            <button
+              className="voting-confirm-btn"
+              style={{ marginTop: 35, marginBottom: 0, fontWeight: 400 }}
+              onClick={() => {
+                setVotos(prev => ({ ...prev, [jugadorVotar.uuid]: undefined }));
+                if (editandoIdx !== null) {
+                  setEditandoIdx(null);
+                  setStep(3);
+                } else {
+                  setCurrent(cur => cur + 1);
+                }
+                setHovered(null);
+              }}
+            >
+              NO LO CONOZCO
+            </button>
           </div>
-          <StarRating
-            value={valor}
-            onChange={valor => {
-              setVotos(prev => ({ ...prev, [jugadorVotar.uuid]: valor }));
-              if (editandoIdx !== null) {
-                setEditandoIdx(null);
-                setStep(3);
-              } else {
-                setCurrent(cur => cur + 1);
-              }
-              setHovered(null);
-            }}
-            hovered={hovered}
-            setHovered={setHovered}
-          />
-          <button
-            className="voting-confirm-btn"
-            style={{ marginTop: 35, marginBottom: 0, fontWeight: 400 }}
-            onClick={() => {
-              setVotos(prev => ({ ...prev, [jugadorVotar.uuid]: undefined }));
-              if (editandoIdx !== null) {
-                setEditandoIdx(null);
-                setStep(3);
-              } else {
-                setCurrent(cur => cur + 1);
-              }
-              setHovered(null);
-            }}
-          >
-            NO LO CONOZCO
-          </button>
         </div>
       </div>
     );
@@ -278,34 +321,49 @@ export default function VotingView({ onReset, jugadores }) {
           <div className="voting-title-modern">
             CONFIRMÁ TUS<br />CALIFICACIONES
           </div>
-          <ul className="voting-list-grid">
+          <div className="confirmation-list">
             {jugadoresParaVotar.map((j, idx) => (
-              <li key={j.uuid}>
-                {j.avatar_url ?
-                  <img src={j.avatar_url} alt="foto" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover" }} />
-                  : DefaultAvatar
-                }
-                <span style={{
-                  flex: 1, fontWeight: 700, fontSize: 25, fontFamily: "'Oswald', Arial, sans-serif", color: "#fff", letterSpacing: 1
-                }}>{j.nombre}</span>
-                <span style={{ color: "#fff", fontSize: 22, fontWeight: 800, minWidth: 70, textAlign: "right", fontFamily: "'Oswald', Arial, sans-serif" }}>
+              <div key={j.uuid} className="confirmation-item">
+                <div className="confirmation-item-photo">
+                  {j.avatar_url ?
+                    <img src={j.avatar_url} alt="foto" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : DefaultAvatar
+                  }
+                </div>
+                <span className="confirmation-item-name">{j.nombre}</span>
+                <span className={`confirmation-item-score ${!votos[j.uuid] ? 'not-graded' : ''}`}>
                   {votos[j.uuid] ? votos[j.uuid] + "/10" : "No calificado"}
                 </span>
                 <button
-                  className="voting-name-btn"
-                  style={{ width: 70, height: 38, fontSize: 18, border: "2px solid #fff", margin: 0 }}
+                  className="confirmation-item-edit-btn"
                   onClick={() => setEditandoIdx(idx)}
-                >EDITAR</button>
-              </li>
+                >
+                  EDITAR
+                </button>
+              </div>
             ))}
-          </ul>
+          </div>
           <button
             className="voting-confirm-btn"
             style={{ marginTop: 8, fontWeight: 700, letterSpacing: 1.2 }}
             onClick={async () => {
               setConfirmando(true);
               try {
-                await submitVotos(votos, jugador?.uuid);
+                const urlParams = new URLSearchParams(window.location.search);
+                const codigo = urlParams.get('codigo');
+                if (!codigo) {
+                  throw new Error('Código del partido no encontrado en la URL');
+                }
+                const { data: partido, error: partidoError } = await supabase
+                  .from('partidos')
+                  .select('id')
+                  .eq('codigo', codigo)
+                  .single();
+                if (partidoError || !partido || !partido.id) {
+                  throw new Error('No se pudo encontrar el partido');
+                }
+                const partidoId = Math.abs(parseInt(partido.id, 10));
+                await submitVotos(votos, jugador?.uuid, partidoId, jugador?.nombre, jugador?.avatar_url);
                 setFinalizado(true);
               } catch (error) {
                 toast.error("Error al guardar los votos: " + error.message);

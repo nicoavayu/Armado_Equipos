@@ -7,6 +7,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [userName, setUserName] = useState('');
+  // eslint-disable-next-line no-unused-vars
   const [showNameInput, setShowNameInput] = useState(false);
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
@@ -18,6 +19,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       const interval = setInterval(fetchMessages, 5000);
       return () => clearInterval(interval);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, partidoId]);
 
   useEffect(() => {
@@ -59,6 +61,9 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     return null;
   };
 
+  // Referencia al input para poder enfocar después de enviar
+  const inputRef = useRef(null);
+
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
 
@@ -83,6 +88,11 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
       setNewMessage('');
       fetchMessages();
+      
+      // Devolver el foco al campo de texto
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 10);
     } catch (error) {
       toast.error('Error enviando mensaje: ' + error.message);
     } finally {
@@ -129,6 +139,8 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
             className="chat-input"
             onKeyPress={e => e.key === 'Enter' && handleSendMessage()}
             disabled={loading}
+            ref={inputRef}
+            autoFocus
           />
           <button
             onClick={handleSendMessage}

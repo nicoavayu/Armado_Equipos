@@ -230,7 +230,7 @@ export const getVotantesConNombres = async (partidoId) => {
   
   const { data, error } = await supabase
     .from('votos')
-    .select('votante_id, jugador_nombre, jugador_foto_url')
+    .select('votante_id, jugador_nombre, jugador_avatar_url')
     .eq('partido_id', partidoId);
     
   if (error) {
@@ -244,7 +244,7 @@ export const getVotantesConNombres = async (partidoId) => {
     if (voto.votante_id && !votantesMap.has(voto.votante_id)) {
       votantesMap.set(voto.votante_id, {
         nombre: voto.jugador_nombre || 'Jugador',
-        avatar_url: voto.jugador_foto_url // Use avatar_url as the field name
+        avatar_url: voto.jugador_avatar_url // Use avatar_url as the field name
       });
     }
   });
@@ -259,35 +259,48 @@ export const getVotantesConNombres = async (partidoId) => {
   return votantes;
 };
 
+// Chequea si el usuario (auth o guest) ya votó en un partido específico
 export const checkIfAlreadyVoted = async (votanteId, partidoId) => {
-  // If no votanteId provided, get current user for this specific match
+  // Obtiene el votanteId si no se pasó explícito
   if (!votanteId) {
     votanteId = await getCurrentUserId(partidoId);
   }
-  
-  if (!votanteId || !partidoId) {
-    console.warn('checkIfAlreadyVoted: Missing required parameters', { votanteId, partidoId });
-    return false;
+
+  // Chequeo fuerte: partidoId debe estar definido y ser un número o string válido
+  if (!votanteId || !partidoId || partidoId === 'undefined' || partidoId === 'null') {
+    console.warn('❗️ checkIfAlreadyVoted: Parámetros inválidos', { votanteId, partidoId });
+    return false; // Permite votar para evitar bloqueos fantasma
   }
-  
-  console.log('Checking if user has voted:', { votanteId, partidoId, isGuest: votanteId.startsWith('guest_') });
-  
+
+  // DEBUG: Mostramos por consola los valores usados en el chequeo
+  console.log('🔎 Chequeando si YA VOTÓ:', { votanteId, partidoId, typeofPartidoId: typeof partidoId });
+
+  // Consulta Supabase para ver si ya existe el voto
   const { data, error } = await supabase
     .from('votos')
     .select('id')
     .eq('votante_id', votanteId)
     .eq('partido_id', partidoId)
     .limit(1);
-    
+
   if (error) {
-    console.error('Error checking vote status:', error);
-    throw new Error(`Error checking vote status: ${error.message}`);
+    console.error('❌ Error consultando votos:', error);
+    throw new Error(`Error consultando votos: ${error.message}`);
   }
-  
-  const hasVoted = data && data.length > 0;
-  console.log('Vote check result:', { votanteId, partidoId, hasVoted, foundVotes: data?.length || 0 });
+
+  // Si encuentra un voto, devuelve true (ya votó), si no, false
+  const hasVoted = Array.isArray(data) && data.length > 0;
+
+  if (hasVoted) {
+    console.log('🔴 YA VOTASTE en este partido:', { votanteId, partidoId });
+  } else {
+    console.log('🟢 No hay voto previo, podés votar:', { votanteId, partidoId });
+  }
+
   return hasVoted;
 };
+
+
 
 // Debug function to test voting
 export const debugVoting = async (partidoId) => {
@@ -1001,37 +1014,47 @@ export const updateProfile = async (userId, profileData) => {
 };
 
 export const createOrUpdateProfile = async (user) => {
-  // Extract avatar URL from various possible sources
-  const avatarUrl = user.user_metadata?.picture || user.user_metadata?.avatar_url || null;
-  
-  // Check if user already exists
+  // Avatar de Google o proveedor social
+  const avatarUrl =
+    user.user_metadata?.picture ||
+    user.user_metadata?.avatar_url ||
+    null;
+
+  // Buscá si ya existe el usuario
   const { data: existingUser } = await supabase
     .from('usuarios')
     .select('avatar_url')
     .eq('id', user.id)
     .single();
-  
+
+  // SOLO campos que EXISTEN en la tabla usuarios
   const profileData = {
     id: user.id,
     nombre: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
     email: user.email,
-    numero_jugador: '10',
-    nacionalidad: 'argentina',
-    telefono: null,
-    localidad: null,
-    fecha_nacimiento: null,
-    posicion_favorita: 'defensor',
+    avatar_url: avatarUrl || existingUser?.avatar_url || null,
+    red_social: null,                 // o traelo si lo tenés
+    localidad: null,                  // editable luego
+    ranking: 0,
+    partidos_jugados: 0,
+    posicion: null,                   // editable luego
     acepta_invitaciones: true,
-    bio: null,
-    rating: 4.5,
-    partidos_jugados: '0PJ'
+    bio: null,                        // editable luego
+    fecha_alta: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    perfil_completo: false,
+    profile_completion: 0,
+    pais_codigo: null,                // editable luego
+    nacionalidad: 'argentina',
+    latitud: null,
+    longitud: null,
+    fecha_nacimiento: null,
+    partidos_abandonados: 0,
+    numero: null
   };
-  
-  // Siempre actualizar avatar_url si viene de un proveedor social
+
+  // Actualizar metadata en Supabase Auth
   if (avatarUrl) {
-    profileData.avatar_url = avatarUrl;
-    
-    // También actualizar los metadatos del usuario para asegurar consistencia
     try {
       await supabase.auth.updateUser({
         data: { avatar_url: avatarUrl }
@@ -1040,31 +1063,24 @@ export const createOrUpdateProfile = async (user) => {
     } catch (error) {
       console.error('Error updating user metadata:', error);
     }
-  } else if (existingUser?.avatar_url) {
-    // Si no hay avatar nuevo pero existe uno guardado, mantenerlo
-    profileData.avatar_url = existingUser.avatar_url;
   }
-  
-  console.log('createOrUpdateProfile data:', {
-    userId: user.id,
-    avatar_url: profileData.avatar_url,
-    user_metadata_picture: user.user_metadata?.picture,
-    user_metadata_avatar: user.user_metadata?.avatar_url,
-    existingAvatar: existingUser?.avatar_url
-  });
-  
-  const completion = calculateProfileCompletion(profileData);
-  profileData.profile_completion = completion;
-  
+
+  // Insertar o actualizar (upsert)
   const { data, error } = await supabase
     .from('usuarios')
     .upsert(profileData, { onConflict: 'id' })
     .select()
     .single();
-  
-  if (error) throw error;
+
+  if (error) {
+    console.error('Error upserting user profile:', error);
+    throw error;
+  }
+
+  console.log('createOrUpdateProfile OK:', data);
   return data;
 };
+
 
 export const calculateProfileCompletion = (profile) => {
   if (!profile) return 0;

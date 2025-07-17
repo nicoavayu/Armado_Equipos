@@ -26,6 +26,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
     latitud: null,
     longitud: null,
     partidos_jugados: 0,
+    partidos_abandonados: 0,
     calificacion: 4.5,
     bio: '',
     acepta_invitaciones: true

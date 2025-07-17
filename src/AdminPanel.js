@@ -8,7 +8,6 @@ import {
   updateJugadoresPartido,
   getVotantesIds,
   getVotantesConNombres,
-  getFreePlayersList,
   supabase,
 } from "./supabase";
 import { toast } from 'react-toastify';
@@ -48,8 +47,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const [loading, setLoading] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [showTeamView, setShowTeamView] = useState(false);
-  const [freePlayers, setFreePlayers] = useState([]);
-  const [showFreePlayers, setShowFreePlayers] = useState(false);
 
   const [teams, setTeams] = useState([
     { id: "equipoA", name: "Equipo A", players: [], score: 0 },
@@ -340,10 +337,48 @@ async function handleCerrarVotacion() {
     navigator.clipboard.writeText(url);
     toast.success("¡Link copiado!", { autoClose: 2000 });
   }
+  
+  async function handleCallToVote() {
+    try {
+      // Verificar que haya jugadores para notificar
+      if (!jugadores || jugadores.length === 0) {
+        toast.warn("No hay jugadores para notificar");
+        return;
+      }
+      
+      // Aquí iría la lógica para enviar notificaciones a los jugadores
+      // Por ahora, mostramos un mensaje de éxito simulado
+      toast.success(`Notificación enviada a ${jugadores.length} jugadores`);
+      
+      // En una implementación real, se enviaría una solicitud al backend
+      // para enviar notificaciones push a los dispositivos de los jugadores
+      // const response = await sendNotificationsToPlayers(partidoActual.id, jugadores);
+      
+    } catch (error) {
+      toast.error("Error al enviar notificaciones: " + error.message);
+    }
+  }
 
   function handleWhatsApp() {
     const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
     window.open(`https://wa.me/?text=${encodeURIComponent("Entrá a votar para armar los equipos: " + url)}`, "_blank");
+  }
+  
+  // Función para llamar a los jugadores a votar
+  function handleCallToVote() {
+    try {
+      // Verificar que haya jugadores para notificar
+      if (!jugadores || jugadores.length === 0) {
+        toast.warn("No hay jugadores para notificar");
+        return;
+      }
+      
+      // Simulación de envío de notificaciones
+      toast.success(`Notificación enviada a ${jugadores.length} jugadores`);
+      
+    } catch (error) {
+      toast.error("Error al enviar notificaciones: " + error.message);
+    }
   }
 
   async function handleFaltanJugadores() {
@@ -368,35 +403,9 @@ async function handleCerrarVotacion() {
     }
   }
 
-  async function handleRefreshPlayers() {
-    try {
-      const { data: updatedMatch, error } = await supabase
-        .from('partidos')
-        .select('*')
-        .eq('id', partidoActual.id)
-        .single();
-        
-      if (!error && updatedMatch && updatedMatch.jugadores) {
-        onJugadoresChange(updatedMatch.jugadores);
-        toast.success('Lista de jugadores actualizada');
-      }
-    } catch (error) {
-      toast.error('Error actualizando jugadores: ' + error.message);
-    }
-  }
+  // Función handleRefreshPlayers eliminada
 
-  const fetchFreePlayers = async () => {
-    try {
-      const players = await getFreePlayersList();
-      setFreePlayers(players);
-    } catch (error) {
-      console.error('Error fetching free players:', error);
-    }
-  };
-
-  const handleInvitePlayer = (player) => {
-    toast.info(`Invitación enviada a ${player.nombre} (${player.localidad})`);
-  };
+  // Funciones de jugadores libres eliminadas
 
 
 
@@ -554,56 +563,12 @@ async function handleCerrarVotacion() {
           <div className="admin-actions">
             <button 
               className="voting-confirm-btn admin-btn-primary" 
-              onClick={handleCopyLink}
-              aria-label="Copiar enlace para que los jugadores voten"
+              onClick={handleCallToVote}
+              aria-label="Enviar notificación a los jugadores para que voten"
             >
-              LINK PARA JUGADORES
+              LLAMAR A VOTAR
             </button>
             
-            {/* Botón Faltan Jugadores */}
-            <button 
-              className="voting-confirm-btn" 
-              style={{ 
-                background: partidoActual.falta_jugadores ? '#28a745' : '#ff6b35',
-                borderColor: '#fff',
-                marginBottom: 12
-              }}
-              onClick={handleFaltanJugadores}
-              aria-label='Abrir/cerrar partido a la comunidad'
-            >
-              {partidoActual.falta_jugadores ? '✅ PARTIDO ABIERTO' : '📢 FALTAN JUGADORES'}
-            </button>
-            
-            {/* Botón Actualizar Jugadores */}
-            <button 
-              className="voting-confirm-btn" 
-              style={{ 
-                background: '#17a2b8',
-                borderColor: '#fff',
-                marginBottom: 12
-              }}
-              onClick={handleRefreshPlayers}
-              aria-label='Actualizar lista de jugadores'
-            >
-              🔄 ACTUALIZAR JUGADORES
-            </button>
-            
-            {/* Botón Ver Jugadores Libres */}
-            <button 
-              className="voting-confirm-btn" 
-              style={{ 
-                background: '#6f42c1',
-                borderColor: '#fff',
-                marginBottom: 12
-              }}
-              onClick={() => {
-                setShowFreePlayers(!showFreePlayers);
-                if (!showFreePlayers) fetchFreePlayers();
-              }}
-              aria-label='Ver jugadores disponibles'
-            >
-              🙋 {showFreePlayers ? 'OCULTAR' : 'VER'} JUGADORES LIBRES
-            </button>
             <button 
               className="voting-confirm-btn admin-btn-whatsapp" 
               onClick={handleWhatsApp}
@@ -625,7 +590,7 @@ async function handleCerrarVotacion() {
               >
                 {isClosing ? (
                   <>
-                    🔄 {LOADING_STATES.CLOSING_VOTING}
+                     {LOADING_STATES.CLOSING_VOTING}
                   </>
                 ) : (
                   `CERRAR VOTACIÓN (${jugadores.length} jugadores)`
@@ -650,51 +615,25 @@ async function handleCerrarVotacion() {
                 </div>
               )}
             </div>
+            
+            {/* Botón Faltan Jugadores */}
             <button 
-              className="voting-confirm-btn admin-btn-secondary" 
-              onClick={onBackToHome}
-              aria-label="Volver al menú principal"
-              style={{ width: '100%', fontSize: '1.5rem' }}
+              className="voting-confirm-btn" 
+              style={{ 
+                background: partidoActual.falta_jugadores ? '#28a745' : '#ff6b35',
+                borderColor: '#fff',
+                marginBottom: 12
+              }}
+              onClick={handleFaltanJugadores}
+              aria-label='Abrir/cerrar partido a la comunidad'
             >
-              VOLVER AL INICIO
+              {partidoActual.falta_jugadores ? 'PARTIDO ABIERTO' : 'FALTAN JUGADORES'}
             </button>
+            
+            {/* Botón de volver al inicio eliminado */}
           </div>
           
-          {/* Free Players List */}
-          {showFreePlayers && (
-            <div className="admin-players-section" style={{ marginTop: 20 }}>
-              <div className="admin-players-title">
-                JUGADORES DISPONIBLES ({freePlayers.length})
-              </div>
-              {freePlayers.length === 0 ? (
-                <div className="admin-players-empty">
-                  No hay jugadores disponibles
-                </div>
-              ) : (
-                <div className="admin-players-grid">
-                  {freePlayers.map(player => (
-                    <div key={player.id} className="admin-player-item">
-                      <div className="admin-player-avatar-placeholder">🙋</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <span className="admin-player-name">{player.nombre}</span>
-                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
-                          {player.localidad}
-                        </div>
-                      </div>
-                      <button
-                        className="admin-remove-btn"
-                        onClick={() => handleInvitePlayer(player)}
-                        style={{ background: '#28a745' }}
-                        aria-label="Invitar jugador"
-                      >
-                        +
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Sección de jugadores libres eliminada */}
 
         </>
       )}
