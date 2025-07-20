@@ -1,0 +1,277 @@
+.global-header {
+  position: relative;
+  height: 80px;
+  padding: 30px 20px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+  background: transparent;
+  margin: 0;
+}
+
+.global-header-left {
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+  cursor: pointer;
+  position: relative;
+}
+
+.global-avatar-container {
+  position: relative;
+  margin-right: 15px;
+}
+
+.global-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 20px;
+}
+
+.global-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.global-status-led {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+}
+
+.global-status-led.available {
+  background-color: #4CAF50;
+}
+
+.global-status-led.unavailable {
+  background-color: #F44336;
+}
+
+.global-user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.global-greeting-name {
+  display: flex;
+  align-items: baseline;
+}
+
+.global-greeting {
+  color: white;
+  font-family: 'Oswald', sans-serif;
+  font-size: 16px;
+  margin-right: 5px;
+  opacity: 0.9;
+}
+
+.global-username {
+  color: white;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.global-status-text {
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+.global-status-text.available {
+  color: #4CAF50;
+}
+
+.global-status-text.unavailable {
+  color: #F44336;
+}
+
+.global-header-right {
+  pointer-events: auto;
+  position: relative;
+}
+
+.global-notifications {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+}
+
+.global-notifications-icon {
+  color: white;
+  font-size: 24px;
+}
+
+.global-notification-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: #FF3366;
+  color: white;
+  border-radius: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Add padding to the main content to account for the fixed header */
+.content-with-global-header {
+  padding-top: 90px;
+}
+
+/* Status dropdown */
+.global-status-dropdown {
+  position: absolute;
+  top: 80px;
+  left: 0;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 0;
+  width: 180px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.global-status-dropdown-header {
+  padding: 10px 16px;
+  font-weight: bold;
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  font-family: 'Bebas Neue', sans-serif;
+}
+
+.global-status-option {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  color: white;
+}
+
+.global-status-option:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.global-status-option.active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.global-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 10px;
+}
+
+.global-status-dot.available {
+  background-color: #4CAF50;
+}
+
+.global-status-dot.unavailable {
+  background-color: #F44336;
+}
+
+/* Notifications dropdown */
+.global-notifications-dropdown {
+  position: absolute;
+  top: 80px;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 0;
+  width: 300px;
+  max-width: 90vw;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.global-notifications-header {
+  padding: 10px 16px;
+  font-weight: bold;
+  color: white;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  font-family: 'Bebas Neue', sans-serif;
+  display: flex;
+  justify-content: space-between;
+}
+
+.global-notifications-close {
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.global-notifications-close:hover {
+  opacity: 1;
+}
+
+.global-notification-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.global-notification-item:last-child {
+  border-bottom: none;
+}
+
+.global-notification-empty {
+  padding: 20px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .global-header {
+    padding: 20px 10px 10px;
+  }
+  
+  .global-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+  
+  .global-status-led {
+    width: 10px;
+    height: 10px;
+  }
+  
+  .global-greeting {
+    font-size: 14px;
+  }
+  
+  .global-username {
+    font-size: 18px;
+  }
+  
+  .global-status-text {
+    font-size: 12px;
+  }
+}
+
+/* Ensure the header is visible on all screens */
+.voting-bg, .content-with-tabbar {
+  position: relative;
+}

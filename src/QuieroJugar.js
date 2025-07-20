@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase, addFreePlayer, removeFreePlayer, getFreePlayerStatus, getFreePlayersList } from './supabase';
 import { toast } from 'react-toastify';
 import { useAuth } from './components/AuthProvider';
+import { PlayerCardTrigger } from './components/ProfileComponents';
 import './QuieroJugar.css';
 import './VotingView.css';
 
@@ -13,7 +14,11 @@ export default function QuieroJugar({ onVolver }) {
   const [loading, setLoading] = useState(true);
   const [isRegisteredAsFree, setIsRegisteredAsFree] = useState(false);
   const [freePlayers, setFreePlayers] = useState([]);
-  const [activeTab, setActiveTab] = useState('matches'); // 'matches' or 'players'
+  const [activeTab, setActiveTab] = useState(() => {
+    // Read from sessionStorage if available
+    const savedTab = sessionStorage.getItem('quiero-jugar-tab');
+    return savedTab === 'players' || savedTab === 'matches' ? savedTab : 'matches';
+  }); // 'matches' or 'players'
 
   useEffect(() => {
     fetchPartidosAbiertos();
@@ -191,13 +196,19 @@ export default function QuieroJugar({ onVolver }) {
       <div className="tab-navigation">
         <button
           className={`tab-button ${activeTab === 'matches' ? 'active' : ''}`}
-          onClick={() => setActiveTab('matches')}
+          onClick={() => {
+            setActiveTab('matches');
+            sessionStorage.setItem('quiero-jugar-tab', 'matches');
+          }}
         >
           PARTIDOS ABIERTOS
         </button>
         <button
           className={`tab-button ${activeTab === 'players' ? 'active' : ''}`}
-          onClick={() => setActiveTab('players')}
+          onClick={() => {
+            setActiveTab('players');
+            sessionStorage.setItem('quiero-jugar-tab', 'players');
+          }}
         >
           JUGADORES LIBRES
         </button>
@@ -222,7 +233,7 @@ export default function QuieroJugar({ onVolver }) {
                     {partido.nombre || `${partido.modalidad || 'F5'}`}
                   </div>
                   <div className="match-details">
-                    {partido.modalidad?.replace('F', 'FÚTBOL ')} • FALTAN {faltanJugadores} JUGADOR{faltanJugadores !== 1 ? 'ES' : ''}
+                    {partido.modalidad?.replace('F', 'FÚTBOL ')} • {partido.tipo_partido || 'Masculino'} • FALTAN {faltanJugadores} JUGADOR{faltanJugadores !== 1 ? 'ES' : ''}
                   </div>
                   <div className="match-details">
                     {new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
@@ -290,17 +301,19 @@ export default function QuieroJugar({ onVolver }) {
           ) : (
             <>
               {freePlayers.map(player => (
-                <div key={player.id} className="match-card">
-                  <div className="match-title">
-                    {player.nombre}
+                <PlayerCardTrigger key={player.uuid || player.id} profile={player}>
+                  <div className="match-card">
+                    <div className="match-title">
+                      {player.nombre}
+                    </div>
+                    <div className="match-location">
+                      <span>📍</span> {player.localidad || 'Sin especificar'}
+                    </div>
+                    <div className="match-details">
+                      {formatTimeAgo(player.created_at)}
+                    </div>
                   </div>
-                  <div className="match-location">
-                    <span>📍</span> {player.localidad || 'Sin especificar'}
-                  </div>
-                  <div className="match-details">
-                    {formatTimeAgo(player.created_at)}
-                  </div>
-                </div>
+                </PlayerCardTrigger>
               ))}
             </>
           )}

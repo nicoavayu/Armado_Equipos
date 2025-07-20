@@ -13,6 +13,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(partido.imagen_url);
+  const [tipoPartido, setTipoPartido] = useState(partido.tipo_partido || 'Masculino');
 
 
 
@@ -52,7 +53,8 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
         hora,
         sede,
         dia_semana: new Date(fecha).getDay(),
-        imagen_url: imagenUrl
+        imagen_url: imagenUrl,
+        tipo_partido: tipoPartido
       });
       toast.success('Cambios guardados');
       onGuardado && onGuardado();
@@ -140,6 +142,52 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
               setSedeInfo(info);
             }}
           />
+          
+          {/* Selector de tipo de partido */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ 
+              fontWeight: 500, 
+              color: "#fff", 
+              marginBottom: 8, 
+              display: "block", 
+              fontFamily: "'Oswald', Arial, sans-serif",
+              fontSize: "14px" 
+            }}>
+              Tipo de partido
+            </label>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: "8px",
+              width: "100%"
+            }}>
+              {['Masculino', 'Femenino', 'Mixto'].map(tipo => (
+                <button
+                  key={tipo}
+                  type="button"
+                  onClick={() => setTipoPartido(tipo)}
+                  style={{
+                    padding: "10px 8px",
+                    fontSize: "14px",
+                    fontWeight: tipoPartido === tipo ? "700" : "500",
+                    fontFamily: "'Oswald', Arial, sans-serif",
+                    border: tipoPartido === tipo ? "2px solid #8178e5" : "1.5px solid #8178e5",
+                    borderRadius: "6px",
+                    background: tipoPartido === tipo ? "#8178e5" : "rgba(255,255,255,0.9)",
+                    color: tipoPartido === tipo ? "#fff" : "#333",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    minHeight: "40px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center"
+                  }}
+                >
+                  {tipo}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <button 

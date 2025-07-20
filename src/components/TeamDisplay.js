@@ -2,8 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from 'react-toastify';
+import { PlayerCardTrigger } from './ProfileComponents';
 import './TeamDisplay.css';
 import WhatsappIcon from './WhatsappIcon';
+import LoadingSpinner from './LoadingSpinner';
 
 const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
   const [showAverages, setShowAverages] = useState(false);
@@ -22,9 +24,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
     !teams.find(t => t.id === "equipoA") ||
     !teams.find(t => t.id === "equipoB")
   ) {
-    return <div style={{ padding: 40, color: "#DE1C49" }}>
-      Esperando que se armen ambos equipos...
-    </div>;
+    return <LoadingSpinner size="large" />;
   }
 
   const getPlayerDetails = (playerId) => {
@@ -144,13 +144,17 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
                               >
-                                <img
-                                  src={player.avatar_url || 'https://api.dicebear.com/6.x/pixel-art/svg?seed=default'}
-                                  alt={player.nombre}
-                                  className="player-avatar"
-                                />
-                                <span>{player.nombre}</span>
-                                {showAverages && <span className="player-score">{(player.score || 0).toFixed(2)}</span>}
+                                <PlayerCardTrigger profile={player}>
+                                  <div className="player-card-content">
+                                    <img
+                                      src={player.avatar_url || 'https://api.dicebear.com/6.x/pixel-art/svg?seed=default'}
+                                      alt={player.nombre}
+                                      className="player-avatar"
+                                    />
+                                    <span>{player.nombre}</span>
+                                    {showAverages && <span className="player-score">{(player.score || 0).toFixed(2)}</span>}
+                                  </div>
+                                </PlayerCardTrigger>
                               </div>
                             )}
                           </Draggable>

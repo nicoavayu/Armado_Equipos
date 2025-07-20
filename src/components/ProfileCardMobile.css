@@ -1,0 +1,153 @@
+/* Estilos específicos para la versión móvil de la tarjeta de perfil */
+
+@media (width <= 480px) {
+  /* 1. Ajustes de la imagen de perfil */
+  .pc-avatar-content .avatar {
+    width: 100%;
+    height: auto;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-height: none;
+    object-fit: cover;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  
+  /* 2. Contenedor translúcido inferior */
+  .pc-user-info {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 8px 10px;
+    border-radius: 0 0 var(--card-radius) var(--card-radius); /* Coincide con las esquinas inferiores de la tarjeta */
+    height: 70px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0;
+    align-items: center;
+    position: relative;
+    z-index: 30; /* Asegurar que esté por encima de la imagen */
+    
+    /* Línea separadora horizontal en la parte superior */
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Divisores verticales entre secciones */
+  .pc-user-info::before,
+  .pc-user-info::after {
+    content: '';
+    position: absolute;
+    top: 15%;
+    height: 70%;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.3);
+  }
+  
+  .pc-user-info::before {
+    left: 33%;
+  }
+  
+  .pc-user-info::after {
+    right: 33%;
+  }
+  
+  /* 3. Ajustes para bandera, número y posición */
+  .pc-flag {
+    width: 28px; /* Tamaño aumentado */
+  }
+  
+  .pc-country-code {
+    font-size: 13px; /* Tamaño aumentado */
+  }
+  
+  .pc-country-badge {
+    margin-top: 50px;
+    padding: 8px;
+    margin-left: -12px; /* Más a la izquierda */
+  }
+  
+  .pc-position {
+    padding: 6px 14px;
+    font-size: 17px; /* Tamaño aumentado */
+    margin-right: -12px; /* Más a la derecha */
+  }
+  
+  .pc-number {
+    padding: 6px 14px;
+    font-size: 17px; /* Tamaño aumentado */
+    margin-right: -12px; /* Más a la derecha */
+  }
+  
+  /* Ajustes para el contenedor de stats */
+  .pc-stats-header {
+    top: 85px;
+    right: 18px; /* Más margen */
+    gap: 8px; /* Más espacio entre elementos */
+  }
+  
+  /* Sección central con logo */
+  .pc-center-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 40px;
+  }
+  
+  /* Logo central */
+  .pc-center-logo {
+    width: 30px;
+    height: 30px;
+    opacity: 0.3;
+    margin: 0 auto;
+    display: block;
+  }
+  
+  /* Contenedor de rating */
+  .pc-rating-container {
+    margin-left: 0;
+    justify-self: end;
+    text-align: center;
+    margin-right: 8px;
+  }
+  
+  /* Ocultar estrellas en móvil */
+  .pc-stars {
+    display: none;
+  }
+  
+  /* Número de rating más grande */
+  .pc-rating-number {
+    font-size: 60px;
+  }
+  
+  /* Ajustes para los stats del usuario */
+  .pc-user-stats {
+    margin-left: 8px;
+  }
+  
+  /* LED más pequeño */
+  .pc-status-indicator {
+    width: 14px;
+    height: 14px;
+    border-width: 1px;
+  }
+  
+  /* Ajustes generales de la tarjeta */
+  .pc-card {
+    height: 60svh;
+    max-height: 380px;
+  }
+
+  .pc-details {
+    top: 0.8em;
+  }
+
+  .pc-details h3 {
+    font-size: min(3.5svh, 2em);
+    margin-top: 5px;
+    margin-bottom: 15px;
+  }
+}

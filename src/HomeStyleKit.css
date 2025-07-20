@@ -37,20 +37,27 @@ body {
   color: var(--color-text);
 }
 
+/* Content with global header */
+.content-with-global-header {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 /* Modern Card y Titles */
 .voting-bg {
   min-height: 100vh;
   width: 100vw;
   background: var(--gradient-bg);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: 0;
 }
 
 .voting-modern-card {
   width: 90vw;
   max-width: 1200px;
-  padding: 80px 0;
+  padding: 0;
   background: transparent !important;
   border-radius: 0 !important;
   box-shadow: none !important;
@@ -1046,6 +1053,74 @@ body {
   overflow: hidden !important;
   padding: 0 !important;
   box-sizing: border-box;
+}
+
+/* New Home styles */
+.home-container {
+  position: relative;
+  padding-top: 60px !important;
+  width: 100%;
+  max-width: 800px !important;
+}
+
+.home-logo {
+  height: 120px;
+  margin-bottom: 20px;
+}
+
+.splash-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.splash-logo {
+  height: 150px;
+  animation: pulse 2s infinite;
+}
+
+.notifications-back-button {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  width: 40px;
+  height: 40px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  z-index: 10;
+}
+
+.notifications-back-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* FIFA-style Home styles */
+.fifa-home-container {
+  position: relative;
+  width: 100%;
+  max-width: 800px !important;
+  padding: 0 !important;
+}
+
+.fifa-auth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.fifa-auth-logo {
+  height: 150px;
+  margin-bottom: 30px;
 }
 
 .voting-modern-card {

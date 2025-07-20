@@ -1,0 +1,31 @@
+/* Custom styles for react-joyride tooltips */
+.react-joyride__tooltip {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.react-joyride__tooltip h3 {
+  margin-top: 0;
+  font-family: 'Oswald', sans-serif;
+  color: #5d54c0;
+}
+
+.react-joyride__tooltip p {
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+/* Ensure the spotlight has a higher z-index than other elements */
+.react-joyride__spotlight {
+  z-index: 1500 !important;
+}
+
+/* Make sure the overlay doesn't interfere with clicks when needed */
+.react-joyride__overlay {
+  pointer-events: none !important;
+}
+
+/* Ensure the tooltip has a higher z-index than other elements */
+.__floater {
+  z-index: 2000 !important;
+}

@@ -23,6 +23,8 @@ import TeamDisplay from "./components/TeamDisplay";
 import PartidoInfoBox from "./PartidoInfoBox";
 import Button from "./components/Button";
 import ChatButton from "./components/ChatButton";
+import { PlayerCardTrigger } from "./components/ProfileComponents";
+import LoadingSpinner from "./components/LoadingSpinner";
 
 function MiniAvatar({ foto_url, nombre, size = 34 }) {
   if (foto_url) {
@@ -57,42 +59,48 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   // 🟢 Si jugadores viene undefined o null, usá array vacío
   jugadores = jugadores || [];
   if (!Array.isArray(jugadores)) jugadores = [];
-
+console.log('Jugadores en AdminPanel:', jugadores);
+    // useEffect para refrescar jugadores y votantes con datos frescos de la base (incluye foto actualizada)
   useEffect(() => {
-    async function fetchVotantes() {
+    async function fetchVotantesYJugadoresFrescos() {
       if (!partidoActual?.id) return;
       try {
         const votantesIds = await getVotantesIds(partidoActual.id);
         const votantesNombres = await getVotantesConNombres(partidoActual.id);
         setVotantes(votantesIds || []);
         setVotantesConNombres(votantesNombres || []);
-        
-        // Refresh match data to get updated players from community
+
+        // Trae la lista fresca de todos los jugadores de la base
+        const allPlayers = await getJugadores();
+        // Trae los uuids de los jugadores del partido actual
         const { data: updatedMatch, error } = await supabase
           .from('partidos')
           .select('*')
           .eq('id', partidoActual.id)
           .single();
-          
+
         if (!error && updatedMatch && updatedMatch.jugadores) {
-          // Always update if player count has changed
-          const currentCount = jugadores?.length || 0;
-          const newCount = updatedMatch.jugadores.length;
-          if (newCount !== currentCount) {
-            console.log(`Player count changed: ${currentCount} -> ${newCount}`);
-            onJugadoresChange(updatedMatch.jugadores);
+          const freshPlayers = updatedMatch.jugadores
+            .map(jp => allPlayers.find(u => u.uuid === jp.uuid))
+            .filter(Boolean);
+
+          if (
+            freshPlayers.length !== jugadores.length ||
+            JSON.stringify(freshPlayers.map(j => j.foto_url)) !== JSON.stringify(jugadores.map(j => j.foto_url))
+          ) {
+            onJugadoresChange(freshPlayers);
           }
         }
       } catch (error) {
         console.error("Error cargando datos:", error);
       }
     }
-    fetchVotantes();
-    
-    // Auto-refresh every 2 seconds for real-time updates
-    const interval = setInterval(fetchVotantes, 2000);
+    fetchVotantesYJugadoresFrescos();
+    const interval = setInterval(fetchVotantesYJugadoresFrescos, 2000);
     return () => clearInterval(interval);
   }, [partidoActual?.id]);
+
+
   
   // Refresh voters when players change
   useEffect(() => {
@@ -364,23 +372,7 @@ async function handleCerrarVotacion() {
     window.open(`https://wa.me/?text=${encodeURIComponent("Entrá a votar para armar los equipos: " + url)}`, "_blank");
   }
   
-  // Función para llamar a los jugadores a votar
-  function handleCallToVote() {
-    try {
-      // Verificar que haya jugadores para notificar
-      if (!jugadores || jugadores.length === 0) {
-        toast.warn("No hay jugadores para notificar");
-        return;
-      }
-      
-      // Simulación de envío de notificaciones
-      toast.success(`Notificación enviada a ${jugadores.length} jugadores`);
-      
-    } catch (error) {
-      toast.error("Error al enviar notificaciones: " + error.message);
-    }
-  }
-
+ 
   async function handleFaltanJugadores() {
     try {
       const nuevoEstado = !partidoActual.falta_jugadores;
@@ -423,7 +415,7 @@ async function handleCerrarVotacion() {
   const hasOddPlayers = jugadores.length > 0 && jugadores.length % 2 !== 0;
   const hasNoVotes = votantes.length === 0 && jugadores.length > 0;
 
-  if (!partidoActual) return <div style={{color:"red"}}>Sin partido cargado</div>;
+  if (!partidoActual) return <LoadingSpinner size="large" />;
   
   // Utility function to extract short venue name
   const getShortVenueName = (venue) => {
@@ -508,7 +500,7 @@ async function handleCerrarVotacion() {
                 type="submit"
                 disabled={loading || isClosing}
               >
-                {loading ? LOADING_STATES.ADDING_PLAYER : "AGREGAR"}
+                {loading ? <LoadingSpinner size="small" /> : "AGREGAR"}
               </button>
             </form>
           </div>
@@ -520,39 +512,51 @@ async function handleCerrarVotacion() {
             </div>
             {jugadores.length === 0 ? (
               <div className="admin-players-empty">
-                Aún no hay jugadores agregados
+                <LoadingSpinner size="medium" />
               </div>
             ) : (
               <div className="admin-players-grid">
                 {jugadores.map(j => {
                   // Check if this specific player voted by name
                   const hasVoted = votantesConNombres.some(v => v.nombre === j.nombre);
+                   // LOG POR JUGADOR
+  console.log('Render jugador:', j.nombre, j.foto_url, j.avatar_url, j.uuid);
+
                   return (
-                  <div
-                    key={j.uuid}
-                    className={`admin-player-item${hasVoted ? " voted" : ""}`}
-                    style={hasVoted ? {
-                      background: 'rgba(0,255,136,0.3) !important',
-                      border: '3px solid #00ff88 !important',
-                      boxShadow: '0 0 15px rgba(0,255,136,0.6) !important'
-                    } : {}}
-                  >
-                    {j.foto_url ? (
-                      <img src={j.foto_url} alt={j.nombre} className="admin-player-avatar" />
-                    ) : (
-                      <div className="admin-player-avatar-placeholder">👤</div>
-                    )}
-                    <span className="admin-player-name">{j.nombre}</span>
-                    <button
-                      className="admin-remove-btn"
-                      onClick={() => eliminarJugador(j.uuid)}
-                      type="button"
-                      aria-label="Eliminar jugador"
-                      disabled={isClosing}
+                  <PlayerCardTrigger key={j.uuid} profile={j}>
+                    <div
+                      className={`admin-player-item${hasVoted ? " voted" : ""}`}
+                      style={hasVoted ? {
+                        background: 'rgba(0,255,136,0.3) !important',
+                        border: '3px solid #00ff88 !important',
+                        boxShadow: '0 0 15px rgba(0,255,136,0.6) !important'
+                      } : {}}
                     >
-                      ×
-                    </button>
-                  </div>
+                     {j.foto_url || j.avatar_url ? (
+    <img
+      src={j.foto_url || j.avatar_url}
+      alt={j.nombre}
+      className="admin-player-avatar"
+    />
+  ) : (
+    <div className="admin-player-avatar-placeholder">👤</div>
+  )}
+
+                      <span className="admin-player-name">{j.nombre}</span>
+                      <button
+                        className="admin-remove-btn"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent modal from opening when deleting
+                          eliminarJugador(j.uuid);
+                        }}
+                        type="button"
+                        aria-label="Eliminar jugador"
+                        disabled={isClosing}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </PlayerCardTrigger>
                   );
                 })}
               </div>
@@ -589,9 +593,7 @@ async function handleCerrarVotacion() {
                 aria-label={isClosing ? 'Cerrando votación' : `Cerrar votación con ${jugadores.length} jugadores`}
               >
                 {isClosing ? (
-                  <>
-                     {LOADING_STATES.CLOSING_VOTING}
-                  </>
+                  <LoadingSpinner size="small" />
                 ) : (
                   `CERRAR VOTACIÓN (${jugadores.length} jugadores)`
                 )}

@@ -1,5 +1,10 @@
-import React, { useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import "./ProfileCard.css";
+import "./ProfileCardMobile.css"; // Importamos los estilos específicos para móvil
+import { useAmigos } from "../hooks/useAmigos";
+import { supabase } from "../supabase";
+import { toast } from "react-toastify";
+import LoadingSpinner from "./LoadingSpinner";
 
 const DEFAULT_BEHIND_GRADIENT =
   "radial-gradient(farthest-side circle at var(--pointer-x) var(--pointer-y),hsla(266,100%,90%,var(--card-opacity)) 4%,hsla(266,50%,80%,calc(var(--card-opacity)*0.75)) 10%,hsla(266,25%,70%,calc(var(--card-opacity)*0.5)) 50%,hsla(266,0%,60%,0) 100%),radial-gradient(35% 52% at 55% 20%,#00ffaac4 0%,#073aff00 100%),radial-gradient(100% 100% at 50% 50%,#00c1ffff 1%,#073aff00 76%),conic-gradient(from 124deg at 50% 50%,#c137ffff 0%,#07c6ffff 40%,#07c6ffff 60%,#c137ffff 100%)";
@@ -36,7 +41,166 @@ const ProfileCardComponent = ({
   profile,
   isVisible = true,
   enableTilt = true,
+  currentUserId,
+  showFriendActions = true,
 }) => {
+  const [relationshipStatus, setRelationshipStatus] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { getRelationshipStatus, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend } = useAmigos(currentUserId);
+  
+  // Check relationship status when profile or currentUserId changes
+  useEffect(() => {
+    const checkRelationship = async () => {
+      console.log('ProfileCard: Checking relationship status', { currentUserId, profileId: profile?.id });
+      
+      if (!currentUserId) {
+        console.log('ProfileCard: No currentUserId available, skipping relationship check');
+        return;
+      }
+      
+      if (!profile?.id) {
+        console.log('ProfileCard: No profile.id available, skipping relationship check');
+        return;
+      }
+      
+      if (currentUserId === profile.id) {
+        console.log('ProfileCard: Current user is viewing their own profile, skipping relationship check');
+        return;
+      }
+      
+      console.log('ProfileCard: Getting relationship status between', currentUserId, 'and', profile.id);
+      setIsLoading(true);
+      const status = await getRelationshipStatus(profile.id);
+      console.log('ProfileCard: Relationship status result:', status);
+      setRelationshipStatus(status);
+      setIsLoading(false);
+    };
+    
+    checkRelationship();
+  }, [currentUserId, profile?.id, getRelationshipStatus]);
+  
+  // Handle friend request actions
+  const handleAddFriend = async () => {
+    console.log('ProfileCard: Adding friend', { currentUserId, profileId: profile?.id });
+    
+    if (!currentUserId) {
+      console.log('ProfileCard: No currentUserId available, cannot add friend');
+      return;
+    }
+    
+    if (!profile?.id) {
+      console.log('ProfileCard: No profile.id available, cannot add friend');
+      return;
+    }
+    
+    console.log('ProfileCard: Sending friend request from', currentUserId, 'to', profile.id);
+    setIsLoading(true);
+    const result = await sendFriendRequest(profile.id);
+    console.log('ProfileCard: Send friend request result:', result);
+    setIsLoading(false);
+    
+    if (result.success) {
+      console.log('ProfileCard: Friend request sent successfully');
+      setRelationshipStatus({ id: result.data.id, status: 'pending' });
+      toast.success('Solicitud de amistad enviada');
+    } else {
+      console.error('ProfileCard: Error sending friend request:', result.message);
+      toast.error(result.message || 'Error al enviar solicitud');
+    }
+  };
+  
+  const handleAcceptRequest = async () => {
+    console.log('ProfileCard: Accepting friend request', relationshipStatus);
+    
+    if (!relationshipStatus?.id) {
+      console.log('ProfileCard: No relationshipStatus.id available, cannot accept request');
+      return;
+    }
+    
+    console.log('ProfileCard: Accepting friend request with ID:', relationshipStatus.id);
+    setIsLoading(true);
+    const result = await acceptFriendRequest(relationshipStatus.id);
+    console.log('ProfileCard: Accept friend request result:', result);
+    setIsLoading(false);
+    
+    if (result.success) {
+      console.log('ProfileCard: Friend request accepted successfully');
+      setRelationshipStatus({ ...relationshipStatus, status: 'accepted' });
+      toast.success('Solicitud de amistad aceptada');
+    } else {
+      console.error('ProfileCard: Error accepting friend request:', result.message);
+      toast.error(result.message || 'Error al aceptar solicitud');
+    }
+  };
+  
+  const handleRejectRequest = async () => {
+    console.log('ProfileCard: Rejecting friend request', relationshipStatus);
+    
+    if (!relationshipStatus?.id) {
+      console.log('ProfileCard: No relationshipStatus.id available, cannot reject request');
+      return;
+    }
+    
+    console.log('ProfileCard: Rejecting friend request with ID:', relationshipStatus.id);
+    setIsLoading(true);
+    const result = await rejectFriendRequest(relationshipStatus.id);
+    console.log('ProfileCard: Reject friend request result:', result);
+    setIsLoading(false);
+    
+    if (result.success) {
+      console.log('ProfileCard: Friend request rejected successfully');
+      setRelationshipStatus({ ...relationshipStatus, status: 'rejected' });
+      toast.success('Solicitud de amistad rechazada');
+    } else {
+      console.error('ProfileCard: Error rejecting friend request:', result.message);
+      toast.error(result.message || 'Error al rechazar solicitud');
+    }
+  };
+  
+  const handleRemoveFriend = async () => {
+    console.log('ProfileCard: Removing friend', relationshipStatus);
+    
+    if (!relationshipStatus?.id) {
+      console.log('ProfileCard: No relationshipStatus.id available, cannot remove friend');
+      return;
+    }
+    
+    console.log('ProfileCard: Removing friendship with ID:', relationshipStatus.id);
+    setIsLoading(true);
+    const result = await removeFriend(relationshipStatus.id);
+    console.log('ProfileCard: Remove friend result:', result);
+    setIsLoading(false);
+    
+    if (result.success) {
+      console.log('ProfileCard: Friend removed successfully');
+      setRelationshipStatus(null);
+      toast.success('Amistad eliminada');
+    } else {
+      console.error('ProfileCard: Error removing friend:', result.message);
+      toast.error(result.message || 'Error al eliminar amistad');
+    }
+  };
+  
+  // Determine if we should show private data
+  const canViewPrivateData = useMemo(() => {
+    console.log('ProfileCard: Determining if user can view private data', { 
+      currentUserId, 
+      profileId: profile?.id, 
+      relationshipStatus: relationshipStatus?.status 
+    });
+    
+    // User can see their own private data
+    if (currentUserId === profile?.id) {
+      console.log('ProfileCard: User is viewing their own profile, can view private data');
+      return true;
+    }
+    
+    // User can see private data of accepted friends
+    const canView = relationshipStatus?.status === 'accepted';
+    console.log('ProfileCard: User is viewing another profile, can view private data:', canView);
+    return canView;
+  }, [currentUserId, profile?.id, relationshipStatus?.status]);
+  
   const wrapRef = useRef(null);
   const cardRef = useRef(null);
 
@@ -78,24 +242,141 @@ const ProfileCardComponent = ({
     }
     return stars;
   };
+  
+  // Render friend action buttons based on relationship status
+  const renderFriendActions = () => {
+    if (!showFriendActions || currentUserId === profile?.id) {
+      return null;
+    }
+    
+    // Loading state
+    if (isLoading) {
+      return <LoadingSpinner size="small" />;
+    }
+    
+    // No relationship exists yet
+    if (!relationshipStatus) {
+      return (
+        <button className="pc-friend-btn add" onClick={handleAddFriend}>
+          Agregar Amigo
+        </button>
+      );
+    }
+    
+    // Pending request sent by current user
+    if (relationshipStatus.status === 'pending') {
+      return (
+        <button className="pc-friend-btn pending" disabled>
+          Solicitud Pendiente
+        </button>
+      );
+    }
+    
+    // Already friends
+    if (relationshipStatus.status === 'accepted') {
+      return (
+        <button className="pc-friend-btn remove" onClick={handleRemoveFriend}>
+          Eliminar Amigo
+        </button>
+      );
+    }
+    
+    // Rejected request
+    if (relationshipStatus.status === 'rejected') {
+      return (
+        <button className="pc-friend-btn add" onClick={handleAddFriend}>
+          Agregar Amigo
+        </button>
+      );
+    }
+    
+    return null;
+  };
+  
+  // Render private data section if user is a friend
+  const renderPrivateData = () => {
+    console.log('ProfileCard: Rendering private data section', { 
+      canViewPrivateData, 
+      hasProfile: !!profile,
+      telefono: profile?.telefono,
+      email: profile?.email,
+      localidad: profile?.localidad
+    });
+    
+    if (!canViewPrivateData) {
+      console.log('ProfileCard: Cannot view private data, not rendering private section');
+      return null;
+    }
+    
+    if (!profile) {
+      console.log('ProfileCard: No profile data available, not rendering private section');
+      return null;
+    }
+    
+    console.log('ProfileCard: Rendering private data for fields:', { 
+      hasTelefono: !!profile.telefono, 
+      hasEmail: !!profile.email, 
+      hasLocalidad: !!profile.localidad 
+    });
+    
+    return (
+      <div className="pc-private-data">
+        {profile.telefono && (
+          <div className="pc-private-data-item">
+            <div className="pc-private-data-label">Teléfono:</div>
+            <div className="pc-private-data-value">{profile.telefono}</div>
+          </div>
+        )}
+        {profile.email && (
+          <div className="pc-private-data-item">
+            <div className="pc-private-data-label">Email:</div>
+            <div className="pc-private-data-value">{profile.email}</div>
+          </div>
+        )}
+        {profile.localidad && (
+          <div className="pc-private-data-item">
+            <div className="pc-private-data-label">Localidad:</div>
+            <div className="pc-private-data-value">{profile.localidad}</div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Forzar la obtención del avatar desde todas las fuentes posibles
   const getAvatarUrl = () => {
-    // Check if we have a direct avatar_url from the profile
+    console.log('[AMIGOS] Getting avatar URL for profile:', profile?.id);
+    console.log('[AMIGOS] Available profile fields:', profile ? Object.keys(profile) : 'No profile');
+    
+    // For authenticated users, use avatar_url from usuarios table
     if (profile?.avatar_url) {
       // Handle both blob URLs and regular URLs
       if (profile.avatar_url.startsWith('blob:')) {
-        console.log('Using blob URL directly:', profile.avatar_url);
+        console.log('[AMIGOS] Using blob URL directly from avatar_url:', profile.avatar_url);
         return profile.avatar_url;
       } else {
         const cacheBuster = `?t=${Date.now()}`;
         const url = profile.avatar_url.includes('?') ? profile.avatar_url : profile.avatar_url + cacheBuster;
-        console.log('Using profile.avatar_url with cache buster:', url);
+        console.log('[AMIGOS] Using profile.avatar_url with cache buster:', url);
         return url;
       }
     }
     
-    // If no direct avatar_url, check other sources
+    // For guest users, use foto_url from jugadores table
+    if (profile?.foto_url) {
+      // Handle both blob URLs and regular URLs
+      if (profile.foto_url.startsWith('blob:')) {
+        console.log('[AMIGOS] Using blob URL directly from foto_url:', profile.foto_url);
+        return profile.foto_url;
+      } else {
+        const cacheBuster = `?t=${Date.now()}`;
+        const url = profile.foto_url.includes('?') ? profile.foto_url : profile.foto_url + cacheBuster;
+        console.log('[AMIGOS] Using profile.foto_url with cache buster:', url);
+        return url;
+      }
+    }
+    
+    // If no direct avatar_url or foto_url, check other sources
     const sources = [
       profile?.user?.user_metadata?.avatar_url,
       profile?.user?.user_metadata?.picture,
@@ -103,32 +384,43 @@ const ProfileCardComponent = ({
       profile?.user_metadata?.picture
     ];
     
+    console.log('[AMIGOS] Checking alternative avatar sources');
+    
     // Use the first valid source
     for (const source of sources) {
       if (source) {
         const cacheBuster = `?t=${Date.now()}`;
         const url = source.includes('?') ? source : source + cacheBuster;
-        console.log('Using alternative avatar source:', url);
+        console.log('[AMIGOS] Using alternative avatar source:', url);
         return url;
       }
     }
     
+    console.log('[AMIGOS] No avatar URL found, using default');
     return null;
   };
   
   // Force avatar URL refresh on each render
   const avatarUrl = getAvatarUrl();
-  console.log('ProfileCard rendering with avatar URL:', avatarUrl);
+  console.log('[AMIGOS] ProfileCard rendering with avatar URL:', avatarUrl);
+  
+  // Log position and ranking fields for debugging
+  console.log('[AMIGOS] Processing position and ranking fields:', { 
+    posicion: profile?.posicion, 
+    posicion_favorita: profile?.posicion_favorita,
+    ranking: profile?.ranking,
+    calificacion: profile?.calificacion
+  });
   
   const playerData = {
     name: profile?.nombre || 'JUGADOR',
     handle: profile?.social?.replace('@', '') || 'jugador',
     status: profile?.acepta_invitaciones === false ? 'Ocupado' : 'Disponible', // Asegura que sea Disponible por defecto
     avatarUrl: avatarUrl,
-    rating: profile?.calificacion || 4.5,
+    rating: profile?.ranking || profile?.calificacion || 4.5, // Support both ranking and calificacion for backward compatibility
     matchesPlayed: profile?.partidos_jugados || 0,
     matchesAbandoned: profile?.partidos_abandonados || 0,
-    position: getPositionAbbr(profile?.rol_favorito || profile?.posicion_favorita),
+    position: getPositionAbbr(profile?.posicion || profile?.posicion_favorita),
     number: profile?.numero || 10,
     countryCode: profile?.pais_codigo || 'AR',
     countryName: getCountryCode(profile?.pais_codigo)
@@ -136,20 +428,32 @@ const ProfileCardComponent = ({
   
   // Force avatar URL to be valid
   if (playerData.avatarUrl && playerData.avatarUrl.startsWith('blob:')) {
-    console.log('Using blob URL for avatar:', playerData.avatarUrl);
-  } else if (!playerData.avatarUrl && profile?.avatar_url) {
-    playerData.avatarUrl = profile.avatar_url;
-    console.log('Using profile.avatar_url directly:', playerData.avatarUrl);
+    console.log('[AMIGOS] Using blob URL for avatar:', playerData.avatarUrl);
+  } else if (!playerData.avatarUrl) {
+    // Try avatar_url first (for authenticated users)
+    if (profile?.avatar_url) {
+      playerData.avatarUrl = profile.avatar_url;
+      console.log('[AMIGOS] Using profile.avatar_url directly:', playerData.avatarUrl);
+    } 
+    // Then try foto_url (for guest users)
+    else if (profile?.foto_url) {
+      playerData.avatarUrl = profile.foto_url;
+      console.log('[AMIGOS] Using profile.foto_url directly:', playerData.avatarUrl);
+    }
   }
   
   // Debug avatar URL to ensure it's being used
-  console.log('ProfileCard avatar sources:', {
+  console.log('[AMIGOS] ProfileCard avatar sources:', {
     profile_avatar_url: profile?.avatar_url,
+    profile_foto_url: profile?.foto_url,
     user_metadata_avatar_url: profile?.user_metadata?.avatar_url,
     user_metadata_picture: profile?.user_metadata?.picture,
     user_metadata_from_user: profile?.user?.user_metadata,
     final_avatar_url: avatarUrl
   });
+  
+  // Log the complete profile object for debugging
+  console.log('[AMIGOS] ProfileCard complete profile object:', profile);
 
   // --- Animation logic (tilt effect) ---
   const animationHandlers = useMemo(() => {
@@ -306,84 +610,80 @@ const ProfileCardComponent = ({
           <div className="pc-shine" />
           <div className="pc-glare" />
 
-          {/* HEADER: NOMBRE Y BANDERA */}
+          {/* HEADER & AVATAR CONTAINER */}
           <div className="pc-content">
-            {/* LED de disponibilidad en la esquina */}
-            <div className="pc-status-corner">
-              <div className={`pc-status-indicator ${playerData.status === 'Disponible' ? '' : 'unavailable'}`}></div>
-              
-              {/* Bandera debajo del LED */}
-              <div className="pc-country-badge">
-                <img
-                  src={`https://flagcdn.com/w40/${playerData.countryCode.toLowerCase()}.png`}
-                  alt={playerData.countryName}
-                  className="pc-flag"
-                  onError={(e) => {
-                    e.target.style.display = "none";
-                  }}
-                />
-                <span className="pc-country-code">{playerData.countryName}</span>
+            {/* HEADER: Contains all top info */}
+            <div className="pc-header">
+              <div className="pc-top-info">
+                <div className="pc-status-corner">
+                  <div className={`pc-status-indicator ${playerData.status === 'Disponible' ? '' : 'unavailable'}`}></div>
+                  <div className="pc-country-badge">
+                    <img
+                      src={`https://flagcdn.com/w40/${playerData.countryCode.toLowerCase()}.png`}
+                      alt={playerData.countryName}
+                      className="pc-flag"
+                      onError={(e) => { e.target.style.display = "none"; }}
+                    />
+                    <span className="pc-country-code">{playerData.countryName}</span>
+                  </div>
+                </div>
+                <div className="pc-stats-header">
+                  <span className="pc-number">#{playerData.number}</span>
+                  <span className="pc-position">{playerData.position}</span>
+                </div>
+              </div>
+              <div className="pc-details">
+                <h3>{playerData.name}</h3>
               </div>
             </div>
-            
-            {/* Stats a la derecha */}
-            <div className="pc-stats-header">
-              <span className="pc-number">#{playerData.number}</span>
-              <span className="pc-position">{playerData.position}</span>
-            </div>
-            
-            {/* Nombre centrado y grande */}
-            <div className="pc-details">
-              <h3>{playerData.name}</h3>
+
+            {/* AVATAR: Positioned absolutely within pc-content */}
+            <div className="pc-avatar-content">
+              {playerData.avatarUrl ? (
+                <img
+                  className="avatar"
+                  src={playerData.avatarUrl}
+                  alt={`${playerData.name} avatar`}
+                  loading="eager"
+                  crossOrigin="anonymous"
+                  onError={(e) => {
+                    console.error('Error loading avatar image:', e.target.src);
+                    e.target.style.display = "none";
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'avatar-placeholder';
+                    placeholder.textContent = '👤';
+                    e.target.parentNode.appendChild(placeholder);
+                  }}
+                  key={`avatar-${Date.now()}`}
+                />
+              ) : (
+                <div className="avatar-placeholder">👤</div>
+              )}
             </div>
           </div>
 
-          {/* FOTO PRINCIPAL (FIFA STYLE) - Centrada */}
-          <div className="pc-content pc-avatar-content">
-            {playerData.avatarUrl ? (
-              <img
-                className="avatar"
-                src={playerData.avatarUrl} // URL already has cache buster from getAvatarUrl
-                alt={`${playerData.name} avatar`}
-                loading="eager"
-                crossOrigin="anonymous"
-                style={{ 
-                  display: 'block', 
-                  maxWidth: '100%', 
-                  maxHeight: '100%',
-                  objectFit: 'cover'
-                }}
-                onError={(e) => {
-                  console.error('Error loading avatar image:', e.target.src);
-                  e.target.style.display = "none";
-                  const placeholder = document.createElement('div');
-                  placeholder.className = 'avatar-placeholder';
-                  placeholder.textContent = '👤';
-                  e.target.parentNode.appendChild(placeholder);
-                }}
-                key={`avatar-${Date.now()}`} // Force re-render on each render
-              />
-            ) : (
-              <div className="avatar-placeholder">👤</div>
-            )}
-          </div>
-          
-          {/* INFORMACIÓN DEL JUGADOR (abajo) */}
+          {/* FOOTER: User Info */}
           <div className="pc-user-info">
             <div className="pc-user-stats">
               <div className="pc-handle">@{playerData.handle}</div>
               <div className="pc-matches-container">
-                <div className="pc-matches-played">{playerData.matchesPlayed} PJ</div>
-                <div className="pc-matches-abandoned">{playerData.matchesAbandoned} PA</div>
+                <span className="pc-matches-played">{playerData.matchesPlayed} PJ</span>
+                <span className="pc-matches-abandoned">{playerData.matchesAbandoned} PA</span>
               </div>
             </div>
-            
-            {/* Rating (grande y dorado) */}
+            <div className="pc-center-section">
+              <img src="/logo.svg" alt="Armados" className="pc-center-logo" />
+            </div>
             <div className="pc-rating-container">
               <div className="pc-rating-number">{playerData.rating.toFixed(1)}</div>
-              <div className="pc-stars">{renderStars(playerData.rating)}</div>
             </div>
           </div>
+          
+          {/* Friend action buttons */}
+          {renderFriendActions()}
+          
+          {/* Private data section */}
+          {renderPrivateData()}
         </div>
       </section>
     </div>

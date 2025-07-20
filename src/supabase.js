@@ -118,16 +118,27 @@ export const uploadFoto = async (file, jugador) => {
   if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
   console.log('uploadFoto updating:', { jugador: jugador.uuid, fotoUrl });
   
-  // Update usuarios table with avatar_url
-  const { error: updateError } = await supabase
-    .from('usuarios')
-    .update({ avatar_url: fotoUrl })
-    .eq('id', jugador.uuid);
-  
-  if (updateError) {
-    console.error('uploadFoto update error:', updateError);
-    throw updateError;
-  }
+ // Update usuarios table with avatar_url
+const { error: updateError } = await supabase
+  .from('usuarios')
+  .update({ avatar_url: fotoUrl })
+  .eq('id', jugador.uuid);
+
+if (updateError) {
+  console.error('uploadFoto update error:', updateError);
+  throw updateError;
+}
+
+// Ahora ACTUALIZÁ la foto en la tabla jugadores
+const { error: updateJugadorError } = await supabase
+  .from('jugadores')
+  .update({ foto_url: fotoUrl })
+  .eq('uuid', jugador.uuid);
+
+if (updateJugadorError) {
+  console.error('uploadFoto update jugador error:', updateJugadorError);
+  // No lanzamos el error, solo lo logueamos
+}
   
   // Also update user metadata to ensure consistency
   try {
@@ -624,7 +635,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
 
 // --- API de Partidos ---
 
-export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cupo_jugadores, falta_jugadores }) => {
+export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cupo_jugadores, falta_jugadores, tipo_partido }) => {
   try {
     console.log('Creating match with data:', { fecha, hora, sede, sedeMaps });
     
@@ -648,7 +659,8 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
       creado_por: user?.id || null,
       modalidad: modalidad || 'F5',
       cupo_jugadores: cupo_jugadores || 10,
-      falta_jugadores: falta_jugadores || false
+      falta_jugadores: falta_jugadores || false,
+      tipo_partido: tipo_partido || 'Masculino'
     };
     
     console.log('Inserting match data:', matchData);
@@ -736,7 +748,7 @@ export const updateJugadoresFrecuentes = async (partidoFrecuenteId, nuevosJugado
  * @param {boolean} matchData.habilitado - Whether the match is enabled
  * @returns {Object} Created frequent match record
  */
-export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frecuentes, dia_semana, habilitado, imagen_url }) => {
+export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frecuentes, dia_semana, habilitado, imagen_url, tipo_partido }) => {
   // Get current authenticated user
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   
@@ -764,7 +776,8 @@ export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frec
     creado_en: new Date().toISOString(),
     habilitado: habilitado !== undefined ? habilitado : true,
     dia_semana: parseInt(dia_semana),
-    imagen_url: imagen_url || null
+    imagen_url: imagen_url || null,
+    tipo_partido: tipo_partido || 'Masculino'
   };
   
   const { data, error } = await supabase
@@ -904,10 +917,11 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     falta_jugadores: false
   });
   
-  // Add frequent match name and reference
+  // Add frequent match name, type, and reference
   partido.nombre = partidoFrecuente.nombre;
   partido.frequent_match_name = partidoFrecuente.nombre;
   partido.from_frequent_match_id = partidoFrecuente.id;
+  partido.tipo_partido = partidoFrecuente.tipo_partido || 'Masculino';
   
   // Always copy the players from the frequent match, even if empty
   const jugadoresFrecuentes = partidoFrecuente.jugadores_frecuentes || [];
@@ -941,6 +955,57 @@ export const clearVotesForMatch = async (partidoId) => {
   }
 };
 
+// Delete a match and all its associated data (messages, votes)
+export const deletePartido = async (partidoId) => {
+  try {
+    console.log('Deleting match:', partidoId);
+    
+    // Step 1: Delete associated messages first
+    const { error: messagesError } = await supabase
+      .from('mensajes_partido')
+      .delete()
+      .eq('partido_id', partidoId);
+    
+    if (messagesError) {
+      console.error('Error deleting messages:', messagesError);
+      throw new Error(`Error deleting messages: ${messagesError.message}`);
+    }
+    
+    console.log('Messages deleted successfully');
+    
+    // Step 2: Delete votes for this match
+    const { error: votesError } = await supabase
+      .from('votos')
+      .delete()
+      .eq('partido_id', partidoId);
+    
+    if (votesError && votesError.code !== 'PGRST116') {
+      console.error('Error deleting votes:', votesError);
+      throw new Error(`Error deleting votes: ${votesError.message}`);
+    }
+    
+    console.log('Votes deleted successfully');
+    
+    // Step 3: Finally delete the match itself
+    const { error: matchError } = await supabase
+      .from('partidos')
+      .delete()
+      .eq('id', partidoId);
+    
+    if (matchError) {
+      console.error('Error deleting match:', matchError);
+      throw new Error(`Error deleting match: ${matchError.message}`);
+    }
+    
+    console.log('Match deleted successfully');
+    return { success: true };
+    
+  } catch (error) {
+    console.error('Error in deletePartido:', error);
+    throw error;
+  }
+};
+
 export const cleanupInvalidVotes = async () => {
   console.log('🧹 Starting cleanup of invalid votes...');
   const { data: invalidVotes, error: checkError } = await supabase
@@ -971,6 +1036,249 @@ export const clearGuestSession = (partidoId) => {
     const keys = Object.keys(localStorage).filter(key => key.startsWith('guest_session'));
     keys.forEach(key => localStorage.removeItem(key));
     console.log(`Cleared ${keys.length} guest sessions`);
+  }
+};
+
+// --- Amigos (Friends) API ---
+
+/**
+ * Get all friends for a user with status 'accepted'
+ * @param {string} userId - Current user ID
+ * @returns {Array} List of accepted friends
+ */
+export const getAmigos = async (userId) => {
+  if (!userId) return [];
+  
+  try {
+    // Get friends where current user is user_id
+    const { data, error } = await supabase
+      .from('amigos')
+      .select(`
+        id, 
+        status, 
+        created_at,
+        friend_id,
+        jugadores!friend_id(id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero, telefono, localidad)
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'accepted');
+      
+    if (error) throw error;
+    
+    // Also get friends where current user is friend_id
+    const { data: reverseData, error: reverseError } = await supabase
+      .from('amigos')
+      .select(`
+        id, 
+        status, 
+        created_at,
+        user_id,
+        jugadores!user_id(id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero, telefono, localidad)
+      `)
+      .eq('friend_id', userId)
+      .eq('status', 'accepted');
+      
+    if (reverseError) throw reverseError;
+    
+    // Combine and format both sets of friends
+    const formattedAmigos = [
+      ...data.map(item => ({
+        id: item.id,
+        status: 'accepted',
+        created_at: item.created_at,
+        profile: item.jugadores
+      })),
+      ...reverseData.map(item => ({
+        id: item.id,
+        status: 'accepted',
+        created_at: item.created_at,
+        profile: item.jugadores
+      }))
+    ];
+    
+    return formattedAmigos;
+  } catch (err) {
+    console.error('Error fetching friends:', err);
+    throw err;
+  }
+};
+
+/**
+ * Get relationship status between current user and another player
+ * @param {string} userId - Current user ID
+ * @param {string} friendId - Other player ID
+ * @returns {Object|null} Relationship status or null if no relationship exists
+ */
+export const getRelationshipStatus = async (userId, friendId) => {
+  if (!userId || !friendId) return null;
+  
+  try {
+    // Check if there's a relationship where current user is user_id
+    const { data, error } = await supabase
+      .from('amigos')
+      .select('id, status')
+      .eq('user_id', userId)
+      .eq('friend_id', friendId)
+      .maybeSingle();
+      
+    if (error) throw error;
+    
+    if (data) return data;
+    
+    // Check if there's a relationship where current user is friend_id
+    const { data: reverseData, error: reverseError } = await supabase
+      .from('amigos')
+      .select('id, status')
+      .eq('user_id', friendId)
+      .eq('friend_id', userId)
+      .maybeSingle();
+      
+    if (reverseError) throw reverseError;
+    
+    return reverseData;
+  } catch (err) {
+    console.error('Error getting relationship status:', err);
+    return null;
+  }
+};
+
+/**
+ * Send a friend request
+ * @param {string} userId - Current user ID
+ * @param {string} friendId - Player ID to send request to
+ * @returns {Object} Result of the operation
+ */
+export const sendFriendRequest = async (userId, friendId) => {
+  if (!userId || !friendId) {
+    return { success: false, message: 'IDs de usuario inválidos' };
+  }
+  
+  try {
+    // Check if a relationship already exists
+    const existingRelation = await getRelationshipStatus(userId, friendId);
+    if (existingRelation) {
+      return { success: false, message: 'Ya existe una relación con este jugador' };
+    }
+    
+    // Create new friend request
+    const { data, error } = await supabase
+      .from('amigos')
+      .insert([{
+        user_id: userId,
+        friend_id: friendId,
+        status: 'pending'
+      }])
+      .select()
+      .single();
+      
+    if (error) throw error;
+    
+    return { success: true, data };
+  } catch (err) {
+    console.error('Error sending friend request:', err);
+    return { success: false, message: err.message };
+  }
+};
+
+/**
+ * Accept a friend request
+ * @param {string} requestId - ID of the friend request
+ * @returns {Object} Result of the operation
+ */
+export const acceptFriendRequest = async (requestId) => {
+  try {
+    const { data, error } = await supabase
+      .from('amigos')
+      .update({ status: 'accepted' })
+      .eq('id', requestId)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    
+    return { success: true, data };
+  } catch (err) {
+    console.error('Error accepting friend request:', err);
+    return { success: false, message: err.message };
+  }
+};
+
+/**
+ * Reject a friend request
+ * @param {string} requestId - ID of the friend request
+ * @returns {Object} Result of the operation
+ */
+export const rejectFriendRequest = async (requestId) => {
+  try {
+    const { data, error } = await supabase
+      .from('amigos')
+      .update({ status: 'rejected' })
+      .eq('id', requestId)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    
+    return { success: true, data };
+  } catch (err) {
+    console.error('Error rejecting friend request:', err);
+    return { success: false, message: err.message };
+  }
+};
+
+/**
+ * Remove a friend
+ * @param {string} friendshipId - ID of the friendship
+ * @returns {Object} Result of the operation
+ */
+export const removeFriend = async (friendshipId) => {
+  try {
+    const { error } = await supabase
+      .from('amigos')
+      .delete()
+      .eq('id', friendshipId);
+      
+    if (error) throw error;
+    
+    return { success: true };
+  } catch (err) {
+    console.error('Error removing friend:', err);
+    return { success: false, message: err.message };
+  }
+};
+
+/**
+ * Get pending friend requests for a user
+ * @param {string} userId - Current user ID
+ * @returns {Array} List of pending friend requests
+ */
+export const getPendingRequests = async (userId) => {
+  if (!userId) return [];
+  
+  try {
+    const { data, error } = await supabase
+      .from('amigos')
+      .select(`
+        id, 
+        status, 
+        created_at,
+        user_id,
+        jugadores!user_id(id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero)
+      `)
+      .eq('friend_id', userId)
+      .eq('status', 'pending');
+      
+    if (error) throw error;
+    
+    return data.map(item => ({
+      id: item.id,
+      status: item.status,
+      created_at: item.created_at,
+      profile: item.jugadores
+    }));
+  } catch (err) {
+    console.error('Error fetching pending requests:', err);
+    return [];
   }
 };
 

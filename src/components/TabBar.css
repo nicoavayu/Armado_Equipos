@@ -25,6 +25,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   font-family: Oswald, Arial, sans-serif;
+  font-size: 0.9rem;
 }
 
 .tab-item:last-child {
@@ -33,6 +34,14 @@
 
 .tab-item.active {
   background: rgb(255 255 255 / 30%);
+}
+
+.tab-icon-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
 }
 
 .tab-icon-img {

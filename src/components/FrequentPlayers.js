@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { toast } from 'react-toastify';
+import { PlayerCardTrigger } from './ProfileComponents';
 
 const onlyLetters = str => /^[A-Za-záéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(str.trim()) && str.trim().length > 0;
 
@@ -114,30 +115,41 @@ export default function FrequentPlayers({
           {filtered.map(p => {
             const isAdded = playersInList.some(j => (j.name || "").toLowerCase() === (p.name || "").toLowerCase());
             return (
-              <li key={p.id} className="admin-jugador-box" style={{padding: '5px'}}>
-                <span
-                  className="admin-jugador-nombre"
-                  onClick={() => setEditingPlayer(p)}
-                  style={{flex: 1, cursor: 'pointer', textDecoration: 'underline'}}>
-                  {p.name}
-                </span>
-                <button
-                  className="remove-btn"
-                  style={{background: isAdded ? '#808080' : '#25D366', cursor: isAdded ? 'not-allowed' : 'pointer'}}
-                  disabled={isAdded}
-                  title="Agregar a la lista"
-                  onClick={() => onAdd(p)}
-                >
-                  +
-                </button>
-                <button
-                  className="remove-btn"
-                  title="Eliminar"
-                  onClick={() => onDelete(p)}
-                >
-                  ×
-                </button>
-              </li>
+              <PlayerCardTrigger key={p.uuid || p.id} profile={p}>
+                <li className="admin-jugador-box" style={{padding: '5px'}}>
+                  <span
+                    className="admin-jugador-nombre"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent modal from opening when editing
+                      setEditingPlayer(p);
+                    }}
+                    style={{flex: 1, cursor: 'pointer', textDecoration: 'underline'}}>
+                    {p.name}
+                  </span>
+                  <button
+                    className="remove-btn"
+                    style={{background: isAdded ? '#808080' : '#25D366', cursor: isAdded ? 'not-allowed' : 'pointer'}}
+                    disabled={isAdded}
+                    title="Agregar a la lista"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent modal from opening when adding
+                      onAdd(p);
+                    }}
+                  >
+                    +
+                  </button>
+                  <button
+                    className="remove-btn"
+                    title="Eliminar"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent modal from opening when deleting
+                      onDelete(p);
+                    }}
+                  >
+                    ×
+                  </button>
+                </li>
+              </PlayerCardTrigger>
             );
           })}
         </ul>

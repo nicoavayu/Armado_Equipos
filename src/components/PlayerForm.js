@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { toast } from 'react-toastify';
+import LoadingSpinner from "./LoadingSpinner";
 
 // Sólo letras y espacios (acentos incluidos)
 const onlyLetters = str => /^[A-Za-záéíóúÁÉÍÓÚñÑüÜ\s]+$/.test(str.trim()) && str.trim().length > 0;
@@ -8,8 +9,9 @@ export default function PlayerForm({ onAddPlayer }) {
   const [name, setName] = useState("");
   const [score, setScore] = useState("");
   const [nickname, setNickname] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (!onlyLetters(name)) {
       toast.warn("Solo se permiten letras y espacios para el nombre.");
@@ -20,14 +22,22 @@ export default function PlayerForm({ onAddPlayer }) {
       toast.warn("El puntaje debe ser un número entre 1 y 10.");
       return;
     }
-    onAddPlayer({
-      name: name.trim(),
-      score: puntajeNum,
-      nickname: nickname.trim(),
-    });
-    setName("");
-    setScore("");
-    setNickname("");
+    
+    setLoading(true);
+    try {
+      await onAddPlayer({
+        name: name.trim(),
+        score: puntajeNum,
+        nickname: nickname.trim(),
+      });
+      setName("");
+      setScore("");
+      setNickname("");
+    } catch (error) {
+      toast.error("Error al agregar jugador");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -65,8 +75,13 @@ export default function PlayerForm({ onAddPlayer }) {
         className="input-modern"
         style={{height: '48px', fontSize: '1.1rem'}}
       />
-      <button type="submit" className="voting-confirm-btn wipe-btn" style={{background: 'rgba(52, 152, 219, 0.5)', minWidth: 0, maxWidth: '100%', width: 'auto', fontSize: '1.1rem', letterSpacing: 0, padding: '10px 8px', whiteSpace: 'nowrap', overflow: 'auto', textOverflow: 'unset', marginTop: '10px', marginBottom: '0'}}>
-        Agregar Jugador
+      <button 
+        type="submit" 
+        className="voting-confirm-btn wipe-btn" 
+        style={{background: 'rgba(52, 152, 219, 0.5)', minWidth: 0, maxWidth: '100%', width: 'auto', fontSize: '1.1rem', letterSpacing: 0, padding: '10px 8px', whiteSpace: 'nowrap', overflow: 'auto', textOverflow: 'unset', marginTop: '10px', marginBottom: '0'}}
+        disabled={loading}
+      >
+        {loading ? <LoadingSpinner size="small" /> : 'Agregar Jugador'}
       </button>
     </form>
   );

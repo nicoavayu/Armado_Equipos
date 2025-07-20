@@ -37,6 +37,9 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   };
   const [modalidad, setModalidad] = useState('F5');
   const [cupo, setCupo] = useState(modalidadToCupo['F5']);
+  
+  // Tipo de partido (Masculino, Femenino, Mixto)
+  const [tipoPartido, setTipoPartido] = useState('Masculino');
 
   React.useEffect(() => {
     setCupo(modalidadToCupo[modalidad]);
@@ -124,7 +127,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
           }
         }
 
-        // ----> AGREGO MODALIDAD Y CUPO
+        // ----> AGREGO MODALIDAD, TIPO Y CUPO
         const partidoFrecuente = await safeAsync(
           () => crearPartidoFrecuente({
             nombre: nombrePartido.trim(),
@@ -133,7 +136,8 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             jugadores_frecuentes: [],
             dia_semana: new Date(fecha).getDay(),
             habilitado: true,
-            imagen_url: imagenUrl
+            imagen_url: imagenUrl,
+            tipo_partido: tipoPartido
           }),
           'Error al crear el partido frecuente'
         );
@@ -143,7 +147,8 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
           'Error al crear el partido'
         );
         partido.from_frequent_match_id = partidoFrecuente.id;
-        // ----< FIN MODALIDAD Y CUPO
+        partido.tipo_partido = tipoPartido;
+        // ----< FIN MODALIDAD, TIPO Y CUPO
       } else {
         partido = await safeAsync(
           () => crearPartido({
@@ -153,7 +158,8 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             sedeMaps: sedeInfo?.place_id || "",
             modalidad,
             cupo_jugadores: cupo,
-            falta_jugadores: false
+            falta_jugadores: false,
+            tipo_partido: tipoPartido
           }),
           'Error al crear el partido'
         );
@@ -268,6 +274,46 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               </div>
               <div style={{ color: "#fff", fontSize: 16, textAlign: "center" }}>
                 Cupo máximo: <b>{cupo} jugadores</b>
+              </div>
+            </div>
+            
+            {/* Selector de tipo de partido */}
+            <div style={{ width: "100%", marginBottom: 22 }}>
+              <label style={{ fontWeight: 500, color: "#fff", marginBottom: 12, display: "block", fontFamily: "'Oswald', Arial, sans-serif" }}>
+                Tipo de partido
+              </label>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: "8px",
+                marginBottom: 12,
+                width: "100%"
+              }}>
+                {['Masculino', 'Femenino', 'Mixto'].map(tipo => (
+                  <button
+                    key={tipo}
+                    type="button"
+                    onClick={() => setTipoPartido(tipo)}
+                    style={{
+                      padding: "12px 8px",
+                      fontSize: "16px",
+                      fontWeight: tipoPartido === tipo ? "700" : "500",
+                      fontFamily: "'Oswald', Arial, sans-serif",
+                      border: tipoPartido === tipo ? "2px solid #8178e5" : "1.5px solid #8178e5",
+                      borderRadius: "6px",
+                      background: tipoPartido === tipo ? "#8178e5" : "rgba(255,255,255,0.9)",
+                      color: tipoPartido === tipo ? "#fff" : "#333",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      minHeight: "44px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    {tipo}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -435,6 +481,14 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               <li className="confirmation-item">
                 <span className="confirmation-item-name">Modalidad:</span>
                 <span className="confirmation-item-score">{modalidad.replace("F", "Fútbol ")} ({cupo} jugadores)</span>
+                <button
+                  className="confirmation-item-edit-btn"
+                  onClick={() => editField(STEPS.NAME)}
+                >EDITAR</button>
+              </li>
+              <li className="confirmation-item">
+                <span className="confirmation-item-name">Tipo:</span>
+                <span className="confirmation-item-score">{tipoPartido}</span>
                 <button
                   className="confirmation-item-edit-btn"
                   onClick={() => editField(STEPS.NAME)}

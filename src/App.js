@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { MODES, ADMIN_STEPS } from "./constants";
+import AmigosView from "./components/AmigosView";
 import { LOADING_STATES } from "./appConstants";
 import ErrorBoundary from "./components/ErrorBoundary";
 import AuthProvider from "./components/AuthProvider";
@@ -10,8 +11,8 @@ import DirectFix from "./components/DirectFix";
 import Button from "./components/Button";
 import NetworkStatus from "./components/NetworkStatus";
 import TabBar from "./components/TabBar";
-import Home from "./Home";
-import AppNormal from "./AppNormal";
+import FifaHome from "./FifaHome";
+
 import VotingView from "./VotingView";
 import AdminPanel from "./AdminPanel";
 import FormularioNuevoPartidoFlow from "./FormularioNuevoPartidoFlow";
@@ -20,6 +21,12 @@ import ListaPartidosFrecuentes from "./ListaPartidosFrecuentes";
 import EditarPartidoFrecuente from "./EditarPartidoFrecuente";
 import QuieroJugar from "./QuieroJugar";
 import ProfileEditor from "./components/ProfileEditor";
+import NotificationsView from "./components/NotificationsView";
+import GlobalHeader from "./components/GlobalHeader";
+import { NotificationProvider } from "./context/NotificationContext";
+import { TutorialProvider } from "./context/TutorialContext";
+import Tutorial from "./components/Tutorial";
+import WelcomeModal from "./components/WelcomeModal";
 import { getPartidoPorCodigo, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes } from "./supabase";
 import { toast } from 'react-toastify';
 import IngresoAdminPartido from "./IngresoAdminPartido";
@@ -27,12 +34,12 @@ import IngresoAdminPartido from "./IngresoAdminPartido";
 const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
   <div className="voting-bg content-with-tabbar">
     <div className="voting-modern-card">
-      <div className="match-name" style={{ marginBottom: 24 }}>¿QUÉ QUERÉS HACER?</div>
-      <button className="voting-confirm-btn wipe-btn" style={{marginBottom: 12}} onClick={onNuevo}>
-        PARTIDO NUEVO
+      <div className="match-name" style={{ marginBottom: 24 }}>ARMAR EQUIPOS</div>
+      <button className="voting-confirm-btn" style={{marginBottom: 12, background: '#8178e5', borderRadius: '50px'}} onClick={onNuevo}>
+        ARMAR PARTIDO NUEVO
       </button>
-      <button className="voting-confirm-btn wipe-btn" style={{marginBottom: 16}} onClick={onExistente}>
-        PARTIDO FRECUENTE
+      <button className="voting-confirm-btn" style={{marginBottom: 16, background: '#8178e5', borderRadius: '50px'}} onClick={onExistente}>
+        HISTORIAL
       </button>
       {/* Botón de volver eliminado ya que ahora tenemos el TabBar */}
     </div>
@@ -40,11 +47,12 @@ const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
 );
 
 export default function App() {
-  const [modo, setModo] = useState(MODES.HOME);
+  const [modo, setModo] = useState('home'); // Changed from MODES.HOME to 'home'
   const [partidoActual, setPartidoActual] = useState(undefined);
   const [stepPartido, setStepPartido] = useState(ADMIN_STEPS.SELECT_TYPE);
   const [partidoFrecuenteEditando, setPartidoFrecuenteEditando] = useState(null);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -153,7 +161,7 @@ export default function App() {
               jugadores={partidoActual?.jugadores || []}
               onJugadoresChange={handleJugadoresChange}
               onBackToHome={() => {
-                setModo(MODES.HOME);
+                setModo('home');
                 setPartidoActual(null);
                 setPartidoFrecuenteEditando(null);
                 setStepPartido(ADMIN_STEPS.SELECT_TYPE);
@@ -168,19 +176,22 @@ export default function App() {
       return null;
     }
   }
-  else if (modo === MODES.HOME) {
+  else if (modo === 'home') {
     content = (
       <div className="voting-bg content-with-tabbar">
-        <div className="voting-modern-card" style={{maxWidth: 440, display: "flex", flexDirection: "column", alignItems: "center"}}>
-          <Home onModoSeleccionado={(m) => {
+        <div className="voting-modern-card" style={{maxWidth: 800, display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 0}}>
+          <FifaHome onModoSeleccionado={(m, tab) => {
             setModo(m);
             if (m === MODES.ADMIN) setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+            // Store the tab for QuieroJugar view
+            if (m === 'quiero-jugar' && tab) {
+              sessionStorage.setItem('quiero-jugar-tab', tab);
+            }
           }} />
         </div>
       </div>
     );
-  } else if (modo === 'simple') {
-    content = <AppNormal onBack={() => setModo(MODES.HOME)} />;
+  // Removed 'simple' mode handling since it's now inside 'Armar Equipos'
   } else if (modo === 'votacion') {
     setModo(MODES.ADMIN);
     setStepPartido(ADMIN_STEPS.SELECT_TYPE);
@@ -191,10 +202,28 @@ export default function App() {
     content = (
       <div className="voting-bg content-with-tabbar">
         <div className="voting-modern-card" style={{maxWidth: 440, display: "flex", flexDirection: "column", alignItems: "center"}}>
+          <div className="notifications-back-button" onClick={() => setModo('home')}>←</div>
           <ProfileEditor 
             isOpen={true} 
-            onClose={() => setModo(MODES.HOME)} 
+            onClose={() => setModo('home')} 
           />
+        </div>
+      </div>
+    );
+  } else if (modo === 'notifications') {
+    content = (
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card" style={{maxWidth: 600, padding: '20px'}}>
+          <div className="notifications-back-button" onClick={() => setModo('home')}>←</div>
+          <NotificationsView />
+        </div>
+      </div>
+    );
+  } else if (modo === 'amigos') {
+    content = (
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card" style={{maxWidth: 1200, padding: '20px'}}>
+          <AmigosView />
         </div>
       </div>
     );
@@ -207,10 +236,10 @@ export default function App() {
           jugadores={partidoActual ? partidoActual.jugadores : []}
           partidoActual={partidoActual}
           onReset={() => { 
-            setModo(MODES.HOME); 
+            setModo('home'); 
             setPartidoActual(null);
             setPartidoFrecuenteEditando(null);
-            setStepPartido(ADMIN_STEPS.SELECT_TYPE); 
+            setStepPartido(ADMIN_STEPS.SELECT_TYPE);
           }}
         />
       </div>
@@ -235,7 +264,7 @@ export default function App() {
             El modo seleccionado no está disponible o ha ocurrido un error.
           </div>
           <Button
-            onClick={() => setModo(MODES.HOME)}
+            onClick={() => setModo('home')}
             style={{marginTop: "34px", marginBottom: "0", width: '100%', maxWidth: '400px', fontSize: '1.5rem', height: '64px', borderRadius: '9px'}}
             ariaLabel="Volver al inicio"
           >
@@ -246,32 +275,47 @@ export default function App() {
     );
   }
   
-  // Renderizado principal con TabBar
+  // Handle profile click
+  const handleProfileClick = () => {
+    setShowProfileEditor(true);
+    setModo('profile');
+  };
+
+  // Renderizado principal con TabBar y GlobalHeader
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <DirectFix />
-        {content}
-        {showTabBar && (
-          <TabBar 
-            activeTab={activeTab} 
-            onTabChange={(tab) => {
-              setModo(tab);
-              if (tab === 'votacion') setStepPartido(ADMIN_STEPS.SELECT_TYPE);
-            }} 
-          />
-        )}
-        <ToastContainer
-          position="top-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-        />
+        <NotificationProvider>
+          <TutorialProvider>
+            <DirectFix />
+            <GlobalHeader onProfileClick={handleProfileClick} />
+            {content}
+            {showTabBar && (
+              <TabBar 
+                activeTab={activeTab} 
+                onTabChange={(tab) => {
+                  setModo(tab);
+                  setShowNotifications(false);
+                  setShowProfileEditor(false);
+                  if (tab === 'votacion') setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+                }} 
+              />
+            )}
+            <Tutorial />
+            <WelcomeModal />
+            <ToastContainer
+              position="top-right"
+              autoClose={5000}
+              hideProgressBar={false}
+              newestOnTop={false}
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+            />
+          </TutorialProvider>
+        </NotificationProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

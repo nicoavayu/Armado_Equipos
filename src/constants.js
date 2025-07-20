@@ -18,7 +18,8 @@ export const ADMIN_STEPS = {
   CREATE_MATCH: 1,
   SELECT_FREQUENT: 2,
   EDIT_FREQUENT: 3,
-  MANAGE: 4
+  MANAGE: 4,
+  MODO_RAPIDO: 5
 };
 
 export const RATING_BUTTONS = Array.from({ length: 10 }, (_, i) => i + 1);

@@ -1,0 +1,183 @@
+.amigos-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Using global match-name class from HomeStyleKit.css for the main title */
+/* .match-name is defined in HomeStyleKit.css as:
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1.0;
+  margin-bottom: 6px;
+  text-align: center;
+  text-shadow: 0 2px 4px rgb(0 0 0 / 30%);
+  word-break: break-word;
+*/
+
+.amigos-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 30px 0 20px;
+  color: #333;
+  text-align: center;
+}
+
+.amigos-section-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 20px 0 15px;
+  color: #555;
+}
+
+.amigos-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.amigos-card-container {
+  width: 100%;
+  height: 100%;
+  min-height: 450px;
+  display: flex;
+  justify-content: center;
+}
+
+.amigos-empty {
+  text-align: center;
+  padding: 40px 20px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  margin-top: 20px;
+}
+
+.amigos-empty p {
+  margin: 10px 0;
+  font-size: 16px;
+  color: #fff;
+}
+
+.amigos-loading {
+  text-align: center;
+  padding: 40px;
+  font-size: 18px;
+  color: #666;
+}
+
+.amigos-error {
+  text-align: center;
+  padding: 20px;
+  background: rgba(255, 0, 0, 0.1);
+  border-radius: 10px;
+  color: #d32f2f;
+  margin-top: 20px;
+}
+
+/* Pending requests styling */
+.amigos-pending-section {
+  margin-bottom: 30px;
+}
+
+.amigos-pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.amigos-pending-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.amigos-pending-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.amigos-pending-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #f0f0f0;
+}
+
+.amigos-pending-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.amigos-pending-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.amigos-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 50px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.amigos-btn.accept {
+  background: #4CAF50;
+  color: white;
+}
+
+.amigos-btn.accept:hover {
+  background: #3d8b40;
+}
+
+.amigos-btn.reject {
+  background: #F44336;
+  color: white;
+}
+
+.amigos-btn.reject:hover {
+  background: #d32f2f;
+}
+
+@media (max-width: 768px) {
+  .amigos-list {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  }
+  
+  .amigos-pending-item {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .amigos-pending-actions {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .amigos-list {
+    grid-template-columns: 1fr;
+  }
+  
+  .amigos-title {
+    font-size: 24px;
+  }
+  
+  .amigos-section-title {
+    font-size: 18px;
+  }
+}
