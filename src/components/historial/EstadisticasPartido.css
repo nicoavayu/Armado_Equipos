@@ -1,0 +1,72 @@
+.estadisticas-partido {
+  margin-top: 20px;
+}
+
+.estadisticas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+}
+
+.estadistica-item {
+  background-color: #2a2a40;
+  border-radius: 10px;
+  padding: 15px;
+  text-align: center;
+  transition: transform 0.2s ease;
+}
+
+.estadistica-item:hover {
+  transform: translateY(-3px);
+}
+
+.estadistica-valor {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #8178e5;
+  margin-bottom: 5px;
+}
+
+.estadistica-label {
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+.estadistica-barra-container {
+  height: 6px;
+  background-color: #16162e;
+  border-radius: 3px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.estadistica-barra-fill {
+  height: 100%;
+  background-color: #8178e5;
+  border-radius: 3px;
+  transition: width 1s ease;
+}
+
+.estadisticas-no-data {
+  text-align: center;
+  color: #aaa;
+  font-style: italic;
+  padding: 20px;
+  background-color: #2a2a40;
+  border-radius: 10px;
+  margin-top: 15px;
+}
+
+@media (max-width: 768px) {
+  .estadisticas-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+  
+  .estadistica-valor {
+    font-size: 1.5rem;
+  }
+  
+  .estadistica-label {
+    font-size: 0.8rem;
+  }
+}

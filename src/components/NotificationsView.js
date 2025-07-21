@@ -1,5 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNotifications } from '../context/NotificationContext';
+import { useSurveys } from '../hooks/useSurveys';
+import PostMatchSurvey from './PostMatchSurvey';
 import './NotificationsView.css';
 
 const NotificationsView = () => {
@@ -9,6 +11,10 @@ const NotificationsView = () => {
     markAllAsRead, 
     fetchNotifications 
   } = useNotifications();
+  
+  const { pendingSurveys, openSurvey, closeSurvey, handleSurveySubmit } = useSurveys();
+  const [showSurveyModal, setShowSurveyModal] = useState(false);
+  const [currentSurvey, setCurrentSurvey] = useState(null);
 
   useEffect(() => {
     fetchNotifications();
@@ -19,7 +25,7 @@ const NotificationsView = () => {
     return date.toLocaleString();
   };
 
-  const handleNotificationClick = (notification) => {
+  const handleNotificationClick = async (notification) => {
     if (!notification.read) {
       markAsRead(notification.id);
     }
@@ -31,6 +37,14 @@ const NotificationsView = () => {
         break;
       case 'match_invite':
         // Navigate to match or handle match invite
+        break;
+      case 'post_match_survey':
+        // Find the corresponding survey in pendingSurveys
+        const survey = pendingSurveys.find(s => s.notification.id === notification.id);
+        if (survey) {
+          setCurrentSurvey(survey);
+          setShowSurveyModal(true);
+        }
         break;
       default:
         break;
@@ -47,6 +61,8 @@ const NotificationsView = () => {
         return '✅';
       case 'match_update':
         return '🔄';
+      case 'post_match_survey':
+        return '📋';
       default:
         return '📣';
     }
@@ -90,6 +106,19 @@ const NotificationsView = () => {
             </div>
           ))}
         </div>
+      )}
+      
+      {/* Post-match survey modal */}
+      {showSurveyModal && currentSurvey && (
+        <PostMatchSurvey
+          partido={currentSurvey.partido}
+          onClose={() => setShowSurveyModal(false)}
+          onSubmit={() => {
+            handleSurveySubmit();
+            setShowSurveyModal(false);
+            fetchNotifications();
+          }}
+        />
       )}
     </div>
   );

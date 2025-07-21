@@ -1,0 +1,109 @@
+# Cambios aplicados y lógica utilizada - Historial de Partidos
+
+## Componentes creados
+
+1. HistorialDePartidosButton
+   - Botón que aparece solo en partidos frecuentes
+   - Maneja la lógica para cargar el historial de partidos desde Supabase
+   - Muestra/oculta el modal de fechas
+
+2. ListaDeFechasModal
+   - Modal que muestra todas las fechas en las que se jugó un partido frecuente
+   - Cada fecha es clickeable y lleva a la ficha detallada
+   - Incluye información básica como fecha, lugar y resultado
+
+3. FichaDePartido
+   - Vista detallada de un partido específico
+   - Carga datos completos desde Supabase (equipos, jugadores, encuestas, premios)
+   - Organiza la información en secciones claras
+
+4. JugadorDestacadoCard
+   - Componente reutilizable para mostrar jugadores destacados
+   - Soporta diferentes tipos: MVP, mejor arquero, tarjeta negra
+   - Incluye avatar, nombre y badge visual
+
+5. EstadisticasPartido
+   - Muestra estadísticas calculadas a partir de las encuestas
+   - Incluye métricas como porcentaje de partido limpio, ausencias, etc.
+
+## Lógica implementada
+
+1. Consultas a Supabase
+   - Consulta anidada para obtener partidos con sus equipos y jugadores
+   - Consulta para obtener premios (MVP, arquero, tarjeta negra)
+   - Procesamiento de encuestas para extraer estadísticas
+
+2. Manejo de estados
+   - Loading states durante la carga de datos
+   - Error handling para problemas de conexión
+   - Estado para navegación entre lista de fechas y ficha detallada
+
+3. Diseño responsive
+   - Layout adaptable para móviles y desktop
+   - Grids que se ajustan según el tamaño de pantalla
+   - Elementos visuales que mejoran la experiencia en cualquier dispositivo
+
+4. Visualización de datos
+   - Badges y avatares para destacar información importante
+   - Barras de progreso para estadísticas porcentuales
+   - Iconos intuitivos para cada tipo de premio
+
+## Integración con la app existente
+
+- El botón se integra en la vista de detalles de partido frecuente
+- Se mantiene la paleta de colores existente (#8178e5, #1a1a2e, etc.)
+- Se respeta el flujo de navegación de la aplicación
+
+## Consideraciones adicionales
+
+- Si se borra un partido frecuente, las fichas y la reputación previa se mantienen
+- Toda la UI está en español
+- Se utilizan componentes modulares para facilitar mantenimiento
+- Se incluyen animaciones sutiles para mejorar la experiencia de usuario
+
+## Estructura de la base de datos
+
+La funcionalidad utiliza las siguientes tablas:
+
+1. partidos
+   - id
+   - fecha
+   - lugar
+   - resultado
+   - partido_frecuente_id (relación con partido frecuente)
+
+2. equipos_partidos
+   - id
+   - partido_id
+   - nombre
+   - jugadores (relación con jugadores_equipos)
+
+3. jugadores_equipos
+   - id
+   - equipo_id
+   - jugador_id
+
+4. post_match_surveys
+   - id
+   - partido_id
+   - votante_id
+   - se_jugo
+   - asistieron_todos
+   - jugadores_ausentes (array de IDs)
+   - partido_limpio
+   - jugadores_violentos (array de IDs)
+
+5. player_awards
+   - id
+   - partido_id
+   - jugador_id
+   - award_type (mvp, goalkeeper, negative_fair_play)
+
+## Ejemplo de uso
+
+```jsx
+import { HistorialDePartidosButton } from '../components/historial';
+
+// En el componente de detalles del partido frecuente
+<HistorialDePartidosButton partidoFrecuente={partidoFrecuente} />
+```

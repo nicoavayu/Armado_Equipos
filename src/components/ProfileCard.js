@@ -418,6 +418,7 @@ const ProfileCardComponent = ({
     status: profile?.acepta_invitaciones === false ? 'Ocupado' : 'Disponible', // Asegura que sea Disponible por defecto
     avatarUrl: avatarUrl,
     rating: profile?.ranking || profile?.calificacion || 4.5, // Support both ranking and calificacion for backward compatibility
+    responsabilidad: profile?.responsabilidad_score || 5, // Responsibility score
     matchesPlayed: profile?.partidos_jugados || 0,
     matchesAbandoned: profile?.partidos_abandonados || 0,
     position: getPositionAbbr(profile?.posicion || profile?.posicion_favorita),
@@ -669,6 +670,7 @@ const ProfileCardComponent = ({
               <div className="pc-matches-container">
                 <span className="pc-matches-played">{playerData.matchesPlayed} PJ</span>
                 <span className="pc-matches-abandoned">{playerData.matchesAbandoned} PA</span>
+                <span className="pc-responsibility" title="Nivel de responsabilidad">R: {playerData.responsabilidad.toFixed(1)}</span>
               </div>
             </div>
             <div className="pc-center-section">

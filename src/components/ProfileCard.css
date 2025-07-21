@@ -451,6 +451,11 @@
   color: #FF3E3E; /* Red */
 }
 
+.pc-responsibility {
+  color: #8178e5; /* Purple */
+  font-weight: 600;
+}
+
 /* Center divider line */
 .pc-footer-divider {
   height: 70%;

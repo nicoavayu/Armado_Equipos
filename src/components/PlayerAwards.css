@@ -1,0 +1,68 @@
+.player-awards {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: rgba(26, 26, 46, 0.7);
+  border-radius: 10px;
+}
+
+.player-awards h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: #8178e5;
+  font-size: 18px;
+}
+
+.awards-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.award-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background-color: #2a2a40;
+  min-width: 120px;
+}
+
+.award-icon {
+  font-size: 24px;
+  margin-right: 10px;
+}
+
+.award-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.award-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+}
+
+.award-count {
+  font-size: 18px;
+  font-weight: 700;
+  color: #8178e5;
+}
+
+.award-item.mvp .award-icon {
+  color: gold;
+}
+
+.award-item.arquero .award-icon {
+  color: #4caf50;
+}
+
+.award-item.fairplay-negativo .award-icon {
+  color: #ff9800;
+}
+
+@media (max-width: 600px) {
+  .awards-container {
+    flex-direction: column;
+  }
+}

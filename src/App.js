@@ -2,6 +2,7 @@ import './HomeStyleKit.css';
 import React, { useState, useEffect } from "react";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { MODES, ADMIN_STEPS } from "./constants";
 import AmigosView from "./components/AmigosView";
 import { LOADING_STATES } from "./appConstants";
@@ -12,6 +13,9 @@ import Button from "./components/Button";
 import NetworkStatus from "./components/NetworkStatus";
 import TabBar from "./components/TabBar";
 import FifaHome from "./FifaHome";
+import SurveyManager from "./components/SurveyManager";
+import { useSurveyScheduler } from "./hooks/useSurveyScheduler";
+import TestSurvey from "./TestSurvey";
 
 import VotingView from "./VotingView";
 import AdminPanel from "./AdminPanel";
@@ -47,6 +51,8 @@ const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
 );
 
 export default function App() {
+  // Initialize survey scheduler to check for matches that need post-match surveys
+  useSurveyScheduler();
   const [modo, setModo] = useState('home'); // Changed from MODES.HOME to 'home'
   const [partidoActual, setPartidoActual] = useState(undefined);
   const [stepPartido, setStepPartido] = useState(ADMIN_STEPS.SELECT_TYPE);
@@ -282,38 +288,51 @@ export default function App() {
   };
 
   // Renderizado principal con TabBar y GlobalHeader
+  const mainApp = (
+    <>
+      <DirectFix />
+      <GlobalHeader onProfileClick={handleProfileClick} />
+      {content}
+      {showTabBar && (
+        <TabBar 
+          activeTab={activeTab} 
+          onTabChange={(tab) => {
+            setModo(tab);
+            setShowNotifications(false);
+            setShowProfileEditor(false);
+            if (tab === 'votacion') setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+          }} 
+        />
+      )}
+      <Tutorial />
+      <WelcomeModal />
+      <SurveyManager />
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+    </>
+  );
+  
   return (
     <ErrorBoundary>
       <AuthProvider>
         <NotificationProvider>
           <TutorialProvider>
-            <DirectFix />
-            <GlobalHeader onProfileClick={handleProfileClick} />
-            {content}
-            {showTabBar && (
-              <TabBar 
-                activeTab={activeTab} 
-                onTabChange={(tab) => {
-                  setModo(tab);
-                  setShowNotifications(false);
-                  setShowProfileEditor(false);
-                  if (tab === 'votacion') setStepPartido(ADMIN_STEPS.SELECT_TYPE);
-                }} 
-              />
-            )}
-            <Tutorial />
-            <WelcomeModal />
-            <ToastContainer
-              position="top-right"
-              autoClose={5000}
-              hideProgressBar={false}
-              newestOnTop={false}
-              closeOnClick
-              rtl={false}
-              pauseOnFocusLoss
-              draggable
-              pauseOnHover
-            />
+            <Router>
+              <Routes>
+                <Route path="/test-survey" element={<TestSurvey />} />
+                <Route path="/test-survey/:partidoId/:userId" element={<TestSurvey />} />
+                <Route path="*" element={mainApp} />
+              </Routes>
+            </Router>
           </TutorialProvider>
         </NotificationProvider>
       </AuthProvider>

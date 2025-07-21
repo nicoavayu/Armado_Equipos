@@ -4,6 +4,7 @@ import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, uploadFoto, supabase } from '../supabase';
 import ProfileCard from './ProfileCard';
 import ModernToggle from './ModernToggle';
+import PlayerAwards from './PlayerAwards';
 import { useTutorial } from '../context/TutorialContext';
 import './ProfileEditor.css';
 
@@ -658,6 +659,9 @@ export default function ProfileEditor({ isOpen, onClose }) {
                 rows={3}
               />
             </div>
+            
+            {/* Player Awards */}
+            <PlayerAwards playerId={user?.id} />
             
             {/* Availability toggle removed - now in HomeHeader */}
             

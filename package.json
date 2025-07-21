@@ -32,6 +32,7 @@
     "react-easy-crop": "^5.5.0",
     "react-joyride": "^2.9.3",
     "react-lazy-load-image-component": "^1.6.3",
+    "react-router-dom": "^6.22.3",
     "react-scripts": "5.0.1",
     "react-toastify": "^11.0.5",
     "use-places-autocomplete": "^4.0.1",
