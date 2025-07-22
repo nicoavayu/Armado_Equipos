@@ -11,9 +11,13 @@ const AuthPage = () => {
   const { user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetPassword, setResetPassword] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState({});
 
   const handleLogout = async () => {
     try {
@@ -28,10 +32,43 @@ const AuthPage = () => {
     }
   };
 
+  const validateEmail = (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    
+    if (isRegistering) {
+      if (!validateEmail(email)) {
+        errors.email = 'Ingresá un email válido';
+      }
+      
+      if (password !== confirmPassword) {
+        errors.confirmPassword = 'Las contraseñas no coinciden';
+      }
+      
+      if (!acceptTerms) {
+        errors.terms = 'Debés aceptar los términos y condiciones';
+      }
+    }
+    
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    setValidationErrors({});
+    
+    if (!validateEmail(email)) {
+      setValidationErrors({email: 'Ingresá un email válido'});
+      return;
+    }
+    
+    setLoading(true);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -57,14 +94,52 @@ const AuthPage = () => {
     }
   };
 
-  const handleRegister = async () => {
-    window.location.href = '/register'; // Redirect to register page
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}`
+        }
+      });
+
+      if (error) {
+        setError(`Error al registrarse: ${error.message}`);
+      } else {
+        toast.success('Te enviamos un correo de confirmación. Revisá tu mail para activar tu cuenta.');
+        setIsRegistering(false); // Return to login screen
+        setPassword('');
+        setConfirmPassword('');
+        setAcceptTerms(false);
+      }
+    } catch (error) {
+      setError(`Error inesperado: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    setValidationErrors({});
+    
+    if (!validateEmail(email)) {
+      setValidationErrors({email: 'Ingresá un email válido'});
+      return;
+    }
+    
+    setLoading(true);
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -82,6 +157,20 @@ const AuthPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const switchToRegister = (e) => {
+    e.preventDefault();
+    setIsRegistering(true);
+    setError('');
+    setValidationErrors({});
+  };
+
+  const switchToLogin = (e) => {
+    e.preventDefault();
+    setIsRegistering(false);
+    setError('');
+    setValidationErrors({});
   };
 
   return (
@@ -114,6 +203,7 @@ const AuthPage = () => {
                   placeholder="Tu email"
                   required
                 />
+                {validationErrors.email && <div className="validation-error">{validationErrors.email}</div>}
               </div>
               {error && <div className="auth-error">{error}</div>}
               <button type="submit" className="auth-button" disabled={loading}>
@@ -128,6 +218,74 @@ const AuthPage = () => {
               </button>
             </form>
           </div>
+        ) : isRegistering ? (
+          <div className="auth-methods">
+            <form onSubmit={handleRegister} className="auth-form">
+              <div className="form-group">
+                <label htmlFor="register-email">Email</label>
+                <input
+                  id="register-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Tu email"
+                  required
+                />
+                {validationErrors.email && <div className="validation-error">{validationErrors.email}</div>}
+              </div>
+              <div className="form-group">
+                <label htmlFor="register-password">Contraseña</label>
+                <input
+                  id="register-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Tu contraseña"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="confirm-password">Confirmar Contraseña</label>
+                <input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirmar contraseña"
+                  required
+                />
+                {validationErrors.confirmPassword && <div className="validation-error">{validationErrors.confirmPassword}</div>}
+              </div>
+              <div className="checkbox-group">
+                <input
+                  id="terms"
+                  type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                />
+                <label htmlFor="terms">
+                  Acepto los <a href="#" onClick={(e) => e.preventDefault()}>Términos y Condiciones</a> y la <a href="#" onClick={(e) => e.preventDefault()}>Política de Privacidad</a>
+                </label>
+              </div>
+              {validationErrors.terms && <div className="validation-error">{validationErrors.terms}</div>}
+              {error && <div className="auth-error">{error}</div>}
+              <button type="submit" className="auth-button" disabled={loading}>
+                {loading ? <LoadingSpinner size="small" /> : 'Registrarme'}
+              </button>
+              
+              <div className="auth-divider">
+                <span>o</span>
+              </div>
+              
+              <div className="social-auth">
+                <GoogleAuth user={user} />
+              </div>
+            </form>
+            
+            <div className="auth-footer">
+              <p>¿Ya tenés cuenta? <a href="#" onClick={switchToLogin} className="auth-link">Ingresar</a></p>
+            </div>
+          </div>
         ) : (
           <div className="auth-methods">
             <form onSubmit={handleLogin} className="auth-form">
@@ -141,6 +299,7 @@ const AuthPage = () => {
                   placeholder="Tu email"
                   required
                 />
+                {validationErrors.email && <div className="validation-error">{validationErrors.email}</div>}
               </div>
               <div className="form-group">
                 <label htmlFor="login-password">Contraseña</label>
@@ -175,10 +334,7 @@ const AuthPage = () => {
             </form>
             
             <div className="auth-footer">
-              <p>¿No tenés una cuenta? <a href="#" onClick={(e) => {
-                e.preventDefault();
-                handleRegister();
-              }} className="auth-link">Registrate</a></p>
+              <p>¿No tenés una cuenta? <a href="#" onClick={switchToRegister} className="auth-link">Registrate</a></p>
             </div>
           </div>
         )}

@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import ProfileCardModal from './ProfileCardModal';
 import './PlayerCardTrigger.css';
+
+// Create a context to determine if we're in TeamDisplay
+export const TeamDisplayContext = React.createContext(false);
 
 /**
  * Wrapper component that makes any player item clickable to show a ProfileCardModal
@@ -10,8 +13,17 @@ import './PlayerCardTrigger.css';
  */
 const PlayerCardTrigger = ({ profile, children }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const isInTeamDisplay = useContext(TeamDisplayContext);
 
-  const handleOpenModal = () => {
+  const handleOpenModal = (e) => {
+    e.stopPropagation(); // Prevent event from bubbling up to parent elements
+    
+    // Don't open profile card if we're in TeamDisplay
+    if (isInTeamDisplay) {
+      console.log('[PLAYER_TRIGGER] Prevented opening modal in TeamDisplay');
+      return;
+    }
+    
     console.log('[PLAYER_TRIGGER] Opening modal for profile:', profile?.id);
     setIsModalOpen(true);
   };

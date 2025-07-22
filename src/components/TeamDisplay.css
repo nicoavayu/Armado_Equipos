@@ -159,6 +159,17 @@
   box-shadow: 0 0 12px rgb(255 193 7 / 40%);
 }
 
+/* Lock/unlock animation */
+@keyframes lockAnimation {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.lock-icon {
+  animation: lockAnimation 0.3s ease-in-out;
+}
+
 .player-card:hover {
   background: rgb(255 255 255 / 20%);
   border-color: rgb(255 255 255 / 40%);
@@ -205,6 +216,13 @@
   object-fit: cover;
   border: 1px solid rgb(255 255 255 / 40%);
   flex-shrink: 0;
+}
+
+/* Player avatar wrapper for TeamDisplay */
+.player-avatar-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Player name - responsive text with proper overflow handling */
@@ -324,14 +342,26 @@
   margin-bottom: 0;
 }
 
-/* Action buttons - matching global app style */
+/* Team actions row for side-by-side buttons */
+.team-actions-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.team-actions-row .team-action-btn {
+  flex: 1;
+  width: calc(50% - 6px);
+}
+
+/* Action buttons - matching FormularioNuevoPartidoFlow style */
 .team-action-btn {
   font-family: 'Bebas Neue', Arial, sans-serif !important;
   font-size: 1.5rem;
   color: #fff;
-  background: #0EA9C6;
+  background: #8178e5;
   border: 2px solid #fff;
-  border-radius: 0;
+  border-radius: 50px;
   letter-spacing: 0.05em;
   padding: 0;
   margin: 0;
@@ -349,7 +379,7 @@
   touch-action: manipulation;
 }
 
-/* Wipe animation */
+/* Wipe animation - matching FormularioNuevoPartidoFlow */
 .team-action-btn::before {
   content: "";
   position: absolute;
@@ -366,16 +396,19 @@
   left: 0;
 }
 
+.team-action-btn:active {
+  transform: scale(0.98);
+}
+
 .team-action-btn > span {
   position: relative;
   z-index: 2;
 }
 
 /* Button variants */
-.randomize-btn { background: #0EA9C6; }
-.averages-btn { background: #0EA9C6; }
+.randomize-btn { background: #8178e5; }
+.averages-btn { background: #8178e5; }
 .whatsapp-btn { background: #25D366; }
-.back-btn { background: #DE1C49; }
 
 
 
@@ -590,8 +623,7 @@
     padding: 20px;
     height: auto;
   }
-  .team-actions { flex-flow: row wrap; margin-top: 16px; }
-  .team-action-btn { flex: 1; min-width: 140px; }
+  .team-actions { margin-top: 16px; }
 }
 
 @media (width >= 768px) {

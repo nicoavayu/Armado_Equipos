@@ -1,6 +1,7 @@
 .email-auth-container {
   width: 100%;
   margin: 0 auto;
+  
 }
 
 .auth-tabs {
@@ -36,6 +37,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  
 }
 
 .form-group {
@@ -55,11 +57,16 @@
   padding: 10px 14px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: rgba(255, 255, 255, 0.2);
   color: #fff;
   font-size: 16px;
   transition: border-color 0.3s;
   width: 100%;
+}
+
+.form-group input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+  opacity: 1;
 }
 
 .form-group input:focus {
@@ -109,6 +116,42 @@
 .auth-link-button:hover {
   text-decoration: underline;
   color: #fff;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.checkbox-group input[type="checkbox"] {
+  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+  accent-color: #8178e5;
+}
+
+.checkbox-group label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.checkbox-group a {
+  color: #fff;
+  text-decoration: none;
+}
+
+.checkbox-group a:hover {
+  text-decoration: underline;
+}
+
+.validation-error {
+  color: #ff6b6b;
+  font-size: 13px;
+  margin-top: 2px;
+  margin-bottom: 5px;
 }
 
 /* Responsive styles */

@@ -1,13 +1,14 @@
 .global-header {
   position: relative;
-  height: 80px;
-  padding: 30px 20px 10px;
+  padding: 20px 16px 10px;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   pointer-events: none;
   background: transparent;
   margin: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .global-header-left {
@@ -20,12 +21,12 @@
 
 .global-avatar-container {
   position: relative;
-  margin-right: 15px;
+  margin-right: 12px;
 }
 
 .global-avatar {
-  width: 50px;
-  height: 50px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   overflow: hidden;
   background-color: rgba(255, 255, 255, 0.2);
@@ -34,7 +35,7 @@
   justify-content: center;
   color: white;
   font-weight: bold;
-  font-size: 20px;
+  font-size: 16px;
 }
 
 .global-avatar img {
@@ -47,8 +48,8 @@
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.8);
 }
@@ -74,7 +75,7 @@
 .global-greeting {
   color: white;
   font-family: 'Oswald', sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   margin-right: 5px;
   opacity: 0.9;
 }
@@ -82,13 +83,13 @@
 .global-username {
   color: white;
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: bold;
 }
 
 .global-status-text {
   font-family: 'Oswald', sans-serif;
-  font-size: 14px;
+  font-size: 12px;
   margin-top: 2px;
 }
 
@@ -106,8 +107,8 @@
 }
 
 .global-notifications {
-  width: 50px;
-  height: 50px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -126,31 +127,27 @@
   right: 0;
   background-color: #FF3366;
   color: white;
-  border-radius: 0;
-  width: 20px;
-  height: 20px;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: bold;
-}
-
-/* Add padding to the main content to account for the fixed header */
-.content-with-global-header {
-  padding-top: 90px;
 }
 
 /* Status dropdown */
 .global-status-dropdown {
   position: absolute;
-  top: 80px;
+  top: 60px;
   left: 0;
   background: rgba(0, 0, 0, 0.7);
-  border-radius: 0;
+  border-radius: 12px;
   width: 180px;
   z-index: 1000;
   overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .global-status-dropdown-header {
@@ -196,14 +193,15 @@
 /* Notifications dropdown */
 .global-notifications-dropdown {
   position: absolute;
-  top: 80px;
+  top: 60px;
   right: 0;
   background: rgba(0, 0, 0, 0.7);
-  border-radius: 0;
-  width: 300px;
+  border-radius: 12px;
+  width: 280px;
   max-width: 90vw;
   z-index: 1000;
   overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .global-notifications-header {
@@ -242,38 +240,28 @@
 }
 
 /* Responsive adjustments */
-@media (max-width: 768px) {
+@media (max-width: 360px) {
   .global-header {
-    padding: 20px 10px 10px;
+    padding: 15px 10px 10px;
   }
   
   .global-avatar {
-    width: 40px;
-    height: 40px;
-    font-size: 16px;
-  }
-  
-  .global-status-led {
-    width: 10px;
-    height: 10px;
-  }
-  
-  .global-greeting {
+    width: 36px;
+    height: 36px;
     font-size: 14px;
   }
   
+  .global-greeting {
+    font-size: 12px;
+  }
+  
   .global-username {
-    font-size: 18px;
+    font-size: 16px;
   }
   
   .global-status-text {
-    font-size: 12px;
+    font-size: 10px;
   }
-}
-
-/* Ensure the header is visible on all screens */
-.voting-bg, .content-with-tabbar {
-  position: relative;
 }
 
 /* Login button styles */
@@ -287,10 +275,4 @@
   transition: background-color 0.3s;
   display: inline-block;
   margin-top: 10px;
-}
-
-.global-login-button:hover {
-  background-color: #6a5fd0;
-  text-decoration: none;
-  color: white;
 }

@@ -323,8 +323,8 @@ async function handleCerrarVotacion() {
       // No mostramos error al usuario ya que no es crítico para la funcionalidad principal
     }
     
-    // Success!
-    toast.success(result.message || 'Votación cerrada y equipos creados');
+    // Success! Show only one toast notification
+    toast.success('¡Equipos generados exitosamente!');
     
   } catch (error) {
     // Provide specific error messages

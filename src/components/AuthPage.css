@@ -64,9 +64,9 @@
 .form-group input {
   padding: 0 12px;
   border-radius: 8px;
-  border: 1px solid #ddd;
-  background-color: #fff;
-  color: #333;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
   font-size: 16px;
   transition: border-color 0.2s;
   width: 100%;
@@ -74,9 +74,43 @@
   box-sizing: border-box;
 }
 
+.form-group input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+  opacity: 1;
+}
+
 .form-group input:focus {
   outline: none;
   border-color: #8178e5;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.checkbox-group input[type="checkbox"] {
+  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+  accent-color: #8178e5;
+}
+
+.checkbox-group label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.checkbox-group a {
+  color: #fff;
+  text-decoration: none;
+}
+
+.checkbox-group a:hover {
+  text-decoration: underline;
 }
 
 .auth-button {
@@ -164,9 +198,18 @@
 }
 
 .auth-error {
-  color: #e74c3c;
+  color: #fdfdfd;
   font-size: 13px;
   margin-bottom: 5px;
+  font-style: italic;
+}
+
+.validation-error {
+  color: #ffffff;
+  font-size: 13px;
+  margin-top: 2px;
+  margin-bottom: 5px;
+  font-style: italic;
 }
 
 .social-auth {
@@ -179,9 +222,9 @@
   justify-content: center;
   padding: 0;
   border-radius: 8px;
-  border: 1px solid #ddd;
-  background-color: #fff;
-  color: #333;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
@@ -191,13 +234,13 @@
 }
 
 .google-sign-in-btn:hover {
-  background-color: #f8f9fa;
-  border-color: #ccc;
+  background-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .logged-in-container {
   text-align: center;
-  color: #333;
+  color: #fff;
 }
 
 .welcome-message {
@@ -207,7 +250,7 @@
 
 .user-email {
   font-weight: 700;
-  color: #8178e5;
+  color: #fff;
 }
 
 .logout-button {
