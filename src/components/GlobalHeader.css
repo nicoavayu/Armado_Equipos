@@ -275,3 +275,22 @@
 .voting-bg, .content-with-tabbar {
   position: relative;
 }
+
+/* Login button styles */
+.global-login-button {
+  padding: 8px 16px;
+  background-color: #8178e5;
+  color: white;
+  border-radius: 20px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background-color 0.3s;
+  display: inline-block;
+  margin-top: 10px;
+}
+
+.global-login-button:hover {
+  background-color: #6a5fd0;
+  text-decoration: none;
+  color: white;
+}

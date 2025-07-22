@@ -1,0 +1,271 @@
+.encuesta-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  color: white;
+}
+
+.encuesta-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.encuesta-header h2 {
+  margin: 0;
+  color: #8178e5;
+  font-size: 1.8rem;
+}
+
+.encuesta-back-btn {
+  background: none;
+  border: none;
+  color: #8178e5;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 8px 15px;
+  border-radius: 50px;
+  border: 1px solid #8178e5;
+  transition: all 0.2s ease;
+}
+
+.encuesta-back-btn:hover {
+  background-color: #8178e5;
+  color: white;
+}
+
+.encuesta-partido-info {
+  background-color: #2a2a40;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.encuesta-fecha {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 5px;
+  text-transform: capitalize;
+}
+
+.encuesta-sede {
+  color: #aaa;
+  margin-bottom: 5px;
+}
+
+.encuesta-hora {
+  color: #8178e5;
+  font-weight: 600;
+}
+
+.encuesta-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.encuesta-section {
+  background-color: #2a2a40;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.encuesta-section h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #8178e5;
+  font-size: 1.2rem;
+}
+
+.encuesta-options {
+  display: flex;
+  gap: 15px;
+}
+
+.encuesta-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background-color: #1a1a2e;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.encuesta-option.selected {
+  border-color: #8178e5;
+  background-color: rgba(129, 120, 229, 0.2);
+}
+
+.encuesta-option input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.encuesta-option span {
+  font-weight: 600;
+}
+
+.encuesta-jugadores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+}
+
+.encuesta-jugador-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 15px;
+  background-color: #1a1a2e;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+  position: relative;
+}
+
+.encuesta-jugador-item input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.encuesta-jugador-item.selected {
+  border-color: #ff6b35;
+  background-color: rgba(255, 107, 53, 0.2);
+}
+
+.encuesta-jugador-item.selected-negative {
+  border-color: #ff3535;
+  background-color: rgba(255, 53, 53, 0.2);
+}
+
+.encuesta-jugador-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-bottom: 10px;
+  background-color: #16162e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.encuesta-jugador-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.encuesta-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #444;
+  color: white;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.encuesta-jugador-nombre {
+  text-align: center;
+  font-weight: 500;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.encuesta-select {
+  width: 100%;
+  padding: 12px;
+  background-color: #1a1a2e;
+  border: 1px solid #444;
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+
+.encuesta-textarea {
+  width: 100%;
+  padding: 12px;
+  background-color: #1a1a2e;
+  border: 1px solid #444;
+  border-radius: 8px;
+  color: white;
+  font-size: 1rem;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.encuesta-submit-btn {
+  background-color: #8178e5;
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 15px;
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 20px;
+}
+
+.encuesta-submit-btn:hover {
+  background-color: #6a63c7;
+  transform: translateY(-2px);
+}
+
+.encuesta-submit-btn:disabled {
+  background-color: #555;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.encuesta-loading, .encuesta-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .encuesta-container {
+    padding: 15px;
+  }
+  
+  .encuesta-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .encuesta-options {
+    flex-direction: column;
+  }
+  
+  .encuesta-jugadores-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+  
+  .encuesta-jugador-avatar {
+    width: 50px;
+    height: 50px;
+  }
+}

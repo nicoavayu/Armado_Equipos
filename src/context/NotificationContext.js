@@ -85,10 +85,12 @@ export const NotificationProvider = ({ children }) => {
     const unread = notifs.filter(n => !n.read);
     const friendRequests = unread.filter(n => n.type === 'friend_request').length;
     const matchInvites = unread.filter(n => n.type === 'match_invite').length;
+    const callToVote = unread.filter(n => n.type === 'call_to_vote').length;
+    const postMatchSurveys = unread.filter(n => n.type === 'post_match_survey').length;
     
     setUnreadCount({
       friends: friendRequests,
-      matches: matchInvites,
+      matches: matchInvites + callToVote + postMatchSurveys, // Agrupamos todas las notificaciones relacionadas con partidos
       total: unread.length
     });
   };

@@ -29,7 +29,16 @@ const GlobalHeader = ({ onProfileClick }) => {
     };
   }, []);
   
-  if (!user) return null;
+  // Si no hay usuario, mostrar solo el título
+  if (!user) {
+    return (
+      <div className="global-header">
+        <div className="global-header-left">
+          <div className="global-greeting">Team Balancer</div>
+        </div>
+      </div>
+    );
+  }
   
   // Get user initial or placeholder
   const getInitial = () => {

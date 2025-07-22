@@ -3,6 +3,7 @@ import { supabase } from '../../supabase';
 import JugadorDestacadoCard from './JugadorDestacadoCard';
 import EstadisticasPartido from './EstadisticasPartido';
 import './FichaDePartido.css';
+import PlantillaJugadores from './PlantillaJugadores';
 
 /**
  * Componente que muestra la ficha detallada de un partido
@@ -140,6 +141,11 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
 
   const { fecha, lugar, resultado, mvps, arqueros, sucios, ausentes, encuestas } = detallesPartido;
 
+  // Verificar si hay encuestas o votos para mostrar estadísticas completas
+  const tieneEncuestas = encuestas && encuestas.length > 0;
+  const tieneDestacados = mvps.length > 0 || arqueros.length > 0 || sucios.length > 0;
+  const tieneAusentes = ausentes && ausentes.length > 0;
+  
   return (
     <div className="ficha-partido">
       <div className="ficha-header">
@@ -160,62 +166,63 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
           )}
         </div>
         
-        {/* Jugadores destacados */}
-        <div className="ficha-section">
-          <h3 className="ficha-section-title">Jugadores Destacados</h3>
-          
-          {mvps.length > 0 ? (
-            <div className="ficha-destacados">
-              <h4>MVP del Partido</h4>
-              <div className="ficha-destacados-grid">
-                {mvps.map(premio => (
-                  <JugadorDestacadoCard 
-                    key={premio.id}
-                    jugador={premio.jugador}
-                    tipo="mvp"
-                  />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="ficha-no-data">No hay MVP registrado</div>
-          )}
-          
-          {arqueros.length > 0 ? (
-            <div className="ficha-destacados">
-              <h4>Mejor Arquero</h4>
-              <div className="ficha-destacados-grid">
-                {arqueros.map(premio => (
-                  <JugadorDestacadoCard 
-                    key={premio.id}
-                    jugador={premio.jugador}
-                    tipo="arquero"
-                  />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="ficha-no-data">No hay mejor arquero registrado</div>
-          )}
-          
-          {sucios.length > 0 && (
-            <div className="ficha-destacados">
-              <h4>Tarjeta Negra</h4>
-              <div className="ficha-destacados-grid">
-                {sucios.map(premio => (
-                  <JugadorDestacadoCard 
-                    key={premio.id}
-                    jugador={premio.jugador}
-                    tipo="sucio"
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Plantilla de jugadores - SIEMPRE se muestra */}
+        <PlantillaJugadores jugadores={detallesPartido.jugadores || []} />
         
-        {/* Jugadores ausentes */}
-        {ausentes.length > 0 && (
+        {/* Secciones que solo se muestran si hay encuestas o datos */}
+        {tieneDestacados && (
+          <div className="ficha-section">
+            <h3 className="ficha-section-title">Jugadores Destacados</h3>
+            
+            {mvps.length > 0 ? (
+              <div className="ficha-destacados">
+                <h4>MVP del Partido</h4>
+                <div className="ficha-destacados-grid">
+                  {mvps.map(premio => (
+                    <JugadorDestacadoCard 
+                      key={premio.id}
+                      jugador={premio.jugador}
+                      tipo="mvp"
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            
+            {arqueros.length > 0 ? (
+              <div className="ficha-destacados">
+                <h4>Mejor Arquero</h4>
+                <div className="ficha-destacados-grid">
+                  {arqueros.map(premio => (
+                    <JugadorDestacadoCard 
+                      key={premio.id}
+                      jugador={premio.jugador}
+                      tipo="arquero"
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            
+            {sucios.length > 0 && (
+              <div className="ficha-destacados">
+                <h4>Tarjeta Negra</h4>
+                <div className="ficha-destacados-grid">
+                  {sucios.map(premio => (
+                    <JugadorDestacadoCard 
+                      key={premio.id}
+                      jugador={premio.jugador}
+                      tipo="sucio"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Jugadores ausentes - solo si hay */}
+        {tieneAusentes && (
           <div className="ficha-section">
             <h3 className="ficha-section-title">Jugadores Ausentes</h3>
             <div className="ficha-ausentes">
@@ -237,8 +244,8 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
           </div>
         )}
         
-        {/* Estadísticas del partido */}
-        <EstadisticasPartido encuestas={encuestas || []} />
+        {/* Estadísticas del partido - solo si hay encuestas */}
+        {tieneEncuestas && <EstadisticasPartido encuestas={encuestas} />}
       </div>
     </div>
   );

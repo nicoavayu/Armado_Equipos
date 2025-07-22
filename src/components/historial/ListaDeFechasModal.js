@@ -23,17 +23,14 @@ const ListaDeFechasModal = ({ partidos, onClose, nombrePartido, error, loading }
     setSelectedPartido(null);
   };
 
-  // Formatear fecha para mostrar
+  // Formatear fecha para mostrar en formato corto (ej: "Lunes 18/7")
   const formatFecha = (fechaStr) => {
     try {
       const fecha = new Date(fechaStr);
-      const options = { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric',
-        weekday: 'long'
-      };
-      return fecha.toLocaleDateString('es-ES', options);
+      const weekday = fecha.toLocaleDateString('es-ES', { weekday: 'long' });
+      const day = fecha.getDate();
+      const month = fecha.getMonth() + 1;
+      return `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${day}/${month}`;
     } catch (e) {
       return fechaStr || 'Fecha no disponible';
     }

@@ -1,0 +1,134 @@
+# RESUMEN DE LA APLICACIÓN TEAM BALANCER
+
+## DESCRIPCIÓN GENERAL
+
+Team Balancer es una aplicación web desarrollada en React con Supabase como backend que permite organizar partidos de fútbol y crear equipos equilibrados basados en las habilidades de los jugadores. La aplicación facilita la gestión de partidos recurrentes, la votación para calificar a los jugadores, y la formación automática de equipos equilibrados según las puntuaciones de los participantes.
+
+El propósito principal es resolver el problema de formar equipos parejos para partidos informales, evitando desequilibrios que afecten la experiencia de juego. La aplicación utiliza un sistema de votación donde los participantes califican a sus compañeros, y estos puntajes se utilizan para distribuir a los jugadores de manera equilibrada entre los equipos.
+
+## FUNCIONALIDADES PRINCIPALES
+
+1. **Gestión de Partidos**
+   - Creación de partidos individuales con fecha, hora y sede
+   - Gestión de partidos frecuentes (recurrentes) con plantillas de jugadores
+   - Generación de código único para compartir el partido
+
+2. **Sistema de Votación**
+   - Calificación de jugadores mediante un sistema de estrellas (1-10)
+   - Interfaz de votación intuitiva con feedback visual
+   - Protección contra votos duplicados
+
+3. **Formación de Equipos**
+   - Algoritmo de balanceo que distribuye jugadores según sus puntuaciones
+   - Visualización de equipos formados con estadísticas
+   - Posibilidad de ajustar equipos manualmente
+
+4. **Gestión de Perfiles**
+   - Perfiles de usuario con foto, información personal y estadísticas
+   - Sistema de amigos para conectar con otros jugadores
+   - Indicador de progreso de completitud del perfil
+
+5. **Encuestas Post-Partido**
+   - Evaluación de la experiencia del partido
+   - Selección de jugadores destacados (MVP, mejor arquero)
+   - Registro de jugadores ausentes o con comportamiento antideportivo
+
+6. **Historial de Partidos**
+   - Visualización del historial de partidos jugados
+   - Estadísticas detalladas de cada partido
+   - Registro de premios y reconocimientos
+
+7. **Sistema de Jugadores Libres**
+   - Registro de jugadores disponibles para completar equipos
+   - Búsqueda de jugadores por localidad
+
+8. **Autenticación y Sesiones**
+   - Soporte para usuarios registrados y sesiones de invitados
+   - Autenticación con proveedores sociales (Google)
+   - Gestión de permisos según tipo de usuario
+
+## ARCHIVOS Y MÓDULOS PRINCIPALES
+
+### Componentes Core
+
+- **App.js**: Componente principal que maneja la navegación y los diferentes modos de la aplicación.
+- **AdminPanel.js**: Panel de administración para gestionar jugadores y equipos de un partido.
+- **VotingView.js**: Interfaz para que los jugadores voten y califiquen a otros participantes.
+- **FormularioNuevoPartidoFlow.js**: Flujo para crear nuevos partidos con todos sus detalles.
+- **TeamDisplay.js**: Visualización de los equipos formados con sus jugadores y puntuaciones.
+
+### Componentes de Autenticación y Perfil
+
+- **AuthProvider.js**: Proveedor de contexto para la autenticación de usuarios.
+- **ProfileEditor.js**: Editor de perfil de usuario con campos personalizables.
+- **ProfileMenu.js**: Menú de perfil con opciones de usuario y configuración.
+
+### Componentes de Historial
+
+- **HistorialDePartidosButton.js**: Botón para acceder al historial de partidos.
+- **ListaDeFechasModal.js**: Modal que muestra la lista de fechas de partidos pasados.
+- **FichaDePartido.js**: Detalle completo de un partido con estadísticas y jugadores destacados.
+- **EstadisticasPartido.js**: Visualización de estadísticas de un partido específico.
+
+### Componentes de Encuestas
+
+- **PostMatchSurvey.js**: Encuesta post-partido para evaluar la experiencia.
+- **SurveyManager.js**: Gestor de encuestas pendientes y completadas.
+- **PartidosPendientesNotification.js**: Notificación de partidos pendientes de calificar.
+
+### Servicios y Utilidades
+
+- **supabase.js**: Centraliza todas las interacciones con la base de datos Supabase.
+- **constants.js** y **appConstants.js**: Definiciones de constantes utilizadas en la aplicación.
+- **utils.js**: Funciones de utilidad general para la aplicación.
+
+### Hooks Personalizados
+
+- **useSurveyScheduler.js**: Hook para programar y gestionar encuestas post-partido.
+- **useEnsureProfile.js**: Hook para asegurar que el usuario tenga un perfil completo.
+
+## INTERCONEXIÓN DE MÓDULOS
+
+- **Flujo de Autenticación**:
+  - AuthProvider → ProfileEditor → createOrUpdateProfile (supabase.js)
+
+- **Flujo de Creación de Partido**:
+  - App.js → FormularioNuevoPartidoFlow → crearPartido (supabase.js) → AdminPanel
+
+- **Flujo de Votación**:
+  - App.js → VotingView → StarRating → submitVotos (supabase.js)
+
+- **Flujo de Formación de Equipos**:
+  - AdminPanel → closeVotingAndCalculateScores (supabase.js) → TeamDisplay
+
+- **Flujo de Historial**:
+  - AdminPanel → HistorialDePartidosButton → ListaDeFechasModal → FichaDePartido
+
+- **Flujo de Encuestas**:
+  - ProfileMenu → PartidosPendientesNotification → EncuestaPartido
+
+## MÓDULOS EN DESARROLLO O INCOMPLETOS
+
+1. **Sistema de Encuestas Post-Partido**: 
+   - Parece estar en desarrollo activo con archivos recientes como EncuestaPartido.js y INSTRUCCIONES_ENCUESTAS.txt.
+   - La integración con notificaciones está implementada pero podría estar en fase de pruebas.
+
+2. **Sistema de Amigos**:
+   - La funcionalidad está implementada en supabase.js pero la interfaz de usuario podría estar incompleta.
+   - Existen archivos SQL relacionados (AMIGOS-TABLE-SETUP.sql) que sugieren cambios recientes.
+
+3. **Historial de Partidos**:
+   - Funcionalidad implementada recientemente según CAMBIOS_HISTORIAL.txt.
+   - Podría estar en fase de pruebas o refinamiento.
+
+4. **Código Redundante**:
+   - Existen múltiples archivos de corrección (VOTING-FIX-*.md) que sugieren refactorizaciones pendientes.
+   - Hay duplicación en algunas funciones de supabase.js, como checkIfAlreadyVoted que aparece incompleta.
+
+## ESTADO ACTUAL
+
+La aplicación parece estar en un estado funcional pero con desarrollo activo. Las funcionalidades principales (creación de partidos, votación, formación de equipos) están implementadas y operativas. Hay características más recientes como el historial de partidos y las encuestas post-partido que están siendo integradas.
+
+La estructura del código sigue un patrón de componentes React con hooks personalizados y servicios centralizados para la comunicación con Supabase. La aplicación tiene un enfoque en la experiencia de usuario con componentes responsivos y accesibles.
+
+Existen numerosos archivos de documentación y SQL que sugieren un proceso de desarrollo iterativo con mejoras continuas y correcciones de errores, especialmente en el sistema de votación y la gestión de perfiles de usuario.

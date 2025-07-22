@@ -1,0 +1,37 @@
+# CAMBIOS REALIZADOS EN LA FUNCIONALIDAD DE HISTORIAL DE PARTIDOS
+
+## Componentes modificados:
+
+1. **HistorialDePartidosButton.js**
+   - Eliminada la condición que ocultaba el botón si no había partido_frecuente_id
+   - Modificada la lógica para usar partido_frecuente_id si existe, o el id del partido actual si no existe
+
+2. **ListaDeFechasModal.js**
+   - Modificado el formato de fecha para mostrar en formato corto (ej: "Lunes 18/7")
+
+3. **FichaDePartido.js**
+   - Añadida la plantilla de jugadores que siempre se muestra
+   - Modificada la lógica para mostrar secciones condicionalmente:
+     - Plantilla de jugadores: SIEMPRE visible
+     - Jugadores destacados: Solo si hay datos
+     - Jugadores ausentes: Solo si hay datos
+     - Estadísticas: Solo si hay encuestas
+
+## Componentes nuevos:
+
+1. **PlantillaJugadores.js**
+   - Muestra la lista de jugadores que participaron en el partido
+   - Incluye avatar y nombre de cada jugador
+   - Diseño responsive que se adapta a diferentes tamaños de pantalla
+
+## Integración:
+
+- El botón "Historial de partidos" ya estaba correctamente integrado en AdminPanel.js
+- La funcionalidad está completamente integrada con los datos existentes en Supabase
+
+## Notas adicionales:
+
+- La plantilla de jugadores se muestra SIEMPRE, incluso cuando no hay encuestas
+- El diseño es completamente responsive y funciona tanto en mobile como en desktop
+- Si no hay partidos en el historial, se muestra el mensaje "Aún no hay partidos jugados"
+- El botón de historial aparece siempre en la pantalla de detalle de partido

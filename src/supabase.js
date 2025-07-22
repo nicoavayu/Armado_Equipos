@@ -270,6 +270,40 @@ export const getVotantesConNombres = async (partidoId) => {
   return votantes;
 };
 
+
+
+
+
+/**
+ * Verifica si un partido específico ya fue calificado por el usuario
+ * @param {number} partidoId - ID del partido
+ * @param {string} userId - ID del usuario
+ * @returns {boolean} True si ya fue calificado, false si no
+ */
+export const checkPartidoCalificado = async (partidoId, userId) => {
+  if (!partidoId || !userId) return false;
+  
+  try {
+    const { data, error } = await supabase
+      .from('post_match_surveys')
+      .select('id')
+      .eq('partido_id', partidoId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Error verificando calificación:', error);
+      return false;
+    }
+    
+    return !!data;
+    
+  } catch (error) {
+    console.error('Error en checkPartidoCalificado:', error);
+    return false;
+  }
+};
+
 // Chequea si el usuario (auth o guest) ya votó en un partido específico
 export const checkIfAlreadyVoted = async (votanteId, partidoId) => {
   // Obtiene el votanteId si no se pasó explícito
@@ -691,6 +725,26 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
     }
     
     console.log('Match created successfully:', data);
+    
+    // Actualizar el partido para que sea frecuente y su propio partido_frecuente_id sea igual a su id
+    if (data && data.id) {
+      const { error: updateError } = await supabase
+        .from("partidos")
+        .update({
+          partido_frecuente_id: data.id,
+          es_frecuente: true
+        })
+        .eq("id", data.id);
+      
+      if (updateError) {
+        console.error('Error updating match as frequent:', updateError);
+      } else {
+        // Actualizar el objeto data con las nuevas propiedades
+        data.partido_frecuente_id = data.id;
+        data.es_frecuente = true;
+      }
+    }
+    
     return data;
     
   } catch (error) {

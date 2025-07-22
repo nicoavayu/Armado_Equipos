@@ -1,0 +1,58 @@
+# Verificación del botón "Historial de partidos"
+
+## Problemas identificados y soluciones aplicadas
+
+1. **Verificación de la propiedad es_frecuente**
+   - Se ha detectado que la propiedad podría tener diferentes nombres en el objeto partidoFrecuente
+   - Se ha ampliado la verificación para aceptar múltiples variantes:
+     - es_frecuente
+     - frecuente
+     - esFrecuente
+     - tipo === 'frecuente'
+   - Esto asegura que el botón se muestre independientemente de cómo esté nombrada la propiedad
+
+2. **Agregado de console.log para debug**
+   - Se ha añadido un console.log(partidoFrecuente) antes del return
+   - Esto permitirá verificar en la consola del navegador:
+     - Si el objeto partidoFrecuente llega correctamente al componente
+     - Si contiene la propiedad es_frecuente (o alguna variante)
+     - Si el valor de dicha propiedad es true
+
+3. **Verificación de propiedades CSS**
+   - Se han añadido propiedades CSS explícitas para asegurar la visibilidad:
+     - opacity: 1
+     - visibility: visible
+     - position: relative
+     - z-index: 10
+   - Esto previene que el botón sea ocultado por estilos heredados o conflictos de CSS
+
+4. **Simplificación de la lógica**
+   - Se ha simplificado la lógica de verificación para hacerla más robusta
+   - Se han eliminado comentarios innecesarios para mantener el código limpio
+
+## Pasos para verificar el funcionamiento
+
+1. Abrir la consola del navegador (F12)
+2. Navegar a la pantalla del partido frecuente
+3. Verificar el objeto partidoFrecuente en la consola
+4. Confirmar que la propiedad es_frecuente (o alguna variante) existe y es true
+5. Si el botón sigue sin aparecer, verificar si hay errores en la consola
+
+## Posibles problemas adicionales
+
+Si después de estas correcciones el botón sigue sin aparecer, considerar:
+
+1. **Verificar el componente padre**
+   - Asegurarse de que el componente HistorialDePartidosButton está siendo importado correctamente
+   - Confirmar que el objeto partidoFrecuente se está pasando correctamente como prop
+
+2. **Verificar la estructura de datos**
+   - Es posible que el objeto partidoFrecuente tenga una estructura anidada
+   - Por ejemplo: partidoFrecuente.datos.es_frecuente
+
+3. **Verificar la consulta a la base de datos**
+   - Confirmar que la consulta a Supabase está incluyendo el campo es_frecuente
+   - Verificar que el campo se está asignando correctamente al objeto
+
+4. **Verificar el contexto de renderizado**
+   - Asegurarse de que no hay condiciones en componentes padres que estén impidiendo el renderizado

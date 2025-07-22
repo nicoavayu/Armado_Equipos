@@ -1,0 +1,100 @@
+.plantilla-jugadores {
+  margin-top: 20px;
+}
+
+.plantilla-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+}
+
+.plantilla-jugador-card {
+  background-color: #2a2a40;
+  border-radius: 10px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+
+.plantilla-jugador-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.plantilla-jugador-avatar {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-bottom: 10px;
+  background-color: #16162e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #8178e5;
+}
+
+.plantilla-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.plantilla-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #444;
+  color: white;
+  font-size: 1.8rem;
+  font-weight: bold;
+}
+
+.plantilla-jugador-info {
+  text-align: center;
+  width: 100%;
+}
+
+.plantilla-jugador-nombre {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 5px;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plantilla-jugador-score {
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+.plantilla-no-data {
+  text-align: center;
+  color: #aaa;
+  font-style: italic;
+  padding: 20px;
+  background-color: #2a2a40;
+  border-radius: 10px;
+  margin-top: 15px;
+}
+
+@media (max-width: 768px) {
+  .plantilla-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+  
+  .plantilla-jugador-avatar {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .plantilla-jugador-nombre {
+    font-size: 0.9rem;
+  }
+}

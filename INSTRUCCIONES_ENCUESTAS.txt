@@ -1,0 +1,45 @@
+# Instrucciones para la funcionalidad de encuestas post-partido
+
+## Descripción general
+Esta funcionalidad permite a los usuarios recibir notificaciones sobre partidos pasados que no han calificado y completar encuestas para estos partidos.
+
+## Componentes implementados
+
+1. **Funciones en supabase.js**:
+   - `getPartidosPendientesCalificacion`: Obtiene los partidos pasados donde el usuario participó y no ha completado la encuesta
+   - `checkPartidoCalificado`: Verifica si un partido específico ya fue calificado por el usuario
+
+2. **PartidosPendientesNotification**:
+   - Componente que muestra una notificación cuando hay partidos pendientes de calificación
+   - Al hacer clic, muestra un modal con la lista de partidos pendientes
+   - Cada partido tiene un botón "Calificar" que lleva a la encuesta
+
+3. **EncuestaPartido**:
+   - Página completa para calificar un partido
+   - Incluye preguntas sobre si se jugó el partido, si fue limpio, jugadores ausentes, etc.
+   - Permite seleccionar MVP, mejor arquero y jugador con tarjeta negra
+   - Guarda los resultados en las tablas `post_match_surveys` y `player_awards`
+
+## Integración
+
+- La notificación se muestra en el perfil del usuario (ProfileMenu.js)
+- La página de encuesta está accesible en la ruta `/encuesta/:partidoId`
+
+## Pruebas
+
+Para probar la funcionalidad, puedes usar los IDs de partidos que se muestran en la consola cuando se carga la notificación. Estos IDs se pueden usar para acceder directamente a la encuesta mediante la URL `/encuesta/{ID_PARTIDO}`.
+
+## Notas técnicas
+
+1. La consulta para obtener partidos pendientes usa:
+   - Fecha menor a la actual (menos 1 hora)
+   - Filtro para encontrar al usuario en el array `jugadores`
+   - Verificación de que no exista una encuesta para ese partido y usuario
+
+2. Los datos de la encuesta se guardan en:
+   - Tabla `post_match_surveys`: Datos generales de la encuesta
+   - Tabla `player_awards`: Premios otorgados a jugadores (MVP, arquero, tarjeta negra)
+
+3. La notificación tiene un efecto de pulso para llamar la atención del usuario
+
+4. El diseño es completamente responsive y mantiene la estética del resto de la aplicación

@@ -7,15 +7,15 @@ import { MODES, ADMIN_STEPS } from "./constants";
 import AmigosView from "./components/AmigosView";
 import { LOADING_STATES } from "./appConstants";
 import ErrorBoundary from "./components/ErrorBoundary";
-import AuthProvider from "./components/AuthProvider";
+import AuthProvider, { useAuth } from "./components/AuthProvider";
 import DirectFix from "./components/DirectFix";
 import Button from "./components/Button";
 import NetworkStatus from "./components/NetworkStatus";
 import TabBar from "./components/TabBar";
 import FifaHome from "./FifaHome";
 import SurveyManager from "./components/SurveyManager";
-import { useSurveyScheduler } from "./hooks/useSurveyScheduler";
 import TestSurvey from "./TestSurvey";
+import EncuestaPartido from "./pages/EncuestaPartido";
 
 import VotingView from "./VotingView";
 import AdminPanel from "./AdminPanel";
@@ -34,6 +34,9 @@ import WelcomeModal from "./components/WelcomeModal";
 import { getPartidoPorCodigo, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes } from "./supabase";
 import { toast } from 'react-toastify';
 import IngresoAdminPartido from "./IngresoAdminPartido";
+import AuthPage from "./components/AuthPage";
+import ResetPassword from "./components/ResetPassword";
+import { useSurveyScheduler } from "./hooks/useSurveyScheduler";
 
 const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
   <div className="voting-bg content-with-tabbar">
@@ -45,15 +48,13 @@ const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
       <button className="voting-confirm-btn" style={{marginBottom: 16, background: '#8178e5', borderRadius: '50px'}} onClick={onExistente}>
         HISTORIAL
       </button>
-      {/* Botón de volver eliminado ya que ahora tenemos el TabBar */}
     </div>
   </div>
 );
 
-export default function App() {
-  // Initialize survey scheduler to check for matches that need post-match surveys
+function MainAppContent({ user }) {
   useSurveyScheduler();
-  const [modo, setModo] = useState('home'); // Changed from MODES.HOME to 'home'
+  const [modo, setModo] = useState('home');
   const [partidoActual, setPartidoActual] = useState(undefined);
   const [stepPartido, setStepPartido] = useState(ADMIN_STEPS.SELECT_TYPE);
   const [partidoFrecuenteEditando, setPartidoFrecuenteEditando] = useState(null);
@@ -64,18 +65,10 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const codigo = params.get("codigo");
     if (codigo) {
-      console.log('Loading match from URL code:', codigo);
-      setModo(MODES.PLAYER); // Set player mode immediately
+      setModo(MODES.PLAYER);
       getPartidoPorCodigo(codigo)
-        .then(partido => {
-          console.log('Match loaded successfully:', partido);
-          setPartidoActual(partido);
-        })
-        .catch(error => {
-          console.error('Error loading match from code:', error);
-          // Keep in player mode but with null partido to show error
-          setPartidoActual(null);
-        });
+        .then(partido => setPartidoActual(partido))
+        .catch(() => setPartidoActual(null));
     }
   }, []);
 
@@ -92,14 +85,12 @@ export default function App() {
     }
   };
 
-  // Renderizar el contenido según el modo seleccionado
   let content;
   let showTabBar = true;
   let activeTab = modo;
-  
+
   if (modo === MODES.ADMIN) {
     activeTab = 'votacion';
-    
     if (stepPartido === ADMIN_STEPS.SELECT_TYPE) {
       content = (
         <SeleccionarTipoPartido
@@ -157,7 +148,6 @@ export default function App() {
         />
       );
     }
-
     else if (stepPartido === ADMIN_STEPS.MANAGE && partidoActual) {
       content = (
         <div className="voting-bg content-with-tabbar">
@@ -189,7 +179,6 @@ export default function App() {
           <FifaHome onModoSeleccionado={(m, tab) => {
             setModo(m);
             if (m === MODES.ADMIN) setStepPartido(ADMIN_STEPS.SELECT_TYPE);
-            // Store the tab for QuieroJugar view
             if (m === 'quiero-jugar' && tab) {
               sessionStorage.setItem('quiero-jugar-tab', tab);
             }
@@ -197,7 +186,6 @@ export default function App() {
         </div>
       </div>
     );
-  // Removed 'simple' mode handling since it's now inside 'Armar Equipos'
   } else if (modo === 'votacion') {
     setModo(MODES.ADMIN);
     setStepPartido(ADMIN_STEPS.SELECT_TYPE);
@@ -251,16 +239,7 @@ export default function App() {
       </div>
     );
   }
-  
-  // Mostrar el TabBar en todos los modos
-  showTabBar = true;
 
-  if (modo === MODES.VOTING) {
-    setModo(MODES.ADMIN);
-    return null;
-  }
-
-  // Renderizado para modos no disponibles
   if (!content) {
     content = (
       <div className="voting-bg content-with-tabbar">
@@ -280,15 +259,13 @@ export default function App() {
       </div>
     );
   }
-  
-  // Handle profile click
+
   const handleProfileClick = () => {
     setShowProfileEditor(true);
     setModo('profile');
   };
 
-  // Renderizado principal con TabBar y GlobalHeader
-  const mainApp = (
+  return (
     <>
       <DirectFix />
       <GlobalHeader onProfileClick={handleProfileClick} />
@@ -304,23 +281,11 @@ export default function App() {
           }} 
         />
       )}
-      <Tutorial />
-      <WelcomeModal />
-      <SurveyManager />
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
     </>
   );
-  
+}
+
+export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
@@ -330,12 +295,31 @@ export default function App() {
               <Routes>
                 <Route path="/test-survey" element={<TestSurvey />} />
                 <Route path="/test-survey/:partidoId/:userId" element={<TestSurvey />} />
-                <Route path="*" element={mainApp} />
+                <Route path="/encuesta/:partidoId" element={<EncuestaPartido />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route
+                  path="*"
+                  element={
+                    <AppAuthWrapper />
+                  }
+                />
               </Routes>
+              <ToastContainer position="top-right" autoClose={5000} />
             </Router>
           </TutorialProvider>
         </NotificationProvider>
       </AuthProvider>
     </ErrorBoundary>
   );
+}
+
+// Wrapper para controlar la autenticación en la ruta principal
+function AppAuthWrapper() {
+  const { user } = useAuth();
+  if (!user) {
+    // Si no está logueado, muestra solo el login/register
+    return <AuthPage />;
+  }
+  // Si está logueado, muestra la app completa
+  return <MainAppContent user={user} />;
 }

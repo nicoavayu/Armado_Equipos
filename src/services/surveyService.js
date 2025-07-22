@@ -3,33 +3,49 @@ import { supabase } from '../supabase';
 /**
  * Creates post-match survey notifications for all players in a match
  * @param {Object} partido - The match object
+ * @returns {Promise<Array>} - Array of created notifications or empty array if error
  */
 export const createPostMatchSurveyNotifications = async (partido) => {
-  if (!partido || !partido.jugadores || !partido.jugadores.length) return;
+  if (!partido || !partido.jugadores || !partido.jugadores.length) return [];
   
   try {
+    // Get unique user IDs from the match participants (exclude guest users)
+    const userIds = partido.jugadores
+      .filter(jugador => jugador.uuid && !jugador.uuid.startsWith('guest_'))
+      .map(jugador => jugador.uuid);
+    
+    if (userIds.length === 0) return [];
+    
     // Create notifications for all players
-    const notifications = partido.jugadores.map(jugador => ({
-      user_id: jugador.uuid || jugador.id,
+    const notifications = userIds.map(userId => ({
+      user_id: userId,
       type: 'post_match_survey',
-      title: '¡Encuesta post-partido!',
-      message: `Ayúdanos a mejorar completando una breve encuesta sobre el partido ${partido.nombre || 'reciente'}.`,
+      title: '¡Completá la encuesta!',
+      message: `Ayudanos calificando la experiencia del partido ${partido.nombre || 'reciente'}.`,
+      data: {
+        matchId: partido.id,
+        matchCode: partido.codigo,
+        matchDate: partido.fecha,
+        matchTime: partido.hora,
+        matchVenue: partido.sede
+      },
       read: false,
-      match_id: partido.id,
       created_at: new Date().toISOString()
     }));
     
     // Insert notifications into the database
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('notifications')
-      .insert(notifications);
+      .insert(notifications)
+      .select();
       
     if (error) throw error;
     
-    return true;
+    console.log(`Creadas ${data?.length || 0} notificaciones de encuesta post-partido`);
+    return data || [];
   } catch (error) {
     console.error('Error creating post-match survey notifications:', error);
-    return false;
+    return [];
   }
 };
 

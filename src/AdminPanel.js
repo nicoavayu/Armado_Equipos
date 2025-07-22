@@ -25,6 +25,7 @@ import Button from "./components/Button";
 import ChatButton from "./components/ChatButton";
 import { PlayerCardTrigger } from "./components/ProfileComponents";
 import LoadingSpinner from "./components/LoadingSpinner";
+import { HistorialDePartidosButton } from "./components/historial";
 
 function MiniAvatar({ foto_url, nombre, size = 34 }) {
   if (foto_url) {
@@ -313,6 +314,15 @@ async function handleCerrarVotacion() {
     setShowTeamView(true);
     onJugadoresChange(matchPlayers);
     
+    // Programar notificaciones de encuesta post-partido
+    try {
+      const { schedulePostMatchSurveyNotifications } = await import('./utils/matchNotifications');
+      await schedulePostMatchSurveyNotifications(partidoActual);
+    } catch (scheduleError) {
+      console.warn('No se pudieron programar las notificaciones de encuesta:', scheduleError);
+      // No mostramos error al usuario ya que no es crítico para la funcionalidad principal
+    }
+    
     // Success!
     toast.success(result.message || 'Votación cerrada y equipos creados');
     
@@ -354,15 +364,21 @@ async function handleCerrarVotacion() {
         return;
       }
       
-      // Aquí iría la lógica para enviar notificaciones a los jugadores
-      // Por ahora, mostramos un mensaje de éxito simulado
-      toast.success(`Notificación enviada a ${jugadores.length} jugadores`);
+      // Importar dinámicamente la función para crear notificaciones
+      const { createCallToVoteNotifications } = await import('./utils/matchNotifications');
       
-      // En una implementación real, se enviaría una solicitud al backend
-      // para enviar notificaciones push a los dispositivos de los jugadores
-      // const response = await sendNotificationsToPlayers(partidoActual.id, jugadores);
+      // Crear notificaciones para todos los jugadores
+      const notificaciones = await createCallToVoteNotifications(partidoActual);
+      
+      // Mostrar mensaje de éxito con el número de notificaciones creadas
+      if (notificaciones.length > 0) {
+        toast.success(`Notificación enviada a ${notificaciones.length} jugadores`);
+      } else {
+        toast.info("No se pudieron enviar notificaciones. Asegúrate que los jugadores tengan cuenta.");
+      }
       
     } catch (error) {
+      console.error("Error al enviar notificaciones:", error);
       toast.error("Error al enviar notificaciones: " + error.message);
     }
   }
@@ -631,6 +647,14 @@ async function handleCerrarVotacion() {
             >
               {partidoActual.falta_jugadores ? 'PARTIDO ABIERTO' : 'FALTAN JUGADORES'}
             </button>
+            
+            {/* Botón de Historial de Partidos */}
+            <HistorialDePartidosButton partidoFrecuente={{
+              id: partidoActual.id,
+              es_frecuente: partidoActual.es_frecuente,
+              partido_frecuente_id: partidoActual.partido_frecuente_id,
+              nombre: partidoActual.nombre,
+            }} />
             
             {/* Botón de volver al inicio eliminado */}
           </div>

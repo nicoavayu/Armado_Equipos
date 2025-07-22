@@ -3,11 +3,6 @@ import { supabase } from '../../supabase';
 import ListaDeFechasModal from './ListaDeFechasModal';
 import './HistorialDePartidosButton.css';
 
-/**
- * Botón que muestra el historial de partidos para un partido frecuente
- * Solo se muestra si el partido es frecuente
- * @param {Object} partidoFrecuente - Datos del partido frecuente
- */
 const HistorialDePartidosButton = ({ partidoFrecuente }) => {
   const [showModal, setShowModal] = useState(false);
   const [historialPartidos, setHistorialPartidos] = useState([]);
@@ -16,19 +11,24 @@ const HistorialDePartidosButton = ({ partidoFrecuente }) => {
 
   // Obtener historial de partidos desde Supabase
   const fetchHistorialPartidos = async () => {
-    if (!partidoFrecuente || !partidoFrecuente.id) return;
+    if (!partidoFrecuente || !partidoFrecuente.id) {
+      return;
+    }
     
     setLoading(true);
     setError(null);
     
     try {
+      // Usar partido_frecuente_id si existe, sino usar el id del partido actual
+      const idBusqueda = partidoFrecuente.partido_frecuente_id || partidoFrecuente.id;
+      
       const { data, error } = await supabase
         .from('partidos')
         .select(`
           *,
           equipos:equipos_partidos(*)
         `)
-        .eq('partido_frecuente_id', partidoFrecuente.id)
+        .eq('partido_frecuente_id', idBusqueda)
         .order('fecha', { ascending: false });
       
       if (error) throw error;
@@ -51,11 +51,6 @@ const HistorialDePartidosButton = ({ partidoFrecuente }) => {
   const handleClose = () => {
     setShowModal(false);
   };
-
-  // Solo mostrar el botón si es un partido frecuente
-  if (!partidoFrecuente || !partidoFrecuente.es_frecuente) {
-    return null;
-  }
 
   return (
     <>

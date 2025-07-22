@@ -37,6 +37,15 @@ const NotificationsView = () => {
         break;
       case 'match_invite':
         // Navigate to match or handle match invite
+        if (notification.data?.matchCode) {
+          window.location.href = `/?codigo=${notification.data.matchCode}`;
+        }
+        break;
+      case 'call_to_vote':
+        // Navigate to voting page for the match
+        if (notification.data?.matchCode) {
+          window.location.href = `/?codigo=${notification.data.matchCode}`;
+        }
         break;
       case 'post_match_survey':
         // Find the corresponding survey in pendingSurveys
@@ -44,6 +53,9 @@ const NotificationsView = () => {
         if (survey) {
           setCurrentSurvey(survey);
           setShowSurveyModal(true);
+        } else if (notification.data?.matchId) {
+          // Si no encontramos la encuesta en pendingSurveys, intentamos abrir la página de encuesta directamente
+          window.location.href = `/encuesta/${notification.data.matchId}`;
         }
         break;
       default:
@@ -63,6 +75,8 @@ const NotificationsView = () => {
         return '🔄';
       case 'post_match_survey':
         return '📋';
+      case 'call_to_vote':
+        return '⭐';
       default:
         return '📣';
     }

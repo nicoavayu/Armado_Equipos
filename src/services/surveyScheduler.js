@@ -8,38 +8,62 @@ import { createPostMatchSurveyNotifications } from './surveyService';
 export const checkMatchesForSurveys = async () => {
   try {
     const now = new Date();
-    
-    // Get matches that ended in the last hour
-    // We're looking for matches that ended between 1 hour ago and now
-    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-    
-    // Format dates for Supabase query
-    const oneHourAgoStr = oneHourAgo.toISOString();
     const nowStr = now.toISOString();
     
-    // Get matches that ended in the last hour and haven't had surveys sent yet
-    const { data: matches, error } = await supabase
+    // Método 1: Buscar partidos que terminaron hace 1 hora (hora_fin)
+    const { data: matchesWithEndTime, error: endTimeError } = await supabase
       .from('partidos')
       .select('*')
       .eq('estado', 'activo')
       .is('surveys_sent', false)
-      .lt('hora_fin', nowStr)
-      .gt('hora_fin', oneHourAgoStr);
+      .lt('hora_fin', nowStr);
       
-    if (error) throw error;
+    if (endTimeError) throw endTimeError;
     
-    // Create survey notifications for each match
-    for (const match of matches || []) {
+    // Método 2: Buscar partidos con tiempo de encuesta programado (survey_time)
+    const { data: matchesWithScheduledTime, error: scheduleError } = await supabase
+      .from('partidos')
+      .select('*')
+      .eq('estado', 'activo')
+      .is('surveys_sent', false)
+      .eq('survey_scheduled', true)
+      .lt('survey_time', nowStr);
+      
+    if (scheduleError) throw scheduleError;
+    
+    // Combinar resultados y eliminar duplicados
+    const matchIds = new Set();
+    const matches = [];
+    
+    // Procesar partidos con hora_fin
+    for (const match of matchesWithEndTime || []) {
+      if (!matchIds.has(match.id)) {
+        matchIds.add(match.id);
+        matches.push(match);
+      }
+    }
+    
+    // Procesar partidos con survey_time
+    for (const match of matchesWithScheduledTime || []) {
+      if (!matchIds.has(match.id)) {
+        matchIds.add(match.id);
+        matches.push(match);
+      }
+    }
+    
+    // Crear notificaciones de encuesta para cada partido
+    for (const match of matches) {
+      console.log(`Creando notificaciones de encuesta para partido ${match.id}`);
       await createPostMatchSurveyNotifications(match);
       
-      // Mark match as having surveys sent
+      // Marcar partido como con encuestas enviadas
       await supabase
         .from('partidos')
         .update({ surveys_sent: true })
         .eq('id', match.id);
     }
     
-    return matches?.length || 0;
+    return matches.length;
   } catch (error) {
     console.error('Error checking matches for surveys:', error);
     return 0;

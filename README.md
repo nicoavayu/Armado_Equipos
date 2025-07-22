@@ -1,134 +1,120 @@
-# Getting Started with Create React App
+# Team Balancer
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Una aplicación web para organizar partidos de fútbol y crear equipos equilibrados basados en las habilidades de los jugadores.
 
-## Available Scripts
+## 🚀 Características
 
-In the project directory, you can run:
+- **Gestión de Partidos**: Crea partidos individuales o recurrentes con fecha, hora y sede
+- **Sistema de Votación**: Califica a los jugadores con un sistema de estrellas (1-10)
+- **Formación de Equipos**: Algoritmo de balanceo que distribuye jugadores según sus puntuaciones
+- **Perfiles de Usuario**: Gestiona tu perfil con foto, información personal y estadísticas
+- **Encuestas Post-Partido**: Evalúa la experiencia y selecciona jugadores destacados
+- **Historial de Partidos**: Visualiza el historial de partidos jugados con estadísticas
+- **Sistema de Jugadores Libres**: Regístrate como disponible para completar equipos
+- **Autenticación**: Soporte para usuarios registrados y sesiones de invitados
 
-### `npm start`
+## 📋 Requisitos
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- Node.js 16.x o superior
+- NPM 8.x o superior
+- Cuenta en Supabase
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 🛠️ Instalación
 
-### `npm test`
+1. Clona el repositorio:
+   ```bash
+   git clone https://github.com/tu-usuario/team-balancer.git
+   cd team-balancer
+   ```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+2. Instala las dependencias:
+   ```bash
+   npm install
+   ```
 
-### `npm run build`
+3. Crea un archivo `.env` en la raíz del proyecto con las siguientes variables:
+   ```
+   REACT_APP_SUPABASE_URL=tu_url_de_supabase
+   REACT_APP_SUPABASE_ANON_KEY=tu_clave_anonima_de_supabase
+   ```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+4. Inicia el servidor de desarrollo:
+   ```bash
+   npm start
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## 📱 Compilación para móvil (Capacitor)
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Android
 
-### `npm run eject`
+```bash
+npm run build
+npx cap sync android
+npx cap open android
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### iOS
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
-
-
-🟣 Rama votacion-svg-magenta
-✨ Cambios principales
-Nuevo sistema de votación con estrellas SVG animadas y color magenta.
-
-UX mejorada: número debajo de las estrellas, feedback en hover, puntajes se guardan bien.
-
-Edición de puntaje para cada jugador funcionando y reflejando el cambio en el resumen.
-
-Lógica corregida para votaciones y edición.
-
-📂 Archivos principales modificados/agregados
-src/StarRating.js (componente SVG animado)
-
-src/VotingView.js (componente de votación actualizado)
-
-src/VotingView.css (estilos de las estrellas)
-
-src/App.js (importaciones y estructura)
-
-🟢 Estado de la rama
-Cambios subidos y funcionando correctamente en local.
-
-Rama aislada de main. No mergeada todavía.
-
-Puede mergearse a main luego de las pruebas finales.
-
-📝 Pendiente/Testear
-Testear la experiencia de usuario en mobile (responsividad).
-
-Revisar que los puntajes se mantengan después de recargar, si se quiere persistencia mayor (ahora son temporales).
-
-Agregar nuevas features o corregir feedback futuro si surge.
+```bash
+npm run build
+npx cap sync ios
+npx cap open ios
+```
 
 ## 🧪 Testing
 
-El proyecto incluye tests unitarios e integración usando React Testing Library + Jest.
-
-### Ejecutar tests
 ```bash
 npm test
 ```
 
-### Tests incluidos
-- **PlayerForm.test.js**: Tests para agregar jugadores y validación
-- **TeamGenerator.test.js**: Tests para generación de equipos
-- **AuthProvider.test.js**: Tests de integración para autenticación
+## 📚 Estructura del Proyecto
 
-## ♿ Accesibilidad
+```
+src/
+├── components/        # Componentes reutilizables
+├── context/           # Contextos de React
+├── hooks/             # Custom hooks
+├── pages/             # Componentes de página completa
+├── services/          # Servicios (API, autenticación, etc.)
+├── utils/             # Funciones utilitarias
+└── constants/         # Constantes y configuración
+```
 
-La aplicación incluye mejoras de accesibilidad:
+## 🔧 Scripts Disponibles
 
-- **Navegación por teclado**: Todos los elementos interactivos son accesibles via teclado
-- **ARIA labels**: Etiquetas descriptivas para lectores de pantalla
-- **Gestión de foco**: Focus trap en modales y navegación lógica
-- **Alto contraste**: Soporte para modo de alto contraste
-- **Movimiento reducido**: Respeta las preferencias de movimiento reducido del usuario
+- `npm start`: Inicia el servidor de desarrollo
+- `npm test`: Ejecuta los tests
+- `npm run build`: Compila la aplicación para producción
+- `npm run eject`: Expone la configuración de webpack (¡operación irreversible!)
+- `node scripts/cleanup.js`: Genera un reporte de limpieza de código
 
-### Características de accesibilidad
-- Modales con roles ARIA apropiados
-- Botones con etiquetas descriptivas
-- Indicadores de foco visibles
-- Soporte para lectores de pantalla
+## 🗄️ Estructura de la Base de Datos
+
+### Tablas Principales
+
+- **partidos**: Almacena información de los partidos
+- **jugadores**: Información de los jugadores
+- **votos**: Registra los votos de los jugadores
+- **usuarios**: Perfiles de usuario
+- **partidos_frecuentes**: Plantillas de partidos recurrentes
+- **post_match_surveys**: Encuestas post-partido
+- **amigos**: Sistema de amigos entre usuarios
+- **jugadores_sin_partido**: Jugadores disponibles para completar equipos
+
+## 🤝 Contribución
+
+1. Haz un fork del proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/amazing-feature`)
+3. Haz commit de tus cambios (`git commit -m 'Add some amazing feature'`)
+4. Push a la rama (`git push origin feature/amazing-feature`)
+5. Abre un Pull Request
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.
+
+## 📞 Contacto
+
+Nombre - [@tu_twitter](https://twitter.com/tu_twitter) - email@example.com
+
+Link del Proyecto: [https://github.com/tu-usuario/team-balancer](https://github.com/tu-usuario/team-balancer)

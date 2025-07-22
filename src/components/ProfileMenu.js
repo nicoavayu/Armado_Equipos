@@ -4,6 +4,7 @@ import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, uploadFoto, supabase } from '../supabase';
 import AvatarWithProgress from './AvatarWithProgress';
 import ModernToggle from './ModernToggle';
+import PartidosPendientesNotification from './PartidosPendientesNotification';
 import './ProfileMenu.css';
 
 export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
@@ -172,6 +173,11 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
               <div className="banner-subtitle">Para la mejor experiencia ({completion}% completo)</div>
             </div>
           </div>
+        )}
+        
+        {/* Notificación de partidos pendientes */}
+        {user && user.id && (
+          <PartidosPendientesNotification userId={user.id} />
         )}
 
         {/* Form Fields */}

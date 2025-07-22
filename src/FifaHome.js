@@ -9,7 +9,7 @@ import ProfileEditor from "./components/ProfileEditor";
 import NotificationsView from "./components/NotificationsView";
 
 export default function FifaHome({ onModoSeleccionado }) {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -21,11 +21,6 @@ export default function FifaHome({ onModoSeleccionado }) {
     }, 1000);
     return () => clearTimeout(timer);
   }, []);
-
-  // We no longer need this handler as notifications are handled by the GlobalHeader
-  // const handleNotificationsClick = () => {
-  //   setShowNotifications(true);
-  // };
 
   // If loading, show only the logo
   if (loading) {
@@ -57,27 +52,13 @@ export default function FifaHome({ onModoSeleccionado }) {
   return (
     <div className="voting-bg home-bg content-with-tabbar">
       <div className="voting-modern-card fifa-home-container">
-        {/* Authentication */}
-        {!user && (
-          <div className="fifa-auth-container">
-            <img
-              src={Logo}
-              alt="Logo"
-              className="fifa-auth-logo"
-            />
-            <GoogleAuth user={user} />
-          </div>
-        )}
-        
-        {/* FIFA-style menu content */}
-        {user && (
-          <FifaHomeContent 
-            onCreateMatch={() => onModoSeleccionado('votacion')}
-            onViewHistory={() => onModoSeleccionado('votacion')}
-            onViewInvitations={() => onModoSeleccionado('quiero-jugar', 'matches')}
-            onViewActivePlayers={() => onModoSeleccionado('quiero-jugar', 'players')}
-          />
-        )}
+        {/* FIFA-style menu content - Siempre mostramos el contenido porque la autenticación se maneja en App.js */}
+        <FifaHomeContent 
+          onCreateMatch={() => onModoSeleccionado('votacion')}
+          onViewHistory={() => onModoSeleccionado('votacion')}
+          onViewInvitations={() => onModoSeleccionado('quiero-jugar', 'matches')}
+          onViewActivePlayers={() => onModoSeleccionado('quiero-jugar', 'players')}
+        />
       </div>
       
       {/* Profile Editor */}
