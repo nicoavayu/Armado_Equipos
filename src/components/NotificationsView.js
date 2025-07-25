@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNotifications } from '../context/NotificationContext';
 import { useSurveys } from '../hooks/useSurveys';
+import { useAmigos } from '../hooks/useAmigos';
+import { useAuth } from './AuthProvider';
 import PostMatchSurvey from './PostMatchSurvey';
+import { toast } from 'react-toastify';
 import './NotificationsView.css';
 
 const NotificationsView = () => {
+  const { user } = useAuth();
   const { 
     notifications, 
     markAsRead, 
@@ -13,8 +17,10 @@ const NotificationsView = () => {
   } = useNotifications();
   
   const { pendingSurveys, openSurvey, closeSurvey, handleSurveySubmit } = useSurveys();
+  const { acceptFriendRequest, rejectFriendRequest } = useAmigos(user?.id);
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [currentSurvey, setCurrentSurvey] = useState(null);
+  const [processingRequests, setProcessingRequests] = useState(new Set());
 
   useEffect(() => {
     fetchNotifications();
@@ -33,7 +39,11 @@ const NotificationsView = () => {
     // Handle different notification types
     switch (notification.type) {
       case 'friend_request':
-        // Navigate to friends tab or handle friend request
+        // Don't navigate, let user handle with action buttons
+        break;
+      case 'friend_accepted':
+        // Navigate to friends tab
+        window.location.href = '/amigos';
         break;
       case 'match_invite':
         // Navigate to match or handle match invite
@@ -64,14 +74,68 @@ const NotificationsView = () => {
     }
   };
 
+  const handleAcceptFriend = async (notification) => {
+    const requestId = notification.data?.requestId;
+    if (!requestId) return;
+    
+    setProcessingRequests((prev) => new Set([...prev, requestId]));
+    
+    try {
+      const result = await acceptFriendRequest(requestId);
+      if (result.success) {
+        toast.success('Solicitud de amistad aceptada');
+        markAsRead(notification.id);
+        fetchNotifications();
+      } else {
+        toast.error(result.message || 'Error al aceptar solicitud');
+      }
+    } catch (error) {
+      toast.error('Error al aceptar solicitud');
+    } finally {
+      setProcessingRequests((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(requestId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleRejectFriend = async (notification) => {
+    const requestId = notification.data?.requestId;
+    if (!requestId) return;
+    
+    setProcessingRequests((prev) => new Set([...prev, requestId]));
+    
+    try {
+      const result = await rejectFriendRequest(requestId);
+      if (result.success) {
+        toast.success('Solicitud de amistad rechazada');
+        markAsRead(notification.id);
+        fetchNotifications();
+      } else {
+        toast.error(result.message || 'Error al rechazar solicitud');
+      }
+    } catch (error) {
+      toast.error('Error al rechazar solicitud');
+    } finally {
+      setProcessingRequests((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(requestId);
+        return newSet;
+      });
+    }
+  };
+
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'friend_request':
         return '👥';
-      case 'match_invite':
-        return '⚽';
       case 'friend_accepted':
         return '✅';
+      case 'friend_rejected':
+        return '❌';
+      case 'match_invite':
+        return '⚽';
       case 'match_update':
         return '🔄';
       case 'post_match_survey':
@@ -106,8 +170,8 @@ const NotificationsView = () => {
           {notifications.map((notification) => (
             <div 
               key={notification.id} 
-              className={`notification-item ${!notification.read ? 'unread' : ''}`}
-              onClick={() => handleNotificationClick(notification)}
+              className={`notification-item ${!notification.read ? 'unread' : ''} ${notification.type === 'friend_request' ? 'friend-request' : ''}`}
+              onClick={() => notification.type !== 'friend_request' ? handleNotificationClick(notification) : null}
             >
               <div className="notification-icon">
                 {getNotificationIcon(notification.type)}
@@ -116,6 +180,32 @@ const NotificationsView = () => {
                 <div className="notification-title">{notification.title}</div>
                 <div className="notification-message">{notification.message}</div>
                 <div className="notification-time">{formatDate(notification.created_at)}</div>
+                
+                {/* Friend request action buttons */}
+                {notification.type === 'friend_request' && !notification.read && (
+                  <div className="friend-request-actions">
+                    <button 
+                      className="accept-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAcceptFriend(notification);
+                      }}
+                      disabled={processingRequests.has(notification.data?.requestId)}
+                    >
+                      {processingRequests.has(notification.data?.requestId) ? 'Aceptando...' : 'Aceptar'}
+                    </button>
+                    <button 
+                      className="reject-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRejectFriend(notification);
+                      }}
+                      disabled={processingRequests.has(notification.data?.requestId)}
+                    >
+                      {processingRequests.has(notification.data?.requestId) ? 'Rechazando...' : 'Rechazar'}
+                    </button>
+                  </div>
+                )}
               </div>
               {!notification.read && <div className="unread-indicator"></div>}
             </div>

@@ -107,3 +107,48 @@
   background-color: #ff3366;
   border-radius: 50%;
 }
+
+/* Friend request specific styles */
+.notification-item.friend-request {
+  cursor: default;
+}
+
+.friend-request-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.friend-request-actions button {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  min-width: 70px;
+}
+
+.accept-btn {
+  background: #4CAF50;
+  color: white;
+}
+
+.accept-btn:hover:not(:disabled) {
+  background: #45a049;
+}
+
+.reject-btn {
+  background: #f44336;
+  color: white;
+}
+
+.reject-btn:hover:not(:disabled) {
+  background: #da190b;
+}
+
+.friend-request-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

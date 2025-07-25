@@ -6,6 +6,7 @@ import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
 import { useNotifications } from '../context/NotificationContext';
+import UserSearch from './UserSearch';
 import './AmigosView.css';
 
 const AmigosView = () => {
@@ -13,6 +14,7 @@ const AmigosView = () => {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showUserSearch, setShowUserSearch] = useState(false);
   const { markTypeAsRead } = useNotifications();
   
   const { 
@@ -121,7 +123,15 @@ const AmigosView = () => {
 
   return (
     <div className="amigos-container">
-      <div className="match-name">AMIGOS</div>
+      <div className="amigos-header">
+        <div className="match-name">AMIGOS</div>
+        <button 
+          className="search-users-btn"
+          onClick={() => setShowUserSearch(true)}
+        >
+          🔍 Buscar usuarios
+        </button>
+      </div>
       
       {/* Pending requests section */}
       {pendingRequests.length > 0 && (
@@ -186,6 +196,11 @@ const AmigosView = () => {
           <p>No tienes amigos agregados todavía.</p>
           <p>Busca jugadores y envíales solicitudes de amistad.</p>
         </div>
+      )}
+      
+      {/* User search modal */}
+      {showUserSearch && (
+        <UserSearch onClose={() => setShowUserSearch(false)} />
       )}
     </div>
   );

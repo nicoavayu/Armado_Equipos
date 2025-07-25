@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import { toast } from 'react-toastify';
 
 const NotificationContext = createContext();
 
@@ -78,6 +79,45 @@ export const NotificationProvider = ({ children }) => {
   const handleNewNotification = (notification) => {
     setNotifications((prev) => [notification, ...prev]);
     updateUnreadCount([notification, ...notifications]);
+    
+    // Show toast notification for real-time updates
+    showNotificationToast(notification);
+  };
+
+  // Show toast notification based on type
+  const showNotificationToast = (notification) => {
+    const toastOptions = {
+      position: 'top-right',
+      autoClose: 5000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+    };
+
+    switch (notification.type) {
+      case 'friend_request':
+        toast.info(`👥 ${notification.title}: ${notification.message}`, toastOptions);
+        break;
+      case 'friend_accepted':
+        toast.success(`✅ ${notification.title}: ${notification.message}`, toastOptions);
+        break;
+      case 'friend_rejected':
+        toast.warning(`❌ ${notification.title}: ${notification.message}`, toastOptions);
+        break;
+      case 'match_invite':
+        toast.info(`⚽ ${notification.title}: ${notification.message}`, toastOptions);
+        break;
+      case 'call_to_vote':
+        toast.info(`⭐ ${notification.title}: ${notification.message}`, toastOptions);
+        break;
+      case 'post_match_survey':
+        toast.info(`📋 ${notification.title}: ${notification.message}`, toastOptions);
+        break;
+      default:
+        toast.info(`📣 ${notification.title}: ${notification.message}`, toastOptions);
+        break;
+    }
   };
 
   // Update unread count

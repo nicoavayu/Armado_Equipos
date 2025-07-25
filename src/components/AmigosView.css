@@ -4,6 +4,47 @@
   margin: 0 auto;
 }
 
+.amigos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.search-users-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-users-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .amigos-header {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .search-users-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* Using global match-name class from HomeStyleKit.css for the main title */
 /* .match-name is defined in HomeStyleKit.css as:
   font-family: 'Bebas Neue', Arial, sans-serif;

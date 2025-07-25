@@ -103,8 +103,16 @@ const ProfileCardModal = ({ isOpen, onClose, profile }) => {
     if (result.success) {
       console.log('[PROFILE_MODAL] Friend request sent successfully');
       setRelationshipStatus({ id: result.data.id, status: 'pending' });
+      // Show success toast
+      if (window.showToast) {
+        window.showToast('Solicitud de amistad enviada', 'success');
+      }
     } else {
       console.error('[PROFILE_MODAL] Error sending friend request:', result.message);
+      // Show error toast
+      if (window.showToast) {
+        window.showToast(result.message || 'Error al enviar solicitud', 'error');
+      }
     }
   };
   
@@ -145,7 +153,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile }) => {
           onClick={handleAddFriend}
           disabled={isLoading}
         >
-          <span>Agregar a amigos</span>
+          <span>{isLoading ? 'Enviando...' : 'Solicitar amistad'}</span>
         </button>
       );
     }
