@@ -77,8 +77,11 @@ export const NotificationProvider = ({ children }) => {
 
   // Handle new notification
   const handleNewNotification = (notification) => {
-    setNotifications((prev) => [notification, ...prev]);
-    updateUnreadCount([notification, ...notifications]);
+    setNotifications((prev) => {
+      const updated = [notification, ...prev];
+      updateUnreadCount(updated);
+      return updated;
+    });
     
     // Show toast notification for real-time updates
     showNotificationToast(notification);
