@@ -31,12 +31,14 @@ export const NotificationProvider = ({ children }) => {
   useEffect(() => {
     if (!currentUserId) return;
 
+    console.log('[NOTIFICATIONS] Setting up for user:', currentUserId);
+    
     // Initial fetch of notifications
     fetchNotifications();
 
     // Subscribe to real-time notifications
     const subscription = supabase
-      .channel('notifications-channel')
+      .channel(`notifications-${currentUserId}`)
       .on('postgres_changes', 
         { 
           event: 'INSERT', 
@@ -45,12 +47,16 @@ export const NotificationProvider = ({ children }) => {
           filter: `user_id=eq.${currentUserId}`,
         }, 
         (payload) => {
+          console.log('[NOTIFICATIONS] Real-time notification received:', payload);
           handleNewNotification(payload.new);
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[NOTIFICATIONS] Subscription status:', status);
+      });
 
     return () => {
+      console.log('[NOTIFICATIONS] Cleaning up subscription');
       supabase.removeChannel(subscription);
     };
   }, [currentUserId]);
@@ -77,6 +83,8 @@ export const NotificationProvider = ({ children }) => {
 
   // Handle new notification
   const handleNewNotification = (notification) => {
+    console.log('[NOTIFICATIONS] New notification received:', notification);
+    
     setNotifications((prev) => {
       const updated = [notification, ...prev];
       updateUnreadCount(updated);
@@ -89,6 +97,8 @@ export const NotificationProvider = ({ children }) => {
 
   // Show toast notification based on type
   const showNotificationToast = (notification) => {
+    console.log('[NOTIFICATIONS] Showing toast for:', notification.type, notification.message);
+    
     const toastOptions = {
       position: 'top-right',
       autoClose: 5000,
@@ -100,7 +110,7 @@ export const NotificationProvider = ({ children }) => {
 
     switch (notification.type) {
       case 'friend_request':
-        toast.info(`👥 ${notification.title}: ${notification.message}`, toastOptions);
+        toast.info(`👥 Nueva solicitud de amistad de ${notification.data?.senderName || 'alguien'}`, toastOptions);
         break;
       case 'friend_accepted':
         toast.success(`✅ ${notification.title}: ${notification.message}`, toastOptions);

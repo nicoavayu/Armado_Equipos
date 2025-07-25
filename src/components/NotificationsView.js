@@ -23,8 +23,16 @@ const NotificationsView = () => {
   const [processingRequests, setProcessingRequests] = useState(new Set());
 
   useEffect(() => {
+    console.log('[NOTIFICATIONS_VIEW] Component mounted, fetching notifications');
     fetchNotifications();
   }, [fetchNotifications]);
+
+  // Log notifications when they change
+  useEffect(() => {
+    console.log('[NOTIFICATIONS_VIEW] Notifications updated:', notifications.length, 'total');
+    const friendRequests = notifications.filter((n) => n.type === 'friend_request');
+    console.log('[NOTIFICATIONS_VIEW] Friend requests:', friendRequests.length, friendRequests);
+  }, [notifications]);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);

@@ -216,17 +216,25 @@ export const useAmigos = (currentUserId) => {
           .single();
           
         // Create notification in the database for the recipient
-        await supabase
+        const notificationResult = await supabase
           .from('notifications')
           .insert([{
             user_id: friendIdUuid,
             type: 'friend_request',
             title: 'Nueva solicitud de amistad',
             message: `${senderProfile?.nombre || 'Alguien'} te ha enviado una solicitud de amistad`,
-            data: { requestId: data.id, senderId: userIdUuid },
+            data: { 
+              requestId: data.id, 
+              senderId: userIdUuid,
+              senderName: senderProfile?.nombre || 'Alguien',
+            },
             read: false,
             created_at: new Date().toISOString(),
-          }]);
+          }])
+          .select()
+          .single();
+          
+        console.log('[AMIGOS] Notification created:', notificationResult.data);
       } catch (notifError) {
         console.error('[AMIGOS] Error creating notification:', notifError);
         // Continue even if notification creation fails
