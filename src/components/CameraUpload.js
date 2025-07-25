@@ -31,7 +31,7 @@ export default function CameraUpload({ onPhotoTaken, children }) {
         background: 'none',
         border: 'none',
         padding: 0,
-        cursor: 'pointer'
+        cursor: 'pointer',
       }}
     >
       {children}

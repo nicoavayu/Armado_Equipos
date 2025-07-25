@@ -23,12 +23,12 @@ export const getJugadores = async () => {
     
     console.log('✅ SUPABASE: Players fetched successfully:', {
       count: data?.length || 0,
-      playersWithScores: data?.filter(p => p.score !== null && p.score !== undefined).length || 0,
-      sample: data?.slice(0, 3).map(p => ({ 
+      playersWithScores: data?.filter((p) => p.score !== null && p.score !== undefined).length || 0,
+      sample: data?.slice(0, 3).map((p) => ({ 
         nombre: p.nombre, 
         uuid: p.uuid, 
-        score: p.score 
-      })) || []
+        score: p.score, 
+      })) || [],
     });
     
     return data || [];
@@ -86,7 +86,7 @@ const compressImage = (file, maxSizeMB = 1.5, quality = 0.8) => {
           resolve(new File([blob], file.name, { type: 'image/jpeg' }));
         },
         'image/jpeg',
-        quality
+        quality,
       );
     };
     
@@ -118,32 +118,32 @@ export const uploadFoto = async (file, jugador) => {
   if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
   console.log('uploadFoto updating:', { jugador: jugador.uuid, fotoUrl });
   
- // Update usuarios table with avatar_url
-const { error: updateError } = await supabase
-  .from('usuarios')
-  .update({ avatar_url: fotoUrl })
-  .eq('id', jugador.uuid);
+  // Update usuarios table with avatar_url
+  const { error: updateError } = await supabase
+    .from('usuarios')
+    .update({ avatar_url: fotoUrl })
+    .eq('id', jugador.uuid);
 
-if (updateError) {
-  console.error('uploadFoto update error:', updateError);
-  throw updateError;
-}
+  if (updateError) {
+    console.error('uploadFoto update error:', updateError);
+    throw updateError;
+  }
 
-// Ahora ACTUALIZÁ la foto en la tabla jugadores
-const { error: updateJugadorError } = await supabase
-  .from('jugadores')
-  .update({ foto_url: fotoUrl })
-  .eq('uuid', jugador.uuid);
+  // Ahora ACTUALIZÁ la foto en la tabla jugadores
+  const { error: updateJugadorError } = await supabase
+    .from('jugadores')
+    .update({ foto_url: fotoUrl })
+    .eq('uuid', jugador.uuid);
 
-if (updateJugadorError) {
-  console.error('uploadFoto update jugador error:', updateJugadorError);
+  if (updateJugadorError) {
+    console.error('uploadFoto update jugador error:', updateJugadorError);
   // No lanzamos el error, solo lo logueamos
-}
+  }
   
   // Also update user metadata to ensure consistency
   try {
     await supabase.auth.updateUser({
-      data: { avatar_url: fotoUrl }
+      data: { avatar_url: fotoUrl },
     });
     console.log('Updated user metadata with avatar_url:', fotoUrl);
   } catch (error) {
@@ -217,15 +217,15 @@ export const getVotantesIds = async (partidoId) => {
     throw new Error(`Error fetching voters: ${error.message}`);
   }
   
-  const votantes = Array.from(new Set((data || []).map(v => v.votante_id).filter(id => id)));
-  const authVoters = votantes.filter(id => !id.startsWith('guest_'));
-  const guestVoters = votantes.filter(id => id.startsWith('guest_'));
+  const votantes = Array.from(new Set((data || []).map((v) => v.votante_id).filter((id) => id)));
+  const authVoters = votantes.filter((id) => !id.startsWith('guest_'));
+  const guestVoters = votantes.filter((id) => id.startsWith('guest_'));
   
   console.log('Voters found for match:', { 
     partidoId, 
     total: votantes.length,
     authenticated: authVoters.length,
-    guests: guestVoters.length
+    guests: guestVoters.length,
   });
   
   return votantes;
@@ -251,11 +251,11 @@ export const getVotantesConNombres = async (partidoId) => {
   
   // Group by votante_id and get unique voters with their names
   const votantesMap = new Map();
-  (data || []).forEach(voto => {
+  (data || []).forEach((voto) => {
     if (voto.votante_id && !votantesMap.has(voto.votante_id)) {
       votantesMap.set(voto.votante_id, {
         nombre: voto.jugador_nombre || 'Jugador',
-        avatar_url: voto.jugador_avatar_url // Use avatar_url as the field name
+        avatar_url: voto.jugador_avatar_url, // Use avatar_url as the field name
       });
     }
   });
@@ -263,7 +263,7 @@ export const getVotantesConNombres = async (partidoId) => {
   const votantes = Array.from(votantesMap.entries()).map(([id, data]) => ({
     id,
     nombre: data.nombre,
-    avatar_url: data.avatar_url
+    avatar_url: data.avatar_url,
   }));
   
   console.log('Voters with names found:', votantes);
@@ -360,7 +360,7 @@ export const debugVoting = async (partidoId) => {
       votado_id: 'test_player_uuid',
       votante_id: votanteId,
       puntaje: 5,
-      partido_id: partidoId
+      partido_id: partidoId,
     };
     
     console.log('Testing vote insert:', testVote);
@@ -425,10 +425,10 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
         puntaje: Number(puntaje),
         partido_id: partidoId,
         jugador_nombre: jugadorNombre || 'Jugador',
-        jugador_avatar_url: jugadorFoto || null // Use only avatar_url field
+        jugador_avatar_url: jugadorFoto || null, // Use only avatar_url field
       };
     })
-    .filter(voto => voto !== null);
+    .filter((voto) => voto !== null);
     
   if (votosParaInsertar.length === 0) {
     throw new Error('No hay votos válidos para insertar');
@@ -440,7 +440,7 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
     jugadorUuid,
     votanteId,
     isGuest: votanteId.startsWith('guest_'),
-    votes: votosParaInsertar
+    votes: votosParaInsertar,
   });
   
   const { data, error } = await supabase.from('votos').insert(votosParaInsertar).select();
@@ -450,7 +450,7 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
       code: error.code,
       message: error.message,
       details: error.details,
-      hint: error.hint
+      hint: error.hint,
     });
     
     if (error.code === '23505') {
@@ -471,7 +471,7 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
 export const subscribeToChanges = (callback) => {
   const subscription = supabase
     .channel('public-changes')
-    .on('postgres_changes', { event: '*', schema: 'public' }, payload => {
+    .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
       console.log('Change received!', payload);
       callback(payload);
     })
@@ -508,7 +508,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     
     console.log('✅ SUPABASE: Votes fetched:', {
       count: votos?.length || 0,
-      sample: votos?.slice(0, 3) || []
+      sample: votos?.slice(0, 3) || [],
     });
     
     // Step 2: Fetch all players
@@ -524,7 +524,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     
     console.log('✅ SUPABASE: Players fetched:', {
       count: jugadores?.length || 0,
-      players: jugadores?.map(j => ({ uuid: j.uuid, nombre: j.nombre })) || []
+      players: jugadores?.map((j) => ({ uuid: j.uuid, nombre: j.nombre })) || [],
     });
     
     if (!jugadores || jugadores.length === 0) {
@@ -578,8 +578,8 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       voteDistribution: Object.entries(votesByPlayer).map(([playerId, votes]) => ({
         playerId,
         voteCount: votes.length,
-        votes: votes.filter(v => v !== -1) // Exclude "don't know" votes
-      }))
+        votes: votes.filter((v) => v !== -1), // Exclude "don't know" votes
+      })),
     });
     
     // Step 4: Calculate averages and update scores
@@ -593,8 +593,8 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       
       // Filter out "don't know" votes (-1) and goalkeeper votes (-2)
       const numericalVotes = playerVotes
-        .map(p => Number(p))
-        .filter(p => !isNaN(p) && p !== -1 && p !== -2 && p >= 1 && p <= 10);
+        .map((p) => Number(p))
+        .filter((p) => !isNaN(p) && p !== -1 && p !== -2 && p >= 1 && p <= 10);
         
       let avgScore = 5; // Default score
       if (numericalVotes.length > 0) {
@@ -607,7 +607,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
         nombre: jugador.nombre,
         votes: numericalVotes,
         avgScore,
-        isGoalkeeper
+        isGoalkeeper,
       });
       
       // Create update promise - update both score and goalkeeper status
@@ -615,7 +615,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
         .from('jugadores')
         .update({ 
           score: avgScore,
-          is_goalkeeper: isGoalkeeper
+          is_goalkeeper: isGoalkeeper,
         })
         .eq('uuid', jugador.uuid);
         
@@ -627,10 +627,10 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     // Execute all updates
     console.log('📊 SUPABASE: Executing score updates');
     const updateResults = await Promise.all(updates);
-    const updateErrors = updateResults.filter(res => res.error);
+    const updateErrors = updateResults.filter((res) => res.error);
     
     if (updateErrors.length > 0) {
-      console.error('❌ SUPABASE: Score update errors:', updateErrors.map(e => e.error));
+      console.error('❌ SUPABASE: Score update errors:', updateErrors.map((e) => e.error));
       throw new Error(`Error al actualizar los puntajes de ${updateErrors.length} jugadores.`);
     }
     
@@ -654,7 +654,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       message: `Votación cerrada. Se actualizaron los puntajes de ${jugadores.length} jugadores.`,
       playersUpdated: jugadores.length,
       votesProcessed: totalValidVotes,
-      votesCleared: deletedCount || votos?.length || 0
+      votesCleared: deletedCount || votos?.length || 0,
     };
     
     console.log('🎉 SUPABASE: closeVotingAndCalculateScores completed successfully:', result);
@@ -687,20 +687,20 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
       fecha,
       hora,
       sede,
-      sedeMaps: sedeMaps || "",
+      sedeMaps: sedeMaps || '',
       jugadores: [],
-      estado: "activo",
+      estado: 'activo',
       creado_por: user?.id || null,
       modalidad: modalidad || 'F5',
       cupo_jugadores: cupo_jugadores || 10,
       falta_jugadores: falta_jugadores || false,
-      tipo_partido: tipo_partido || 'Masculino'
+      tipo_partido: tipo_partido || 'Masculino',
     };
     
     console.log('Inserting match data:', matchData);
     
     const { data, error } = await supabase
-      .from("partidos")
+      .from('partidos')
       .insert([matchData])
       .select()
       .single();
@@ -711,7 +711,7 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
         code: error.code,
         message: error.message,
         details: error.details,
-        hint: error.hint
+        hint: error.hint,
       });
       
       if (error.code === '42501') {
@@ -729,12 +729,12 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
     // Actualizar el partido para que sea frecuente y su propio partido_frecuente_id sea igual a su id
     if (data && data.id) {
       const { error: updateError } = await supabase
-        .from("partidos")
+        .from('partidos')
         .update({
           partido_frecuente_id: data.id,
-          es_frecuente: true
+          es_frecuente: true,
         })
-        .eq("id", data.id);
+        .eq('id', data.id);
       
       if (updateError) {
         console.error('Error updating match as frequent:', updateError);
@@ -754,8 +754,8 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
 };
 
 const generarCodigoPartido = (length = 6) => {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
   for (let i = 0; i < length; i++)
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   return result;
@@ -764,9 +764,9 @@ const generarCodigoPartido = (length = 6) => {
 export const getPartidoPorCodigo = async (codigo) => {
   if (!codigo) throw new Error('Match code is required');
   const { data, error } = await supabase
-    .from("partidos")
-    .select("*")
-    .eq("codigo", codigo)
+    .from('partidos')
+    .select('*')
+    .eq('codigo', codigo)
     .single();
   if (error) throw new Error(`Error fetching match: ${error.message}`);
   return data;
@@ -775,9 +775,9 @@ export const getPartidoPorCodigo = async (codigo) => {
 export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
   console.log('Updating match players:', { partidoId, count: nuevosJugadores.length });
   const { error } = await supabase
-    .from("partidos")
+    .from('partidos')
     .update({ jugadores: nuevosJugadores })
-    .eq("id", partidoId);
+    .eq('id', partidoId);
   if (error) throw error;
 };
 
@@ -785,7 +785,7 @@ export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
 export const updateJugadoresFrecuentes = async (partidoFrecuenteId, nuevosJugadores) => {
   console.log('Updating frequent match players:', { partidoFrecuenteId, count: nuevosJugadores.length });
   return updatePartidoFrecuente(partidoFrecuenteId, {
-    jugadores_frecuentes: nuevosJugadores
+    jugadores_frecuentes: nuevosJugadores,
   });
 };
 
@@ -831,11 +831,11 @@ export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frec
     habilitado: habilitado !== undefined ? habilitado : true,
     dia_semana: parseInt(dia_semana),
     imagen_url: imagen_url || null,
-    tipo_partido: tipo_partido || 'Masculino'
+    tipo_partido: tipo_partido || 'Masculino',
   };
   
   const { data, error } = await supabase
-    .from("partidos_frecuentes")
+    .from('partidos_frecuentes')
     .insert([insertData])
     .select()
     .single();
@@ -857,8 +857,8 @@ export const getPartidosFrecuentes = async () => {
   try {
     // First, let's get ALL records to see what's in the table
     const { data: allData, error: allError } = await supabase
-      .from("partidos_frecuentes")
-      .select("*");
+      .from('partidos_frecuentes')
+      .select('*');
     
     console.log('All frequent matches in table:', allData);
     console.log('Count of all records:', allData?.length || 0);
@@ -869,17 +869,17 @@ export const getPartidosFrecuentes = async () => {
     
     // Now get only enabled ones
     const { data, error } = await supabase
-      .from("partidos_frecuentes")
-      .select("*")
-      .eq("habilitado", true)
-      .order("creado_en", { ascending: false });
+      .from('partidos_frecuentes')
+      .select('*')
+      .eq('habilitado', true)
+      .order('creado_en', { ascending: false });
       
     if (error) {
       console.error('Error fetching enabled frequent matches:', error);
       console.error('Error details:', {
         code: error.code,
         message: error.message,
-        details: error.details
+        details: error.details,
       });
       throw new Error(`Error fetching frequent matches: ${error.message}`);
     }
@@ -905,17 +905,17 @@ export const updatePartidoFrecuente = async (id, updates) => {
   
   // Only clean jugadores_frecuentes if it's being updated
   if (updates.jugadores_frecuentes) {
-    updateData.jugadores_frecuentes = updates.jugadores_frecuentes.map(j => ({
+    updateData.jugadores_frecuentes = updates.jugadores_frecuentes.map((j) => ({
       nombre: j.nombre,
       avatar_url: j.avatar_url || null, // Use only avatar_url
-      uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     }));
   }
   
   const { data, error } = await supabase
-    .from("partidos_frecuentes")
+    .from('partidos_frecuentes')
     .update(updateData)
-    .eq("id", id)
+    .eq('id', id)
     .select()
     .single();
   if (error) throw new Error(`Error updating frequent match: ${error.message}`);
@@ -924,9 +924,9 @@ export const updatePartidoFrecuente = async (id, updates) => {
 
 export const deletePartidoFrecuente = async (id) => {
   const { error } = await supabase
-    .from("partidos_frecuentes")
+    .from('partidos_frecuentes')
     .update({ habilitado: false })
-    .eq("id", id);
+    .eq('id', id);
   if (error) throw new Error(`Error deleting frequent match: ${error.message}`);
 };
 
@@ -965,10 +965,10 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     fecha,
     hora: partidoFrecuente.hora,
     sede: partidoFrecuente.sede,
-    sedeMaps: "",
+    sedeMaps: '',
     modalidad,
     cupo_jugadores: cupo,
-    falta_jugadores: false
+    falta_jugadores: false,
   });
   
   // Add frequent match name, type, and reference
@@ -982,11 +982,11 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
   
   if (jugadoresFrecuentes.length > 0) {
     // Clean player data - keep only nombre and foto_url
-    const jugadoresLimpios = jugadoresFrecuentes.map(j => ({
+    const jugadoresLimpios = jugadoresFrecuentes.map((j) => ({
       nombre: j.nombre,
       avatar_url: j.avatar_url || null, // Use only avatar_url
       uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      score: j.score || 5 // Default score
+      score: j.score || 5, // Default score
     }));
     
     console.log('Adding players to new match:', jugadoresLimpios);
@@ -1087,8 +1087,8 @@ export const clearGuestSession = (partidoId) => {
     console.log(`Cleared guest session for match ${partidoId}`);
   } else {
     // Clear all guest sessions
-    const keys = Object.keys(localStorage).filter(key => key.startsWith('guest_session'));
-    keys.forEach(key => localStorage.removeItem(key));
+    const keys = Object.keys(localStorage).filter((key) => key.startsWith('guest_session'));
+    keys.forEach((key) => localStorage.removeItem(key));
     console.log(`Cleared ${keys.length} guest sessions`);
   }
 };
@@ -1136,18 +1136,18 @@ export const getAmigos = async (userId) => {
     
     // Combine and format both sets of friends
     const formattedAmigos = [
-      ...data.map(item => ({
+      ...data.map((item) => ({
         id: item.id,
         status: 'accepted',
         created_at: item.created_at,
-        profile: item.jugadores
+        profile: item.jugadores,
       })),
-      ...reverseData.map(item => ({
+      ...reverseData.map((item) => ({
         id: item.id,
         status: 'accepted',
         created_at: item.created_at,
-        profile: item.jugadores
-      }))
+        profile: item.jugadores,
+      })),
     ];
     
     return formattedAmigos;
@@ -1220,7 +1220,7 @@ export const sendFriendRequest = async (userId, friendId) => {
       .insert([{
         user_id: userId,
         friend_id: friendId,
-        status: 'pending'
+        status: 'pending',
       }])
       .select()
       .single();
@@ -1324,11 +1324,11 @@ export const getPendingRequests = async (userId) => {
       
     if (error) throw error;
     
-    return data.map(item => ({
+    return data.map((item) => ({
       id: item.id,
       status: item.status,
       created_at: item.created_at,
-      profile: item.jugadores
+      profile: item.jugadores,
     }));
   } catch (err) {
     console.error('Error fetching pending requests:', err);
@@ -1355,7 +1355,7 @@ export const getProfile = async (userId) => {
     data: data,
     avatar_url: data?.avatar_url,
     foto_url: data?.foto_url,
-    all_fields: Object.keys(data || {})
+    all_fields: Object.keys(data || {}),
   });
   
   return data;
@@ -1412,14 +1412,14 @@ export const createOrUpdateProfile = async (user) => {
     longitud: null,
     fecha_nacimiento: null,
     partidos_abandonados: 0,
-    numero: null
+    numero: null,
   };
 
   // Actualizar metadata en Supabase Auth
   if (avatarUrl) {
     try {
       await supabase.auth.updateUser({
-        data: { avatar_url: avatarUrl }
+        data: { avatar_url: avatarUrl },
       });
       console.log('Updated user metadata with avatar_url:', avatarUrl);
     } catch (error) {
@@ -1457,10 +1457,10 @@ export const calculateProfileCompletion = (profile) => {
     'localidad', 
     'fecha_nacimiento',
     'posicion_favorita',
-    'bio'
+    'bio',
   ];
   
-  const filledFields = fields.filter(field => {
+  const filledFields = fields.filter((field) => {
     const value = profile[field];
     return value && value.toString().trim() !== '';
   });
@@ -1489,7 +1489,7 @@ export const addFreePlayer = async () => {
       // Create a minimal profile if none exists
       const minimalProfile = {
         nombre: user.email?.split('@')[0] || 'Usuario',
-        localidad: 'Sin especificar'
+        localidad: 'Sin especificar',
       };
       
       // Check if already registered
@@ -1516,7 +1516,7 @@ export const addFreePlayer = async () => {
         .insert([{
           user_id: user.id,
           nombre: minimalProfile.nombre,
-          localidad: minimalProfile.localidad
+          localidad: minimalProfile.localidad,
         }]);
 
       if (insertError) {
@@ -1547,7 +1547,7 @@ export const addFreePlayer = async () => {
     // Add to free players
     console.log('Inserting free player with profile:', {
       nombre: profile.nombre,
-      localidad: profile.localidad
+      localidad: profile.localidad,
     });
     
     const { error: insertError } = await supabase
@@ -1555,7 +1555,7 @@ export const addFreePlayer = async () => {
       .insert([{
         user_id: user.id,
         nombre: profile.nombre || 'Usuario',
-        localidad: profile.localidad || 'Sin especificar'
+        localidad: profile.localidad || 'Sin especificar',
       }]);
 
     if (insertError) {
@@ -1622,7 +1622,7 @@ export const debugVotingStatus = async (partidoId) => {
       isGuest: userId.startsWith('guest_'),
       hasVoted,
       totalVoters: voters.length,
-      allVoters: voters
+      allVoters: voters,
     };
     
     console.log('📊 Voting Status Debug:', debugInfo);
@@ -1648,7 +1648,7 @@ export const checkPartidosFrecuentesSchema = async () => {
       creado_por: 'test',
       dia_semana: 1,
       habilitado: true,
-      creado_en: new Date().toISOString()
+      creado_en: new Date().toISOString(),
     };
     
     const { data, error } = await supabase

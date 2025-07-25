@@ -86,7 +86,7 @@ export default function AvatarWithProgress({ profile, onClick, size = 60 }) {
           style={{
             transform: 'rotate(-90deg)',
             transformOrigin: '50% 50%',
-            filter: quarterInfo.glow ? 'drop-shadow(0 0 8px currentColor)' : 'none'
+            filter: quarterInfo.glow ? 'drop-shadow(0 0 8px currentColor)' : 'none',
           }}
         />
       </svg>
@@ -112,7 +112,7 @@ export default function AvatarWithProgress({ profile, onClick, size = 60 }) {
           className="progress-badge"
           style={{ 
             backgroundColor: quarterInfo.color,
-            color: 'white'
+            color: 'white',
           }}
         >
           {completion}%

@@ -34,20 +34,20 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
       fecha,
       hora,
       sede,
-      sedeMaps: sedeMaps || "",
+      sedeMaps: sedeMaps || '',
       jugadores: [],
-      estado: "activo",
+      estado: 'activo',
       creado_por: user?.id || null,
       modalidad: modalidad || 'F5',
       cupo_jugadores: cupo_jugadores || 10,
       falta_jugadores: falta_jugadores || false,
-      tipo_partido: tipo_partido || 'Masculino'
+      tipo_partido: tipo_partido || 'Masculino',
     };
     
     console.log('Inserting match data:', matchData);
     
     const { data, error } = await supabase
-      .from("partidos")
+      .from('partidos')
       .insert([matchData])
       .select()
       .single();
@@ -58,7 +58,7 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
         code: error.code,
         message: error.message,
         details: error.details,
-        hint: error.hint
+        hint: error.hint,
       });
       
       if (error.code === '42501') {
@@ -76,12 +76,12 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
     // Actualizar el partido para que sea frecuente y su propio partido_frecuente_id sea igual a su id
     if (data && data.id) {
       const { error: updateError } = await supabase
-        .from("partidos")
+        .from('partidos')
         .update({
           partido_frecuente_id: data.id,
-          es_frecuente: true
+          es_frecuente: true,
         })
-        .eq("id", data.id);
+        .eq('id', data.id);
       
       if (updateError) {
         console.error('Error updating match as frequent:', updateError);
@@ -108,9 +108,9 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
 export const getPartidoPorCodigo = async (codigo) => {
   if (!codigo) throw new Error('Match code is required');
   const { data, error } = await supabase
-    .from("partidos")
-    .select("*")
-    .eq("codigo", codigo)
+    .from('partidos')
+    .select('*')
+    .eq('codigo', codigo)
     .single();
   if (error) throw new Error(`Error fetching match: ${error.message}`);
   return data;
@@ -125,9 +125,9 @@ export const getPartidoPorCodigo = async (codigo) => {
 export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
   console.log('Updating match players:', { partidoId, count: nuevosJugadores.length });
   const { error } = await supabase
-    .from("partidos")
+    .from('partidos')
     .update({ jugadores: nuevosJugadores })
-    .eq("id", partidoId);
+    .eq('id', partidoId);
   if (error) throw error;
 };
 
@@ -140,7 +140,7 @@ export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
 export const updateJugadoresFrecuentes = async (partidoFrecuenteId, nuevosJugadores) => {
   console.log('Updating frequent match players:', { partidoFrecuenteId, count: nuevosJugadores.length });
   return updatePartidoFrecuente(partidoFrecuenteId, {
-    jugadores_frecuentes: nuevosJugadores
+    jugadores_frecuentes: nuevosJugadores,
   });
 };
 
@@ -178,11 +178,11 @@ export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frec
     habilitado: habilitado !== undefined ? habilitado : true,
     dia_semana: parseInt(dia_semana),
     imagen_url: imagen_url || null,
-    tipo_partido: tipo_partido || 'Masculino'
+    tipo_partido: tipo_partido || 'Masculino',
   };
   
   const { data, error } = await supabase
-    .from("partidos_frecuentes")
+    .from('partidos_frecuentes')
     .insert([insertData])
     .select()
     .single();
@@ -208,10 +208,10 @@ export const getPartidosFrecuentes = async () => {
   try {
     // Now get only enabled ones
     const { data, error } = await supabase
-      .from("partidos_frecuentes")
-      .select("*")
-      .eq("habilitado", true)
-      .order("creado_en", { ascending: false });
+      .from('partidos_frecuentes')
+      .select('*')
+      .eq('habilitado', true)
+      .order('creado_en', { ascending: false });
       
     if (error) {
       console.error('Error fetching enabled frequent matches:', error);
@@ -238,17 +238,17 @@ export const updatePartidoFrecuente = async (id, updates) => {
   
   // Only clean jugadores_frecuentes if it's being updated
   if (updates.jugadores_frecuentes) {
-    updateData.jugadores_frecuentes = updates.jugadores_frecuentes.map(j => ({
+    updateData.jugadores_frecuentes = updates.jugadores_frecuentes.map((j) => ({
       nombre: j.nombre,
       avatar_url: j.avatar_url || null, // Use only avatar_url
-      uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     }));
   }
   
   const { data, error } = await supabase
-    .from("partidos_frecuentes")
+    .from('partidos_frecuentes')
     .update(updateData)
-    .eq("id", id)
+    .eq('id', id)
     .select()
     .single();
   if (error) throw new Error(`Error updating frequent match: ${error.message}`);
@@ -262,9 +262,9 @@ export const updatePartidoFrecuente = async (id, updates) => {
  */
 export const deletePartidoFrecuente = async (id) => {
   const { error } = await supabase
-    .from("partidos_frecuentes")
+    .from('partidos_frecuentes')
     .update({ habilitado: false })
-    .eq("id", id);
+    .eq('id', id);
   if (error) throw new Error(`Error deleting frequent match: ${error.message}`);
 };
 
@@ -311,10 +311,10 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     fecha,
     hora: partidoFrecuente.hora,
     sede: partidoFrecuente.sede,
-    sedeMaps: "",
+    sedeMaps: '',
     modalidad,
     cupo_jugadores: cupo,
-    falta_jugadores: false
+    falta_jugadores: false,
   });
   
   // Add frequent match name, type, and reference
@@ -328,11 +328,11 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
   
   if (jugadoresFrecuentes.length > 0) {
     // Clean player data - keep only nombre and foto_url
-    const jugadoresLimpios = jugadoresFrecuentes.map(j => ({
+    const jugadoresLimpios = jugadoresFrecuentes.map((j) => ({
       nombre: j.nombre,
       avatar_url: j.avatar_url || null, // Use only avatar_url
       uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      score: j.score || 5 // Default score
+      score: j.score || 5, // Default score
     }));
     
     console.log('Adding players to new match:', jugadoresLimpios);
@@ -438,15 +438,15 @@ export const getVotantesIds = async (partidoId) => {
     throw new Error(`Error fetching voters: ${error.message}`);
   }
   
-  const votantes = Array.from(new Set((data || []).map(v => v.votante_id).filter(id => id)));
-  const authVoters = votantes.filter(id => !id.startsWith('guest_'));
-  const guestVoters = votantes.filter(id => id.startsWith('guest_'));
+  const votantes = Array.from(new Set((data || []).map((v) => v.votante_id).filter((id) => id)));
+  const authVoters = votantes.filter((id) => !id.startsWith('guest_'));
+  const guestVoters = votantes.filter((id) => id.startsWith('guest_'));
   
   console.log('Voters found for match:', { 
     partidoId, 
     total: votantes.length,
     authenticated: authVoters.length,
-    guests: guestVoters.length
+    guests: guestVoters.length,
   });
   
   return votantes;
@@ -477,11 +477,11 @@ export const getVotantesConNombres = async (partidoId) => {
   
   // Group by votante_id and get unique voters with their names
   const votantesMap = new Map();
-  (data || []).forEach(voto => {
+  (data || []).forEach((voto) => {
     if (voto.votante_id && !votantesMap.has(voto.votante_id)) {
       votantesMap.set(voto.votante_id, {
         nombre: voto.jugador_nombre || 'Jugador',
-        avatar_url: voto.jugador_avatar_url // Use avatar_url as the field name
+        avatar_url: voto.jugador_avatar_url, // Use avatar_url as the field name
       });
     }
   });
@@ -489,7 +489,7 @@ export const getVotantesConNombres = async (partidoId) => {
   const votantes = Array.from(votantesMap.entries()).map(([id, data]) => ({
     id,
     nombre: data.nombre,
-    avatar_url: data.avatar_url
+    avatar_url: data.avatar_url,
   }));
   
   console.log('Voters with names found:', votantes);
@@ -590,10 +590,10 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
         puntaje: Number(puntaje),
         partido_id: partidoId,
         jugador_nombre: jugadorNombre || 'Jugador',
-        jugador_avatar_url: jugadorFoto || null // Use only avatar_url field
+        jugador_avatar_url: jugadorFoto || null, // Use only avatar_url field
       };
     })
-    .filter(voto => voto !== null);
+    .filter((voto) => voto !== null);
     
   if (votosParaInsertar.length === 0) {
     throw new Error('No hay votos válidos para insertar');
@@ -605,7 +605,7 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
     jugadorUuid,
     votanteId,
     isGuest: votanteId.startsWith('guest_'),
-    votes: votosParaInsertar
+    votes: votosParaInsertar,
   });
   
   const { data, error } = await supabase.from('votos').insert(votosParaInsertar).select();
@@ -615,7 +615,7 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
       code: error.code,
       message: error.message,
       details: error.details,
-      hint: error.hint
+      hint: error.hint,
     });
     
     if (error.code === '23505') {
@@ -654,7 +654,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     
     console.log('✅ SUPABASE: Votes fetched:', {
       count: votos?.length || 0,
-      sample: votos?.slice(0, 3) || []
+      sample: votos?.slice(0, 3) || [],
     });
     
     // Step 2: Fetch all players
@@ -670,7 +670,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     
     console.log('✅ SUPABASE: Players fetched:', {
       count: jugadores?.length || 0,
-      players: jugadores?.map(j => ({ uuid: j.uuid, nombre: j.nombre })) || []
+      players: jugadores?.map((j) => ({ uuid: j.uuid, nombre: j.nombre })) || [],
     });
     
     if (!jugadores || jugadores.length === 0) {
@@ -724,8 +724,8 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       voteDistribution: Object.entries(votesByPlayer).map(([playerId, votes]) => ({
         playerId,
         voteCount: votes.length,
-        votes: votes.filter(v => v !== -1) // Exclude "don't know" votes
-      }))
+        votes: votes.filter((v) => v !== -1), // Exclude "don't know" votes
+      })),
     });
     
     // Step 4: Calculate averages and update scores
@@ -739,8 +739,8 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       
       // Filter out "don't know" votes (-1) and goalkeeper votes (-2)
       const numericalVotes = playerVotes
-        .map(p => Number(p))
-        .filter(p => !isNaN(p) && p !== -1 && p !== -2 && p >= 1 && p <= 10);
+        .map((p) => Number(p))
+        .filter((p) => !isNaN(p) && p !== -1 && p !== -2 && p >= 1 && p <= 10);
         
       let avgScore = 5; // Default score
       if (numericalVotes.length > 0) {
@@ -753,7 +753,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
         nombre: jugador.nombre,
         votes: numericalVotes,
         avgScore,
-        isGoalkeeper
+        isGoalkeeper,
       });
       
       // Create update promise - update both score and goalkeeper status
@@ -761,7 +761,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
         .from('jugadores')
         .update({ 
           score: avgScore,
-          is_goalkeeper: isGoalkeeper
+          is_goalkeeper: isGoalkeeper,
         })
         .eq('uuid', jugador.uuid);
         
@@ -773,10 +773,10 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     // Execute all updates
     console.log('📊 SUPABASE: Executing score updates');
     const updateResults = await Promise.all(updates);
-    const updateErrors = updateResults.filter(res => res.error);
+    const updateErrors = updateResults.filter((res) => res.error);
     
     if (updateErrors.length > 0) {
-      console.error('❌ SUPABASE: Score update errors:', updateErrors.map(e => e.error));
+      console.error('❌ SUPABASE: Score update errors:', updateErrors.map((e) => e.error));
       throw new Error(`Error al actualizar los puntajes de ${updateErrors.length} jugadores.`);
     }
     
@@ -800,7 +800,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       message: `Votación cerrada. Se actualizaron los puntajes de ${jugadores.length} jugadores.`,
       playersUpdated: jugadores.length,
       votesProcessed: totalValidVotes,
-      votesCleared: deletedCount || votos?.length || 0
+      votesCleared: deletedCount || votos?.length || 0,
     };
     
     console.log('🎉 SUPABASE: closeVotingAndCalculateScores completed successfully:', result);
@@ -886,5 +886,5 @@ export default {
   submitVotos,
   closeVotingAndCalculateScores,
   cleanupInvalidVotes,
-  checkPartidoCalificado
+  checkPartidoCalificado,
 };

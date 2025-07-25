@@ -36,7 +36,7 @@ const NotificationExample = () => {
         'friend_request',
         'Nueva solicitud de amistad',
         'Juan Pérez te ha enviado una solicitud de amistad',
-        { requestId: 'test-request-id', senderId: 'test-sender-id' }
+        { requestId: 'test-request-id', senderId: 'test-sender-id' },
       );
       
       alert('Test friend request notification created!');
@@ -69,8 +69,8 @@ const NotificationExample = () => {
           matchCode: 'ABC123',
           matchDate: '2023-12-15',
           matchTime: '18:00',
-          matchVenue: 'Estadio Central'
-        }
+          matchVenue: 'Estadio Central',
+        },
       );
       
       alert('Test match invitation notification created!');
@@ -101,8 +101,8 @@ const NotificationExample = () => {
         { 
           matchId: 'test-match-id',
           matchCode: 'ABC123',
-          updateType: 'teams_created'
-        }
+          updateType: 'teams_created',
+        },
       );
       
       alert('Test match update notification created!');
@@ -131,7 +131,7 @@ const NotificationExample = () => {
             border: '1px solid rgba(255, 255, 255, 0.3)',
             borderRadius: '4px',
             color: 'white',
-            cursor: loading ? 'not-allowed' : 'pointer'
+            cursor: loading ? 'not-allowed' : 'pointer',
           }}
         >
           Create Friend Request
@@ -146,7 +146,7 @@ const NotificationExample = () => {
             border: '1px solid rgba(255, 255, 255, 0.3)',
             borderRadius: '4px',
             color: 'white',
-            cursor: loading ? 'not-allowed' : 'pointer'
+            cursor: loading ? 'not-allowed' : 'pointer',
           }}
         >
           Create Match Invite
@@ -161,7 +161,7 @@ const NotificationExample = () => {
             border: '1px solid rgba(255, 255, 255, 0.3)',
             borderRadius: '4px',
             color: 'white',
-            cursor: loading ? 'not-allowed' : 'pointer'
+            cursor: loading ? 'not-allowed' : 'pointer',
           }}
         >
           Create Match Update

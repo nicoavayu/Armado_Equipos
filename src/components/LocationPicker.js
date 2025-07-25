@@ -34,7 +34,7 @@ export default function LocationPicker({ onLocationSelected }) {
         padding: '10px 15px',
         borderRadius: '8px',
         cursor: loading ? 'not-allowed' : 'pointer',
-        opacity: loading ? 0.6 : 1
+        opacity: loading ? 0.6 : 1,
       }}
     >
       {loading ? '📍 Obteniendo...' : '📍 Usar mi ubicación'}

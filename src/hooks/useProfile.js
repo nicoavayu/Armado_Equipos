@@ -12,6 +12,6 @@ export function useProfile() {
     profile,
     loading,
     updateProfile,
-    refreshProfile
+    refreshProfile,
   };
 }

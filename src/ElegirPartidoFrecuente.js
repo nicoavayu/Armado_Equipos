@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { getPartidosFrecuentes, eliminarPartidoFrecuente } from "./supabase";
+import React, { useEffect, useState } from 'react';
+import { getPartidosFrecuentes, eliminarPartidoFrecuente } from './supabase';
 import './FrecuentesStyle.css';
 
-const DIAS = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+const DIAS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
 export default function ElegirPartidoFrecuente({ onElegir, onCancelar }) {
   const [partidos, setPartidos] = useState([]);
@@ -26,13 +26,13 @@ export default function ElegirPartidoFrecuente({ onElegir, onCancelar }) {
   }
 
   const handleEliminar = async (id) => {
-    if (!window.confirm("¿Seguro que querés eliminar este partido frecuente?")) return;
+    if (!window.confirm('¿Seguro que querés eliminar este partido frecuente?')) return;
     setEliminando(id);
     try {
       await eliminarPartidoFrecuente(id);
       await fetchFrecuentes();
     } catch (err) {
-      alert("No se pudo eliminar. " + (err.message || ""));
+      alert('No se pudo eliminar. ' + (err.message || ''));
     }
     setEliminando(null);
   };
@@ -40,7 +40,7 @@ export default function ElegirPartidoFrecuente({ onElegir, onCancelar }) {
   // Saca sólo el nombre corto del lugar (antes de la coma)
   function cortaLugar(str) {
     if (!str) return '';
-    return str.split(",")[0];
+    return str.split(',')[0];
   }
 
   if (loading) return (
@@ -57,28 +57,28 @@ export default function ElegirPartidoFrecuente({ onElegir, onCancelar }) {
   );
 
   return (
-    <div className="voting-modern-card" style={{ maxWidth: 800, padding: "28px 18px 20px 18px" }}>
+    <div className="voting-modern-card" style={{ maxWidth: 800, padding: '28px 18px 20px 18px' }}>
       <div style={{
-        fontWeight: 700, fontSize: 28, marginBottom: 26, letterSpacing: 1, color: "#fff",
-        fontFamily: "'Bebas Neue', Arial, sans-serif", textAlign: "center"
+        fontWeight: 700, fontSize: 28, marginBottom: 26, letterSpacing: 1, color: '#fff',
+        fontFamily: "'Bebas Neue', Arial, sans-serif", textAlign: 'center',
       }}>
         Elegí un partido frecuente
       </div>
       <div className="frecuentes-grid">
-        {partidos.map(p => (
+        {partidos.map((p) => (
           <div className="frecuente-card" key={p.id}>
             <div className="frecuente-main-row">
               {/* Imagen del partido frecuente (predeterminada si no hay) */}
               <div className="frecuente-img-wrap">
                 <img
-                  src={p.imagen || "/img/partido-default.png"}
+                  src={p.imagen || '/img/partido-default.png'}
                   alt=""
                   className="frecuente-img"
                 />
               </div>
               <div className="frecuente-data-col">
                 <div className="frecuente-meta">
-                  {`${DIAS[p.dia_semana] || ""}${p.hora ? `, ${p.hora}` : ""}${p.sede ? `, ${cortaLugar(p.sede)}` : ""}`}
+                  {`${DIAS[p.dia_semana] || ''}${p.hora ? `, ${p.hora}` : ''}${p.sede ? `, ${cortaLugar(p.sede)}` : ''}`}
                 </div>
                 <div className="frecuente-header-row">
                   <span className="frecuente-title">{p.nombre}</span>
@@ -115,7 +115,7 @@ export default function ElegirPartidoFrecuente({ onElegir, onCancelar }) {
       </div>
       <button
         className="voting-confirm-btn"
-        style={{ marginTop: 22, background: "#aaa", color: "#fff", fontSize: 22, minWidth: 180 }}
+        style={{ marginTop: 22, background: '#aaa', color: '#fff', fontSize: 22, minWidth: 180 }}
         onClick={onCancelar}
       >
         Cancelar

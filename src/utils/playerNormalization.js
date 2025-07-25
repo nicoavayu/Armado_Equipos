@@ -8,7 +8,7 @@ export const normalizePlayer = (player) => {
     nickname: player.nickname || player.apodo,
     // Keep original fields for backward compatibility
     nombre: player.name || player.nombre,
-    apodo: player.nickname || player.apodo
+    apodo: player.nickname || player.apodo,
   };
 };
 
@@ -23,5 +23,5 @@ export const getPlayerFields = () => ({
   nickname: 'nickname', 
   score: 'score',
   photo: 'foto_url',
-  id: 'uuid'
+  id: 'uuid',
 });

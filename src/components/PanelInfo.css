@@ -1,0 +1,63 @@
+.panel-info {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  margin: 20px 0;
+  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.panel-info-header {
+  margin-bottom: 12px;
+}
+
+.panel-info-header h4 {
+  color: white;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.panel-info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel-info-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  min-height: 48px;
+  box-sizing: border-box;
+}
+
+.panel-info-item.match {
+  border-left: 3px solid #4CAF50;
+}
+
+.panel-info-item.player {
+  border-left: 3px solid #2196F3;
+}
+
+.panel-info-item.alert {
+  border-left: 3px solid #FF9800;
+}
+
+.panel-info-icon {
+  margin-right: 12px;
+  font-size: 18px;
+  min-width: 24px;
+  text-align: center;
+}
+
+.panel-info-text {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  line-height: 1.4;
+  flex: 1;
+}

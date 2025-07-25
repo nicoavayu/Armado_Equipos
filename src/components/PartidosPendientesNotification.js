@@ -25,7 +25,7 @@ const PartidosPendientesNotification = ({ userId }) => {
         setPartidosPendientes(partidos || []);
         
         // Mostrar en consola para testing
-        console.log('IDs de partidos para testing:', partidos.map(p => p.id));
+        console.log('IDs de partidos para testing:', partidos.map((p) => p.id));
       } catch (error) {
         console.error('Error cargando partidos pendientes:', error);
       } finally {
@@ -48,7 +48,7 @@ const PartidosPendientesNotification = ({ userId }) => {
       return fecha.toLocaleDateString('es-ES', { 
         weekday: 'long',
         day: 'numeric',
-        month: 'numeric'
+        month: 'numeric',
       });
     } catch (e) {
       return fechaStr || 'Fecha no disponible';
@@ -77,14 +77,14 @@ const PartidosPendientesNotification = ({ userId }) => {
       {/* Modal con lista de partidos pendientes */}
       {showModal && (
         <div className="partidos-pendientes-modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="partidos-pendientes-modal" onClick={e => e.stopPropagation()}>
+          <div className="partidos-pendientes-modal" onClick={(e) => e.stopPropagation()}>
             <div className="partidos-pendientes-header">
               <h3>Partidos pendientes de calificación</h3>
               <button className="close-button" onClick={() => setShowModal(false)}>×</button>
             </div>
             
             <div className="partidos-pendientes-list">
-              {partidosPendientes.map(partido => (
+              {partidosPendientes.map((partido) => (
                 <div key={partido.id} className="partido-pendiente-item">
                   <div className="partido-pendiente-info">
                     <div className="partido-pendiente-fecha">

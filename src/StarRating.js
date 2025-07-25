@@ -1,6 +1,6 @@
-import React from "react";
-import { RATING_BUTTONS } from "./constants";
-import "./StarRating.css";
+import React from 'react';
+import { RATING_BUTTONS } from './constants';
+import './StarRating.css';
 
 const StarRating = React.memo(({ value, onChange, onRate, hovered, setHovered }) => {
   // Usar onChange si está disponible, de lo contrario usar onRate (para compatibilidad)
@@ -14,10 +14,10 @@ const StarRating = React.memo(({ value, onChange, onRate, hovered, setHovered })
   
   return (
     <div className="star-rating">
-      {RATING_BUTTONS.map(rating => (
+      {RATING_BUTTONS.map((rating) => (
         <button
           key={rating}
-          className={`star-button ${value === rating ? "active" : ""} ${hovered === rating ? "hovered" : ""}`}
+          className={`star-button ${value === rating ? 'active' : ''} ${hovered === rating ? 'hovered' : ''}`}
           onClick={() => handleRating(rating)}
           onMouseEnter={() => setHovered && setHovered(rating)}
           onMouseLeave={() => setHovered && setHovered(null)}

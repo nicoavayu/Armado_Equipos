@@ -20,7 +20,7 @@ export default function NetworkStatus() {
       textAlign: 'center',
       zIndex: 10000,
       fontSize: '14px',
-      fontFamily: "'Oswald', Arial, sans-serif"
+      fontFamily: "'Oswald', Arial, sans-serif",
     }}>
       📶 Sin conexión a internet - Algunos datos pueden no estar actualizados
     </div>

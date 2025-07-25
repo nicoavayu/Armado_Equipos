@@ -26,7 +26,7 @@ const DirectFix = () => {
         if (avatarUrl) {
           console.log('Fixing avatar URL:', { 
             current: profile.avatar_url,
-            new: avatarUrl
+            new: avatarUrl,
           });
           
           // 4. Actualizar el perfil con la URL del avatar

@@ -30,12 +30,12 @@ export const getJugadores = async () => {
     
     console.log('✅ SUPABASE: Players fetched successfully:', {
       count: data?.length || 0,
-      playersWithScores: data?.filter(p => p.score !== null && p.score !== undefined).length || 0,
-      sample: data?.slice(0, 3).map(p => ({ 
+      playersWithScores: data?.filter((p) => p.score !== null && p.score !== undefined).length || 0,
+      sample: data?.slice(0, 3).map((p) => ({ 
         nombre: p.nombre, 
         uuid: p.uuid, 
-        score: p.score 
-      })) || []
+        score: p.score, 
+      })) || [],
     });
     
     return data || [];
@@ -109,7 +109,7 @@ const compressImage = (file, maxSizeMB = 1.5, quality = 0.8) => {
           resolve(new File([blob], file.name, { type: 'image/jpeg' }));
         },
         'image/jpeg',
-        quality
+        quality,
       );
     };
     
@@ -172,7 +172,7 @@ export const uploadFoto = async (file, jugador) => {
   // Also update user metadata to ensure consistency
   try {
     await supabase.auth.updateUser({
-      data: { avatar_url: fotoUrl }
+      data: { avatar_url: fotoUrl },
     });
     console.log('Updated user metadata with avatar_url:', fotoUrl);
   } catch (error) {
@@ -206,7 +206,7 @@ export const getProfile = async (userId) => {
     data: data,
     avatar_url: data?.avatar_url,
     foto_url: data?.foto_url,
-    all_fields: Object.keys(data || {})
+    all_fields: Object.keys(data || {}),
   });
   
   return data;
@@ -274,14 +274,14 @@ export const createOrUpdateProfile = async (user) => {
     longitud: null,
     fecha_nacimiento: null,
     partidos_abandonados: 0,
-    numero: null
+    numero: null,
   };
 
   // Actualizar metadata en Supabase Auth
   if (avatarUrl) {
     try {
       await supabase.auth.updateUser({
-        data: { avatar_url: avatarUrl }
+        data: { avatar_url: avatarUrl },
       });
       console.log('Updated user metadata with avatar_url:', avatarUrl);
     } catch (error) {
@@ -323,10 +323,10 @@ export const calculateProfileCompletion = (profile) => {
     'localidad', 
     'fecha_nacimiento',
     'posicion_favorita',
-    'bio'
+    'bio',
   ];
   
-  const filledFields = fields.filter(field => {
+  const filledFields = fields.filter((field) => {
     const value = profile[field];
     return value && value.toString().trim() !== '';
   });
@@ -357,7 +357,7 @@ export const addFreePlayer = async () => {
       // Create a minimal profile if none exists
       const minimalProfile = {
         nombre: user.email?.split('@')[0] || 'Usuario',
-        localidad: 'Sin especificar'
+        localidad: 'Sin especificar',
       };
       
       // Check if already registered
@@ -384,7 +384,7 @@ export const addFreePlayer = async () => {
         .insert([{
           user_id: user.id,
           nombre: minimalProfile.nombre,
-          localidad: minimalProfile.localidad
+          localidad: minimalProfile.localidad,
         }]);
 
       if (insertError) {
@@ -415,7 +415,7 @@ export const addFreePlayer = async () => {
     // Add to free players
     console.log('Inserting free player with profile:', {
       nombre: profile.nombre,
-      localidad: profile.localidad
+      localidad: profile.localidad,
     });
     
     const { error: insertError } = await supabase
@@ -423,7 +423,7 @@ export const addFreePlayer = async () => {
       .insert([{
         user_id: user.id,
         nombre: profile.nombre || 'Usuario',
-        localidad: profile.localidad || 'Sin especificar'
+        localidad: profile.localidad || 'Sin especificar',
       }]);
 
     if (insertError) {
@@ -528,18 +528,18 @@ export const getAmigos = async (userId) => {
     
     // Combine and format both sets of friends
     const formattedAmigos = [
-      ...data.map(item => ({
+      ...data.map((item) => ({
         id: item.id,
         status: 'accepted',
         created_at: item.created_at,
-        profile: item.jugadores
+        profile: item.jugadores,
       })),
-      ...reverseData.map(item => ({
+      ...reverseData.map((item) => ({
         id: item.id,
         status: 'accepted',
         created_at: item.created_at,
-        profile: item.jugadores
-      }))
+        profile: item.jugadores,
+      })),
     ];
     
     return formattedAmigos;
@@ -612,7 +612,7 @@ export const sendFriendRequest = async (userId, friendId) => {
       .insert([{
         user_id: userId,
         friend_id: friendId,
-        status: 'pending'
+        status: 'pending',
       }])
       .select()
       .single();
@@ -716,11 +716,11 @@ export const getPendingRequests = async (userId) => {
       
     if (error) throw error;
     
-    return data.map(item => ({
+    return data.map((item) => ({
       id: item.id,
       status: item.status,
       created_at: item.created_at,
-      profile: item.jugadores
+      profile: item.jugadores,
     }));
   } catch (err) {
     console.error('Error fetching pending requests:', err);
@@ -748,5 +748,5 @@ export default {
   acceptFriendRequest,
   rejectFriendRequest,
   removeFriend,
-  getPendingRequests
+  getPendingRequests,
 };

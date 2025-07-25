@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import PlayerForm from '../components/PlayerForm';
 
 const mockProps = {
-  onAddPlayer: jest.fn()
+  onAddPlayer: jest.fn(),
 };
 
 describe('PlayerForm', () => {
@@ -34,8 +34,8 @@ describe('PlayerForm', () => {
       expect(mockProps.onAddPlayer).toHaveBeenCalledWith(
         expect.objectContaining({
           name: 'Juan Pérez',
-          score: 8
-        })
+          score: 8,
+        }),
       );
     });
   });

@@ -22,7 +22,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile }) => {
     sendFriendRequest, 
     acceptFriendRequest, 
     rejectFriendRequest, 
-    removeFriend 
+    removeFriend, 
   } = useAmigos(currentUserId);
 
   // Get current user ID on mount

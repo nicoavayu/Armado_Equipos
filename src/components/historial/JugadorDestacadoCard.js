@@ -16,25 +16,25 @@ const JugadorDestacadoCard = ({ jugador, tipo }) => {
         return {
           icon: '🏆',
           label: 'MVP',
-          className: 'badge-mvp'
+          className: 'badge-mvp',
         };
       case 'arquero':
         return {
           icon: '🧤',
           label: 'Mejor Arquero',
-          className: 'badge-arquero'
+          className: 'badge-arquero',
         };
       case 'sucio':
         return {
           icon: '🃏',
           label: 'Tarjeta Negra',
-          className: 'badge-sucio'
+          className: 'badge-sucio',
         };
       default:
         return {
           icon: '⭐',
           label: 'Destacado',
-          className: 'badge-default'
+          className: 'badge-default',
         };
     }
   };

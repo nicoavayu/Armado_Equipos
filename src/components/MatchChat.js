@@ -81,7 +81,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
         .insert([{
           partido_id: partidoId,
           autor: author,
-          mensaje: newMessage.trim()
+          mensaje: newMessage.trim(),
         }]);
 
       if (error) throw error;
@@ -103,7 +103,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   const formatTime = (timestamp) => {
     return new Date(timestamp).toLocaleTimeString('es-ES', {
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -118,7 +118,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
         </div>
         
         <div className="chat-messages">
-          {messages.map(msg => (
+          {messages.map((msg) => (
             <div key={msg.id} className="chat-message">
               <div className="message-header">
                 <span className="message-author">{msg.autor}</span>
@@ -134,10 +134,10 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
           <input
             type="text"
             value={newMessage}
-            onChange={e => setNewMessage(e.target.value)}
+            onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Escribí tu mensaje..."
             className="chat-input"
-            onKeyPress={e => e.key === 'Enter' && handleSendMessage()}
+            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
             disabled={loading}
             ref={inputRef}
             autoFocus

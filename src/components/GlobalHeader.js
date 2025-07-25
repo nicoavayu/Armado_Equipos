@@ -49,6 +49,9 @@ const GlobalHeader = ({ onProfileClick }) => {
   const userName = profile?.nombre || user?.email?.split('@')[0] || 'Usuario';
   const truncatedName = userName.length > 15 ? `${userName.substring(0, 15)}...` : userName;
   const isAvailable = profile?.acepta_invitaciones !== false;
+
+  // Traducción de estado
+  const statusText = isAvailable ? 'Disponible' : 'Ocupado';
   
   const toggleStatusDropdown = (e) => {
     e.stopPropagation();
@@ -96,12 +99,10 @@ const GlobalHeader = ({ onProfileClick }) => {
         
         <div className="global-user-info" onClick={toggleStatusDropdown}>
           <div className="global-greeting-name">
-            <div className="global-greeting">Hello,</div>
+            <div className="global-greeting">Hola,</div>
             <div className="global-username">{truncatedName}</div>
           </div>
-          <div className={`global-status-text ${isAvailable ? 'available' : 'unavailable'}`}>
-            {isAvailable ? 'Available' : 'Unavailable'}
-          </div>
+          <div className={`global-status-text ${isAvailable ? 'available' : 'unavailable'}`}>{statusText}</div>
         </div>
         
         {/* Status dropdown */}

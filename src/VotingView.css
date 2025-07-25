@@ -615,7 +615,7 @@ select.input-modern {
   .voting-photo-box {
     width: 80vw !important;
     height: 80vw !important;
-    margin-top: 8px;
+    margin-top: -4px;
   }
 
   .voting-player-name {

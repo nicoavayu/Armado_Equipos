@@ -10,7 +10,7 @@ export const MODES = {
   ADMIN: 'admin',
   SIMPLE: 'simple', 
   VOTING: 'votacion',
-  PLAYER: 'jugador'
+  PLAYER: 'jugador',
 };
 
 // Steps for the voting flow
@@ -18,7 +18,7 @@ export const STEPS = {
   IDENTIFY: 0,
   PHOTO: 1,
   VOTE: 2,
-  CONFIRM: 3
+  CONFIRM: 3,
 };
 
 // Steps for the admin panel
@@ -28,7 +28,7 @@ export const ADMIN_STEPS = {
   SELECT_FREQUENT: 2,
   EDIT_FREQUENT: 3,
   MANAGE: 4,
-  MODO_RAPIDO: 5
+  MODO_RAPIDO: 5,
 };
 
 // Rating buttons for voting
@@ -39,5 +39,5 @@ export default {
   MODES,
   STEPS,
   ADMIN_STEPS,
-  RATING_BUTTONS
+  RATING_BUTTONS,
 };

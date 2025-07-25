@@ -14,7 +14,7 @@ const SurveyManager = () => {
     openSurvey, 
     closeSurvey, 
     handleSurveySubmit,
-    refreshSurveys
+    refreshSurveys,
   } = useSurveys();
 
   // Check for pending surveys on component mount

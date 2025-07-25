@@ -21,7 +21,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
     mejor_arquero: null,
     no_hubo_arqueros: false,
     partido_limpio: true,
-    jugadores_violentos: []
+    jugadores_violentos: [],
   });
 
   // Dividir jugadores en equipos
@@ -43,27 +43,27 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
         setEquipoA(partido.jugadores.slice(0, mitad) || []);
         setEquipoB(partido.jugadores.slice(mitad) || []);
       }
-      setArqueros(partido.jugadores.filter(j => j.position === 'arquero') || []);
+      setArqueros(partido.jugadores.filter((j) => j.position === 'arquero') || []);
     }
   }, [partido]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setSurvey(prev => ({
+    setSurvey((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : value,
     }));
   };
 
   const handlePlayerSelection = (field, playerId) => {
-    setSurvey(prev => ({
+    setSurvey((prev) => ({
       ...prev,
-      [field]: playerId
+      [field]: playerId,
     }));
   };
 
   const toggleAbsentPlayer = (playerId) => {
-    setSurvey(prev => {
+    setSurvey((prev) => {
       const currentSet = new Set(prev.jugadores_ausentes);
       if (currentSet.has(playerId)) {
         currentSet.delete(playerId);
@@ -72,13 +72,13 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
       }
       return {
         ...prev,
-        jugadores_ausentes: Array.from(currentSet)
+        jugadores_ausentes: Array.from(currentSet),
       };
     });
   };
 
   const toggleViolentPlayer = (playerId) => {
-    setSurvey(prev => {
+    setSurvey((prev) => {
       const currentSet = new Set(prev.jugadores_violentos);
       if (currentSet.has(playerId)) {
         currentSet.delete(playerId);
@@ -87,7 +87,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
       }
       return {
         ...prev,
-        jugadores_violentos: Array.from(currentSet)
+        jugadores_violentos: Array.from(currentSet),
       };
     });
   };
@@ -213,7 +213,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
         .insert({
           partido_id: partido.id,
           votante_id: user.id,
-          ...survey
+          ...survey,
         });
       if (error) throw error;
 
@@ -271,11 +271,11 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
             <div className="survey-options">
               <button 
                 className={`survey-option-btn ${survey.se_jugo ? 'selected' : ''}`}
-                onClick={() => setSurvey(prev => ({ ...prev, se_jugo: true }))}
+                onClick={() => setSurvey((prev) => ({ ...prev, se_jugo: true }))}
               >Sí</button>
               <button 
                 className={`survey-option-btn ${!survey.se_jugo ? 'selected' : ''}`}
-                onClick={() => setSurvey(prev => ({ ...prev, se_jugo: false }))}
+                onClick={() => setSurvey((prev) => ({ ...prev, se_jugo: false }))}
               >No</button>
             </div>
             <div className="survey-nav-buttons">
@@ -319,11 +319,11 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
             <div className="survey-options">
               <button 
                 className={`survey-option-btn ${survey.asistieron_todos ? 'selected' : ''}`}
-                onClick={() => setSurvey(prev => ({ ...prev, asistieron_todos: true, jugadores_ausentes: [] }))}
+                onClick={() => setSurvey((prev) => ({ ...prev, asistieron_todos: true, jugadores_ausentes: [] }))}
               >Sí</button>
               <button 
                 className={`survey-option-btn ${!survey.asistieron_todos ? 'selected' : ''}`}
-                onClick={() => setSurvey(prev => ({ ...prev, asistieron_todos: false }))}
+                onClick={() => setSurvey((prev) => ({ ...prev, asistieron_todos: false }))}
               >No</button>
             </div>
             <div className="survey-nav-buttons">
@@ -343,7 +343,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
             <h2 className="survey-question">¿Quiénes faltaron?</h2>
             <p className="survey-instruction">Selecciona todos los jugadores que no asistieron</p>
             <div className="survey-players-grid">
-              {allPlayers.map(player => (
+              {allPlayers.map((player) => (
                 <PlayerCardMini
                   key={player.uuid || player.id}
                   player={player}
@@ -369,7 +369,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
           <div className="survey-step slide-in">
             <h2 className="survey-question">¿Quién fue el mejor jugador del equipo A?</h2>
             <div className="survey-players-grid">
-              {equipoA.map(player => (
+              {equipoA.map((player) => (
                 <PlayerCardMini
                   key={player.uuid || player.id}
                   player={player}
@@ -389,7 +389,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
           <div className="survey-step slide-in">
             <h2 className="survey-question">¿Quién fue el mejor jugador del equipo B?</h2>
             <div className="survey-players-grid">
-              {equipoB.map(player => (
+              {equipoB.map((player) => (
                 <PlayerCardMini
                   key={player.uuid || player.id}
                   player={player}
@@ -410,7 +410,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
             <h2 className="survey-question">¿Quién fue el mejor arquero del partido?</h2>
             {arqueros.length > 0 ? (
               <div className="survey-players-grid">
-                {arqueros.map(player => (
+                {arqueros.map((player) => (
                   <PlayerCardMini
                     key={player.uuid || player.id}
                     player={player}
@@ -423,7 +423,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
               <div className="survey-no-options">
                 <button 
                   className={`survey-option-btn ${survey.no_hubo_arqueros ? 'selected' : ''}`}
-                  onClick={() => setSurvey(prev => ({ ...prev, no_hubo_arqueros: !prev.no_hubo_arqueros }))}
+                  onClick={() => setSurvey((prev) => ({ ...prev, no_hubo_arqueros: !prev.no_hubo_arqueros }))}
                 >No hubo arqueros fijos</button>
               </div>
             )}
@@ -440,11 +440,11 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
             <div className="survey-options">
               <button 
                 className={`survey-option-btn ${survey.partido_limpio ? 'selected' : ''}`}
-                onClick={() => setSurvey(prev => ({ ...prev, partido_limpio: true, jugadores_violentos: [] }))}
+                onClick={() => setSurvey((prev) => ({ ...prev, partido_limpio: true, jugadores_violentos: [] }))}
               >Sí</button>
               <button 
                 className={`survey-option-btn ${!survey.partido_limpio ? 'selected' : ''}`}
-                onClick={() => setSurvey(prev => ({ ...prev, partido_limpio: false }))}
+                onClick={() => setSurvey((prev) => ({ ...prev, partido_limpio: false }))}
               >No</button>
             </div>
             <div className="survey-nav-buttons">
@@ -464,7 +464,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
             <h2 className="survey-question">¿Quién tuvo mala actitud o fue violento?</h2>
             <p className="survey-instruction">Selecciona todos los jugadores que consideres</p>
             <div className="survey-players-grid">
-              {allPlayers.map(player => (
+              {allPlayers.map((player) => (
                 <PlayerCardMini
                   key={player.uuid || player.id}
                   player={player}

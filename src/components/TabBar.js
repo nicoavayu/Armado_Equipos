@@ -1,17 +1,29 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import './TabBar.css';
 import NotificationBadge from './NotificationBadge';
 import { useNotifications } from '../context/NotificationContext';
 
 const TabBar = ({ activeTab, onTabChange }) => {
   const { unreadCount } = useNotifications();
+  const navigate = useNavigate();
+  
+  const handleTabClick = (tab) => {
+    if (tab === 'home') navigate('/');
+    else if (tab === 'votacion') navigate('/nuevo-partido');
+    else if (tab === 'quiero-jugar') navigate('/quiero-jugar');
+    else if (tab === 'amigos') navigate('/amigos');
+    else if (tab === 'profile') navigate('/profile');
+    
+    if (onTabChange) onTabChange(tab);
+  };
   
   return (
     <div className="tab-bar">
       {/* Home */}
       <button 
         className={`tab-item ${activeTab === 'home' ? 'active' : ''}`}
-        onClick={() => onTabChange('home')}
+        onClick={() => handleTabClick('home')}
       >
         <div className="tab-icon-container">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={28} height={28}>
@@ -25,7 +37,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
       {/* Armar Equipos */}
       <button 
         className={`tab-item ${activeTab === 'votacion' ? 'active' : ''}`}
-        onClick={() => onTabChange('votacion')}
+        onClick={() => handleTabClick('votacion')}
       >
         <div className="tab-icon-container">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={28} height={28}>
@@ -39,7 +51,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
       {/* Quiero Jugar */}
       <button 
         className={`tab-item ${activeTab === 'quiero-jugar' ? 'active' : ''}`}
-        onClick={() => onTabChange('quiero-jugar')}
+        onClick={() => handleTabClick('quiero-jugar')}
       >
         <div className="tab-icon-container">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={28} height={28}>
@@ -53,7 +65,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
       {/* Amigos */}
       <button 
         className={`tab-item ${activeTab === 'amigos' ? 'active' : ''}`}
-        onClick={() => onTabChange('amigos')}
+        onClick={() => handleTabClick('amigos')}
       >
         <div className="tab-icon-container">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={28} height={28}>
@@ -67,7 +79,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
       {/* Perfil */}
       <button 
         className={`tab-item ${activeTab === 'profile' ? 'active' : ''}`}
-        onClick={() => onTabChange('profile')}
+        onClick={() => handleTabClick('profile')}
       >
         <div className="tab-icon-container">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={28} height={28}>

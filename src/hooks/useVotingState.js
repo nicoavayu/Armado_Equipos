@@ -8,11 +8,11 @@ export const useVotingState = (jugadores, nombre) => {
   const [votos, setVotos] = useState({});
   const [yaVoto, setYaVoto] = useState(false);
   
-  const jugadoresParaVotar = jugadores.filter(j => j.nombre !== nombre);
+  const jugadoresParaVotar = jugadores.filter((j) => j.nombre !== nombre);
 
   useEffect(() => {
     if (!nombre) return;
-    const j = jugadores.find(j => j.nombre === nombre);
+    const j = jugadores.find((j) => j.nombre === nombre);
     setJugador(j || null);
   }, [nombre, jugadores]);
 
@@ -36,6 +36,6 @@ export const useVotingState = (jugadores, nombre) => {
     votos,
     setVotos,
     yaVoto,
-    jugadoresParaVotar
+    jugadoresParaVotar,
   };
 };

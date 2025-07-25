@@ -31,7 +31,7 @@ class ErrorBoundary extends React.Component {
       componentStack: this.state.errorInfo?.componentStack,
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
-      url: window.location.href
+      url: window.location.href,
     };
     
     // For now, just copy to clipboard - can be enhanced to send to error reporting service
@@ -58,7 +58,7 @@ class ErrorBoundary extends React.Component {
               fontFamily: 'Oswald, Arial, sans-serif',
               fontSize: '18px',
               marginBottom: '30px',
-              lineHeight: '1.4'
+              lineHeight: '1.4',
             }}>
               Ha ocurrido un error inesperado. Por favor, recarga la página para continuar.
             </div>

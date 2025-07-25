@@ -1,51 +1,178 @@
 import './HomeStyleKit.css';
-import React, { useState, useEffect } from "react";
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { MODES, ADMIN_STEPS } from "./constants";
-import AmigosView from "./components/AmigosView";
-import { LOADING_STATES } from "./appConstants";
-import ErrorBoundary from "./components/ErrorBoundary";
-import AuthProvider, { useAuth } from "./components/AuthProvider";
-import DirectFix from "./components/DirectFix";
-import Button from "./components/Button";
-import NetworkStatus from "./components/NetworkStatus";
-import TabBar from "./components/TabBar";
-import FifaHome from "./FifaHome";
-import SurveyManager from "./components/SurveyManager";
-import TestSurvey from "./TestSurvey";
-import EncuestaPartido from "./pages/EncuestaPartido";
+import React, { useState, useEffect } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import { BrowserRouter as Router, Routes, Route, useNavigate, Outlet } from 'react-router-dom';
+import { MODES, ADMIN_STEPS } from './constants';
+import AmigosView from './components/AmigosView';
+import { LOADING_STATES } from './appConstants';
+import ErrorBoundary from './components/ErrorBoundary';
+import AuthProvider, { useAuth } from './components/AuthProvider';
+import DirectFix from './components/DirectFix';
+import Button from './components/Button';
+import NetworkStatus from './components/NetworkStatus';
+import TabBar from './components/TabBar';
+import FifaHome from './FifaHome';
+import SurveyManager from './components/SurveyManager';
+import TestSurvey from './TestSurvey';
+import EncuestaPartido from './pages/EncuestaPartido';
 
-import VotingView from "./VotingView";
-import AdminPanel from "./AdminPanel";
-import FormularioNuevoPartidoFlow from "./FormularioNuevoPartidoFlow";
-import PartidoInfoBox from "./PartidoInfoBox";
-import ListaPartidosFrecuentes from "./ListaPartidosFrecuentes";
-import EditarPartidoFrecuente from "./EditarPartidoFrecuente";
-import QuieroJugar from "./QuieroJugar";
-import ProfileEditor from "./components/ProfileEditor";
-import NotificationsView from "./components/NotificationsView";
-import GlobalHeader from "./components/GlobalHeader";
-import { NotificationProvider } from "./context/NotificationContext";
-import { TutorialProvider } from "./context/TutorialContext";
-import Tutorial from "./components/Tutorial";
-import WelcomeModal from "./components/WelcomeModal";
-import { getPartidoPorCodigo, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes } from "./supabase";
-import { toast } from 'react-toastify';
-import IngresoAdminPartido from "./IngresoAdminPartido";
-import AuthPage from "./components/AuthPage";
-import ResetPassword from "./components/ResetPassword";
-import { useSurveyScheduler } from "./hooks/useSurveyScheduler";
+import VotingView from './VotingView';
+import AdminPanel from './AdminPanel';
+import FormularioNuevoPartidoFlow from './FormularioNuevoPartidoFlow';
+import MainLayout from './components/MainLayout';
+import GlobalHeader from './components/GlobalHeader';
+import PartidoInfoBox from './PartidoInfoBox';
+import ListaPartidosFrecuentes from './ListaPartidosFrecuentes';
+import EditarPartidoFrecuente from './EditarPartidoFrecuente';
+import QuieroJugar from './QuieroJugar';
+import ProfileEditor from './components/ProfileEditor';
+import NotificationsView from './components/NotificationsView';
+
+import { NotificationProvider } from './context/NotificationContext';
+import { TutorialProvider } from './context/TutorialContext';
+import Tutorial from './components/Tutorial';
+import WelcomeModal from './components/WelcomeModal';
+import { getPartidoPorCodigo, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes } from './supabase';
+import IngresoAdminPartido from './IngresoAdminPartido';
+import AuthPage from './components/AuthPage';
+import ResetPassword from './components/ResetPassword';
+import { useSurveyScheduler } from './hooks/useSurveyScheduler';
+
+const HomePage = () => {
+  return (
+    <>
+      <GlobalHeader onProfileClick={() => {}} />
+      <div className="voting-bg content-with-tabbar" style={{ marginTop: '90px' }}>
+        <div className="voting-modern-card" style={{ maxWidth: 800, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 0 }}>
+          <FifaHome onModoSeleccionado={(modo) => {
+            if (modo === 'admin-historial') {
+              // Navegar directamente a la lista de partidos frecuentes
+              window.location.href = '/?admin=historial';
+            }
+          }} />
+        </div>
+      </div>
+    </>
+  );
+};
+
+const NuevoPartidoPage = () => {
+  const navigate = useNavigate();
+  return (
+    <div className="voting-bg content-with-tabbar">
+      <div className="voting-modern-card" style={{ maxWidth: 650 }}>
+        <FormularioNuevoPartidoFlow
+          onConfirmar={async (partido) => {
+            navigate('/');
+            return partido;
+          }}
+          onVolver={() => navigate('/')}
+        />
+      </div>
+    </div>
+  );
+};
+
+const QuieroJugarPage = () => {
+  const navigate = useNavigate();
+  return <QuieroJugar onVolver={() => navigate('/')} />;
+};
+
+const AmigosPage = () => {
+  return (
+    <div className="voting-bg content-with-tabbar">
+      <div className="voting-modern-card" style={{ maxWidth: 1200, padding: '20px' }}>
+        <AmigosView />
+      </div>
+    </div>
+  );
+};
+
+const ProfilePage = () => {
+  const navigate = useNavigate();
+  return (
+    <div className="voting-bg content-with-tabbar">
+      <div className="voting-modern-card" style={{ maxWidth: 440, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div className="notifications-back-button" onClick={() => navigate('/')}>←</div>
+        <ProfileEditor 
+          isOpen={true} 
+          onClose={() => navigate('/')} 
+        />
+      </div>
+    </div>
+  );
+};
+
+const NotificationsPage = () => {
+  const navigate = useNavigate();
+  return (
+    <div className="voting-bg content-with-tabbar">
+      <div className="voting-modern-card" style={{ maxWidth: 600, padding: '20px' }}>
+        <div className="notifications-back-button" onClick={() => navigate('/')}>←</div>
+        <NotificationsView />
+      </div>
+    </div>
+  );
+};
+
+const HistorialPage = () => {
+  const navigate = useNavigate();
+  const [partidoFrecuenteEditando, setPartidoFrecuenteEditando] = useState(null);
+  const [step, setStep] = useState('list');
+  
+  if (step === 'edit' && partidoFrecuenteEditando) {
+    return (
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card" style={{ maxWidth: 650 }}>
+          <EditarPartidoFrecuente
+            partido={partidoFrecuenteEditando}
+            onGuardado={() => {
+              setPartidoFrecuenteEditando(null);
+              setStep('list');
+            }}
+            onVolver={() => {
+              setPartidoFrecuenteEditando(null);
+              setStep('list');
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="voting-bg content-with-tabbar">
+      <div className="voting-modern-card" style={{ maxWidth: 650 }}>
+        <ListaPartidosFrecuentes
+          onEntrar={async (partidoFrecuente) => {
+            // Crear partido desde frecuente y navegar
+            try {
+              const hoy = new Date().toISOString().split('T')[0];
+              const partido = await crearPartidoDesdeFrec(partidoFrecuente, hoy);
+              navigate('/');
+            } catch (error) {
+              toast.error('Error al crear el partido');
+            }
+          }}
+          onEditar={(partido) => {
+            setPartidoFrecuenteEditando(partido);
+            setStep('edit');
+          }}
+          onVolver={() => navigate('/')}
+        />
+      </div>
+    </div>
+  );
+};
 
 const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
   <div className="voting-bg content-with-tabbar">
     <div className="voting-modern-card">
       <div className="match-name" style={{ marginBottom: 24 }}>ARMAR EQUIPOS</div>
-      <button className="voting-confirm-btn" style={{marginBottom: 12, background: '#8178e5', borderRadius: '50px'}} onClick={onNuevo}>
+      <button className="voting-confirm-btn" style={{ marginBottom: 12, background: '#8178e5', borderRadius: '50px' }} onClick={onNuevo}>
         ARMAR PARTIDO NUEVO
       </button>
-      <button className="voting-confirm-btn" style={{marginBottom: 16, background: '#8178e5', borderRadius: '50px'}} onClick={onExistente}>
+      <button className="voting-confirm-btn" style={{ marginBottom: 16, background: '#8178e5', borderRadius: '50px' }} onClick={onExistente}>
         HISTORIAL
       </button>
     </div>
@@ -63,11 +190,11 @@ function MainAppContent({ user }) {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const codigo = params.get("codigo");
+    const codigo = params.get('codigo');
     if (codigo) {
       setModo(MODES.PLAYER);
       getPartidoPorCodigo(codigo)
-        .then(partido => setPartidoActual(partido))
+        .then((partido) => setPartidoActual(partido))
         .catch(() => setPartidoActual(null));
     }
   }, []);
@@ -175,7 +302,7 @@ function MainAppContent({ user }) {
   else if (modo === 'home') {
     content = (
       <div className="voting-bg content-with-tabbar">
-        <div className="voting-modern-card" style={{maxWidth: 800, display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 0}}>
+        <div className="voting-modern-card" style={{ maxWidth: 800, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 0 }}>
           <FifaHome onModoSeleccionado={(m, tab) => {
             setModo(m);
             if (m === MODES.ADMIN) setStepPartido(ADMIN_STEPS.SELECT_TYPE);
@@ -195,7 +322,7 @@ function MainAppContent({ user }) {
   } else if (modo === 'profile') {
     content = (
       <div className="voting-bg content-with-tabbar">
-        <div className="voting-modern-card" style={{maxWidth: 440, display: "flex", flexDirection: "column", alignItems: "center"}}>
+        <div className="voting-modern-card" style={{ maxWidth: 440, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div className="notifications-back-button" onClick={() => setModo('home')}>←</div>
           <ProfileEditor 
             isOpen={true} 
@@ -207,7 +334,7 @@ function MainAppContent({ user }) {
   } else if (modo === 'notifications') {
     content = (
       <div className="voting-bg content-with-tabbar">
-        <div className="voting-modern-card" style={{maxWidth: 600, padding: '20px'}}>
+        <div className="voting-modern-card" style={{ maxWidth: 600, padding: '20px' }}>
           <div className="notifications-back-button" onClick={() => setModo('home')}>←</div>
           <NotificationsView />
         </div>
@@ -216,7 +343,7 @@ function MainAppContent({ user }) {
   } else if (modo === 'amigos') {
     content = (
       <div className="voting-bg content-with-tabbar">
-        <div className="voting-modern-card" style={{maxWidth: 1200, padding: '20px'}}>
+        <div className="voting-modern-card" style={{ maxWidth: 1200, padding: '20px' }}>
           <AmigosView />
         </div>
       </div>
@@ -245,12 +372,12 @@ function MainAppContent({ user }) {
       <div className="voting-bg content-with-tabbar">
         <div className="voting-modern-card">
           <div className="match-name">MODO NO DISPONIBLE</div>
-          <div style={{color:"#fff", padding: "20px", fontSize: "18px", textAlign: "center"}}>
+          <div style={{ color:'#fff', padding: '20px', fontSize: '18px', textAlign: 'center' }}>
             El modo seleccionado no está disponible o ha ocurrido un error.
           </div>
           <Button
             onClick={() => setModo('home')}
-            style={{marginTop: "34px", marginBottom: "0", width: '100%', maxWidth: '400px', fontSize: '1.5rem', height: '64px', borderRadius: '9px'}}
+            style={{ marginTop: '34px', marginBottom: '0', width: '100%', maxWidth: '400px', fontSize: '1.5rem', height: '64px', borderRadius: '9px' }}
             ariaLabel="Volver al inicio"
           >
             VOLVER AL INICIO
@@ -268,7 +395,6 @@ function MainAppContent({ user }) {
   return (
     <>
       <DirectFix />
-      <GlobalHeader onProfileClick={handleProfileClick} />
       {content}
       {showTabBar && (
         <TabBar 
@@ -297,12 +423,17 @@ export default function App() {
                 <Route path="/test-survey/:partidoId/:userId" element={<TestSurvey />} />
                 <Route path="/encuesta/:partidoId" element={<EncuestaPartido />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                <Route
-                  path="*"
-                  element={
-                    <AppAuthWrapper />
-                  }
-                />
+                <Route path="/" element={<AppAuthWrapper />}>
+                  <Route path="" element={<MainLayout />}>
+                    <Route index element={<HomePage />} />
+                    <Route path="nuevo-partido" element={<NuevoPartidoPage />} />
+                    <Route path="quiero-jugar" element={<QuieroJugarPage />} />
+                    <Route path="amigos" element={<AmigosPage />} />
+                    <Route path="profile" element={<ProfilePage />} />
+                    <Route path="notifications" element={<NotificationsPage />} />
+                    <Route path="historial" element={<HistorialPage />} />
+                  </Route>
+                </Route>
               </Routes>
               <ToastContainer position="top-right" autoClose={5000} />
             </Router>
@@ -320,6 +451,6 @@ function AppAuthWrapper() {
     // Si no está logueado, muestra solo el login/register
     return <AuthPage />;
   }
-  // Si está logueado, muestra la app completa
-  return <MainAppContent user={user} />;
+  // Si está logueado, muestra el outlet para las rutas anidadas
+  return <Outlet />;
 }

@@ -11,11 +11,11 @@ function PlayerList({ players, selectedPlayers, onSelectPlayer, onDeletePlayer }
       </h2>
       <div className="player-list-grid">
         {sortedPlayers.map((p, i) => {
-          const isSelected = selectedPlayers.some(sp => sp.id === p.id);
+          const isSelected = selectedPlayers.some((sp) => sp.id === p.id);
           return (
             <PlayerCardTrigger key={p.uuid || p.id || i} profile={p}>
               <div
-                className={`admin-jugador-box ${isSelected ? "votado" : ""}`}
+                className={`admin-jugador-box ${isSelected ? 'votado' : ''}`}
                 onClick={(e) => {
                   e.stopPropagation(); // Prevent modal from opening when selecting player
                   onSelectPlayer(p);

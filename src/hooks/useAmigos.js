@@ -80,18 +80,18 @@ export const useAmigos = (currentUserId) => {
       
       // Combine and format both sets of friends
       const formattedAmigos = [
-        ...data.map(item => ({
+        ...data.map((item) => ({
           id: item.id,
           status: item.status,
           created_at: item.created_at,
-          profile: item.usuarios
+          profile: item.usuarios,
         })),
-        ...reverseData.map(item => ({
+        ...reverseData.map((item) => ({
           id: item.id,
           status: item.status,
           created_at: item.created_at,
-          profile: item.usuarios
-        }))
+          profile: item.usuarios,
+        })),
       ];
       
       console.log('[AMIGOS] Total formatted friends:', formattedAmigos.length);
@@ -194,7 +194,7 @@ export const useAmigos = (currentUserId) => {
         .insert([{
           user_id: userIdUuid,
           friend_id: friendIdUuid,
-          status: 'pending'
+          status: 'pending',
         }])
         .select()
         .single();
@@ -225,7 +225,7 @@ export const useAmigos = (currentUserId) => {
             message: `${senderProfile?.nombre || 'Alguien'} te ha enviado una solicitud de amistad`,
             data: { requestId: data.id, senderId: userIdUuid },
             read: false,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
           }]);
       } catch (notifError) {
         console.error('[AMIGOS] Error creating notification:', notifError);
@@ -285,7 +285,7 @@ export const useAmigos = (currentUserId) => {
             message: `${accepterProfile?.nombre || 'Alguien'} ha aceptado tu solicitud de amistad`,
             data: { friendshipId: data.id },
             read: false,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
           }]);
       } catch (notifError) {
         console.error('[AMIGOS] Error creating notification:', notifError);
@@ -340,7 +340,7 @@ export const useAmigos = (currentUserId) => {
             message: 'Tu solicitud de amistad ha sido rechazada',
             data: { requestId: data.id },
             read: false,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
           }]);
       } catch (notifError) {
         console.error('[AMIGOS] Error creating notification:', notifError);
@@ -424,11 +424,11 @@ export const useAmigos = (currentUserId) => {
         console.log('[AMIGOS] Sample pending request data:', data[0]);
       }
       
-      const formattedRequests = data.map(item => ({
+      const formattedRequests = data.map((item) => ({
         id: item.id,
         status: item.status,
         created_at: item.created_at,
-        profile: item.usuarios
+        profile: item.usuarios,
       }));
       
       console.log('[AMIGOS] Formatted pending requests:', formattedRequests.length);
@@ -457,6 +457,6 @@ export const useAmigos = (currentUserId) => {
     acceptFriendRequest,
     rejectFriendRequest,
     removeFriend,
-    getPendingRequests
+    getPendingRequests,
   };
 };

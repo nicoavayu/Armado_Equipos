@@ -11,7 +11,7 @@ const ProfileDisplay = () => {
       color: '#fff', 
       padding: '10px', 
       textAlign: 'center',
-      fontSize: '14px'
+      fontSize: '14px',
     }}>
       <div>Welcome, {profile?.nombre || user?.email}!</div>
       {profile?.avatar_url && (
@@ -22,7 +22,7 @@ const ProfileDisplay = () => {
             width: '30px', 
             height: '30px', 
             borderRadius: '50%', 
-            marginTop: '5px' 
+            marginTop: '5px', 
           }} 
         />
       )}

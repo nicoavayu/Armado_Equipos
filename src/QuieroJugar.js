@@ -8,7 +8,7 @@ import './VotingView.css';
 
 export default function QuieroJugar({ onVolver }) {
   // Clase para dar espacio al TabBar
-  const containerClass = "quiero-jugar-container content-with-tabbar";
+  const containerClass = 'quiero-jugar-container content-with-tabbar';
   const { user } = useAuth();
   const [partidosAbiertos, setPartidosAbiertos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -141,7 +141,7 @@ export default function QuieroJugar({ onVolver }) {
       }
 
       // Verificar si ya está anotado por nombre
-      if (jugadoresActuales.some(j => j.nombre.toLowerCase() === nombre.trim().toLowerCase())) {
+      if (jugadoresActuales.some((j) => j.nombre.toLowerCase() === nombre.trim().toLowerCase())) {
         toast.error('Ya hay un jugador con ese nombre en el partido');
         return;
       }
@@ -150,7 +150,7 @@ export default function QuieroJugar({ onVolver }) {
         nombre: nombre.trim(),
         uuid: `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         foto_url: null,
-        score: 5
+        score: 5,
       };
 
       // Don't add to global table, just use in match
@@ -162,7 +162,7 @@ export default function QuieroJugar({ onVolver }) {
         .from('partidos')
         .update({ 
           jugadores: nuevosJugadores,
-          falta_jugadores: partidoCompleto ? false : true // Only close when full
+          falta_jugadores: partidoCompleto ? false : true, // Only close when full
         })
         .eq('id', partido.id);
 
@@ -222,7 +222,7 @@ export default function QuieroJugar({ onVolver }) {
           </div>
         ) : (
           <>
-            {partidosAbiertos.map(partido => {
+            {partidosAbiertos.map((partido) => {
               const jugadoresCount = partido.jugadores?.length || 0;
               const cupoMaximo = partido.cupo_jugadores || 20;
               const faltanJugadores = cupoMaximo - jugadoresCount;
@@ -239,7 +239,7 @@ export default function QuieroJugar({ onVolver }) {
                     {new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
                       weekday: 'long', 
                       day: 'numeric', 
-                      month: 'numeric' 
+                      month: 'numeric', 
                     }).toUpperCase()} {partido.hora}
                   </div>
                   <div className="match-location">
@@ -300,7 +300,7 @@ export default function QuieroJugar({ onVolver }) {
             </div>
           ) : (
             <>
-              {freePlayers.map(player => (
+              {freePlayers.map((player) => (
                 <PlayerCardTrigger key={player.uuid || player.id} profile={player}>
                   <div className="match-card">
                     <div className="match-title">

@@ -10,7 +10,7 @@ export const NotificationProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState({
     friends: 0,
     matches: 0,
-    total: 0
+    total: 0,
   });
   const [currentUserId, setCurrentUserId] = useState(null);
 
@@ -41,11 +41,11 @@ export const NotificationProvider = ({ children }) => {
           event: 'INSERT', 
           schema: 'public', 
           table: 'notifications',
-          filter: `user_id=eq.${currentUserId}`
+          filter: `user_id=eq.${currentUserId}`,
         }, 
         (payload) => {
           handleNewNotification(payload.new);
-        }
+        },
       )
       .subscribe();
 
@@ -76,22 +76,22 @@ export const NotificationProvider = ({ children }) => {
 
   // Handle new notification
   const handleNewNotification = (notification) => {
-    setNotifications(prev => [notification, ...prev]);
+    setNotifications((prev) => [notification, ...prev]);
     updateUnreadCount([notification, ...notifications]);
   };
 
   // Update unread count
   const updateUnreadCount = (notifs) => {
-    const unread = notifs.filter(n => !n.read);
-    const friendRequests = unread.filter(n => n.type === 'friend_request').length;
-    const matchInvites = unread.filter(n => n.type === 'match_invite').length;
-    const callToVote = unread.filter(n => n.type === 'call_to_vote').length;
-    const postMatchSurveys = unread.filter(n => n.type === 'post_match_survey').length;
+    const unread = notifs.filter((n) => !n.read);
+    const friendRequests = unread.filter((n) => n.type === 'friend_request').length;
+    const matchInvites = unread.filter((n) => n.type === 'match_invite').length;
+    const callToVote = unread.filter((n) => n.type === 'call_to_vote').length;
+    const postMatchSurveys = unread.filter((n) => n.type === 'post_match_survey').length;
     
     setUnreadCount({
       friends: friendRequests,
       matches: matchInvites + callToVote + postMatchSurveys, // Agrupamos todas las notificaciones relacionadas con partidos
-      total: unread.length
+      total: unread.length,
     });
   };
 
@@ -106,13 +106,13 @@ export const NotificationProvider = ({ children }) => {
       if (error) throw error;
 
       // Update local state
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      setNotifications((prev) => 
+        prev.map((n) => n.id === notificationId ? { ...n, read: true } : n),
       );
       
       // Update unread count
-      const updatedNotifications = notifications.map(n => 
-        n.id === notificationId ? { ...n, read: true } : n
+      const updatedNotifications = notifications.map((n) => 
+        n.id === notificationId ? { ...n, read: true } : n,
       );
       updateUnreadCount(updatedNotifications);
     } catch (error) {
@@ -132,7 +132,7 @@ export const NotificationProvider = ({ children }) => {
       if (error) throw error;
 
       // Update local state
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount({ friends: 0, matches: 0, total: 0 });
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -152,13 +152,13 @@ export const NotificationProvider = ({ children }) => {
       if (error) throw error;
 
       // Update local state
-      setNotifications(prev => 
-        prev.map(n => n.type === type ? { ...n, read: true } : n)
+      setNotifications((prev) => 
+        prev.map((n) => n.type === type ? { ...n, read: true } : n),
       );
       
       // Update unread count
-      const updatedNotifications = notifications.map(n => 
-        n.type === type ? { ...n, read: true } : n
+      const updatedNotifications = notifications.map((n) => 
+        n.type === type ? { ...n, read: true } : n,
       );
       updateUnreadCount(updatedNotifications);
     } catch (error) {
@@ -178,7 +178,7 @@ export const NotificationProvider = ({ children }) => {
         message,
         data,
         read: false,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       };
 
       const { data: newNotification, error } = await supabase
@@ -203,7 +203,7 @@ export const NotificationProvider = ({ children }) => {
     markAllAsRead,
     markTypeAsRead,
     createNotification,
-    fetchNotifications
+    fetchNotifications,
   };
 
   return (

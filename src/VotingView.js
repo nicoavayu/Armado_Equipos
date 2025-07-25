@@ -1,15 +1,15 @@
 // src/VotingView.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   checkIfAlreadyVoted,
   uploadFoto,
   submitVotos,
   supabase,
   getGuestSessionId, // si no usás guest, podés eliminar esta línea
-} from "./supabase";
+} from './supabase';
 import { toast } from 'react-toastify';
-import StarRating from "./StarRating";
-import "./HomeStyleKit.css";
+import StarRating from './StarRating';
+import './HomeStyleKit.css';
 
 const DefaultAvatar = (
   <div className="voting-photo-placeholder">
@@ -24,7 +24,7 @@ const DefaultAvatar = (
 export default function VotingView({ onReset, jugadores }) {
   // Estados principales
   const [step, setStep] = useState(0);
-  const [nombre, setNombre] = useState("");
+  const [nombre, setNombre] = useState('');
   const [jugador, setJugador] = useState(null);
 
   // Foto
@@ -70,7 +70,7 @@ export default function VotingView({ onReset, jugadores }) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user?.id) {
           userId = user.id;
-        } else if (typeof getGuestSessionId === "function") {
+        } else if (typeof getGuestSessionId === 'function') {
           userId = getGuestSessionId(partidoId);
         }
 
@@ -95,7 +95,7 @@ export default function VotingView({ onReset, jugadores }) {
       setFotoPreview(null);
       return;
     }
-    const j = jugadores.find(j => j.nombre === nombre);
+    const j = jugadores.find((j) => j.nombre === nombre);
     setJugador(j || null);
     setFotoPreview(j?.avatar_url || null);
   }, [nombre, jugadores]);
@@ -121,7 +121,7 @@ export default function VotingView({ onReset, jugadores }) {
           <div className="voting-title-modern">
             ¡YA VOTASTE!
           </div>
-          <div style={{ color: "#fff", fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30 }}>
+          <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30 }}>
             Ya registraste tus votos.<br />No podés votar de nuevo en este partido.
           </div>
           <button
@@ -141,10 +141,10 @@ export default function VotingView({ onReset, jugadores }) {
         <div className="voting-modern-card">
           <div className="voting-title-modern">¿QUIÉN SOS?</div>
           <div className="player-select-grid">
-            {jugadores.map(j => (
+            {jugadores.map((j) => (
               <button
                 key={j.uuid}
-                className={`player-select-btn${nombre === j.nombre ? " selected" : ""}`}
+                className={`player-select-btn${nombre === j.nombre ? ' selected' : ''}`}
                 onClick={() => setNombre(j.nombre)}
                 type="button"
               >
@@ -155,7 +155,7 @@ export default function VotingView({ onReset, jugadores }) {
           <button
             className="voting-confirm-btn"
             disabled={!nombre}
-            style={{ opacity: nombre ? 1 : 0.4, pointerEvents: nombre ? "auto" : "none" }}
+            style={{ opacity: nombre ? 1 : 0.4, pointerEvents: nombre ? 'auto' : 'none' }}
             onClick={() => setStep(1)}
           >
             CONFIRMAR
@@ -181,9 +181,9 @@ export default function VotingView({ onReset, jugadores }) {
         const fotoUrl = await uploadFoto(file, jugador);
         setFotoPreview(fotoUrl);
         setFile(null);
-        toast.success("¡Foto cargada!");
+        toast.success('¡Foto cargada!');
       } catch (error) {
-        toast.error("Error al subir la foto: " + error.message);
+        toast.error('Error al subir la foto: ' + error.message);
       } finally {
         setSubiendoFoto(false);
       }
@@ -193,18 +193,18 @@ export default function VotingView({ onReset, jugadores }) {
       <div className="voting-bg">
         <div className="voting-modern-card">
           <div className="voting-title-modern">¡HOLA, {nombre}!</div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 18 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 18 }}>
             <div
               className="voting-photo-box"
-              onClick={() => document.getElementById("foto-input").click()}
-              style={{ cursor: "pointer" }}
-              title={fotoPreview ? "Cambiar foto" : "Agregar foto"}
+              onClick={() => document.getElementById('foto-input').click()}
+              style={{ cursor: 'pointer' }}
+              title={fotoPreview ? 'Cambiar foto' : 'Agregar foto'}
             >
               {fotoPreview ? (
                 <img
                   src={fotoPreview}
                   alt="foto"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               ) : (
                 <span className="photo-plus">+</span>
@@ -213,15 +213,15 @@ export default function VotingView({ onReset, jugadores }) {
                 id="foto-input"
                 type="file"
                 accept="image/*"
-                style={{ display: "none" }}
+                style={{ display: 'none' }}
                 onChange={handleFile}
               />
             </div>
           </div>
           {!fotoPreview && (
             <div style={{
-              fontSize: 18, color: "rgba(255,255,255,0.7)",
-              textAlign: "center", marginBottom: 18, fontFamily: "'Oswald', Arial, sans-serif"
+              fontSize: 18, color: 'rgba(255,255,255,0.7)',
+              textAlign: 'center', marginBottom: 18, fontFamily: "'Oswald', Arial, sans-serif",
             }}>
               Mandale selfie <br />
             </div>
@@ -229,11 +229,11 @@ export default function VotingView({ onReset, jugadores }) {
           {file && (
             <button
               className="voting-confirm-btn"
-              style={{ background: "rgba(255,255,255,0.17)", borderColor: "#fff", color: "#fff" }}
+              style={{ background: 'rgba(255,255,255,0.17)', borderColor: '#fff', color: '#fff' }}
               disabled={subiendoFoto}
               onClick={handleFotoUpload}
             >
-              {subiendoFoto ? "SUBIENDO..." : "GUARDAR FOTO"}
+              {subiendoFoto ? 'SUBIENDO...' : 'GUARDAR FOTO'}
             </button>
           )}
           <button
@@ -241,7 +241,7 @@ export default function VotingView({ onReset, jugadores }) {
             style={{ marginTop: 8 }}
             onClick={() => setStep(2)}
           >
-            {fotoPreview ? "CONTINUAR" : "CONTINUAR SIN FOTO"}
+            {fotoPreview ? 'CONTINUAR' : 'CONTINUAR SIN FOTO'}
           </button>
         </div>
       </div>
@@ -249,7 +249,7 @@ export default function VotingView({ onReset, jugadores }) {
   }
 
   // Jugadores a votar: todos menos yo
-  const jugadoresParaVotar = jugadores.filter(j => j.nombre !== nombre);
+  const jugadoresParaVotar = jugadores.filter((j) => j.nombre !== nombre);
 
   // Paso 2: Votar a los demás jugadores
   if (step === 2 || editandoIdx !== null) {
@@ -263,7 +263,7 @@ export default function VotingView({ onReset, jugadores }) {
 
     return (
       <div className="voting-bg">
-        <div className="voting-modern-card" style={{ background: "transparent", boxShadow: "none", padding: 0 }}>
+        <div className="voting-modern-card" style={{ background: 'transparent', boxShadow: 'none', padding: 0 }}>
           <div className="voting-title-modern">
             CALIFICÁ A TUS COMPAÑEROS
           </div>
@@ -278,13 +278,13 @@ export default function VotingView({ onReset, jugadores }) {
             </div>
             <StarRating
               value={valor}
-              onChange={valor => {
-                setVotos(prev => ({ ...prev, [jugadorVotar.uuid]: valor }));
+              onChange={(valor) => {
+                setVotos((prev) => ({ ...prev, [jugadorVotar.uuid]: valor }));
                 if (editandoIdx !== null) {
                   setEditandoIdx(null);
                   setStep(3);
                 } else {
-                  setCurrent(cur => cur + 1);
+                  setCurrent((cur) => cur + 1);
                 }
                 setHovered(null);
               }}
@@ -295,12 +295,12 @@ export default function VotingView({ onReset, jugadores }) {
               className="voting-confirm-btn"
               style={{ marginTop: 35, marginBottom: 0, fontWeight: 400 }}
               onClick={() => {
-                setVotos(prev => ({ ...prev, [jugadorVotar.uuid]: undefined }));
+                setVotos((prev) => ({ ...prev, [jugadorVotar.uuid]: undefined }));
                 if (editandoIdx !== null) {
                   setEditandoIdx(null);
                   setStep(3);
                 } else {
-                  setCurrent(cur => cur + 1);
+                  setCurrent((cur) => cur + 1);
                 }
                 setHovered(null);
               }}
@@ -326,13 +326,13 @@ export default function VotingView({ onReset, jugadores }) {
               <div key={j.uuid} className="confirmation-item">
                 <div className="confirmation-item-photo">
                   {j.avatar_url ?
-                    <img src={j.avatar_url} alt="foto" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img src={j.avatar_url} alt="foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : DefaultAvatar
                   }
                 </div>
                 <span className="confirmation-item-name">{j.nombre}</span>
                 <span className={`confirmation-item-score ${!votos[j.uuid] ? 'not-graded' : ''}`}>
-                  {votos[j.uuid] ? votos[j.uuid] + "/10" : "No calificado"}
+                  {votos[j.uuid] ? votos[j.uuid] + '/10' : 'No calificado'}
                 </span>
                 <button
                   className="confirmation-item-edit-btn"
@@ -366,14 +366,14 @@ export default function VotingView({ onReset, jugadores }) {
                 await submitVotos(votos, jugador?.uuid, partidoId, jugador?.nombre, jugador?.avatar_url);
                 setFinalizado(true);
               } catch (error) {
-                toast.error("Error al guardar los votos: " + error.message);
+                toast.error('Error al guardar los votos: ' + error.message);
               } finally {
                 setConfirmando(false);
               }
             }}
             disabled={confirmando}
           >
-            {confirmando ? "GUARDANDO..." : "CONFIRMAR MIS VOTOS"}
+            {confirmando ? 'GUARDANDO...' : 'CONFIRMAR MIS VOTOS'}
           </button>
         </div>
       </div>
@@ -389,8 +389,8 @@ export default function VotingView({ onReset, jugadores }) {
             ¡GRACIAS POR VOTAR!
           </div>
           <div style={{
-            color: "#fff", fontFamily: "'Oswald', Arial, sans-serif",
-            fontSize: 27, marginBottom: 27, letterSpacing: 1.1
+            color: '#fff', fontFamily: "'Oswald', Arial, sans-serif",
+            fontSize: 27, marginBottom: 27, letterSpacing: 1.1,
           }}>
             Tus votos fueron registrados.<br />Podés cerrar esta ventana.
           </div>

@@ -26,7 +26,7 @@ export const validatePlayerName = (name) => {
 
 export const validateFrequentMatch = (data) => {
   const required = ['nombre', 'sede', 'hora'];
-  const missing = required.filter(field => !data[field]?.trim());
+  const missing = required.filter((field) => !data[field]?.trim());
   
   if (missing.length > 0) {
     return { valid: false, message: `Campos requeridos: ${missing.join(', ')}` };

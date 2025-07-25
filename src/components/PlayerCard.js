@@ -8,7 +8,7 @@ export default function PlayerCard({ profile, user, isVisible }) {
       'ARQ': 'ARQ',
       'DEF': 'DEF', 
       'MED': 'MED',
-      'DEL': 'DEL'
+      'DEL': 'DEL',
     };
     return positions[position] || 'DEF';
   };

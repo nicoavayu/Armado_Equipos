@@ -15,7 +15,7 @@ export const useNativeFeatures = () => {
   useEffect(() => {
     if (isNative) {
       // Monitor network status
-      Network.addListener('networkStatusChange', status => {
+      Network.addListener('networkStatusChange', (status) => {
         setNetworkStatus(status);
       });
 
@@ -54,7 +54,7 @@ export const useNativeFeatures = () => {
         quality: 90,
         allowEditing: true,
         resultType: CameraResultType.DataUrl,
-        source: CameraSource.Prompt
+        source: CameraSource.Prompt,
       });
       return image.dataUrl;
     } catch (error) {
@@ -94,7 +94,7 @@ export const useNativeFeatures = () => {
   const vibrate = async (type = 'light') => {
     try {
       const style = type === 'heavy' ? ImpactStyle.Heavy : 
-                   type === 'medium' ? ImpactStyle.Medium : ImpactStyle.Light;
+        type === 'medium' ? ImpactStyle.Medium : ImpactStyle.Light;
       await Haptics.impact({ style });
     } catch (error) {
       // Fallback to web vibration
@@ -111,8 +111,8 @@ export const useNativeFeatures = () => {
           title,
           body,
           id: Date.now(),
-          schedule: { at: new Date(Date.now() + 1000) }
-        }]
+          schedule: { at: new Date(Date.now() + 1000) },
+        }],
       });
     } catch (error) {
       // Fallback to web notification
@@ -131,6 +131,6 @@ export const useNativeFeatures = () => {
     getData,
     getCurrentLocation,
     vibrate,
-    sendNotification
+    sendNotification,
   };
 };

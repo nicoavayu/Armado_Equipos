@@ -30,7 +30,7 @@ export {
   submitVotos,
   closeVotingAndCalculateScores,
   cleanupInvalidVotes,
-  checkPartidoCalificado
+  checkPartidoCalificado,
 } from './api/matchService';
 
 export {
@@ -53,7 +53,7 @@ export {
   acceptFriendRequest,
   rejectFriendRequest,
   removeFriend,
-  getPendingRequests
+  getPendingRequests,
 } from './api/playerService';
 
 export {
@@ -67,5 +67,5 @@ export {
   resetPassword,
   updatePassword,
   updateEmail,
-  onAuthStateChange
+  onAuthStateChange,
 } from './api/authService';

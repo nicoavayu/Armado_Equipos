@@ -4,35 +4,35 @@ export const handleError = (error, userMessage = 'Ha ocurrido un error') => {
   console.error('Error:', error);
   const message = error?.message || userMessage;
   toast.error(message, {
-    position: "top-right",
+    position: 'top-right',
     autoClose: 5000,
     hideProgressBar: false,
     closeOnClick: true,
     pauseOnHover: true,
-    draggable: true
+    draggable: true,
   });
   return error;
 };
 
 export const handleSuccess = (message) => {
   toast.success(message, {
-    position: "top-right",
+    position: 'top-right',
     autoClose: 3000,
     hideProgressBar: false,
     closeOnClick: true,
     pauseOnHover: true,
-    draggable: true
+    draggable: true,
   });
 };
 
 export const handleWarning = (message) => {
   toast.warn(message, {
-    position: "top-right",
+    position: 'top-right',
     autoClose: 4000,
     hideProgressBar: false,
     closeOnClick: true,
     pauseOnHover: true,
-    draggable: true
+    draggable: true,
   });
 };
 

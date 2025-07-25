@@ -11,13 +11,13 @@ export const createCallToVoteNotifications = async (matchData) => {
   try {
     // Obtener IDs de usuarios únicos de los participantes del partido
     const userIds = matchData.jugadores
-      .filter(jugador => jugador.uuid && !jugador.uuid.startsWith('guest_'))
-      .map(jugador => jugador.uuid);
+      .filter((jugador) => jugador.uuid && !jugador.uuid.startsWith('guest_'))
+      .map((jugador) => jugador.uuid);
     
     if (userIds.length === 0) return [];
     
     // Crear notificaciones para todos los participantes
-    const notifications = userIds.map(userId => ({
+    const notifications = userIds.map((userId) => ({
       user_id: userId,
       type: 'call_to_vote',
       title: '¡Hora de votar!',
@@ -27,10 +27,10 @@ export const createCallToVoteNotifications = async (matchData) => {
         matchCode: matchData.codigo,
         matchDate: matchData.fecha,
         matchTime: matchData.hora,
-        matchVenue: matchData.sede
+        matchVenue: matchData.sede,
       },
       read: false,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     }));
 
     const { data, error } = await supabase
@@ -71,7 +71,7 @@ export const schedulePostMatchSurveyNotifications = async (matchData) => {
       .update({ 
         hora_fin: new Date(matchDate.getTime() + 60 * 60 * 1000).toISOString(),
         survey_scheduled: true,
-        survey_time: notificationTime.toISOString()
+        survey_time: notificationTime.toISOString(),
       })
       .eq('id', matchData.id);
       

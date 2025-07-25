@@ -1,6 +1,6 @@
 // src/AutocompleteSede.js
-import React from "react";
-import usePlacesAutocomplete, { getGeocode, getLatLng } from "use-places-autocomplete";
+import React from 'react';
+import usePlacesAutocomplete, { getGeocode, getLatLng } from 'use-places-autocomplete';
 
 export default function AutocompleteSede({ value, onSelect }) {
   const {
@@ -11,46 +11,46 @@ export default function AutocompleteSede({ value, onSelect }) {
     clearSuggestions,
   } = usePlacesAutocomplete({
     debounce: 300,
-    defaultValue: value || "",
+    defaultValue: value || '',
     requestOptions: {
-      componentRestrictions: { country: "ar" }
-    }
+      componentRestrictions: { country: 'ar' },
+    },
   });
 
   return (
-    <div style={{ position: "relative", marginBottom: 24, width: "100%", boxSizing: "border-box" }}>
+    <div style={{ position: 'relative', marginBottom: 24, width: '100%', boxSizing: 'border-box' }}>
       <input
         className="input-modern"
         type="text"
         placeholder="Sede, club o dirección"
         value={inputValue}
-        onChange={e => setValue(e.target.value)}
+        onChange={(e) => setValue(e.target.value)}
         disabled={!ready}
-        style={{ width: "100%", boxSizing: "border-box" }}
+        style={{ width: '100%', boxSizing: 'border-box' }}
       />
-      {status === "OK" && (
+      {status === 'OK' && (
         <div
           style={{
-            position: "absolute",
-            background: "#fff",
+            position: 'absolute',
+            background: '#fff',
             zIndex: 50,
             left: 0,
             right: 0,
-            boxShadow: "0 2px 8px 0 #0001",
+            boxShadow: '0 2px 8px 0 #0001',
             borderRadius: 8,
             top: 48,
-            padding: "3px 0",
+            padding: '3px 0',
             maxHeight: 220,
-            overflowY: "auto",
-            width: "100%",
-            boxSizing: "border-box"
+            overflowY: 'auto',
+            width: '100%',
+            boxSizing: 'border-box',
           }}
         >
           {data
             .filter(
-              s =>
+              (s) =>
                 s.description &&
-                s.description.toLowerCase().includes("argentina")
+                s.description.toLowerCase().includes('argentina'),
             )
             .map(({ place_id, description }) => (
               <div
@@ -63,10 +63,10 @@ export default function AutocompleteSede({ value, onSelect }) {
                   onSelect({ description, place_id, lat, lng });
                 }}
                 style={{
-                  padding: "8px 18px",
-                  cursor: "pointer",
+                  padding: '8px 18px',
+                  cursor: 'pointer',
                   fontSize: 18,
-                  borderBottom: "1px solid #eceaf1"
+                  borderBottom: '1px solid #eceaf1',
                 }}
               >
                 {description}

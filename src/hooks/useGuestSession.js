@@ -6,9 +6,9 @@ export const useGuestSession = (partidoId) => {
   useEffect(() => {
     if (partidoId) {
       // Initialize guest session for this match
-      getCurrentUserId(partidoId).then(userId => {
+      getCurrentUserId(partidoId).then((userId) => {
         console.log('Guest session initialized:', { partidoId, userId, isGuest: userId.startsWith('guest_') });
-      }).catch(error => {
+      }).catch((error) => {
         console.error('Error initializing guest session:', error);
       });
     }

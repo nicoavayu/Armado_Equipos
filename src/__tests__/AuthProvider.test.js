@@ -8,10 +8,10 @@ jest.mock('../supabase', () => ({
   supabase: {
     auth: {
       getSession: jest.fn(),
-      onAuthStateChange: jest.fn()
-    }
+      onAuthStateChange: jest.fn(),
+    },
   },
-  getProfile: jest.fn()
+  getProfile: jest.fn(),
 }));
 
 const TestComponent = () => {
@@ -29,13 +29,13 @@ describe('AuthProvider', () => {
   test('shows loading state initially', () => {
     supabase.auth.getSession.mockResolvedValue({ data: { session: null } });
     supabase.auth.onAuthStateChange.mockReturnValue({ 
-      data: { subscription: { unsubscribe: jest.fn() } } 
+      data: { subscription: { unsubscribe: jest.fn() } }, 
     });
 
     render(
       <AuthProvider>
         <TestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     expect(screen.getByText('Cargando autenticación...')).toBeInTheDocument();
@@ -47,13 +47,13 @@ describe('AuthProvider', () => {
     
     supabase.auth.getSession.mockResolvedValue({ data: { session: mockSession } });
     supabase.auth.onAuthStateChange.mockReturnValue({ 
-      data: { subscription: { unsubscribe: jest.fn() } } 
+      data: { subscription: { unsubscribe: jest.fn() } }, 
     });
 
     render(
       <AuthProvider>
         <TestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     await waitFor(() => {
@@ -64,13 +64,13 @@ describe('AuthProvider', () => {
   test('shows no user when not authenticated', async () => {
     supabase.auth.getSession.mockResolvedValue({ data: { session: null } });
     supabase.auth.onAuthStateChange.mockReturnValue({ 
-      data: { subscription: { unsubscribe: jest.fn() } } 
+      data: { subscription: { unsubscribe: jest.fn() } }, 
     });
 
     render(
       <AuthProvider>
         <TestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     await waitFor(() => {

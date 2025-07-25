@@ -48,7 +48,7 @@ const AuthProvider = ({ children }) => {
         avatar_url: profileData?.avatar_url,
         user_metadata_avatar: currentUser.user_metadata?.avatar_url,
         user_metadata_picture: currentUser.user_metadata?.picture,
-        all_fields: Object.keys(profileData || {})
+        all_fields: Object.keys(profileData || {}),
       });
     } catch (error) {
       console.error('Error with profile:', error);
@@ -91,7 +91,7 @@ const AuthProvider = ({ children }) => {
     user,
     profile,
     loading,
-    refreshProfile
+    refreshProfile,
   };
 
   if (loading) {

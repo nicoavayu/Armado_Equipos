@@ -1,6 +1,6 @@
 // useEnsureProfile.js
-import { useEffect } from "react";
-import { supabase, upsertProfile } from "./supabase";
+import { useEffect } from 'react';
+import { supabase, upsertProfile } from './supabase';
 
 export default function useEnsureProfile() {
   useEffect(() => {
@@ -10,8 +10,8 @@ export default function useEnsureProfile() {
       // Crea el perfil aunque no haya datos, pero sí el ID
       await upsertProfile({
         id: user.id,
-        nombre: user.user_metadata?.full_name || "",
-        avatar_url: user.user_metadata?.avatar_url || ""
+        nombre: user.user_metadata?.full_name || '',
+        avatar_url: user.user_metadata?.avatar_url || '',
       });
     }
     crearPerfilSiNoExiste();

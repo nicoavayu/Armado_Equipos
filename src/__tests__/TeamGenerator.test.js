@@ -4,7 +4,7 @@ import Button from '../components/Button';
 
 const mockProps = {
   onClick: jest.fn(),
-  children: 'Test Button'
+  children: 'Test Button',
 };
 
 describe('Button Component', () => {

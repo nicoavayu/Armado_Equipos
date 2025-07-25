@@ -9,7 +9,7 @@ const NotificationsView = () => {
     notifications, 
     markAsRead, 
     markAllAsRead, 
-    fetchNotifications 
+    fetchNotifications, 
   } = useNotifications();
   
   const { pendingSurveys, openSurvey, closeSurvey, handleSurveySubmit } = useSurveys();
@@ -47,9 +47,9 @@ const NotificationsView = () => {
           window.location.href = `/?codigo=${notification.data.matchCode}`;
         }
         break;
-      case 'post_match_survey':
+      case 'post_match_survey': {
         // Find the corresponding survey in pendingSurveys
-        const survey = pendingSurveys.find(s => s.notification.id === notification.id);
+        const survey = pendingSurveys.find((s) => s.notification.id === notification.id);
         if (survey) {
           setCurrentSurvey(survey);
           setShowSurveyModal(true);
@@ -58,6 +58,7 @@ const NotificationsView = () => {
           window.location.href = `/encuesta/${notification.data.matchId}`;
         }
         break;
+      }
       default:
         break;
     }
@@ -102,7 +103,7 @@ const NotificationsView = () => {
         </div>
       ) : (
         <div className="notifications-list">
-          {notifications.map(notification => (
+          {notifications.map((notification) => (
             <div 
               key={notification.id} 
               className={`notification-item ${!notification.read ? 'unread' : ''}`}

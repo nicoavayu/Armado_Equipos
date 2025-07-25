@@ -32,7 +32,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
     partidos_abandonados: 0,
     ranking: 4.5,
     bio: '',
-    acepta_invitaciones: true
+    acepta_invitaciones: true,
   });
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
         profile_avatar_url: profile.avatar_url,
         user_metadata_avatar: user?.user_metadata?.avatar_url,
         user_metadata_picture: user?.user_metadata?.picture,
-        final_avatar_url: avatarUrl
+        final_avatar_url: avatarUrl,
       });
       
       // Si tenemos un avatar en los metadatos pero no en el perfil, actualizar el perfil
@@ -54,7 +54,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
         console.log('Updating profile with avatar from user metadata');
         updateProfile(user.id, { avatar_url: avatarUrl })
           .then(() => refreshProfile())
-          .catch(err => console.error('Error updating profile with avatar:', err));
+          .catch((err) => console.error('Error updating profile with avatar:', err));
       }
       
       const newFormData = {
@@ -72,7 +72,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
         partidos_jugados: profile.partidos_jugados || 0,
         ranking: profile.ranking || profile.calificacion || 4.5, // Support both ranking and calificacion for backward compatibility
         bio: profile.bio || '',
-        acepta_invitaciones: profile.acepta_invitaciones !== false
+        acepta_invitaciones: profile.acepta_invitaciones !== false,
       };
       setFormData(newFormData);
       
@@ -81,7 +81,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
         ...profile, 
         ...newFormData, 
         avatar_url: avatarUrl, 
-        user: user // Pasar el objeto user completo
+        user: user, // Pasar el objeto user completo
       });
       setHasChanges(false);
     }
@@ -117,9 +117,9 @@ export default function ProfileEditor({ isOpen, onClose }) {
     const localPreviewUrl = URL.createObjectURL(file);
     
     // Update UI immediately with local preview
-    setLiveProfile(prev => ({
+    setLiveProfile((prev) => ({
       ...prev,
-      avatar_url: localPreviewUrl
+      avatar_url: localPreviewUrl,
     }));
 
     setLoading(true);
@@ -147,13 +147,13 @@ export default function ProfileEditor({ isOpen, onClose }) {
       
       // Update user metadata
       await supabase.auth.updateUser({
-        data: { avatar_url: fotoUrl }
+        data: { avatar_url: fotoUrl },
       });
       
       // Update local state with permanent URL
-      setLiveProfile(prev => ({
+      setLiveProfile((prev) => ({
         ...prev,
-        avatar_url: fotoUrl
+        avatar_url: fotoUrl,
       }));
       
       setHasChanges(true);
@@ -164,9 +164,9 @@ export default function ProfileEditor({ isOpen, onClose }) {
       toast.error('Error subiendo foto: ' + error.message);
       
       // Revert to previous avatar if upload fails
-      setLiveProfile(prev => ({
+      setLiveProfile((prev) => ({
         ...prev,
-        avatar_url: profile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture
+        avatar_url: profile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
       }));
     } finally {
       setLoading(false);
@@ -215,7 +215,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
         },
         (error) => {
           toast.error('Error obteniendo ubicación');
-        }
+        },
       );
     } else {
       toast.error('Geolocalización no disponible');
@@ -226,7 +226,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
     { key: 'ARQ', label: 'ARQ' },
     { key: 'DEF', label: 'DEF' },
     { key: 'MED', label: 'MED' },
-    { key: 'DEL', label: 'DEL' }
+    { key: 'DEL', label: 'DEL' },
   ];
 
   const countries = [
@@ -457,7 +457,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
     { key: 'YE', label: 'Yemen' },
     { key: 'DJ', label: 'Yibuti' },
     { key: 'ZM', label: 'Zambia' },
-    { key: 'ZW', label: 'Zimbabue' }
+    { key: 'ZW', label: 'Zimbabue' },
   ];
 
   if (!isOpen) return null;
@@ -470,7 +470,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
           <ProfileCard
             profile={{
               ...liveProfile,
-              avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture
+              avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
             }}
             isVisible={true}
             key={`profile-card-${Date.now()}`} // Force re-render on every render
@@ -566,19 +566,19 @@ export default function ProfileEditor({ isOpen, onClose }) {
                 className="input-modern-small"
                 value={formData.pais_codigo}
                 onChange={(e) => {
-                  const country = countries.find(c => c.key === e.target.value);
+                  const country = countries.find((c) => c.key === e.target.value);
                   handleInputChange('pais_codigo', e.target.value);
                   handleInputChange('nacionalidad', country?.label || 'Argentina');
                   
                   // Ensure immediate update of the profile card
-                  setLiveProfile(prev => ({
+                  setLiveProfile((prev) => ({
                     ...prev,
                     pais_codigo: e.target.value,
-                    nacionalidad: country?.label || 'Argentina'
+                    nacionalidad: country?.label || 'Argentina',
                   }));
                 }}
               >
-                {countries.map(country => (
+                {countries.map((country) => (
                   <option key={country.key} value={country.key}>
                     {country.label}
                   </option>
@@ -590,7 +590,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
             <div className="form-group">
               <label>Posición</label>
               <div className="position-buttons">
-                {positions.map(pos => (
+                {positions.map((pos) => (
                   <button
                     key={pos.key}
                     type="button"

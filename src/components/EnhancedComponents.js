@@ -15,11 +15,11 @@ const EnhancedComponentsExample = () => {
     await withLoading(
       async () => {
         // Simulate async operation
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
         handleSuccess('Operación completada exitosamente');
       },
       setLoading,
-      'Error en la operación'
+      'Error en la operación',
     );
   };
 

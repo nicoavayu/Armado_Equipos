@@ -11,18 +11,18 @@ export const UI_MESSAGES = {
   SUCCESS_MATCH_CREATED: 'Partido creado correctamente',
   SUCCESS_FREQUENT_SAVED: 'Partido frecuente guardado',
   ERROR_EVEN_PLAYERS: '¡La cantidad de jugadores debe ser PAR!',
-  CONFIRM_CLOSE_VOTING: '¿Cerrar votación y armar equipos?'
+  CONFIRM_CLOSE_VOTING: '¿Cerrar votación y armar equipos?',
 };
 
 // Loading states for buttons and UI elements
 export const LOADING_STATES = {
-  ADDING_PLAYER: "AGREGANDO...",
-  REMOVING_PLAYER: "ELIMINANDO...",
-  CLOSING_VOTING: "CERRANDO VOTACIÓN...",
-  CREATING_MATCH: "CREANDO...",
-  SAVING: "GUARDANDO...",
-  LOADING: "CARGANDO...",
-  PROCESSING: "PROCESANDO..."
+  ADDING_PLAYER: 'AGREGANDO...',
+  REMOVING_PLAYER: 'ELIMINANDO...',
+  CLOSING_VOTING: 'CERRANDO VOTACIÓN...',
+  CREATING_MATCH: 'CREANDO...',
+  SAVING: 'GUARDANDO...',
+  LOADING: 'CARGANDO...',
+  PROCESSING: 'PROCESANDO...',
 };
 
 // Animation durations in milliseconds
@@ -31,7 +31,7 @@ export const ANIMATION_DURATIONS = {
   TOAST_DISPLAY: 1700,
   PERFECT_MATCH_CELEBRATION: 3000,
   BUTTON_TRANSITION: 200,
-  HOVER_TRANSITION: 150
+  HOVER_TRANSITION: 150,
 };
 
 // UI element sizes in pixels
@@ -42,7 +42,7 @@ export const UI_SIZES = {
   PLAYER_AVATAR_DESKTOP: 40,
   LOCK_ICON_MOBILE: 14,
   LOCK_ICON_DEFAULT: 16,
-  LOCK_ICON_DESKTOP: 18
+  LOCK_ICON_DESKTOP: 18,
 };
 
 // Responsive breakpoints in pixels
@@ -50,7 +50,7 @@ export const BREAKPOINTS = {
   MOBILE_MAX: 480,
   TABLET_MIN: 600,
   DESKTOP_MIN: 768,
-  LARGE_DESKTOP_MIN: 1024
+  LARGE_DESKTOP_MIN: 1024,
 };
 
 // Export all constants
@@ -59,5 +59,5 @@ export default {
   LOADING_STATES,
   ANIMATION_DURATIONS,
   UI_SIZES,
-  BREAKPOINTS
+  BREAKPOINTS,
 };

@@ -16,27 +16,27 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
 
   useEffect(() => {
     // Show only one toast notification when teams are generated
-    toast.success("¡Equipos generados exitosamente!");
+    toast.success('¡Equipos generados exitosamente!');
     
     // Show additional toast if teams are perfectly balanced
-    const teamA = teams.find(t => t.id === 'equipoA');
-    const teamB = teams.find(t => t.id === 'equipoB');
+    const teamA = teams.find((t) => t.id === 'equipoA');
+    const teamB = teams.find((t) => t.id === 'equipoB');
     if (teamA && teamB && Math.abs(teamA.score - teamB.score) < 0.01) {
-      toast.success("¡MATCH PERFECTO! Equipos perfectamente balanceados.");
+      toast.success('¡MATCH PERFECTO! Equipos perfectamente balanceados.');
     }
   }, []);  // Empty dependency array to run only once when component mounts
 
   if (
     !Array.isArray(teams) ||
     teams.length < 2 ||
-    !teams.find(t => t.id === "equipoA") ||
-    !teams.find(t => t.id === "equipoB")
+    !teams.find((t) => t.id === 'equipoA') ||
+    !teams.find((t) => t.id === 'equipoB')
   ) {
     return <LoadingSpinner size="large" />;
   }
 
   const getPlayerDetails = (playerId) => {
-    return players.find(p => p.uuid === playerId) || {};
+    return players.find((p) => p.uuid === playerId) || {};
   };
 
   const handleDragEnd = (result) => {
@@ -46,7 +46,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
     // Check if player is locked
     const playerId = teams[teams.findIndex((t) => t.id === source.droppableId)].players[source.index];
     if (lockedPlayers.includes(playerId)) {
-      toast.error("Este jugador está bloqueado y no puede ser movido.");
+      toast.error('Este jugador está bloqueado y no puede ser movido.');
       return;
     }
 
@@ -64,7 +64,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
       // Check if destination player is locked
       const destPlayerId = destTeam.players[destination.index];
       if (lockedPlayers.includes(destPlayerId)) {
-        toast.error("No puedes intercambiar con un jugador bloqueado.");
+        toast.error('No puedes intercambiar con un jugador bloqueado.');
         return;
       }
 
@@ -83,7 +83,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
       newTeams[destTeamIndex] = { ...destTeam, players: newDestPlayers, score: destTeam.score - swappedPlayer.score + movedPlayer.score };
 
       if (Math.abs(newTeams[0].score - newTeams[1].score) > 5) {
-        toast.error("La diferencia de puntaje no puede ser mayor a 5.");
+        toast.error('La diferencia de puntaje no puede ser mayor a 5.');
         return;
       }
       
@@ -99,7 +99,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
     if (source.index !== destination.index) {
       const destPlayerId = team.players[destination.index];
       if (lockedPlayers.includes(destPlayerId)) {
-        toast.error("No puedes intercambiar con un jugador bloqueado.");
+        toast.error('No puedes intercambiar con un jugador bloqueado.');
         return;
       }
     }
@@ -114,40 +114,40 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
 
   const togglePlayerLock = (playerId) => {
     if (lockedPlayers.includes(playerId)) {
-      setLockedPlayers(lockedPlayers.filter(id => id !== playerId));
-      toast.info("Jugador desbloqueado");
+      setLockedPlayers(lockedPlayers.filter((id) => id !== playerId));
+      toast.info('Jugador desbloqueado');
     } else {
       setLockedPlayers([...lockedPlayers, playerId]);
-      toast.info("Jugador bloqueado");
+      toast.info('Jugador bloqueado');
     }
   };
 
   const randomizeTeams = () => {
     // Don't include locked players in randomization
-    let allPlayers = teams.flatMap(t => t.players);
+    let allPlayers = teams.flatMap((t) => t.players);
     const lockedPlayersMap = {};
     
     // Create a map of locked players with their current team
-    lockedPlayers.forEach(playerId => {
-      const teamIndex = teams.findIndex(team => team.players.includes(playerId));
+    lockedPlayers.forEach((playerId) => {
+      const teamIndex = teams.findIndex((team) => team.players.includes(playerId));
       if (teamIndex !== -1) {
         lockedPlayersMap[playerId] = teams[teamIndex].id;
       }
     });
     
     // Filter out locked players for randomization
-    const playersToRandomize = allPlayers.filter(playerId => !lockedPlayers.includes(playerId));
+    const playersToRandomize = allPlayers.filter((playerId) => !lockedPlayers.includes(playerId));
     playersToRandomize.sort(() => Math.random() - 0.5);
     
     // Create new teams with locked players in their original positions
-    const newTeamA = { ...teams.find(t => t.id === "equipoA"), players: [] };
-    const newTeamB = { ...teams.find(t => t.id === "equipoB"), players: [] };
+    const newTeamA = { ...teams.find((t) => t.id === 'equipoA'), players: [] };
+    const newTeamB = { ...teams.find((t) => t.id === 'equipoB'), players: [] };
     
     // First, place locked players in their teams
-    lockedPlayers.forEach(playerId => {
-      if (lockedPlayersMap[playerId] === "equipoA") {
+    lockedPlayers.forEach((playerId) => {
+      if (lockedPlayersMap[playerId] === 'equipoA') {
         newTeamA.players.push(playerId);
-      } else if (lockedPlayersMap[playerId] === "equipoB") {
+      } else if (lockedPlayersMap[playerId] === 'equipoB') {
         newTeamB.players.push(playerId);
       }
     });
@@ -164,10 +164,10 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
     newTeamA.score = newTeamA.players.reduce((acc, playerId) => acc + (getPlayerDetails(playerId).score || 0), 0);
     newTeamB.score = newTeamB.players.reduce((acc, playerId) => acc + (getPlayerDetails(playerId).score || 0), 0);
     
-    const newTeams = teams.map(team => {
-      if (team.id === "equipoA") {
+    const newTeams = teams.map((team) => {
+      if (team.id === 'equipoA') {
         return newTeamA;
-      } else if (team.id === "equipoB") {
+      } else if (team.id === 'equipoB') {
         return newTeamB;
       }
       return team;
@@ -177,15 +177,15 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
   };
 
   const handleWhatsAppShare = () => {
-    const teamA = teams.find(t => t.id === 'equipoA');
-    const teamB = teams.find(t => t.id === 'equipoB');
+    const teamA = teams.find((t) => t.id === 'equipoA');
+    const teamB = teams.find((t) => t.id === 'equipoB');
     
-    const teamAText = `*${teamA.name}* (Puntaje: ${teamA.score.toFixed(2)})\\n${teamA.players.map(pId => getPlayerDetails(pId).nombre).join('\\n')}`;
-    const teamBText = `*${teamB.name}* (Puntaje: ${teamB.score.toFixed(2)})\\n${teamB.players.map(pId => getPlayerDetails(pId).nombre).join('\\n')}`;
+    const teamAText = `*${teamA.name}* (Puntaje: ${teamA.score.toFixed(2)})\\n${teamA.players.map((pId) => getPlayerDetails(pId).nombre).join('\\n')}`;
+    const teamBText = `*${teamB.name}* (Puntaje: ${teamB.score.toFixed(2)})\\n${teamB.players.map((pId) => getPlayerDetails(pId).nombre).join('\\n')}`;
     
     const message = `Equipos armados:\\n\\n${teamAText}\\n\\n${teamBText}`;
     
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   return (
@@ -204,8 +204,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
                     onChange={(e) => setEditingTeamName(e.target.value)}
                     onBlur={() => {
                       if (editingTeamName.trim()) {
-                        const newTeams = teams.map(t => 
-                          t.id === team.id ? { ...t, name: editingTeamName.trim() } : t
+                        const newTeams = teams.map((t) => 
+                          t.id === team.id ? { ...t, name: editingTeamName.trim() } : t,
                         );
                         onTeamsChange(newTeams);
                       }
@@ -214,8 +214,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         if (editingTeamName.trim()) {
-                          const newTeams = teams.map(t => 
-                            t.id === team.id ? { ...t, name: editingTeamName.trim() } : t
+                          const newTeams = teams.map((t) => 
+                            t.id === team.id ? { ...t, name: editingTeamName.trim() } : t,
                           );
                           onTeamsChange(newTeams);
                         }
@@ -245,7 +245,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
                       ref={provided.innerRef}
                     >
                       {team.players
-                        .filter(playerId => players.some(p => p.uuid === playerId))
+                        .filter((playerId) => players.some((p) => p.uuid === playerId))
                         .map((playerId, index) => {
                           const player = getPlayerDetails(playerId);
                           if (!playerId || !player?.nombre) return null;
@@ -262,54 +262,54 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome }) => {
                                   {...provided.dragHandleProps}
                                   onClick={() => togglePlayerLock(playerId)}
                                 >
-                                <div className="player-card-content">
-                                  <div className="player-avatar-container">
-                                    <div className="player-avatar-wrapper">
-                                      <img
-                                        src={player.avatar_url || 'https://api.dicebear.com/6.x/pixel-art/svg?seed=default'}
-                                        alt={player.nombre}
-                                        className="player-avatar"
-                                      />
+                                  <div className="player-card-content">
+                                    <div className="player-avatar-container">
+                                      <div className="player-avatar-wrapper">
+                                        <img
+                                          src={player.avatar_url || 'https://api.dicebear.com/6.x/pixel-art/svg?seed=default'}
+                                          alt={player.nombre}
+                                          className="player-avatar"
+                                        />
+                                      </div>
                                     </div>
+                                    <span>{player.nombre}</span>
+                                    {showAverages && <span className="player-score">{(player.score || 0).toFixed(2)}</span>}
+                                    {isLocked && (
+                                      <span className="lock-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                                          <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
+                                        </svg>
+                                      </span>
+                                    )}
                                   </div>
-                                  <span>{player.nombre}</span>
-                                  {showAverages && <span className="player-score">{(player.score || 0).toFixed(2)}</span>}
-                                  {isLocked && (
-                                    <span className="lock-icon">
-                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-                                        <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
-                                      </svg>
-                                    </span>
-                                  )}
                                 </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        );
-                      })}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-              <div className="team-score-box">
-                Puntaje: {team.score?.toFixed(2) ?? "0"}
+                              )}
+                            </Draggable>
+                          );
+                        })}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+                <div className="team-score-box">
+                Puntaje: {team.score?.toFixed(2) ?? '0'}
+                </div>
               </div>
+            ))}
+          </div>
+          <div className="team-actions">
+            <div className="team-actions-row">
+              <button onClick={randomizeTeams} className="team-action-btn randomize-btn wipe-btn">Randomizar</button>
+              <button onClick={() => setShowAverages(!showAverages)} className="team-action-btn averages-btn wipe-btn">
+                {showAverages ? 'Ocultar Promedios' : 'Ver Promedios'}
+              </button>
             </div>
-          ))}
-        </div>
-        <div className="team-actions">
-          <div className="team-actions-row">
-            <button onClick={randomizeTeams} className="team-action-btn randomize-btn wipe-btn">Randomizar</button>
-            <button onClick={() => setShowAverages(!showAverages)} className="team-action-btn averages-btn wipe-btn">
-              {showAverages ? 'Ocultar Promedios' : 'Ver Promedios'}
+            <button onClick={handleWhatsAppShare} className="team-action-btn whatsapp-btn wipe-btn">
+              <WhatsappIcon /> Compartir
             </button>
           </div>
-          <button onClick={handleWhatsAppShare} className="team-action-btn whatsapp-btn wipe-btn">
-            <WhatsappIcon /> Compartir
-          </button>
         </div>
-      </div>
-    </DragDropContext>
+      </DragDropContext>
     </TeamDisplayContext.Provider>
   );
 };

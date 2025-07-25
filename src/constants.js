@@ -1,16 +1,16 @@
 export const MODES = {
   HOME: null,
-  ADMIN: "admin",
-  SIMPLE: "simple", 
-  VOTING: "votacion",
-  PLAYER: "jugador"
+  ADMIN: 'admin',
+  SIMPLE: 'simple', 
+  VOTING: 'votacion',
+  PLAYER: 'jugador',
 };
 
 export const STEPS = {
   IDENTIFY: 0,
   PHOTO: 1,
   VOTE: 2,
-  CONFIRM: 3
+  CONFIRM: 3,
 };
 
 export const ADMIN_STEPS = {
@@ -19,7 +19,7 @@ export const ADMIN_STEPS = {
   SELECT_FREQUENT: 2,
   EDIT_FREQUENT: 3,
   MANAGE: 4,
-  MODO_RAPIDO: 5
+  MODO_RAPIDO: 5,
 };
 
 export const RATING_BUTTONS = Array.from({ length: 10 }, (_, i) => i + 1);
@@ -31,7 +31,7 @@ export const DIAS_SEMANA = {
   3: 'Miércoles',
   4: 'Jueves',
   5: 'Viernes',
-  6: 'Sábado'
+  6: 'Sábado',
 };
 
 export const DIAS_SEMANA_CORTO = {
@@ -41,7 +41,7 @@ export const DIAS_SEMANA_CORTO = {
   3: 'Mié',
   4: 'Jue',
   5: 'Vie',
-  6: 'Sáb'
+  6: 'Sáb',
 };
 
 export const UI_MESSAGES = {
@@ -50,7 +50,7 @@ export const UI_MESSAGES = {
   SUCCESS_MATCH_CREATED: 'Partido creado correctamente',
   SUCCESS_FREQUENT_SAVED: 'Partido frecuente guardado',
   ERROR_EVEN_PLAYERS: '¡La cantidad de jugadores debe ser PAR!',
-  CONFIRM_CLOSE_VOTING: '¿Cerrar votación y armar equipos?'
+  CONFIRM_CLOSE_VOTING: '¿Cerrar votación y armar equipos?',
 };
 
 export const VALIDATION_RULES = {
@@ -58,5 +58,5 @@ export const VALIDATION_RULES = {
   REQUIRED_EVEN_PLAYERS: true,
   MAX_PLAYER_NAME_LENGTH: 40,
   RATING_MIN: 1,
-  RATING_MAX: 10
+  RATING_MAX: 10,
 };

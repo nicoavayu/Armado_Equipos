@@ -29,7 +29,7 @@ const ProtectedRoute = ({ children, requireAuth = true, fallback = null }) => {
             fontFamily: 'Oswald, Arial, sans-serif',
             fontSize: '18px',
             marginBottom: '30px',
-            lineHeight: '1.4'
+            lineHeight: '1.4',
           }}>
             Necesitas iniciar sesión para acceder a esta función.
           </div>

@@ -2,30 +2,36 @@
   width: 100%;
   max-width: 800px;
   margin: 0 auto;
-  padding: 0 16px 16px;
+  padding: 0 16px 100px;
+  background: transparent;
+  box-shadow: none;
 }
 
 .fifa-menu-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 12px;
+  margin-bottom: 20px;
+  background: transparent;
+  box-shadow: none;
 }
 
 .fifa-menu-button {
-  background-color: #8178e5; /* Flat color, no gradient */
-  border-radius: 0; /* Sharp corners */
-  padding: 25px;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 12px;
+  padding: 16px;
   cursor: pointer;
-  transition: transform 0.3s ease;
-  box-shadow: none; /* No shadow */
+  transition: transform 0.2s ease;
   aspect-ratio: 1/1;
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start; /* Text at the top */
-  border: none; /* No border */
+  justify-content: flex-start;
+  border: none;
+  min-height: 120px;
+  text-decoration: none;
 }
 
 .fifa-menu-button.full-width {
@@ -52,12 +58,12 @@
 
 .fifa-button-icon {
   position: absolute;
-  bottom: 16px;
-  right: 16px;
+  bottom: 12px;
+  right: 12px;
   color: rgba(255, 255, 255, 0.9);
-  font-size: 32px;
-  width: 80px;
-  height: 80px;
+  font-size: 28px;
+  width: 52px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -66,29 +72,29 @@
 .fifa-button-title {
   color: white;
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 32px;
+  font-size: 30px;
   font-weight: bold;
   text-transform: uppercase;
-  line-height: 1.1;
-  max-width: 80%;
-  padding-top: 5px;
-  padding-left: 5px;
+  line-height: 1.0;
+  max-width: 70%;
+  padding-top: 8px;
+  padding-left: 8px;
 }
 
 .fifa-badge {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 8px;
+  right: 8px;
   background-color: #ff3366;
   color: white;
-  border-radius: 0;
-  width: 24px;
-  height: 24px;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  font-size: 12px;
+  font-size: 11px;
   box-shadow: none;
 }
 
@@ -113,6 +119,10 @@
   background-color: #2E7D32;
 }
 
+.fifa-menu-button.historial {
+  background-color: #795548;
+}
+
 .fifa-menu-button.open-matches {
   background-color: #F57C00;
 }
@@ -121,8 +131,8 @@
   background-color: #1976D2;
 }
 
-.fifa-menu-button.tournament-mode {
-  background-color: #7B1FA2;
+.fifa-menu-button.estadisticas {
+  background-color: #9C27B0;
 }
 
 /* Recent Activity */
@@ -183,23 +193,34 @@
 /* Responsive */
 @media (max-width: 600px) {
   .fifa-menu-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
   
   .fifa-menu-button {
-    aspect-ratio: auto;
-    height: 120px;
-    padding: 15px;
+    min-height: 100px;
+    padding: 12px;
   }
   
   .fifa-button-icon {
-    width: 60px;
-    height: 60px;
-    bottom: 10px;
-    right: 10px;
+    width: 44px;
+    height: 44px;
+    bottom: 8px;
+    right: 8px;
+    font-size: 24px;
   }
   
   .fifa-button-title {
-    font-size: 24px;
+    font-size: 26px;
+    padding-top: 6px;
+    padding-left: 6px;
+  }
+  
+  .fifa-badge {
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+    top: 6px;
+    right: 6px;
   }
 }

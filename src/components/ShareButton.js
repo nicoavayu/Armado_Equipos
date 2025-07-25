@@ -10,7 +10,7 @@ const ShareButton = ({
   variant = 'secondary',
   className = '',
   children,
-  showWhatsApp = true
+  showWhatsApp = true,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -42,7 +42,7 @@ const ShareButton = ({
           ariaLabel={`Copiar enlace: ${title}`}
           style={{
             background: copied ? '#22c55e' : undefined,
-            marginBottom: showWhatsApp ? '8px' : '0'
+            marginBottom: showWhatsApp ? '8px' : '0',
           }}
         >
           {copied ? '✓ COPIADO' : children || 'COPIAR ENLACE'}

@@ -1,104 +1,91 @@
-/* Mobile responsive design for new match flow */
+body, html {
+  min-height: 100vh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(180deg, #62c1ff 0%, #b579f8 100%);
+  /* Hace que el fondo siempre sea gradiente en toda la pantalla */
+}
+
 .new-match-flow {
-  overflow-x: hidden;
-  width: 100%;
+  min-height: 100vh;
+  width: 100vw;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: transparent !important;
+  padding: 0 !important;
+  padding-bottom: 8.5rem !important;
 }
 
-.new-match-flow .voting-modern-card {
-  padding: 20px;
-  margin: 0 auto;
-  width: 100%;
-  max-width: 420px;
-  box-sizing: border-box;
+/* Elimina cualquier fondo/blanco en los wrappers */
+.player-vote-card,
+.voting-modern-card {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
-/* Sede field specific spacing */
-.new-match-flow .match-name {
-  margin-bottom: 16px;
+/* Título de formularios */
+.form-title {
+  margin-top: 2.2rem;
+  margin-bottom: 2rem;
+  color: #fff;
+  font-weight: 900;
+  font-size: 38px;
+  font-family: 'Oswald', Arial, sans-serif;
+  text-align: center;
+  letter-spacing: 0.02em;
+  text-shadow: 0 4px 16px rgba(0,0,0,0.6);
 }
 
-.new-match-flow .match-name + div {
-  margin-bottom: 32px; /* Más espacio debajo del subtítulo */
-}
-
-/* AutocompleteSede container fix */
-.new-match-flow div[style*="position: relative"] {
-  width: 100% !important;
-  margin-bottom: 32px !important; /* Más espacio debajo del campo de sede */
-  box-sizing: border-box !important;
-}
-
-.new-match-flow .input-modern {
-  width: 100% !important;
-  box-sizing: border-box !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-}
-
-.new-match-flow .voting-confirm-btn {
-  width: 100% !important;
-  box-sizing: border-box !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  background: #8178e5;
-  border-radius: 50px;
-}
-
-/* Make select look exactly like input-modern */
-.new-match-flow select.input-modern {
-  width: 100% !important;
-  padding: 15px 18px !important;
-  font-size: 19px !important;
-  border: 1.5px solid #eceaf1 !important;
-  height: 60px !important;
-  border-radius: 0 !important;
+/* Inputs */
+.input-modern {
+  appearance: none;
+  background: rgb(255 255 255 / 10%) !important;
+  border: 2px solid rgb(255 255 255 / 30%) !important;
+  color: #fff !important;
   font-family: Oswald, Arial, sans-serif !important;
-  outline: none !important;
-  margin-bottom: 0 !important;
-  background: rgb(255 255 255 / 90%) !important;
-  color: #333 !important;
+  font-size: 18px !important;
+  padding: 12px 16px !important;
+  border-radius: 8px !important;
+  width: 100% !important;
   box-sizing: border-box !important;
-  cursor: pointer !important;
-  transition: border 0.18s !important;
-  position: static !important;
-  z-index: auto !important;
-  
-  appearance: auto !important;
+  height: 48px !important;
+  transition: all 0.2s ease !important;
+  margin-bottom: 0.5rem;
 }
 
-.new-match-flow select.input-modern:focus {
-  border-color: #0EA9C6 !important;
-  background: #fff !important;
+.input-modern:focus {
+  outline: none !important;
+  border-color: rgb(14 169 198 / 80%) !important;
+  box-shadow: 0 0 0 2px rgb(14 169 198 / 20%) !important;
+  background: rgb(255 255 255 / 15%) !important;
 }
 
-.new-match-flow select.input-modern option {
-  background: #fff !important;
-  color: #333 !important;
-  padding: 8px !important;
+/* Placeholders bien blancos y grandes */
+.input-modern::placeholder,
+.input-modern::-webkit-input-placeholder,
+.input-modern::-moz-placeholder,
+.input-modern:-ms-input-placeholder {
+  color: #fff !important;
+  font-weight: 700 !important;
+  font-size: 1.15rem !important;
+  opacity: 1 !important;
 }
 
-/* Mobile specific fixes */
-@media (width <= 600px) {
-  .new-match-flow select.input-modern {
-    font-size: 16px !important; /* Prevents zoom on iOS */
-    position: static !important;
-    transform: none !important;
-    left: auto !important;
-    top: auto !important;
-  }
+/* Responsive mobile */
+@media (max-width: 480px) {
+  .form-title { font-size: 33px; }
+  .input-modern { font-size: 16px !important; height: 44px !important; }
 }
 
-@media (width <= 480px) {
-  .new-match-flow .voting-modern-card {
-    padding: 16px;
-    margin: 0 8px;
-    width: calc(100% - 16px);
-  }
-  
-  .new-match-flow .voting-photo-box {
-    width: calc(100% - 32px);
-    height: calc(100% - 32px);
-    max-width: 240px;
-    max-height: 240px;
-  }
+/* Si hay confirm-list, también sobre fondo transparente */
+.confirmation-list {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0;
+  margin: 0 0 2rem 0;
 }

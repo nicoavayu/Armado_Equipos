@@ -26,7 +26,7 @@ const EncuestaPartido = () => {
     mvp_id: '',
     arquero_id: '',
     jugador_sucio_id: '',
-    comentarios: ''
+    comentarios: '',
   });
   const [jugadores, setJugadores] = useState([]);
   const [yaCalificado, setYaCalificado] = useState(false);
@@ -84,12 +84,12 @@ const EncuestaPartido = () => {
 
   // Manejar cambios en el formulario
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   // Manejar selección/deselección de jugadores ausentes
   const toggleJugadorAusente = (jugadorId) => {
-    setFormData(prev => {
+    setFormData((prev) => {
       const ausentes = [...prev.jugadores_ausentes];
       const index = ausentes.indexOf(jugadorId);
       
@@ -105,7 +105,7 @@ const EncuestaPartido = () => {
 
   // Manejar selección/deselección de jugadores violentos
   const toggleJugadorViolento = (jugadorId) => {
-    setFormData(prev => {
+    setFormData((prev) => {
       const violentos = [...prev.jugadores_violentos];
       const index = violentos.indexOf(jugadorId);
       
@@ -144,7 +144,7 @@ const EncuestaPartido = () => {
         arquero_id: formData.arquero_id || null,
         jugador_sucio_id: formData.jugador_sucio_id || null,
         comentarios: formData.comentarios,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       };
       
       // Guardar encuesta
@@ -162,7 +162,7 @@ const EncuestaPartido = () => {
           jugador_id: formData.mvp_id,
           partido_id: partidoId,
           award_type: 'mvp',
-          otorgado_por: user.id
+          otorgado_por: user.id,
         });
       }
       
@@ -171,7 +171,7 @@ const EncuestaPartido = () => {
           jugador_id: formData.arquero_id,
           partido_id: partidoId,
           award_type: 'goalkeeper',
-          otorgado_por: user.id
+          otorgado_por: user.id,
         });
       }
       
@@ -180,7 +180,7 @@ const EncuestaPartido = () => {
           jugador_id: formData.jugador_sucio_id,
           partido_id: partidoId,
           award_type: 'negative_fair_play',
-          otorgado_por: user.id
+          otorgado_por: user.id,
         });
       }
       
@@ -213,7 +213,7 @@ const EncuestaPartido = () => {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
-        year: 'numeric'
+        year: 'numeric',
       });
     } catch (e) {
       return fechaStr || 'Fecha no disponible';
@@ -328,7 +328,7 @@ const EncuestaPartido = () => {
             <div className="encuesta-section">
               <h3>¿Faltó algún jugador?</h3>
               <div className="encuesta-jugadores-grid">
-                {jugadores.map(jugador => (
+                {jugadores.map((jugador) => (
                   <label 
                     key={jugador.uuid} 
                     className={`encuesta-jugador-item ${formData.jugadores_ausentes.includes(jugador.uuid) ? 'selected' : ''}`}
@@ -361,7 +361,7 @@ const EncuestaPartido = () => {
               <div className="encuesta-section">
                 <h3>¿Quién jugó sucio?</h3>
                 <div className="encuesta-jugadores-grid">
-                  {jugadores.map(jugador => (
+                  {jugadores.map((jugador) => (
                     <label 
                       key={jugador.uuid} 
                       className={`encuesta-jugador-item ${formData.jugadores_violentos.includes(jugador.uuid) ? 'selected-negative' : ''}`}
@@ -400,8 +400,8 @@ const EncuestaPartido = () => {
               >
                 <option value="">Seleccionar jugador</option>
                 {jugadores
-                  .filter(j => !formData.jugadores_ausentes.includes(j.uuid))
-                  .map(jugador => (
+                  .filter((j) => !formData.jugadores_ausentes.includes(j.uuid))
+                  .map((jugador) => (
                     <option key={jugador.uuid} value={jugador.uuid}>
                       {jugador.nombre}
                     </option>
@@ -420,8 +420,8 @@ const EncuestaPartido = () => {
               >
                 <option value="">Seleccionar jugador</option>
                 {jugadores
-                  .filter(j => !formData.jugadores_ausentes.includes(j.uuid))
-                  .map(jugador => (
+                  .filter((j) => !formData.jugadores_ausentes.includes(j.uuid))
+                  .map((jugador) => (
                     <option key={jugador.uuid} value={jugador.uuid}>
                       {jugador.nombre}
                     </option>
@@ -441,8 +441,8 @@ const EncuestaPartido = () => {
                 >
                   <option value="">Seleccionar jugador</option>
                   {jugadores
-                    .filter(j => !formData.jugadores_ausentes.includes(j.uuid))
-                    .map(jugador => (
+                    .filter((j) => !formData.jugadores_ausentes.includes(j.uuid))
+                    .map((jugador) => (
                       <option key={jugador.uuid} value={jugador.uuid}>
                         {jugador.nombre}
                       </option>

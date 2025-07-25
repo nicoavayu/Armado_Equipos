@@ -1,27 +1,37 @@
 .global-header {
-  position: relative;
-  padding: 20px 16px 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  pointer-events: none;
-  background: transparent;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 8px 0px;
   margin: 0;
-  width: 100%;
+  background: rgba(255, 255, 255, 0.263);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 70px;
+  width: 100vw;
   box-sizing: border-box;
+  z-index: 1000;
 }
 
 .global-header-left {
   display: flex;
+  flex-direction: row;
   align-items: center;
+  justify-content: center;
   pointer-events: auto;
   cursor: pointer;
+  transform: translateY(-5px);
   position: relative;
 }
 
 .global-avatar-container {
   position: relative;
-  margin-right: 12px;
+  margin-left: 8px;
+  margin-right: 16px;
 }
 
 .global-avatar {
@@ -102,6 +112,9 @@
 }
 
 .global-header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   pointer-events: auto;
   position: relative;
 }
@@ -264,6 +277,19 @@
   }
 }
 
+@media (max-width: 600px) {
+  .global-header {
+    padding: 10px 4px 0px;
+    margin-bottom: 0;
+  }
+}
+
+@media (min-width: 600px) {
+  .global-header {
+
+  }
+}
+
 /* Login button styles */
 .global-login-button {
   padding: 8px 16px;
@@ -275,4 +301,10 @@
   transition: background-color 0.3s;
   display: inline-block;
   margin-top: 10px;
+}
+
+.global-greeting, .global-username, .global-status-text {
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(255,255,255,0.2);
+  margin-left: -4px;
 }

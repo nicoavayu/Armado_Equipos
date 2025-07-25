@@ -15,14 +15,14 @@ export const {
   MODES,
   STEPS,
   ADMIN_STEPS,
-  RATING_BUTTONS
+  RATING_BUTTONS,
 } = appModes;
 
 export const {
   DIAS_SEMANA,
   DIAS_SEMANA_CORTO,
   DATE_FORMATS,
-  TIME_FORMATS
+  TIME_FORMATS,
 } = dateTime;
 
 export const {
@@ -30,13 +30,13 @@ export const {
   LOADING_STATES,
   ANIMATION_DURATIONS,
   UI_SIZES,
-  BREAKPOINTS
+  BREAKPOINTS,
 } = ui;
 
 export const {
   VALIDATION_RULES,
   TEAM_BALANCING,
-  VALIDATION_PATTERNS
+  VALIDATION_PATTERNS,
 } = validation;
 
 // Export all constants as namespaces
@@ -44,5 +44,5 @@ export default {
   appModes,
   dateTime,
   ui,
-  validation
+  validation,
 };

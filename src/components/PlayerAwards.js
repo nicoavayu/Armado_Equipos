@@ -11,7 +11,7 @@ const PlayerAwards = ({ playerId }) => {
   const [awards, setAwards] = useState({
     mvp: 0,
     arquero: 0,
-    fairplayNegativo: 0
+    fairplayNegativo: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -38,10 +38,10 @@ const PlayerAwards = ({ playerId }) => {
       const counts = {
         mvp: 0,
         arquero: 0,
-        fairplayNegativo: 0
+        fairplayNegativo: 0,
       };
       
-      data.forEach(award => {
+      data.forEach((award) => {
         if (award.award_type === 'mvp') counts.mvp++;
         if (award.award_type === 'arquero') counts.arquero++;
         if (award.award_type === 'fairplay_negativo') counts.fairplayNegativo++;

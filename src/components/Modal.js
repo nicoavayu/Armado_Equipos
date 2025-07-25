@@ -8,7 +8,7 @@ const Modal = ({
   title,
   className = '',
   closeOnBackdrop = true,
-  closeOnEscape = true 
+  closeOnEscape = true, 
 }) => {
   const modalRef = useRef(null);
   const previousFocusRef = useRef(null);
@@ -66,7 +66,7 @@ const Modal = ({
     if (e.key === 'Tab') {
       // Trap focus within modal
       const focusableElements = modalRef.current?.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
       );
       
       if (focusableElements && focusableElements.length > 0) {
@@ -96,7 +96,7 @@ const Modal = ({
           transition={{ duration: 0.2 }}
           role="dialog"
           aria-modal="true"
-          aria-labelledby={title ? "modal-title" : undefined}
+          aria-labelledby={title ? 'modal-title' : undefined}
         >
           <motion.div
             ref={modalRef}

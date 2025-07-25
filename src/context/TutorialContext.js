@@ -54,7 +54,7 @@ export const TutorialProvider = ({ children }) => {
     startTutorial,
     skipTutorial,
     completeTutorial,
-    replayTutorial
+    replayTutorial,
   };
 
   return (

@@ -66,14 +66,14 @@ export const useSurveys = () => {
       await processSurveyResults(currentSurvey.partido.id);
       
       // Remove the submitted survey from pending surveys
-      setPendingSurveys(prev => prev.filter(s => s.notification.id !== currentSurvey.notification.id));
+      setPendingSurveys((prev) => prev.filter((s) => s.notification.id !== currentSurvey.notification.id));
       
       // Close the modal
       setShowSurveyModal(false);
       
       // If there are more pending surveys, set the next one as current
       if (pendingSurveys.length > 1) {
-        const nextSurvey = pendingSurveys.find(s => s.notification.id !== currentSurvey.notification.id);
+        const nextSurvey = pendingSurveys.find((s) => s.notification.id !== currentSurvey.notification.id);
         setCurrentSurvey(nextSurvey);
       } else {
         setCurrentSurvey(null);
@@ -91,6 +91,6 @@ export const useSurveys = () => {
     openSurvey,
     closeSurvey,
     handleSurveySubmit,
-    refreshSurveys: fetchPendingSurveys
+    refreshSurveys: fetchPendingSurveys,
   };
 };

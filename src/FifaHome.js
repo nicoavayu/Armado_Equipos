@@ -1,12 +1,14 @@
 // src/FifaHome.js
-import React, { useState, useEffect } from "react";
-import "./HomeStyleKit.css";
-import Logo from "./Logo.png";
-import GoogleAuth from "./components/GoogleAuth";
-import { useAuth } from "./components/AuthProvider";
-import FifaHomeContent from "./components/FifaHomeContent";
-import ProfileEditor from "./components/ProfileEditor";
-import NotificationsView from "./components/NotificationsView";
+import React, { useState, useEffect } from 'react';
+import './HomeStyleKit.css';
+import Logo from './Logo.png';
+import GoogleAuth from './components/GoogleAuth';
+import { useAuth } from './components/AuthProvider';
+import FifaHomeContent from './components/FifaHomeContent';
+import ProfileEditor from './components/ProfileEditor';
+import NotificationsView from './components/NotificationsView';
+import WeatherWidget from './components/WeatherWidget';
+
 
 export default function FifaHome({ onModoSeleccionado }) {
   const { user } = useAuth();
@@ -41,7 +43,7 @@ export default function FifaHome({ onModoSeleccionado }) {
   if (showNotifications) {
     return (
       <div className="voting-bg home-bg content-with-tabbar">
-        <div className="voting-modern-card" style={{maxWidth: 600, padding: '20px'}}>
+        <div className="voting-modern-card" style={{ maxWidth: 600, padding: '20px' }}>
           <div className="notifications-back-button" onClick={() => setShowNotifications(false)}>←</div>
           <NotificationsView />
         </div>
@@ -51,15 +53,14 @@ export default function FifaHome({ onModoSeleccionado }) {
 
   return (
     <div className="voting-bg home-bg content-with-tabbar">
-      <div className="voting-modern-card fifa-home-container">
-        {/* FIFA-style menu content - Siempre mostramos el contenido porque la autenticación se maneja en App.js */}
-        <FifaHomeContent 
-          onCreateMatch={() => onModoSeleccionado('votacion')}
-          onViewHistory={() => onModoSeleccionado('votacion')}
-          onViewInvitations={() => onModoSeleccionado('quiero-jugar', 'matches')}
-          onViewActivePlayers={() => onModoSeleccionado('quiero-jugar', 'players')}
-        />
-      </div>
+      <WeatherWidget compact />
+      {/* FIFA-style menu content - Siempre mostramos el contenido porque la autenticación se maneja en App.js */}
+      <FifaHomeContent 
+        onCreateMatch={() => onModoSeleccionado('votacion')}
+        onViewHistory={() => window.location.href = '/historial'}
+        onViewInvitations={() => onModoSeleccionado('quiero-jugar', 'matches')}
+        onViewActivePlayers={() => onModoSeleccionado('quiero-jugar', 'players')}
+      />
       
       {/* Profile Editor */}
       <ProfileEditor

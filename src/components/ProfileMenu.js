@@ -18,7 +18,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
     fecha_nacimiento: '',
     posicion_favorita: '',
     acepta_invitaciones: true,
-    bio: ''
+    bio: '',
   });
   const [hasChanges, setHasChanges] = useState(false);
   const fileInputRef = useRef(null);
@@ -33,7 +33,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
         fecha_nacimiento: profile.fecha_nacimiento || '',
         posicion_favorita: profile.posicion_favorita || '',
         acepta_invitaciones: profile.acepta_invitaciones !== false,
-        bio: profile.bio || ''
+        bio: profile.bio || '',
       };
       setFormData(newFormData);
       setHasChanges(false);
@@ -116,7 +116,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
     { key: 'arquero', label: 'ARQ' },
     { key: 'defensor', label: 'DEF' },
     { key: 'mediocampista', label: 'MED' },
-    { key: 'delantero', label: 'DEL' }
+    { key: 'delantero', label: 'DEL' },
   ];
 
   if (!isOpen) {
@@ -240,7 +240,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
           <div className="form-group">
             <label>Posición</label>
             <div className="position-buttons">
-              {positions.map(pos => (
+              {positions.map((pos) => (
                 <button
                   key={pos.key}
                   type="button"

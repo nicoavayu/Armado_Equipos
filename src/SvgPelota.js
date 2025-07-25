@@ -1,5 +1,5 @@
 // src/SvgPelota.js
-import React from "react";
+import React from 'react';
 
 export default function SvgPelota({ width = 120, height = 112, style = {} }) {
   return (

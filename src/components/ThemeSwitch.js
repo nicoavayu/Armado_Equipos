@@ -1,18 +1,18 @@
 // src/components/ThemeSwitch.js
-import React from "react";
-import "./ThemeSwitch.css";
+import React from 'react';
+import './ThemeSwitch.css';
 
 export default function ThemeSwitch({ theme, onToggle }) {
   return (
     <button
-      className={`switch-toggle${theme === "dark" ? " dark" : ""}`}
+      className={`switch-toggle${theme === 'dark' ? ' dark' : ''}`}
       onClick={onToggle}
       aria-label="Cambiar tema"
       type="button"
     >
       <span className="switch-track" />
       <span className="switch-thumb">
-        {theme === "dark" ? (
+        {theme === 'dark' ? (
           // SVG Luna
           <svg viewBox="0 0 22 22" width="20" height="20">
             <path

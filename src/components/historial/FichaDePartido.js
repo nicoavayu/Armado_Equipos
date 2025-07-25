@@ -53,15 +53,15 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
         if (premiosError) throw premiosError;
         
         // Procesar datos de premios por categoría
-        const mvps = premiosData?.filter(p => p.award_type === 'mvp') || [];
-        const arqueros = premiosData?.filter(p => p.award_type === 'goalkeeper') || [];
-        const sucios = premiosData?.filter(p => p.award_type === 'negative_fair_play') || [];
+        const mvps = premiosData?.filter((p) => p.award_type === 'mvp') || [];
+        const arqueros = premiosData?.filter((p) => p.award_type === 'goalkeeper') || [];
+        const sucios = premiosData?.filter((p) => p.award_type === 'negative_fair_play') || [];
         
         // Recopilar IDs de jugadores ausentes de todas las encuestas
         const ausentesIds = new Set();
-        partidoData?.encuestas?.forEach(encuesta => {
+        partidoData?.encuestas?.forEach((encuesta) => {
           if (!encuesta.asistieron_todos && encuesta.jugadores_ausentes?.length) {
-            encuesta.jugadores_ausentes.forEach(ausenteId => {
+            encuesta.jugadores_ausentes.forEach((ausenteId) => {
               ausentesIds.add(ausenteId);
             });
           }
@@ -84,7 +84,7 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
           mvps,
           arqueros,
           sucios,
-          ausentes: ausentesData
+          ausentes: ausentesData,
         });
       } catch (err) {
         console.error('Error al cargar detalles del partido:', err);
@@ -107,7 +107,7 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
         day: 'numeric',
         hour: '2-digit', 
         minute: '2-digit',
-        weekday: 'long'
+        weekday: 'long',
       };
       return fecha.toLocaleDateString('es-ES', options);
     } catch (e) {
@@ -178,7 +178,7 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
               <div className="ficha-destacados">
                 <h4>MVP del Partido</h4>
                 <div className="ficha-destacados-grid">
-                  {mvps.map(premio => (
+                  {mvps.map((premio) => (
                     <JugadorDestacadoCard 
                       key={premio.id}
                       jugador={premio.jugador}
@@ -193,7 +193,7 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
               <div className="ficha-destacados">
                 <h4>Mejor Arquero</h4>
                 <div className="ficha-destacados-grid">
-                  {arqueros.map(premio => (
+                  {arqueros.map((premio) => (
                     <JugadorDestacadoCard 
                       key={premio.id}
                       jugador={premio.jugador}
@@ -208,7 +208,7 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
               <div className="ficha-destacados">
                 <h4>Tarjeta Negra</h4>
                 <div className="ficha-destacados-grid">
-                  {sucios.map(premio => (
+                  {sucios.map((premio) => (
                     <JugadorDestacadoCard 
                       key={premio.id}
                       jugador={premio.jugador}
@@ -226,7 +226,7 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
           <div className="ficha-section">
             <h3 className="ficha-section-title">Jugadores Ausentes</h3>
             <div className="ficha-ausentes">
-              {ausentes.map(jugador => (
+              {ausentes.map((jugador) => (
                 <div key={jugador.id} className="ficha-ausente-item">
                   <div className="ficha-ausente-avatar">
                     {jugador.avatar_url ? (

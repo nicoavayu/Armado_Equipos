@@ -62,8 +62,8 @@ export const clearGuestSession = (partidoId) => {
     console.log(`Cleared guest session for match ${partidoId}`);
   } else {
     // Clear all guest sessions
-    const keys = Object.keys(localStorage).filter(key => key.startsWith('guest_session'));
-    keys.forEach(key => localStorage.removeItem(key));
+    const keys = Object.keys(localStorage).filter((key) => key.startsWith('guest_session'));
+    keys.forEach((key) => localStorage.removeItem(key));
     console.log(`Cleared ${keys.length} guest sessions`);
   }
 };
@@ -76,7 +76,7 @@ export const clearGuestSession = (partidoId) => {
 export const subscribeToChanges = (callback) => {
   const subscription = supabase
     .channel('public-changes')
-    .on('postgres_changes', { event: '*', schema: 'public' }, payload => {
+    .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
       console.log('Change received!', payload);
       callback(payload);
     })
@@ -98,8 +98,8 @@ export const removeSubscription = (subscription) => {
  * @returns {string} Random alphanumeric code
  */
 export const generarCodigoPartido = (length = 6) => {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let result = "";
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
   for (let i = 0; i < length; i++)
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   return result;

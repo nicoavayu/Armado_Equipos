@@ -22,7 +22,7 @@ const AmigosView = () => {
     getAmigos, 
     getPendingRequests,
     acceptFriendRequest,
-    rejectFriendRequest
+    rejectFriendRequest,
   } = useAmigos(currentUserId);
 
   // Get current user ID on mount
@@ -128,7 +128,7 @@ const AmigosView = () => {
         <div className="amigos-pending-section">
           <h3 className="amigos-section-title">Solicitudes Pendientes</h3>
           <div className="amigos-pending-list">
-            {pendingRequests.map(request => (
+            {pendingRequests.map((request) => (
               <div key={request.profile?.uuid || request.profile?.id || request.id} className="amigos-pending-item">
                 <PlayerCardTrigger profile={request.profile}>
                   <div className="amigos-pending-info">
@@ -167,7 +167,7 @@ const AmigosView = () => {
       {/* Friends list section */}
       {amigos.length > 0 ? (
         <div className="amigos-list">
-          {amigos.map(amigo => (
+          {amigos.map((amigo) => (
             <div key={amigo.profile?.uuid || amigo.profile?.id || amigo.id} className="amigos-card-container">
               <PlayerCardTrigger profile={amigo.profile}>
                 <ProfileCard 

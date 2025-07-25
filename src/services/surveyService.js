@@ -11,13 +11,13 @@ export const createPostMatchSurveyNotifications = async (partido) => {
   try {
     // Get unique user IDs from the match participants (exclude guest users)
     const userIds = partido.jugadores
-      .filter(jugador => jugador.uuid && !jugador.uuid.startsWith('guest_'))
-      .map(jugador => jugador.uuid);
+      .filter((jugador) => jugador.uuid && !jugador.uuid.startsWith('guest_'))
+      .map((jugador) => jugador.uuid);
     
     if (userIds.length === 0) return [];
     
     // Create notifications for all players
-    const notifications = userIds.map(userId => ({
+    const notifications = userIds.map((userId) => ({
       user_id: userId,
       type: 'post_match_survey',
       title: '¡Completá la encuesta!',
@@ -27,10 +27,10 @@ export const createPostMatchSurveyNotifications = async (partido) => {
         matchCode: partido.codigo,
         matchDate: partido.fecha,
         matchTime: partido.hora,
-        matchVenue: partido.sede
+        matchVenue: partido.sede,
       },
       read: false,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     }));
     
     // Insert notifications into the database
@@ -91,7 +91,7 @@ export const checkPendingSurveys = async (userId) => {
       if (!existingSurvey) {
         pendingSurveys.push({
           notification,
-          partido: notification.partidos
+          partido: notification.partidos,
         });
       } else {
         // Mark notification as read since survey was already submitted
@@ -134,7 +134,7 @@ export const processSurveyResults = async (partidoId) => {
     const absentPlayers = new Set();
     
     // Process each survey
-    surveys.forEach(survey => {
+    surveys.forEach((survey) => {
       // Count MVP votes for team A
       if (survey.mejor_jugador_eq_a) {
         mvpVotesTeamA[survey.mejor_jugador_eq_a] = (mvpVotesTeamA[survey.mejor_jugador_eq_a] || 0) + 1;
@@ -152,14 +152,14 @@ export const processSurveyResults = async (partidoId) => {
       
       // Count negative fair play votes
       if (survey.jugadores_violentos && Array.isArray(survey.jugadores_violentos)) {
-        survey.jugadores_violentos.forEach(playerId => {
+        survey.jugadores_violentos.forEach((playerId) => {
           fairplayNegativeVotes[playerId] = (fairplayNegativeVotes[playerId] || 0) + 1;
         });
       }
       
       // Track absent players
       if (!survey.asistieron_todos && survey.jugadores_ausentes && Array.isArray(survey.jugadores_ausentes)) {
-        survey.jugadores_ausentes.forEach(playerId => {
+        survey.jugadores_ausentes.forEach((playerId) => {
           absentPlayers.add(playerId);
         });
       }
@@ -198,7 +198,7 @@ export const processSurveyResults = async (partidoId) => {
       awards.push({
         jugador_id: mvpTeamA.winnerId,
         award_type: 'mvp',
-        partido_id: partidoId
+        partido_id: partidoId,
       });
     }
     
@@ -206,7 +206,7 @@ export const processSurveyResults = async (partidoId) => {
       awards.push({
         jugador_id: mvpTeamB.winnerId,
         award_type: 'mvp',
-        partido_id: partidoId
+        partido_id: partidoId,
       });
     }
     
@@ -215,16 +215,16 @@ export const processSurveyResults = async (partidoId) => {
       awards.push({
         jugador_id: bestGoalkeeper.winnerId,
         award_type: 'arquero',
-        partido_id: partidoId
+        partido_id: partidoId,
       });
     }
     
     // Negative fair play awards
-    negativePlayersIds.forEach(playerId => {
+    negativePlayersIds.forEach((playerId) => {
       awards.push({
         jugador_id: playerId,
         award_type: 'fairplay_negativo',
-        partido_id: partidoId
+        partido_id: partidoId,
       });
     });
     

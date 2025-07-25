@@ -19,7 +19,7 @@ import { createOrUpdateProfile } from './playerService';
 export const signInWithEmail = async (email, password) => {
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
-    password
+    password,
   });
   
   if (error) throw error;
@@ -46,7 +46,7 @@ export const signInWithEmail = async (email, password) => {
 export const signUpWithEmail = async (email, password) => {
   const { data, error } = await supabase.auth.signUp({
     email,
-    password
+    password,
   });
   
   if (error) throw error;
@@ -72,8 +72,8 @@ export const signInWithGoogle = async () => {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.origin
-    }
+      redirectTo: window.location.origin,
+    },
   });
   
   if (error) throw error;
@@ -122,7 +122,7 @@ export const getCurrentSession = async () => {
  */
 export const resetPassword = async (email) => {
   const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${window.location.origin}/reset-password`
+    redirectTo: `${window.location.origin}/reset-password`,
   });
   
   if (error) throw error;
@@ -136,7 +136,7 @@ export const resetPassword = async (email) => {
  */
 export const updatePassword = async (password) => {
   const { data, error } = await supabase.auth.updateUser({
-    password
+    password,
   });
   
   if (error) throw error;
@@ -150,7 +150,7 @@ export const updatePassword = async (password) => {
  */
 export const updateEmail = async (email) => {
   const { data, error } = await supabase.auth.updateUser({
-    email
+    email,
   });
   
   if (error) throw error;
@@ -181,5 +181,5 @@ export default {
   resetPassword,
   updatePassword,
   updateEmail,
-  onAuthStateChange
+  onAuthStateChange,
 };

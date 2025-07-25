@@ -76,7 +76,7 @@ const ListaDeFechasModal = ({ partidos, onClose, nombrePartido, error, loading }
               ) : (
                 // Lista de fechas
                 <div className="fechas-list">
-                  {partidos.map(partido => (
+                  {partidos.map((partido) => (
                     <div 
                       key={partido.id} 
                       className="fecha-card"

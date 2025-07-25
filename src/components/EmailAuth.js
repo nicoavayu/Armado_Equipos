@@ -21,7 +21,7 @@ const EmailAuth = ({ user }) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password
+        password,
       });
 
       if (error) {
@@ -53,8 +53,8 @@ const EmailAuth = ({ user }) => {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}`
-        }
+          emailRedirectTo: `${window.location.origin}`,
+        },
       });
 
       if (error) {
@@ -79,7 +79,7 @@ const EmailAuth = ({ user }) => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
+        redirectTo: `${window.location.origin}/reset-password`,
       });
 
       if (error) {

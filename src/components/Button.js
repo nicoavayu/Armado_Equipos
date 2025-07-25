@@ -31,12 +31,12 @@ const Button = ({
       style={{
         opacity: disabled || loading ? 0.6 : 1,
         cursor: disabled || loading ? 'not-allowed' : 'pointer',
-        ...style
+        ...style,
       }}
       aria-label={ariaLabel}
       whileHover={{ scale: disabled || loading ? 1 : 1.02 }}
       whileTap={{ scale: disabled || loading ? 1 : 0.98 }}
-      transition={{ type: "spring", stiffness: 400, damping: 17 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
       {...props}
     >
       {loading ? (

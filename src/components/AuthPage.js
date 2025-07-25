@@ -64,7 +64,7 @@ const AuthPage = () => {
     setValidationErrors({});
     
     if (!validateEmail(email)) {
-      setValidationErrors({email: 'Ingresá un email válido'});
+      setValidationErrors({ email: 'Ingresá un email válido' });
       return;
     }
     
@@ -73,7 +73,7 @@ const AuthPage = () => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        password
+        password,
       });
 
       if (error) {
@@ -109,8 +109,8 @@ const AuthPage = () => {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}`
-        }
+          emailRedirectTo: `${window.location.origin}`,
+        },
       });
 
       if (error) {
@@ -135,7 +135,7 @@ const AuthPage = () => {
     setValidationErrors({});
     
     if (!validateEmail(email)) {
-      setValidationErrors({email: 'Ingresá un email válido'});
+      setValidationErrors({ email: 'Ingresá un email válido' });
       return;
     }
     
@@ -143,7 +143,7 @@ const AuthPage = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`
+        redirectTo: `${window.location.origin}/reset-password`,
       });
 
       if (error) {

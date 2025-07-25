@@ -20,19 +20,19 @@ export const updateExistingMatches = async () => {
     }
     
     // Actualizar cada partido
-    const updates = partidos.map(partido => 
+    const updates = partidos.map((partido) => 
       supabase
         .from('partidos')
         .update({
           partido_frecuente_id: partido.id,
-          es_frecuente: true
+          es_frecuente: true,
         })
-        .eq('id', partido.id)
+        .eq('id', partido.id),
     );
     
     // Ejecutar todas las actualizaciones
     const results = await Promise.all(updates);
-    const errors = results.filter(res => res.error);
+    const errors = results.filter((res) => res.error);
     
     if (errors.length > 0) {
       console.error(`Errores al actualizar ${errors.length} partidos:`, errors);
@@ -40,14 +40,14 @@ export const updateExistingMatches = async () => {
         success: false, 
         message: `Se actualizaron ${partidos.length - errors.length} partidos, pero hubo ${errors.length} errores`, 
         updated: partidos.length - errors.length,
-        errors
+        errors,
       };
     }
     
     return { 
       success: true, 
       message: `Se actualizaron ${partidos.length} partidos correctamente`, 
-      updated: partidos.length 
+      updated: partidos.length, 
     };
   } catch (error) {
     console.error('Error al actualizar partidos existentes:', error);
@@ -59,7 +59,7 @@ export const updateExistingMatches = async () => {
 export const runUpdateFromConsole = () => {
   console.log('Iniciando actualización de partidos existentes...');
   updateExistingMatches()
-    .then(result => {
+    .then((result) => {
       console.log('Resultado de la actualización:', result);
       if (result.success) {
         console.log(`✅ ${result.message}`);
@@ -67,7 +67,7 @@ export const runUpdateFromConsole = () => {
         console.error(`❌ Error: ${result.message}`);
       }
     })
-    .catch(err => {
+    .catch((err) => {
       console.error('Error al ejecutar la actualización:', err);
     });
 };

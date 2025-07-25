@@ -16,7 +16,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
       console.log('Loading frequent matches...');
       const partidos = await getPartidosFrecuentes();
       console.log('Frequent matches loaded:', partidos);
-      console.log('Image URLs found:', partidos.map(p => ({ nombre: p.nombre, imagen_url: p.imagen_url })));
+      console.log('Image URLs found:', partidos.map((p) => ({ nombre: p.nombre, imagen_url: p.imagen_url })));
       setPartidosFrecuentes(partidos);
     } catch (error) {
       console.error('Error loading frequent matches:', error);
@@ -30,7 +30,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
     if (!window.confirm(`¿Eliminar "${nombre}"?`)) return;
     try {
       await deletePartidoFrecuente(id);
-      setPartidosFrecuentes(prev => prev.filter(p => p.id !== id));
+      setPartidosFrecuentes((prev) => prev.filter((p) => p.id !== id));
       toast.success('Partido eliminado correctamente');
     } catch (error) {
       console.error('Error deleting frequent match:', error);
@@ -61,7 +61,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
           </div>
         ) : (
           <div style={{ width: '100%', marginBottom: 22 }}>
-            {partidosFrecuentes.map(partido => (
+            {partidosFrecuentes.map((partido) => (
               <div key={partido.id} style={{ background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255,255,255,0.2)', borderRadius: '8px', padding: '16px', marginBottom: '16px', width: '100%', boxSizing: 'border-box' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                   {partido.imagen_url ? (
@@ -73,7 +73,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
                         height: '48px', 
                         borderRadius: '8px', 
                         objectFit: 'cover',
-                        border: '2px solid rgba(255,255,255,0.3)'
+                        border: '2px solid rgba(255,255,255,0.3)',
                       }}
                       onError={(e) => console.error('Image failed to load:', partido.imagen_url)}
                     />
@@ -87,7 +87,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '20px'
+                      fontSize: '20px',
                     }}>
                       ⚽
                     </div>

@@ -21,10 +21,10 @@ export const createMatchInviteNotification = async (userId, senderName, matchDat
         matchCode: matchData.codigo,
         matchDate: matchData.fecha,
         matchTime: matchData.hora,
-        matchVenue: matchData.sede
+        matchVenue: matchData.sede,
       },
       read: false,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
 
     const { data, error } = await supabase
@@ -54,13 +54,13 @@ export const createMatchUpdateNotification = async (matchData, updateType, messa
   try {
     // Get unique user IDs from the match participants
     const userIds = matchData.jugadores
-      .filter(jugador => jugador.uuid && !jugador.uuid.startsWith('guest_'))
-      .map(jugador => jugador.uuid);
+      .filter((jugador) => jugador.uuid && !jugador.uuid.startsWith('guest_'))
+      .map((jugador) => jugador.uuid);
     
     if (userIds.length === 0) return [];
     
     // Create notifications for all participants
-    const notifications = userIds.map(userId => ({
+    const notifications = userIds.map((userId) => ({
       user_id: userId,
       type: 'match_update',
       title: 'Actualización de partido',
@@ -71,10 +71,10 @@ export const createMatchUpdateNotification = async (matchData, updateType, messa
         updateType,
         matchDate: matchData.fecha,
         matchTime: matchData.hora,
-        matchVenue: matchData.sede
+        matchVenue: matchData.sede,
       },
       read: false,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     }));
 
     const { data, error } = await supabase
