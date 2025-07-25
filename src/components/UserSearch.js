@@ -87,7 +87,7 @@ const UserSearch = ({ onClose }) => {
       case 'accepted':
         return 'Ya son amigos';
       case 'rejected':
-        return 'Solicitud rechazada';
+        return 'Solicitar amistad';
       default:
         return 'Enviar solicitud';
     }

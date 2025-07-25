@@ -181,6 +181,18 @@ const ProfileCardModal = ({ isOpen, onClose, profile }) => {
       );
     }
     
+    if (relationshipStatus.status === 'rejected') {
+      return (
+        <button 
+          className={`pcm-friend-btn add ${isLoading ? 'disabled' : ''}`}
+          onClick={handleAddFriend}
+          disabled={isLoading}
+        >
+          <span>{isLoading ? 'Enviando...' : 'Solicitar amistad'}</span>
+        </button>
+      );
+    }
+    
     return null;
   };
 

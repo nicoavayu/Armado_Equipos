@@ -182,27 +182,55 @@ export const useAmigos = (currentUserId) => {
       // Check if a relationship already exists
       console.log('[AMIGOS] Checking if relationship already exists');
       const existingRelation = await getRelationshipStatus(friendIdUuid);
+      
+      let data;
       if (existingRelation) {
         console.log('[AMIGOS] Relationship already exists:', existingRelation);
-        return { success: false, message: 'Ya existe una relación con este jugador' };
-      }
-      
-      // Create new friend request
-      console.log('[AMIGOS] Creating new friend request');
-      const { data, error } = await supabase
-        .from('amigos')
-        .insert([{
-          user_id: userIdUuid,
-          friend_id: friendIdUuid,
-          status: 'pending',
-        }])
-        .select()
-        .single();
         
-      if (error) {
-        console.error('[AMIGOS] Error inserting friend request:', error);
-        throw error;
+        if (existingRelation.status === 'rejected') {
+          // Update existing rejected relationship to pending
+          console.log('[AMIGOS] Updating rejected relationship to pending');
+          const { data: updateData, error } = await supabase
+            .from('amigos')
+            .update({ 
+              status: 'pending',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existingRelation.id)
+            .select()
+            .single();
+            
+          if (error) {
+            console.error('[AMIGOS] Error updating friend request:', error);
+            throw error;
+          }
+          
+          data = updateData;
+        } else {
+          // Other statuses (pending, accepted) should not allow new requests
+          return { success: false, message: 'Ya existe una relación con este jugador' };
+        }
+      } else {
+        // Create new friend request
+        console.log('[AMIGOS] Creating new friend request');
+        const { data: insertData, error } = await supabase
+          .from('amigos')
+          .insert([{
+            user_id: userIdUuid,
+            friend_id: friendIdUuid,
+            status: 'pending',
+          }])
+          .select()
+          .single();
+          
+        if (error) {
+          console.error('[AMIGOS] Error inserting friend request:', error);
+          throw error;
+        }
+        
+        data = insertData;
       }
+
       
       console.log('[AMIGOS] Friend request created successfully:', data);
       
