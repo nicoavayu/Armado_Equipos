@@ -1,7 +1,7 @@
 import './HomeStyleKit.css';
 import React, { useState, useEffect } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
-import { BrowserRouter as Router, Routes, Route, useNavigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useParams, Outlet } from 'react-router-dom';
 import { MODES, ADMIN_STEPS } from './constants';
 import AmigosView from './components/AmigosView';
 import { LOADING_STATES } from './appConstants';
@@ -32,7 +32,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { TutorialProvider } from './context/TutorialContext';
 import Tutorial from './components/Tutorial';
 import WelcomeModal from './components/WelcomeModal';
-import { getPartidoPorCodigo, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes } from './supabase';
+import { getPartidoPorCodigo, getPartidoPorId, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes } from './supabase';
 import IngresoAdminPartido from './IngresoAdminPartido';
 import AuthPage from './components/AuthPage';
 import ResetPassword from './components/ResetPassword';
@@ -63,7 +63,8 @@ const NuevoPartidoPage = () => {
       <div className="voting-modern-card" style={{ maxWidth: 650 }}>
         <FormularioNuevoPartidoFlow
           onConfirmar={async (partido) => {
-            navigate('/');
+            // Navegar al AdminPanel con el partido creado
+            navigate(`/admin/${partido.id}`);
             return partido;
           }}
           onVolver={() => navigate('/')}
@@ -115,6 +116,83 @@ const NotificationsPage = () => {
   );
 };
 
+const AdminPanelPage = () => {
+  const navigate = useNavigate();
+  const { partidoId } = useParams();
+  const [partidoActual, setPartidoActual] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const cargarPartido = async () => {
+      try {
+        const partido = await getPartidoPorId(partidoId);
+        if (partido) {
+          setPartidoActual(partido);
+        } else {
+          toast.error('Partido no encontrado');
+          navigate('/');
+        }
+      } catch (error) {
+        toast.error('Error al cargar el partido');
+        navigate('/');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (partidoId) {
+      cargarPartido();
+    }
+  }, [partidoId, navigate]);
+
+  const handleJugadoresChange = async (nuevosJugadores) => {
+    if (!partidoActual) return;
+    await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
+    setPartidoActual({ ...partidoActual, jugadores: nuevosJugadores });
+    if (partidoActual.from_frequent_match_id) {
+      try {
+        await updateJugadoresFrecuentes(partidoActual.from_frequent_match_id, nuevosJugadores);
+      } catch (error) {
+        toast.error('Error actualizando partido frecuente');
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card">
+          <div className="match-name">CARGANDO...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!partidoActual) {
+    return (
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card">
+          <div className="match-name">PARTIDO NO ENCONTRADO</div>
+          <Button onClick={() => navigate('/')}>VOLVER AL INICIO</Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="voting-bg content-with-tabbar">
+      <div className="voting-modern-card" style={{ maxWidth: 650 }}>
+        <AdminPanel
+          partidoActual={partidoActual}
+          jugadores={partidoActual?.jugadores || []}
+          onJugadoresChange={handleJugadoresChange}
+          onBackToHome={() => navigate('/')}
+        />
+      </div>
+    </div>
+  );
+};
+
 const HistorialPage = () => {
   const navigate = useNavigate();
   const [partidoFrecuenteEditando, setPartidoFrecuenteEditando] = useState(null);
@@ -145,11 +223,11 @@ const HistorialPage = () => {
       <div className="voting-modern-card" style={{ maxWidth: 650 }}>
         <ListaPartidosFrecuentes
           onEntrar={async (partidoFrecuente) => {
-            // Crear partido desde frecuente y navegar
+            // Crear partido desde frecuente y navegar al AdminPanel
             try {
               const hoy = new Date().toISOString().split('T')[0];
               const partido = await crearPartidoDesdeFrec(partidoFrecuente, hoy);
-              navigate('/');
+              navigate(`/admin/${partido.id}`);
             } catch (error) {
               toast.error('Error al crear el partido');
             }
@@ -432,6 +510,7 @@ export default function App() {
                     <Route path="profile" element={<ProfilePage />} />
                     <Route path="notifications" element={<NotificationsPage />} />
                     <Route path="historial" element={<HistorialPage />} />
+                    <Route path="admin/:partidoId" element={<AdminPanelPage />} />
                   </Route>
                 </Route>
               </Routes>

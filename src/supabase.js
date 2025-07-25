@@ -772,6 +772,17 @@ export const getPartidoPorCodigo = async (codigo) => {
   return data;
 };
 
+export const getPartidoPorId = async (id) => {
+  if (!id) throw new Error('Match ID is required');
+  const { data, error } = await supabase
+    .from('partidos')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) throw new Error(`Error fetching match: ${error.message}`);
+  return data;
+};
+
 export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
   console.log('Updating match players:', { partidoId, count: nuevosJugadores.length });
   const { error } = await supabase

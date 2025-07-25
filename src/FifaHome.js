@@ -57,7 +57,7 @@ export default function FifaHome({ onModoSeleccionado }) {
       {/* FIFA-style menu content - Siempre mostramos el contenido porque la autenticación se maneja en App.js */}
       <FifaHomeContent 
         onCreateMatch={() => onModoSeleccionado('votacion')}
-        onViewHistory={() => window.location.href = '/historial'}
+        onViewHistory={() => {}}
         onViewInvitations={() => onModoSeleccionado('quiero-jugar', 'matches')}
         onViewActivePlayers={() => onModoSeleccionado('quiero-jugar', 'players')}
       />
