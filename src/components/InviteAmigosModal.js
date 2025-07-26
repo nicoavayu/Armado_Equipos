@@ -54,6 +54,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
           avatar_url: f.avatar_url 
         })) || [],
       });
+      console.log('[MODAL_AMIGOS] Current user (sender):', currentUserId);
       
       setAmigos(friendsData || []);
     } catch (error) {
@@ -72,43 +73,116 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
 
     setInviting(true);
     try {
-      console.log('[MODAL_AMIGOS] Inviting friend:', {
-        friendId: amigo.id,
-        friendName: amigo.nombre,
-        matchId: partidoActual.id,
+      console.log('[MODAL_AMIGOS] === STARTING INVITATION PROCESS ===');
+      console.log('[MODAL_AMIGOS] Sender (currentUserId):', currentUserId);
+      console.log('[MODAL_AMIGOS] Recipient (amigo):', {
+        id: amigo.id,
+        nombre: amigo.nombre,
+      });
+      console.log('[MODAL_AMIGOS] Match:', {
+        id: partidoActual.id,
+        nombre: partidoActual.nombre,
       });
 
-      const { data: currentUser } = await supabase
+      const { data: currentUser, error: userError } = await supabase
         .from('usuarios')
         .select('nombre')
         .eq('id', currentUserId)
         .single();
 
+      if (userError) {
+        console.error('[MODAL_AMIGOS] Error fetching current user:', userError);
+        throw new Error(`Error obteniendo datos del usuario: ${userError.message}`);
+      }
+
+      console.log('[MODAL_AMIGOS] Current user data:', currentUser);
+
+      // VALIDACIÓN DE DATOS ANTES DEL INSERT
+      console.log('[MODAL_AMIGOS] === VALIDATING DATA ===');
+      console.log('[MODAL_AMIGOS] amigo.id (user_id):', amigo.id, 'type:', typeof amigo.id);
+      console.log('[MODAL_AMIGOS] currentUserId:', currentUserId, 'type:', typeof currentUserId);
+      console.log('[MODAL_AMIGOS] partidoActual.id:', partidoActual.id, 'type:', typeof partidoActual.id);
+      
+      // Validar que user_id sea un UUID válido
+      if (!amigo.id || typeof amigo.id !== 'string' || amigo.id.length !== 36) {
+        throw new Error(`user_id inválido: ${amigo.id}`);
+      }
+      
+      // Validar que currentUserId sea un UUID válido
+      if (!currentUserId || typeof currentUserId !== 'string' || currentUserId.length !== 36) {
+        throw new Error(`currentUserId inválido: ${currentUserId}`);
+      }
+
       const notificationData = {
-        user_id: amigo.id,
+        user_id: amigo.id, // DESTINATARIO - UUID string
         type: 'match_invite',
         title: 'Invitación a partido',
         message: `${currentUser?.nombre || 'Alguien'} te invitó a jugar "${partidoActual.nombre || 'un partido'}"`,
         data: {
           matchId: partidoActual.id,
-          matchName: partidoActual.nombre,
-          matchDate: partidoActual.fecha,
-          matchTime: partidoActual.hora,
-          matchLocation: partidoActual.sede,
+          matchName: partidoActual.nombre || null,
+          matchDate: partidoActual.fecha || null,
+          matchTime: partidoActual.hora || null,
+          matchLocation: partidoActual.sede || null,
           inviterId: currentUserId,
           inviterName: currentUser?.nombre || 'Alguien',
         },
         read: false,
       };
 
-      const { error } = await supabase
-        .from('notifications')
-        .insert([notificationData]);
+      console.log('[MODAL_AMIGOS] === INSERTING NOTIFICATION ===');
+      console.log('[MODAL_AMIGOS] Notification data to insert:', {
+        user_id: notificationData.user_id,
+        type: notificationData.type,
+        title: notificationData.title,
+        message: notificationData.message,
+        read: notificationData.read,
+      });
 
-      if (error) throw error;
+      const { data: insertedNotification, error } = await supabase
+        .from('notifications')
+        .insert([notificationData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[MODAL_AMIGOS] === INSERT ERROR ===');
+        console.error('[MODAL_AMIGOS] Error code:', error.code);
+        console.error('[MODAL_AMIGOS] Error message:', error.message);
+        console.error('[MODAL_AMIGOS] Error details:', error.details);
+        console.error('[MODAL_AMIGOS] Error hint:', error.hint);
+        console.error('[MODAL_AMIGOS] Full error object:', error);
+        console.error('[MODAL_AMIGOS] Data that failed to insert:', notificationData);
+        
+        // Análisis específico de errores comunes
+        if (error.code === '42501') {
+          console.error('[MODAL_AMIGOS] 🚨 RLS POLICY ERROR - No tienes permisos para insertar');
+          throw new Error('Error de permisos: No se puede crear la notificación. Revisar políticas RLS.');
+        } else if (error.code === '23502') {
+          console.error('[MODAL_AMIGOS] 🚨 NULL CONSTRAINT ERROR - Campo requerido es null');
+          throw new Error('Error de datos: Campo requerido faltante en la notificación.');
+        } else if (error.code === '23503') {
+          console.error('[MODAL_AMIGOS] 🚨 FOREIGN KEY ERROR - user_id no existe');
+          throw new Error('Error de referencia: El usuario destinatario no existe.');
+        } else if (error.code === '22P02') {
+          console.error('[MODAL_AMIGOS] 🚨 INVALID UUID ERROR - user_id no es un UUID válido');
+          throw new Error('Error de formato: ID de usuario inválido.');
+        } else {
+          console.error('[MODAL_AMIGOS] 🚨 UNKNOWN ERROR');
+          throw new Error(`Error desconocido al crear notificación: ${error.message}`);
+        }
+      }
+
+      console.log('[MODAL_AMIGOS] === NOTIFICATION INSERTED SUCCESSFULLY ===');
+      console.log('[MODAL_AMIGOS] Inserted notification:', {
+        id: insertedNotification.id,
+        user_id: insertedNotification.user_id,
+        type: insertedNotification.type,
+        created_at: insertedNotification.created_at,
+      });
+      console.log('[MODAL_AMIGOS] Recipient should receive realtime notification for user_id:', insertedNotification.user_id);
 
       toast.success(`Invitación enviada a ${amigo.nombre}`);
-      console.log('[MODAL_AMIGOS] Invitation sent successfully');
     } catch (error) {
       console.error('[MODAL_AMIGOS] Error sending invitation:', error);
       toast.error('Error al enviar la invitación');

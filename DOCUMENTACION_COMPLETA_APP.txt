@@ -1,0 +1,396 @@
+================================================================================
+                    DOCUMENTACIÓN COMPLETA - TEAM BALANCER APP
+================================================================================
+
+DESCRIPCIÓN GENERAL:
+Una aplicación web mobile-first para organizar partidos de fútbol y crear 
+equipos equilibrados basados en las habilidades de los jugadores.
+
+TECNOLOGÍAS:
+- React 18
+- Supabase (Base de datos y autenticación)
+- React Router
+- React Toastify
+- Capacitor (para móvil)
+
+================================================================================
+                              ARCHIVOS PRINCIPALES
+================================================================================
+
+1. APP.JS - COMPONENTE PRINCIPAL Y ROUTING
+================================================================================
+- Maneja el routing principal de la aplicación
+- Controla los diferentes modos (admin, player, home)
+- Integra AuthProvider, NotificationProvider, TutorialProvider
+- Rutas principales:
+  * / - HomePage
+  * /nuevo-partido - Crear partido
+  * /admin/:partidoId - Panel de administración
+  * /amigos - Vista de amigos
+  * /profile - Editor de perfil
+  * /notifications - Vista de notificaciones
+
+COMPONENTES CLAVE:
+- MainAppContent: Lógica principal de navegación
+- AdminPanelPage: Página del panel de administración
+- AmigosPage: Vista de gestión de amigos
+
+2. SUPABASE.JS - SERVICIOS DE BASE DE DATOS
+================================================================================
+FUNCIONES PRINCIPALES:
+
+JUGADORES:
+- getJugadores(): Obtiene todos los jugadores con scores
+- getJugadoresDelPartido(partidoId): Jugadores específicos de un partido
+- addJugador(nombre): Crea nuevo jugador
+- deleteJugador(uuid): Elimina jugador
+
+PARTIDOS:
+- crearPartido(data): Crea partido y agrega creador como jugador
+- getPartidoPorCodigo(codigo): Busca partido por código
+- getPartidoPorId(id): Busca partido por ID
+- updateJugadoresPartido(): Actualiza lista de jugadores
+
+VOTOS:
+- submitVotos(): Envía votos de calificación
+- getVotantesIds(): IDs de usuarios que votaron
+- closeVotingAndCalculateScores(): Cierra votación y calcula promedios
+
+AMIGOS:
+- getAmigos(userId): Obtiene lista de amigos (usuarios directos)
+- sendFriendRequest(): Envía solicitud de amistad
+- acceptFriendRequest(): Acepta solicitud
+- getRelationshipStatus(): Estado de relación entre usuarios
+
+PERFIL:
+- getProfile(userId): Obtiene perfil de usuario
+- updateProfile(): Actualiza perfil
+- createOrUpdateProfile(): Crea o actualiza perfil
+
+3. ADMINPANEL.JS - PANEL DE ADMINISTRACIÓN
+================================================================================
+FUNCIONALIDADES:
+- Gestión de jugadores del partido
+- Votación y formación de equipos
+- Invitación de amigos
+- Llamada a votar
+- Compartir por WhatsApp
+
+ESTADO PRINCIPAL:
+- jugadores: Lista de jugadores del partido
+- votantes: IDs de usuarios que votaron
+- teams: Equipos formados (A y B)
+- loading: Estados de carga
+
+FUNCIONES CLAVE:
+- agregarJugador(): Agrega jugador con UUID único
+- eliminarJugador(): Elimina jugador específico
+- handleCerrarVotacion(): Cierra votación y forma equipos
+- armarEquipos(): Algoritmo de balanceo de equipos
+
+4. VOTINGVIEW.JS - VISTA DE VOTACIÓN
+================================================================================
+- Interfaz para que jugadores califiquen a otros
+- Sistema de estrellas (1-10)
+- Validación de votos únicos por partido
+- Soporte para usuarios autenticados y guests
+
+5. FIFAHOME.JS - PANTALLA PRINCIPAL
+================================================================================
+- Punto de entrada principal
+- Opciones: Crear partido, Administrar, Quiero jugar
+- Navegación a diferentes modos de la app
+
+================================================================================
+                              COMPONENTES CLAVE
+================================================================================
+
+1. INVITEAMIGOSMODAL.JS - MODAL DE INVITACIÓN (AISLADO)
+================================================================================
+CARACTERÍSTICAS:
+- Usa React Portal para aislamiento total
+- Se monta en document.body
+- Solo muestra lista de amigos
+- Mobile-first y responsive
+
+PROPS:
+- isOpen: boolean
+- onClose: function
+- currentUserId: string (UUID)
+- partidoActual: object
+
+FUNCIONALIDAD:
+- Fetch independiente de amigos
+- Envío de notificaciones de invitación
+- Estado local aislado
+
+2. AMIGOSVIEW.JS - GESTIÓN DE AMIGOS
+================================================================================
+- Lista de amigos aceptados
+- Solicitudes pendientes
+- Búsqueda de usuarios
+- Integración con useAmigos hook
+
+3. TEAMDISPLAY.JS - VISUALIZACIÓN DE EQUIPOS
+================================================================================
+- Muestra equipos balanceados
+- Drag & drop para reorganizar
+- Información de puntajes
+- Exportación de equipos
+
+4. AUTHPROVIDER.JS - AUTENTICACIÓN
+================================================================================
+- Manejo de sesiones de usuario
+- Integración con Supabase Auth
+- Estados de autenticación
+- Creación automática de perfiles
+
+5. NOTIFICATIONCONTEXT.JS - SISTEMA DE NOTIFICACIONES
+================================================================================
+TIPOS DE NOTIFICACIONES:
+- friend_request: Solicitudes de amistad
+- match_invite: Invitaciones a partidos
+- call_to_vote: Llamadas a votar
+- post_match_survey: Encuestas post-partido
+
+FUNCIONES:
+- fetchNotifications(): Obtiene notificaciones del usuario
+- markAsRead(): Marca como leída
+- markAllAsRead(): Marca todas como leídas
+
+================================================================================
+                                  HOOKS
+================================================================================
+
+1. USEAMIGOS.JS - GESTIÓN DE AMIGOS
+================================================================================
+FUNCIONES:
+- getAmigos(): Obtiene amigos usando función refactorizada
+- sendFriendRequest(): Envía solicitud
+- acceptFriendRequest(): Acepta solicitud
+- getRelationshipStatus(): Estado de relación
+
+ESTADO:
+- amigos: Array de usuarios amigos
+- loading: Estado de carga
+- error: Errores
+
+2. USESURVEYSCHEDULER.JS - PROGRAMACIÓN DE ENCUESTAS
+================================================================================
+- Programa encuestas post-partido
+- Notificaciones automáticas
+- Gestión de tiempos de encuesta
+
+================================================================================
+                              ESTILOS Y CSS
+================================================================================
+
+1. HOMESTYLEKIT.CSS - ESTILOS PRINCIPALES
+================================================================================
+- Variables CSS globales
+- Estilos de botones y formularios
+- Responsive design
+- Tema oscuro/claro
+
+2. INVITEAMIGOSMODAL.CSS - MODAL MOBILE-FIRST
+================================================================================
+CARACTERÍSTICAS:
+- Modal centrado con Portal
+- Overlay semitransparente
+- Lista scrollable de amigos
+- Botones touch-friendly
+- Responsive breakpoints
+
+CLASES PRINCIPALES:
+- .modal-overlay: Fondo semitransparente
+- .modal-content: Contenedor del modal
+- .amigos-list: Lista de amigos
+- .amigo-item: Item individual de amigo
+- .invitar-btn: Botón de invitación
+
+================================================================================
+                            ESTRUCTURA DE DATOS
+================================================================================
+
+1. TABLA PARTIDOS
+================================================================================
+CAMPOS:
+- id: int8 (clave primaria)
+- codigo: string (código único)
+- fecha: date
+- hora: time
+- sede: string
+- modalidad: string (F5, F7, F11)
+- cupo_jugadores: int
+- creado_por: uuid (referencia a usuarios)
+- jugadores: jsonb (array de jugadores)
+
+2. TABLA JUGADORES
+================================================================================
+CAMPOS:
+- id: serial (clave primaria)
+- uuid: string (identificador único)
+- partido_id: int8 (referencia a partidos)
+- usuario_id: uuid (referencia a usuarios)
+- nombre: string
+- avatar_url: string
+- score: numeric (puntaje promedio)
+- is_goalkeeper: boolean
+
+3. TABLA USUARIOS
+================================================================================
+CAMPOS:
+- id: uuid (clave primaria)
+- nombre: string
+- email: string
+- avatar_url: string
+- localidad: string
+- ranking: int
+- partidos_jugados: int
+- acepta_invitaciones: boolean
+
+4. TABLA AMIGOS
+================================================================================
+CAMPOS:
+- id: uuid (clave primaria)
+- user_id: uuid (usuario que envía solicitud)
+- friend_id: uuid (usuario que recibe solicitud)
+- status: string (pending, accepted, rejected)
+- created_at: timestamp
+
+5. TABLA NOTIFICATIONS
+================================================================================
+CAMPOS:
+- id: uuid (clave primaria)
+- user_id: uuid (destinatario)
+- type: string (friend_request, match_invite, etc.)
+- title: string
+- message: string
+- data: jsonb (datos adicionales)
+- read: boolean
+- created_at: timestamp
+
+================================================================================
+                              FLUJOS PRINCIPALES
+================================================================================
+
+1. FLUJO DE CREACIÓN DE PARTIDO
+================================================================================
+1. Usuario completa FormularioNuevoPartidoFlow
+2. Se ejecuta crearPartido() en supabase.js
+3. Se crea registro en tabla partidos
+4. Se agrega automáticamente al creador como jugador
+5. Se navega al AdminPanel del partido creado
+
+2. FLUJO DE INVITACIÓN DE AMIGOS
+================================================================================
+1. Usuario abre InviteAmigosModal desde AdminPanel
+2. Modal usa React Portal para aislamiento
+3. Se ejecuta getAmigos(currentUserId)
+4. Se muestra lista de amigos
+5. Al hacer clic en "Invitar" se crea notificación
+6. Amigo recibe notificación en tiempo real
+
+3. FLUJO DE VOTACIÓN
+================================================================================
+1. Jugadores acceden con código del partido
+2. VotingView muestra lista de jugadores
+3. Sistema de estrellas para calificar (1-10)
+4. submitVotos() guarda calificaciones
+5. AdminPanel puede cerrar votación
+6. closeVotingAndCalculateScores() calcula promedios
+7. Se forman equipos balanceados
+
+4. FLUJO DE GESTIÓN DE AMIGOS
+================================================================================
+1. Usuario busca otros usuarios en UserSearch
+2. Envía solicitud con sendFriendRequest()
+3. Se crea notificación para el destinatario
+4. Destinatario ve solicitud en NotificationsView
+5. Puede aceptar/rechazar con acceptFriendRequest()
+6. Amigos aparecen en AmigosView
+
+================================================================================
+                            CONFIGURACIÓN MOBILE
+================================================================================
+
+1. CAPACITOR.CONFIG.JS
+================================================================================
+- Configuración para Android/iOS
+- Plugins nativos habilitados
+- Configuración de permisos
+
+2. RESPONSIVE DESIGN
+================================================================================
+- Mobile-first approach
+- Breakpoints: 480px, 600px, 768px
+- Touch-friendly buttons (min 44px)
+- Viewport optimizado
+
+================================================================================
+                              SEGURIDAD Y RLS
+================================================================================
+
+1. ROW LEVEL SECURITY (RLS)
+================================================================================
+- Políticas en Supabase para cada tabla
+- Usuarios solo ven sus propios datos
+- Validación de permisos en queries
+
+2. AUTENTICACIÓN
+================================================================================
+- Supabase Auth con Google OAuth
+- Sesiones seguras
+- Tokens JWT automáticos
+
+================================================================================
+                            DEPLOYMENT Y BUILD
+================================================================================
+
+1. SCRIPTS DISPONIBLES
+================================================================================
+- npm start: Desarrollo
+- npm build: Producción
+- npm test: Testing
+- npx cap sync: Sincronizar móvil
+
+2. VARIABLES DE ENTORNO
+================================================================================
+- REACT_APP_SUPABASE_URL
+- REACT_APP_SUPABASE_ANON_KEY
+
+================================================================================
+                              LOGS Y DEBUGGING
+================================================================================
+
+PREFIJOS DE LOGS:
+- [ADMIN_PANEL]: AdminPanel operations
+- [MODAL_AMIGOS]: Modal de invitación
+- [HOOK_AMIGOS]: Hook de amigos
+- [GET_AMIGOS]: Función getAmigos
+- [NOTIFICATIONS]: Sistema de notificaciones
+- [CREAR_PARTIDO]: Creación de partidos
+
+EJEMPLO DE LOG:
+[MODAL_AMIGOS] === FETCHING ONLY FRIENDS ===
+[MODAL_AMIGOS] Friends data received: { count: 3, sample: [...] }
+
+================================================================================
+                                CONCLUSIÓN
+================================================================================
+
+La aplicación Team Balancer es una solución completa para organizar partidos
+de fútbol con las siguientes características principales:
+
+✅ Sistema de votación y balanceo de equipos
+✅ Gestión de amigos con notificaciones
+✅ Modal de invitación aislado con React Portal
+✅ Responsive design mobile-first
+✅ Autenticación segura con Supabase
+✅ Base de datos relacional optimizada
+✅ Sistema de notificaciones en tiempo real
+✅ Soporte para usuarios autenticados y guests
+
+La arquitectura está diseñada para ser escalable, mantenible y optimizada
+para dispositivos móviles, con un enfoque en la experiencia de usuario
+y la funcionalidad deportiva.

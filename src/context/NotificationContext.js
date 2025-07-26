@@ -45,6 +45,7 @@ export const NotificationProvider = ({ children }) => {
     fetchNotifications();
 
     // Subscribe to real-time notifications
+    console.log('[NOTIFICATIONS] Setting up realtime subscription for user:', currentUserId);
     const subscription = supabase
       .channel(`notifications-${currentUserId}`)
       .on('postgres_changes', 
@@ -55,17 +56,31 @@ export const NotificationProvider = ({ children }) => {
           filter: `user_id=eq.${currentUserId}`, // CLAVE: Solo notificaciones para este usuario
         }, 
         (payload) => {
-          console.log('[NOTIFICATIONS] Real-time notification received for user:', currentUserId, {
-            notificationId: payload.new?.id,
-            type: payload.new?.type,
-            recipientId: payload.new?.user_id,
-            message: payload.new?.message,
-          });
-          handleNewNotification(payload.new);
+          console.log('[NOTIFICATIONS] === REALTIME EVENT RECEIVED ===');
+          console.log('[NOTIFICATIONS] Event type:', payload.eventType);
+          console.log('[NOTIFICATIONS] Table:', payload.table);
+          console.log('[NOTIFICATIONS] New data:', payload.new);
+          console.log('[NOTIFICATIONS] Filter matched for user:', currentUserId);
+          
+          if (payload.new) {
+            handleNewNotification(payload.new);
+          } else {
+            console.error('[NOTIFICATIONS] No new data in payload');
+          }
         },
       )
       .subscribe((status) => {
-        console.log('[NOTIFICATIONS] Subscription status:', status);
+        console.log('[NOTIFICATIONS] === SUBSCRIPTION STATUS ===');
+        console.log('[NOTIFICATIONS] Status:', status);
+        console.log('[NOTIFICATIONS] Channel:', `notifications-${currentUserId}`);
+        
+        if (status === 'SUBSCRIBED') {
+          console.log('[NOTIFICATIONS] ✅ Successfully subscribed to realtime notifications');
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('[NOTIFICATIONS] ❌ Channel error - realtime not working');
+        } else if (status === 'TIMED_OUT') {
+          console.error('[NOTIFICATIONS] ❌ Subscription timed out');
+        }
       });
 
     return () => {
@@ -114,16 +129,42 @@ export const NotificationProvider = ({ children }) => {
 
   // Handle new notification
   const handleNewNotification = (notification) => {
-    console.log('[NOTIFICATIONS] New notification received:', notification);
+    console.log('[NOTIFICATIONS] === NEW REALTIME NOTIFICATION ===');
+    console.log('[NOTIFICATIONS] Notification data:', {
+      id: notification.id,
+      user_id: notification.user_id,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      read: notification.read,
+      created_at: notification.created_at,
+    });
+    console.log('[NOTIFICATIONS] Current user ID:', currentUserId);
+    console.log('[NOTIFICATIONS] Notification is for current user:', notification.user_id === currentUserId);
+    
+    // Verificar que la notificación es para el usuario actual
+    if (notification.user_id !== currentUserId) {
+      console.warn('[NOTIFICATIONS] Notification not for current user, ignoring');
+      return;
+    }
     
     setNotifications((prev) => {
+      // Evitar duplicados
+      const exists = prev.find((n) => n.id === notification.id);
+      if (exists) {
+        console.log('[NOTIFICATIONS] Notification already exists, skipping');
+        return prev;
+      }
+      
       const updated = [notification, ...prev];
+      console.log('[NOTIFICATIONS] Updated notifications count:', updated.length);
       updateUnreadCount(updated);
       return updated;
     });
     
     // Show toast notification for real-time updates
     showNotificationToast(notification);
+    console.log('[NOTIFICATIONS] Notification processed successfully');
   };
 
   // Show toast notification based on type
