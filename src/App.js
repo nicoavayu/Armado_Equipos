@@ -32,7 +32,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { TutorialProvider } from './context/TutorialContext';
 import Tutorial from './components/Tutorial';
 import WelcomeModal from './components/WelcomeModal';
-import { getPartidoPorCodigo, getPartidoPorId, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes } from './supabase';
+import { getPartidoPorCodigo, getPartidoPorId, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes, getJugadoresDelPartido, refreshJugadoresPartido } from './supabase';
 import IngresoAdminPartido from './IngresoAdminPartido';
 import AuthPage from './components/AuthPage';
 import ResetPassword from './components/ResetPassword';
@@ -63,6 +63,12 @@ const NuevoPartidoPage = () => {
       <div className="voting-modern-card" style={{ maxWidth: 650 }}>
         <FormularioNuevoPartidoFlow
           onConfirmar={async (partido) => {
+            console.log('[NUEVO_PARTIDO_PAGE] Match created, navigating to admin panel:', {
+              matchId: partido.id,
+              hasJugadores: !!partido.jugadores,
+              jugadoresCount: partido.jugadores?.length || 0,
+            });
+            
             // Navegar al AdminPanel con el partido creado
             navigate(`/admin/${partido.id}`);
             return partido;
@@ -120,19 +126,42 @@ const AdminPanelPage = () => {
   const navigate = useNavigate();
   const { partidoId } = useParams();
   const [partidoActual, setPartidoActual] = useState(null);
+  const [jugadoresDelPartido, setJugadoresDelPartido] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const cargarPartido = async () => {
       try {
+        console.log('[ADMIN_PANEL_PAGE] Loading match:', partidoId);
         const partido = await getPartidoPorId(partidoId);
         if (partido) {
           setPartidoActual(partido);
+          
+          // Cargar jugadores específicos del partido desde la tabla jugadores
+          console.log('[ADMIN_PANEL_PAGE] Loading match players from jugadores table');
+          const jugadores = await getJugadoresDelPartido(partidoId);
+          console.log('[ADMIN_PANEL_PAGE] Match players loaded:', {
+            count: jugadores.length,
+            players: jugadores.map((j) => ({ nombre: j.nombre, uuid: j.uuid })),
+          });
+          setJugadoresDelPartido(jugadores);
+          
+          // Si no hay jugadores en la tabla jugadores pero sí en el partido, hacer refresh
+          if (jugadores.length === 0 && partido.jugadores && partido.jugadores.length > 0) {
+            console.log('[ADMIN_PANEL_PAGE] No players in jugadores table, but found in partido.jugadores, refreshing...');
+            try {
+              const refreshedPlayers = await refreshJugadoresPartido(partidoId);
+              setJugadoresDelPartido(refreshedPlayers);
+            } catch (refreshError) {
+              console.error('[ADMIN_PANEL_PAGE] Error refreshing players:', refreshError);
+            }
+          }
         } else {
           toast.error('Partido no encontrado');
           navigate('/');
         }
       } catch (error) {
+        console.error('[ADMIN_PANEL_PAGE] Error loading match:', error);
         toast.error('Error al cargar el partido');
         navigate('/');
       } finally {
@@ -184,8 +213,15 @@ const AdminPanelPage = () => {
       <div className="voting-modern-card" style={{ maxWidth: 650 }}>
         <AdminPanel
           partidoActual={partidoActual}
-          jugadores={partidoActual?.jugadores || []}
-          onJugadoresChange={handleJugadoresChange}
+          jugadores={jugadoresDelPartido}
+          onJugadoresChange={(nuevosJugadores) => {
+            console.log('[ADMIN_PANEL_PAGE] Updating match players:', {
+              matchId: partidoActual.id,
+              newCount: nuevosJugadores.length,
+            });
+            handleJugadoresChange(nuevosJugadores);
+            setJugadoresDelPartido(nuevosJugadores);
+          }}
           onBackToHome={() => navigate('/')}
         />
       </div>
@@ -308,6 +344,11 @@ function MainAppContent({ user }) {
       content = (
         <FormularioNuevoPartidoFlow
           onConfirmar={async (partido) => {
+            console.log('[MAIN_APP] Match created in admin flow:', {
+              matchId: partido.id,
+              hasJugadores: !!partido.jugadores,
+              jugadoresCount: partido.jugadores?.length || 0,
+            });
             setPartidoActual(partido);
             setStepPartido(ADMIN_STEPS.MANAGE);
             return partido;

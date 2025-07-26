@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAmigos } from '../hooks/useAmigos';
-import ProfileCard from './ProfileCard';
 import { PlayerCardTrigger } from './ProfileComponents';
+import MiniFriendCard from './MiniFriendCard';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
@@ -10,7 +10,7 @@ import UserSearch from './UserSearch';
 import './AmigosView.css';
 
 const AmigosView = () => {
-  console.log('[AMIGOS] Render AmigosView sin subtítulo');
+  console.log('[AMIGOS_VIEW] === RENDER START ===');
   const [currentUserId, setCurrentUserId] = useState(null);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,7 +25,18 @@ const AmigosView = () => {
     getPendingRequests,
     acceptFriendRequest,
     rejectFriendRequest,
+    removeFriend,
   } = useAmigos(currentUserId);
+  
+  // LOG ESTADO ACTUAL
+  console.log('[AMIGOS_VIEW] Current state:', {
+    currentUserId,
+    amigosCount: amigos?.length || 0,
+    amigosArray: amigos,
+    loadingAmigos,
+    error,
+    pendingRequestsCount: pendingRequests?.length || 0,
+  });
 
   // Get current user ID on mount
   useEffect(() => {
@@ -113,7 +124,29 @@ const AmigosView = () => {
     }
   };
 
-  if (loading || loadingAmigos) {
+  // Handle removing a friend
+  const handleRemoveFriend = async (friend) => {
+    if (!confirm(`¿Estás seguro de que quieres eliminar a ${friend.profile?.nombre} de tus amigos?`)) {
+      return;
+    }
+    
+    console.log('[AMIGOS] Removing friend:', friend.id);
+    const result = await removeFriend(friend.id);
+    
+    if (result.success) {
+      toast.success('Amigo eliminado');
+      await getAmigos();
+    } else {
+      toast.error(result.message || 'Error al eliminar amigo');
+    }
+  };
+
+
+
+  // PROBLEMA ENCONTRADO: loading se queda en true y nunca se actualiza correctamente
+  // Solo mostrar loading si realmente está cargando Y no hay datos
+  if (loadingAmigos && amigos.length === 0) {
+    console.log('[AMIGOS_VIEW] Showing loading spinner - loadingAmigos:', loadingAmigos, 'amigos.length:', amigos.length);
     return <LoadingSpinner size="large" />;
   }
 
@@ -175,28 +208,50 @@ const AmigosView = () => {
       )}
       
       {/* Friends list section */}
-      {amigos.length > 0 ? (
-        <div className="amigos-list">
-          {amigos.map((amigo) => (
-            <div key={amigo.profile?.uuid || amigo.profile?.id || amigo.id} className="amigos-card-container">
-              <PlayerCardTrigger profile={amigo.profile}>
-                <ProfileCard 
-                  profile={amigo.profile} 
-                  isVisible={true} 
-                  enableTilt={true}
-                  currentUserId={currentUserId}
-                  showFriendActions={true}
-                />
-              </PlayerCardTrigger>
+      {(() => {
+        console.log('[AMIGOS_VIEW] Rendering friends section:', {
+          amigosLength: amigos?.length || 0,
+          amigosIsArray: Array.isArray(amigos),
+          firstAmigo: amigos?.[0],
+        });
+        
+        // VERIFICACIÓN ADICIONAL: Asegurar que amigos es array y tiene elementos
+        const hasAmigos = Array.isArray(amigos) && amigos.length > 0;
+        console.log('[AMIGOS_VIEW] hasAmigos check:', { hasAmigos, amigosLength: amigos?.length, amigosType: typeof amigos });
+        
+        return hasAmigos ? (
+          <div className="amigos-section">
+            <h3 className="amigos-section-title">Mis Amigos ({amigos.length})</h3>
+            <div className="amigos-chips-list">
+              {amigos.map((amigo, index) => {
+                console.log(`[AMIGOS_VIEW] Rendering friend ${index}:`, {
+                  amigoId: amigo.id,
+                  profileId: amigo.profile?.id,
+                  profileName: amigo.profile?.nombre,
+                  profileUuid: amigo.profile?.uuid,
+                });
+                
+                return (
+                  <MiniFriendCard
+                    key={amigo.profile?.uuid || amigo.profile?.id || amigo.id}
+                    friend={amigo}
+                    onRemove={handleRemoveFriend}
+                    currentUserId={currentUserId}
+                  />
+                );
+              })}
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="amigos-empty">
-          <p>No tienes amigos agregados todavía.</p>
-          <p>Busca jugadores y envíales solicitudes de amistad.</p>
-        </div>
-      )}
+          </div>
+        ) : (
+          <div className="amigos-empty">
+            <p>No tienes amigos agregados todavía.</p>
+            <p>Busca jugadores y envíales solicitudes de amistad.</p>
+            <div style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+              DEBUG: amigos.length = {amigos?.length || 0}, loading = {loadingAmigos.toString()}
+            </div>
+          </div>
+        );
+      })()}
       
       {/* User search modal */}
       {showUserSearch && (

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import ReactDOM from 'react-dom';
+import './Modal.css';
 
 const Modal = ({ 
   isOpen, 
@@ -11,32 +12,22 @@ const Modal = ({
   closeOnEscape = true, 
 }) => {
   const modalRef = useRef(null);
-  const previousFocusRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
-      // Store the currently focused element
-      previousFocusRef.current = document.activeElement;
-      
-      // Focus the modal
-      if (modalRef.current) {
-        modalRef.current.focus();
-      }
-      
-      // Prevent body scroll
       document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
     } else {
-      // Restore body scroll
-      document.body.style.overflow = 'unset';
-      
-      // Restore focus to previous element
-      if (previousFocusRef.current) {
-        previousFocusRef.current.focus();
-      }
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
     }
 
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
     };
   }, [isOpen]);
 
@@ -62,64 +53,29 @@ const Modal = ({
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === 'Tab') {
-      // Trap focus within modal
-      const focusableElements = modalRef.current?.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      
-      if (focusableElements && focusableElements.length > 0) {
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
-        
-        if (e.shiftKey && document.activeElement === firstElement) {
-          e.preventDefault();
-          lastElement.focus();
-        } else if (!e.shiftKey && document.activeElement === lastElement) {
-          e.preventDefault();
-          firstElement.focus();
-        }
-      }
-    }
-  };
+  if (!isOpen) return null;
 
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="modal-backdrop"
-          onClick={handleBackdropClick}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={title ? 'modal-title' : undefined}
-        >
-          <motion.div
-            ref={modalRef}
-            className={`modal-content ${className}`}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={handleKeyDown}
-            tabIndex={-1}
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            {title && (
-              <h2 id="modal-title" className="modal-title">
-                {title}
-              </h2>
-            )}
-            {children}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+  const modalContent = (
+    <div className="centered-modal-overlay" onClick={handleBackdropClick}>
+      <div 
+        ref={modalRef}
+        className={`centered-modal-content ${className}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {title && (
+          <div className="centered-modal-header">
+            <h2 className="centered-modal-title">{title}</h2>
+            <button className="centered-modal-close" onClick={onClose}>×</button>
+          </div>
+        )}
+        <div className="centered-modal-body">
+          {children}
+        </div>
+      </div>
+    </div>
   );
+
+  return ReactDOM.createPortal(modalContent, document.body);
 };
 
 export default Modal;

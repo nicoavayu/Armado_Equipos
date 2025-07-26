@@ -2,24 +2,22 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import { updateProfile } from '../supabase';
+import NotificationsBell from './NotificationsBell';
+import NotificationsModal from './NotificationsModal';
 import './GlobalHeader.css';
 
 const GlobalHeader = ({ onProfileClick }) => {
   const { user, profile, refreshProfile } = useAuth();
-  const { unreadCount, notifications } = useNotifications();
+  const { unreadCount } = useNotifications();
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const statusDropdownRef = useRef(null);
-  const notificationsDropdownRef = useRef(null);
   
-  // Close dropdowns when clicking outside
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target)) {
         setShowStatusDropdown(false);
-      }
-      if (notificationsDropdownRef.current && !notificationsDropdownRef.current.contains(event.target)) {
-        setShowNotificationsDropdown(false);
       }
     };
     
@@ -56,12 +54,10 @@ const GlobalHeader = ({ onProfileClick }) => {
   const toggleStatusDropdown = (e) => {
     e.stopPropagation();
     setShowStatusDropdown(!showStatusDropdown);
-    setShowNotificationsDropdown(false);
   };
   
-  const toggleNotificationsDropdown = (e) => {
-    e.stopPropagation();
-    setShowNotificationsDropdown(!showNotificationsDropdown);
+  const handleNotificationsClick = () => {
+    setShowNotificationsModal(true);
     setShowStatusDropdown(false);
   };
   
@@ -130,37 +126,18 @@ const GlobalHeader = ({ onProfileClick }) => {
       </div>
       
       {/* Right side - Notifications */}
-      <div className="global-header-right" ref={notificationsDropdownRef}>
-        <div className="global-notifications" onClick={toggleNotificationsDropdown}>
-          <div className="global-notifications-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={24} height={24}>
-              <path fillRule="evenodd" d="M5.25 9a6.75 6.75 0 0113.5 0v.75c0 2.123.8 4.057 2.118 5.52a.75.75 0 01-.297 1.206c-1.544.57-3.16.99-4.831 1.243a3.75 3.75 0 11-7.48 0 24.585 24.585 0 01-4.831-1.244.75.75 0 01-.298-1.205A8.217 8.217 0 005.25 9.75V9zm4.502 8.9a2.25 2.25 0 104.496 0 25.057 25.057 0 01-4.496 0z" clipRule="evenodd" />
-            </svg>
-          </div>
-          {unreadCount?.total > 0 && (
-            <div className="global-notification-badge">{unreadCount.total}</div>
-          )}
-        </div>
-        
-        {/* Notifications dropdown */}
-        {showNotificationsDropdown && (
-          <div className="global-notifications-dropdown">
-            <div className="global-notifications-header">
-              <span>Notifications</span>
-              <span className="global-notifications-close" onClick={() => setShowNotificationsDropdown(false)}>×</span>
-            </div>
-            {notifications && notifications.length > 0 ? (
-              notifications.slice(0, 5).map((notification, index) => (
-                <div key={index} className="global-notification-item">
-                  {notification.message || notification.content || 'New notification'}
-                </div>
-              ))
-            ) : (
-              <div className="global-notification-empty">No notifications</div>
-            )}
-          </div>
-        )}
+      <div className="global-header-right">
+        <NotificationsBell 
+          unreadCount={unreadCount} 
+          onClick={handleNotificationsClick} 
+        />
       </div>
+      
+      {/* Notifications Modal */}
+      <NotificationsModal 
+        isOpen={showNotificationsModal}
+        onClose={() => setShowNotificationsModal(false)}
+      />
     </div>
   );
 };

@@ -1,0 +1,212 @@
+/* Sheet Modal - Estilo WhatsApp/Instagram */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 9999;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.sheet-container {
+  background: #1a1a1a;
+  border-radius: 20px 20px 0 0;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  transform: translateY(0);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.sheet-handle {
+  width: 40px;
+  height: 4px;
+  background: #666;
+  border-radius: 2px;
+  margin: 12px auto 8px;
+  flex-shrink: 0;
+}
+
+.sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 20px 16px;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.sheet-header h3 {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.sheet-close {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.2s;
+  border-radius: 50%;
+}
+
+.sheet-close:hover,
+.sheet-close:focus {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+}
+
+.sheet-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+.loading-state {
+  text-align: center;
+  color: #999;
+  padding: 60px 20px;
+  font-size: 16px;
+}
+
+.sin-amigos {
+  text-align: center;
+  color: #999;
+  padding: 60px 20px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.amigos-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.amigo-item {
+  display: flex;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid #2a2a2a;
+  gap: 16px;
+  transition: background 0.2s;
+}
+
+.amigo-item:last-child {
+  border-bottom: none;
+}
+
+.amigo-item:active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.amigo-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #333;
+  flex-shrink: 0;
+}
+
+.amigo-nombre {
+  color: #fff;
+  font-size: 17px;
+  font-weight: 500;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invitar-btn {
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 10px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  min-width: 80px;
+  outline: none;
+}
+
+.invitar-btn:active:not(:disabled) {
+  background: #0056b3;
+  transform: scale(0.95);
+}
+
+.invitar-btn:disabled {
+  background: #555;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Mobile optimizations */
+@media (max-width: 600px) {
+  .sheet-container {
+    border-radius: 16px 16px 0 0;
+  }
+  
+  .sheet-header {
+    padding: 8px 16px 12px;
+  }
+  
+  .sheet-header h3 {
+    font-size: 18px;
+  }
+  
+  .sheet-body {
+    padding: 16px;
+  }
+  
+  .amigo-item {
+    padding: 14px 0;
+  }
+  
+  .amigo-avatar {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .amigo-nombre {
+    font-size: 16px;
+  }
+  
+  .invitar-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    min-width: 70px;
+  }
+}

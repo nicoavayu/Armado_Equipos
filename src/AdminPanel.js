@@ -8,6 +8,7 @@ import {
   updateJugadoresPartido,
   getVotantesIds,
   getVotantesConNombres,
+  getJugadoresDelPartido,
   supabase,
 } from './supabase';
 import { toast } from 'react-toastify';
@@ -61,43 +62,35 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   jugadores = jugadores || [];
   if (!Array.isArray(jugadores)) jugadores = [];
   console.log('Jugadores en AdminPanel:', jugadores);
-  // useEffect para refrescar jugadores y votantes con datos frescos de la base (incluye foto actualizada)
+  // useEffect para refrescar jugadores desde la tabla jugadores
   useEffect(() => {
-    async function fetchVotantesYJugadoresFrescos() {
+    async function fetchJugadoresDelPartido() {
       if (!partidoActual?.id) return;
       try {
+        console.log('[ADMIN_PANEL] Fetching players from jugadores table for match:', partidoActual.id);
+        
+        // Obtener jugadores directamente de la tabla jugadores
+        const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
+        console.log('[ADMIN_PANEL] Players fetched:', {
+          count: jugadoresPartido.length,
+          players: jugadoresPartido.map((j) => ({ nombre: j.nombre, uuid: j.uuid })),
+        });
+        
+        // Obtener votantes
         const votantesIds = await getVotantesIds(partidoActual.id);
         const votantesNombres = await getVotantesConNombres(partidoActual.id);
         setVotantes(votantesIds || []);
         setVotantesConNombres(votantesNombres || []);
-
-        // Trae la lista fresca de todos los jugadores de la base
-        const allPlayers = await getJugadores();
-        // Trae los uuids de los jugadores del partido actual
-        const { data: updatedMatch, error } = await supabase
-          .from('partidos')
-          .select('*')
-          .eq('id', partidoActual.id)
-          .single();
-
-        if (!error && updatedMatch && updatedMatch.jugadores) {
-          const freshPlayers = updatedMatch.jugadores
-            .map((jp) => allPlayers.find((u) => u.uuid === jp.uuid))
-            .filter(Boolean);
-
-          if (
-            freshPlayers.length !== jugadores.length ||
-            JSON.stringify(freshPlayers.map((j) => j.foto_url)) !== JSON.stringify(jugadores.map((j) => j.foto_url))
-          ) {
-            onJugadoresChange(freshPlayers);
-          }
-        }
+        
+        // Actualizar jugadores
+        onJugadoresChange(jugadoresPartido);
       } catch (error) {
-        console.error('Error cargando datos:', error);
+        console.error('[ADMIN_PANEL] Error loading match data:', error);
       }
     }
-    fetchVotantesYJugadoresFrescos();
-    const interval = setInterval(fetchVotantesYJugadoresFrescos, 2000);
+    
+    fetchJugadoresDelPartido();
+    const interval = setInterval(fetchJugadoresDelPartido, 2000);
     return () => clearInterval(interval);
   }, [partidoActual?.id]);
 
@@ -132,15 +125,33 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
     setLoading(true);
     try {
-    // Create player in database
-      const nuevoJugador = await addJugador(nombre);
-      // Add to match roster
-      const nuevosJugadores = [...jugadores, nuevoJugador];
-      await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
-      onJugadoresChange(nuevosJugadores);
+      console.log('[ADMIN_PANEL] Adding player to match:', { nombre, partidoId: partidoActual.id });
+      
+      // Generar UUID único para el jugador
+      const uuid = crypto.randomUUID();
+      
+      // Insertar jugador directamente en la tabla jugadores con partido_id (SOLO INSERT, nunca DELETE)
+      const { data: nuevoJugador, error } = await supabase
+        .from('jugadores')
+        .insert([{
+          uuid,
+          nombre,
+          partido_id: partidoActual.id,
+          score: 5,
+          is_goalkeeper: false,
+        }])
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      console.log('[ADMIN_PANEL] Player added successfully:', nuevoJugador);
       setNuevoNombre('');
       setTimeout(() => inputRef.current?.focus(), 10);
+      
+      // El useEffect se encargará de refrescar la lista automáticamente
     } catch (error) {
+      console.error('[ADMIN_PANEL] Error adding player:', error);
       toast.error('Error agregando jugador: ' + error.message);
     } finally {
       setLoading(false);
@@ -151,14 +162,22 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   async function eliminarJugador(uuid) {
     setLoading(true);
     try {
-    // 🔥 Primero, borrá el jugador de la tabla jugadores
-      await deleteJugador(uuid);
-
-      // Después, borrá el jugador del partido
-      const nuevosJugadores = jugadores.filter((j) => j.uuid !== uuid);
-      await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
-      onJugadoresChange(nuevosJugadores);
+      console.log('[ADMIN_PANEL] Removing player from match:', { uuid, partidoId: partidoActual.id });
+      
+      // Eliminar jugador específico de la tabla jugadores (usando uuid como string)
+      const { error } = await supabase
+        .from('jugadores')
+        .delete()
+        .eq('uuid', uuid)
+        .eq('partido_id', partidoActual.id);
+        
+      if (error) throw error;
+      
+      console.log('[ADMIN_PANEL] Player removed successfully');
+      
+      // El useEffect se encargará de refrescar la lista automáticamente
     } catch (error) {
+      console.error('[ADMIN_PANEL] Error removing player:', error);
       toast.error('Error eliminando jugador: ' + error.message);
     } finally {
       setLoading(false);

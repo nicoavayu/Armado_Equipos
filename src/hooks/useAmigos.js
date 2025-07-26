@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../supabase';
+import { supabase, getAmigos as getAmigosFromSupabase } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
 
 /**
@@ -12,95 +12,51 @@ export const useAmigos = (currentUserId) => {
   const [error, setError] = useState(null);
   const { createNotification } = useNotifications();
 
-  // Get all friends with status 'accepted'
+  // Get all friends with status 'accepted' usando la nueva función refactorizada
   const getAmigos = useCallback(async () => {
     if (!currentUserId) {
-      console.log('[AMIGOS] No currentUserId provided');
+      console.log('[HOOK_AMIGOS] No currentUserId provided');
+      setAmigos([]);
       return [];
     }
     
-    console.log('[AMIGOS] Fetching friends for user:', currentUserId);
+    console.log('[HOOK_AMIGOS] Fetching friends for user:', currentUserId);
     setLoading(true);
     setError(null);
     
     try {
-      // Get friends where current user is either user_id or friend_id
-      console.log('[AMIGOS] Fetching friends where user is user_id');
-      const { data, error } = await supabase
-        .from('amigos')
-        .select(`
-          id, 
-          status, 
-          created_at,
-          friend_id,
-          user_id,
-          usuarios!friend_id(id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero, telefono, localidad)
-        `)
-        .eq('user_id', currentUserId)
-        .eq('status', 'accepted');
-        
-      if (error) {
-        console.error('[AMIGOS] Error fetching friends as user_id:', error);
-        throw error;
-      }
-      console.log('[AMIGOS] Friends fetched as user_id:', data?.length || 0, 'results');
+      // Usar la función refactorizada que devuelve usuarios directos
+      const friendUsers = await getAmigosFromSupabase(currentUserId);
       
-      // Also get friends where current user is the friend_id
-      console.log('[AMIGOS] Fetching friends where user is friend_id');
-      const { data: reverseData, error: reverseError } = await supabase
-        .from('amigos')
-        .select(`
-          id, 
-          status, 
-          created_at,
-          friend_id,
-          user_id,
-          usuarios!user_id(id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero, telefono, localidad)
-        `)
-        .eq('friend_id', currentUserId)
-        .eq('status', 'accepted');
-        
-      if (reverseError) {
-        console.error('[AMIGOS] Error fetching friends as friend_id:', reverseError);
-        throw reverseError;
-      }
-      console.log('[AMIGOS] Friends fetched as friend_id:', reverseData?.length || 0, 'results');
+      console.log('[HOOK_AMIGOS] Friends received from supabase function:', {
+        count: friendUsers?.length || 0,
+        sample: friendUsers?.slice(0, 2).map((u) => ({ id: u.id, nombre: u.nombre })) || [],
+      });
       
-      // Log the raw data for debugging
-      if (data && data.length > 0) {
-        console.log('[AMIGOS] Sample friend data (as user_id):', data[0]);
-        console.log('[AMIGOS] Position field in friend data (as user_id):', data[0].usuarios?.posicion);
-        console.log('[AMIGOS] Ranking field in friend data (as user_id):', data[0].usuarios?.ranking);
-      }
-      if (reverseData && reverseData.length > 0) {
-        console.log('[AMIGOS] Sample friend data (as friend_id):', reverseData[0]);
-        console.log('[AMIGOS] Position field in friend data (as friend_id):', reverseData[0].usuarios?.posicion);
-        console.log('[AMIGOS] Ranking field in friend data (as friend_id):', reverseData[0].usuarios?.ranking);
-      }
+      // Convertir a formato esperado por la UI (con profile wrapper)
+      const formattedAmigos = friendUsers.map((user) => ({
+        id: user.id, // Usar el ID del usuario como ID de la "amistad"
+        status: 'accepted',
+        created_at: new Date().toISOString(),
+        profile: user, // El usuario completo va en profile
+      }));
       
-      // Combine and format both sets of friends
-      const formattedAmigos = [
-        ...data.map((item) => ({
-          id: item.id,
-          status: item.status,
-          created_at: item.created_at,
-          profile: item.usuarios,
-        })),
-        ...reverseData.map((item) => ({
-          id: item.id,
-          status: item.status,
-          created_at: item.created_at,
-          profile: item.usuarios,
-        })),
-      ];
+      console.log('[HOOK_AMIGOS] Formatted friends for UI:', {
+        count: formattedAmigos.length,
+        sample: formattedAmigos.slice(0, 2).map((a) => ({ 
+          id: a.id, 
+          profileName: a.profile?.nombre,
+          profileId: a.profile?.id,
+        })) || [],
+      });
       
-      console.log('[AMIGOS] Total formatted friends:', formattedAmigos.length);
       setAmigos(formattedAmigos);
       return formattedAmigos;
     } catch (err) {
-      console.error('[AMIGOS] Error fetching friends:', err);
-      console.error('[AMIGOS] Error context:', { userId: currentUserId });
+      console.error('[HOOK_AMIGOS] Error fetching friends:', err);
+      console.error('[HOOK_AMIGOS] Error context:', { userId: currentUserId });
       setError(err.message);
+      setAmigos([]);
       return [];
     } finally {
       setLoading(false);

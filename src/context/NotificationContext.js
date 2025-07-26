@@ -18,9 +18,17 @@ export const NotificationProvider = ({ children }) => {
   // Get current user on mount
   useEffect(() => {
     const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      console.log('[NOTIFICATIONS] Getting current user...');
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error('[NOTIFICATIONS] Error getting current user:', error);
+        return;
+      }
       if (user) {
+        console.log('[NOTIFICATIONS] Current user found:', user.id);
         setCurrentUserId(user.id);
+      } else {
+        console.log('[NOTIFICATIONS] No authenticated user found');
       }
     };
     
@@ -44,10 +52,15 @@ export const NotificationProvider = ({ children }) => {
           event: 'INSERT', 
           schema: 'public', 
           table: 'notifications',
-          filter: `user_id=eq.${currentUserId}`,
+          filter: `user_id=eq.${currentUserId}`, // CLAVE: Solo notificaciones para este usuario
         }, 
         (payload) => {
-          console.log('[NOTIFICATIONS] Real-time notification received:', payload);
+          console.log('[NOTIFICATIONS] Real-time notification received for user:', currentUserId, {
+            notificationId: payload.new?.id,
+            type: payload.new?.type,
+            recipientId: payload.new?.user_id,
+            message: payload.new?.message,
+          });
           handleNewNotification(payload.new);
         },
       )
@@ -63,21 +76,39 @@ export const NotificationProvider = ({ children }) => {
 
   // Fetch all notifications for the current user
   const fetchNotifications = async () => {
-    if (!currentUserId) return;
+    if (!currentUserId) {
+      console.log('[NOTIFICATIONS] fetchNotifications: No currentUserId, skipping');
+      return;
+    }
 
+    console.log('[NOTIFICATIONS] Fetching notifications for user:', currentUserId);
     try {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', currentUserId)
+        .eq('user_id', currentUserId) // CLAVE: user_id === currentUserId (destinatario)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[NOTIFICATIONS] Error fetching notifications:', error);
+        throw error;
+      }
+
+      console.log('[NOTIFICATIONS] Fetched notifications:', {
+        total: data?.length || 0,
+        byType: data?.reduce((acc, n) => {
+          acc[n.type] = (acc[n.type] || 0) + 1;
+          return acc;
+        }, {}) || {},
+        matchInvites: data?.filter((n) => n.type === 'match_invite').length || 0,
+        friendRequests: data?.filter((n) => n.type === 'friend_request').length || 0,
+        unread: data?.filter((n) => !n.read).length || 0,
+      });
 
       setNotifications(data || []);
       updateUnreadCount(data || []);
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      console.error('[NOTIFICATIONS] Error fetching notifications:', error);
     }
   };
 

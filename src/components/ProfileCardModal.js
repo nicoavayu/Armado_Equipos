@@ -213,9 +213,6 @@ const ProfileCardModal = ({ isOpen, onClose, profile }) => {
       closeOnBackdrop={true}
       closeOnEscape={true}
     >
-      <div className="pcm-close-button" onClick={onClose}>
-        <span>×</span>
-      </div>
       <div className="pcm-content">
         <div className="pcm-card-container">
           <ProfileCard 
@@ -223,7 +220,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile }) => {
             isVisible={true} 
             enableTilt={true}
             currentUserId={currentUserId}
-            showFriendActions={false} // Hide the friend actions in the card itself
+            showFriendActions={false}
           />
         </div>
         <div className="pcm-actions">

@@ -39,6 +39,42 @@ export const getJugadores = async () => {
   }
 };
 
+// Función para obtener TODOS los jugadores de un partido (ignora array en tabla partidos)
+export const getJugadoresDelPartido = async (partidoId) => {
+  console.log('[GET_JUGADORES_PARTIDO] Fetching ALL players for match:', partidoId);
+  
+  try {
+    // SIEMPRE traer todos los jugadores cuyo partido_id coincide
+    const { data, error } = await supabase
+      .from('jugadores')
+      .select('*')
+      .eq('partido_id', partidoId) // partido_id es int8
+      .order('nombre', { ascending: true });
+      
+    if (error) {
+      console.error('[GET_JUGADORES_PARTIDO] Error fetching match players:', error);
+      throw new Error(`Error fetching match players: ${error.message}`);
+    }
+    
+    console.log('[GET_JUGADORES_PARTIDO] ALL match players fetched:', {
+      partidoId,
+      partidoIdType: typeof partidoId,
+      count: data?.length || 0,
+      players: data?.map((p) => ({ 
+        nombre: p.nombre, 
+        uuid: p.uuid, // uuid es string
+        usuario_id: p.usuario_id, // usuario_id es uuid
+      })) || [],
+    });
+    
+    return data || [];
+    
+  } catch (error) {
+    console.error('[GET_JUGADORES_PARTIDO] getJugadoresDelPartido failed:', error);
+    throw error;
+  }
+};
+
 export const addJugador = async (nombre) => {
   const { data, error } = await supabase
     .from('jugadores')
@@ -745,6 +781,95 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
       }
     }
     
+    // Agregar automáticamente al creador como jugador si está autenticado
+    if (user?.id && data?.id) {
+      try {
+        console.log('[CREAR_PARTIDO] Adding creator as player to match:', { 
+          userId: user.id, 
+          matchId: data.id,
+          matchType: typeof data.id,
+        });
+        
+        // Obtener perfil del usuario
+        const { data: userProfile, error: profileError } = await supabase
+          .from('usuarios')
+          .select('nombre, avatar_url')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileError) {
+          console.warn('[CREAR_PARTIDO] Could not fetch user profile:', profileError);
+        }
+        
+        console.log('[CREAR_PARTIDO] User profile fetched:', {
+          nombre: userProfile?.nombre,
+          hasAvatar: !!userProfile?.avatar_url,
+        });
+        
+        // Preparar datos del jugador (SOLO INSERT, nunca DELETE)
+        const playerData = {
+          partido_id: data.id,  // CLAVE: partido_id como int8 (debe coincidir con partidos.id)
+          usuario_id: user.id,  // UUID del usuario
+          nombre: userProfile?.nombre || user.email?.split('@')[0] || 'Creador',
+          avatar_url: userProfile?.avatar_url || null,
+          foto_url: userProfile?.avatar_url || null, // Para compatibilidad
+          uuid: user.id, // UUID como string
+          score: 5, // Score por defecto
+          is_goalkeeper: false,
+        };
+        
+        // Verificar tipos antes del insert
+        console.log('[CREAR_PARTIDO] Data types verification:', {
+          partidoIdType: typeof data.id,
+          partidoIdValue: data.id,
+          usuarioIdType: typeof user.id,
+          usuarioIdValue: user.id,
+        });
+        
+        console.log('[CREAR_PARTIDO] Inserting player data:', playerData);
+        
+        // Agregar a la tabla jugadores (SOLO INSERT del creador)
+        const { data: insertedPlayer, error: playerError } = await supabase
+          .from('jugadores')
+          .insert([playerData])
+          .select()
+          .single();
+        
+        if (playerError) {
+          console.error('[CREAR_PARTIDO] Error adding creator as player:', {
+            error: playerError,
+            code: playerError.code,
+            message: playerError.message,
+            details: playerError.details,
+            playerData,
+          });
+          // No lanzamos error, solo logueamos
+        } else {
+          console.log('[CREAR_PARTIDO] Creator added as player successfully:', {
+            playerId: insertedPlayer?.id,
+            partidoId: insertedPlayer?.partido_id,
+            usuarioId: insertedPlayer?.usuario_id,
+          });
+          
+          console.log('[CREAR_PARTIDO] Creator successfully added to jugadores table');
+        }
+      } catch (playerAddError) {
+        console.error('[CREAR_PARTIDO] Exception adding creator as player:', {
+          error: playerAddError,
+          message: playerAddError.message,
+          stack: playerAddError.stack,
+        });
+        // Continuamos sin lanzar error
+      }
+    } else {
+      console.log('[CREAR_PARTIDO] Skipping player creation:', {
+        hasUser: !!user?.id,
+        hasMatchId: !!data?.id,
+        userId: user?.id,
+        matchId: data?.id,
+      });
+    }
+    
     return data;
     
   } catch (error) {
@@ -790,6 +915,30 @@ export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
     .update({ jugadores: nuevosJugadores })
     .eq('id', partidoId);
   if (error) throw error;
+};
+
+// Nueva función para refrescar jugadores del partido desde la tabla jugadores
+export const refreshJugadoresPartido = async (partidoId) => {
+  console.log('[REFRESH_JUGADORES] Refreshing players for match:', partidoId);
+  
+  try {
+    // Obtener jugadores actualizados de la tabla jugadores
+    const jugadoresActualizados = await getJugadoresDelPartido(partidoId);
+    
+    // Actualizar la columna jugadores del partido con los datos frescos
+    await updateJugadoresPartido(partidoId, jugadoresActualizados);
+    
+    console.log('[REFRESH_JUGADORES] Match players refreshed successfully:', {
+      partidoId,
+      count: jugadoresActualizados.length,
+    });
+    
+    return jugadoresActualizados;
+    
+  } catch (error) {
+    console.error('[REFRESH_JUGADORES] Error refreshing match players:', error);
+    throw error;
+  }
 };
 
 // New function to update frequent match players specifically
@@ -1108,62 +1257,64 @@ export const clearGuestSession = (partidoId) => {
 
 /**
  * Get all friends for a user with status 'accepted'
- * @param {string} userId - Current user ID
- * @returns {Array} List of accepted friends
+ * Devuelve array de objetos usuario con datos completos
+ * @param {string} userId - Current user ID (UUID)
+ * @returns {Array} Array de usuarios amigos (sin duplicados, sin el propio usuario)
  */
 export const getAmigos = async (userId) => {
   if (!userId) return [];
   
+  console.log('[GET_AMIGOS] Fetching friends for user:', userId);
+  
   try {
-    // Get friends where current user is user_id
-    const { data, error } = await supabase
+    // 1. Traer relaciones donde user_id = userId y status = "accepted"
+    const { data: directFriends, error: directError } = await supabase
       .from('amigos')
-      .select(`
-        id, 
-        status, 
-        created_at,
-        friend_id,
-        jugadores!friend_id(id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero, telefono, localidad)
-      `)
+      .select('friend_id')
       .eq('user_id', userId)
       .eq('status', 'accepted');
       
-    if (error) throw error;
+    if (directError) throw directError;
     
-    // Also get friends where current user is friend_id
-    const { data: reverseData, error: reverseError } = await supabase
+    // 2. Traer relaciones donde friend_id = userId y status = "accepted"
+    const { data: reverseFriends, error: reverseError } = await supabase
       .from('amigos')
-      .select(`
-        id, 
-        status, 
-        created_at,
-        user_id,
-        jugadores!user_id(id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero, telefono, localidad)
-      `)
+      .select('user_id')
       .eq('friend_id', userId)
       .eq('status', 'accepted');
       
     if (reverseError) throw reverseError;
     
-    // Combine and format both sets of friends
-    const formattedAmigos = [
-      ...data.map((item) => ({
-        id: item.id,
-        status: 'accepted',
-        created_at: item.created_at,
-        profile: item.jugadores,
-      })),
-      ...reverseData.map((item) => ({
-        id: item.id,
-        status: 'accepted',
-        created_at: item.created_at,
-        profile: item.jugadores,
-      })),
+    // 3. Armar array con los IDs del otro usuario en cada relación
+    const friendIds = [
+      ...(directFriends || []).map((f) => f.friend_id),
+      ...(reverseFriends || []).map((f) => f.user_id),
     ];
     
-    return formattedAmigos;
+    // Eliminar duplicados y el propio userId
+    const uniqueFriendIds = [...new Set(friendIds)].filter((id) => id !== userId);
+    
+    console.log('[GET_AMIGOS] userId:', userId, 'allIds:', uniqueFriendIds);
+    
+    if (uniqueFriendIds.length === 0) {
+      console.log('[GET_AMIGOS] No friends found');
+      return [];
+    }
+    
+    // 4. Hacer SELECT * FROM usuarios WHERE id IN (...) para traer datos completos
+    const { data: users, error: usersError } = await supabase
+      .from('usuarios')
+      .select('*')
+      .in('id', uniqueFriendIds);
+      
+    if (usersError) throw usersError;
+    
+    console.log('[GET_AMIGOS] userId:', userId, 'allIds:', uniqueFriendIds, 'users:', users?.length || 0);
+    
+    return users || [];
+    
   } catch (err) {
-    console.error('Error fetching friends:', err);
+    console.error('[GET_AMIGOS] Error fetching friends:', err);
     throw err;
   }
 };
