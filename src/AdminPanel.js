@@ -9,6 +9,8 @@ import {
   getVotantesIds,
   getVotantesConNombres,
   getJugadoresDelPartido,
+  saveTeamsToDatabase,
+  getTeamsFromDatabase,
   supabase,
 } from './supabase';
 import { toast } from 'react-toastify';
@@ -896,36 +898,58 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
 
 
-  // Función para verificar equipos formados
+  // Check for existing teams from database
   const checkForFormedTeams = async () => {
     if (!partidoActual?.id) return;
     
     try {
-      // Verificar si el partido tiene estado de equipos formados
+      // Check if match has teams formed status and get teams from database
       const { data: partidoData } = await supabase
         .from('partidos')
-        .select('estado')
+        .select('estado, equipos')
         .eq('id', partidoActual.id)
         .single();
         
       if (partidoData?.estado === 'equipos_formados' && !showTeamView) {
-        console.log('[REALTIME] Equipos formados detectados, generando vista...');
+        console.log('[REALTIME] Teams formed detected, loading from database...');
         
-        // Obtener jugadores actualizados
-        const matchPlayers = await getJugadoresDelPartido(partidoActual.id);
+        // Try to get teams from database first
+        const savedTeams = await getTeamsFromDatabase(partidoActual.id);
         
-        if (matchPlayers && matchPlayers.length > 0 && matchPlayers.length % 2 === 0) {
-          // Generar equipos
-          const generatedTeams = armarEquipos(matchPlayers);
+        if (savedTeams && Array.isArray(savedTeams) && savedTeams.length === 2) {
+          console.log('[REALTIME] Loading saved teams from database:', savedTeams);
+          safeSetTeams(savedTeams);
+          setShowTeamView(true);
           
-          if (generatedTeams && generatedTeams.length === 2) {
-            safeSetTeams(generatedTeams);
-            setShowTeamView(true);
-            onJugadoresChange(matchPlayers);
+          // Toast only for guests
+          if (!isAdmin) {
+            toast.success('¡Equipos formados!');
+          }
+        } else {
+          // Fallback: generate teams from players if no saved teams
+          const matchPlayers = await getJugadoresDelPartido(partidoActual.id);
+          
+          if (matchPlayers && matchPlayers.length > 0 && matchPlayers.length % 2 === 0) {
+            const generatedTeams = armarEquipos(matchPlayers);
             
-            // Toast solo para invitados
-            if (!isAdmin) {
-              toast.success('¡Equipos formados!');
+            if (generatedTeams && generatedTeams.length === 2) {
+              safeSetTeams(generatedTeams);
+              setShowTeamView(true);
+              onJugadoresChange(matchPlayers);
+              
+              // Save generated teams to database
+              if (isAdmin) {
+                try {
+                  await saveTeamsToDatabase(partidoActual.id, generatedTeams);
+                } catch (error) {
+                  console.error('[REALTIME] Error saving generated teams:', error);
+                }
+              }
+              
+              // Toast only for guests
+              if (!isAdmin) {
+                toast.success('¡Equipos formados!');
+              }
             }
           }
         }

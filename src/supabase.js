@@ -1946,16 +1946,86 @@ export const removePlayerFromMatch = async (userId, partidoId) => {
   }
 };
 
-// Notificar cambios en equipos para sincronización
-export const notifyTeamsChange = async (partidoId, teams) => {
-  if (!partidoId) return;
+// Save teams to database using equipos column as single source of truth
+export const saveTeamsToDatabase = async (partidoId, teams) => {
+  if (!partidoId || !teams) {
+    throw new Error('partidoId and teams are required');
+  }
   
   try {
-    console.log('[TEAMS_SYNC] Updating match players for sync');
-    await refreshJugadoresPartido(partidoId);
-    console.log('[TEAMS_SYNC] Match players updated successfully');
+    console.log('[TEAMS_DB] Saving teams to database:', { partidoId, teams });
+    
+    const { error } = await supabase
+      .from('partidos')
+      .update({ equipos: teams })
+      .eq('id', partidoId);
+      
+    if (error) throw error;
+    
+    console.log('[TEAMS_DB] Teams saved successfully');
+    return { success: true };
   } catch (error) {
-    console.error('[TEAMS_SYNC] Error updating match players:', error);
+    console.error('[TEAMS_DB] Error saving teams:', error);
+    throw error;
+  }
+};
+
+// Get teams from database using equipos column
+export const getTeamsFromDatabase = async (partidoId) => {
+  if (!partidoId) return null;
+  
+  try {
+    console.log('[TEAMS_DB] Getting teams from database:', partidoId);
+    
+    const { data, error } = await supabase
+      .from('partidos')
+      .select('equipos, estado')
+      .eq('id', partidoId)
+      .single();
+      
+    if (error) throw error;
+    
+    console.log('[TEAMS_DB] Teams retrieved:', data?.equipos);
+    return data?.equipos || null;
+  } catch (error) {
+    console.error('[TEAMS_DB] Error getting teams:', error);
+    return null;
+  }
+};
+
+// Subscribe to real-time changes in teams
+export const subscribeToTeamsChanges = (partidoId, callback) => {
+  if (!partidoId || !callback) return null;
+  
+  console.log('[TEAMS_REALTIME] Subscribing to teams changes for match:', partidoId);
+  
+  const subscription = supabase
+    .channel(`teams_${partidoId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'partidos',
+        filter: `id=eq.${partidoId}`,
+      },
+      (payload) => {
+        console.log('[TEAMS_REALTIME] Teams change detected:', payload);
+        if (payload.new?.equipos) {
+          callback(payload.new.equipos);
+        }
+      },
+    )
+    .subscribe();
+    
+  return subscription;
+};
+
+// Unsubscribe from teams changes
+export const unsubscribeFromTeamsChanges = (subscription) => {
+  if (subscription) {
+    console.log('[TEAMS_REALTIME] Unsubscribing from teams changes');
+    supabase.removeChannel(subscription);
   }
 };
 

@@ -4,7 +4,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from 'react-toastify';
 import { PlayerCardTrigger } from './ProfileComponents';
 import { TeamDisplayContext } from './PlayerCardTrigger';
-import { supabase, notifyTeamsChange } from '../supabase';
+import { supabase, saveTeamsToDatabase, getTeamsFromDatabase, subscribeToTeamsChanges, unsubscribeFromTeamsChanges } from '../supabase';
 import ChatButton from './ChatButton';
 import './TeamDisplay.css';
 import WhatsappIcon from './WhatsappIcon';
@@ -17,6 +17,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   const [editingTeamName, setEditingTeamName] = useState('');
   const [realtimeTeams, setRealtimeTeams] = useState(teams);
   const [realtimePlayers, setRealtimePlayers] = useState(players);
+  const [teamsSubscription, setTeamsSubscription] = useState(null);
   
   // [TEAM_BALANCER_EDIT] Para jugadores no-admin, ocultar promedios por defecto
   useEffect(() => {
@@ -25,46 +26,58 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     }
   }, [isAdmin]);
   
-  // Actualizar estado local cuando cambian las props
+  // Load teams from database on mount
   useEffect(() => {
-    setRealtimeTeams(teams);
-    setRealtimePlayers(players);
-  }, [teams, players]);
-  
-  // Polling para invitados para detectar cambios
-  useEffect(() => {
-    if (!partidoId || isAdmin) return;
-    
-    console.log('[TEAMDISPLAY_POLLING] Starting polling for guest');
-    let lastUpdateTime = null;
-    
-    const checkForUpdates = async () => {
+    const loadTeamsFromDatabase = async () => {
+      if (!partidoId) return;
+      
       try {
-        const { data, error } = await supabase
-          .from('partidos')
-          .select('jugadores')
-          .eq('id', partidoId)
-          .maybeSingle();
-          
-        if (error) return;
-          
-        const currentHash = JSON.stringify(data?.jugadores || []);
-        if (currentHash && lastUpdateTime && currentHash !== lastUpdateTime) {
-          window.location.reload();
+        const savedTeams = await getTeamsFromDatabase(partidoId);
+        if (savedTeams && Array.isArray(savedTeams) && savedTeams.length === 2) {
+          console.log('[TEAMS_LOAD] Loading teams from database:', savedTeams);
+          setRealtimeTeams(savedTeams);
+          onTeamsChange(savedTeams);
+        } else {
+          // Fallback to props if no saved teams
+          setRealtimeTeams(teams);
         }
-        lastUpdateTime = currentHash;
       } catch (error) {
-        console.error('[TEAMDISPLAY_POLLING] Error:', error);
+        console.error('[TEAMS_LOAD] Error loading teams:', error);
+        setRealtimeTeams(teams);
       }
     };
     
-    const interval = setInterval(checkForUpdates, 2000);
-    checkForUpdates();
+    loadTeamsFromDatabase();
+    setRealtimePlayers(players);
+  }, [partidoId, teams, players, onTeamsChange]);
+  
+  // Subscribe to real-time team changes
+  useEffect(() => {
+    if (!partidoId) return;
     
-    return () => clearInterval(interval);
-  }, [partidoId, isAdmin]);
+    const subscription = subscribeToTeamsChanges(partidoId, (newTeams) => {
+      console.log('[TEAMS_REALTIME] Received team update:', newTeams);
+      if (newTeams && Array.isArray(newTeams) && newTeams.length === 2) {
+        setRealtimeTeams(newTeams);
+        onTeamsChange(newTeams);
+      }
+    });
+    
+    setTeamsSubscription(subscription);
+    
+    return () => {
+      if (subscription) {
+        unsubscribeFromTeamsChanges(subscription);
+      }
+    };
+  }, [partidoId, onTeamsChange]);
+  
 
-  // Remover toast duplicado - se maneja desde AdminPanel
+
+  // Update local state when players change
+  useEffect(() => {
+    setRealtimePlayers(players);
+  }, [players]);
 
   if (
     !Array.isArray(realtimeTeams) ||
@@ -79,7 +92,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     return realtimePlayers.find((p) => p.uuid === playerId) || {};
   };
 
-  const handleDragEnd = (result) => {
+  const handleDragEnd = async (result) => {
     // [TEAM_BALANCER_EDIT] Solo admin puede mover jugadores
     if (!isAdmin) {
       toast.error('Solo el admin puede reorganizar los equipos');
@@ -136,9 +149,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       setRealtimeTeams(newTeams);
       onTeamsChange(newTeams);
       
-      // Guardar cambios en la base de datos
+      // Save changes to database
       if (isAdmin && partidoId) {
-        setTimeout(() => notifyTeamsChange(partidoId, newTeams), 100);
+        try {
+          await saveTeamsToDatabase(partidoId, newTeams);
+        } catch (error) {
+          console.error('[TEAMS_SAVE] Error saving teams:', error);
+        }
       }
       return;
     }
@@ -164,9 +181,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     setRealtimeTeams(newTeams);
     onTeamsChange(newTeams);
     
-    // Notificar cambio para sincronización
+    // Save changes to database
     if (isAdmin && partidoId) {
-      setTimeout(() => notifyTeamsChange(partidoId), 100);
+      try {
+        await saveTeamsToDatabase(partidoId, newTeams);
+      } catch (error) {
+        console.error('[TEAMS_SAVE] Error saving teams:', error);
+      }
     }
   };
 
@@ -185,7 +206,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     }
   };
 
-  const randomizeTeams = () => {
+  const randomizeTeams = async () => {
     // [TEAM_BALANCER_EDIT] Solo admin puede randomizar equipos
     if (!isAdmin) {
       toast.error('Solo el admin puede randomizar los equipos');
@@ -245,9 +266,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     setRealtimeTeams(newTeams);
     onTeamsChange(newTeams);
     
-    // Guardar cambios en la base de datos
+    // Save changes to database
     if (isAdmin && partidoId) {
-      setTimeout(() => notifyTeamsChange(partidoId, newTeams), 100);
+      try {
+        await saveTeamsToDatabase(partidoId, newTeams);
+      } catch (error) {
+        console.error('[TEAMS_SAVE] Error saving teams:', error);
+      }
     }
   };
 
@@ -287,9 +312,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         setRealtimeTeams(newTeams);
                         onTeamsChange(newTeams);
                         
-                        // Guardar cambios en la base de datos
+                        // Save changes to database
                         if (isAdmin && partidoId) {
-                          await notifyTeamsChange(partidoId, newTeams);
+                          try {
+                            await saveTeamsToDatabase(partidoId, newTeams);
+                          } catch (error) {
+                            console.error('[TEAMS_SAVE] Error saving teams:', error);
+                          }
                         }
                       }
                       setEditingTeamId(null);
@@ -303,9 +332,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                           setRealtimeTeams(newTeams);
                           onTeamsChange(newTeams);
                           
-                          // Guardar cambios en la base de datos
+                          // Save changes to database
                           if (isAdmin && partidoId) {
-                            await notifyTeamsChange(partidoId, newTeams);
+                            try {
+                              await saveTeamsToDatabase(partidoId, newTeams);
+                            } catch (error) {
+                              console.error('[TEAMS_SAVE] Error saving teams:', error);
+                            }
                           }
                         }
                         setEditingTeamId(null);
