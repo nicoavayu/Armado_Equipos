@@ -383,6 +383,72 @@
   transform: none;
 }
 
+/* [TEAM_BALANCER_EDIT] Estilos para controles de admin */
+.player-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.make-admin-btn {
+  width: 28px;
+  height: 28px;
+  background: #ffd700;
+  border: none;
+  border-radius: 50%;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.make-admin-btn:hover {
+  background: #ffed4e;
+  transform: scale(1.1);
+}
+
+.make-admin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* [TEAM_BALANCER_INVITE_EDIT] Estilos para botones de invitación */
+.invitation-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.invitation-accept {
+  background: #4CAF50 !important;
+  border-color: #4CAF50 !important;
+}
+
+.invitation-accept:hover {
+  background: #45a049 !important;
+}
+
+.invitation-reject {
+  background: #f44336 !important;
+  border-color: #f44336 !important;
+}
+
+.invitation-reject:hover {
+  background: #d32f2f !important;
+}
+
+.invitation-accept:disabled,
+.invitation-reject:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
 /* Empty state */
 .admin-players-empty {
   text-align: center;
@@ -459,6 +525,10 @@
   
   .match-details {
     font-size: 22px;
+  }
+  
+  .invitation-buttons {
+    gap: 6px;
   }
 }
 

@@ -100,7 +100,9 @@ const InviteFriendModal = ({ isOpen, onClose, friend, currentUserId }) => {
           nombre: partido.nombre || `Partido ${new Date(partido.fecha).toLocaleDateString()}`,
           jugadores: jugadoresDelPartido,
         };
-      });
+      })
+        // Solo partidos con al menos 1 jugador
+        .filter((partido) => partido.jugadores.length > 0);
 
       // 4. Incluir partido si usuario está en jugadores O es creador
       const userMatches = partidosConJugadores.filter((match) => {
@@ -300,8 +302,9 @@ const InviteFriendModal = ({ isOpen, onClose, friend, currentUserId }) => {
             </div>
           ) : matches.length === 0 ? (
             <div className="sin-partidos">
+              <div className="empty-icon">📅</div>
               <p>No tienes partidos próximos donde puedas invitar amigos.</p>
-              <p>Crea un partido o únete a uno para poder invitar amigos.</p>
+              <span>Crea un partido o únete a uno para poder invitar amigos.</span>
             </div>
           ) : (
             <div className="matches-list">
@@ -310,7 +313,7 @@ const InviteFriendModal = ({ isOpen, onClose, friend, currentUserId }) => {
                 return (
                   <div key={match.id} className="match-item">
                     <div className="match-info">
-                      <div className="match-name">{match.nombre || `Partido ${formatDate(match.fecha)}`}</div>
+                      <div className="match-name">{match.nombre || 'PARTIDO'}</div>
                       <div className="match-details">
                         <span className="match-date">{formatDate(match.fecha)}</span>
                         <span className="match-time">{match.hora}</span>

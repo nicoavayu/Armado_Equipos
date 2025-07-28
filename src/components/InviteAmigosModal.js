@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { getAmigos } from '../supabase';
-import { supabase } from '../supabase';
+import { getAmigos, supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import './InviteAmigosModal.css';
 
@@ -51,7 +50,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
         sample: friendsData?.slice(0, 2).map((f) => ({ 
           id: f.id, 
           nombre: f.nombre,
-          avatar_url: f.avatar_url 
+          avatar_url: f.avatar_url, 
         })) || [],
       });
       console.log('[MODAL_AMIGOS] Current user (sender):', currentUserId);

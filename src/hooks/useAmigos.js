@@ -437,7 +437,7 @@ export const useAmigos = (currentUserId) => {
     if (currentUserId) {
       getAmigos();
     }
-  }, [currentUserId, getAmigos]);
+  }, [currentUserId]); // Removed getAmigos from dependencies to prevent infinite loop
 
   return {
     amigos,

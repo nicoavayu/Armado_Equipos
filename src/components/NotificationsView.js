@@ -40,6 +40,9 @@ const NotificationsView = () => {
   };
 
   const handleNotificationClick = async (notification) => {
+    console.log('[NOTIFICATION_CLICK] Clicked notification:', notification);
+    console.log('[NOTIFICATION_CLICK] Notification data:', notification.data);
+    
     if (!notification.read) {
       markAsRead(notification.id);
     }
@@ -56,13 +59,21 @@ const NotificationsView = () => {
       case 'match_invite':
         // Navigate to match or handle match invite
         if (notification.data?.matchCode) {
+          console.log('[NOTIFICATION_CLICK] Navigating to match invite:', notification.data.matchCode);
           window.location.href = `/?codigo=${notification.data.matchCode}`;
+        } else {
+          console.log('[NOTIFICATION_CLICK] No matchCode found in match_invite notification');
         }
         break;
       case 'call_to_vote':
         // Navigate to voting page for the match
+        console.log('[NOTIFICATION_CLICK] Processing call_to_vote notification');
         if (notification.data?.matchCode) {
+          console.log('[NOTIFICATION_CLICK] Navigating to voting page:', notification.data.matchCode);
           window.location.href = `/?codigo=${notification.data.matchCode}`;
+        } else {
+          console.log('[NOTIFICATION_CLICK] No matchCode found in call_to_vote notification');
+          console.log('[NOTIFICATION_CLICK] Available data keys:', Object.keys(notification.data || {}));
         }
         break;
       case 'post_match_survey': {
@@ -78,6 +89,7 @@ const NotificationsView = () => {
         break;
       }
       default:
+        console.log('[NOTIFICATION_CLICK] Unknown notification type:', notification.type);
         break;
     }
   };
@@ -179,7 +191,12 @@ const NotificationsView = () => {
             <div 
               key={notification.id} 
               className={`notification-item ${!notification.read ? 'unread' : ''} ${notification.type === 'friend_request' ? 'friend-request' : ''}`}
-              onClick={() => notification.type !== 'friend_request' ? handleNotificationClick(notification) : null}
+              onClick={() => {
+                console.log('[NOTIFICATION_CLICK] Notification clicked, type:', notification.type);
+                if (notification.type !== 'friend_request') {
+                  handleNotificationClick(notification);
+                }
+              }}
             >
               <div className="notification-icon">
                 {getNotificationIcon(notification.type)}

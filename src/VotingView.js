@@ -45,9 +45,10 @@ export default function VotingView({ onReset, jugadores }) {
   // Chequeo global: ¿El usuario actual ya votó?
   const [usuarioYaVoto, setUsuarioYaVoto] = useState(false);
   const [cargandoVotoUsuario, setCargandoVotoUsuario] = useState(true);
+  const [usuarioNoInvitado, setUsuarioNoInvitado] = useState(false); // [TEAM_BALANCER_EDIT] Control de acceso
 
   // -- HOOKS, TODOS ARRIBA --
-
+  
   // Chequeo global apenas entra a la vista
   useEffect(() => {
     async function checkVotoUsuarioActual() {
@@ -70,6 +71,28 @@ export default function VotingView({ onReset, jugadores }) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user?.id) {
           userId = user.id;
+          
+          // [TEAM_BALANCER_EDIT] Verificar si el usuario está en la nómina del partido
+          const { data: jugadoresPartido } = await supabase
+            .from('jugadores')
+            .select('usuario_id')
+            .eq('partido_id', partidoId);
+            
+          const jugadorEnPartido = jugadoresPartido?.some((j) => j.usuario_id === user.id);
+          
+          // Verificar si es admin del partido
+          const { data: partidoData } = await supabase
+            .from('partidos')
+            .select('creado_por')
+            .eq('id', partidoId)
+            .single();
+            
+          const esAdmin = partidoData?.creado_por === user.id;
+          
+          if (!jugadorEnPartido && !esAdmin) {
+            setUsuarioNoInvitado(true);
+            return setCargandoVotoUsuario(false);
+          }
         } else if (typeof getGuestSessionId === 'function') {
           userId = getGuestSessionId(partidoId);
         }
@@ -87,6 +110,8 @@ export default function VotingView({ onReset, jugadores }) {
     checkVotoUsuarioActual();
     // eslint-disable-next-line
   }, []);
+
+
 
   // Setear jugador cuando cambia nombre
   useEffect(() => {
@@ -113,6 +138,27 @@ export default function VotingView({ onReset, jugadores }) {
     );
   }
 
+  // [TEAM_BALANCER_EDIT] Si el usuario no está invitado, mostrar mensaje
+  if (usuarioNoInvitado) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">
+            NO ESTÁS INVITADO
+          </div>
+          <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30 }}>
+            No estás en la nómina de este partido.<br />Solo los jugadores invitados pueden votar.
+          </div>
+          <button
+            className="voting-confirm-btn"
+            onClick={onReset}
+            style={{ marginTop: 16 }}
+          >VOLVER AL INICIO</button>
+        </div>
+      </div>
+    );
+  }
+  
   // Si ya votó, bloquear el flujo entero
   if (usuarioYaVoto) {
     return (

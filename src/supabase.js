@@ -49,25 +49,40 @@ export const getJugadoresDelPartido = async (partidoId) => {
       .from('jugadores')
       .select('*')
       .eq('partido_id', partidoId) // partido_id es int8
-      .order('nombre', { ascending: true });
+      .order('created_at', { ascending: true }); // Ordenar por fecha de creación
       
     if (error) {
       console.error('[GET_JUGADORES_PARTIDO] Error fetching match players:', error);
       throw new Error(`Error fetching match players: ${error.message}`);
     }
     
-    console.log('[GET_JUGADORES_PARTIDO] ALL match players fetched:', {
+    // Eliminar duplicados por nombre (mantener el más antiguo)
+    const jugadoresUnicos = [];
+    const nombresVistos = new Set();
+    
+    (data || []).forEach((jugador) => {
+      const nombreNormalizado = jugador.nombre.toLowerCase().trim();
+      if (!nombresVistos.has(nombreNormalizado)) {
+        nombresVistos.add(nombreNormalizado);
+        jugadoresUnicos.push(jugador);
+      } else {
+        console.log('[GET_JUGADORES_PARTIDO] Skipping duplicate player:', jugador.nombre);
+      }
+    });
+    
+    console.log('[GET_JUGADORES_PARTIDO] Players fetched (after dedup):', {
       partidoId,
       partidoIdType: typeof partidoId,
-      count: data?.length || 0,
-      players: data?.map((p) => ({ 
+      originalCount: data?.length || 0,
+      uniqueCount: jugadoresUnicos.length,
+      players: jugadoresUnicos.map((p) => ({ 
         nombre: p.nombre, 
         uuid: p.uuid, // uuid es string
         usuario_id: p.usuario_id, // usuario_id es uuid
-      })) || [],
+      })),
     });
     
-    return data || [];
+    return jugadoresUnicos;
     
   } catch (error) {
     console.error('[GET_JUGADORES_PARTIDO] getJugadoresDelPartido failed:', error);
@@ -291,7 +306,7 @@ export const getVotantesConNombres = async (partidoId) => {
     if (voto.votante_id && !votantesMap.has(voto.votante_id)) {
       votantesMap.set(voto.votante_id, {
         nombre: voto.jugador_nombre || 'Jugador',
-        avatar_url: voto.jugador_avatar_url, // Use avatar_url as the field name
+        avatar_url: voto.jugador_avatar_url,
       });
     }
   });
@@ -306,16 +321,6 @@ export const getVotantesConNombres = async (partidoId) => {
   return votantes;
 };
 
-
-
-
-
-/**
- * Verifica si un partido específico ya fue calificado por el usuario
- * @param {number} partidoId - ID del partido
- * @param {string} userId - ID del usuario
- * @returns {boolean} True si ya fue calificado, false si no
- */
 export const checkPartidoCalificado = async (partidoId, userId) => {
   if (!partidoId || !userId) return false;
   
@@ -340,23 +345,18 @@ export const checkPartidoCalificado = async (partidoId, userId) => {
   }
 };
 
-// Chequea si el usuario (auth o guest) ya votó en un partido específico
 export const checkIfAlreadyVoted = async (votanteId, partidoId) => {
-  // Obtiene el votanteId si no se pasó explícito
   if (!votanteId) {
     votanteId = await getCurrentUserId(partidoId);
   }
 
-  // Chequeo fuerte: partidoId debe estar definido y ser un número o string válido
   if (!votanteId || !partidoId || partidoId === 'undefined' || partidoId === 'null') {
     console.warn('❗️ checkIfAlreadyVoted: Parámetros inválidos', { votanteId, partidoId });
-    return false; // Permite votar para evitar bloqueos fantasma
+    return false;
   }
 
-  // DEBUG: Mostramos por consola los valores usados en el chequeo
   console.log('🔎 Chequeando si YA VOTÓ:', { votanteId, partidoId, typeofPartidoId: typeof partidoId });
 
-  // Consulta Supabase para ver si ya existe el voto
   const { data, error } = await supabase
     .from('votos')
     .select('id')
@@ -369,7 +369,6 @@ export const checkIfAlreadyVoted = async (votanteId, partidoId) => {
     throw new Error(`Error consultando votos: ${error.message}`);
   }
 
-  // Si encuentra un voto, devuelve true (ya votó), si no, false
   const hasVoted = Array.isArray(data) && data.length > 0;
 
   if (hasVoted) {
@@ -381,51 +380,9 @@ export const checkIfAlreadyVoted = async (votanteId, partidoId) => {
   return hasVoted;
 };
 
-
-
-// Debug function to test voting
-export const debugVoting = async (partidoId) => {
-  console.log('🔍 DEBUG: Testing voting system...');
-  
-  try {
-    const votanteId = await getCurrentUserId(partidoId);
-    console.log('Current user ID:', votanteId);
-    
-    // Test insert
-    const testVote = {
-      votado_id: 'test_player_uuid',
-      votante_id: votanteId,
-      puntaje: 5,
-      partido_id: partidoId,
-    };
-    
-    console.log('Testing vote insert:', testVote);
-    const { data, error } = await supabase.from('votos').insert([testVote]).select();
-    
-    if (error) {
-      console.error('❌ Insert failed:', error);
-      return { success: false, error, votanteId, partidoId };
-    }
-    
-    console.log('✅ Insert successful:', data);
-    
-    // Clean up test vote
-    if (data && data[0]) {
-      await supabase.from('votos').delete().eq('id', data[0].id);
-      console.log('🧹 Test vote cleaned up');
-    }
-    
-    return { success: true, data, votanteId, partidoId };
-  } catch (err) {
-    console.error('❌ Debug test failed:', err);
-    return { success: false, error: err };
-  }
-};
-
 export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, jugadorFoto) => {
   console.log('🚀 SUBMIT VOTOS CALLED:', { votos, jugadorUuid, partidoId, jugadorNombre });
   
-  // Validation first
   if (!jugadorUuid || typeof jugadorUuid !== 'string' || jugadorUuid.trim() === '') {
     throw new Error('jugadorUuid must be a valid non-empty string');
   }
@@ -436,11 +393,9 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
     throw new Error('votos must be a valid non-empty object');
   }
   
-  // Get current user ID (authenticated or guest) for this specific match
   const votanteId = await getCurrentUserId(partidoId);
   console.log('Current voter ID:', votanteId, 'Is guest:', votanteId.startsWith('guest_'));
   
-  // Check if this user (authenticated or guest) has already voted
   console.log('Checking if already voted...');
   const hasVoted = await checkIfAlreadyVoted(votanteId, partidoId);
   console.log('Has voted result:', hasVoted);
@@ -457,11 +412,11 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
       }
       return {
         votado_id: votado_id.trim(),
-        votante_id: votanteId, // Current user (auth or guest)
+        votante_id: votanteId,
         puntaje: Number(puntaje),
         partido_id: partidoId,
         jugador_nombre: jugadorNombre || 'Jugador',
-        jugador_avatar_url: jugadorFoto || null, // Use only avatar_url field
+        jugador_avatar_url: jugadorFoto || null,
       };
     })
     .filter((voto) => voto !== null);
@@ -502,36 +457,10 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
   return data;
 };
 
-// --- Suscripciones Realtime ---
-
-export const subscribeToChanges = (callback) => {
-  const subscription = supabase
-    .channel('public-changes')
-    .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
-      console.log('Change received!', payload);
-      callback(payload);
-    })
-    .subscribe();
-  return subscription;
-};
-
-export const removeSubscription = (subscription) => {
-  supabase.removeChannel(subscription);
-};
-
-// --- Cierre de votación y cálculo de promedios ---
-
-/**
- * Closes voting phase and calculates player average scores
- * Aggregates all votes, calculates averages, updates player scores, and clears votes
- * @returns {Object} Result message with number of players updated
- */
 export const closeVotingAndCalculateScores = async (partidoId) => {
   console.log('📊 SUPABASE: Starting closeVotingAndCalculateScores');
   
   try {
-    // Step 1: Fetch votes for this match
-    console.log('📊 SUPABASE: Step 1 - Fetching votes for match:', partidoId);
     const { data: votos, error: fetchError } = await supabase
       .from('votos')
       .select('votado_id, puntaje, votante_id')
@@ -547,8 +476,6 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       sample: votos?.slice(0, 3) || [],
     });
     
-    // Step 2: Fetch all players
-    console.log('📊 SUPABASE: Step 2 - Fetching players');
     const { data: jugadores, error: playerError } = await supabase
       .from('jugadores')
       .select('uuid, nombre, is_goalkeeper');
@@ -568,10 +495,8 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       return { message: 'No hay jugadores para actualizar.' };
     }
     
-    // Step 3: Group votes by player and check for goalkeepers
-    console.log('📊 SUPABASE: Step 3 - Grouping votes by player');
     const votesByPlayer = {};
-    const goalkeepers = new Set(); // Track players marked as goalkeepers
+    const goalkeepers = new Set();
     let totalValidVotes = 0;
     let totalInvalidVotes = 0;
     
@@ -590,7 +515,6 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
         if (voto.puntaje !== null && voto.puntaje !== undefined) {
           const score = Number(voto.puntaje);
           if (!isNaN(score)) {
-            // Check if player is marked as goalkeeper (score -2)
             if (score === -2) {
               goalkeepers.add(voto.votado_id);
             } else {
@@ -614,12 +538,10 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       voteDistribution: Object.entries(votesByPlayer).map(([playerId, votes]) => ({
         playerId,
         voteCount: votes.length,
-        votes: votes.filter((v) => v !== -1), // Exclude "don't know" votes
+        votes: votes.filter((v) => v !== -1),
       })),
     });
     
-    // Step 4: Calculate averages and update scores
-    console.log('📊 SUPABASE: Step 4 - Calculating averages and updating scores');
     const updates = [];
     const scoreUpdates = [];
     
@@ -627,15 +549,14 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       const playerVotes = votesByPlayer[jugador.uuid] || [];
       const isGoalkeeper = goalkeepers.has(jugador.uuid);
       
-      // Filter out "don't know" votes (-1) and goalkeeper votes (-2)
       const numericalVotes = playerVotes
         .map((p) => Number(p))
         .filter((p) => !isNaN(p) && p !== -1 && p !== -2 && p >= 1 && p <= 10);
         
-      let avgScore = 5; // Default score
+      let avgScore = 5;
       if (numericalVotes.length > 0) {
         const total = numericalVotes.reduce((sum, val) => sum + val, 0);
-        avgScore = Math.round((total / numericalVotes.length) * 100) / 100; // Round to 2 decimals
+        avgScore = Math.round((total / numericalVotes.length) * 100) / 100;
       }
       
       scoreUpdates.push({
@@ -646,7 +567,6 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
         isGoalkeeper,
       });
       
-      // Create update promise - update both score and goalkeeper status
       const updatePromise = supabase
         .from('jugadores')
         .update({ 
@@ -660,7 +580,6 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     
     console.log('✅ SUPABASE: Score calculations:', scoreUpdates);
     
-    // Execute all updates
     console.log('📊 SUPABASE: Executing score updates');
     const updateResults = await Promise.all(updates);
     const updateErrors = updateResults.filter((res) => res.error);
@@ -672,7 +591,6 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     
     console.log('✅ SUPABASE: All scores updated successfully');
     
-    // Step 5: Clear votes for this match
     console.log('📊 SUPABASE: Step 5 - Clearing votes for match:', partidoId);
     const { error: deleteError, count: deletedCount } = await supabase
       .from('votos')
@@ -703,9 +621,67 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
   }
 };
 
+// Debug function to test voting
+export const debugVoting = async (partidoId) => {
+  console.log('🔍 DEBUG: Testing voting system...');
+  
+  try {
+    const votanteId = await getCurrentUserId(partidoId);
+    console.log('Current user ID:', votanteId);
+    
+    // Test insert
+    const testVote = {
+      votado_id: 'test_player_uuid',
+      votante_id: votanteId,
+      puntaje: 5,
+      partido_id: partidoId,
+    };
+    
+    console.log('Testing vote insert:', testVote);
+    const { data, error } = await supabase.from('votos').insert([testVote]).select();
+    
+    if (error) {
+      console.error('❌ Insert failed:', error);
+      return { success: false, error, votanteId, partidoId };
+    }
+    
+    console.log('✅ Insert successful:', data);
+    
+    // Clean up test vote
+    if (data && data[0]) {
+      await supabase.from('votos').delete().eq('id', data[0].id);
+      console.log('🧹 Test vote cleaned up');
+    }
+    
+    return { success: true, data, votanteId, partidoId };
+  } catch (err) {
+    console.error('❌ Debug test failed:', err);
+    return { success: false, error: err };
+  }
+};
+
+// --- Suscripciones Realtime ---
+
+export const subscribeToChanges = (callback) => {
+  const subscription = supabase
+    .channel('public-changes')
+    .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+      console.log('Change received!', payload);
+      callback(payload);
+    })
+    .subscribe();
+  return subscription;
+};
+
+export const removeSubscription = (subscription) => {
+  supabase.removeChannel(subscription);
+};
+
+
+
 // --- API de Partidos ---
 
-export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cupo_jugadores, falta_jugadores, tipo_partido }) => {
+export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modalidad, cupo_jugadores, falta_jugadores, tipo_partido }) => {
   try {
     console.log('Creating match with data:', { fecha, hora, sede, sedeMaps });
     
@@ -720,6 +696,7 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
     
     const matchData = {
       codigo,
+      nombre: nombre || 'PARTIDO', // Asegurar que siempre tenga nombre
       fecha,
       hora,
       sede,
@@ -1112,7 +1089,6 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     console.log('Found existing match:', existingMatch.id);
     
     // Add frequent match metadata
-    existingMatch.nombre = partidoFrecuente.nombre;
     existingMatch.frequent_match_name = partidoFrecuente.nombre;
     existingMatch.from_frequent_match_id = partidoFrecuente.id;
     
@@ -1122,6 +1098,7 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
   // If no existing match, create a new one
   console.log('No existing match found, creating new one');
   const partido = await crearPartido({
+    nombre: partidoFrecuente.nombre, // Usar el nombre del partido frecuente
     fecha,
     hora: partidoFrecuente.hora,
     sede: partidoFrecuente.sede,
@@ -1131,8 +1108,7 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     falta_jugadores: false,
   });
   
-  // Add frequent match name, type, and reference
-  partido.nombre = partidoFrecuente.nombre;
+  // Add frequent match type and reference
   partido.frequent_match_name = partidoFrecuente.nombre;
   partido.from_frequent_match_id = partidoFrecuente.id;
   partido.tipo_partido = partidoFrecuente.tipo_partido || 'Masculino';
@@ -1838,6 +1814,148 @@ export const checkPartidosFrecuentesSchema = async () => {
   } catch (err) {
     console.error('Exception during schema check:', err);
     return { success: false, error: err };
+  }
+};
+
+// Función para limpiar jugadores duplicados en un partido
+export const cleanupDuplicatePlayers = async (partidoId) => {
+  if (!partidoId) {
+    throw new Error('Match ID is required');
+  }
+  
+  console.log('[CLEANUP_DUPLICATES] Starting cleanup for match:', partidoId);
+  
+  try {
+    // Obtener todos los jugadores del partido
+    const { data: jugadores, error: fetchError } = await supabase
+      .from('jugadores')
+      .select('*')
+      .eq('partido_id', partidoId)
+      .order('created_at', { ascending: true }); // Mantener el más antiguo
+      
+    if (fetchError) throw fetchError;
+    
+    if (!jugadores || jugadores.length === 0) {
+      console.log('[CLEANUP_DUPLICATES] No players found');
+      return { duplicatesRemoved: 0, playersKept: 0 };
+    }
+    
+    console.log('[CLEANUP_DUPLICATES] Found', jugadores.length, 'players');
+    
+    // Agrupar por nombre (case insensitive)
+    const playersByName = {};
+    const duplicatesToRemove = [];
+    
+    jugadores.forEach((jugador) => {
+      const normalizedName = jugador.nombre.toLowerCase().trim();
+      
+      if (playersByName[normalizedName]) {
+        // Ya existe un jugador con este nombre, marcar como duplicado
+        duplicatesToRemove.push(jugador.id);
+        console.log('[CLEANUP_DUPLICATES] Duplicate found:', {
+          original: playersByName[normalizedName].nombre,
+          duplicate: jugador.nombre,
+          duplicateId: jugador.id,
+        });
+      } else {
+        // Primer jugador con este nombre, mantener
+        playersByName[normalizedName] = jugador;
+      }
+    });
+    
+    if (duplicatesToRemove.length === 0) {
+      console.log('[CLEANUP_DUPLICATES] No duplicates found');
+      return { duplicatesRemoved: 0, playersKept: jugadores.length };
+    }
+    
+    console.log('[CLEANUP_DUPLICATES] Removing', duplicatesToRemove.length, 'duplicates');
+    
+    // Eliminar duplicados
+    const { error: deleteError } = await supabase
+      .from('jugadores')
+      .delete()
+      .in('id', duplicatesToRemove);
+      
+    if (deleteError) throw deleteError;
+    
+    const result = {
+      duplicatesRemoved: duplicatesToRemove.length,
+      playersKept: jugadores.length - duplicatesToRemove.length,
+    };
+    
+    console.log('[CLEANUP_DUPLICATES] Cleanup completed:', result);
+    return result;
+    
+  } catch (error) {
+    console.error('[CLEANUP_DUPLICATES] Error:', error);
+    throw error;
+  }
+};
+
+// [TEAM_BALANCER_EDIT] Verificar si un usuario tiene acceso a un partido
+export const checkUserAccessToMatch = async (userId, partidoId) => {
+  if (!userId || !partidoId) return false;
+  
+  try {
+    // Verificar si es admin del partido
+    const { data: partidoData } = await supabase
+      .from('partidos')
+      .select('creado_por')
+      .eq('id', partidoId)
+      .single();
+      
+    if (partidoData?.creado_por === userId) {
+      return true;
+    }
+    
+    // Verificar si está en la nómina del partido
+    const { data: jugadorData } = await supabase
+      .from('jugadores')
+      .select('id')
+      .eq('partido_id', partidoId)
+      .eq('usuario_id', userId)
+      .single();
+      
+    return !!jugadorData;
+    
+  } catch (error) {
+    console.error('Error checking user access to match:', error);
+    return false;
+  }
+};
+
+// [TEAM_BALANCER_EDIT] Eliminar jugador del partido (auto-eliminación)
+export const removePlayerFromMatch = async (userId, partidoId) => {
+  if (!userId || !partidoId) {
+    throw new Error('User ID and Match ID are required');
+  }
+  
+  try {
+    const { error } = await supabase
+      .from('jugadores')
+      .delete()
+      .eq('usuario_id', userId)
+      .eq('partido_id', partidoId);
+      
+    if (error) throw error;
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error removing player from match:', error);
+    throw error;
+  }
+};
+
+// Notificar cambios en equipos para sincronización
+export const notifyTeamsChange = async (partidoId, teams) => {
+  if (!partidoId) return;
+  
+  try {
+    console.log('[TEAMS_SYNC] Updating match players for sync');
+    await refreshJugadoresPartido(partidoId);
+    console.log('[TEAMS_SYNC] Match players updated successfully');
+  } catch (error) {
+    console.error('[TEAMS_SYNC] Error updating match players:', error);
   }
 };
 

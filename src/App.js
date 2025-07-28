@@ -1,7 +1,7 @@
 import './HomeStyleKit.css';
 import React, { useState, useEffect } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useParams, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useParams, useLocation, Outlet } from 'react-router-dom';
 import { MODES, ADMIN_STEPS } from './constants';
 import AmigosView from './components/AmigosView';
 import { LOADING_STATES } from './appConstants';
@@ -39,6 +39,49 @@ import ResetPassword from './components/ResetPassword';
 import { useSurveyScheduler } from './hooks/useSurveyScheduler';
 
 const HomePage = () => {
+  const location = useLocation();
+  const [partidoActual, setPartidoActual] = useState(null);
+  const [showVotingView, setShowVotingView] = useState(false);
+  
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const codigo = params.get('codigo');
+    if (codigo) {
+      console.log('[HOME_PAGE] Found codigo parameter:', codigo);
+      setShowVotingView(true);
+      getPartidoPorCodigo(codigo)
+        .then((partido) => {
+          console.log('[HOME_PAGE] Match found:', partido);
+          setPartidoActual(partido);
+        })
+        .catch((error) => {
+          console.error('[HOME_PAGE] Error loading match:', error);
+          setPartidoActual(null);
+        });
+    } else {
+      setShowVotingView(false);
+      setPartidoActual(null);
+    }
+  }, [location.search]);
+  
+  if (showVotingView) {
+    return (
+      <div className="content-with-tabbar">
+        <NetworkStatus />
+        <VotingView
+          jugadores={partidoActual ? partidoActual.jugadores : []}
+          partidoActual={partidoActual}
+          onReset={() => { 
+            setShowVotingView(false);
+            setPartidoActual(null);
+            // Navegar al home limpio
+            window.location.href = '/';
+          }}
+        />
+      </div>
+    );
+  }
+  
   return (
     <>
       <GlobalHeader onProfileClick={() => {}} />

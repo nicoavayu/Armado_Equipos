@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
+import { useAuth } from './AuthProvider';
 import './MatchChat.css';
 
 export default function MatchChat({ partidoId, isOpen, onClose }) {
+  const { user, profile } = useAuth();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [userName, setUserName] = useState('');
-  // eslint-disable-next-line no-unused-vars
-  const [showNameInput, setShowNameInput] = useState(false);
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
@@ -19,7 +18,6 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       const interval = setInterval(fetchMessages, 5000);
       return () => clearInterval(interval);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, partidoId]);
 
   useEffect(() => {
@@ -49,14 +47,13 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const getUserName = () => {
-    const stored = localStorage.getItem(`chat_user_${partidoId}`);
-    if (stored) return stored;
-    
-    const name = prompt('Ingresá tu nombre para el chat:');
-    if (name?.trim()) {
-      localStorage.setItem(`chat_user_${partidoId}`, name.trim());
-      return name.trim();
+  const getUserInfo = () => {
+    // Siempre usar datos del usuario logueado
+    if (user && profile) {
+      return {
+        name: profile.nombre || user.email?.split('@')[0] || 'Usuario',
+        userId: user.id,
+      };
     }
     return null;
   };
@@ -67,11 +64,10 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
 
-    let author = userName;
-    if (!author) {
-      author = getUserName();
-      if (!author) return;
-      setUserName(author);
+    const userInfo = getUserInfo();
+    if (!userInfo) {
+      toast.error('Error: Usuario no identificado');
+      return;
     }
 
     setLoading(true);
@@ -80,7 +76,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
         .from('mensajes_partido')
         .insert([{
           partido_id: partidoId,
-          autor: author,
+          autor: userInfo.name,
           mensaje: newMessage.trim(),
         }]);
 

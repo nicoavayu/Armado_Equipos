@@ -113,6 +113,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar }) {
       } else {
         partido = await safeAsync(
           () => crearPartido({
+            nombre: nombrePartido.trim(), // Pasar el nombre como parámetro
             fecha,
             hora: hora.trim(),
             sede: sede.trim(),
@@ -124,7 +125,6 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar }) {
           }),
           'Error al crear el partido',
         );
-        partido.nombre = nombrePartido.trim();
       }
       if (!partido) {
         setError('No se pudo crear el partido');

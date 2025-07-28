@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
+import { useNavigate } from 'react-router-dom'; // [TEAM_BALANCER_INVITE_ACCESS_FIX] Para navegación
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
 import LoadingSpinner from './LoadingSpinner';
@@ -7,6 +8,7 @@ import './NotificationsModal.css';
 
 const NotificationsModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
+  const navigate = useNavigate(); // [TEAM_BALANCER_INVITE_ACCESS_FIX] Hook de navegación
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -21,7 +23,18 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
-      setNotifications(data || []);
+      const notificationsData = data || [];
+      console.log('[NOTIFICATIONS_MODAL] All notifications loaded:', notificationsData);
+      notificationsData.forEach((n, i) => {
+        console.log(`[NOTIFICATIONS_MODAL] Notification ${i}:`, {
+          id: n.id,
+          type: n.type,
+          title: n.title,
+          data: n.data,
+          hasMatchCode: !!n.data?.matchCode,
+        });
+      });
+      setNotifications(notificationsData);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
@@ -47,10 +60,12 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   useEffect(() => {
+    console.log('[NOTIFICATIONS_MODAL] Modal state changed:', { isOpen, userId: user?.id });
     if (isOpen && user?.id) {
+      console.log('[NOTIFICATIONS_MODAL] Fetching notifications...');
       fetchNotifications();
     }
-  }, [isOpen, fetchNotifications]);
+  }, [isOpen, fetchNotifications, user?.id]);
 
   const markAsRead = async (notificationId) => {
     try {
@@ -67,10 +82,62 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       console.error('Error marking notification as read:', error);
     }
   };
+  
+  // [TEAM_BALANCER_INVITE_ACCESS_FIX] Manejar click en notificaciones de invitación
+  const handleNotificationClick = async (notification) => {
+    console.log('[NOTIFICATION_CLICK] Clicked notification:', notification);
+    console.log('[NOTIFICATION_CLICK] Notification data:', notification.data);
+    
+    if (!notification.read) {
+      await markAsRead(notification.id);
+    }
+    
+    // Si es invitación a partido, redirigir al AdminPanel
+    if (notification.type === 'match_invite' && notification.data?.matchId) {
+      console.log('[NOTIFICATION_CLICK] Match invite clicked, matchId:', notification.data.matchId);
+      onClose(); // Cerrar modal
+      
+      // Redirigir usando el código del partido
+      try {
+        const { data: partido, error } = await supabase
+          .from('partidos')
+          .select('codigo')
+          .eq('id', notification.data.matchId)
+          .single();
+          
+        console.log('[NOTIFICATION_CLICK] Match query result:', { partido, error });
+          
+        if (error) throw error;
+        
+        if (partido?.codigo) {
+          console.log('[NOTIFICATION_CLICK] Navigating to admin panel for match:', notification.data.matchId);
+          // Navegar directamente al AdminPanel usando el ID del partido
+          navigate(`/admin/${notification.data.matchId}`);
+        }
+      } catch (error) {
+        console.error('[NOTIFICATION_CLICK] Error redirecting to match:', error);
+      }
+    }
+    
+    // Si es llamada a votar, redirigir a la voting view
+    if (notification.type === 'call_to_vote') {
+      console.log('[NOTIFICATION_CLICK] Call to vote clicked');
+      onClose(); // Cerrar modal
+      
+      if (notification.data?.matchCode) {
+        console.log('[NOTIFICATION_CLICK] Navigating to voting view with code:', notification.data.matchCode);
+        navigate(`/?codigo=${notification.data.matchCode}`);
+      } else {
+        console.log('[NOTIFICATION_CLICK] No matchCode found in call_to_vote notification');
+        console.log('[NOTIFICATION_CLICK] Available data keys:', Object.keys(notification.data || {}));
+      }
+    }
+  };
 
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'match_invite': return '⚽';
+      case 'call_to_vote': return '⭐';
       case 'friend_request': return '👤';
       case 'friend_accepted': return '✅';
       case 'match_update': return '📅';
@@ -93,7 +160,12 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    console.log('[NOTIFICATIONS_MODAL] Modal is closed, not rendering');
+    return null;
+  }
+  
+  console.log('[NOTIFICATIONS_MODAL] Rendering modal with', notifications.length, 'notifications');
 
   const modalContent = (
     <div className="sheet-overlay" onClick={onClose}>
@@ -120,8 +192,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`notification-item${!notification.read ? ' unread' : ''}`}
-                  onClick={() => !notification.read && markAsRead(notification.id)}
+                  className={`notification-item${!notification.read ? ' unread' : ''} ${(notification.type === 'match_invite' || notification.type === 'call_to_vote') ? 'clickable' : ''}`}
+                  onClick={() => handleNotificationClick(notification)}
+                  style={{ cursor: (notification.type === 'match_invite' || notification.type === 'call_to_vote') ? 'pointer' : 'default' }}
                 >
                   <div className="notification-icon">{getNotificationIcon(notification.type)}</div>
                   <div className="notification-content">

@@ -1,19 +1,74 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import MatchChat from './MatchChat';
+import { useAuth } from './AuthProvider';
 import './ChatButton.css';
 
 export default function ChatButton({ partidoId }) {
+  const { user } = useAuth(); // [TEAM_BALANCER_EDIT] Para verificar permisos
   const [unreadCount, setUnreadCount] = useState(0);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [canAccessChat, setCanAccessChat] = useState(false); // [TEAM_BALANCER_EDIT] Control de acceso
 
+  // [TEAM_BALANCER_EDIT] Verificar acceso al chat
   useEffect(() => {
-    if (partidoId) {
+    async function checkChatAccess() {
+      if (!partidoId || !user?.id) {
+        setCanAccessChat(false);
+        return;
+      }
+      
+      try {
+        // [TEAM_BALANCER_INVITE_EDIT] Verificar si hay invitación pendiente
+        const { data: invitation } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('type', 'match_invite')
+          .eq('read', false)
+          .contains('data', { matchId: partidoId })
+          .single();
+          
+        // Si hay invitación pendiente, no permitir acceso al chat
+        if (invitation) {
+          setCanAccessChat(false);
+          return;
+        }
+        
+        // Verificar si el usuario está en la nómina del partido
+        const { data: jugadoresPartido } = await supabase
+          .from('jugadores')
+          .select('usuario_id')
+          .eq('partido_id', partidoId);
+          
+        const jugadorEnPartido = jugadoresPartido?.some((j) => j.usuario_id === user.id);
+        
+        // Verificar si es admin del partido
+        const { data: partidoData } = await supabase
+          .from('partidos')
+          .select('creado_por')
+          .eq('id', partidoId)
+          .single();
+          
+        const esAdmin = partidoData?.creado_por === user.id;
+        
+        setCanAccessChat(jugadorEnPartido || esAdmin);
+      } catch (error) {
+        console.error('Error checking chat access:', error);
+        setCanAccessChat(false);
+      }
+    }
+    
+    checkChatAccess();
+  }, [partidoId, user?.id]);
+  
+  useEffect(() => {
+    if (partidoId && canAccessChat) {
       checkUnreadMessages();
       const interval = setInterval(checkUnreadMessages, 10000);
       return () => clearInterval(interval);
     }
-  }, [partidoId]);
+  }, [partidoId, canAccessChat]);
 
   const checkUnreadMessages = async () => {
     try {
@@ -43,7 +98,8 @@ export default function ChatButton({ partidoId }) {
     checkUnreadMessages();
   };
 
-  if (!partidoId) return null;
+  // [TEAM_BALANCER_EDIT] Solo mostrar chat si el usuario tiene acceso
+  if (!partidoId || !canAccessChat) return null;
 
   return (
     <>

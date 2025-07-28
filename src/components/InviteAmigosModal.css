@@ -5,32 +5,32 @@
   background: rgba(0, 0, 0, 0.75);
   z-index: 9999;
   display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  align-items: center;
+  justify-content: flex-end;
   backdrop-filter: blur(2px);
 }
 
 .sheet-container {
   background: #1a1a1a;
-  border-radius: 20px 20px 0 0;
+  border-radius: 20px 0 0 20px;
   width: 100%;
-  max-width: 500px;
-  max-height: 90vh;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
+  max-width: 400px;
+  height: 100vh;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  transform: translateY(0);
-  animation: slideUp 0.3s ease-out;
+  transform: translateX(0);
+  animation: slideInRight 0.3s ease-out;
 }
 
-@keyframes slideUp {
+@keyframes slideInRight {
   from {
-    transform: translateY(100%);
+    transform: translateX(100%);
   }
   to {
-    transform: translateY(0);
+    transform: translateX(0);
   }
 }
 
@@ -175,8 +175,26 @@
 
 /* Mobile optimizations */
 @media (max-width: 600px) {
+  .sheet-overlay {
+    align-items: flex-end;
+    justify-content: center;
+  }
+  
   .sheet-container {
     border-radius: 16px 16px 0 0;
+    width: 100%;
+    height: auto;
+    max-height: 90vh;
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
   }
   
   .sheet-header {

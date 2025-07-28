@@ -4,6 +4,7 @@ import { useAuth } from './AuthProvider';
 import { supabase } from '../supabase';
 import PanelInfo from './PanelInfo';
 import WeatherWidget from './WeatherWidget';
+import ProximosPartidos from './ProximosPartidos';
 import './FifaHomeContent.css';
 
 const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onViewActivePlayers }) => {
@@ -13,6 +14,7 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activePlayers, setActivePlayers] = useState(0);
+  const [showProximosPartidos, setShowProximosPartidos] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -20,20 +22,62 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
       fetchInvitations();
       fetchRecentActivity();
       fetchActivePlayers();
+      
+      // Actualizar cada 10 segundos para tiempo real
+      const interval = setInterval(() => {
+        fetchActiveMatches();
+        fetchInvitations();
+      }, 10000);
+      
+      return () => clearInterval(interval);
     } else {
       setLoading(false);
     }
   }, [user]);
 
   const fetchActiveMatches = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     
     try {
+      // [TEAM_BALANCER_EDIT] Obtener partidos donde el usuario está en la nómina o es admin
+      const { data: jugadoresData, error: jugadoresError } = await supabase
+        .from('jugadores')
+        .select('partido_id')
+        .eq('usuario_id', user.id);
+        
+      if (jugadoresError) throw jugadoresError;
+      
+      const partidosComoJugador = jugadoresData?.map((j) => j.partido_id) || [];
+      
+      // Obtener partidos donde es admin
+      const { data: partidosComoAdmin, error: adminError } = await supabase
+        .from('partidos')
+        .select('id')
+        .eq('creado_por', user.id)
+        .eq('estado', 'activo');
+        
+      if (adminError) throw adminError;
+      
+      const partidosAdminIds = partidosComoAdmin?.map((p) => p.id) || [];
+      
+      // Combinar ambos arrays y eliminar duplicados
+      const todosLosPartidosIds = [...new Set([...partidosComoJugador, ...partidosAdminIds])];
+      
+      if (todosLosPartidosIds.length === 0) {
+        setActiveMatches([]);
+        return;
+      }
+      
+      // Obtener datos completos de los partidos futuros
       const { data, error } = await supabase
         .from('partidos')
         .select('*')
+        .in('id', todosLosPartidosIds)
         .eq('estado', 'activo')
-        .contains('jugadores', [{ uuid: user.id }]);
+        .gte('fecha', new Date().toISOString().split('T')[0]);
       
       if (error) throw error;
       setActiveMatches(data || []);
@@ -50,14 +94,13 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
     try {
       const { data, error } = await supabase
         .from('notifications')
-        .select('count')
+        .select('id')
         .eq('user_id', user.id)
         .eq('type', 'match_invite')
-        .eq('read', false)
-        .single();
+        .eq('read', false);
       
       if (error && error.code !== 'PGRST116') throw error;
-      setInvitationCount(data?.count || 0);
+      setInvitationCount(data?.length || 0);
     } catch (error) {
       console.error('Error fetching invitations:', error);
     }
@@ -94,6 +137,15 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
     }
   };
 
+  // Mostrar ProximosPartidos si está activo
+  if (showProximosPartidos) {
+    return (
+      <ProximosPartidos 
+        onClose={() => setShowProximosPartidos(false)}
+      />
+    );
+  }
+
   return (
     <div className="fifa-home-content">
       <div className="fifa-menu-grid">
@@ -109,8 +161,8 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
         
         {/* Próximos Partidos */}
         <div 
-          className={`fifa-menu-button active-matches ${activeMatches.length === 0 ? 'disabled' : ''}`}
-          onClick={() => activeMatches.length > 0 && onViewHistory()}
+          className={`fifa-menu-button active-matches ${!user || activeMatches.length === 0 ? 'disabled' : ''}`}
+          onClick={() => user && activeMatches.length > 0 && setShowProximosPartidos(true)}
         >
           <div className="fifa-button-title">PRÓXIMOS<br />PARTIDOS</div>
           <div className="fifa-button-icon">

@@ -6,15 +6,16 @@ import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
 import { useNotifications } from '../context/NotificationContext';
-import UserSearch from './UserSearch';
 import './AmigosView.css';
 
 const AmigosView = () => {
   console.log('[AMIGOS_VIEW] === RENDER START ===');
   const [currentUserId, setCurrentUserId] = useState(null);
   const [pendingRequests, setPendingRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showUserSearch, setShowUserSearch] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const { markTypeAsRead } = useNotifications();
   
   const { 
@@ -83,7 +84,7 @@ const AmigosView = () => {
       
       loadData();
     }
-  }, [currentUserId, getAmigos, getPendingRequests, markTypeAsRead]);
+  }, [currentUserId]); // Removed function dependencies to prevent infinite loop
 
   // Handle accepting a friend request
   const handleAcceptRequest = async (requestId) => {
@@ -140,13 +141,38 @@ const AmigosView = () => {
       toast.error(result.message || 'Error al eliminar amigo');
     }
   };
+  
+  // Search users function
+  const searchUsers = async (query) => {
+    if (!query || query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    
+    setSearchLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('usuarios')
+        .select('id, nombre, email, avatar_url')
+        .or(`nombre.ilike.%${query}%,email.ilike.%${query}%`)
+        .neq('id', currentUserId)
+        .limit(10);
+        
+      if (error) throw error;
+      setSearchResults(data || []);
+    } catch (error) {
+      console.error('Error searching users:', error);
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
 
 
-  // PROBLEMA ENCONTRADO: loading se queda en true y nunca se actualiza correctamente
-  // Solo mostrar loading si realmente está cargando Y no hay datos
-  if (loadingAmigos && amigos.length === 0) {
-    console.log('[AMIGOS_VIEW] Showing loading spinner - loadingAmigos:', loadingAmigos, 'amigos.length:', amigos.length);
+  // Solo mostrar loading en la carga inicial
+  if (loading && !currentUserId) {
+    console.log('[AMIGOS_VIEW] Showing loading spinner - initial load');
     return <LoadingSpinner size="large" />;
   }
 
@@ -158,12 +184,52 @@ const AmigosView = () => {
     <div className="amigos-container">
       <div className="amigos-header">
         <div className="match-name">AMIGOS</div>
-        <button 
-          className="search-users-btn"
-          onClick={() => setShowUserSearch(true)}
-        >
-          🔍 Buscar usuarios
-        </button>
+      </div>
+      
+      {/* Search section */}
+      <div className="amigos-search-section">
+        <input
+          type="text"
+          placeholder="Buscar usuarios por nombre o email..."
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            if (e.target.value.trim()) {
+              searchUsers(e.target.value.trim());
+            } else {
+              setSearchResults([]);
+            }
+          }}
+          className="amigos-search-input"
+        />
+        
+        {/* Search results */}
+        {searchQuery && (
+          <div className="amigos-search-results">
+            {searchLoading ? (
+              <div className="search-loading">
+                <LoadingSpinner size="small" />
+                <span>Buscando...</span>
+              </div>
+            ) : searchResults.length > 0 ? (
+              searchResults.map((user) => (
+                <SearchUserItem
+                  key={user.id}
+                  user={user}
+                  currentUserId={currentUserId}
+                  onRequestSent={() => {
+                    setSearchQuery('');
+                    setSearchResults([]);
+                  }}
+                />
+              ))
+            ) : (
+              <div className="search-no-results">
+                No se encontraron usuarios
+              </div>
+            )}
+          </div>
+        )}
       </div>
       
       {/* Pending requests section */}
@@ -253,10 +319,82 @@ const AmigosView = () => {
         );
       })()}
       
-      {/* User search modal */}
-      {showUserSearch && (
-        <UserSearch onClose={() => setShowUserSearch(false)} />
-      )}
+
+    </div>
+  );
+};
+
+// Component for search result items
+const SearchUserItem = ({ user, currentUserId, onRequestSent }) => {
+  const [loading, setLoading] = useState(false);
+  const [relationshipStatus, setRelationshipStatus] = useState(null);
+  const { sendFriendRequest, getRelationshipStatus } = useAmigos(currentUserId);
+  
+  useEffect(() => {
+    const checkRelationship = async () => {
+      const status = await getRelationshipStatus(user.id);
+      setRelationshipStatus(status);
+    };
+    
+    if (user.id && currentUserId) {
+      checkRelationship();
+    }
+  }, [user.id, currentUserId, getRelationshipStatus]);
+  
+  const handleSendRequest = async () => {
+    setLoading(true);
+    try {
+      const result = await sendFriendRequest(user.id);
+      if (result.success) {
+        toast.success('Solicitud enviada');
+        onRequestSent();
+      } else {
+        toast.error(result.message || 'Error al enviar solicitud');
+      }
+    } catch (error) {
+      toast.error('Error al enviar solicitud');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const getButtonText = () => {
+    if (loading) return 'Enviando...';
+    if (!relationshipStatus) return 'Enviar solicitud';
+    if (relationshipStatus.status === 'pending') return 'Solicitud enviada';
+    if (relationshipStatus.status === 'accepted') return 'Ya son amigos';
+    if (relationshipStatus.status === 'rejected') return 'Reenviar solicitud';
+    return 'Enviar solicitud';
+  };
+  
+  const isButtonDisabled = () => {
+    return loading || (relationshipStatus && ['pending', 'accepted'].includes(relationshipStatus.status));
+  };
+  
+  return (
+    <div className="search-user-item">
+      <PlayerCardTrigger profile={user}>
+        <div className="search-user-info">
+          <img 
+            src={user.avatar_url || '/profile.svg'} 
+            alt={user.nombre} 
+            className="search-user-avatar"
+            onError={(e) => { e.target.src = '/profile.svg'; }}
+          />
+          <div className="search-user-details">
+            <div className="search-user-name">{user.nombre}</div>
+            <div className="search-user-email">{user.email}</div>
+          </div>
+        </div>
+      </PlayerCardTrigger>
+      
+      <button
+        className={`search-user-btn ${isButtonDisabled() ? 'disabled' : ''}`}
+        onClick={handleSendRequest}
+        disabled={isButtonDisabled()}
+      >
+        {getButtonText()}
+      </button>
     </div>
   );
 };
