@@ -177,9 +177,11 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 0.5rem;
   padding: 0.25rem 0.5rem;
-  min-width: 2.5rem;
   color: #FFD700 !important;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 /* Posiciones con color distinto y container traslúcido */
@@ -188,10 +190,12 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 0.5rem;
   padding: 0.25rem 0.5rem;
-  min-width: 2.5rem;
   color: #fff;
   font-weight: 700;
   transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 .pc-badge-position.arq {
   background: linear-gradient(135deg, #ffd700cc 60%, #fffbe699 100%);
@@ -208,6 +212,51 @@
 .pc-badge-position.del {
   background: linear-gradient(135deg, #e53935cc 60%, #ffd6d699 100%);
   color: #fff;
+}
+
+/* MVP Badge */
+.pc-badge-mvp {
+  background: linear-gradient(135deg, #ffd700cc 60%, #fff3a0cc 100%);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #b8860b;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}
+
+.pc-badge-mvp svg {
+  color: #b8860b;
+}
+
+/* Red Card Badge */
+.pc-badge-red-card {
+  background: linear-gradient(135deg, #ff1744cc 60%, #ffcdd2cc 100%);
+  border: 1px solid rgba(255, 23, 68, 0.4);
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(255, 23, 68, 0.3);
+}
+
+.pc-red-card-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Badge count styling */
+.pc-badge-count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  min-width: 1rem;
+  text-align: center;
 }
 .pc-badge-column {
   display: flex;

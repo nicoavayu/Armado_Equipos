@@ -1,62 +1,192 @@
-/* TeamDisplay.css - Refined teams view with proper spacing and visibility */
+/* TeamDisplay.css - Optimized and organized styles for better mobile and desktop experience */
 
+/* ========== CSS VARIABLES ========== */
+:root {
+  --container-margin: 16px;
+  --team-gap: 16px;
+  --player-card-gap: 4px;
+  --border-radius-small: 6px;
+  --border-radius-medium: 12px;
+  --border-radius-large: 16px;
+  --transition-fast: 0.2s ease;
+  --transition-medium: 0.3s ease;
+  --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.20);
+  --shadow-heavy: 0 8px 20px rgba(0, 0, 0, 0.40);
+}
+
+/* ========== MAIN CONTAINER ========== */
 .team-display-container {
   width: 100%;
+  max-width: 100%;
   padding: 0;
-  margin: 0;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   box-sizing: border-box;
 }
 
-/* Title */
+/* ========== TEAM DISPLAY HEADER ========== */
+.team-display-header {
+  background: #96F;
+  padding: 16px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.team-display-header .header-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.team-display-header .back-button {
+  position: absolute;
+  left: 0;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 12px;
+  transition: background 0.2s;
+  min-width: 48px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.team-display-header .back-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.team-display-header h2 {
+  margin: 0;
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  color: white;
+}
+
+/* ========== CONTENT WRAPPER ========== */
+.team-display-content {
+  padding: 0 var(--container-margin);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ========== MATCH HEADER ========== */
+.match-header-large {
+  text-align: center;
+  margin: 0;
+  padding: 0 var(--container-margin);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.match-title-large {
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: clamp(2.5rem, 5vw, 3.3rem);
+  font-weight: 900;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  line-height: 1;
+}
+
+.match-details-large {
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: clamp(1.2rem, 2.6vw, 1.5rem);
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  line-height: 1.2;
+  letter-spacing: 0.5px;
+  margin-bottom: 0;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.venue-link-large {
+  color: #ffe94c;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-decoration-color: rgba(255, 233, 76, 0.5);
+  transition: var(--transition-fast);
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.venue-link-large:hover {
+  color: #fff;
+  text-decoration-color: #fff;
+}
+
+/* ========== DISPLAY TITLE ========== */
 .team-display-title {
   font-family: 'Bebas Neue', Arial, sans-serif;
   text-transform: uppercase;
-  font-size: 32px;
+  font-size: clamp(28px, 4vw, 42px);
   color: #fff;
   letter-spacing: 0.10em;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 16px;
   text-align: center;
   line-height: 1.1;
-  text-shadow: 0 2px 4px rgb(0 0 0 / 30%);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* Teams wrapper - two columns */
+/* ========== TEAMS WRAPPER ========== */
 .teams-wrapper {
   display: flex;
   flex-direction: row;
-  gap: 8px;
+  gap: var(--team-gap);
   width: 100%;
   box-sizing: border-box;
   margin-bottom: 0;
 }
 
-/* Team container - dynamic height based on content */
+/* ========== TEAM CONTAINERS ========== */
 .team-container {
-  background: rgb(255 255 255 / 12%);
-  border: 2px solid rgb(255 255 255 / 25%);
-  border-radius: 16px;
-  padding: 16px;
-  width: calc(50% - 4px);
+  background: rgba(255, 255, 255, 0.12);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--border-radius-large);
+  padding: 16px 16px 4px 16px;
+  width: calc(50% - var(--team-gap) / 2);
   box-sizing: border-box;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 15%);
-  flex: 0 0 calc(50% - 4px);
+  transition: var(--transition-fast);
+  box-shadow: var(--shadow-light);
   display: flex;
   flex-direction: column;
   height: auto;
+  min-height: auto;
+}
+
+@media (max-width: 768px) {
+  .team-container {
+    padding: 12px 12px 8px 12px;
+  }
 }
 
 .team-container:hover {
-  background: rgb(255 255 255 / 15%);
-  border-color: rgb(255 255 255 / 35%);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: var(--shadow-medium);
 }
 
-/* Team header - ALWAYS CENTERED */
+/* ========== TEAM HEADER ========== */
 .team-header {
   margin-bottom: 16px;
   text-align: center;
@@ -68,16 +198,16 @@
 
 .team-name {
   font-family: 'Bebas Neue', Arial, sans-serif;
-  font-size: 16px;
+  font-size: 18px;
   color: #fff;
   margin: 0;
   letter-spacing: 1px;
   text-transform: uppercase;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 40%);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
   cursor: pointer;
   padding: 8px 12px;
   border-radius: 8px;
-  transition: all 0.2s ease;
+  transition: var(--transition-fast);
   background: transparent;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -87,14 +217,14 @@
 }
 
 .team-name:hover {
-  background: rgb(255 255 255 / 10%);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .team-name-input {
   font-family: 'Bebas Neue', Arial, sans-serif;
-  font-size: 16px;
+  font-size: 18px;
   color: #333;
-  background: rgb(255 255 255 / 95%);
+  background: rgba(255, 255, 255, 0.95);
   border: 2px solid #0EA9C6;
   border-radius: 8px;
   padding: 8px 12px;
@@ -102,34 +232,33 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   width: 100%;
-  max-width: 100%;
   box-sizing: border-box;
-  box-shadow: 0 2px 4px rgb(0 0 0 / 20%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Players grid - dynamic height based on content */
+/* ========== PLAYERS GRID ========== */
 .players-grid {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: var(--player-card-gap);
+  margin-bottom: 6px;
   width: 100%;
-  height: auto;
+  flex: 1;
 }
 
-/* Player card - touch-friendly drag & drop */
+/* ========== PLAYER CARDS ========== */
 .player-card {
-  background: rgb(255 255 255 / 15%);
-  border: 2px solid rgb(255 255 255 / 20%);
-  border-radius: 8px;
-  padding: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--border-radius-small);
+  padding: 6px 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: grab;
   color: #fff;
-  transition: all 0.2s ease;
-  min-height: 48px;
+  transition: var(--transition-fast);
+  min-height: 32px;
   position: relative;
   width: 100%;
   box-sizing: border-box;
@@ -139,210 +268,210 @@
   -webkit-touch-callout: none;
 }
 
-/* Touch feedback */
+.player-card-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+}
+
+.player-card:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-medium);
+}
+
 .player-card:active {
-  background: rgb(255 255 255 / 25%);
+  background: rgba(255, 255, 255, 0.25);
   transform: scale(0.98);
 }
 
-/* Locked player styling - clear visual indication */
+/* ========== PLAYER CARD STATES ========== */
 .player-card.locked {
-  background: rgb(255 193 7 / 20%);
-  border-color: rgb(255 193 7 / 60%);
-  box-shadow: 0 0 8px rgb(255 193 7 / 30%);
+  background: rgba(255, 193, 7, 0.2);
+  border-color: rgba(255, 193, 7, 0.6);
+  box-shadow: 0 0 8px rgba(255, 193, 7, 0.3);
 }
 
 .player-card.locked:hover,
 .player-card.locked:active {
-  background: rgb(255 193 7 / 30%);
-  border-color: rgb(255 193 7 / 80%);
-  box-shadow: 0 0 12px rgb(255 193 7 / 40%);
+  background: rgba(255, 193, 7, 0.3);
+  border-color: rgba(255, 193, 7, 0.8);
+  box-shadow: 0 0 12px rgba(255, 193, 7, 0.4);
 }
 
-/* Lock/unlock animation */
-@keyframes lockAnimation {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); }
-}
-
-.lock-icon {
-  animation: lockAnimation 0.3s ease-in-out;
-}
-
-.player-card:hover {
-  background: rgb(255 255 255 / 20%);
-  border-color: rgb(255 255 255 / 40%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
-}
-
-/* Dragging state - enhanced visual feedback */
 .player-card.dragging {
   cursor: grabbing;
   transform: scale(1.05) rotate(2deg);
-  box-shadow: 0 8px 20px rgb(0 0 0 / 40%);
+  box-shadow: var(--shadow-heavy);
   z-index: 1000;
-  background: rgb(255 255 255 / 30%) !important;
-  border-color: rgb(255 255 255 / 80%) !important;
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.8) !important;
   opacity: 0.9;
 }
 
-/* Drag over highlight - prominent visual feedback */
 .player-card.drag-over {
-  background: rgb(14 169 198 / 50%) !important;
+  background: rgba(14, 169, 198, 0.5) !important;
   border-color: #0EA9C6 !important;
   border-width: 3px !important;
   transform: scale(1.03);
-  box-shadow: 0 0 20px rgb(14 169 198 / 70%) !important;
+  box-shadow: 0 0 20px rgba(14, 169, 198, 0.7) !important;
   animation: dragOverPulse 0.6s ease-in-out infinite alternate;
 }
 
 @keyframes dragOverPulse {
-  0% {
-    box-shadow: 0 0 20px rgb(14 169 198 / 70%);
-  }
-
-  100% {
-    box-shadow: 0 0 30px rgb(14 169 198 / 90%);
-  }
+  0% { box-shadow: 0 0 20px rgba(14, 169, 198, 0.7); }
+  100% { box-shadow: 0 0 30px rgba(14, 169, 198, 0.9); }
 }
 
-/* Player avatar */
+/* ========== PLAYER AVATAR ========== */
 .player-avatar {
   width: 28px;
   height: 28px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid rgb(255 255 255 / 40%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   flex-shrink: 0;
 }
 
-/* Player avatar wrapper for TeamDisplay */
 .player-avatar-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* Player name - responsive text with proper overflow handling */
+/* ========== PLAYER NAME ========== */
 .player-card span:first-of-type {
-  font-family: Oswald, Arial, sans-serif;
-  font-size: 12px;
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 13px;
   font-weight: 600;
   color: #fff;
   flex: 1;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 30%);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+  max-width: 140px;
 }
 
-/* Player score - color-coded with dark background */
+/* ========== PLAYER SCORE ========== */
 .player-score {
   font-family: 'Bebas Neue', Arial, sans-serif;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: #fff;
-  background: rgb(34 41 59 / 90%);
-  padding: 3px 7px;
-  border-radius: 6px;
-  border: 1px solid rgb(255 255 255 / 20%);
+  background: rgba(34, 41, 59, 0.9);
+  padding: 4px 8px;
+  border-radius: var(--border-radius-small);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   flex-shrink: 0;
   white-space: nowrap;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 50%);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 /* Score color coding */
 .player-score.score-low {
-  background: rgb(222 28 73 / 90%);
-  border-color: rgb(222 28 73 / 50%);
+  background: rgba(222, 28, 73, 0.9);
+  border-color: rgba(222, 28, 73, 0.5);
 }
 
 .player-score.score-below-avg {
-  background: rgb(255 165 0 / 90%);
-  border-color: rgb(255 165 0 / 50%);
+  background: rgba(255, 165, 0, 0.9);
+  border-color: rgba(255, 165, 0, 0.5);
 }
 
 .player-score.score-above-avg {
-  background: rgb(14 169 198 / 90%);
-  border-color: rgb(14 169 198 / 50%);
+  background: rgba(14, 169, 198, 0.9);
+  border-color: rgba(14, 169, 198, 0.5);
 }
 
 .player-score.score-high {
-  background: rgb(0 212 155 / 90%);
-  border-color: rgb(0 212 155 / 50%);
+  background: rgba(0, 212, 155, 0.9);
+  border-color: rgba(0, 212, 155, 0.5);
 }
 
-/* Lock icon - enhanced visibility */
+/* ========== LOCK ICON ========== */
 .lock-icon {
   font-size: 16px;
   color: #FFC107;
-  text-shadow: 0 2px 4px rgb(0 0 0 / 70%);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
   flex-shrink: 0;
   margin-left: auto;
   margin-right: 4px;
   padding: 4px;
   border-radius: 4px;
-  background: rgb(255 193 7 / 20%);
-  border: 1px solid rgb(255 193 7 / 40%);
+  background: rgba(255, 193, 7, 0.2);
+  border: 1px solid rgba(255, 193, 7, 0.4);
   animation: lockGlow 2s ease-in-out infinite alternate;
 }
 
 @keyframes lockGlow {
-  0% {
-    box-shadow: 0 0 5px rgb(255 193 7 / 30%);
-  }
-
-  100% {
-    box-shadow: 0 0 10px rgb(255 193 7 / 50%);
-  }
+  0% { box-shadow: 0 0 5px rgba(255, 193, 7, 0.3); }
+  100% { box-shadow: 0 0 10px rgba(255, 193, 7, 0.5); }
 }
 
-/* Team score box - close to bottom edge */
+@keyframes lockAnimation {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.lock-icon.animate {
+  animation: lockAnimation 0.3s ease-in-out;
+}
+
+/* ========== TEAM SCORE BOX ========== */
 .team-score-box {
-  background: rgb(255 255 255 / 20%);
-  border: 2px solid rgb(255 255 255 / 30%);
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   color: #fff;
-  padding: 10px 8px;
+  padding: 8px 6px;
   border-radius: 8px;
   text-align: center;
   font-family: 'Bebas Neue', Arial, sans-serif;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 30%);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   width: 100%;
   box-sizing: border-box;
   word-wrap: break-word;
   overflow-wrap: break-word;
   line-height: 1.2;
+  margin-top: 6px;
   margin-bottom: 0;
 }
 
-/* Empty state */
+@media (max-width: 768px) {
+  .team-score-box {
+    margin-bottom: 0;
+  }
+}
+
+/* ========== EMPTY STATE ========== */
 .team-empty-state {
   text-align: center;
-  color: rgb(255 255 255 / 60%);
-  font-family: Oswald, Arial, sans-serif;
-  font-size: 11px;
-  padding: 16px 8px;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 12px;
+  padding: 20px 8px;
   font-style: italic;
   margin-bottom: 0;
 }
 
-/* Team actions - close to team cards */
+/* ========== TEAM ACTIONS ========== */
 .team-actions {
   display: flex;
   flex-direction: column;
   gap: 12px;
   width: 100%;
-  margin-top: 16px;
+  margin-top: 4px;
   margin-bottom: 0;
 }
 
-/* Team actions row for side-by-side buttons */
 .team-actions-row {
   display: flex;
   gap: 12px;
@@ -354,10 +483,10 @@
   width: calc(50% - 6px);
 }
 
-/* Action buttons - matching FormularioNuevoPartidoFlow style */
+/* ========== ACTION BUTTONS ========== */
 .team-action-btn {
   font-family: 'Bebas Neue', Arial, sans-serif !important;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   color: #fff;
   background: #8178e5;
   border: 2px solid #fff;
@@ -366,10 +495,10 @@
   padding: 0;
   margin: 0;
   width: 100%;
-  height: 48px;
+  height: 50px;
   cursor: pointer;
   font-weight: 700;
-  transition: all 0.2s ease;
+  transition: var(--transition-medium);
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
@@ -379,7 +508,6 @@
   touch-action: manipulation;
 }
 
-/* Wipe animation - matching FormularioNuevoPartidoFlow */
 .team-action-btn::before {
   content: "";
   position: absolute;
@@ -387,8 +515,8 @@
   top: 0;
   width: 100%;
   height: 100%;
-  background: rgb(255 255 255 / 12%);
-  transition: left 0.3s cubic-bezier(.77,0,.18,1);
+  background: rgba(255, 255, 255, 0.12);
+  transition: left 0.3s cubic-bezier(0.77, 0, 0.18, 1);
   z-index: 1;
 }
 
@@ -410,9 +538,7 @@
 .averages-btn { background: #8178e5; }
 .whatsapp-btn { background: #25D366; }
 
-
-
-/* Over-the-top confetti animation */
+/* ========== CONFETTI ANIMATION ========== */
 .confetti-container {
   position: fixed;
   top: 0;
@@ -426,16 +552,10 @@
 }
 
 @keyframes confettiContainerFade {
-  0%, 70% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0;
-  }
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
-/* Explosive confetti particles */
 .confetti-container::before,
 .confetti-container::after {
   content: '';
@@ -450,21 +570,10 @@
   background: #0EA9C6;
   animation: confettiFall1 2.5s linear infinite;
   box-shadow: 
-    50px 0 0 #00D49B,
-    100px 0 0 #DE1C49,
-    150px 0 0 #FFA500,
-    200px 0 0 #0EA9C6,
-    250px 0 0 #00D49B,
-    300px 0 0 #DE1C49,
-    350px 0 0 #FFA500,
-    400px 0 0 #0EA9C6,
-    450px 0 0 #00D49B,
-    500px 0 0 #DE1C49,
-    550px 0 0 #FFA500,
-    600px 0 0 #0EA9C6,
-    650px 0 0 #00D49B,
-    700px 0 0 #DE1C49,
-    750px 0 0 #FFA500;
+    50px 0 0 #00D49B, 100px 0 0 #DE1C49, 150px 0 0 #FFA500,
+    200px 0 0 #0EA9C6, 250px 0 0 #00D49B, 300px 0 0 #DE1C49,
+    350px 0 0 #FFA500, 400px 0 0 #0EA9C6, 450px 0 0 #00D49B,
+    500px 0 0 #DE1C49, 550px 0 0 #FFA500, 600px 0 0 #0EA9C6;
 }
 
 .confetti-container::after {
@@ -473,76 +582,256 @@
   animation: confettiFall2 2.8s linear infinite;
   animation-delay: 0.3s;
   box-shadow: 
-    40px 0 0 #00D49B,
-    80px 0 0 #0EA9C6,
-    120px 0 0 #FFA500,
-    160px 0 0 #DE1C49,
-    200px 0 0 #00D49B,
-    240px 0 0 #0EA9C6,
-    280px 0 0 #FFA500,
-    320px 0 0 #DE1C49,
-    360px 0 0 #00D49B,
-    400px 0 0 #0EA9C6,
-    440px 0 0 #FFA500,
-    480px 0 0 #DE1C49,
-    520px 0 0 #00D49B,
-    560px 0 0 #0EA9C6,
-    600px 0 0 #FFA500,
-    640px 0 0 #DE1C49;
+    40px 0 0 #00D49B, 80px 0 0 #0EA9C6, 120px 0 0 #FFA500,
+    160px 0 0 #DE1C49, 200px 0 0 #00D49B, 240px 0 0 #0EA9C6,
+    280px 0 0 #FFA500, 320px 0 0 #DE1C49, 360px 0 0 #00D49B,
+    400px 0 0 #0EA9C6, 440px 0 0 #FFA500, 480px 0 0 #DE1C49;
 }
 
 @keyframes confettiFall1 {
-  0% {
-    transform: translateY(-100vh) rotate(0deg) scale(1);
-    opacity: 1;
-  }
-
-  10% {
-    opacity: 1;
-  }
-
-  80% {
-    opacity: 1;
-  }
-
-  100% {
-    transform: translateY(100vh) rotate(720deg) scale(0.5);
-    opacity: 0;
-  }
+  0% { transform: translateY(-100vh) rotate(0deg) scale(1); opacity: 1; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg) scale(0.5); opacity: 0; }
 }
 
 @keyframes confettiFall2 {
-  0% {
-    transform: translateY(-100vh) rotate(0deg) scale(1.2);
-    opacity: 1;
-  }
+  0% { transform: translateY(-100vh) rotate(0deg) scale(1.2); opacity: 1; }
+  10% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateY(100vh) rotate(-540deg) scale(0.3); opacity: 0; }
+}
 
-  10% {
-    opacity: 1;
-  }
+/* ========== RESPONSIVE DESIGN ========== */
 
-  80% {
-    opacity: 1;
+/* Mobile devices (up to 480px) */
+@media (max-width: 480px) {
+  :root {
+    --container-margin: 12px;
+    --team-gap: 12px;
+    --player-card-gap: 3px;
   }
-
-  100% {
-    transform: translateY(100vh) rotate(-540deg) scale(0.3);
-    opacity: 0;
+  
+  .team-container {
+    padding: 8px 8px 2px 8px;
+  }
+  
+  .player-card {
+    min-height: 28px;
+    padding: 4px 8px;
+    gap: 8px;
+  }
+  
+  .player-card-content {
+    gap: 8px;
+  }
+  
+  .player-avatar {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .player-card span:first-of-type {
+    font-size: 11px;
+    max-width: 100px;
+  }
+  
+  .player-score {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+  
+  .team-score-box {
+    font-size: 11px;
+    padding: 6px 4px;
+  }
+  
+  .team-action-btn {
+    height: 46px;
+    font-size: 1.3rem;
+  }
+  
+  .lock-icon {
+    font-size: 14px;
+    padding: 3px;
   }
 }
 
-/* Mobile touch optimizations */
-@media (width <= 600px) {
+/* Small tablets (481px to 600px) */
+@media (min-width: 481px) and (max-width: 600px) {
   .player-card {
-    min-height: 52px;
-    padding: 14px;
-    touch-action: manipulation;
+    min-height: 34px;
+    padding: 6px 10px;
+  }
+  
+  .player-avatar {
+    width: 30px;
+    height: 30px;
+  }
+  
+  .player-card span:first-of-type {
+    font-size: 12px;
+    max-width: 120px;
+  }
+  
+  .team-action-btn {
+    height: 48px;
+  }
+}
+
+/* Medium tablets (601px to 768px) */
+@media (min-width: 601px) and (max-width: 768px) {
+  .team-container {
+    padding: 18px;
+  }
+  
+  .team-name {
+    font-size: 20px;
+  }
+  
+  .team-name-input {
+    font-size: 20px;
+  }
+  
+  .player-card {
+    min-height: 36px;
+    padding: 8px 12px;
+  }
+  
+  .player-avatar {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .player-card span:first-of-type {
+    font-size: 14px;
+    max-width: 150px;
+  }
+  
+  .player-score {
+    font-size: 13px;
+    padding: 4px 8px;
+  }
+  
+  .team-score-box {
+    font-size: 15px;
+    padding: 10px 8px;
+  }
+  
+  .team-action-btn {
+    height: 52px;
+    font-size: 1.5rem;
+  }
+}
+
+/* Large tablets and small desktops (769px to 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .team-container {
+    padding: 20px;
+  }
+  
+  .team-name {
+    font-size: 22px;
+  }
+  
+  .team-name-input {
+    font-size: 22px;
+  }
+  
+  .player-card {
+    min-height: 38px;
+    padding: 10px 14px;
+  }
+  
+  .player-avatar {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .player-card span:first-of-type {
+    font-size: 15px;
+    max-width: 160px;
+  }
+  
+  .player-score {
+    font-size: 14px;
+    padding: 5px 10px;
+  }
+  
+  .team-score-box {
+    font-size: 16px;
+    padding: 12px 10px;
+  }
+  
+  .team-action-btn {
+    height: 54px;
+    font-size: 1.6rem;
   }
   
   .lock-icon {
     font-size: 18px;
-    padding: 6px;
-    margin-right: 2px;
+  }
+}
+
+/* Large desktops (1025px and up) */
+@media (min-width: 1025px) {
+  .team-display-container {
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  
+  .team-container {
+    padding: 24px;
+  }
+  
+  .team-name {
+    font-size: 24px;
+  }
+  
+  .team-name-input {
+    font-size: 24px;
+  }
+  
+  .player-card {
+    min-height: 40px;
+    padding: 12px 16px;
+  }
+  
+  .player-avatar {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .player-card span:first-of-type {
+    font-size: 16px;
+    max-width: 180px;
+  }
+  
+  .player-score {
+    font-size: 15px;
+    padding: 6px 12px;
+  }
+  
+  .team-score-box {
+    font-size: 18px;
+    padding: 14px 12px;
+  }
+  
+  .team-action-btn {
+    height: 56px;
+    font-size: 1.7rem;
+    min-width: 160px;
+  }
+  
+  .lock-icon {
+    font-size: 20px;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .player-card {
+    touch-action: manipulation;
   }
   
   .player-card.dragging {
@@ -553,145 +842,9 @@
     transform: scale(1.05);
     border-width: 4px !important;
   }
-}
-
-/* Responsive scaling - maintaining legibility */
-@media (width >= 400px) {
-  .team-display-title { font-size: 36px; }
-  
-
   
   .lock-icon {
-    font-size: 16px;
+    padding: 6px;
+    margin-right: 2px;
   }
-  
-  .confetti-container::before {
-    box-shadow: 
-      40px 0 0 #00D49B,
-      80px 0 0 #DE1C49,
-      120px 0 0 #FFA500,
-      160px 0 0 #0EA9C6,
-      200px 0 0 #00D49B,
-      240px 0 0 #DE1C49,
-      280px 0 0 #FFA500,
-      320px 0 0 #0EA9C6;
-  }
-  
-  .confetti-container::after {
-    box-shadow: 
-      35px 0 0 #00D49B,
-      70px 0 0 #0EA9C6,
-      105px 0 0 #FFA500,
-      140px 0 0 #DE1C49,
-      175px 0 0 #00D49B,
-      210px 0 0 #0EA9C6,
-      245px 0 0 #FFA500,
-      280px 0 0 #DE1C49;
-  }
-  .team-name { font-size: 18px; }
-  .team-name-input { font-size: 18px; }
-  .player-avatar { width: 32px; height: 32px; }
-  .player-card span:first-of-type { font-size: 13px; }
-  .player-score { font-size: 12px; padding: 3px 7px; }
-  .team-score-box { font-size: 14px; padding: 12px 10px; }
-  .team-action-btn { font-size: 1.5rem; height: 50px; }
-  .teams-wrapper { gap: 10px; margin-bottom: 0; }
-
-  .team-container { 
-    width: calc(50% - 5px); 
-    flex: 0 0 calc(50% - 5px); 
-    padding: 18px;
-    height: auto;
-  }
-  .team-actions { margin-top: 16px; }
-}
-
-@media (width >= 600px) {
-  .team-display-title { font-size: 42px; }
-  .team-name { font-size: 20px; }
-  .team-name-input { font-size: 20px; }
-  .player-avatar { width: 36px; height: 36px; }
-  .player-card span:first-of-type { font-size: 14px; }
-  .player-score { font-size: 13px; padding: 4px 8px; }
-  .team-score-box { font-size: 16px; padding: 14px 12px; }
-  .team-action-btn { font-size: 1.5rem; height: 52px; }
-  .teams-wrapper { gap: 12px; margin-bottom: 0; }
-
-  .team-container { 
-    width: calc(50% - 6px); 
-    flex: 0 0 calc(50% - 6px); 
-    padding: 20px;
-    height: auto;
-  }
-  .team-actions { margin-top: 16px; }
-}
-
-@media (width >= 768px) {
-  .team-display-title { font-size: 52px; }
-  
-
-  
-  .lock-icon {
-    font-size: 18px;
-  }
-  
-  .confetti-container::before {
-    box-shadow: 
-      60px 0 0 #00D49B,
-      120px 0 0 #DE1C49,
-      180px 0 0 #FFA500,
-      240px 0 0 #0EA9C6,
-      300px 0 0 #00D49B,
-      360px 0 0 #DE1C49,
-      420px 0 0 #FFA500,
-      480px 0 0 #0EA9C6,
-      540px 0 0 #00D49B,
-      600px 0 0 #DE1C49;
-  }
-  
-  .confetti-container::after {
-    box-shadow: 
-      50px 0 0 #00D49B,
-      100px 0 0 #0EA9C6,
-      150px 0 0 #FFA500,
-      200px 0 0 #DE1C49,
-      250px 0 0 #00D49B,
-      300px 0 0 #0EA9C6,
-      350px 0 0 #FFA500,
-      400px 0 0 #DE1C49,
-      450px 0 0 #00D49B,
-      500px 0 0 #0EA9C6;
-  }
-  .team-name { font-size: 24px; }
-  .team-name-input { font-size: 24px; }
-  .player-avatar { width: 40px; height: 40px; }
-  .player-card span:first-of-type { font-size: 15px; }
-  .player-score { font-size: 14px; padding: 4px 10px; }
-  .team-score-box { font-size: 18px; padding: 16px 14px; }
-  .team-action-btn { font-size: 1.5rem; height: 54px; }
-  .teams-wrapper { gap: 16px; margin-bottom: 0; }
-
-  .team-container { 
-    width: calc(50% - 8px); 
-    flex: 0 0 calc(50% - 8px); 
-    padding: 24px;
-    height: auto;
-  }
-  .team-action-btn { min-width: 160px; font-size: 1.5rem; }
-  .team-actions { margin-top: 16px; }
-}
-
-@media (width >= 1024px) {
-  .team-display-container {
-    max-width: 900px;
-    margin: 0 auto;
-  }
-
-}
-.player-card-content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: 100%;
 }

@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   display: flex;
-  background: rgb(255 255 255 / 20%);
+  background: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(10px);
   border-top: 1px solid rgb(255 255 255 / 30%);
   height: 70px;

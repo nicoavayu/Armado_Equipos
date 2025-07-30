@@ -1,20 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
-import { supabase } from '../supabase';
+import { useNotifications } from '../context/NotificationContext';
+import { supabase, updateProfile } from '../supabase';
 import PanelInfo from './PanelInfo';
-import WeatherWidget from './WeatherWidget';
 import ProximosPartidos from './ProximosPartidos';
+import NotificationsBell from './NotificationsBell';
+import NotificationsModal from './NotificationsModal';
 import './FifaHomeContent.css';
 
 const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onViewActivePlayers }) => {
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
+  const { unreadCount } = useNotifications();
   const [activeMatches, setActiveMatches] = useState([]);
   const [invitationCount, setInvitationCount] = useState(0);
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activePlayers, setActivePlayers] = useState(0);
   const [showProximosPartidos, setShowProximosPartidos] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const statusDropdownRef = useRef(null);
 
   useEffect(() => {
     if (user) {
@@ -137,6 +143,38 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
     }
   };
 
+  const getInitial = () => {
+    if (profile?.avatar_url) return null;
+    return profile?.nombre?.charAt(0) || user?.email?.charAt(0) || '?';
+  };
+  
+  const userName = profile?.nombre || user?.email?.split('@')[0] || 'Usuario';
+  const truncatedName = userName.length > 15 ? `${userName.substring(0, 15)}...` : userName;
+  const isAvailable = profile?.acepta_invitaciones !== false;
+  const statusText = isAvailable ? 'Disponible' : 'Ocupado';
+  
+  const toggleStatusDropdown = (e) => {
+    e.stopPropagation();
+    setShowStatusDropdown(!showStatusDropdown);
+  };
+  
+  const handleNotificationsClick = () => {
+    setShowNotificationsModal(true);
+    setShowStatusDropdown(false);
+  };
+  
+  const updateAvailabilityStatus = async (status) => {
+    if (!user) return;
+    
+    try {
+      await updateProfile(user.id, { acepta_invitaciones: status });
+      await refreshProfile();
+      setShowStatusDropdown(false);
+    } catch (error) {
+      console.error('Error updating availability status:', error);
+    }
+  };
+
   // Mostrar ProximosPartidos si está activo
   if (showProximosPartidos) {
     return (
@@ -148,6 +186,66 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
 
   return (
     <div className="fifa-home-content">
+      {/* Header elements - Avatar and Notifications */}
+      {user && (
+        <div className="fifa-header-elements">
+          <div className="fifa-header-left" ref={statusDropdownRef}>
+            <div className="fifa-avatar-container" onClick={toggleStatusDropdown}>
+              <div className="fifa-avatar">
+                {profile?.avatar_url ? (
+                  <img 
+                    src={profile.avatar_url} 
+                    alt="Profile" 
+                  />
+                ) : (
+                  <div>
+                    {getInitial()}
+                  </div>
+                )}
+              </div>
+              <div className={`fifa-status-led ${isAvailable ? 'available' : 'unavailable'}`}></div>
+            </div>
+            
+            <div className="fifa-user-info" onClick={toggleStatusDropdown}>
+              <div className="fifa-greeting-name">
+                <div className="fifa-greeting">Hola,</div>
+                <div className="fifa-username">{truncatedName}</div>
+              </div>
+              <div className={`fifa-status-text ${isAvailable ? 'available' : 'unavailable'}`}>{statusText}</div>
+            </div>
+            
+            {showStatusDropdown && (
+              <div className="fifa-status-dropdown">
+                <div className="fifa-status-dropdown-header">
+                  Status
+                </div>
+                <div 
+                  className={`fifa-status-option ${isAvailable ? 'active' : ''}`}
+                  onClick={() => updateAvailabilityStatus(true)}
+                >
+                  <div className="fifa-status-dot available"></div>
+                  <span>Available</span>
+                </div>
+                <div 
+                  className={`fifa-status-option ${!isAvailable ? 'active' : ''}`}
+                  onClick={() => updateAvailabilityStatus(false)}
+                >
+                  <div className="fifa-status-dot unavailable"></div>
+                  <span>Unavailable</span>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="fifa-header-right">
+            <NotificationsBell 
+              unreadCount={unreadCount} 
+              onClick={handleNotificationsClick} 
+            />
+          </div>
+        </div>
+      )}
+      
       <div className="fifa-menu-grid">
         {/* Create New Match */}
         <Link to="/nuevo-partido" className="fifa-menu-button create-match">
@@ -253,7 +351,11 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
         </div>
       </div>
       
-
+      {/* Notifications Modal */}
+      <NotificationsModal 
+        isOpen={showNotificationsModal}
+        onClose={() => setShowNotificationsModal(false)}
+      />
     </div>
   );
 };

@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { schedulePostMatchNotification } from './services/notificationService';
+import { incrementPartidosAbandonados } from './services/matchStatsService';
 
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
@@ -27,7 +29,7 @@ export const getJugadores = async () => {
       sample: data?.slice(0, 3).map((p) => ({ 
         nombre: p.nombre, 
         uuid: p.uuid, 
-        score: p.score, 
+        score: p.score,
       })) || [],
     });
     
@@ -764,7 +766,6 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
         console.log('[CREAR_PARTIDO] Adding creator as player to match:', { 
           userId: user.id, 
           matchId: data.id,
-          matchType: typeof data.id,
         });
         
         // Obtener perfil del usuario
@@ -774,38 +775,19 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
           .eq('id', user.id)
           .single();
         
-        if (profileError) {
-          console.warn('[CREAR_PARTIDO] Could not fetch user profile:', profileError);
-        }
-        
-        console.log('[CREAR_PARTIDO] User profile fetched:', {
-          nombre: userProfile?.nombre,
-          hasAvatar: !!userProfile?.avatar_url,
-        });
-        
-        // Preparar datos del jugador (SOLO INSERT, nunca DELETE)
         const playerData = {
-          partido_id: data.id,  // CLAVE: partido_id como int8 (debe coincidir con partidos.id)
+          partido_id: parseInt(data.id),  // Asegurar que sea número
           usuario_id: user.id,  // UUID del usuario
           nombre: userProfile?.nombre || user.email?.split('@')[0] || 'Creador',
           avatar_url: userProfile?.avatar_url || null,
-          foto_url: userProfile?.avatar_url || null, // Para compatibilidad
-          uuid: user.id, // UUID como string
-          score: 5, // Score por defecto
+          foto_url: userProfile?.avatar_url || null,
+          uuid: user.id,
+          score: 5,
           is_goalkeeper: false,
         };
         
-        // Verificar tipos antes del insert
-        console.log('[CREAR_PARTIDO] Data types verification:', {
-          partidoIdType: typeof data.id,
-          partidoIdValue: data.id,
-          usuarioIdType: typeof user.id,
-          usuarioIdValue: user.id,
-        });
-        
         console.log('[CREAR_PARTIDO] Inserting player data:', playerData);
         
-        // Agregar a la tabla jugadores (SOLO INSERT del creador)
         const { data: insertedPlayer, error: playerError } = await supabase
           .from('jugadores')
           .insert([playerData])
@@ -813,38 +795,45 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
           .single();
         
         if (playerError) {
-          console.error('[CREAR_PARTIDO] Error adding creator as player:', {
-            error: playerError,
-            code: playerError.code,
-            message: playerError.message,
-            details: playerError.details,
-            playerData,
-          });
-          // No lanzamos error, solo logueamos
+          console.error('[CREAR_PARTIDO] Error adding creator as player:', playerError);
+          // Intentar crear perfil mínimo si no existe
+          if (playerError.code === '23503') {
+            console.log('[CREAR_PARTIDO] Creating minimal profile for user');
+            await supabase.from('usuarios').upsert({
+              id: user.id,
+              nombre: user.email?.split('@')[0] || 'Usuario',
+              email: user.email,
+              avatar_url: null,
+            }, { onConflict: 'id' });
+            
+            // Reintentar inserción
+            const { error: retryError } = await supabase
+              .from('jugadores')
+              .insert([playerData]);
+            
+            if (retryError) {
+              console.error('[CREAR_PARTIDO] Retry failed:', retryError);
+            } else {
+              console.log('[CREAR_PARTIDO] Creator added successfully on retry');
+            }
+          }
         } else {
-          console.log('[CREAR_PARTIDO] Creator added as player successfully:', {
-            playerId: insertedPlayer?.id,
-            partidoId: insertedPlayer?.partido_id,
-            usuarioId: insertedPlayer?.usuario_id,
-          });
-          
-          console.log('[CREAR_PARTIDO] Creator successfully added to jugadores table');
+          console.log('[CREAR_PARTIDO] Creator added as player successfully');
         }
       } catch (playerAddError) {
-        console.error('[CREAR_PARTIDO] Exception adding creator as player:', {
-          error: playerAddError,
-          message: playerAddError.message,
-          stack: playerAddError.stack,
-        });
-        // Continuamos sin lanzar error
+        console.error('[CREAR_PARTIDO] Exception adding creator as player:', playerAddError);
       }
-    } else {
-      console.log('[CREAR_PARTIDO] Skipping player creation:', {
-        hasUser: !!user?.id,
-        hasMatchId: !!data?.id,
-        userId: user?.id,
-        matchId: data?.id,
-      });
+    }
+    
+    // Schedule post-match survey notification
+    if (data?.id) {
+      try {
+        await schedulePostMatchNotification(data.id);
+        console.log('[CREAR_PARTIDO] Post-match notification scheduled');
+      } catch (notificationError) {
+        console.error('[CREAR_PARTIDO] Error scheduling notification:', notificationError);
+        // Continue without throwing error
+      }
     }
     
     return data;
@@ -1489,6 +1478,38 @@ export const getProfile = async (userId) => {
     throw error;
   }
   
+  // Convert date format for frontend - FORCE conversion
+  if (data && data.fecha_nacimiento) {
+    let dateValue = data.fecha_nacimiento;
+    
+    if (typeof dateValue === 'string') {
+      // Handle ISO string format
+      if (dateValue.includes('T')) {
+        dateValue = dateValue.split('T')[0];
+      }
+      // Handle other date formats
+      else if (dateValue.includes(' ')) {
+        dateValue = dateValue.split(' ')[0];
+      }
+    } else if (dateValue instanceof Date) {
+      // Convert Date object to YYYY-MM-DD format
+      dateValue = dateValue.toISOString().split('T')[0];
+    }
+    
+    // Ensure final format is YYYY-MM-DD
+    if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateValue)) {
+      data.fecha_nacimiento = dateValue.substring(0, 10); // Take only first 10 chars (YYYY-MM-DD)
+    }
+    
+    // Update the actual data field
+    data.fecha_nacimiento = dateValue;
+    
+    console.log('[GET_PROFILE] Date conversion:', {
+      original: data.fecha_nacimiento,
+      converted: dateValue,
+    });
+  }
+  
   console.log('getProfile result:', {
     data: data,
     avatar_url: data?.avatar_url,
@@ -1500,11 +1521,79 @@ export const getProfile = async (userId) => {
 };
 
 export const updateProfile = async (userId, profileData) => {
+  console.log('[UPDATE_PROFILE] Input fields:', Object.keys(profileData));
+  console.log('[UPDATE_PROFILE] Input data:', profileData);
+  
   const completion = calculateProfileCompletion(profileData);
+  
+  // Valid columns in usuarios table
+  const validColumns = [
+    'nombre', 'email', 'avatar_url', 'red_social', 'localidad', 'ranking',
+    'partidos_jugados', 'posicion', 'acepta_invitaciones', 'bio',
+    'perfil_completo', 'profile_completion', 'pais_codigo', 'nacionalidad',
+    'latitud', 'longitud', 'fecha_nacimiento', 'partidos_abandonados',
+    'numero', 'telefono', 'mvps', 'tarjetas_rojas', 'rating', 'updated_at',
+  ];
+  
+  // Field mapping for frontend to database
+  const fieldMapping = {
+    'social': 'red_social',
+    'socialHandle': 'red_social',
+    'social_handle': 'red_social',
+    'ciudad': 'localidad',
+    'city': 'localidad',
+    'birthDate': 'fecha_nacimiento',
+    'dateOfBirth': 'fecha_nacimiento',
+    'birth_date': 'fecha_nacimiento',
+    'phone': 'telefono',
+    'position': 'posicion',
+    'country': 'pais_codigo',
+    'nationality': 'nacionalidad',
+    'number': 'numero',
+    'playerNumber': 'numero',
+    'player_number': 'numero',
+  };
+  
+  // Filter and map fields
+  const cleanProfileData = {};
+  Object.keys(profileData).forEach((key) => {
+    const dbKey = fieldMapping[key] || key;
+    if (validColumns.includes(dbKey)) {
+      let value = profileData[key];
+      
+      // Convert date format for fecha_nacimiento
+      if (dbKey === 'fecha_nacimiento' && value) {
+        if (typeof value === 'string') {
+          // Convert from "2025-07-10T00:00:00" to "2025-07-10"
+          if (value.includes('T')) {
+            value = value.split('T')[0];
+          }
+          // Ensure it's a valid date format (YYYY-MM-DD)
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            console.warn('[UPDATE_PROFILE] Invalid date format:', value);
+            value = null;
+          }
+        } else if (value instanceof Date) {
+          // Convert Date object to YYYY-MM-DD format
+          value = value.toISOString().split('T')[0];
+        }
+      }
+      
+      if (value === null || value === undefined || 
+          typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        cleanProfileData[dbKey] = value;
+      }
+    }
+  });
+  
+  const finalData = { ...cleanProfileData, profile_completion: completion, updated_at: new Date().toISOString() };
+  
+  console.log('[UPDATE_PROFILE] Mapped fields:', Object.keys(finalData));
+  console.log('[UPDATE_PROFILE] Final data:', finalData);
   
   const { data, error } = await supabase
     .from('usuarios')
-    .update({ ...profileData, profile_completion: completion })
+    .update(finalData)
     .eq('id', userId)
     .select()
     .single();
@@ -1939,6 +2028,9 @@ export const removePlayerFromMatch = async (userId, partidoId) => {
       
     if (error) throw error;
     
+    // Increment partidos_abandonados for leaving player
+    await incrementPartidosAbandonados(userId);
+    
     return { success: true };
   } catch (error) {
     console.error('Error removing player from match:', error);
@@ -2026,6 +2118,247 @@ export const unsubscribeFromTeamsChanges = (subscription) => {
   if (subscription) {
     console.log('[TEAMS_REALTIME] Unsubscribing from teams changes');
     supabase.removeChannel(subscription);
+  }
+};
+
+// --- Post Match Survey Processing ---
+
+/**
+ * Process post-match surveys and update player stats (MVP, red cards, ratings)
+ * @param {number} partidoId - Match ID
+ * @returns {Object} Processing results
+ */
+export const processPostMatchSurveys = async (partidoId) => {
+  if (!partidoId) {
+    throw new Error('Match ID is required');
+  }
+  
+  console.log('[POST_MATCH] Processing surveys for match:', partidoId);
+  
+  try {
+    // Get all surveys for this match
+    const { data: surveys, error: surveysError } = await supabase
+      .from('post_match_surveys')
+      .select('*')
+      .eq('partido_id', partidoId);
+      
+    if (surveysError) throw surveysError;
+    
+    if (!surveys || surveys.length === 0) {
+      console.log('[POST_MATCH] No surveys found for match:', partidoId);
+      return { message: 'No surveys to process' };
+    }
+    
+    console.log('[POST_MATCH] Found', surveys.length, 'surveys');
+    
+    // Get match players
+    const matchPlayers = await getJugadoresDelPartido(partidoId);
+    if (!matchPlayers || matchPlayers.length === 0) {
+      throw new Error('No players found for this match');
+    }
+    
+    // Process MVP votes (combine both teams)
+    const mvpVotes = {};
+    surveys.forEach((survey) => {
+      if (survey.mejor_jugador_eq_a) {
+        mvpVotes[survey.mejor_jugador_eq_a] = (mvpVotes[survey.mejor_jugador_eq_a] || 0) + 1;
+      }
+      if (survey.mejor_jugador_eq_b) {
+        mvpVotes[survey.mejor_jugador_eq_b] = (mvpVotes[survey.mejor_jugador_eq_b] || 0) + 1;
+      }
+    });
+    
+    // Process violent player votes
+    const violentVotes = {};
+    surveys.forEach((survey) => {
+      if (survey.jugadores_violentos && Array.isArray(survey.jugadores_violentos)) {
+        survey.jugadores_violentos.forEach((playerId) => {
+          violentVotes[playerId] = (violentVotes[playerId] || 0) + 1;
+        });
+      }
+    });
+    
+    // Process absent players with detailed analysis
+    const absentPlayersSet = new Set();
+    surveys.forEach((survey) => {
+      if (survey.jugadores_ausentes && Array.isArray(survey.jugadores_ausentes)) {
+        survey.jugadores_ausentes.forEach((playerId) => {
+          absentPlayersSet.add(playerId);
+        });
+      }
+    });
+    
+    // Get absence data for all absent players
+    const { getAbsenceDataForSurveyProcessing } = await import('../services/absenceService');
+    const absentPlayersData = await getAbsenceDataForSurveyProcessing(
+      partidoId, 
+      Array.from(absentPlayersSet),
+    );
+    
+    console.log('[POST_MATCH] Vote counts:', {
+      mvpVotes,
+      violentVotes,
+      absentPlayersData,
+    });
+    
+    // Determine MVP (most voted) - ONLY 1 MVP per match
+    let mvpPlayerId = null;
+    let maxMvpVotes = 0;
+    Object.entries(mvpVotes).forEach(([playerId, votes]) => {
+      if (votes > maxMvpVotes) {
+        maxMvpVotes = votes;
+        mvpPlayerId = playerId;
+      } else if (votes === maxMvpVotes && maxMvpVotes > 0) {
+        // In case of tie, use random selection
+        if (Math.random() < 0.5) {
+          mvpPlayerId = playerId;
+        }
+      }
+    });
+    
+    // Determine most violent player - ONLY 1 red card per match
+    let violentPlayerId = null;
+    let maxViolentVotes = 0;
+    Object.entries(violentVotes).forEach(([playerId, votes]) => {
+      if (votes > maxViolentVotes) {
+        maxViolentVotes = votes;
+        violentPlayerId = playerId;
+      } else if (votes === maxViolentVotes && maxViolentVotes > 0) {
+        // In case of tie, use random selection
+        if (Math.random() < 0.5) {
+          violentPlayerId = playerId;
+        }
+      }
+    });
+    
+    console.log('[POST_MATCH] Winners:', {
+      mvpPlayerId,
+      maxMvpVotes,
+      violentPlayerId,
+      maxViolentVotes,
+    });
+    
+    // Update player stats
+    const updates = [];
+    
+    // Update MVP - only if there are votes
+    if (mvpPlayerId && maxMvpVotes > 0) {
+      const mvpPlayer = matchPlayers.find((p) => p.uuid === mvpPlayerId || p.usuario_id === mvpPlayerId);
+      if (mvpPlayer?.usuario_id) {
+        console.log('[POST_MATCH] Updating MVP for player:', mvpPlayer.nombre);
+        updates.push(
+          supabase
+            .from('usuarios')
+            .update({ mvps: supabase.raw('COALESCE(mvps, 0) + 1') })
+            .eq('id', mvpPlayer.usuario_id),
+        );
+      }
+    }
+    
+    // Update red card - only if there are votes
+    if (violentPlayerId && maxViolentVotes > 0) {
+      const violentPlayer = matchPlayers.find((p) => p.uuid === violentPlayerId || p.usuario_id === violentPlayerId);
+      if (violentPlayer?.usuario_id) {
+        console.log('[POST_MATCH] Updating red card for player:', violentPlayer.nombre);
+        updates.push(
+          supabase
+            .from('usuarios')
+            .update({ tarjetas_rojas: supabase.raw('COALESCE(tarjetas_rojas, 0) + 1') })
+            .eq('id', violentPlayer.usuario_id),
+        );
+      }
+    }
+    
+    // Update ratings for absent players (penalty) - only if conditions are met
+    Object.entries(absentPlayersData).forEach(([playerId, data]) => {
+      const absentPlayer = matchPlayers.find((p) => p.uuid === playerId || p.usuario_id === playerId);
+      if (absentPlayer?.usuario_id) {
+        if (data.shouldApplyPenalty) {
+          console.log('[POST_MATCH] Applying rating penalty for absent player:', absentPlayer.nombre, {
+            notifiedInTime: data.notifiedInTime,
+            foundReplacement: data.foundReplacement,
+          });
+          updates.push(
+            supabase
+              .from('usuarios')
+              .update({ 
+                rating: supabase.raw('GREATEST(COALESCE(rating, 5.0) - 0.5, 1.0)'), // Min rating of 1.0
+              })
+              .eq('id', absentPlayer.usuario_id),
+          );
+        } else {
+          console.log('[POST_MATCH] Skipping rating penalty for player:', absentPlayer.nombre, {
+            reason: data.notifiedInTime ? 'notified in time' : 'found replacement',
+          });
+        }
+      }
+    });
+    
+    // Execute all updates
+    if (updates.length > 0) {
+      console.log('[POST_MATCH] Executing', updates.length, 'updates');
+      const results = await Promise.all(updates);
+      
+      const errors = results.filter((r) => r.error);
+      if (errors.length > 0) {
+        console.error('[POST_MATCH] Update errors:', errors);
+        throw new Error(`Failed to update ${errors.length} player stats`);
+      }
+    }
+    
+    const result = {
+      surveysProcessed: surveys.length,
+      mvpAwarded: mvpPlayerId && maxMvpVotes > 0 ? 1 : 0,
+      redCardsAwarded: violentPlayerId && maxViolentVotes > 0 ? 1 : 0,
+      ratingPenalties: Object.values(absentPlayersData).filter((d) => d.shouldApplyPenalty).length,
+      updatesExecuted: updates.length,
+    };
+    
+    console.log('[POST_MATCH] Processing completed:', result);
+    return result;
+    
+  } catch (error) {
+    console.error('[POST_MATCH] Error processing surveys:', error);
+    throw error;
+  }
+};
+
+/**
+ * Check if surveys for a match have been processed
+ * @param {number} partidoId - Match ID
+ * @returns {boolean} Whether surveys have been processed
+ */
+export const checkSurveysProcessed = async (partidoId) => {
+  try {
+    const { data, error } = await supabase
+      .from('partidos')
+      .select('surveys_processed')
+      .eq('id', partidoId)
+      .single();
+      
+    if (error) throw error;
+    return !!data?.surveys_processed;
+  } catch (error) {
+    console.error('Error checking surveys processed:', error);
+    return false;
+  }
+};
+
+/**
+ * Mark surveys as processed for a match
+ * @param {number} partidoId - Match ID
+ */
+export const markSurveysAsProcessed = async (partidoId) => {
+  try {
+    const { error } = await supabase
+      .from('partidos')
+      .update({ surveys_processed: true })
+      .eq('id', partidoId);
+      
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error marking surveys as processed:', error);
+    throw error;
   }
 };
 

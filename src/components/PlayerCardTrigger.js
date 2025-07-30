@@ -11,7 +11,7 @@ export const TeamDisplayContext = React.createContext(false);
  * @param {Object} props.profile - Player profile data
  * @param {ReactNode} props.children - Child components to render as the clickable trigger
  */
-const PlayerCardTrigger = ({ profile, children }) => {
+const PlayerCardTrigger = ({ profile, children, partidoActual, onMakeAdmin }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const isInTeamDisplay = useContext(TeamDisplayContext);
 
@@ -48,6 +48,8 @@ const PlayerCardTrigger = ({ profile, children }) => {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         profile={profile}
+        partidoActual={partidoActual}
+        onMakeAdmin={onMakeAdmin}
       />
     </>
   );

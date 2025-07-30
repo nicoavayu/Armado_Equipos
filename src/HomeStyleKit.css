@@ -9,7 +9,7 @@
   --radius-btn: 18px;
   --font-main: 'Bebas Neue', arial, sans-serif;
   --shadow-card: 0 2px 18px 0 rgb(34 40 80 / 10%);
-  --gradient-bg: linear-gradient(135deg, #55a7ff 0%, #f6f 100%);
+  --gradient-bg: linear-gradient(135deg, #24c6dc 10%, #514a9d 100%);
   --white: #fff;
   --white-transparent: rgb(255 255 255 / 29%);
 }
@@ -46,7 +46,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 0;
+  padding-top: 20px;
   overflow-x: hidden;
 }
 

@@ -11,7 +11,7 @@
   font-size: 18px !important;
   padding: 12px 16px !important;
   border-radius: 8px !important;
-  width: 94% !important;
+  width: 100% !important;
   box-sizing: border-box !important;
   height: 48px !important;
   transition: all 0.2s ease !important;
@@ -28,7 +28,7 @@
 }
 
 .edit-form-container .input-modern::placeholder {
-  color: rgb(255 255 255 / 50%) !important;
+  color: rgba(255, 255, 255, 1) !important;
   font-family: Oswald, Arial, sans-serif !important;
 }
 
@@ -63,7 +63,7 @@
 /* Para Firefox */
 .input-modern[type="date"]::placeholder,
 .input-modern[type="time"]::placeholder {
-  color: rgb(255 255 255 / 50%) !important;
+  color: rgb(255, 255, 255) !important;
 }
 
 /* Contenedor del formulario de edición */

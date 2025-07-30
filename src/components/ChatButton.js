@@ -13,8 +13,14 @@ export default function ChatButton({ partidoId }) {
   // [TEAM_BALANCER_EDIT] Verificar acceso al chat
   useEffect(() => {
     async function checkChatAccess() {
-      if (!partidoId || !user?.id) {
+      if (!partidoId) {
         setCanAccessChat(false);
+        return;
+      }
+      
+      // Si no hay usuario (invitado), permitir acceso al chat
+      if (!user?.id) {
+        setCanAccessChat(true);
         return;
       }
       
@@ -98,7 +104,7 @@ export default function ChatButton({ partidoId }) {
     checkUnreadMessages();
   };
 
-  // [TEAM_BALANCER_EDIT] Solo mostrar chat si el usuario tiene acceso
+  // [TEAM_BALANCER_EDIT] Solo mostrar chat si hay partidoId y el usuario tiene acceso
   if (!partidoId || !canAccessChat) return null;
 
   return (

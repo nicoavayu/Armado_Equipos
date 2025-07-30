@@ -13,6 +13,7 @@ import {
   getTeamsFromDatabase,
   supabase,
 } from './supabase';
+import { incrementPartidosAbandonados } from './services/matchStatsService';
 import { toast } from 'react-toastify';
 import { handleError, handleSuccess, safeAsync } from './utils/errorHandler';
 import { UI_MESSAGES, VALIDATION_RULES } from './constants';
@@ -72,7 +73,10 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   console.log('Jugadores en AdminPanel:', jugadores);
   
   // [TEAM_BALANCER_EDIT] Control de permisos: verificar si el usuario es admin del partido
-  const isAdmin = user?.id && partidoActual?.creado_por === user.id;
+  const isAdmin = user?.id && (
+    partidoActual?.creado_por === user.id || 
+    (partidoActual?.admins && partidoActual.admins.includes(user.id))
+  );
   const currentPlayerInMatch = jugadores.find((j) => j.usuario_id === user?.id);
   const isPlayerInMatch = !!currentPlayerInMatch;
   
@@ -161,31 +165,62 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   
   // [TEAM_BALANCER_INVITE_ACCESS_FIX] Control de acceso separado
   useEffect(() => {
-    console.log('[ACCESS_DEBUG] Access control check:', {
-      userId: user?.id,
-      matchId: partidoActual?.id,
-      invitationChecked,
-      isPlayerInMatch,
-      isAdmin,
-      pendingInvitation,
-    });
+    const checkKickedStatus = async () => {
+      if (!user?.id || !partidoActual?.id) return false;
+      
+      try {
+        const { data: kickNotification } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('type', 'match_kicked')
+          .contains('data', { matchId: partidoActual.id })
+          .single();
+          
+        return !!kickNotification;
+      } catch (error) {
+        return false;
+      }
+    };
     
-    if (!user?.id || !partidoActual?.id || !invitationChecked) {
-      console.log('[ACCESS_DEBUG] Skipping access check - missing data or invitation not checked yet');
-      return;
-    }
+    const runAccessCheck = async () => {
+      console.log('[ACCESS_DEBUG] Access control check:', {
+        userId: user?.id,
+        matchId: partidoActual?.id,
+        invitationChecked,
+        isPlayerInMatch,
+        isAdmin,
+        pendingInvitation,
+      });
+      
+      if (!user?.id || !partidoActual?.id || !invitationChecked) {
+        console.log('[ACCESS_DEBUG] Skipping access check - missing data or invitation not checked yet');
+        return;
+      }
+      
+      // Verificar si fue expulsado
+      const wasKicked = await checkKickedStatus();
+      if (wasKicked) {
+        console.log('[ACCESS_DEBUG] User was kicked, redirecting to home');
+        toast.error('Has sido expulsado de este partido');
+        onBackToHome();
+        return;
+      }
+      
+      // Solo redirigir si el usuario NO está en la nómina, NO es admin y NO tiene invitación pendiente
+      const shouldRedirect = !isPlayerInMatch && !isAdmin && !pendingInvitation;
+      console.log('[ACCESS_DEBUG] Should redirect?', shouldRedirect);
+      
+      if (shouldRedirect) {
+        console.log('[ACCESS_DEBUG] Redirecting to home - no access');
+        toast.error('No estás invitado a este partido');
+        onBackToHome();
+      } else {
+        console.log('[ACCESS_DEBUG] Access granted');
+      }
+    };
     
-    // Solo redirigir si el usuario NO está en la nómina, NO es admin y NO tiene invitación pendiente
-    const shouldRedirect = !isPlayerInMatch && !isAdmin && !pendingInvitation;
-    console.log('[ACCESS_DEBUG] Should redirect?', shouldRedirect);
-    
-    if (shouldRedirect) {
-      console.log('[ACCESS_DEBUG] Redirecting to home - no access');
-      toast.error('No estás invitado a este partido');
-      onBackToHome();
-    } else {
-      console.log('[ACCESS_DEBUG] Access granted');
-    }
+    runAccessCheck();
   }, [user?.id, partidoActual, isPlayerInMatch, isAdmin, pendingInvitation, invitationChecked, onBackToHome]);
   // useEffect para refrescar jugadores desde la tabla jugadores
   useEffect(() => {
@@ -321,7 +356,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   }
 
 
-  async function eliminarJugador(uuid) {
+  async function eliminarJugador(uuid, esExpulsion = false) {
     const jugadorAEliminar = jugadores.find((j) => j.uuid === uuid);
     
     // [TEAM_BALANCER_EDIT] Control de permisos para eliminar jugadores
@@ -339,9 +374,12 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       }
     }
     
+    const esAutoEliminacion = jugadorAEliminar?.usuario_id === user?.id;
+    const esExpulsionPorAdmin = isAdmin && !esAutoEliminacion;
+    
     setLoading(true);
     try {
-      console.log('[ADMIN_PANEL] Removing player from match:', { uuid, partidoId: partidoActual.id });
+      console.log('[ADMIN_PANEL] Removing player from match:', { uuid, partidoId: partidoActual.id, esExpulsionPorAdmin });
       
       // Eliminar jugador específico de la tabla jugadores (usando uuid como string)
       const { error } = await supabase
@@ -352,12 +390,41 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         
       if (error) throw error;
       
+      // Solo incrementar partidos abandonados si es auto-eliminación
+      if (esAutoEliminacion && jugadorAEliminar?.usuario_id) {
+        try {
+          await incrementPartidosAbandonados(jugadorAEliminar.usuario_id);
+        } catch (abandonError) {
+          console.error('Error incrementing abandoned matches:', abandonError);
+        }
+      }
+      
       console.log('[ADMIN_PANEL] Player removed successfully');
       
-      // [TEAM_BALANCER_EDIT] Si el jugador se eliminó a sí mismo, volver al home
-      if (jugadorAEliminar?.usuario_id === user?.id) {
+      // Si es auto-eliminación, volver al home
+      if (esAutoEliminacion) {
         toast.success('Te has eliminado del partido');
         setTimeout(() => onBackToHome(), 1000);
+      }
+      
+      // Si es expulsión por admin, notificar al jugador expulsado
+      if (esExpulsionPorAdmin && jugadorAEliminar?.usuario_id) {
+        try {
+          await supabase.from('notifications').insert([{
+            user_id: jugadorAEliminar.usuario_id,
+            type: 'match_kicked',
+            title: 'Expulsado del partido',
+            message: `Has sido expulsado del partido "${partidoActual.nombre || 'PARTIDO'}"`,
+            data: {
+              matchId: partidoActual.id,
+              matchName: partidoActual.nombre,
+              kickedBy: user.id,
+            },
+            read: false,
+          }]);
+        } catch (notifError) {
+          console.error('Error sending kick notification:', notifError);
+        }
       }
       
       // El useEffect se encargará de refrescar la lista automáticamente
@@ -631,10 +698,10 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     window.open(`https://wa.me/?text=${encodeURIComponent('Entrá a votar para armar los equipos: ' + url)}`, '_blank');
   }
   
-  // [TEAM_BALANCER_EDIT] Función para transferir admin
-  async function transferirAdmin(nuevoAdminId) {
+  // [TEAM_BALANCER_EDIT] Función para agregar admin
+  async function agregarAdmin(nuevoAdminId) {
     if (!isAdmin) {
-      toast.error('Solo el admin puede transferir el rol');
+      toast.error('Solo un admin puede hacer admin a otros');
       return;
     }
     
@@ -644,22 +711,40 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
     
     try {
+      // Obtener admins actuales
+      const { data: partidoData } = await supabase
+        .from('partidos')
+        .select('admins')
+        .eq('id', partidoActual.id)
+        .single();
+        
+      const adminsActuales = partidoData?.admins || [partidoActual.creado_por];
+      
+      // Verificar si ya es admin
+      if (adminsActuales.includes(nuevoAdminId)) {
+        toast.error('Este jugador ya es admin');
+        return;
+      }
+      
+      // Agregar nuevo admin
+      const nuevosAdmins = [...adminsActuales, nuevoAdminId];
+      
       const { error } = await supabase
         .from('partidos')
-        .update({ creado_por: nuevoAdminId })
+        .update({ admins: nuevosAdmins })
         .eq('id', partidoActual.id);
         
       if (error) throw error;
       
       // Actualizar estado local
-      partidoActual.creado_por = nuevoAdminId;
+      partidoActual.admins = nuevosAdmins;
       
       const nuevoAdmin = jugadores.find((j) => j.usuario_id === nuevoAdminId);
-      toast.success(`${nuevoAdmin?.nombre || 'El jugador'} es ahora el admin del partido`);
+      toast.success(`${nuevoAdmin?.nombre || 'El jugador'} es ahora admin del partido`);
       
     } catch (error) {
-      console.error('Error transferring admin:', error);
-      toast.error('Error al transferir admin: ' + error.message);
+      console.error('Error adding admin:', error);
+      toast.error('Error al hacer admin: ' + error.message);
     }
   }
   
@@ -998,6 +1083,15 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   return (
     <>
       <ChatButton partidoId={partidoActual?.id} />
+      
+      {/* Header bar */}
+      <div className="admin-panel-header">
+        <div className="header-content">
+          <button className="back-button" onClick={onBackToHome}>←</button>
+          <h2>CONVOCA JUGADORES</h2>
+        </div>
+      </div>
+      
       <div className="admin-panel-content">
         {showTeams ? (
           <TeamDisplay
@@ -1007,15 +1101,31 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             onBackToHome={onBackToHome}
             isAdmin={isAdmin} // [TEAM_BALANCER_EDIT] Pasar permisos de admin
             partidoId={partidoActual?.id} // Para suscripción en tiempo real
+            nombre={partidoActual?.nombre}
+            fecha={partidoActual?.fecha}
+            hora={partidoActual?.hora}
+            sede={partidoActual?.sede}
           />
         ) : (
           <>
             {/* Match header with custom name and details */}
-            <div className="match-header">
-              <div className="match-name">
+            <div className="match-header" style={{ textAlign: 'center', marginBottom: '24px', width: '100%' }}>
+              <div className="match-name" style={{ 
+                fontSize: '36px', 
+                fontWeight: 'bold', 
+                marginBottom: '7px',
+                fontFamily: 'Bebas Neue, Arial, sans-serif',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+              }}>
                 {getMatchName()}
               </div>
-              <div className="match-details">
+              <div className="match-details" style={{ 
+                fontSize: '26px', 
+                color: 'rgba(255,255,255,0.9)',
+                textAlign: 'center',
+                lineHeight: '1.4',
+              }}>
                 {partidoActual.fecha && new Date(partidoActual.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
                   weekday: 'long', 
                   day: 'numeric', 
@@ -1030,6 +1140,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                       target="_blank"
                       rel="noopener noreferrer"
                       className="venue-link"
+                      style={{ color: 'rgba(255,255,255,0.9)', textDecoration: 'underline' }}
                     >
                       {getShortVenueName(partidoActual.sede)}
                     </a>
@@ -1104,29 +1215,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
               </div>
             )}
             
-            {/* Botón invitar amigos - Para jugadores no-admin */}
-            {!isAdmin && isPlayerInMatch && !pendingInvitation && (
-              <div className="admin-add-section">
-                <button
-                  className="voting-confirm-btn"
-                  onClick={() => setShowInviteModal(true)}
-                  disabled={!partidoActual?.id || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
-                  style={{ background: '#4CAF50', borderColor: '#4CAF50' }}
-                >
-                  INVITAR AMIGOS
-                </button>
-                {!partidoActual?.id && (
-                  <div style={{ color: '#ff6b35', fontSize: '14px', textAlign: 'center', marginTop: '8px' }}>
-                    Partido no válido - No se pueden enviar invitaciones
-                  </div>
-                )}
-                {partidoActual?.id && partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores && (
-                  <div style={{ color: '#ff6b35', fontSize: '14px', textAlign: 'center', marginTop: '8px' }}>
-                    Partido lleno - No se pueden invitar más jugadores
-                  </div>
-                )}
-              </div>
-            )}
+
 
             {/* Players list section */}
             <div className="admin-players-section">
@@ -1159,7 +1248,12 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                     console.log('Render jugador:', j.nombre, j.foto_url, j.avatar_url, j.uuid);
 
                     return (
-                      <PlayerCardTrigger key={j.uuid} profile={j}>
+                      <PlayerCardTrigger 
+                        key={j.uuid} 
+                        profile={j}
+                        partidoActual={partidoActual}
+                        onMakeAdmin={agregarAdmin}
+                      >
                         <div
                           className={`admin-player-item${hasVoted ? ' voted' : ''}`}
                           style={hasVoted ? {
@@ -1178,38 +1272,21 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                             <div className="admin-player-avatar-placeholder">👤</div>
                           )}
 
-                          <span className="admin-player-name">{j.nombre}</span>
-                          
-                          {/* Solo admin ve puntajes personales */}
-                          {isAdmin && j.score !== null && j.score !== undefined && (
-                            <span className="admin-player-score" style={{
-                              fontSize: '12px',
-                              color: 'rgba(255,255,255,0.7)',
-                              marginLeft: '8px',
-                            }}>
-                              {j.score.toFixed(1)}
-                            </span>
-                          )}
+                          <span 
+                            className="admin-player-name"
+                            style={{
+                              color: (partidoActual?.creado_por === j.usuario_id || 
+                                     (partidoActual?.admins && partidoActual.admins.includes(j.usuario_id))) 
+                                ? '#FFD700' : 'white',
+                            }}
+                          >
+
+                            {j.nombre}
+                          </span>
                           
                           {/* [TEAM_BALANCER_EDIT] Botones de acción según permisos */}
                           <div className="player-actions">
-                            {/* Botón hacer admin - Solo para admin, solo para jugadores con cuenta que no sean el admin actual */}
-                            {isAdmin && j.usuario_id && j.usuario_id !== user?.id && (
-                              <button
-                                className="make-admin-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (window.confirm(`¿Hacer admin a ${j.nombre}?`)) {
-                                    transferirAdmin(j.usuario_id);
-                                  }
-                                }}
-                                type="button"
-                                title="Hacer admin"
-                                disabled={isClosing}
-                              >
-                                👑
-                              </button>
-                            )}
+
                             
                             {/* Botón eliminar - Admin puede eliminar a otros, jugadores solo a sí mismos */}
                             {(isAdmin || j.usuario_id === user?.id) && (
@@ -1327,17 +1404,27 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
               
               {/* Botones para jugadores no-admin que están en el partido */}
               {!isAdmin && isPlayerInMatch && !pendingInvitation && (
-                <button
-                  className="voting-confirm-btn"
-                  onClick={() => {
-                    if (window.confirm('¿Estás seguro de que quieres abandonar el partido?')) {
-                      eliminarJugador(user.id);
-                    }
-                  }}
-                  style={{ background: '#f44336', borderColor: '#f44336' }}
-                >
-                  ABANDONAR PARTIDO
-                </button>
+                <>
+                  <button
+                    className="voting-confirm-btn"
+                    onClick={() => setShowInviteModal(true)}
+                    disabled={!partidoActual?.id || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
+                    style={{ background: '#4CAF50', borderColor: '#4CAF50' }}
+                  >
+                    INVITAR AMIGOS
+                  </button>
+                  <button
+                    className="voting-confirm-btn"
+                    onClick={() => {
+                      if (window.confirm('¿Estás seguro de que quieres abandonar el partido?')) {
+                        eliminarJugador(user.id, false);
+                      }
+                    }}
+                    style={{ background: '#f44336', borderColor: '#f44336' }}
+                  >
+                    ABANDONAR PARTIDO
+                  </button>
+                </>
               )}
             </div>
           

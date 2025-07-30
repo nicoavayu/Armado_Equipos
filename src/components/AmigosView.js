@@ -183,7 +183,35 @@ const AmigosView = () => {
   return (
     <div className="amigos-container">
       <div className="amigos-header">
-        <div className="match-name">AMIGOS</div>
+        <div style={{ position: 'relative', marginBottom: '24px' }}>
+          <button 
+            onClick={() => window.history.back()}
+            style={{
+              position: 'absolute',
+              top: '-2px',
+              left: '-130px',
+              background: 'none',
+              border: 'none',
+              color: 'white',
+              fontSize: '18px',
+              cursor: 'pointer',
+              padding: '8px',
+              borderRadius: '12px',
+              transition: 'background 0.2s',
+              minWidth: '40px',
+              minHeight: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10,
+            }}
+            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.15)'}
+            onMouseLeave={(e) => e.target.style.background = 'none'}
+          >
+            ◀
+          </button>
+          <div className="match-name" style={{ paddingLeft: '0px' }}>AMIGOS</div>
+        </div>
       </div>
       
       {/* Search section */}

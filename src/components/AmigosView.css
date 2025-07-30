@@ -6,49 +6,51 @@
 
 .amigos-header {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
   margin-bottom: 20px;
-  flex-wrap: wrap;
   gap: 15px;
 }
 
-.search-users-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  padding: 10px 20px;
-  border-radius: 25px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.match-name {
+  /* Título AMIGOS */
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1.0;
+  margin-bottom: 6px;
+  text-align: center;
+  text-shadow: 0 2px 4px rgb(0 0 0 / 30%);
+  word-break: break-word;
+  width: 100%;
 }
 
-.search-users-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
-}
-
-/* Search section styles */
 .amigos-search-section {
-  margin: 20px 0;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 20px auto;
   position: relative;
 }
 
 .amigos-search-input {
   width: 100%;
-  padding: 12px 16px;
+  max-width: 700px; /* el máximo visible del input */
+  min-width: 150px;
+  padding: 16px 20px;
+  font-size: 20px;
   border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.1);
   color: white;
-  font-size: 16px;
   font-family: 'Oswald', Arial, sans-serif;
   box-sizing: border-box;
+  margin: 0 auto;
+  display: block;
 }
 
 .amigos-search-input::placeholder {
@@ -62,17 +64,53 @@
 }
 
 .amigos-search-results {
+  width: 100%;
+  max-width: 700px;
+  margin: 0 auto;
+  border-radius: 12px;
   position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   top: 100%;
-  left: 0;
-  right: 0;
   background: rgba(0, 0, 0, 0.9);
-  border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   max-height: 300px;
   overflow-y: auto;
   z-index: 1000;
   margin-top: 4px;
+}
+
+@media (max-width: 800px) {
+  .amigos-container {
+    padding: 10px;
+  }
+  .amigos-search-section,
+  .amigos-search-results {
+    max-width: 98vw;
+  }
+  .amigos-search-input {
+    max-width: 98vw;
+    font-size: 17px;
+    padding: 14px 8px;
+  }
+  .match-name {
+    font-size: 38px;
+  }
+}
+
+@media (max-width: 480px) {
+  .amigos-search-section,
+  .amigos-search-results {
+    max-width: 99vw;
+  }
+  .amigos-search-input {
+    max-width: 99vw;
+    font-size: 16px;
+    padding: 12px 4px;
+  }
+  .match-name {
+    font-size: 28px;
+  }
 }
 
 .search-loading {
@@ -160,33 +198,6 @@
   color: rgba(255, 255, 255, 0.5);
   cursor: not-allowed;
 }
-
-@media (max-width: 768px) {
-  .amigos-header {
-    flex-direction: column;
-    text-align: center;
-  }
-  
-  .search-users-btn {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-/* Using global match-name class from HomeStyleKit.css for the main title */
-/* .match-name is defined in HomeStyleKit.css as:
-  font-family: 'Bebas Neue', Arial, sans-serif;
-  font-size: 48px;
-  font-weight: 700;
-  color: #fff;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  line-height: 1.0;
-  margin-bottom: 6px;
-  text-align: center;
-  text-shadow: 0 2px 4px rgb(0 0 0 / 30%);
-  word-break: break-word;
-*/
 
 .amigos-title {
   font-size: 28px;
@@ -322,28 +333,67 @@
   .amigos-chips-list {
     gap: 10px;
   }
-  
   .amigos-pending-item {
     flex-direction: column;
     gap: 15px;
   }
-  
   .amigos-pending-actions {
     width: 100%;
     justify-content: center;
   }
 }
+.amigos-search-section {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto 20px auto;
+  position: relative;
+  /* No uses padding lateral acá */
+}
 
-@media (max-width: 480px) {
-  .amigos-chips-list {
-    gap: 8px;
+.amigos-search-input {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 16px 20px;
+  font-size: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-family: 'Oswald', Arial, sans-serif;
+  margin: 0 auto;
+  display: block;
+}
+
+@media (max-width: 800px) {
+  .amigos-search-section {
+    max-width: 100vw;
+    padding: 0;
   }
-  
-  .amigos-title {
-    font-size: 24px;
-  }
-  
-  .amigos-section-title {
-    font-size: 18px;
+  .amigos-search-input {
+    max-width: 100vw;
+    font-size: 17px;
+    padding: 14px 8px;
   }
 }
+
+@media (max-width: 480px) {
+  .amigos-search-section {
+    max-width: 100vw;
+    padding: 0;
+  }
+  .amigos-search-input {
+    max-width: 100vw;
+    font-size: 16px;
+    padding: 12px 4px;
+  }
+}
+
+.amigos-search-input {
+  width: 90vw !important;
+  max-width:  !important;
+}
+

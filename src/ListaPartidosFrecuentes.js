@@ -53,7 +53,35 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
   return (
     <div className="voting-bg content-with-tabbar">
       <div className="voting-modern-card" style={{ padding: 42, maxWidth: 420, marginTop: 40, marginBottom: 40 }}>
-        <div className="match-name" style={{ marginBottom: 24, marginTop: 20 }}>PARTIDOS FRECUENTES</div>
+        <div style={{ position: 'relative', marginBottom: 24, marginTop: 20 }}>
+          <button 
+            onClick={onVolver}
+            style={{
+              position: 'absolute',
+              top: '-6px',
+              left: '-120px',
+              background: 'none',
+              border: 'none',
+              color: 'white',
+              fontSize: '18px',
+              cursor: 'pointer',
+              padding: '8px',
+              borderRadius: '12px',
+              transition: 'background 0.2s',
+              minWidth: '40px',
+              minHeight: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10,
+            }}
+            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.15)'}
+            onMouseLeave={(e) => e.target.style.background = 'none'}
+          >
+            ◀
+          </button>
+          <div className="match-name" style={{ fontSize: '28px', textAlign: 'center', paddingLeft: '20px' }}>HISTORIAL</div>
+        </div>
         
         {partidosFrecuentes.length === 0 ? (
           <div style={{ color: '#fff', textAlign: 'center', padding: '20px 0', fontFamily: 'Oswald, Arial, sans-serif' }}>

@@ -16,6 +16,8 @@ export default function ProfileEditor({ isOpen, onClose }) {
   const [hasChanges, setHasChanges] = useState(false);
   const fileInputRef = useRef(null);
 
+  const cleanDate = (dateString) => dateString ? dateString.split('T')[0] : '';
+
   const [formData, setFormData] = useState({
     numero: 10,
     nombre: '',
@@ -39,7 +41,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
     if (profile) {
       // Asegurar que tengamos la URL del avatar desde todas las fuentes posibles
       const avatarUrl = profile.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
-      
+
       console.log('ProfileEditor: profile loaded', {
         profile_email: profile.email,
         user_email: user?.email,
@@ -48,7 +50,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
         user_metadata_picture: user?.user_metadata?.picture,
         final_avatar_url: avatarUrl,
       });
-      
+
       // Si tenemos un avatar en los metadatos pero no en el perfil, actualizar el perfil
       if (!profile.avatar_url && (user?.user_metadata?.avatar_url || user?.user_metadata?.picture)) {
         console.log('Updating profile with avatar from user metadata');
@@ -56,7 +58,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
           .then(() => refreshProfile())
           .catch((err) => console.error('Error updating profile with avatar:', err));
       }
-      
+
       const newFormData = {
         numero: profile.numero || 10,
         nombre: profile.nombre || '',
@@ -64,8 +66,8 @@ export default function ProfileEditor({ isOpen, onClose }) {
         nacionalidad: profile.nacionalidad || 'Argentina',
         pais_codigo: profile.pais_codigo || 'AR',
         posicion: profile.posicion || profile.rol_favorito || 'DEF', // Fallback to rol_favorito for backward compatibility
-        fecha_nacimiento: profile.fecha_nacimiento || '',
-        social: profile.social || '',
+        fecha_nacimiento: cleanDate(profile.fecha_nacimiento) || '',
+        social: profile.red_social || '',
         localidad: profile.localidad || '',
         latitud: profile.latitud || null,
         longitud: profile.longitud || null,
@@ -75,12 +77,12 @@ export default function ProfileEditor({ isOpen, onClose }) {
         acepta_invitaciones: profile.acepta_invitaciones !== false,
       };
       setFormData(newFormData);
-      
+
       // Asegurar que el liveProfile tenga el avatar_url correcto
-      setLiveProfile({ 
-        ...profile, 
-        ...newFormData, 
-        avatar_url: avatarUrl, 
+      setLiveProfile({
+        ...profile,
+        ...newFormData,
+        avatar_url: avatarUrl,
         user: user, // Pasar el objeto user completo
       });
       setHasChanges(false);
@@ -95,11 +97,11 @@ export default function ProfileEditor({ isOpen, onClose }) {
     if (field === 'ranking') {
       console.log('[AMIGOS] Updating ranking field in ProfileEditor:', { oldValue: formData.ranking, newValue: value });
     }
-    
+
     const newData = { ...formData, [field]: value };
     setFormData(newData);
     setHasChanges(true);
-    
+
     // Update live profile for real-time card updates
     setLiveProfile({ ...liveProfile, ...newData });
   };
@@ -115,7 +117,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
 
     // Create a local preview immediately
     const localPreviewUrl = URL.createObjectURL(file);
-    
+
     // Update UI immediately with local preview
     setLiveProfile((prev) => ({
       ...prev,
@@ -127,42 +129,42 @@ export default function ProfileEditor({ isOpen, onClose }) {
       // Upload to storage
       const fileExt = file.name.split('.').pop() || 'jpg';
       const fileName = `${user.id}_${Date.now()}.${fileExt}`;
-      
+
       const { error: uploadError } = await supabase.storage
         .from('jugadores-fotos')
         .upload(fileName, file, { upsert: true, cacheControl: '0' });
-      
+
       if (uploadError) throw uploadError;
-      
+
       // Get public URL
       const { data } = supabase.storage
         .from('jugadores-fotos')
         .getPublicUrl(fileName);
-      
+
       const fotoUrl = data?.publicUrl;
       if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
-      
+
       // Update profile in database
       await updateProfile(user.id, { avatar_url: fotoUrl });
-      
+
       // Update user metadata
       await supabase.auth.updateUser({
         data: { avatar_url: fotoUrl },
       });
-      
+
       // Update local state with permanent URL
       setLiveProfile((prev) => ({
         ...prev,
         avatar_url: fotoUrl,
       }));
-      
+
       setHasChanges(true);
       toast.success('Foto actualizada correctamente');
-      
+
     } catch (error) {
       console.error('Error uploading photo:', error);
       toast.error('Error subiendo foto: ' + error.message);
-      
+
       // Revert to previous avatar if upload fails
       setLiveProfile((prev) => ({
         ...prev,
@@ -178,23 +180,42 @@ export default function ProfileEditor({ isOpen, onClose }) {
       toast.error('El nombre es obligatorio');
       return;
     }
+    if (!formData.email.trim()) {
+      toast.error('El email es obligatorio');
+      return;
+    }
 
     setLoading(true);
     try {
-      const updatedProfile = await updateProfile(user.id, formData);
-      
+      const profileDataToSave = {
+        ...formData,
+        fecha_nacimiento: cleanDate(formData.fecha_nacimiento),
+      };
+
+      console.log('[DEBUG] Enviando a updateProfile:', profileDataToSave);
+      const updatedProfile = await updateProfile(user.id, profileDataToSave);
+      console.log('[DEBUG] Resultado de updateProfile:', updatedProfile);
+
+      // Check if updateProfile returned an error
+      if (updatedProfile?.error) {
+        toast.error('Error guardando perfil: ' + updatedProfile.error.message);
+        return;
+      }
+
       const completion = calculateProfileCompletion(updatedProfile);
       if (completion === 100 && (profile?.profile_completion || 0) < 100) {
         toast.success('¡Perfil completado al 100%! 🎉');
       } else {
         toast.success('Perfil guardado correctamente');
       }
-      
+
       await refreshProfile();
       setHasChanges(false);
-      onClose();
+      onClose(); // Only close if successful
     } catch (error) {
+      console.error('[DEBUG] Error en handleSave:', error);
       toast.error('Error guardando perfil: ' + error.message);
+      // Don't close modal on error
     } finally {
       setLoading(false);
     }
@@ -235,87 +256,63 @@ export default function ProfileEditor({ isOpen, onClose }) {
     { key: 'DE', label: 'Alemania' },
     { key: 'AD', label: 'Andorra' },
     { key: 'AO', label: 'Angola' },
-    { key: 'AI', label: 'Anguila' },
-    { key: 'AQ', label: 'Antártida' },
-    { key: 'AG', label: 'Antigua y Barbuda' },
-    { key: 'SA', label: 'Arabia Saudita' },
-    { key: 'DZ', label: 'Argelia' },
+
+
     { key: 'AR', label: 'Argentina' },
     { key: 'AM', label: 'Armenia' },
     { key: 'AW', label: 'Aruba' },
     { key: 'AU', label: 'Australia' },
     { key: 'AT', label: 'Austria' },
-    { key: 'AZ', label: 'Azerbaiyán' },
+
     { key: 'BS', label: 'Bahamas' },
-    { key: 'BD', label: 'Bangladés' },
-    { key: 'BB', label: 'Barbados' },
-    { key: 'BH', label: 'Baréin' },
+
+
+
     { key: 'BE', label: 'Bélgica' },
     { key: 'BZ', label: 'Belice' },
     { key: 'BJ', label: 'Benín' },
-    { key: 'BM', label: 'Bermudas' },
+
     { key: 'BY', label: 'Bielorrusia' },
     { key: 'BO', label: 'Bolivia' },
     { key: 'BA', label: 'Bosnia y Herzegovina' },
-    { key: 'BW', label: 'Botsuana' },
+
     { key: 'BR', label: 'Brasil' },
-    { key: 'BN', label: 'Brunéi' },
+
     { key: 'BG', label: 'Bulgaria' },
-    { key: 'BF', label: 'Burkina Faso' },
-    { key: 'BI', label: 'Burundi' },
-    { key: 'BT', label: 'Bután' },
-    { key: 'CV', label: 'Cabo Verde' },
-    { key: 'KH', label: 'Camboya' },
+
+
+
     { key: 'CM', label: 'Camerún' },
     { key: 'CA', label: 'Canadá' },
-    { key: 'TD', label: 'Chad' },
+
     { key: 'CL', label: 'Chile' },
     { key: 'CN', label: 'China' },
-    { key: 'CY', label: 'Chipre' },
-    { key: 'VA', label: 'Ciudad del Vaticano' },
     { key: 'CO', label: 'Colombia' },
     { key: 'KM', label: 'Comoras' },
-    { key: 'CG', label: 'Congo' },
-    { key: 'KP', label: 'Corea del Norte' },
     { key: 'KR', label: 'Corea del Sur' },
     { key: 'CR', label: 'Costa Rica' },
     { key: 'CI', label: 'Costa de Marfil' },
     { key: 'HR', label: 'Croacia' },
     { key: 'CU', label: 'Cuba' },
-    { key: 'CW', label: 'Curazao' },
     { key: 'DK', label: 'Dinamarca' },
     { key: 'DM', label: 'Dominica' },
     { key: 'EC', label: 'Ecuador' },
     { key: 'EG', label: 'Egipto' },
     { key: 'SV', label: 'El Salvador' },
-    { key: 'AE', label: 'Emiratos Árabes Unidos' },
-    { key: 'ER', label: 'Eritrea' },
     { key: 'SK', label: 'Eslovaquia' },
     { key: 'SI', label: 'Eslovenia' },
     { key: 'ES', label: 'España' },
     { key: 'US', label: 'Estados Unidos' },
     { key: 'EE', label: 'Estonia' },
-    { key: 'ET', label: 'Etiopía' },
-    { key: 'PH', label: 'Filipinas' },
     { key: 'FI', label: 'Finlandia' },
     { key: 'FJ', label: 'Fiyi' },
     { key: 'FR', label: 'Francia' },
-    { key: 'GA', label: 'Gabón' },
-    { key: 'GM', label: 'Gambia' },
-    { key: 'GE', label: 'Georgia' },
     { key: 'GH', label: 'Ghana' },
     { key: 'GI', label: 'Gibraltar' },
-    { key: 'GD', label: 'Granada' },
     { key: 'GR', label: 'Grecia' },
     { key: 'GL', label: 'Groenlandia' },
-    { key: 'GP', label: 'Guadalupe' },
-    { key: 'GU', label: 'Guam' },
     { key: 'GT', label: 'Guatemala' },
     { key: 'GF', label: 'Guayana Francesa' },
-    { key: 'GG', label: 'Guernsey' },
-    { key: 'GN', label: 'Guinea' },
-    { key: 'GQ', label: 'Guinea Ecuatorial' },
-    { key: 'GW', label: 'Guinea-Bisáu' },
     { key: 'GY', label: 'Guyana' },
     { key: 'HT', label: 'Haití' },
     { key: 'HN', label: 'Honduras' },
@@ -323,141 +320,68 @@ export default function ProfileEditor({ isOpen, onClose }) {
     { key: 'HU', label: 'Hungría' },
     { key: 'IN', label: 'India' },
     { key: 'ID', label: 'Indonesia' },
-    { key: 'IQ', label: 'Irak' },
-    { key: 'IR', label: 'Irán' },
     { key: 'IE', label: 'Irlanda' },
     { key: 'IS', label: 'Islandia' },
     { key: 'IL', label: 'Israel' },
     { key: 'IT', label: 'Italia' },
     { key: 'JM', label: 'Jamaica' },
     { key: 'JP', label: 'Japón' },
-    { key: 'JE', label: 'Jersey' },
-    { key: 'JO', label: 'Jordania' },
-    { key: 'KZ', label: 'Kazajistán' },
-    { key: 'KE', label: 'Kenia' },
-    { key: 'KG', label: 'Kirguistán' },
-    { key: 'KI', label: 'Kiribati' },
-    { key: 'KW', label: 'Kuwait' },
-    { key: 'LA', label: 'Laos' },
-    { key: 'LS', label: 'Lesoto' },
     { key: 'LV', label: 'Letonia' },
-    { key: 'LB', label: 'Líbano' },
-    { key: 'LR', label: 'Liberia' },
-    { key: 'LY', label: 'Libia' },
-    { key: 'LI', label: 'Liechtenstein' },
+
     { key: 'LT', label: 'Lituania' },
     { key: 'LU', label: 'Luxemburgo' },
-    { key: 'MO', label: 'Macao' },
-    { key: 'MK', label: 'Macedonia del Norte' },
-    { key: 'MG', label: 'Madagascar' },
-    { key: 'MY', label: 'Malasia' },
-    { key: 'MW', label: 'Malaui' },
-    { key: 'MV', label: 'Maldivas' },
-    { key: 'ML', label: 'Malí' },
-    { key: 'MT', label: 'Malta' },
+
     { key: 'MA', label: 'Marruecos' },
-    { key: 'MQ', label: 'Martinica' },
-    { key: 'MU', label: 'Mauricio' },
-    { key: 'MR', label: 'Mauritania' },
-    { key: 'YT', label: 'Mayotte' },
+
     { key: 'MX', label: 'México' },
-    { key: 'FM', label: 'Micronesia' },
-    { key: 'MD', label: 'Moldavia' },
+
     { key: 'MC', label: 'Mónaco' },
-    { key: 'MN', label: 'Mongolia' },
-    { key: 'ME', label: 'Montenegro' },
-    { key: 'MS', label: 'Montserrat' },
-    { key: 'MZ', label: 'Mozambique' },
-    { key: 'MM', label: 'Myanmar' },
-    { key: 'NA', label: 'Namibia' },
-    { key: 'NR', label: 'Nauru' },
-    { key: 'NP', label: 'Nepal' },
+
     { key: 'NI', label: 'Nicaragua' },
-    { key: 'NE', label: 'Níger' },
-    { key: 'NG', label: 'Nigeria' },
-    { key: 'NU', label: 'Niue' },
+
     { key: 'NO', label: 'Noruega' },
-    { key: 'NC', label: 'Nueva Caledonia' },
+
     { key: 'NZ', label: 'Nueva Zelanda' },
-    { key: 'OM', label: 'Omán' },
+
     { key: 'NL', label: 'Países Bajos' },
-    { key: 'PK', label: 'Pakistán' },
-    { key: 'PW', label: 'Palaos' },
-    { key: 'PS', label: 'Palestina' },
+
     { key: 'PA', label: 'Panamá' },
-    { key: 'PG', label: 'Papúa Nueva Guinea' },
+
     { key: 'PY', label: 'Paraguay' },
     { key: 'PE', label: 'Perú' },
-    { key: 'PF', label: 'Polinesia Francesa' },
+
     { key: 'PL', label: 'Polonia' },
     { key: 'PT', label: 'Portugal' },
     { key: 'PR', label: 'Puerto Rico' },
-    { key: 'QA', label: 'Qatar' },
+
     { key: 'GB', label: 'Reino Unido' },
-    { key: 'CF', label: 'República Centroafricana' },
+
     { key: 'CZ', label: 'República Checa' },
-    { key: 'CD', label: 'República Democrática del Congo' },
+
     { key: 'DO', label: 'República Dominicana' },
-    { key: 'RE', label: 'Reunión' },
-    { key: 'RW', label: 'Ruanda' },
+
     { key: 'RO', label: 'Rumania' },
     { key: 'RU', label: 'Rusia' },
-    { key: 'EH', label: 'Sahara Occidental' },
-    { key: 'WS', label: 'Samoa' },
-    { key: 'AS', label: 'Samoa Americana' },
-    { key: 'BL', label: 'San Bartolomé' },
-    { key: 'KN', label: 'San Cristóbal y Nieves' },
-    { key: 'SM', label: 'San Marino' },
-    { key: 'MF', label: 'San Martín' },
-    { key: 'PM', label: 'San Pedro y Miquelón' },
-    { key: 'VC', label: 'San Vicente y las Granadinas' },
-    { key: 'SH', label: 'Santa Elena, Ascensión y Tristán de Acuña' },
-    { key: 'LC', label: 'Santa Lucía' },
-    { key: 'ST', label: 'Santo Tomé y Príncipe' },
+
     { key: 'SN', label: 'Senegal' },
     { key: 'RS', label: 'Serbia' },
-    { key: 'SC', label: 'Seychelles' },
-    { key: 'SL', label: 'Sierra Leona' },
-    { key: 'SG', label: 'Singapur' },
-    { key: 'SX', label: 'Sint Maarten' },
-    { key: 'SY', label: 'Siria' },
-    { key: 'SO', label: 'Somalia' },
-    { key: 'LK', label: 'Sri Lanka' },
-    { key: 'SZ', label: 'Suazilandia' },
+
     { key: 'ZA', label: 'Sudáfrica' },
-    { key: 'SD', label: 'Sudán' },
-    { key: 'SS', label: 'Sudán del Sur' },
     { key: 'SE', label: 'Suecia' },
     { key: 'CH', label: 'Suiza' },
     { key: 'SR', label: 'Surinam' },
-    { key: 'SJ', label: 'Svalbard y Jan Mayen' },
-    { key: 'TH', label: 'Tailandia' },
-    { key: 'TW', label: 'Taiwán' },
-    { key: 'TZ', label: 'Tanzania' },
-    { key: 'TJ', label: 'Tayikistán' },
-    { key: 'IO', label: 'Territorio Británico del Océano Índico' },
-    { key: 'TF', label: 'Territorios Australes Franceses' },
-    { key: 'TL', label: 'Timor Oriental' },
-    { key: 'TG', label: 'Togo' },
-    { key: 'TK', label: 'Tokelau' },
-    { key: 'TO', label: 'Tonga' },
+
     { key: 'TT', label: 'Trinidad y Tobago' },
     { key: 'TN', label: 'Túnez' },
-    { key: 'TM', label: 'Turkmenistán' },
+
     { key: 'TR', label: 'Turquía' },
-    { key: 'TV', label: 'Tuvalu' },
+
     { key: 'UA', label: 'Ucrania' },
-    { key: 'UG', label: 'Uganda' },
+
     { key: 'UY', label: 'Uruguay' },
-    { key: 'UZ', label: 'Uzbekistán' },
-    { key: 'VU', label: 'Vanuatu' },
     { key: 'VE', label: 'Venezuela' },
     { key: 'VN', label: 'Vietnam' },
-    { key: 'WF', label: 'Wallis y Futuna' },
-    { key: 'YE', label: 'Yemen' },
-    { key: 'DJ', label: 'Yibuti' },
-    { key: 'ZM', label: 'Zambia' },
-    { key: 'ZW', label: 'Zimbabue' },
+
   ];
 
   if (!isOpen) return null;
@@ -487,8 +411,8 @@ export default function ProfileEditor({ isOpen, onClose }) {
           <div className="profile-menu-content">
             {/* Avatar, Name and Number in one row */}
             <div className="avatar-name-row">
-              <div 
-                className="profile-avatar" 
+              <div
+                className="profile-avatar"
                 onClick={(e) => {
                   e.preventDefault();
                   if (fileInputRef.current) {
@@ -497,9 +421,9 @@ export default function ProfileEditor({ isOpen, onClose }) {
                 }}
               >
                 {liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture ? (
-                  <img 
-                    src={liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture} 
-                    alt="Perfil" 
+                  <img
+                    src={liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture}
+                    alt="Perfil"
                     key={`profile-photo-${Date.now()}`} // Force re-render
                   />
                 ) : (
@@ -509,7 +433,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
                   <span className="avatar-edit-icon">📷</span>
                 </div>
               </div>
-              
+
               <div className="name-number-container">
                 <div className="form-group">
                   <label>Nombre *</label>
@@ -521,7 +445,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
                     placeholder="Tu nombre completo"
                   />
                 </div>
-                
+
                 <div className="form-group">
                   <label>Número</label>
                   <input
@@ -535,7 +459,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
                   />
                 </div>
               </div>
-              
+
               <input
                 ref={fileInputRef}
                 type="file"
@@ -569,7 +493,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
                   const country = countries.find((c) => c.key === e.target.value);
                   handleInputChange('pais_codigo', e.target.value);
                   handleInputChange('nacionalidad', country?.label || 'Argentina');
-                  
+
                   // Ensure immediate update of the profile card
                   setLiveProfile((prev) => ({
                     ...prev,
@@ -617,7 +541,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
 
             {/* Social Handle */}
             <div className="form-group">
-              <label>Social Handle</label>
+              <label>Instagram</label>
               <input
                 className="input-modern-small"
                 type="text"
@@ -638,7 +562,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
                   onChange={(e) => handleInputChange('localidad', e.target.value)}
                   placeholder="Tu ciudad"
                 />
-                <button 
+                <button
                   className="geo-btn"
                   onClick={handleGeolocation}
                   type="button"
@@ -659,12 +583,12 @@ export default function ProfileEditor({ isOpen, onClose }) {
                 rows={3}
               />
             </div>
-            
+
             {/* Player Awards */}
             <PlayerAwards playerId={user?.id} />
-            
+
             {/* Availability toggle removed - now in HomeHeader */}
-            
+
             {/* Footer Buttons - Ahora dentro del contenido scrolleable */}
             <div className="profile-menu-footer">
               <button
@@ -674,7 +598,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
               >
                 {loading ? 'Guardando...' : 'Guardar Perfil'}
               </button>
-              
+
               <div className="profile-menu-actions">
                 <button
                   className="tutorial-btn"
@@ -686,7 +610,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
                 >
                   Ver Tutorial
                 </button>
-                
+
                 <button
                   className="logout-btn"
                   onClick={handleLogout}

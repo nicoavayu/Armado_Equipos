@@ -20,7 +20,7 @@ import VotingView from './VotingView';
 import AdminPanel from './AdminPanel';
 import FormularioNuevoPartidoFlow from './FormularioNuevoPartidoFlow';
 import MainLayout from './components/MainLayout';
-import GlobalHeader from './components/GlobalHeader';
+
 import PartidoInfoBox from './PartidoInfoBox';
 import ListaPartidosFrecuentes from './ListaPartidosFrecuentes';
 import EditarPartidoFrecuente from './EditarPartidoFrecuente';
@@ -84,8 +84,7 @@ const HomePage = () => {
   
   return (
     <>
-      <GlobalHeader onProfileClick={() => {}} />
-      <div className="voting-bg content-with-tabbar" style={{ marginTop: '90px' }}>
+      <div className="voting-bg content-with-tabbar">
         <div className="voting-modern-card" style={{ maxWidth: 800, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 0 }}>
           <FifaHome onModoSeleccionado={(modo) => {
             if (modo === 'admin-historial') {

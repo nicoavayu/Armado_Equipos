@@ -3,7 +3,7 @@ body, html {
   width: 100vw;
   margin: 0;
   padding: 0;
-  background: linear-gradient(180deg, #62c1ff 0%, #b579f8 100%);
+    background: linear-gradient(135deg, #24c6dc 10%, #514a9d 100%);
   /* Hace que el fondo siempre sea gradiente en toda la pantalla */
 }
 
@@ -61,7 +61,7 @@ body, html {
   outline: none !important;
   border-color: rgb(14 169 198 / 80%) !important;
   box-shadow: 0 0 0 2px rgb(14 169 198 / 20%) !important;
-  background: rgb(255 255 255 / 15%) !important;
+  background: rgb(255, 255, 255) !important;
 }
 
 /* Placeholders bien blancos y grandes */
@@ -77,7 +77,7 @@ body, html {
 
 /* Responsive mobile */
 @media (max-width: 480px) {
-  .form-title { font-size: px; }
+  .form-title { font-size: 32px; }
   .input-modern { font-size: 16px !important; height: 44px !important; }
 }
 

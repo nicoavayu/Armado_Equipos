@@ -12,10 +12,11 @@ import './ProfileCardModal.css';
  * @param {function} props.onClose - Function to close the modal
  * @param {Object} props.profile - Player profile data
  */
-const ProfileCardModal = ({ isOpen, onClose, profile }) => {
+const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin }) => {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [relationshipStatus, setRelationshipStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAdminLoading, setIsAdminLoading] = useState(false);
   
   const { 
     getRelationshipStatus, 
@@ -138,6 +139,68 @@ const ProfileCardModal = ({ isOpen, onClose, profile }) => {
     }
   };
 
+  // Handle make admin action
+  const handleMakeAdmin = async () => {
+    if (!profile?.id || !partidoActual?.id) return;
+    
+    if (window.confirm(`¿Hacer admin a ${profile.nombre}?`)) {
+      setIsAdminLoading(true);
+      
+      if (onMakeAdmin) {
+        await onMakeAdmin(profile.id);
+      }
+      
+      setIsAdminLoading(false);
+      onClose();
+    }
+  };
+
+  // Render make admin button
+  const renderMakeAdminButton = () => {
+    // Don't show if no partido or viewing own profile
+    if (!partidoActual || currentUserId === profile?.id) {
+      return null;
+    }
+    
+    // Check if current user is admin
+    const isCurrentUserAdmin = currentUserId && (
+      partidoActual?.creado_por === currentUserId || 
+      (partidoActual?.admins && partidoActual.admins.includes(currentUserId))
+    );
+    
+    // Don't show if current user is not admin
+    if (!isCurrentUserAdmin) {
+      return null;
+    }
+    
+    // Check if profile user is already admin
+    const isProfileUserAdmin = profile?.id && (
+      partidoActual?.creado_por === profile.id || 
+      (partidoActual?.admins && partidoActual.admins.includes(profile.id))
+    );
+    
+    // Don't show if profile user is already admin
+    if (isProfileUserAdmin) {
+      return null;
+    }
+    
+    // Don't show if profile user doesn't have an account
+    if (!profile?.id) {
+      return null;
+    }
+    
+    return (
+      <button 
+        className={`pcm-friend-btn make-admin ${isAdminLoading ? 'disabled' : ''}`}
+        onClick={handleMakeAdmin}
+        disabled={isAdminLoading}
+        style={{ background: '#FFD700', color: '#000' }}
+      >
+        <span>{isAdminLoading ? 'Procesando...' : '👑 Hacer Admin'}</span>
+      </button>
+    );
+  };
+
   // Render friend action button based on relationship status
   const renderFriendActionButton = () => {
     // Don't show button if viewing own profile
@@ -196,6 +259,8 @@ const ProfileCardModal = ({ isOpen, onClose, profile }) => {
     return null;
   };
 
+
+
   // Log modal open/close events
   useEffect(() => {
     if (isOpen) {
@@ -225,6 +290,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile }) => {
         </div>
         <div className="pcm-actions">
           {renderFriendActionButton()}
+          {renderMakeAdminButton()}
         </div>
       </div>
     </Modal>

@@ -1147,7 +1147,7 @@ body[data-theme="dark"] .team-name-input::placeholder {
 
 @media (width <= 800px) {
   .team-container {
-    padding-bottom: 100px !important; /* Ajustá este valor al alto de tu botón flotante + margen extra */
+    padding-bottom: 20px !important; /* Ajustá este valor al alto de tu botón flotante + margen extra */
   }
 }
 

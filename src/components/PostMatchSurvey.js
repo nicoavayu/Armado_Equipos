@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabase';
+import { supabase, processPostMatchSurveys, checkSurveysProcessed, markSurveysAsProcessed } from '../supabase';
 import { useAuth } from './AuthProvider';
 import { toast } from 'react-toastify';
 import './PostMatchSurvey.css';
@@ -208,6 +208,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
     if (!user || !partido) return;
     setSubmitting(true);
     try {
+      // Submit survey
       const { error } = await supabase
         .from('post_match_surveys')
         .insert({
@@ -217,12 +218,36 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
         });
       if (error) throw error;
 
+      // Mark notification as read
       await supabase
         .from('notifications')
         .update({ read: true })
         .eq('user_id', user.id)
         .eq('type', 'post_match_survey')
         .eq('match_id', partido.id);
+
+      // Check if this is the last survey needed and process if so
+      try {
+        const alreadyProcessed = await checkSurveysProcessed(partido.id);
+        if (!alreadyProcessed) {
+          // Get total surveys count to see if we should process
+          const { data: allSurveys } = await supabase
+            .from('post_match_surveys')
+            .select('id')
+            .eq('partido_id', partido.id);
+            
+          // Process surveys if we have at least 3 responses or if match has been completed for a while
+          if (allSurveys && allSurveys.length >= 3) {
+            console.log('[SURVEY] Processing surveys with', allSurveys.length, 'responses');
+            await processPostMatchSurveys(partido.id);
+            await markSurveysAsProcessed(partido.id);
+            toast.success('¡Estadísticas de jugadores actualizadas!');
+          }
+        }
+      } catch (processError) {
+        console.error('Error processing surveys:', processError);
+        // Don't show error to user as survey was submitted successfully
+      }
 
       toast.success('¡Encuesta enviada con éxito!');
       setCompleted(true);

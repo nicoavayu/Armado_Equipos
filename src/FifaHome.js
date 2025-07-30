@@ -7,8 +7,8 @@ import { useAuth } from './components/AuthProvider';
 import FifaHomeContent from './components/FifaHomeContent';
 import ProfileEditor from './components/ProfileEditor';
 import NotificationsView from './components/NotificationsView';
-import WeatherWidget from './components/WeatherWidget';
-import GlobalHeader from './components/GlobalHeader';
+
+
 
 
 export default function FifaHome({ onModoSeleccionado }) {
@@ -54,8 +54,8 @@ export default function FifaHome({ onModoSeleccionado }) {
 
   return (
     <div className="voting-bg home-bg content-with-tabbar">
-      <GlobalHeader />
-      <WeatherWidget compact />
+
+
       {/* FIFA-style menu content - Siempre mostramos el contenido porque la autenticación se maneja en App.js */}
       <FifaHomeContent 
         onCreateMatch={() => onModoSeleccionado('votacion')}

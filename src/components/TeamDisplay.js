@@ -10,7 +10,7 @@ import './TeamDisplay.css';
 import WhatsappIcon from './WhatsappIcon';
 import LoadingSpinner from './LoadingSpinner';
 
-const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null }) => {
+const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null, nombre, fecha, hora, sede }) => {
   const [showAverages, setShowAverages] = useState(false);
   const [lockedPlayers, setLockedPlayers] = useState([]);
   const [editingTeamId, setEditingTeamId] = useState(null);
@@ -294,37 +294,56 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       <ChatButton partidoId={partidoId} />
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="team-display-container">
-          <h2 className="team-display-title">EQUIPOS</h2>
-          <div className="teams-wrapper">
-            {realtimeTeams.map((team) => (
-              <div key={team.id} className="team-container dark-container">
-                {editingTeamId === team.id && isAdmin ? (
-                  <input
-                    type="text"
-                    className="team-name-input"
-                    value={editingTeamName}
-                    onChange={(e) => setEditingTeamName(e.target.value)}
-                    onBlur={async () => {
-                      if (editingTeamName.trim()) {
-                        const newTeams = realtimeTeams.map((t) => 
-                          t.id === team.id ? { ...t, name: editingTeamName.trim() } : t,
-                        );
-                        setRealtimeTeams(newTeams);
-                        onTeamsChange(newTeams);
-                        
-                        // Save changes to database
-                        if (isAdmin && partidoId) {
-                          try {
-                            await saveTeamsToDatabase(partidoId, newTeams);
-                          } catch (error) {
-                            console.error('[TEAMS_SAVE] Error saving teams:', error);
-                          }
-                        }
-                      }
-                      setEditingTeamId(null);
-                    }}
-                    onKeyDown={async (e) => {
-                      if (e.key === 'Enter') {
+          {/* Header bar */}
+          <div className="team-display-header">
+            <div className="header-content">
+              <button className="back-button" onClick={onBackToHome}>←</button>
+              <h2>ARMAR EQUIPOS</h2>
+            </div>
+          </div>
+          
+          <div className="team-display-content">
+            {/* Match header with large title and details */}
+            {(nombre || fecha || hora || sede) && (
+              <div className="match-header-large">
+                {nombre && (
+                  <div className="match-title-large">
+                    {nombre}
+                  </div>
+                )}
+                <div className="match-details-large">
+                  {fecha && new Date(fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
+                    weekday: 'long', 
+                    day: 'numeric', 
+                    month: 'numeric', 
+                  }).toUpperCase()}
+                  {hora && ` · ${hora}`}
+                  {sede && (
+                    <>
+                      {' · '}
+                      <a 
+                        href={`https://www.google.com/maps/search/${encodeURIComponent(sede.split(/[,(]/)[0].trim())}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="venue-link-large"
+                      >
+                        {sede.split(/[,(]/)[0].trim()}
+                      </a>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="teams-wrapper">
+              {realtimeTeams.map((team) => (
+                <div key={team.id} className="team-container dark-container">
+                  {editingTeamId === team.id && isAdmin ? (
+                    <input
+                      type="text"
+                      className="team-name-input"
+                      value={editingTeamName}
+                      onChange={(e) => setEditingTeamName(e.target.value)}
+                      onBlur={async () => {
                         if (editingTeamName.trim()) {
                           const newTeams = realtimeTeams.map((t) => 
                             t.id === team.id ? { ...t, name: editingTeamName.trim() } : t,
@@ -342,102 +361,123 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                           }
                         }
                         setEditingTeamId(null);
-                      } else if (e.key === 'Escape') {
-                        setEditingTeamId(null);
-                      }
-                    }}
-                    autoFocus
-                  />
-                ) : (
-                  <h3 
-                    className="team-name" 
-                    onClick={isAdmin ? () => {
-                      setEditingTeamId(team.id);
-                      setEditingTeamName(team.name);
-                    } : undefined}
-                    style={{ cursor: isAdmin ? 'pointer' : 'default' }}
-                  >
-                    {team.name}
-                  </h3>
-                )}
-                <Droppable droppableId={team.id} key={team.id}>
-                  {(provided) => (
-                    <div
-                      className="players-grid"
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
+                      }}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter') {
+                          if (editingTeamName.trim()) {
+                            const newTeams = realtimeTeams.map((t) => 
+                              t.id === team.id ? { ...t, name: editingTeamName.trim() } : t,
+                            );
+                            setRealtimeTeams(newTeams);
+                            onTeamsChange(newTeams);
+                            
+                            // Save changes to database
+                            if (isAdmin && partidoId) {
+                              try {
+                                await saveTeamsToDatabase(partidoId, newTeams);
+                              } catch (error) {
+                                console.error('[TEAMS_SAVE] Error saving teams:', error);
+                              }
+                            }
+                          }
+                          setEditingTeamId(null);
+                        } else if (e.key === 'Escape') {
+                          setEditingTeamId(null);
+                        }
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    <h3 
+                      className="team-name" 
+                      onClick={isAdmin ? () => {
+                        setEditingTeamId(team.id);
+                        setEditingTeamName(team.name);
+                      } : undefined}
+                      style={{ cursor: isAdmin ? 'pointer' : 'default' }}
                     >
-                      {team.players
-                        .filter((playerId) => realtimePlayers.some((p) => p.uuid === playerId))
-                        .map((playerId, index) => {
-                          const player = getPlayerDetails(playerId);
-                          if (!playerId || !player?.nombre) return null;
-                          
-                          const isLocked = lockedPlayers.includes(playerId);
-
-                          return (
-                            <Draggable key={String(playerId)} draggableId={String(playerId)} index={index}>
-                              {(provided) => (
-                                <div
-                                  className={`player-card ${isLocked ? 'locked' : ''} ${!isAdmin ? 'no-admin' : ''}`}
-                                  ref={provided.innerRef}
-                                  {...(isAdmin ? provided.draggableProps : {})}
-                                  {...(isAdmin ? provided.dragHandleProps : {})}
-                                  onClick={isAdmin ? () => togglePlayerLock(playerId) : undefined}
-                                  style={{ cursor: isAdmin ? 'pointer' : 'default' }}
-                                >
-                                  <div className="player-card-content">
-                                    <div className="player-avatar-container">
-                                      <div className="player-avatar-wrapper">
-                                        <img
-                                          src={player.avatar_url || 'https://api.dicebear.com/6.x/pixel-art/svg?seed=default'}
-                                          alt={player.nombre}
-                                          className="player-avatar"
-                                        />
-                                      </div>
-                                    </div>
-                                    <span>{player.nombre}</span>
-                                    {/* [TEAM_BALANCER_EDIT] Solo admin ve promedios y controles */}
-                                    {showAverages && isAdmin && <span className="player-score">{(player.score || 0).toFixed(2)}</span>}
-                                    {isLocked && isAdmin && (
-                                      <span className="lock-icon">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-                                          <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
-                                        </svg>
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </Draggable>
-                          );
-                        })}
-                      {provided.placeholder}
-                    </div>
+                      {team.name}
+                    </h3>
                   )}
-                </Droppable>
-                {/* Todos ven puntajes de equipos */}
-                <div className="team-score-box">
-                  Puntaje: {team.score?.toFixed(2) ?? '0'}
+                  <Droppable droppableId={team.id} key={team.id}>
+                    {(provided) => (
+                      <div
+                        className="players-grid"
+                        {...provided.droppableProps}
+                        ref={provided.innerRef}
+                      >
+                        {team.players
+                          .filter((playerId) => realtimePlayers.some((p) => p.uuid === playerId))
+                          .map((playerId, index) => {
+                            const player = getPlayerDetails(playerId);
+                            if (!playerId || !player?.nombre) return null;
+                            
+                            const isLocked = lockedPlayers.includes(playerId);
+
+                            return (
+                              <Draggable key={String(playerId)} draggableId={String(playerId)} index={index}>
+                                {(provided) => (
+                                  <div
+                                    className={`player-card ${isLocked ? 'locked' : ''} ${!isAdmin ? 'no-admin' : ''}`}
+                                    ref={provided.innerRef}
+                                    {...(isAdmin ? provided.draggableProps : {})}
+                                    {...(isAdmin ? provided.dragHandleProps : {})}
+                                    onClick={isAdmin ? () => togglePlayerLock(playerId) : undefined}
+                                    style={{ cursor: isAdmin ? 'pointer' : 'default' }}
+                                  >
+                                    <div className="player-card-content">
+                                      <div className="player-avatar-container">
+                                        <div className="player-avatar-wrapper">
+                                          <img
+                                            src={player.avatar_url || 'https://api.dicebear.com/6.x/pixel-art/svg?seed=default'}
+                                            alt={player.nombre}
+                                            className="player-avatar"
+                                          />
+                                        </div>
+                                      </div>
+                                      <span>{player.nombre}</span>
+                                      {/* [TEAM_BALANCER_EDIT] Solo admin ve promedios y controles */}
+                                      {showAverages && isAdmin && <span className="player-score">{(player.score || 0).toFixed(2)}</span>}
+                                      {isLocked && isAdmin && (
+                                        <span className="lock-icon">
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                                            <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
+                                          </svg>
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            );
+                          })}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                  {/* Todos ven puntajes de equipos */}
+                  <div className="team-score-box">
+                    Puntaje: {team.score?.toFixed(2) ?? '0'}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-          <div className="team-actions">
-            {/* [TEAM_BALANCER_EDIT] Botones solo para admin */}
-            {isAdmin && (
-              <div className="team-actions-row">
-                <button onClick={randomizeTeams} className="team-action-btn randomize-btn wipe-btn">Randomizar</button>
-                <button onClick={() => setShowAverages(!showAverages)} className="team-action-btn averages-btn wipe-btn">
-                  {showAverages ? 'Ocultar Promedios' : 'Ver Promedios'}
-                </button>
-              </div>
-            )}
-            
-            {/* Botón compartir disponible para todos */}
-            <button onClick={handleWhatsAppShare} className="team-action-btn whatsapp-btn wipe-btn">
-              <WhatsappIcon /> Compartir
-            </button>
+              ))}
+            </div>
+            <div className="team-actions">
+              {/* [TEAM_BALANCER_EDIT] Botones solo para admin */}
+              {isAdmin && (
+                <div className="team-actions-row">
+                  <button onClick={randomizeTeams} className="team-action-btn randomize-btn wipe-btn">Randomizar</button>
+                  <button onClick={() => setShowAverages(!showAverages)} className="team-action-btn averages-btn wipe-btn">
+                    {showAverages ? 'Ocultar Promedios' : 'Ver Promedios'}
+                  </button>
+                </div>
+              )}
+              
+              {/* Botón compartir disponible para todos */}
+              <button onClick={handleWhatsAppShare} className="team-action-btn whatsapp-btn wipe-btn">
+                <WhatsappIcon /> Compartir
+              </button>
+            </div>
           </div>
         </div>
       </DragDropContext>

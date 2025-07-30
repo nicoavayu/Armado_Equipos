@@ -10,6 +10,8 @@ const ProximosPartidos = ({ onClose }) => {
   const navigate = useNavigate();
   const [partidos, setPartidos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(null);
 
   useEffect(() => {
     if (user) {
@@ -53,6 +55,7 @@ const ProximosPartidos = ({ onClose }) => {
         asPlayer: partidosComoJugador.length,
         asAdmin: partidosAdminIds.length,
         total: todosLosPartidosIds.length,
+        allIds: todosLosPartidosIds,
       });
       
       if (todosLosPartidosIds.length === 0) {
@@ -74,29 +77,37 @@ const ProximosPartidos = ({ onClose }) => {
       // 5. Filtrar partidos que no hayan pasado más de 1 hora desde su fecha/hora
       const now = new Date();
       const partidosFiltrados = partidosData.filter((partido) => {
-        // Si no tiene fecha/hora, mostrar siempre
-        if (!partido.fecha || !partido.hora) return true;
+        // Si no tiene fecha/hora, mostrar siempre (partidos recién creados)
+        if (!partido.fecha || !partido.hora) {
+          console.log('[PROXIMOS_PARTIDOS] Showing match without date/time:', partido.nombre);
+          return true;
+        }
         
-        const [hours, minutes] = partido.hora.split(':').map(Number);
-        const partidoDateTime = new Date(partido.fecha + 'T00:00:00');
-        partidoDateTime.setHours(hours, minutes, 0, 0);
-        
-        // Agregar 1 hora al tiempo del partido
-        const partidoMasUnaHora = new Date(partidoDateTime.getTime() + 60 * 60 * 1000);
-        
-        // Mostrar si no han pasado más de 1 hora desde la fecha del partido
-        const shouldShow = now < partidoMasUnaHora;
-        
-        console.log('[PROXIMOS_PARTIDOS] Match filter check:', {
-          matchName: partido.nombre,
-          matchDateTime: partidoDateTime.toISOString(),
-          matchPlusOneHour: partidoMasUnaHora.toISOString(),
-          now: now.toISOString(),
-          shouldShow,
-          estado: partido.estado,
-        });
-        
-        return shouldShow;
+        try {
+          const [hours, minutes] = partido.hora.split(':').map(Number);
+          const partidoDateTime = new Date(partido.fecha + 'T00:00:00');
+          partidoDateTime.setHours(hours, minutes, 0, 0);
+          
+          // Agregar 1 hora al tiempo del partido
+          const partidoMasUnaHora = new Date(partidoDateTime.getTime() + 60 * 60 * 1000);
+          
+          // Mostrar si no han pasado más de 1 hora desde la fecha del partido
+          const shouldShow = now < partidoMasUnaHora;
+          
+          console.log('[PROXIMOS_PARTIDOS] Match filter check:', {
+            matchName: partido.nombre,
+            matchDateTime: partidoDateTime.toISOString(),
+            matchPlusOneHour: partidoMasUnaHora.toISOString(),
+            now: now.toISOString(),
+            shouldShow,
+            estado: partido.estado,
+          });
+          
+          return shouldShow;
+        } catch (error) {
+          console.error('[PROXIMOS_PARTIDOS] Error parsing date/time for match:', partido.nombre, error);
+          return true; // Mostrar en caso de error de parsing
+        }
       });
       
       // 6. Enriquecer con información de rol del usuario
@@ -121,6 +132,48 @@ const ProximosPartidos = ({ onClose }) => {
     navigate(`/admin/${partido.id}`);
   };
 
+  const handleDeleteClick = (e, partido) => {
+    e.stopPropagation();
+    setSelectedMatch(partido);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedMatch) return;
+    
+    try {
+      if (selectedMatch.userRole === 'admin') {
+        // Admin elimina el partido completo
+        await supabase.from('partidos').delete().eq('id', selectedMatch.id);
+        // TODO: Notificar a todos los jugadores
+      } else {
+        // Jugador abandona el partido
+        await supabase
+          .from('jugadores')
+          .delete()
+          .eq('partido_id', selectedMatch.id)
+          .eq('usuario_id', user.id);
+        // TODO: Notificar abandono
+      }
+      
+      setShowDeleteModal(false);
+      setSelectedMatch(null);
+      fetchUserMatches();
+    } catch (error) {
+      console.error('Error deleting match:', error);
+    }
+  };
+
+  const getDeleteModalText = () => {
+    if (!selectedMatch) return '';
+    
+    if (selectedMatch.userRole === 'admin') {
+      return '¿Seguro que deseas eliminar este partido? Se notificará a todos los jugadores y la estructura se borrará.';
+    } else {
+      return '¿Seguro que deseas abandonar este partido? Se notificará a todos los jugadores.';
+    }
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('es-ES', {
       weekday: 'short',
@@ -140,8 +193,10 @@ const ProximosPartidos = ({ onClose }) => {
   return (
     <div className="proximos-partidos-container">
       <div className="proximos-partidos-header">
-        <button className="back-button" onClick={onClose}>←</button>
-        <h2>Próximos Partidos</h2>
+        <div className="header-content">
+          <button className="back-button" onClick={onClose}>←</button>
+          <h2>PRÓXIMOS PARTIDOS</h2>
+        </div>
       </div>
 
       <div className="proximos-partidos-content">
@@ -159,11 +214,7 @@ const ProximosPartidos = ({ onClose }) => {
         ) : (
           <div className="partidos-list">
             {partidos.map((partido) => (
-              <div
-                key={partido.id}
-                className="partido-item"
-                onClick={() => handleMatchClick(partido)}
-              >
+              <div key={partido.id} className="partido-card">
                 <div className="partido-info">
                   <div className="partido-header">
                     <div className="partido-name">
@@ -191,12 +242,42 @@ const ProximosPartidos = ({ onClose }) => {
                   </div>
                 </div>
                 
-                <div className="partido-arrow">→</div>
+                <div className="partido-actions">
+                  <button 
+                    className="action-btn enter-btn"
+                    onClick={() => handleMatchClick(partido)}
+                  >
+                    Ingresar al Partido
+                  </button>
+                  <button 
+                    className="action-btn delete-btn"
+                    onClick={(e) => handleDeleteClick(e, partido)}
+                  >
+                    {partido.userRole === 'admin' ? 'Eliminar Partido' : 'Abandonar Partido'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {showDeleteModal && (
+        <div className="modal-backdrop" onClick={() => setShowDeleteModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>Confirmar acción</h3>
+            <p>{getDeleteModalText()}</p>
+            <div className="modal-actions">
+              <button className="modal-btn cancel" onClick={() => setShowDeleteModal(false)}>
+                Cancelar
+              </button>
+              <button className="modal-btn confirm" onClick={handleDeleteConfirm}>
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
