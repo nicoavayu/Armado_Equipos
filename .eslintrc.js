@@ -1,4 +1,10 @@
 module.exports = {
+  ignorePatterns: [
+    'src/deprecated/**/*',
+    'build/**/*',
+    'node_modules/**/*',
+    '*.min.js',
+  ],
   env: {
     browser: true,
     es2021: true,

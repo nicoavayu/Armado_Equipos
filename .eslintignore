@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+build/
+dist/
+
+# Deprecated files
+src/deprecated/
+
+# Test files that might have different rules
+**/*.test.js
+**/*.spec.js
+
+# Configuration files
+*.config.js
