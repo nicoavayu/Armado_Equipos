@@ -552,3 +552,223 @@
     font-size: 16px;
   }
 }
+
+/* Compact Match Card - White Translucent */
+.compact-match-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  width: 100%;
+  max-width: 500px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.compact-match-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.match-datetime-xl {
+  font-family: 'Oswald', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  text-transform: capitalize;
+  flex: 1;
+}
+
+.player-count-corner {
+  flex-shrink: 0;
+}
+
+.players-corner {
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.complete-corner {
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #4CAF50;
+  background: rgba(76, 175, 80, 0.2);
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(76, 175, 80, 0.4);
+  display: inline-block;
+}
+
+.match-info-large {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.match-type-large {
+  font-family: 'Oswald', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
+.match-type-large.futbol-5 {
+  background: rgba(76, 175, 80, 0.2);
+  border-color: rgba(76, 175, 80, 0.4);
+}
+
+.match-type-large.futbol-6 {
+  background: rgba(255, 152, 0, 0.2);
+  border-color: rgba(255, 152, 0, 0.4);
+}
+
+.match-type-large.futbol-7 {
+  background: rgba(156, 39, 176, 0.2);
+  border-color: rgba(156, 39, 176, 0.4);
+}
+
+.match-type-large.futbol-8 {
+  background: rgba(244, 67, 54, 0.2);
+  border-color: rgba(244, 67, 54, 0.4);
+}
+
+.match-type-large.futbol-11 {
+  background: rgba(63, 81, 181, 0.2);
+  border-color: rgba(63, 81, 181, 0.4);
+}
+
+.gender-large {
+  font-family: 'Oswald', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
+.gender-large.masculino {
+  background: rgba(33, 150, 243, 0.2);
+  border-color: rgba(33, 150, 243, 0.4);
+}
+
+.gender-large.femenino {
+  background: rgba(233, 30, 99, 0.2);
+  border-color: rgba(233, 30, 99, 0.4);
+}
+
+.gender-large.mixto {
+  background: rgba(255, 193, 7, 0.2);
+  border-color: rgba(255, 193, 7, 0.4);
+}
+
+.venue-large {
+  font-family: 'Oswald', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.cyan-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.cyan-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+  .compact-match-card {
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  
+  .match-datetime-xl {
+    font-size: 22px;
+  }
+  
+  .players-corner,
+  .complete-corner {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+  
+  .match-info-large {
+    gap: 8px;
+  }
+  
+  .match-type-large,
+  .gender-large {
+    font-size: 14px;
+    padding: 6px 10px;
+  }
+  
+  .venue-large {
+    font-size: 14px;
+  }
+  
+  .cyan-btn {
+    padding: 10px 16px;
+    font-size: 12px;
+  }
+  
+  .match-buttons {
+    gap: 8px;
+  }
+}

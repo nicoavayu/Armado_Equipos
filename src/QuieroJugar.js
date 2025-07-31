@@ -375,55 +375,100 @@ export default function QuieroJugar({ onVolver }) {
 
       {activeTab === 'matches' ? (
         // Matches Tab
-        partidosAbiertos.length === 0 ? (
-          <div className="empty-message">
-            No hay partidos buscando jugadores en este momento
-          </div>
-        ) : (
-          <>
-            {partidosAbiertos.map((partido) => {
-              const jugadoresCount = partido.jugadores?.length || 0;
-              const cupoMaximo = partido.cupo_jugadores || 20;
-              const faltanJugadores = cupoMaximo - jugadoresCount;
-              
-              return (
-                <div key={partido.id} className="match-card">
-                  <div className="match-title">
-                    {partido.nombre || `${partido.modalidad || 'F5'}`}
+        (() => {
+          // Filter out matches that are more than 1 hour past their scheduled time
+          const filteredPartidos = partidosAbiertos.filter((partido) => {
+            const matchDateTime = new Date(`${partido.fecha}T${partido.hora}`);
+            const now = new Date();
+            const oneHourAfter = new Date(matchDateTime.getTime() + 60 * 60 * 1000);
+            return now <= oneHourAfter;
+          });
+          
+          return filteredPartidos.length === 0 ? (
+            <div className="empty-message">
+              No hay partidos buscando jugadores en este momento
+            </div>
+          ) : (
+            <>
+              {filteredPartidos.map((partido) => {
+                const jugadoresCount = partido.jugadores?.length || 0;
+                const cupoMaximo = partido.cupo_jugadores || 20;
+                const faltanJugadores = cupoMaximo - jugadoresCount;
+                
+                const isComplete = jugadoresCount >= cupoMaximo;
+                
+                return (
+                  <div key={partido.id} className="compact-match-card">
+                    <div className="card-header">
+                      <div className="match-datetime-xl">
+                        {new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
+                          weekday: 'long', 
+                          day: 'numeric', 
+                          month: 'short',
+                        })} {partido.hora}
+                      </div>
+                      <div className="player-count-corner">
+                        {isComplete ? (
+                          <span className="complete-corner">¡Completo!</span>
+                        ) : (
+                          <span className="players-corner">
+                            👥 {jugadoresCount}/{cupoMaximo}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="match-info-large">
+                      <div className={`match-type-large ${(() => {
+                        const modalidad = partido.modalidad || 'F5';
+                        if (modalidad.includes('5')) return 'futbol-5';
+                        if (modalidad.includes('6')) return 'futbol-6';
+                        if (modalidad.includes('7')) return 'futbol-7';
+                        if (modalidad.includes('8')) return 'futbol-8';
+                        if (modalidad.includes('11')) return 'futbol-11';
+                        return 'futbol-5';
+                      })()}`}>
+                        {partido.modalidad?.replace('F', 'Fútbol ') || 'Fútbol 5'}
+                      </div>
+                      <div className={`gender-large ${(() => {
+                        const tipo = (partido.tipo_partido || 'Masculino').toLowerCase();
+                        if (tipo.includes('masculino')) return 'masculino';
+                        if (tipo.includes('femenino')) return 'femenino';
+                        if (tipo.includes('mixto')) return 'mixto';
+                        return 'masculino';
+                      })()}`}>
+                        {partido.tipo_partido || 'Masculino'}
+                      </div>
+                      <div className="venue-large">
+                        {partido.sede?.split(',')[0] || partido.sede}
+                      </div>
+                    </div>
+                    
+                    <div className="match-buttons">
+                      <button 
+                        className="cyan-btn"
+                        onClick={() => {
+                          window.location.href = `/admin/${partido.id}`;
+                        }}
+                      >
+                        VER PARTIDO
+                      </button>
+                      <button 
+                        className="cyan-btn"
+                        onClick={() => {
+                          console.log('Invitar amigos al partido:', partido.id);
+                          toast.info('Función de invitar amigos próximamente');
+                        }}
+                      >
+                        INVITAR AMIGOS
+                      </button>
+                    </div>
                   </div>
-                  <div className="match-details">
-                    {partido.modalidad?.replace('F', 'FÚTBOL ')} • {partido.tipo_partido || 'Masculino'} • FALTAN {faltanJugadores} JUGADOR{faltanJugadores !== 1 ? 'ES' : ''}
-                  </div>
-                  <div className="match-details">
-                    {new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
-                      weekday: 'long', 
-                      day: 'numeric', 
-                      month: 'numeric', 
-                    }).toUpperCase()} {partido.hora}
-                  </div>
-                  <div className="match-location">
-                    <span>📍</span> {partido.sede}
-                  </div>
-                  <div className="match-actions">
-                    <button
-                      className="sumarme-button"
-                      onClick={() => handleSumarse(partido)}
-                    >
-                      SUMARME <span className="player-count">({jugadoresCount}/{cupoMaximo})</span>
-                    </button>
-                    <button
-                      className="delete-button"
-                      onClick={() => handleBorrarPartido(partido)}
-                      title="Borrar partido"
-                    >
-                      X
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </>
-        )
+                );
+              })}
+            </>
+          );
+        })()
       ) : (
         // Free Players Tab
         <>
