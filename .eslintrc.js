@@ -4,6 +4,12 @@ module.exports = {
     'build/**/*',
     'node_modules/**/*',
     '*.min.js',
+    'src/AppNormal.js',
+    'src/Home.js',
+    'src/components/FrequentPlayers.js',
+    'src/components/PlayerList.js',
+    'src/components/PlayerForm.js',
+    'src/utils.js',
   ],
   env: {
     browser: true,
