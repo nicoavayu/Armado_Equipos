@@ -4,7 +4,7 @@
   align-items: center;
   min-height: 100vh;
   background: linear-gradient(135deg, #24c6dc 10%, #514a9d 100%);
-  padding: 16px;
+  padding: 80px 16px 16px;
   box-sizing: border-box;
   font-family: Oswald, Arial, sans-serif;
 }

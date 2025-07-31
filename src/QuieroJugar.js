@@ -3,6 +3,7 @@ import { supabase, addFreePlayer, removeFreePlayer, getFreePlayerStatus, getFree
 import { toast } from 'react-toastify';
 import { useAuth } from './components/AuthProvider';
 import { PlayerCardTrigger } from './components/ProfileComponents';
+import PageTitle from './components/PageTitle';
 import './QuieroJugar.css';
 import './VotingView.css';
 
@@ -16,6 +17,7 @@ export default function QuieroJugar({ onVolver }) {
   const [freePlayers, setFreePlayers] = useState([]);
   const [sortBy, setSortBy] = useState('distance'); // 'distance' or 'rating'
   const [userLocation, setUserLocation] = useState(null);
+  const [matchSortBy, setMatchSortBy] = useState('proximidad'); // 'proximidad' or 'recientes'
   const [activeTab, setActiveTab] = useState(() => {
     // Read from sessionStorage if available
     const savedTab = sessionStorage.getItem('quiero-jugar-tab');
@@ -75,15 +77,15 @@ export default function QuieroJugar({ onVolver }) {
     }
   }, [user, activeTab]);
 
-  // Auto-refresh free players every 5 seconds
+  // Auto-refresh partidos abiertos every 5 seconds
   useEffect(() => {
-    if (user && activeTab === 'players') {
+    if (activeTab === 'matches') {
       const interval = setInterval(() => {
-        fetchFreePlayers();
+        fetchPartidosAbiertos();
       }, 5000);
       return () => clearInterval(interval);
     }
-  }, [user, activeTab]);
+  }, [activeTab]);
 
   const fetchPartidosAbiertos = async () => {
     try {
@@ -320,275 +322,306 @@ export default function QuieroJugar({ onVolver }) {
   }
 
   return (
-    <div className={containerClass}>
-      <div style={{ position: 'relative', marginBottom: '24px' }}>
-        <button 
-          onClick={onVolver}
-          style={{
-            position: 'absolute',
-            top: '15px',
-            left: '-95px',
-            background: 'none',
-            border: 'none',
-            color: 'white',
-            fontSize: '18px',
-            cursor: 'pointer',
-            padding: '8px',
-            borderRadius: '12px',
-            transition: 'background 0.2s',
-            minWidth: '40px',
-            minHeight: '40px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10,
-          }}
-          onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.15)'}
-          onMouseLeave={(e) => e.target.style.background = 'none'}
-        >
-          ◀
-        </button>
-        <h1 className="quiero-jugar-title" style={{ paddingLeft: '0px'  }}>QUIERO JUGAR</h1>
-      </div>
-      
-      {/* Tab Navigation */}
-      <div className="tab-navigation">
-        <button
-          className={`tab-button ${activeTab === 'matches' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveTab('matches');
-            sessionStorage.setItem('quiero-jugar-tab', 'matches');
-          }}
-        >
-          PARTIDOS ABIERTOS
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'players' ? 'active' : ''}`}
-          onClick={() => {
-            setActiveTab('players');
-            sessionStorage.setItem('quiero-jugar-tab', 'players');
-          }}
-        >
-          JUGADORES LIBRES
-        </button>
-      </div>
+    <>
+      <PageTitle onBack={onVolver}>QUIERO JUGAR</PageTitle>
+      <div className={containerClass}>
+        {/* Tab Navigation */}
+        <div className="tab-navigation">
+          <button
+            className={`tab-button ${activeTab === 'matches' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('matches');
+              sessionStorage.setItem('quiero-jugar-tab', 'matches');
+            }}
+          >
+            PARTIDOS ABIERTOS
+          </button>
+          <button
+            className={`tab-button ${activeTab === 'players' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('players');
+              sessionStorage.setItem('quiero-jugar-tab', 'players');
+            }}
+          >
+            JUGADORES LIBRES
+          </button>
+        </div>
 
-      {activeTab === 'matches' ? (
-        // Matches Tab
-        (() => {
-          // Filter out matches that are more than 1 hour past their scheduled time
-          const filteredPartidos = partidosAbiertos.filter((partido) => {
-            const matchDateTime = new Date(`${partido.fecha}T${partido.hora}`);
-            const now = new Date();
-            const oneHourAfter = new Date(matchDateTime.getTime() + 60 * 60 * 1000);
-            return now <= oneHourAfter;
-          });
-          
-          return filteredPartidos.length === 0 ? (
-            <div className="empty-message">
-              No hay partidos buscando jugadores en este momento
-            </div>
-          ) : (
-            <>
-              {filteredPartidos.map((partido) => {
-                const jugadoresCount = partido.jugadores?.length || 0;
-                const cupoMaximo = partido.cupo_jugadores || 20;
-                const faltanJugadores = cupoMaximo - jugadoresCount;
-                
-                const isComplete = jugadoresCount >= cupoMaximo;
-                
-                return (
-                  <div key={partido.id} className="compact-match-card">
-                    <div className="card-header">
-                      <div className="match-datetime-xl">
-                        {new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
-                          weekday: 'long', 
-                          day: 'numeric', 
-                          month: 'short',
-                        })} {partido.hora}
-                      </div>
-                      <div className="player-count-corner">
-                        {isComplete ? (
-                          <span className="complete-corner">¡Completo!</span>
-                        ) : (
-                          <span className="players-corner">
-                            👥 {jugadoresCount}/{cupoMaximo}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="match-info-large">
-                      <div className={`match-type-large ${(() => {
-                        const modalidad = partido.modalidad || 'F5';
-                        if (modalidad.includes('5')) return 'futbol-5';
-                        if (modalidad.includes('6')) return 'futbol-6';
-                        if (modalidad.includes('7')) return 'futbol-7';
-                        if (modalidad.includes('8')) return 'futbol-8';
-                        if (modalidad.includes('11')) return 'futbol-11';
-                        return 'futbol-5';
-                      })()}`}>
-                        {partido.modalidad?.replace('F', 'Fútbol ') || 'Fútbol 5'}
-                      </div>
-                      <div className={`gender-large ${(() => {
-                        const tipo = (partido.tipo_partido || 'Masculino').toLowerCase();
-                        if (tipo.includes('masculino')) return 'masculino';
-                        if (tipo.includes('femenino')) return 'femenino';
-                        if (tipo.includes('mixto')) return 'mixto';
-                        return 'masculino';
-                      })()}`}>
-                        {partido.tipo_partido || 'Masculino'}
-                      </div>
-                      <div className="venue-large">
-                        {partido.sede?.split(',')[0] || partido.sede}
-                      </div>
-                    </div>
-                    
-                    <div className="match-buttons">
-                      <button 
-                        className="cyan-btn"
-                        onClick={() => {
-                          window.location.href = `/admin/${partido.id}`;
-                        }}
-                      >
-                        VER PARTIDO
-                      </button>
-                      <button 
-                        className="cyan-btn"
-                        onClick={() => {
-                          console.log('Invitar amigos al partido:', partido.id);
-                          toast.info('Función de invitar amigos próximamente');
-                        }}
-                      >
-                        INVITAR AMIGOS
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </>
-          );
-        })()
-      ) : (
-        // Free Players Tab
-        <>
-          {user ? (
-            <div style={{ width: '100%', maxWidth: '500px', marginBottom: '16px' }}>
-              {!isRegisteredAsFree ? (
-                <button
-                  className="sumarme-button"
-                  onClick={handleRegisterAsFree}
-                  
-                >
-                  ANOTARME COMO DISPONIBLE
-                </button>
-              ) : (
-                <button
-                  className="sumarme-button"
-                  onClick={handleUnregisterAsFree}
-                  style={{ background: '#dc3545' }}
-                >
-                  ❌ YA NO ESTOY DISPONIBLE
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="empty-message">
-              Inicia sesión para anotarte como jugador disponible
-            </div>
-          )}
-          
-          {freePlayers.length === 0 ? (
-            <div className="empty-message">
-              No hay jugadores disponibles en este momento
-            </div>
-          ) : (
-            <>
-              {/* Sort buttons */}
-              <div className="sort-buttons">
-                <button 
-                  className={`sort-btn ${sortBy === 'distance' ? 'active' : ''}`}
-                  onClick={() => setSortBy('distance')}
-                >
-                  📍 Distancia
-                </button>
-                <button 
-                  className={`sort-btn ${sortBy === 'rating' ? 'active' : ''}`}
-                  onClick={() => setSortBy('rating')}
-                >
-                  ⭐ Rating
-                </button>
+        {activeTab === 'matches' ? (
+          // Matches Tab
+          (() => {
+            // Filter out matches that are more than 1 hour past their scheduled time
+            const filteredPartidos = partidosAbiertos.filter((partido) => {
+              const matchDateTime = new Date(`${partido.fecha}T${partido.hora}`);
+              const now = new Date();
+              const oneHourAfter = new Date(matchDateTime.getTime() + 60 * 60 * 1000);
+              return now <= oneHourAfter;
+            });
+            
+            // Sort matches based on selected criteria
+            const sortedPartidos = [...filteredPartidos].sort((a, b) => {
+              if (matchSortBy === 'proximidad') {
+                const dateA = new Date(`${a.fecha}T${a.hora}`);
+                const dateB = new Date(`${b.fecha}T${b.hora}`);
+                return dateA - dateB;
+              } else {
+                return new Date(b.created_at) - new Date(a.created_at);
+              }
+            });
+            
+            return filteredPartidos.length === 0 ? (
+              <div className="empty-message">
+                No hay partidos buscando jugadores en este momento
               </div>
-              
-              {sortedFreePlayers.map((player) => (
-                <PlayerCardTrigger key={player.uuid || player.id} profile={player}>
-                  <div className="free-player-card">
-                    <div className="free-player-avatar">
-                      {(() => {
-                        console.log('Renderizando jugador:', player);
-                        const avatarUrl = player.avatar_url;
-                        console.log(`Avatar for ${player.nombre}:`, avatarUrl);
-                        return avatarUrl ? (
-                          <img 
-                            src={avatarUrl} 
-                            alt={player.nombre}
-                            className="free-player-img"
-                            onError={(e) => {
-                              console.log('Avatar failed to load:', avatarUrl);
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
-                            }}
-                          />
-                        ) : (
-                          <div className="free-player-placeholder">👤</div>
-                        );
-                      })()}
-                      <div className="free-player-placeholder" style={{ display: 'none' }}>👤</div>
-                    </div>
-                    <div className="free-player-info">
-                      <div className="free-player-name">{player.nombre}</div>
-                      <div className="free-player-distance">
-                        📍 {userLocation ? 
-                          Math.round(calculateDistance(
-                            userLocation.lat, 
-                            userLocation.lng, 
-                            player.latitud || -34.6037, 
-                            player.longitud || -58.3816,
-                          )) : '?'
-                        } km
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', width: '100%', maxWidth: '500px' }}>
+                  <button 
+                    onClick={() => setMatchSortBy('proximidad')}
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      background: matchSortBy === 'proximidad' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      borderRadius: '8px',
+                      color: matchSortBy === 'proximidad' ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                      fontFamily: 'Oswald, Arial, sans-serif',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    📅 Proximidad
+                  </button>
+                  <button 
+                    onClick={() => setMatchSortBy('recientes')}
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      background: matchSortBy === 'recientes' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      borderRadius: '8px',
+                      color: matchSortBy === 'recientes' ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                      fontFamily: 'Oswald, Arial, sans-serif',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    🕒 Recientes
+                  </button>
+                </div>
+                {sortedPartidos.map((partido) => {
+                  const jugadoresCount = partido.jugadores?.length || 0;
+                  const cupoMaximo = partido.cupo_jugadores || 20;
+                  const faltanJugadores = cupoMaximo - jugadoresCount;
+                  
+                  const isComplete = jugadoresCount >= cupoMaximo;
+                  
+                  return (
+                    <div key={partido.id} className="compact-match-card">
+                      <div className="card-header" style={{ marginBottom: '12px' }}>
+                        <div className="match-datetime-xl">
+                          {new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
+                            weekday: 'long', 
+                            day: 'numeric', 
+                            month: 'short',
+                          })} {partido.hora}
+                        </div>
+                        <div className="player-count-corner">
+                          {isComplete ? (
+                            <span className="complete-corner">¡Completo!</span>
+                          ) : (
+                            <span className="players-corner">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="currentColor" style={{ marginRight: '4px' }}>
+                                <path d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z"/>
+                              </svg>
+                              {jugadoresCount}/{cupoMaximo}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="match-info-large" style={{ marginBottom: '16px' }}>
+                        <div className={`match-type-large ${(() => {
+                          const modalidad = partido.modalidad || 'F5';
+                          if (modalidad.includes('5')) return 'futbol-5';
+                          if (modalidad.includes('6')) return 'futbol-6';
+                          if (modalidad.includes('7')) return 'futbol-7';
+                          if (modalidad.includes('8')) return 'futbol-8';
+                          if (modalidad.includes('11')) return 'futbol-11';
+                          return 'futbol-5';
+                        })()}`} style={{ fontSize: '12px', padding: '4px 8px' }}>
+                          {partido.modalidad || 'F5'}
+                        </div>
+                        <div className={`gender-large ${(() => {
+                          const tipo = (partido.tipo_partido || 'Masculino').toLowerCase();
+                          if (tipo.includes('masculino')) return 'masculino';
+                          if (tipo.includes('femenino')) return 'femenino';
+                          if (tipo.includes('mixto')) return 'mixto';
+                          return 'masculino';
+                        })()}`} style={{ fontSize: '12px', padding: '4px 8px' }}>
+                          {partido.tipo_partido || 'Masculino'}
+                        </div>
+                      </div>
+                      
+                      <div className="venue-large" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="16" height="16" fill="rgba(255, 255, 255, 0.9)">
+                          <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z"/>
+                        </svg>
+                        <span>{partido.sede?.split(',')[0] || partido.sede}</span>
+                      </div>
+                      
+                      <div className="match-buttons">
+                        <button 
+                          className="cyan-btn"
+                          onClick={() => {
+                            window.location.href = `/admin/${partido.id}`;
+                          }}
+                        >
+                          VER PARTIDO
+                        </button>
+                        <button 
+                          className="cyan-btn"
+                          onClick={() => {
+                            console.log('Invitar amigos al partido:', partido.id);
+                            toast.info('Función de invitar amigos próximamente');
+                          }}
+                        >
+                          INVITAR AMIGOS
+                        </button>
                       </div>
                     </div>
-                    <div className="free-player-stats">
-                      <div className="free-player-rating">
-                        <span className="rating-value">{(player.rating || player.ranking || player.calificacion || 4.5).toFixed(1)}</span>
-                        <span className="rating-stars">⭐</span>
+                  );
+                })}
+              </>
+            );
+          })()
+        ) : (
+          // Free Players Tab
+          <>
+            {user ? (
+              <div style={{ width: '100%', maxWidth: '500px', marginBottom: '16px' }}>
+                {!isRegisteredAsFree ? (
+                  <button
+                    className="sumarme-button"
+                    onClick={handleRegisterAsFree}
+                    
+                  >
+                    ANOTARME COMO DISPONIBLE
+                  </button>
+                ) : (
+                  <button
+                    className="sumarme-button"
+                    onClick={handleUnregisterAsFree}
+                    style={{ background: '#dc3545' }}
+                  >
+                    ❌ YA NO ESTOY DISPONIBLE
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="empty-message">
+                Inicia sesión para anotarte como jugador disponible
+              </div>
+            )}
+            
+            {freePlayers.length === 0 ? (
+              <div className="empty-message">
+                No hay jugadores disponibles en este momento
+              </div>
+            ) : (
+              <>
+                {/* Sort buttons */}
+                <div className="sort-buttons">
+                  <button 
+                    className={`sort-btn ${sortBy === 'distance' ? 'active' : ''}`}
+                    onClick={() => setSortBy('distance')}
+                  >
+                    📍 Distancia
+                  </button>
+                  <button 
+                    className={`sort-btn ${sortBy === 'rating' ? 'active' : ''}`}
+                    onClick={() => setSortBy('rating')}
+                  >
+                    ⭐ Rating
+                  </button>
+                </div>
+                
+                {sortedFreePlayers.map((player) => (
+                  <PlayerCardTrigger key={player.uuid || player.id} profile={player}>
+                    <div className="free-player-card">
+                      <div className="free-player-avatar">
+                        {(() => {
+                          console.log('Renderizando jugador:', player);
+                          const avatarUrl = player.avatar_url;
+                          console.log(`Avatar for ${player.nombre}:`, avatarUrl);
+                          return avatarUrl ? (
+                            <img 
+                              src={avatarUrl} 
+                              alt={player.nombre}
+                              className="free-player-img"
+                              onError={(e) => {
+                                console.log('Avatar failed to load:', avatarUrl);
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : (
+                            <div className="free-player-placeholder">👤</div>
+                          );
+                        })()}
+                        <div className="free-player-placeholder" style={{ display: 'none' }}>👤</div>
                       </div>
-                      <div className="free-player-badges">
-                        {(player?.mvps > 0) && (
-                          <div className="free-badge mvp">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={12} height={12}>
-                              <path fillRule="evenodd" d="M5.166 2.621v.858c-1.035.148-2.059.33-3.071.543a.75.75 0 0 0-.584.859 6.753 6.753 0 0 0 6.138 5.6 6.73 6.73 0 0 0 2.743 1.346A6.707 6.707 0 0 1 9.279 15H8.54c-1.036 0-1.875.84-1.875 1.875V19.5h-.75a2.25 2.25 0 0 0-2.25 2.25c0 .414.336.75.75.75h15a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-2.25-2.25H16.5v-2.625c0-1.036-.84-1.875-1.875-1.875h-.739a6.706 6.706 0 0 1-1.112-3.173 6.73 6.73 0 0 0 2.743-1.347 6.753 6.753 0 0 0 6.139-5.6.75.75 0 0 0-.585-.858 47.077 47.077 0 0 0-3.07-.543V2.62a.75.75 0 0 0-.658-.744 49.22 49.22 0 0 0-6.093-.377c-2.063 0-4.096.128-6.093.377a.75.75 0 0 0-.657.744Z" clipRule="evenodd" />
-                            </svg>
-                            <span>{player.mvps}</span>
-                          </div>
-                        )}
-                        {(player?.tarjetas_rojas > 0) && (
-                          <div className="free-badge red-card">
-                            <span className="red-card-emoji">🟥</span>
-                            <span>{player.tarjetas_rojas}</span>
-                          </div>
-                        )}
+                      <div className="free-player-info">
+                        <div className="free-player-name">{player.nombre}</div>
+                        <div className="free-player-distance">
+                          📍 {userLocation ? 
+                            Math.round(calculateDistance(
+                              userLocation.lat, 
+                              userLocation.lng, 
+                              player.latitud || -34.6037, 
+                              player.longitud || -58.3816,
+                            )) : '?'
+                          } km
+                        </div>
+                      </div>
+                      <div className="free-player-stats">
+                        <div className="free-player-rating">
+                          <span className="rating-value">{(player.rating || player.ranking || player.calificacion || 4.5).toFixed(1)}</span>
+                          <span className="rating-stars">⭐</span>
+                        </div>
+                        <div className="free-player-badges">
+                          {(player?.mvps > 0) && (
+                            <div className="free-badge mvp">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={12} height={12}>
+                                <path fillRule="evenodd" d="M5.166 2.621v.858c-1.035.148-2.059.33-3.071.543a.75.75 0 0 0-.584.859 6.753 6.753 0 0 0 6.138 5.6 6.73 6.73 0 0 0 2.743 1.346A6.707 6.707 0 0 1 9.279 15H8.54c-1.036 0-1.875.84-1.875 1.875V19.5h-.75a2.25 2.25 0 0 0-2.25 2.25c0 .414.336.75.75.75h15a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-2.25-2.25H16.5v-2.625c0-1.036-.84-1.875-1.875-1.875h-.739a6.706 6.706 0 0 1-1.112-3.173 6.73 6.73 0 0 0 2.743-1.347 6.753 6.753 0 0 0 6.139-5.6.75.75 0 0 0-.585-.858 47.077 47.077 0 0 0-3.07-.543V2.62a.75.75 0 0 0-.658-.744 49.22 49.22 0 0 0-6.093-.377c-2.063 0-4.096.128-6.093.377a.75.75 0 0 0-.657.744Z" clipRule="evenodd" />
+                              </svg>
+                              <span>{player.mvps}</span>
+                            </div>
+                          )}
+                          {(player?.tarjetas_rojas > 0) && (
+                            <div className="free-badge red-card">
+                              <span className="red-card-emoji">🟥</span>
+                              <span>{player.tarjetas_rojas}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </PlayerCardTrigger>
-              ))}
-            </>
-          )}
-        </>
-      )}
+                  </PlayerCardTrigger>
+                ))}
+              </>
+            )}
+          </>
+        )}
 
-      {/* Botón de volver eliminado ya que ahora tenemos el TabBar */}
-    </div>
+        {/* Botón de volver eliminado ya que ahora tenemos el TabBar */}
+      </div>
+    </>
   );
 }

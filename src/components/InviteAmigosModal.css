@@ -1,36 +1,41 @@
 /* Sheet Modal - Estilo WhatsApp/Instagram */
 .sheet-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  backdrop-filter: blur(2px);
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(0, 0, 0, 0.4) !important;
+  z-index: 9999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  backdrop-filter: blur(3px) !important;
+  padding: 30px !important;
 }
 
 .sheet-container {
-  background: #1a1a1a;
-  border-radius: 20px 0 0 20px;
-  width: 100%;
-  max-width: 400px;
-  height: 100vh;
-  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.6);
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  overflow: hidden;
-  transform: translateX(0);
-  animation: slideInRight 0.3s ease-out;
+  background: rgba(60, 60, 60, 0.9) !important;
+  border-radius: 20px !important;
+  width: 100% !important;
+  max-width: 380px !important;
+  max-height: 70vh !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  overflow: hidden !important;
+  transform: scale(1) !important;
+  animation: modalFadeIn 0.3s ease-out !important;
+  backdrop-filter: blur(15px) !important;
+  border: 2px solid rgba(255, 255, 255, 0.15) !important;
 }
 
-@keyframes slideInRight {
+@keyframes modalFadeIn {
   from {
-    transform: translateX(100%);
+    transform: scale(0.9);
+    opacity: 0;
   }
   to {
-    transform: translateX(0);
+    transform: scale(1);
+    opacity: 1;
   }
 }
 
@@ -173,28 +178,27 @@
   transform: none;
 }
 
+.invitar-btn.invited {
+  background: #28a745;
+  cursor: not-allowed;
+}
+
+.invitar-btn.invited:disabled {
+  background: #28a745;
+  opacity: 0.8;
+}
+
 /* Mobile optimizations */
 @media (max-width: 600px) {
   .sheet-overlay {
-    align-items: flex-end;
-    justify-content: center;
+    padding: 16px;
   }
   
   .sheet-container {
-    border-radius: 16px 16px 0 0;
+    border-radius: 16px;
     width: 100%;
-    height: auto;
-    max-height: 90vh;
-    animation: slideUp 0.3s ease-out;
-  }
-  
-  @keyframes slideUp {
-    from {
-      transform: translateY(100%);
-    }
-    to {
-      transform: translateY(0);
-    }
+    max-height: 85vh;
+    animation: modalFadeIn 0.3s ease-out;
   }
   
   .sheet-header {

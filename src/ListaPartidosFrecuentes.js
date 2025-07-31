@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { getPartidosFrecuentes, deletePartidoFrecuente } from './supabase';
 import { toast } from 'react-toastify';
-import { DIAS_SEMANA_CORTO } from './constants';
+import { DIAS_SEMANA } from './constants';
+import PageTitle from './components/PageTitle';
+import LoadingSpinner from './components/LoadingSpinner';
+import { HistorialDePartidosButton } from './components/historial';
+
+function formatearSede(sede) {
+  if (sede === 'La Terraza Fútbol 5, 8') return 'La Terraza Fútbol 5 y 8';
+  // Agregá más casos especiales si necesitás
+  return sede;
+}
 
 export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }) {
   const [partidosFrecuentes, setPartidosFrecuentes] = useState([]);
@@ -13,13 +22,9 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
 
   const cargarPartidos = async () => {
     try {
-      console.log('Loading frequent matches...');
       const partidos = await getPartidosFrecuentes();
-      console.log('Frequent matches loaded:', partidos);
-      console.log('Image URLs found:', partidos.map((p) => ({ nombre: p.nombre, imagen_url: p.imagen_url })));
       setPartidosFrecuentes(partidos);
     } catch (error) {
-      console.error('Error loading frequent matches:', error);
       toast.error('Error al cargar partidos: ' + error.message);
     } finally {
       setLoading(false);
@@ -33,129 +38,132 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
       setPartidosFrecuentes((prev) => prev.filter((p) => p.id !== id));
       toast.success('Partido eliminado correctamente');
     } catch (error) {
-      console.error('Error deleting frequent match:', error);
       toast.error('Error al eliminar el partido: ' + error.message);
     }
   };
 
-
-
   if (loading) {
     return (
-      <div className="voting-bg content-with-tabbar">
-        <div className="voting-modern-card">
-          <div className="match-name">CARGANDO...</div>
-        </div>
+      <div
+        className="voting-bg content-with-tabbar"
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <LoadingSpinner size="large" />
       </div>
     );
   }
 
   return (
-    <div className="voting-bg content-with-tabbar">
-      <div className="voting-modern-card" style={{ padding: 42, maxWidth: 420, marginTop: 40, marginBottom: 40 }}>
-        <div style={{ position: 'relative', marginBottom: 24, marginTop: 20 }}>
-          <button 
-            onClick={onVolver}
-            style={{
-              position: 'absolute',
-              top: '-6px',
-              left: '-120px',
-              background: 'none',
-              border: 'none',
-              color: 'white',
-              fontSize: '18px',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: '12px',
-              transition: 'background 0.2s',
-              minWidth: '40px',
-              minHeight: '40px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 10,
-            }}
-            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.15)'}
-            onMouseLeave={(e) => e.target.style.background = 'none'}
-          >
-            ◀
-          </button>
-          <div className="match-name" style={{ fontSize: '28px', textAlign: 'center', paddingLeft: '20px' }}>HISTORIAL</div>
-        </div>
-        
-        {partidosFrecuentes.length === 0 ? (
-          <div style={{ color: '#fff', textAlign: 'center', padding: '20px 0', fontFamily: 'Oswald, Arial, sans-serif' }}>
-            <p>No hay partidos frecuentes configurados</p>
-          </div>
-        ) : (
-          <div style={{ width: '100%', marginBottom: 22 }}>
-            {partidosFrecuentes.map((partido) => (
-              <div key={partido.id} style={{ background: 'rgba(255,255,255,0.1)', border: '2px solid rgba(255,255,255,0.2)', borderRadius: '8px', padding: '16px', marginBottom: '16px', width: '100%', boxSizing: 'border-box' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                  {partido.imagen_url ? (
-                    <img 
-                      src={partido.imagen_url} 
-                      alt={partido.nombre}
-                      style={{ 
-                        width: '48px', 
-                        height: '48px', 
-                        borderRadius: '8px', 
-                        objectFit: 'cover',
-                        border: '2px solid rgba(255,255,255,0.3)',
-                      }}
-                      onError={(e) => console.error('Image failed to load:', partido.imagen_url)}
-                    />
-                  ) : (
-                    <div style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '8px',
-                      background: 'rgba(255,255,255,0.1)',
-                      border: '2px solid rgba(255,255,255,0.2)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '20px',
-                    }}>
-                      ⚽
-                    </div>
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold', marginBottom: '4px', fontFamily: 'Bebas Neue, Arial, sans-serif' }}>{partido.nombre}</div>
-                    <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginBottom: '2px', fontFamily: 'Oswald, Arial, sans-serif' }}>
-                      {DIAS_SEMANA_CORTO[partido.dia_semana] || `Día ${partido.dia_semana}`} • {partido.hora}
-                    </div>
-                    <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '13px', fontFamily: 'Oswald, Arial, sans-serif' }}>
-                      {partido.sede}
+    <div className="voting-bg content-with-tabbar" style={{ paddingBottom: '100px' }}>
+      <div
+        className="voting-modern-card"
+        style={{
+          padding: '100px 0 0 0',
+          maxWidth: '100vw',
+          minHeight: 'calc(100vh - 60px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}
+      >
+        <PageTitle onBack={onVolver}>HISTORIAL</PageTitle>
+        <div style={{
+          width: '90vw',
+          marginTop: '70px',
+        }}>
+          {partidosFrecuentes.length === 0 ? (
+            <div style={{ color: '#fff', textAlign: 'center', padding: '20px 0', fontFamily: 'Oswald, Arial, sans-serif' }}>
+              <p>No hay partidos frecuentes configurados</p>
+            </div>
+          ) : (
+            <div style={{ width: '100%' }}>
+              {partidosFrecuentes.map((partido, index) => (
+                <div
+                  key={partido.id}
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    border: '2px solid rgba(255,255,255,0.2)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    marginBottom: index === partidosFrecuentes.length - 1 ? '40px' : '10px',
+                    boxSizing: 'border-box',
+                    width: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                    {partido.imagen_url ? (
+                      <img
+                        src={partido.imagen_url}
+                        alt={partido.nombre}
+                        style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '8px',
+                          objectFit: 'cover',
+                          border: '2px solid rgba(255,255,255,0.3)',
+                        }}
+                        onError={(e) => e.target.style.display = 'none'}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '8px',
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '2px solid rgba(255,255,255,0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '20px',
+                      }}>
+                        ⚽
+                      </div>
+                    )}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold', marginBottom: '4px', fontFamily: 'Bebas Neue, Arial, sans-serif' }}>
+                        {partido.nombre}
+                      </div>
+                      <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '15px', marginBottom: '2px', fontFamily: 'Oswald, Arial, sans-serif' }}>
+                        {DIAS_SEMANA[partido.dia_semana]?.toUpperCase() || `Día ${partido.dia_semana}`} • {partido.hora}
+                      </div>
+                      <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', fontFamily: 'Oswald, Arial, sans-serif', wordBreak: 'break-word' }}>
+                        {formatearSede(partido.sede)}
+                      </div>
                     </div>
                   </div>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      className="frequent-action-btn edit-btn"
+                      onClick={() => onEntrar(partido)}
+                    >
+                      ENTRAR
+                    </button>
+                    <button
+                      className="frequent-action-btn edit-btn"
+                      onClick={() => onEditar(partido)}
+                    >
+                      EDITAR
+                    </button>
+                    <HistorialDePartidosButton partidoFrecuente={partido} />
+                    <button
+                      className="frequent-action-btn delete-btn"
+                      onClick={() => eliminarPartido(partido.id, partido.nombre)}
+                    >
+                      ELIMINAR
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <button 
-                    className="frequent-action-btn edit-btn"
-                    onClick={() => onEntrar(partido)}
-                  >
-                    ENTRAR
-                  </button>
-                  <button 
-                    className="frequent-action-btn edit-btn"
-                    onClick={() => onEditar(partido)}
-                  >
-                    EDITAR
-                  </button>
-                  <button 
-                    className="frequent-action-btn delete-btn"
-                    onClick={() => eliminarPartido(partido.id, partido.nombre)}
-                  >
-                    ELIMINAR
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Botón de volver eliminado ya que ahora tenemos el TabBar */}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

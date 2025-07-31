@@ -52,24 +52,36 @@ export default function AutocompleteSede({ value, onSelect }) {
                 s.description &&
                 s.description.toLowerCase().includes('argentina'),
             )
-            .map(({ place_id, description }) => (
+            .map((s) => (
               <div
-                key={place_id}
+                key={s.place_id}
                 onClick={async () => {
-                  setValue(description, false);
+                  setValue(s.description, false);
                   clearSuggestions();
-                  const results = await getGeocode({ address: description });
+                  const results = await getGeocode({ address: s.description });
                   const { lat, lng } = await getLatLng(results[0]);
-                  onSelect({ description, place_id, lat, lng });
+                  onSelect({ description: s.description, place_id: s.place_id, lat, lng });
                 }}
                 style={{
                   padding: '8px 18px',
                   cursor: 'pointer',
                   fontSize: 18,
                   borderBottom: '1px solid #eceaf1',
+                  display: 'flex',
+                  flexDirection: 'column',
                 }}
               >
-                {description}
+                <span style={{ fontWeight: 700, color: '#2a2a2a', fontSize: 18 }}>
+                  {s.structured_formatting?.main_text || s.description}
+                </span>
+                {/* 
+                  // Si algún día querés mostrar la dirección abajo:
+                  {s.structured_formatting?.secondary_text && (
+                    <span style={{ color: '#bbb', fontSize: 13, fontWeight: 400 }}>
+                      {s.structured_formatting.secondary_text}
+                    </span>
+                  )}
+                */}
               </div>
             ))}
         </div>

@@ -7,6 +7,7 @@ import { useAuth } from './components/AuthProvider';
 import FifaHomeContent from './components/FifaHomeContent';
 import ProfileEditor from './components/ProfileEditor';
 import NotificationsView from './components/NotificationsView';
+import PageTitle from './components/PageTitle';
 
 
 
@@ -45,7 +46,7 @@ export default function FifaHome({ onModoSeleccionado }) {
     return (
       <div className="voting-bg home-bg content-with-tabbar">
         <div className="voting-modern-card" style={{ maxWidth: 600, padding: '20px' }}>
-          <div className="notifications-back-button" onClick={() => setShowNotifications(false)}>←</div>
+          <PageTitle onBack={() => setShowNotifications(false)}>NOTIFICACIONES</PageTitle>
           <NotificationsView />
         </div>
       </div>

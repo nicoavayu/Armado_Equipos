@@ -44,6 +44,12 @@ export const NotificationProvider = ({ children }) => {
     // Initial fetch of notifications
     fetchNotifications();
 
+    // Polling fallback - refresh every 5 seconds
+    const interval = setInterval(() => {
+      console.log('[NOTIFICATIONS] Polling for new notifications...');
+      fetchNotifications();
+    }, 5000);
+
     // Subscribe to real-time notifications
     console.log('[NOTIFICATIONS] Setting up realtime subscription for user:', currentUserId);
     const subscription = supabase
@@ -61,8 +67,10 @@ export const NotificationProvider = ({ children }) => {
           console.log('[NOTIFICATIONS] Table:', payload.table);
           console.log('[NOTIFICATIONS] New data:', payload.new);
           console.log('[NOTIFICATIONS] Filter matched for user:', currentUserId);
+          console.log('[NOTIFICATIONS] Payload full:', payload);
           
           if (payload.new) {
+            console.log('[NOTIFICATIONS] Calling handleNewNotification...');
             handleNewNotification(payload.new);
           } else {
             console.error('[NOTIFICATIONS] No new data in payload');
@@ -73,6 +81,7 @@ export const NotificationProvider = ({ children }) => {
         console.log('[NOTIFICATIONS] === SUBSCRIPTION STATUS ===');
         console.log('[NOTIFICATIONS] Status:', status);
         console.log('[NOTIFICATIONS] Channel:', `notifications-${currentUserId}`);
+        console.log('[NOTIFICATIONS] Timestamp:', new Date().toISOString());
         
         if (status === 'SUBSCRIBED') {
           console.log('[NOTIFICATIONS] ✅ Successfully subscribed to realtime notifications');
@@ -84,7 +93,8 @@ export const NotificationProvider = ({ children }) => {
       });
 
     return () => {
-      console.log('[NOTIFICATIONS] Cleaning up subscription');
+      console.log('[NOTIFICATIONS] Cleaning up subscription and interval');
+      clearInterval(interval);
       supabase.removeChannel(subscription);
     };
   }, [currentUserId]);
@@ -149,6 +159,7 @@ export const NotificationProvider = ({ children }) => {
     }
     
     setNotifications((prev) => {
+      console.log('[NOTIFICATIONS] Current notifications before update:', prev.length);
       // Evitar duplicados
       const exists = prev.find((n) => n.id === notification.id);
       if (exists) {
@@ -158,6 +169,7 @@ export const NotificationProvider = ({ children }) => {
       
       const updated = [notification, ...prev];
       console.log('[NOTIFICATIONS] Updated notifications count:', updated.length);
+      console.log('[NOTIFICATIONS] New notification added to state');
       updateUnreadCount(updated);
       return updated;
     });
@@ -215,7 +227,7 @@ export const NotificationProvider = ({ children }) => {
     
     setUnreadCount({
       friends: friendRequests,
-      matches: matchInvites + callToVote + postMatchSurveys, // Agrupamos todas las notificaciones relacionadas con partidos
+      matches: matchInvites + callToVote + postMatchSurveys,
       total: unread.length,
     });
   };

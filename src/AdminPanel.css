@@ -55,13 +55,13 @@
 
 /* Remove the wrapper card styling since it's handled by App.js */
 .admin-panel-content {
-  width: 100% !important;
-  max-width: 100% !important;
-  padding: 15px 0 70px !important; /* Reducido arriba, añadido abajo para la tabbar */
-  margin: 0 !important;
+  width: 90vw !important;
+  max-width: 90vw !important;
+  padding: 15px 0 70px !important;
+  margin: 0 auto !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important; /* Reducido aún más el espacio entre elementos */
+  gap: 12px !important;
   box-sizing: border-box !important;
   overflow-x: hidden !important;
 }
@@ -189,9 +189,28 @@
   border: 2px solid rgb(255 255 255 / 20%);
   border-radius: 12px;
   padding: 20px;
-  width: 100%;
+  width: 90vw;
+  max-width: 90vw;
   box-sizing: border-box;
-  margin-top: 0;
+  margin: 0 auto;
+}
+
+/* New form layout - full width input with buttons below */
+.admin-panel-content .admin-add-section .admin-add-form-new {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.admin-panel-content .admin-add-section .admin-buttons-row {
+  display: flex !important;
+  gap: 8px !important;
+  width: 100% !important;
 }
 
 /* High specificity form layout - overrides global styles */
@@ -204,6 +223,35 @@
   box-sizing: border-box !important;
   margin: 0 !important;
   padding: 0 !important;
+}
+
+/* Full width input styling */
+.admin-panel-content .admin-add-section .input-modern-full {
+  width: 100% !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  font-size: 17px !important;
+  border-radius: 10px !important;
+  margin: 0 !important;
+  background: rgb(255 255 255 / 95%) !important;
+  border: 1.5px solid rgb(255 255 255 / 40%) !important;
+  color: #333 !important;
+  padding: 0 14px !important;
+  box-sizing: border-box !important;
+  font-family: Oswald, Arial, sans-serif !important;
+  font-weight: 500 !important;
+}
+
+.admin-panel-content .admin-add-section .input-modern-full:focus {
+  border-color: #0EA9C6 !important;
+  background: #fff !important;
+  outline: none !important;
+}
+
+.admin-panel-content .admin-add-section .input-modern-full::placeholder {
+  color: rgb(51 51 51 / 60%) !important;
+  font-size: 16px !important;
 }
 
 /* Input styling with high specificity */
@@ -238,6 +286,52 @@
   font-size: 16px !important;
 }
 
+/* Half-width button styling */
+.admin-panel-content .admin-add-section .admin-btn-half {
+  flex: 1 !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  font-size: 15px !important;
+  border-radius: 10px !important;
+  margin: 0 !important;
+  background: #0EA9C6 !important;
+  border: 2px solid #fff !important;
+  color: #fff !important;
+  font-family: 'Bebas Neue', Arial, sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  padding: 0 8px !important;
+}
+
+.admin-panel-content .admin-add-section .admin-btn-half:hover {
+  background: #0c94a8 !important;
+  transform: translateY(-1px) !important;
+}
+
+.admin-panel-content .admin-add-section .admin-btn-half:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+/* Invite button specific styling */
+.admin-panel-content .admin-add-section .admin-btn-half.admin-invite-btn {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: 2px solid rgba(255, 255, 255, 0.4) !important;
+}
+
+.admin-panel-content .admin-add-section .admin-btn-half.admin-invite-btn:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+}
+
 /* Button styling with high specificity */
 .admin-panel-content .admin-add-section .admin-add-form .voting-confirm-btn {
   width: 88px !important;
@@ -268,6 +362,29 @@
   padding: 0 8px !important;
 }
 
+/* Invite button styling */
+.admin-panel-content .admin-add-section .admin-add-form .admin-invite-btn {
+  width: 88px !important;
+  min-width: 80px !important;
+  max-width: 100px !important;
+  font-size: 13px !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: 2px solid rgba(255, 255, 255, 0.4) !important;
+  border-radius: 10px !important;
+}
+
+.admin-panel-content .admin-add-section .admin-add-form .admin-invite-btn:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  transform: translateY(-1px) !important;
+}
+
+.admin-panel-content .admin-add-section .admin-add-form .admin-invite-btn:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
 .admin-panel-content .admin-add-section .admin-add-form .voting-confirm-btn:hover {
   background: #0c94a8 !important;
   transform: translateY(-1px) !important;
@@ -281,6 +398,22 @@
 
 /* Mobile responsive overrides */
 @media (width <= 480px) {
+  .admin-panel-content .admin-add-section .input-modern-full {
+    font-size: 16px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    padding: 0 12px !important;
+  }
+  
+  .admin-panel-content .admin-add-section .admin-btn-half {
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    font-size: 13px !important;
+    padding: 0 6px !important;
+  }
+  
   .admin-panel-content .admin-add-section .admin-add-form {
     gap: 8px !important;
   }
@@ -303,9 +436,28 @@
     font-size: 13px !important;
     padding: 0 6px !important;
   }
+  
+  .admin-panel-content .admin-add-section .admin-add-form .admin-invite-btn {
+    width: 76px !important;
+    min-width: 70px !important;
+    max-width: 85px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    font-size: 11px !important;
+    padding: 0 4px !important;
+  }
 }
 
 @media (width <= 360px) {
+  .admin-panel-content .admin-add-section .input-modern-full {
+    font-size: 15px !important;
+  }
+  
+  .admin-panel-content .admin-add-section .admin-btn-half {
+    font-size: 12px !important;
+  }
+  
   .admin-panel-content .admin-add-section .admin-add-form .input-modern {
     font-size: 15px !important;
   }
@@ -313,6 +465,11 @@
   .admin-panel-content .admin-add-section .admin-add-form .voting-confirm-btn {
     width: 70px !important;
     font-size: 12px !important;
+  }
+  
+  .admin-panel-content .admin-add-section .admin-add-form .admin-invite-btn {
+    width: 70px !important;
+    font-size: 10px !important;
   }
 }
 
@@ -323,6 +480,10 @@
   border-radius: 12px;
   padding: 20px;
   min-height: 120px;
+  width: 90vw;
+  max-width: 90vw;
+  box-sizing: border-box;
+  margin: 0 auto;
 }
 
 .admin-players-title {
@@ -502,6 +663,49 @@
   transform: none !important;
 }
 
+/* Estilos para botones de jugadores no-admin (invitar amigos y abandonar) */
+.guest-player-actions {
+  display: flex;
+  gap: 8px;
+  width: 90vw;
+  max-width: 90vw;
+  box-sizing: border-box;
+  margin: 0 auto;
+  background: #d32f2f !important;
+}
+
+.guest-action-btn {
+  flex: 1;
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 16px;
+  padding: 10px 16px;
+  border: 2px solid #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  color: #fff;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.guest-action-btn.invite-btn:hover {
+  background: #0EA9C6;
+  border-color: #0EA9C6;
+}
+
+.guest-action-btn.leave-btn:hover {
+  background: #DE1C49;
+  border-color: #DE1C49;
+}
+
+.guest-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Empty state */
 .admin-players-empty {
   text-align: center;
@@ -517,14 +721,17 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  width: 100%;
+  width: 90vw;
+  max-width: 90vw;
+  box-sizing: border-box;
+  margin: 0 auto;
 }
 
 .admin-actions .voting-confirm-btn {
   width: 100%;
   height: 54px;
   font-size: 1.5rem;
-  border-radius: 8px;
+  border-radius: 25px;
   margin: 0;
   display: flex;
   align-items: center;
@@ -562,6 +769,29 @@
   background: rgb(255 255 255 / 10%);
   border-color: #fff;
   color: #fff;
+}
+
+.admin-btn-cyan {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: 2px solid rgba(255, 255, 255, 0.4) !important;
+  border-radius: 25px !important;
+  color: #fff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.admin-btn-cyan:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  transform: translateY(-1px);
+}
+
+.admin-btn-cyan:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
 }
 
 
@@ -628,6 +858,20 @@
   }
   
   /* Desktop input/button sizing */
+  .admin-panel-content .admin-add-section .input-modern-full {
+    height: 50px !important;
+    min-height: 50px !important;
+    max-height: 50px !important;
+    font-size: 18px !important;
+  }
+  
+  .admin-panel-content .admin-add-section .admin-btn-half {
+    height: 50px !important;
+    min-height: 50px !important;
+    max-height: 50px !important;
+    font-size: 16px !important;
+  }
+  
   .admin-panel-content .admin-add-section .admin-add-form .input-modern {
     height: 50px !important;
     min-height: 50px !important;
@@ -643,5 +887,15 @@
     min-height: 50px !important;
     max-height: 50px !important;
     font-size: 16px !important;
+  }
+  
+  .admin-panel-content .admin-add-section .admin-add-form .admin-invite-btn {
+    width: 100px !important;
+    min-width: 90px !important;
+    max-width: 110px !important;
+    height: 50px !important;
+    min-height: 50px !important;
+    max-height: 50px !important;
+    font-size: 14px !important;
   }
 }

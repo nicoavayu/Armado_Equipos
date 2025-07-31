@@ -25,7 +25,7 @@
 }
 
 .tab-button.active {
-  background-color: rgba(129, 120, 229, 0.6);
+  background-color: #0864b2;
   color: #fff;
 }
 
@@ -78,7 +78,7 @@
   padding: 10px;
   border-radius: 8px;
   border: none;
-  background-color: #8178e5;
+  background-color: #0864b2;
   color: #fff;
   font-size: 16px;
   font-weight: 500;

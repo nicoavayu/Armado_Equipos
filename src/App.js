@@ -27,6 +27,7 @@ import EditarPartidoFrecuente from './EditarPartidoFrecuente';
 import QuieroJugar from './QuieroJugar';
 import ProfileEditor from './components/ProfileEditor';
 import NotificationsView from './components/NotificationsView';
+import PageTitle from './components/PageTitle';
 
 import { NotificationProvider } from './context/NotificationContext';
 import { TutorialProvider } from './context/TutorialContext';
@@ -142,7 +143,7 @@ const ProfilePage = () => {
   return (
     <div className="voting-bg content-with-tabbar">
       <div className="voting-modern-card" style={{ maxWidth: 440, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div className="notifications-back-button" onClick={() => navigate('/')}>←</div>
+        <PageTitle onBack={() => navigate('/')}>PERFIL</PageTitle>
         <ProfileEditor 
           isOpen={true} 
           onClose={() => navigate('/')} 
@@ -157,7 +158,7 @@ const NotificationsPage = () => {
   return (
     <div className="voting-bg content-with-tabbar">
       <div className="voting-modern-card" style={{ maxWidth: 600, padding: '20px' }}>
-        <div className="notifications-back-button" onClick={() => navigate('/')}>←</div>
+        <PageTitle onBack={() => navigate('/')}>NOTIFICACIONES</PageTitle>
         <NotificationsView />
       </div>
     </div>
@@ -484,7 +485,7 @@ function MainAppContent({ user }) {
     content = (
       <div className="voting-bg content-with-tabbar">
         <div className="voting-modern-card" style={{ maxWidth: 440, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div className="notifications-back-button" onClick={() => setModo('home')}>←</div>
+          <PageTitle onBack={() => setModo('home')}>PERFIL</PageTitle>
           <ProfileEditor 
             isOpen={true} 
             onClose={() => setModo('home')} 
@@ -496,7 +497,7 @@ function MainAppContent({ user }) {
     content = (
       <div className="voting-bg content-with-tabbar">
         <div className="voting-modern-card" style={{ maxWidth: 600, padding: '20px' }}>
-          <div className="notifications-back-button" onClick={() => setModo('home')}>←</div>
+          <PageTitle onBack={() => setModo('home')}>NOTIFICACIONES</PageTitle>
           <NotificationsView />
         </div>
       </div>

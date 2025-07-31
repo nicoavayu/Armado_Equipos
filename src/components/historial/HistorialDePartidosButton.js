@@ -24,11 +24,9 @@ const HistorialDePartidosButton = ({ partidoFrecuente }) => {
       
       const { data, error } = await supabase
         .from('partidos')
-        .select(`
-          *,
-          equipos:equipos_partidos(*)
-        `)
+        .select('*')
         .eq('partido_frecuente_id', idBusqueda)
+        .eq('estado', 'equipos_formados')
         .order('fecha', { ascending: false });
       
       if (error) throw error;
@@ -59,7 +57,7 @@ const HistorialDePartidosButton = ({ partidoFrecuente }) => {
         onClick={handleClick}
         disabled={loading}
       >
-        {loading ? 'Cargando...' : 'Historial de partidos'}
+        {loading ? 'Cargando...' : 'Historial'}
       </button>
       
       {showModal && (

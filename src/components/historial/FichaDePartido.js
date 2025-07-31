@@ -166,8 +166,49 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
           )}
         </div>
         
-        {/* Plantilla de jugadores - SIEMPRE se muestra */}
-        <PlantillaJugadores jugadores={detallesPartido.jugadores || []} />
+        {/* Equipos formados - SIEMPRE se muestra si existen */}
+        {detallesPartido.equipos && detallesPartido.equipos.length === 2 ? (
+          <div className="ficha-section">
+            <h3 className="ficha-section-title">Equipos</h3>
+            <div className="ficha-equipos">
+              {detallesPartido.equipos.map((equipo, index) => {
+                const jugadoresEquipo = (partido.jugadores || []).filter((j) => 
+                  equipo.players && equipo.players.includes(j.uuid),
+                );
+                
+                return (
+                  <div key={equipo.id || index} className="ficha-equipo">
+                    <div className="ficha-equipo-header">
+                      <h4>{equipo.name || `Equipo ${index + 1}`}</h4>
+                      <span className="ficha-equipo-score">
+                        {equipo.score ? equipo.score.toFixed(1) : '0.0'}
+                      </span>
+                    </div>
+                    <div className="ficha-equipo-jugadores">
+                      {jugadoresEquipo.map((jugador) => (
+                        <div key={jugador.uuid} className="ficha-jugador-item">
+                          <div className="ficha-jugador-avatar">
+                            {jugador.foto_url || jugador.avatar_url ? (
+                              <img src={jugador.foto_url || jugador.avatar_url} alt={jugador.nombre} />
+                            ) : (
+                              <div className="ficha-jugador-placeholder">
+                                {jugador.nombre.charAt(0)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="ficha-jugador-nombre">{jugador.nombre}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          /* Plantilla de jugadores - si no hay equipos formados */
+          <PlantillaJugadores jugadores={partido.jugadores || []} />
+        )}
         
         {/* Secciones que solo se muestran si hay encuestas o datos */}
         {tieneDestacados && (

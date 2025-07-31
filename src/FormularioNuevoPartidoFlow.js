@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AutocompleteSede from './AutocompleteSede';
 import { crearPartidoFrecuente, crearPartidoDesdeFrec, crearPartido, supabase } from './supabase';
 import { handleError, handleSuccess, safeAsync } from './utils/errorHandler';
+import PageTitle from './components/PageTitle';
 
 import './FormularioNuevoPartidoFlow.css';
 
@@ -12,7 +13,7 @@ const STEPS = {
   CONFIRM: 4,
 };
 
-export default function FormularioNuevoPartidoFlow({ onConfirmar }) {
+export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const [step, setStep] = useState(STEPS.NAME);
   const [nombrePartido, setNombrePartido] = useState('');
   const [fecha, setFecha] = useState('');
@@ -149,7 +150,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar }) {
     flexDirection: 'column',
     alignItems: 'center',
     padding: '0',
-    paddingBottom: '8.5rem',
+    paddingBottom: '2.5rem',
   };
 
   const innerStyles = {
@@ -157,16 +158,16 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar }) {
     maxWidth: 440,
     margin: '0 auto',
     padding: '0 1rem',
-    paddingBottom: '8.5rem',
+    paddingBottom: '2.5rem',
   };
 
   // ------ Paso 1: NOMBRE ------
   if (step === STEPS.NAME) {
     return (
       <div style={mainStyles}>
+        <PageTitle onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div style={innerStyles}>
-          <h1 className="form-title" style={{ marginTop: '2.2rem', marginBottom: '2rem' }}>INGRESÁ EL NOMBRE</h1>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1rem', marginTop: '5.5rem' }}>
             <div
               className="voting-photo-box"
               onClick={() => document.getElementById('partido-foto-input').click()}
@@ -202,21 +203,23 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar }) {
               Agregá una imagen para el partido (opcional)
             </div>
           </div>
-          <input
-            className="input-modern"
-            type="text"
-            placeholder="Ej: Partido del Viernes"
-            value={nombrePartido}
-            onChange={(e) => setNombrePartido(e.target.value)}
-            style={{
-              
-              marginBottom: '1.2rem',
-              marginTop: '0.2rem',
-              width: '100%',
-              boxSizing: 'border-box',
-            }}
-            autoFocus
-          />
+          <div style={{ width: '100%', marginBottom: '1.2rem', marginTop: '0.3rem' }}>
+            <label style={{ fontWeight: 500, color: '#fff', marginBottom: 12, marginLeft: 2, display: 'block', fontFamily: "'Oswald', Arial, sans-serif" }}>
+              Ingresá un nombre para el partido
+            </label>
+            <input
+              className="input-modern"
+              type="text"
+              placeholder="Ej: Partido del Viernes"
+              value={nombrePartido}
+              onChange={(e) => setNombrePartido(e.target.value)}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+              }}
+              autoFocus
+            />
+          </div>
           {/* Selector de modalidad */}
           <div style={{ width: '100%', marginBottom: '2rem', marginTop: '0.3rem' }}>
             <label style={{ fontWeight: 500, color: '#fff', marginBottom: 12, display: 'block', fontFamily: "'Oswald', Arial, sans-serif" }}>
@@ -239,9 +242,9 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar }) {
                     fontSize: '16px',
                     fontWeight: modalidad === tipo ? '700' : '500',
                     fontFamily: "'Oswald', Arial, sans-serif",
-                    border: modalidad === tipo ? '2px solid #f4d03f' : '1.5px solid #ffffffff',
+                    border: modalidad === tipo ? '2px solid #0864b2' : '1.5px solid #ffffffff',
                     borderRadius: '6px',
-                    background: modalidad === tipo ? '#f4d03f' : 'rgba(255,255,255,0.9)',
+                    background: modalidad === tipo ? '#0864b2' : 'rgba(255,255,255,0.9)',
                     color: modalidad === tipo ? '#fff' : '#333',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
@@ -281,9 +284,9 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar }) {
                     fontSize: '16px',
                     fontWeight: tipoPartido === tipo ? '700' : '500',
                     fontFamily: "'Oswald', Arial, sans-serif",
-                    border: tipoPartido === tipo ? '2px solid #f4d03f' : '1.5px solid #ffffffff',
+                    border: tipoPartido === tipo ? '2px solid #0864b2' : '1.5px solid #ffffffff',
                     borderRadius: '6px',
-                    background: tipoPartido === tipo ? '#f4d03f' : 'rgba(255,255,255,0.9)',
+                    background: tipoPartido === tipo ? '#0864b2' : 'rgba(255,255,255,0.9)',
                     color: tipoPartido === tipo ? '#fff' : '#333',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
@@ -324,13 +327,14 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar }) {
   if (step === STEPS.WHEN) {
     return (
       <div style={mainStyles}>
+        <PageTitle onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div style={innerStyles}>
-          <h1 className="form-title" style={{ marginTop: '2.2rem', marginBottom: '2rem' }}>¿CUÁNDO SE JUEGA?</h1>
           <div style={{
             fontSize: 18,
-            color: 'rgba(255,255,255,0.8)',
+            color: 'rgba(255,255,255)',
             textAlign: 'center',
             marginBottom: 24,
+            marginTop: '5.2rem',
             fontFamily: "'Oswald', Arial, sans-serif",
           }}>
             Seleccioná la fecha y hora del partido
@@ -373,13 +377,14 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar }) {
   if (step === STEPS.WHERE) {
     return (
       <div style={mainStyles}>
+        <PageTitle onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div style={innerStyles}>
-          <h1 className="form-title" style={{ marginTop: '2.2rem', marginBottom: '2rem' }}>¿DÓNDE SE JUEGA?</h1>
           <div style={{
             fontSize: 18,
-            color: 'rgba(255,255,255,0.8)',
+            color: 'rgba(255,255,255)',
             textAlign: 'center',
             marginBottom: 24,
+            marginTop: '5.2rem',
             fontFamily: "'Oswald', Arial, sans-serif",
           }}>
             Ingresá la dirección o nombre del lugar
@@ -415,8 +420,9 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar }) {
   if (step === STEPS.CONFIRM) {
     return (
       <div style={mainStyles}>
+        <PageTitle onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div style={innerStyles}>
-          <h1 className="form-title" style={{ marginTop: '2.2rem', marginBottom: '2rem' }}>CONFIRMÁ LOS DATOS</h1>
+          <div style={{ marginTop: '8.2rem' }}></div>
           {fotoPreview && (
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
               <img

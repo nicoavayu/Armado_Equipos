@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../supabase';
 import FichaDePartido from './FichaDePartido';
 import './ListaDeFechasModal.css';
 
@@ -12,10 +13,42 @@ import './ListaDeFechasModal.css';
  */
 const ListaDeFechasModal = ({ partidos, onClose, nombrePartido, error, loading }) => {
   const [selectedPartido, setSelectedPartido] = useState(null);
+  const [partidoJugadores, setPartidoJugadores] = useState({});
+
+  // Cargar jugadores para todos los partidos
+  useEffect(() => {
+    const loadPlayersForMatches = async () => {
+      if (!partidos || partidos.length === 0) return;
+      
+      const playersData = {};
+      
+      for (const partido of partidos) {
+        try {
+          const { data: jugadores, error } = await supabase
+            .from('jugadores')
+            .select('uuid, nombre, foto_url, avatar_url')
+            .eq('partido_id', partido.id);
+            
+          if (!error && jugadores) {
+            playersData[partido.id] = jugadores;
+          }
+        } catch (err) {
+          console.error('Error loading players for match:', partido.id, err);
+        }
+      }
+      
+      setPartidoJugadores(playersData);
+    };
+    
+    loadPlayersForMatches();
+  }, [partidos]);
 
   // Seleccionar un partido para ver su ficha
   const handleSelectPartido = (partido) => {
-    setSelectedPartido(partido);
+    setSelectedPartido({
+      ...partido,
+      jugadores: partidoJugadores[partido.id] || [],
+    });
   };
 
   // Volver a la lista de fechas
@@ -76,26 +109,32 @@ const ListaDeFechasModal = ({ partidos, onClose, nombrePartido, error, loading }
               ) : (
                 // Lista de fechas
                 <div className="fechas-list">
-                  {partidos.map((partido) => (
-                    <div 
-                      key={partido.id} 
-                      className="fecha-card"
-                      onClick={() => handleSelectPartido(partido)}
-                    >
-                      <div className="fecha-info">
-                        <div className="fecha-date">
-                          {formatFecha(partido.fecha)}
+                  {partidos.map((partido) => {
+                    const jugadores = partidoJugadores[partido.id] || [];
+                    const equipos = partido.equipos || [];
+                    
+                    return (
+                      <div 
+                        key={partido.id} 
+                        className="fecha-card"
+                        onClick={() => handleSelectPartido(partido)}
+                      >
+                        <div className="fecha-info">
+                          <div className="fecha-date">
+                            {formatFecha(partido.fecha)}
+                          </div>
+                          <div className="fecha-details">
+                            <span className="fecha-location">{partido.sede || 'Sin ubicación'}</span>
+                            <span className="fecha-players">{jugadores.length} jugadores</span>
+                            {equipos.length === 2 && (
+                              <span className="fecha-teams">Equipos formados</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="fecha-details">
-                          <span className="fecha-location">{partido.lugar || 'Sin ubicación'}</span>
-                          {partido.resultado && (
-                            <span className="fecha-score">{partido.resultado}</span>
-                          )}
-                        </div>
+                        <div className="fecha-arrow">›</div>
                       </div>
-                      <div className="fecha-arrow">›</div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

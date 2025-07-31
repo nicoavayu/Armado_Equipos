@@ -14,7 +14,7 @@ body, html {
   -webkit-overflow-scrolling: touch;
   background: transparent !important;
   padding: 0 !important;
-  padding-bottom: 8.5rem !important;
+  padding-bottom: 3.5rem !important;
 }
 
 /* Elimina cualquier fondo/blanco en los wrappers */
@@ -88,4 +88,10 @@ body, html {
   box-shadow: none !important;
   padding: 0;
   margin: 0 0 2rem 0;
+}
+
+
+.input-modern::placeholder {
+  color: rgba(255,255,255,0.6) !important;
+  opacity: 1;
 }

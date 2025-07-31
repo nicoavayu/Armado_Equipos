@@ -9,6 +9,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
   const [amigos, setAmigos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [invitedFriends, setInvitedFriends] = useState(new Set());
 
   // Bloquear scroll del body cuando el modal está abierto
   useEffect(() => {
@@ -56,6 +57,22 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
       console.log('[MODAL_AMIGOS] Current user (sender):', currentUserId);
       
       setAmigos(friendsData || []);
+      
+      // Verificar qué amigos ya fueron invitados a este partido
+      if (partidoActual?.id && friendsData?.length > 0) {
+        const friendIds = friendsData.map((f) => f.id);
+        const { data: existingInvitations } = await supabase
+          .from('notifications')
+          .select('user_id')
+          .eq('type', 'match_invite')
+          .eq('data->>matchId', partidoActual.id.toString())
+          .in('user_id', friendIds);
+        
+        if (existingInvitations) {
+          const invitedIds = new Set(existingInvitations.map((inv) => inv.user_id));
+          setInvitedFriends(invitedIds);
+        }
+      }
     } catch (error) {
       console.error('[MODAL_AMIGOS] Error fetching friends:', error);
       setAmigos([]);
@@ -82,6 +99,25 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
         id: partidoActual.id,
         nombre: partidoActual.nombre,
       });
+
+      // Verificar si ya existe una invitación para este amigo en este partido
+      const { data: existingInvitation, error: checkError } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', amigo.id)
+        .eq('type', 'match_invite')
+        .eq('data->>matchId', partidoActual.id.toString())
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows found
+        console.error('[MODAL_AMIGOS] Error checking existing invitation:', checkError);
+        throw new Error('Error verificando invitaciones existentes');
+      }
+
+      if (existingInvitation) {
+        toast.info(`${amigo.nombre} ya fue invitado a este partido`);
+        return;
+      }
 
       const { data: currentUser, error: userError } = await supabase
         .from('usuarios')
@@ -181,9 +217,16 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
       });
       console.log('[MODAL_AMIGOS] Recipient should receive realtime notification for user_id:', insertedNotification.user_id);
 
+      // Agregar al set de amigos invitados
+      setInvitedFriends((prev) => new Set([...prev, amigo.id]));
+      
       toast.success(`Invitación enviada a ${amigo.nombre}`);
     } catch (error) {
       console.error('[MODAL_AMIGOS] Error sending invitation:', error);
+      if (error.message.includes('ya fue invitado')) {
+        // No mostrar error si ya fue invitado
+        return;
+      }
       toast.error('Error al enviar la invitación');
     } finally {
       setInviting(false);
@@ -221,10 +264,10 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
                   </span>
                   <button 
                     onClick={() => handleInvitar(amigo)}
-                    className="invitar-btn"
-                    disabled={inviting}
+                    className={`invitar-btn ${invitedFriends.has(amigo.id) ? 'invited' : ''}`}
+                    disabled={inviting || invitedFriends.has(amigo.id)}
                   >
-                    {inviting ? '...' : 'Invitar'}
+                    {inviting ? '...' : invitedFriends.has(amigo.id) ? 'Invitado' : 'Invitar'}
                   </button>
                 </li>
               ))}

@@ -33,6 +33,7 @@ import { HistorialDePartidosButton } from './components/historial';
 import { useAuth } from './components/AuthProvider';
 import InviteAmigosModal from './components/InviteAmigosModal';
 import { detectDuplicates, autoCleanupDuplicates } from './utils/duplicateCleanup';
+import PageTitle from './components/PageTitle';
 
 function MiniAvatar({ foto_url, nombre, size = 34 }) {
   if (foto_url) {
@@ -944,6 +945,14 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
   }
   
+  const [faltanJugadoresState, setFaltanJugadoresState] = useState(partidoActual?.falta_jugadores || false);
+  
+  // Initialize state only once when partidoActual loads
+  useEffect(() => {
+    if (partidoActual?.falta_jugadores !== undefined && faltanJugadoresState === false && !partidoActual.falta_jugadores) {
+      setFaltanJugadoresState(partidoActual.falta_jugadores);
+    }
+  }, [partidoActual?.id]); // Only run when partidoActual.id changes (new match loaded)
  
   async function handleFaltanJugadores() {
     // [TEAM_BALANCER_EDIT] Solo admin puede cambiar estado de "faltan jugadores"
@@ -952,8 +961,16 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       return;
     }
     
+    const isAtCapacity = partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores;
+    
+    // Si está lleno y quiere activar el toggle, no permitir
+    if (isAtCapacity && !faltanJugadoresState) {
+      toast.error('No se puede abrir el partido cuando está lleno');
+      return;
+    }
+    
     try {
-      const nuevoEstado = !partidoActual.falta_jugadores;
+      const nuevoEstado = !faltanJugadoresState;
       const { error } = await supabase
         .from('partidos')
         .update({ falta_jugadores: nuevoEstado })
@@ -961,7 +978,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       
       if (error) throw error;
       
-      // Update local state
+      // Update both local states
+      setFaltanJugadoresState(nuevoEstado);
       partidoActual.falta_jugadores = nuevoEstado;
       
       toast.success(nuevoEstado ? 
@@ -1084,13 +1102,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     <>
       <ChatButton partidoId={partidoActual?.id} />
       
-      {/* Header bar */}
-      <div className="admin-panel-header">
-        <div className="header-content">
-          <button className="back-button" onClick={onBackToHome}>←</button>
-          <h2>CONVOCA JUGADORES</h2>
-        </div>
-      </div>
+      <PageTitle onBack={onBackToHome}>CONVOCA JUGADORES</PageTitle>
       
       <div className="admin-panel-content">
         {showTeams ? (
@@ -1109,7 +1121,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         ) : (
           <>
             {/* Match header with custom name and details */}
-            <div className="match-header" style={{ textAlign: 'center', marginBottom: '24px', width: '100%' }}>
+            {/* AJUSTE DE MARGEN: Modificar marginTop aquí para separar del PageTitle */}
+            <div className="match-header" style={{ textAlign: 'center', marginBottom: '10px', marginTop: '70px', width: '100%' }}>
               <div className="match-name" style={{ 
                 fontSize: '36px', 
                 fontWeight: 'bold', 
@@ -1121,10 +1134,10 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                 {getMatchName()}
               </div>
               <div className="match-details" style={{ 
-                fontSize: '26px', 
+                fontSize: '20px', 
                 color: 'rgba(255,255,255,0.9)',
                 textAlign: 'center',
-                lineHeight: '1.4',
+                lineHeight: '1.04',
               }}>
                 {partidoActual.fecha && new Date(partidoActual.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
                   weekday: 'long', 
@@ -1152,25 +1165,31 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             {/* [TEAM_BALANCER_INVITE_EDIT] Botones de aceptar/rechazar invitación */}
             {pendingInvitation && (
               <div className="admin-add-section">
-                <div className="invitation-buttons">
+                <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', width: '100%' }}>
                   <button
-                    className="voting-confirm-btn invitation-accept"
+                    className="guest-action-btn invite-btn"
                     onClick={aceptarInvitacion}
                     disabled={invitationLoading || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
                     style={{ 
-                      background: '#4CAF50', 
-                      borderColor: '#4CAF50',
-                      marginBottom: '8px',
+                      flex: 1,
+                      fontSize: '13px',
+                      padding: '10px 4px',
                       opacity: (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) ? 0.5 : 1,
                     }}
                   >
                     {invitationLoading ? <LoadingSpinner size="small" /> : 'SUMARME AL PARTIDO'}
                   </button>
                   <button
-                    className="voting-confirm-btn invitation-reject"
+                    className="guest-action-btn leave-btn"
                     onClick={rechazarInvitacion}
                     disabled={invitationLoading}
-                    style={{ background: '#f44336', borderColor: '#f44336' }}
+                    style={{ 
+                      flex: 1,
+                      fontSize: '13px',
+                      padding: '10px 4px',
+                      background: 'rgba(222, 28, 73, 0.3)',
+                      borderColor: '#fff',
+                    }}
                   >
                     {invitationLoading ? <LoadingSpinner size="small" /> : 'RECHAZAR INVITACIÓN'}
                   </button>
@@ -1186,9 +1205,9 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             {/* Add player section - Solo para admin */}
             {isAdmin && !pendingInvitation && (
               <div className="admin-add-section">
-                <form className="admin-add-form" onSubmit={agregarJugador} autoComplete="off">
+                <div className="admin-add-form-new">
                   <input
-                    className="input-modern"
+                    className="input-modern-full"
                     type="text"
                     value={nuevoNombre}
                     onChange={(e) => setNuevoNombre(e.target.value)}
@@ -1198,15 +1217,33 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                     maxLength={40}
                     required
                     aria-label="Nombre del nuevo jugador"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        agregarJugador(e);
+                      }
+                    }}
                   />
-                  <button
-                    className="voting-confirm-btn"
-                    type="submit"
-                    disabled={loading || isClosing || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
-                  >
-                    {loading ? <LoadingSpinner size="small" /> : 'AGREGAR'}
-                  </button>
-                </form>
+                  <div className="admin-buttons-row">
+                    <button
+                      className="voting-confirm-btn admin-btn-half"
+                      type="button"
+                      onClick={agregarJugador}
+                      disabled={loading || isClosing || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
+                    >
+                      {loading ? <LoadingSpinner size="small" /> : 'AGREGAR'}
+                    </button>
+                    <button
+                      className="voting-confirm-btn admin-btn-half admin-invite-btn"
+                      type="button"
+                      onClick={() => setShowInviteModal(true)}
+                      disabled={!partidoActual?.id || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
+                      aria-label="Invitar amigos al partido"
+                    >
+                      INVITAR AMIGOS
+                    </button>
+                  </div>
+                </div>
                 {partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores && (
                   <div style={{ color: '#ff6b35', fontSize: '14px', textAlign: 'center', marginTop: '8px' }}>
                     Partido lleno ({jugadores.length}/{partidoActual.cupo_jugadores})
@@ -1319,114 +1356,159 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
               )}
             </div>
 
-            {/* Action buttons - Diferentes según permisos */}
-            <div className="admin-actions">
-              {/* Botones solo para admin */}
-              {isAdmin && !pendingInvitation && (
-                <>
+            {/* Toggle para abrir partido a la comunidad - Solo admin */}
+            {isAdmin && !pendingInvitation && (
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '12px', 
+                margin: '16px auto', 
+                fontSize: '14px', 
+                color: 'rgba(255,255,255,0.8)',
+                fontFamily: 'Oswald, Arial, sans-serif',
+              }}>
+                <span>¿Faltan jugadores?</span>
+                <label style={{ 
+                  position: 'relative', 
+                  display: 'inline-block', 
+                  width: '50px', 
+                  height: '24px',
+                  cursor: (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores && !faltanJugadoresState) ? 'not-allowed' : 'pointer',
+                }}>
+                  <input 
+                    type="checkbox" 
+                    checked={faltanJugadoresState}
+                    onChange={handleFaltanJugadores}
+                    disabled={partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores}
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
+                  <span style={{
+                    position: 'absolute',
+                    cursor: 'inherit',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: faltanJugadoresState ? '#4CAF50' : '#ccc',
+                    transition: '0.3s',
+                    borderRadius: '24px',
+                    opacity: (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) ? 0.5 : 1,
+                  }}>
+                    <span style={{
+                      position: 'absolute',
+                      content: '',
+                      height: '18px',
+                      width: '18px',
+                      left: faltanJugadoresState ? '29px' : '3px',
+                      bottom: '3px',
+                      backgroundColor: 'white',
+                      transition: '0.3s',
+                      borderRadius: '50%',
+                    }} />
+                  </span>
+                </label>
+                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>Abrir a la comunidad</span>
+              </div>
+            )}
+
+            {/* Sección ARMAR EQUIPOS PAREJOS - Solo admin */}
+            {isAdmin && !pendingInvitation && (
+              <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '0 auto', textAlign: 'center' }}>
+                <div style={{
+                  fontFamily: 'Bebas Neue, Arial, sans-serif',
+                  fontSize: '24px',
+                  color: '#fff',
+                  letterSpacing: '1px',
+                  marginBottom: '16px',
+                  textTransform: 'uppercase',
+                }}>
+                  ARMAR EQUIPOS PAREJOS
+                </div>
+                
+                <div style={{ display: 'flex', gap: '8px', width: '100%', marginBottom: '12px' }}>
                   <button 
-                    className="voting-confirm-btn admin-btn-primary" 
+                    className="voting-confirm-btn admin-btn-cyan" 
                     onClick={handleCallToVote}
                     aria-label="Enviar notificación a los jugadores para que voten"
+                    style={{ flex: 1 }}
                   >
                   LLAMAR A VOTAR
                   </button>
                 
                   <button 
-                    className="voting-confirm-btn admin-btn-whatsapp" 
+                    className="voting-confirm-btn admin-btn-cyan" 
                     onClick={handleWhatsApp}
                     aria-label="Compartir enlace por WhatsApp"
+                    style={{ flex: 1 }}
                   >
                     <WhatsappIcon size={UI_SIZES.WHATSAPP_ICON_SIZE} style={{ marginRight: 8 }} />
-                  COMPARTIR POR WHATSAPP
+                  COMPARTIR LINK
                   </button>
-                  
-                  <div style={{ position: 'relative' }}>
-                    <button 
-                      className="voting-confirm-btn admin-btn-danger" 
-                      onClick={handleCerrarVotacion} 
-                      disabled={isButtonDisabled}
-                      style={{
-                        opacity: isButtonDisabled ? 0.6 : 1,
-                        cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
-                      }}
-                      aria-label={isClosing ? 'Cerrando votación' : `Cerrar votación con ${jugadores.length} jugadores`}
-                    >
-                      {isClosing ? (
-                        <LoadingSpinner size="small" />
-                      ) : (
-                        `CERRAR VOTACIÓN (${jugadores.length} jugadores)`
-                      )}
-                    </button>
-                  
-                    {/* Warning messages */}
-                    {jugadores.length < 2 && (
-                      <div style={{
-                        color: 'rgba(255,255,255,0.7)',
-                        fontSize: '14px',
-                        fontFamily: 'Oswald, Arial, sans-serif',
-                        textAlign: 'center',
-                        marginTop: '8px',
-                        background: 'rgba(255,255,255,0.1)',
-                        padding: '8px',
-                        borderRadius: '6px',
-                        border: '1px solid rgba(255,255,255,0.2)',
-                      }}>
-                      Agrega al menos 2 jugadores para formar equipos
-                      </div>
-                    )}
-                  </div>
+                </div>
                 
-                  {/* Botón Faltan Jugadores - Solo admin */}
+                <div style={{ position: 'relative' }}>
                   <button 
-                    className="voting-confirm-btn" 
-                    style={{ 
-                      background: partidoActual.falta_jugadores ? '#28a745' : '#ff6b35',
-                      borderColor: '#fff',
-                      marginBottom: 12,
+                    className="voting-confirm-btn admin-btn-cyan" 
+                    onClick={handleCerrarVotacion} 
+                    disabled={isButtonDisabled}
+                    style={{
+                      width: '100%',
+                      opacity: isButtonDisabled ? 0.6 : 1,
+                      cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
                     }}
-                    onClick={handleFaltanJugadores}
-                    aria-label='Abrir/cerrar partido a la comunidad'
+                    aria-label={isClosing ? 'Cerrando votación' : `Cerrar votación con ${jugadores.length} jugadores`}
                   >
-                    {partidoActual.falta_jugadores ? 'PARTIDO ABIERTO' : 'FALTAN JUGADORES'}
+                    {isClosing ? (
+                      <LoadingSpinner size="small" />
+                    ) : (
+                      `CERRAR VOTACIÓN (${jugadores.length} jugadores)`
+                    )}
                   </button>
                 
-                  {/* Botón de Historial de Partidos - Solo admin */}
-                  <HistorialDePartidosButton partidoFrecuente={{
-                    id: partidoActual.id,
-                    es_frecuente: partidoActual.es_frecuente,
-                    partido_frecuente_id: partidoActual.partido_frecuente_id,
-                    nombre: partidoActual.nombre,
-                  }} />
 
-                </>
-              )}
+                </div>
+                
+
+              </div>
+            )}
               
-              {/* Botones para jugadores no-admin que están en el partido */}
-              {!isAdmin && isPlayerInMatch && !pendingInvitation && (
-                <>
-                  <button
-                    className="voting-confirm-btn"
-                    onClick={() => setShowInviteModal(true)}
-                    disabled={!partidoActual?.id || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
-                    style={{ background: '#4CAF50', borderColor: '#4CAF50' }}
-                  >
-                    INVITAR AMIGOS
-                  </button>
-                  <button
-                    className="voting-confirm-btn"
-                    onClick={() => {
-                      if (window.confirm('¿Estás seguro de que quieres abandonar el partido?')) {
-                        eliminarJugador(user.id, false);
-                      }
-                    }}
-                    style={{ background: '#f44336', borderColor: '#f44336' }}
-                  >
-                    ABANDONAR PARTIDO
-                  </button>
-                </>
-              )}
-            </div>
+            {/* Botones para jugadores no-admin que están en el partido */}
+            {!isAdmin && isPlayerInMatch && !pendingInvitation && (
+              <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '0 auto' }}>
+                <button
+                  className="guest-action-btn invite-btn"
+                  onClick={() => setShowInviteModal(true)}
+                  disabled={!partidoActual?.id || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
+                  style={{ 
+                    flex: 1,
+                    fontSize: '13px',
+                    padding: '10px 4px',
+                    background: 'rgba(76, 175, 80, 0.3)',
+                    borderColor: '#fff',
+                  }}
+                >
+                  INVITAR AMIGOS
+                </button>
+                <button
+                  className="guest-action-btn leave-btn"
+                  onClick={() => {
+                    if (window.confirm('¿Estás seguro de que quieres abandonar el partido?')) {
+                      eliminarJugador(user.id, false);
+                    }
+                  }}
+                  style={{ 
+                    flex: 1,
+                    fontSize: '13px',
+                    padding: '10px 4px',
+                    background: 'rgba(222, 28, 73, 0.3)',
+                    borderColor: '#fff',
+                  }}
+                >
+                  ABANDONAR PARTIDO
+                </button>
+              </div>
+            )}
           
             {/* Sección de jugadores libres eliminada */}
 

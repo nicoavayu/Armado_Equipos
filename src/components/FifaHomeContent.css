@@ -12,8 +12,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
-  padding: 16px 8px;
+  margin: 0 -16px 20px -16px;
+  padding: 8px 16px;
+  background: #0863b2;
+  backdrop-filter: blur(12px) saturate(170%);
+  -webkit-backdrop-filter: blur(12px) saturate(170%);
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  
 }
 
 .fifa-header-left {
@@ -179,7 +185,7 @@
 
 /* ---- NUEVO GLASSMORPHIC BUTTON STYLE ---- */
 .fifa-menu-button {
-  background: rgba(255, 255, 255, 0.13);   /* Efecto glass */
+  background: #0864b2;
   
   border-radius: 20px;
   padding: 16px;
@@ -195,7 +201,6 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  border: 1.5px solid rgba(255,255,255,0.22);   /* Borde glass */
   min-height: 120px;
   text-decoration: none;
   color: #fff;

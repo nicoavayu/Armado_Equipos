@@ -1,0 +1,94 @@
+/* PageTitle.css - Estilos globales para headers unificados */
+
+.page-title-header {
+  background: #075da8;
+  width: 100vw;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 16px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  z-index: 1000;
+}
+
+.page-title-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+}
+
+.page-title-back-button {
+  position: absolute;
+  left: 0;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 12px;
+  transition: background 0.2s;
+  min-width: 48px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-title-back-button svg {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.2s;
+}
+
+.page-title-back-button:hover svg {
+  transform: translateX(-2px);
+}
+
+.page-title-back-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.page-title-text {
+  margin: 0;
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  color: white;
+  flex: 1;
+  text-transform: uppercase;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .page-title-header {
+    padding: 14px 12px;
+  }
+  
+  .page-title-back-button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px 10px;
+  }
+  
+  .page-title-back-button svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .page-title-text {
+    font-size: 24px;
+    margin-top: 2px;
+  }
+}
+
+@media (max-width: 360px) {
+  .page-title-text {
+    font-size: 22px;
+  }
+}

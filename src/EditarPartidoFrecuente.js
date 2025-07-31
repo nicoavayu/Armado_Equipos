@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { updatePartidoFrecuente, crearPartidoDesdeFrec, supabase } from './supabase';
 import { toast } from 'react-toastify';
 import AutocompleteSede from './AutocompleteSede';
+import PageTitle from './components/PageTitle';
 import './EditarPartidoFrecuente.css';
 
 export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }) {
@@ -67,92 +68,100 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
 
   return (
     <div className="voting-bg content-with-tabbar">
-      <div className="voting-modern-card" style={{ padding: 42, maxWidth: 420 }}>
-        <div className="match-name" style={{ marginBottom: 24 }}>EDITAR PARTIDO FRECUENTE</div>
+      <div className="voting-modern-card" style={{ 
+        padding: '100px 0 42px 0', 
+        maxWidth: '100vw',
+        minHeight: 'calc(100vh - 60px)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+      }}>
+        <PageTitle onBack={onVolver}>EDITAR</PageTitle>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: 18 }}>
-          <div
-            onClick={() => document.getElementById('edit-partido-foto-input').click()}
-            style={{ 
-              cursor: 'pointer', 
-              width: 60, 
-              height: 60,
-              borderRadius: '8px',
-              background: 'rgba(255,255,255,0.12)',
-              border: '2px solid rgba(255,255,255,0.25)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden',
-              flexShrink: 0,
-            }}
-            title={fotoPreview ? 'Cambiar foto' : 'Agregar foto'}
-          >
-            {fotoPreview ? (
-              <img
-                src={fotoPreview}
-                alt="foto partido"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        <div className="edit-form-container" style={{ width: '90vw', maxWidth: '400px' }}>
+          <div className="photo-section">
+            <div
+              className="photo-upload"
+              onClick={() => document.getElementById('edit-partido-foto-input').click()}
+              title={fotoPreview ? 'Cambiar foto' : 'Agregar foto'}
+            >
+              {fotoPreview ? (
+                <img src={fotoPreview} alt="foto partido" />
+              ) : (
+                <span className="photo-placeholder">+</span>
+              )}
+              <input
+                id="edit-partido-foto-input"
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleFile}
               />
-            ) : (
-              <span style={{ color: '#fff', fontSize: '24px', opacity: 0.5 }}>+</span>
-            )}
+            </div>
+            <div className="photo-label">
+              Foto del partido (opcional)
+            </div>
+          </div>
+          <div className="form-field">
+            <label className="form-label">
+              Nombre del partido
+            </label>
             <input
-              id="edit-partido-foto-input"
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={handleFile}
+              className="input-modern"
+              type="text"
+              placeholder="Nombre del partido"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              style={{ width: '100%' }}
             />
           </div>
-          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', fontFamily: "'Oswald', Arial, sans-serif" }}>
-            Foto del partido (opcional)
+
+          <div className="form-field">
+            <label className="form-label">
+              Fecha
+            </label>
+            <input
+              className="input-modern"
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              title="Seleccionar fecha"
+              style={{ width: '100%' }}
+            />
           </div>
-        </div>
-        
-        <div className="edit-form-container">
-          <input
-            className="input-modern"
-            type="text"
-            placeholder="Nombre del partido"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-          />
 
-          <input
-            className="input-modern"
-            type="date"
-            value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
-            title="Seleccionar fecha"
-          />
+          <div className="form-field">
+            <label className="form-label">
+              Hora
+            </label>
+            <input
+              className="input-modern"
+              type="time"
+              value={hora}
+              onChange={(e) => setHora(e.target.value)}
+              title="Seleccionar hora"
+              style={{ width: '100%' }}
+            />
+          </div>
 
-          <input
-            className="input-modern"
-            type="time"
-            value={hora}
-            onChange={(e) => setHora(e.target.value)}
-            title="Seleccionar hora"
-          />
-
-          <AutocompleteSede
-            value={sede}
-            onSelect={(info) => {
-              setSede(info.description);
-              setSedeInfo(info);
-            }}
-          />
+          <div className="form-field">
+            <label className="form-label">
+              Sede
+            </label>
+            <div style={{ width: '100%' }}>
+              <AutocompleteSede
+                value={sede}
+                onSelect={(info) => {
+                  setSede(info.description);
+                  setSedeInfo(info);
+                }}
+              />
+            </div>
+          </div>
           
           {/* Selector de tipo de partido */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ 
-              fontWeight: 500, 
-              color: '#fff', 
-              marginBottom: 8, 
-              display: 'block', 
-              fontFamily: "'Oswald', Arial, sans-serif",
-              fontSize: '14px', 
-            }}>
+          <div className="form-field">
+            <label className="form-label">
               Tipo de partido
             </label>
             <div style={{
@@ -171,9 +180,9 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
                     fontSize: '14px',
                     fontWeight: tipoPartido === tipo ? '700' : '500',
                     fontFamily: "'Oswald', Arial, sans-serif",
-                    border: tipoPartido === tipo ? '2px solid #8178e5' : '1.5px solid #8178e5',
+                    border: tipoPartido === tipo ? '2px solid #0865b2' : '1.5px solid #0865b2',
                     borderRadius: '6px',
-                    background: tipoPartido === tipo ? '#8178e5' : 'rgba(255,255,255,0.9)',
+                    background: tipoPartido === tipo ? '#0865b2' : 'rgba(255,255,255,0.9)',
                     color: tipoPartido === tipo ? '#fff' : '#333',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
@@ -191,10 +200,9 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
         </div>
 
         <button 
-          className="voting-confirm-btn"
+          className="voting-confirm-btn save-button"
           onClick={guardarCambios}
           disabled={loading}
-          style={{ width: '100%', marginBottom: 12, fontSize: '1.5rem', height: '64px', borderRadius: '9px' }}
         >
           {loading ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
         </button>

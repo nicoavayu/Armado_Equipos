@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { supabase } from '../supabase';
 import LoadingSpinner from './LoadingSpinner';
+import PageTitle from './PageTitle';
 import './ProximosPartidos.css';
 
 const ProximosPartidos = ({ onClose }) => {
@@ -12,11 +13,11 @@ const ProximosPartidos = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const [sortBy, setSortBy] = useState('proximidad');
 
   useEffect(() => {
     if (user) {
       fetchUserMatches();
-      // Actualizar cada 5 segundos para tiempo real
       const interval = setInterval(fetchUserMatches, 5000);
       return () => clearInterval(interval);
     }
@@ -26,9 +27,6 @@ const ProximosPartidos = ({ onClose }) => {
     if (!user) return;
     
     try {
-      console.log('[PROXIMOS_PARTIDOS] Fetching matches for user:', user.id);
-      
-      // 1. Obtener partidos donde el usuario está como jugador
       const { data: jugadoresData, error: jugadoresError } = await supabase
         .from('jugadores')
         .select('partido_id')
@@ -38,7 +36,6 @@ const ProximosPartidos = ({ onClose }) => {
       
       const partidosComoJugador = jugadoresData?.map((j) => j.partido_id) || [];
       
-      // 2. Obtener partidos donde es admin (sin filtrar por estado)
       const { data: partidosComoAdmin, error: adminError } = await supabase
         .from('partidos')
         .select('id')
@@ -47,16 +44,7 @@ const ProximosPartidos = ({ onClose }) => {
       if (adminError) throw adminError;
       
       const partidosAdminIds = partidosComoAdmin?.map((p) => p.id) || [];
-      
-      // 3. Combinar ambos arrays y eliminar duplicados
       const todosLosPartidosIds = [...new Set([...partidosComoJugador, ...partidosAdminIds])];
-      
-      console.log('[PROXIMOS_PARTIDOS] Match IDs found:', {
-        asPlayer: partidosComoJugador.length,
-        asAdmin: partidosAdminIds.length,
-        total: todosLosPartidosIds.length,
-        allIds: todosLosPartidosIds,
-      });
       
       if (todosLosPartidosIds.length === 0) {
         setPartidos([]);
@@ -64,22 +52,21 @@ const ProximosPartidos = ({ onClose }) => {
         return;
       }
       
-      // 4. Obtener datos completos de los partidos (sin filtrar por estado)
       const { data: partidosData, error: partidosError } = await supabase
         .from('partidos')
-        .select('*')
+        .select(`
+          *,
+          jugadores(count)
+        `)
         .in('id', todosLosPartidosIds)
         .order('fecha', { ascending: true })
         .order('hora', { ascending: true });
         
       if (partidosError) throw partidosError;
       
-      // 5. Filtrar partidos que no hayan pasado más de 1 hora desde su fecha/hora
       const now = new Date();
       const partidosFiltrados = partidosData.filter((partido) => {
-        // Si no tiene fecha/hora, mostrar siempre (partidos recién creados)
         if (!partido.fecha || !partido.hora) {
-          console.log('[PROXIMOS_PARTIDOS] Showing match without date/time:', partido.nombre);
           return true;
         }
         
@@ -87,47 +74,28 @@ const ProximosPartidos = ({ onClose }) => {
           const [hours, minutes] = partido.hora.split(':').map(Number);
           const partidoDateTime = new Date(partido.fecha + 'T00:00:00');
           partidoDateTime.setHours(hours, minutes, 0, 0);
-          
-          // Agregar 1 hora al tiempo del partido
           const partidoMasUnaHora = new Date(partidoDateTime.getTime() + 60 * 60 * 1000);
-          
-          // Mostrar si no han pasado más de 1 hora desde la fecha del partido
-          const shouldShow = now < partidoMasUnaHora;
-          
-          console.log('[PROXIMOS_PARTIDOS] Match filter check:', {
-            matchName: partido.nombre,
-            matchDateTime: partidoDateTime.toISOString(),
-            matchPlusOneHour: partidoMasUnaHora.toISOString(),
-            now: now.toISOString(),
-            shouldShow,
-            estado: partido.estado,
-          });
-          
-          return shouldShow;
+          return now < partidoMasUnaHora;
         } catch (error) {
-          console.error('[PROXIMOS_PARTIDOS] Error parsing date/time for match:', partido.nombre, error);
-          return true; // Mostrar en caso de error de parsing
+          return true;
         }
       });
       
-      // 6. Enriquecer con información de rol del usuario
       const partidosEnriquecidos = partidosFiltrados.map((partido) => ({
         ...partido,
         userRole: partidosAdminIds.includes(partido.id) ? 'admin' : 'player',
       }));
       
-      console.log('[PROXIMOS_PARTIDOS] Enriched matches:', partidosEnriquecidos);
       setPartidos(partidosEnriquecidos);
       
     } catch (error) {
-      console.error('[PROXIMOS_PARTIDOS] Error fetching matches:', error);
+      console.error('Error fetching matches:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleMatchClick = (partido) => {
-    console.log('[PROXIMOS_PARTIDOS] Navigating to match:', partido.id);
     onClose();
     navigate(`/admin/${partido.id}`);
   };
@@ -143,17 +111,13 @@ const ProximosPartidos = ({ onClose }) => {
     
     try {
       if (selectedMatch.userRole === 'admin') {
-        // Admin elimina el partido completo
         await supabase.from('partidos').delete().eq('id', selectedMatch.id);
-        // TODO: Notificar a todos los jugadores
       } else {
-        // Jugador abandona el partido
         await supabase
           .from('jugadores')
           .delete()
           .eq('partido_id', selectedMatch.id)
           .eq('usuario_id', user.id);
-        // TODO: Notificar abandono
       }
       
       setShowDeleteModal(false);
@@ -183,21 +147,60 @@ const ProximosPartidos = ({ onClose }) => {
   };
 
   const getRoleIcon = (role) => {
-    return role === 'admin' ? '👑' : '⚽';
+    if (role === 'admin') {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="14" height="14" fill="currentColor">
+          <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z"/>
+        </svg>
+      );
+    } else {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="14" height="14" fill="currentColor">
+          <path d="M481.3 424.1L409.7 419.3C404.5 419 399.4 420.4 395.2 423.5C391 426.6 388 430.9 386.8 436L369.2 505.6C353.5 509.8 337 512 320 512C303 512 286.5 509.8 270.8 505.6L253.2 436C251.9 431 248.9 426.6 244.8 423.5C240.7 420.4 235.5 419 230.3 419.3L158.7 424.1C141.1 396.9 130.2 364.9 128.3 330.5L189 292.3C193.4 289.5 196.6 285.3 198.2 280.4C199.8 275.5 199.6 270.2 197.7 265.4L171 198.8C192 173.2 219.3 153 250.7 140.9L305.9 186.9C309.9 190.2 314.9 192 320 192C325.1 192 330.2 190.2 334.1 186.9L389.3 140.9C420.6 153 448 173.2 468.9 198.8L442.2 265.4C440.3 270.2 440.1 275.5 441.7 280.4C443.3 285.3 446.6 289.5 450.9 292.3L511.6 330.5C509.7 364.9 498.8 396.9 481.2 424.1zM320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM334.1 250.3C325.7 244.2 314.3 244.2 305.9 250.3L258 285C249.6 291.1 246.1 301.9 249.3 311.8L267.6 368.1C270.8 378 280 384.7 290.4 384.7L349.6 384.7C360 384.7 369.2 378 372.4 368.1L390.7 311.8C393.9 301.9 390.4 291.1 382 285L334.1 250.2z"/>
+        </svg>
+      );
+    }
   };
 
   const getRoleText = (role) => {
     return role === 'admin' ? 'Admin' : 'Jugador';
   };
 
+  const getModalidadClass = (modalidad) => {
+    if (!modalidad) return 'futbol-5';
+    if (modalidad.includes('5')) return 'futbol-5';
+    if (modalidad.includes('6')) return 'futbol-6';
+    if (modalidad.includes('7')) return 'futbol-7';
+    if (modalidad.includes('8')) return 'futbol-8';
+    if (modalidad.includes('11')) return 'futbol-11';
+    return 'futbol-5';
+  };
+
+  const getTipoClass = (tipo) => {
+    if (!tipo) return 'masculino';
+    const tipoLower = tipo.toLowerCase();
+    if (tipoLower.includes('masculino')) return 'masculino';
+    if (tipoLower.includes('femenino')) return 'femenino';
+    if (tipoLower.includes('mixto')) return 'mixto';
+    return 'masculino';
+  };
+
+  const getSortedPartidos = () => {
+    const partidosCopy = [...partidos];
+    if (sortBy === 'proximidad') {
+      return partidosCopy.sort((a, b) => {
+        const dateA = new Date(`${a.fecha}T${a.hora}`);
+        const dateB = new Date(`${b.fecha}T${b.hora}`);
+        return dateA - dateB;
+      });
+    } else {
+      return partidosCopy.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+  };
+
   return (
     <div className="proximos-partidos-container">
-      <div className="proximos-partidos-header">
-        <div className="header-content">
-          <button className="back-button" onClick={onClose}>←</button>
-          <h2>PRÓXIMOS PARTIDOS</h2>
-        </div>
-      </div>
+      <PageTitle onBack={onClose}>PRÓXIMOS PARTIDOS</PageTitle>
 
       <div className="proximos-partidos-content">
         {loading ? (
@@ -212,53 +215,109 @@ const ProximosPartidos = ({ onClose }) => {
             <span>Crea un partido o únete a uno para verlo aquí</span>
           </div>
         ) : (
-          <div className="partidos-list">
-            {partidos.map((partido) => (
-              <div key={partido.id} className="partido-card">
-                <div className="partido-info">
-                  <div className="partido-header">
-                    <div className="partido-name">
-                      {partido.nombre || 'PARTIDO'}
+          <>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', width: '100%', maxWidth: '500px' }}>
+              <button 
+                onClick={() => setSortBy('proximidad')}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  background: sortBy === 'proximidad' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  color: sortBy === 'proximidad' ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                  fontFamily: 'Oswald, Arial, sans-serif',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  textTransform: 'uppercase',
+                }}
+              >
+                📅 Proximidad
+              </button>
+              <button 
+                onClick={() => setSortBy('recientes')}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  background: sortBy === 'recientes' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '8px',
+                  color: sortBy === 'recientes' ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                  fontFamily: 'Oswald, Arial, sans-serif',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  textTransform: 'uppercase',
+                }}
+              >
+                🕒 Recientes
+              </button>
+            </div>
+            <div className="partidos-list">
+              {getSortedPartidos().map((partido) => (
+                <div key={partido.id} className="partido-card">
+                  <div className="card-header" style={{ marginBottom: '12px' }}>
+                    <div className="match-datetime-xl">
+                      {formatDate(partido.fecha)} • {partido.hora}
                     </div>
                     <div className="partido-role">
-                      <span className="role-icon">{getRoleIcon(partido.userRole)}</span>
+                      {getRoleIcon(partido.userRole)}
                       <span className="role-text">{getRoleText(partido.userRole)}</span>
                     </div>
                   </div>
                   
-                  <div className="partido-details">
-                    <div className="partido-date">
-                      📅 {formatDate(partido.fecha)} • {partido.hora}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <div className={`match-type-large ${getModalidadClass(partido.modalidad)}`} style={{ fontSize: '12px', padding: '4px 8px' }}>
+                        {partido.modalidad || 'F5'}
+                      </div>
+                      <div className={`gender-large ${getTipoClass(partido.tipo_partido)}`} style={{ fontSize: '12px', padding: '4px 8px' }}>
+                        {partido.tipo_partido || 'Masculino'}
+                      </div>
                     </div>
-                    <div className="partido-location">
-                      📍 {partido.sede}
-                    </div>
-                    <div className="partido-mode">
-                      ⚽ {partido.modalidad} • {partido.tipo_partido}
-                      {partido.estado === 'equipos_formados' && (
-                        <span className="equipos-formados-badge">• Equipos Listos</span>
-                      )}
-                    </div>
+                    {(() => {
+                      const jugadoresCount = partido.jugadores?.[0]?.count || 0;
+                      const cupoMaximo = partido.cupo_jugadores || 20;
+                      
+                      return (
+                        <div className="players-needed-badge">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="currentColor">
+                            <path d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z"/>
+                          </svg>
+                          {jugadoresCount}/{cupoMaximo}
+                        </div>
+                      );
+                    })()} 
+                  </div>
+                  
+                  <div className="venue-large" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="16" height="16" fill="rgba(255, 255, 255, 0.9)">
+                      <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z"/>
+                    </svg>
+                    <span>{partido.sede}</span>
+                  </div>
+                  
+                  <div className="partido-actions">
+                    <button 
+                      className="action-btn enter-btn"
+                      onClick={() => handleMatchClick(partido)}
+                    >
+                      Ingresar al Partido
+                    </button>
+                    <button 
+                      className="action-btn delete-btn"
+                      onClick={(e) => handleDeleteClick(e, partido)}
+                    >
+                      {partido.userRole === 'admin' ? 'Eliminar Partido' : 'Abandonar Partido'}
+                    </button>
                   </div>
                 </div>
-                
-                <div className="partido-actions">
-                  <button 
-                    className="action-btn enter-btn"
-                    onClick={() => handleMatchClick(partido)}
-                  >
-                    Ingresar al Partido
-                  </button>
-                  <button 
-                    className="action-btn delete-btn"
-                    onClick={(e) => handleDeleteClick(e, partido)}
-                  >
-                    {partido.userRole === 'admin' ? 'Eliminar Partido' : 'Abandonar Partido'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 

@@ -48,23 +48,12 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     getCurrentUser();
   }, []);
 
-  // Check relationship status when profile or currentUserId changes
+  // Check relationship status when modal opens
   useEffect(() => {
     const checkRelationship = async () => {
       console.log('[PROFILE_MODAL] Checking relationship status', { currentUserId, profileId: profile?.id });
       
-      if (!currentUserId) {
-        console.log('[PROFILE_MODAL] No currentUserId available, skipping relationship check');
-        return;
-      }
-      
-      if (!profile?.id) {
-        console.log('[PROFILE_MODAL] No profile.id available, skipping relationship check');
-        return;
-      }
-      
-      if (currentUserId === profile.id) {
-        console.log('[PROFILE_MODAL] Current user is viewing their own profile, skipping relationship check');
+      if (!currentUserId || !profile?.id || currentUserId === profile.id) {
         return;
       }
       
@@ -76,67 +65,42 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
       setIsLoading(false);
     };
     
-    if (isOpen && profile) {
+    if (isOpen && profile && currentUserId) {
       checkRelationship();
     }
-  }, [currentUserId, profile?.id, getRelationshipStatus, isOpen, profile]);
+  }, [isOpen, currentUserId, profile?.id]);
 
   // Handle friend request actions
   const handleAddFriend = async () => {
-    console.log('[PROFILE_MODAL] Adding friend', { currentUserId, profileId: profile?.id });
-    
-    if (!currentUserId) {
-      console.log('[PROFILE_MODAL] No currentUserId available, cannot add friend');
-      return;
-    }
-    
-    if (!profile?.id) {
-      console.log('[PROFILE_MODAL] No profile.id available, cannot add friend');
-      return;
-    }
+    if (!currentUserId || !profile?.id || isLoading) return;
     
     console.log('[PROFILE_MODAL] Sending friend request from', currentUserId, 'to', profile.id);
     setIsLoading(true);
     const result = await sendFriendRequest(profile.id);
-    console.log('[PROFILE_MODAL] Send friend request result:', result);
-    setIsLoading(false);
     
     if (result.success) {
-      console.log('[PROFILE_MODAL] Friend request sent successfully');
       setRelationshipStatus({ id: result.data.id, status: 'pending' });
-      // Show success toast
       if (window.showToast) {
         window.showToast('Solicitud de amistad enviada', 'success');
       }
     } else {
-      console.error('[PROFILE_MODAL] Error sending friend request:', result.message);
-      // Show error toast
       if (window.showToast) {
         window.showToast(result.message || 'Error al enviar solicitud', 'error');
       }
     }
+    setIsLoading(false);
   };
   
   const handleRemoveFriend = async () => {
-    console.log('[PROFILE_MODAL] Removing friend', relationshipStatus);
+    if (!relationshipStatus?.id || isLoading) return;
     
-    if (!relationshipStatus?.id) {
-      console.log('[PROFILE_MODAL] No relationshipStatus.id available, cannot remove friend');
-      return;
-    }
-    
-    console.log('[PROFILE_MODAL] Removing friendship with ID:', relationshipStatus.id);
     setIsLoading(true);
     const result = await removeFriend(relationshipStatus.id);
-    console.log('[PROFILE_MODAL] Remove friend result:', result);
-    setIsLoading(false);
     
     if (result.success) {
-      console.log('[PROFILE_MODAL] Friend removed successfully');
       setRelationshipStatus(null);
-    } else {
-      console.error('[PROFILE_MODAL] Error removing friend:', result.message);
     }
+    setIsLoading(false);
   };
 
   // Handle make admin action
@@ -194,20 +158,16 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
         className={`pcm-friend-btn make-admin ${isAdminLoading ? 'disabled' : ''}`}
         onClick={handleMakeAdmin}
         disabled={isAdminLoading}
-        style={{ background: '#FFD700', color: '#000' }}
+        style={{ background: '#FFD700', color: '#fff' }}
       >
-        <span>{isAdminLoading ? 'Procesando...' : '👑 Hacer Admin'}</span>
+        <span>{isAdminLoading ? 'Procesando...' : 'Hacer Admin'}</span>
       </button>
     );
   };
 
   // Render friend action button based on relationship status
   const renderFriendActionButton = () => {
-    // Don't show button if viewing own profile
-    if (currentUserId === profile?.id) {
-      console.log('[PROFILE_MODAL] Viewing own profile, not showing friend action button');
-      return null;
-    }
+    if (currentUserId === profile?.id || !profile?.id) return null;
 
     if (!relationshipStatus) {
       return (
@@ -223,10 +183,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     
     if (relationshipStatus.status === 'pending') {
       return (
-        <button 
-          className="pcm-friend-btn pending"
-          disabled
-        >
+        <button className="pcm-friend-btn pending" disabled>
           <span>Solicitud Pendiente</span>
         </button>
       );

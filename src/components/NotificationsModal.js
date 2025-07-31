@@ -3,44 +3,17 @@ import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom'; // [TEAM_BALANCER_INVITE_ACCESS_FIX] Para navegación
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
+import { useNotifications } from '../context/NotificationContext';
 import LoadingSpinner from './LoadingSpinner';
 import './NotificationsModal.css';
 
 const NotificationsModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
+  const { notifications, fetchNotifications: refreshNotifications } = useNotifications();
   const navigate = useNavigate(); // [TEAM_BALANCER_INVITE_ACCESS_FIX] Hook de navegación
-  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchNotifications = useCallback(async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      const notificationsData = data || [];
-      console.log('[NOTIFICATIONS_MODAL] All notifications loaded:', notificationsData);
-      notificationsData.forEach((n, i) => {
-        console.log(`[NOTIFICATIONS_MODAL] Notification ${i}:`, {
-          id: n.id,
-          type: n.type,
-          title: n.title,
-          data: n.data,
-          hasMatchCode: !!n.data?.matchCode,
-        });
-      });
-      setNotifications(notificationsData);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
+
 
   useEffect(() => {
     if (isOpen) {
@@ -61,11 +34,11 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
   useEffect(() => {
     console.log('[NOTIFICATIONS_MODAL] Modal state changed:', { isOpen, userId: user?.id });
-    if (isOpen && user?.id) {
-      console.log('[NOTIFICATIONS_MODAL] Fetching notifications...');
-      fetchNotifications();
+    if (isOpen && user?.id && refreshNotifications) {
+      console.log('[NOTIFICATIONS_MODAL] Refreshing notifications...');
+      refreshNotifications();
     }
-  }, [isOpen, fetchNotifications, user?.id]);
+  }, [isOpen, refreshNotifications, user?.id]);
 
   const markAsRead = async (notificationId) => {
     try {
@@ -75,11 +48,30 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         .eq('id', notificationId);
 
       if (error) throw error;
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
-      );
+      // Actualizar el contexto para refrescar el botón
+      if (refreshNotifications) {
+        refreshNotifications();
+      }
     } catch (error) {
       console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    if (!window.confirm('¿Eliminar todas las notificaciones?')) return;
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      // Refresh notification context to update the bell
+      if (refreshNotifications) {
+        refreshNotifications();
+      }
+    } catch (error) {
+      console.error('Error clearing notifications:', error);
     }
   };
   
@@ -173,7 +165,14 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         <div className="sheet-handle"></div>
         <div className="sheet-header">
           <h3>Notificaciones</h3>
-          <button className="sheet-close" onClick={onClose}>×</button>
+          <div className="sheet-header-actions">
+            {notifications.length > 0 && (
+              <button className="clear-notifications-btn" onClick={clearAllNotifications}>
+                Limpiar
+              </button>
+            )}
+            <button className="sheet-close" onClick={onClose}>×</button>
+          </div>
         </div>
         <div className="sheet-body">
           {loading ? (
@@ -202,7 +201,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                     <div className="notification-message">{notification.message}</div>
                     <div className="notification-time">{formatDate(notification.created_at)}</div>
                   </div>
-                  {!notification.read && <div className="notification-dot"></div>}
+                  {!notification.read && <div className="notification-unread-dot"></div>}
                 </div>
               ))}
             </div>

@@ -6,6 +6,7 @@ import { PlayerCardTrigger } from './ProfileComponents';
 import { TeamDisplayContext } from './PlayerCardTrigger';
 import { supabase, saveTeamsToDatabase, getTeamsFromDatabase, subscribeToTeamsChanges, unsubscribeFromTeamsChanges } from '../supabase';
 import ChatButton from './ChatButton';
+import PageTitle from './PageTitle';
 import './TeamDisplay.css';
 import WhatsappIcon from './WhatsappIcon';
 import LoadingSpinner from './LoadingSpinner';
@@ -294,15 +295,9 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       <ChatButton partidoId={partidoId} />
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="team-display-container">
-          {/* Header bar */}
-          <div className="team-display-header">
-            <div className="header-content">
-              <button className="back-button" onClick={onBackToHome}>←</button>
-              <h2>ARMAR EQUIPOS</h2>
-            </div>
-          </div>
+          <PageTitle onBack={onBackToHome}>ARMAR EQUIPOS</PageTitle>
           
-          <div className="team-display-content">
+          <div className="team-display-content" style={{ paddingTop: '15px' }}>
             {/* Match header with large title and details */}
             {(nombre || fecha || hora || sede) && (
               <div className="match-header-large">

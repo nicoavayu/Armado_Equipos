@@ -1,13 +1,13 @@
 .profile-card-modal {
   width: auto;
-  max-width: 500px;
+  max-width: 400px;
 }
 
 .pcm-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 24px;
 }
 
 .pcm-card-container {
@@ -19,6 +19,7 @@
 .pcm-actions {
   display: flex;
   justify-content: center;
+  gap: 16px;
   width: 100%;
 }
 
@@ -26,16 +27,20 @@
   background: #007bff;
   border: none;
   border-radius: 8px;
-  padding: 12px 24px;
-  font-size: 16px;
+  padding: 10px 20px;
+  font-size: 20px;
   font-weight: 600;
   color: white;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, transform 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-width: 140px;
+  min-height: 42px;
+  white-space: nowrap;
+  position: relative;
 }
 
 .pcm-friend-btn:hover {
@@ -68,6 +73,18 @@
 .pcm-friend-btn.disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none !important;
+}
+
+.pcm-friend-btn.make-admin {
+  background: #FFD700;
+  color: #fff;
+  font-weight: 700;
+}
+
+.pcm-friend-btn.make-admin:hover {
+  background: #ffed4e;
+  transform: translateY(-1px);
 }
 
 
