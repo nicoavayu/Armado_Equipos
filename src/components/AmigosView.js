@@ -181,39 +181,7 @@ const AmigosView = () => {
   }
 
   return (
-    <div className="amigos-container">
-      <div className="amigos-header">
-        <div style={{ position: 'relative', marginBottom: '24px' }}>
-          <button 
-            onClick={() => window.history.back()}
-            style={{
-              position: 'absolute',
-              top: '-2px',
-              left: '-130px',
-              background: 'none',
-              border: 'none',
-              color: 'white',
-              fontSize: '18px',
-              cursor: 'pointer',
-              padding: '8px',
-              borderRadius: '12px',
-              transition: 'background 0.2s',
-              minWidth: '40px',
-              minHeight: '40px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 10,
-            }}
-            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.15)'}
-            onMouseLeave={(e) => e.target.style.background = 'none'}
-          >
-            ◀
-          </button>
-          <div className="match-name" style={{ paddingLeft: '0px' }}>AMIGOS</div>
-        </div>
-      </div>
-      
+    <div className="amigos-container" style={{ marginTop: '30px' }}>
       {/* Search section */}
       <div className="amigos-search-section">
         <input
@@ -262,7 +230,7 @@ const AmigosView = () => {
       
       {/* Pending requests section */}
       {pendingRequests.length > 0 && (
-        <div className="amigos-pending-section">
+        <div className="amigos-pending-section" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px' }}>
           <h3 className="amigos-section-title">Solicitudes Pendientes</h3>
           <div className="amigos-pending-list">
             {pendingRequests.map((request) => (
@@ -314,7 +282,7 @@ const AmigosView = () => {
         console.log('[AMIGOS_VIEW] hasAmigos check:', { hasAmigos, amigosLength: amigos?.length, amigosType: typeof amigos });
         
         return hasAmigos ? (
-          <div className="amigos-section">
+          <div className="amigos-section" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <h3 className="amigos-section-title">Mis Amigos ({amigos.length})</h3>
             <div className="amigos-chips-list">
               {amigos.map((amigo, index) => {
@@ -337,7 +305,7 @@ const AmigosView = () => {
             </div>
           </div>
         ) : (
-          <div className="amigos-empty">
+          <div className="amigos-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
             <p>No tienes amigos agregados todavía.</p>
             <p>Busca jugadores y envíales solicitudes de amistad.</p>
             <div style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>

@@ -133,9 +133,11 @@ const QuieroJugarPage = () => {
 };
 
 const AmigosPage = () => {
+  const navigate = useNavigate();
   return (
     <div className="voting-bg content-with-tabbar">
       <div className="voting-modern-card" style={{ maxWidth: 1200, padding: '20px' }}>
+        <PageTitle onBack={() => navigate('/')}>AMIGOS</PageTitle>
         <AmigosView />
       </div>
     </div>
@@ -519,6 +521,7 @@ function MainAppContent({ user }) {
     content = (
       <div className="voting-bg content-with-tabbar">
         <div className="voting-modern-card" style={{ maxWidth: 1200, padding: '20px' }}>
+          <PageTitle onBack={() => setModo('home')}>AMIGOS</PageTitle>
           <AmigosView />
         </div>
       </div>
