@@ -24,7 +24,7 @@ export const incrementMatchesPlayed = async (partidoId) => {
       const userId = jugador.usuario_id || jugador.id;
       if (userId) {
         const { error } = await supabase.rpc('increment_matches_played', {
-          user_id: userId
+          user_id: userId,
         });
         
         if (error) {
@@ -47,7 +47,7 @@ export const incrementMatchesAbandoned = async (userId) => {
     console.log('[MATCH_STATS] Incrementing matches abandoned for user:', userId);
     
     const { error } = await supabase.rpc('increment_matches_abandoned', {
-      user_id: userId
+      user_id: userId,
     });
     
     if (error) {
@@ -91,7 +91,7 @@ export const processAbsenceWithoutNotice = async (userId, partidoId, voterId) =>
       .update({
         partidos_jugados: newMatchesPlayed,
         partidos_abandonados: newMatchesAbandoned,
-        ranking: newRanking
+        ranking: newRanking,
       })
       .eq('id', userId);
     
@@ -106,7 +106,7 @@ export const processAbsenceWithoutNotice = async (userId, partidoId, voterId) =>
       .insert({
         jugador_id: userId,
         partido_id: partidoId,
-        award_type: 'absence_penalty'
+        award_type: 'absence_penalty',
       });
     
     if (penaltyError) {
@@ -116,7 +116,7 @@ export const processAbsenceWithoutNotice = async (userId, partidoId, voterId) =>
         userId,
         newMatchesPlayed,
         newMatchesAbandoned,
-        newRanking
+        newRanking,
       });
     }
   } catch (error) {
