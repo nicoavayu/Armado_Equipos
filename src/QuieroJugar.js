@@ -43,8 +43,8 @@ export default function QuieroJugar({ onVolver }) {
             lng: position.coords.longitude,
           });
         },
-        (_error) => {
-  
+        (error) => {
+          console.log('Geolocation error, using default location:', error);
           // Fallback to default location (Buenos Aires)
           setUserLocation({ lat: -34.6037, lng: -58.3816 });
         },
@@ -110,7 +110,7 @@ export default function QuieroJugar({ onVolver }) {
       const status = await getFreePlayerStatus();
       setIsRegisteredAsFree(status);
     } catch (error) {
-      // Error checking free player status
+      console.error('Error checking free player status:', error);
     }
   };
 
@@ -160,12 +160,10 @@ export default function QuieroJugar({ onVolver }) {
           rating: userProfile?.ranking || 4.5,
         };
       });
-      
-
-      
+      console.log('Free players loaded:', players.length);
       setFreePlayers(players);
     } catch (error) {
-      // Error fetching free players
+      console.error('Error fetching free players:', error);
     }
   };
 

@@ -58,8 +58,8 @@ const HomePage = () => {
 
           setPartidoActual(partido);
         })
-        .catch((_error) => {
-
+        .catch((error) => {
+          console.error('Error loading match:', error);
           setPartidoActual(null);
         });
     } else {
@@ -109,8 +109,7 @@ const NuevoPartidoPage = () => {
       <div className="voting-modern-card" style={{ maxWidth: 650 }}>
         <FormularioNuevoPartidoFlow
           onConfirmar={async (partido) => {
-
-            
+            console.log('Match created:', partido.id);
             // Navegar al AdminPanel con el partido creado
             navigate(`/admin/${partido.id}`);
             return partido;
@@ -187,12 +186,12 @@ const AdminPanelPage = () => {
           
           // Si no hay jugadores en la tabla jugadores pero sí en el partido, hacer refresh
           if (jugadores.length === 0 && partido.jugadores && partido.jugadores.length > 0) {
-
+            console.log('Refreshing players for match:', partidoId);
             try {
               const refreshedPlayers = await refreshJugadoresPartido(partidoId);
               setJugadoresDelPartido(refreshedPlayers);
             } catch (refreshError) {
-              // Error refreshing players
+              console.error('Error refreshing players:', refreshError);
             }
           }
         } else {
@@ -200,7 +199,7 @@ const AdminPanelPage = () => {
           navigate('/');
         }
       } catch (error) {
-
+        console.error('Error loading match:', error);
         toast.error('Error al cargar el partido');
         navigate('/');
       } finally {
@@ -252,7 +251,7 @@ const AdminPanelPage = () => {
           partidoActual={partidoActual}
           jugadores={jugadoresDelPartido}
           onJugadoresChange={(nuevosJugadores) => {
-
+            console.log('Players changed:', nuevosJugadores.length);
             handleJugadoresChange(nuevosJugadores);
             setJugadoresDelPartido(nuevosJugadores);
           }}
@@ -388,7 +387,7 @@ function _MainAppContent({ _user }) {
       content = (
         <FormularioNuevoPartidoFlow
           onConfirmar={async (partido) => {
-
+            console.log('Match created from flow:', partido.id);
             setPartidoActual(partido);
             setStepPartido(ADMIN_STEPS.MANAGE);
             return partido;
@@ -558,7 +557,7 @@ function _MainAppContent({ _user }) {
           activeTab={activeTab} 
           onTabChange={(tab) => {
             setModo(tab);
-
+            console.log('Tab changed to:', tab);
             if (tab === 'votacion') {
               setStepPartido(ADMIN_STEPS.SELECT_TYPE);
             }

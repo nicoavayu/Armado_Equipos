@@ -55,8 +55,6 @@ export default function FifaHome({ onModoSeleccionado }) {
 
   return (
     <div className="voting-bg home-bg content-with-tabbar">
-
-
       {/* FIFA-style menu content - Siempre mostramos el contenido porque la autenticación se maneja en App.js */}
       <FifaHomeContent 
         onCreateMatch={() => onModoSeleccionado('votacion')}
