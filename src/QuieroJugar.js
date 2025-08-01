@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase, addFreePlayer, removeFreePlayer, getFreePlayerStatus, getFreePlayersList } from './supabase';
+import { supabase, addFreePlayer, removeFreePlayer, getFreePlayerStatus } from './supabase';
 import { toast } from 'react-toastify';
 import { useAuth } from './components/AuthProvider';
 import { PlayerCardTrigger } from './components/ProfileComponents';
@@ -44,7 +44,7 @@ export default function QuieroJugar({ onVolver }) {
           });
         },
         (error) => {
-          console.log('Geolocation error:', error);
+  
           // Fallback to default location (Buenos Aires)
           setUserLocation({ lat: -34.6037, lng: -58.3816 });
         },
@@ -110,7 +110,7 @@ export default function QuieroJugar({ onVolver }) {
       const status = await getFreePlayerStatus();
       setIsRegisteredAsFree(status);
     } catch (error) {
-      console.error('Error checking free player status:', error);
+
     }
   };
 
@@ -161,19 +161,11 @@ export default function QuieroJugar({ onVolver }) {
         };
       });
       
-      console.log('Free players data:', players); // Debug log
-      players.forEach((player, index) => {
-        console.log(`Player ${index}:`, {
-          nombre: player.nombre,
-          avatar_url: player.avatar_url,
-          localidad: player.localidad,
-          all_fields: Object.keys(player),
-        });
-      });
+
       
       setFreePlayers(players);
     } catch (error) {
-      console.error('Error fetching free players:', error);
+
     }
   };
 
@@ -488,7 +480,6 @@ export default function QuieroJugar({ onVolver }) {
                         <button 
                           className="cyan-btn"
                           onClick={() => {
-                            console.log('Invitar amigos al partido:', partido.id);
                             toast.info('Función de invitar amigos próximamente');
                           }}
                         >
@@ -557,16 +548,13 @@ export default function QuieroJugar({ onVolver }) {
                     <div className="free-player-card">
                       <div className="free-player-avatar">
                         {(() => {
-                          console.log('Renderizando jugador:', player);
                           const avatarUrl = player.avatar_url;
-                          console.log(`Avatar for ${player.nombre}:`, avatarUrl);
                           return avatarUrl ? (
                             <img 
                               src={avatarUrl} 
                               alt={player.nombre}
                               className="free-player-img"
                               onError={(e) => {
-                                console.log('Avatar failed to load:', avatarUrl);
                                 e.target.style.display = 'none';
                                 e.target.nextSibling.style.display = 'flex';
                               }}

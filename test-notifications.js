@@ -1,13 +1,16 @@
 // Test script para verificar el sistema de notificaciones de amistad
 // Ejecutar en la consola del navegador
 
+// Import supabase client
+import { supabase } from './src/supabase';
+
 const testFriendNotifications = async () => {
   console.log('🧪 Testing Friend Notifications System...');
   
   // 1. Verificar que la tabla notifications existe
   console.log('1. Checking notifications table...');
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('notifications')
       .select('*')
       .limit(1);
@@ -25,7 +28,7 @@ const testFriendNotifications = async () => {
   // 2. Verificar que la tabla amigos existe
   console.log('2. Checking amigos table...');
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('amigos')
       .select('*')
       .limit(1);

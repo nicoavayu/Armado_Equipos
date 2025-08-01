@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { updatePartidoFrecuente, crearPartidoDesdeFrec, supabase } from './supabase';
+import { updatePartidoFrecuente, supabase } from './supabase';
 import { toast } from 'react-toastify';
 import AutocompleteSede from './AutocompleteSede';
 import PageTitle from './components/PageTitle';
@@ -10,7 +10,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
   const [hora, setHora] = useState(partido.hora);
   const [sede, setSede] = useState(partido.sede);
-  const [sedeInfo, setSedeInfo] = useState(null);
+  const [_sedeInfo, setSedeInfo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(partido.imagen_url);

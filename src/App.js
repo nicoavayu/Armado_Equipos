@@ -4,7 +4,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useParams, useLocation, Outlet } from 'react-router-dom';
 import { MODES, ADMIN_STEPS } from './constants';
 import AmigosView from './components/AmigosView';
-import { LOADING_STATES } from './appConstants';
+
 import ErrorBoundary from './components/ErrorBoundary';
 import AuthProvider, { useAuth } from './components/AuthProvider';
 import DirectFix from './components/DirectFix';
@@ -13,7 +13,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import NetworkStatus from './components/NetworkStatus';
 import TabBar from './components/TabBar';
 import FifaHome from './FifaHome';
-import SurveyManager from './components/SurveyManager';
+
 import TestSurvey from './TestSurvey';
 import EncuestaPartido from './pages/EncuestaPartido';
 import ResultadosEncuesta from './pages/ResultadosEncuesta';
@@ -23,7 +23,7 @@ import AdminPanel from './AdminPanel';
 import FormularioNuevoPartidoFlow from './FormularioNuevoPartidoFlow';
 import MainLayout from './components/MainLayout';
 
-import PartidoInfoBox from './PartidoInfoBox';
+
 import ListaPartidosFrecuentes from './ListaPartidosFrecuentes';
 import EditarPartidoFrecuente from './EditarPartidoFrecuente';
 import QuieroJugar from './QuieroJugar';
@@ -34,10 +34,9 @@ import PageTitle from './components/PageTitle';
 import { NotificationProvider } from './context/NotificationContext';
 import { TutorialProvider } from './context/TutorialContext';
 import { BadgeProvider } from './context/BadgeContext';
-import Tutorial from './components/Tutorial';
-import WelcomeModal from './components/WelcomeModal';
+
 import { getPartidoPorCodigo, getPartidoPorId, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes, getJugadoresDelPartido, refreshJugadoresPartido } from './supabase';
-import IngresoAdminPartido from './IngresoAdminPartido';
+
 import AuthPage from './components/AuthPage';
 import ResetPassword from './components/ResetPassword';
 import { useSurveyScheduler } from './hooks/useSurveyScheduler';
@@ -52,15 +51,15 @@ const HomePage = () => {
     const params = new URLSearchParams(location.search);
     const codigo = params.get('codigo');
     if (codigo) {
-      console.log('[HOME_PAGE] Found codigo parameter:', codigo);
+
       setShowVotingView(true);
       getPartidoPorCodigo(codigo)
         .then((partido) => {
-          console.log('[HOME_PAGE] Match found:', partido);
+
           setPartidoActual(partido);
         })
         .catch((error) => {
-          console.error('[HOME_PAGE] Error loading match:', error);
+
           setPartidoActual(null);
         });
     } else {
@@ -110,11 +109,7 @@ const NuevoPartidoPage = () => {
       <div className="voting-modern-card" style={{ maxWidth: 650 }}>
         <FormularioNuevoPartidoFlow
           onConfirmar={async (partido) => {
-            console.log('[NUEVO_PARTIDO_PAGE] Match created, navigating to admin panel:', {
-              matchId: partido.id,
-              hasJugadores: !!partido.jugadores,
-              jugadoresCount: partido.jugadores?.length || 0,
-            });
+
             
             // Navegar al AdminPanel con el partido creado
             navigate(`/admin/${partido.id}`);
@@ -181,28 +176,23 @@ const AdminPanelPage = () => {
   useEffect(() => {
     const cargarPartido = async () => {
       try {
-        console.log('[ADMIN_PANEL_PAGE] Loading match:', partidoId);
+
         const partido = await getPartidoPorId(partidoId);
         if (partido) {
           setPartidoActual(partido);
           
           // Cargar jugadores específicos del partido desde la tabla jugadores
-          console.log('[ADMIN_PANEL_PAGE] Loading match players from jugadores table');
           const jugadores = await getJugadoresDelPartido(partidoId);
-          console.log('[ADMIN_PANEL_PAGE] Match players loaded:', {
-            count: jugadores.length,
-            players: jugadores.map((j) => ({ nombre: j.nombre, uuid: j.uuid })),
-          });
           setJugadoresDelPartido(jugadores);
           
           // Si no hay jugadores en la tabla jugadores pero sí en el partido, hacer refresh
           if (jugadores.length === 0 && partido.jugadores && partido.jugadores.length > 0) {
-            console.log('[ADMIN_PANEL_PAGE] No players in jugadores table, but found in partido.jugadores, refreshing...');
+
             try {
               const refreshedPlayers = await refreshJugadoresPartido(partidoId);
               setJugadoresDelPartido(refreshedPlayers);
             } catch (refreshError) {
-              console.error('[ADMIN_PANEL_PAGE] Error refreshing players:', refreshError);
+
             }
           }
         } else {
@@ -210,7 +200,7 @@ const AdminPanelPage = () => {
           navigate('/');
         }
       } catch (error) {
-        console.error('[ADMIN_PANEL_PAGE] Error loading match:', error);
+
         toast.error('Error al cargar el partido');
         navigate('/');
       } finally {
@@ -262,10 +252,7 @@ const AdminPanelPage = () => {
           partidoActual={partidoActual}
           jugadores={jugadoresDelPartido}
           onJugadoresChange={(nuevosJugadores) => {
-            console.log('[ADMIN_PANEL_PAGE] Updating match players:', {
-              matchId: partidoActual.id,
-              newCount: nuevosJugadores.length,
-            });
+
             handleJugadoresChange(nuevosJugadores);
             setJugadoresDelPartido(nuevosJugadores);
           }}
@@ -340,7 +327,7 @@ const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
   </div>
 );
 
-function MainAppContent({ user }) {
+function _MainAppContent({ _user }) {
   useSurveyScheduler();
   
   // Initialize match scheduler
@@ -357,8 +344,7 @@ function MainAppContent({ user }) {
   const [partidoActual, setPartidoActual] = useState(undefined);
   const [stepPartido, setStepPartido] = useState(ADMIN_STEPS.SELECT_TYPE);
   const [partidoFrecuenteEditando, setPartidoFrecuenteEditando] = useState(null);
-  const [showProfileEditor, setShowProfileEditor] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
+
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -402,11 +388,7 @@ function MainAppContent({ user }) {
       content = (
         <FormularioNuevoPartidoFlow
           onConfirmar={async (partido) => {
-            console.log('[MAIN_APP] Match created in admin flow:', {
-              matchId: partido.id,
-              hasJugadores: !!partido.jugadores,
-              jugadoresCount: partido.jugadores?.length || 0,
-            });
+
             setPartidoActual(partido);
             setStepPartido(ADMIN_STEPS.MANAGE);
             return partido;
@@ -565,10 +547,7 @@ function MainAppContent({ user }) {
     );
   }
 
-  const handleProfileClick = () => {
-    setShowProfileEditor(true);
-    setModo('profile');
-  };
+
 
   return (
     <>
@@ -579,8 +558,7 @@ function MainAppContent({ user }) {
           activeTab={activeTab} 
           onTabChange={(tab) => {
             setModo(tab);
-            setShowNotifications(false);
-            setShowProfileEditor(false);
+
             if (tab === 'votacion') setStepPartido(ADMIN_STEPS.SELECT_TYPE);
           }} 
         />
@@ -606,13 +584,13 @@ export default function App() {
                   <Route path="/" element={<AppAuthWrapper />}>
                     <Route path="" element={<MainLayout />}>
                         <Route index element={<HomePage />} />
-                        <Route path="nuevo-partido" element={<NuevoPartidoPage />} />
-                        <Route path="quiero-jugar" element={<QuieroJugarPage />} />
-                        <Route path="amigos" element={<AmigosPage />} />
-                        <Route path="profile" element={<ProfilePage />} />
-                        <Route path="notifications" element={<NotificationsPage />} />
-                        <Route path="historial" element={<HistorialPage />} />
-                        <Route path="admin/:partidoId" element={<AdminPanelPage />} />
+                      <Route path="nuevo-partido" element={<NuevoPartidoPage />} />
+                      <Route path="quiero-jugar" element={<QuieroJugarPage />} />
+                      <Route path="amigos" element={<AmigosPage />} />
+                      <Route path="profile" element={<ProfilePage />} />
+                      <Route path="notifications" element={<NotificationsPage />} />
+                      <Route path="historial" element={<HistorialPage />} />
+                      <Route path="admin/:partidoId" element={<AdminPanelPage />} />
                     </Route>
                   </Route>
                 </Routes>

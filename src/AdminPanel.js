@@ -1,11 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  addJugador,
-  deleteJugador,
-  getJugadores,
   closeVotingAndCalculateScores,
-  getPartidoPorCodigo,
-  updateJugadoresPartido,
   getVotantesIds,
   getVotantesConNombres,
   getJugadoresDelPartido,
@@ -16,41 +11,24 @@ import {
 import { incrementMatchesAbandoned, canAbandonWithoutPenalty } from './utils/matchStatsManager';
 import matchScheduler from './services/matchScheduler';
 import { toast } from 'react-toastify';
-import { handleError, handleSuccess, safeAsync } from './utils/errorHandler';
-import { UI_MESSAGES, VALIDATION_RULES } from './constants';
-import { LOADING_STATES, UI_SIZES } from './appConstants';
+import { UI_SIZES } from './appConstants';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './HomeStyleKit.css';
 import './AdminPanel.css';
 import WhatsappIcon from './components/WhatsappIcon';
 import TeamDisplay from './components/TeamDisplay';
-import PartidoInfoBox from './PartidoInfoBox';
-import Button from './components/Button';
+
 import ChatButton from './components/ChatButton';
 import { PlayerCardTrigger } from './components/ProfileComponents';
 import LoadingSpinner from './components/LoadingSpinner';
-import { HistorialDePartidosButton } from './components/historial';
+
 import { useAuth } from './components/AuthProvider';
 import InviteAmigosModal from './components/InviteAmigosModal';
 import { detectDuplicates, autoCleanupDuplicates } from './utils/duplicateCleanup';
 import PageTitle from './components/PageTitle';
 
-function MiniAvatar({ foto_url, nombre, size = 34 }) {
-  if (foto_url) {
-    return (
-      <LazyLoadImage
-        alt={nombre}
-        src={foto_url}
-        effect="blur"
-        width={size}
-        height={size}
-        className="mini-avatar"
-      />
-    );
-  }
-  return <div className="mini-avatar-placeholder" style={{ width: size, height: size }} />;
-}
+
 
 export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange, partidoActual }) {
   const { user } = useAuth(); // [TEAM_BALANCER_EDIT] Agregado para control de permisos
@@ -72,26 +50,24 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   // 🟢 Si jugadores viene undefined o null, usá array vacío
   jugadores = jugadores || [];
   if (!Array.isArray(jugadores)) jugadores = [];
-  console.log('Jugadores en AdminPanel:', jugadores);
-  
-  // [TEAM_BALANCER_EDIT] Control de permisos: verificar si el usuario es admin del partido
-  const isAdmin = user?.id && partidoActual?.creado_por === user.id;
-  const currentPlayerInMatch = jugadores.find((j) => j.usuario_id === user?.id);
-  const isPlayerInMatch = !!currentPlayerInMatch;
   
   // [TEAM_BALANCER_INVITE_EDIT] Estado de invitación pendiente
   const [pendingInvitation, setPendingInvitation] = useState(false);
   const [invitationLoading, setInvitationLoading] = useState(false);
   const [invitationChecked, setInvitationChecked] = useState(false); // [TEAM_BALANCER_INVITE_ACCESS_FIX] Control de verificación
   
+  // [TEAM_BALANCER_EDIT] Control de permisos: verificar si el usuario es admin del partido
+  const isAdmin = user?.id && partidoActual?.creado_por === user.id;
+  const currentPlayerInMatch = jugadores.find((j) => j.usuario_id === user?.id);
+  const isPlayerInMatch = !!currentPlayerInMatch;
+  
   // [TEAM_BALANCER_INVITE_ACCESS_FIX] Verificar invitación pendiente
   useEffect(() => {
     const checkPendingInvitation = async (userId, matchId) => {
-      console.log('[INVITE_DEBUG] Checking invitation for:', { userId, matchId });
+      // Checking invitation for user and match
       
       // Si el usuario ya está en el partido, no hay invitación pendiente
       if (isPlayerInMatch) {
-        console.log('[INVITE_DEBUG] User already in match, no pending invitation');
         return { invitation: null, error: null, matchId };
       }
       
@@ -103,11 +79,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         .eq('type', 'match_invite');
 
       if (error) {
-        console.error('[INVITE_DEBUG] Supabase error:', error);
         return { invitation: null, error, matchId };
       }
-
-      console.log('[INVITE_DEBUG] All invitations found:', data);
       
       // Asegurarse que notification.data sea siempre un objeto
       const invitations = (data || []).map((n) => ({
@@ -115,7 +88,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         data: typeof n.data === 'string' ? JSON.parse(n.data) : n.data,
       }));
       
-      console.log('[INVITE_DEBUG] Processed invitations:', invitations);
+      // Process invitations data
       
       // Filtrar por matchId asegurando tipo string
       const matchingInvitation = invitations.find((notification) =>
@@ -124,17 +97,13 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       );
       
       if (matchingInvitation) {
-        console.log('[INVITE_DEBUG] Found matching invitation:', matchingInvitation);
         return { invitation: matchingInvitation, error: null, matchId };
       }
-      
-      console.log('[INVITE_DEBUG] No matching invitation found for matchId:', matchId);
       return { invitation: null, error: null, matchId };
     };
     
     const runCheck = async () => {
       if (!user?.id || !partidoActual?.id) {
-        console.log('[INVITE_DEBUG] Missing user or match, setting checked to true');
         setInvitationChecked(true);
         return;
       }
@@ -143,16 +112,13 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         const result = await checkPendingInvitation(user.id, partidoActual.id);
         
         if (result.invitation && !isPlayerInMatch) {
-          console.log('[INVITE_DEBUG] Setting pendingInvitation to true');
           setPendingInvitation(true);
         } else {
-          console.log('[INVITE_DEBUG] No pending invitation or user already in match');
           setPendingInvitation(false);
         }
       } catch (error) {
-        console.log('[INVITE_DEBUG] Error in runCheck:', error);
+        // Error in invitation check
       } finally {
-        console.log('[INVITE_DEBUG] Setting invitationChecked to true');
         setInvitationChecked(true);
       }
     };
@@ -183,24 +149,14 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     };
     
     const runAccessCheck = async () => {
-      console.log('[ACCESS_DEBUG] Access control check:', {
-        userId: user?.id,
-        matchId: partidoActual?.id,
-        invitationChecked,
-        isPlayerInMatch,
-        isAdmin,
-        pendingInvitation,
-      });
       
       if (!user?.id || !partidoActual?.id || !invitationChecked) {
-        console.log('[ACCESS_DEBUG] Skipping access check - missing data or invitation not checked yet');
         return;
       }
       
       // Verificar si fue expulsado
       const wasKicked = await checkKickedStatus();
       if (wasKicked) {
-        console.log('[ACCESS_DEBUG] User was kicked, redirecting to home');
         toast.error('Has sido expulsado de este partido');
         onBackToHome();
         return;
@@ -208,25 +164,21 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       
       // Solo redirigir si el usuario NO está en la nómina, NO es admin y NO tiene invitación pendiente
       const shouldRedirect = !isPlayerInMatch && !isAdmin && !pendingInvitation;
-      console.log('[ACCESS_DEBUG] Should redirect?', shouldRedirect);
       
       if (shouldRedirect) {
-        console.log('[ACCESS_DEBUG] Redirecting to home - no access');
         toast.error('No estás invitado a este partido');
         onBackToHome();
-      } else {
-        console.log('[ACCESS_DEBUG] Access granted');
       }
     };
     
     runAccessCheck();
   }, [user?.id, partidoActual, isPlayerInMatch, isAdmin, pendingInvitation, invitationChecked, onBackToHome]);
+  
   // useEffect para refrescar jugadores desde la tabla jugadores
   useEffect(() => {
     async function fetchJugadoresDelPartido() {
       if (!partidoActual?.id) return;
       try {
-        console.log('[ADMIN_PANEL] Fetching players from jugadores table for match:', partidoActual.id);
         
         // Schedule match for automatic stats tracking
         if (partidoActual.fecha && partidoActual.hora) {
@@ -241,16 +193,11 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
           .single();
           
         if (partidoData && partidoData.creado_por !== partidoActual.creado_por) {
-          console.log('[ADMIN_PANEL] Admin changed, reloading page');
           window.location.reload();
           return;
         }
         
         const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
-        console.log('[ADMIN_PANEL] Players fetched:', {
-          count: jugadoresPartido.length,
-          players: jugadoresPartido.map((j) => ({ nombre: j.nombre, uuid: j.uuid })),
-        });
         
         const votantesIds = await getVotantesIds(partidoActual.id);
         const votantesNombres = await getVotantesConNombres(partidoActual.id);
@@ -264,11 +211,11 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             const duplicateInfo = await detectDuplicates(partidoActual.id);
             setDuplicatesDetected(duplicateInfo.duplicates?.length || 0);
           } catch (error) {
-            console.error('Error detecting duplicates:', error);
+            // Error detecting duplicates
           }
         }
       } catch (error) {
-        console.error('[ADMIN_PANEL] Error loading match data:', error);
+        // Error loading match data
       }
     }
     
@@ -327,7 +274,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
     setLoading(true);
     try {
-      console.log('[ADMIN_PANEL] Adding player to match:', { nombre, partidoId: partidoActual.id });
       
       // Generar UUID único para el jugador
       const uuid = crypto.randomUUID();
@@ -346,8 +292,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         .single();
         
       if (error) throw error;
-      
-      console.log('[ADMIN_PANEL] Player added successfully:', nuevoJugador);
       setNuevoNombre('');
       setTimeout(() => inputRef.current?.focus(), 10);
       
@@ -355,17 +299,14 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       setTimeout(async () => {
         try {
           const cleanupResult = await autoCleanupDuplicates(partidoActual.id);
-          if (cleanupResult.cleaned > 0) {
-            console.log('[AUTO_CLEANUP] Removed', cleanupResult.cleaned, 'duplicates after adding player');
-          }
+          // Auto cleanup completed
         } catch (cleanupError) {
-          console.error('[AUTO_CLEANUP] Error cleaning duplicates:', cleanupError);
+          // Error cleaning duplicates
         }
       }, 1500);
       
       // El useEffect se encargará de refrescar la lista automáticamente
     } catch (error) {
-      console.error('[ADMIN_PANEL] Error adding player:', error);
       toast.error('Error agregando jugador: ' + error.message);
     } finally {
       setLoading(false);
@@ -396,7 +337,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     
     setLoading(true);
     try {
-      console.log('[ADMIN_PANEL] Removing player from match:', { uuid, partidoId: partidoActual.id, esExpulsionPorAdmin });
       
       // Eliminar jugador específico de la tabla jugadores (usando uuid como string)
       const { error } = await supabase
@@ -410,19 +350,19 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       // Solo incrementar partidos abandonados si es auto-eliminación y se baja con menos de 4h
       if (esAutoEliminacion && jugadorAEliminar?.usuario_id) {
         try {
-          const canAbandonSafely = canAbandonWithoutPenalty(partidoActual.fecha, partidoActual.hora);
+          const canAbandonSafely = canAbandonWithoutPenalty(
+            partidoActual.fecha, 
+            partidoActual.hora
+          );
           if (!canAbandonSafely) {
             await incrementMatchesAbandoned(jugadorAEliminar.usuario_id);
-            console.log('[MATCH_STATS] Player abandoned match within 4 hours');
-          } else {
-            console.log('[MATCH_STATS] Player left match safely (more than 4 hours before)');
           }
         } catch (abandonError) {
-          console.error('Error processing match abandonment:', abandonError);
+          // Error processing match abandonment
         }
       }
       
-      console.log('[ADMIN_PANEL] Player removed successfully');
+      // Player removed successfully
       
       // Si es auto-eliminación, volver al home
       if (esAutoEliminacion) {
@@ -446,13 +386,12 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             read: false,
           }]);
         } catch (notifError) {
-          console.error('Error sending kick notification:', notifError);
+          // Error sending kick notification
         }
       }
       
       // El useEffect se encargará de refrescar la lista automáticamente
     } catch (error) {
-      console.error('[ADMIN_PANEL] Error removing player:', error);
       toast.error('Error eliminando jugador: ' + error.message);
     } finally {
       setLoading(false);
@@ -474,7 +413,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       return acc;
     }, []);
     
-    console.log('[ARMAR_EQUIPOS] Jugadores únicos:', jugadoresUnicos.length, 'de', jugadores.length, 'originales');
+    // Process unique players for team formation
     
     // Verificar que hay número par de jugadores
     if (jugadoresUnicos.length % 2 !== 0) {
@@ -498,13 +437,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       }
     });
     
-    console.log('[ARMAR_EQUIPOS] Equipos formados:', {
-      equipoA: equipoA.length,
-      equipoB: equipoB.length,
-      puntajeA: puntajeA.toFixed(2),
-      puntajeB: puntajeB.toFixed(2),
-      diferencia: Math.abs(puntajeA - puntajeB).toFixed(2),
-    });
+    // Teams formed successfully
 
     return [
       { id: 'equipoA', name: 'Equipo A', players: equipoA, score: puntajeA },
@@ -635,8 +568,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         const { schedulePostMatchSurveyNotifications } = await import('./utils/matchNotifications');
         await schedulePostMatchSurveyNotifications(partidoActual);
       } catch (scheduleError) {
-        console.warn('No se pudieron programar las notificaciones de encuesta:', scheduleError);
-      // No mostramos error al usuario ya que no es crítico para la funcionalidad principal
+        // No se pudieron programar las notificaciones de encuesta
+        // No mostramos error al usuario ya que no es crítico para la funcionalidad principal
       }
     
       // Success! Show toast only for admin
@@ -711,7 +644,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       }
       
     } catch (error) {
-      console.error('Error al enviar notificaciones:', error);
       toast.error('Error al enviar notificaciones: ' + error.message);
     }
   }
@@ -786,7 +718,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       }, 2000);
       
     } catch (error) {
-      console.error('Error transferring admin:', error);
       toast.error('Error al transferir admin: ' + error.message);
     }
   }
@@ -883,7 +814,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       // No establecer pendingInvitation a false aquí - dejar que el useEffect lo detecte automáticamente
       
     } catch (error) {
-      console.error('Error accepting invitation:', error);
       toast.error('Error al unirse al partido: ' + error.message);
     } finally {
       setInvitationLoading(false);
@@ -928,7 +858,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       onBackToHome(); // Volver sin toast confuso
       
     } catch (error) {
-      console.error('Error rejecting invitation:', error);
       toast.error('Error al rechazar invitación: ' + error.message);
     } finally {
       setInvitationLoading(false);
@@ -957,7 +886,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         await supabase.from('notifications').insert(notificaciones);
       }
     } catch (error) {
-      console.error('Error notifying players:', error);
+      // Error notifying players
     }
   }
   
@@ -983,7 +912,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         await supabase.from('notifications').insert(notificaciones);
       }
     } catch (error) {
-      console.error('Error notifying rejection:', error);
+      // Error notifying rejection
     }
   }
   
@@ -991,10 +920,12 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   
   // Initialize state only once when partidoActual loads
   useEffect(() => {
-    if (partidoActual?.falta_jugadores !== undefined && faltanJugadoresState === false && !partidoActual.falta_jugadores) {
+    if (partidoActual?.falta_jugadores !== undefined && 
+        faltanJugadoresState === false && 
+        !partidoActual.falta_jugadores) {
       setFaltanJugadoresState(partidoActual.falta_jugadores);
     }
-  }, [partidoActual?.id]); // Only run when partidoActual.id changes (new match loaded)
+  }, [partidoActual?.id, faltanJugadoresState, partidoActual?.falta_jugadores]);
  
   async function handleFaltanJugadores() {
     // [TEAM_BALANCER_EDIT] Solo admin puede cambiar estado de "faltan jugadores"
@@ -1056,13 +987,13 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         .single();
         
       if (partidoData?.estado === 'equipos_formados' && !showTeamView) {
-        console.log('[REALTIME] Teams formed detected, loading from database...');
+        // Teams formed detected, loading from database
         
         // Try to get teams from database first
         const savedTeams = await getTeamsFromDatabase(partidoActual.id);
         
         if (savedTeams && Array.isArray(savedTeams) && savedTeams.length === 2) {
-          console.log('[REALTIME] Loading saved teams from database:', savedTeams);
+          // Loading saved teams from database
           safeSetTeams(savedTeams);
           setShowTeamView(true);
           
@@ -1087,7 +1018,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                 try {
                   await saveTeamsToDatabase(partidoActual.id, generatedTeams);
                 } catch (error) {
-                  console.error('[REALTIME] Error saving generated teams:', error);
+                  // Error saving generated teams
                 }
               }
               
@@ -1100,7 +1031,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         }
       }
     } catch (error) {
-      console.error('[REALTIME] Error checking for formed teams:', error);
+      // Error checking for formed teams
     }
   };
   
@@ -1120,8 +1051,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
   // Determine if button should be disabled
   const isButtonDisabled = isClosing || loading || jugadores.length < 2;
-  const hasOddPlayers = jugadores.length > 0 && jugadores.length % 2 !== 0;
-  const hasNoVotes = votantes.length === 0 && jugadores.length > 0;
 
   // [TEAM_BALANCER_INVITE_ACCESS_FIX] Mostrar loading hasta verificar invitación
   if (!partidoActual || !invitationChecked) return <LoadingSpinner size="large" />;
@@ -1323,8 +1252,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                   {jugadores.map((j) => {
                   // Check if this specific player voted by name
                     const hasVoted = votantesConNombres.some((v) => v.nombre === j.nombre);
-                    // LOG POR JUGADOR
-                    console.log('Render jugador:', j.nombre, j.foto_url, j.avatar_url, j.uuid);
+                    // Render player card
 
                     return (
                       <PlayerCardTrigger 

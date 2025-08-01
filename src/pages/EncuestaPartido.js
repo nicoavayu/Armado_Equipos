@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase, checkPartidoCalificado } from '../supabase';
 import { processAbsenceWithoutNotice } from '../utils/matchStatsManager';
 import { toast } from 'react-toastify';
 import { useAuth } from '../components/AuthProvider';
 import { useBadges } from '../context/BadgeContext';
-import LoadingSpinner from '../components/LoadingSpinner';
+
 import ProfileCard from '../components/ProfileCard';
 import '../VotingView.css';
 
@@ -19,7 +19,7 @@ const EncuestaPartido = () => {
   const [submitting, setSubmitting] = useState(false);
   const [partido, setPartido] = useState(null);
   const [currentStep, setCurrentStep] = useState(0);
-  const [animating, setAnimating] = useState(false);
+
   const [formData, setFormData] = useState({
     se_jugo: true,
     partido_limpio: true,
@@ -39,7 +39,6 @@ const EncuestaPartido = () => {
   const [currentAnimationIndex, setCurrentAnimationIndex] = useState(0);
   const [animationComplete, setAnimationComplete] = useState(false);
   const [animationProcessed, setAnimationProcessed] = useState(false);
-
 
   useEffect(() => {
     const fetchPartidoData = async () => {
@@ -95,8 +94,6 @@ const EncuestaPartido = () => {
     }
   }, [showingBadgeAnimations, badgeAnimations.length]);
 
-
-
   // Control del ciclo de animaciones - la última card queda visible
   useEffect(() => {
     if (showingBadgeAnimations && badgeAnimations.length > 0 && !animationComplete) {
@@ -116,14 +113,7 @@ const EncuestaPartido = () => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const nextStep = () => {
-    if (animating) return;
-    setAnimating(true);
-    setTimeout(() => {
-      setCurrentStep((prev) => prev + 1);
-      setAnimating(false);
-    }, 200);
-  };
+
 
   const toggleJugadorAusente = (jugadorId) => {
     setFormData((prev) => {
@@ -228,7 +218,7 @@ const EncuestaPartido = () => {
       if (premios.length > 0) {
         try {
           // Remover campo otorgado_por si no existe en la tabla
-          const premiosLimpios = premios.map(({ otorgado_por, ...resto }) => resto);
+          const premiosLimpios = premios.map(({ ...resto }) => resto);
           
           await supabase
             .from('player_awards')
@@ -332,8 +322,7 @@ const EncuestaPartido = () => {
     }
     
     if (animations.length > 0) {
-      console.log('Setting badge animations:', animations);
-      console.log('Total animations:', animations.length);
+
       setBadgeAnimations(animations);
       setShowingBadgeAnimations(true);
       return;
@@ -356,6 +345,54 @@ const EncuestaPartido = () => {
     }
   };
 
+  // Hooks for BadgeAnimation component - moved to top level
+  const [localAnimatedScore, setLocalAnimatedScore] = useState(null);
+  const scoreAnimatingRef = useRef(false);
+  
+  // Effect for score animation - moved to top level
+  useEffect(() => {
+    const animation = badgeAnimations[Math.min(currentAnimationIndex, badgeAnimations.length - 1)];
+    const player = jugadores.find((j) => j.nombre === animation?.playerName);
+    const isAbsence = animation?.badgeType === 'ausencia_injustificada';
+    
+    if (showingBadgeAnimations && isAbsence && player && animation.pointsLost && !scoreAnimatingRef.current) {
+      scoreAnimatingRef.current = true;
+      const currentScore = player.puntuacion || 0;
+      const targetScore = currentScore + animation.pointsLost;
+      setLocalAnimatedScore(currentScore);
+      
+      const timer = setTimeout(() => {
+        let current = currentScore;
+        let steps = 0;
+        const maxSteps = 3;
+        
+        const interval = setInterval(() => {
+          steps++;
+          current = Math.round((current - 0.1) * 10) / 10;
+          setLocalAnimatedScore(current);
+          
+          if (steps >= maxSteps || current <= targetScore) {
+            clearInterval(interval);
+            setLocalAnimatedScore(targetScore);
+          }
+        }, 300);
+        
+        return () => clearInterval(interval);
+      }, 1500);
+      
+      return () => {
+        clearTimeout(timer);
+        scoreAnimatingRef.current = false;
+      };
+    }
+  }, [showingBadgeAnimations, currentAnimationIndex, badgeAnimations, jugadores]);
+  
+  // Reset animation state when changing animations
+  useEffect(() => {
+    setLocalAnimatedScore(null);
+    scoreAnimatingRef.current = false;
+  }, [currentAnimationIndex]);
+
   const BadgeAnimation = ({ animations }) => {
     if (!animations || animations.length === 0) return null;
     
@@ -365,50 +402,7 @@ const EncuestaPartido = () => {
     
     const player = jugadores.find((j) => j.nombre === animation.playerName);
     const isAbsence = animation.badgeType === 'ausencia_injustificada';
-    
-    // Estado local para la animación del score
-    const [localAnimatedScore, setLocalAnimatedScore] = React.useState(null);
-    const scoreAnimatingRef = React.useRef(false);
-    
-    // Animación del score para ausencias - solo se ejecuta una vez por animación
-    React.useEffect(() => {
-      if (isAbsence && player && animation.pointsLost && !scoreAnimatingRef.current) {
-        scoreAnimatingRef.current = true;
-        const currentScore = player.puntuacion || 0;
-        const targetScore = currentScore + animation.pointsLost;
-        setLocalAnimatedScore(currentScore);
-        
-        const timer = setTimeout(() => {
-          let current = currentScore;
-          let steps = 0;
-          const maxSteps = 3;
-          
-          const interval = setInterval(() => {
-            steps++;
-            current = Math.round((current - 0.1) * 10) / 10;
-            setLocalAnimatedScore(current);
-            
-            if (steps >= maxSteps || current <= targetScore) {
-              clearInterval(interval);
-              setLocalAnimatedScore(targetScore);
-            }
-          }, 300);
-          
-          return () => clearInterval(interval);
-        }, 1500);
-        
-        return () => {
-          clearTimeout(timer);
-          scoreAnimatingRef.current = false;
-        };
-      }
-    }, [isAbsence, player?.uuid, animation.pointsLost]);
-    
-    // Reset al cambiar de animación
-    React.useEffect(() => {
-      setLocalAnimatedScore(null);
-      scoreAnimatingRef.current = false;
-    }, [currentAnimationIndex]);
+    // Animation logic is now handled by top-level useEffect hooks
     
     return (
       // Centrado perfecto: flex con center en ambos ejes
@@ -666,7 +660,7 @@ const EncuestaPartido = () => {
       
       <div className="voting-modern-card">
         {currentStep === 0 && (
-          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+          <div className="player-vote-card slide-in">
             <div className="voting-title-modern">
               ¿SE JUGÓ EL PARTIDO?
             </div>
@@ -702,7 +696,7 @@ const EncuestaPartido = () => {
         )}
 
         {currentStep === 1 && (
-          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+          <div className="player-vote-card slide-in">
             <div className="voting-title-modern">
               ¿ASISTIERON TODOS?
             </div>
@@ -734,7 +728,7 @@ const EncuestaPartido = () => {
         )}
 
         {currentStep === 2 && (
-          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+          <div className="player-vote-card slide-in">
             <div className="voting-title-modern">
               ¿QUIÉN FUE EL MEJOR JUGADOR?
             </div>
@@ -812,7 +806,7 @@ const EncuestaPartido = () => {
         )}
 
         {currentStep === 3 && (
-          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+          <div className="player-vote-card slide-in">
             <div className="voting-title-modern">
               ¿QUIÉN FUE EL MEJOR ARQUERO?
             </div>
@@ -907,7 +901,7 @@ const EncuestaPartido = () => {
         )}
 
         {currentStep === 4 && (
-          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+          <div className="player-vote-card slide-in">
             <div className="voting-title-modern">
               ¿FUE UN PARTIDO LIMPIO?
             </div>
@@ -939,7 +933,7 @@ const EncuestaPartido = () => {
         )}
 
         {currentStep === 5 && (
-          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+          <div className="player-vote-card slide-in">
             <div className="voting-title-modern">
               ¿QUIÉN GANÓ?
             </div>
@@ -999,7 +993,7 @@ const EncuestaPartido = () => {
         )}
 
         {currentStep === 6 && (
-          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+          <div className="player-vote-card slide-in">
             <div className="voting-title-modern">
               ¿QUIÉN JUGÓ SUCIO?
             </div>
@@ -1077,7 +1071,7 @@ const EncuestaPartido = () => {
         )}
 
         {currentStep === 10 && (
-          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+          <div className="player-vote-card slide-in">
             <div className="voting-title-modern">
               ¿POR QUÉ NO SE JUGÓ?
             </div>
@@ -1118,7 +1112,7 @@ const EncuestaPartido = () => {
         )}
 
         {currentStep === 11 && (
-          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+          <div className="player-vote-card slide-in">
             <div className="voting-title-modern">
               SELECCIONA JUGADORES AUSENTES
             </div>
@@ -1196,7 +1190,7 @@ const EncuestaPartido = () => {
         )}
 
         {currentStep === 12 && (
-          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+          <div className="player-vote-card slide-in">
             <div className="voting-title-modern">
               ¿QUIÉNES FALTARON?
             </div>
@@ -1274,7 +1268,7 @@ const EncuestaPartido = () => {
         )}
 
         {currentStep === 99 && (
-          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+          <div className="player-vote-card slide-in">
             <div className="voting-title-modern">
               ¡GRACIAS POR FINALIZAR LA ENCUESTA!
             </div>

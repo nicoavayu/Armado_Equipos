@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import './HomeStyleKit.css';
 import Logo from './Logo.png';
-import GoogleAuth from './components/GoogleAuth';
+
 import { useAuth } from './components/AuthProvider';
 import FifaHomeContent from './components/FifaHomeContent';
 import ProfileEditor from './components/ProfileEditor';
@@ -13,7 +13,7 @@ import PageTitle from './components/PageTitle';
 
 
 export default function FifaHome({ onModoSeleccionado }) {
-  const { user } = useAuth();
+  const { } = useAuth();
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(true);

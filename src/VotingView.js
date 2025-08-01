@@ -46,7 +46,7 @@ export default function VotingView({ onReset, jugadores }) {
   // Chequeo global: ¿El usuario actual ya votó?
   const [usuarioYaVoto, setUsuarioYaVoto] = useState(false);
   const [cargandoVotoUsuario, setCargandoVotoUsuario] = useState(true);
-  const [usuarioNoInvitado, setUsuarioNoInvitado] = useState(false); // [TEAM_BALANCER_EDIT] Control de acceso
+  const [_usuarioNoInvitado, setUsuarioNoInvitado] = useState(false); // [TEAM_BALANCER_EDIT] Control de acceso
 
   // -- HOOKS, TODOS ARRIBA --
   

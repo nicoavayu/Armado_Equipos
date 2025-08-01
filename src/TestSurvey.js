@@ -122,7 +122,8 @@ const TestSurvey = () => {
       <div className="test-survey-card">
         <h1>Test de Encuesta Post-Partido</h1>
         <p className="test-survey-description">
-          Esta página es solo para pruebas. Permite abrir manualmente la encuesta post-partido
+          Esta página es solo para pruebas. Permite abrir manualmente la encuesta 
+          post-partido
           para cualquier partido y usuario.
         </p>
         

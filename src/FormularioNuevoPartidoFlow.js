@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import AutocompleteSede from './AutocompleteSede';
 import { crearPartidoFrecuente, crearPartidoDesdeFrec, crearPartido, supabase } from './supabase';
-import { handleError, handleSuccess, safeAsync } from './utils/errorHandler';
+
 import PageTitle from './components/PageTitle';
 
 import './FormularioNuevoPartidoFlow.css';
@@ -22,14 +22,14 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const [sedeInfo, setSedeInfo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [animation, setAnimation] = useState('slide-in');
+  const [_animation, _setAnimation] = useState('slide-in');
   const [editMode, setEditMode] = useState(false);
 
   const modalidadToCupo = { F5: 10, F6: 12, F7: 14, F8: 16, F9: 18, F11: 22 };
   const [modalidad, setModalidad] = useState('F5');
   const [cupo, setCupo] = useState(modalidadToCupo['F5']);
   const [tipoPartido, setTipoPartido] = useState('Masculino');
-  React.useEffect(() => { setCupo(modalidadToCupo[modalidad]); }, [modalidad]);
+  React.useEffect(() => { setCupo(modalidadToCupo[modalidad]); }, [modalidad, modalidadToCupo]);
 
   const [file, setFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
