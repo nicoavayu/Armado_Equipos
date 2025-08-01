@@ -67,24 +67,7 @@ export const processAbsenceWithoutNotice = async (userId, partidoId, voterId) =>
   try {
     console.log('[MATCH_STATS] Processing absence without notice:', { userId, partidoId, voterId });
     
-    // Verificar si ya se procesó esta ausencia
-    const { data: existingPenalty, error: checkError } = await supabase
-      .from('player_awards')
-      .select('id')
-      .eq('jugador_id', userId)
-      .eq('partido_id', partidoId)
-      .eq('award_type', 'absence_penalty')
-      .single();
-    
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('[MATCH_STATS] Error checking existing penalty:', checkError);
-      return;
-    }
-    
-    if (existingPenalty) {
-      console.log('[MATCH_STATS] Absence penalty already processed for this user/match');
-      return;
-    }
+    // Skip duplicate check - process absence penalty directly
     
     // Obtener stats actuales
     const { data: user, error: userError } = await supabase
@@ -123,8 +106,7 @@ export const processAbsenceWithoutNotice = async (userId, partidoId, voterId) =>
       .insert({
         jugador_id: userId,
         partido_id: partidoId,
-        award_type: 'absence_penalty',
-        otorgado_por: voterId
+        award_type: 'absence_penalty'
       });
     
     if (penaltyError) {

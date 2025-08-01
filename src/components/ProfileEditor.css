@@ -7,6 +7,7 @@
   align-items: center;
   justify-content: center;
   backdrop-filter: blur(4px);
+  overflow: auto;
 }
 
 .profile-editor-container {
@@ -14,6 +15,7 @@
   width: 90vw;
   max-width: 1200px;
   height: 80vh;
+  max-height: 90vh;
   background: linear-gradient(135deg, #24c6dc 10%, #514a9d 100%);
   border-radius: 20px;
   overflow: hidden;
@@ -134,12 +136,75 @@
   cursor: not-allowed;
 }
 
-/* Avatar, Name and Number in one row */
-.avatar-name-row {
+/* Ensure select fields have same styling as input fields */
+select.input-modern-small {
+  background: rgb(255 255 255 / 10%);
+  border: 1px solid rgb(255 255 255 / 30%);
+  color: white;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 38px;
+}
+
+select.input-modern-small:focus {
+  outline: none;
+  border-color: #f4d03f;
+  background: rgb(255 255 255 / 15%);
+  box-shadow: 0 0 0 2px rgb(244 208 63 / 30%);
+}
+
+select.input-modern-small option {
+  background: #2a2a40;
+  color: white;
+}
+
+/* Avatar and Name section */
+.avatar-name-section {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 12px;
   width: 100%;
+  margin-bottom: 16px;
+}
+
+.avatar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.avatar-name-section .profile-avatar {
+  width: 60px;
+  height: 60px;
+}
+
+.change-photo-btn {
+  background: rgb(244 208 63 / 20%);
+  border: 1px solid #f4d03f;
+  color: #f4d03f;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  font-family: Oswald, Arial, sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.change-photo-btn:hover {
+  background: rgb(244 208 63 / 30%);
+}
+
+.avatar-name-section .form-group {
+  margin-bottom: 0;
+  margin-top: 20px;
 }
 
 .profile-avatar {
@@ -197,6 +262,16 @@
   flex-direction: column;
   gap: 10px;
   flex-grow: 1;
+  width: 100%;
+}
+
+.name-number-container .form-group {
+  width: 100%;
+}
+
+.name-number-container .input-modern-small {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .position-buttons {

@@ -406,54 +406,63 @@ export default function ProfileEditor({ isOpen, onClose }) {
           </div>
 
           <div className="profile-menu-content">
-            {/* Avatar, Name and Number in one row */}
-            <div className="avatar-name-row">
-              <div
-                className="profile-avatar"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (fileInputRef.current) {
-                    fileInputRef.current.click();
-                  }
-                }}
-              >
-                {liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture ? (
-                  <img
-                    src={liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture}
-                    alt="Perfil"
-                    key={`profile-photo-${Date.now()}`} // Force re-render
-                  />
-                ) : (
-                  <div className="photo-placeholder">👤</div>
-                )}
-                <div className="avatar-overlay">
-                  <span className="avatar-edit-icon">📷</span>
+            {/* Avatar and Name in one row */}
+            <div className="avatar-name-section">
+              <div className="avatar-container">
+                <div
+                  className="profile-avatar"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (fileInputRef.current) {
+                      fileInputRef.current.click();
+                    }
+                  }}
+                >
+                  {liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture ? (
+                    <img
+                      src={liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture}
+                      alt="Perfil"
+                      key={`profile-photo-${Date.now()}`} // Force re-render
+                    />
+                  ) : (
+                    <div className="photo-placeholder">👤</div>
+                  )}
+                  <div className="avatar-overlay">
+                    <span className="avatar-edit-icon">📷</span>
+                  </div>
                 </div>
+                <button 
+                  className="change-photo-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (fileInputRef.current) {
+                      fileInputRef.current.click();
+                    }
+                  }}
+                  type="button"
+                >
+                  Cambiar Foto
+                </button>
               </div>
 
-              <div className="name-number-container">
-                <div className="form-group">
-                  <label>Nombre *</label>
-                  <input
-                    className="input-modern-small"
-                    type="text"
-                    value={formData.nombre}
-                    onChange={(e) => handleInputChange('nombre', e.target.value)}
-                    placeholder="Tu nombre completo"
-                  />
-                </div>
-
-
+              <div className="form-group" style={{ flex: 1, marginLeft: '12px' }}>
+                <label>Nombre *</label>
+                <input
+                  className="input-modern-small"
+                  type="text"
+                  value={formData.nombre}
+                  onChange={(e) => handleInputChange('nombre', e.target.value)}
+                  placeholder="Tu nombre completo"
+                />
               </div>
 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg, image/png, image/gif, image/webp"
+                accept="image/*"
                 style={{ display: 'none' }}
                 onChange={handlePhotoChange}
                 onClick={(e) => e.stopPropagation()}
-                capture="environment"
               />
             </div>
 

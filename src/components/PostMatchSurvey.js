@@ -657,6 +657,8 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
   };
 
   const BadgeAnimation = ({ animation, index }) => {
+    if (!animation) return null;
+    
     return (
       <div 
         className={`badge-animation badge-${animation.badgeType}`}
@@ -670,11 +672,11 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
               <img src={animation.playerAvatar} alt={animation.playerName} />
             ) : (
               <div className="badge-avatar-placeholder">
-                {animation.playerName.charAt(0)}
+                {animation.playerName?.charAt(0) || '?'}
               </div>
             )}
           </div>
-          <div className="badge-player-name">{animation.playerName}</div>
+          <div className="badge-player-name">{animation.playerName || 'Jugador'}</div>
         </div>
         <div className="badge-animation-text">
           <div className="badge-award-text">GANÓ {animation.badgeText}</div>

@@ -6,12 +6,9 @@ import { toast } from 'react-toastify';
 import { useAuth } from '../components/AuthProvider';
 import { useBadges } from '../context/BadgeContext';
 import LoadingSpinner from '../components/LoadingSpinner';
+import ProfileCard from '../components/ProfileCard';
 import '../VotingView.css';
 
-/**
- * Página de encuesta post-partido
- * Permite al usuario calificar un partido en el que participó
- */
 const EncuestaPartido = () => {
   const { partidoId } = useParams();
   const { user } = useAuth();
@@ -31,8 +28,6 @@ const EncuestaPartido = () => {
     jugadores_violentos: [],
     mvp_id: '',
     arquero_id: '',
-    jugador_sucio_id: '',
-    comentarios: '',
     motivo_no_jugado: '',
     ganador: '',
     resultado: '',
@@ -41,9 +36,11 @@ const EncuestaPartido = () => {
   const [yaCalificado, setYaCalificado] = useState(false);
   const [showingBadgeAnimations, setShowingBadgeAnimations] = useState(false);
   const [badgeAnimations, setBadgeAnimations] = useState([]);
-  const [showAcceptButton, setShowAcceptButton] = useState(false);
+  const [currentAnimationIndex, setCurrentAnimationIndex] = useState(0);
+  const [animationComplete, setAnimationComplete] = useState(false);
+  const [animationProcessed, setAnimationProcessed] = useState(false);
 
-  // Cargar datos del partido y verificar si ya fue calificado
+
   useEffect(() => {
     const fetchPartidoData = async () => {
       if (!partidoId || !user) {
@@ -54,7 +51,6 @@ const EncuestaPartido = () => {
       try {
         setLoading(true);
         
-        // Verificar si ya calificó este partido
         const calificado = await checkPartidoCalificado(partidoId, user.id);
         if (calificado) {
           setYaCalificado(true);
@@ -62,7 +58,6 @@ const EncuestaPartido = () => {
           return;
         }
         
-        // Obtener datos del partido
         const { data: partidoData, error: partidoError } = await supabase
           .from('partidos')
           .select('*')
@@ -78,7 +73,6 @@ const EncuestaPartido = () => {
         
         setPartido(partidoData);
         
-        // Extraer jugadores del partido
         if (partidoData.jugadores && Array.isArray(partidoData.jugadores)) {
           setJugadores(partidoData.jugadores);
         }
@@ -94,12 +88,34 @@ const EncuestaPartido = () => {
     fetchPartidoData();
   }, [partidoId, user, navigate]);
 
-  // Manejar cambios en el formulario
+  useEffect(() => {
+    if (showingBadgeAnimations && badgeAnimations.length > 0) {
+      setCurrentAnimationIndex(0);
+      setAnimationComplete(false);
+    }
+  }, [showingBadgeAnimations, badgeAnimations.length]);
+
+
+
+  // Control del ciclo de animaciones - la última card queda visible
+  useEffect(() => {
+    if (showingBadgeAnimations && badgeAnimations.length > 0 && !animationComplete) {
+      if (currentAnimationIndex < badgeAnimations.length - 1) {
+        const timer = setTimeout(() => {
+          setCurrentAnimationIndex(prev => prev + 1);
+        }, 3000);
+        return () => clearTimeout(timer);
+      } else {
+        // Llegamos a la última animación - mostrar botón ACEPTAR sin avanzar más
+        setAnimationComplete(true);
+      }
+    }
+  }, [currentAnimationIndex, showingBadgeAnimations, badgeAnimations.length, animationComplete]);
+
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
-  
-  // Avanzar al siguiente paso con animación
+
   const nextStep = () => {
     if (animating) return;
     setAnimating(true);
@@ -109,7 +125,6 @@ const EncuestaPartido = () => {
     }, 200);
   };
 
-  // Manejar selección/deselección de jugadores ausentes
   const toggleJugadorAusente = (jugadorId) => {
     setFormData((prev) => {
       const ausentes = [...prev.jugadores_ausentes];
@@ -125,7 +140,6 @@ const EncuestaPartido = () => {
     });
   };
 
-  // Manejar selección/deselección de jugadores violentos
   const toggleJugadorViolento = (jugadorId) => {
     setFormData((prev) => {
       const violentos = [...prev.jugadores_violentos];
@@ -141,64 +155,16 @@ const EncuestaPartido = () => {
     });
   };
 
-  // Manejar aceptar animaciones y continuar
   const handleAcceptAnimations = async () => {
     setShowingBadgeAnimations(false);
-    setShowAcceptButton(false);
     setBadgeAnimations([]);
-    
-    // Continuar con el resto del flujo de envío
+    setCurrentAnimationIndex(0);
+    setAnimationComplete(false);
     await continueSubmitFlow();
   };
 
-  // Función para actualizar ranking de usuario
-  const updatePlayerRanking = async (playerId, change) => {
-    try {
-      console.log('[RANKING_UPDATE] Updating ranking for player:', { playerId, change });
-      
-      // Get current ranking from usuarios table
-      const { data: user, error: fetchError } = await supabase
-        .from('usuarios')
-        .select('ranking')
-        .eq('id', playerId)
-        .single();
-      
-      if (fetchError) {
-        console.error('[RANKING_UPDATE] Error fetching user:', fetchError);
-        return;
-      }
-      
-      const currentRanking = user?.ranking || 5.0;
-      const newRanking = Math.max(1.0, Math.min(10.0, currentRanking + change));
-      
-      console.log('[RANKING_UPDATE] Ranking change:', { 
-        playerId, 
-        currentRanking, 
-        change, 
-        newRanking 
-      });
-      
-      const { error: updateError } = await supabase
-        .from('usuarios')
-        .update({ ranking: newRanking })
-        .eq('id', playerId);
-      
-      if (updateError) {
-        console.error('[RANKING_UPDATE] Error updating ranking:', updateError);
-      } else {
-        console.log('[RANKING_UPDATE] Ranking updated successfully');
-        // Trigger badge refresh to update profile data
-        triggerBadgeRefresh();
-      }
-    } catch (error) {
-      console.error('[RANKING_UPDATE] Error updating player ranking:', error);
-    }
-  };
-
-  // Continuar con el flujo de envío después de las animaciones
   const continueSubmitFlow = async () => {
     try {
-      // Lógica de guardado de datos...
       const surveyData = {
         partido_id: parseInt(partidoId),
         se_jugo: formData.se_jugo,
@@ -207,14 +173,9 @@ const EncuestaPartido = () => {
         jugadores_ausentes: formData.jugadores_ausentes,
         partido_limpio: formData.partido_limpio,
         jugadores_violentos: formData.jugadores_violentos,
-        mejor_jugador_eq_a: null,
-        mejor_jugador_eq_b: null,
-        mejor_arquero: null,
-        no_hubo_arqueros: false,
         created_at: new Date().toISOString(),
       };
       
-      // Procesar ausencias sin aviso
       if (formData.jugadores_ausentes.length > 0) {
         for (const jugadorId of formData.jugadores_ausentes) {
           try {
@@ -225,101 +186,59 @@ const EncuestaPartido = () => {
         }
       }
       
-      // Guardar encuesta
       const { error } = await supabase
         .from('post_match_surveys')
         .insert([surveyData]);
         
       if (error) throw error;
       
-      // Actualizar historial del partido con ganador y resultado
-      if (formData.se_jugo && (formData.ganador || formData.resultado)) {
-        const updateData = {};
-        if (formData.ganador) updateData.ganador = formData.ganador;
-        if (formData.resultado) updateData.resultado = formData.resultado;
-        
-        const { error: updateError } = await supabase
-          .from('partidos')
-          .update(updateData)
-          .eq('id', partidoId);
-          
-        if (updateError) {
-          console.error('Error actualizando historial del partido:', updateError);
-        }
-      }
+      // Match result update removed - columns don't exist in current schema
       
-      // Guardar premios si se seleccionaron
       const premios = [];
-      
-      console.log('[BADGES] Form data:', formData);
       
       if (formData.mvp_id) {
         premios.push({
           jugador_id: formData.mvp_id,
           partido_id: parseInt(partidoId),
-          award_type: 'mvp'
+          award_type: 'mvp',
+          otorgado_por: user.id
         });
-        
-        // Actualizar contador MVP en usuarios
-        const { error: mvpError } = await supabase.rpc('increment_mvps', {
-          user_id: formData.mvp_id
-        });
-        if (mvpError) {
-          console.error('[BADGES] Error incrementing MVP:', mvpError);
-        }
       }
       
       if (formData.arquero_id) {
         premios.push({
           jugador_id: formData.arquero_id,
           partido_id: parseInt(partidoId),
-          award_type: 'guante_dorado'
+          award_type: 'guante_dorado',
+          otorgado_por: user.id
         });
-        
-        // Actualizar contador guante dorado en usuarios
-        const { error: gkError } = await supabase.rpc('increment_golden_gloves', {
-          user_id: formData.arquero_id
-        });
-        if (gkError) {
-          console.error('[BADGES] Error incrementing golden gloves:', gkError);
-        }
       }
       
       if (formData.jugadores_violentos.length > 0) {
-        for (const jugadorId of formData.jugadores_violentos) {
+        formData.jugadores_violentos.forEach(jugadorId => {
           premios.push({
             jugador_id: jugadorId,
             partido_id: parseInt(partidoId),
-            award_type: 'tarjeta_roja'
+            award_type: 'tarjeta_roja',
+            otorgado_por: user.id
           });
-          
-          // Actualizar contador tarjetas rojas en usuarios
-          const { error: redCardError } = await supabase.rpc('increment_red_cards', {
-            user_id: jugadorId
-          });
-          if (redCardError) {
-            console.error('[BADGES] Error incrementing red cards:', redCardError);
-          }
-        }
+        });
       }
       
-      console.log('[BADGES] Premios to insert:', premios);
-      
       if (premios.length > 0) {
-        const { data: insertedPremios, error: premiosError } = await supabase
-          .from('player_awards')
-          .insert(premios)
-          .select();
+        try {
+          // Remover campo otorgado_por si no existe en la tabla
+          const premiosLimpios = premios.map(({ otorgado_por, ...resto }) => resto);
           
-        if (premiosError) {
-          console.error('[BADGES] Error guardando premios:', premiosError);
-        } else {
-          console.log('[BADGES] Premios guardados exitosamente:', insertedPremios);
-          // Trigger badge refresh for all components
+          await supabase
+            .from('player_awards')
+            .insert(premiosLimpios);
+          
           triggerBadgeRefresh();
+        } catch (awardsError) {
+          console.warn('Error inserting awards:', awardsError);
+          // Continuar sin fallar si no se pueden insertar los premios
         }
-      } else {
-        console.log('[BADGES] No hay premios para guardar');
       }
       
       toast.success('¡Gracias por calificar el partido!');
@@ -333,7 +252,6 @@ const EncuestaPartido = () => {
     }
   };
 
-  // Enviar encuesta
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -342,14 +260,20 @@ const EncuestaPartido = () => {
       return;
     }
     
-    setSubmitting(true);
+    if (submitting || animationProcessed) {
+      return;
+    }
     
-    // Preparar animaciones de badges solo si se jugó el partido
+    setSubmitting(true);
+    setAnimationProcessed(true);
+    
     const animations = [];
+    const addedPlayers = new Set();
+    
     if (formData.se_jugo) {
       if (formData.mvp_id) {
         const player = jugadores.find(j => j.uuid === formData.mvp_id);
-        if (player) {
+        if (player && !addedPlayers.has(player.uuid + '_mvp')) {
           animations.push({
             playerName: player.nombre,
             playerAvatar: player.avatar_url || player.foto_url,
@@ -357,11 +281,12 @@ const EncuestaPartido = () => {
             badgeText: 'MVP',
             badgeIcon: '🏆'
           });
+          addedPlayers.add(player.uuid + '_mvp');
         }
       }
       if (formData.arquero_id) {
         const player = jugadores.find(j => j.uuid === formData.arquero_id);
-        if (player) {
+        if (player && !addedPlayers.has(player.uuid + '_guante_dorado')) {
           animations.push({
             playerName: player.nombre,
             playerAvatar: player.avatar_url || player.foto_url,
@@ -369,45 +294,54 @@ const EncuestaPartido = () => {
             badgeText: 'GUANTE DORADO',
             badgeIcon: '🧤'
           });
+          addedPlayers.add(player.uuid + '_guante_dorado');
         }
       }
       if (formData.jugadores_violentos.length > 0) {
-        formData.jugadores_violentos.forEach(jugadorId => {
+        const firstViolentPlayer = jugadores.find(j => j.uuid === formData.jugadores_violentos[0]);
+        if (firstViolentPlayer && !addedPlayers.has(firstViolentPlayer.uuid + '_tarjeta_roja')) {
+          animations.push({
+            playerName: firstViolentPlayer.nombre,
+            playerAvatar: firstViolentPlayer.avatar_url || firstViolentPlayer.foto_url,
+            badgeType: 'tarjeta_roja',
+            badgeText: 'TARJETA ROJA',
+            badgeIcon: '🟥'
+          });
+          addedPlayers.add(firstViolentPlayer.uuid + '_tarjeta_roja');
+        }
+      }
+      
+      // Agregar ausencias injustificadas al final
+      if (formData.jugadores_ausentes.length > 0) {
+        formData.jugadores_ausentes.forEach(jugadorId => {
           const player = jugadores.find(j => j.uuid === jugadorId);
-          if (player) {
+          if (player && !addedPlayers.has(player.uuid + '_ausencia')) {
             animations.push({
               playerName: player.nombre,
               playerAvatar: player.avatar_url || player.foto_url,
-              badgeType: 'tarjeta_roja',
-              badgeText: 'TARJETA ROJA',
-              badgeIcon: '🟥'
+              playerData: player,
+              badgeType: 'ausencia_injustificada',
+              badgeText: 'AUSENCIAS INJUSTIFICADAS',
+              badgeIcon: '📉',
+              pointsLost: -0.3
             });
+            addedPlayers.add(player.uuid + '_ausencia');
           }
         });
       }
     }
     
-    // Mostrar animaciones si hay badges
     if (animations.length > 0) {
-      console.log('[BADGE_ANIMATIONS] Showing animations:', animations);
+      console.log('Setting badge animations:', animations);
+      console.log('Total animations:', animations.length);
       setBadgeAnimations(animations);
       setShowingBadgeAnimations(true);
-      
-      // Mostrar botón de aceptar después de las animaciones
-      setTimeout(() => {
-        setShowAcceptButton(true);
-      }, 2000); // 2 segundos para que terminen las animaciones
-      
-      // Esperar a que el usuario presione aceptar
       return;
     } else {
-      console.log('[BADGE_ANIMATIONS] No animations to show');
-      // Si no hay animaciones, continuar directamente
       await continueSubmitFlow();
     }
   };
 
-  // Formatear fecha para mostrar
   const formatFecha = (fechaStr) => {
     try {
       const fecha = new Date(fechaStr);
@@ -423,89 +357,231 @@ const EncuestaPartido = () => {
   };
 
   const BadgeAnimation = ({ animations }) => {
+    if (!animations || animations.length === 0) return null;
+    
+    // Mostrar la animación actual o la última si ya terminó el ciclo
+    const animation = animations[Math.min(currentAnimationIndex, animations.length - 1)];
+    if (!animation) return null;
+    
+    const player = jugadores.find(j => j.nombre === animation.playerName);
+    const isAbsence = animation.badgeType === 'ausencia_injustificada';
+    
+    // Estado local para la animación del score
+    const [localAnimatedScore, setLocalAnimatedScore] = React.useState(null);
+    const scoreAnimatingRef = React.useRef(false);
+    
+    // Animación del score para ausencias - solo se ejecuta una vez por animación
+    React.useEffect(() => {
+      if (isAbsence && player && animation.pointsLost && !scoreAnimatingRef.current) {
+        scoreAnimatingRef.current = true;
+        const currentScore = player.puntuacion || 0;
+        const targetScore = currentScore + animation.pointsLost;
+        setLocalAnimatedScore(currentScore);
+        
+        const timer = setTimeout(() => {
+          let current = currentScore;
+          let steps = 0;
+          const maxSteps = 3;
+          
+          const interval = setInterval(() => {
+            steps++;
+            current = Math.round((current - 0.1) * 10) / 10;
+            setLocalAnimatedScore(current);
+            
+            if (steps >= maxSteps || current <= targetScore) {
+              clearInterval(interval);
+              setLocalAnimatedScore(targetScore);
+            }
+          }, 300);
+          
+          return () => clearInterval(interval);
+        }, 1500);
+        
+        return () => {
+          clearTimeout(timer);
+          scoreAnimatingRef.current = false;
+        };
+      }
+    }, [isAbsence, player?.uuid, animation.pointsLost]);
+    
+    // Reset al cambiar de animación
+    React.useEffect(() => {
+      setLocalAnimatedScore(null);
+      scoreAnimatingRef.current = false;
+    }, [currentAnimationIndex]);
+    
     return (
-      <div className="badge-all-awards">
-        {animations.map((animation, index) => (
-          <div key={index} className={`badge-award-item badge-${animation.badgeType}`}>
-            <div className="badge-player-card">
-              <div className="badge-player-avatar">
-                {animation.playerAvatar ? (
-                  <img src={animation.playerAvatar} alt={animation.playerName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <div className="badge-avatar-placeholder" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: '24px', fontWeight: '600' }}>
-                    {animation.playerName.charAt(0)}
-                  </div>
-                )}
+      // Centrado perfecto: flex con center en ambos ejes
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        width: '100%',
+        padding: '20px',
+        boxSizing: 'border-box'
+      }}>
+        <style>
+          {`
+            @keyframes slideInFromLeft {
+              0% {
+                transform: translateX(-100%) scale(0.9);
+                opacity: 0;
+              }
+              100% {
+                transform: translateX(0) scale(0.9);
+                opacity: 1;
+              }
+            }
+            @keyframes titleFadeIn {
+              0% {
+                opacity: 0;
+                transform: translateY(-20px);
+              }
+              100% {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+            @keyframes emojiZoomIn {
+              0% {
+                opacity: 0;
+                transform: scale(0);
+              }
+              100% {
+                opacity: 1;
+                transform: scale(1);
+              }
+            }
+          `}
+        </style>
+        
+        {/* Contenedor central compacto - elementos más juntos */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '500px',
+          maxWidth: '400px',
+          width: '100%'
+        }}>
+          
+          {/* Título del badge - reducido margen inferior */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '15px',
+            textAlign: 'center',
+            width: '100%'
+          }}>
+            <div style={{
+              color: '#FFD700',
+              fontSize: '32px',
+              fontWeight: '700',
+              fontFamily: "'Oswald', Arial, sans-serif",
+              animation: 'titleFadeIn 0.8s ease-out 0.2s both',
+              lineHeight: '0',
+              wordWrap: 'break-word',
+              maxWidth: '100%'
+            }}>
+              {animation.badgeType === 'mvp' ? 'MVP' : 
+               animation.badgeType === 'guante_dorado' ? 'GUANTE DORADO' : 
+               animation.badgeType === 'tarjeta_roja' ? 'TARJETA ROJA' :
+               animation.badgeType === 'ausencia_injustificada' ? 'AUSENCIAS INJUSTIFICADAS' : animation.badgeText}
+            </div>
+          </div>
+          
+          {/* ProfileCard - margen reducido */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '0px'
+          }}>
+            {player && (
+              <div style={{ 
+                pointerEvents: 'none',
+                opacity: 1,
+                transition: 'none',
+                transform: 'scale(0.9)',
+                animation: 'slideInFromLeft 0.8s ease-out 0.4s both'
+              }}>
+                <ProfileCard 
+                  profile={{
+                    ...player,
+                    puntuacion: isAbsence && localAnimatedScore !== null ? localAnimatedScore : player.puntuacion
+                  }}
+                  enableTilt={false}
+                  isVisible={true}
+                />
               </div>
-              <div className="badge-player-info">
-                <div className="badge-award-text">{animation.badgeText}</div>
-                <div className="badge-player-name">{animation.playerName}</div>
+            )}
+          </div>
+          
+          {/* Emoji - margen muy reducido */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '5px'
+          }}>
+            <div style={{
+              fontSize: '55px',
+              animation: 'emojiZoomIn 0.6s ease-out 1.2s both'
+            }}>
+              {animation.badgeIcon}
+            </div>
+          </div>
+          
+          {/* Texto de puntos penalizados - pegado al emoji */}
+          {isAbsence && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <div style={{
+                color: '#FFD700',
+                fontSize: '24px',
+                fontWeight: '700',
+                fontFamily: "'Oswald', Arial, sans-serif",
+                animation: 'titleFadeIn 0.8s ease-out 2s both'
+              }}>
+                {animation.pointsLost} PUNTOS
               </div>
             </div>
-            <div className="badge-animation-icon">{animation.badgeIcon}</div>
-          </div>
-        ))}
+          )}
+        </div>
       </div>
     );
   };
 
   if (loading) {
     return (
-      <>
-        {showingBadgeAnimations && (
-          <div className="badge-animations-overlay">
-            <div className="badge-carousel-container">
-              <BadgeAnimation animations={badgeAnimations} />
-            </div>
-            {showAcceptButton && (
-              <button 
-                className="badge-accept-btn"
-                onClick={handleAcceptAnimations}
-              >
-                <span>ACEPTAR</span>
-              </button>
-            )}
-          </div>
-        )}
-        <div className="voting-bg">
-          <div className="voting-modern-card">
-            <div className="voting-title-modern">Cargando...</div>
-          </div>
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">Cargando...</div>
         </div>
-      </>
+      </div>
     );
   }
 
   if (yaCalificado) {
     return (
-      <>
-        {showingBadgeAnimations && (
-          <div className="badge-animations-overlay">
-            <div className="badge-carousel-container">
-              <BadgeAnimation animations={badgeAnimations} />
-            </div>
-            {showAcceptButton && (
-              <button 
-                className="badge-accept-btn"
-                onClick={handleAcceptAnimations}
-              >
-                <span>ACEPTAR</span>
-              </button>
-            )}
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">YA CALIFICASTE</div>
+          <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: 'center' }}>
+            Ya has calificado este partido.<br />¡Gracias por tu participación!
           </div>
-        )}
-        <div className="voting-bg">
-          <div className="voting-modern-card">
-            <div className="voting-title-modern">YA CALIFICASTE</div>
-            <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: 'center' }}>
-              Ya has calificado este partido.<br />¡Gracias por tu participación!
-            </div>
-            <button className="voting-confirm-btn" onClick={() => navigate('/')}>
-              VOLVER AL INICIO
-            </button>
-          </div>
+          <button className="voting-confirm-btn" onClick={() => navigate('/')}>
+            VOLVER AL INICIO
+          </button>
         </div>
-      </>
+      </div>
     );
   }
 
@@ -522,11 +598,74 @@ const EncuestaPartido = () => {
     );
   }
 
-  // Paso 0: Confirmación del partido
-  if (currentStep === 0) {
-    return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
+  return (
+    <div className="voting-bg">
+      {/* Overlay de animaciones - centrado perfecto */}
+      {showingBadgeAnimations && (
+        <div className="badge-animations-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          zIndex: 999,
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          {/* Título principal - centrado horizontal, fijo arriba */}
+          <div style={{
+            position: 'absolute',
+            top: '40px',
+            left: 0,
+            right: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1001
+          }}>
+            <div className="voting-title-modern">
+              PREMIOS Y PENALIZACIONES
+            </div>
+          </div>
+          
+          {/* Contenedor de animaciones - centrado vertical y horizontal */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100vh',
+            width: '100%'
+          }}>
+            {/* Mostrar animación siempre mientras el overlay esté activo */}
+            {badgeAnimations.length > 0 && (
+              <BadgeAnimation animations={badgeAnimations} />
+            )}
+          </div>
+          
+          {/* Botón ACEPTAR - solo aparece cuando termina la última animación */}
+          {animationComplete && (
+            <button 
+              className="voting-confirm-btn"
+              onClick={handleAcceptAnimations}
+              style={{
+                position: 'absolute',
+                bottom: '50px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 1002,
+                width: '300px',
+                maxWidth: '90vw'
+              }}
+            >
+              ACEPTAR
+            </button>
+          )}
+        </div>
+      )}
+      
+      <div className="voting-modern-card">
+        {currentStep === 0 && (
           <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
             <div className="voting-title-modern">
               ¿SE JUGÓ EL PARTIDO?
@@ -551,7 +690,7 @@ const EncuestaPartido = () => {
                 className={`player-select-btn${!formData.se_jugo ? ' selected' : ''}`}
                 onClick={() => {
                   handleInputChange('se_jugo', false);
-                  setCurrentStep(10); // Ir al paso de motivo
+                  setCurrentStep(10);
                 }}
                 type="button"
                 style={{ borderRadius: '12px' }}
@@ -560,16 +699,9 @@ const EncuestaPartido = () => {
               </button>
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
-  
-  // Paso 1: ¿ASISTIERON TODOS?
-  if (currentStep === 1) {
-    return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
+        )}
+
+        {currentStep === 1 && (
           <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
             <div className="voting-title-modern">
               ¿ASISTIERON TODOS?
@@ -579,7 +711,7 @@ const EncuestaPartido = () => {
                 className="player-select-btn"
                 onClick={() => {
                   handleInputChange('asistieron_todos', true);
-                  setCurrentStep(2); // Ir al paso 2 (mejor jugador)
+                  setCurrentStep(2);
                 }}
                 type="button"
                 style={{ borderRadius: '12px' }}
@@ -590,7 +722,7 @@ const EncuestaPartido = () => {
                 className="player-select-btn"
                 onClick={() => {
                   handleInputChange('asistieron_todos', false);
-                  setCurrentStep(12); // Ir a seleccionar ausentes
+                  setCurrentStep(12);
                 }}
                 type="button"
                 style={{ borderRadius: '12px' }}
@@ -599,16 +731,9 @@ const EncuestaPartido = () => {
               </button>
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
-  
-  // Paso 2: ¿QUIÉN FUE EL MEJOR JUGADOR?
-  if (currentStep === 2) {
-    return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
+        )}
+
+        {currentStep === 2 && (
           <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
             <div className="voting-title-modern">
               ¿QUIÉN FUE EL MEJOR JUGADOR?
@@ -678,33 +803,21 @@ const EncuestaPartido = () => {
             </div>
             <button
               className="voting-confirm-btn"
-              onClick={() => {
-                setCurrentStep(3); // Ir al paso 3 (mejor arquero)
-              }}
+              onClick={() => setCurrentStep(3)}
               style={{ marginTop: '20px' }}
             >
               SIGUIENTE
             </button>
           </div>
-        </div>
-      </div>
-    );
-  }
-  
-  // Paso 3: ¿QUIÉN FUE EL MEJOR ARQUERO?
-  if (currentStep === 3) {
-    const arqueros = jugadores.filter(j => j.position === 'arquero' || j.posicion === 'arquero');
-    const jugadoresParaArquero = arqueros.length > 0 ? arqueros : jugadores;
-    
-    return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
+        )}
+
+        {currentStep === 3 && (
           <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
             <div className="voting-title-modern">
               ¿QUIÉN FUE EL MEJOR ARQUERO?
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', margin: '15px auto', maxWidth: '85%' }}>
-              {jugadoresParaArquero.map((jugador) => (
+              {jugadores.map((jugador) => (
                 <div
                   key={jugador.uuid}
                   onClick={() => handleInputChange('arquero_id', jugador.uuid)}
@@ -785,24 +898,15 @@ const EncuestaPartido = () => {
             </div>
             <button
               className="voting-confirm-btn"
-              onClick={() => {
-                setCurrentStep(4); // Ir al paso 4 (¿FUE LIMPIO?)
-              }}
+              onClick={() => setCurrentStep(4)}
               style={{ marginTop: '10px' }}
             >
               SIGUIENTE
             </button>
           </div>
-        </div>
-      </div>
-    );
-  }
-  
-  // Paso 4: ¿FUE UN PARTIDO LIMPIO?
-  if (currentStep === 4) {
-    return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
+        )}
+
+        {currentStep === 4 && (
           <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
             <div className="voting-title-modern">
               ¿FUE UN PARTIDO LIMPIO?
@@ -812,7 +916,7 @@ const EncuestaPartido = () => {
                 className={`player-select-btn${formData.partido_limpio ? ' selected' : ''}`}
                 onClick={() => {
                   handleInputChange('partido_limpio', true);
-                  setCurrentStep(5); // Ir al paso 5 (¿Quién ganó?)
+                  setCurrentStep(5);
                 }}
                 type="button"
                 style={{ borderRadius: '12px' }}
@@ -823,7 +927,7 @@ const EncuestaPartido = () => {
                 className={`player-select-btn${!formData.partido_limpio ? ' selected' : ''}`}
                 onClick={() => {
                   handleInputChange('partido_limpio', false);
-                  setCurrentStep(6); // Ir a jugadores sucios
+                  setCurrentStep(6);
                 }}
                 type="button"
                 style={{ borderRadius: '12px' }}
@@ -832,31 +936,9 @@ const EncuestaPartido = () => {
               </button>
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
-  
-  // Paso 5: ¿QUIÉN GANÓ?
-  if (currentStep === 5) {
-    return (
-      <div className="voting-bg">
-        {showingBadgeAnimations && (
-          <div className="badge-animations-overlay">
-            <div className="badge-carousel-container">
-              <BadgeAnimation animations={badgeAnimations} />
-            </div>
-            {showAcceptButton && (
-              <button 
-                className="badge-accept-btn"
-                onClick={handleAcceptAnimations}
-              >
-                <span>ACEPTAR</span>
-              </button>
-            )}
-          </div>
         )}
-        <div className="voting-modern-card">
+
+        {currentStep === 5 && (
           <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
             <div className="voting-title-modern">
               ¿QUIÉN GANÓ?
@@ -908,24 +990,15 @@ const EncuestaPartido = () => {
             </div>
             <button
               className="voting-confirm-btn"
-              onClick={() => {
-                handleSubmit({ preventDefault: () => {} });
-              }}
+              onClick={handleSubmit}
               style={{ marginTop: '20px' }}
             >
               FINALIZAR ENCUESTA
             </button>
           </div>
-        </div>
-      </div>
-    );
-  }
-  
-  // Paso 6: Seleccionar jugadores sucios (solo si no fue limpio)
-  if (currentStep === 6) {
-    return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
+        )}
+
+        {currentStep === 6 && (
           <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
             <div className="voting-title-modern">
               ¿QUIÉN JUGÓ SUCIO?
@@ -995,24 +1068,15 @@ const EncuestaPartido = () => {
             </div>
             <button
               className="voting-confirm-btn"
-              onClick={() => {
-                setCurrentStep(5); // Ir al paso 5 (¿Quién ganó?)
-              }}
+              onClick={() => setCurrentStep(5)}
               style={{ marginTop: '20px' }}
             >
               SIGUIENTE
             </button>
           </div>
-        </div>
-      </div>
-    );
-  }
-  
-  // Paso 10: Motivo por no jugarse (cuando se_jugo = false)
-  if (currentStep === 10) {
-    return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
+        )}
+
+        {currentStep === 10 && (
           <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
             <div className="voting-title-modern">
               ¿POR QUÉ NO SE JUGÓ?
@@ -1046,23 +1110,14 @@ const EncuestaPartido = () => {
             </button>
             <button
               className="voting-confirm-btn"
-              onClick={() => {
-                handleSubmit({ preventDefault: () => {} });
-              }}
+              onClick={handleSubmit}
             >
               FINALIZAR
             </button>
           </div>
-        </div>
-      </div>
-    );
-  }
-  
-  // Paso 11: Seleccionar jugadores ausentes sin aviso
-  if (currentStep === 11) {
-    return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
+        )}
+
+        {currentStep === 11 && (
           <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
             <div className="voting-title-modern">
               SELECCIONA JUGADORES AUSENTES
@@ -1132,24 +1187,15 @@ const EncuestaPartido = () => {
             </div>
             <button
               className="voting-confirm-btn"
-              onClick={() => {
-                handleSubmit({ preventDefault: () => {} });
-              }}
+              onClick={handleSubmit}
               style={{ marginTop: '20px' }}
             >
               FINALIZAR
             </button>
           </div>
-        </div>
-      </div>
-    );
-  }
-  
-  // Paso 12: Seleccionar jugadores ausentes (cuando se jugó pero faltaron)
-  if (currentStep === 12) {
-    return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
+        )}
+
+        {currentStep === 12 && (
           <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
             <div className="voting-title-modern">
               ¿QUIÉNES FALTARON?
@@ -1219,45 +1265,33 @@ const EncuestaPartido = () => {
             </div>
             <button
               className="voting-confirm-btn"
-              onClick={() => {
-                setCurrentStep(2); // Ir al paso 2 (mejor jugador)
-              }}
+              onClick={() => setCurrentStep(2)}
               style={{ marginTop: '20px' }}
             >
               SIGUIENTE
             </button>
           </div>
-        </div>
-      </div>
-    );
-  }
-  
-  // Paso final: Enviar
-  if (currentStep === 99) {
-    return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
-          <div className="voting-title-modern">
-            ¡GRACIAS POR CALIFICAR!
-          </div>
-          <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: 'center' }}>
-            Tu calificación ha sido registrada.
-          </div>
-          <button 
-            className="voting-confirm-btn"
-            onClick={() => navigate('/')}
-          >
-            VOLVER AL INICIO
-          </button>
-        </div>
-      </div>
-    );
-  }
-  
-  // Si llegamos aquí, enviar la encuesta
-  handleSubmit({ preventDefault: () => {} });
-  return null;
+        )}
 
+        {currentStep === 99 && (
+          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+            <div className="voting-title-modern">
+              ¡GRACIAS POR FINALIZAR LA ENCUESTA!
+            </div>
+            <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: 'center' }}>
+              En 6 horas publicaremos los resultados
+            </div>
+            <button 
+              className="voting-confirm-btn"
+              onClick={() => navigate('/')}
+            >
+              VOLVER AL INICIO
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default EncuestaPartido;

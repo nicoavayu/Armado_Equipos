@@ -16,6 +16,7 @@ import FifaHome from './FifaHome';
 import SurveyManager from './components/SurveyManager';
 import TestSurvey from './TestSurvey';
 import EncuestaPartido from './pages/EncuestaPartido';
+import ResultadosEncuesta from './pages/ResultadosEncuesta';
 
 import VotingView from './VotingView';
 import AdminPanel from './AdminPanel';
@@ -597,6 +598,7 @@ export default function App() {
                 <Route path="/test-survey" element={<TestSurvey />} />
                 <Route path="/test-survey/:partidoId/:userId" element={<TestSurvey />} />
                 <Route path="/encuesta/:partidoId" element={<EncuestaPartido />} />
+                <Route path="/resultados/:partidoId" element={<ResultadosEncuesta />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/" element={<AppAuthWrapper />}>
                   <Route path="" element={<MainLayout />}>
