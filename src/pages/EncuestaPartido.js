@@ -157,12 +157,15 @@ const EncuestaPartido = () => {
     try {
       const surveyData = {
         partido_id: parseInt(partidoId),
+        votante_id: user.id,
         se_jugo: formData.se_jugo,
         motivo_no_jugado: formData.motivo_no_jugado || null,
         asistieron_todos: formData.asistieron_todos,
         jugadores_ausentes: formData.jugadores_ausentes,
         partido_limpio: formData.partido_limpio,
         jugadores_violentos: formData.jugadores_violentos,
+        mejor_jugador_eq_a: formData.mvp_id || null,
+        mejor_jugador_eq_b: null,
         created_at: new Date().toISOString(),
       };
       
@@ -218,7 +221,7 @@ const EncuestaPartido = () => {
       if (premios.length > 0) {
         try {
           // Remover campo otorgado_por si no existe en la tabla
-          const premiosLimpios = premios.map(({ ...resto }) => resto);
+          const premiosLimpios = premios.map(({ otorgado_por, ...resto }) => resto);
           
           await supabase
             .from('player_awards')

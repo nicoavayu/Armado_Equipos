@@ -58,7 +58,7 @@ const HomePage = () => {
 
           setPartidoActual(partido);
         })
-        .catch((error) => {
+        .catch((_error) => {
 
           setPartidoActual(null);
         });
@@ -192,7 +192,7 @@ const AdminPanelPage = () => {
               const refreshedPlayers = await refreshJugadoresPartido(partidoId);
               setJugadoresDelPartido(refreshedPlayers);
             } catch (refreshError) {
-
+              // Error refreshing players
             }
           }
         } else {
@@ -559,7 +559,9 @@ function _MainAppContent({ _user }) {
           onTabChange={(tab) => {
             setModo(tab);
 
-            if (tab === 'votacion') setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+            if (tab === 'votacion') {
+              setStepPartido(ADMIN_STEPS.SELECT_TYPE);
+            }
           }} 
         />
       )}
@@ -583,7 +585,7 @@ export default function App() {
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/" element={<AppAuthWrapper />}>
                     <Route path="" element={<MainLayout />}>
-                        <Route index element={<HomePage />} />
+                      <Route index element={<HomePage />} />
                       <Route path="nuevo-partido" element={<NuevoPartidoPage />} />
                       <Route path="quiero-jugar" element={<QuieroJugarPage />} />
                       <Route path="amigos" element={<AmigosPage />} />

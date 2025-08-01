@@ -22,10 +22,12 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const [sedeInfo, setSedeInfo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [_animation, _setAnimation] = useState('slide-in');
+  const [_animation, setAnimation] = useState('slide-in');
   const [editMode, setEditMode] = useState(false);
 
-  const modalidadToCupo = { F5: 10, F6: 12, F7: 14, F8: 16, F9: 18, F11: 22 };
+  const modalidadToCupo = React.useMemo(() => ({ 
+    F5: 10, F6: 12, F7: 14, F8: 16, F9: 18, F11: 22, 
+  }), []);
   const [modalidad, setModalidad] = useState('F5');
   const [cupo, setCupo] = useState(modalidadToCupo['F5']);
   const [tipoPartido, setTipoPartido] = useState('Masculino');
@@ -92,47 +94,38 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             imagenUrl = data?.publicUrl;
           } catch (error) { /* ignore */ }
         }
-        const partidoFrecuente = await safeAsync(
-          () => crearPartidoFrecuente({
-            nombre: nombrePartido.trim(),
-            sede: sede.trim(),
-            hora: hora.trim(),
-            jugadores_frecuentes: [],
-            dia_semana: new Date(fecha).getDay(),
-            habilitado: true,
-            imagen_url: imagenUrl,
-            tipo_partido: tipoPartido,
-          }),
-          'Error al crear el partido frecuente',
-        );
-        partido = await safeAsync(
-          () => crearPartidoDesdeFrec(partidoFrecuente, fecha, modalidad, cupo),
-          'Error al crear el partido',
-        );
+        const partidoFrecuente = await crearPartidoFrecuente({
+          nombre: nombrePartido.trim(),
+          sede: sede.trim(),
+          hora: hora.trim(),
+          jugadores_frecuentes: [],
+          dia_semana: new Date(fecha).getDay(),
+          habilitado: true,
+          imagen_url: imagenUrl,
+          tipo_partido: tipoPartido,
+        });
+        partido = await crearPartidoDesdeFrec(partidoFrecuente, fecha, modalidad, cupo);
         partido.from_frequent_match_id = partidoFrecuente.id;
         partido.tipo_partido = tipoPartido;
       } else {
-        partido = await safeAsync(
-          () => crearPartido({
-            nombre: nombrePartido.trim(), // Pasar el nombre como parámetro
-            fecha,
-            hora: hora.trim(),
-            sede: sede.trim(),
-            sedeMaps: sedeInfo?.place_id || '',
-            modalidad,
-            cupo_jugadores: cupo,
-            falta_jugadores: false,
-            tipo_partido: tipoPartido,
-          }),
-          'Error al crear el partido',
-        );
+        partido = await crearPartido({
+          nombre: nombrePartido.trim(), // Pasar el nombre como parámetro
+          fecha,
+          hora: hora.trim(),
+          sede: sede.trim(),
+          sedeMaps: sedeInfo?.place_id || '',
+          modalidad,
+          cupo_jugadores: cupo,
+          falta_jugadores: false,
+          tipo_partido: tipoPartido,
+        });
       }
       if (!partido) {
         setError('No se pudo crear el partido');
         return;
       }
       await onConfirmar(partido);
-      handleSuccess('Partido creado correctamente');
+      // Partido creado correctamente
     } catch (err) {
       setError(err.message || 'Error al procesar la solicitud');
     } finally {

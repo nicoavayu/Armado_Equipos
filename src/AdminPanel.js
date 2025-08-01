@@ -12,7 +12,7 @@ import { incrementMatchesAbandoned, canAbandonWithoutPenalty } from './utils/mat
 import matchScheduler from './services/matchScheduler';
 import { toast } from 'react-toastify';
 import { UI_SIZES } from './appConstants';
-import { LazyLoadImage } from 'react-lazy-load-image-component';
+
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './HomeStyleKit.css';
 import './AdminPanel.css';
@@ -225,7 +225,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     return () => {
       clearInterval(interval);
     };
-  }, [partidoActual?.id]);
+  }, [partidoActual?.id, isAdmin, onJugadoresChange, partidoActual?.creado_por, partidoActual?.fecha, partidoActual?.hora]);
 
 
   async function refreshVotantes(partidoActual, setVotantes) {
@@ -242,7 +242,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     if (jugadores.length > 0 && partidoActual?.id) {
       refreshVotantes(partidoActual, setVotantes);
     }
-  }, [jugadores.length, partidoActual?.id]);
+  }, [jugadores.length, partidoActual?.id, partidoActual]);
 
   /**
  * Adds a new player to the current match
@@ -279,7 +279,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       const uuid = crypto.randomUUID();
       
       // Insertar jugador directamente en la tabla jugadores con partido_id (SOLO INSERT, nunca DELETE)
-      const { data: nuevoJugador, error } = await supabase
+      const { error } = await supabase
         .from('jugadores')
         .insert([{
           uuid,
@@ -298,7 +298,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       // Limpiar duplicados automáticamente después de agregar
       setTimeout(async () => {
         try {
-          const cleanupResult = await autoCleanupDuplicates(partidoActual.id);
+          await autoCleanupDuplicates(partidoActual.id);
           // Auto cleanup completed
         } catch (cleanupError) {
           // Error cleaning duplicates
@@ -333,7 +333,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
     
     const esAutoEliminacion = jugadorAEliminar?.usuario_id === user?.id;
-    const esExpulsionPorAdmin = isAdmin && !esAutoEliminacion;
+    const _esExpulsion = isAdmin && !esAutoEliminacion;
     
     setLoading(true);
     try {
@@ -352,10 +352,12 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         try {
           const canAbandonSafely = canAbandonWithoutPenalty(
             partidoActual.fecha, 
-            partidoActual.hora
+            partidoActual.hora,
           );
           if (!canAbandonSafely) {
-            await incrementMatchesAbandoned(jugadorAEliminar.usuario_id);
+            await incrementMatchesAbandoned(
+              jugadorAEliminar.usuario_id
+            );
           }
         } catch (abandonError) {
           // Error processing match abandonment
@@ -371,7 +373,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       }
       
       // Si es expulsión por admin, notificar al jugador expulsado
-      if (esExpulsionPorAdmin && jugadorAEliminar?.usuario_id) {
+      if (isAdmin && !esAutoEliminacion && jugadorAEliminar?.usuario_id) {
         try {
           await supabase.from('notifications').insert([{
             user_id: jugadorAEliminar.usuario_id,
@@ -610,7 +612,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   }
 
 
-  function handleCopyLink() {
+  function _handleCopyLink() {
     const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
     navigator.clipboard.writeText(url);
     toast.success('¡Link copiado!', { autoClose: 2000 });
@@ -1040,7 +1042,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     checkForFormedTeams();
     const interval = setInterval(checkForFormedTeams, 3000);
     return () => clearInterval(interval);
-  }, [partidoActual?.id, showTeamView, isAdmin]);
+  }, [partidoActual?.id, showTeamView, isAdmin, checkForFormedTeams]);
   
   const showTeams =
     showTeamView &&

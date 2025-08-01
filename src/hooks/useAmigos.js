@@ -427,7 +427,7 @@ export const useAmigos = (currentUserId) => {
       return formattedRequests;
     } catch (err) {
       console.error('[AMIGOS] Error fetching pending requests:', err);
-      console.error('[AMIGOS] Error context:', { userId: currentUserId });
+      console.error('[AMIGOS] Error context:', { userId: encodeURIComponent(currentUserId || '') });
       return [];
     }
   }, [currentUserId]);

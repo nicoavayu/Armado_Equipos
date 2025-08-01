@@ -51,7 +51,7 @@ const AmigosView = () => {
       }
       
       if (user) {
-        console.log('[AMIGOS] Current user found:', user.id);
+        console.log('[AMIGOS] Current user found:', encodeURIComponent(user.id || ''));
         setCurrentUserId(user.id);
       } else {
         console.log('[AMIGOS] No authenticated user found');

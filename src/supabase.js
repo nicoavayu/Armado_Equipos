@@ -27,7 +27,7 @@ export const getJugadores = async () => {
       count: data?.length || 0,
       playersWithScores: data?.filter((p) => p.score !== null && p.score !== undefined).length || 0,
       sample: data?.slice(0, 3).map((p) => ({ 
-        nombre: p.nombre, 
+        nombre: encodeURIComponent(p.nombre || ''), 
         uuid: p.uuid, 
         score: p.score,
       })) || [],
@@ -78,7 +78,7 @@ export const getJugadoresDelPartido = async (partidoId) => {
       originalCount: data?.length || 0,
       uniqueCount: jugadoresUnicos.length,
       players: jugadoresUnicos.map((p) => ({ 
-        nombre: p.nombre, 
+        nombre: encodeURIComponent(p.nombre || ''), 
         uuid: p.uuid, // uuid es string
         usuario_id: p.usuario_id, // usuario_id es uuid
       })),
@@ -169,7 +169,7 @@ export const uploadFoto = async (file, jugador) => {
   
   const fotoUrl = data?.publicUrl;
   if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
-  console.log('uploadFoto updating:', { jugador: jugador.uuid, fotoUrl });
+  console.log('uploadFoto updating:', { jugador: jugador.uuid, fotoUrl: encodeURIComponent(fotoUrl || '') });
   
   // Update usuarios table with avatar_url
   const { error: updateError } = await supabase
@@ -204,7 +204,7 @@ export const uploadFoto = async (file, jugador) => {
     // Continue even if this fails
   }
   
-  console.log('uploadFoto success:', fotoUrl);
+  console.log('uploadFoto success:', encodeURIComponent(fotoUrl || ''));
   return fotoUrl;
 };
 
@@ -331,7 +331,7 @@ export const checkPartidoCalificado = async (partidoId, userId) => {
       .from('post_match_surveys')
       .select('id')
       .eq('partido_id', partidoId)
-      .eq('user_id', userId)
+      .eq('votante_id', userId)
       .maybeSingle();
     
     if (error) {
@@ -489,7 +489,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     
     console.log('✅ SUPABASE: Players fetched:', {
       count: jugadores?.length || 0,
-      players: jugadores?.map((j) => ({ uuid: j.uuid, nombre: j.nombre })) || [],
+      players: jugadores?.map((j) => ({ uuid: j.uuid, nombre: encodeURIComponent(j.nombre || '') })) || [],
     });
     
     if (!jugadores || jugadores.length === 0) {
@@ -505,7 +505,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     if (votos && votos.length > 0) {
       for (const voto of votos) {
         if (!voto.votado_id) {
-          console.warn('⚠️ SUPABASE: Vote without votado_id:', voto);
+          console.warn('⚠️ SUPABASE: Vote without votado_id:', { ...voto, votado_id: encodeURIComponent(voto.votado_id || '') });
           totalInvalidVotes++;
           continue;
         }
@@ -524,7 +524,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
             }
             totalValidVotes++;
           } else {
-            console.warn('⚠️ SUPABASE: Invalid score:', voto.puntaje);
+            console.warn('⚠️ SUPABASE: Invalid score:', encodeURIComponent(String(voto.puntaje || '')));
             totalInvalidVotes++;
           }
         } else {

@@ -209,7 +209,6 @@
   font-weight: 600;
   margin: 20px 0 15px;
   color: #ffffff;
-  margin-bottom: ;
 }
 
 .amigos-section {
@@ -392,9 +391,7 @@
 }
 
 .amigos-search-input {
-  width: 80vw !important;
-  max-width: 90vw !important;
-  margin-top: -50px;
-  transform: translateY(30%);
+  width: 80vw;
+  max-width: 90vw;
 }
 

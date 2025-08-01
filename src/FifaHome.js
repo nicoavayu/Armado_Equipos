@@ -13,7 +13,7 @@ import PageTitle from './components/PageTitle';
 
 
 export default function FifaHome({ onModoSeleccionado }) {
-  const { } = useAuth();
+  useAuth(); // Hook call required for context
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(true);

@@ -43,7 +43,7 @@ export default function QuieroJugar({ onVolver }) {
             lng: position.coords.longitude,
           });
         },
-        (error) => {
+        (_error) => {
   
           // Fallback to default location (Buenos Aires)
           setUserLocation({ lat: -34.6037, lng: -58.3816 });
@@ -110,7 +110,7 @@ export default function QuieroJugar({ onVolver }) {
       const status = await getFreePlayerStatus();
       setIsRegisteredAsFree(status);
     } catch (error) {
-
+      // Error checking free player status
     }
   };
 
@@ -165,7 +165,7 @@ export default function QuieroJugar({ onVolver }) {
       
       setFreePlayers(players);
     } catch (error) {
-
+      // Error fetching free players
     }
   };
 
@@ -211,7 +211,7 @@ export default function QuieroJugar({ onVolver }) {
     }
   };
 
-  const formatTimeAgo = (timestamp) => {
+  const _formatTimeAgo = (timestamp) => {
     const now = new Date();
     const time = new Date(timestamp);
     const diffInHours = Math.floor((now - time) / (1000 * 60 * 60));
@@ -225,7 +225,7 @@ export default function QuieroJugar({ onVolver }) {
     return `Hace ${diffInDays} días`;
   };
 
-  const handleBorrarPartido = async (partido) => {
+  const _handleBorrarPartido = async (partido) => {
     if (!window.confirm(`¿Borrar el partido "${partido.nombre || partido.modalidad}"?`)) {
       return;
     }
@@ -245,7 +245,7 @@ export default function QuieroJugar({ onVolver }) {
     }
   };
 
-  const handleSumarse = async (partido) => {
+  const _handleSumarse = async (partido) => {
     // Verificar si ya se sumó desde este dispositivo
     const yaSesumo = localStorage.getItem(`sumado_partido_${partido.id}`);
     if (yaSesumo) {
@@ -410,7 +410,7 @@ export default function QuieroJugar({ onVolver }) {
                 {sortedPartidos.map((partido) => {
                   const jugadoresCount = partido.jugadores?.length || 0;
                   const cupoMaximo = partido.cupo_jugadores || 20;
-                  const faltanJugadores = cupoMaximo - jugadoresCount;
+                  const _faltanJugadores = cupoMaximo - jugadoresCount;
                   
                   const isComplete = jugadoresCount >= cupoMaximo;
                   
