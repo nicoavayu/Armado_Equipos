@@ -459,9 +459,6 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                         </div>
                                       </div>
                                       <span>{player.nombre}</span>
-                                      <div style={{ marginTop: '4px' }}>
-                                        <PlayerBadges playerId={player.uuid || player.id} size="small" />
-                                      </div>
                                       {/* [TEAM_BALANCER_EDIT] Solo admin ve promedios y controles */}
                                       {showAverages && isAdmin && (
                                         <span 
