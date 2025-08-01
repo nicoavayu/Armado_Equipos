@@ -727,8 +727,6 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
       falta_jugadores: falta_jugadores || false,
       tipo_partido: tipo_partido || 'Masculino',
       survey_time: surveyTime,
-      survey_scheduled: true,
-      surveys_sent: false,
     };
     
     console.log('Inserting match data:', matchData);
@@ -1108,19 +1106,13 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
         // Actualizar el partido existente con survey_time
         const { error: updateError } = await supabase
           .from('partidos')
-          .update({ 
-            survey_time: surveyTime,
-            survey_scheduled: true,
-            surveys_sent: false 
-          })
+          .update({ survey_time: surveyTime })
           .eq('id', existingMatch.id);
           
         if (updateError) {
           console.error('[EXISTING_MATCH] Error updating survey_time:', updateError);
         } else {
           existingMatch.survey_time = surveyTime;
-          existingMatch.survey_scheduled = true;
-          existingMatch.surveys_sent = false;
         }
       } catch (error) {
         console.error('[EXISTING_MATCH] Error calculating survey_time:', error);
