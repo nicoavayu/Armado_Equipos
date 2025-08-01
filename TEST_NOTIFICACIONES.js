@@ -14,11 +14,11 @@ const testNotificationInsert = async (userId) => {
       .limit(5);
     
     if (error) {
-      console.error('❌ Error fetching notifications:', error);
+      console.error('❌ Error fetching notifications:', { message: encodeURIComponent(error?.message || '') });
       return;
     }
     
-    console.log('✅ Últimas 5 notificaciones para user:', userId);
+    console.log('✅ Últimas 5 notificaciones para user:', encodeURIComponent(userId || ''));
     console.table(data.map((n) => ({
       id: n.id.substring(0, 8),
       type: n.type,
@@ -32,14 +32,14 @@ const testNotificationInsert = async (userId) => {
     
     return data;
   } catch (error) {
-    console.error('❌ Test failed:', error);
+    console.error('❌ Test failed:', { message: encodeURIComponent(error?.message || '') });
   }
 };
 
 // TEST 2: Verificar suscripción realtime
 const testRealtimeSubscription = (userId) => {
   console.log('=== TEST 2: VERIFICAR SUSCRIPCIÓN REALTIME ===');
-  console.log('👂 Escuchando notificaciones para user:', userId);
+  console.log('👂 Escuchando notificaciones para user:', encodeURIComponent(userId || ''));
   
   const subscription = supabase
     .channel(`test-notifications-${userId}`)
@@ -53,10 +53,10 @@ const testRealtimeSubscription = (userId) => {
       (payload) => {
         console.log('🔔 === NOTIFICACIÓN RECIBIDA EN TIEMPO REAL ===');
         console.log('📅 Timestamp:', new Date().toLocaleTimeString());
-        console.log('👤 Para usuario:', payload.new.user_id);
-        console.log('📝 Tipo:', payload.new.type);
-        console.log('💬 Mensaje:', payload.new.message);
-        console.log('🆔 ID:', payload.new.id);
+        console.log('👤 Para usuario:', encodeURIComponent(payload.new.user_id || ''));
+        console.log('📝 Tipo:', encodeURIComponent(payload.new.type || ''));
+        console.log('💬 Mensaje:', encodeURIComponent(payload.new.message || ''));
+        console.log('🆔 ID:', encodeURIComponent(payload.new.id || ''));
         console.log('✅ REALTIME FUNCIONANDO CORRECTAMENTE');
       },
     )
@@ -96,7 +96,7 @@ const testInsertNotification = async (recipientUserId, senderName = 'Test User')
     read: false,
   };
   
-  console.log('📤 Insertando notificación de prueba para:', recipientUserId);
+  console.log('📤 Insertando notificación de prueba para:', encodeURIComponent(recipientUserId || ''));
   
   try {
     const { data, error } = await supabase
@@ -106,28 +106,28 @@ const testInsertNotification = async (recipientUserId, senderName = 'Test User')
       .single();
     
     if (error) {
-      console.error('❌ Error insertando notificación:', error);
+      console.error('❌ Error insertando notificación:', { message: encodeURIComponent(error?.message || '') });
       return;
     }
     
     console.log('✅ Notificación insertada exitosamente:');
-    console.log('🆔 ID:', data.id);
-    console.log('👤 Para usuario:', data.user_id);
-    console.log('📝 Tipo:', data.type);
+    console.log('🆔 ID:', encodeURIComponent(data.id || ''));
+    console.log('👤 Para usuario:', encodeURIComponent(data.user_id || ''));
+    console.log('📝 Tipo:', encodeURIComponent(data.type || ''));
     console.log('⏰ Creada:', new Date(data.created_at).toLocaleString());
     console.log('🔔 El usuario debería recibir esta notificación en tiempo real');
     
     return data;
   } catch (error) {
-    console.error('❌ Test failed:', error);
+    console.error('❌ Test failed:', { message: encodeURIComponent(error?.message || '') });
   }
 };
 
 // FUNCIÓN COMPLETA DE TESTING
 const runFullNotificationTest = async (recipientUserId, senderName = 'Test User') => {
   console.log('🚀 === INICIANDO TEST COMPLETO DE NOTIFICACIONES ===');
-  console.log('👤 Usuario receptor:', recipientUserId);
-  console.log('👤 Usuario emisor:', senderName);
+  console.log('👤 Usuario receptor:', encodeURIComponent(recipientUserId || ''));
+  console.log('👤 Usuario emisor:', encodeURIComponent(senderName || ''));
   
   // 1. Verificar notificaciones existentes
   await testNotificationInsert(recipientUserId);

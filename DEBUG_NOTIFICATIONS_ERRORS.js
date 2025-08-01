@@ -13,14 +13,14 @@ const checkNotificationsTable = async () => {
       .limit(1);
     
     if (error) {
-      console.error('❌ Error accediendo a tabla notifications:', error);
+      console.error('❌ Error accediendo a tabla notifications:', { message: encodeURIComponent(error?.message || '') });
       return;
     }
     
     console.log('✅ Tabla notifications accesible');
     if (data && data.length > 0) {
-      console.log('📋 Estructura de campos:', Object.keys(data[0]));
-      console.log('📄 Ejemplo de registro:', data[0]);
+      console.log('📋 Estructura de campos:', Object.keys(data[0] || {}));
+      console.log('📄 Ejemplo de registro:', { id: data[0]?.id, type: data[0]?.type });
     } else {
       console.log('📋 Tabla vacía, pero accesible');
     }
@@ -69,7 +69,7 @@ const checkRLSPolicies = async () => {
       }
     }
   } catch (error) {
-    console.error('❌ Error verificando RLS:', error);
+    console.error('❌ Error verificando RLS:', { message: encodeURIComponent(error?.message || '') });
   }
 };
 
@@ -81,7 +81,7 @@ const checkCurrentUser = async () => {
     const { data: { user }, error } = await supabase.auth.getUser();
     
     if (error) {
-      console.error('❌ Error obteniendo usuario:', error);
+      console.error('❌ Error obteniendo usuario:', { message: encodeURIComponent(error?.message || '') });
       return null;
     }
     
@@ -104,14 +104,14 @@ const checkCurrentUser = async () => {
       .single();
     
     if (profileError) {
-      console.error('❌ Usuario no existe en tabla usuarios:', profileError);
+      console.error('❌ Usuario no existe en tabla usuarios:', { message: encodeURIComponent(profileError?.message || '') });
     } else {
-      console.log('✅ Perfil encontrado:', profile);
+      console.log('✅ Perfil encontrado:', { id: profile?.id, nombre: encodeURIComponent(profile?.nombre || '') });
     }
     
     return user;
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('❌ Error:', { message: encodeURIComponent(error?.message || '') });
     return null;
   }
 };
@@ -135,7 +135,7 @@ const testNotificationInsert = async (recipientUserId) => {
     read: false,
   };
   
-  console.log('📤 Intentando insertar:', testData);
+  console.log('📤 Intentando insertar:', { ...testData, message: encodeURIComponent(testData.message || '') });
   
   try {
     const { data, error } = await supabase
@@ -184,7 +184,7 @@ const testNotificationInsert = async (recipientUserId) => {
     
     return true;
   } catch (error) {
-    console.error('❌ Error en test:', error);
+    console.error('❌ Error en test:', { message: encodeURIComponent(error?.message || '') });
     return false;
   }
 };
