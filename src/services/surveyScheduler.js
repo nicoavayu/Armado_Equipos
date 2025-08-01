@@ -10,27 +10,37 @@ export const checkMatchesForSurveys = async () => {
     const now = new Date();
     const nowStr = now.toISOString();
     
-    // Buscar partidos con tiempo de encuesta programado (survey_time)
-    const { data: matchesWithScheduledTime, error: scheduleError } = await supabase
+    // Buscar partidos activos con fecha y hora
+    const { data: activeMatches, error: scheduleError } = await supabase
       .from('partidos')
       .select('*')
       .eq('estado', 'activo')
-      .not('survey_time', 'is', null)
-      .lt('survey_time', nowStr);
+      .not('fecha', 'is', null)
+      .not('hora', 'is', null);
       
     if (scheduleError) throw scheduleError;
     
-    const matches = matchesWithScheduledTime || [];
+    // Filtrar partidos donde ya pasó 1 hora desde el inicio
+    const matches = (activeMatches || []).filter(match => {
+      try {
+        const matchDateTime = new Date(`${match.fecha}T${match.hora}`);
+        const surveyTime = new Date(matchDateTime.getTime() + 60 * 60 * 1000); // +1 hora
+        return now >= surveyTime;
+      } catch (error) {
+        console.error('Error calculating survey time for match:', match.id, error);
+        return false;
+      }
+    });
     
     // Crear notificaciones de encuesta para cada partido
     for (const match of matches) {
       console.log(`Creando notificaciones de encuesta para partido ${match.id}`);
       await createPostMatchSurveyNotifications(match);
       
-      // Marcar partido como procesado (usando survey_time como null para evitar reprocesamiento)
+      // Marcar partido como procesado cambiando estado
       await supabase
         .from('partidos')
-        .update({ survey_time: null })
+        .update({ estado: 'encuesta_enviada' })
         .eq('id', match.id);
     }
     
