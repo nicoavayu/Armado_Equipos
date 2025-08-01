@@ -21,7 +21,7 @@ export const checkMatchesForSurveys = async () => {
     if (scheduleError) throw scheduleError;
     
     // Filtrar partidos donde ya pasó 1 hora desde el inicio
-    const matches = (activeMatches || []).filter(match => {
+    const matches = (activeMatches || []).filter((match) => {
       try {
         const matchDateTime = new Date(`${match.fecha}T${match.hora}`);
         const surveyTime = new Date(matchDateTime.getTime() + 60 * 60 * 1000); // +1 hora

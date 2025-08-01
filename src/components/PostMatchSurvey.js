@@ -23,7 +23,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
     partido_limpio: null,
     jugadores_violentos: [],
     ganador: null,
-    resultado: ''
+    resultado: '',
   });
 
   const [allPlayers, setAllPlayers] = useState([]);
@@ -41,7 +41,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
   }, [partido]);
 
   const togglePlayer = (field, playerId) => {
-    setSurvey(prev => {
+    setSurvey((prev) => {
       const currentSet = new Set(prev[field]);
       if (currentSet.has(playerId)) {
         currentSet.delete(playerId);
@@ -94,7 +94,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
         playerId, 
         currentRanking, 
         change, 
-        newRanking 
+        newRanking, 
       });
       
       const { error: updateError } = await supabase
@@ -114,7 +114,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
           jugador_id: playerId,
           partido_id: partido.id,
           award_type: 'ranking_penalty',
-          otorgado_por: user.id
+          otorgado_por: user.id,
         });
       
       if (penaltyError) {
@@ -139,7 +139,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
           jugador_id: playerId,
           partido_id: partido.id,
           award_type: badgeType,
-          otorgado_por: user.id
+          otorgado_por: user.id,
         })
         .select();
       
@@ -165,39 +165,39 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
     const animations = [];
     if (survey.se_jugo) {
       if (survey.mejor_jugador) {
-        const player = allPlayers.find(p => (p.uuid || p.id) === survey.mejor_jugador);
+        const player = allPlayers.find((p) => (p.uuid || p.id) === survey.mejor_jugador);
         if (player) {
           animations.push({
             playerName: player.nombre,
             playerAvatar: player.avatar_url,
             badgeType: 'mvp',
             badgeText: 'MVP',
-            badgeIcon: '🏆'
+            badgeIcon: '🏆',
           });
         }
       }
       if (survey.mejor_arquero) {
-        const player = allPlayers.find(p => (p.uuid || p.id) === survey.mejor_arquero);
+        const player = allPlayers.find((p) => (p.uuid || p.id) === survey.mejor_arquero);
         if (player) {
           animations.push({
             playerName: player.nombre,
             playerAvatar: player.avatar_url,
             badgeType: 'guante_dorado',
             badgeText: 'GUANTE DORADO',
-            badgeIcon: '🥅'
+            badgeIcon: '🥅',
           });
         }
       }
       if (survey.jugadores_violentos.length > 0) {
-        survey.jugadores_violentos.forEach(playerId => {
-          const player = allPlayers.find(p => (p.uuid || p.id) === playerId);
+        survey.jugadores_violentos.forEach((playerId) => {
+          const player = allPlayers.find((p) => (p.uuid || p.id) === playerId);
           if (player) {
             animations.push({
               playerName: player.nombre,
               playerAvatar: player.avatar_url,
               badgeType: 'tarjeta_roja',
               badgeText: 'TARJETA ROJA',
-              badgeIcon: '🟥'
+              badgeIcon: '🟥',
             });
           }
         });
@@ -211,7 +211,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
       setShowingBadgeAnimations(true);
       
       // Esperar a que el usuario haga clic en aceptar
-      await new Promise(resolve => {
+      await new Promise((resolve) => {
         window.badgeAnimationResolve = resolve;
       });
     } else {
@@ -279,7 +279,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
         .insert({
           partido_id: partido.id,
           votante_id: user.id,
-          ...survey
+          ...survey,
         });
       
       if (error) throw error;
@@ -354,14 +354,14 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
               <button 
                 className={`survey-option-btn ${survey.se_jugo === true ? 'selected' : ''}`}
                 onClick={() => {
-                  setSurvey(prev => ({ ...prev, se_jugo: true }));
+                  setSurvey((prev) => ({ ...prev, se_jugo: true }));
                   setStep(1);
                 }}
               >SÍ</button>
               <button 
                 className={`survey-option-btn ${survey.se_jugo === false ? 'selected' : ''}`}
                 onClick={() => {
-                  setSurvey(prev => ({ ...prev, se_jugo: false }));
+                  setSurvey((prev) => ({ ...prev, se_jugo: false }));
                   setStep(10);
                 }}
               >NO</button>
@@ -378,14 +378,14 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
               <button 
                 className={`survey-option-btn ${survey.asistieron_todos === true ? 'selected' : ''}`}
                 onClick={() => {
-                  setSurvey(prev => ({ ...prev, asistieron_todos: true, jugadores_ausentes: [] }));
+                  setSurvey((prev) => ({ ...prev, asistieron_todos: true, jugadores_ausentes: [] }));
                   setStep(2);
                 }}
               >SÍ</button>
               <button 
                 className={`survey-option-btn ${survey.asistieron_todos === false ? 'selected' : ''}`}
                 onClick={() => {
-                  setSurvey(prev => ({ ...prev, asistieron_todos: false }));
+                  setSurvey((prev) => ({ ...prev, asistieron_todos: false }));
                   setStep(11);
                 }}
               >NO</button>
@@ -404,7 +404,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
                   key={player.uuid || player.id}
                   player={player}
                   selected={survey.mejor_jugador === (player.uuid || player.id)}
-                  onClick={(playerId) => setSurvey(prev => ({ ...prev, mejor_jugador: playerId }))}
+                  onClick={(playerId) => setSurvey((prev) => ({ ...prev, mejor_jugador: playerId }))}
                 />
               ))}
             </div>
@@ -429,7 +429,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
                     key={player.uuid || player.id}
                     player={player}
                     selected={survey.mejor_arquero === (player.uuid || player.id)}
-                    onClick={(playerId) => setSurvey(prev => ({ ...prev, mejor_arquero: playerId }))}
+                    onClick={(playerId) => setSurvey((prev) => ({ ...prev, mejor_arquero: playerId }))}
                   />
                 ))}
               </div>
@@ -440,7 +440,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
                     key={player.uuid || player.id}
                     player={player}
                     selected={survey.mejor_arquero === (player.uuid || player.id)}
-                    onClick={(playerId) => setSurvey(prev => ({ ...prev, mejor_arquero: playerId }))}
+                    onClick={(playerId) => setSurvey((prev) => ({ ...prev, mejor_arquero: playerId }))}
                   />
                 ))}
               </div>
@@ -467,14 +467,14 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
               <button 
                 className={`survey-option-btn ${survey.partido_limpio === true ? 'selected' : ''}`}
                 onClick={() => {
-                  setSurvey(prev => ({ ...prev, partido_limpio: true, jugadores_violentos: [] }));
+                  setSurvey((prev) => ({ ...prev, partido_limpio: true, jugadores_violentos: [] }));
                   setStep(5);
                 }}
               >SÍ</button>
               <button 
                 className={`survey-option-btn ${survey.partido_limpio === false ? 'selected' : ''}`}
                 onClick={() => {
-                  setSurvey(prev => ({ ...prev, partido_limpio: false }));
+                  setSurvey((prev) => ({ ...prev, partido_limpio: false }));
                   setStep(12);
                 }}
               >NO</button>
@@ -490,18 +490,18 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
             <div className="survey-options">
               <button 
                 className={`survey-option-btn ${survey.ganador === 'equipo_a' ? 'selected' : ''}`}
-                onClick={() => setSurvey(prev => ({ ...prev, ganador: 'equipo_a' }))}
+                onClick={() => setSurvey((prev) => ({ ...prev, ganador: 'equipo_a' }))}
               >Equipo A</button>
               <button 
                 className={`survey-option-btn ${survey.ganador === 'equipo_b' ? 'selected' : ''}`}
-                onClick={() => setSurvey(prev => ({ ...prev, ganador: 'equipo_b' }))}
+                onClick={() => setSurvey((prev) => ({ ...prev, ganador: 'equipo_b' }))}
               >Equipo B</button>
             </div>
             <div className="survey-text-input">
               <input
                 type="text"
                 value={survey.resultado}
-                onChange={(e) => setSurvey(prev => ({ ...prev, resultado: e.target.value }))}
+                onChange={(e) => setSurvey((prev) => ({ ...prev, resultado: e.target.value }))}
                 placeholder="Resultado (opcional)"
                 style={{ 
                   width: '100%', 
@@ -510,7 +510,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
                   border: '1px solid #444', 
                   borderRadius: '8px', 
                   color: 'white', 
-                  fontSize: '16px' 
+                  fontSize: '16px', 
                 }}
               />
             </div>
@@ -534,7 +534,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
             <div className="survey-text-input">
               <textarea
                 value={survey.motivo_no_jugado}
-                onChange={(e) => setSurvey(prev => ({ ...prev, motivo_no_jugado: e.target.value }))}
+                onChange={(e) => setSurvey((prev) => ({ ...prev, motivo_no_jugado: e.target.value }))}
                 placeholder="Explica brevemente por qué no se jugó el partido"
               />
             </div>
@@ -551,7 +551,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
                   fontSize: '16px',
                   fontWeight: '600',
                   cursor: 'pointer',
-                  marginBottom: '15px'
+                  marginBottom: '15px',
                 }}
               >Ausencia sin aviso</button>
             </div>
@@ -663,7 +663,7 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
       <div 
         className={`badge-animation badge-${animation.badgeType}`}
         style={{
-          animationDelay: `${index * 1}s`
+          animationDelay: `${index * 1}s`,
         }}
       >
         <div className="badge-player-card">

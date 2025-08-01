@@ -4,12 +4,12 @@ importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compa
 
 // Configuración de Firebase (reemplazar con tus valores)
 firebase.initializeApp({
-  apiKey: "your-api-key",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "your-app-id"
+  apiKey: 'your-api-key',
+  authDomain: 'your-project.firebaseapp.com',
+  projectId: 'your-project-id',
+  storageBucket: 'your-project.appspot.com',
+  messagingSenderId: '123456789',
+  appId: 'your-app-id',
 });
 
 const messaging = firebase.messaging();
@@ -29,18 +29,18 @@ messaging.onBackgroundMessage((payload) => {
       badge: '/badge-72x72.png',
       data: {
         url: `/admin/${data.matchId}`, // URL para redirect
-        matchId: data.matchId
+        matchId: data.matchId,
       },
       actions: [
         {
           action: 'accept',
-          title: 'Ver partido'
+          title: 'Ver partido',
         },
         {
           action: 'dismiss',
-          title: 'Cerrar'
-        }
-      ]
+          title: 'Cerrar',
+        },
+      ],
     };
     
     return self.registration.showNotification(title, notificationOptions);
@@ -63,14 +63,14 @@ self.addEventListener('notificationclick', (event) => {
             if (client.url.includes(window.location.origin)) {
               client.postMessage({
                 type: 'NAVIGATE_TO',
-                url: data.url
+                url: data.url,
               });
               return client.focus();
             }
           }
           // Si no hay ventana abierta, abrir nueva
           return clients.openWindow(data.url);
-        })
+        }),
     );
   }
 });

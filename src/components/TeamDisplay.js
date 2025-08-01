@@ -110,10 +110,10 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       return `rgba(222, 28, 73, ${0.7 + intensity * 0.3})`; // Más intenso para más bajo
     } else if (normalizedScore <= 5) {
       // Naranja para puntajes medio-bajos (3-5)
-      return `rgba(255, 165, 0, 0.9)`;
+      return 'rgba(255, 165, 0, 0.9)';
     } else if (normalizedScore <= 7) {
       // Azul para puntajes medio-altos (5-7)
-      return `rgba(14, 169, 198, 0.9)`;
+      return 'rgba(14, 169, 198, 0.9)';
     } else {
       // Verde para puntajes altos (7-10)
       const intensity = (normalizedScore - 7) / 3; // 0 a 1
@@ -465,7 +465,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                           className="player-score"
                                           style={{ 
                                             background: getScoreColor(player.score),
-                                            borderColor: getScoreColor(player.score).replace('0.9', '0.5')
+                                            borderColor: getScoreColor(player.score).replace('0.9', '0.5'),
                                           }}
                                         >
                                           {(player.score || 0).toFixed(2)}

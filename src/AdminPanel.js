@@ -729,7 +729,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
     
     // Encontrar el jugador y obtener su usuario_id
-    const jugador = jugadores.find(j => j.id === jugadorId || j.usuario_id === jugadorId);
+    const jugador = jugadores.find((j) => j.id === jugadorId || j.usuario_id === jugadorId);
     if (!jugador || !jugador.usuario_id) {
       toast.error('El jugador debe tener una cuenta para ser admin');
       return;
@@ -764,9 +764,9 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         data: {
           matchId: partidoActual.id,
           matchName: partidoActual.nombre,
-          newAdminId: jugador.usuario_id
+          newAdminId: jugador.usuario_id,
         },
-        read: false
+        read: false,
       }]);
       
       // Actualizar el partido en la base de datos para trigger realtime

@@ -31,7 +31,7 @@ const testBadgeInsert = async () => {
       jugador_id: user.id,
       partido_id: partidoId,
       award_type: 'mvp',
-      otorgado_por: user.id
+      otorgado_por: user.id,
     };
     
     console.log('📝 Inserting test badge:', testBadge);

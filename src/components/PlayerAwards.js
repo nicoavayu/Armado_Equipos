@@ -28,7 +28,7 @@ window.testBadgeInsert = async () => {
       jugador_id: user.id,
       partido_id: partidos[0].id,
       award_type: 'mvp',
-      otorgado_por: user.id
+      otorgado_por: user.id,
     };
     
     console.log('📝 Inserting test badge:', testBadge);
@@ -76,7 +76,7 @@ const PlayerAwards = ({ playerId }) => {
     const interval = setInterval(() => {
       if (playerId) {
         console.log('[PLAYER_AWARDS] Auto-refreshing awards...');
-        setRefreshKey(prev => prev + 1);
+        setRefreshKey((prev) => prev + 1);
       }
     }, 30000);
 
@@ -147,7 +147,7 @@ const PlayerAwards = ({ playerId }) => {
         </div>
         <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
           <button 
-            onClick={() => setRefreshKey(prev => prev + 1)}
+            onClick={() => setRefreshKey((prev) => prev + 1)}
             style={{ 
               padding: '4px 8px', 
               fontSize: '10px', 
@@ -155,7 +155,7 @@ const PlayerAwards = ({ playerId }) => {
               color: 'white', 
               border: 'none', 
               borderRadius: '4px',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             Refrescar
@@ -175,7 +175,7 @@ const PlayerAwards = ({ playerId }) => {
               if (error) console.error('🔥 ERROR:', error);
               else {
                 console.log('🔥 SUCCESS:', data);
-                setRefreshKey(prev => prev + 1); // Refresh after insert
+                setRefreshKey((prev) => prev + 1); // Refresh after insert
               }
             } catch (e) { console.error('🔥 FAIL:', e); }
           }} style={{ 
@@ -185,7 +185,7 @@ const PlayerAwards = ({ playerId }) => {
             color: 'white', 
             border: 'none', 
             borderRadius: '4px',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}>
             Test Badge
           </button>
@@ -199,7 +199,7 @@ const PlayerAwards = ({ playerId }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <h3 style={{ margin: 0 }}>Reconocimientos</h3>
         <button 
-          onClick={() => setRefreshKey(prev => prev + 1)}
+          onClick={() => setRefreshKey((prev) => prev + 1)}
           style={{ 
             padding: '4px 8px', 
             fontSize: '10px', 
@@ -207,7 +207,7 @@ const PlayerAwards = ({ playerId }) => {
             color: '#8178e5', 
             border: '1px solid rgba(129, 120, 229, 0.3)', 
             borderRadius: '4px',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
           title="Refrescar badges"
         >

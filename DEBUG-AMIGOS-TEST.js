@@ -26,7 +26,7 @@ const AmigosViewSimple = () => {
         
         console.log('[DEBUG] getAmigos result:', {
           count: friends?.length || 0,
-          friends: friends
+          friends: friends,
         });
         
         setAmigos(friends || []);
@@ -52,7 +52,7 @@ const AmigosViewSimple = () => {
               border: '1px solid #ccc', 
               padding: '10px', 
               margin: '5px 0',
-              borderRadius: '5px'
+              borderRadius: '5px',
             }}>
               <strong>ID:</strong> {amigo.id}<br/>
               <strong>Nombre:</strong> {amigo.nombre}<br/>

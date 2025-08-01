@@ -13,7 +13,7 @@ export const createPlayerAwardsTable = async () => {
           otorgado_por UUID,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         );
-      `
+      `,
     });
 
     if (tableError) throw tableError;
@@ -22,7 +22,7 @@ export const createPlayerAwardsTable = async () => {
     const { error: rlsError } = await supabase.rpc('exec_sql', {
       sql: `
         ALTER TABLE player_awards ENABLE ROW LEVEL SECURITY;
-      `
+      `,
     });
 
     if (rlsError) throw rlsError;
@@ -35,7 +35,7 @@ export const createPlayerAwardsTable = async () => {
 
         CREATE POLICY IF NOT EXISTS "Authenticated users can insert player awards" ON player_awards
           FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-      `
+      `,
     });
 
     if (policyError) throw policyError;

@@ -20,7 +20,7 @@ const PlayerBadges = ({ playerId, size = 'small' }) => {
         
         // Contar badges por tipo
         const badgeCounts = {};
-        data.forEach(award => {
+        data.forEach((award) => {
           badgeCounts[award.award_type] = (badgeCounts[award.award_type] || 0) + 1;
         });
         
@@ -73,7 +73,7 @@ const PlayerBadges = ({ playerId, size = 'small' }) => {
       display: 'flex', 
       gap: '4px', 
       alignItems: 'center',
-      flexWrap: 'wrap'
+      flexWrap: 'wrap',
     }}>
       {Object.entries(badges).map(([type, count]) => (
         <div
@@ -89,7 +89,7 @@ const PlayerBadges = ({ playerId, size = 'small' }) => {
             color: 'white',
             minWidth: badgeSize,
             height: badgeSize,
-            justifyContent: 'center'
+            justifyContent: 'center',
           }}
           title={`${type}: ${count}`}
         >

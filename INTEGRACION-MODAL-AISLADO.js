@@ -26,7 +26,7 @@ const AdminPanelConModalAislado = ({ partidoActual }) => {
     console.log('[ADMIN_PANEL] Opening invite modal with:', {
       currentUserId,
       partidoId: partidoActual?.id,
-      partidoNombre: partidoActual?.nombre
+      partidoNombre: partidoActual?.nombre,
     });
     setShowInviteModal(true);
   };
@@ -79,7 +79,7 @@ const ComponenteMobileConModal = () => {
         nombre: 'Partido Mobile',
         fecha: '2024-01-15',
         hora: '20:00',
-        sede: 'Cancha Local'
+        sede: 'Cancha Local',
       };
       setPartido(partidoEjemplo);
     };
@@ -105,7 +105,7 @@ const ComponenteMobileConModal = () => {
           color: '#fff',
           border: 'none',
           borderRadius: '8px',
-          marginTop: '16px'
+          marginTop: '16px',
         }}
       >
         Invitar Amigos al Partido
@@ -136,7 +136,7 @@ const TestModalAislamiento = () => {
     nombre: 'Test Partido',
     fecha: '2024-01-20',
     hora: '18:00',
-    sede: 'Test Cancha'
+    sede: 'Test Cancha',
   };
 
   return (
@@ -160,7 +160,7 @@ const TestModalAislamiento = () => {
           background: '#28a745', 
           color: '#fff', 
           border: 'none',
-          borderRadius: '5px'
+          borderRadius: '5px',
         }}
       >
         Abrir Modal (Solo debe mostrar amigos)
@@ -183,5 +183,5 @@ const TestModalAislamiento = () => {
 export { 
   AdminPanelConModalAislado, 
   ComponenteMobileConModal, 
-  TestModalAislamiento 
+  TestModalAislamiento, 
 };

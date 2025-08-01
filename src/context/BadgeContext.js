@@ -15,7 +15,7 @@ export const BadgeProvider = ({ children }) => {
 
   const triggerBadgeRefresh = () => {
     console.log('[BADGE_CONTEXT] Triggering badge refresh');
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   return (

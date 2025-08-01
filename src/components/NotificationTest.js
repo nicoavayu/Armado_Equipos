@@ -20,8 +20,8 @@ const NotificationTest = () => {
         { 
           requestId: 'test-123', 
           senderId: 'test-sender',
-          senderName: 'Usuario Test'
-        }
+          senderName: 'Usuario Test',
+        },
       );
       console.log('Test notification created');
     } catch (error) {
@@ -38,7 +38,7 @@ const NotificationTest = () => {
       padding: '10px', 
       border: '1px solid #ccc',
       borderRadius: '5px',
-      zIndex: 9999
+      zIndex: 9999,
     }}>
       <h4>Notification Test</h4>
       <p>User: {user?.id || 'No user'}</p>

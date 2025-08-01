@@ -597,26 +597,26 @@ export default function App() {
           <NotificationProvider>
             <TutorialProvider>
               <Router>
-              <Routes>
-                <Route path="/test-survey" element={<TestSurvey />} />
-                <Route path="/test-survey/:partidoId/:userId" element={<TestSurvey />} />
-                <Route path="/encuesta/:partidoId" element={<EncuestaPartido />} />
-                <Route path="/resultados/:partidoId" element={<ResultadosEncuesta />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/" element={<AppAuthWrapper />}>
-                  <Route path="" element={<MainLayout />}>
-                    <Route index element={<HomePage />} />
-                    <Route path="nuevo-partido" element={<NuevoPartidoPage />} />
-                    <Route path="quiero-jugar" element={<QuieroJugarPage />} />
-                    <Route path="amigos" element={<AmigosPage />} />
-                    <Route path="profile" element={<ProfilePage />} />
-                    <Route path="notifications" element={<NotificationsPage />} />
-                    <Route path="historial" element={<HistorialPage />} />
-                    <Route path="admin/:partidoId" element={<AdminPanelPage />} />
+                <Routes>
+                  <Route path="/test-survey" element={<TestSurvey />} />
+                  <Route path="/test-survey/:partidoId/:userId" element={<TestSurvey />} />
+                  <Route path="/encuesta/:partidoId" element={<EncuestaPartido />} />
+                  <Route path="/resultados/:partidoId" element={<ResultadosEncuesta />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/" element={<AppAuthWrapper />}>
+                    <Route path="" element={<MainLayout />}>
+                        <Route index element={<HomePage />} />
+                        <Route path="nuevo-partido" element={<NuevoPartidoPage />} />
+                        <Route path="quiero-jugar" element={<QuieroJugarPage />} />
+                        <Route path="amigos" element={<AmigosPage />} />
+                        <Route path="profile" element={<ProfilePage />} />
+                        <Route path="notifications" element={<NotificationsPage />} />
+                        <Route path="historial" element={<HistorialPage />} />
+                        <Route path="admin/:partidoId" element={<AdminPanelPage />} />
+                    </Route>
                   </Route>
-                </Route>
-              </Routes>
-              <ToastContainer position="top-right" autoClose={5000} />
+                </Routes>
+                <ToastContainer position="top-right" autoClose={5000} />
               </Router>
             </TutorialProvider>
           </NotificationProvider>

@@ -39,7 +39,7 @@ export const processSurveyResults = async (partidoId) => {
     
     // Procesar MVP (por cantidad de votos)
     const mvpVotes = {};
-    surveys.forEach(survey => {
+    surveys.forEach((survey) => {
       if (survey.se_jugo && survey.mvp_id) {
         mvpVotes[survey.mvp_id] = (mvpVotes[survey.mvp_id] || 0) + 1;
       }
@@ -47,7 +47,7 @@ export const processSurveyResults = async (partidoId) => {
     
     // Procesar Arquero (por cantidad de votos)
     const arqueroVotes = {};
-    surveys.forEach(survey => {
+    surveys.forEach((survey) => {
       if (survey.se_jugo && survey.arquero_id) {
         arqueroVotes[survey.arquero_id] = (arqueroVotes[survey.arquero_id] || 0) + 1;
       }
@@ -55,17 +55,17 @@ export const processSurveyResults = async (partidoId) => {
     
     // Procesar jugadores ausentes (no acumulativo - con 1 voto ya se aplica)
     const ausentesSet = new Set();
-    surveys.forEach(survey => {
+    surveys.forEach((survey) => {
       if (survey.jugadores_ausentes && Array.isArray(survey.jugadores_ausentes)) {
-        survey.jugadores_ausentes.forEach(jugadorId => ausentesSet.add(jugadorId));
+        survey.jugadores_ausentes.forEach((jugadorId) => ausentesSet.add(jugadorId));
       }
     });
     
     // Procesar jugadores violentos (no acumulativo - con 1 voto ya se aplica)
     const violentosSet = new Set();
-    surveys.forEach(survey => {
+    surveys.forEach((survey) => {
       if (survey.jugadores_violentos && Array.isArray(survey.jugadores_violentos)) {
-        survey.jugadores_violentos.forEach(jugadorId => violentosSet.add(jugadorId));
+        survey.jugadores_violentos.forEach((jugadorId) => violentosSet.add(jugadorId));
       }
     });
     
@@ -83,7 +83,7 @@ export const processSurveyResults = async (partidoId) => {
       jugadores_ausentes: Array.from(ausentesSet),
       jugadores_violentos: Array.from(violentosSet),
       total_surveys: surveys.length,
-      processed_at: new Date().toISOString()
+      processed_at: new Date().toISOString(),
     };
     
     // Guardar resultados
@@ -128,16 +128,16 @@ const notifyPlayersOfResults = async (partido, results) => {
       }
     };
     
-    const notifications = partido.jugadores.map(jugador => ({
+    const notifications = partido.jugadores.map((jugador) => ({
       usuario_id: jugador.usuario_id || jugador.id,
       tipo: 'survey_results',
       titulo: `Resultados de ${partido.nombre || 'Partido'}`,
       mensaje: `Resultados del partido del ${formatFecha(partido.fecha)}`,
       data: {
         partido_id: partido.id,
-        results: results
+        results: results,
       },
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     }));
     
     const { error } = await supabase

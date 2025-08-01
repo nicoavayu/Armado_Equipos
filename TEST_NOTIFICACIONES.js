@@ -19,15 +19,15 @@ const testNotificationInsert = async (userId) => {
     }
     
     console.log('✅ Últimas 5 notificaciones para user:', userId);
-    console.table(data.map(n => ({
+    console.table(data.map((n) => ({
       id: n.id.substring(0, 8),
       type: n.type,
       title: n.title,
       read: n.read,
-      created_at: new Date(n.created_at).toLocaleString()
+      created_at: new Date(n.created_at).toLocaleString(),
     })));
     
-    const matchInvites = data.filter(n => n.type === 'match_invite');
+    const matchInvites = data.filter((n) => n.type === 'match_invite');
     console.log(`📊 Match invites encontradas: ${matchInvites.length}`);
     
     return data;
@@ -58,7 +58,7 @@ const testRealtimeSubscription = (userId) => {
         console.log('💬 Mensaje:', payload.new.message);
         console.log('🆔 ID:', payload.new.id);
         console.log('✅ REALTIME FUNCIONANDO CORRECTAMENTE');
-      }
+      },
     )
     .subscribe((status) => {
       console.log('📡 Subscription status:', status);

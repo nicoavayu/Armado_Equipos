@@ -44,7 +44,7 @@ const MatchPlayerActions = ({ partidoId, onPlayerRemoved }) => {
           borderRadius: '6px',
           fontSize: '14px',
           cursor: 'pointer',
-          transition: 'background-color 0.2s'
+          transition: 'background-color 0.2s',
         }}
         onMouseEnter={(e) => e.target.style.background = '#c82333'}
         onMouseLeave={(e) => e.target.style.background = '#dc3545'}

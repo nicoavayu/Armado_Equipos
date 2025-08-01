@@ -36,7 +36,7 @@ const AbsenceNotification = ({ userId, partidoId, onClose, onSuccess }) => {
         userId,
         partidoId,
         fullReason,
-        foundReplacement
+        foundReplacement,
       );
 
       if (result.success) {

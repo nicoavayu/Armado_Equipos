@@ -57,7 +57,7 @@ const testFriendNotifications = async () => {
       event: 'INSERT',
       schema: 'public',
       table: 'notifications',
-      filter: `user_id=eq.${user.id}`
+      filter: `user_id=eq.${user.id}`,
     }, (payload) => {
       console.log('🔔 Real-time notification received:', payload.new);
     })
@@ -74,7 +74,7 @@ const testFriendNotifications = async () => {
         title: 'Test Notification',
         message: 'This is a test friend request notification',
         data: { test: true },
-        read: false
+        read: false,
       }])
       .select()
       .single();

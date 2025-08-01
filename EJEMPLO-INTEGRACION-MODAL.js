@@ -50,7 +50,7 @@ const EjemploBasico = () => {
     nombre: 'Partido del Viernes',
     fecha: '2024-01-15',
     hora: '20:00',
-    sede: 'Cancha Central'
+    sede: 'Cancha Central',
   };
 
   return (
@@ -91,7 +91,7 @@ const ComponenteCompleto = () => {
           nombre: 'Mi Partido',
           fecha: new Date().toISOString().split('T')[0],
           hora: '20:00',
-          sede: 'Cancha Local'
+          sede: 'Cancha Local',
         };
         setPartidoActual(partido);
       } catch (error) {

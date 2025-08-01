@@ -6,7 +6,7 @@ const AmigosRenderMinimo = ({ amigos, currentUserId }) => {
     amigosCount: amigos?.length || 0,
     amigosType: typeof amigos,
     isArray: Array.isArray(amigos),
-    firstAmigo: amigos?.[0]
+    firstAmigo: amigos?.[0],
   });
 
   // Verificación de datos
@@ -35,7 +35,7 @@ const AmigosRenderMinimo = ({ amigos, currentUserId }) => {
           console.log(`[RENDER_MINIMO] Rendering friend ${index}:`, {
             id: amigo.id,
             profileName: amigo.profile?.nombre,
-            profileId: amigo.profile?.id
+            profileId: amigo.profile?.id,
           });
 
           return (
@@ -48,7 +48,7 @@ const AmigosRenderMinimo = ({ amigos, currentUserId }) => {
                 borderRadius: '5px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '10px'
+                gap: '10px',
               }}
             >
               <img 

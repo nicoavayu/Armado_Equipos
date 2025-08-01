@@ -59,13 +59,13 @@ class MatchScheduler {
         this.scheduledMatches.set(partidoId, {
           partidoId,
           matchDateTime,
-          processed: false
+          processed: false,
         });
         
         console.log('[MATCH_SCHEDULER] Scheduled match:', {
           partidoId,
           matchDateTime: matchDateTime.toISOString(),
-          timeUntilMatch: Math.round((matchDateTime - now) / (1000 * 60)) + ' minutes'
+          timeUntilMatch: Math.round((matchDateTime - now) / (1000 * 60)) + ' minutes',
         });
       }
     } catch (error) {
@@ -164,7 +164,7 @@ class MatchScheduler {
       if (partidos && partidos.length > 0) {
         console.log('[MATCH_SCHEDULER] Loading', partidos.length, 'active matches');
         
-        partidos.forEach(partido => {
+        partidos.forEach((partido) => {
           this.scheduleMatch(partido.id, partido.fecha, partido.hora);
         });
       }

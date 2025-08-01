@@ -102,7 +102,7 @@ const EncuestaPartido = () => {
     if (showingBadgeAnimations && badgeAnimations.length > 0 && !animationComplete) {
       if (currentAnimationIndex < badgeAnimations.length - 1) {
         const timer = setTimeout(() => {
-          setCurrentAnimationIndex(prev => prev + 1);
+          setCurrentAnimationIndex((prev) => prev + 1);
         }, 3000);
         return () => clearTimeout(timer);
       } else {
@@ -201,7 +201,7 @@ const EncuestaPartido = () => {
           jugador_id: formData.mvp_id,
           partido_id: parseInt(partidoId),
           award_type: 'mvp',
-          otorgado_por: user.id
+          otorgado_por: user.id,
         });
       }
       
@@ -210,17 +210,17 @@ const EncuestaPartido = () => {
           jugador_id: formData.arquero_id,
           partido_id: parseInt(partidoId),
           award_type: 'guante_dorado',
-          otorgado_por: user.id
+          otorgado_por: user.id,
         });
       }
       
       if (formData.jugadores_violentos.length > 0) {
-        formData.jugadores_violentos.forEach(jugadorId => {
+        formData.jugadores_violentos.forEach((jugadorId) => {
           premios.push({
             jugador_id: jugadorId,
             partido_id: parseInt(partidoId),
             award_type: 'tarjeta_roja',
-            otorgado_por: user.id
+            otorgado_por: user.id,
           });
         });
       }
@@ -272,40 +272,40 @@ const EncuestaPartido = () => {
     
     if (formData.se_jugo) {
       if (formData.mvp_id) {
-        const player = jugadores.find(j => j.uuid === formData.mvp_id);
+        const player = jugadores.find((j) => j.uuid === formData.mvp_id);
         if (player && !addedPlayers.has(player.uuid + '_mvp')) {
           animations.push({
             playerName: player.nombre,
             playerAvatar: player.avatar_url || player.foto_url,
             badgeType: 'mvp',
             badgeText: 'MVP',
-            badgeIcon: '🏆'
+            badgeIcon: '🏆',
           });
           addedPlayers.add(player.uuid + '_mvp');
         }
       }
       if (formData.arquero_id) {
-        const player = jugadores.find(j => j.uuid === formData.arquero_id);
+        const player = jugadores.find((j) => j.uuid === formData.arquero_id);
         if (player && !addedPlayers.has(player.uuid + '_guante_dorado')) {
           animations.push({
             playerName: player.nombre,
             playerAvatar: player.avatar_url || player.foto_url,
             badgeType: 'guante_dorado',
             badgeText: 'GUANTE DORADO',
-            badgeIcon: '🧤'
+            badgeIcon: '🧤',
           });
           addedPlayers.add(player.uuid + '_guante_dorado');
         }
       }
       if (formData.jugadores_violentos.length > 0) {
-        const firstViolentPlayer = jugadores.find(j => j.uuid === formData.jugadores_violentos[0]);
+        const firstViolentPlayer = jugadores.find((j) => j.uuid === formData.jugadores_violentos[0]);
         if (firstViolentPlayer && !addedPlayers.has(firstViolentPlayer.uuid + '_tarjeta_roja')) {
           animations.push({
             playerName: firstViolentPlayer.nombre,
             playerAvatar: firstViolentPlayer.avatar_url || firstViolentPlayer.foto_url,
             badgeType: 'tarjeta_roja',
             badgeText: 'TARJETA ROJA',
-            badgeIcon: '🟥'
+            badgeIcon: '🟥',
           });
           addedPlayers.add(firstViolentPlayer.uuid + '_tarjeta_roja');
         }
@@ -313,8 +313,8 @@ const EncuestaPartido = () => {
       
       // Agregar ausencias injustificadas al final
       if (formData.jugadores_ausentes.length > 0) {
-        formData.jugadores_ausentes.forEach(jugadorId => {
-          const player = jugadores.find(j => j.uuid === jugadorId);
+        formData.jugadores_ausentes.forEach((jugadorId) => {
+          const player = jugadores.find((j) => j.uuid === jugadorId);
           if (player && !addedPlayers.has(player.uuid + '_ausencia')) {
             animations.push({
               playerName: player.nombre,
@@ -323,7 +323,7 @@ const EncuestaPartido = () => {
               badgeType: 'ausencia_injustificada',
               badgeText: 'AUSENCIAS INJUSTIFICADAS',
               badgeIcon: '📉',
-              pointsLost: -0.3
+              pointsLost: -0.3,
             });
             addedPlayers.add(player.uuid + '_ausencia');
           }
@@ -363,7 +363,7 @@ const EncuestaPartido = () => {
     const animation = animations[Math.min(currentAnimationIndex, animations.length - 1)];
     if (!animation) return null;
     
-    const player = jugadores.find(j => j.nombre === animation.playerName);
+    const player = jugadores.find((j) => j.nombre === animation.playerName);
     const isAbsence = animation.badgeType === 'ausencia_injustificada';
     
     // Estado local para la animación del score
@@ -420,7 +420,7 @@ const EncuestaPartido = () => {
         minHeight: '100vh',
         width: '100%',
         padding: '20px',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
       }}>
         <style>
           {`
@@ -465,7 +465,7 @@ const EncuestaPartido = () => {
           justifyContent: 'center',
           minHeight: '500px',
           maxWidth: '400px',
-          width: '100%'
+          width: '100%',
         }}>
           
           {/* Título del badge - reducido margen inferior */}
@@ -475,7 +475,7 @@ const EncuestaPartido = () => {
             justifyContent: 'center',
             marginBottom: '15px',
             textAlign: 'center',
-            width: '100%'
+            width: '100%',
           }}>
             <div style={{
               color: '#FFD700',
@@ -485,12 +485,12 @@ const EncuestaPartido = () => {
               animation: 'titleFadeIn 0.8s ease-out 0.2s both',
               lineHeight: '0',
               wordWrap: 'break-word',
-              maxWidth: '100%'
+              maxWidth: '100%',
             }}>
               {animation.badgeType === 'mvp' ? 'MVP' : 
-               animation.badgeType === 'guante_dorado' ? 'GUANTE DORADO' : 
-               animation.badgeType === 'tarjeta_roja' ? 'TARJETA ROJA' :
-               animation.badgeType === 'ausencia_injustificada' ? 'AUSENCIAS INJUSTIFICADAS' : animation.badgeText}
+                animation.badgeType === 'guante_dorado' ? 'GUANTE DORADO' : 
+                  animation.badgeType === 'tarjeta_roja' ? 'TARJETA ROJA' :
+                    animation.badgeType === 'ausencia_injustificada' ? 'AUSENCIAS INJUSTIFICADAS' : animation.badgeText}
             </div>
           </div>
           
@@ -499,7 +499,7 @@ const EncuestaPartido = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: '0px'
+            marginBottom: '0px',
           }}>
             {player && (
               <div style={{ 
@@ -507,12 +507,12 @@ const EncuestaPartido = () => {
                 opacity: 1,
                 transition: 'none',
                 transform: 'scale(0.9)',
-                animation: 'slideInFromLeft 0.8s ease-out 0.4s both'
+                animation: 'slideInFromLeft 0.8s ease-out 0.4s both',
               }}>
                 <ProfileCard 
                   profile={{
                     ...player,
-                    puntuacion: isAbsence && localAnimatedScore !== null ? localAnimatedScore : player.puntuacion
+                    puntuacion: isAbsence && localAnimatedScore !== null ? localAnimatedScore : player.puntuacion,
                   }}
                   enableTilt={false}
                   isVisible={true}
@@ -526,11 +526,11 @@ const EncuestaPartido = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: '5px'
+            marginBottom: '5px',
           }}>
             <div style={{
               fontSize: '55px',
-              animation: 'emojiZoomIn 0.6s ease-out 1.2s both'
+              animation: 'emojiZoomIn 0.6s ease-out 1.2s both',
             }}>
               {animation.badgeIcon}
             </div>
@@ -541,14 +541,14 @@ const EncuestaPartido = () => {
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
             }}>
               <div style={{
                 color: '#FFD700',
                 fontSize: '24px',
                 fontWeight: '700',
                 fontFamily: "'Oswald', Arial, sans-serif",
-                animation: 'titleFadeIn 0.8s ease-out 2s both'
+                animation: 'titleFadeIn 0.8s ease-out 2s both',
               }}>
                 {animation.pointsLost} PUNTOS
               </div>
@@ -611,7 +611,7 @@ const EncuestaPartido = () => {
           backgroundColor: 'rgba(0, 0, 0, 0.9)',
           zIndex: 999,
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
         }}>
           {/* Título principal - centrado horizontal, fijo arriba */}
           <div style={{
@@ -622,7 +622,7 @@ const EncuestaPartido = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1001
+            zIndex: 1001,
           }}>
             <div className="voting-title-modern">
               PREMIOS Y PENALIZACIONES
@@ -635,7 +635,7 @@ const EncuestaPartido = () => {
             alignItems: 'center',
             justifyContent: 'center',
             minHeight: '100vh',
-            width: '100%'
+            width: '100%',
           }}>
             {/* Mostrar animación siempre mientras el overlay esté activo */}
             {badgeAnimations.length > 0 && (
@@ -655,7 +655,7 @@ const EncuestaPartido = () => {
                 transform: 'translateX(-50%)',
                 zIndex: 1002,
                 width: '300px',
-                maxWidth: '90vw'
+                maxWidth: '90vw',
               }}
             >
               ACEPTAR
@@ -753,7 +753,7 @@ const EncuestaPartido = () => {
                     border: formData.mvp_id === jugador.uuid ? '1px solid #00D49B' : '1px solid #444',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    minHeight: '90px'
+                    minHeight: '90px',
                   }}
                 >
                   <div style={{
@@ -763,7 +763,7 @@ const EncuestaPartido = () => {
                     overflow: 'hidden',
                     marginBottom: '6px',
                     backgroundColor: '#1a1a2e',
-                    flexShrink: 0
+                    flexShrink: 0,
                   }}>
                     {jugador.avatar_url || jugador.foto_url ? (
                       <img 
@@ -780,7 +780,7 @@ const EncuestaPartido = () => {
                         justifyContent: 'center',
                         color: '#999',
                         fontSize: '16px',
-                        fontWeight: '600'
+                        fontWeight: '600',
                       }}>
                         {jugador.nombre.charAt(0)}
                       </div>
@@ -794,7 +794,7 @@ const EncuestaPartido = () => {
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                    width: '100%'
+                    width: '100%',
                   }}>
                     {jugador.nombre}
                   </span>
@@ -831,7 +831,7 @@ const EncuestaPartido = () => {
                     border: formData.arquero_id === jugador.uuid ? '1px solid #FFD700' : '1px solid #444',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    minHeight: '90px'
+                    minHeight: '90px',
                   }}
                 >
                   <div style={{
@@ -841,7 +841,7 @@ const EncuestaPartido = () => {
                     overflow: 'hidden',
                     marginBottom: '6px',
                     backgroundColor: '#1a1a2e',
-                    flexShrink: 0
+                    flexShrink: 0,
                   }}>
                     {jugador.avatar_url || jugador.foto_url ? (
                       <img 
@@ -858,7 +858,7 @@ const EncuestaPartido = () => {
                         justifyContent: 'center',
                         color: '#999',
                         fontSize: '16px',
-                        fontWeight: '600'
+                        fontWeight: '600',
                       }}>
                         {jugador.nombre.charAt(0)}
                       </div>
@@ -872,7 +872,7 @@ const EncuestaPartido = () => {
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                    width: '100%'
+                    width: '100%',
                   }}>
                     {jugador.nombre}
                   </span>
@@ -890,7 +890,7 @@ const EncuestaPartido = () => {
                   backgroundColor: 'rgba(255, 87, 34, 0.3)',
                   borderColor: '#fff',
                   borderRadius: '12px',
-                  width: '90%'
+                  width: '90%',
                 }}
               >
                 NO HUBO ARQUEROS FIJOS
@@ -951,7 +951,7 @@ const EncuestaPartido = () => {
                 style={{
                   backgroundColor: formData.ganador === 'equipo_a' ? '#9C27B0' : 'rgba(156, 39, 176, 0.3)',
                   borderColor: '#fff',
-                  borderRadius: '12px'
+                  borderRadius: '12px',
                 }}
               >
                 EQUIPO A
@@ -963,7 +963,7 @@ const EncuestaPartido = () => {
                 style={{
                   backgroundColor: formData.ganador === 'equipo_b' ? '#FF9800' : 'rgba(255, 152, 0, 0.3)',
                   borderColor: '#fff',
-                  borderRadius: '12px'
+                  borderRadius: '12px',
                 }}
               >
                 EQUIPO B
@@ -981,7 +981,7 @@ const EncuestaPartido = () => {
                   backgroundColor: '#2a2a40',
                   border: '1px solid #444',
                   borderRadius: '8px',
-                  color: 'white'
+                  color: 'white',
                 }}
                 value={formData.resultado || ''}
                 onChange={(e) => handleInputChange('resultado', e.target.value)}
@@ -1018,7 +1018,7 @@ const EncuestaPartido = () => {
                     border: formData.jugadores_violentos.includes(jugador.uuid) ? '1px solid #DE1C49' : '1px solid #444',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    minHeight: '90px'
+                    minHeight: '90px',
                   }}
                 >
                   <div style={{
@@ -1028,7 +1028,7 @@ const EncuestaPartido = () => {
                     overflow: 'hidden',
                     marginBottom: '6px',
                     backgroundColor: '#1a1a2e',
-                    flexShrink: 0
+                    flexShrink: 0,
                   }}>
                     {jugador.avatar_url || jugador.foto_url ? (
                       <img 
@@ -1045,7 +1045,7 @@ const EncuestaPartido = () => {
                         justifyContent: 'center',
                         color: '#999',
                         fontSize: '16px',
-                        fontWeight: '600'
+                        fontWeight: '600',
                       }}>
                         {jugador.nombre.charAt(0)}
                       </div>
@@ -1059,7 +1059,7 @@ const EncuestaPartido = () => {
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                    width: '100%'
+                    width: '100%',
                   }}>
                     {jugador.nombre}
                   </span>
@@ -1090,7 +1090,7 @@ const EncuestaPartido = () => {
                 marginBottom: '20px',
                 padding: '15px',
                 textAlign: 'center',
-                fontFamily: "'Oswald', Arial, sans-serif"
+                fontFamily: "'Oswald', Arial, sans-serif",
               }}
               value={formData.motivo_no_jugado || ''}
               onChange={(e) => handleInputChange('motivo_no_jugado', e.target.value)}
@@ -1103,7 +1103,7 @@ const EncuestaPartido = () => {
               style={{
                 backgroundColor: '#DE1C49',
                 marginBottom: '15px',
-                width: '90%'
+                width: '90%',
               }}
             >
               AUSENCIA SIN AVISO
@@ -1137,7 +1137,7 @@ const EncuestaPartido = () => {
                     border: formData.jugadores_ausentes.includes(jugador.uuid) ? '1px solid #DE1C49' : '1px solid #444',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    minHeight: '90px'
+                    minHeight: '90px',
                   }}
                 >
                   <div style={{
@@ -1147,7 +1147,7 @@ const EncuestaPartido = () => {
                     overflow: 'hidden',
                     marginBottom: '6px',
                     backgroundColor: '#1a1a2e',
-                    flexShrink: 0
+                    flexShrink: 0,
                   }}>
                     {jugador.avatar_url || jugador.foto_url ? (
                       <img 
@@ -1164,7 +1164,7 @@ const EncuestaPartido = () => {
                         justifyContent: 'center',
                         color: '#999',
                         fontSize: '16px',
-                        fontWeight: '600'
+                        fontWeight: '600',
                       }}>
                         {jugador.nombre.charAt(0)}
                       </div>
@@ -1178,7 +1178,7 @@ const EncuestaPartido = () => {
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                    width: '100%'
+                    width: '100%',
                   }}>
                     {jugador.nombre}
                   </span>
@@ -1215,7 +1215,7 @@ const EncuestaPartido = () => {
                     border: formData.jugadores_ausentes.includes(jugador.uuid) ? '1px solid #DE1C49' : '1px solid #444',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    minHeight: '90px'
+                    minHeight: '90px',
                   }}
                 >
                   <div style={{
@@ -1225,7 +1225,7 @@ const EncuestaPartido = () => {
                     overflow: 'hidden',
                     marginBottom: '6px',
                     backgroundColor: '#1a1a2e',
-                    flexShrink: 0
+                    flexShrink: 0,
                   }}>
                     {jugador.avatar_url || jugador.foto_url ? (
                       <img 
@@ -1242,7 +1242,7 @@ const EncuestaPartido = () => {
                         justifyContent: 'center',
                         color: '#999',
                         fontSize: '16px',
-                        fontWeight: '600'
+                        fontWeight: '600',
                       }}>
                         {jugador.nombre.charAt(0)}
                       </div>
@@ -1256,7 +1256,7 @@ const EncuestaPartido = () => {
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                    width: '100%'
+                    width: '100%',
                   }}>
                     {jugador.nombre}
                   </span>

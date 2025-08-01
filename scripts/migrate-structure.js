@@ -27,8 +27,8 @@ const NEW_STRUCTURE = {
       { from: 'src/Logo.png', to: 'src/assets/Logo.png' },
       { from: 'src/Logo_2.png', to: 'src/assets/Logo_2.png' },
       { from: 'src/SVG_Pelota.svg', to: 'src/assets/SVG_Pelota.svg' },
-      { from: 'src/SVG_People.svg', to: 'src/assets/SVG_People.svg' }
-    ]
+      { from: 'src/SVG_People.svg', to: 'src/assets/SVG_People.svg' },
+    ],
   },
   'components/common': {
     description: 'Common UI components',
@@ -42,8 +42,8 @@ const NEW_STRUCTURE = {
       { from: 'src/components/MoonIcon.js', to: 'src/components/common/MoonIcon.js' },
       { from: 'src/components/SunIcon.js', to: 'src/components/common/SunIcon.js' },
       { from: 'src/components/ThemeSwitch.js', to: 'src/components/common/ThemeSwitch.js' },
-      { from: 'src/components/ThemeSwitch.css', to: 'src/components/common/ThemeSwitch.css' }
-    ]
+      { from: 'src/components/ThemeSwitch.css', to: 'src/components/common/ThemeSwitch.css' },
+    ],
   },
   'components/layout': {
     description: 'Layout components',
@@ -52,8 +52,8 @@ const NEW_STRUCTURE = {
       { from: 'src/components/GlobalHeader.css', to: 'src/components/layout/GlobalHeader.css' },
       { from: 'src/components/TabBar.js', to: 'src/components/layout/TabBar.js' },
       { from: 'src/components/TabBar.css', to: 'src/components/layout/TabBar.css' },
-      { from: 'src/components/ErrorBoundary.js', to: 'src/components/layout/ErrorBoundary.js' }
-    ]
+      { from: 'src/components/ErrorBoundary.js', to: 'src/components/layout/ErrorBoundary.js' },
+    ],
   },
   'components/match': {
     description: 'Match-related components',
@@ -67,8 +67,8 @@ const NEW_STRUCTURE = {
       { from: 'src/components/MatchChat.js', to: 'src/components/match/MatchChat.js' },
       { from: 'src/components/MatchChat.css', to: 'src/components/match/MatchChat.css' },
       { from: 'src/components/ChatButton.js', to: 'src/components/match/ChatButton.js' },
-      { from: 'src/components/ChatButton.css', to: 'src/components/match/ChatButton.css' }
-    ]
+      { from: 'src/components/ChatButton.css', to: 'src/components/match/ChatButton.css' },
+    ],
   },
   'components/player': {
     description: 'Player-related components',
@@ -90,8 +90,8 @@ const NEW_STRUCTURE = {
       { from: 'src/components/ProfileDisplay.js', to: 'src/components/player/ProfileDisplay.js' },
       { from: 'src/components/AvatarWithProgress.js', to: 'src/components/player/AvatarWithProgress.js' },
       { from: 'src/components/AvatarWithProgress.css', to: 'src/components/player/AvatarWithProgress.css' },
-      { from: 'src/components/CameraUpload.js', to: 'src/components/player/CameraUpload.js' }
-    ]
+      { from: 'src/components/CameraUpload.js', to: 'src/components/player/CameraUpload.js' },
+    ],
   },
   'components/teams': {
     description: 'Team-related components',
@@ -99,8 +99,8 @@ const NEW_STRUCTURE = {
       { from: 'src/components/TeamDisplay.js', to: 'src/components/teams/TeamDisplay.js' },
       { from: 'src/components/TeamDisplay.css', to: 'src/components/teams/TeamDisplay.css' },
       { from: 'src/components/TeamGenerator.js', to: 'src/components/teams/TeamGenerator.js' },
-      { from: 'src/components/EditableTeamName.css', to: 'src/components/teams/EditableTeamName.css' }
-    ]
+      { from: 'src/components/EditableTeamName.css', to: 'src/components/teams/EditableTeamName.css' },
+    ],
   },
   'components/voting': {
     description: 'Voting-related components',
@@ -108,8 +108,8 @@ const NEW_STRUCTURE = {
       { from: 'src/VotingView.js', to: 'src/components/voting/VotingView.js' },
       { from: 'src/VotingView.css', to: 'src/components/voting/VotingView.css' },
       { from: 'src/StarRating.js', to: 'src/components/voting/StarRating.js' },
-      { from: 'src/StarRating.css', to: 'src/components/voting/StarRating.css' }
-    ]
+      { from: 'src/StarRating.css', to: 'src/components/voting/StarRating.css' },
+    ],
   },
   'pages': {
     description: 'Page components',
@@ -125,8 +125,8 @@ const NEW_STRUCTURE = {
       { from: 'src/IngresoVotacion.css', to: 'src/pages/IngresoVotacion.css' },
       { from: 'src/JugadorIngresarCodigo.js', to: 'src/pages/JugadorIngresarCodigo.js' },
       { from: 'src/RegistroJugador.js', to: 'src/pages/RegistroJugador.js' },
-      { from: 'src/SeleccionarTipoPartido.js', to: 'src/pages/SeleccionarTipoPartido.js' }
-    ]
+      { from: 'src/SeleccionarTipoPartido.js', to: 'src/pages/SeleccionarTipoPartido.js' },
+    ],
   },
   'styles': {
     description: 'Global styles',
@@ -135,8 +135,8 @@ const NEW_STRUCTURE = {
       { from: 'src/HomeStyleKit.css', to: 'src/styles/HomeStyleKit.css' },
       { from: 'src/FrecuentesStyle.css', to: 'src/styles/FrecuentesStyle.css' },
       { from: 'src/PanelPartido.css', to: 'src/styles/PanelPartido.css' },
-      { from: 'src/styles.css', to: 'src/styles/global.css' }
-    ]
+      { from: 'src/styles.css', to: 'src/styles/global.css' },
+    ],
   },
   'utils': {
     description: 'Utility functions',
@@ -144,16 +144,16 @@ const NEW_STRUCTURE = {
       { from: 'src/utils.js', to: 'src/utils/teamUtils.js' },
       { from: 'src/SvgPelota.js', to: 'src/utils/SvgPelota.js' },
       { from: 'src/SvgPeople.js', to: 'src/utils/SvgPeople.js' },
-      { from: 'src/AutocompleteSede.js', to: 'src/utils/AutocompleteSede.js' }
-    ]
-  }
+      { from: 'src/AutocompleteSede.js', to: 'src/utils/AutocompleteSede.js' },
+    ],
+  },
 };
 
 // Helper functions
 function createDirectories() {
   console.log('Creating directories...');
   
-  Object.keys(NEW_STRUCTURE).forEach(dir => {
+  Object.keys(NEW_STRUCTURE).forEach((dir) => {
     const fullPath = path.join(SRC_DIR, dir);
     if (!fs.existsSync(fullPath)) {
       fs.mkdirSync(fullPath, { recursive: true });
@@ -168,10 +168,10 @@ function copyFiles() {
   const copied = [];
   const failed = [];
   
-  Object.keys(NEW_STRUCTURE).forEach(dir => {
+  Object.keys(NEW_STRUCTURE).forEach((dir) => {
     const files = NEW_STRUCTURE[dir].files || [];
     
-    files.forEach(file => {
+    files.forEach((file) => {
       const sourcePath = path.join(__dirname, '..', file.from);
       const targetPath = path.join(__dirname, '..', file.to);
       
@@ -204,42 +204,42 @@ function copyFiles() {
 function generateReport(results) {
   console.log('Generating migration report...');
   
-  let report = `# Project Structure Migration Report\n\n`;
+  let report = '# Project Structure Migration Report\n\n';
   report += `Generated on: ${new Date().toLocaleString()}\n\n`;
   
-  report += `## Summary\n\n`;
+  report += '## Summary\n\n';
   report += `- Directories created: ${Object.keys(NEW_STRUCTURE).length}\n`;
   report += `- Files copied: ${results.copied.length}\n`;
   report += `- Files failed: ${results.failed.length}\n\n`;
   
-  report += `## New Directory Structure\n\n`;
-  Object.keys(NEW_STRUCTURE).forEach(dir => {
+  report += '## New Directory Structure\n\n';
+  Object.keys(NEW_STRUCTURE).forEach((dir) => {
     report += `### src/${dir}\n\n`;
     report += `${NEW_STRUCTURE[dir].description}\n\n`;
     
     const files = NEW_STRUCTURE[dir].files || [];
     if (files.length > 0) {
-      report += `Files moved to this directory:\n\n`;
-      files.forEach(file => {
-        const success = results.copied.some(f => f.from === file.from && f.to === file.to);
+      report += 'Files moved to this directory:\n\n';
+      files.forEach((file) => {
+        const success = results.copied.some((f) => f.from === file.from && f.to === file.to);
         report += `- ${file.from} -> ${file.to} ${success ? '✅' : '❌'}\n`;
       });
-      report += `\n`;
+      report += '\n';
     }
   });
   
   if (results.failed.length > 0) {
-    report += `## Failed Files\n\n`;
-    results.failed.forEach(failure => {
+    report += '## Failed Files\n\n';
+    results.failed.forEach((failure) => {
       report += `- ${failure.file}: ${failure.reason}\n`;
     });
-    report += `\n`;
+    report += '\n';
   }
   
-  report += `## Next Steps\n\n`;
-  report += `1. Update imports in all files to use the new paths\n`;
-  report += `2. Test the application to ensure everything works correctly\n`;
-  report += `3. Once confirmed working, remove the original files\n`;
+  report += '## Next Steps\n\n';
+  report += '1. Update imports in all files to use the new paths\n';
+  report += '2. Test the application to ensure everything works correctly\n';
+  report += '3. Once confirmed working, remove the original files\n';
   
   fs.writeFileSync(LOG_FILE, report);
   console.log(`Report generated at ${LOG_FILE}`);

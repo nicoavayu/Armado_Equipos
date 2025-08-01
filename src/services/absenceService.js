@@ -43,7 +43,7 @@ export const recordAbsenceNotification = async (userId, partidoId, reason = '', 
         found_replacement: foundReplacement,
         notified_in_time: notifiedInTime,
         hours_before_match: Math.max(0, hoursBeforeMatch),
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       }])
       .select()
       .single();
@@ -55,14 +55,14 @@ export const recordAbsenceNotification = async (userId, partidoId, reason = '', 
       partidoId,
       notifiedInTime,
       foundReplacement,
-      hoursBeforeMatch: hoursBeforeMatch.toFixed(1)
+      hoursBeforeMatch: hoursBeforeMatch.toFixed(1),
     });
 
     return {
       success: true,
       data,
       notifiedInTime,
-      foundReplacement
+      foundReplacement,
     };
 
   } catch (error) {
@@ -135,8 +135,8 @@ export const getAbsenceDataForSurveyProcessing = async (partidoId, absentPlayerI
   }
 
   try {
-    const absencePromises = absentPlayerIds.map(playerId => 
-      getPlayerAbsenceData(playerId, partidoId)
+    const absencePromises = absentPlayerIds.map((playerId) => 
+      getPlayerAbsenceData(playerId, partidoId),
     );
 
     const absenceResults = await Promise.all(absencePromises);
@@ -147,7 +147,7 @@ export const getAbsenceDataForSurveyProcessing = async (partidoId, absentPlayerI
       absenceData[playerId] = {
         notifiedInTime: data?.notified_in_time || false,
         foundReplacement: data?.found_replacement || false,
-        shouldApplyPenalty: !data?.notified_in_time && !data?.found_replacement
+        shouldApplyPenalty: !data?.notified_in_time && !data?.found_replacement,
       };
     });
 
@@ -157,11 +157,11 @@ export const getAbsenceDataForSurveyProcessing = async (partidoId, absentPlayerI
     console.error('[ABSENCE] Error getting absence data for survey processing:', error);
     // Return default penalty data if we can't get absence info
     const defaultData = {};
-    absentPlayerIds.forEach(playerId => {
+    absentPlayerIds.forEach((playerId) => {
       defaultData[playerId] = {
         notifiedInTime: false,
         foundReplacement: false,
-        shouldApplyPenalty: true
+        shouldApplyPenalty: true,
       };
     });
     return defaultData;

@@ -11,7 +11,7 @@ const EjemploUsoModal = () => {
     nombre: 'Partido del Viernes',
     fecha: '2024-01-15',
     hora: '20:00',
-    sede: 'Cancha Central'
+    sede: 'Cancha Central',
   });
 
   return (

@@ -75,7 +75,7 @@ const ResultadosEncuesta = () => {
         
         // MVP
         if (resultsData.mvp_id) {
-          const player = partidoData.jugadores.find(j => j.uuid === resultsData.mvp_id);
+          const player = partidoData.jugadores.find((j) => j.uuid === resultsData.mvp_id);
           if (player && !addedPlayers.has(player.uuid + '_mvp')) {
             animations.push({
               playerName: player.nombre,
@@ -83,7 +83,7 @@ const ResultadosEncuesta = () => {
               badgeType: 'mvp',
               badgeText: 'MVP',
               badgeIcon: '🏆',
-              votes: resultsData.mvp_votes
+              votes: resultsData.mvp_votes,
             });
             addedPlayers.add(player.uuid + '_mvp');
           }
@@ -91,7 +91,7 @@ const ResultadosEncuesta = () => {
         
         // Arquero
         if (resultsData.arquero_id) {
-          const player = partidoData.jugadores.find(j => j.uuid === resultsData.arquero_id);
+          const player = partidoData.jugadores.find((j) => j.uuid === resultsData.arquero_id);
           if (player && !addedPlayers.has(player.uuid + '_guante_dorado')) {
             animations.push({
               playerName: player.nombre,
@@ -99,7 +99,7 @@ const ResultadosEncuesta = () => {
               badgeType: 'guante_dorado',
               badgeText: 'GUANTE DORADO',
               badgeIcon: '🧤',
-              votes: resultsData.arquero_votes
+              votes: resultsData.arquero_votes,
             });
             addedPlayers.add(player.uuid + '_guante_dorado');
           }
@@ -107,14 +107,14 @@ const ResultadosEncuesta = () => {
         
         // Jugadores violentos
         if (resultsData.jugadores_violentos && resultsData.jugadores_violentos.length > 0) {
-          const firstViolentPlayer = partidoData.jugadores.find(j => j.uuid === resultsData.jugadores_violentos[0]);
+          const firstViolentPlayer = partidoData.jugadores.find((j) => j.uuid === resultsData.jugadores_violentos[0]);
           if (firstViolentPlayer && !addedPlayers.has(firstViolentPlayer.uuid + '_tarjeta_roja')) {
             animations.push({
               playerName: firstViolentPlayer.nombre,
               playerAvatar: firstViolentPlayer.avatar_url || firstViolentPlayer.foto_url,
               badgeType: 'tarjeta_roja',
               badgeText: 'TARJETA ROJA',
-              badgeIcon: '🟥'
+              badgeIcon: '🟥',
             });
             addedPlayers.add(firstViolentPlayer.uuid + '_tarjeta_roja');
           }
@@ -122,8 +122,8 @@ const ResultadosEncuesta = () => {
         
         // Ausencias
         if (resultsData.jugadores_ausentes && resultsData.jugadores_ausentes.length > 0) {
-          resultsData.jugadores_ausentes.forEach(jugadorId => {
-            const player = partidoData.jugadores.find(j => j.uuid === jugadorId);
+          resultsData.jugadores_ausentes.forEach((jugadorId) => {
+            const player = partidoData.jugadores.find((j) => j.uuid === jugadorId);
             if (player && !addedPlayers.has(player.uuid + '_ausencia')) {
               animations.push({
                 playerName: player.nombre,
@@ -132,7 +132,7 @@ const ResultadosEncuesta = () => {
                 badgeType: 'ausencia_injustificada',
                 badgeText: 'AUSENCIAS INJUSTIFICADAS',
                 badgeIcon: '📉',
-                pointsLost: -0.3
+                pointsLost: -0.3,
               });
               addedPlayers.add(player.uuid + '_ausencia');
             }
@@ -160,7 +160,7 @@ const ResultadosEncuesta = () => {
     if (showingBadgeAnimations && badgeAnimations.length > 0 && !animationComplete) {
       if (currentAnimationIndex < badgeAnimations.length - 1) {
         const timer = setTimeout(() => {
-          setCurrentAnimationIndex(prev => prev + 1);
+          setCurrentAnimationIndex((prev) => prev + 1);
         }, 3000);
         return () => clearTimeout(timer);
       } else {
@@ -197,7 +197,7 @@ const ResultadosEncuesta = () => {
     const animation = animations[Math.min(currentAnimationIndex, animations.length - 1)];
     if (!animation) return null;
     
-    const player = jugadores.find(j => j.nombre === animation.playerName);
+    const player = jugadores.find((j) => j.nombre === animation.playerName);
     const isAbsence = animation.badgeType === 'ausencia_injustificada';
     
     return (
@@ -209,7 +209,7 @@ const ResultadosEncuesta = () => {
         minHeight: '100vh',
         width: '100%',
         padding: '20px',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
       }}>
         <div style={{
           display: 'flex',
@@ -218,7 +218,7 @@ const ResultadosEncuesta = () => {
           justifyContent: 'center',
           minHeight: '500px',
           maxWidth: '400px',
-          width: '100%'
+          width: '100%',
         }}>
           
           <div style={{
@@ -227,7 +227,7 @@ const ResultadosEncuesta = () => {
             justifyContent: 'center',
             marginBottom: '15px',
             textAlign: 'center',
-            width: '100%'
+            width: '100%',
           }}>
             <div style={{
               color: '#FFD700',
@@ -236,12 +236,12 @@ const ResultadosEncuesta = () => {
               fontFamily: "'Oswald', Arial, sans-serif",
               lineHeight: '1.2',
               wordWrap: 'break-word',
-              maxWidth: '100%'
+              maxWidth: '100%',
             }}>
               {animation.badgeType === 'mvp' ? 'MVP' : 
-               animation.badgeType === 'guante_dorado' ? 'GUANTE DORADO' : 
-               animation.badgeType === 'tarjeta_roja' ? 'TARJETA ROJA' :
-               animation.badgeType === 'ausencia_injustificada' ? 'AUSENCIAS INJUSTIFICADAS' : animation.badgeText}
+                animation.badgeType === 'guante_dorado' ? 'GUANTE DORADO' : 
+                  animation.badgeType === 'tarjeta_roja' ? 'TARJETA ROJA' :
+                    animation.badgeType === 'ausencia_injustificada' ? 'AUSENCIAS INJUSTIFICADAS' : animation.badgeText}
             </div>
           </div>
           
@@ -249,14 +249,14 @@ const ResultadosEncuesta = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: '0px'
+            marginBottom: '0px',
           }}>
             {player && (
               <div style={{ 
                 pointerEvents: 'none',
                 opacity: 1,
                 transition: 'none',
-                transform: 'scale(0.9)'
+                transform: 'scale(0.9)',
               }}>
                 <ProfileCard 
                   profile={player}
@@ -271,10 +271,10 @@ const ResultadosEncuesta = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: '5px'
+            marginBottom: '5px',
           }}>
             <div style={{
-              fontSize: '55px'
+              fontSize: '55px',
             }}>
               {animation.badgeIcon}
             </div>
@@ -284,13 +284,13 @@ const ResultadosEncuesta = () => {
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
             }}>
               <div style={{
                 color: '#FFD700',
                 fontSize: '24px',
                 fontWeight: '700',
-                fontFamily: "'Oswald', Arial, sans-serif"
+                fontFamily: "'Oswald', Arial, sans-serif",
               }}>
                 {animation.votes} VOTOS
               </div>
@@ -301,13 +301,13 @@ const ResultadosEncuesta = () => {
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
             }}>
               <div style={{
                 color: '#FFD700',
                 fontSize: '24px',
                 fontWeight: '700',
-                fontFamily: "'Oswald', Arial, sans-serif"
+                fontFamily: "'Oswald', Arial, sans-serif",
               }}>
                 {animation.pointsLost} PUNTOS
               </div>
@@ -353,7 +353,7 @@ const ResultadosEncuesta = () => {
           backgroundColor: 'rgba(0, 0, 0, 0.9)',
           zIndex: 999,
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
         }}>
           <div style={{
             position: 'absolute',
@@ -363,7 +363,7 @@ const ResultadosEncuesta = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1001
+            zIndex: 1001,
           }}>
             <div className="voting-title-modern">
               RESULTADOS DE LA ENCUESTA
@@ -375,7 +375,7 @@ const ResultadosEncuesta = () => {
             alignItems: 'center',
             justifyContent: 'center',
             minHeight: '100vh',
-            width: '100%'
+            width: '100%',
           }}>
             {badgeAnimations.length > 0 && (
               <BadgeAnimation animations={badgeAnimations} />
@@ -393,7 +393,7 @@ const ResultadosEncuesta = () => {
                 transform: 'translateX(-50%)',
                 zIndex: 1002,
                 width: '300px',
-                maxWidth: '90vw'
+                maxWidth: '90vw',
               }}
             >
               ACEPTAR
