@@ -18,7 +18,6 @@ export default function ProfileEditor({ isOpen, onClose }) {
   const cleanDate = (dateString) => dateString ? dateString.split('T')[0] : '';
 
   const [formData, setFormData] = useState({
-    numero: 10,
     nombre: '',
     email: '',
     nacionalidad: 'Argentina',
@@ -59,7 +58,6 @@ export default function ProfileEditor({ isOpen, onClose }) {
       }
 
       const newFormData = {
-        numero: profile.numero || 10,
         nombre: profile.nombre || '',
         email: profile.email || user?.email || '',
         nacionalidad: profile.nacionalidad || 'Argentina',
@@ -445,18 +443,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label>Número</label>
-                  <input
-                    className="input-modern-small"
-                    type="number"
-                    min="1"
-                    max="99"
-                    value={formData.numero}
-                    onChange={(e) => handleInputChange('numero', parseInt(e.target.value) || 10)}
-                    placeholder="10"
-                  />
-                </div>
+
               </div>
 
               <input

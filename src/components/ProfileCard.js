@@ -99,7 +99,6 @@ const ProfileCardComponent = ({
     matchesPlayed: profile?.partidos_jugados || 0,
     matchesAbandoned: profile?.partidos_abandonados || 0,
     position: getPositionAbbr(profile?.posicion || profile?.posicion_favorita),
-    number: clamp(Number(profile?.numero) || 10, 1, 99),
     countryCode: profile?.pais_codigo || 'AR',
     countryName: getCountryCode(profile?.pais_codigo),
   };
@@ -286,12 +285,6 @@ const ProfileCardComponent = ({
             </div>
             <div className="pc-overlays">
               <div className="pc-middle-right-badges">
-                <div className="pc-badge-number">
-                  <span className="pc-number">#{playerData.number}</span>
-                </div>
-                <div className={`pc-badge-position ${playerData.position.toLowerCase()}`}>
-                  <span className="pc-position">{playerData.position}</span>
-                </div>
                 {/* MVP Badge */}
                 {(profile?.mvps > 0) && (
                   <div className="pc-badge-mvp">
@@ -304,7 +297,12 @@ const ProfileCardComponent = ({
                 {/* Red Card Badge */}
                 {(profile?.tarjetas_rojas > 0) && (
                   <div className="pc-badge-red-card">
-                    <div className="pc-red-card-icon">🟥</div>
+                    <svg className="pc-red-card-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+                      <mask id="ipSRectangle0">
+                        <path fill="#fff" stroke="#fff" strokeWidth="4" d="M38 4H10a2 2 0 0 0-2 2v36a2 2 0 0 0 2 2h28a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"/>
+                      </mask>
+                      <path fill="currentColor" d="M0 0h48v48H0z" mask="url(#ipSRectangle0)"/>
+                    </svg>
                     <span className="pc-badge-count">{profile.tarjetas_rojas}</span>
                   </div>
                 )}
@@ -319,6 +317,9 @@ const ProfileCardComponent = ({
                 )}
               </div>
               <div className="pc-bottom-left-badges">
+                <div className={`pc-badge-position ${playerData.position.toLowerCase()}`}>
+                  <span className="pc-position">{playerData.position}</span>
+                </div>
                 <div className="pc-badge-column">
                   <img
                     src={`https://flagcdn.com/w40/${playerData.countryCode.toLowerCase()}.png`}

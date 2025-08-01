@@ -40,6 +40,7 @@ import IngresoAdminPartido from './IngresoAdminPartido';
 import AuthPage from './components/AuthPage';
 import ResetPassword from './components/ResetPassword';
 import { useSurveyScheduler } from './hooks/useSurveyScheduler';
+import matchScheduler from './services/matchScheduler';
 
 const HomePage = () => {
   const location = useLocation();
@@ -338,6 +339,17 @@ const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
 
 function MainAppContent({ user }) {
   useSurveyScheduler();
+  
+  // Initialize match scheduler
+  useEffect(() => {
+    matchScheduler.start();
+    matchScheduler.loadActiveMatches();
+    
+    return () => {
+      matchScheduler.stop();
+    };
+  }, []);
+  
   const [modo, setModo] = useState('home');
   const [partidoActual, setPartidoActual] = useState(undefined);
   const [stepPartido, setStepPartido] = useState(ADMIN_STEPS.SELECT_TYPE);

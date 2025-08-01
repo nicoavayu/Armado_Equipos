@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase, checkPartidoCalificado } from '../supabase';
+import { processAbsenceWithoutNotice } from '../utils/matchStatsManager';
 import { toast } from 'react-toastify';
 import { useAuth } from '../components/AuthProvider';
 import { useBadges } from '../context/BadgeContext';
@@ -40,6 +41,7 @@ const EncuestaPartido = () => {
   const [yaCalificado, setYaCalificado] = useState(false);
   const [showingBadgeAnimations, setShowingBadgeAnimations] = useState(false);
   const [badgeAnimations, setBadgeAnimations] = useState([]);
+  const [showAcceptButton, setShowAcceptButton] = useState(false);
 
   // Cargar datos del partido y verificar si ya fue calificado
   useEffect(() => {
@@ -139,6 +141,16 @@ const EncuestaPartido = () => {
     });
   };
 
+  // Manejar aceptar animaciones y continuar
+  const handleAcceptAnimations = async () => {
+    setShowingBadgeAnimations(false);
+    setShowAcceptButton(false);
+    setBadgeAnimations([]);
+    
+    // Continuar con el resto del flujo de envío
+    await continueSubmitFlow();
+  };
+
   // Función para actualizar ranking de usuario
   const updatePlayerRanking = async (playerId, change) => {
     try {
@@ -183,80 +195,10 @@ const EncuestaPartido = () => {
     }
   };
 
-  // Enviar encuesta
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!user || !partidoId) {
-      toast.error('Debes iniciar sesión para calificar un partido');
-      return;
-    }
-    
-    setSubmitting(true);
-    
-    // Preparar animaciones de badges solo si se jugó el partido
-    const animations = [];
-    if (formData.se_jugo) {
-      if (formData.mvp_id) {
-        const player = jugadores.find(j => j.uuid === formData.mvp_id);
-        if (player) {
-          animations.push({
-            playerName: player.nombre,
-            playerAvatar: player.avatar_url || player.foto_url,
-            badgeType: 'mvp',
-            badgeText: 'MVP',
-            badgeIcon: '🏆'
-          });
-        }
-      }
-      if (formData.arquero_id) {
-        const player = jugadores.find(j => j.uuid === formData.arquero_id);
-        if (player) {
-          animations.push({
-            playerName: player.nombre,
-            playerAvatar: player.avatar_url || player.foto_url,
-            badgeType: 'guante_dorado',
-            badgeText: 'GUANTE DORADO',
-            badgeIcon: '🥅'
-          });
-        }
-      }
-      if (formData.jugadores_violentos.length > 0) {
-        formData.jugadores_violentos.forEach(jugadorId => {
-          const player = jugadores.find(j => j.uuid === jugadorId);
-          if (player) {
-            animations.push({
-              playerName: player.nombre,
-              playerAvatar: player.avatar_url || player.foto_url,
-              badgeType: 'tarjeta_roja',
-              badgeText: 'TARJETA ROJA',
-              badgeIcon: '🟥'
-            });
-          }
-        });
-      }
-    }
-    
-    // Mostrar animaciones si hay badges
-    if (animations.length > 0) {
-      console.log('[BADGE_ANIMATIONS] Showing animations:', animations);
-      setBadgeAnimations(animations);
-      setShowingBadgeAnimations(true);
-      
-      // Esperar a que terminen las animaciones
-      await new Promise(resolve => {
-        setTimeout(() => {
-          console.log('[BADGE_ANIMATIONS] Hiding animations');
-          setShowingBadgeAnimations(false);
-          resolve();
-        }, 3000); // 3 segundos total
-      });
-    } else {
-      console.log('[BADGE_ANIMATIONS] No animations to show');
-    }
-    
+  // Continuar con el flujo de envío después de las animaciones
+  const continueSubmitFlow = async () => {
     try {
-      // Preparar datos para guardar
+      // Lógica de guardado de datos...
       const surveyData = {
         partido_id: parseInt(partidoId),
         se_jugo: formData.se_jugo,
@@ -272,13 +214,13 @@ const EncuestaPartido = () => {
         created_at: new Date().toISOString(),
       };
       
-      // Procesar ausencias y aplicar penalización de ranking
+      // Procesar ausencias sin aviso
       if (formData.jugadores_ausentes.length > 0) {
         for (const jugadorId of formData.jugadores_ausentes) {
           try {
-            await updatePlayerRanking(jugadorId, -0.3);
+            await processAbsenceWithoutNotice(jugadorId, parseInt(partidoId), user.id);
           } catch (error) {
-            console.error('Error updating ranking for absent player:', error);
+            console.error('Error processing absence without notice:', error);
           }
         }
       }
@@ -391,6 +333,80 @@ const EncuestaPartido = () => {
     }
   };
 
+  // Enviar encuesta
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!user || !partidoId) {
+      toast.error('Debes iniciar sesión para calificar un partido');
+      return;
+    }
+    
+    setSubmitting(true);
+    
+    // Preparar animaciones de badges solo si se jugó el partido
+    const animations = [];
+    if (formData.se_jugo) {
+      if (formData.mvp_id) {
+        const player = jugadores.find(j => j.uuid === formData.mvp_id);
+        if (player) {
+          animations.push({
+            playerName: player.nombre,
+            playerAvatar: player.avatar_url || player.foto_url,
+            badgeType: 'mvp',
+            badgeText: 'MVP',
+            badgeIcon: '🏆'
+          });
+        }
+      }
+      if (formData.arquero_id) {
+        const player = jugadores.find(j => j.uuid === formData.arquero_id);
+        if (player) {
+          animations.push({
+            playerName: player.nombre,
+            playerAvatar: player.avatar_url || player.foto_url,
+            badgeType: 'guante_dorado',
+            badgeText: 'GUANTE DORADO',
+            badgeIcon: '🧤'
+          });
+        }
+      }
+      if (formData.jugadores_violentos.length > 0) {
+        formData.jugadores_violentos.forEach(jugadorId => {
+          const player = jugadores.find(j => j.uuid === jugadorId);
+          if (player) {
+            animations.push({
+              playerName: player.nombre,
+              playerAvatar: player.avatar_url || player.foto_url,
+              badgeType: 'tarjeta_roja',
+              badgeText: 'TARJETA ROJA',
+              badgeIcon: '🟥'
+            });
+          }
+        });
+      }
+    }
+    
+    // Mostrar animaciones si hay badges
+    if (animations.length > 0) {
+      console.log('[BADGE_ANIMATIONS] Showing animations:', animations);
+      setBadgeAnimations(animations);
+      setShowingBadgeAnimations(true);
+      
+      // Mostrar botón de aceptar después de las animaciones
+      setTimeout(() => {
+        setShowAcceptButton(true);
+      }, 2000); // 2 segundos para que terminen las animaciones
+      
+      // Esperar a que el usuario presione aceptar
+      return;
+    } else {
+      console.log('[BADGE_ANIMATIONS] No animations to show');
+      // Si no hay animaciones, continuar directamente
+      await continueSubmitFlow();
+    }
+  };
+
   // Formatear fecha para mostrar
   const formatFecha = (fechaStr) => {
     try {
@@ -406,32 +422,29 @@ const EncuestaPartido = () => {
     }
   };
 
-  const BadgeAnimation = ({ animation, index }) => {
+  const BadgeAnimation = ({ animations }) => {
     return (
-      <div 
-        className={`badge-animation badge-${animation.badgeType}`}
-        style={{
-          animationDelay: `${index * 1}s`
-        }}
-      >
-        <div className="badge-player-card">
-          <div className="badge-player-avatar">
-            {animation.playerAvatar ? (
-              <img src={animation.playerAvatar} alt={animation.playerName} />
-            ) : (
-              <div className="badge-avatar-placeholder">
-                {animation.playerName.charAt(0)}
+      <div className="badge-all-awards">
+        {animations.map((animation, index) => (
+          <div key={index} className={`badge-award-item badge-${animation.badgeType}`}>
+            <div className="badge-player-card">
+              <div className="badge-player-avatar">
+                {animation.playerAvatar ? (
+                  <img src={animation.playerAvatar} alt={animation.playerName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div className="badge-avatar-placeholder" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: '24px', fontWeight: '600' }}>
+                    {animation.playerName.charAt(0)}
+                  </div>
+                )}
               </div>
-            )}
+              <div className="badge-player-info">
+                <div className="badge-award-text">{animation.badgeText}</div>
+                <div className="badge-player-name">{animation.playerName}</div>
+              </div>
+            </div>
+            <div className="badge-animation-icon">{animation.badgeIcon}</div>
           </div>
-          <div className="badge-player-name">{animation.playerName}</div>
-        </div>
-        <div className="badge-animation-text">
-          <div className="badge-award-text">GANÓ {animation.badgeText}</div>
-        </div>
-        <div className={`badge-animation-icon badge-icon-${animation.badgeType}`}>
-          {animation.badgeIcon}
-        </div>
+        ))}
       </div>
     );
   };
@@ -441,9 +454,17 @@ const EncuestaPartido = () => {
       <>
         {showingBadgeAnimations && (
           <div className="badge-animations-overlay">
-            {badgeAnimations.map((animation, index) => (
-              <BadgeAnimation key={index} animation={animation} index={index} />
-            ))}
+            <div className="badge-carousel-container">
+              <BadgeAnimation animations={badgeAnimations} />
+            </div>
+            {showAcceptButton && (
+              <button 
+                className="badge-accept-btn"
+                onClick={handleAcceptAnimations}
+              >
+                <span>ACEPTAR</span>
+              </button>
+            )}
           </div>
         )}
         <div className="voting-bg">
@@ -460,9 +481,17 @@ const EncuestaPartido = () => {
       <>
         {showingBadgeAnimations && (
           <div className="badge-animations-overlay">
-            {badgeAnimations.map((animation, index) => (
-              <BadgeAnimation key={index} animation={animation} index={index} />
-            ))}
+            <div className="badge-carousel-container">
+              <BadgeAnimation animations={badgeAnimations} />
+            </div>
+            {showAcceptButton && (
+              <button 
+                className="badge-accept-btn"
+                onClick={handleAcceptAnimations}
+              >
+                <span>ACEPTAR</span>
+              </button>
+            )}
           </div>
         )}
         <div className="voting-bg">
@@ -814,9 +843,17 @@ const EncuestaPartido = () => {
       <div className="voting-bg">
         {showingBadgeAnimations && (
           <div className="badge-animations-overlay">
-            {badgeAnimations.map((animation, index) => (
-              <BadgeAnimation key={index} animation={animation} index={index} />
-            ))}
+            <div className="badge-carousel-container">
+              <BadgeAnimation animations={badgeAnimations} />
+            </div>
+            {showAcceptButton && (
+              <button 
+                className="badge-accept-btn"
+                onClick={handleAcceptAnimations}
+              >
+                <span>ACEPTAR</span>
+              </button>
+            )}
           </div>
         )}
         <div className="voting-modern-card">

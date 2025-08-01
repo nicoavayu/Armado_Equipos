@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase, processPostMatchSurveys, checkSurveysProcessed, markSurveysAsProcessed } from '../supabase';
 import { useAuth } from './AuthProvider';
 import { useBadges } from '../context/BadgeContext';
+import { processAbsenceWithoutNotice } from '../utils/matchStatsManager';
 import { toast } from 'react-toastify';
 import './PostMatchSurvey.css';
 
@@ -222,9 +223,9 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
       if (!survey.se_jugo && survey.jugadores_ausentes.length > 0) {
         for (const playerId of survey.jugadores_ausentes) {
           try {
-            await updatePlayerRanking(playerId, -0.3);
+            await processAbsenceWithoutNotice(playerId, partido.id, user.id);
           } catch (error) {
-            console.error('Error updating ranking for absent player (no match):', error);
+            console.error('Error processing absence without notice (no match):', error);
           }
         }
       }
@@ -233,9 +234,9 @@ const PostMatchSurvey = ({ partido, onClose, onSubmit }) => {
       if (survey.se_jugo && !survey.asistieron_todos && survey.jugadores_ausentes.length > 0) {
         for (const playerId of survey.jugadores_ausentes) {
           try {
-            await updatePlayerRanking(playerId, -0.3);
+            await processAbsenceWithoutNotice(playerId, partido.id, user.id);
           } catch (error) {
-            console.error('Error updating ranking for absent player (match played):', error);
+            console.error('Error processing absence without notice (match played):', error);
           }
         }
       }

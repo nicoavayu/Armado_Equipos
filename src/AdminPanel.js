@@ -13,7 +13,8 @@ import {
   getTeamsFromDatabase,
   supabase,
 } from './supabase';
-import { incrementPartidosAbandonados } from './services/matchStatsService';
+import { incrementMatchesAbandoned, canAbandonWithoutPenalty } from './utils/matchStatsManager';
+import matchScheduler from './services/matchScheduler';
 import { toast } from 'react-toastify';
 import { handleError, handleSuccess, safeAsync } from './utils/errorHandler';
 import { UI_MESSAGES, VALIDATION_RULES } from './constants';
@@ -227,6 +228,11 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       try {
         console.log('[ADMIN_PANEL] Fetching players from jugadores table for match:', partidoActual.id);
         
+        // Schedule match for automatic stats tracking
+        if (partidoActual.fecha && partidoActual.hora) {
+          matchScheduler.scheduleMatch(partidoActual.id, partidoActual.fecha, partidoActual.hora);
+        }
+        
         // Verificar si cambió el admin del partido
         const { data: partidoData } = await supabase
           .from('partidos')
@@ -401,12 +407,18 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         
       if (error) throw error;
       
-      // Solo incrementar partidos abandonados si es auto-eliminación
+      // Solo incrementar partidos abandonados si es auto-eliminación y se baja con menos de 4h
       if (esAutoEliminacion && jugadorAEliminar?.usuario_id) {
         try {
-          await incrementPartidosAbandonados(jugadorAEliminar.usuario_id);
+          const canAbandonSafely = canAbandonWithoutPenalty(partidoActual.fecha, partidoActual.hora);
+          if (!canAbandonSafely) {
+            await incrementMatchesAbandoned(jugadorAEliminar.usuario_id);
+            console.log('[MATCH_STATS] Player abandoned match within 4 hours');
+          } else {
+            console.log('[MATCH_STATS] Player left match safely (more than 4 hours before)');
+          }
         } catch (abandonError) {
-          console.error('Error incrementing abandoned matches:', abandonError);
+          console.error('Error processing match abandonment:', abandonError);
         }
       }
       
