@@ -41,6 +41,7 @@ export default function VotingView({ onReset, jugadores }) {
   const [editandoIdx, setEditandoIdx] = useState(null);
   const [confirmando, setConfirmando] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
+  const [animating, setAnimating] = useState(false);
 
   // Chequeo global: ¿El usuario actual ya votó?
   const [usuarioYaVoto, setUsuarioYaVoto] = useState(false);
@@ -93,8 +94,14 @@ export default function VotingView({ onReset, jugadores }) {
             setUsuarioNoInvitado(true);
             return setCargandoVotoUsuario(false);
           }
-        } else if (typeof getGuestSessionId === 'function') {
-          userId = getGuestSessionId(partidoId);
+        } else {
+          // Usuario no autenticado - permitir votar como invitado
+          if (typeof getGuestSessionId === 'function') {
+            userId = getGuestSessionId(partidoId);
+          } else {
+            // Generar ID temporal para invitados
+            userId = `guest_${partidoId}_${Date.now()}`;
+          }
         }
 
         if (!userId) return setCargandoVotoUsuario(false);
@@ -138,26 +145,7 @@ export default function VotingView({ onReset, jugadores }) {
     );
   }
 
-  // [TEAM_BALANCER_EDIT] Si el usuario no está invitado, mostrar mensaje
-  if (usuarioNoInvitado) {
-    return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
-          <div className="voting-title-modern">
-            NO ESTÁS INVITADO
-          </div>
-          <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30 }}>
-            No estás en la nómina de este partido.<br />Solo los jugadores invitados pueden votar.
-          </div>
-          <button
-            className="voting-confirm-btn"
-            onClick={onReset}
-            style={{ marginTop: 16 }}
-          >VOLVER AL INICIO</button>
-        </div>
-      </div>
-    );
-  }
+
   
   // Si ya votó, bloquear el flujo entero
   if (usuarioYaVoto) {
@@ -313,7 +301,7 @@ export default function VotingView({ onReset, jugadores }) {
           <div className="voting-title-modern">
             CALIFICÁ A TUS COMPAÑEROS
           </div>
-          <div className="player-vote-card slide-in">
+          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
             <div className="voting-player-name">{jugadorVotar.nombre}</div>
             <div className="voting-photo-box">
               {jugadorVotar.avatar_url ? (
@@ -325,14 +313,20 @@ export default function VotingView({ onReset, jugadores }) {
             <StarRating
               value={valor}
               onChange={(valor) => {
+                if (animating) return;
+                setAnimating(true);
                 setVotos((prev) => ({ ...prev, [jugadorVotar.uuid]: valor }));
-                if (editandoIdx !== null) {
-                  setEditandoIdx(null);
-                  setStep(3);
-                } else {
-                  setCurrent((cur) => cur + 1);
-                }
-                setHovered(null);
+                
+                setTimeout(() => {
+                  if (editandoIdx !== null) {
+                    setEditandoIdx(null);
+                    setStep(3);
+                  } else {
+                    setCurrent((cur) => cur + 1);
+                  }
+                  setHovered(null);
+                  setAnimating(false);
+                }, 200);
               }}
               hovered={hovered}
               setHovered={setHovered}
@@ -341,14 +335,20 @@ export default function VotingView({ onReset, jugadores }) {
               className="voting-confirm-btn"
               style={{ marginTop: 35, marginBottom: 0, fontWeight: 400 }}
               onClick={() => {
+                if (animating) return;
+                setAnimating(true);
                 setVotos((prev) => ({ ...prev, [jugadorVotar.uuid]: undefined }));
-                if (editandoIdx !== null) {
-                  setEditandoIdx(null);
-                  setStep(3);
-                } else {
-                  setCurrent((cur) => cur + 1);
-                }
-                setHovered(null);
+                
+                setTimeout(() => {
+                  if (editandoIdx !== null) {
+                    setEditandoIdx(null);
+                    setStep(3);
+                  } else {
+                    setCurrent((cur) => cur + 1);
+                  }
+                  setHovered(null);
+                  setAnimating(false);
+                }, 200);
               }}
             >
               NO LO CONOZCO

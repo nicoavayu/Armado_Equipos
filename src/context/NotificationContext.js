@@ -211,6 +211,15 @@ export const NotificationProvider = ({ children }) => {
       case 'post_match_survey':
         toast.info(`📋 ${notification.title}: ${notification.message}`, toastOptions);
         break;
+      case 'admin_transfer':
+        toast.success(`👑 ${notification.title}: ${notification.message}`, toastOptions);
+        // Auto-refresh if forceRefresh is true
+        if (notification.data?.forceRefresh) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
+        break;
       default:
         toast.info(`📣 ${notification.title}: ${notification.message}`, toastOptions);
         break;

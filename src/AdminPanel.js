@@ -74,10 +74,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   console.log('Jugadores en AdminPanel:', jugadores);
   
   // [TEAM_BALANCER_EDIT] Control de permisos: verificar si el usuario es admin del partido
-  const isAdmin = user?.id && (
-    partidoActual?.creado_por === user.id || 
-    (partidoActual?.admins && partidoActual.admins.includes(user.id))
-  );
+  const isAdmin = user?.id && partidoActual?.creado_por === user.id;
   const currentPlayerInMatch = jugadores.find((j) => j.usuario_id === user?.id);
   const isPlayerInMatch = !!currentPlayerInMatch;
   
@@ -229,6 +226,19 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       if (!partidoActual?.id) return;
       try {
         console.log('[ADMIN_PANEL] Fetching players from jugadores table for match:', partidoActual.id);
+        
+        // Verificar si cambió el admin del partido
+        const { data: partidoData } = await supabase
+          .from('partidos')
+          .select('creado_por')
+          .eq('id', partidoActual.id)
+          .single();
+          
+        if (partidoData && partidoData.creado_por !== partidoActual.creado_por) {
+          console.log('[ADMIN_PANEL] Admin changed, reloading page');
+          window.location.reload();
+          return;
+        }
         
         const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
         console.log('[ADMIN_PANEL] Players fetched:', {
@@ -699,53 +709,73 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     window.open(`https://wa.me/?text=${encodeURIComponent('Entrá a votar para armar los equipos: ' + url)}`, '_blank');
   }
   
-  // [TEAM_BALANCER_EDIT] Función para agregar admin
-  async function agregarAdmin(nuevoAdminId) {
+  // [TEAM_BALANCER_EDIT] Función para transferir admin (solo el creador puede transferir)
+  async function transferirAdmin(jugadorId) {
     if (!isAdmin) {
-      toast.error('Solo un admin puede hacer admin a otros');
+      toast.error('Solo el creador puede transferir el rol de admin');
       return;
     }
     
-    if (!nuevoAdminId) {
-      toast.error('Jugador inválido');
+    // Encontrar el jugador y obtener su usuario_id
+    const jugador = jugadores.find(j => j.id === jugadorId || j.usuario_id === jugadorId);
+    if (!jugador || !jugador.usuario_id) {
+      toast.error('El jugador debe tener una cuenta para ser admin');
+      return;
+    }
+    
+    if (jugador.usuario_id === user.id) {
+      toast.error('Ya eres el admin del partido');
+      return;
+    }
+    
+    if (!window.confirm('¿Estás seguro de transferir el rol de admin? Perderás el control del partido.')) {
       return;
     }
     
     try {
-      // Obtener admins actuales
-      const { data: partidoData } = await supabase
-        .from('partidos')
-        .select('admins')
-        .eq('id', partidoActual.id)
-        .single();
-        
-      const adminsActuales = partidoData?.admins || [partidoActual.creado_por];
-      
-      // Verificar si ya es admin
-      if (adminsActuales.includes(nuevoAdminId)) {
-        toast.error('Este jugador ya es admin');
-        return;
-      }
-      
-      // Agregar nuevo admin
-      const nuevosAdmins = [...adminsActuales, nuevoAdminId];
-      
       const { error } = await supabase
         .from('partidos')
-        .update({ admins: nuevosAdmins })
+        .update({ creado_por: jugador.usuario_id })
         .eq('id', partidoActual.id);
         
       if (error) throw error;
       
       // Actualizar estado local
-      partidoActual.admins = nuevosAdmins;
+      partidoActual.creado_por = jugador.usuario_id;
       
-      const nuevoAdmin = jugadores.find((j) => j.usuario_id === nuevoAdminId);
-      toast.success(`${nuevoAdmin?.nombre || 'El jugador'} es ahora admin del partido`);
+      // Notificar al nuevo admin
+      await supabase.from('notifications').insert([{
+        user_id: jugador.usuario_id,
+        type: 'admin_transfer',
+        title: 'Eres el nuevo admin',
+        message: `Ahora eres admin del partido "${partidoActual.nombre || 'PARTIDO'}".`,
+        data: {
+          matchId: partidoActual.id,
+          matchName: partidoActual.nombre,
+          newAdminId: jugador.usuario_id
+        },
+        read: false
+      }]);
+      
+      // Actualizar el partido en la base de datos para trigger realtime
+      await supabase
+        .from('partidos')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', partidoActual.id);
+      
+      // Forzar re-render del componente
+      onJugadoresChange([...jugadores]);
+      
+      toast.success(`${jugador.nombre || 'El jugador'} es ahora el admin del partido`);
+      
+      // Refrescar la página después de un momento para asegurar que todos los permisos se actualicen
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
       
     } catch (error) {
-      console.error('Error adding admin:', error);
-      toast.error('Error al hacer admin: ' + error.message);
+      console.error('Error transferring admin:', error);
+      toast.error('Error al transferir admin: ' + error.message);
     }
   }
   
@@ -1257,7 +1287,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             {/* Players list section */}
             <div className="admin-players-section">
               <div className="admin-players-title">
-              JUGADORES ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'}) - VOTARON: {votantesConNombres.map((v) => v.nombre).join(', ') || 'Nadie aún'}
+              JUGADORES ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'}) - VOTARON: {votantesConNombres.length}/{jugadores.length}
                 {duplicatesDetected > 0 && isAdmin && (
                   <span style={{ 
                     color: '#ff6b35', 
@@ -1289,7 +1319,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                         key={j.uuid} 
                         profile={j}
                         partidoActual={partidoActual}
-                        onMakeAdmin={agregarAdmin}
+                        onMakeAdmin={transferirAdmin}
                       >
                         <div
                           className={`admin-player-item${hasVoted ? ' voted' : ''}`}
@@ -1309,45 +1339,40 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                             <div className="admin-player-avatar-placeholder">👤</div>
                           )}
 
-                          <span 
-                            className="admin-player-name"
-                            style={{
-                              color: (partidoActual?.creado_por === j.usuario_id || 
-                                     (partidoActual?.admins && partidoActual.admins.includes(j.usuario_id))) 
-                                ? '#FFD700' : 'white',
-                            }}
-                          >
-
-                            {j.nombre}
-                          </span>
-                          
-                          {/* [TEAM_BALANCER_EDIT] Botones de acción según permisos */}
-                          <div className="player-actions">
-
-                            
-                            {/* Botón eliminar - Admin puede eliminar a otros, jugadores solo a sí mismos */}
-                            {(isAdmin || j.usuario_id === user?.id) && (
-                              <button
-                                className="admin-remove-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const isOwnPlayer = j.usuario_id === user?.id;
-                                  const confirmMessage = isOwnPlayer 
-                                    ? '¿Estás seguro de que quieres salir del partido?' 
-                                    : `¿Eliminar a ${j.nombre} del partido?`;
-                                  if (window.confirm(confirmMessage)) {
-                                    eliminarJugador(j.uuid);
-                                  }
-                                }}
-                                type="button"
-                                aria-label={j.usuario_id === user?.id ? 'Salir del partido' : 'Eliminar jugador'}
-                                disabled={isClosing}
-                                title={j.usuario_id === user?.id ? 'Salir del partido' : 'Eliminar jugador'}
-                              >
-                                {j.usuario_id === user?.id ? '🚪' : '×'}
-                              </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                            <span className="admin-player-name" style={{ color: 'white' }}>
+                              {j.nombre}
+                            </span>
+                            {/* Corona para admin */}
+                            {partidoActual?.creado_por === j.usuario_id && (
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="#FFD700">
+                                <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z"/>
+                              </svg>
                             )}
                           </div>
+                          
+                          {/* [TEAM_BALANCER_EDIT] Botón eliminar en el extremo derecho - Solo admin puede eliminar otros */}
+                          {isAdmin && j.usuario_id !== user?.id ? (
+                            <button
+                              className="admin-remove-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const isOwnPlayer = j.usuario_id === user?.id;
+                                const confirmMessage = isOwnPlayer 
+                                  ? '¿Estás seguro de que quieres salir del partido?' 
+                                  : `¿Eliminar a ${j.nombre} del partido?`;
+                                if (window.confirm(confirmMessage)) {
+                                  eliminarJugador(j.uuid);
+                                }
+                              }}
+                              type="button"
+                              aria-label={j.usuario_id === user?.id ? 'Salir del partido' : 'Eliminar jugador'}
+                              disabled={isClosing}
+                              title={j.usuario_id === user?.id ? 'Salir del partido' : 'Eliminar jugador'}
+                            >
+                              ×
+                            </button>
+                          ) : null}
                         </div>
                       </PlayerCardTrigger>
                     );

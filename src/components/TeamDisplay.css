@@ -84,14 +84,16 @@
 }
 
 /* ========== MATCH HEADER ========== */
+/* 🔧 ELEMENTO 1: Header completo del partido - Cambiar margin-top para acercar/alejar del PageTitle */
 .match-header-large {
   text-align: center;
-  margin: 0;
+  margin: -30px 0 0 0; /* ⬆️ Más negativo = más arriba */
   padding: 0 var(--container-margin);
   width: 100%;
   box-sizing: border-box;
 }
 
+/* 🔧 ELEMENTO 2: Título del partido (ej: "PARTIDO NUEVO") - Cambiar margin-bottom para separar de fecha */
 .match-title-large {
   font-family: 'Bebas Neue', Arial, sans-serif;
   font-size: clamp(2.5rem, 5vw, 3.3rem);
@@ -99,11 +101,12 @@
   color: #fff;
   text-transform: uppercase;
   letter-spacing: 2px;
-  margin-bottom: 0;
+  margin-bottom: -0px; /* ⬇️ Más negativo = más cerca de la fecha */
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   line-height: 1;
 }
 
+/* 🔧 ELEMENTO 3: Fecha y sede (ej: "lunes 3/2 21:00 – Cancha") - Cambiar margin-bottom para separar de "EQUIPOS FORMADOS" */
 .match-details-large {
   font-family: 'Oswald', Arial, sans-serif;
   font-size: clamp(1.2rem, 2.6vw, 1.5rem);
@@ -112,11 +115,14 @@
   text-align: center;
   line-height: 1.2;
   letter-spacing: 0.5px;
-  margin-bottom: 0;
+  margin-bottom: 20px; /* ⬇️ Menos valor = más cerca de "EQUIPOS FORMADOS" */
   display: flex;
   justify-content: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .venue-link-large {
@@ -135,6 +141,7 @@
 }
 
 /* ========== DISPLAY TITLE ========== */
+/* 🔧 ELEMENTO 4: Título "EQUIPOS FORMADOS" - Cambiar margin-bottom para separar de las cajas de equipos */
 .team-display-title {
   font-family: 'Bebas Neue', Arial, sans-serif;
   text-transform: uppercase;
@@ -142,20 +149,21 @@
   color: #fff;
   letter-spacing: 0.10em;
   font-weight: 700;
-  margin-bottom: 16px;
+  margin-bottom: 30px; /* ⬇️ Menos valor = más cerca de las cajas de equipos */
   text-align: center;
   line-height: 1.1;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* ========== TEAMS WRAPPER ========== */
+/* 🔧 ELEMENTO 5: Cajas de los equipos - Cambiar margin-bottom para separar de los botones */
 .teams-wrapper {
   display: flex;
   flex-direction: row;
   gap: var(--team-gap);
   width: 100%;
   box-sizing: border-box;
-  margin-bottom: 0;
+  margin-bottom: 10px; /* ⬇️ Más valor = más separación de los botones */
 }
 
 /* ========== TEAM CONTAINERS ========== */
@@ -372,26 +380,7 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-/* Score color coding */
-.player-score.score-low {
-  background: rgba(222, 28, 73, 0.9);
-  border-color: rgba(222, 28, 73, 0.5);
-}
 
-.player-score.score-below-avg {
-  background: rgba(255, 165, 0, 0.9);
-  border-color: rgba(255, 165, 0, 0.5);
-}
-
-.player-score.score-above-avg {
-  background: rgba(14, 169, 198, 0.9);
-  border-color: rgba(14, 169, 198, 0.5);
-}
-
-.player-score.score-high {
-  background: rgba(0, 212, 155, 0.9);
-  border-color: rgba(0, 212, 155, 0.5);
-}
 
 /* ========== LOCK ICON ========== */
 .lock-icon {
@@ -468,7 +457,7 @@
   flex-direction: column;
   gap: 12px;
   width: 100%;
-  margin-top: 4px;
+  margin-top: 2px;
   margin-bottom: 0;
 }
 
@@ -486,11 +475,11 @@
 /* ========== ACTION BUTTONS ========== */
 .team-action-btn {
   font-family: 'Bebas Neue', Arial, sans-serif !important;
-  font-size: 1.4rem;
+  font-size: 16px;
   color: #fff;
-  background: #8178e5;
-  border: 2px solid #fff;
-  border-radius: 50px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 10px;
   letter-spacing: 0.05em;
   padding: 0;
   margin: 0;
@@ -498,7 +487,7 @@
   height: 50px;
   cursor: pointer;
   font-weight: 700;
-  transition: var(--transition-medium);
+  transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
@@ -506,37 +495,35 @@
   align-items: center;
   justify-content: center;
   touch-action: manipulation;
+  gap: 8px;
 }
 
-.team-action-btn::before {
-  content: "";
-  position: absolute;
-  left: -100%;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.12);
-  transition: left 0.3s cubic-bezier(0.77, 0, 0.18, 1);
-  z-index: 1;
-}
-
-.team-action-btn:hover::before {
-  left: 0;
+.team-action-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
 }
 
 .team-action-btn:active {
   transform: scale(0.98);
 }
 
-.team-action-btn > span {
-  position: relative;
-  z-index: 2;
+/* Button variants */
+.randomize-btn { 
+  background: rgba(255, 255, 255, 0.2);
+}
+.averages-btn { 
+  background: rgba(255, 255, 255, 0.2);
+}
+.whatsapp-btn { 
+  background: #25d3656e;
+  border-color: #fff;
 }
 
-/* Button variants */
-.randomize-btn { background: #8178e5; }
-.averages-btn { background: #8178e5; }
-.whatsapp-btn { background: #25D366; }
+.whatsapp-btn:hover {
+  background: #20b3584c;
+  border-color: #fff;
+}
 
 /* ========== CONFETTI ANIMATION ========== */
 .confetti-container {

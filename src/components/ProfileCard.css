@@ -232,10 +232,14 @@
   color: #b8860b;
 }
 
+.pc-badge-mvp .pc-badge-count {
+  color: #fff;
+}
+
 /* Red Card Badge */
 .pc-badge-red-card {
-  background: linear-gradient(135deg, #ff1744cc 60%, #ffcdd2cc 100%);
-  border: 1px solid rgba(255, 23, 68, 0.4);
+  background: linear-gradient(135deg, #424242cc 60%, #757575cc 100%);
+  border: 1px solid rgba(66, 66, 66, 0.4);
   border-radius: 0.5rem;
   padding: 0.25rem 0.5rem;
   display: flex;
@@ -243,12 +247,34 @@
   gap: 0.25rem;
   color: #fff;
   font-weight: 700;
-  box-shadow: 0 0 8px rgba(255, 23, 68, 0.3);
+  box-shadow: 0 0 8px rgba(66, 66, 66, 0.3);
 }
 
 .pc-red-card-icon {
   font-size: 12px;
   line-height: 1;
+}
+
+/* Golden Glove Badge */
+.pc-badge-golden-glove {
+  background: linear-gradient(135deg, #9c27b0cc 60%, #e1bee7cc 100%);
+  border: 1px solid rgba(156, 39, 176, 0.4);
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #7b1fa2;
+  font-weight: 700;
+  box-shadow: 0 0 8px rgba(156, 39, 176, 0.3);
+}
+
+.pc-badge-golden-glove svg {
+  color: #ffd700;
+}
+
+.pc-badge-golden-glove .pc-badge-count {
+  color: #fff;
 }
 
 /* Badge count styling */

@@ -7,6 +7,7 @@ import { TeamDisplayContext } from './PlayerCardTrigger';
 import { supabase, saveTeamsToDatabase, getTeamsFromDatabase, subscribeToTeamsChanges, unsubscribeFromTeamsChanges } from '../supabase';
 import ChatButton from './ChatButton';
 import PageTitle from './PageTitle';
+import PlayerBadges from './PlayerBadges';
 import './TeamDisplay.css';
 import WhatsappIcon from './WhatsappIcon';
 import LoadingSpinner from './LoadingSpinner';
@@ -49,8 +50,17 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     };
     
     loadTeamsFromDatabase();
+  }, [partidoId]);
+  
+  // Update teams when props change
+  useEffect(() => {
+    setRealtimeTeams(teams);
+  }, [teams]);
+  
+  // Update players when props change
+  useEffect(() => {
     setRealtimePlayers(players);
-  }, [partidoId, teams, players, onTeamsChange]);
+  }, [players]);
   
   // Subscribe to real-time team changes
   useEffect(() => {
@@ -75,10 +85,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   
 
 
-  // Update local state when players change
-  useEffect(() => {
-    setRealtimePlayers(players);
-  }, [players]);
+
 
   if (
     !Array.isArray(realtimeTeams) ||
@@ -91,6 +98,27 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
   const getPlayerDetails = (playerId) => {
     return realtimePlayers.find((p) => p.uuid === playerId) || {};
+  };
+  
+  // Función para obtener color basado en el puntaje (1-10)
+  const getScoreColor = (score) => {
+    const normalizedScore = Math.max(1, Math.min(10, score || 5)); // Clamp entre 1-10
+    
+    if (normalizedScore <= 3) {
+      // Rojo para puntajes bajos (1-3)
+      const intensity = (normalizedScore - 1) / 2; // 0 a 1
+      return `rgba(222, 28, 73, ${0.7 + intensity * 0.3})`; // Más intenso para más bajo
+    } else if (normalizedScore <= 5) {
+      // Naranja para puntajes medio-bajos (3-5)
+      return `rgba(255, 165, 0, 0.9)`;
+    } else if (normalizedScore <= 7) {
+      // Azul para puntajes medio-altos (5-7)
+      return `rgba(14, 169, 198, 0.9)`;
+    } else {
+      // Verde para puntajes altos (7-10)
+      const intensity = (normalizedScore - 7) / 3; // 0 a 1
+      return `rgba(0, 212, 155, ${0.7 + intensity * 0.3})`; // Más intenso para más alto
+    }
   };
 
   const handleDragEnd = async (result) => {
@@ -431,8 +459,21 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                         </div>
                                       </div>
                                       <span>{player.nombre}</span>
+                                      <div style={{ marginTop: '4px' }}>
+                                        <PlayerBadges playerId={player.uuid || player.id} size="small" />
+                                      </div>
                                       {/* [TEAM_BALANCER_EDIT] Solo admin ve promedios y controles */}
-                                      {showAverages && isAdmin && <span className="player-score">{(player.score || 0).toFixed(2)}</span>}
+                                      {showAverages && isAdmin && (
+                                        <span 
+                                          className="player-score"
+                                          style={{ 
+                                            background: getScoreColor(player.score),
+                                            borderColor: getScoreColor(player.score).replace('0.9', '0.5')
+                                          }}
+                                        >
+                                          {(player.score || 0).toFixed(2)}
+                                        </span>
+                                      )}
                                       {isLocked && isAdmin && (
                                         <span className="lock-icon">
                                           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">

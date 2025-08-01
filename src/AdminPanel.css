@@ -527,14 +527,7 @@
   transform: scale(1.02) !important;
 }
 
-.admin-player-item.voted::after {
-  content: '✓';
-  color: #0f8;
-  font-weight: bold;
-  font-size: 18px;
-  margin-left: auto;
-  text-shadow: 0 0 4px rgb(0 255 136 / 60%);
-}
+
 
 .admin-player-avatar {
   width: 32px;
@@ -569,14 +562,14 @@
 }
 
 .admin-remove-btn {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   background: #DE1C49;
   color: #fff;
   border: none;
   border-radius: 50%;
   font-family: 'Bebas Neue', Arial, sans-serif;
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;

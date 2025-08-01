@@ -383,7 +383,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit,minmax(290px,1fr));
   gap: 22px;
-  margin-top: 29px;
+  margin-top: -10px;
   border-top: 2px solid var(--border);
   padding-top: 23px;
 }

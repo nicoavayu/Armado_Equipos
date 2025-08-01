@@ -22,7 +22,7 @@ export default function FifaHome({ onModoSeleccionado }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       setLoading(false);
-    }, 1000);
+    }, 2500);
     return () => clearTimeout(timer);
   }, []);
 

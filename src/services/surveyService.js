@@ -127,22 +127,16 @@ export const processSurveyResults = async (partidoId) => {
     if (!surveys || !surveys.length) return;
     
     // Count votes for each category
-    const mvpVotesTeamA = {};
-    const mvpVotesTeamB = {};
+    const mvpVotes = {};
     const goalkeeperVotes = {};
     const fairplayNegativeVotes = {};
     const absentPlayers = new Set();
     
     // Process each survey
     surveys.forEach((survey) => {
-      // Count MVP votes for team A
-      if (survey.mejor_jugador_eq_a) {
-        mvpVotesTeamA[survey.mejor_jugador_eq_a] = (mvpVotesTeamA[survey.mejor_jugador_eq_a] || 0) + 1;
-      }
-      
-      // Count MVP votes for team B
-      if (survey.mejor_jugador_eq_b) {
-        mvpVotesTeamB[survey.mejor_jugador_eq_b] = (mvpVotesTeamB[survey.mejor_jugador_eq_b] || 0) + 1;
+      // Count MVP votes (single best player)
+      if (survey.mejor_jugador) {
+        mvpVotes[survey.mejor_jugador] = (mvpVotes[survey.mejor_jugador] || 0) + 1;
       }
       
       // Count goalkeeper votes
@@ -180,8 +174,7 @@ export const processSurveyResults = async (partidoId) => {
       return { winnerId, voteCount: maxVotes };
     };
     
-    const mvpTeamA = findWinner(mvpVotesTeamA);
-    const mvpTeamB = findWinner(mvpVotesTeamB);
+    const mvpWinner = findWinner(mvpVotes);
     const bestGoalkeeper = findWinner(goalkeeperVotes);
     
     // Find players with significant negative fair play votes (more than 25% of surveys)
@@ -193,37 +186,29 @@ export const processSurveyResults = async (partidoId) => {
     // Create awards
     const awards = [];
     
-    // MVP awards
-    if (mvpTeamA.winnerId && mvpTeamA.voteCount > 0) {
+    // MVP award (only one per match)
+    if (mvpWinner.winnerId && mvpWinner.voteCount > 0) {
       awards.push({
-        jugador_id: mvpTeamA.winnerId,
+        jugador_id: mvpWinner.winnerId,
         award_type: 'mvp',
         partido_id: partidoId,
       });
     }
     
-    if (mvpTeamB.winnerId && mvpTeamB.voteCount > 0) {
-      awards.push({
-        jugador_id: mvpTeamB.winnerId,
-        award_type: 'mvp',
-        partido_id: partidoId,
-      });
-    }
-    
-    // Goalkeeper award
+    // Goalkeeper award (Guante Dorado)
     if (bestGoalkeeper.winnerId && bestGoalkeeper.voteCount > 0) {
       awards.push({
         jugador_id: bestGoalkeeper.winnerId,
-        award_type: 'arquero',
+        award_type: 'guante_dorado',
         partido_id: partidoId,
       });
     }
     
-    // Negative fair play awards
+    // Negative fair play awards (Tarjeta Roja)
     negativePlayersIds.forEach((playerId) => {
       awards.push({
         jugador_id: playerId,
-        award_type: 'fairplay_negativo',
+        award_type: 'tarjeta_roja',
         partido_id: partidoId,
       });
     });
@@ -237,47 +222,25 @@ export const processSurveyResults = async (partidoId) => {
       if (awardsError) throw awardsError;
     }
     
-    // Update player responsibility scores
-    // Decrease score for absent players
+    // Update player ratings for absent players (-0.5)
     if (absentPlayers.size > 0) {
       for (const playerId of absentPlayers) {
         const { data: player, error: playerError } = await supabase
-          .from('jugadores')
-          .select('responsabilidad_score')
-          .eq('uuid', playerId)
+          .from('usuarios')
+          .select('rating')
+          .eq('id', playerId)
           .single();
           
         if (playerError) continue;
         
-        const currentScore = player?.responsabilidad_score || 5;
-        const newScore = Math.max(1, currentScore - 0.5); // Decrease by 0.5, minimum 1
+        const currentRating = player?.rating || 5;
+        const newRating = Math.max(1, currentRating - 0.5); // Decrease by 0.5, minimum 1
         
         await supabase
-          .from('jugadores')
-          .update({ responsabilidad_score: newScore })
-          .eq('uuid', playerId);
+          .from('usuarios')
+          .update({ rating: newRating })
+          .eq('id', playerId);
       }
-    }
-    
-    // Increase score for survey participants
-    for (const survey of surveys) {
-      if (!survey.votante_id) continue;
-      
-      const { data: player, error: playerError } = await supabase
-        .from('jugadores')
-        .select('responsabilidad_score')
-        .eq('uuid', survey.votante_id)
-        .single();
-        
-      if (playerError) continue;
-      
-      const currentScore = player?.responsabilidad_score || 5;
-      const newScore = Math.min(10, currentScore + 0.1); // Increase by 0.1, maximum 10
-      
-      await supabase
-        .from('jugadores')
-        .update({ responsabilidad_score: newScore })
-        .eq('uuid', survey.votante_id);
     }
     
     return true;

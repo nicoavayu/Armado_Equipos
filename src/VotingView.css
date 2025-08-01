@@ -309,11 +309,11 @@
 .voting-title-modern {
   font-family: 'Bebas Neue', Arial, sans-serif !important;
   text-transform: uppercase;
-  font-size: 46px;
+  font-size: 64px;
   color: #fff;
   letter-spacing: 0.10em;
   font-weight: 700;
-  margin-bottom: 32px;
+  margin-bottom: 40px;
   text-align: center;
   line-height: 1.1;
   text-shadow: 0 2px 4px rgb(0 0 0 / 30%);
@@ -323,14 +323,16 @@
   background: transparent !important;
   border-radius: 0;
   box-shadow: 0 4px 32px 0 rgb(90 30 120 / 8%);
-  max-width: 520px;
-  margin: 48px auto 0;
-  padding: 38px 20px 32px;
+  width: 90vw;
+  max-width: 90vw;
+  margin: 0 auto;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 120px);
   box-sizing: border-box;
-  width: 100%;
 }
 
 .voting-bg {
@@ -721,11 +723,16 @@ select.input-modern {
 }
 
 .slide-in {
-  animation: slide-in 0.3s forwards;
+  animation: slide-in 0.4s ease-out forwards;
 }
 
 .slide-out {
-  animation: slide-out 0.3s forwards;
+  animation: slide-out 0.3s ease-in forwards;
+}
+
+.player-vote-card {
+  width: 100%;
+  transition: transform 0.3s ease;
 }
 
 /* Confirmation List Styles */
@@ -733,7 +740,7 @@ select.input-modern {
   list-style: none;
   padding: 0;
   width: 100%;
-  max-width: 520px;
+  max-width: 100%;
   margin: 0 auto 24px;
 }
 
@@ -985,10 +992,10 @@ select.input-modern {
 .voting-modern-card.confirmaciones-wrapper {
   display: flex;
   flex-direction: column;
-  max-width: 520px;
-  width: 100%;
+  width: 90vw;
+  max-width: 90vw;
   min-height: 430px;
-  max-height: 85vh;     /* <--- Ajusta según tu diseño */
+  max-height: 85vh;
   height: 85vh;
   background: transparent;
   justify-content: flex-start;

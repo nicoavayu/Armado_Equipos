@@ -1,7 +1,7 @@
 .star-rating {
   display: grid;
   grid-template-columns: repeat(10, 1fr);
-  gap: 6px;
+  gap: 1px;
   width: 100%;
   padding-bottom: 8px;
   margin-top: 12px;
@@ -19,7 +19,7 @@
   width: 100%;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 44px;
+  min-height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -94,8 +94,8 @@ const ProfileCardComponent = ({
     name: profile?.nombre || 'JUGADOR',
     handle: profile?.social?.replace('@', '') || 'jugador',
     avatarUrl: avatarUrl,
-    rating: profile?.rating || profile?.ranking || profile?.calificacion || 4.5,
-    responsabilidad: profile?.responsabilidad_score || 5,
+    rating: profile?.rating || profile?.ranking || profile?.calificacion || 5.0,
+    ranking: profile?.ranking || 5.0,
     matchesPlayed: profile?.partidos_jugados || 0,
     matchesAbandoned: profile?.partidos_abandonados || 0,
     position: getPositionAbbr(profile?.posicion || profile?.posicion_favorita),
@@ -308,6 +308,15 @@ const ProfileCardComponent = ({
                     <span className="pc-badge-count">{profile.tarjetas_rojas}</span>
                   </div>
                 )}
+                {/* Golden Glove Badge */}
+                {(profile?.guantes_dorados > 0) && (
+                  <div className="pc-badge-golden-glove">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width={16} height={16} fill="currentColor">
+                      <path d="M448 448L160 448L101.4 242.9C97.8 230.4 96 217.4 96 204.3C96 126.8 158.8 64 236.3 64L239.7 64C305.7 64 363.2 108.9 379.2 172.9L410.6 298.7L428.2 278.6C440.8 264.2 458.9 256 478 256L480.8 256C515.7 256 544.1 284.3 544.1 319.3C544.1 335.2 538.1 350.5 527.3 362.2L448 448zM128 528C128 510.3 142.3 496 160 496L448 496C465.7 496 480 510.3 480 528L480 544C480 561.7 465.7 576 448 576L160 576C142.3 576 128 561.7 128 544L128 528z"/>
+                    </svg>
+                    <span className="pc-badge-count">{profile.guantes_dorados}</span>
+                  </div>
+                )}
               </div>
               <div className="pc-bottom-left-badges">
                 <div className="pc-badge-column">
@@ -336,7 +345,7 @@ const ProfileCardComponent = ({
             </div>
             <div className="pc-rating-container">
               <span className="pc-responsibility-label">R:</span>
-              <span className="pc-responsibility-value">{playerData.responsabilidad.toFixed(1)}</span>
+              <span className="pc-responsibility-value">{playerData.ranking.toFixed(1)}</span>
             </div>
           </div>
 

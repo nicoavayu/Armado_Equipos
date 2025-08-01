@@ -9,6 +9,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import AuthProvider, { useAuth } from './components/AuthProvider';
 import DirectFix from './components/DirectFix';
 import Button from './components/Button';
+import LoadingSpinner from './components/LoadingSpinner';
 import NetworkStatus from './components/NetworkStatus';
 import TabBar from './components/TabBar';
 import FifaHome from './FifaHome';
@@ -31,6 +32,7 @@ import PageTitle from './components/PageTitle';
 
 import { NotificationProvider } from './context/NotificationContext';
 import { TutorialProvider } from './context/TutorialContext';
+import { BadgeProvider } from './context/BadgeContext';
 import Tutorial from './components/Tutorial';
 import WelcomeModal from './components/WelcomeModal';
 import { getPartidoPorCodigo, getPartidoPorId, updateJugadoresPartido, crearPartidoDesdeFrec, updateJugadoresFrecuentes, getJugadoresDelPartido, refreshJugadoresPartido } from './supabase';
@@ -232,10 +234,8 @@ const AdminPanelPage = () => {
 
   if (loading) {
     return (
-      <div className="voting-bg content-with-tabbar">
-        <div className="voting-modern-card">
-          <div className="match-name">CARGANDO...</div>
-        </div>
+      <div className="voting-bg content-with-tabbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <LoadingSpinner size="large" />
       </div>
     );
   }
@@ -577,9 +577,10 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <NotificationProvider>
-          <TutorialProvider>
-            <Router>
+        <BadgeProvider>
+          <NotificationProvider>
+            <TutorialProvider>
+              <Router>
               <Routes>
                 <Route path="/test-survey" element={<TestSurvey />} />
                 <Route path="/test-survey/:partidoId/:userId" element={<TestSurvey />} />
@@ -599,9 +600,10 @@ export default function App() {
                 </Route>
               </Routes>
               <ToastContainer position="top-right" autoClose={5000} />
-            </Router>
-          </TutorialProvider>
-        </NotificationProvider>
+              </Router>
+            </TutorialProvider>
+          </NotificationProvider>
+        </BadgeProvider>
       </AuthProvider>
     </ErrorBoundary>
   );
@@ -610,10 +612,16 @@ export default function App() {
 // Wrapper para controlar la autenticación en la ruta principal
 function AppAuthWrapper() {
   const { user } = useAuth();
-  if (!user) {
-    // Si no está logueado, muestra solo el login/register
+  const location = useLocation();
+  
+  // Permitir acceso sin login si hay un código de partido (para votación)
+  const params = new URLSearchParams(location.search);
+  const codigo = params.get('codigo');
+  
+  if (!user && !codigo) {
+    // Si no está logueado y no hay código, muestra login/register
     return <AuthPage />;
   }
-  // Si está logueado, muestra el outlet para las rutas anidadas
+  // Si está logueado o hay código de partido, muestra el outlet
   return <Outlet />;
 }

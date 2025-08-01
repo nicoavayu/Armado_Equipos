@@ -1478,6 +1478,41 @@ export const getProfile = async (userId) => {
     throw error;
   }
   
+  // Get badge counts from player_awards table
+  if (data) {
+    try {
+      const { data: badges, error: badgesError } = await supabase
+        .from('player_awards')
+        .select('award_type')
+        .eq('jugador_id', userId);
+      
+      if (!badgesError && badges) {
+        // Count badges by type
+        const badgeCounts = {
+          mvps: 0,
+          guantes_dorados: 0,
+          tarjetas_rojas: 0,
+        };
+        
+        badges.forEach((badge) => {
+          if (badge.award_type === 'mvp') badgeCounts.mvps++;
+          if (badge.award_type === 'guante_dorado') badgeCounts.guantes_dorados++;
+          if (badge.award_type === 'tarjeta_roja') badgeCounts.tarjetas_rojas++;
+        });
+        
+        // Add badge counts to profile data
+        data.mvps = badgeCounts.mvps;
+        data.guantes_dorados = badgeCounts.guantes_dorados;
+        data.tarjetas_rojas = badgeCounts.tarjetas_rojas;
+        
+        console.log('[GET_PROFILE] Badge counts added:', badgeCounts);
+      }
+    } catch (badgeError) {
+      console.error('[GET_PROFILE] Error fetching badges:', badgeError);
+      // Continue without badges if there's an error
+    }
+  }
+  
   // Convert date format for frontend - FORCE conversion
   if (data && data.fecha_nacimiento) {
     let dateValue = data.fecha_nacimiento;

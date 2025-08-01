@@ -53,12 +53,29 @@
   color: gold;
 }
 
-.award-item.arquero .award-icon {
-  color: #4caf50;
+.award-item.guante-dorado {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 215, 0, 0.08));
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
 }
 
-.award-item.fairplay-negativo .award-icon {
-  color: #ff9800;
+.award-item.guante-dorado .award-icon {
+  color: #ffd700;
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+}
+
+.award-item.guante-dorado .award-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.award-item.tarjeta-roja {
+  background: linear-gradient(135deg, rgba(220, 53, 69, 0.1), rgba(220, 53, 69, 0.05));
+  border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.award-item.tarjeta-roja .award-icon {
+  color: #dc3545;
 }
 
 @media (max-width: 600px) {

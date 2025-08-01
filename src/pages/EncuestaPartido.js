@@ -3,8 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase, checkPartidoCalificado } from '../supabase';
 import { toast } from 'react-toastify';
 import { useAuth } from '../components/AuthProvider';
+import { useBadges } from '../context/BadgeContext';
 import LoadingSpinner from '../components/LoadingSpinner';
-import './EncuestaPartido.css';
+import '../VotingView.css';
 
 /**
  * Página de encuesta post-partido
@@ -13,23 +14,32 @@ import './EncuestaPartido.css';
 const EncuestaPartido = () => {
   const { partidoId } = useParams();
   const { user } = useAuth();
+  const { triggerBadgeRefresh } = useBadges();
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [partido, setPartido] = useState(null);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [animating, setAnimating] = useState(false);
   const [formData, setFormData] = useState({
     se_jugo: true,
     partido_limpio: true,
+    asistieron_todos: true,
     jugadores_ausentes: [],
     jugadores_violentos: [],
     mvp_id: '',
     arquero_id: '',
     jugador_sucio_id: '',
     comentarios: '',
+    motivo_no_jugado: '',
+    ganador: '',
+    resultado: '',
   });
   const [jugadores, setJugadores] = useState([]);
   const [yaCalificado, setYaCalificado] = useState(false);
+  const [showingBadgeAnimations, setShowingBadgeAnimations] = useState(false);
+  const [badgeAnimations, setBadgeAnimations] = useState([]);
 
   // Cargar datos del partido y verificar si ya fue calificado
   useEffect(() => {
@@ -86,6 +96,16 @@ const EncuestaPartido = () => {
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+  
+  // Avanzar al siguiente paso con animación
+  const nextStep = () => {
+    if (animating) return;
+    setAnimating(true);
+    setTimeout(() => {
+      setCurrentStep((prev) => prev + 1);
+      setAnimating(false);
+    }, 200);
+  };
 
   // Manejar selección/deselección de jugadores ausentes
   const toggleJugadorAusente = (jugadorId) => {
@@ -119,6 +139,50 @@ const EncuestaPartido = () => {
     });
   };
 
+  // Función para actualizar ranking de usuario
+  const updatePlayerRanking = async (playerId, change) => {
+    try {
+      console.log('[RANKING_UPDATE] Updating ranking for player:', { playerId, change });
+      
+      // Get current ranking from usuarios table
+      const { data: user, error: fetchError } = await supabase
+        .from('usuarios')
+        .select('ranking')
+        .eq('id', playerId)
+        .single();
+      
+      if (fetchError) {
+        console.error('[RANKING_UPDATE] Error fetching user:', fetchError);
+        return;
+      }
+      
+      const currentRanking = user?.ranking || 5.0;
+      const newRanking = Math.max(1.0, Math.min(10.0, currentRanking + change));
+      
+      console.log('[RANKING_UPDATE] Ranking change:', { 
+        playerId, 
+        currentRanking, 
+        change, 
+        newRanking 
+      });
+      
+      const { error: updateError } = await supabase
+        .from('usuarios')
+        .update({ ranking: newRanking })
+        .eq('id', playerId);
+      
+      if (updateError) {
+        console.error('[RANKING_UPDATE] Error updating ranking:', updateError);
+      } else {
+        console.log('[RANKING_UPDATE] Ranking updated successfully');
+        // Trigger badge refresh to update profile data
+        triggerBadgeRefresh();
+      }
+    } catch (error) {
+      console.error('[RANKING_UPDATE] Error updating player ranking:', error);
+    }
+  };
+
   // Enviar encuesta
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -130,22 +194,94 @@ const EncuestaPartido = () => {
     
     setSubmitting(true);
     
+    // Preparar animaciones de badges solo si se jugó el partido
+    const animations = [];
+    if (formData.se_jugo) {
+      if (formData.mvp_id) {
+        const player = jugadores.find(j => j.uuid === formData.mvp_id);
+        if (player) {
+          animations.push({
+            playerName: player.nombre,
+            playerAvatar: player.avatar_url || player.foto_url,
+            badgeType: 'mvp',
+            badgeText: 'MVP',
+            badgeIcon: '🏆'
+          });
+        }
+      }
+      if (formData.arquero_id) {
+        const player = jugadores.find(j => j.uuid === formData.arquero_id);
+        if (player) {
+          animations.push({
+            playerName: player.nombre,
+            playerAvatar: player.avatar_url || player.foto_url,
+            badgeType: 'guante_dorado',
+            badgeText: 'GUANTE DORADO',
+            badgeIcon: '🥅'
+          });
+        }
+      }
+      if (formData.jugadores_violentos.length > 0) {
+        formData.jugadores_violentos.forEach(jugadorId => {
+          const player = jugadores.find(j => j.uuid === jugadorId);
+          if (player) {
+            animations.push({
+              playerName: player.nombre,
+              playerAvatar: player.avatar_url || player.foto_url,
+              badgeType: 'tarjeta_roja',
+              badgeText: 'TARJETA ROJA',
+              badgeIcon: '🟥'
+            });
+          }
+        });
+      }
+    }
+    
+    // Mostrar animaciones si hay badges
+    if (animations.length > 0) {
+      console.log('[BADGE_ANIMATIONS] Showing animations:', animations);
+      setBadgeAnimations(animations);
+      setShowingBadgeAnimations(true);
+      
+      // Esperar a que terminen las animaciones
+      await new Promise(resolve => {
+        setTimeout(() => {
+          console.log('[BADGE_ANIMATIONS] Hiding animations');
+          setShowingBadgeAnimations(false);
+          resolve();
+        }, 3000); // 3 segundos total
+      });
+    } else {
+      console.log('[BADGE_ANIMATIONS] No animations to show');
+    }
+    
     try {
       // Preparar datos para guardar
       const surveyData = {
-        user_id: user.id,
-        partido_id: partidoId,
+        partido_id: parseInt(partidoId),
         se_jugo: formData.se_jugo,
-        partido_limpio: formData.partido_limpio,
-        asistieron_todos: formData.jugadores_ausentes.length === 0,
+        motivo_no_jugado: formData.motivo_no_jugado || null,
+        asistieron_todos: formData.asistieron_todos,
         jugadores_ausentes: formData.jugadores_ausentes,
+        partido_limpio: formData.partido_limpio,
         jugadores_violentos: formData.jugadores_violentos,
-        mvp_id: formData.mvp_id || null,
-        arquero_id: formData.arquero_id || null,
-        jugador_sucio_id: formData.jugador_sucio_id || null,
-        comentarios: formData.comentarios,
+        mejor_jugador_eq_a: null,
+        mejor_jugador_eq_b: null,
+        mejor_arquero: null,
+        no_hubo_arqueros: false,
         created_at: new Date().toISOString(),
       };
+      
+      // Procesar ausencias y aplicar penalización de ranking
+      if (formData.jugadores_ausentes.length > 0) {
+        for (const jugadorId of formData.jugadores_ausentes) {
+          try {
+            await updatePlayerRanking(jugadorId, -0.3);
+          } catch (error) {
+            console.error('Error updating ranking for absent player:', error);
+          }
+        }
+      }
       
       // Guardar encuesta
       const { error } = await supabase
@@ -154,48 +290,98 @@ const EncuestaPartido = () => {
         
       if (error) throw error;
       
+      // Actualizar historial del partido con ganador y resultado
+      if (formData.se_jugo && (formData.ganador || formData.resultado)) {
+        const updateData = {};
+        if (formData.ganador) updateData.ganador = formData.ganador;
+        if (formData.resultado) updateData.resultado = formData.resultado;
+        
+        const { error: updateError } = await supabase
+          .from('partidos')
+          .update(updateData)
+          .eq('id', partidoId);
+          
+        if (updateError) {
+          console.error('Error actualizando historial del partido:', updateError);
+        }
+      }
+      
       // Guardar premios si se seleccionaron
       const premios = [];
+      
+      console.log('[BADGES] Form data:', formData);
       
       if (formData.mvp_id) {
         premios.push({
           jugador_id: formData.mvp_id,
-          partido_id: partidoId,
-          award_type: 'mvp',
-          otorgado_por: user.id,
+          partido_id: parseInt(partidoId),
+          award_type: 'mvp'
         });
+        
+        // Actualizar contador MVP en usuarios
+        const { error: mvpError } = await supabase.rpc('increment_mvps', {
+          user_id: formData.mvp_id
+        });
+        if (mvpError) {
+          console.error('[BADGES] Error incrementing MVP:', mvpError);
+        }
       }
       
       if (formData.arquero_id) {
         premios.push({
           jugador_id: formData.arquero_id,
-          partido_id: partidoId,
-          award_type: 'goalkeeper',
-          otorgado_por: user.id,
+          partido_id: parseInt(partidoId),
+          award_type: 'guante_dorado'
         });
-      }
-      
-      if (formData.jugador_sucio_id) {
-        premios.push({
-          jugador_id: formData.jugador_sucio_id,
-          partido_id: partidoId,
-          award_type: 'negative_fair_play',
-          otorgado_por: user.id,
+        
+        // Actualizar contador guante dorado en usuarios
+        const { error: gkError } = await supabase.rpc('increment_golden_gloves', {
+          user_id: formData.arquero_id
         });
-      }
-      
-      if (premios.length > 0) {
-        const { error: premiosError } = await supabase
-          .from('player_awards')
-          .insert(premios);
-          
-        if (premiosError) {
-          console.error('Error guardando premios:', premiosError);
+        if (gkError) {
+          console.error('[BADGES] Error incrementing golden gloves:', gkError);
         }
       }
       
+      if (formData.jugadores_violentos.length > 0) {
+        for (const jugadorId of formData.jugadores_violentos) {
+          premios.push({
+            jugador_id: jugadorId,
+            partido_id: parseInt(partidoId),
+            award_type: 'tarjeta_roja'
+          });
+          
+          // Actualizar contador tarjetas rojas en usuarios
+          const { error: redCardError } = await supabase.rpc('increment_red_cards', {
+            user_id: jugadorId
+          });
+          if (redCardError) {
+            console.error('[BADGES] Error incrementing red cards:', redCardError);
+          }
+        }
+      }
+      
+      console.log('[BADGES] Premios to insert:', premios);
+      
+      if (premios.length > 0) {
+        const { data: insertedPremios, error: premiosError } = await supabase
+          .from('player_awards')
+          .insert(premios)
+          .select();
+          
+        if (premiosError) {
+          console.error('[BADGES] Error guardando premios:', premiosError);
+        } else {
+          console.log('[BADGES] Premios guardados exitosamente:', insertedPremios);
+          // Trigger badge refresh for all components
+          triggerBadgeRefresh();
+        }
+      } else {
+        console.log('[BADGES] No hay premios para guardar');
+      }
+      
       toast.success('¡Gracias por calificar el partido!');
-      navigate('/');
+      setCurrentStep(99);
       
     } catch (error) {
       console.error('Error guardando encuesta:', error);
@@ -220,263 +406,821 @@ const EncuestaPartido = () => {
     }
   };
 
+  const BadgeAnimation = ({ animation, index }) => {
+    return (
+      <div 
+        className={`badge-animation badge-${animation.badgeType}`}
+        style={{
+          animationDelay: `${index * 1}s`
+        }}
+      >
+        <div className="badge-player-card">
+          <div className="badge-player-avatar">
+            {animation.playerAvatar ? (
+              <img src={animation.playerAvatar} alt={animation.playerName} />
+            ) : (
+              <div className="badge-avatar-placeholder">
+                {animation.playerName.charAt(0)}
+              </div>
+            )}
+          </div>
+          <div className="badge-player-name">{animation.playerName}</div>
+        </div>
+        <div className="badge-animation-text">
+          <div className="badge-award-text">GANÓ {animation.badgeText}</div>
+        </div>
+        <div className={`badge-animation-icon badge-icon-${animation.badgeType}`}>
+          {animation.badgeIcon}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
-      <div className="encuesta-loading">
-        <LoadingSpinner size="large" />
-        <p>Cargando datos del partido...</p>
-      </div>
+      <>
+        {showingBadgeAnimations && (
+          <div className="badge-animations-overlay">
+            {badgeAnimations.map((animation, index) => (
+              <BadgeAnimation key={index} animation={animation} index={index} />
+            ))}
+          </div>
+        )}
+        <div className="voting-bg">
+          <div className="voting-modern-card">
+            <div className="voting-title-modern">Cargando...</div>
+          </div>
+        </div>
+      </>
     );
   }
 
   if (yaCalificado) {
     return (
-      <div className="encuesta-container">
-        <div className="encuesta-header">
-          <h2>Partido ya calificado</h2>
-          <button className="encuesta-back-btn" onClick={() => navigate('/')}>
-            Volver al inicio
-          </button>
+      <>
+        {showingBadgeAnimations && (
+          <div className="badge-animations-overlay">
+            {badgeAnimations.map((animation, index) => (
+              <BadgeAnimation key={index} animation={animation} index={index} />
+            ))}
+          </div>
+        )}
+        <div className="voting-bg">
+          <div className="voting-modern-card">
+            <div className="voting-title-modern">YA CALIFICASTE</div>
+            <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: 'center' }}>
+              Ya has calificado este partido.<br />¡Gracias por tu participación!
+            </div>
+            <button className="voting-confirm-btn" onClick={() => navigate('/')}>
+              VOLVER AL INICIO
+            </button>
+          </div>
         </div>
-        <div className="encuesta-content">
-          <p>Ya has calificado este partido. ¡Gracias por tu participación!</p>
-        </div>
-      </div>
+      </>
     );
   }
 
   if (!partido) {
     return (
-      <div className="encuesta-error">
-        <h2>Partido no encontrado</h2>
-        <button className="encuesta-back-btn" onClick={() => navigate('/')}>
-          Volver al inicio
-        </button>
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">PARTIDO NO ENCONTRADO</div>
+          <button className="voting-confirm-btn" onClick={() => navigate('/')}>
+            VOLVER AL INICIO
+          </button>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="encuesta-container">
-      <div className="encuesta-header">
-        <h2>Encuesta Post-Partido</h2>
-        <button className="encuesta-back-btn" onClick={() => navigate('/')}>
-          Cancelar
-        </button>
-      </div>
-      
-      <div className="encuesta-partido-info">
-        <div className="encuesta-fecha">{formatFecha(partido.fecha)}</div>
-        <div className="encuesta-sede">{partido.sede || 'Sin ubicación'}</div>
-        {partido.hora && <div className="encuesta-hora">{partido.hora}</div>}
-      </div>
-      
-      <form className="encuesta-form" onSubmit={handleSubmit}>
-        {/* ¿Se jugó el partido? */}
-        <div className="encuesta-section">
-          <h3>¿Se jugó el partido?</h3>
-          <div className="encuesta-options">
-            <label className={`encuesta-option ${formData.se_jugo ? 'selected' : ''}`}>
-              <input
-                type="radio"
-                name="se_jugo"
-                checked={formData.se_jugo}
-                onChange={() => handleInputChange('se_jugo', true)}
-              />
-              <span>Sí</span>
-            </label>
-            <label className={`encuesta-option ${!formData.se_jugo ? 'selected' : ''}`}>
-              <input
-                type="radio"
-                name="se_jugo"
-                checked={!formData.se_jugo}
-                onChange={() => handleInputChange('se_jugo', false)}
-              />
-              <span>No</span>
-            </label>
+  // Paso 0: Confirmación del partido
+  if (currentStep === 0) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+            <div className="voting-title-modern">
+              ¿SE JUGÓ EL PARTIDO?
+            </div>
+            <div style={{ color: '#fff', fontSize: 20, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: 'center' }}>
+              {formatFecha(partido.fecha)}<br />
+              {partido.hora && `${partido.hora} - `}{partido.sede ? partido.sede.split(/[,(]/)[0].trim() : 'Sin ubicación'}
+            </div>
+            <div className="player-select-grid">
+              <button
+                className={`player-select-btn${formData.se_jugo ? ' selected' : ''}`}
+                onClick={() => {
+                  handleInputChange('se_jugo', true);
+                  setCurrentStep(1);
+                }}
+                type="button"
+                style={{ borderRadius: '12px' }}
+              >
+                SÍ
+              </button>
+              <button
+                className={`player-select-btn${!formData.se_jugo ? ' selected' : ''}`}
+                onClick={() => {
+                  handleInputChange('se_jugo', false);
+                  setCurrentStep(10); // Ir al paso de motivo
+                }}
+                type="button"
+                style={{ borderRadius: '12px' }}
+              >
+                NO
+              </button>
+            </div>
           </div>
         </div>
-        
-        {formData.se_jugo && (
-          <>
-            {/* ¿Fue un partido limpio? */}
-            <div className="encuesta-section">
-              <h3>¿Fue un partido limpio?</h3>
-              <div className="encuesta-options">
-                <label className={`encuesta-option ${formData.partido_limpio ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="partido_limpio"
-                    checked={formData.partido_limpio}
-                    onChange={() => handleInputChange('partido_limpio', true)}
-                  />
-                  <span>Sí</span>
-                </label>
-                <label className={`encuesta-option ${!formData.partido_limpio ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="partido_limpio"
-                    checked={!formData.partido_limpio}
-                    onChange={() => handleInputChange('partido_limpio', false)}
-                  />
-                  <span>No</span>
-                </label>
-              </div>
+      </div>
+    );
+  }
+  
+  // Paso 1: ¿ASISTIERON TODOS?
+  if (currentStep === 1) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+            <div className="voting-title-modern">
+              ¿ASISTIERON TODOS?
             </div>
-            
-            {/* Jugadores ausentes */}
-            <div className="encuesta-section">
-              <h3>¿Faltó algún jugador?</h3>
-              <div className="encuesta-jugadores-grid">
-                {jugadores.map((jugador) => (
-                  <label 
-                    key={jugador.uuid} 
-                    className={`encuesta-jugador-item ${formData.jugadores_ausentes.includes(jugador.uuid) ? 'selected' : ''}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.jugadores_ausentes.includes(jugador.uuid)}
-                      onChange={() => toggleJugadorAusente(jugador.uuid)}
-                    />
-                    <div className="encuesta-jugador-avatar">
-                      {jugador.foto_url || jugador.avatar_url ? (
-                        <img 
-                          src={jugador.foto_url || jugador.avatar_url} 
-                          alt={jugador.nombre} 
-                        />
-                      ) : (
-                        <div className="encuesta-avatar-placeholder">
-                          {jugador.nombre.charAt(0)}
-                        </div>
-                      )}
-                    </div>
-                    <span className="encuesta-jugador-nombre">{jugador.nombre}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            
-            {/* Jugadores violentos (solo si no fue limpio) */}
-            {!formData.partido_limpio && (
-              <div className="encuesta-section">
-                <h3>¿Quién jugó sucio?</h3>
-                <div className="encuesta-jugadores-grid">
-                  {jugadores.map((jugador) => (
-                    <label 
-                      key={jugador.uuid} 
-                      className={`encuesta-jugador-item ${formData.jugadores_violentos.includes(jugador.uuid) ? 'selected-negative' : ''}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.jugadores_violentos.includes(jugador.uuid)}
-                        onChange={() => toggleJugadorViolento(jugador.uuid)}
-                      />
-                      <div className="encuesta-jugador-avatar">
-                        {jugador.foto_url || jugador.avatar_url ? (
-                          <img 
-                            src={jugador.foto_url || jugador.avatar_url} 
-                            alt={jugador.nombre} 
-                          />
-                        ) : (
-                          <div className="encuesta-avatar-placeholder">
-                            {jugador.nombre.charAt(0)}
-                          </div>
-                        )}
-                      </div>
-                      <span className="encuesta-jugador-nombre">{jugador.nombre}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {/* MVP del partido */}
-            <div className="encuesta-section">
-              <h3>MVP del partido</h3>
-              <select
-                className="encuesta-select"
-                value={formData.mvp_id}
-                onChange={(e) => handleInputChange('mvp_id', e.target.value)}
+            <div className="player-select-grid">
+              <button
+                className="player-select-btn"
+                onClick={() => {
+                  handleInputChange('asistieron_todos', true);
+                  setCurrentStep(2); // Ir al paso 2 (mejor jugador)
+                }}
+                type="button"
+                style={{ borderRadius: '12px' }}
               >
-                <option value="">Seleccionar jugador</option>
-                {jugadores
-                  .filter((j) => !formData.jugadores_ausentes.includes(j.uuid))
-                  .map((jugador) => (
-                    <option key={jugador.uuid} value={jugador.uuid}>
-                      {jugador.nombre}
-                    </option>
-                  ))
-                }
-              </select>
-            </div>
-            
-            {/* Mejor arquero */}
-            <div className="encuesta-section">
-              <h3>Mejor arquero</h3>
-              <select
-                className="encuesta-select"
-                value={formData.arquero_id}
-                onChange={(e) => handleInputChange('arquero_id', e.target.value)}
+                SÍ
+              </button>
+              <button
+                className="player-select-btn"
+                onClick={() => {
+                  handleInputChange('asistieron_todos', false);
+                  setCurrentStep(12); // Ir a seleccionar ausentes
+                }}
+                type="button"
+                style={{ borderRadius: '12px' }}
               >
-                <option value="">Seleccionar jugador</option>
-                {jugadores
-                  .filter((j) => !formData.jugadores_ausentes.includes(j.uuid))
-                  .map((jugador) => (
-                    <option key={jugador.uuid} value={jugador.uuid}>
-                      {jugador.nombre}
-                    </option>
-                  ))
-                }
-              </select>
+                NO
+              </button>
             </div>
-            
-            {/* Jugador más sucio */}
-            {!formData.partido_limpio && (
-              <div className="encuesta-section">
-                <h3>Tarjeta negra</h3>
-                <select
-                  className="encuesta-select"
-                  value={formData.jugador_sucio_id}
-                  onChange={(e) => handleInputChange('jugador_sucio_id', e.target.value)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Paso 2: ¿QUIÉN FUE EL MEJOR JUGADOR?
+  if (currentStep === 2) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+            <div className="voting-title-modern">
+              ¿QUIÉN FUE EL MEJOR JUGADOR?
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', margin: '15px auto', maxWidth: '85%' }}>
+              {jugadores.map((jugador) => (
+                <div
+                  key={jugador.uuid}
+                  onClick={() => handleInputChange('mvp_id', jugador.uuid)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    backgroundColor: formData.mvp_id === jugador.uuid ? '#00D49B' : '#2a2a40',
+                    border: formData.mvp_id === jugador.uuid ? '1px solid #00D49B' : '1px solid #444',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    minHeight: '90px'
+                  }}
                 >
-                  <option value="">Seleccionar jugador</option>
-                  {jugadores
-                    .filter((j) => !formData.jugadores_ausentes.includes(j.uuid))
-                    .map((jugador) => (
-                      <option key={jugador.uuid} value={jugador.uuid}>
-                        {jugador.nombre}
-                      </option>
-                    ))
-                  }
-                </select>
-              </div>
-            )}
-            
-            {/* Comentarios */}
-            <div className="encuesta-section">
-              <h3>Comentarios adicionales</h3>
-              <textarea
-                className="encuesta-textarea"
-                value={formData.comentarios}
-                onChange={(e) => handleInputChange('comentarios', e.target.value)}
-                placeholder="Comentarios sobre el partido..."
-                rows={4}
+                  <div style={{
+                    width: '55px',
+                    height: '55px',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    marginBottom: '6px',
+                    backgroundColor: '#1a1a2e',
+                    flexShrink: 0
+                  }}>
+                    {jugador.avatar_url || jugador.foto_url ? (
+                      <img 
+                        src={jugador.avatar_url || jugador.foto_url} 
+                        alt={jugador.nombre}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#999',
+                        fontSize: '16px',
+                        fontWeight: '600'
+                      }}>
+                        {jugador.nombre.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <span style={{
+                    color: 'white',
+                    fontSize: '10px',
+                    fontWeight: '500',
+                    textAlign: 'center',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    width: '100%'
+                  }}>
+                    {jugador.nombre}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button
+              className="voting-confirm-btn"
+              onClick={() => {
+                setCurrentStep(3); // Ir al paso 3 (mejor arquero)
+              }}
+              style={{ marginTop: '20px' }}
+            >
+              SIGUIENTE
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Paso 3: ¿QUIÉN FUE EL MEJOR ARQUERO?
+  if (currentStep === 3) {
+    const arqueros = jugadores.filter(j => j.position === 'arquero' || j.posicion === 'arquero');
+    const jugadoresParaArquero = arqueros.length > 0 ? arqueros : jugadores;
+    
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+            <div className="voting-title-modern">
+              ¿QUIÉN FUE EL MEJOR ARQUERO?
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', margin: '15px auto', maxWidth: '85%' }}>
+              {jugadoresParaArquero.map((jugador) => (
+                <div
+                  key={jugador.uuid}
+                  onClick={() => handleInputChange('arquero_id', jugador.uuid)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    backgroundColor: formData.arquero_id === jugador.uuid ? '#FFD700' : '#2a2a40',
+                    border: formData.arquero_id === jugador.uuid ? '1px solid #FFD700' : '1px solid #444',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    minHeight: '90px'
+                  }}
+                >
+                  <div style={{
+                    width: '55px',
+                    height: '55px',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    marginBottom: '6px',
+                    backgroundColor: '#1a1a2e',
+                    flexShrink: 0
+                  }}>
+                    {jugador.avatar_url || jugador.foto_url ? (
+                      <img 
+                        src={jugador.avatar_url || jugador.foto_url} 
+                        alt={jugador.nombre}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#999',
+                        fontSize: '16px',
+                        fontWeight: '600'
+                      }}>
+                        {jugador.nombre.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <span style={{
+                    color: 'white',
+                    fontSize: '10px',
+                    fontWeight: '500',
+                    textAlign: 'center',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    width: '100%'
+                  }}>
+                    {jugador.nombre}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+              <button
+                className="player-select-btn"
+                onClick={() => {
+                  handleInputChange('arquero_id', '');
+                  setCurrentStep(4);
+                }}
+                style={{
+                  backgroundColor: 'rgba(255, 87, 34, 0.3)',
+                  borderColor: '#fff',
+                  borderRadius: '12px',
+                  width: '90%'
+                }}
+              >
+                NO HUBO ARQUEROS FIJOS
+              </button>
+            </div>
+            <button
+              className="voting-confirm-btn"
+              onClick={() => {
+                setCurrentStep(4); // Ir al paso 4 (¿FUE LIMPIO?)
+              }}
+              style={{ marginTop: '10px' }}
+            >
+              SIGUIENTE
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Paso 4: ¿FUE UN PARTIDO LIMPIO?
+  if (currentStep === 4) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+            <div className="voting-title-modern">
+              ¿FUE UN PARTIDO LIMPIO?
+            </div>
+            <div className="player-select-grid">
+              <button
+                className={`player-select-btn${formData.partido_limpio ? ' selected' : ''}`}
+                onClick={() => {
+                  handleInputChange('partido_limpio', true);
+                  setCurrentStep(5); // Ir al paso 5 (¿Quién ganó?)
+                }}
+                type="button"
+                style={{ borderRadius: '12px' }}
+              >
+                SÍ
+              </button>
+              <button
+                className={`player-select-btn${!formData.partido_limpio ? ' selected' : ''}`}
+                onClick={() => {
+                  handleInputChange('partido_limpio', false);
+                  setCurrentStep(6); // Ir a jugadores sucios
+                }}
+                type="button"
+                style={{ borderRadius: '12px' }}
+              >
+                NO
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Paso 5: ¿QUIÉN GANÓ?
+  if (currentStep === 5) {
+    return (
+      <div className="voting-bg">
+        {showingBadgeAnimations && (
+          <div className="badge-animations-overlay">
+            {badgeAnimations.map((animation, index) => (
+              <BadgeAnimation key={index} animation={animation} index={index} />
+            ))}
+          </div>
+        )}
+        <div className="voting-modern-card">
+          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+            <div className="voting-title-modern">
+              ¿QUIÉN GANÓ?
+            </div>
+            <div className="player-select-grid">
+              <button
+                className={`player-select-btn${formData.ganador === 'equipo_a' ? ' selected' : ''}`}
+                onClick={() => handleInputChange('ganador', 'equipo_a')}
+                type="button"
+                style={{
+                  backgroundColor: formData.ganador === 'equipo_a' ? '#9C27B0' : 'rgba(156, 39, 176, 0.3)',
+                  borderColor: '#fff',
+                  borderRadius: '12px'
+                }}
+              >
+                EQUIPO A
+              </button>
+              <button
+                className={`player-select-btn${formData.ganador === 'equipo_b' ? ' selected' : ''}`}
+                onClick={() => handleInputChange('ganador', 'equipo_b')}
+                type="button"
+                style={{
+                  backgroundColor: formData.ganador === 'equipo_b' ? '#FF9800' : 'rgba(255, 152, 0, 0.3)',
+                  borderColor: '#fff',
+                  borderRadius: '12px'
+                }}
+              >
+                EQUIPO B
+              </button>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '20px' }}>
+              <input
+                type="text"
+                className="input-modern"
+                style={{ 
+                  width: '90%', 
+                  padding: '15px',
+                  textAlign: 'center',
+                  fontFamily: "'Oswald', Arial, sans-serif",
+                  backgroundColor: '#2a2a40',
+                  border: '1px solid #444',
+                  borderRadius: '8px',
+                  color: 'white'
+                }}
+                value={formData.resultado || ''}
+                onChange={(e) => handleInputChange('resultado', e.target.value)}
+                placeholder="¿Te acordás cómo salió?"
               />
             </div>
-          </>
-        )}
-        
-        {/* Botón de envío */}
-        <button 
-          type="submit" 
-          className="encuesta-submit-btn"
-          disabled={submitting}
-        >
-          {submitting ? 'Enviando...' : 'Enviar Encuesta'}
-        </button>
-      </form>
-    </div>
-  );
+            <button
+              className="voting-confirm-btn"
+              onClick={() => {
+                handleSubmit({ preventDefault: () => {} });
+              }}
+              style={{ marginTop: '20px' }}
+            >
+              FINALIZAR ENCUESTA
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Paso 6: Seleccionar jugadores sucios (solo si no fue limpio)
+  if (currentStep === 6) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+            <div className="voting-title-modern">
+              ¿QUIÉN JUGÓ SUCIO?
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', margin: '15px auto', maxWidth: '85%' }}>
+              {jugadores.map((jugador) => (
+                <div
+                  key={jugador.uuid}
+                  onClick={() => toggleJugadorViolento(jugador.uuid)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    backgroundColor: formData.jugadores_violentos.includes(jugador.uuid) ? '#DE1C49' : '#2a2a40',
+                    border: formData.jugadores_violentos.includes(jugador.uuid) ? '1px solid #DE1C49' : '1px solid #444',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    minHeight: '90px'
+                  }}
+                >
+                  <div style={{
+                    width: '55px',
+                    height: '55px',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    marginBottom: '6px',
+                    backgroundColor: '#1a1a2e',
+                    flexShrink: 0
+                  }}>
+                    {jugador.avatar_url || jugador.foto_url ? (
+                      <img 
+                        src={jugador.avatar_url || jugador.foto_url} 
+                        alt={jugador.nombre}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#999',
+                        fontSize: '16px',
+                        fontWeight: '600'
+                      }}>
+                        {jugador.nombre.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <span style={{
+                    color: 'white',
+                    fontSize: '10px',
+                    fontWeight: '500',
+                    textAlign: 'center',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    width: '100%'
+                  }}>
+                    {jugador.nombre}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button
+              className="voting-confirm-btn"
+              onClick={() => {
+                setCurrentStep(5); // Ir al paso 5 (¿Quién ganó?)
+              }}
+              style={{ marginTop: '20px' }}
+            >
+              SIGUIENTE
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Paso 10: Motivo por no jugarse (cuando se_jugo = false)
+  if (currentStep === 10) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+            <div className="voting-title-modern">
+              ¿POR QUÉ NO SE JUGÓ?
+            </div>
+            <textarea
+              className="input-modern"
+              style={{ 
+                width: '90%', 
+                height: '80px', 
+                resize: 'none',
+                marginBottom: '20px',
+                padding: '15px',
+                textAlign: 'center',
+                fontFamily: "'Oswald', Arial, sans-serif"
+              }}
+              value={formData.motivo_no_jugado || ''}
+              onChange={(e) => handleInputChange('motivo_no_jugado', e.target.value)}
+              placeholder="Explica por qué no se pudo jugar..."
+              rows={2}
+            />
+            <button
+              className="player-select-btn"
+              onClick={() => setCurrentStep(11)}
+              style={{
+                backgroundColor: '#DE1C49',
+                marginBottom: '15px',
+                width: '90%'
+              }}
+            >
+              AUSENCIA SIN AVISO
+            </button>
+            <button
+              className="voting-confirm-btn"
+              onClick={() => {
+                handleSubmit({ preventDefault: () => {} });
+              }}
+            >
+              FINALIZAR
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Paso 11: Seleccionar jugadores ausentes sin aviso
+  if (currentStep === 11) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+            <div className="voting-title-modern">
+              SELECCIONA JUGADORES AUSENTES
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', margin: '15px auto', maxWidth: '85%' }}>
+              {jugadores.map((jugador) => (
+                <div
+                  key={jugador.uuid}
+                  onClick={() => toggleJugadorAusente(jugador.uuid)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    backgroundColor: formData.jugadores_ausentes.includes(jugador.uuid) ? '#DE1C49' : '#2a2a40',
+                    border: formData.jugadores_ausentes.includes(jugador.uuid) ? '1px solid #DE1C49' : '1px solid #444',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    minHeight: '90px'
+                  }}
+                >
+                  <div style={{
+                    width: '55px',
+                    height: '55px',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    marginBottom: '6px',
+                    backgroundColor: '#1a1a2e',
+                    flexShrink: 0
+                  }}>
+                    {jugador.avatar_url || jugador.foto_url ? (
+                      <img 
+                        src={jugador.avatar_url || jugador.foto_url} 
+                        alt={jugador.nombre}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#999',
+                        fontSize: '16px',
+                        fontWeight: '600'
+                      }}>
+                        {jugador.nombre.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <span style={{
+                    color: 'white',
+                    fontSize: '10px',
+                    fontWeight: '500',
+                    textAlign: 'center',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    width: '100%'
+                  }}>
+                    {jugador.nombre}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button
+              className="voting-confirm-btn"
+              onClick={() => {
+                handleSubmit({ preventDefault: () => {} });
+              }}
+              style={{ marginTop: '20px' }}
+            >
+              FINALIZAR
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Paso 12: Seleccionar jugadores ausentes (cuando se jugó pero faltaron)
+  if (currentStep === 12) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
+            <div className="voting-title-modern">
+              ¿QUIÉNES FALTARON?
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', margin: '15px auto', maxWidth: '85%' }}>
+              {jugadores.map((jugador) => (
+                <div
+                  key={jugador.uuid}
+                  onClick={() => toggleJugadorAusente(jugador.uuid)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    backgroundColor: formData.jugadores_ausentes.includes(jugador.uuid) ? '#DE1C49' : '#2a2a40',
+                    border: formData.jugadores_ausentes.includes(jugador.uuid) ? '1px solid #DE1C49' : '1px solid #444',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    minHeight: '90px'
+                  }}
+                >
+                  <div style={{
+                    width: '55px',
+                    height: '55px',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    marginBottom: '6px',
+                    backgroundColor: '#1a1a2e',
+                    flexShrink: 0
+                  }}>
+                    {jugador.avatar_url || jugador.foto_url ? (
+                      <img 
+                        src={jugador.avatar_url || jugador.foto_url} 
+                        alt={jugador.nombre}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#999',
+                        fontSize: '16px',
+                        fontWeight: '600'
+                      }}>
+                        {jugador.nombre.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <span style={{
+                    color: 'white',
+                    fontSize: '10px',
+                    fontWeight: '500',
+                    textAlign: 'center',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    width: '100%'
+                  }}>
+                    {jugador.nombre}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button
+              className="voting-confirm-btn"
+              onClick={() => {
+                setCurrentStep(2); // Ir al paso 2 (mejor jugador)
+              }}
+              style={{ marginTop: '20px' }}
+            >
+              SIGUIENTE
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Paso final: Enviar
+  if (currentStep === 99) {
+    return (
+      <div className="voting-bg">
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">
+            ¡GRACIAS POR CALIFICAR!
+          </div>
+          <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: 'center' }}>
+            Tu calificación ha sido registrada.
+          </div>
+          <button 
+            className="voting-confirm-btn"
+            onClick={() => navigate('/')}
+          >
+            VOLVER AL INICIO
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  // Si llegamos aquí, enviar la encuesta
+  handleSubmit({ preventDefault: () => {} });
+  return null;
+
 };
 
 export default EncuestaPartido;

@@ -171,7 +171,7 @@ const AmigosView = () => {
 
 
   // Solo mostrar loading en la carga inicial
-  if (loading && !currentUserId) {
+  if (loading || loadingAmigos) {
     console.log('[AMIGOS_VIEW] Showing loading spinner - initial load');
     return <LoadingSpinner size="large" />;
   }

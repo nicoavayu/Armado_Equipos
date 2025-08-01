@@ -96,10 +96,8 @@ const AuthProvider = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
-          <LoadingSpinner size="lg" message="Cargando autenticación..." />
-        </div>
+      <div className="voting-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <LoadingSpinner size="large" />
       </div>
     );
   }

@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactCountryFlag from 'react-country-flag';
+import PlayerAwards from './PlayerAwards';
 import './PlayerCard.css';
 
 export default function PlayerCard({ profile, user, isVisible }) {
@@ -103,6 +104,9 @@ export default function PlayerCard({ profile, user, isVisible }) {
           <div className="big-rating">{rating.toFixed(1)}</div>
           <div className="stars-row">
             {renderStars(rating)}
+          </div>
+          <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center' }}>
+            <PlayerAwards playerId={profile?.uuid || profile?.id} />
           </div>
         </div>
       </div>
