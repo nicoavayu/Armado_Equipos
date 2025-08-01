@@ -18,7 +18,7 @@ import { toast } from 'react-toastify';
  */
 export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cupo_jugadores, falta_jugadores, tipo_partido }) => {
   try {
-    console.log('Creating match with data:', { fecha, hora, sede, sedeMaps });
+    console.log('Creating match with data:', { fecha, hora, sede: encodeURIComponent(sede || ''), sedeMaps: encodeURIComponent(sedeMaps || '') });
     
     // Get user without throwing error if not authenticated
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -27,7 +27,7 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
     }
     
     const codigo = generarCodigoPartido();
-    console.log('Generated match code:', codigo);
+    console.log('Generated match code:', encodeURIComponent(codigo || ''));
     
     const matchData = {
       codigo,
@@ -44,7 +44,7 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
       tipo_partido: tipo_partido || 'Masculino',
     };
     
-    console.log('Inserting match data:', matchData);
+    console.log('Inserting match data:', { ...matchData, sede: encodeURIComponent(matchData.sede || '') });
     
     const { data, error } = await supabase
       .from('partidos')
@@ -71,7 +71,7 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
       throw new Error(`Error creating match: ${error.message}`);
     }
     
-    console.log('Match created successfully:', data);
+    console.log('Match created successfully:', { id: data?.id, codigo: encodeURIComponent(data?.codigo || '') });
     
     // Actualizar el partido para que sea frecuente y su propio partido_frecuente_id sea igual a su id
     if (data && data.id) {
@@ -84,7 +84,7 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
         .eq('id', data.id);
       
       if (updateError) {
-        console.error('Error updating match as frequent:', updateError);
+        console.error('Error updating match as frequent:', { message: encodeURIComponent(updateError?.message || '') });
       } else {
         // Actualizar el objeto data con las nuevas propiedades
         data.partido_frecuente_id = data.id;
@@ -95,7 +95,7 @@ export const crearPartido = async ({ fecha, hora, sede, sedeMaps, modalidad, cup
     return data;
     
   } catch (error) {
-    console.error('crearPartido failed:', error);
+    console.error('crearPartido failed:', { message: encodeURIComponent(error?.message || '') });
     throw error;
   }
 };
@@ -123,7 +123,7 @@ export const getPartidoPorCodigo = async (codigo) => {
  * @returns {Promise<void>}
  */
 export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
-  console.log('Updating match players:', { partidoId, count: nuevosJugadores.length });
+  console.log('Updating match players:', { partidoId, count: nuevosJugadores?.length || 0 });
   const { error } = await supabase
     .from('partidos')
     .update({ jugadores: nuevosJugadores })
@@ -138,7 +138,7 @@ export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
  * @returns {Promise<Object>} Updated frequent match
  */
 export const updateJugadoresFrecuentes = async (partidoFrecuenteId, nuevosJugadores) => {
-  console.log('Updating frequent match players:', { partidoFrecuenteId, count: nuevosJugadores.length });
+  console.log('Updating frequent match players:', { partidoFrecuenteId, count: nuevosJugadores?.length || 0 });
   return updatePartidoFrecuente(partidoFrecuenteId, {
     jugadores_frecuentes: nuevosJugadores,
   });
@@ -214,14 +214,14 @@ export const getPartidosFrecuentes = async () => {
       .order('creado_en', { ascending: false });
       
     if (error) {
-      console.error('Error fetching enabled frequent matches:', error);
+      console.error('Error fetching enabled frequent matches:', { message: encodeURIComponent(error?.message || '') });
       throw new Error(`Error fetching frequent matches: ${error.message}`);
     }
     
     return data || [];
     
   } catch (err) {
-    console.error('Exception in getPartidosFrecuentes:', err);
+    console.error('Exception in getPartidosFrecuentes:', { message: encodeURIComponent(err?.message || '') });
     throw err;
   }
 };
@@ -277,7 +277,7 @@ export const deletePartidoFrecuente = async (id) => {
  * @returns {Promise<Object>} Created match
  */
 export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad = 'F5', cupo = 10) => {
-  console.log('Creating/finding match from frequent match:', partidoFrecuente, 'for date:', fecha);
+  console.log('Creating/finding match from frequent match:', { id: partidoFrecuente?.id, nombre: encodeURIComponent(partidoFrecuente?.nombre || '') }, 'for date:', fecha);
   
   // First, check if a match already exists for this frequent match and date
   const { data: existingMatches, error: searchError } = await supabase
@@ -289,13 +289,13 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     .eq('estado', 'activo');
     
   if (searchError) {
-    console.error('Error searching for existing match:', searchError);
+    console.error('Error searching for existing match:', { message: encodeURIComponent(searchError?.message || '') });
   }
   
   // If we found an existing match, return it
   if (existingMatches && existingMatches.length > 0) {
     const existingMatch = existingMatches[0];
-    console.log('Found existing match:', existingMatch.id);
+    console.log('Found existing match:', { id: existingMatch?.id });
     
     // Add frequent match metadata
     existingMatch.nombre = partidoFrecuente.nombre;
@@ -335,7 +335,7 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
       score: j.score || 5, // Default score
     }));
     
-    console.log('Adding players to new match:', jugadoresLimpios);
+    console.log('Adding players to new match:', { count: jugadoresLimpios?.length || 0 });
     await updateJugadoresPartido(partido.id, jugadoresLimpios);
     partido.jugadores = jugadoresLimpios;
   } else {
@@ -367,7 +367,7 @@ export const clearVotesForMatch = async (partidoId) => {
  */
 export const deletePartido = async (partidoId) => {
   try {
-    console.log('Deleting match:', partidoId);
+    console.log('Deleting match:', { partidoId });
     
     // Step 1: Delete associated messages first
     const { error: messagesError } = await supabase
@@ -376,7 +376,7 @@ export const deletePartido = async (partidoId) => {
       .eq('partido_id', partidoId);
     
     if (messagesError) {
-      console.error('Error deleting messages:', messagesError);
+      console.error('Error deleting messages:', { message: encodeURIComponent(messagesError?.message || '') });
       throw new Error(`Error deleting messages: ${messagesError.message}`);
     }
     
@@ -389,7 +389,7 @@ export const deletePartido = async (partidoId) => {
       .eq('partido_id', partidoId);
     
     if (votesError && votesError.code !== 'PGRST116') {
-      console.error('Error deleting votes:', votesError);
+      console.error('Error deleting votes:', { message: encodeURIComponent(votesError?.message || '') });
       throw new Error(`Error deleting votes: ${votesError.message}`);
     }
     
@@ -402,7 +402,7 @@ export const deletePartido = async (partidoId) => {
       .eq('id', partidoId);
     
     if (matchError) {
-      console.error('Error deleting match:', matchError);
+      console.error('Error deleting match:', { message: encodeURIComponent(matchError?.message || '') });
       throw new Error(`Error deleting match: ${matchError.message}`);
     }
     
@@ -410,7 +410,7 @@ export const deletePartido = async (partidoId) => {
     return { success: true };
     
   } catch (error) {
-    console.error('Error in deletePartido:', error);
+    console.error('Error in deletePartido:', { message: encodeURIComponent(error?.message || '') });
     throw error;
   }
 };
@@ -426,7 +426,7 @@ export const getVotantesIds = async (partidoId) => {
     return [];
   }
   
-  console.log('Fetching voters for match:', partidoId);
+  console.log('Fetching voters for match:', { partidoId });
   
   const { data, error } = await supabase
     .from('votos')
@@ -434,7 +434,7 @@ export const getVotantesIds = async (partidoId) => {
     .eq('partido_id', partidoId);
     
   if (error) {
-    console.error('Error fetching voters:', error);
+    console.error('Error fetching voters:', { message: encodeURIComponent(error?.message || '') });
     throw new Error(`Error fetching voters: ${error.message}`);
   }
   
@@ -463,7 +463,7 @@ export const getVotantesConNombres = async (partidoId) => {
     return [];
   }
   
-  console.log('Fetching voters with names for match:', partidoId);
+  console.log('Fetching voters with names for match:', { partidoId });
   
   const { data, error } = await supabase
     .from('votos')
@@ -471,7 +471,7 @@ export const getVotantesConNombres = async (partidoId) => {
     .eq('partido_id', partidoId);
     
   if (error) {
-    console.error('Error fetching voters with names:', error);
+    console.error('Error fetching voters with names:', { message: encodeURIComponent(error?.message || '') });
     throw new Error(`Error fetching voters: ${error.message}`);
   }
   
@@ -492,7 +492,7 @@ export const getVotantesConNombres = async (partidoId) => {
     avatar_url: data.avatar_url,
   }));
   
-  console.log('Voters with names found:', votantes);
+  console.log('Voters with names found:', { count: votantes?.length || 0 });
   return votantes;
 };
 
@@ -552,7 +552,7 @@ export const checkIfAlreadyVoted = async (votanteId, partidoId) => {
  * @returns {Promise<Object>} Result of the operation
  */
 export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, jugadorFoto) => {
-  console.log('🚀 SUBMIT VOTOS CALLED:', { votos, jugadorUuid, partidoId, jugadorNombre });
+  console.log('🚀 SUBMIT VOTOS CALLED:', { votosCount: Object.keys(votos || {}).length, jugadorUuid, partidoId, jugadorNombre: encodeURIComponent(jugadorNombre || '') });
   
   // Validation first
   if (!jugadorUuid || typeof jugadorUuid !== 'string' || jugadorUuid.trim() === '') {
@@ -567,7 +567,7 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
   
   // Get current user ID (authenticated or guest) for this specific match
   const votanteId = await getCurrentUserId(partidoId);
-  console.log('Current voter ID:', votanteId, 'Is guest:', votanteId.startsWith('guest_'));
+  console.log('Current voter ID:', encodeURIComponent(votanteId || ''), 'Is guest:', votanteId?.startsWith('guest_'));
   
   // Check if this user (authenticated or guest) has already voted
   console.log('Checking if already voted...');
@@ -627,7 +627,7 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
     throw new Error(`Error al guardar los votos: ${error.message}`);
   }
   
-  console.log(`✅ Successfully inserted ${votosParaInsertar.length} votes for match ${partidoId}:`, data);
+  console.log(`✅ Successfully inserted ${votosParaInsertar?.length || 0} votes for match ${partidoId}`);
   return data;
 };
 
@@ -670,7 +670,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     
     console.log('✅ SUPABASE: Players fetched:', {
       count: jugadores?.length || 0,
-      players: jugadores?.map((j) => ({ uuid: j.uuid, nombre: j.nombre })) || [],
+      players: jugadores?.map((j) => ({ uuid: j.uuid, nombre: encodeURIComponent(j.nombre || '') })) || [],
     });
     
     if (!jugadores || jugadores.length === 0) {

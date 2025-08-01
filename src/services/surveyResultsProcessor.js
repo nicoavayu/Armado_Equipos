@@ -5,7 +5,7 @@ import { supabase } from '../supabase';
  */
 export const processSurveyResults = async (partidoId) => {
   try {
-    console.log('[SURVEY_RESULTS] Processing results for partido:', partidoId);
+    console.log('[SURVEY_RESULTS] Processing results for partido:', { partidoId });
     
     // Obtener datos del partido
     const { data: partido, error: partidoError } = await supabase
@@ -15,7 +15,7 @@ export const processSurveyResults = async (partidoId) => {
       .single();
     
     if (partidoError || !partido) {
-      console.error('[SURVEY_RESULTS] Error getting partido:', partidoError);
+      console.error('[SURVEY_RESULTS] Error getting partido:', { error: encodeURIComponent(partidoError?.message || '') });
       return;
     }
     
@@ -26,16 +26,16 @@ export const processSurveyResults = async (partidoId) => {
       .eq('partido_id', partidoId);
     
     if (surveysError) {
-      console.error('[SURVEY_RESULTS] Error getting surveys:', surveysError);
+      console.error('[SURVEY_RESULTS] Error getting surveys:', { error: encodeURIComponent(surveysError?.message || '') });
       return;
     }
     
     if (!surveys || surveys.length === 0) {
-      console.log('[SURVEY_RESULTS] No surveys found for partido:', partidoId);
+      console.log('[SURVEY_RESULTS] No surveys found for partido:', { partidoId });
       return;
     }
     
-    console.log('[SURVEY_RESULTS] Found', surveys.length, 'surveys');
+    console.log('[SURVEY_RESULTS] Found surveys:', { count: surveys?.length || 0 });
     
     // Procesar MVP (por cantidad de votos)
     const mvpVotes = {};
@@ -92,17 +92,17 @@ export const processSurveyResults = async (partidoId) => {
       .upsert([results]);
     
     if (resultsError) {
-      console.error('[SURVEY_RESULTS] Error saving results:', resultsError);
+      console.error('[SURVEY_RESULTS] Error saving results:', { error: encodeURIComponent(resultsError?.message || '') });
       return;
     }
     
     // Notificar a todos los jugadores del partido
     await notifyPlayersOfResults(partido, results);
     
-    console.log('[SURVEY_RESULTS] Results processed successfully:', results);
+    console.log('[SURVEY_RESULTS] Results processed successfully:', { partidoId: results?.partido_id, totalSurveys: results?.total_surveys });
     
   } catch (error) {
-    console.error('[SURVEY_RESULTS] Error processing survey results:', error);
+    console.error('[SURVEY_RESULTS] Error processing survey results:', { error: encodeURIComponent(error?.message || '') });
   }
 };
 
@@ -145,13 +145,13 @@ const notifyPlayersOfResults = async (partido, results) => {
       .insert(notifications);
     
     if (error) {
-      console.error('[SURVEY_RESULTS] Error creating notifications:', error);
+      console.error('[SURVEY_RESULTS] Error creating notifications:', { error: encodeURIComponent(error?.message || '') });
     } else {
-      console.log('[SURVEY_RESULTS] Notifications sent to', notifications.length, 'players');
+      console.log('[SURVEY_RESULTS] Notifications sent to players:', { count: notifications?.length || 0 });
     }
     
   } catch (error) {
-    console.error('[SURVEY_RESULTS] Error notifying players:', error);
+    console.error('[SURVEY_RESULTS] Error notifying players:', { error: encodeURIComponent(error?.message || '') });
   }
 };
 
@@ -172,13 +172,13 @@ export const scheduleSurveyResultsProcessing = (partidoId, partidoFecha, partido
         processSurveyResults(partidoId);
       }, timeUntilProcessing);
       
-      console.log('[SURVEY_RESULTS] Scheduled processing for partido', partidoId, 'in', Math.round(timeUntilProcessing / 1000 / 60), 'minutes');
+      console.log('[SURVEY_RESULTS] Scheduled processing:', { partidoId, minutesUntil: Math.round(timeUntilProcessing / 1000 / 60) });
     } else {
       // Si ya pasó el tiempo, procesar inmediatamente
       processSurveyResults(partidoId);
     }
     
   } catch (error) {
-    console.error('[SURVEY_RESULTS] Error scheduling processing:', error);
+    console.error('[SURVEY_RESULTS] Error scheduling processing:', { error: encodeURIComponent(error?.message || '') });
   }
 };

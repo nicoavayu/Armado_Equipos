@@ -5,7 +5,7 @@ import { supabase } from '../supabase';
  */
 export const incrementMatchesPlayed = async (partidoId) => {
   try {
-    console.log('[MATCH_STATS] Incrementing matches played for partido:', partidoId);
+    console.log('[MATCH_STATS] Incrementing matches played for partido:', { partidoId });
     
     // Obtener jugadores del partido
     const { data: partido, error: partidoError } = await supabase
@@ -28,9 +28,9 @@ export const incrementMatchesPlayed = async (partidoId) => {
         });
         
         if (error) {
-          console.error('[MATCH_STATS] Error incrementing matches played for user:', userId, error);
+          console.error('[MATCH_STATS] Error incrementing matches played for user:', { userId, error: encodeURIComponent(error?.message || '') });
         } else {
-          console.log('[MATCH_STATS] Incremented matches played for user:', userId);
+          console.log('[MATCH_STATS] Incremented matches played for user:', { userId });
         }
       }
     }
@@ -44,16 +44,16 @@ export const incrementMatchesPlayed = async (partidoId) => {
  */
 export const incrementMatchesAbandoned = async (userId) => {
   try {
-    console.log('[MATCH_STATS] Incrementing matches abandoned for user:', userId);
+    console.log('[MATCH_STATS] Incrementing matches abandoned for user:', { userId });
     
     const { error } = await supabase.rpc('increment_matches_abandoned', {
       user_id: userId,
     });
     
     if (error) {
-      console.error('[MATCH_STATS] Error incrementing matches abandoned:', error);
+      console.error('[MATCH_STATS] Error incrementing matches abandoned:', { error: encodeURIComponent(error?.message || '') });
     } else {
-      console.log('[MATCH_STATS] Incremented matches abandoned for user:', userId);
+      console.log('[MATCH_STATS] Incremented matches abandoned for user:', { userId });
     }
   } catch (error) {
     console.error('[MATCH_STATS] Error in incrementMatchesAbandoned:', error);
@@ -77,7 +77,7 @@ export const processAbsenceWithoutNotice = async (userId, partidoId, voterId) =>
       .single();
     
     if (userError) {
-      console.error('[MATCH_STATS] Error getting user stats:', userError);
+      console.error('[MATCH_STATS] Error getting user stats:', { error: encodeURIComponent(userError?.message || '') });
       return;
     }
     
@@ -96,7 +96,7 @@ export const processAbsenceWithoutNotice = async (userId, partidoId, voterId) =>
       .eq('id', userId);
     
     if (updateError) {
-      console.error('[MATCH_STATS] Error updating user stats:', updateError);
+      console.error('[MATCH_STATS] Error updating user stats:', { error: encodeURIComponent(updateError?.message || '') });
       return;
     }
     
@@ -110,7 +110,7 @@ export const processAbsenceWithoutNotice = async (userId, partidoId, voterId) =>
       });
     
     if (penaltyError) {
-      console.error('[MATCH_STATS] Error recording absence penalty:', penaltyError);
+      console.error('[MATCH_STATS] Error recording absence penalty:', { error: encodeURIComponent(penaltyError?.message || '') });
     } else {
       console.log('[MATCH_STATS] Processed absence without notice successfully:', {
         userId,
@@ -120,7 +120,7 @@ export const processAbsenceWithoutNotice = async (userId, partidoId, voterId) =>
       });
     }
   } catch (error) {
-    console.error('[MATCH_STATS] Error in processAbsenceWithoutNotice:', error);
+    console.error('[MATCH_STATS] Error in processAbsenceWithoutNotice:', { error: encodeURIComponent(error?.message || '') });
   }
 };
 
@@ -135,7 +135,7 @@ export const canAbandonWithoutPenalty = (partidoFecha, partidoHora) => {
     
     return hoursUntilMatch > 4;
   } catch (error) {
-    console.error('[MATCH_STATS] Error calculating time until match:', error);
+    console.error('[MATCH_STATS] Error calculating time until match:', { error: encodeURIComponent(error?.message || '') });
     return false;
   }
 };
