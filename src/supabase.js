@@ -696,6 +696,22 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
     const codigo = generarCodigoPartido();
     console.log('Generated match code:', codigo);
     
+    // Calcular survey_time como 1 hora después del inicio del partido
+    let surveyTime = null;
+    if (fecha && hora) {
+      try {
+        const matchDateTime = new Date(`${fecha}T${hora}`);
+        const surveyDateTime = new Date(matchDateTime.getTime() + 60 * 60 * 1000); // +1 hora
+        surveyTime = surveyDateTime.toISOString();
+        console.log('[CREAR_PARTIDO] Survey time calculated:', {
+          matchTime: matchDateTime.toISOString(),
+          surveyTime: surveyTime
+        });
+      } catch (error) {
+        console.error('[CREAR_PARTIDO] Error calculating survey time:', error);
+      }
+    }
+
     const matchData = {
       codigo,
       nombre: nombre || 'PARTIDO', // Asegurar que siempre tenga nombre
@@ -710,6 +726,9 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
       cupo_jugadores: cupo_jugadores || 10,
       falta_jugadores: falta_jugadores || false,
       tipo_partido: tipo_partido || 'Masculino',
+      survey_time: surveyTime,
+      survey_scheduled: true,
+      surveys_sent: false,
     };
     
     console.log('Inserting match data:', matchData);
@@ -1077,6 +1096,37 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     const existingMatch = existingMatches[0];
     console.log('Found existing match:', existingMatch.id);
     
+    // Verificar si necesita survey_time
+    if (!existingMatch.survey_time && existingMatch.fecha && existingMatch.hora) {
+      try {
+        const matchDateTime = new Date(`${existingMatch.fecha}T${existingMatch.hora}`);
+        const surveyDateTime = new Date(matchDateTime.getTime() + 60 * 60 * 1000); // +1 hora
+        const surveyTime = surveyDateTime.toISOString();
+        
+        console.log('[EXISTING_MATCH] Updating with survey_time:', surveyTime);
+        
+        // Actualizar el partido existente con survey_time
+        const { error: updateError } = await supabase
+          .from('partidos')
+          .update({ 
+            survey_time: surveyTime,
+            survey_scheduled: true,
+            surveys_sent: false 
+          })
+          .eq('id', existingMatch.id);
+          
+        if (updateError) {
+          console.error('[EXISTING_MATCH] Error updating survey_time:', updateError);
+        } else {
+          existingMatch.survey_time = surveyTime;
+          existingMatch.survey_scheduled = true;
+          existingMatch.surveys_sent = false;
+        }
+      } catch (error) {
+        console.error('[EXISTING_MATCH] Error calculating survey_time:', error);
+      }
+    }
+    
     // Add frequent match metadata
     existingMatch.frequent_match_name = partidoFrecuente.nombre;
     existingMatch.from_frequent_match_id = partidoFrecuente.id;
@@ -1095,6 +1145,7 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     modalidad,
     cupo_jugadores: cupo,
     falta_jugadores: false,
+    tipo_partido: partidoFrecuente.tipo_partido || 'Masculino',
   });
   
   // Add frequent match type and reference
