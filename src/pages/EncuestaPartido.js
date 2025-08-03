@@ -170,9 +170,13 @@ const EncuestaPartido = () => {
       };
       
       if (formData.jugadores_ausentes.length > 0) {
-        for (const jugadorId of formData.jugadores_ausentes) {
+        for (const jugadorUuid of formData.jugadores_ausentes) {
           try {
-            await processAbsenceWithoutNotice(jugadorId, parseInt(partidoId), user.id);
+            // Encontrar el jugador y obtener su usuario_id
+            const jugador = jugadores.find(j => j.uuid === jugadorUuid);
+            if (jugador && jugador.usuario_id) {
+              await processAbsenceWithoutNotice(jugador.usuario_id, parseInt(partidoId), user.id);
+            }
           } catch (error) {
             console.error('Error processing absence without notice:', error);
           }
