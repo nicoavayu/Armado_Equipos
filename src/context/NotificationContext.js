@@ -44,11 +44,11 @@ export const NotificationProvider = ({ children }) => {
     // Initial fetch of notifications
     fetchNotifications();
 
-    // Polling fallback - refresh every 5 seconds
-    const interval = setInterval(() => {
-      console.log('[NOTIFICATIONS] Polling for new notifications...');
-      fetchNotifications();
-    }, 5000);
+    // Polling disabled to prevent ERR_INSUFFICIENT_RESOURCES
+    // const interval = setInterval(() => {
+    //   console.log('[NOTIFICATIONS] Polling for new notifications...');
+    //   fetchNotifications();
+    // }, 5000);
 
     // Subscribe to real-time notifications
     console.log('[NOTIFICATIONS] Setting up realtime subscription for user:', currentUserId);
@@ -93,8 +93,8 @@ export const NotificationProvider = ({ children }) => {
       });
 
     return () => {
-      console.log('[NOTIFICATIONS] Cleaning up subscription and interval');
-      clearInterval(interval);
+      console.log('[NOTIFICATIONS] Cleaning up subscription');
+      // clearInterval(interval);
       supabase.removeChannel(subscription);
     };
   }, [currentUserId]);

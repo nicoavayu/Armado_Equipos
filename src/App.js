@@ -15,7 +15,7 @@ import TabBar from './components/TabBar';
 import FifaHome from './FifaHome';
 
 import TestSurvey from './TestSurvey';
-import EncuestaPartido from './pages/EncuestaPartido';
+import EncuestaPartido from './pages/EncuestaPartidoSimple';
 import ResultadosEncuesta from './pages/ResultadosEncuesta';
 
 import VotingView from './VotingView';

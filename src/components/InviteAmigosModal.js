@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { getAmigos, supabase } from '../supabase';
 import { toast } from 'react-toastify';
+import LoadingSpinner from './LoadingSpinner';
 import './InviteAmigosModal.css';
 
 const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) => {
@@ -248,7 +249,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
 
         <div className="sheet-body">
           {loading ? (
-            <div className="loading-state">Cargando amigos...</div>
+            <div className="loading-state"><LoadingSpinner size="medium" /></div>
           ) : amigos.length > 0 ? (
             <ul className="amigos-list">
               {amigos.map((amigo) => (

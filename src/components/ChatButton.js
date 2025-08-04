@@ -71,8 +71,9 @@ export default function ChatButton({ partidoId }) {
   useEffect(() => {
     if (partidoId && canAccessChat) {
       checkUnreadMessages();
-      const interval = setInterval(checkUnreadMessages, 10000);
-      return () => clearInterval(interval);
+      // Interval disabled to prevent ERR_INSUFFICIENT_RESOURCES
+      // const interval = setInterval(checkUnreadMessages, 10000);
+      // return () => clearInterval(interval);
     }
   }, [partidoId, canAccessChat]);
 

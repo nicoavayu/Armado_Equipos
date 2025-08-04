@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from './components/AuthProvider';
 import { PlayerCardTrigger } from './components/ProfileComponents';
 import PageTitle from './components/PageTitle';
+import LoadingSpinner from './components/LoadingSpinner';
 import './QuieroJugar.css';
 import './VotingView.css';
 
@@ -305,7 +306,7 @@ export default function QuieroJugar({ onVolver }) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="match-name">CARGANDO...</div>
+          <LoadingSpinner size="large" />
         </div>
       </div>
     );
@@ -415,12 +416,15 @@ export default function QuieroJugar({ onVolver }) {
                   return (
                     <div key={partido.id} className="compact-match-card">
                       <div className="card-header" style={{ marginBottom: '12px' }}>
-                        <div className="match-datetime-xl">
-                          {new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
+                        <div className="match-datetime-xl" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="currentColor">
+                            <path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z"/>
+                          </svg>
+                          <span>{new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
                             weekday: 'long', 
                             day: 'numeric', 
                             month: 'short',
-                          })} {partido.hora}
+                          })} {partido.hora}</span>
                         </div>
                         <div className="player-count-corner">
                           {isComplete ? (
@@ -565,15 +569,18 @@ export default function QuieroJugar({ onVolver }) {
                       </div>
                       <div className="free-player-info">
                         <div className="free-player-name">{player.nombre}</div>
-                        <div className="free-player-distance">
-                          📍 {userLocation ? 
+                        <div className="free-player-distance" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="12" height="12" fill="rgba(255, 255, 255, 0.6)">
+                            <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z"/>
+                          </svg>
+                          <span>{userLocation ? 
                             Math.round(calculateDistance(
                               userLocation.lat, 
                               userLocation.lng, 
                               player.latitud || -34.6037, 
                               player.longitud || -58.3816,
                             )) : '?'
-                          } km
+                          } km</span>
                         </div>
                       </div>
                       <div className="free-player-stats">

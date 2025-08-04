@@ -889,7 +889,7 @@ body[data-theme="dark"] .team-name-input::placeholder {
   width: 24px;
   height: 24px;
   font-size: 1.35em;
-  background: #ef443a;
+  background: rgb(202 0 19 / 99%);
   color: #fff;
   border-radius: 6px;
   margin-left: 8px;
@@ -899,7 +899,7 @@ body[data-theme="dark"] .team-name-input::placeholder {
 }
 
 .player-list-li .delete-player-button:hover {
-  background: #c22;
+  background: rgb(202 0 19 / 80%);
 }
 
 .add-player-button,
@@ -929,12 +929,12 @@ body[data-theme="dark"] .team-name-input::placeholder {
 }
 
 .delete-player-button {
-  background: var(--btn-danger);
+  background: rgb(202 0 19 / 99%);
   color: #fff;
 }
 
 .delete-player-button:hover {
-  background: #c22;
+  background: rgb(202 0 19 / 80%);
 }
 
 .frequent-players-container summary {
@@ -1213,10 +1213,10 @@ body[data-theme="dark"] .team-score {
 .add-player-button:not(.disabled):hover { box-shadow: 0 0 7px #38e0a8aa; filter: brightness(1.08);}
 
 .delete-player-button {
-  background: var(--btn-danger);
+  background: rgb(202 0 19 / 99%);
   color: #fff;
 }
-.delete-player-button:hover { background: #c22; box-shadow: 0 0 7px #f19b9baa;}
+.delete-player-button:hover { background: rgb(202 0 19 / 80%); box-shadow: 0 0 7px #f19b9baa;}
 
 .edit-player-button {
   background: #ffd600;

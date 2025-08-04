@@ -3,6 +3,7 @@ import Modal from './Modal';
 import ProfileCard from './ProfileCard';
 import { useAmigos } from '../hooks/useAmigos';
 import { supabase } from '../supabase';
+import { toast } from 'react-toastify';
 import './ProfileCardModal.css';
 
 /**
@@ -17,6 +18,8 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
   const [relationshipStatus, setRelationshipStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isAdminLoading, setIsAdminLoading] = useState(false);
+  const [showContactInfo, setShowContactInfo] = useState(false);
+  const [playerPhone, setPlayerPhone] = useState(null);
   
   const { 
     getRelationshipStatus, 
@@ -80,13 +83,9 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     
     if (result.success) {
       setRelationshipStatus({ id: result.data.id, status: 'pending' });
-      if (window.showToast) {
-        window.showToast('Solicitud de amistad enviada', 'success');
-      }
+      toast.success('Solicitud de amistad enviada');
     } else {
-      if (window.showToast) {
-        window.showToast(result.message || 'Error al enviar solicitud', 'error');
-      }
+      toast.error(result.message || 'Error al enviar solicitud');
     }
     setIsLoading(false);
   };
@@ -116,6 +115,55 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
       
       setIsAdminLoading(false);
       onClose();
+    }
+  };
+
+  // Handle contact player action
+  const handleContactPlayer = async () => {
+    console.log('[CONTACT] Starting contact player action', { profileId: profile?.id, currentUserId });
+    
+    if (!profile?.id || !currentUserId) {
+      console.log('[CONTACT] Missing profile ID or current user ID');
+      return;
+    }
+    
+    // Check if current user is admin
+    const isCurrentUserAdmin = currentUserId && (
+      partidoActual?.creado_por === currentUserId || 
+      (partidoActual?.admins && partidoActual.admins.includes(currentUserId))
+    );
+    
+    console.log('[CONTACT] Admin check', { isCurrentUserAdmin, partidoCreador: partidoActual?.creado_por, currentUserId });
+    
+    if (!isCurrentUserAdmin) {
+      console.log('[CONTACT] User is not admin');
+      toast.error('Solo los admins pueden ver información de contacto');
+      return;
+    }
+    
+    try {
+      // Use usuario_id if available, fallback to id
+      const userId = profile.usuario_id || profile.id;
+      console.log('[CONTACT] Fetching phone for user:', { userId, profileId: profile.id, usuarioId: profile.usuario_id });
+      
+      const { data: userData, error } = await supabase
+        .from('usuarios')
+        .select('telefono')
+        .eq('id', userId)
+        .single();
+        
+      console.log('[CONTACT] Query result:', { userData, error });
+        
+      if (error) throw error;
+      
+      const phone = userData?.telefono || null;
+      console.log('[CONTACT] Setting phone:', phone);
+      
+      setPlayerPhone(phone);
+      setShowContactInfo(true);
+    } catch (error) {
+      console.error('[CONTACT] Error fetching contact info:', error);
+      toast.error('Error al obtener información de contacto');
     }
   };
 
@@ -161,6 +209,35 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
         style={{ background: '#FFD700', color: '#fff' }}
       >
         <span>{isAdminLoading ? 'Procesando...' : 'Hacer Admin'}</span>
+      </button>
+    );
+  };
+
+  // Render contact player button
+  const renderContactButton = () => {
+    // Don't show if viewing own profile or no profile ID
+    if (currentUserId === profile?.id || !profile?.id) {
+      return null;
+    }
+    
+    // Check if current user is admin
+    const isCurrentUserAdmin = currentUserId && (
+      partidoActual?.creado_por === currentUserId || 
+      (partidoActual?.admins && partidoActual.admins.includes(currentUserId))
+    );
+    
+    // Only show for admins
+    if (!isCurrentUserAdmin) {
+      return null;
+    }
+    
+    return (
+      <button 
+        className="pcm-friend-btn contact"
+        onClick={handleContactPlayer}
+        style={{ background: '#2196F3', color: '#fff' }}
+      >
+        <span>Contactar Jugador</span>
       </button>
     );
   };
@@ -248,7 +325,51 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
         <div className="pcm-actions">
           {renderFriendActionButton()}
           {renderMakeAdminButton()}
+          {renderContactButton()}
         </div>
+        
+        {/* Contact Info Modal */}
+        {showContactInfo && (
+          <div className="contact-info-overlay" onClick={() => setShowContactInfo(false)}>
+            <div className="contact-info-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="contact-info-header">
+                <h3>📞 Contactar a {profile?.nombre}</h3>
+                <button 
+                  className="contact-info-close"
+                  onClick={() => setShowContactInfo(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="contact-info-content">
+                {playerPhone ? (
+                  <div className="contact-item-enhanced">
+                    <div className="phone-icon">📞</div>
+                    <div className="phone-details">
+                      <div className="phone-label">Teléfono</div>
+                      <span className="phone-number">
+                        {playerPhone}
+                      </span>
+                    </div>
+                    <div className="call-action">
+                      <a href={`https://wa.me/${playerPhone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="call-btn">
+                        WhatsApp
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="no-contact-info">
+                    <div className="no-contact-icon">📵</div>
+                    <div className="no-contact-text">
+                      <div className="no-contact-title">Sin teléfono</div>
+                      <div className="no-contact-subtitle">Este jugador no ha registrado su número</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );

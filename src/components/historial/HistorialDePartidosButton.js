@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../supabase';
+import LoadingSpinner from '../LoadingSpinner';
 import ListaDeFechasModal from './ListaDeFechasModal';
 import './HistorialDePartidosButton.css';
 
@@ -57,7 +58,7 @@ const HistorialDePartidosButton = ({ partidoFrecuente }) => {
         onClick={handleClick}
         disabled={loading}
       >
-        {loading ? 'Cargando...' : 'Historial'}
+        {loading ? <LoadingSpinner size="small" /> : 'Historial'}
       </button>
       
       {showModal && (

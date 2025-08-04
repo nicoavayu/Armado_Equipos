@@ -684,14 +684,24 @@
   justify-content: center;
 }
 
+.guest-action-btn.invite-btn {
+  background: #128BE9;
+  border-color: #128BE9;
+}
+
 .guest-action-btn.invite-btn:hover {
-  background: #0EA9C6;
-  border-color: #0EA9C6;
+  background: #0f7acc;
+  border-color: #0f7acc;
+}
+
+.guest-action-btn.leave-btn {
+  background: #DE1C49;
+  border-color: #DE1C49;
 }
 
 .guest-action-btn.leave-btn:hover {
-  background: #DE1C49;
-  border-color: #DE1C49;
+  background: #c41841;
+  border-color: #c41841;
 }
 
 .guest-action-btn:disabled {

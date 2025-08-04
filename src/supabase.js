@@ -327,11 +327,20 @@ export const checkPartidoCalificado = async (partidoId, userId) => {
   if (!partidoId || !userId) return false;
   
   try {
+    // Primero obtener los jugadores del partido para encontrar el ID numérico
+    const jugadores = await getJugadoresDelPartido(partidoId);
+    const currentUserPlayer = jugadores.find(j => j.usuario_id === userId);
+    
+    if (!currentUserPlayer) {
+      console.log('Usuario no encontrado en el partido:', userId);
+      return false;
+    }
+    
     const { data, error } = await supabase
       .from('post_match_surveys')
       .select('id')
       .eq('partido_id', partidoId)
-      .eq('votante_id', userId)
+      .eq('votante_id', currentUserPlayer.id) // Usar ID numérico del jugador
       .maybeSingle();
     
     if (error) {

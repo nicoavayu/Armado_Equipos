@@ -8,6 +8,7 @@ import {
   getGuestSessionId, // si no usás guest, podés eliminar esta línea
 } from './supabase';
 import { toast } from 'react-toastify';
+import LoadingSpinner from './components/LoadingSpinner';
 import StarRating from './StarRating';
 import './HomeStyleKit.css';
 
@@ -139,7 +140,7 @@ export default function VotingView({ onReset, jugadores }) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">Cargando...</div>
+          <LoadingSpinner size="large" />
         </div>
       </div>
     );

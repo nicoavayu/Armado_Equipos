@@ -298,7 +298,7 @@ const InviteFriendModal = ({ isOpen, onClose, friend, currentUserId }) => {
           {loading ? (
             <div className="loading-state">
               <LoadingSpinner size="medium" />
-              <p>Cargando partidos...</p>
+
             </div>
           ) : matches.length === 0 ? (
             <div className="sin-partidos">

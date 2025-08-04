@@ -336,7 +336,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgb(255 255 255 / 10%);
+  background: #0a0a59e6;
   border-radius: 12px;
   padding: 12px;
   margin-bottom: 8px;
@@ -351,6 +351,7 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgb(0 0 0 / 15%);
   border-color: rgb(255 255 255 / 40%);
+  background: #0a0a59f0;
 }
 
 .free-player-avatar {
@@ -553,9 +554,9 @@
   }
 }
 
-/* Compact Match Card - White Translucent */
+/* Compact Match Card - Darker Background */
 .compact-match-card {
-  background: rgba(255, 255, 255, 0.1);
+  background: #0a0a59e6;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -572,7 +573,7 @@
   transform: translateY(-2px);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
   border-color: rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.15);
+  background: #0a0a59f0;
 }
 
 .card-header {
@@ -717,8 +718,8 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgb(18 139 233 / 82%);
+  background: rgb(18 139 233 / 82%);
   color: white;
   text-transform: uppercase;
   backdrop-filter: blur(8px);
@@ -726,10 +727,10 @@
 }
 
 .cyan-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 1);
+  background: rgb(18 139 233 / 95%);
+  border-color: rgb(18 139 233 / 95%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 12px rgb(18 139 233 / 40%);
 }
 
 /* Mobile responsive */

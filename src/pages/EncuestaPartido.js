@@ -5,6 +5,7 @@ import { processAbsenceWithoutNotice } from '../utils/matchStatsManager';
 import { toast } from 'react-toastify';
 import { useAuth } from '../components/AuthProvider';
 import { useBadges } from '../context/BadgeContext';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 import ProfileCard from '../components/ProfileCard';
 import '../VotingView.css';
@@ -39,23 +40,18 @@ const EncuestaPartido = () => {
   const [currentAnimationIndex, setCurrentAnimationIndex] = useState(0);
   const [animationComplete, setAnimationComplete] = useState(false);
   const [animationProcessed, setAnimationProcessed] = useState(false);
+  const [encuestaFinalizada, setEncuestaFinalizada] = useState(false);
+  const toastShownRef = useRef(false);
 
   useEffect(() => {
     const fetchPartidoData = async () => {
-      if (!partidoId || !user) {
-        navigate('/');
-        return;
-      }
-      
       try {
-        setLoading(true);
-        
-        const calificado = await checkPartidoCalificado(partidoId, user.id);
-        if (calificado) {
-          setYaCalificado(true);
-          toast.info('Ya has calificado este partido');
+        if (!partidoId || !user) {
+          navigate('/');
           return;
         }
+        
+        setLoading(true);
         
         const { data: partidoData, error: partidoError } = await supabase
           .from('partidos')
@@ -79,33 +75,44 @@ const EncuestaPartido = () => {
       } catch (error) {
         console.error('Error cargando datos del partido:', error);
         toast.error('Error cargando datos del partido');
+        navigate('/');
       } finally {
         setLoading(false);
       }
     };
     
-    fetchPartidoData();
+    if (partidoId && user) {
+      fetchPartidoData();
+    }
   }, [partidoId, user, navigate]);
 
   useEffect(() => {
-    if (showingBadgeAnimations && badgeAnimations.length > 0) {
-      setCurrentAnimationIndex(0);
-      setAnimationComplete(false);
+    try {
+      if (showingBadgeAnimations && badgeAnimations.length > 0) {
+        setCurrentAnimationIndex(0);
+        setAnimationComplete(false);
+      }
+    } catch (error) {
+      console.error('Error in badge animations useEffect:', error);
     }
   }, [showingBadgeAnimations, badgeAnimations.length]);
 
-  // Control del ciclo de animaciones - la última card queda visible
+  // Control del ciclo de animaciones automático - la última card queda visible
   useEffect(() => {
-    if (showingBadgeAnimations && badgeAnimations.length > 0 && !animationComplete) {
-      if (currentAnimationIndex < badgeAnimations.length - 1) {
-        const timer = setTimeout(() => {
-          setCurrentAnimationIndex((prev) => prev + 1);
-        }, 3000);
-        return () => clearTimeout(timer);
-      } else {
-        // Llegamos a la última animación - mostrar botón ACEPTAR sin avanzar más
-        setAnimationComplete(true);
+    try {
+      if (showingBadgeAnimations && badgeAnimations.length > 0 && !animationComplete) {
+        if (currentAnimationIndex < badgeAnimations.length - 1) {
+          const timer = setTimeout(() => {
+            setCurrentAnimationIndex((prev) => prev + 1);
+          }, 3000);
+          return () => clearTimeout(timer);
+        } else {
+          // Llegamos a la última animación - mostrar botón ACEPTAR sin avanzar más
+          setAnimationComplete(true);
+        }
       }
+    } catch (error) {
+      console.error('Error in animation cycle useEffect:', error);
     }
   }, [currentAnimationIndex, showingBadgeAnimations, badgeAnimations.length, animationComplete]);
 
@@ -146,25 +153,42 @@ const EncuestaPartido = () => {
   };
 
   const handleAcceptAnimations = async () => {
-    setShowingBadgeAnimations(false);
-    setBadgeAnimations([]);
-    setCurrentAnimationIndex(0);
-    setAnimationComplete(false);
-    await continueSubmitFlow();
+    try {
+      // Limpiar todo el estado de animaciones
+      setShowingBadgeAnimations(false);
+      setBadgeAnimations([]);
+      setCurrentAnimationIndex(0);
+      setAnimationComplete(false);
+      setAnimationProcessed(false);
+      
+      // Ir directamente al home después de las animaciones
+      toast.success('¡Gracias por calificar el partido!');
+      navigate('/');
+    } catch (error) {
+      console.error('Error in handleAcceptAnimations:', error);
+      navigate('/');
+    }
   };
 
   const continueSubmitFlow = async () => {
     try {
+      // Convertir UUIDs a IDs numéricos para la base de datos
+      const mvpPlayer = formData.mvp_id ? jugadores.find(j => j.uuid === formData.mvp_id) : null;
+      const arqueroPlayer = formData.arquero_id ? jugadores.find(j => j.uuid === formData.arquero_id) : null;
+      
+      // Encontrar el jugador actual para obtener su ID numérico
+      const currentUserPlayer = jugadores.find(j => j.usuario_id === user.id);
+      
       const surveyData = {
         partido_id: parseInt(partidoId),
-        votante_id: user.id,
+        votante_id: currentUserPlayer?.id || null,
         se_jugo: formData.se_jugo,
         motivo_no_jugado: formData.motivo_no_jugado || null,
         asistieron_todos: formData.asistieron_todos,
         jugadores_ausentes: formData.jugadores_ausentes,
         partido_limpio: formData.partido_limpio,
         jugadores_violentos: formData.jugadores_violentos,
-        mejor_jugador_eq_a: formData.mvp_id || null,
+        mejor_jugador_eq_a: mvpPlayer?.id || null,
         mejor_jugador_eq_b: null,
         created_at: new Date().toISOString(),
       };
@@ -193,18 +217,18 @@ const EncuestaPartido = () => {
       
       const premios = [];
       
-      if (formData.mvp_id) {
+      if (mvpPlayer) {
         premios.push({
-          jugador_id: formData.mvp_id,
+          jugador_id: mvpPlayer.id,
           partido_id: parseInt(partidoId),
           award_type: 'mvp',
           otorgado_por: user.id,
         });
       }
       
-      if (formData.arquero_id) {
+      if (arqueroPlayer) {
         premios.push({
-          jugador_id: formData.arquero_id,
+          jugador_id: arqueroPlayer.id,
           partido_id: parseInt(partidoId),
           award_type: 'guante_dorado',
           otorgado_por: user.id,
@@ -212,13 +236,16 @@ const EncuestaPartido = () => {
       }
       
       if (formData.jugadores_violentos.length > 0) {
-        formData.jugadores_violentos.forEach((jugadorId) => {
-          premios.push({
-            jugador_id: jugadorId,
-            partido_id: parseInt(partidoId),
-            award_type: 'tarjeta_roja',
-            otorgado_por: user.id,
-          });
+        formData.jugadores_violentos.forEach((jugadorUuid) => {
+          const jugadorViolento = jugadores.find(j => j.uuid === jugadorUuid);
+          if (jugadorViolento) {
+            premios.push({
+              jugador_id: jugadorViolento.id,
+              partido_id: parseInt(partidoId),
+              award_type: 'tarjeta_roja',
+              otorgado_por: user.id,
+            });
+          }
         });
       }
       
@@ -238,8 +265,24 @@ const EncuestaPartido = () => {
         }
       }
       
-      toast.success('¡Gracias por calificar el partido!');
-      setCurrentStep(99);
+      // Solo procesar la base de datos, no mostrar UI adicional
+      setEncuestaFinalizada(true);
+      
+      // Limpiar estado del formulario y animaciones
+      setFormData({
+        se_jugo: true,
+        partido_limpio: true,
+        asistieron_todos: true,
+        jugadores_ausentes: [],
+        jugadores_violentos: [],
+        mvp_id: '',
+        arquero_id: '',
+        motivo_no_jugado: '',
+        ganador: '',
+        resultado: '',
+      });
+      setBadgeAnimations([]);
+      setAnimationProcessed(false);
       
     } catch (error) {
       console.error('Error guardando encuesta:', error);
@@ -257,7 +300,7 @@ const EncuestaPartido = () => {
       return;
     }
     
-    if (submitting || animationProcessed) {
+    if (submitting || animationProcessed || encuestaFinalizada) {
       return;
     }
     
@@ -274,6 +317,7 @@ const EncuestaPartido = () => {
           animations.push({
             playerName: player.nombre,
             playerAvatar: player.avatar_url || player.foto_url,
+            playerData: player,
             badgeType: 'mvp',
             badgeText: 'MVP',
             badgeIcon: '🏆',
@@ -287,6 +331,7 @@ const EncuestaPartido = () => {
           animations.push({
             playerName: player.nombre,
             playerAvatar: player.avatar_url || player.foto_url,
+            playerData: player,
             badgeType: 'guante_dorado',
             badgeText: 'GUANTE DORADO',
             badgeIcon: '🧤',
@@ -300,6 +345,7 @@ const EncuestaPartido = () => {
           animations.push({
             playerName: firstViolentPlayer.nombre,
             playerAvatar: firstViolentPlayer.avatar_url || firstViolentPlayer.foto_url,
+            playerData: firstViolentPlayer,
             badgeType: 'tarjeta_roja',
             badgeText: 'TARJETA ROJA',
             badgeIcon: '🟥',
@@ -308,11 +354,14 @@ const EncuestaPartido = () => {
         }
       }
       
-      // Agregar ausencias injustificadas al final
+      // Agregar ausencias injustificadas al final - evitar duplicados
       if (formData.jugadores_ausentes.length > 0) {
         formData.jugadores_ausentes.forEach((jugadorId) => {
           const player = jugadores.find((j) => j.uuid === jugadorId);
-          if (player && !addedPlayers.has(player.uuid + '_ausencia')) {
+          // Triple verificación para evitar duplicados
+          if (player && 
+              !addedPlayers.has(player.uuid + '_ausencia') && 
+              !animations.some(a => a.badgeType === 'ausencia_injustificada' && a.playerName === player.nombre)) {
             animations.push({
               playerName: player.nombre,
               playerAvatar: player.avatar_url || player.foto_url,
@@ -329,7 +378,6 @@ const EncuestaPartido = () => {
     }
     
     if (animations.length > 0) {
-
       setBadgeAnimations(animations);
       setShowingBadgeAnimations(true);
       return;
@@ -337,7 +385,6 @@ const EncuestaPartido = () => {
       await continueSubmitFlow();
     }
   };
-
   const formatFecha = (fechaStr) => {
     try {
       const fecha = new Date(fechaStr);
@@ -355,50 +402,7 @@ const EncuestaPartido = () => {
   // Hooks for BadgeAnimation component - moved to top level
   const [localAnimatedScore, setLocalAnimatedScore] = useState(null);
   const scoreAnimatingRef = useRef(false);
-  
-  // Effect for score animation - moved to top level
-  useEffect(() => {
-    const animation = badgeAnimations[Math.min(currentAnimationIndex, badgeAnimations.length - 1)];
-    const player = jugadores.find((j) => j.nombre === animation?.playerName);
-    const isAbsence = animation?.badgeType === 'ausencia_injustificada';
-    
-    if (showingBadgeAnimations && isAbsence && player && animation.pointsLost && !scoreAnimatingRef.current) {
-      scoreAnimatingRef.current = true;
-      const currentScore = player.puntuacion || 0;
-      const targetScore = currentScore + animation.pointsLost;
-      setLocalAnimatedScore(currentScore);
-      
-      const timer = setTimeout(() => {
-        let current = currentScore;
-        let steps = 0;
-        const maxSteps = 3;
-        
-        const interval = setInterval(() => {
-          steps++;
-          current = Math.round((current - 0.1) * 10) / 10;
-          setLocalAnimatedScore(current);
-          
-          if (steps >= maxSteps || current <= targetScore) {
-            clearInterval(interval);
-            setLocalAnimatedScore(targetScore);
-          }
-        }, 300);
-        
-        return () => clearInterval(interval);
-      }, 1500);
-      
-      return () => {
-        clearTimeout(timer);
-        scoreAnimatingRef.current = false;
-      };
-    }
-  }, [showingBadgeAnimations, currentAnimationIndex, badgeAnimations, jugadores]);
-  
-  // Reset animation state when changing animations
-  useEffect(() => {
-    setLocalAnimatedScore(null);
-    scoreAnimatingRef.current = false;
-  }, [currentAnimationIndex]);
+  const lastAnimatedScoreRef = useRef(null);
 
   const BadgeAnimation = ({ animations }) => {
     if (!animations || animations.length === 0) return null;
@@ -407,7 +411,7 @@ const EncuestaPartido = () => {
     const animation = animations[Math.min(currentAnimationIndex, animations.length - 1)];
     if (!animation) return null;
     
-    const player = jugadores.find((j) => j.nombre === animation.playerName);
+    const player = animation.playerData || jugadores.find((j) => j.nombre === animation.playerName);
     const isAbsence = animation.badgeType === 'ausencia_injustificada';
     // Animation logic is now handled by top-level useEffect hooks
     
@@ -422,7 +426,11 @@ const EncuestaPartido = () => {
         width: '100%',
         padding: '20px',
         boxSizing: 'border-box',
+        position: 'relative',
       }}>
+        {/* Fondo con patrón radial giratorio mejorado */}
+        <div className="radial-background"></div>
+        <div className="radial-background-secondary"></div>
         <style>
           {`
             @keyframes slideInFromLeft {
@@ -455,43 +463,220 @@ const EncuestaPartido = () => {
                 transform: scale(1);
               }
             }
+            @keyframes rotateRays {
+              0% {
+                transform: rotate(0deg) scale(1.5);
+              }
+              100% {
+                transform: rotate(360deg) scale(1.5);
+              }
+            }
+            @keyframes rotateRaysReverse {
+              0% {
+                transform: rotate(0deg) scale(1.8);
+              }
+              100% {
+                transform: rotate(-360deg) scale(1.8);
+              }
+            }
+            .radial-background {
+              position: fixed;
+              top: -50%;
+              left: -50%;
+              width: 200vw;
+              height: 200vh;
+              background: conic-gradient(
+                from 0deg,
+                rgba(0, 255, 255, 0.4) 0deg,
+                rgba(255, 255, 255, 0.3) 7.5deg,
+                rgba(0, 255, 255, 0.4) 15deg,
+                rgba(255, 255, 255, 0.3) 22.5deg,
+                rgba(0, 255, 255, 0.4) 30deg,
+                rgba(255, 255, 255, 0.3) 37.5deg,
+                rgba(0, 255, 255, 0.4) 45deg,
+                rgba(255, 255, 255, 0.3) 52.5deg,
+                rgba(0, 255, 255, 0.4) 60deg,
+                rgba(255, 255, 255, 0.3) 67.5deg,
+                rgba(0, 255, 255, 0.4) 75deg,
+                rgba(255, 255, 255, 0.3) 82.5deg,
+                rgba(0, 255, 255, 0.4) 90deg,
+                rgba(255, 255, 255, 0.3) 97.5deg,
+                rgba(0, 255, 255, 0.4) 105deg,
+                rgba(255, 255, 255, 0.3) 112.5deg,
+                rgba(0, 255, 255, 0.4) 120deg,
+                rgba(255, 255, 255, 0.3) 127.5deg,
+                rgba(0, 255, 255, 0.4) 135deg,
+                rgba(255, 255, 255, 0.3) 142.5deg,
+                rgba(0, 255, 255, 0.4) 150deg,
+                rgba(255, 255, 255, 0.3) 157.5deg,
+                rgba(0, 255, 255, 0.4) 165deg,
+                rgba(255, 255, 255, 0.3) 172.5deg,
+                rgba(0, 255, 255, 0.4) 180deg,
+                rgba(255, 255, 255, 0.3) 187.5deg,
+                rgba(0, 255, 255, 0.4) 195deg,
+                rgba(255, 255, 255, 0.3) 202.5deg,
+                rgba(0, 255, 255, 0.4) 210deg,
+                rgba(255, 255, 255, 0.3) 217.5deg,
+                rgba(0, 255, 255, 0.4) 225deg,
+                rgba(255, 255, 255, 0.3) 232.5deg,
+                rgba(0, 255, 255, 0.4) 240deg,
+                rgba(255, 255, 255, 0.3) 247.5deg,
+                rgba(0, 255, 255, 0.4) 255deg,
+                rgba(255, 255, 255, 0.3) 262.5deg,
+                rgba(0, 255, 255, 0.4) 270deg,
+                rgba(255, 255, 255, 0.3) 277.5deg,
+                rgba(0, 255, 255, 0.4) 285deg,
+                rgba(255, 255, 255, 0.3) 292.5deg,
+                rgba(0, 255, 255, 0.4) 300deg,
+                rgba(255, 255, 255, 0.3) 307.5deg,
+                rgba(0, 255, 255, 0.4) 315deg,
+                rgba(255, 255, 255, 0.3) 322.5deg,
+                rgba(0, 255, 255, 0.4) 330deg,
+                rgba(255, 255, 255, 0.3) 337.5deg,
+                rgba(0, 255, 255, 0.4) 345deg,
+                rgba(255, 255, 255, 0.3) 352.5deg,
+                rgba(0, 255, 255, 0.4) 360deg
+              );
+              animation: rotateRays 12s linear infinite;
+              z-index: -2;
+            }
+            .radial-background-secondary {
+              position: fixed;
+              top: -50%;
+              left: -50%;
+              width: 200vw;
+              height: 200vh;
+              background: conic-gradient(
+                from 45deg,
+                rgba(0, 200, 255, 0.2) 0deg,
+                rgba(255, 255, 255, 0.15) 12deg,
+                rgba(0, 200, 255, 0.2) 24deg,
+                rgba(255, 255, 255, 0.15) 36deg,
+                rgba(0, 200, 255, 0.2) 48deg,
+                rgba(255, 255, 255, 0.15) 60deg,
+                rgba(0, 200, 255, 0.2) 72deg,
+                rgba(255, 255, 255, 0.15) 84deg,
+                rgba(0, 200, 255, 0.2) 96deg,
+                rgba(255, 255, 255, 0.15) 108deg,
+                rgba(0, 200, 255, 0.2) 120deg,
+                rgba(255, 255, 255, 0.15) 132deg,
+                rgba(0, 200, 255, 0.2) 144deg,
+                rgba(255, 255, 255, 0.15) 156deg,
+                rgba(0, 200, 255, 0.2) 168deg,
+                rgba(255, 255, 255, 0.15) 180deg,
+                rgba(0, 200, 255, 0.2) 192deg,
+                rgba(255, 255, 255, 0.15) 204deg,
+                rgba(0, 200, 255, 0.2) 216deg,
+                rgba(255, 255, 255, 0.15) 228deg,
+                rgba(0, 200, 255, 0.2) 240deg,
+                rgba(255, 255, 255, 0.15) 252deg,
+                rgba(0, 200, 255, 0.2) 264deg,
+                rgba(255, 255, 255, 0.15) 276deg,
+                rgba(0, 200, 255, 0.2) 288deg,
+                rgba(255, 255, 255, 0.15) 300deg,
+                rgba(0, 200, 255, 0.2) 312deg,
+                rgba(255, 255, 255, 0.15) 324deg,
+                rgba(0, 200, 255, 0.2) 336deg,
+                rgba(255, 255, 255, 0.15) 348deg,
+                rgba(0, 200, 255, 0.2) 360deg
+              );
+              animation: rotateRaysReverse 16s linear infinite;
+              z-index: -1;
+            }
           `}
         </style>
         
-        {/* Contenedor central compacto - elementos más juntos */}
+        {/* Contenedor central compacto - elementos más juntos y centrados */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          minHeight: '500px',
+          minHeight: '400px', /* Reducido para mejor distribución */
           maxWidth: '400px',
           width: '100%',
+          position: 'relative',
+          zIndex: 1,
+          margin: 'auto', /* Centrado automático */
         }}>
           
-          {/* Título del badge - reducido margen inferior */}
+          {/* Título del badge con ribbon container */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: '15px',
+            marginBottom: '20px',
             textAlign: 'center',
             width: '100%',
           }}>
             <div style={{
-              color: '#FFD700',
-              fontSize: '32px',
-              fontWeight: '700',
-              fontFamily: "'Oswald', Arial, sans-serif",
+              background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.9) 0%, rgba(255, 193, 7, 0.9) 50%, rgba(255, 215, 0, 0.9) 100%)',
+              border: '3px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '25px',
+              padding: '12px 30px',
+              position: 'relative',
+              boxShadow: '0 8px 32px rgba(255, 215, 0, 0.3), inset 0 2px 8px rgba(255, 255, 255, 0.2)',
               animation: 'titleFadeIn 0.8s ease-out 0.2s both',
-              lineHeight: '0',
-              wordWrap: 'break-word',
-              maxWidth: '100%',
+              transform: 'perspective(1000px) rotateX(5deg)',
+              backdropFilter: 'blur(10px)',
             }}>
-              {animation.badgeType === 'mvp' ? 'MVP' : 
-                animation.badgeType === 'guante_dorado' ? 'GUANTE DORADO' : 
-                  animation.badgeType === 'tarjeta_roja' ? 'TARJETA ROJA' :
-                    animation.badgeType === 'ausencia_injustificada' ? 'AUSENCIAS INJUSTIFICADAS' : animation.badgeText}
+              <div style={{
+                color: '#1a1a2e',
+                fontSize: '28px',
+                fontWeight: '800',
+                fontFamily: "'Oswald', Arial, sans-serif",
+                textShadow: '1px 1px 2px rgba(255, 255, 255, 0.5)',
+                letterSpacing: '1px',
+                lineHeight: '1.2',
+                wordWrap: 'break-word',
+                maxWidth: '100%',
+              }}>
+                {animation.badgeType === 'mvp' ? 'MVP' :
+                  animation.badgeType === 'guante_dorado' ? 'GUANTE DORADO' :
+                    animation.badgeType === 'tarjeta_roja' ? 'TARJETA ROJA' :
+                      animation.badgeType === 'ausencia_injustificada' ? 'AUSENCIAS INJUSTIFICADAS' : animation.badgeText}
+              </div>
+              {/* Decorative corners */}
+              <div style={{
+                position: 'absolute',
+                top: '-3px',
+                left: '-3px',
+                width: '12px',
+                height: '12px',
+                background: 'linear-gradient(45deg, rgba(255, 255, 255, 0.8), rgba(255, 215, 0, 0.8))',
+                borderRadius: '50%',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                top: '-3px',
+                right: '-3px',
+                width: '12px',
+                height: '12px',
+                background: 'linear-gradient(45deg, rgba(255, 255, 255, 0.8), rgba(255, 215, 0, 0.8))',
+                borderRadius: '50%',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                bottom: '-3px',
+                left: '-3px',
+                width: '12px',
+                height: '12px',
+                background: 'linear-gradient(45deg, rgba(255, 255, 255, 0.8), rgba(255, 215, 0, 0.8))',
+                borderRadius: '50%',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                bottom: '-3px',
+                right: '-3px',
+                width: '12px',
+                height: '12px',
+                background: 'linear-gradient(45deg, rgba(255, 255, 255, 0.8), rgba(255, 215, 0, 0.8))',
+                borderRadius: '50%',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+              }}></div>
             </div>
           </div>
           
@@ -510,30 +695,54 @@ const EncuestaPartido = () => {
                 transform: 'scale(0.9)',
                 animation: 'slideInFromLeft 0.8s ease-out 0.4s both',
               }}>
-                <ProfileCard 
-                  profile={{
-                    ...player,
-                    puntuacion: isAbsence && localAnimatedScore !== null ? localAnimatedScore : player.puntuacion,
-                  }}
+                <ProfileCard
+                  profile={player}
                   enableTilt={false}
                   isVisible={true}
+                  currentUserId={user?.id}
                 />
               </div>
             )}
           </div>
           
-          {/* Emoji - margen muy reducido */}
+          {/* Emoji con contenedor circular destacado */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: '5px',
+            marginBottom: '10px',
           }}>
             <div style={{
-              fontSize: '55px',
+              width: '120px',
+              height: '120px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(255, 215, 0, 0.8) 70%, rgba(255, 193, 7, 0.9) 100%)',
+              border: '4px solid rgba(255, 255, 255, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 12px 40px rgba(255, 215, 0, 0.4), inset 0 4px 12px rgba(255, 255, 255, 0.3)',
               animation: 'emojiZoomIn 0.6s ease-out 1.2s both',
+              position: 'relative',
+              backdropFilter: 'blur(5px)',
             }}>
-              {animation.badgeIcon}
+              <div style={{
+                fontSize: '60px',
+                filter: 'drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3))',
+              }}>
+                {animation.badgeIcon}
+              </div>
+              {/* Shine effect */}
+              <div style={{
+                position: 'absolute',
+                top: '15px',
+                left: '25px',
+                width: '30px',
+                height: '30px',
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(255, 255, 255, 0.6) 0%, transparent 70%)',
+                animation: 'emojiZoomIn 0.6s ease-out 1.4s both',
+              }}></div>
             </div>
           </div>
           
@@ -564,7 +773,7 @@ const EncuestaPartido = () => {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">Cargando...</div>
+          <LoadingSpinner size="large" />
         </div>
       </div>
     );
@@ -614,29 +823,15 @@ const EncuestaPartido = () => {
           display: 'flex',
           flexDirection: 'column',
         }}>
-          {/* Título principal - centrado horizontal, fijo arriba */}
-          <div style={{
-            position: 'absolute',
-            top: '40px',
-            left: 0,
-            right: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1001,
-          }}>
-            <div className="voting-title-modern">
-              PREMIOS Y PENALIZACIONES
-            </div>
-          </div>
-          
-          {/* Contenedor de animaciones - centrado vertical y horizontal */}
+          {/* Contenedor de animaciones - centrado vertical y horizontal con padding superior */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             minHeight: '100vh',
             width: '100%',
+            paddingTop: '60px',
+            paddingBottom: '120px',
           }}>
             {/* Mostrar animación siempre mientras el overlay esté activo */}
             {badgeAnimations.length > 0 && (
@@ -644,24 +839,22 @@ const EncuestaPartido = () => {
             )}
           </div>
           
-          {/* Botón ACEPTAR - solo aparece cuando termina la última animación */}
-          {animationComplete && (
-            <button 
-              className="voting-confirm-btn"
-              onClick={handleAcceptAnimations}
-              style={{
-                position: 'absolute',
-                bottom: '50px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 1002,
-                width: '300px',
-                maxWidth: '90vw',
-              }}
-            >
-              ACEPTAR
-            </button>
-          )}
+          {/* Botón siempre visible - solo para saltear animaciones */}
+          <button 
+            className="voting-confirm-btn"
+            onClick={handleAcceptAnimations}
+            style={{
+              position: 'absolute',
+              bottom: '50px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 1002,
+              width: '300px',
+              maxWidth: '90vw',
+            }}
+          >
+            ACEPTAR
+          </button>
         </div>
       )}
       
@@ -804,7 +997,12 @@ const EncuestaPartido = () => {
             </div>
             <button
               className="voting-confirm-btn"
-              onClick={() => setCurrentStep(3)}
+              onClick={() => {
+                setBadgeAnimations([]);
+                setShowingBadgeAnimations(false);
+                setAnimationProcessed(false);
+                setCurrentStep(3);
+              }}
               style={{ marginTop: '20px' }}
             >
               SIGUIENTE

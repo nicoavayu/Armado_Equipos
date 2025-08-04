@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import { useAuth } from '../components/AuthProvider';
+import LoadingSpinner from '../components/LoadingSpinner';
 import ProfileCard from '../components/ProfileCard';
 import '../VotingView.css';
 
@@ -322,7 +323,7 @@ const ResultadosEncuesta = () => {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">Cargando resultados...</div>
+          <LoadingSpinner size="large" />
         </div>
       </div>
     );

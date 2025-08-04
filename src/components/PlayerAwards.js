@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useBadges } from '../context/BadgeContext';
+import LoadingSpinner from './LoadingSpinner';
 import './PlayerAwards.css';
 
 // Test function for debugging
@@ -132,7 +133,7 @@ const PlayerAwards = ({ playerId }) => {
     return (
       <div className="player-awards">
         <h3>Reconocimientos</h3>
-        <div style={{ color: '#999', fontSize: '14px' }}>Cargando...</div>
+        <LoadingSpinner size="small" />
       </div>
     );
   }

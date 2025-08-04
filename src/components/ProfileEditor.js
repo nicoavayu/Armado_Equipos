@@ -20,6 +20,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
+    telefono: '',
     nacionalidad: 'Argentina',
     pais_codigo: 'AR',
     posicion: 'DEF',
@@ -60,6 +61,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
       const newFormData = {
         nombre: profile.nombre || '',
         email: profile.email || user?.email || '',
+        telefono: profile.telefono || '',
         nacionalidad: profile.nacionalidad || 'Argentina',
         pais_codigo: profile.pais_codigo || 'AR',
         posicion: profile.posicion || profile.rol_favorito || 'DEF', // Fallback to rol_favorito for backward compatibility
@@ -224,20 +226,46 @@ export default function ProfileEditor({ isOpen, onClose }) {
   };
 
   const handleGeolocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          handleInputChange('latitud', position.coords.latitude);
-          handleInputChange('longitud', position.coords.longitude);
-          toast.success('Ubicación obtenida');
-        },
-        (error) => {
-          toast.error('Error obteniendo ubicación');
-        },
-      );
-    } else {
-      toast.error('Geolocalización no disponible');
+    if (!navigator.geolocation) {
+      toast.error('Geolocalización no disponible en este dispositivo');
+      return;
     }
+
+    toast.info('Obteniendo ubicación...');
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        handleInputChange('latitud', position.coords.latitude);
+        handleInputChange('longitud', position.coords.longitude);
+        toast.success('Ubicación obtenida correctamente');
+      },
+      (error) => {
+        let errorMessage = 'Error obteniendo ubicación';
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Permiso de ubicación denegado. Ve a Configuración > Privacidad > Ubicación para habilitarlo.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'No se puede determinar la ubicación. Intenta moverte a un área con mejor señal GPS o conexión a internet.';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Tiempo agotado. La ubicación está tardando mucho en obtenerse, intenta nuevamente.';
+            break;
+          default:
+            errorMessage = `Error de ubicación (código ${error.code}). Verifica que los servicios de ubicación estén habilitados.`;
+            break;
+        }
+        
+        console.error('Geolocation error:', error);
+        toast.error(errorMessage);
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 600000
+      }
+    );
   };
 
   const positions = [
@@ -478,6 +506,18 @@ export default function ProfileEditor({ isOpen, onClose }) {
               />
             </div>
 
+            {/* Teléfono */}
+            <div className="form-group">
+              <label>Teléfono <span style={{ fontSize: '12px', opacity: 0.7 }}>(solo visible para admins)</span></label>
+              <input
+                className="input-modern-small"
+                type="tel"
+                value={formData.telefono}
+                onChange={(e) => handleInputChange('telefono', e.target.value)}
+                placeholder="+54 9 11 1234-5678"
+              />
+            </div>
+
             {/* Nationality (with real-time flag update) */}
             <div className="form-group">
               <label>Nacionalidad</label>
@@ -561,6 +601,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
                   className="geo-btn"
                   onClick={handleGeolocation}
                   type="button"
+                  title="Obtener ubicación actual - Asegúrate de tener los servicios de ubicación habilitados"
                 >
                   📍
                 </button>

@@ -181,7 +181,7 @@ const AmigosView = () => {
   }
 
   return (
-    <div className="amigos-container" style={{ marginTop: '30px' }}>
+    <div className="amigos-container" style={{ marginTop: '-30px' }}>
       {/* Search section */}
       <div className="amigos-search-section">
         <input

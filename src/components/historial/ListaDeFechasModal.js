@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
+import LoadingSpinner from '../LoadingSpinner';
 import FichaDePartido from './FichaDePartido';
 import './ListaDeFechasModal.css';
 
@@ -94,7 +95,7 @@ const ListaDeFechasModal = ({ partidos, onClose, nombrePartido, error, loading }
                 // Estado de carga
                 <div className="loading-state">
                   <div className="loading-spinner"></div>
-                  <p>Cargando historial de partidos...</p>
+                  <LoadingSpinner size="medium" />
                 </div>
               ) : error ? (
                 // Estado de error

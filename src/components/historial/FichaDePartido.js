@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
+import LoadingSpinner from '../LoadingSpinner';
 import JugadorDestacadoCard from './JugadorDestacadoCard';
 import EstadisticasPartido from './EstadisticasPartido';
 import './FichaDePartido.css';
@@ -120,7 +121,7 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
     return (
       <div className="ficha-loading">
         <div className="loading-spinner"></div>
-        <p>Cargando detalles del partido...</p>
+        <LoadingSpinner size="medium" />
       </div>
     );
   }

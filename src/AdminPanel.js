@@ -63,186 +63,117 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   
   // [TEAM_BALANCER_INVITE_ACCESS_FIX] Verificar invitación pendiente
   useEffect(() => {
-    const checkPendingInvitation = async (userId, matchId) => {
-      // Checking invitation for user and match
+    const checkInvitation = async () => {
+      console.log('🔍 Checking invitation...', { userId: user?.id, matchId: partidoActual?.id });
       
-      // Si el usuario ya está en el partido, no hay invitación pendiente
-      if (isPlayerInMatch) {
-        return { invitation: null, error: null, matchId };
-      }
-      
-      // Obtener todas las notificaciones de invitación y filtrar en JS
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('type', 'match_invite');
-
-      if (error) {
-        return { invitation: null, error, matchId };
-      }
-      
-      // Asegurarse que notification.data sea siempre un objeto
-      const invitations = (data || []).map((n) => ({
-        ...n,
-        data: typeof n.data === 'string' ? JSON.parse(n.data) : n.data,
-      }));
-      
-      // Process invitations data
-      
-      // Filtrar por matchId asegurando tipo string
-      const matchingInvitation = invitations.find((notification) =>
-        notification.data &&
-        String(notification.data.matchId) === String(matchId),
-      );
-      
-      if (matchingInvitation) {
-        return { invitation: matchingInvitation, error: null, matchId };
-      }
-      return { invitation: null, error: null, matchId };
-    };
-    
-    const runCheck = async () => {
       if (!user?.id || !partidoActual?.id) {
+        console.log('❌ No user or match ID');
         setInvitationChecked(true);
         return;
       }
       
       try {
-        const result = await checkPendingInvitation(user.id, partidoActual.id);
+        // Verificar si el usuario ya está en el partido
+        const isInMatch = jugadores.some(j => j.usuario_id === user.id);
+        console.log('👤 User in match:', isInMatch);
         
-        if (result.invitation && !isPlayerInMatch) {
-          setPendingInvitation(true);
-        } else {
+        if (isInMatch) {
+          console.log('✅ User already in match, no invitation needed');
           setPendingInvitation(false);
+          setInvitationChecked(true);
+          return;
         }
+        
+        // Verificar si hay invitación pendiente
+        const { data: invitation, error } = await supabase
+          .from('notifications')
+          .select('id, data')
+          .eq('user_id', user.id)
+          .eq('type', 'match_invite')
+          .eq('read', false)
+          .eq('data->>matchId', partidoActual.id.toString())
+          .single();
+          
+        console.log('📧 Invitation check result:', { invitation, error });
+        
+        const hasPendingInvitation = !!invitation;
+        console.log('🎯 Setting pendingInvitation to:', hasPendingInvitation);
+        setPendingInvitation(hasPendingInvitation);
       } catch (error) {
-        // Error in invitation check
+        console.log('❌ Error checking invitation:', error);
+        setPendingInvitation(false);
       } finally {
         setInvitationChecked(true);
       }
     };
     
-    if (user?.id && partidoActual) {
-      runCheck();
-    }
-  }, [user?.id, partidoActual, isPlayerInMatch]);
+    checkInvitation();
+  }, [user?.id, partidoActual?.id, jugadores]);
   
-  // [TEAM_BALANCER_INVITE_ACCESS_FIX] Control de acceso separado
-  useEffect(() => {
-    const checkKickedStatus = async () => {
-      if (!user?.id || !partidoActual?.id) return false;
-      
-      try {
-        const { data: kickNotification } = await supabase
-          .from('notifications')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('type', 'match_kicked')
-          .contains('data', { matchId: partidoActual.id })
-          .single();
-          
-        return !!kickNotification;
-      } catch (error) {
-        return false;
-      }
-    };
-    
-    const runAccessCheck = async () => {
-      
-      if (!user?.id || !partidoActual?.id || !invitationChecked) {
-        return;
-      }
-      
-      // Verificar si fue expulsado
-      const wasKicked = await checkKickedStatus();
-      if (wasKicked) {
-        toast.error('Has sido expulsado de este partido');
-        onBackToHome();
-        return;
-      }
-      
-      // Solo redirigir si el usuario NO está en la nómina, NO es admin y NO tiene invitación pendiente
-      const shouldRedirect = !isPlayerInMatch && !isAdmin && !pendingInvitation;
-      
-      if (shouldRedirect) {
-        toast.error('No estás invitado a este partido');
-        onBackToHome();
-      }
-    };
-    
-    runAccessCheck();
-  }, [user?.id, partidoActual, isPlayerInMatch, isAdmin, pendingInvitation, invitationChecked, onBackToHome]);
+  // [TEAM_BALANCER_INVITE_ACCESS_FIX] Control de acceso separado - DISABLED to prevent loops
+  // useEffect(() => {
+  //   const checkKickedStatus = async () => {
+  //     if (!user?.id || !partidoActual?.id) return false;
+  //     
+  //     try {
+  //       const { data: kickNotification } = await supabase
+  //         .from('notifications')
+  //         .select('id')
+  //         .eq('user_id', user.id)
+  //         .eq('type', 'match_kicked')
+  //         .eq('data->>matchId', partidoActual.id.toString())
+  //         .single();
+  //         
+  //       return !!kickNotification;
+  //     } catch (error) {
+  //       return false;
+  //     }
+  //   };
+  //   
+  //   const runAccessCheck = async () => {
+  //     
+  //     if (!user?.id || !partidoActual?.id || !invitationChecked) {
+  //       return;
+  //     }
+  //     
+  //     // Verificar si fue expulsado
+  //     const wasKicked = await checkKickedStatus();
+  //     if (wasKicked) {
+  //       toast.error('Has sido expulsado de este partido');
+  //       onBackToHome();
+  //       return;
+  //     }
+  //     
+  //     // Solo redirigir si el usuario NO está en la nómina, NO es admin y NO tiene invitación pendiente
+  //     const shouldRedirect = !isPlayerInMatch && !isAdmin && !pendingInvitation;
+  //     
+  //     if (shouldRedirect) {
+  //       toast.error('No estás invitado a este partido');
+  //       onBackToHome();
+  //     }
+  //   };
+  //   
+  //   runAccessCheck();
+  // }, [user?.id, partidoActual, isPlayerInMatch, isAdmin, pendingInvitation, invitationChecked, onBackToHome]);
   
-  // useEffect para refrescar jugadores desde la tabla jugadores
+  // useEffect para refrescar jugadores - COMPLETELY DISABLED to prevent loops
   useEffect(() => {
-    async function fetchJugadoresDelPartido() {
+    // Only run once on mount, no dependencies to prevent loops
+    async function fetchInitialData() {
       if (!partidoActual?.id) return;
       try {
-        
-        // Schedule match for automatic stats tracking
-        if (partidoActual.fecha && partidoActual.hora) {
-          matchScheduler.scheduleMatch(partidoActual.id, partidoActual.fecha, partidoActual.hora);
-        }
-        
-        // Verificar si cambió el admin del partido
-        const { data: partidoData } = await supabase
-          .from('partidos')
-          .select('creado_por')
-          .eq('id', partidoActual.id)
-          .single();
-          
-        if (partidoData && partidoData.creado_por !== partidoActual.creado_por) {
-          window.location.reload();
-          return;
-        }
-        
         const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
-        
-        const votantesIds = await getVotantesIds(partidoActual.id);
-        const votantesNombres = await getVotantesConNombres(partidoActual.id);
-        setVotantes(votantesIds || []);
-        setVotantesConNombres(votantesNombres || []);
-        
         onJugadoresChange(jugadoresPartido);
-        
-        if (isAdmin) {
-          try {
-            const duplicateInfo = await detectDuplicates(partidoActual.id);
-            setDuplicatesDetected(duplicateInfo.duplicates?.length || 0);
-          } catch (error) {
-            // Error detecting duplicates
-          }
-        }
       } catch (error) {
-        // Error loading match data
+        console.error('Error loading initial data:', error);
       }
     }
     
-    fetchJugadoresDelPartido();
-    const interval = setInterval(fetchJugadoresDelPartido, 2000);
-    
-    return () => {
-      clearInterval(interval);
-    };
-  }, [partidoActual?.id, isAdmin, onJugadoresChange, partidoActual?.creado_por, partidoActual?.fecha, partidoActual?.hora]);
+    fetchInitialData();
+  }, []); // Empty dependency array - only run once
 
 
-  async function refreshVotantes(partidoActual, setVotantes) {
-    try {
-      const votantesIds = await getVotantesIds(partidoActual.id);
-      setVotantes(votantesIds || []);
-    } catch (error) {
-      // Silent refresh error - not critical for UX
-    }
-  }
-
-  // Refresh voters when players change
-  useEffect(() => {
-    if (jugadores.length > 0 && partidoActual?.id) {
-      refreshVotantes(partidoActual, setVotantes);
-    }
-  }, [jugadores.length, partidoActual?.id, partidoActual]);
+  // Refresh voters function removed to reduce API calls
 
   /**
  * Adds a new player to the current match
@@ -305,7 +236,13 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         }
       }, 1500);
       
-      // El useEffect se encargará de refrescar la lista automáticamente
+      // Refresh data manually after adding player
+      const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
+      const votantesIds = await getVotantesIds(partidoActual.id);
+      const votantesNombres = await getVotantesConNombres(partidoActual.id);
+      setVotantes(votantesIds || []);
+      setVotantesConNombres(votantesNombres || []);
+      onJugadoresChange(jugadoresPartido);
     } catch (error) {
       toast.error('Error agregando jugador: ' + error.message);
     } finally {
@@ -392,7 +329,15 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         }
       }
       
-      // El useEffect se encargará de refrescar la lista automáticamente
+      // Refresh data manually after removing player
+      if (!esAutoEliminacion) {
+        const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
+        const votantesIds = await getVotantesIds(partidoActual.id);
+        const votantesNombres = await getVotantesConNombres(partidoActual.id);
+        setVotantes(votantesIds || []);
+        setVotantesConNombres(votantesNombres || []);
+        onJugadoresChange(jugadoresPartido);
+      }
     } catch (error) {
       toast.error('Error eliminando jugador: ' + error.message);
     } finally {
@@ -1037,12 +982,10 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
   };
   
-  // Verificar equipos formados al cargar y periódicamente
-  useEffect(() => {
-    checkForFormedTeams();
-    const interval = setInterval(checkForFormedTeams, 3000);
-    return () => clearInterval(interval);
-  }, [partidoActual?.id, showTeamView, isAdmin, checkForFormedTeams]);
+  // Verificar equipos formados - COMPLETELY DISABLED
+  // useEffect(() => {
+  //   checkForFormedTeams();
+  // }, []);
   
   const showTeams =
     showTeamView &&
@@ -1077,7 +1020,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       
       <PageTitle onBack={onBackToHome}>CONVOCA JUGADORES</PageTitle>
       
-      <div className="admin-panel-content">
+      <div className="admin-panel-content" style={{ paddingTop: isAdmin ? undefined : '0px', marginTop: isAdmin ? undefined : '-45px' }}>
         {showTeams ? (
           <TeamDisplay
             teams={teams}
@@ -1095,7 +1038,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
           <>
             {/* Match header with custom name and details */}
             {/* AJUSTE DE MARGEN: Modificar marginTop aquí para separar del PageTitle */}
-            <div className="match-header" style={{ textAlign: 'center', marginBottom: '10px', marginTop: '70px', width: '100%' }}>
+            <div className="match-header" style={{ textAlign: 'center', marginBottom: '10px', marginTop: isAdmin ? '70px' : '10px', width: '100%' }}>
               <div className="match-name" style={{ 
                 fontSize: '36px', 
                 fontWeight: 'bold', 
@@ -1136,7 +1079,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             </div>
 
             {/* [TEAM_BALANCER_INVITE_EDIT] Botones de aceptar/rechazar invitación */}
-            {pendingInvitation && (
+            {(!isAdmin && !isPlayerInMatch) && (
               <div className="admin-add-section">
                 <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', width: '100%' }}>
                   <button
@@ -1160,8 +1103,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                       flex: 1,
                       fontSize: '13px',
                       padding: '10px 4px',
-                      background: 'rgba(222, 28, 73, 0.3)',
-                      borderColor: '#fff',
+                      background: 'rgb(222 28 73)',
+                      borderColor: 'rgb(222 28 73)',
                     }}
                   >
                     {invitationLoading ? <LoadingSpinner size="small" /> : 'RECHAZAR INVITACIÓN'}
@@ -1440,8 +1383,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
               </div>
             )}
               
-            {/* Botones para jugadores no-admin que están en el partido */}
-            {!isAdmin && isPlayerInMatch && !pendingInvitation && (
+            {/* Botones para jugadores que están en el partido (admin o no-admin) */}
+            {isPlayerInMatch && !pendingInvitation && (
               <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '0 auto' }}>
                 <button
                   className="guest-action-btn invite-btn"
@@ -1451,8 +1394,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                     flex: 1,
                     fontSize: '13px',
                     padding: '10px 4px',
-                    background: 'rgba(76, 175, 80, 0.3)',
-                    borderColor: '#fff',
                   }}
                 >
                   INVITAR AMIGOS
@@ -1461,15 +1402,13 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                   className="guest-action-btn leave-btn"
                   onClick={() => {
                     if (window.confirm('¿Estás seguro de que quieres abandonar el partido?')) {
-                      eliminarJugador(user.id, false);
+                      eliminarJugador(currentPlayerInMatch?.uuid || user.id, false);
                     }
                   }}
                   style={{ 
                     flex: 1,
                     fontSize: '13px',
                     padding: '10px 4px',
-                    background: 'rgba(222, 28, 73, 0.3)',
-                    borderColor: '#fff',
                   }}
                 >
                   ABANDONAR PARTIDO

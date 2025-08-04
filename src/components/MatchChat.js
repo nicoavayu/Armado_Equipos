@@ -15,8 +15,9 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     if (isOpen && partidoId) {
       fetchMessages();
       markAsRead();
-      const interval = setInterval(fetchMessages, 5000);
-      return () => clearInterval(interval);
+      // Interval disabled to prevent ERR_INSUFFICIENT_RESOURCES
+      // const interval = setInterval(fetchMessages, 5000);
+      // return () => clearInterval(interval);
     }
   }, [isOpen, partidoId]);
 

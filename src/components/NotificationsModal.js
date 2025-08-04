@@ -178,7 +178,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           {loading ? (
             <div className="loading-state">
               <LoadingSpinner size="medium" />
-              <p>Cargando notificaciones...</p>
+
             </div>
           ) : notifications.length === 0 ? (
             <div className="sin-notificaciones">
