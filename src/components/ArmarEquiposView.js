@@ -353,7 +353,7 @@ export default function ArmarEquiposView({
         <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '16px auto 0', textAlign: 'center' }}>
           <div style={{ display: 'flex', gap: '8px', width: '100%', marginBottom: '12px' }}>
             <button 
-              className="voting-confirm-btn admin-btn-cyan" 
+              className="admin-btn-blue" 
               onClick={handleCallToVote}
               style={{ flex: 1 }}
             >
@@ -361,7 +361,7 @@ export default function ArmarEquiposView({
             </button>
           
             <button 
-              className="voting-confirm-btn admin-btn-cyan" 
+              className="admin-btn-green" 
               onClick={handleWhatsApp}
               style={{ flex: 1 }}
             >
@@ -371,13 +371,11 @@ export default function ArmarEquiposView({
           </div>
           
           <button 
-            className="voting-confirm-btn admin-btn-cyan" 
+            className="admin-btn-orange" 
             onClick={handleCerrarVotacion} 
             disabled={isClosing || jugadores.length < 2}
             style={{
               width: '100%',
-              opacity: (isClosing || jugadores.length < 2) ? 0.6 : 1,
-              cursor: (isClosing || jugadores.length < 2) ? 'not-allowed' : 'pointer',
             }}
           >
             {isClosing ? (

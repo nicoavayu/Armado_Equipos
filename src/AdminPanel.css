@@ -797,6 +797,102 @@
   transform: none !important;
 }
 
+/* Botón de armar equipos - estilo naranja */
+.admin-btn-orange {
+  background: #FF8C00 !important;
+  border: 2px solid #FF8C00 !important;
+  border-radius: 6px !important;
+  color: #fff !important;
+  font-family: 'Bebas Neue', Arial, sans-serif !important;
+  font-size: 16px !important;
+  padding: 10px 16px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  min-height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.admin-btn-orange:hover {
+  background: #FF7F00 !important;
+  border-color: #FF7F00 !important;
+  transform: translateY(-1px) !important;
+}
+
+.admin-btn-orange:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  background: #B8860B !important;
+  border-color: #B8860B !important;
+}
+
+/* Botón azul - estilo para llamar a votar */
+.admin-btn-blue {
+  background: #0a0a59e6 !important;
+  border: 2px solid #0a0a59e6 !important;
+  border-radius: 6px !important;
+  color: #fff !important;
+  font-family: 'Bebas Neue', Arial, sans-serif !important;
+  font-size: 16px !important;
+  padding: 10px 16px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  min-height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.admin-btn-blue:hover {
+  background: #0a0a59f0 !important;
+  border-color: #0a0a59f0 !important;
+  transform: translateY(-1px) !important;
+}
+
+.admin-btn-blue:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  background: #6c757d !important;
+  border-color: #6c757d !important;
+}
+
+/* Botón verde - estilo para compartir link */
+.admin-btn-green {
+  background: #25D366 !important;
+  border: 2px solid #25D366 !important;
+  border-radius: 6px !important;
+  color: #fff !important;
+  font-family: 'Bebas Neue', Arial, sans-serif !important;
+  font-size: 16px !important;
+  padding: 10px 16px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  min-height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.admin-btn-green:hover {
+  background: #20b358 !important;
+  border-color: #20b358 !important;
+  transform: translateY(-1px) !important;
+}
+
+.admin-btn-green:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  background: #6c757d !important;
+  border-color: #6c757d !important;
+}
+
 
 
 /* Mobile responsive */

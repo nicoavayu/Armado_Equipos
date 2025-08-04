@@ -871,7 +871,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
           <>
             {/* Match header with custom name and details */}
             {/* AJUSTE DE MARGEN: Modificar marginTop aquí para separar del PageTitle */}
-            <div className="match-header" style={{ textAlign: 'center', marginBottom: '10px', marginTop: isAdmin ? '70px' : '10px', width: '100%' }}>
+            <div className="match-header" style={{ textAlign: 'center', marginBottom: '8px', marginTop: isAdmin ? '40px' : '5px', width: '100%' }}>
               <div className="match-name" style={{ 
                 fontSize: '36px', 
                 fontWeight: 'bold', 
@@ -1159,17 +1159,15 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             {isAdmin && !pendingInvitation && (
               <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '16px auto 0', textAlign: 'center' }}>
                 <button 
-                  className="voting-confirm-btn admin-btn-cyan" 
+                  className="admin-btn-orange" 
                   onClick={handleArmarEquipos}
                   disabled={jugadores.length < 8}
                   style={{
                     width: '100%',
-                    opacity: jugadores.length < 8 ? 0.6 : 1,
-                    cursor: jugadores.length < 8 ? 'not-allowed' : 'pointer',
                   }}
                   title={jugadores.length < 8 ? 'Necesitás al menos 8 jugadores para armar los equipos.' : ''}
                 >
-                  ARMAR EQUIPOS PAREJOS ({jugadores.length} jugadores)
+                  ARMAR EQUIPOS PAREJOS
                 </button>
               </div>
             )}

@@ -323,9 +323,9 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       <ChatButton partidoId={partidoId} />
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="team-display-container">
-          <PageTitle onBack={onBackToHome}>ARMAR EQUIPOS</PageTitle>
+          <PageTitle onBack={onBackToHome}>EQUIPOS ARMADOS</PageTitle>
           
-          <div className="team-display-content" style={{ paddingTop: '15px' }}>
+          <div className="team-display-content" style={{ paddingTop: '90px' }}>
             {/* Match header with large title and details */}
             {(nombre || fecha || hora || sede) && (
               <div className="match-header-large">
@@ -495,20 +495,35 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                 </div>
               ))}
             </div>
-            <div className="team-actions">
-              {/* [TEAM_BALANCER_EDIT] Botones solo para admin */}
+            {/* Botones de acción */}
+            <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '16px auto 0', textAlign: 'center' }}>
               {isAdmin && (
-                <div className="team-actions-row">
-                  <button onClick={randomizeTeams} className="team-action-btn randomize-btn wipe-btn">Randomizar</button>
-                  <button onClick={() => setShowAverages(!showAverages)} className="team-action-btn averages-btn wipe-btn">
-                    {showAverages ? 'Ocultar Promedios' : 'Ver Promedios'}
+                <div style={{ display: 'flex', gap: '8px', width: '100%', marginBottom: '12px' }}>
+                  <button 
+                    className="admin-btn-orange" 
+                    onClick={randomizeTeams}
+                    style={{ flex: 1 }}
+                  >
+                    RANDOMIZAR
+                  </button>
+                
+                  <button 
+                    className="admin-btn-blue" 
+                    onClick={() => setShowAverages(!showAverages)}
+                    style={{ flex: 1 }}
+                  >
+                    {showAverages ? 'OCULTAR PROMEDIOS' : 'VER PROMEDIOS'}
                   </button>
                 </div>
               )}
               
-              {/* Botón compartir disponible para todos */}
-              <button onClick={handleWhatsAppShare} className="team-action-btn whatsapp-btn wipe-btn">
-                <WhatsappIcon /> Compartir
+              <button 
+                className="admin-btn-green" 
+                onClick={handleWhatsAppShare}
+                style={{ width: '100%' }}
+              >
+                <WhatsappIcon size={16} style={{ marginRight: 8 }} />
+                COMPARTIR
               </button>
             </div>
           </div>
