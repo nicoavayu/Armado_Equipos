@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  closeVotingAndCalculateScores,
   getVotantesIds,
   getVotantesConNombres,
   getJugadoresDelPartido,
@@ -11,13 +10,12 @@ import {
 import { incrementMatchesAbandoned, canAbandonWithoutPenalty } from './utils/matchStatsManager';
 import matchScheduler from './services/matchScheduler';
 import { toast } from 'react-toastify';
-import { UI_SIZES } from './appConstants';
 
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import './HomeStyleKit.css';
 import './AdminPanel.css';
-import WhatsappIcon from './components/WhatsappIcon';
 import TeamDisplay from './components/TeamDisplay';
+import ArmarEquiposView from './components/ArmarEquiposView';
 
 import ChatButton from './components/ChatButton';
 import { PlayerCardTrigger } from './components/ProfileComponents';
@@ -38,6 +36,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const [loading, setLoading] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [showTeamView, setShowTeamView] = useState(false);
+  const [showArmarEquiposView, setShowArmarEquiposView] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false); // [TEAM_BALANCER_EDIT] Modal de invitación
   const [duplicatesDetected, setDuplicatesDetected] = useState(0); // Contador de duplicados
 
@@ -405,199 +404,24 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     safeSetTeams(newTeams);
   };
 
-  /**
- * Closes voting phase and creates balanced teams
- * Calculates player averages from votes and forms teams
- */
-  async function handleCerrarVotacion() {
-    // [TEAM_BALANCER_EDIT] Solo admin puede cerrar votación
-    if (!isAdmin) {
-      toast.error('Solo el admin puede cerrar la votación');
-      return;
-    }
-    
-    // Prevent double execution
-    if (isClosing) {
-      toast.warn('Operación en progreso, espera un momento');
-      return;
-    }
-  
-    // Validate preconditions
-    if (!partidoActual) {
-      toast.error('Error: No hay partido activo');
-      return;
-    }
-  
-    if (!jugadores || jugadores.length === 0) {
-      toast.error('Error: No hay jugadores en el partido');
-      return;
-    }
-  
-    if (jugadores.length < 2) {
-      toast.error('Se necesitan al menos 2 jugadores');
-      return;
-    }
-  
-    if (jugadores.length % 2 !== 0) {
-      toast.error('NECESITAS UN NÚMERO PAR DE JUGADORES PARA FORMAR EQUIPOS');
-      return;
-    }
-  
-    // Validate player UUIDs
-    const invalidPlayers = jugadores.filter((j) => !j.uuid);
-    if (invalidPlayers.length > 0) {
-      toast.error('Error: Algunos jugadores no tienen ID válido');
-      return;
-    }
-  
-    // Check if there are any votes
-    if (votantes.length === 0) {
-      const shouldContinue = window.confirm(
-        'No se detectaron votos. ¿Estás seguro de que querés continuar? Los equipos se formarán con puntajes por defecto.',
-      );
-      if (!shouldContinue) {
-        return;
-      }
-    }
-  
-    const confirmMessage = votantes.length > 0 
-      ? `¿Cerrar votación y armar equipos? Se procesaron ${votantes.length} votos.`
-      : '¿Cerrar votación y armar equipos con puntajes por defecto?';
-    
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-  
-    setIsClosing(true);
-  
-    try {
-    // Close voting and calculate scores
-      const result = await closeVotingAndCalculateScores(partidoActual.id);
-    
-      if (!result) {
-        throw new Error('No se recibió respuesta del cierre de votación');
-      }
-    
-      // Get fresh player data with updated scores from match
-      const matchPlayers = await getJugadoresDelPartido(partidoActual.id);
-    
-      if (!matchPlayers || matchPlayers.length === 0) {
-        throw new Error('No se pudieron obtener los jugadores actualizados');
-      }
-    
-      // Create balanced teams
-      const teams = armarEquipos(matchPlayers);
-    
-      if (!teams || teams.length !== 2) {
-        throw new Error('Error al crear los equipos');
-      }
-    
-      // Validate teams
-      const teamAPlayers = teams[0]?.players?.length || 0;
-      const teamBPlayers = teams[1]?.players?.length || 0;
-      if (teamAPlayers === 0 || teamBPlayers === 0) {
-        throw new Error('Los equipos creados están vacíos');
-      }
-    
-      // Update match status
-      await supabase
-        .from('partidos')
-        .update({ estado: 'equipos_formados', equipos: teams })
-        .eq('id', partidoActual.id);
-    
-      // Update UI state
-      safeSetTeams(teams);
-      setShowTeamView(true);
-      onJugadoresChange(matchPlayers);
-    
-      // Programar notificaciones de encuesta post-partido
-      try {
-        const { schedulePostMatchSurveyNotifications } = await import('./utils/matchNotifications');
-        await schedulePostMatchSurveyNotifications(partidoActual);
-      } catch (scheduleError) {
-        // No se pudieron programar las notificaciones de encuesta
-        // No mostramos error al usuario ya que no es crítico para la funcionalidad principal
-      }
-    
-      // Success! Show toast only for admin
-      if (isAdmin) {
-        toast.success('¡Equipos generados exitosamente!');
-        
-        // Show additional toast if teams are perfectly balanced
-        const teamA = teams[0];
-        const teamB = teams[1];
-        if (teamA && teamB && Math.abs(teamA.score - teamB.score) < 0.01) {
-          setTimeout(() => {
-            toast.success('¡MATCH PERFECTO! Equipos perfectamente balanceados.');
-          }, 1000);
-        }
-      }
-    
-    } catch (error) {
-    // Provide specific error messages
-      let errorMessage = 'Error al cerrar la votación';
-      if (error.message.includes('votos')) {
-        errorMessage = 'Error al procesar los votos';
-      } else if (error.message.includes('jugadores')) {
-        errorMessage = 'Error al actualizar los jugadores';
-      } else if (error.message.includes('equipos')) {
-        errorMessage = 'Error al crear los equipos';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-    
-      toast.error(errorMessage);
-    
-      // Reset state on error
-      setShowTeamView(false);
-    
-    } finally {
-      setIsClosing(false);
-    }
-  }
+  // Función para manejar cuando se forman los equipos desde ArmarEquiposView
+  const handleTeamsFormed = (newTeams, updatedPlayers) => {
+    safeSetTeams(newTeams);
+    setShowTeamView(true);
+    setShowArmarEquiposView(false);
+    onJugadoresChange(updatedPlayers);
+  };
 
 
-  function _handleCopyLink() {
-    const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
-    navigator.clipboard.writeText(url);
-    toast.success('¡Link copiado!', { autoClose: 2000 });
-  }
-  
-  async function handleCallToVote() {
-    // [TEAM_BALANCER_EDIT] Solo admin puede llamar a votar
-    if (!isAdmin) {
-      toast.error('Solo el admin puede llamar a votar');
+
+
+  // Función para ir a la vista de armar equipos
+  function handleArmarEquipos() {
+    if (jugadores.length < 8) {
+      toast.warn('Necesitás al menos 8 jugadores para armar los equipos.');
       return;
     }
-    
-    try {
-      // Verificar que haya jugadores para notificar
-      if (!jugadores || jugadores.length === 0) {
-        toast.warn('No hay jugadores para notificar');
-        return;
-      }
-      
-      // Importar dinámicamente la función para crear notificaciones
-      const { createCallToVoteNotifications } = await import('./utils/matchNotifications');
-      
-      // Crear notificaciones para todos los jugadores
-      const notificaciones = await createCallToVoteNotifications(partidoActual);
-      
-      // Mostrar mensaje de éxito con el número de notificaciones creadas
-      if (notificaciones.length > 0) {
-        toast.success(`Notificación enviada a ${notificaciones.length} jugadores`);
-      } else {
-        toast.info('No se pudieron enviar notificaciones. Asegúrate que los jugadores tengan cuenta.');
-      }
-      
-    } catch (error) {
-      toast.error('Error al enviar notificaciones: ' + error.message);
-    }
-  }
-
-  function handleWhatsApp() {
-    const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent('Entrá a votar para armar los equipos: ' + url)}`, '_blank');
+    setShowArmarEquiposView(true);
   }
   
   // [TEAM_BALANCER_EDIT] Función para transferir admin (solo el creador puede transferir)
@@ -994,8 +818,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     teams.find((t) => t.id === 'equipoA') &&
     teams.find((t) => t.id === 'equipoB');
 
-  // Determine if button should be disabled
-  const isButtonDisabled = isClosing || loading || jugadores.length < 2;
+
 
   // [TEAM_BALANCER_INVITE_ACCESS_FIX] Mostrar loading hasta verificar invitación
   if (!partidoActual || !invitationChecked) return <LoadingSpinner size="large" />;
@@ -1018,10 +841,20 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     <>
       <ChatButton partidoId={partidoActual?.id} />
       
-      <PageTitle onBack={onBackToHome}>CONVOCA JUGADORES</PageTitle>
-      
-      <div className="admin-panel-content" style={{ paddingTop: isAdmin ? undefined : '0px', marginTop: isAdmin ? undefined : '-45px' }}>
-        {showTeams ? (
+      {showArmarEquiposView ? (
+        <ArmarEquiposView
+          onBackToAdmin={() => setShowArmarEquiposView(false)}
+          jugadores={jugadores}
+          onJugadoresChange={onJugadoresChange}
+          partidoActual={partidoActual}
+          onTeamsFormed={handleTeamsFormed}
+        />
+      ) : (
+        <>
+          <PageTitle onBack={onBackToHome}>CONVOCA JUGADORES</PageTitle>
+          
+          <div className="admin-panel-content" style={{ paddingTop: isAdmin ? undefined : '0px', marginTop: isAdmin ? undefined : '-45px' }}>
+            {showTeams ? (
           <TeamDisplay
             teams={teams}
             players={jugadores}
@@ -1322,64 +1155,22 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
               </div>
             )}
 
-            {/* Sección ARMAR EQUIPOS PAREJOS - Solo admin */}
+            {/* Botón ARMAR EQUIPOS PAREJOS - Solo admin */}
             {isAdmin && !pendingInvitation && (
-              <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '0 auto', textAlign: 'center' }}>
-                <div style={{
-                  fontFamily: 'Bebas Neue, Arial, sans-serif',
-                  fontSize: '24px',
-                  color: '#fff',
-                  letterSpacing: '1px',
-                  marginBottom: '16px',
-                  textTransform: 'uppercase',
-                }}>
-                  ARMAR EQUIPOS PAREJOS
-                </div>
-                
-                <div style={{ display: 'flex', gap: '8px', width: '100%', marginBottom: '12px' }}>
-                  <button 
-                    className="voting-confirm-btn admin-btn-cyan" 
-                    onClick={handleCallToVote}
-                    aria-label="Enviar notificación a los jugadores para que voten"
-                    style={{ flex: 1 }}
-                  >
-                  LLAMAR A VOTAR
-                  </button>
-                
-                  <button 
-                    className="voting-confirm-btn admin-btn-cyan" 
-                    onClick={handleWhatsApp}
-                    aria-label="Compartir enlace por WhatsApp"
-                    style={{ flex: 1 }}
-                  >
-                    <WhatsappIcon size={UI_SIZES.WHATSAPP_ICON_SIZE} style={{ marginRight: 8 }} />
-                  COMPARTIR LINK
-                  </button>
-                </div>
-                
-                <div style={{ position: 'relative' }}>
-                  <button 
-                    className="voting-confirm-btn admin-btn-cyan" 
-                    onClick={handleCerrarVotacion} 
-                    disabled={isButtonDisabled}
-                    style={{
-                      width: '100%',
-                      opacity: isButtonDisabled ? 0.6 : 1,
-                      cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
-                    }}
-                    aria-label={isClosing ? 'Cerrando votación' : `Cerrar votación con ${jugadores.length} jugadores`}
-                  >
-                    {isClosing ? (
-                      <LoadingSpinner size="small" />
-                    ) : (
-                      `CERRAR VOTACIÓN (${jugadores.length} jugadores)`
-                    )}
-                  </button>
-                
-
-                </div>
-                
-
+              <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '16px auto 0', textAlign: 'center' }}>
+                <button 
+                  className="voting-confirm-btn admin-btn-cyan" 
+                  onClick={handleArmarEquipos}
+                  disabled={jugadores.length < 8}
+                  style={{
+                    width: '100%',
+                    opacity: jugadores.length < 8 ? 0.6 : 1,
+                    cursor: jugadores.length < 8 ? 'not-allowed' : 'pointer',
+                  }}
+                  title={jugadores.length < 8 ? 'Necesitás al menos 8 jugadores para armar los equipos.' : ''}
+                >
+                  ARMAR EQUIPOS PAREJOS ({jugadores.length} jugadores)
+                </button>
               </div>
             )}
               
@@ -1418,18 +1209,20 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
           
             {/* Sección de jugadores libres eliminada */}
 
-          </>
+            </>
+          )}
+        </div>
+        
+        {/* [TEAM_BALANCER_EDIT] Modal de invitar amigos */}
+        {showInviteModal && partidoActual?.id && (
+          <InviteAmigosModal
+            isOpen={showInviteModal}
+            onClose={() => setShowInviteModal(false)}
+            currentUserId={user?.id}
+            partidoActual={partidoActual}
+          />
         )}
-      </div>
-      
-      {/* [TEAM_BALANCER_EDIT] Modal de invitar amigos */}
-      {showInviteModal && partidoActual?.id && (
-        <InviteAmigosModal
-          isOpen={showInviteModal}
-          onClose={() => setShowInviteModal(false)}
-          currentUserId={user?.id}
-          partidoActual={partidoActual}
-        />
+      </>
       )}
     </>
   );
