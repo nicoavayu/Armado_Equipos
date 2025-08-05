@@ -1068,14 +1068,18 @@ export const deletePartidoFrecuente = async (id) => {
 export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad = 'F5', cupo = 10) => {
   console.log('Creating/finding match from frequent match:', partidoFrecuente, 'for date:', fecha);
   
-  // First, check if a match already exists for this frequent match and date
+  // Get current user to make search more specific
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  // First, check if a match already exists for this frequent match, date AND user
   const { data: existingMatches, error: searchError } = await supabase
     .from('partidos')
     .select('*')
     .eq('fecha', fecha)
     .eq('sede', partidoFrecuente.sede)
     .eq('hora', partidoFrecuente.hora)
-    .eq('estado', 'activo');
+    .eq('estado', 'activo')
+    .eq('creado_por', user?.id); // Solo buscar partidos del mismo usuario
     
   if (searchError) {
     console.error('Error searching for existing match:', searchError);
