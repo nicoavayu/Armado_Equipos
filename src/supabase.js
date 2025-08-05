@@ -594,29 +594,27 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     console.log('✅ SUPABASE: Score calculations:', scoreUpdates);
     
     console.log('📊 SUPABASE: Executing score updates');
-    const updateResults = await Promise.all(updates);
-    const updateErrors = updateResults.filter((res) => res.error);
+    const updateResults = await Promise.allSettled(updates);
+    const updateErrors = updateResults.filter((res) => res.status === 'rejected');
+    const successfulUpdates = updateResults.filter((res) => res.status === 'fulfilled');
     
     if (updateErrors.length > 0) {
-      console.error('❌ SUPABASE: Score update errors:', updateErrors.map((e) => ({
-        error: e.error,
-        code: e.error?.code,
-        message: e.error?.message,
-        details: e.error?.details
+      console.error('❌ SUPABASE: Score update errors:', updateErrors.map((e, index) => ({
+        index,
+        player: scoreUpdates[index]?.nombre,
+        uuid: scoreUpdates[index]?.uuid,
+        reason: e.reason
       })));
       
-      // Log specific error details for debugging
-      updateErrors.forEach((result, index) => {
-        if (result.error) {
-          console.error(`Update error ${index + 1}:`, {
-            player: scoreUpdates[index]?.nombre,
-            uuid: scoreUpdates[index]?.uuid,
-            error: result.error
-          });
-        }
-      });
+      console.warn(`⚠️ SUPABASE: ${updateErrors.length} updates failed, ${successfulUpdates.length} succeeded`);
       
-      throw new Error(`Error al actualizar los puntajes de ${updateErrors.length} jugadores. Revisa los logs para más detalles.`);
+      // Si TODAS las actualizaciones fallaron, lanzar error
+      if (successfulUpdates.length === 0) {
+        throw new Error('No se pudo actualizar ningún jugador. Verifica los permisos en Supabase.');
+      }
+      
+      // Si solo algunas fallaron, continuar con advertencia
+      console.warn(`⚠️ SUPABASE: Continuando con ${successfulUpdates.length} actualizaciones exitosas`);
     }
     
     console.log('✅ SUPABASE: All scores updated successfully');
@@ -635,8 +633,10 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     console.log('✅ SUPABASE: Votes cleared:', { deletedCount });
     
     const result = {
-      message: `Votación cerrada. Se actualizaron los puntajes de ${jugadores.length} jugadores.`,
-      playersUpdated: jugadores.length,
+      message: `Votación cerrada. Se actualizaron los puntajes de ${successfulUpdates.length}/${jugadores.length} jugadores.`,
+      playersUpdated: successfulUpdates.length,
+      playersTotal: jugadores.length,
+      updateErrors: updateErrors.length,
       votesProcessed: totalValidVotes,
       votesCleared: deletedCount || votos?.length || 0,
     };
