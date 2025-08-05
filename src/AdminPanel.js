@@ -155,13 +155,16 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   //   runAccessCheck();
   // }, [user?.id, partidoActual, isPlayerInMatch, isAdmin, pendingInvitation, invitationChecked, onBackToHome]);
   
-  // useEffect para refrescar jugadores - COMPLETELY DISABLED to prevent loops
+  // useEffect para refrescar jugadores y votantes
   useEffect(() => {
-    // Only run once on mount, no dependencies to prevent loops
     async function fetchInitialData() {
       if (!partidoActual?.id) return;
       try {
         const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
+        const votantesIds = await getVotantesIds(partidoActual.id);
+        const votantesNombres = await getVotantesConNombres(partidoActual.id);
+        setVotantes(votantesIds || []);
+        setVotantesConNombres(votantesNombres || []);
         onJugadoresChange(jugadoresPartido);
       } catch (error) {
         console.error('Error loading initial data:', error);
@@ -169,7 +172,32 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
     
     fetchInitialData();
-  }, []); // Empty dependency array - only run once
+    
+    // Suscripción en tiempo real para refrescar cuando hay cambios
+    const subscription = supabase
+      .channel(`match_${partidoActual?.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'partidos',
+        filter: `id=eq.${partidoActual?.id}`,
+      }, async () => {
+        // Refrescar votantes cuando se actualiza el partido
+        try {
+          const votantesIds = await getVotantesIds(partidoActual.id);
+          const votantesNombres = await getVotantesConNombres(partidoActual.id);
+          setVotantes(votantesIds || []);
+          setVotantesConNombres(votantesNombres || []);
+        } catch (error) {
+          console.error('Error refreshing voters:', error);
+        }
+      })
+      .subscribe();
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [partidoActual?.id]);
 
 
   // Refresh voters function removed to reduce API calls

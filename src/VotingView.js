@@ -411,6 +411,13 @@ export default function VotingView({ onReset, jugadores }) {
                 }
                 const partidoId = Math.abs(parseInt(partido.id, 10));
                 await submitVotos(votos, jugador?.uuid, partidoId, jugador?.nombre, jugador?.avatar_url);
+                
+                // Trigger refresh for admin panel
+                await supabase
+                  .from('partidos')
+                  .update({ updated_at: new Date().toISOString() })
+                  .eq('id', partidoId);
+                
                 setFinalizado(true);
               } catch (error) {
                 toast.error('Error al guardar los votos: ' + error.message);
