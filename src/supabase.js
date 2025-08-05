@@ -489,7 +489,8 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     
     const { data: jugadores, error: playerError } = await supabase
       .from('jugadores')
-      .select('uuid, nombre, is_goalkeeper');
+      .select('uuid, nombre, is_goalkeeper')
+      .eq('partido_id', partidoId);
       
     if (playerError) {
       console.error('❌ SUPABASE: Error fetching players:', playerError);
@@ -584,7 +585,8 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
           score: avgScore,
           is_goalkeeper: isGoalkeeper,
         })
-        .eq('uuid', jugador.uuid);
+        .eq('uuid', jugador.uuid)
+        .eq('partido_id', partidoId);
         
       updates.push(updatePromise);
     }
@@ -596,8 +598,25 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     const updateErrors = updateResults.filter((res) => res.error);
     
     if (updateErrors.length > 0) {
-      console.error('❌ SUPABASE: Score update errors:', updateErrors.map((e) => e.error));
-      throw new Error(`Error al actualizar los puntajes de ${updateErrors.length} jugadores.`);
+      console.error('❌ SUPABASE: Score update errors:', updateErrors.map((e) => ({
+        error: e.error,
+        code: e.error?.code,
+        message: e.error?.message,
+        details: e.error?.details
+      })));
+      
+      // Log specific error details for debugging
+      updateErrors.forEach((result, index) => {
+        if (result.error) {
+          console.error(`Update error ${index + 1}:`, {
+            player: scoreUpdates[index]?.nombre,
+            uuid: scoreUpdates[index]?.uuid,
+            error: result.error
+          });
+        }
+      });
+      
+      throw new Error(`Error al actualizar los puntajes de ${updateErrors.length} jugadores. Revisa los logs para más detalles.`);
     }
     
     console.log('✅ SUPABASE: All scores updated successfully');
