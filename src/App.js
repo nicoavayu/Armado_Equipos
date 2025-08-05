@@ -48,7 +48,7 @@ const HomePage = () => {
   const [showVotingView, setShowVotingView] = useState(false);
   
   // Version indicator for deployment verification
-  const VERSION = 'v1.2.3';
+  const VERSION = 'v1.2.4';
   
   useEffect(() => {
     const params = new URLSearchParams(location.search);
