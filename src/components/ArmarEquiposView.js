@@ -312,7 +312,11 @@ export default function ArmarEquiposView({
           ) : (
             <div className="admin-players-grid">
               {jugadores.map((j) => {
-                const hasVoted = votantesConNombres.some((v) => v.nombre === j.nombre);
+                // Comparación más robusta de nombres
+                const hasVoted = votantesConNombres.some((v) => {
+                  if (!v.nombre || !j.nombre) return false;
+                  return v.nombre.toLowerCase().trim() === j.nombre.toLowerCase().trim();
+                }) || votantes.includes(j.uuid) || votantes.includes(j.usuario_id);
 
                 return (
                   <PlayerCardTrigger 
