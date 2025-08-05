@@ -223,7 +223,13 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         
       if (error) throw error;
       setNuevoNombre('');
-      setTimeout(() => inputRef.current?.focus(), 10);
+      
+      // Enfocar el campo de texto inmediatamente después de agregar
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 200);
       
       // Limpiar duplicados automáticamente después de agregar
       setTimeout(async () => {
@@ -242,6 +248,13 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       setVotantes(votantesIds || []);
       setVotantesConNombres(votantesNombres || []);
       onJugadoresChange(jugadoresPartido);
+      
+      // Segundo foco después de actualizar datos
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 50);
     } catch (error) {
       toast.error('Error agregando jugador: ' + error.message);
     } finally {
@@ -1006,7 +1019,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             {/* Players list section */}
             <div className="admin-players-section">
               <div className="admin-players-title">
-              JUGADORES ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'}) - VOTARON: {votantesConNombres.length}/{jugadores.length}
+              JUGADORES ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
                 {duplicatesDetected > 0 && isAdmin && (
                   <span style={{ 
                     color: '#ff6b35', 
@@ -1172,21 +1185,9 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
               </div>
             )}
               
-            {/* Botones para jugadores que están en el partido (admin o no-admin) */}
+            {/* Botón para jugadores que están en el partido (admin o no-admin) */}
             {isPlayerInMatch && !pendingInvitation && (
-              <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '0 auto' }}>
-                <button
-                  className="guest-action-btn invite-btn"
-                  onClick={() => setShowInviteModal(true)}
-                  disabled={!partidoActual?.id || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
-                  style={{ 
-                    flex: 1,
-                    fontSize: '13px',
-                    padding: '10px 4px',
-                  }}
-                >
-                  INVITAR AMIGOS
-                </button>
+              <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '0 auto' }}>
                 <button
                   className="guest-action-btn leave-btn"
                   onClick={() => {
@@ -1195,7 +1196,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                     }
                   }}
                   style={{ 
-                    flex: 1,
+                    width: '100%',
                     fontSize: '13px',
                     padding: '10px 4px',
                   }}

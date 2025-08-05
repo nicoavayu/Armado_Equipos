@@ -323,13 +323,13 @@
 
 /* Invite button specific styling */
 .admin-panel-content .admin-add-section .admin-btn-half.admin-invite-btn {
-  background: rgba(255, 255, 255, 0.2) !important;
-  border: 2px solid rgba(255, 255, 255, 0.4) !important;
+  background: #4A90E2 !important;
+  border: 2px solid #4A90E2 !important;
 }
 
 .admin-panel-content .admin-add-section .admin-btn-half.admin-invite-btn:hover {
-  background: rgba(255, 255, 255, 0.3) !important;
-  border-color: rgba(255, 255, 255, 0.6) !important;
+  background: #357ABD !important;
+  border-color: #357ABD !important;
 }
 
 /* Button styling with high specificity */
@@ -368,14 +368,14 @@
   min-width: 80px !important;
   max-width: 100px !important;
   font-size: 13px !important;
-  background: rgba(255, 255, 255, 0.2) !important;
-  border: 2px solid rgba(255, 255, 255, 0.4) !important;
+  background: #4A90E2 !important;
+  border: 2px solid #4A90E2 !important;
   border-radius: 10px !important;
 }
 
 .admin-panel-content .admin-add-section .admin-add-form .admin-invite-btn:hover {
-  background: rgba(255, 255, 255, 0.3) !important;
-  border-color: rgba(255, 255, 255, 0.6) !important;
+  background: #357ABD !important;
+  border-color: #357ABD !important;
   transform: translateY(-1px) !important;
 }
 
