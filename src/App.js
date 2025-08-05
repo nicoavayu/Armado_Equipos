@@ -47,6 +47,9 @@ const HomePage = () => {
   const [partidoActual, setPartidoActual] = useState(null);
   const [showVotingView, setShowVotingView] = useState(false);
   
+  // Version indicator for deployment verification
+  const VERSION = 'v1.2.3';
+  
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const codigo = params.get('codigo');
@@ -88,6 +91,9 @@ const HomePage = () => {
   
   return (
     <>
+      <div style={{ position: 'fixed', top: '10px', right: '10px', background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', zIndex: 9999 }}>
+        {VERSION}
+      </div>
       <div className="voting-bg content-with-tabbar">
         <div className="voting-modern-card" style={{ maxWidth: 800, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 0 }}>
           <FifaHome onModoSeleccionado={(modo) => {
