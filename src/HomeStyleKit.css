@@ -103,3 +103,77 @@ body {
 .notifications-back-button:hover {
   background-color: rgba(255, 255, 255, 0.2);
 }
+
+/* Safari specific fixes */
+@supports (-webkit-appearance: none) {
+  /* Forzar tipografía en Safari */
+  *, *::before, *::after {
+    font-family: 'Bebas Neue', Arial, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Botones principales */
+  .voting-confirm-btn {
+    font-family: 'Bebas Neue', Arial, sans-serif !important;
+    font-size: 18px !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.5px !important;
+    min-height: 54px !important;
+    height: 54px !important;
+    -webkit-appearance: none !important;
+    -webkit-border-radius: 25px !important;
+    border-radius: 25px !important;
+  }
+  
+  /* Botones de home */
+  .home-card-title {
+    font-family: 'Bebas Neue', Arial, sans-serif !important;
+    font-size: 28px !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.02em !important;
+  }
+  
+  /* Inputs */
+  .input-modern,
+  .input-modern-full {
+    font-family: 'Oswald', Arial, sans-serif !important;
+    font-size: 18px !important;
+    font-weight: 400 !important;
+    -webkit-appearance: none !important;
+    -webkit-border-radius: 8px !important;
+    border-radius: 8px !important;
+    min-height: 48px !important;
+    height: 48px !important;
+  }
+  
+  /* Títulos de sección */
+  .match-name {
+    font-family: 'Bebas Neue', Arial, sans-serif !important;
+    font-size: 36px !important;
+    font-weight: bold !important;
+    letter-spacing: 1px !important;
+  }
+  
+  .match-details {
+    font-family: 'Oswald', Arial, sans-serif !important;
+    font-size: 20px !important;
+    font-weight: 400 !important;
+  }
+  
+  /* Botones específicos de admin */
+  .admin-btn-orange,
+  .admin-btn-blue,
+  .admin-btn-green,
+  .guest-action-btn {
+    font-family: 'Bebas Neue', Arial, sans-serif !important;
+    font-size: 16px !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.3px !important;
+    min-height: 44px !important;
+    height: 44px !important;
+    -webkit-appearance: none !important;
+    -webkit-border-radius: 6px !important;
+    border-radius: 6px !important;
+  }
+}

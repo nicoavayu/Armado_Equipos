@@ -137,7 +137,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const mainStyles = {
     minHeight: '100vh',
     width: '100vw',
-    background: 'linear-gradient(180deg, #202020 0%, #202020 100%)',
+    background: 'linear-gradient(135deg, #24c6dc 10%, #514a9d 100%)',
     overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',

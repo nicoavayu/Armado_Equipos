@@ -593,6 +593,10 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       // Notificar a otros jugadores
       await notificarJugadoresNuevoMiembro(userProfile?.nombre || 'Un jugador');
       
+      // Refrescar la lista de jugadores para mostrar el nombre actualizado
+      const jugadoresActualizados = await getJugadoresDelPartido(partidoActual.id);
+      onJugadoresChange(jugadoresActualizados);
+      
       toast.success('Te has unido al partido', { autoClose: 3000 });
       
       // No establecer pendingInvitation a false aquí - dejar que el useEffect lo detecte automáticamente

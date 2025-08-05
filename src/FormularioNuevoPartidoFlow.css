@@ -95,3 +95,59 @@ body, html {
   color: rgba(255,255,255,0.6) !important;
   opacity: 1;
 }
+
+/* Lista de confirmación */
+.confirmation-list {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0;
+  margin: 0 0 2rem 0;
+  list-style: none;
+}
+
+.confirmation-item {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 8px !important;
+  padding: 16px !important;
+  margin-bottom: 12px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  color: #fff !important;
+  font-family: 'Oswald', Arial, sans-serif !important;
+}
+
+.confirmation-item-name {
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.confirmation-item-score {
+  font-weight: 400 !important;
+  font-size: 16px !important;
+  color: #fff !important;
+  flex: 1 !important;
+  text-align: center !important;
+  margin: 0 12px !important;
+}
+
+.confirmation-item-edit-btn {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  color: #fff !important;
+  padding: 6px 12px !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  font-family: 'Oswald', Arial, sans-serif !important;
+}
+
+.confirmation-item-edit-btn:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+}

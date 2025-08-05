@@ -15,7 +15,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
   const [hasChanges, setHasChanges] = useState(false);
   const fileInputRef = useRef(null);
 
-  const cleanDate = (dateString) => dateString ? dateString.split('T')[0] : '';
+  const cleanDate = (dateString) => dateString ? dateString.split('T')[0] : null;
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -24,7 +24,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
     nacionalidad: 'Argentina',
     pais_codigo: 'AR',
     posicion: 'DEF',
-    fecha_nacimiento: '',
+    fecha_nacimiento: null,
     social: '',
     localidad: '',
     latitud: null,
@@ -65,7 +65,7 @@ export default function ProfileEditor({ isOpen, onClose }) {
         nacionalidad: profile.nacionalidad || 'Argentina',
         pais_codigo: profile.pais_codigo || 'AR',
         posicion: profile.posicion || profile.rol_favorito || 'DEF', // Fallback to rol_favorito for backward compatibility
-        fecha_nacimiento: cleanDate(profile.fecha_nacimiento) || '',
+        fecha_nacimiento: cleanDate(profile.fecha_nacimiento),
         social: profile.red_social || '',
         localidad: profile.localidad || '',
         latitud: profile.latitud || null,

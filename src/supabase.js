@@ -1646,6 +1646,21 @@ export const updateProfile = async (userId, profileData) => {
     .single();
   
   if (error) throw error;
+  
+  // Actualizar el nombre en todos los partidos donde el usuario es jugador
+  if (finalData.nombre) {
+    try {
+      await supabase
+        .from('jugadores')
+        .update({ nombre: finalData.nombre })
+        .eq('usuario_id', userId);
+      console.log('[UPDATE_PROFILE] Updated player name in all matches');
+    } catch (updateError) {
+      console.error('[UPDATE_PROFILE] Error updating player names:', updateError);
+      // No lanzar error, solo loguearlo
+    }
+  }
+  
   return data;
 };
 
