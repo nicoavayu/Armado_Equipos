@@ -52,7 +52,7 @@ export default function ArmarEquiposView({
     );
   }
 
-  // Cargar votantes al montar el componente
+  // Cargar votantes y suscripción en tiempo real
   useEffect(() => {
     const loadVotantes = async () => {
       if (!partidoActual?.id) return;
@@ -67,6 +67,31 @@ export default function ArmarEquiposView({
     };
     
     loadVotantes();
+    
+    // Suscripción en tiempo real para refrescar cuando hay cambios
+    const subscription = supabase
+      .channel(`match_${partidoActual?.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'partidos',
+        filter: `id=eq.${partidoActual?.id}`,
+      }, async () => {
+        // Refrescar votantes cuando se actualiza el partido
+        try {
+          const votantesIds = await getVotantesIds(partidoActual.id);
+          const votantesNombres = await getVotantesConNombres(partidoActual.id);
+          setVotantes(votantesIds || []);
+          setVotantesConNombres(votantesNombres || []);
+        } catch (error) {
+          console.error('Error refreshing voters:', error);
+        }
+      })
+      .subscribe();
+    
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [partidoActual?.id]);
 
   async function handleCallToVote() {
