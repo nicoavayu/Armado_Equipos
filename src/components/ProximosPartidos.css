@@ -218,124 +218,50 @@
 
 .action-btn {
   flex: 1;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 10px;
-  font-family: 'Oswald', Arial, sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  min-height: 40px;
+  font-family: 'Bebas Neue', Arial, sans-serif !important;
+  font-size: 16px !important;
+  padding: 10px 16px !important;
+  border: 2px solid #fff !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  color: #fff !important;
+  min-height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
 }
 
 .enter-btn {
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: #128BE9 !important;
+  border-color: #128BE9 !important;
 }
 
 .enter-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 1);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+  background: #0f7acc !important;
+  border-color: #0f7acc !important;
+  transform: translateY(-1px) !important;
 }
 
 .delete-btn {
-  border: 2px solid white;
-  background: rgb(202 0 19 / 99%);
-  color: white;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: #DE1C49 !important;
+  border-color: #DE1C49 !important;
 }
 
 .delete-btn:hover {
-  background: rgb(202 0 19 / 80%);
-  border-color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(202, 0, 19, 0.3);
+  background: #c41841 !important;
+  border-color: #c41841 !important;
+  transform: translateY(-1px) !important;
 }
 
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
+.action-btn:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
 }
 
-.modal-content {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  max-width: 400px;
-  width: 100%;
-  color: #333;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-}
-
-.modal-content h3 {
-  margin: 0 0 16px 0;
-  font-family: 'Bebas Neue', Arial, sans-serif;
-  font-size: 24px;
-  color: #DE1C49;
-  text-align: center;
-}
-
-.modal-content p {
-  margin: 0 0 24px 0;
-  font-family: 'Oswald', Arial, sans-serif;
-  font-size: 16px;
-  line-height: 1.4;
-  text-align: center;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.modal-btn {
-  flex: 1;
-  padding: 12px 20px;
-  border: none;
-  border-radius: 12px;
-  font-family: 'Oswald', Arial, sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-transform: uppercase;
-}
-
-.modal-btn.cancel {
-  background: #f8f9fa;
-  color: #6c757d;
-}
-
-.modal-btn.cancel:hover {
-  background: #e9ecef;
-}
-
-.modal-btn.confirm {
-  background: #DE1C49;
-  color: white;
-}
-
-.modal-btn.confirm:hover {
-  background: #c11640;
-}
+/* Modal styles removed - now using ConfirmModal component */
 
 /* Estilos adicionales para coincidir con QuieroJugar */
 .card-header {

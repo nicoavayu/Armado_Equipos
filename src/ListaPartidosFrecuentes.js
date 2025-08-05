@@ -5,6 +5,7 @@ import { DIAS_SEMANA } from './constants';
 import PageTitle from './components/PageTitle';
 import LoadingSpinner from './components/LoadingSpinner';
 import { HistorialDePartidosButton } from './components/historial';
+import ConfirmModal from './components/ConfirmModal';
 
 function formatearSede(sede) {
   if (sede === 'La Terraza Fútbol 5, 8') return 'La Terraza Fútbol 5 y 8';
@@ -15,6 +16,8 @@ function formatearSede(sede) {
 export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }) {
   const [partidosFrecuentes, setPartidosFrecuentes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [partidoToDelete, setPartidoToDelete] = useState(null);
 
   useEffect(() => {
     cargarPartidos();
@@ -31,15 +34,29 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
     }
   };
 
-  const eliminarPartido = async (id, nombre) => {
-    if (!window.confirm(`¿Eliminar "${nombre}"?`)) return;
+  const handleDeleteClick = (partido) => {
+    setPartidoToDelete(partido);
+    setShowConfirmModal(true);
+  };
+
+  const confirmarEliminacion = async () => {
+    if (!partidoToDelete) return;
+    
     try {
-      await deletePartidoFrecuente(id);
-      setPartidosFrecuentes((prev) => prev.filter((p) => p.id !== id));
+      await deletePartidoFrecuente(partidoToDelete.id);
+      setPartidosFrecuentes((prev) => prev.filter((p) => p.id !== partidoToDelete.id));
       toast.success('Partido eliminado correctamente');
     } catch (error) {
       toast.error('Error al eliminar el partido: ' + error.message);
+    } finally {
+      setShowConfirmModal(false);
+      setPartidoToDelete(null);
     }
+  };
+
+  const cancelarEliminacion = () => {
+    setShowConfirmModal(false);
+    setPartidoToDelete(null);
   };
 
   if (loading) {
@@ -154,7 +171,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
                     <HistorialDePartidosButton partidoFrecuente={partido} />
                     <button
                       className="frequent-action-btn delete-btn"
-                      onClick={() => eliminarPartido(partido.id, partido.nombre)}
+                      onClick={() => handleDeleteClick(partido)}
                     >
                       ELIMINAR
                     </button>
@@ -165,6 +182,16 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
           )}
         </div>
       </div>
+      
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        title="CONFIRMAR ACCIÓN"
+        message={`¿Seguro que deseas eliminar este partido? Se notificará a todos los jugadores y la estructura se borrará.`}
+        onConfirm={confirmarEliminacion}
+        onCancel={cancelarEliminacion}
+        confirmText="CONFIRMAR"
+        cancelText="CANCELAR"
+      />
     </div>
   );
 }

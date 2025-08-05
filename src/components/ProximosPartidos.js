@@ -4,6 +4,7 @@ import { useAuth } from './AuthProvider';
 import { supabase } from '../supabase';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
+import ConfirmModal from './ConfirmModal';
 import './ProximosPartidos.css';
 
 const ProximosPartidos = ({ onClose }) => {
@@ -325,22 +326,15 @@ const ProximosPartidos = ({ onClose }) => {
         )}
       </div>
 
-      {showDeleteModal && (
-        <div className="modal-backdrop" onClick={() => setShowDeleteModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3>Confirmar acción</h3>
-            <p>{getDeleteModalText()}</p>
-            <div className="modal-actions">
-              <button className="modal-btn cancel" onClick={() => setShowDeleteModal(false)}>
-                Cancelar
-              </button>
-              <button className="modal-btn confirm" onClick={handleDeleteConfirm}>
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        title="CONFIRMAR ACCIÓN"
+        message={getDeleteModalText()}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setShowDeleteModal(false)}
+        confirmText="CONFIRMAR"
+        cancelText="CANCELAR"
+      />
     </div>
   );
 };
