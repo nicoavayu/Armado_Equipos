@@ -111,6 +111,65 @@
   background: rgb(4 48 106 / 30%);
 }
 
+.partido-card.finished {
+  background: rgb(4 48 106 / 22%);
+  border-color: rgb(255 255 255 / 20%);
+}
+
+.partido-card.finished:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgb(0 0 0 / 15%);
+  border-color: rgb(255 255 255 / 40%);
+  background: rgb(4 48 106 / 30%);
+}
+
+.partido-card.finished .match-datetime-xl,
+.partido-card.finished .venue-large,
+.partido-card.finished .match-type-large,
+.partido-card.finished .gender-large,
+.partido-card.finished .players-needed-badge,
+.partido-card.finished .partido-role {
+  opacity: 0.7;
+}
+
+.partido-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.players-admin-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.finished-text {
+  opacity: 0.7;
+}
+
+.finished-badge {
+  background: #4CAF50 !important;
+  color: white !important;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+  opacity: 1 !important;
+  margin: 0;
+}
+
+.partido-card.finished .finished-badge {
+  opacity: 1 !important;
+  background: #4CAF50 !important;
+  color: white !important;
+}
+
 .partido-info {
   margin-bottom: 20px;
 }
@@ -251,6 +310,40 @@
   background: #c41841 !important;
   border-color: #c41841 !important;
   transform: translateY(-1px) !important;
+}
+
+.survey-btn.enabled {
+  background: #FF9800 !important;
+  border-color: #FF9800 !important;
+}
+
+.survey-btn.enabled:hover {
+  background: #F57C00 !important;
+  border-color: #F57C00 !important;
+  transform: translateY(-1px) !important;
+}
+
+.survey-btn.disabled {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  cursor: not-allowed !important;
+}
+
+.survey-btn-highlight {
+  background: #FF9800 !important;
+  border-color: #FF9800 !important;
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.4) !important;
+  transform: translateY(-2px) !important;
+  opacity: 1 !important;
+}
+
+.survey-btn-highlight:hover {
+  background: #F57C00 !important;
+  border-color: #F57C00 !important;
+  transform: translateY(-3px) !important;
+  box-shadow: 0 6px 16px rgba(255, 152, 0, 0.5) !important;
+  opacity: 1 !important;
 }
 
 .action-btn:disabled {

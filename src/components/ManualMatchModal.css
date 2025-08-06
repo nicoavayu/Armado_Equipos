@@ -12,6 +12,13 @@
   padding: 20px;
 }
 
+@media (max-width: 768px) {
+  .modal-overlay {
+    align-items: flex-start;
+    padding: 80px 10px 20px;
+  }
+}
+
 .manual-match-modal {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 16px;
@@ -190,9 +197,15 @@
 }
 
 @media (max-width: 480px) {
+  .modal-overlay {
+    padding: 60px 15px 15px;
+  }
+  
   .manual-match-modal {
     padding: 20px;
-    margin: 10px;
+    margin: 0;
+    max-height: 90vh;
+    overflow-y: auto;
   }
   
   .result-buttons {

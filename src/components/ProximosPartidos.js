@@ -108,6 +108,35 @@ const ProximosPartidos = ({ onClose }) => {
     setShowDeleteModal(true);
   };
 
+  const handleSurveyClick = (e, partido) => {
+    e.stopPropagation();
+    navigate(`/encuesta/${partido.id}`);
+  };
+
+  const isMatchFinished = (partido) => {
+    if (!partido.fecha || !partido.hora) return false;
+    
+    try {
+      const [hours, minutes] = partido.hora.split(':').map(Number);
+      const partidoDateTime = new Date(partido.fecha);
+      partidoDateTime.setHours(hours, minutes, 0, 0);
+      const now = new Date();
+      
+      console.log('Checking match:', {
+        fecha: partido.fecha,
+        hora: partido.hora,
+        partidoDateTime: partidoDateTime.toISOString(),
+        now: now.toISOString(),
+        isFinished: now >= partidoDateTime
+      });
+      
+      return now >= partidoDateTime;
+    } catch (error) {
+      console.error('Error checking match finish:', error);
+      return false;
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (!selectedMatch) return;
     
@@ -260,17 +289,25 @@ const ProximosPartidos = ({ onClose }) => {
             </div>
             <div className="partidos-list">
               {getSortedPartidos().map((partido) => (
-                <div key={partido.id} className="partido-card">
+                <div key={partido.id} className={`partido-card ${isMatchFinished(partido) ? 'finished' : ''}`}>
                   <div className="card-header" style={{ marginBottom: '12px' }}>
                     <div className="match-datetime-xl" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="currentColor">
                         <path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z"/>
                       </svg>
-                      <span>{formatDate(partido.fecha)} • {partido.hora}</span>
+                      <span className={isMatchFinished(partido) ? 'finished-text' : ''}>{formatDate(partido.fecha)} • {partido.hora}</span>
                     </div>
-                    <div className="partido-role">
-                      {getRoleIcon(partido.userRole)}
-                      <span className="role-text">{getRoleText(partido.userRole)}</span>
+                    <div className="partido-badges">
+                      {isMatchFinished(partido) ? (
+                        <div className="finished-badge">
+                          ✓ Finalizado
+                        </div>
+                      ) : (
+                        <div className="partido-role">
+                          {getRoleIcon(partido.userRole)}
+                          <span className="role-text">{getRoleText(partido.userRole)}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
@@ -283,41 +320,74 @@ const ProximosPartidos = ({ onClose }) => {
                         {partido.tipo_partido || 'Masculino'}
                       </div>
                     </div>
-                    {(() => {
-                      const jugadoresCount = partido.jugadores?.[0]?.count || 0;
-                      const cupoMaximo = partido.cupo_jugadores || 20;
-                      
-                      return (
-                        <div className="players-needed-badge">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="currentColor">
-                            <path d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z"/>
-                          </svg>
-                          {jugadoresCount}/{cupoMaximo}
+                    {isMatchFinished(partido) ? (
+                      <div className="players-admin-container">
+                        {(() => {
+                          const jugadoresCount = partido.jugadores?.[0]?.count || 0;
+                          const cupoMaximo = partido.cupo_jugadores || 20;
+                          
+                          return (
+                            <div className="players-needed-badge">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="currentColor">
+                                <path d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z"/>
+                              </svg>
+                              {jugadoresCount}/{cupoMaximo}
+                            </div>
+                          );
+                        })()}
+                        <div className="partido-role">
+                          {getRoleIcon(partido.userRole)}
+                          <span className="role-text">{getRoleText(partido.userRole)}</span>
                         </div>
-                      );
-                    })()} 
+                      </div>
+                    ) : (
+                      (() => {
+                        const jugadoresCount = partido.jugadores?.[0]?.count || 0;
+                        const cupoMaximo = partido.cupo_jugadores || 20;
+                        
+                        return (
+                          <div className="players-needed-badge">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="currentColor">
+                              <path d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z"/>
+                            </svg>
+                            {jugadoresCount}/{cupoMaximo}
+                          </div>
+                        );
+                      })()
+                    )}
                   </div>
                   
                   <div className="venue-large" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="16" height="16" fill="rgba(255, 255, 255, 0.9)">
                       <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z"/>
                     </svg>
-                    <span>{partido.sede}</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{partido.sede}</span>
                   </div>
                   
                   <div className="partido-actions">
-                    <button 
-                      className="action-btn enter-btn"
-                      onClick={() => handleMatchClick(partido)}
-                    >
-                      Ingresar al Partido
-                    </button>
-                    <button 
-                      className="action-btn delete-btn"
-                      onClick={(e) => handleDeleteClick(e, partido)}
-                    >
-                      {partido.userRole === 'admin' ? 'Eliminar Partido' : 'Abandonar Partido'}
-                    </button>
+                    {isMatchFinished(partido) ? (
+                      <button 
+                        className="action-btn survey-btn-highlight"
+                        onClick={(e) => handleSurveyClick(e, partido)}
+                      >
+                        Completar Encuesta
+                      </button>
+                    ) : (
+                      <>
+                        <button 
+                          className="action-btn enter-btn"
+                          onClick={() => handleMatchClick(partido)}
+                        >
+                          Ingresar al Partido
+                        </button>
+                        <button 
+                          className="action-btn delete-btn"
+                          onClick={(e) => handleDeleteClick(e, partido)}
+                        >
+                          {partido.userRole === 'admin' ? 'Eliminar Partido' : 'Abandonar Partido'}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}

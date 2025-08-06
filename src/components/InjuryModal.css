@@ -104,9 +104,18 @@
   z-index: 2;
 }
 
+@media (max-width: 768px) {
+  .injury-modal {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+}
+
 @media (max-width: 480px) {
   .injury-modal {
     padding: 20px;
-    margin: 10px;
+    margin: 0;
+    max-height: 90vh;
+    overflow-y: auto;
   }
 }

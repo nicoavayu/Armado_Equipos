@@ -682,13 +682,13 @@ const StatsView = ({ onVolver }) => {
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.8)', fontSize: 12 }} />
                 <YAxis hide />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="amistosos" fill="#4CAF50" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="amistosos" fill="#242ad8ff" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="torneos" fill="#FF9800" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
             <div className="chart-legend">
               <div className="legend-item">
-                <div className="legend-color" style={{ backgroundColor: '#4CAF50' }}></div>
+                <div className="legend-color" style={{ backgroundColor: '#242ad8ff' }}></div>
                 <span>Amistosos</span>
               </div>
               <div className="legend-item">
