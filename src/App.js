@@ -2,6 +2,8 @@ import './HomeStyleKit.css';
 import React, { useState, useEffect } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useParams, useLocation, Outlet } from 'react-router-dom';
+import PageTransition from './components/PageTransition';
+import { useAnimatedNavigation } from './hooks/useAnimatedNavigation';
 import { MODES, ADMIN_STEPS } from './constants';
 import AmigosView from './components/AmigosView';
 
@@ -110,75 +112,95 @@ const HomePage = () => {
 };
 
 const NuevoPartidoPage = () => {
-  const navigate = useNavigate();
+  const { navigateWithAnimation } = useAnimatedNavigation();
   return (
-    <div className="voting-bg content-with-tabbar">
-      <div className="voting-modern-card" style={{ maxWidth: 650 }}>
-        <FormularioNuevoPartidoFlow
-          onConfirmar={async (partido) => {
-            console.log('Match created:', partido.id);
-            // Navegar al AdminPanel con el partido creado
-            navigate(`/admin/${partido.id}`);
-            return partido;
-          }}
-          onVolver={() => navigate('/')}
-        />
+    <PageTransition>
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card" style={{ maxWidth: 650 }}>
+          <FormularioNuevoPartidoFlow
+            onConfirmar={async (partido) => {
+              console.log('Match created:', partido.id);
+              navigateWithAnimation(`/admin/${partido.id}`);
+              return partido;
+            }}
+            onVolver={() => navigateWithAnimation('/', 'back')}
+          />
+        </div>
       </div>
-    </div>
+    </PageTransition>
   );
 };
 
 const QuieroJugarPage = () => {
-  const navigate = useNavigate();
-  return <QuieroJugar onVolver={() => navigate('/')} />;
+  const { navigateWithAnimation } = useAnimatedNavigation();
+  return (
+    <PageTransition>
+      <QuieroJugar onVolver={() => navigateWithAnimation('/', 'back')} />
+    </PageTransition>
+  );
 };
 
 const AmigosPage = () => {
-  const navigate = useNavigate();
+  const { navigateWithAnimation } = useAnimatedNavigation();
   return (
-    <div className="voting-bg content-with-tabbar">
-      <div className="voting-modern-card" style={{ maxWidth: 1200, padding: '20px' }}>
-        <PageTitle onBack={() => navigate('/')}>AMIGOS</PageTitle>
-        <AmigosView />
+    <PageTransition>
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card" style={{ maxWidth: 1200, padding: '20px' }}>
+          <PageTitle onBack={() => navigateWithAnimation('/', 'back')}>AMIGOS</PageTitle>
+          <AmigosView />
+        </div>
       </div>
-    </div>
+    </PageTransition>
   );
 };
 
 const ProfilePage = () => {
-  const navigate = useNavigate();
+  const { navigateWithAnimation } = useAnimatedNavigation();
+  const { user, profile } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
+  
   return (
-    <div className="voting-bg content-with-tabbar">
-      <div className="voting-modern-card" style={{ maxWidth: 440, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <PageTitle onBack={() => navigate('/')}>PERFIL</PageTitle>
+    <PageTransition>
+      <div className="voting-bg content-with-tabbar" style={{ padding: '0' }}>
+        <PageTitle onBack={() => navigateWithAnimation('/', 'back')}>EDITAR PERFIL</PageTitle>
+        
         <ProfileEditor 
           isOpen={true} 
-          onClose={() => navigate('/')} 
+          onClose={() => navigateWithAnimation('/', 'back')}
+          isEmbedded={true}
         />
       </div>
-    </div>
+    </PageTransition>
   );
 };
 
 const NotificationsPage = () => {
-  const navigate = useNavigate();
+  const { navigateWithAnimation } = useAnimatedNavigation();
   return (
-    <div className="voting-bg content-with-tabbar">
-      <div className="voting-modern-card" style={{ maxWidth: 600, padding: '20px' }}>
-        <PageTitle onBack={() => navigate('/')}>NOTIFICACIONES</PageTitle>
-        <NotificationsView />
+    <PageTransition>
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card" style={{ maxWidth: 600, padding: '20px' }}>
+          <PageTitle onBack={() => navigateWithAnimation('/', 'back')}>NOTIFICACIONES</PageTitle>
+          <NotificationsView />
+        </div>
       </div>
-    </div>
+    </PageTransition>
   );
 };
 
 const StatsPage = () => {
-  const navigate = useNavigate();
-  return <StatsView onVolver={() => navigate('/')} />;
+  const { navigateWithAnimation } = useAnimatedNavigation();
+  return (
+    <PageTransition>
+      <StatsView onVolver={() => navigateWithAnimation('/', 'back')} />
+    </PageTransition>
+  );
 };
 
 const AdminPanelPage = () => {
   const navigate = useNavigate();
+  const { navigateWithAnimation } = useAnimatedNavigation();
   const { partidoId } = useParams();
   const [partidoActual, setPartidoActual] = useState(null);
   const [jugadoresDelPartido, setJugadoresDelPartido] = useState([]);
@@ -257,70 +279,75 @@ const AdminPanelPage = () => {
   }
 
   return (
-    <div className="voting-bg content-with-tabbar">
-      <div className="voting-modern-card" style={{ maxWidth: 650 }}>
-        <AdminPanel
-          partidoActual={partidoActual}
-          jugadores={jugadoresDelPartido}
-          onJugadoresChange={(nuevosJugadores) => {
-            console.log('Players changed:', nuevosJugadores.length);
-            handleJugadoresChange(nuevosJugadores);
-            setJugadoresDelPartido(nuevosJugadores);
-          }}
-          onBackToHome={() => navigate('/')}
-        />
+    <PageTransition>
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card" style={{ maxWidth: 650 }}>
+          <AdminPanel
+            partidoActual={partidoActual}
+            jugadores={jugadoresDelPartido}
+            onJugadoresChange={(nuevosJugadores) => {
+              console.log('Players changed:', nuevosJugadores.length);
+              handleJugadoresChange(nuevosJugadores);
+              setJugadoresDelPartido(nuevosJugadores);
+            }}
+            onBackToHome={() => navigateWithAnimation('/', 'back')}
+          />
+        </div>
       </div>
-    </div>
+    </PageTransition>
   );
 };
 
 const HistorialPage = () => {
-  const navigate = useNavigate();
+  const { navigateWithAnimation } = useAnimatedNavigation();
   const [partidoFrecuenteEditando, setPartidoFrecuenteEditando] = useState(null);
   const [step, setStep] = useState('list');
   
   if (step === 'edit' && partidoFrecuenteEditando) {
     return (
-      <div className="voting-bg content-with-tabbar">
-        <div className="voting-modern-card" style={{ maxWidth: 650 }}>
-          <EditarPartidoFrecuente
-            partido={partidoFrecuenteEditando}
-            onGuardado={() => {
-              setPartidoFrecuenteEditando(null);
-              setStep('list');
-            }}
-            onVolver={() => {
-              setPartidoFrecuenteEditando(null);
-              setStep('list');
-            }}
-          />
+      <PageTransition>
+        <div className="voting-bg content-with-tabbar">
+          <div className="voting-modern-card" style={{ maxWidth: 650 }}>
+            <EditarPartidoFrecuente
+              partido={partidoFrecuenteEditando}
+              onGuardado={() => {
+                setPartidoFrecuenteEditando(null);
+                setStep('list');
+              }}
+              onVolver={() => {
+                setPartidoFrecuenteEditando(null);
+                setStep('list');
+              }}
+            />
+          </div>
         </div>
-      </div>
+      </PageTransition>
     );
   }
   
   return (
-    <div className="voting-bg content-with-tabbar">
-      <div className="voting-modern-card" style={{ maxWidth: 650 }}>
-        <ListaPartidosFrecuentes
-          onEntrar={async (partidoFrecuente) => {
-            // Crear partido desde frecuente y navegar al AdminPanel
-            try {
-              const hoy = new Date().toISOString().split('T')[0];
-              const partido = await crearPartidoDesdeFrec(partidoFrecuente, hoy);
-              navigate(`/admin/${partido.id}`);
-            } catch (error) {
-              toast.error('Error al crear el partido');
-            }
-          }}
-          onEditar={(partido) => {
-            setPartidoFrecuenteEditando(partido);
-            setStep('edit');
-          }}
-          onVolver={() => navigate('/')}
-        />
+    <PageTransition>
+      <div className="voting-bg content-with-tabbar">
+        <div className="voting-modern-card" style={{ maxWidth: 650 }}>
+          <ListaPartidosFrecuentes
+            onEntrar={async (partidoFrecuente) => {
+              try {
+                const hoy = new Date().toISOString().split('T')[0];
+                const partido = await crearPartidoDesdeFrec(partidoFrecuente, hoy);
+                navigateWithAnimation(`/admin/${partido.id}`);
+              } catch (error) {
+                toast.error('Error al crear el partido');
+              }
+            }}
+            onEditar={(partido) => {
+              setPartidoFrecuenteEditando(partido);
+              setStep('edit');
+            }}
+            onVolver={() => navigateWithAnimation('/', 'back')}
+          />
+        </div>
       </div>
-    </div>
+    </PageTransition>
   );
 };
 

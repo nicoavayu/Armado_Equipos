@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
@@ -177,26 +178,27 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
               <div className={`fifa-status-text ${isAvailable ? 'available' : 'unavailable'}`}>{statusText}</div>
             </div>
             
-            {showStatusDropdown && (
-              <div className="fifa-status-dropdown">
+            {showStatusDropdown && createPortal(
+              <div className="fifa-status-dropdown-portal fifa-dropdown-enter">
                 <div className="fifa-status-dropdown-header">
-                  Status
+                  Estado
                 </div>
                 <div 
                   className={`fifa-status-option ${isAvailable ? 'active' : ''}`}
                   onClick={() => updateAvailabilityStatus(true)}
                 >
                   <div className="fifa-status-dot available"></div>
-                  <span>Available</span>
+                  <span>Disponible</span>
                 </div>
                 <div 
                   className={`fifa-status-option ${!isAvailable ? 'active' : ''}`}
                   onClick={() => updateAvailabilityStatus(false)}
                 >
                   <div className="fifa-status-dot unavailable"></div>
-                  <span>Unavailable</span>
+                  <span>No disponible</span>
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
           

@@ -1,0 +1,22 @@
+.page-transition {
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s ease-out;
+}
+
+.page-transition.page-enter {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.page-transition.page-exit-back {
+  opacity: 0;
+  transform: translateX(100%);
+}
+
+.page-transition.page-exit-forward {
+  opacity: 0;
+  transform: translateX(-100%);
+}

@@ -1504,7 +1504,7 @@ export const getProfile = async (userId) => {
   console.log('getProfile called for userId:', userId);
   const { data, error } = await supabase
     .from('usuarios')
-    .select('*')
+    .select('*, lesion_activa')
     .eq('id', userId)
     .single();
   
@@ -1603,6 +1603,7 @@ export const updateProfile = async (userId, profileData) => {
     'perfil_completo', 'profile_completion', 'pais_codigo', 'nacionalidad',
     'latitud', 'longitud', 'fecha_nacimiento', 'partidos_abandonados',
     'numero', 'telefono', 'mvps', 'tarjetas_rojas', 'rating', 'updated_at',
+    'lesion_activa',
   ];
   
   // Field mapping for frontend to database

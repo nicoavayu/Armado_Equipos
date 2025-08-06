@@ -257,7 +257,20 @@ const ProfileCardComponent = ({
 
           <div className="pc-content">
             <div className="pc-details">
-              <h3>{playerData.name}</h3>
+              <div className="pc-name-container">
+                {profile?.lesion_activa ? (
+                  <div className="pc-injury-badge" title="Lesionado">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={12} height={12}>
+                      <path d="M12 2C13.1 2 14 2.9 14 4V8H18C19.1 8 20 8.9 20 10V14C20 15.1 19.1 16 18 16H14V20C14 21.1 13.1 22 12 22H10C8.9 22 8 21.1 8 20V16H4C2.9 16 2 15.1 2 14V10C2 8.9 2.9 8 4 8H8V4C8 2.9 8.9 2 10 2H12Z"/>
+                    </svg>
+                  </div>
+                ) : (
+                  <div className={`pc-availability-led ${profile?.acepta_invitaciones !== false ? 'available' : 'unavailable'}`} 
+                       title={profile?.acepta_invitaciones !== false ? 'Disponible' : 'Ausente'}>
+                  </div>
+                )}
+                <h3>{playerData.name}</h3>
+              </div>
             </div>
             <div className="pc-avatar-container">
               <div className="pc-avatar-wrapper">

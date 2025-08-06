@@ -452,6 +452,54 @@ select.input-modern-small option {
   opacity: 1;
 }
 
+/* Embedded mode styles */
+.profile-editor-embedded {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  background: transparent;
+  height: calc(100vh - 100px);
+  margin: 0;
+  padding: 0;
+}
+
+.profile-card-embedded {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+  position: sticky;
+  top: 60px;
+  z-index: 10;
+  background: linear-gradient(135deg, #24c6dc 10%, #514a9d 100%);
+}
+
+.profile-form-embedded {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0;
+  padding: 30px;
+  border: none;
+  width: 100%;
+  margin: 0;
+  overflow-y: auto;
+  max-height: calc(100vh - 300px);
+  min-height: 310px;
+  margin-top: 40px;
+  ;
+}
+
+.profile-form-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 /* Mobile Responsive */
 @media (width <= 768px) {
   .avatar-name-row {
@@ -551,6 +599,14 @@ select.input-modern-small option {
     border-radius: 0;
     margin: 0;
     max-width: none;
+  }
+  
+  .profile-editor-embedded {
+    gap: 15px;
+  }
+  
+  .profile-form-embedded {
+    padding: 15px;
   }
   
   .profile-card-side {

@@ -89,6 +89,14 @@
   border-radius: var(--card-radius) var(--card-radius) 0 0;
 }
 
+.pc-name-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
 .pc-details h3 {
   font-weight: 700;
   font-size: clamp(1.5rem, 3.5svh, 2rem);
@@ -97,7 +105,44 @@
   margin: 0;
   padding: 0;
   text-align: center;
-  width: 100%;
+}
+
+.pc-injury-badge {
+  position: absolute;
+  left: 0;
+  background: #fff;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.pc-availability-led {
+  position: absolute;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+}
+
+.pc-availability-led.available {
+  background: #4CAF50;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+}
+
+.pc-availability-led.unavailable {
+  background: #f44336;
+  box-shadow: 0 0 8px rgba(244, 67, 54, 0.6);
+}
+
+.pc-injury-badge svg {
+  color: #e53935;
 }
 
 /* ----------- AVATAR ----------- */

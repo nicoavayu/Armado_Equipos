@@ -7,7 +7,7 @@ import ModernToggle from './ModernToggle';
 import { useTutorial } from '../context/TutorialContext';
 import './ProfileEditor.css';
 
-export default function ProfileEditor({ isOpen, onClose }) {
+export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const { user, profile, refreshProfile } = useAuth();
   const { replayTutorial } = useTutorial();
   const [loading, setLoading] = useState(false);
@@ -411,29 +411,24 @@ export default function ProfileEditor({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  return (
-    <div className="profile-editor-overlay">
-      <div className="profile-editor-container">
-        {/* Left Side - Player Card */}
-        <div className="profile-card-side">
+  if (isEmbedded) {
+    return (
+      <div className="profile-editor-embedded">
+        {/* Player Card */}
+        <div className="profile-card-embedded">
           <ProfileCard
             profile={{
               ...liveProfile,
               avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
             }}
             isVisible={true}
-            key={`profile-card-${Date.now()}`} // Force re-render on every render
+            key={`profile-card-${Date.now()}`}
           />
         </div>
 
-        {/* Right Side - Edit Menu */}
-        <div className="profile-menu-side">
-          <div className="profile-menu-header">
-            <h2>Editar Perfil</h2>
-            <button className="close-editor-btn" onClick={onClose}>×</button>
-          </div>
+        {/* Edit Form */}
+        <div className="profile-form-embedded">
 
-          <div className="profile-menu-content">
             {/* Avatar and Name in one row */}
             <div className="avatar-name-section">
               <div className="avatar-container">
@@ -624,7 +619,138 @@ export default function ProfileEditor({ isOpen, onClose }) {
 
             {/* Availability toggle removed - now in HomeHeader */}
 
-            {/* Footer Buttons - Ahora dentro del contenido scrolleable */}
+            {/* Footer Buttons */}
+            <div className="profile-form-footer">
+              <button
+                className={`save-profile-btn ${hasChanges ? 'has-changes' : ''}`}
+                onClick={handleSave}
+                disabled={loading || !hasChanges}
+              >
+                {loading ? 'Guardando...' : 'Guardar Perfil'}
+              </button>
+
+              <div className="profile-menu-actions">
+                <button
+                  className="tutorial-btn"
+                  onClick={() => {
+                    onClose();
+                    replayTutorial();
+                  }}
+                  disabled={loading}
+                >
+                  Ver Tutorial
+                </button>
+
+                <button
+                  className="logout-btn"
+                  onClick={handleLogout}
+                  disabled={loading}
+                >
+                  Cerrar Sesión
+                </button>
+              </div>
+            </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="profile-editor-overlay">
+      <div className="profile-editor-container">
+        {/* Left Side - Player Card */}
+        <div className="profile-card-side">
+          <ProfileCard
+            profile={{
+              ...liveProfile,
+              avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
+            }}
+            isVisible={true}
+            key={`profile-card-${Date.now()}`} // Force re-render on every render
+          />
+        </div>
+
+        {/* Right Side - Edit Menu */}
+        <div className="profile-menu-side">
+          <div className="profile-menu-header">
+            <h2>Editar Perfil</h2>
+            <button className="close-editor-btn" onClick={onClose}>×</button>
+          </div>
+
+          <div className="profile-menu-content">
+            {/* Avatar and Name in one row */}
+            <div className="avatar-name-section">
+              <div className="avatar-container">
+                <div
+                  className="profile-avatar"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (fileInputRef.current) {
+                      fileInputRef.current.click();
+                    }
+                  }}
+                >
+                  {liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture ? (
+                    <img
+                      src={liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture}
+                      alt="Perfil"
+                      key={`profile-photo-${Date.now()}`}
+                    />
+                  ) : (
+                    <div className="photo-placeholder">👤</div>
+                  )}
+                  <div className="avatar-overlay">
+                    <span className="avatar-edit-icon">📷</span>
+                  </div>
+                </div>
+                <button 
+                  className="change-photo-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (fileInputRef.current) {
+                      fileInputRef.current.click();
+                    }
+                  }}
+                  type="button"
+                >
+                  Cambiar Foto
+                </button>
+              </div>
+
+              <div className="form-group" style={{ flex: 1, marginLeft: '12px' }}>
+                <label>Nombre *</label>
+                <input
+                  className="input-modern-small"
+                  type="text"
+                  value={formData.nombre}
+                  onChange={(e) => handleInputChange('nombre', e.target.value)}
+                  placeholder="Tu nombre completo"
+                />
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handlePhotoChange}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+
+            {/* Resto del formulario */}
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                className="input-modern-small"
+                type="email"
+                value={user?.email || formData.email || ''}
+                readOnly
+                style={{ opacity: 0.8, cursor: 'not-allowed' }}
+              />
+            </div>
+
+            {/* Footer Buttons */}
             <div className="profile-menu-footer">
               <button
                 className={`save-profile-btn ${hasChanges ? 'has-changes' : ''}`}
