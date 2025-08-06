@@ -95,22 +95,20 @@
 }
 
 .partido-card {
-  background: #0a0a59e6;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
+  background: rgb(4 48 106 / 22%);
+  border-radius: 12px;
   padding: 20px;
-  margin-bottom: 0px;
+  margin-bottom: 8px;
+  border: 1px solid rgb(255 255 255 / 20%);
   transition: all 0.3s ease;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
 }
 
 .partido-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-  border-color: rgba(255, 255, 255, 0.25);
-  background: rgba(30, 30, 40, 0.95);
+  box-shadow: 0 8px 16px rgb(0 0 0 / 15%);
+  border-color: rgb(255 255 255 / 40%);
+  background: rgb(4 48 106 / 30%);
 }
 
 .partido-info {
@@ -234,8 +232,8 @@
 }
 
 .enter-btn {
-  background: #128BE9 !important;
-  border-color: #128BE9 !important;
+  background: #0865b2 !important;
+  border-color: #0865b2 !important;
 }
 
 .enter-btn:hover {

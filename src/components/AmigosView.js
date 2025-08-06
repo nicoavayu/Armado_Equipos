@@ -131,8 +131,8 @@ const AmigosView = () => {
       return;
     }
     
-    console.log('[AMIGOS] Removing friend:', friend.id);
-    const result = await removeFriend(friend.id);
+    console.log('[AMIGOS] Removing friend:', friend.profile?.id);
+    const result = await removeFriend(friend.profile?.id);
     
     if (result.success) {
       toast.success('Amigo eliminado');
@@ -181,7 +181,7 @@ const AmigosView = () => {
   }
 
   return (
-    <div className="amigos-container" style={{ marginTop: '-30px' }}>
+    <div className="amigos-container" style={{ marginTop: '10px' }}>
       {/* Search section */}
       <div className="amigos-search-section">
         <input

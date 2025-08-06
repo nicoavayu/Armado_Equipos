@@ -103,7 +103,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
                 <div
                   key={partido.id}
                   style={{
-                    background: 'rgba(255,255,255,0.1)',
+                    background: 'rgb(4 48 106 / 22%)',
                     border: '2px solid rgba(255,255,255,0.2)',
                     borderRadius: '12px',
                     padding: '16px',

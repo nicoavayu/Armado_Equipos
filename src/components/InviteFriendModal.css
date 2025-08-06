@@ -121,15 +121,15 @@
 }
 
 .match-item {
-  background: #2a2a2a;
+  background: rgb(4 48 106 / 22%);
   border-radius: 12px;
   padding: 16px;
-  border: 1px solid #333;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   transition: background 0.2s;
 }
 
 .match-item:active {
-  background: #333;
+  background: rgb(4 48 106 / 30%);
 }
 
 .match-info {
@@ -203,22 +203,25 @@
 }
 
 .invite-btn {
-  background: #4caf4f72;
+  background: #0865b2;
   color: #fff;
   border: none;
-  border-radius: 20px;
-  padding: 10px 20px;
-  font-size: 15px;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   min-width: 80px;
   outline: none;
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .invite-btn:active:not(:disabled) {
-  background: #45a049;
-  transform: scale(0.95);
+  background: #0f7acc;
+  transform: translateY(-1px);
 }
 
 .invite-btn:disabled {

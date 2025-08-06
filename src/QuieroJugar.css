@@ -336,7 +336,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #0a0a59e6;
+  background: rgb(4 48 106 / 22%);
   border-radius: 12px;
   padding: 12px;
   margin-bottom: 8px;
@@ -351,7 +351,7 @@
   transform: translateY(-2px);
   box-shadow: 0 6px 12px rgb(0 0 0 / 15%);
   border-color: rgb(255 255 255 / 40%);
-  background: #0a0a59f0;
+  background: rgb(4 48 106 / 30%);
 }
 
 .free-player-avatar {
@@ -447,6 +447,8 @@
   display: flex;
   gap: 4px;
 }
+
+
 
 .free-badge {
   display: flex;
@@ -554,26 +556,24 @@
   }
 }
 
-/* Compact Match Card - Darker Background */
+/* Compact Match Card - Blue Background */
 .compact-match-card {
-  background: #0a0a59e6;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  background: rgb(4 48 106 / 22%);
+  border-radius: 12px;
   padding: 20px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   width: 100%;
   max-width: 500px;
+  border: 1px solid rgb(255 255 255 / 20%);
   transition: all 0.3s ease;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
 }
 
 .compact-match-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
-  background: #0a0a59f0;
+  box-shadow: 0 8px 16px rgb(0 0 0 / 15%);
+  border-color: rgb(255 255 255 / 40%);
+  background: rgb(4 48 106 / 30%);
 }
 
 .card-header {
@@ -718,8 +718,8 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  border: 2px solid rgb(18 139 233 / 82%);
-  background: rgb(18 139 233 / 82%);
+  background: #0865b2 !important;
+  border: none !important;
   color: white;
   text-transform: uppercase;
   backdrop-filter: blur(8px);
@@ -727,8 +727,7 @@
 }
 
 .cyan-btn:hover {
-  background: rgb(18 139 233 / 95%);
-  border-color: rgb(18 139 233 / 95%);
+  background: rgb(18 139 233 / 95%) !important;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgb(18 139 233 / 40%);
 }

@@ -348,37 +348,47 @@ export const useAmigos = (currentUserId) => {
   }, []);
 
   // Remove friend
-  const removeFriend = useCallback(async (friendshipId) => {
-    if (!friendshipId) {
-      console.log('[AMIGOS] removeFriend: No friendshipId provided');
-      return { success: false, message: 'ID de amistad no proporcionado' };
+  const removeFriend = useCallback(async (friendUserId) => {
+    if (!friendUserId || !currentUserId) {
+      console.log('[AMIGOS] removeFriend: Missing parameters', { friendUserId, currentUserId });
+      return { success: false, message: 'Parámetros faltantes' };
     }
     
-    console.log('[AMIGOS] Removing friendship:', friendshipId);
+    console.log('[AMIGOS] Removing friendship with user:', friendUserId);
     try {
-      // Ensure we're working with UUID for the friendship ID
-      const friendshipIdUuid = typeof friendshipId === 'string' ? friendshipId : String(friendshipId);
+      // Ensure we're working with UUIDs
+      const userIdUuid = typeof currentUserId === 'string' ? currentUserId : String(currentUserId);
+      const friendIdUuid = typeof friendUserId === 'string' ? friendUserId : String(friendUserId);
       
-      const { error } = await supabase
+      // Delete friendship where current user is user_id and friend is friend_id
+      const { error: error1 } = await supabase
         .from('amigos')
         .delete()
-        .eq('id', friendshipIdUuid);
+        .eq('user_id', userIdUuid)
+        .eq('friend_id', friendIdUuid);
         
-      if (error) {
-        console.error('[AMIGOS] Error deleting friendship:', error);
-        throw error;
+      // Delete friendship where current user is friend_id and friend is user_id
+      const { error: error2 } = await supabase
+        .from('amigos')
+        .delete()
+        .eq('user_id', friendIdUuid)
+        .eq('friend_id', userIdUuid);
+        
+      if (error1 && error2) {
+        console.error('[AMIGOS] Error deleting friendship:', error1, error2);
+        throw error1;
       }
       
       console.log('[AMIGOS] Friendship removed successfully');
       // Refresh friends list
-      getAmigos();
+      await getAmigos();
       return { success: true };
     } catch (err) {
       console.error('[AMIGOS] Error removing friend:', err);
-      console.error('[AMIGOS] Error context:', { friendshipId });
+      console.error('[AMIGOS] Error context:', { friendUserId, currentUserId });
       return { success: false, message: err.message };
     }
-  }, [getAmigos]);
+  }, [getAmigos, currentUserId]);
 
   // Get pending friend requests (received)
   const getPendingRequests = useCallback(async () => {

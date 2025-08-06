@@ -58,6 +58,8 @@
 .fechas-list {
   display: flex;
   flex-direction: column;
+  padding: 16px;
+  gap: 0;
 }
 
 .fecha-card {
@@ -65,13 +67,20 @@
   justify-content: space-between;
   align-items: center;
   padding: 15px 20px;
-  border-bottom: 1px solid #2a2a40;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgb(255 255 255 / 20%);
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
 }
 
 .fecha-card:hover {
-  background-color: #2a2a40;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgb(0 0 0 / 15%);
+  border-color: rgb(255 255 255 / 40%);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .fecha-info {

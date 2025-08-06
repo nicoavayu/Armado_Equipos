@@ -110,6 +110,9 @@ const AuthPage = () => {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}`,
+          data: {
+            email_confirm: false // Temporal: deshabilitar confirmación
+          }
         },
       });
 

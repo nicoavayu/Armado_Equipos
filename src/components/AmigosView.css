@@ -1,7 +1,10 @@
 .amigos-container {
-  padding: 0 20px 20px 20px;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 20px;
+  width: 100vw;
+  max-width: 100vw;
+  margin: 0;
+  padding-top: 80px;
+  box-sizing: border-box;
 }
 
 .amigos-header {
@@ -32,14 +35,15 @@
   display: flex;
   justify-content: center;
   width: 100%;
-  margin: 0 20px 20px 20px;
+  margin: 80px 0 20px 0;
   position: relative;
   box-sizing: border-box;
+  z-index: 10;
 }
 
 .amigos-search-input {
-  width: 100%;
-  max-width: 600px;
+  width: 95%;
+  max-width: none;
   padding: 16px 20px;
   font-size: 20px;
   border: 2px solid rgba(255, 255, 255, 0.2);
@@ -217,10 +221,99 @@
 
 .amigos-chips-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
   margin-top: 15px;
+  width: 100%;
+  max-width: none;
+  overflow: visible;
+}
+
+.amigo-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgb(4 48 106 / 22%);
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 60px;
+}
+
+.amigo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgb(4 48 106 / 30%);
+}
+
+.amigo-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.amigo-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.amigo-placeholder {
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: white;
+  font-weight: bold;
+}
+
+.amigo-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.amigo-name {
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.amigo-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.amigo-menu-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.amigo-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
 }
 
 .amigos-empty {
@@ -267,45 +360,77 @@
 .amigos-pending-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 15px;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  gap: 12px;
+  padding: 12px;
+  background: rgb(4 48 106 / 22%);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 60px;
+  transition: all 0.3s ease;
 }
 
 .amigos-pending-info {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
 }
 
 .amigos-pending-avatar {
-  width: 50px;
-  height: 50px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   object-fit: cover;
-  background: #f0f0f0;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
 }
 
 .amigos-pending-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  font-family: 'Oswald', Arial, sans-serif;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.amigos-pending-placeholder {
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: white;
 }
 
 .amigos-pending-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .amigos-btn {
   padding: 8px 16px;
   border: none;
-  border-radius: 50px;
+  border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-family: 'Bebas Neue', Arial, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 14px;
+  min-width: 70px;
 }
 
 .amigos-btn.accept {
@@ -315,83 +440,52 @@
 
 .amigos-btn.accept:hover {
   background: #3d8b40;
+  transform: translateY(-1px);
 }
 
 .amigos-btn.reject {
-  background: #F44336;
+  background: #DE1C49;
   color: white;
 }
 
 .amigos-btn.reject:hover {
-  background: #d32f2f;
+  background: #c41841;
+  transform: translateY(-1px);
 }
 
 @media (max-width: 768px) {
   .amigos-chips-list {
-    gap: 10px;
+    gap: 6px;
+  }
+  .amigo-card {
+    padding: 10px;
+    min-height: 56px;
+  }
+  .amigo-avatar {
+    width: 40px;
+    height: 40px;
+  }
+  .amigo-name {
+    font-size: 16px;
   }
   .amigos-pending-item {
-    flex-direction: column;
-    gap: 15px;
+    padding: 10px;
+    min-height: 56px;
   }
-  .amigos-pending-actions {
-    width: 100%;
-    justify-content: center;
+  .amigos-pending-avatar {
+    width: 40px;
+    height: 40px;
   }
-}
-.amigos-search-section {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  max-width: 100%;
-  margin: 0 auto 20px auto;
-  position: relative;
-  /* No uses padding lateral acá */
-}
-
-.amigos-search-input {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  padding: 16px 20px;
-  font-size: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  font-family: 'Oswald', Arial, sans-serif;
-  margin: 0 auto;
-  display: block;
-}
-
-@media (max-width: 800px) {
-  .amigos-search-section {
-    max-width: 100vw;
-    padding: 0;
-  }
-  .amigos-search-input {
-    max-width: 100vw;
-    font-size: 17px;
-    padding: 14px 8px;
-  }
-}
-
-@media (max-width: 480px) {
-  .amigos-search-section {
-    max-width: 100vw;
-    padding: 0;
-    
-  }
-  .amigos-search-input {
-    max-width: 100vw;
+  .amigos-pending-name {
     font-size: 16px;
-    padding: 12px 4px;
+  }
+  .amigos-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-width: 60px;
   }
 }
 
-.amigos-search-input {
-  width: 80vw;
-  max-width: 90vw;
-}
+
+
 

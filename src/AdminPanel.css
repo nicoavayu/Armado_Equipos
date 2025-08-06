@@ -296,7 +296,7 @@
   border-radius: 10px !important;
   margin: 0 !important;
   background: #0EA9C6 !important;
-  border: 2px solid #fff !important;
+  border: 2px solid #ffffff !important;
   color: #fff !important;
   font-family: 'Bebas Neue', Arial, sans-serif !important;
   font-weight: 700 !important;
@@ -323,8 +323,8 @@
 
 /* Invite button specific styling */
 .admin-panel-content .admin-add-section .admin-btn-half.admin-invite-btn {
-  background: #4A90E2 !important;
-  border: 2px solid #4A90E2 !important;
+  background: #0865b2 !important;
+  border: 2px solid #ffffff !important;
 }
 
 .admin-panel-content .admin-add-section .admin-btn-half.admin-invite-btn:hover {
@@ -368,14 +368,14 @@
   min-width: 80px !important;
   max-width: 100px !important;
   font-size: 13px !important;
-  background: #4A90E2 !important;
-  border: 2px solid #4A90E2 !important;
+  background: #96F !important;
+  border: 2px solid #96F !important;
   border-radius: 10px !important;
 }
 
 .admin-panel-content .admin-add-section .admin-add-form .admin-invite-btn:hover {
-  background: #357ABD !important;
-  border-color: #357ABD !important;
+  background: #8855FF !important;
+  border-color: #8855FF !important;
   transform: translateY(-1px) !important;
 }
 

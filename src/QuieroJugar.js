@@ -5,6 +5,7 @@ import { useAuth } from './components/AuthProvider';
 import { PlayerCardTrigger } from './components/ProfileComponents';
 import PageTitle from './components/PageTitle';
 import LoadingSpinner from './components/LoadingSpinner';
+import InviteAmigosModal from './components/InviteAmigosModal';
 import './QuieroJugar.css';
 import './VotingView.css';
 
@@ -24,6 +25,8 @@ export default function QuieroJugar({ onVolver }) {
     const savedTab = sessionStorage.getItem('quiero-jugar-tab');
     return savedTab === 'players' || savedTab === 'matches' ? savedTab : 'matches';
   }); // 'matches' or 'players'
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(null);
 
   useEffect(() => {
     fetchPartidosAbiertos();
@@ -141,7 +144,7 @@ export default function QuieroJugar({ onVolver }) {
       
       const { data: userProfiles, error: usersError } = await supabase
         .from('usuarios')
-        .select('id, nombre, avatar_url, localidad, latitud, longitud, ranking, partidos_jugados, posicion, acepta_invitaciones, bio, fecha_alta, updated_at')
+        .select('id, nombre, avatar_url, localidad, latitud, longitud, ranking, partidos_jugados, posicion, acepta_invitaciones, bio, fecha_alta, updated_at, nacionalidad')
         .in('id', userIds);
         
       if (usersError) throw usersError;
@@ -159,9 +162,9 @@ export default function QuieroJugar({ onVolver }) {
           longitud: userProfile?.longitud || null,
           ranking: userProfile?.ranking || 4.5,
           rating: userProfile?.ranking || 4.5,
+          nacionalidad: userProfile?.nacionalidad || 'Argentina',
         };
       });
-      console.log('Free players loaded:', players.length);
       setFreePlayers(players);
     } catch (error) {
       console.error('Error fetching free players:', error);
@@ -210,6 +213,15 @@ export default function QuieroJugar({ onVolver }) {
     }
   };
 
+  const handleInviteFriends = (partido) => {
+    if (!user) {
+      toast.error('Debes iniciar sesión para invitar amigos');
+      return;
+    }
+    setSelectedMatch(partido);
+    setShowInviteModal(true);
+  };
+
   const _formatTimeAgo = (timestamp) => {
     const now = new Date();
     const time = new Date(timestamp);
@@ -222,6 +234,41 @@ export default function QuieroJugar({ onVolver }) {
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays === 1) return 'Hace 1 día';
     return `Hace ${diffInDays} días`;
+  };
+
+  const getCountryFlag = (nationality) => {
+    if (!nationality) return '🌍';
+    
+    const flags = {
+      'argentina': '🇦🇷',
+      'brasil': '🇧🇷',
+      'uruguay': '🇺🇾',
+      'chile': '🇨🇱',
+      'paraguay': '🇵🇾',
+      'bolivia': '🇧🇴',
+      'perú': '🇵🇪',
+      'peru': '🇵🇪',
+      'colombia': '🇨🇴',
+      'venezuela': '🇻🇪',
+      'ecuador': '🇪🇨',
+      'españa': '🇪🇸',
+      'spain': '🇪🇸',
+      'italia': '🇮🇹',
+      'italy': '🇮🇹',
+      'francia': '🇫🇷',
+      'france': '🇫🇷',
+      'alemania': '🇩🇪',
+      'germany': '🇩🇪',
+      'portugal': '🇵🇹',
+      'méxico': '🇲🇽',
+      'mexico': '🇲🇽',
+      'estados unidos': '🇺🇸',
+      'united states': '🇺🇸',
+      'reino unido': '🇬🇧',
+      'united kingdom': '🇬🇧'
+    };
+    
+    return flags[nationality.toLowerCase()] || '🌍';
   };
 
   const _handleBorrarPartido = async (partido) => {
@@ -481,9 +528,7 @@ export default function QuieroJugar({ onVolver }) {
                         </button>
                         <button 
                           className="cyan-btn"
-                          onClick={() => {
-                            toast.info('Función de invitar amigos próximamente');
-                          }}
+                          onClick={() => handleInviteFriends(partido)}
                         >
                           INVITAR AMIGOS
                         </button>
@@ -615,6 +660,14 @@ export default function QuieroJugar({ onVolver }) {
 
         {/* Botón de volver eliminado ya que ahora tenemos el TabBar */}
       </div>
+      
+      {/* Modal de invitar amigos */}
+      <InviteAmigosModal
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        currentUserId={user?.id}
+        partidoActual={selectedMatch}
+      />
     </>
   );
 }
