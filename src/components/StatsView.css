@@ -40,9 +40,14 @@
   justify-content: center;
 }
 
-.period-btn {
+.period-filter-container {
+  position: relative;
   flex: 1;
   max-width: 120px;
+}
+
+.period-btn {
+  width: 100%;
   padding: 12px 20px;
   background: rgba(255, 255, 255, 0.1);
   border: 2px solid rgba(255, 255, 255, 0.2);
@@ -54,6 +59,10 @@
   cursor: pointer;
   transition: all 0.3s ease;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 .period-btn.active {
@@ -67,6 +76,46 @@
 .period-btn:hover:not(.active) {
   background: rgba(255, 255, 255, 0.15);
   color: white;
+}
+
+.dropdown-arrow {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.period-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.9);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 1000;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  backdrop-filter: blur(10px);
+}
+
+.dropdown-item {
+  padding: 12px 16px;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 14px;
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.dropdown-item.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  font-weight: 600;
 }
 
 /* KPIs Grid */
@@ -134,6 +183,29 @@
   margin-bottom: 16px;
   text-align: center;
   text-transform: uppercase;
+}
+
+.chart-tooltip {
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  backdrop-filter: blur(10px);
+}
+
+.tooltip-label {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  margin: 0;
+  font-family: 'Oswald', Arial, sans-serif;
+}
+
+.tooltip-value {
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 4px 0 0 0;
+  font-family: 'Oswald', Arial, sans-serif;
 }
 
 /* Top Friend Card */
@@ -230,12 +302,32 @@
   min-width: 32px;
 }
 
-.amigo-avatar {
+.amigo-avatar-container {
   width: 48px;
   height: 48px;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.3);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.amigo-avatar {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+}
+
+.amigo-avatar-initials {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .amigo-info {
@@ -256,6 +348,61 @@
   font-size: 14px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.8);
+}
+
+/* Logros Section */
+.logros-section {
+  margin-bottom: 32px;
+}
+
+.logros-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.logro-card {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.logro-card:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.logro-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.logro-titulo {
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.logro-valor {
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 2px;
+}
+
+.logro-detalle {
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* No Data Message */
@@ -286,6 +433,16 @@
   font-size: 16px;
   font-weight: 400;
   color: rgba(255, 255, 255, 0.8);
+}
+
+/* Last Updated */
+.last-updated {
+  text-align: center;
+  font-family: 'Oswald', Arial, sans-serif;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 32px;
+  padding: 16px;
 }
 
 /* Responsive */
@@ -334,9 +491,22 @@
     gap: 12px;
   }
   
-  .amigo-avatar {
+  .amigo-avatar-container {
     width: 40px;
     height: 40px;
+  }
+  
+  .logros-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  
+  .logro-card {
+    padding: 12px;
+  }
+  
+  .period-dropdown {
+    max-height: 150px;
   }
 }
 
@@ -353,5 +523,13 @@
   .period-btn {
     padding: 8px 12px;
     font-size: 12px;
+  }
+  
+  .logros-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .period-filter-container {
+    max-width: none;
   }
 }
