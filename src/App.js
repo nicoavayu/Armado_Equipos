@@ -29,6 +29,7 @@ import EditarPartidoFrecuente from './EditarPartidoFrecuente';
 import QuieroJugar from './QuieroJugar';
 import ProfileEditor from './components/ProfileEditor';
 import NotificationsView from './components/NotificationsView';
+import StatsView from './components/StatsView';
 import PageTitle from './components/PageTitle';
 
 import { NotificationProvider } from './context/NotificationContext';
@@ -169,6 +170,11 @@ const NotificationsPage = () => {
       </div>
     </div>
   );
+};
+
+const StatsPage = () => {
+  const navigate = useNavigate();
+  return <StatsView onVolver={() => navigate('/')} />;
 };
 
 const AdminPanelPage = () => {
@@ -596,6 +602,7 @@ export default function App() {
                       <Route path="amigos" element={<AmigosPage />} />
                       <Route path="profile" element={<ProfilePage />} />
                       <Route path="notifications" element={<NotificationsPage />} />
+                      <Route path="stats" element={<StatsPage />} />
                       <Route path="historial" element={<HistorialPage />} />
                       <Route path="admin/:partidoId" element={<AdminPanelPage />} />
                     </Route>
