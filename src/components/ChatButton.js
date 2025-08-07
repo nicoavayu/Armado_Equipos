@@ -66,14 +66,28 @@ export default function ChatButton({ partidoId }) {
     }
     
     checkChatAccess();
+    
+    // Suscripción en tiempo real para detectar cambios en jugadores
+    const subscription = supabase
+      .channel(`chat_access_${partidoId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'jugadores',
+        filter: `partido_id=eq.${partidoId}`,
+      }, () => {
+        checkChatAccess();
+      })
+      .subscribe();
+    
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [partidoId, user?.id]);
   
   useEffect(() => {
     if (partidoId && canAccessChat) {
       checkUnreadMessages();
-      // Interval disabled to prevent ERR_INSUFFICIENT_RESOURCES
-      // const interval = setInterval(checkUnreadMessages, 10000);
-      // return () => clearInterval(interval);
     }
   }, [partidoId, canAccessChat]);
 

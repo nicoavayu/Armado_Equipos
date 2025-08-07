@@ -107,9 +107,10 @@
   font-family: Oswald, Arial, sans-serif;
   font-size: 16px;
   color: rgb(255 255 255 / 90%);
-  margin-bottom: -4px;
+  margin-bottom: -25px;
   text-transform: uppercase;
   text-align: center;
+  transform: translateY(-20px);
   width: 100%;
   display: block;
 }
@@ -486,6 +487,7 @@
   display: flex;
   gap: 8px;
   margin-bottom: 16px;
+  margin-top: 16px;
   width: 100%;
   max-width: 500px;
 }
@@ -771,4 +773,6 @@
   .match-buttons {
     gap: 8px;
   }
+  
+
 }

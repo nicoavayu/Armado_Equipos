@@ -238,44 +238,44 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
   if (!isOpen) return null;
 
   const modalContent = (
-    <div className="sheet-overlay" onClick={onClose}>
-      <div className="sheet-container" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-handle"></div>
-        
-        <div className="sheet-header">
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content invite-friends-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
           <h3>Invitar amigos</h3>
-          <button className="sheet-close" onClick={onClose}>×</button>
+          <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
-        <div className="sheet-body">
+        <div className="modal-body">
           {loading ? (
-            <div className="loading-state"><LoadingSpinner size="medium" /></div>
-          ) : amigos.length > 0 ? (
-            <ul className="amigos-list">
+            <div className="loading-state">
+              <LoadingSpinner size="medium" />
+            </div>
+          ) : amigos.length === 0 ? (
+            <div className="empty-state">
+              No tenés amigos para invitar
+            </div>
+          ) : (
+            <div className="friends-list">
               {amigos.map((amigo) => (
-                <li key={amigo.id} className="amigo-item">
+                <div key={amigo.id} className="friend-row">
                   <img 
                     src={amigo.avatar_url || '/profile.svg'} 
                     alt={amigo.nombre || 'Usuario'} 
-                    className="amigo-avatar"
+                    className="friend-avatar"
                     onError={(e) => { e.target.src = '/profile.svg'; }}
                   />
-                  <span className="amigo-nombre">
+                  <span className="friend-name">
                     {amigo.nombre || 'Usuario'}
                   </span>
                   <button 
                     onClick={() => handleInvitar(amigo)}
-                    className={`invitar-btn ${invitedFriends.has(amigo.id) ? 'invited' : ''}`}
+                    className={`friend-invite-btn ${invitedFriends.has(amigo.id) ? 'invited' : ''}`}
                     disabled={inviting || invitedFriends.has(amigo.id)}
                   >
                     {inviting ? '...' : invitedFriends.has(amigo.id) ? 'Invitado' : 'Invitar'}
                   </button>
-                </li>
+                </div>
               ))}
-            </ul>
-          ) : (
-            <div className="sin-amigos">
-              No tenés amigos para invitar
             </div>
           )}
         </div>

@@ -1,7 +1,7 @@
 /* PageTitle.css - Estilos globales para headers unificados */
 
 .page-title-header {
-  background: #075da8;
+  background: linear-gradient(0deg, rgba(8, 101, 178, 1) 0%, rgba(83, 211, 237, 1) 100%);
   width: 100vw;
   position: fixed;
   top: 0;

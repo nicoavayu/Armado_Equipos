@@ -1,7 +1,7 @@
 .chat-float-btn {
-  position: fixed;
-  bottom: 80px; /* Elevado para evitar que la tabbar lo tape */
-  right: 20px;
+  position: fixed !important;
+  bottom: 80px !important;
+  right: 20px !important;
   width: 56px;
   height: 56px;
   background: #0EA9C6;
@@ -14,7 +14,19 @@
   justify-content: center;
   box-shadow: 0 4px 12px rgb(14 169 198 / 40%);
   transition: all 0.3s ease;
-  z-index: 999;
+  z-index: 99999 !important;
+  transform: none !important;
+  will-change: auto !important;
+  contain: none !important;
+  isolation: auto !important;
+  /* Force escape from any stacking context */
+  position: fixed !important;
+  top: auto !important;
+  left: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  /* Ensure it's always on top */
+  pointer-events: auto !important;
 }
 
 .chat-float-btn:hover {
@@ -49,8 +61,8 @@
 /* Mobile adjustments */
 @media (width <= 600px) {
   .chat-float-btn {
-    bottom: 80px; /* Mantiene la elevación en móviles */
-    right: 16px;
+    bottom: 80px !important;
+    right: 16px !important;
     width: 52px;
     height: 52px;
   }

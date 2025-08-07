@@ -543,24 +543,60 @@ export default function QuieroJugar({ onVolver }) {
           // Free Players Tab
           <>
             {user ? (
-              <div style={{ width: '100%', maxWidth: '500px', marginBottom: '16px' }}>
-                {!isRegisteredAsFree ? (
-                  <button
-                    className="sumarme-button"
-                    onClick={handleRegisterAsFree}
-                    
-                  >
-                    ANOTARME COMO DISPONIBLE
-                  </button>
-                ) : (
-                  <button
-                    className="sumarme-button"
-                    onClick={handleUnregisterAsFree}
-                    style={{ background: '#dc3545' }}
-                  >
-                    ❌ YA NO ESTOY DISPONIBLE
-                  </button>
-                )}
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column',
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: '8px', 
+                margin: '0px 50px', 
+                fontSize: '14px', 
+                color: 'rgba(255,255,255,0.8)',
+                fontFamily: 'Oswald, Arial, sans-serif',
+                width: '100%',
+                maxWidth: '500px',
+              }}>
+                <span>¿Disponible para jugar?</span>
+                <label style={{ 
+                  position: 'relative', 
+                  display: 'inline-block', 
+                  width: '50px', 
+                  height: '24px',
+                  cursor: 'pointer',
+                }}>
+                  <input 
+                    type="checkbox" 
+                    checked={isRegisteredAsFree}
+                    onChange={isRegisteredAsFree ? handleUnregisterAsFree : handleRegisterAsFree}
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
+                  <span style={{
+                    position: 'absolute',
+                    cursor: 'inherit',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: isRegisteredAsFree ? '#009dffff' : '#ccc',
+                    transition: '0.3s',
+                    borderRadius: '24px',
+                  }}>
+                    <span style={{
+                      position: 'absolute',
+                      content: '',
+                      height: '18px',
+                      width: '18px',
+                      left: isRegisteredAsFree ? '29px' : '3px',
+                      bottom: '3px',
+                      backgroundColor: 'white',
+                      transition: '0.3s',
+                      borderRadius: '50%',
+                    }} />
+                  </span>
+                </label>
+                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
+                  {isRegisteredAsFree ? 'Disponible' : 'No disponible'}
+                </span>
               </div>
             ) : (
               <div className="empty-message">

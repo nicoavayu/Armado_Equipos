@@ -258,35 +258,7 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
           </div>
         </Link>
         
-        {/* Botón de prueba para encuesta post-partido */}
-        <div 
-          className="fifa-menu-button encuesta-test"
-          style={{ background: 'rgba(255, 193, 7, 0.2)', borderColor: 'rgba(255, 193, 7, 0.4)' }}
-          onClick={async () => {
-            try {
-              const { data: partidos } = await supabase
-                .from('partidos')
-                .select('id')
-                .limit(1);
-              
-              if (partidos && partidos.length > 0) {
-                window.location.href = `/encuesta/${partidos[0].id}`;
-              } else {
-                alert('No hay partidos disponibles para la encuesta de prueba');
-              }
-            } catch (error) {
-              console.error('Error:', error);
-              alert('Error al buscar partidos');
-            }
-          }}
-        >
-          <div className="fifa-button-title">ENCUESTA<br />PRUEBA</div>
-          <div className="fifa-button-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={48} height={48}>
-              <path d="M320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320C64 178.6 178.6 64 320 64zM320 144C306.7 144 296 154.7 296 168L296 296C296 309.3 306.7 320 320 320C333.3 320 344 309.3 344 296L344 168C344 154.7 333.3 144 320 144zM320 384C306.7 384 296 394.7 296 408C296 421.3 306.7 432 320 432C333.3 432 344 421.3 344 408C344 394.7 333.3 384 320 384z"/>
-            </svg>
-          </div>
-        </div>
+
       </div>
       
       {/* Panel Info */}

@@ -61,58 +61,34 @@
   margin: 0 auto !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
+  gap: 8px !important;
   box-sizing: border-box !important;
   overflow-x: hidden !important;
 }
 
-/* Match header styling */
-.match-header {
-  text-align: center;
-  margin-bottom: 10px;
+/* Contenedor principal para todo el contenido debajo del MatchInfoHeader */
+.main-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.match-name {
-  font-family: 'Bebas Neue', Arial, sans-serif;
-  font-size: 48px;
-  font-weight: 700;
-  color: #fff;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  line-height: 1.0;
+/* Estilos específicos para vista de invitado */
+.admin-panel-content.guest-view {
+  padding: 0px 0 70px !important;
+}
+
+.match-info-wrapper {
+  margin-bottom: -12px;
+  margin-top: 0 !important;
+}
+
+.admin-add-section {
   margin-bottom: 4px;
-  text-shadow: 0 2px 4px rgb(0 0 0 / 30%);
-  word-break: break-word;
+  margin-top: 0 !important;
 }
 
-.match-details {
-  font-family: Oswald, Arial, sans-serif;
-  font-size: 26px;
-  font-weight: 500;
-  color: rgb(255 255 255 / 90%);
-  text-transform: capitalize;
-  letter-spacing: 0.5px;
-  line-height: 1.2;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 20%);
-  margin-bottom: 6px;
-}
 
-/* Venue link styling */
-.venue-link {
-  color: rgb(255 255 255 / 90%);
-  text-decoration: underline;
-  text-decoration-color: rgb(255 255 255 / 60%);
-  text-underline-offset: 2px;
-  transition: all 0.2s ease;
-  font-weight: 500;
-}
-
-.venue-link:hover {
-  color: #fff;
-  text-decoration-color: #fff;
-  text-decoration-thickness: 2px;
-  filter: brightness(1.1);
-}
 
 /* Title styling to match other views */
 .voting-title-modern {
@@ -193,6 +169,8 @@
   max-width: 90vw;
   box-sizing: border-box;
   margin: 0 auto;
+  margin-bottom: 16px;
+  margin-top: 0 !important;
 }
 
 /* New form layout - full width input with buttons below */
@@ -478,12 +456,14 @@
   background: rgb(255 255 255 / 12%);
   border: 2px solid rgb(255 255 255 / 20%);
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px;
   min-height: 120px;
   width: 90vw;
   max-width: 90vw;
   box-sizing: border-box;
   margin: 0 auto;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
 }
 
 .admin-players-title {
@@ -492,6 +472,7 @@
   color: #fff;
   text-align: center;
   margin-bottom: 16px;
+  margin-top: 8px;
   letter-spacing: 1px;
   text-transform: uppercase;
 }
@@ -499,20 +480,27 @@
 .admin-players-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .admin-player-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   background: rgb(255 255 255 / 10%);
   border: 2px solid rgb(255 255 255 / 15%);
   border-radius: 8px;
-  padding: 8px;
+  padding: 6px;
   transition: all 0.2s ease;
   min-height: 36px;
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .admin-player-item:hover {
@@ -555,10 +543,13 @@
 .admin-player-name {
   flex: 1;
   font-family: Oswald, Arial, sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: #fff;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
+  min-width: 0;
+  word-wrap: break-word;
+  line-height: 1.2;
 }
 
 .admin-remove-btn {

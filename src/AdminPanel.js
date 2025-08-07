@@ -25,6 +25,7 @@ import { useAuth } from './components/AuthProvider';
 import InviteAmigosModal from './components/InviteAmigosModal';
 import { detectDuplicates, autoCleanupDuplicates } from './utils/duplicateCleanup';
 import PageTitle from './components/PageTitle';
+import MatchInfoHeader from './components/MatchInfoHeader';
 
 
 
@@ -46,9 +47,18 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   ]);
   const inputRef = useRef();
 
-  // 🟢 Si jugadores viene undefined o null, usá array vacío
-  jugadores = jugadores || [];
-  if (!Array.isArray(jugadores)) jugadores = [];
+  // Estado local para jugadores
+  const [jugadoresLocal, setJugadoresLocal] = useState(jugadores || []);
+  
+  // Sincronizar con prop inicial
+  useEffect(() => {
+    if (jugadores && jugadores.length > 0) {
+      setJugadoresLocal(jugadores);
+    }
+  }, [jugadores]);
+  
+  // Usar jugadores locales
+  const jugadoresActuales = jugadoresLocal || [];
   
   // [TEAM_BALANCER_INVITE_EDIT] Estado de invitación pendiente
   const [pendingInvitation, setPendingInvitation] = useState(false);
@@ -57,7 +67,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   
   // [TEAM_BALANCER_EDIT] Control de permisos: verificar si el usuario es admin del partido
   const isAdmin = user?.id && partidoActual?.creado_por === user.id;
-  const currentPlayerInMatch = jugadores.find((j) => j.usuario_id === user?.id);
+  const currentPlayerInMatch = jugadoresActuales.find((j) => j.usuario_id === user?.id);
   const isPlayerInMatch = !!currentPlayerInMatch;
   
   // [TEAM_BALANCER_INVITE_ACCESS_FIX] Verificar invitación pendiente
@@ -173,29 +183,28 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     
     fetchInitialData();
     
-    // Suscripción en tiempo real para refrescar cuando hay cambios
-    const subscription = supabase
-      .channel(`match_${partidoActual?.id}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'partidos',
-        filter: `id=eq.${partidoActual?.id}`,
-      }, async () => {
-        // Refrescar votantes cuando se actualiza el partido
-        try {
-          const votantesIds = await getVotantesIds(partidoActual.id);
-          const votantesNombres = await getVotantesConNombres(partidoActual.id);
-          setVotantes(votantesIds || []);
-          setVotantesConNombres(votantesNombres || []);
-        } catch (error) {
-          console.error('Error refreshing voters:', error);
+    // Polling para refrescar jugadores cada 3 segundos
+    const refreshInterval = setInterval(async () => {
+      try {
+        console.log('🔍 Checking for player changes... (Admin:', isAdmin, ')'); 
+        const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
+        const currentCount = jugadoresActuales.length;
+        const newCount = jugadoresPartido.length;
+        
+        console.log('📊 Current:', currentCount, 'New:', newCount);
+        
+        if (currentCount !== newCount) {
+          console.log('🔄 Players count changed:', currentCount, '->', newCount, '(Admin:', isAdmin, ')');
+          setJugadoresLocal(jugadoresPartido);
+          onJugadoresChange(jugadoresPartido);
         }
-      })
-      .subscribe();
+      } catch (error) {
+        console.error('❌ Error refreshing players:', error);
+      }
+    }, 3000);
     
     return () => {
-      subscription.unsubscribe();
+      clearInterval(refreshInterval);
     };
   }, [partidoActual?.id]);
 
@@ -868,23 +877,11 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   // [TEAM_BALANCER_INVITE_ACCESS_FIX] Mostrar loading hasta verificar invitación
   if (!partidoActual || !invitationChecked) return <LoadingSpinner size="large" />;
   
-  // Utility function to extract short venue name
-  const getShortVenueName = (venue) => {
-    if (!venue) return '';
-    // Extract text before first comma or parenthesis
-    const shortName = venue.split(/[,(]/)[0].trim();
-    return shortName;
-  };
-  
-  // Get match name from database
-  const getMatchName = () => {
-    // Always use the nombre field from partidos table
-    return partidoActual.nombre || 'PARTIDO';
-  };
+
 
   return (
     <>
-      <ChatButton partidoId={partidoActual?.id} />
+
       
       {showArmarEquiposView ? (
         <ArmarEquiposView
@@ -898,7 +895,55 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         <>
           <PageTitle onBack={onBackToHome}>CONVOCA JUGADORES</PageTitle>
           
-          <div className="admin-panel-content" style={{ paddingTop: isAdmin ? undefined : '0px', marginTop: isAdmin ? undefined : '-45px' }}>
+          <div className="match-info-wrapper">
+            <MatchInfoHeader
+              nombre={partidoActual?.nombre}
+              fecha={partidoActual?.fecha}
+              hora={partidoActual?.hora}
+              sede={partidoActual?.sede}
+            />
+          </div>
+          
+          {(!isAdmin && !isPlayerInMatch) && (
+            <div className="admin-add-section">
+              <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', width: '100%' }}>
+                <button
+                  className="guest-action-btn invite-btn"
+                  onClick={aceptarInvitacion}
+                  disabled={invitationLoading || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
+                  style={{ 
+                    flex: 1,
+                    fontSize: '13px',
+                    padding: '10px 4px',
+                    opacity: (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) ? 0.5 : 1,
+                  }}
+                >
+                  {invitationLoading ? <LoadingSpinner size="small" /> : 'SUMARME AL PARTIDO'}
+                </button>
+                <button
+                  className="guest-action-btn leave-btn"
+                  onClick={rechazarInvitacion}
+                  disabled={invitationLoading}
+                  style={{ 
+                    flex: 1,
+                    fontSize: '13px',
+                    padding: '10px 4px',
+                    background: 'rgb(222 28 73)',
+                    borderColor: 'rgb(222 28 73)',
+                  }}
+                >
+                  {invitationLoading ? <LoadingSpinner size="small" /> : 'RECHAZAR INVITACIÓN'}
+                </button>
+              </div>
+
+            </div>
+          )}
+          
+          <div className="main-content">
+            <div
+              className={`admin-panel-content${!isAdmin ? ' guest-view' : ''}`}
+              style={{}}
+            >
             {showTeams ? (
           <TeamDisplay
             teams={teams}
@@ -914,87 +959,9 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
           />
         ) : (
           <>
-            {/* Match header with custom name and details */}
-            {/* AJUSTE DE MARGEN: Modificar marginTop aquí para separar del PageTitle */}
-            <div className="match-header" style={{ textAlign: 'center', marginBottom: '8px', marginTop: isAdmin ? '40px' : '5px', width: '100%' }}>
-              <div className="match-name" style={{ 
-                fontSize: '36px', 
-                fontWeight: 'bold', 
-                marginBottom: '7px',
-                fontFamily: 'Bebas Neue, Arial, sans-serif',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-              }}>
-                {getMatchName()}
-              </div>
-              <div className="match-details" style={{ 
-                fontSize: '20px', 
-                color: 'rgba(255,255,255,0.9)',
-                textAlign: 'center',
-                lineHeight: '1.04',
-              }}>
-                {partidoActual.fecha && new Date(partidoActual.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
-                  weekday: 'long', 
-                  day: 'numeric', 
-                  month: 'numeric', 
-                })}
-                {partidoActual.hora && ` ${partidoActual.hora}`}
-                {partidoActual.sede && (
-                  <>
-                    {' – '}
-                    <a 
-                      href={`https://www.google.com/maps/search/${encodeURIComponent(getShortVenueName(partidoActual.sede))}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="venue-link"
-                      style={{ color: 'rgba(255,255,255,0.9)', textDecoration: 'underline' }}
-                    >
-                      {getShortVenueName(partidoActual.sede)}
-                    </a>
-                  </>
-                )}
-              </div>
-            </div>
+            {/* El header ahora está fijo arriba */}
 
-            {/* [TEAM_BALANCER_INVITE_EDIT] Botones de aceptar/rechazar invitación */}
-            {(!isAdmin && !isPlayerInMatch) && (
-              <div className="admin-add-section">
-                <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', width: '100%' }}>
-                  <button
-                    className="guest-action-btn invite-btn"
-                    onClick={aceptarInvitacion}
-                    disabled={invitationLoading || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
-                    style={{ 
-                      flex: 1,
-                      fontSize: '13px',
-                      padding: '10px 4px',
-                      opacity: (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) ? 0.5 : 1,
-                    }}
-                  >
-                    {invitationLoading ? <LoadingSpinner size="small" /> : 'SUMARME AL PARTIDO'}
-                  </button>
-                  <button
-                    className="guest-action-btn leave-btn"
-                    onClick={rechazarInvitacion}
-                    disabled={invitationLoading}
-                    style={{ 
-                      flex: 1,
-                      fontSize: '13px',
-                      padding: '10px 4px',
-                      background: 'rgb(222 28 73)',
-                      borderColor: 'rgb(222 28 73)',
-                    }}
-                  >
-                    {invitationLoading ? <LoadingSpinner size="small" /> : 'RECHAZAR INVITACIÓN'}
-                  </button>
-                </div>
-                {partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores && (
-                  <div style={{ color: '#ff6b35', fontSize: '14px', textAlign: 'center', marginTop: '8px' }}>
-                    Partido lleno ({jugadores.length}/{partidoActual.cupo_jugadores})
-                  </div>
-                )}
-              </div>
-            )}
+
             
             {/* Add player section - Solo para admin */}
             {isAdmin && !pendingInvitation && (
@@ -1030,7 +997,10 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                     <button
                       className="voting-confirm-btn admin-btn-half admin-invite-btn"
                       type="button"
-                      onClick={() => setShowInviteModal(true)}
+                      onClick={() => {
+                        console.log('Opening invite modal with:', { userId: user?.id, matchId: partidoActual?.id });
+                        setShowInviteModal(true);
+                      }}
                       disabled={!partidoActual?.id || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
                       aria-label="Invitar amigos al partido"
                     >
@@ -1038,11 +1008,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                     </button>
                   </div>
                 </div>
-                {partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores && (
-                  <div style={{ color: '#ff6b35', fontSize: '14px', textAlign: 'center', marginTop: '8px' }}>
-                    Partido lleno ({jugadores.length}/{partidoActual.cupo_jugadores})
-                  </div>
-                )}
+
               </div>
             )}
             
@@ -1102,17 +1068,16 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                             <div className="admin-player-avatar-placeholder">👤</div>
                           )}
 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                            <span className="admin-player-name" style={{ color: 'white' }}>
-                              {j.nombre}
-                            </span>
-                            {/* Corona para admin */}
-                            {partidoActual?.creado_por === j.usuario_id && (
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="#FFD700">
-                                <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z"/>
-                              </svg>
-                            )}
-                          </div>
+                          <span className="admin-player-name" style={{ color: 'white' }}>
+                            {j.nombre}
+                          </span>
+                          
+                          {/* Corona para admin - al extremo derecho */}
+                          {partidoActual?.creado_por === j.usuario_id && (
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="#FFD700" style={{ flexShrink: 0 }}>
+                              <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z"/>
+                            </svg>
+                          )}
                           
                           {/* [TEAM_BALANCER_EDIT] Botón eliminar en el extremo derecho - Solo admin puede eliminar otros */}
                           {isAdmin && j.usuario_id !== user?.id ? (
@@ -1202,7 +1167,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
             {/* Botón ARMAR EQUIPOS PAREJOS - Solo admin */}
             {isAdmin && !pendingInvitation && (
-              <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '16px auto 0', textAlign: 'center' }}>
+              <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '8px auto 0', textAlign: 'center' }}>
                 <button 
                   className="admin-btn-orange" 
                   onClick={handleArmarEquipos}
@@ -1219,7 +1184,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
               
             {/* Botón para jugadores que están en el partido (admin o no-admin) */}
             {isPlayerInMatch && !pendingInvitation && (
-              <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '0 auto' }}>
+              <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '8px auto 0' }}>
                 <button
                   className="guest-action-btn leave-btn"
                   onClick={() => {
@@ -1242,7 +1207,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
             </>
           )}
-        </div>
+            </div>
+          </div>
         
         {/* [TEAM_BALANCER_EDIT] Modal de invitar amigos */}
         {showInviteModal && partidoActual?.id && (
@@ -1255,6 +1221,9 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         )}
       </>
       )}
+      
+      {/* ChatButton rendered outside main container to avoid stacking context issues */}
+      <ChatButton partidoId={partidoActual?.id} />
     </>
   );
 }

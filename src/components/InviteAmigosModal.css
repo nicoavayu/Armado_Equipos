@@ -1,234 +1,162 @@
-/* Sheet Modal - Estilo WhatsApp/Instagram */
-.sheet-overlay {
-  position: fixed !important;
-  inset: 0 !important;
-  background: rgba(0, 0, 0, 0.4) !important;
-  z-index: 9999 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  backdrop-filter: blur(3px) !important;
-  padding: 30px !important;
-}
-
-.sheet-container {
-  background: rgba(60, 60, 60, 0.9) !important;
-  border-radius: 20px !important;
-  width: 100% !important;
-  max-width: 380px !important;
-  max-height: 70vh !important;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3) !important;
-  display: flex !important;
-  flex-direction: column !important;
-  position: relative !important;
-  overflow: hidden !important;
-  transform: scale(1) !important;
-  animation: modalFadeIn 0.3s ease-out !important;
-  backdrop-filter: blur(15px) !important;
-  border: 2px solid rgba(255, 255, 255, 0.15) !important;
-}
-
-@keyframes modalFadeIn {
-  from {
-    transform: scale(0.9);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-.sheet-handle {
-  width: 40px;
-  height: 4px;
-  background: #666;
-  border-radius: 2px;
-  margin: 12px auto 8px;
-  flex-shrink: 0;
-}
-
-.sheet-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 20px 16px;
-  border-bottom: 1px solid #333;
-  flex-shrink: 0;
-}
-
-.sheet-header h3 {
-  color: #fff;
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.sheet-close {
-  background: none;
-  border: none;
-  color: #999;
-  font-size: 28px;
-  cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  transition: color 0.2s;
-  border-radius: 50%;
-}
-
-.sheet-close:hover,
-.sheet-close:focus {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.1);
-  outline: none;
-}
-
-.sheet-body {
+  z-index: 10000;
   padding: 20px;
+}
+
+.invite-friends-modal {
+  background: #1a1a1a;
+  border-radius: 12px;
+  width: calc(100vw - 40px);
+  max-width: 360px;
+  max-height: 80vh;
+  overflow: hidden;
+  border: 2px solid #333;
+}
+
+@media (max-width: 480px) {
+  .invite-friends-modal {
+    width: 300px;
+    max-width: calc(100vw - 32px);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #333;
+  background: #222;
+}
+
+.modal-header h3 {
+  color: #fff;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.modal-body {
+  padding: 16px 20px;
+  max-height: 60vh;
   overflow-y: auto;
-  flex: 1;
-  -webkit-overflow-scrolling: touch;
 }
 
 .loading-state {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.empty-state {
   text-align: center;
-  color: #999;
-  padding: 60px 20px;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 40px 20px;
   font-size: 16px;
 }
 
-.sin-amigos {
-  text-align: center;
-  color: #999;
-  padding: 60px 20px;
-  font-size: 16px;
-  line-height: 1.5;
+.friends-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.amigos-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.amigo-item {
+.friend-row {
   display: flex;
   align-items: center;
-  padding: 16px 0;
-  border-bottom: 1px solid #2a2a2a;
-  gap: 16px;
-  transition: background 0.2s;
-}
-
-.amigo-item:last-child {
-  border-bottom: none;
-}
-
-.amigo-item:active {
+  gap: 12px;
+  padding: 12px;
   background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s;
 }
 
-.amigo-avatar {
-  width: 48px;
-  height: 48px;
+.friend-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.friend-avatar {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   object-fit: cover;
-  background: #333;
   flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
-.amigo-nombre {
-  color: #fff;
-  font-size: 17px;
-  font-weight: 500;
+.friend-name {
   flex: 1;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 500;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.invitar-btn {
+.friend-invite-btn {
   background: #007bff;
-  color: #fff;
+  color: white;
   border: none;
-  border-radius: 20px;
-  padding: 10px 20px;
-  font-size: 15px;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
   min-width: 80px;
-  outline: none;
 }
 
-.invitar-btn:active:not(:disabled) {
+.friend-invite-btn:hover:not(:disabled) {
   background: #0056b3;
-  transform: scale(0.95);
+  transform: translateY(-1px);
 }
 
-.invitar-btn:disabled {
-  background: #555;
+.friend-invite-btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
   transform: none;
 }
 
-.invitar-btn.invited {
+.friend-invite-btn.invited {
   background: #28a745;
-  cursor: not-allowed;
+  cursor: default;
 }
 
-.invitar-btn.invited:disabled {
+.friend-invite-btn.invited:hover {
   background: #28a745;
-  opacity: 0.8;
-}
-
-/* Mobile optimizations */
-@media (max-width: 600px) {
-  .sheet-overlay {
-    padding: 16px;
-  }
-  
-  .sheet-container {
-    border-radius: 16px;
-    width: 100%;
-    max-height: 85vh;
-    animation: modalFadeIn 0.3s ease-out;
-  }
-  
-  .sheet-header {
-    padding: 8px 16px 12px;
-  }
-  
-  .sheet-header h3 {
-    font-size: 18px;
-  }
-  
-  .sheet-body {
-    padding: 16px;
-  }
-  
-  .amigo-item {
-    padding: 14px 0;
-  }
-  
-  .amigo-avatar {
-    width: 44px;
-    height: 44px;
-  }
-  
-  .amigo-nombre {
-    font-size: 16px;
-  }
-  
-  .invitar-btn {
-    padding: 8px 16px;
-    font-size: 14px;
-    min-width: 70px;
-  }
+  transform: none;
 }
