@@ -265,8 +265,8 @@ const EncuestaPartido = () => {
         }
       }
       
-      // Solo procesar la base de datos, no mostrar UI adicional
-      setEncuestaFinalizada(true);
+      // Ir a la vista de gracias por calificar
+      setCurrentStep(99);
       
       // Limpiar estado del formulario y animaciones
       setFormData({
@@ -283,6 +283,7 @@ const EncuestaPartido = () => {
       });
       setBadgeAnimations([]);
       setAnimationProcessed(false);
+      setEncuestaFinalizada(true);
       
     } catch (error) {
       console.error('Error guardando encuesta:', error);
@@ -377,6 +378,25 @@ const EncuestaPartido = () => {
       }
     }
     
+    // Agregar ausencias para partidos no jugados
+    if (!formData.se_jugo && formData.jugadores_ausentes.length > 0) {
+      formData.jugadores_ausentes.forEach((jugadorId) => {
+        const player = jugadores.find((j) => j.uuid === jugadorId);
+        if (player && !addedPlayers.has(player.uuid + '_ausencia')) {
+          animations.push({
+            playerName: player.nombre,
+            playerAvatar: player.avatar_url || player.foto_url,
+            playerData: player,
+            badgeType: 'ausencia_injustificada',
+            badgeText: 'AUSENCIAS INJUSTIFICADAS',
+            badgeIcon: '📉',
+            pointsLost: -0.3,
+          });
+          addedPlayers.add(player.uuid + '_ausencia');
+        }
+      });
+    }
+    
     if (animations.length > 0) {
       setBadgeAnimations(animations);
       setShowingBadgeAnimations(true);
@@ -393,6 +413,19 @@ const EncuestaPartido = () => {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
+      });
+    } catch (e) {
+      return fechaStr || 'Fecha no disponible';
+    }
+  };
+
+  const formatFechaCorta = (fechaStr) => {
+    try {
+      const fecha = new Date(fechaStr);
+      return fecha.toLocaleDateString('es-ES', { 
+        weekday: 'short',
+        day: 'numeric',
+        month: 'numeric',
       });
     } catch (e) {
       return fechaStr || 'Fecha no disponible';
@@ -599,6 +632,45 @@ const EncuestaPartido = () => {
           zIndex: 1,
           margin: 'auto', /* Centrado automático */
         }}>
+          
+          {/* Información del partido */}
+          {partido && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '25px',
+              textAlign: 'center',
+              width: '100%',
+            }}>
+              {partido.nombre && (
+                <div style={{
+                  color: 'white',
+                  fontSize: '28px',
+                  fontWeight: '700',
+                  fontFamily: "'Oswald', Arial, sans-serif",
+                  marginBottom: '4px',
+                  textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)',
+                }}>
+                  {partido.nombre}
+                </div>
+              )}
+              <div style={{
+                color: 'rgba(255, 255, 255, 0.9)',
+                fontSize: '16px',
+                fontWeight: '500',
+                fontFamily: "'Oswald', Arial, sans-serif",
+                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.5)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '90%',
+              }}>
+                {formatFechaCorta(partido.fecha)} - {partido.hora} - {partido.sede ? partido.sede.split(/[,(]/)[0].trim() : 'Sin ubicación'}
+              </div>
+            </div>
+          )}
           
           {/* Título del badge con ribbon container */}
           <div style={{
@@ -830,7 +902,7 @@ const EncuestaPartido = () => {
             justifyContent: 'center',
             minHeight: '100vh',
             width: '100%',
-            paddingTop: '60px',
+            paddingTop: '20px',
             paddingBottom: '120px',
           }}>
             {/* Mostrar animación siempre mientras el overlay esté activo */}
@@ -876,7 +948,7 @@ const EncuestaPartido = () => {
                   setCurrentStep(1);
                 }}
                 type="button"
-                style={{ borderRadius: '12px' }}
+                style={{ borderRadius: '6px' }}
               >
                 SÍ
               </button>
@@ -887,7 +959,7 @@ const EncuestaPartido = () => {
                   setCurrentStep(10);
                 }}
                 type="button"
-                style={{ borderRadius: '12px' }}
+                style={{ borderRadius: '6px' }}
               >
                 NO
               </button>
@@ -908,7 +980,7 @@ const EncuestaPartido = () => {
                   setCurrentStep(2);
                 }}
                 type="button"
-                style={{ borderRadius: '12px' }}
+                style={{ borderRadius: '6px' }}
               >
                 SÍ
               </button>
@@ -919,7 +991,7 @@ const EncuestaPartido = () => {
                   setCurrentStep(12);
                 }}
                 type="button"
-                style={{ borderRadius: '12px' }}
+                style={{ borderRadius: '6px' }}
               >
                 NO
               </button>
@@ -1086,9 +1158,9 @@ const EncuestaPartido = () => {
                   setCurrentStep(4);
                 }}
                 style={{
-                  backgroundColor: 'rgba(255, 87, 34, 0.3)',
+                  backgroundColor: 'rgba(255, 86, 34, 0.92)',
                   borderColor: '#fff',
-                  borderRadius: '12px',
+                  borderRadius: '6px',
                   width: '90%',
                 }}
               >
@@ -1118,7 +1190,7 @@ const EncuestaPartido = () => {
                   setCurrentStep(5);
                 }}
                 type="button"
-                style={{ borderRadius: '12px' }}
+                style={{ borderRadius: '6px' }}
               >
                 SÍ
               </button>
@@ -1129,7 +1201,7 @@ const EncuestaPartido = () => {
                   setCurrentStep(6);
                 }}
                 type="button"
-                style={{ borderRadius: '12px' }}
+                style={{ borderRadius: '6px' }}
               >
                 NO
               </button>
@@ -1150,7 +1222,7 @@ const EncuestaPartido = () => {
                 style={{
                   backgroundColor: formData.ganador === 'equipo_a' ? '#9C27B0' : 'rgba(156, 39, 176, 0.3)',
                   borderColor: '#fff',
-                  borderRadius: '12px',
+                  borderRadius: '6px',
                 }}
               >
                 EQUIPO A
@@ -1162,7 +1234,7 @@ const EncuestaPartido = () => {
                 style={{
                   backgroundColor: formData.ganador === 'equipo_b' ? '#FF9800' : 'rgba(255, 152, 0, 0.3)',
                   borderColor: '#fff',
-                  borderRadius: '12px',
+                  borderRadius: '6px',
                 }}
               >
                 EQUIPO B
@@ -1280,36 +1352,52 @@ const EncuestaPartido = () => {
             <div className="voting-title-modern">
               ¿POR QUÉ NO SE JUGÓ?
             </div>
-            <textarea
-              className="input-modern"
-              style={{ 
-                width: '90%', 
-                height: '80px', 
-                resize: 'none',
-                marginBottom: '20px',
-                padding: '15px',
-                textAlign: 'center',
-                fontFamily: "'Oswald', Arial, sans-serif",
-              }}
+            <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '20px' }}>
+              <textarea
+                style={{ 
+                  width: '90%', 
+                  height: '80px', 
+                  resize: 'none',
+                  padding: '15px',
+                  textAlign: 'center',
+                  fontFamily: "'Oswald', Arial, sans-serif",
+                  backgroundColor: '#2a2a40',
+                  border: '1px solid #444',
+                  borderRadius: '8px',
+                  color: 'white',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
               value={formData.motivo_no_jugado || ''}
               onChange={(e) => handleInputChange('motivo_no_jugado', e.target.value)}
               placeholder="Explica por qué no se pudo jugar..."
-              rows={2}
-            />
+                rows={2}
+              />
+            </div>
+            <style>
+              {`
+                textarea:focus {
+                  background-color: #2a2a40 !important;
+                  color: white !important;
+                  border: 1px solid #444 !important;
+                  outline: none !important;
+                }
+              `}
+            </style>
             <button
-              className="player-select-btn"
+              className="voting-confirm-btn"
               onClick={() => setCurrentStep(11)}
               style={{
                 backgroundColor: '#DE1C49',
+                borderColor: '#DE1C49',
                 marginBottom: '15px',
-                width: '90%',
               }}
             >
               AUSENCIA SIN AVISO
             </button>
             <button
               className="voting-confirm-btn"
-              onClick={handleSubmit}
+              onClick={continueSubmitFlow}
             >
               FINALIZAR
             </button>
@@ -1319,7 +1407,7 @@ const EncuestaPartido = () => {
         {currentStep === 11 && (
           <div className="player-vote-card slide-in">
             <div className="voting-title-modern">
-              SELECCIONA JUGADORES AUSENTES
+              ¿QUIÉNES FALTARON?
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', margin: '15px auto', maxWidth: '85%' }}>
               {jugadores.map((jugador) => (
