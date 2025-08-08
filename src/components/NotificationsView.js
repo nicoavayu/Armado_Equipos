@@ -3,7 +3,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { useSurveys } from '../hooks/useSurveys';
 import { useAmigos } from '../hooks/useAmigos';
 import { useAuth } from './AuthProvider';
-import PostMatchSurvey from './PostMatchSurvey';
+
 import { toast } from 'react-toastify';
 import './NotificationsView.css';
 
@@ -16,10 +16,9 @@ const NotificationsView = () => {
     fetchNotifications, 
   } = useNotifications();
   
-  const { pendingSurveys, openSurvey, closeSurvey, handleSurveySubmit } = useSurveys();
+
   const { acceptFriendRequest, rejectFriendRequest } = useAmigos(user?.id);
-  const [showSurveyModal, setShowSurveyModal] = useState(false);
-  const [currentSurvey, setCurrentSurvey] = useState(null);
+
   const [processingRequests, setProcessingRequests] = useState(new Set());
 
   useEffect(() => {
@@ -77,13 +76,10 @@ const NotificationsView = () => {
         }
         break;
       case 'post_match_survey': {
-        // Find the corresponding survey in pendingSurveys
-        const survey = pendingSurveys.find((s) => s.notification.id === notification.id);
-        if (survey) {
-          setCurrentSurvey(survey);
-          setShowSurveyModal(true);
+        // Navegar directamente a la página de encuesta
+        if (notification.data?.partido_id) {
+          window.location.href = `/encuesta/${notification.data.partido_id}`;
         } else if (notification.data?.matchId) {
-          // Si no encontramos la encuesta en pendingSurveys, intentamos abrir la página de encuesta directamente
           window.location.href = `/encuesta/${notification.data.matchId}`;
         }
         break;
@@ -238,18 +234,7 @@ const NotificationsView = () => {
         </div>
       )}
       
-      {/* Post-match survey modal */}
-      {showSurveyModal && currentSurvey && (
-        <PostMatchSurvey
-          partido={currentSurvey.partido}
-          onClose={() => setShowSurveyModal(false)}
-          onSubmit={() => {
-            handleSurveySubmit();
-            setShowSurveyModal(false);
-            fetchNotifications();
-          }}
-        />
-      )}
+
     </div>
   );
 };

@@ -1,49 +1,30 @@
 import React, { useEffect } from 'react';
 import { useSurveys } from '../hooks/useSurveys';
-import PostMatchSurvey from './PostMatchSurvey';
 
 /**
  * Component to manage post-match surveys
- * This component checks for pending surveys and displays the survey modal when needed
+ * This component checks for pending surveys and redirects to the survey page when needed
  */
 const SurveyManager = () => {
-  const { 
-    pendingSurveys, 
-    currentSurvey, 
-    showSurveyModal, 
-    openSurvey, 
-    closeSurvey, 
-    handleSurveySubmit,
-    refreshSurveys,
-  } = useSurveys();
+  const { pendingSurveys } = useSurveys();
 
   // Check for pending surveys on component mount
   useEffect(() => {
-    // Wait a bit before showing the survey to avoid interrupting the user experience
+    // Wait a bit before redirecting to avoid interrupting the user experience
     const timer = setTimeout(() => {
-      if (pendingSurveys.length > 0 && !showSurveyModal) {
-        openSurvey(pendingSurveys[0]);
+      if (pendingSurveys.length > 0) {
+        const firstSurvey = pendingSurveys[0];
+        if (firstSurvey.partido?.id) {
+          window.location.href = `/encuesta/${firstSurvey.partido.id}`;
+        }
       }
     }, 5000); // 5 seconds delay
     
     return () => clearTimeout(timer);
-  }, [pendingSurveys, showSurveyModal, openSurvey]);
+  }, [pendingSurveys]);
 
-  // If there's no current survey or the modal is not shown, don't render anything
-  if (!currentSurvey || !showSurveyModal) {
-    return null;
-  }
-
-  return (
-    <PostMatchSurvey
-      partido={currentSurvey.partido}
-      onClose={closeSurvey}
-      onSubmit={() => {
-        handleSurveySubmit();
-        refreshSurveys();
-      }}
-    />
-  );
+  // This component doesn't render anything, it just manages redirects
+  return null;
 };
 
 export default SurveyManager;

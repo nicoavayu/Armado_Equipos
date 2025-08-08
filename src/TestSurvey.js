@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from './supabase';
-import PostMatchSurvey from './components/PostMatchSurvey';
+// PostMatchSurvey removed - using EncuestaPartido page instead
 import { useAuth } from './components/AuthProvider';
 import './TestSurvey.css';
 
@@ -25,7 +25,7 @@ const TestSurvey = () => {
   const [partido, setPartido] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showSurvey, setShowSurvey] = useState(false);
+
   const [existingSurvey, setExistingSurvey] = useState(null);
 
   // Load match data if IDs are provided in URL
@@ -111,11 +111,7 @@ const TestSurvey = () => {
     await checkExistingSurvey(partidoId, userId);
   };
 
-  // Handle survey submission
-  const handleSurveySubmit = () => {
-    setShowSurvey(false);
-    checkExistingSurvey(partidoId, userId);
-  };
+
 
   return (
     <div className="test-survey-container">
@@ -173,7 +169,7 @@ const TestSurvey = () => {
             ) : (
               <button 
                 className="test-survey-button open-survey" 
-                onClick={() => setShowSurvey(true)}
+                onClick={() => window.location.href = `/encuesta/${partidoId}`}
               >
                 Abrir Encuesta
               </button>
@@ -182,13 +178,7 @@ const TestSurvey = () => {
         )}
       </div>
       
-      {showSurvey && partido && (
-        <PostMatchSurvey 
-          partido={partido} 
-          onClose={() => setShowSurvey(false)} 
-          onSubmit={handleSurveySubmit} 
-        />
-      )}
+
     </div>
   );
 };
