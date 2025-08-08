@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
+import { useNotifications } from '../context/NotificationContext';
 import { supabase } from '../supabase';
+import { clearMatchFromList } from '../services/matchFinishService';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import ConfirmModal from './ConfirmModal';
@@ -9,12 +11,17 @@ import './ProximosPartidos.css';
 
 const ProximosPartidos = ({ onClose }) => {
   const { user } = useAuth();
+  const { createNotification } = useNotifications();
   const navigate = useNavigate();
   const [partidos, setPartidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [sortBy, setSortBy] = useState('proximidad');
+  const [clearedMatches, setClearedMatches] = useState(new Set());
+  const [completedSurveys, setCompletedSurveys] = useState(new Set());
+  const [notifiedMatches, setNotifiedMatches] = useState(new Set());
 
   useEffect(() => {
     if (user) {
@@ -54,6 +61,44 @@ const ProximosPartidos = ({ onClose }) => {
         return;
       }
       
+      // Get cleared matches for this user
+      let clearedMatchIds = new Set();
+      try {
+        const { data: clearedData, error: clearedError } = await supabase
+          .from('cleared_matches')
+          .select('partido_id')
+          .eq('user_id', user.id);
+          
+        if (!clearedError) {
+          clearedMatchIds = new Set(clearedData?.map((c) => c.partido_id) || []);
+        } else {
+          // Fallback to localStorage
+          const key = `cleared_matches_${user.id}`;
+          const existing = JSON.parse(localStorage.getItem(key) || '[]');
+          clearedMatchIds = new Set(existing);
+        }
+      } catch (error) {
+        // Fallback to localStorage
+        const key = `cleared_matches_${user.id}`;
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        clearedMatchIds = new Set(existing);
+      }
+      setClearedMatches(clearedMatchIds);
+      
+      // Get completed surveys for this user
+      try {
+        const { data: surveysData, error: surveysError } = await supabase
+          .from('post_match_surveys')
+          .select('partido_id')
+          .eq('votante_id', user.id);
+          
+        if (!surveysError) {
+          setCompletedSurveys(new Set(surveysData?.map((s) => s.partido_id) || []));
+        }
+      } catch (error) {
+        console.error('Error fetching completed surveys:', error);
+      }
+      
       const { data: partidosData, error: partidosError } = await supabase
         .from('partidos')
         .select(`
@@ -68,6 +113,16 @@ const ProximosPartidos = ({ onClose }) => {
       
       const now = new Date();
       const partidosFiltrados = partidosData.filter((partido) => {
+        // Filter out cleared matches
+        if (clearedMatchIds.has(partido.id)) {
+          return false;
+        }
+        
+        // Filter out matches with completed surveys
+        if (completedSurveys.has(partido.id)) {
+          return false;
+        }
+        
         if (!partido.fecha || !partido.hora) {
           return true;
         }
@@ -87,6 +142,29 @@ const ProximosPartidos = ({ onClose }) => {
         ...partido,
         userRole: partidosAdminIds.includes(partido.id) ? 'admin' : 'player',
       }));
+      
+      // Check for finished matches and send notifications
+      for (const partido of partidosEnriquecidos) {
+        if (isMatchFinished(partido) && !notifiedMatches.has(partido.id)) {
+          try {
+            await createNotification(
+              'post_match_survey',
+              '¡Encuesta lista!',
+              `La encuesta ya está lista para completar sobre el partido ${partido.nombre || formatMatchDate(partido.fecha)}.`,
+              {
+                partido_id: partido.id,
+                partido_nombre: partido.nombre,
+                partido_fecha: partido.fecha,
+                partido_hora: partido.hora,
+                partido_sede: partido.sede
+              }
+            );
+            setNotifiedMatches(prev => new Set([...prev, partido.id]));
+          } catch (error) {
+            console.error('Error sending match finish notification:', error);
+          }
+        }
+      }
       
       setPartidos(partidosEnriquecidos);
       
@@ -111,6 +189,30 @@ const ProximosPartidos = ({ onClose }) => {
   const handleSurveyClick = (e, partido) => {
     e.stopPropagation();
     navigate(`/encuesta/${partido.id}`);
+  };
+
+  const handleClearMatch = (e, partido) => {
+    e.stopPropagation();
+    setSelectedMatch(partido);
+    setShowClearModal(true);
+  };
+
+  const handleClearConfirm = async () => {
+    if (!selectedMatch) return;
+    
+    try {
+      const success = await clearMatchFromList(user.id, selectedMatch.id);
+      if (success) {
+        // Remove from local state
+        setPartidos((prev) => prev.filter((p) => p.id !== selectedMatch.id));
+        setClearedMatches((prev) => new Set([...prev, selectedMatch.id]));
+      }
+    } catch (error) {
+      console.error('Error clearing match:', error);
+    } finally {
+      setShowClearModal(false);
+      setSelectedMatch(null);
+    }
   };
 
   const isMatchFinished = (partido) => {
@@ -175,6 +277,17 @@ const ProximosPartidos = ({ onClose }) => {
       day: 'numeric',
       month: 'short',
     });
+  };
+
+  const formatMatchDate = (fecha) => {
+    try {
+      return new Date(fecha).toLocaleDateString('es-ES', {
+        day: 'numeric',
+        month: 'numeric'
+      });
+    } catch {
+      return fecha;
+    }
   };
 
   const getRoleIcon = (role) => {
@@ -366,12 +479,20 @@ const ProximosPartidos = ({ onClose }) => {
                   
                   <div className="partido-actions">
                     {isMatchFinished(partido) ? (
-                      <button 
-                        className="action-btn survey-btn-highlight"
-                        onClick={(e) => handleSurveyClick(e, partido)}
-                      >
-                        Completar Encuesta
-                      </button>
+                      <>
+                        <button 
+                          className="action-btn survey-btn-highlight"
+                          onClick={(e) => handleSurveyClick(e, partido)}
+                        >
+                          Completar Encuesta
+                        </button>
+                        <button 
+                          className="action-btn clear-btn"
+                          onClick={(e) => handleClearMatch(e, partido)}
+                        >
+                          Limpiar Partido
+                        </button>
+                      </>
                     ) : (
                       <>
                         <button 
@@ -403,6 +524,16 @@ const ProximosPartidos = ({ onClose }) => {
         onConfirm={handleDeleteConfirm}
         onCancel={() => setShowDeleteModal(false)}
         confirmText="CONFIRMAR"
+        cancelText="CANCELAR"
+      />
+
+      <ConfirmModal
+        isOpen={showClearModal}
+        title="LIMPIAR PARTIDO"
+        message="¿Estás seguro que querés limpiar este partido sin llenar la encuesta?"
+        onConfirm={handleClearConfirm}
+        onCancel={() => setShowClearModal(false)}
+        confirmText="LIMPIAR"
         cancelText="CANCELAR"
       />
     </div>
