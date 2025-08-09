@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 
@@ -14,6 +14,8 @@ export const NotificationProvider = ({ children }) => {
     total: 0,
   });
   const [currentUserId, setCurrentUserId] = useState(null);
+  // Umbral para ignorar eventos realtime con created_at <= al último clear
+  const ignoreBeforeRef = useRef(null);
 
   // Get current user on mount
   useEffect(() => {
@@ -157,6 +159,23 @@ export const NotificationProvider = ({ children }) => {
       console.warn('[NOTIFICATIONS] Notification not for current user, ignoring');
       return;
     }
+
+    // Ignorar eventos antiguos (realtime que llegó tarde) si son <= último clear
+    try {
+      if (ignoreBeforeRef.current) {
+        const createdAt = new Date(notification.created_at).getTime();
+        const ignoreBefore = new Date(ignoreBeforeRef.current).getTime();
+        if (!Number.isNaN(createdAt) && !Number.isNaN(ignoreBefore) && createdAt <= ignoreBefore) {
+          console.log('[NOTIFICATIONS] Ignoring realtime insert older/equal than last clear threshold:', {
+            createdAt: notification.created_at,
+            ignoreBefore: ignoreBeforeRef.current,
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[NOTIFICATIONS] Error comparing timestamps for ignoreBefore, continuing normally:', e);
+    }
     
     setNotifications((prev) => {
       console.log('[NOTIFICATIONS] Current notifications before update:', prev.length);
@@ -211,6 +230,9 @@ export const NotificationProvider = ({ children }) => {
       case 'post_match_survey':
         toast.info(`📋 ${notification.title}: ${notification.message}`, toastOptions);
         break;
+      case 'survey_results_ready':
+        toast.success(`🏆 ${notification.title}: ${notification.message}`, toastOptions);
+        break;
       case 'admin_transfer':
         toast.success(`👑 ${notification.title}: ${notification.message}`, toastOptions);
         // Auto-refresh if forceRefresh is true
@@ -233,10 +255,11 @@ export const NotificationProvider = ({ children }) => {
     const matchInvites = unread.filter((n) => n.type === 'match_invite').length;
     const callToVote = unread.filter((n) => n.type === 'call_to_vote').length;
     const postMatchSurveys = unread.filter((n) => n.type === 'post_match_survey').length;
+    const surveyResults = unread.filter((n) => n.type === 'survey_results_ready').length;
     
     setUnreadCount({
       friends: friendRequests,
-      matches: matchInvites + callToVote + postMatchSurveys,
+      matches: matchInvites + callToVote + postMatchSurveys + surveyResults,
       total: unread.length,
     });
   };
@@ -312,6 +335,14 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
+  // Clear all notifications (local state update)
+  const clearAllNotifications = () => {
+    // Registrar el instante de limpieza para ignorar eventos realtime antiguos
+    ignoreBeforeRef.current = new Date().toISOString();
+    setNotifications([]);
+    setUnreadCount({ friends: 0, matches: 0, total: 0 });
+  };
+
   // Create a new notification (for testing or manual creation)
   const createNotification = async (type, title, message, data = {}) => {
     if (!currentUserId) return;
@@ -350,6 +381,7 @@ export const NotificationProvider = ({ children }) => {
     markTypeAsRead,
     createNotification,
     fetchNotifications,
+    clearAllNotifications,
   };
 
   return (

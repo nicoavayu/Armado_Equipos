@@ -19,6 +19,7 @@ import FifaHome from './FifaHome';
 import TestSurvey from './TestSurvey';
 import EncuestaPartido from './pages/EncuestaPartido';
 import ResultadosEncuesta from './pages/ResultadosEncuesta';
+import ResultadosEncuestaView from './pages/ResultadosEncuestaView';
 
 import VotingView from './VotingView';
 import AdminPanel from './AdminPanel';
@@ -44,6 +45,10 @@ import AuthPage from './components/AuthPage';
 import ResetPassword from './components/ResetPassword';
 import { useSurveyScheduler } from './hooks/useSurveyScheduler';
 import matchScheduler from './services/matchScheduler';
+import { supabase } from './supabase';
+import { useNotifications } from './context/NotificationContext';
+import { forceSurveyResultsNow } from './services/notificationService';
+import { toBigIntId } from './utils';
 
 const HomePage = () => {
   const location = useLocation();
@@ -607,6 +612,91 @@ function _MainAppContent({ _user }) {
   );
 }
 
+// Hook de notificaciones integrado directamente
+function AppWithSchedulers() {
+  const { createNotification } = useNotifications();
+
+  useEffect(() => {
+    let timer = null;
+
+    const qs = new URLSearchParams(window.location.search);
+    const FAST = qs.get('fastResults') === '1' || localStorage.getItem('SURVEY_RESULTS_TEST_FAST') === '1';
+
+    async function tick() {
+      try {
+        console.log('[Scheduler] run FAST=', FAST, 'at', new Date().toISOString());
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('status', 'pending')
+          .lte('send_at', new Date().toISOString())
+          .limit(20);
+
+        if (!error && data && data.length) {
+          for (const notif of data) {
+            if (notif.type === 'survey_results_ready') {
+              await supabase
+                .from('survey_results')
+                .update({ results_ready: true, updated_at: new Date().toISOString() })
+                .eq('partido_id', notif.partido_id);
+
+              const { data: jugadores, error: jErr } = await supabase
+                .from('jugadores')
+                .select('usuario_id')
+                .eq('partido_id', notif.partido_id);
+
+              const nowIso = new Date().toISOString();
+              const rows = (jugadores || [])
+                .filter(j => j.usuario_id)
+                .map(j => ({
+                  user_id: j.usuario_id,
+                  type: 'survey_results_ready',
+                  title: 'Resultados listos',
+                  message: 'Los resultados de la encuesta ya están listos.',
+                  data: { matchId: toBigIntId(notif.partido_id) },
+                  read: false,
+                  created_at: nowIso,
+                }));
+              if (rows.length) {
+                console.log('[SURVEY RESULTS NOTIFICATIONS] payload:', rows);
+                await supabase.from('notifications').insert(rows);
+              }
+
+              await supabase.from('notifications').update({ status: 'sent' }).eq('id', notif.id);
+            } else {
+              await supabase
+                .from('notifications')
+                .update({ status: 'sent' })
+                .eq('id', notif.id);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error processing notifications:', error);
+      }
+    }
+
+    timer = setInterval(tick, FAST ? 5000 : 60000);
+    tick();
+
+    return () => clearInterval(timer);
+  }, [createNotification]);
+
+  // === TEST: helper global para forzar resultados ahora ===
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.__forceResultsNowResults = async (matchId) => {
+        const id = toBigIntId ? toBigIntId(matchId) : Number(matchId);
+        const res = await forceSurveyResultsNow(id);
+        console.log('[TEST] forceSurveyResultsNow →', res);
+        return res;
+      };
+    }
+  }, []);
+
+  return null;
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
@@ -615,11 +705,12 @@ export default function App() {
           <NotificationProvider>
             <TutorialProvider>
               <Router>
+                <AppWithSchedulers />
                 <Routes>
                   <Route path="/test-survey" element={<TestSurvey />} />
                   <Route path="/test-survey/:partidoId/:userId" element={<TestSurvey />} />
                   <Route path="/encuesta/:partidoId" element={<EncuestaPartido />} />
-                  <Route path="/resultados/:partidoId" element={<ResultadosEncuesta />} />
+                  <Route path="/resultados/:partidoId" element={<ResultadosEncuestaView />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/" element={<AppAuthWrapper />}>
                     <Route path="" element={<MainLayout />}>

@@ -71,25 +71,27 @@
 }
 
 .empty-icon {
-  font-size: 64px;
-  margin-bottom: 20px;
+  font-size: 32px;
+  margin-bottom: -5px;
 }
 
 .empty-state p {
   font-size: 18px;
   margin-bottom: 8px;
   font-family: 'Oswald', Arial, sans-serif;
+  color: white;
 }
 
 .empty-state span {
   font-size: 14px;
+  color: white;
   opacity: 0.8;
 }
 
 .partidos-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 1px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -344,6 +346,17 @@
   transform: translateY(-3px) !important;
   box-shadow: 0 6px 16px rgba(255, 152, 0, 0.5) !important;
   opacity: 1 !important;
+}
+
+.clear-btn {
+  background: #9E9E9E !important;
+  border-color: #9E9E9E !important;
+}
+
+.clear-btn:hover {
+  background: #757575 !important;
+  border-color: #757575 !important;
+  transform: translateY(-1px) !important;
 }
 
 .action-btn:disabled {

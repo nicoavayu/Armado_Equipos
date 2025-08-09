@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import { supabase } from '../supabase';
 import { clearMatchFromList } from '../services/matchFinishService';
+import { parseLocalDateTime, formatLocalDateShort, formatLocalDM } from '../utils/dateLocal';
+import { toBigIntId } from '../utils';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import ConfirmModal from './ConfirmModal';
@@ -22,15 +24,45 @@ const ProximosPartidos = ({ onClose }) => {
   const [clearedMatches, setClearedMatches] = useState(new Set());
   const [completedSurveys, setCompletedSurveys] = useState(new Set());
   const [notifiedMatches, setNotifiedMatches] = useState(new Set());
+  const [userJugadorIds, setUserJugadorIds] = useState([]);
 
   useEffect(() => {
     if (user) {
       fetchUserMatches();
-      // Interval disabled to prevent ERR_INSUFFICIENT_RESOURCES
-      // const interval = setInterval(fetchUserMatches, 5000);
-      // return () => clearInterval(interval);
     }
   }, [user]);
+  
+  // Suscripción en tiempo real a inserts de encuestas
+  useEffect(() => {
+    if (!user || !userJugadorIds.length) return;
+    const channel = supabase
+      .channel('post_match_surveys_inserts')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'post_match_surveys' }, (payload) => {
+        const { partido_id, votante_id } = payload.new || {};
+        if (!partido_id || !votante_id) return;
+        if (!userJugadorIds.includes(votante_id)) return; // solo mis encuestas
+        setCompletedSurveys(prev => new Set([...prev, partido_id]));
+        setPartidos(prev => prev.filter(p => p.id !== partido_id)); // limpia inmediatamente
+      });
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id, userJugadorIds]);
+  
+  // Refetch al volver con ?surveyDone=1
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('surveyDone') === '1') {
+      fetchUserMatches();
+      navigate('/proximos', { replace: true });
+    }
+  }, [navigate]);
+  
+  // Force re-render every minute to update match status
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPartidos(prev => [...prev]); // Force re-render
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchUserMatches = async () => {
     if (!user) return;
@@ -87,13 +119,24 @@ const ProximosPartidos = ({ onClose }) => {
       
       // Get completed surveys for this user
       try {
-        const { data: surveysData, error: surveysError } = await supabase
-          .from('post_match_surveys')
-          .select('partido_id')
-          .eq('votante_id', user.id);
+        // First get the user's jugador IDs from all their matches
+        const { data: userJugadorIdsData, error: jugadorError } = await supabase
+          .from('jugadores')
+          .select('id, partido_id')
+          .eq('usuario_id', user.id);
           
-        if (!surveysError) {
-          setCompletedSurveys(new Set(surveysData?.map((s) => s.partido_id) || []));
+        if (!jugadorError && userJugadorIdsData && userJugadorIdsData.length > 0) {
+          const jugadorIds = userJugadorIdsData.map(j => j.id);
+          setUserJugadorIds(jugadorIds);
+          
+          const { data: surveysData, error: surveysError } = await supabase
+            .from('post_match_surveys')
+            .select('partido_id')
+            .in('votante_id', jugadorIds);
+            
+          if (!surveysError) {
+            setCompletedSurveys(new Set(surveysData?.map((s) => s.partido_id) || []));
+          }
         }
       } catch (error) {
         console.error('Error fetching completed surveys:', error);
@@ -118,7 +161,7 @@ const ProximosPartidos = ({ onClose }) => {
           return false;
         }
         
-        // Filter out matches with completed surveys
+        // Filter out matches with completed surveys (el partido desaparece cuando el usuario completa la encuesta)
         if (completedSurveys.has(partido.id)) {
           return false;
         }
@@ -128,11 +171,11 @@ const ProximosPartidos = ({ onClose }) => {
         }
         
         try {
-          const [hours, minutes] = partido.hora.split(':').map(Number);
-          const partidoDateTime = new Date(partido.fecha + 'T00:00:00');
-          partidoDateTime.setHours(hours, minutes, 0, 0);
+          const partidoDateTime = parseLocalDateTime(partido.fecha, partido.hora);
+          if (!partidoDateTime) return true;
+          // Show match until 1 hour after it started, then it becomes finished
           const partidoMasUnaHora = new Date(partidoDateTime.getTime() + 60 * 60 * 1000);
-          return now < partidoMasUnaHora;
+          return now <= partidoMasUnaHora;
         } catch (error) {
           return true;
         }
@@ -219,18 +262,9 @@ const ProximosPartidos = ({ onClose }) => {
     if (!partido.fecha || !partido.hora) return false;
     
     try {
-      const [hours, minutes] = partido.hora.split(':').map(Number);
-      const partidoDateTime = new Date(partido.fecha);
-      partidoDateTime.setHours(hours, minutes, 0, 0);
+      const partidoDateTime = parseLocalDateTime(partido.fecha, partido.hora);
+      if (!partidoDateTime) return false;
       const now = new Date();
-      
-      console.log('Checking match:', {
-        fecha: partido.fecha,
-        hora: partido.hora,
-        partidoDateTime: partidoDateTime.toISOString(),
-        now: now.toISOString(),
-        isFinished: now >= partidoDateTime
-      });
       
       return now >= partidoDateTime;
     } catch (error) {
@@ -271,24 +305,9 @@ const ProximosPartidos = ({ onClose }) => {
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-    });
-  };
+  const formatDate = (dateString) => formatLocalDateShort(dateString);
 
-  const formatMatchDate = (fecha) => {
-    try {
-      return new Date(fecha).toLocaleDateString('es-ES', {
-        day: 'numeric',
-        month: 'numeric'
-      });
-    } catch {
-      return fecha;
-    }
-  };
+  const formatMatchDate = (fecha) => formatLocalDM(fecha);
 
   const getRoleIcon = (role) => {
     if (role === 'admin') {
@@ -333,8 +352,8 @@ const ProximosPartidos = ({ onClose }) => {
     const partidosCopy = [...partidos];
     if (sortBy === 'proximidad') {
       return partidosCopy.sort((a, b) => {
-        const dateA = new Date(`${a.fecha}T${a.hora}`);
-        const dateB = new Date(`${b.fecha}T${b.hora}`);
+        const dateA = parseLocalDateTime(a.fecha, a.hora);
+        const dateB = parseLocalDateTime(b.fecha, b.hora);
         return dateA - dateB;
       });
     } else {
@@ -401,17 +420,20 @@ const ProximosPartidos = ({ onClose }) => {
               </button>
             </div>
             <div className="partidos-list">
-              {getSortedPartidos().map((partido) => (
-                <div key={partido.id} className={`partido-card ${isMatchFinished(partido) ? 'finished' : ''}`}>
+              {getSortedPartidos().map((partido) => {
+                const matchFinished = isMatchFinished(partido);
+
+                return (
+                <div key={partido.id} className={`partido-card ${matchFinished ? 'finished' : ''}`}>
                   <div className="card-header" style={{ marginBottom: '12px' }}>
                     <div className="match-datetime-xl" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="currentColor">
                         <path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z"/>
                       </svg>
-                      <span className={isMatchFinished(partido) ? 'finished-text' : ''}>{formatDate(partido.fecha)} • {partido.hora}</span>
+                      <span className={matchFinished ? 'finished-text' : ''}>{formatDate(partido.fecha)} • {partido.hora}</span>
                     </div>
                     <div className="partido-badges">
-                      {isMatchFinished(partido) ? (
+                      {matchFinished ? (
                         <div className="finished-badge">
                           ✓ Finalizado
                         </div>
@@ -433,7 +455,7 @@ const ProximosPartidos = ({ onClose }) => {
                         {partido.tipo_partido || 'Masculino'}
                       </div>
                     </div>
-                    {isMatchFinished(partido) ? (
+                    {matchFinished ? (
                       <div className="players-admin-container">
                         {(() => {
                           const jugadoresCount = partido.jugadores?.[0]?.count || 0;
@@ -478,7 +500,7 @@ const ProximosPartidos = ({ onClose }) => {
                   </div>
                   
                   <div className="partido-actions">
-                    {isMatchFinished(partido) ? (
+                    {matchFinished ? (
                       <>
                         <button 
                           className="action-btn survey-btn-highlight"
@@ -511,7 +533,8 @@ const ProximosPartidos = ({ onClose }) => {
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}

@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { toBigIntId } from '../utils';
 import { useNotifications } from '../context/NotificationContext';
 import { useSurveys } from '../hooks/useSurveys';
 import { useAmigos } from '../hooks/useAmigos';
@@ -9,6 +11,8 @@ import './NotificationsView.css';
 
 const NotificationsView = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { 
     notifications, 
     markAsRead, 
@@ -24,6 +28,16 @@ const NotificationsView = () => {
   useEffect(() => {
     console.log('[NOTIFICATIONS_VIEW] Component mounted, fetching notifications');
     fetchNotifications();
+  }, [fetchNotifications]);
+  
+  // Refetch notifications when returning to this view
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchNotifications();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, [fetchNotifications]);
 
   // Log notifications when they change
@@ -46,44 +60,54 @@ const NotificationsView = () => {
       markAsRead(notification.id);
     }
     
-    // Handle different notification types
+    const data = notification.data || {};
+    
+    // Priority 1: Check for matchUrl
+    if (data.matchUrl) {
+      navigate(data.matchUrl);
+      return;
+    }
+    
+    // Priority 2: Check for resultsUrl
+    if (data.resultsUrl) {
+      navigate(data.resultsUrl);
+      return;
+    }
+    
+    // Priority 3: Use /partido/:id if matchId exists
+    if (data.matchId) {
+      navigate(`/partido/${toBigIntId(data.matchId)}`);
+      return;
+    }
+    
+    // Fallback: Handle specific notification types
     switch (notification.type) {
       case 'friend_request':
         // Don't navigate, let user handle with action buttons
         break;
       case 'friend_accepted':
-        // Navigate to friends tab
-        window.location.href = '/amigos';
+        navigate('/amigos');
         break;
       case 'match_invite':
-        // Navigate to match or handle match invite
-        if (notification.data?.matchCode) {
-          console.log('[NOTIFICATION_CLICK] Navigating to match invite:', notification.data.matchCode);
-          window.location.href = `/?codigo=${notification.data.matchCode}`;
-        } else {
-          console.log('[NOTIFICATION_CLICK] No matchCode found in match_invite notification');
+        if (data.matchCode) {
+          navigate(`/?codigo=${data.matchCode}`);
         }
         break;
       case 'call_to_vote':
-        // Navigate to voting page for the match
-        console.log('[NOTIFICATION_CLICK] Processing call_to_vote notification');
-        if (notification.data?.matchCode) {
-          console.log('[NOTIFICATION_CLICK] Navigating to voting page:', notification.data.matchCode);
-          window.location.href = `/?codigo=${notification.data.matchCode}`;
-        } else {
-          console.log('[NOTIFICATION_CLICK] No matchCode found in call_to_vote notification');
-          console.log('[NOTIFICATION_CLICK] Available data keys:', Object.keys(notification.data || {}));
+        if (data.matchCode) {
+          navigate(`/?codigo=${data.matchCode}`);
         }
         break;
-      case 'post_match_survey': {
-        // Navegar directamente a la página de encuesta
-        if (notification.data?.partido_id) {
-          window.location.href = `/encuesta/${notification.data.partido_id}`;
-        } else if (notification.data?.matchId) {
-          window.location.href = `/encuesta/${notification.data.matchId}`;
+      case 'post_match_survey':
+        if (data.partido_id) {
+          navigate(`/encuesta/${toBigIntId(data.partido_id)}`);
         }
         break;
-      }
+      case 'survey_results_ready':
+        if (data.partido_id) {
+          navigate(`/resultados/${toBigIntId(data.partido_id)}`);
+        }
+        break;
       default:
         console.log('[NOTIFICATION_CLICK] Unknown notification type:', notification.type);
         break;
@@ -158,28 +182,21 @@ const NotificationsView = () => {
         return '📋';
       case 'call_to_vote':
         return '⭐';
+      case 'survey_results_ready':
+        return '🏆';
       default:
         return '📣';
     }
   };
 
   return (
-    <div className="notifications-container">
-      <div className="notifications-header">
-        <h2>Notificaciones</h2>
-        {notifications.length > 0 && (
-          <button 
-            className="mark-all-read-btn"
-            onClick={markAllAsRead}
-          >
-            Marcar todo como leído
-          </button>
-        )}
-      </div>
-
+    <div className="notifications-view">
+      <div className="notifications-container">
       {notifications.length === 0 ? (
-        <div className="no-notifications">
+        <div className="empty-state">
+          <div className="empty-icon">🔔</div>
           <p>No tienes notificaciones</p>
+          <span>Aquí aparecerán tus notificaciones cuando las recibas</span>
         </div>
       ) : (
         <div className="notifications-list">
@@ -233,8 +250,7 @@ const NotificationsView = () => {
           ))}
         </div>
       )}
-      
-
+      </div>
     </div>
   );
 };

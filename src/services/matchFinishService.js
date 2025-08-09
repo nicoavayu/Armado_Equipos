@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { toBigIntId } from '../utils';
 
 /**
  * Checks if a match has finished and sends survey notifications
@@ -76,24 +77,34 @@ export const clearMatchFromList = async (userId, partidoId) => {
       .from('cleared_matches')
       .insert([{
         user_id: userId,
-        partido_id: partidoId
+        partido_id: toBigIntId(partidoId)
       }]);
       
     if (error) {
-      if (error.message && error.message.includes('relation "public.cleared_matches" does not exist')) {
-        console.log('cleared_matches table not found, cannot clear match');
-        return false;
+      // Fallback to localStorage if table doesn't exist
+      console.log('Using localStorage fallback for cleared matches');
+      const key = `cleared_matches_${userId}`;
+      const existing = JSON.parse(localStorage.getItem(key) || '[]');
+      if (!existing.includes(partidoId)) {
+        existing.push(partidoId);
+        localStorage.setItem(key, JSON.stringify(existing));
       }
-      console.log('cleared_matches table not found, cannot clear match');
-      return false;
+      return true;
     }
     
     console.log(`Match ${partidoId} cleared from user ${userId}'s list`);
     return true;
     
   } catch (error) {
-    console.error('Error clearing match from list:', error);
-    return false;
+    console.error('Error clearing match from list, using localStorage fallback:', error);
+    // Fallback to localStorage
+    const key = `cleared_matches_${userId}`;
+    const existing = JSON.parse(localStorage.getItem(key) || '[]');
+    if (!existing.includes(partidoId)) {
+      existing.push(partidoId);
+      localStorage.setItem(key, JSON.stringify(existing));
+    }
+    return true;
   }
 };
 
@@ -111,7 +122,7 @@ export const isMatchCleared = async (userId, partidoId) => {
       .from('cleared_matches')
       .select('id')
       .eq('user_id', userId)
-      .eq('partido_id', partidoId)
+      .eq('partido_id', toBigIntId(partidoId))
       .single();
       
     if (error && error.code !== 'PGRST116') throw error;

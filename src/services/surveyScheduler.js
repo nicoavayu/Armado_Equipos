@@ -24,7 +24,7 @@ export const checkMatchesForSurveys = async () => {
     const matches = (activeMatches || []).filter((match) => {
       try {
         const matchDateTime = new Date(`${match.fecha}T${match.hora}`);
-        const surveyTime = new Date(matchDateTime.getTime() + 60 * 60 * 1000); // +1 hora
+        const surveyTime = new Date(matchDateTime.getTime() + 1 * 60 * 1000); // +1 minuto (para test)
         return now >= surveyTime;
       } catch (error) {
         console.error('Error calculating survey time for match:', match.id, error);

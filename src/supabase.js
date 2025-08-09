@@ -7,6 +7,17 @@ const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Export default para que el resto del proyecto pueda importar "supabase" por default
+export default supabase;
+
+/**
+ * Borra TODAS las notificaciones del usuario autenticado (server-side con RPC).
+ * Requiere función SQL: public.delete_my_notifications()
+ */
+export async function deleteMyNotifications() {
+  return await supabase.rpc('delete_my_notifications');
+}
+
 // --- API de Jugadores ---
 
 export const getJugadores = async () => {
@@ -713,7 +724,9 @@ export const removeSubscription = (subscription) => {
 
 export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modalidad, cupo_jugadores, falta_jugadores, tipo_partido }) => {
   try {
-    console.log('Creating match with data:', { fecha, hora, sede, sedeMaps });
+    // Normalize date to prevent timezone issues
+    const normalizedDate = typeof fecha === 'string' ? fecha.split('T')[0] : fecha;
+    console.log('Creating match with data:', { fecha: normalizedDate, hora, sede, sedeMaps });
     
     // Get user without throwing error if not authenticated
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -727,7 +740,7 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
     const matchData = {
       codigo,
       nombre: nombre || 'PARTIDO', // Asegurar que siempre tenga nombre
-      fecha,
+      fecha: normalizedDate,
       hora,
       sede,
       sedeMaps: sedeMaps || '',
@@ -1087,6 +1100,9 @@ export const deletePartidoFrecuente = async (id) => {
 export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad = 'F5', cupo = 10) => {
   console.log('Creating/finding match from frequent match:', partidoFrecuente, 'for date:', fecha);
   
+  // Ensure date is in YYYY-MM-DD format without timezone conversion
+  const normalizedDate = typeof fecha === 'string' ? fecha.split('T')[0] : fecha;
+  
   // Get current user to make search more specific
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -1094,7 +1110,7 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
   const { data: existingMatches, error: searchError } = await supabase
     .from('partidos')
     .select('*')
-    .eq('fecha', fecha)
+    .eq('fecha', normalizedDate)
     .eq('sede', partidoFrecuente.sede)
     .eq('hora', partidoFrecuente.hora)
     .eq('estado', 'activo')
@@ -1122,7 +1138,7 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
   console.log('No existing match found, creating new one');
   const partido = await crearPartido({
     nombre: partidoFrecuente.nombre, // Usar el nombre del partido frecuente
-    fecha,
+    fecha: normalizedDate,
     hora: partidoFrecuente.hora,
     sede: partidoFrecuente.sede,
     sedeMaps: '',

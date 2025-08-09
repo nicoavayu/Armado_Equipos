@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AutocompleteSede from './AutocompleteSede';
 import { crearPartidoFrecuente, crearPartidoDesdeFrec, crearPartido, supabase } from './supabase';
+import { weekdayFromYMD, formatLocalDateShort } from './utils/dateLocal';
 
 import PageTitle from './components/PageTitle';
 
@@ -99,7 +100,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
           sede: sede.trim(),
           hora: hora.trim(),
           jugadores_frecuentes: [],
-          dia_semana: new Date(fecha).getDay(),
+          dia_semana: weekdayFromYMD(fecha),
           habilitado: true,
           imagen_url: imagenUrl,
           tipo_partido: tipoPartido,
@@ -449,7 +450,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             </li>
             <li className="confirmation-item">
               <span className="confirmation-item-name">Fecha:</span>
-              <span className="confirmation-item-score">{new Date(fecha).toLocaleDateString()}</span>
+              <span className="confirmation-item-score">{formatLocalDateShort(fecha)}</span>
               <button className="confirmation-item-edit-btn" onClick={() => editField(STEPS.WHEN)}>EDITAR</button>
             </li>
             <li className="confirmation-item">

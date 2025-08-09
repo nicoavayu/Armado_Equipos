@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toBigIntId } from '../utils';
 
 /**
  * Hook para manejar redirecciones desde notificaciones push
@@ -29,7 +30,11 @@ export const useNotificationRedirect = () => {
   const handleForegroundNotification = (notification) => {
     if (notification.data?.type === 'match_invite' && notification.data?.matchId) {
       // Redirigir inmediatamente al AdminPanel
-      navigate(`/admin/${notification.data.matchId}`);
+      navigate(`/admin/${toBigIntId(notification.data.matchId)}`);
+    } else if (notification.data?.type === 'survey_results_ready') {
+      const id = toBigIntId(notification.data?.matchId);
+      const url = notification.data?.resultsUrl || (id != null ? `/resultados/${id}` : null);
+      if (url) navigate(url);
     }
   };
 

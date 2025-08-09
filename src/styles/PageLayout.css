@@ -1,0 +1,9 @@
+:root{
+  --page-title-height: 64px;  /* ajusta si tu PageTitle mide distinto */
+  --tabbar-height: 72px;      /* ajusta si tenés tabbar fija */
+}
+
+.page-body{
+  padding-top: calc(var(--page-title-height) + 8px);
+  padding-bottom: calc(var(--tabbar-height) + 8px);
+}

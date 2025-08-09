@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom'; // [TEAM_BALANCER_INVITE_ACCESS_FIX] Para navegación
-import { supabase } from '../supabase';
+import supabase, { deleteMyNotifications } from '../supabase';
+import { toBigIntId } from '../utils';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import LoadingSpinner from './LoadingSpinner';
@@ -9,7 +10,7 @@ import './NotificationsModal.css';
 
 const NotificationsModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
-  const { notifications, fetchNotifications: refreshNotifications } = useNotifications();
+  const { notifications, fetchNotifications: refreshNotifications, clearAllNotifications: clearNotificationsLocal } = useNotifications();
   const navigate = useNavigate(); // [TEAM_BALANCER_INVITE_ACCESS_FIX] Hook de navegación
   const [loading, setLoading] = useState(false);
 
@@ -33,12 +34,10 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   useEffect(() => {
-    console.log('[NOTIFICATIONS_MODAL] Modal state changed:', { isOpen, userId: user?.id });
     if (isOpen && user?.id && refreshNotifications) {
-      console.log('[NOTIFICATIONS_MODAL] Refreshing notifications...');
       refreshNotifications();
     }
-  }, [isOpen, refreshNotifications, user?.id]);
+  }, [isOpen, user?.id]);
 
   const markAsRead = async (notificationId) => {
     try {
@@ -48,30 +47,71 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         .eq('id', notificationId);
 
       if (error) throw error;
+      
       // Actualizar el contexto para refrescar el botón
       if (refreshNotifications) {
-        refreshNotifications();
+        await refreshNotifications();
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
   };
 
-  const clearAllNotifications = async () => {
-    if (!window.confirm('¿Eliminar todas las notificaciones?')) return;
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('user_id', user.id);
+  // util local para esperar entre reintentos
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-      if (error) throw error;
-      // Refresh notification context to update the bell
+  const handleClearAllNotifications = async () => {
+    if (!window.confirm('¿Eliminar todas las notificaciones?')) return;
+    
+    setLoading(true);
+    try {
+      // 1) Limpiar UI de forma optimista (vaciar modal sin cerrarlo)
+      clearNotificationsLocal?.();
+
+      // 2) Borrar en BD vía RPC (server-side, seguro) con 1 reintento
+      let rpcError = null;
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        const { error } = await deleteMyNotifications();
+        if (!error) {
+          rpcError = null;
+          break;
+        }
+        rpcError = error;
+        console.warn('[RPC delete_my_notifications] intento', attempt, 'error:', error);
+        // Errores típicos de caché/404 → esperar y reintentar una vez
+        const msg = `${error?.message || ''} ${error?.code || ''}`.toLowerCase();
+        if (attempt === 1 && (msg.includes('schema cache') || msg.includes('pgrst202') || msg.includes('404'))) {
+          await sleep(1200);
+          continue;
+        }
+        // otros errores: salir del loop
+        break;
+      }
+
+      // 2b) Fallback seguro: delete directo con RLS si el RPC siguió fallando
+      if (rpcError) {
+        console.warn('[RPC delete_my_notifications] fallback a delete directo por RLS');
+        const { error: delErr } = await supabase
+          .from('notifications')
+          .delete()
+          .eq('user_id', user.id);
+        if (delErr) {
+          console.error('[DELETE notifications fallback] Error:', delErr);
+          throw delErr;
+        }
+      }
+
+      // 3) Revalidar contra BD (por si entraron nuevas en el medio)
       if (refreshNotifications) {
-        refreshNotifications();
+        await refreshNotifications();
       }
     } catch (error) {
       console.error('Error clearing notifications:', error);
+      alert('Error al eliminar las notificaciones.');
+      // Si falló el delete, revalidar para mostrar lo real
+      await refreshNotifications?.();
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -94,7 +134,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         const { data: partido, error } = await supabase
           .from('partidos')
           .select('codigo')
-          .eq('id', notification.data.matchId)
+          .eq('id', toBigIntId(notification.data.matchId))
           .single();
           
         console.log('[NOTIFICATION_CLICK] Match query result:', { partido, error });
@@ -123,6 +163,36 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         console.log('[NOTIFICATION_CLICK] No matchCode found in call_to_vote notification');
         console.log('[NOTIFICATION_CLICK] Available data keys:', Object.keys(notification.data || {}));
       }
+    }
+
+    // Resultados de encuesta listos → navegar a resultados/premios
+    if (notification.type === 'survey_results_ready') {
+      console.log('[NOTIFICATION_CLICK] Survey results ready clicked');
+      onClose(); // cerrar modal para navegar
+
+      const data = notification.data || {};
+      // 1) resultsUrl directo
+      if (data.resultsUrl) {
+        console.log('[NOTIFICATION_CLICK] Navigating to resultsUrl:', data.resultsUrl);
+        navigate(data.resultsUrl);
+        return;
+      }
+      // 2) matchId numérico → /resultados/:id
+      if (data.matchId != null) {
+        const id = toBigIntId(data.matchId);
+        if (id != null) {
+          console.log('[NOTIFICATION_CLICK] Navigating to resultados by matchId:', id);
+          navigate(`/resultados/${id}`);
+          return;
+        }
+      }
+      // 3) Fallback por código
+      if (data.matchCode) {
+        console.log('[NOTIFICATION_CLICK] Navigating to resultados by matchCode:', data.matchCode);
+        navigate(`/?codigo=${data.matchCode}&view=resultados`);
+        return;
+      }
+      console.warn('[NOTIFICATION_CLICK] Missing resultsUrl/matchId/matchCode for survey_results_ready');
     }
   };
 
@@ -153,25 +223,59 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   };
 
   if (!isOpen) {
-    console.log('[NOTIFICATIONS_MODAL] Modal is closed, not rendering');
     return null;
   }
-  
-  console.log('[NOTIFICATIONS_MODAL] Rendering modal with', notifications.length, 'notifications');
 
   const modalContent = (
-    <div className="sheet-overlay" onClick={onClose}>
+    <div
+      className="sheet-overlay"
+      onClick={(e) => {
+        // Evitar cerrar mientras está limpiando
+        if (loading) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        onClose();
+      }}
+    >
       <div className="sheet-container" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle"></div>
         <div className="sheet-header">
           <h3>Notificaciones</h3>
           <div className="sheet-header-actions">
             {notifications.length > 0 && (
-              <button className="clear-notifications-btn" onClick={clearAllNotifications}>
-                Limpiar
+              <button 
+                className={`clear-notifications-btn${loading ? ' is-loading' : ''}`} 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleClearAllNotifications();
+                }}
+                disabled={loading || notifications.length === 0}
+                aria-busy={loading ? 'true' : 'false'}
+                aria-disabled={(loading || notifications.length === 0) ? 'true' : 'false'}
+                title={loading ? 'Limpiando tus notificaciones…' : 'Eliminar todas las notificaciones'}
+              >
+                {loading ? (
+                  <>
+                    <span className="btn-spinner" aria-hidden="true"></span>
+                    Limpiando…
+                  </>
+                ) : (
+                  'Limpiar'
+                )}
               </button>
             )}
-            <button className="sheet-close" onClick={onClose}>×</button>
+            <button
+              className="sheet-close"
+              onClick={onClose}
+              disabled={loading}
+              aria-disabled={loading ? 'true' : 'false'}
+              title={loading ? 'Terminá de limpiar para cerrar' : 'Cerrar'}
+            >
+              ×
+            </button>
           </div>
         </div>
         <div className="sheet-body">
@@ -191,9 +295,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`notification-item${!notification.read ? ' unread' : ''} ${(notification.type === 'match_invite' || notification.type === 'call_to_vote') ? 'clickable' : ''}`}
+                  className={`notification-item${!notification.read ? ' unread' : ''} ${(notification.type === 'match_invite' || notification.type === 'call_to_vote' || notification.type === 'survey_results_ready') ? 'clickable' : ''}`}
                   onClick={() => handleNotificationClick(notification)}
-                  style={{ cursor: (notification.type === 'match_invite' || notification.type === 'call_to_vote') ? 'pointer' : 'default' }}
+                  style={{ cursor: (notification.type === 'match_invite' || notification.type === 'call_to_vote' || notification.type === 'survey_results_ready') ? 'pointer' : 'default' }}
                 >
                   <div className="notification-icon">{getNotificationIcon(notification.type)}</div>
                   <div className="notification-content">

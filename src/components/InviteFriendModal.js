@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { supabase } from '../supabase';
+import { toBigIntId } from '../utils';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
 import './InviteFriendModal.css';
@@ -141,7 +142,7 @@ const InviteFriendModal = ({ isOpen, onClose, friend, currentUserId }) => {
             .eq('user_id', friend.profile?.id)
             .eq('type', 'match_invite')
             .eq('read', false)
-            .contains('data', { matchId: match.id });
+            .contains('data', { matchId: toBigIntId(match.id) });
 
           const hasInvitation = notifications && notifications.length > 0;
 
@@ -208,7 +209,7 @@ const InviteFriendModal = ({ isOpen, onClose, friend, currentUserId }) => {
         title: 'Invitación a partido',
         message: `${currentUser?.nombre || 'Alguien'} te invitó a jugar "${match.nombre || 'un partido'}" el ${new Date(match.fecha).toLocaleDateString()} a las ${match.hora}`,
         data: {
-          matchId: match.id,
+          matchId: toBigIntId(match.id),
           matchName: match.nombre,
           matchDate: match.fecha,
           matchTime: match.hora,

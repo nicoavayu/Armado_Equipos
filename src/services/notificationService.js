@@ -1,6 +1,33 @@
 import { supabase } from '../supabase';
 import { processMatchStats } from './matchStatsService';
 
+// === TEST HELPER ===
+// Fuerza todas las notis survey_results_ready (pendientes) de un partido a scheduled_for = ahora
+export const forceSurveyResultsNow = async (partidoId) => {
+  const nowIso = new Date().toISOString();
+  // Traer pendientes del partido
+  const { data: pending, error: fetchErr } = await supabase
+    .from('notifications')
+    .select('id, data')
+    .eq('type', 'survey_results_ready')
+    .eq('read', false)
+    .contains('data', { matchId: partidoId });
+  if (fetchErr) throw fetchErr;
+  if (!pending || pending.length === 0) return { updated: 0 };
+
+  // Actualizar cada fila seteando scheduled_for = now
+  let updated = 0;
+  for (const n of pending) {
+    const newData = { ...(n.data || {}), scheduled_for: nowIso };
+    const { error: upErr } = await supabase
+      .from('notifications')
+      .update({ data: newData })
+      .eq('id', n.id);
+    if (!upErr) updated += 1;
+  }
+  return { updated };
+};
+
 // Schedule post-match survey notification
 export const schedulePostMatchNotification = async (partidoId) => {
   try {
@@ -68,26 +95,43 @@ export const processPendingNotifications = async () => {
     const { data: pendingNotifications, error: fetchError } = await supabase
       .from('notifications')
       .select('*')
-      .in('type', ['post_match_survey', 'process_match_stats'])
-      .eq('read', false);
+      .in('type', ['post_match_survey', 'process_match_stats', 'survey_results_ready'])
+      .or('read.eq.false,status.eq.pending'); // aceptar ambos esquemas
       
     if (fetchError) throw fetchError;
     
+    // Listas si:
+    // - NUEVO: data.scheduled_for <= now y read=false
+    // - VIEJO: send_at <= now y status='pending'
     const readyNotifications = (pendingNotifications || []).filter((n) => {
-      const scheduledTime = n.data?.scheduled_for;
-      return scheduledTime && new Date(scheduledTime) <= new Date(now);
+      const scheduledNew = n?.data?.scheduled_for;
+      const scheduledOld = n?.send_at;
+      const isNewReady = n?.read === false && scheduledNew && new Date(scheduledNew) <= new Date(now);
+      const isOldReady = n?.status === 'pending' && scheduledOld && new Date(scheduledOld) <= new Date(now);
+      return isNewReady || isOldReady;
     });
     
     for (const notification of readyNotifications) {
       if (notification.type === 'process_match_stats') {
         await processMatchStats(notification.data.partido_id);
-        // Mark as processed
-        await supabase
-          .from('notifications')
-          .update({ read: true })
-          .eq('id', notification.id);
+        // Marcar procesado (ambos esquemas)
+        const patch = notification.status === 'pending'
+          ? { status: 'sent' }
+          : { read: true };
+        await supabase.from('notifications').update(patch).eq('id', notification.id);
+      } else if (notification.type === 'survey_results_ready') {
+        // Enviar al usuario (push / toast / lo que uses) y marcar como enviada
+        await sendNotificationToUser(notification);
+        const patch = notification.status === 'pending'
+          ? { status: 'sent', read: true }
+          : { read: true };
+        await supabase.from('notifications').update(patch).eq('id', notification.id);
       } else {
         await sendNotificationToUser(notification);
+        const patch = notification.status === 'pending'
+          ? { status: 'sent', read: true }
+          : { read: true };
+        await supabase.from('notifications').update(patch).eq('id', notification.id);
       }
     }
     

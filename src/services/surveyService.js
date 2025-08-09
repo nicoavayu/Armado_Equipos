@@ -1,4 +1,6 @@
 import { supabase } from '../supabase';
+import { getResultsUrl } from '../utils/routes';
+import { toBigIntId } from '../utils';
 
 /**
  * Creates post-match survey notifications for all players in a match
@@ -243,6 +245,42 @@ export const processSurveyResults = async (partidoId) => {
       }
     }
     
+    // === Programar notificación "resultados listos" (TEST: +1 minuto) ===
+    const scheduledFor = new Date(Date.now() + 1 * 60 * 1000).toISOString(); // luego cambiar a +6h
+
+    // Jugadores (usuarios) del partido
+    const { data: jugadoresPartido, error: jugadoresErr } = await supabase
+      .from('jugadores')
+      .select('usuario_id')
+      .eq('partido_id', partidoId)
+      .not('usuario_id', 'is', null);
+    if (jugadoresErr) throw jugadoresErr;
+
+    // Evitar duplicados: borrar pendientes previas de este partido
+    await supabase
+      .from('notifications')
+      .delete()
+      .eq('type', 'survey_results_ready')
+      .eq('read', false)
+      .contains('data', { matchId: partidoId });
+
+    const idNum = toBigIntId(partidoId);
+    const perUserNotifs = (jugadoresPartido || []).map(j => ({
+      user_id: j.usuario_id,
+      type: 'survey_results_ready',
+      title: 'Resultados listos',
+      message: 'Ya podés ver los premios del partido.',
+      data: { matchId: idNum, resultsUrl: getResultsUrl(idNum), scheduled_for: scheduledFor },
+      read: false,
+    }));
+
+    if (perUserNotifs.length) {
+      const { error: insertNotifErr } = await supabase
+        .from('notifications')
+        .insert(perUserNotifs);
+      if (insertNotifErr) throw insertNotifErr;
+    }
+
     return true;
   } catch (error) {
     console.error('Error processing survey results:', error);

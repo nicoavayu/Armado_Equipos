@@ -245,23 +245,17 @@ background: linear-gradient(0deg, rgba(8, 101, 178, 1) 0%, rgba(83, 211, 237, 1)
   height: 100px;
 }
 
-.fifa-menu-button:hover:not(.disabled),
-.fifa-menu-button:focus:not(.disabled) {
+.fifa-menu-button:hover,
+.fifa-menu-button:focus {
   transform: translateY(-6px) scale(1.02);
   background: rgba(255, 255, 255, 0.22);
   border: 1.5px solid rgba(255,255,255,0.38);
   color: #e0e8ff;
 }
 
-.fifa-menu-button:active:not(.disabled) {
+.fifa-menu-button:active {
   transform: translateY(0);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.18);
-}
-
-.fifa-menu-button.disabled {
-  opacity: 0.58;
-  cursor: not-allowed;
-  filter: grayscale(0.5);
 }
 
 /* ELIMINÁ LOS ESTILOS DE COLORES PLANOS (ya no van más) */

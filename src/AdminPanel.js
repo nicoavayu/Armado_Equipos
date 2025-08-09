@@ -7,6 +7,7 @@ import {
   getTeamsFromDatabase,
   supabase,
 } from './supabase';
+import { toBigIntId } from './utils';
 import { incrementMatchesAbandoned, canAbandonWithoutPenalty } from './utils/matchStatsManager';
 import matchScheduler from './services/matchScheduler';
 import { toast } from 'react-toastify';
@@ -25,7 +26,8 @@ import { useAuth } from './components/AuthProvider';
 import InviteAmigosModal from './components/InviteAmigosModal';
 import { detectDuplicates, autoCleanupDuplicates } from './utils/duplicateCleanup';
 import PageTitle from './components/PageTitle';
-import MatchInfoHeader from './components/MatchInfoHeader';
+import MatchInfoSection from './components/MatchInfoSection';
+import './styles/PageLayout.css';
 
 
 
@@ -361,18 +363,20 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       // Si es expulsión por admin, notificar al jugador expulsado
       if (isAdmin && !esAutoEliminacion && jugadorAEliminar?.usuario_id) {
         try {
-          await supabase.from('notifications').insert([{
+          const payload = {
             user_id: jugadorAEliminar.usuario_id,
             type: 'match_kicked',
             title: 'Expulsado del partido',
             message: `Has sido expulsado del partido "${partidoActual.nombre || 'PARTIDO'}"`,
             data: {
-              matchId: partidoActual.id,
+              matchId: toBigIntId(partidoActual.id),
               matchName: partidoActual.nombre,
               kickedBy: user.id,
             },
             read: false,
-          }]);
+          };
+          console.log('[KICK NOTIFICATION] payload:', payload);
+          await supabase.from('notifications').insert([payload]);
         } catch (notifError) {
           // Error sending kick notification
         }
@@ -509,18 +513,20 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       partidoActual.creado_por = jugador.usuario_id;
       
       // Notificar al nuevo admin
-      await supabase.from('notifications').insert([{
+      const payload = {
         user_id: jugador.usuario_id,
         type: 'admin_transfer',
         title: 'Eres el nuevo admin',
         message: `Ahora eres admin del partido "${partidoActual.nombre || 'PARTIDO'}".`,
         data: {
-          matchId: partidoActual.id,
+          matchId: toBigIntId(partidoActual.id),
           matchName: partidoActual.nombre,
           newAdminId: jugador.usuario_id,
         },
         read: false,
-      }]);
+      };
+      console.log('[ADMIN TRANSFER NOTIFICATION] payload:', payload);
+      await supabase.from('notifications').insert([payload]);
       
       // Actualizar el partido en la base de datos para trigger realtime
       await supabase
@@ -700,7 +706,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         title: 'Nuevo jugador',
         message: `${nombreJugador} se unió al partido "${partidoActual.nombre || 'PARTIDO'}"`,
         data: {
-          matchId: partidoActual.id,
+          matchId: toBigIntId(partidoActual.id),
           matchName: partidoActual.nombre,
           playerName: nombreJugador,
         },
@@ -708,6 +714,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       }));
       
       if (notificaciones.length > 0) {
+        console.log('[NEW MEMBER NOTIFICATIONS] payload:', notificaciones);
         await supabase.from('notifications').insert(notificaciones);
       }
     } catch (error) {
@@ -726,7 +733,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         title: 'Invitación rechazada',
         message: `${nombreJugador} rechazó la invitación al partido "${partidoActual.nombre || 'PARTIDO'}"`,
         data: {
-          matchId: partidoActual.id,
+          matchId: toBigIntId(partidoActual.id),
           matchName: partidoActual.nombre,
           playerName: nombreJugador,
         },
@@ -734,6 +741,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       }));
       
       if (notificaciones.length > 0) {
+        console.log('[REJECTION NOTIFICATIONS] payload:', notificaciones);
         await supabase.from('notifications').insert(notificaciones);
       }
     } catch (error) {
@@ -895,14 +903,14 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         <>
           <PageTitle onBack={onBackToHome}>CONVOCA JUGADORES</PageTitle>
           
-          <div className="match-info-wrapper">
-            <MatchInfoHeader
-              nombre={partidoActual?.nombre}
+          <main className="page-body">
+            <MatchInfoSection
               fecha={partidoActual?.fecha}
               hora={partidoActual?.hora}
               sede={partidoActual?.sede}
+              modalidad={partidoActual?.modalidad}
+              tipo={partidoActual?.tipo_partido}
             />
-          </div>
           
           {(!isAdmin && !isPlayerInMatch) && (
             <div className="admin-add-section">
@@ -1209,6 +1217,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
           )}
             </div>
           </div>
+          </main>
         
         {/* [TEAM_BALANCER_EDIT] Modal de invitar amigos */}
         {showInviteModal && partidoActual?.id && (

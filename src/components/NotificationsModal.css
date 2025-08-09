@@ -11,7 +11,7 @@
   align-items: flex-start !important;
   justify-content: center !important;
   backdrop-filter: blur(2px) !important;
-  padding-top: 70px !important;
+  padding: 70px 16px 16px 16px !important;
 }
 
 .sheet-container {
@@ -19,7 +19,7 @@
   border-radius: 0 0 20px 20px !important;
   width: 100% !important;
   max-width: 500px !important;
-  max-height: calc(100vh - 70px) !important;
+  max-height: calc(100vh - 102px) !important;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6) !important;
   display: flex !important;
   flex-direction: column !important;
@@ -93,10 +93,42 @@
   padding: 6px 12px;
   border-radius: 6px;
   transition: background 0.2s;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.2s ease, transform 0.05s ease;
 }
 
 .clear-notifications-btn:hover {
   background: #c82333;
+}
+
+.clear-notifications-btn.is-loading,
+.clear-notifications-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.clear-notifications-btn .btn-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  display: inline-block;
+  animation: btn-spin 0.7s linear infinite;
+}
+
+@keyframes btn-spin {
+  to { transform: rotate(360deg); }
+}
+
+.sheet-close[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .sheet-header h3 {
@@ -263,12 +295,12 @@
 /* Mobile optimizations */
 @media (max-width: 600px) {
   .sheet-overlay {
-    padding-top: 60px !important;
+    padding: 60px 12px 12px 12px !important;
   }
   
   .sheet-container {
     border-radius: 0 0 16px 16px !important;
-    max-height: calc(100vh - 60px) !important;
+    max-height: calc(100vh - 84px) !important;
   }
   
   .sheet-header {
