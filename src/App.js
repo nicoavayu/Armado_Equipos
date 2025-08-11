@@ -723,6 +723,7 @@ export default function App() {
                       <Route path="stats" element={<StatsPage />} />
                       <Route path="historial" element={<HistorialPage />} />
                       <Route path="admin/:partidoId" element={<AdminPanelPage />} />
+                      <Route path="partido/:partidoId" element={<AdminPanelPage />} />
                     </Route>
                   </Route>
                 </Routes>

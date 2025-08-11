@@ -2,6 +2,16 @@ import MatchInfoHeader from './MatchInfoHeader';
 import './MatchInfoSection.css';
 
 export default function MatchInfoSection({ nombre, fecha, hora, sede, modalidad, tipo, rightActions }) {
+  const getShortVenue = (venue) => {
+    if (!venue) return '';
+    return venue.split(' ')[0];
+  };
+
+  const getGoogleMapsUrl = (venue) => {
+    if (!venue) return '#';
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue)}`;
+  };
+
   return (
     <div className="view-container">
       <div className="match-info-card">
@@ -39,16 +49,26 @@ export default function MatchInfoSection({ nombre, fecha, hora, sede, modalidad,
             </svg>
             <div className="match-info-text">{tipo || 'Masculino'}</div>
           </div>
+          
+          {sede && (
+            <>
+              <div className="match-info-separator"></div>
+              <div className="match-info-item">
+                <svg className="match-info-icon" viewBox="0 0 384 512" fill="currentColor">
+                  <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z"/>
+                </svg>
+                <a 
+                  href={getGoogleMapsUrl(sede)} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="match-info-text venue-link"
+                >
+                  {getShortVenue(sede)}
+                </a>
+              </div>
+            </>
+          )}
         </div>
-        
-        {sede && (
-          <div className="match-venue">
-            <svg className="match-info-icon" viewBox="0 0 384 512" fill="currentColor">
-              <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z"/>
-            </svg>
-            <span>{sede}</span>
-          </div>
-        )}
         
         {rightActions ? <div className="match-info-actions">{rightActions}</div> : null}
       </div>

@@ -91,7 +91,17 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
     setInviting(true);
     try {
       console.log('[MODAL_AMIGOS] === STARTING INVITATION PROCESS ===');
+      
+      // Verificar autenticación
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      console.log('[MODAL_AMIGOS] Auth check:', { user: user?.id, authError });
+      
+      if (authError || !user) {
+        throw new Error('Usuario no autenticado');
+      }
+      
       console.log('[MODAL_AMIGOS] Sender (currentUserId):', currentUserId);
+      console.log('[MODAL_AMIGOS] Authenticated user:', user.id);
       console.log('[MODAL_AMIGOS] Recipient (amigo):', {
         id: amigo.id,
         nombre: amigo.nombre,
@@ -175,6 +185,10 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
         read: notificationData.read,
       });
 
+      console.log('[MODAL_AMIGOS] === ATTEMPTING INSERT ===');
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[MODAL_AMIGOS] Session token exists:', !!session?.access_token);
+      
       const { data: insertedNotification, error } = await supabase
         .from('notifications')
         .insert([notificationData])
