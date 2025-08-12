@@ -7,6 +7,8 @@
   justify-content: center;
   z-index: 1000;
   padding: 20px 20px 90px 20px;
+  /* Support for safe areas and keyboard */
+  padding-bottom: max(90px, env(keyboard-inset-height, 90px));
 }
 
 .chat-modal {
@@ -20,6 +22,8 @@
   flex-direction: column;
   box-shadow: 0 0 20px rgb(0 0 0 / 30%);
   margin-bottom: 20px;
+  /* Ensure modal doesn't get cut off by keyboard */
+  min-height: 300px;
 }
 
 .chat-header {
@@ -68,7 +72,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 300px; /* Aumentar altura mínima para el área de mensajes */
+  min-height: 200px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .chat-message {
@@ -156,31 +162,76 @@
 /* Mobile optimizations */
 @media (width <= 600px) {
   .chat-overlay {
-    padding: 15px 15px 85px 15px;
+    padding: 15px;
+    padding-bottom: max(15px, env(keyboard-inset-height, 15px));
+    align-items: flex-start;
+    padding-top: max(15px, env(safe-area-inset-top, 15px));
+    /* Ensure overlay takes full viewport */
+    height: 100vh;
+    height: 100dvh;
   }
   
   .chat-modal {
-    height: 70vh;
-    max-height: 70vh;
+    height: auto;
+    max-height: calc(100vh - 30px - env(keyboard-inset-height, 0px));
+    min-height: 300px;
     border-radius: 16px;
     margin-bottom: 0;
+    margin-top: 15px;
+    /* Prevent modal from being too tall */
+    overflow: hidden;
   }
   
   .chat-header {
     padding: 8px 16px;
     border-radius: 16px 16px 0 0;
     min-height: 40px;
+    flex-shrink: 0;
   }
   
   .chat-messages {
     padding: 12px;
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Ensure messages area is scrollable */
+    max-height: calc(100vh - 200px - env(keyboard-inset-height, 0px));
   }
   
   .chat-input-container {
     padding: 12px;
+    flex-shrink: 0;
+    /* Stick to bottom */
+    position: relative;
+    z-index: 1;
   }
   
   .chat-input {
     font-size: 16px; /* Prevents zoom on iOS */
+    /* Ensure input is always visible */
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Keyboard specific adjustments */
+  @supports (height: 100dvh) {
+    .chat-overlay {
+      height: 100dvh;
+    }
+    
+    .chat-modal {
+      max-height: calc(100dvh - 30px - env(keyboard-inset-height, 0px));
+    }
+    
+    .chat-messages {
+      max-height: calc(100dvh - 200px - env(keyboard-inset-height, 0px));
+    }
+  }
+  
+  /* iOS specific fixes */
+  @supports (-webkit-touch-callout: none) {
+    .chat-input {
+      transform: translateZ(0); /* Force hardware acceleration */
+    }
   }
 }

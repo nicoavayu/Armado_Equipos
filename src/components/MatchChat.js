@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import { useAuth } from './AuthProvider';
+import { useKeyboard } from '../hooks/useKeyboard';
+import { Capacitor } from '@capacitor/core';
 import './MatchChat.css';
 
 export default function MatchChat({ partidoId, isOpen, onClose }) {
@@ -9,6 +11,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const { keyboardHeight, isKeyboardOpen } = useKeyboard();
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -20,6 +23,15 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       // return () => clearInterval(interval);
     }
   }, [isOpen, partidoId]);
+
+  useEffect(() => {
+    if (isKeyboardOpen) {
+      // Scroll to bottom when keyboard appears
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    }
+  }, [isKeyboardOpen]);
 
   useEffect(() => {
     scrollToBottom();
@@ -107,8 +119,15 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="chat-overlay">
-      <div className="chat-modal">
+    <div className="chat-overlay" style={{
+      paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined
+    }}>
+      <div className="chat-modal" style={{
+        marginBottom: keyboardHeight > 0 ? 0 : undefined,
+        maxHeight: keyboardHeight > 0 
+          ? `calc(100vh - ${keyboardHeight + 40}px)` 
+          : undefined
+      }}>
         <div className="chat-header">
           <h3>Chat del Partido</h3>
           <button className="chat-close" onClick={onClose}>×</button>

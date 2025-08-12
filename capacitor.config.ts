@@ -13,6 +13,10 @@ const config: CapacitorConfig = {
     },
     Geolocation: {
       permissions: ["location"]
+    },
+    Keyboard: {
+      resize: "ionic",
+      resizeOnFullScreen: true
     }
   }
 };
