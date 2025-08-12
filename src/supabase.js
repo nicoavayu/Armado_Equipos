@@ -1124,36 +1124,10 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
   // Get current user to make search more specific
   const { data: { user } } = await supabase.auth.getUser();
   
-  // First, check if a match already exists for this frequent match, date AND user
-  const { data: existingMatches, error: searchError } = await supabase
-    .from('partidos')
-    .select('*')
-    .eq('fecha', normalizedDate)
-    .eq('sede', partidoFrecuente.sede)
-    .eq('hora', partidoFrecuente.hora)
-    .eq('estado', 'activo')
-    .eq('creado_por', user?.id); // Solo buscar partidos del mismo usuario
-    
-  if (searchError) {
-    console.error('Error searching for existing match:', searchError);
-  }
+  // ALWAYS create a new match - no reuse of existing matches
+  console.log('Creating fresh match - no reuse policy');
   
-  // If we found an existing match, return it
-  if (existingMatches && existingMatches.length > 0) {
-    const existingMatch = existingMatches[0];
-    console.log('Found existing match:', existingMatch.id);
-    
-
-    
-    // Add frequent match metadata
-    existingMatch.frequent_match_name = partidoFrecuente.nombre;
-    existingMatch.from_frequent_match_id = partidoFrecuente.id;
-    
-    return existingMatch;
-  }
-  
-  // If no existing match, create a new one
-  console.log('No existing match found, creating new one');
+  console.log('Creating new match');
   const partido = await crearPartido({
     nombre: partidoFrecuente.nombre, // Usar el nombre del partido frecuente
     fecha: normalizedDate,
