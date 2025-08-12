@@ -758,7 +758,7 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
     const { data, error } = await supabase
       .from('partidos')
       .insert([matchData])
-      .select()
+      .select('id')
       .single();
     
     if (error) {
@@ -780,33 +780,51 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
       throw new Error(`Error creating match: ${error.message}`);
     }
     
-    console.log('Match created successfully:', data);
+    const newId = data.id;
+    console.log('Match created with new ID:', newId);
+    
+    // Get the full match data with the new ID
+    const { data: fullMatchData, error: fetchError } = await supabase
+      .from('partidos')
+      .select('*')
+      .eq('id', newId)
+      .single();
+      
+    if (fetchError) {
+      console.error('Error fetching created match:', fetchError);
+      throw new Error(`Error fetching created match: ${fetchError.message}`);
+    }
+    
+    console.log('Match created successfully:', fullMatchData);
+    
+    // Use the full match data for the rest of the function
+    const finalData = fullMatchData;
     
     // Actualizar el partido para que sea frecuente y su propio partido_frecuente_id sea igual a su id
-    if (data && data.id) {
+    if (finalData && newId) {
       const { error: updateError } = await supabase
         .from('partidos')
         .update({
-          partido_frecuente_id: data.id,
+          partido_frecuente_id: newId,
           es_frecuente: true,
         })
-        .eq('id', data.id);
+        .eq('id', newId);
       
       if (updateError) {
         console.error('Error updating match as frequent:', updateError);
       } else {
-        // Actualizar el objeto data con las nuevas propiedades
-        data.partido_frecuente_id = data.id;
-        data.es_frecuente = true;
+        // Actualizar el objeto finalData con las nuevas propiedades
+        finalData.partido_frecuente_id = newId;
+        finalData.es_frecuente = true;
       }
     }
     
     // Agregar automáticamente al creador como jugador si está autenticado
-    if (user?.id && data?.id) {
+    if (user?.id && newId) {
       try {
         console.log('[CREAR_PARTIDO] Adding creator as player to match:', { 
           userId: user.id, 
-          matchId: data.id,
+          matchId: newId,
         });
         
         // Obtener perfil del usuario
@@ -817,7 +835,7 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
           .single();
         
         const playerData = {
-          partido_id: parseInt(data.id),  // Asegurar que sea número
+          partido_id: parseInt(newId),  // Asegurar que sea número
           usuario_id: user.id,  // UUID del usuario
           nombre: userProfile?.nombre || user.email?.split('@')[0] || 'Creador',
           avatar_url: userProfile?.avatar_url || null,
@@ -867,9 +885,9 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
     }
     
     // Schedule post-match survey notification
-    if (data?.id) {
+    if (newId) {
       try {
-        await schedulePostMatchNotification(data.id);
+        await schedulePostMatchNotification(newId);
         console.log('[CREAR_PARTIDO] Post-match notification scheduled');
       } catch (notificationError) {
         console.error('[CREAR_PARTIDO] Error scheduling notification:', notificationError);
@@ -877,7 +895,7 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
       }
     }
     
-    return data;
+    return finalData;
     
   } catch (error) {
     console.error('crearPartido failed:', error);
@@ -1147,6 +1165,8 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     falta_jugadores: false,
     tipo_partido: partidoFrecuente.tipo_partido || 'Masculino',
   });
+  
+  console.log('New match created with ID:', partido.id);
   
   // Add frequent match type and reference
   partido.frequent_match_name = partidoFrecuente.nombre;
