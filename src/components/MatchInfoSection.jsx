@@ -14,7 +14,8 @@ export default function MatchInfoSection({ nombre, fecha, hora, sede, modalidad,
 
   return (
     <div className="view-container">
-      <div className="match-info-card">
+      <div className="match-info-container">
+        <div className="match-info-card">
         <div className="match-info-row">
           <div className="match-info-item">
             <svg className="match-info-icon" viewBox="0 0 24 24" fill="currentColor">
@@ -71,6 +72,7 @@ export default function MatchInfoSection({ nombre, fecha, hora, sede, modalidad,
         </div>
         
         {rightActions ? <div className="match-info-actions">{rightActions}</div> : null}
+        </div>
       </div>
     </div>
   );

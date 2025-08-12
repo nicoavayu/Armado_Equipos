@@ -5,6 +5,18 @@
   margin: 0 auto;
 }
 
+/* Fixed container for match-info-card */
+.match-info-container {
+  position: relative !important;
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  z-index: 10 !important;
+}
+
 .app-card{
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.18);
@@ -16,12 +28,27 @@
 }
 
 .match-info-card{
-  margin-top: 8px;
-  margin-bottom: 12px;
+  /* Fixed positioning and spacing */
+  margin: 20px 0 !important;
+  padding: 16px !important;
+  position: relative !important;
+  
+  /* Reset inherited styles */
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  
+  /* Consistent layout */
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  
+  /* Original design preserved */
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.18);
   border-radius: 12px;
-  padding: 16px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -99,6 +126,11 @@
 }
 
 @media (max-width: 480px){
+  .match-info-card {
+    margin: 15px 0 !important;
+    padding: 14px !important;
+  }
+  
   .match-info-row{
     gap: 12px;
   }
