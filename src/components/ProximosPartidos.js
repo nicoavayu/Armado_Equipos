@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
+import { useInterval } from '../hooks/useInterval';
 import { supabase } from '../supabase';
 import { clearMatchFromList } from '../services/matchFinishService';
 import { parseLocalDateTime, formatLocalDateShort, formatLocalDM } from '../utils/dateLocal';
@@ -57,12 +58,15 @@ const ProximosPartidos = ({ onClose }) => {
   }, [navigate]);
   
   // Force re-render every minute to update match status
+  const { setIntervalSafe, clearIntervalSafe } = useInterval();
+  
   useEffect(() => {
-    const interval = setInterval(() => {
+    setIntervalSafe(() => {
       setPartidos(prev => [...prev]); // Force re-render
     }, 60000);
-    return () => clearInterval(interval);
-  }, []);
+    
+    return () => clearIntervalSafe();
+  }, [setIntervalSafe, clearIntervalSafe]);
 
   const fetchUserMatches = async () => {
     if (!user) return;
