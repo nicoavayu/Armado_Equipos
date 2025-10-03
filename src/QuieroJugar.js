@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase, addFreePlayer, removeFreePlayer, getFreePlayerStatus } from './supabase';
 import { toast } from 'react-toastify';
 import { useAuth } from './components/AuthProvider';
+import { useInterval } from './hooks/useInterval';
 import { PlayerCardTrigger } from './components/ProfileComponents';
 import PageTitle from './components/PageTitle';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -72,14 +73,16 @@ export default function QuieroJugar({ onVolver }) {
   };
 
   // Auto-refresh free players every 5 seconds
+  const { setIntervalSafe, clearIntervalSafe } = useInterval();
+  
   useEffect(() => {
     if (user && activeTab === 'players') {
-      const interval = setInterval(() => {
+      setIntervalSafe(() => {
         fetchFreePlayers();
       }, 5000);
-      return () => clearInterval(interval);
+      return () => clearIntervalSafe();
     }
-  }, [user, activeTab]);
+  }, [user, activeTab, setIntervalSafe, clearIntervalSafe]);
 
   // Auto-refresh partidos abiertos every 5 seconds
   useEffect(() => {
