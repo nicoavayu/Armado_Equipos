@@ -1,6 +1,88 @@
 import { supabase } from '../supabase';
+import { db } from '../api/supabaseWrapper';
 import { getResultsUrl } from '../utils/routes';
 import { toBigIntId } from '../utils';
+import { grantAwardsForMatch } from './db/awards';
+import { applyNoShowPenalties } from './db/penalties';
+
+// Calcula y persiste premios (MVP, Mejor Arquero y Tarjeta Roja) en survey_results.awards
+export async function computeAndPersistAwards(partidoId) {
+  const idNum = Number(partidoId);
+  let surveys;
+  try {
+    surveys = await db.fetchMany('post_match_surveys', { partido_id: idNum });
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+
+  const count = (arr, key) => arr.reduce((m, v) => {
+    const id = v[key]; if (!id) return m; m[id] = (m[id] || 0) + 1; return m;
+  }, {});
+  const countArray = (arr, key) => {
+    const map = {};
+    arr.forEach(v => {
+      const ids = v[key];
+      if (Array.isArray(ids)) {
+        ids.forEach(id => { if (id) map[id] = (map[id] || 0) + 1; });
+      } else if (ids) {
+        map[ids] = (map[ids] || 0) + 1;
+      }
+    });
+    return map;
+  };
+  const pickWinner = (map) => {
+    const entries = Object.entries(map);
+    if (!entries.length) return null;
+    entries.sort((a,b) => b[1]-a[1] || Number(a[0]) - Number(b[0]));
+    const [player_id, votes] = entries[0];
+    const total = entries.reduce((s, [,v]) => s+v, 0) || 1;
+    const pct = Math.round((votes*100)/total);
+    return { player_id: Number(player_id), votes, pct, total };
+  };
+  
+  const mvpMap = count(surveys, 'mejor_jugador_eq_a');
+  const gkMap = count(surveys, 'mejor_jugador_eq_b');
+  
+  // Try multiple red card fields
+  let redMap = countArray(surveys, 'jugadores_violentos');
+  if (Object.keys(redMap).length === 0) {
+    redMap = count(surveys, 'tarjeta_roja') || count(surveys, 'mas_sucio') || count(surveys, 'sucio') || count(surveys, 'player_dirty');
+  }
+  
+  const awards = {
+    mvp: pickWinner(mvpMap),
+    best_gk: pickWinner(gkMap),
+    red_card: pickWinner(redMap),
+    totals: { 
+      mvp: Object.values(mvpMap).reduce((a,b)=>a+b,0), 
+      gk: Object.values(gkMap).reduce((a,b)=>a+b,0),
+      red: Object.values(redMap).reduce((a,b)=>a+b,0)
+    }
+  };
+
+  const { error: upErr } = await supabase
+    .from('survey_results')
+    .update({ awards, results_ready: true, updated_at: new Date().toISOString() })
+    .eq('partido_id', idNum);
+  if (upErr) { console.error(upErr); }
+  
+  // Grant awards to registered players only
+  try {
+    await grantAwardsForMatch(idNum, awards);
+  } catch (awardError) {
+    console.error('Error granting awards:', awardError);
+  }
+  
+  // Apply no-show penalties to registered players
+  try {
+    await applyNoShowPenalties(idNum);
+  } catch (penaltyError) {
+    console.error('Error applying no-show penalties:', penaltyError);
+  }
+  
+  return awards;
+}
 
 export async function finalizeIfComplete(partidoId) {
   // 1) jugadores del partido
@@ -28,8 +110,16 @@ export async function finalizeIfComplete(partidoId) {
 
   const qs = new URLSearchParams(window.location.search);
   const FAST = qs.get('fastResults') === '1' || localStorage.getItem('SURVEY_RESULTS_TEST_FAST') === '1';
-  const readyAt = new Date(Date.now() + (FAST ? 10 * 1000 : 6 * 60 * 60 * 1000)).toISOString();
-  const nowIso = new Date().toISOString();
+  console.log('[FAST_MODE] URL params:', window.location.search);
+  console.log('[FAST_MODE] fastResults param:', qs.get('fastResults'));
+  console.log('[FAST_MODE] localStorage FAST:', localStorage.getItem('SURVEY_RESULTS_TEST_FAST'));
+  console.log('[FAST_MODE] FAST mode enabled:', FAST);
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const readyAt = FAST
+    ? new Date(now.getTime() + 30 * 1000).toISOString()
+    : new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString();
+  console.log('[FAST_MODE] Notification scheduled for:', readyAt, FAST ? '(30 seconds)' : '(6 hours)');
 
   // 4) upsert survey_results
   const { error: upsertErr } = await supabase
@@ -60,7 +150,7 @@ export async function finalizeIfComplete(partidoId) {
       status: 'pending',
       title: 'Resultados listos',
       message: 'Los resultados de la encuesta del partido están listos.',
-      data: { matchId: idNum, resultsUrl: getResultsUrl(idNum) },
+      data: { matchId: idNum, resultsUrl: `${getResultsUrl(idNum)}?showAwards=1` },
       created_at: nowIso,
     }));
     
