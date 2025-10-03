@@ -28,8 +28,10 @@
 }
 
 .match-info-card{
-  /* Fixed positioning and spacing */
-  margin: 20px 0 !important;
+  /* Fixed 30px from PageTitle bottom */
+  margin: 0 !important;
+  margin-top: 110px !important; /* PageTitle height (~80px) + 30px gap */
+  margin-bottom: 20px !important;
   padding: 16px !important;
   position: relative !important;
   
@@ -127,7 +129,9 @@
 
 @media (max-width: 480px){
   .match-info-card {
-    margin: 15px 0 !important;
+    margin: 0 !important;
+    margin-top: 10px !important; /* PageTitle mobile height (~72px) + 30px gap */
+    margin-bottom: 15px !important;
     padding: 14px !important;
   }
   

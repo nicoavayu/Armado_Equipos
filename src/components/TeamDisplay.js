@@ -8,11 +8,12 @@ import { supabase, saveTeamsToDatabase, getTeamsFromDatabase, subscribeToTeamsCh
 import ChatButton from './ChatButton';
 import PageTitle from './PageTitle';
 import PlayerBadges from './PlayerBadges';
+import MatchInfoSection from './MatchInfoSection';
 import './TeamDisplay.css';
 import WhatsappIcon from './WhatsappIcon';
 import LoadingSpinner from './LoadingSpinner';
 
-const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null, nombre, fecha, hora, sede }) => {
+const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null, nombre, fecha, hora, sede, modalidad, tipo }) => {
   const [showAverages, setShowAverages] = useState(false);
   const [lockedPlayers, setLockedPlayers] = useState([]);
   const [editingTeamId, setEditingTeamId] = useState(null);
@@ -324,39 +325,15 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="team-display-container">
           <PageTitle onBack={onBackToHome}>EQUIPOS ARMADOS</PageTitle>
-          
-          <div className="team-display-content" style={{ paddingTop: '90px' }}>
-            {/* Match header with large title and details */}
-            {(nombre || fecha || hora || sede) && (
-              <div className="match-header-large">
-                {nombre && (
-                  <div className="match-title-large">
-                    {nombre}
-                  </div>
-                )}
-                <div className="match-details-large">
-                  {fecha && new Date(fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
-                    weekday: 'long', 
-                    day: 'numeric', 
-                    month: 'numeric', 
-                  }).toUpperCase()}
-                  {hora && ` · ${hora}`}
-                  {sede && (
-                    <>
-                      {' · '}
-                      <a 
-                        href={`https://www.google.com/maps/search/${encodeURIComponent(sede.split(/[,(]/)[0].trim())}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="venue-link-large"
-                      >
-                        {sede.split(/[,(]/)[0].trim()}
-                      </a>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
+          <MatchInfoSection
+            fecha={fecha}
+            hora={hora}
+            sede={sede}
+            modalidad={modalidad}
+            tipo={tipo}
+          />
+          <div className="team-display-content" style={{ paddingTop: '20px' }}>
+
             <div className="teams-wrapper">
               {realtimeTeams.map((team) => (
                 <div key={team.id} className="team-container dark-container">
@@ -496,7 +473,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
               ))}
             </div>
             {/* Botones de acción */}
-            <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '16px auto 0', textAlign: 'center' }}>
+            <div style={{ width: 'min(90vw, 980px)', margin: '16px auto 0', textAlign: 'center', boxSizing: 'border-box' }}>
               {isAdmin && (
                 <div style={{ display: 'flex', gap: '8px', width: '100%', marginBottom: '12px' }}>
                   <button 

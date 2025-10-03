@@ -5,6 +5,8 @@ import supabase, { deleteMyNotifications } from '../supabase';
 import { toBigIntId } from '../utils';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
+import { openNotification } from '../utils/notificationRouter';
+import { useTimeout } from '../hooks/useTimeout';
 import LoadingSpinner from './LoadingSpinner';
 import './NotificationsModal.css';
 
@@ -12,6 +14,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const { notifications, fetchNotifications: refreshNotifications, clearAllNotifications: clearNotificationsLocal } = useNotifications();
   const navigate = useNavigate(); // [TEAM_BALANCER_INVITE_ACCESS_FIX] Hook de navegación
+  const { setTimeoutSafe } = useTimeout();
   const [loading, setLoading] = useState(false);
 
 
@@ -58,7 +61,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   };
 
   // util local para esperar entre reintentos
-  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const sleep = (ms) => new Promise((resolve) => setTimeoutSafe(resolve, ms));
 
   const handleClearAllNotifications = async () => {
     if (!window.confirm('¿Eliminar todas las notificaciones?')) return;
@@ -165,9 +168,19 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       }
     }
 
-    // Resultados de encuesta listos → navegar a resultados/premios
+    // Handle survey_reminder and survey_results_ready with router
+    if (notification.type === 'survey_reminder' || notification.type === 'survey_results_ready') {
+      console.log('[NOTIFICATION_CLICK] Survey notification clicked:', notification.type);
+      onClose(); // Close modal before navigation
+      await openNotification(notification, navigate);
+      return;
+    }
+    
+    // Resultados de encuesta listos → navegar a resultados/premios (fallback)
     if (notification.type === 'survey_results_ready') {
       console.log('[NOTIFICATION_CLICK] Survey results ready clicked');
+      console.log('[NOTIFICATION_CLICK] Full notification object:', notification);
+      console.log('[NOTIFICATION_CLICK] Notification data:', notification.data);
       onClose(); // cerrar modal para navegar
 
       const data = notification.data || {};
@@ -182,14 +195,14 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         const id = toBigIntId(data.matchId);
         if (id != null) {
           console.log('[NOTIFICATION_CLICK] Navigating to resultados by matchId:', id);
-          navigate(`/resultados/${id}`);
+          navigate(`/resultados/${id}?showAwards=1`);
           return;
         }
       }
       // 3) Fallback por código
       if (data.matchCode) {
         console.log('[NOTIFICATION_CLICK] Navigating to resultados by matchCode:', data.matchCode);
-        navigate(`/?codigo=${data.matchCode}&view=resultados`);
+        navigate(`/?codigo=${data.matchCode}&view=resultados&showAwards=1`);
         return;
       }
       console.warn('[NOTIFICATION_CLICK] Missing resultsUrl/matchId/matchCode for survey_results_ready');
@@ -200,6 +213,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     switch (type) {
       case 'match_invite': return '⚽';
       case 'call_to_vote': return '⭐';
+      case 'survey_reminder': return '📋';
+      case 'survey_results_ready': return '🏆';
       case 'friend_request': return '👤';
       case 'friend_accepted': return '✅';
       case 'match_update': return '📅';
@@ -295,9 +310,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`notification-item${!notification.read ? ' unread' : ''} ${(notification.type === 'match_invite' || notification.type === 'call_to_vote' || notification.type === 'survey_results_ready') ? 'clickable' : ''}`}
+                  className={`notification-item${!notification.read ? ' unread' : ''} ${(notification.type === 'match_invite' || notification.type === 'call_to_vote' || notification.type === 'survey_reminder' || notification.type === 'survey_results_ready') ? 'clickable' : ''}`}
                   onClick={() => handleNotificationClick(notification)}
-                  style={{ cursor: (notification.type === 'match_invite' || notification.type === 'call_to_vote' || notification.type === 'survey_results_ready') ? 'pointer' : 'default' }}
+                  style={{ cursor: (notification.type === 'match_invite' || notification.type === 'call_to_vote' || notification.type === 'survey_reminder' || notification.type === 'survey_results_ready') ? 'pointer' : 'default' }}
                 >
                   <div className="notification-icon">{getNotificationIcon(notification.type)}</div>
                   <div className="notification-content">

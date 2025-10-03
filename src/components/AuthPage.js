@@ -3,6 +3,7 @@ import { useAuth } from './AuthProvider';
 import GoogleAuth from './GoogleAuth';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
+import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
 import LoadingSpinner from './LoadingSpinner';
 import './AuthPage.css';
 import logo from '../Logo.png'; // Import the logo
@@ -22,13 +23,10 @@ const AuthPage = () => {
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut();
-      if (error) {
-        toast.error(`Error al cerrar sesión: ${error.message}`);
-      } else {
-        toast.success('Sesión cerrada correctamente');
-      }
+      if (error) throw error;
+      toast.success('Sesión cerrada correctamente');
     } catch (error) {
-      toast.error(`Error inesperado: ${error.message}`);
+      handleError(error, { showToast: true });
     }
   };
 
@@ -84,11 +82,11 @@ const AuthPage = () => {
         } else {
           setError(`Error al iniciar sesión: ${error.message}`);
         }
-      } else {
-        toast.success('¡Inicio de sesión exitoso!');
+        throw error;
       }
+      toast.success('¡Inicio de sesión exitoso!');
     } catch (error) {
-      setError(`Error inesperado: ${error.message}`);
+      handleError(error, { showToast: false });
     } finally {
       setLoading(false);
     }
@@ -118,15 +116,15 @@ const AuthPage = () => {
 
       if (error) {
         setError(`Error al registrarse: ${error.message}`);
-      } else {
-        toast.success('Te enviamos un correo de confirmación. Revisá tu mail para activar tu cuenta.');
-        setIsRegistering(false); // Return to login screen
-        setPassword('');
-        setConfirmPassword('');
-        setAcceptTerms(false);
+        throw error;
       }
+      toast.success('Te enviamos un correo de confirmación. Revisá tu mail para activar tu cuenta.');
+      setIsRegistering(false);
+      setPassword('');
+      setConfirmPassword('');
+      setAcceptTerms(false);
     } catch (error) {
-      setError(`Error inesperado: ${error.message}`);
+      handleError(error, { showToast: false });
     } finally {
       setLoading(false);
     }
@@ -151,12 +149,12 @@ const AuthPage = () => {
 
       if (error) {
         setError(`Error al solicitar cambio de contraseña: ${error.message}`);
-      } else {
-        toast.success('Te enviamos un correo para restablecer tu contraseña. Revisá tu mail.');
-        setResetPassword(false);
+        throw error;
       }
+      toast.success('Te enviamos un correo para restablecer tu contraseña. Revisá tu mail.');
+      setResetPassword(false);
     } catch (error) {
-      setError(`Error inesperado: ${error.message}`);
+      handleError(error, { showToast: false });
     } finally {
       setLoading(false);
     }

@@ -61,6 +61,13 @@ const NotificationsView = () => {
     }
     
     const data = notification.data || {};
+    const route = data.target_route || data.action?.route;
+    const id = data.target_params?.partido_id;
+    
+    if (route === 'voting_view' && id && data.matchCode) {
+      navigate(`/?codigo=${data.matchCode}`);
+      return;
+    }
     
     // Priority 1: Check for matchUrl
     if (data.matchUrl) {
@@ -98,14 +105,36 @@ const NotificationsView = () => {
           navigate(`/?codigo=${data.matchCode}`);
         }
         break;
+      case 'pre_match_vote':
+        const id = notification?.target_params?.partido_id;
+        if (id) {
+          navigate(`/voting/${id}`);
+        } else if (data.matchCode) {
+          navigate(`/?codigo=${data.matchCode}`);
+        }
+        break;
       case 'post_match_survey':
         if (data.partido_id) {
           navigate(`/encuesta/${toBigIntId(data.partido_id)}`);
         }
         break;
+      case 'survey_reminder':
+        console.log('[NOTIFICATION_CLICK] Survey reminder - matchId:', data.matchId);
+        if (data.matchId) {
+          const url = `/encuesta/${toBigIntId(data.matchId)}`;
+          console.log('[NOTIFICATION_CLICK] Navigating to:', url);
+          navigate(url);
+        } else {
+          console.log('[NOTIFICATION_CLICK] No matchId found in survey_reminder notification');
+        }
+        break;
+      case 'survey_results':
       case 'survey_results_ready':
-        if (data.partido_id) {
-          navigate(`/resultados/${toBigIntId(data.partido_id)}`);
+        // Priorizar resultsUrl si existe (incluye ?showAwards=1)
+        if (data.resultsUrl) {
+          navigate(data.resultsUrl);
+        } else if (data.partido_id) {
+          navigate(`/resultados-encuesta/${toBigIntId(data.partido_id)}?showAwards=1`);
         }
         break;
       default:
@@ -179,6 +208,8 @@ const NotificationsView = () => {
       case 'match_update':
         return '🔄';
       case 'post_match_survey':
+        return '📋';
+      case 'survey_reminder':
         return '📋';
       case 'call_to_vote':
         return '⭐';

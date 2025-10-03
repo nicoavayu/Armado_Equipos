@@ -8,9 +8,18 @@ import {
   getGuestSessionId, // si no usás guest, podés eliminar esta línea
 } from './supabase';
 import { toast } from 'react-toastify';
+import DOMPurify from 'dompurify';
+import { handleError, AppError, ERROR_CODES } from './lib/errorHandler';
+import { db } from './api/supabaseWrapper';
 import LoadingSpinner from './components/LoadingSpinner';
 import StarRating from './StarRating';
+import PageTitle from './components/PageTitle';
+import MatchInfoSection from './components/MatchInfoSection';
 import './HomeStyleKit.css';
+
+// Feature flag for XSS sanitization
+const SANITIZE_ON = process.env.REACT_APP_SANITIZE_VOTING === 'true';
+const clean = (value) => SANITIZE_ON ? DOMPurify.sanitize(String(value ?? '')) : String(value ?? '');
 
 const DefaultAvatar = (
   <div className="voting-photo-placeholder">
@@ -22,7 +31,7 @@ const DefaultAvatar = (
   </div>
 );
 
-export default function VotingView({ onReset, jugadores }) {
+export default function VotingView({ onReset, jugadores, partidoActual }) {
   // Estados principales
   const [step, setStep] = useState(0);
   const [nombre, setNombre] = useState('');
@@ -41,13 +50,17 @@ export default function VotingView({ onReset, jugadores }) {
   // Edición y confirmación
   const [editandoIdx, setEditandoIdx] = useState(null);
   const [confirmando, setConfirmando] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
   const [animating, setAnimating] = useState(false);
 
   // Chequeo global: ¿El usuario actual ya votó?
   const [usuarioYaVoto, setUsuarioYaVoto] = useState(false);
   const [cargandoVotoUsuario, setCargandoVotoUsuario] = useState(true);
-  const [_usuarioNoInvitado, setUsuarioNoInvitado] = useState(false); // [TEAM_BALANCER_EDIT] Control de acceso
+  
+  // Permission control
+  const [hasAccess, setHasAccess] = useState(null); // null = loading, true/false = resolved
+  const [authzError, setAuthzError] = useState(null);
 
   // -- HOOKS, TODOS ARRIBA --
   
@@ -60,47 +73,69 @@ export default function VotingView({ onReset, jugadores }) {
         const codigo = urlParams.get('codigo');
         if (!codigo) return setCargandoVotoUsuario(false);
 
-        const { data: partido, error } = await supabase
-          .from('partidos')
-          .select('id')
-          .eq('codigo', codigo)
-          .single();
-        if (error || !partido?.id) return setCargandoVotoUsuario(false);
+        let partido;
+        try {
+          partido = await db.fetchOne('partidos', { codigo });
+        } catch (error) {
+          return setCargandoVotoUsuario(false);
+        }
+        if (!partido?.id) return setCargandoVotoUsuario(false);
 
         const partidoId = Math.abs(parseInt(partido.id, 10));
 
         let userId = null;
         const { data: { user } } = await supabase.auth.getUser();
+        
+        // Check permissions
         if (user?.id) {
           userId = user.id;
           
-          // [TEAM_BALANCER_EDIT] Verificar si el usuario está en la nómina del partido
-          const { data: jugadoresPartido } = await supabase
-            .from('jugadores')
-            .select('usuario_id')
-            .eq('partido_id', partidoId);
+          try {
+            // Check if user is match creator
+            const { data: partidoData, error: partidoError } = await supabase
+              .from('partidos')
+              .select('creado_por')
+              .eq('id', partidoId)
+              .single();
             
-          const jugadorEnPartido = jugadoresPartido?.some((j) => j.usuario_id === user.id);
-          
-          // Verificar si es admin del partido
-          const { data: partidoData } = await supabase
-            .from('partidos')
-            .select('creado_por')
-            .eq('id', partidoId)
-            .single();
+            if (partidoError) throw partidoError;
             
-          const esAdmin = partidoData?.creado_por === user.id;
-          
-          if (!jugadorEnPartido && !esAdmin) {
-            setUsuarioNoInvitado(true);
+            const isCreator = partidoData?.creado_por === user.id;
+            
+            // Check if user is in match roster
+            const { data: jugadoresPartido, error: jugadoresError } = await supabase
+              .from('jugadores')
+              .select('usuario_id, nombre')
+              .eq('partido_id', partidoId);
+            
+            if (jugadoresError) throw jugadoresError;
+            
+            const jugadorEnPartido = jugadoresPartido?.find((j) => j.usuario_id === user.id);
+            
+            const allowed = isCreator || !!jugadorEnPartido;
+            setHasAccess(allowed);
+            
+            if (!allowed) {
+              return setCargandoVotoUsuario(false);
+            }
+            
+            // Auto-detect name for registered users in roster
+            if (jugadorEnPartido) {
+              setNombre(jugadorEnPartido.nombre);
+              setStep(1);
+            }
+          } catch (err) {
+            handleError(err, { showToast: false });
+            setAuthzError('No se pudo validar permisos');
+            setHasAccess(false);
             return setCargandoVotoUsuario(false);
           }
         } else {
-          // Usuario no autenticado - permitir votar como invitado
+          // Guest users allowed
+          setHasAccess(true);
           if (typeof getGuestSessionId === 'function') {
             userId = getGuestSessionId(partidoId);
           } else {
-            // Generar ID temporal para invitados
             userId = `guest_${partidoId}_${Date.now()}`;
           }
         }
@@ -148,10 +183,38 @@ export default function VotingView({ onReset, jugadores }) {
 
 
   
+  // Block if no access
+  if (hasAccess === false) {
+    return (
+      <div className="voting-bg">
+        <PageTitle onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">
+            ACCESO DENEGADO
+          </div>
+          <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30 }}>
+            No tienes permiso para votar en este partido.
+          </div>
+          {authzError && (
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 16, marginBottom: 20 }}>
+              {authzError}
+            </div>
+          )}
+          <button
+            className="voting-confirm-btn"
+            onClick={onReset}
+            style={{ marginTop: 16 }}
+          >VOLVER AL INICIO</button>
+        </div>
+      </div>
+    );
+  }
+  
   // Si ya votó, bloquear el flujo entero
   if (usuarioYaVoto) {
     return (
       <div className="voting-bg">
+        <PageTitle onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="voting-modern-card">
           <div className="voting-title-modern">
             ¡YA VOTASTE!
@@ -173,6 +236,7 @@ export default function VotingView({ onReset, jugadores }) {
   if (step === 0) {
     return (
       <div className="voting-bg">
+        <PageTitle onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="voting-modern-card">
           <div className="voting-title-modern">¿QUIÉN SOS?</div>
           <div className="player-select-grid">
@@ -183,7 +247,7 @@ export default function VotingView({ onReset, jugadores }) {
                 onClick={() => setNombre(j.nombre)}
                 type="button"
               >
-                <span className="player-select-txt">{j.nombre}</span>
+                <span className="player-select-txt">{clean(j.nombre)}</span>
               </button>
             ))}
           </div>
@@ -226,8 +290,9 @@ export default function VotingView({ onReset, jugadores }) {
 
     return (
       <div className="voting-bg">
+        <PageTitle onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="voting-modern-card">
-          <div className="voting-title-modern">¡HOLA, {nombre}!</div>
+          <div className="voting-title-modern">¡HOLA, {clean(nombre)}!</div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 18 }}>
             <div
               className="voting-photo-box"
@@ -298,12 +363,10 @@ export default function VotingView({ onReset, jugadores }) {
 
     return (
       <div className="voting-bg">
+        <PageTitle>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="voting-modern-card" style={{ background: 'transparent', boxShadow: 'none', padding: 0 }}>
-          <div className="voting-title-modern">
-            CALIFICÁ A TUS COMPAÑEROS
-          </div>
           <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
-            <div className="voting-player-name">{jugadorVotar.nombre}</div>
+            <div className="voting-player-name">{clean(jugadorVotar.nombre)}</div>
             <div className="voting-photo-box">
               {jugadorVotar.avatar_url ? (
                 <img src={jugadorVotar.avatar_url} alt="foto" />
@@ -364,10 +427,15 @@ export default function VotingView({ onReset, jugadores }) {
   if (step === 3 && !finalizado) {
     return (
       <div className="voting-bg">
-        <div className="voting-modern-card">
-          <div className="voting-title-modern">
-            CONFIRMÁ TUS<br />CALIFICACIONES
-          </div>
+        <PageTitle>CONFIRMÁ TUS CALIFICACIONES</PageTitle>
+        <MatchInfoSection
+          fecha={partidoActual?.fecha}
+          hora={partidoActual?.hora}
+          sede={partidoActual?.sede}
+          modalidad={partidoActual?.modalidad}
+          tipo={partidoActual?.tipo_partido}
+        />
+        <div className="voting-modern-card" style={{ marginTop: '20px' }}>
           <div className="confirmation-list">
             {jugadoresParaVotar.map((j, idx) => (
               <div key={j.uuid} className="confirmation-item">
@@ -377,7 +445,7 @@ export default function VotingView({ onReset, jugadores }) {
                     : DefaultAvatar
                   }
                 </div>
-                <span className="confirmation-item-name">{j.nombre}</span>
+                <span className="confirmation-item-name">{clean(j.nombre)}</span>
                 <span className={`confirmation-item-score ${!votos[j.uuid] ? 'not-graded' : ''}`}>
                   {votos[j.uuid] ? votos[j.uuid] + '/10' : 'No calificado'}
                 </span>
@@ -390,16 +458,40 @@ export default function VotingView({ onReset, jugadores }) {
               </div>
             ))}
           </div>
+          {hasAccess === false && (
+            <div role="alert" className="voting-alert" style={{
+              background: 'rgba(255,59,48,0.15)',
+              border: '1px solid rgba(255,59,48,0.3)',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              color: '#fff',
+              fontSize: '16px',
+              fontFamily: "'Oswald', Arial, sans-serif",
+              textAlign: 'center',
+              marginBottom: '16px'
+            }}>
+              No tienes permiso para votar en este partido.
+            </div>
+          )}
           <button
             className="voting-confirm-btn"
             style={{ marginTop: 8, fontWeight: 700, letterSpacing: 1.2 }}
+            disabled={isSubmitting || hasAccess === false || hasAccess === null}
             onClick={async () => {
+              if (isSubmitting) return; // Anti-double submit guard
+              if (hasAccess === false) {
+                handleError(new AppError('No tienes permiso para votar en este partido.', ERROR_CODES.ACCESS_DENIED), { showToast: true });
+                return;
+              }
+              
+              setIsSubmitting(true);
               setConfirmando(true);
               try {
+                console.log('[VOTING] Submitting votes...');
                 const urlParams = new URLSearchParams(window.location.search);
                 const codigo = urlParams.get('codigo');
                 if (!codigo) {
-                  throw new Error('Código del partido no encontrado en la URL');
+                  throw new AppError('Código del partido no encontrado en la URL', ERROR_CODES.VALIDATION_ERROR);
                 }
                 const { data: partido, error: partidoError } = await supabase
                   .from('partidos')
@@ -407,7 +499,7 @@ export default function VotingView({ onReset, jugadores }) {
                   .eq('codigo', codigo)
                   .single();
                 if (partidoError || !partido || !partido.id) {
-                  throw new Error('No se pudo encontrar el partido');
+                  throw new AppError('No se pudo encontrar el partido', ERROR_CODES.NOT_FOUND);
                 }
                 const partidoId = Math.abs(parseInt(partido.id, 10));
                 await submitVotos(votos, jugador?.uuid, partidoId, jugador?.nombre, jugador?.avatar_url);
@@ -418,16 +510,17 @@ export default function VotingView({ onReset, jugadores }) {
                   .update({ updated_at: new Date().toISOString() })
                   .eq('id', partidoId);
                 
+                console.log('[VOTING] Votes submitted successfully');
                 setFinalizado(true);
               } catch (error) {
-                toast.error('Error al guardar los votos: ' + error.message);
+                handleError(error, { showToast: true });
               } finally {
                 setConfirmando(false);
+                setIsSubmitting(false);
               }
             }}
-            disabled={confirmando}
           >
-            {confirmando ? 'GUARDANDO...' : 'CONFIRMAR MIS VOTOS'}
+            {isSubmitting ? 'GUARDANDO...' : 'CONFIRMAR MIS VOTOS'}
           </button>
         </div>
       </div>
@@ -438,6 +531,7 @@ export default function VotingView({ onReset, jugadores }) {
   if (finalizado) {
     return (
       <div className="voting-bg">
+        <PageTitle onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="voting-modern-card">
           <div className="voting-title-modern">
             ¡GRACIAS POR VOTAR!

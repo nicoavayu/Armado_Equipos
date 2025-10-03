@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useBadges } from '../context/BadgeContext';
+import { useInterval } from '../hooks/useInterval';
 import LoadingSpinner from './LoadingSpinner';
 import './PlayerAwards.css';
 
@@ -58,6 +59,7 @@ window.testBadgeInsert = async () => {
  */
 const PlayerAwards = ({ playerId }) => {
   const { refreshTrigger } = useBadges();
+  const { setIntervalSafe } = useInterval();
   const [awards, setAwards] = useState({
     mvp: 0,
     guante_dorado: 0,
@@ -74,15 +76,13 @@ const PlayerAwards = ({ playerId }) => {
 
   // Auto-refresh every 30 seconds to catch new badges
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (playerId) {
+    if (playerId) {
+      setIntervalSafe(() => {
         console.log('[PLAYER_AWARDS] Auto-refreshing awards...');
         setRefreshKey((prev) => prev + 1);
-      }
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [playerId]);
+      }, 30000);
+    }
+  }, [playerId, setIntervalSafe]);
 
   // Fetch player awards from the database
   const fetchPlayerAwards = async () => {

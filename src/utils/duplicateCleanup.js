@@ -1,5 +1,6 @@
 // Utilidad para detectar y limpiar jugadores duplicados automáticamente
 import { supabase } from '../supabase';
+import { logger } from '../lib/logger';
 
 /**
  * Detecta jugadores duplicados en un partido
@@ -40,7 +41,7 @@ export const detectDuplicates = async (partidoId) => {
     };
     
   } catch (error) {
-    console.error('Error detecting duplicates:', error);
+    logger.error('Error detecting duplicates:', error);
     return { hasDuplicates: false, duplicates: [], error };
   }
 };
@@ -60,7 +61,7 @@ export const autoCleanupDuplicates = async (partidoId) => {
       return { cleaned: 0, kept: detection.totalPlayers };
     }
     
-    console.log('[AUTO_CLEANUP] Found duplicates:', detection.duplicates.length);
+    logger.log('[AUTO_CLEANUP] Found duplicates:', detection.duplicates.length);
     
     // Eliminar duplicados (mantener solo el primero de cada nombre)
     const duplicateIds = detection.duplicates.map((d) => d.id);
@@ -77,11 +78,11 @@ export const autoCleanupDuplicates = async (partidoId) => {
       kept: detection.totalPlayers - duplicateIds.length,
     };
     
-    console.log('[AUTO_CLEANUP] Cleanup completed:', result);
+    logger.log('[AUTO_CLEANUP] Cleanup completed:', result);
     return result;
     
   } catch (error) {
-    console.error('[AUTO_CLEANUP] Error:', error);
+    logger.error('[AUTO_CLEANUP] Error:', error);
     throw error;
   }
 };
@@ -96,10 +97,10 @@ export const cleanupAfterPlayerAdd = async (partidoId) => {
     setTimeout(async () => {
       const result = await autoCleanupDuplicates(partidoId);
       if (result.cleaned > 0) {
-        console.log(`[AUTO_CLEANUP] Removed ${result.cleaned} duplicates after player add`);
+        logger.log(`[AUTO_CLEANUP] Removed ${result.cleaned} duplicates after player add`);
       }
     }, 1000);
   } catch (error) {
-    console.error('[AUTO_CLEANUP] Error in cleanup after add:', error);
+    logger.error('[AUTO_CLEANUP] Error in cleanup after add:', error);
   }
 };

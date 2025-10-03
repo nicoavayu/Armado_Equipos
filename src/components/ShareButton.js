@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { useTimeout } from '../hooks/useTimeout';
 import { handleSuccess, handleError } from '../utils/errorHandler';
 import Button from './Button';
 
@@ -13,13 +14,14 @@ const ShareButton = ({
   showWhatsApp = true,
 }) => {
   const [copied, setCopied] = useState(false);
+  const { setTimeoutSafe } = useTimeout();
 
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       handleSuccess(message);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeoutSafe(() => setCopied(false), 2000);
     } catch (error) {
       handleError(error, 'No se pudo copiar el enlace');
     }

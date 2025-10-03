@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { supabase, addFreePlayer, removeFreePlayer, getFreePlayerStatus } from './supabase';
 import { toast } from 'react-toastify';
 import { useAuth } from './components/AuthProvider';
+import { useInterval } from './hooks/useInterval';
 import { PlayerCardTrigger } from './components/ProfileComponents';
 import PageTitle from './components/PageTitle';
 import LoadingSpinner from './components/LoadingSpinner';
 import InviteAmigosModal from './components/InviteAmigosModal';
+import { handleError } from './lib/errorHandler';
 import './QuieroJugar.css';
 import './VotingView.css';
 
@@ -72,24 +74,26 @@ export default function QuieroJugar({ onVolver }) {
   };
 
   // Auto-refresh free players every 5 seconds
+  const { setIntervalSafe, clearIntervalSafe } = useInterval();
+  
   useEffect(() => {
     if (user && activeTab === 'players') {
-      const interval = setInterval(() => {
+      setIntervalSafe(() => {
         fetchFreePlayers();
       }, 5000);
-      return () => clearInterval(interval);
+      return () => clearIntervalSafe();
     }
-  }, [user, activeTab]);
+  }, [user, activeTab, setIntervalSafe, clearIntervalSafe]);
 
   // Auto-refresh partidos abiertos every 5 seconds
   useEffect(() => {
     if (activeTab === 'matches') {
-      const interval = setInterval(() => {
+      setIntervalSafe(() => {
         fetchPartidosAbiertos();
       }, 5000);
-      return () => clearInterval(interval);
+      return () => clearIntervalSafe();
     }
-  }, [activeTab]);
+  }, [activeTab, setIntervalSafe, clearIntervalSafe]);
 
   const fetchPartidosAbiertos = async () => {
     try {
@@ -114,7 +118,7 @@ export default function QuieroJugar({ onVolver }) {
       const status = await getFreePlayerStatus();
       setIsRegisteredAsFree(status);
     } catch (error) {
-      console.error('Error checking free player status:', error);
+      handleError(error, { showToast: false });
     }
   };
 
@@ -167,7 +171,7 @@ export default function QuieroJugar({ onVolver }) {
       });
       setFreePlayers(players);
     } catch (error) {
-      console.error('Error fetching free players:', error);
+      handleError(error, { showToast: false });
     }
   };
 
