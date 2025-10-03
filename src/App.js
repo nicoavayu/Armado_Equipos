@@ -17,7 +17,7 @@ import TabBar from './components/TabBar';
 import FifaHome from './FifaHome';
 
 
-import EncuestaPartido from './pages/EncuestaPartido';
+const EncuestaPartido = lazy(() => import('./pages/EncuestaPartido'));
 const ResultadosEncuestaView = lazy(() => import('./pages/ResultadosEncuestaView'));
 
 import VotingView from './VotingView';
@@ -707,7 +707,11 @@ export default function App() {
                 <AppWithSchedulers />
                 <Routes>
 
-                  <Route path="/encuesta/:partidoId" element={<EncuestaPartido />} />
+                  <Route path="/encuesta/:partidoId" element={
+                    <Suspense fallback={<div className="voting-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}><LoadingSpinner size="large" /></div>}>
+                      <EncuestaPartido />
+                    </Suspense>
+                  } />
                   <Route path="/resultados-encuesta/:partidoId" element={
                     <Suspense fallback={<div className="voting-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}><LoadingSpinner size="large" /></div>}>
                       <ResultadosEncuestaView />
