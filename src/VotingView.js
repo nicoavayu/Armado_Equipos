@@ -57,7 +57,10 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   // Chequeo global: ¿El usuario actual ya votó?
   const [usuarioYaVoto, setUsuarioYaVoto] = useState(false);
   const [cargandoVotoUsuario, setCargandoVotoUsuario] = useState(true);
-  const [_usuarioNoInvitado, setUsuarioNoInvitado] = useState(false); // [TEAM_BALANCER_EDIT] Control de acceso
+  
+  // Permission control
+  const [hasAccess, setHasAccess] = useState(null); // null = loading, true/false = resolved
+  const [authzError, setAuthzError] = useState(null);
 
   // -- HOOKS, TODOS ARRIBA --
   
@@ -82,42 +85,57 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
         let userId = null;
         const { data: { user } } = await supabase.auth.getUser();
+        
+        // Check permissions
         if (user?.id) {
           userId = user.id;
           
-          // [TEAM_BALANCER_EDIT] Verificar si el usuario está en la nómina del partido
-          const { data: jugadoresPartido } = await supabase
-            .from('jugadores')
-            .select('usuario_id, nombre')
-            .eq('partido_id', partidoId);
+          try {
+            // Check if user is match creator
+            const { data: partidoData, error: partidoError } = await supabase
+              .from('partidos')
+              .select('creado_por')
+              .eq('id', partidoId)
+              .single();
             
-          const jugadorEnPartido = jugadoresPartido?.find((j) => j.usuario_id === user.id);
-          
-          // Verificar si es admin del partido
-          const { data: partidoData } = await supabase
-            .from('partidos')
-            .select('creado_por')
-            .eq('id', partidoId)
-            .single();
+            if (partidoError) throw partidoError;
             
-          const esAdmin = partidoData?.creado_por === user.id;
-          
-          if (!jugadorEnPartido && !esAdmin) {
-            setUsuarioNoInvitado(true);
+            const isCreator = partidoData?.creado_por === user.id;
+            
+            // Check if user is in match roster
+            const { data: jugadoresPartido, error: jugadoresError } = await supabase
+              .from('jugadores')
+              .select('usuario_id, nombre')
+              .eq('partido_id', partidoId);
+            
+            if (jugadoresError) throw jugadoresError;
+            
+            const jugadorEnPartido = jugadoresPartido?.find((j) => j.usuario_id === user.id);
+            
+            const allowed = isCreator || !!jugadorEnPartido;
+            setHasAccess(allowed);
+            
+            if (!allowed) {
+              return setCargandoVotoUsuario(false);
+            }
+            
+            // Auto-detect name for registered users in roster
+            if (jugadorEnPartido) {
+              setNombre(jugadorEnPartido.nombre);
+              setStep(1);
+            }
+          } catch (err) {
+            handleError(err, { showToast: false });
+            setAuthzError('No se pudo validar permisos');
+            setHasAccess(false);
             return setCargandoVotoUsuario(false);
           }
-          
-          // Si es usuario registrado y está en el partido, auto-detectar nombre
-          if (jugadorEnPartido) {
-            setNombre(jugadorEnPartido.nombre);
-            setStep(1); // Saltar paso de selección, ir directo a foto
-          }
         } else {
-          // Usuario no autenticado - permitir votar como invitado
+          // Guest users allowed
+          setHasAccess(true);
           if (typeof getGuestSessionId === 'function') {
             userId = getGuestSessionId(partidoId);
           } else {
-            // Generar ID temporal para invitados
             userId = `guest_${partidoId}_${Date.now()}`;
           }
         }
@@ -164,6 +182,33 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   }
 
 
+  
+  // Block if no access
+  if (hasAccess === false) {
+    return (
+      <div className="voting-bg">
+        <PageTitle onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <div className="voting-modern-card">
+          <div className="voting-title-modern">
+            ACCESO DENEGADO
+          </div>
+          <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30 }}>
+            No tienes permiso para votar en este partido.
+          </div>
+          {authzError && (
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 16, marginBottom: 20 }}>
+              {authzError}
+            </div>
+          )}
+          <button
+            className="voting-confirm-btn"
+            onClick={onReset}
+            style={{ marginTop: 16 }}
+          >VOLVER AL INICIO</button>
+        </div>
+      </div>
+    );
+  }
   
   // Si ya votó, bloquear el flujo entero
   if (usuarioYaVoto) {
@@ -413,11 +458,31 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               </div>
             ))}
           </div>
+          {hasAccess === false && (
+            <div role="alert" className="voting-alert" style={{
+              background: 'rgba(255,59,48,0.15)',
+              border: '1px solid rgba(255,59,48,0.3)',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              color: '#fff',
+              fontSize: '16px',
+              fontFamily: "'Oswald', Arial, sans-serif",
+              textAlign: 'center',
+              marginBottom: '16px'
+            }}>
+              No tienes permiso para votar en este partido.
+            </div>
+          )}
           <button
             className="voting-confirm-btn"
             style={{ marginTop: 8, fontWeight: 700, letterSpacing: 1.2 }}
+            disabled={isSubmitting || hasAccess === false || hasAccess === null}
             onClick={async () => {
               if (isSubmitting) return; // Anti-double submit guard
+              if (hasAccess === false) {
+                handleError(new AppError('No tienes permiso para votar en este partido.', ERROR_CODES.ACCESS_DENIED), { showToast: true });
+                return;
+              }
               
               setIsSubmitting(true);
               setConfirmando(true);
@@ -454,9 +519,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                 setIsSubmitting(false);
               }
             }}
-            disabled={confirmando || isSubmitting}
           >
-            {confirmando ? 'GUARDANDO...' : 'CONFIRMAR MIS VOTOS'}
+            {isSubmitting ? 'GUARDANDO...' : 'CONFIRMAR MIS VOTOS'}
           </button>
         </div>
       </div>
