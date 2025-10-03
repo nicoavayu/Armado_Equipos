@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AutocompleteSede from './AutocompleteSede';
 import { crearPartidoFrecuente, crearPartidoDesdeFrec, crearPartido, supabase } from './supabase';
 import { weekdayFromYMD, formatLocalDateShort } from './utils/dateLocal';
+import { useTimeout } from './hooks/useTimeout';
 
 import PageTitle from './components/PageTitle';
 
@@ -15,6 +16,7 @@ const STEPS = {
 };
 
 export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
+  const { setTimeoutSafe } = useTimeout();
   const [step, setStep] = useState(STEPS.NAME);
   const [nombrePartido, setNombrePartido] = useState('');
   const [fecha, setFecha] = useState('');
@@ -44,7 +46,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   };
   const nextStep = () => {
     setAnimation('slide-out');
-    setTimeout(() => {
+    setTimeoutSafe(() => {
       setStep((prev) => prev + 1);
       setAnimation('slide-in');
     }, 300);
