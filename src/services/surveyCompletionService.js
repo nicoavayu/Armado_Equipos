@@ -157,10 +157,9 @@ export async function finalizeIfComplete(partidoId) {
     }));
     
     console.log('[DEBUG insert notification][surveyCompletionService]', notificationPayloads);
-    const { error: notifErr } = await supabase
-      .from('notifications')
-      .insert(notificationPayloads);
-    if (notifErr) {
+    try {
+      await db.insert('notifications', notificationPayloads);
+    } catch (notifErr) {
       console.error('[surveyCompletionService] insert notifications error:', notifErr);
       throw notifErr;
     }
