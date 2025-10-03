@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { handleError } from '../lib/errorHandler';
 import { incrementMatchesPlayed } from '../utils/matchStatsManager';
 
 /**
@@ -69,7 +70,7 @@ class MatchScheduler {
         });
       }
     } catch (error) {
-      console.error('[MATCH_SCHEDULER] Error scheduling match:', error);
+      handleError(error, { showToast: false });
     }
   }
 
@@ -96,7 +97,7 @@ class MatchScheduler {
           }, 3600000);
           
         } catch (error) {
-          console.error('[MATCH_SCHEDULER] Error processing match start:', error);
+          handleError(error, { showToast: false });
           // Marcar como procesado para evitar reintentos infinitos
           matchInfo.processed = true;
         }
@@ -134,7 +135,7 @@ class MatchScheduler {
       console.log('[MATCH_SCHEDULER] Successfully processed match start for:', partidoId);
       
     } catch (error) {
-      console.error('[MATCH_SCHEDULER] Error in processMatchStart:', error);
+      handleError(error, { showToast: false });
       throw error;
     }
   }

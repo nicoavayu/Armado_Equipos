@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
+import { handleError } from '../lib/errorHandler';
 import { useInterval } from '../hooks/useInterval';
 import { logger } from '../lib/logger';
 
@@ -160,10 +161,7 @@ export const NotificationProvider = ({ children }) => {
         .lte('send_at', new Date().toISOString())
         .order('send_at', { ascending: false });
 
-      if (error) {
-        logger.error('[NOTIFICATIONS] Error fetching notifications:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       logger.log('[NOTIFICATIONS] Fetched notifications:', {
         total: data?.length || 0,
@@ -173,7 +171,7 @@ export const NotificationProvider = ({ children }) => {
       setNotifications(data || []);
       updateUnreadCount(data || []);
     } catch (error) {
-      logger.error('[NOTIFICATIONS] Error fetching notifications:', error);
+      handleError(error, { showToast: false });
     }
   };
 
@@ -312,7 +310,7 @@ export const NotificationProvider = ({ children }) => {
       );
       updateUnreadCount(updatedNotifications);
     } catch (error) {
-      logger.error('Error marking notification as read:', error);
+      handleError(error, { showToast: false });
     }
   };
 
