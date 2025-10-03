@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { db } from '../api/supabaseWrapper';
 
 /**
  * Procesa los resultados de las encuestas 6 horas después del cierre
@@ -8,14 +9,16 @@ export const processSurveyResults = async (partidoId) => {
     console.log('[SURVEY_RESULTS] Processing results for partido:', { partidoId });
     
     // Obtener datos del partido
-    const { data: partido, error: partidoError } = await supabase
-      .from('partidos')
-      .select('*')
-      .eq('id', partidoId)
-      .single();
+    let partido;
+    try {
+      partido = await db.fetchOne('partidos', { id: partidoId });
+    } catch (error) {
+      console.error('[SURVEY_RESULTS] Error getting partido:', { error: encodeURIComponent(error?.message || '') });
+      return;
+    }
     
-    if (partidoError || !partido) {
-      console.error('[SURVEY_RESULTS] Error getting partido:', { error: encodeURIComponent(partidoError?.message || '') });
+    if (!partido) {
+      console.error('[SURVEY_RESULTS] Error getting partido:', { error: 'not_found' });
       return;
     }
     
@@ -76,12 +79,12 @@ export const processSurveyResults = async (partidoId) => {
     // Crear resultados finales
     const results = {
       partido_id: partidoId,
-      mvp_id: mvpWinner,
+      mvp: mvpWinner,
       mvp_votes: mvpWinner ? mvpVotes[mvpWinner] : 0,
-      arquero_id: arqueroWinner,
+      golden_glove: arqueroWinner,
       arquero_votes: arqueroWinner ? arqueroVotes[arqueroWinner] : 0,
       jugadores_ausentes: Array.from(ausentesSet),
-      jugadores_violentos: Array.from(violentosSet),
+      red_cards: Array.from(violentosSet),
       total_surveys: surveys.length,
       processed_at: new Date().toISOString(),
     };
@@ -136,6 +139,7 @@ const notifyPlayersOfResults = async (partido, results) => {
       data: {
         partido_id: partido.id,
         results: results,
+        resultsUrl: `/resultados-encuesta/${partido.id}?showAwards=1`
       },
       created_at: new Date().toISOString(),
     }));
