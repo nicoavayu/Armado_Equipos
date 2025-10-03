@@ -10,6 +10,7 @@ import {
 import { toast } from 'react-toastify';
 import DOMPurify from 'dompurify';
 import { handleError, AppError, ERROR_CODES } from './lib/errorHandler';
+import { db } from './api/supabaseWrapper';
 import LoadingSpinner from './components/LoadingSpinner';
 import StarRating from './StarRating';
 import PageTitle from './components/PageTitle';
@@ -69,12 +70,13 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         const codigo = urlParams.get('codigo');
         if (!codigo) return setCargandoVotoUsuario(false);
 
-        const { data: partido, error } = await supabase
-          .from('partidos')
-          .select('id')
-          .eq('codigo', codigo)
-          .single();
-        if (error || !partido?.id) return setCargandoVotoUsuario(false);
+        let partido;
+        try {
+          partido = await db.fetchOne('partidos', { codigo });
+        } catch (error) {
+          return setCargandoVotoUsuario(false);
+        }
+        if (!partido?.id) return setCargandoVotoUsuario(false);
 
         const partidoId = Math.abs(parseInt(partido.id, 10));
 
