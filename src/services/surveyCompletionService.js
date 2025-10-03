@@ -61,11 +61,11 @@ export async function computeAndPersistAwards(partidoId) {
     }
   };
 
-  const { error: upErr } = await supabase
-    .from('survey_results')
-    .update({ awards, results_ready: true, updated_at: new Date().toISOString() })
-    .eq('partido_id', idNum);
-  if (upErr) { console.error(upErr); }
+  try {
+    await db.update('survey_results', { partido_id: idNum }, { awards, results_ready: true, updated_at: new Date().toISOString() });
+  } catch (upErr) {
+    console.error(upErr);
+  }
   
   // Grant awards to registered players only
   try {
