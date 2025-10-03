@@ -8,11 +8,16 @@ import {
   getGuestSessionId, // si no usás guest, podés eliminar esta línea
 } from './supabase';
 import { toast } from 'react-toastify';
+import DOMPurify from 'dompurify';
 import LoadingSpinner from './components/LoadingSpinner';
 import StarRating from './StarRating';
 import PageTitle from './components/PageTitle';
 import MatchInfoSection from './components/MatchInfoSection';
 import './HomeStyleKit.css';
+
+// Feature flag for XSS sanitization
+const SANITIZE_ON = process.env.REACT_APP_SANITIZE_VOTING === 'true';
+const clean = (value) => SANITIZE_ON ? DOMPurify.sanitize(String(value ?? '')) : String(value ?? '');
 
 const DefaultAvatar = (
   <div className="voting-photo-placeholder">
@@ -194,7 +199,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                 onClick={() => setNombre(j.nombre)}
                 type="button"
               >
-                <span className="player-select-txt">{j.nombre}</span>
+                <span className="player-select-txt">{clean(j.nombre)}</span>
               </button>
             ))}
           </div>
@@ -239,7 +244,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       <div className="voting-bg">
         <PageTitle onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="voting-modern-card">
-          <div className="voting-title-modern">¡HOLA, {nombre}!</div>
+          <div className="voting-title-modern">¡HOLA, {clean(nombre)}!</div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 18 }}>
             <div
               className="voting-photo-box"
@@ -313,7 +318,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         <PageTitle>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="voting-modern-card" style={{ background: 'transparent', boxShadow: 'none', padding: 0 }}>
           <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
-            <div className="voting-player-name">{jugadorVotar.nombre}</div>
+            <div className="voting-player-name">{clean(jugadorVotar.nombre)}</div>
             <div className="voting-photo-box">
               {jugadorVotar.avatar_url ? (
                 <img src={jugadorVotar.avatar_url} alt="foto" />
@@ -392,7 +397,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                     : DefaultAvatar
                   }
                 </div>
-                <span className="confirmation-item-name">{j.nombre}</span>
+                <span className="confirmation-item-name">{clean(j.nombre)}</span>
                 <span className={`confirmation-item-score ${!votos[j.uuid] ? 'not-graded' : ''}`}>
                   {votos[j.uuid] ? votos[j.uuid] + '/10' : 'No calificado'}
                 </span>
