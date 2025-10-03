@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { db } from '../api/supabaseWrapper';
 import { handleError } from '../lib/errorHandler';
 import { incrementMatchesPlayed } from '../utils/matchStatsManager';
 
@@ -113,13 +114,10 @@ class MatchScheduler {
       console.log('[MATCH_SCHEDULER] Match started, incrementing played matches for:', partidoId);
       
       // Verificar que el partido existe y obtener jugadores
-      const { data: partido, error: partidoError } = await supabase
-        .from('partidos')
-        .select('id, jugadores, estado')
-        .eq('id', partidoId)
-        .single();
-      
-      if (partidoError) {
+      let partido;
+      try {
+        partido = await db.fetchOne('partidos', { id: partidoId });
+      } catch (partidoError) {
         console.error('[MATCH_SCHEDULER] Error getting match:', partidoError);
         return;
       }
