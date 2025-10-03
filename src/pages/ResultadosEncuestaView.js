@@ -36,13 +36,15 @@ const ResultadosEncuestaView = () => {
         setLoading(true);
         
         // Obtener datos del partido
-        const { data: partidoData, error: partidoError } = await supabase
-          .from('partidos')
-          .select('*')
-          .eq('id', partidoId)
-          .single();
-          
-        if (partidoError) throw partidoError;
+        let partidoData;
+        try {
+          partidoData = await db.fetchOne('partidos', { id: partidoId });
+        } catch (error) {
+          toast.error('Partido no encontrado');
+          navigate('/');
+          return;
+        }
+        
         if (!partidoData) {
           toast.error('Partido no encontrado');
           navigate('/');
