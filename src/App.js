@@ -1,5 +1,5 @@
 import './HomeStyleKit.css';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useParams, useLocation, Outlet } from 'react-router-dom';
 import PageTransition from './components/PageTransition';
@@ -16,10 +16,9 @@ import NetworkStatus from './components/NetworkStatus';
 import TabBar from './components/TabBar';
 import FifaHome from './FifaHome';
 
-import TestSurvey from './TestSurvey';
+
 import EncuestaPartido from './pages/EncuestaPartido';
-import ResultadosEncuesta from './pages/ResultadosEncuesta';
-import ResultadosEncuestaView from './pages/ResultadosEncuestaView';
+const ResultadosEncuestaView = lazy(() => import('./pages/ResultadosEncuestaView'));
 
 import VotingView from './VotingView';
 import AdminPanel from './AdminPanel';
@@ -707,10 +706,18 @@ export default function App() {
               <Router>
                 <AppWithSchedulers />
                 <Routes>
-                  <Route path="/test-survey" element={<TestSurvey />} />
-                  <Route path="/test-survey/:partidoId/:userId" element={<TestSurvey />} />
+
                   <Route path="/encuesta/:partidoId" element={<EncuestaPartido />} />
-                  <Route path="/resultados/:partidoId" element={<ResultadosEncuestaView />} />
+                  <Route path="/resultados-encuesta/:partidoId" element={
+                    <Suspense fallback={<div className="voting-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}><LoadingSpinner size="large" /></div>}>
+                      <ResultadosEncuestaView />
+                    </Suspense>
+                  } />
+                  <Route path="/resultados/:partidoId" element={
+                    <Suspense fallback={<div className="voting-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}><LoadingSpinner size="large" /></div>}>
+                      <ResultadosEncuestaView />
+                    </Suspense>
+                  } />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/" element={<AppAuthWrapper />}>
                     <Route path="" element={<MainLayout />}>
