@@ -134,12 +134,14 @@ export async function finalizeIfComplete(partidoId) {
   if (upsertErr) throw upsertErr;
 
   // 5) programar notificación - crear una por cada jugador del partido
-  const { data: jugadores, error: jugadoresErr } = await supabase
-    .from('jugadores')
-    .select('usuario_id')
-    .eq('partido_id', partidoId)
-    .not('usuario_id', 'is', null);
-  if (jugadoresErr) throw jugadoresErr;
+  let jugadores;
+  try {
+    jugadores = await db.fetchMany('jugadores', { partido_id: partidoId });
+    // Filter out null usuario_id
+    jugadores = jugadores.filter(j => j.usuario_id != null);
+  } catch (error) {
+    throw error;
+  }
 
   if (jugadores && jugadores.length > 0) {
     const idNum = toBigIntId(partidoId);
