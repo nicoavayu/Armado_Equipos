@@ -23,13 +23,11 @@ export const processSurveyResults = async (partidoId) => {
     }
     
     // Obtener todas las encuestas del partido
-    const { data: surveys, error: surveysError } = await supabase
-      .from('post_match_surveys')
-      .select('*')
-      .eq('partido_id', partidoId);
-    
-    if (surveysError) {
-      console.error('[SURVEY_RESULTS] Error getting surveys:', { error: encodeURIComponent(surveysError?.message || '') });
+    let surveys;
+    try {
+      surveys = await db.fetchMany('post_match_surveys', { partido_id: partidoId });
+    } catch (error) {
+      console.error('[SURVEY_RESULTS] Error getting surveys:', { error: encodeURIComponent(error?.message || '') });
       return;
     }
     
