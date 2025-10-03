@@ -9,6 +9,7 @@ import {
 } from './supabase';
 import { toast } from 'react-toastify';
 import DOMPurify from 'dompurify';
+import { handleError, AppError, ERROR_CODES } from './lib/errorHandler';
 import LoadingSpinner from './components/LoadingSpinner';
 import StarRating from './StarRating';
 import PageTitle from './components/PageTitle';
@@ -423,7 +424,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                 const urlParams = new URLSearchParams(window.location.search);
                 const codigo = urlParams.get('codigo');
                 if (!codigo) {
-                  throw new Error('Código del partido no encontrado en la URL');
+                  throw new AppError('Código del partido no encontrado en la URL', ERROR_CODES.VALIDATION_ERROR);
                 }
                 const { data: partido, error: partidoError } = await supabase
                   .from('partidos')
@@ -431,7 +432,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   .eq('codigo', codigo)
                   .single();
                 if (partidoError || !partido || !partido.id) {
-                  throw new Error('No se pudo encontrar el partido');
+                  throw new AppError('No se pudo encontrar el partido', ERROR_CODES.NOT_FOUND);
                 }
                 const partidoId = Math.abs(parseInt(partido.id, 10));
                 await submitVotos(votos, jugador?.uuid, partidoId, jugador?.nombre, jugador?.avatar_url);
@@ -445,7 +446,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                 console.log('[VOTING] Votes submitted successfully');
                 setFinalizado(true);
               } catch (error) {
-                toast.error('Error al guardar los votos: ' + error.message);
+                handleError(error, { showToast: true });
               } finally {
                 setConfirmando(false);
                 setIsSubmitting(false);
