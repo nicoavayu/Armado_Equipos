@@ -21,7 +21,7 @@ import EncuestaPartido from './pages/EncuestaPartido';
 const ResultadosEncuestaView = lazy(() => import('./pages/ResultadosEncuestaView'));
 
 import VotingView from './VotingView';
-import AdminPanel from './AdminPanel';
+const AdminPanel = lazy(() => import('./AdminPanel'));
 import FormularioNuevoPartidoFlow from './FormularioNuevoPartidoFlow';
 import MainLayout from './components/MainLayout';
 
@@ -729,8 +729,16 @@ export default function App() {
                       <Route path="notifications" element={<NotificationsPage />} />
                       <Route path="stats" element={<StatsPage />} />
                       <Route path="historial" element={<HistorialPage />} />
-                      <Route path="admin/:partidoId" element={<AdminPanelPage />} />
-                      <Route path="partido/:partidoId" element={<AdminPanelPage />} />
+                      <Route path="admin/:partidoId" element={
+                        <Suspense fallback={<div className="voting-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}><LoadingSpinner size="large" /></div>}>
+                          <AdminPanelPage />
+                        </Suspense>
+                      } />
+                      <Route path="partido/:partidoId" element={
+                        <Suspense fallback={<div className="voting-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}><LoadingSpinner size="large" /></div>}>
+                          <AdminPanelPage />
+                        </Suspense>
+                      } />
                     </Route>
                   </Route>
                 </Routes>
