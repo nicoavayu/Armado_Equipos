@@ -1,11 +1,24 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
+import { useInterval } from '../hooks/useInterval';
+import { logger } from '../lib/logger';
 
 const NotificationContext = createContext();
 
+/**
+ * Hook to access notification context
+ * Provides notifications state, unread counts, and notification management functions
+ * @returns {Object} Notification context value
+ */
 export const useNotifications = () => useContext(NotificationContext);
 
+/**
+ * Notification provider component
+ * Manages real-time notifications, unread counts, and notification state
+ * @param {Object} props - Component props
+ * @param {React.ReactNode} props.children - Child components
+ */
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState({
@@ -14,23 +27,24 @@ export const NotificationProvider = ({ children }) => {
     total: 0,
   });
   const [currentUserId, setCurrentUserId] = useState(null);
+  const { setIntervalSafe } = useInterval();
   // Umbral para ignorar eventos realtime con created_at <= al último clear
   const ignoreBeforeRef = useRef(null);
 
   // Get current user on mount
   useEffect(() => {
     const getCurrentUser = async () => {
-      console.log('[NOTIFICATIONS] Getting current user...');
+      logger.log('[NOTIFICATIONS] Getting current user...');
       const { data: { user }, error } = await supabase.auth.getUser();
       if (error) {
-        console.error('[NOTIFICATIONS] Error getting current user:', error);
+        logger.error('[NOTIFICATIONS] Error getting current user:', error);
         return;
       }
       if (user) {
-        console.log('[NOTIFICATIONS] Current user found:', user.id);
+        logger.log('[NOTIFICATIONS] Current user found:', user.id);
         setCurrentUserId(user.id);
       } else {
-        console.log('[NOTIFICATIONS] No authenticated user found');
+        logger.log('[NOTIFICATIONS] No authenticated user found');
       }
     };
     
@@ -41,19 +55,43 @@ export const NotificationProvider = ({ children }) => {
   useEffect(() => {
     if (!currentUserId) return;
 
-    console.log('[NOTIFICATIONS] Setting up for user:', currentUserId);
+    logger.log('[NOTIFICATIONS] Setting up for user:', currentUserId);
     
     // Initial fetch of notifications
     fetchNotifications();
 
-    // Polling disabled to prevent ERR_INSUFFICIENT_RESOURCES
-    // const interval = setInterval(() => {
-    //   console.log('[NOTIFICATIONS] Polling for new notifications...');
-    //   fetchNotifications();
-    // }, 5000);
+    // Lightweight refresh system
+    const REFRESH_MS = 15000;
+    let lastRefresh = 0;
+    let refreshRunning = false;
+    
+    const refresh = async () => {
+      if (refreshRunning) return; // Anti-overlap guard
+      const now = Date.now();
+      if (now - lastRefresh < 5000) return; // Debounce: 5s minimum between refreshes
+      lastRefresh = now;
+      refreshRunning = true;
+      try {
+        await fetchNotifications();
+      } catch (e) {
+        logger.warn('[NOTIFICATIONS] Refresh failed:', e);
+      } finally {
+        refreshRunning = false;
+      }
+    };
+    
+    const onFocus = () => refresh();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    
+    // Set up refresh mechanisms
+    setIntervalSafe(refresh, REFRESH_MS);
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
 
     // Subscribe to real-time notifications
-    console.log('[NOTIFICATIONS] Setting up realtime subscription for user:', currentUserId);
+    logger.log('[NOTIFICATIONS] Setting up realtime subscription for user:', currentUserId);
     const subscription = supabase
       .channel(`notifications-${currentUserId}`)
       .on('postgres_changes', 
@@ -64,39 +102,44 @@ export const NotificationProvider = ({ children }) => {
           filter: `user_id=eq.${currentUserId}`, // CLAVE: Solo notificaciones para este usuario
         }, 
         (payload) => {
-          console.log('[NOTIFICATIONS] === REALTIME EVENT RECEIVED ===');
-          console.log('[NOTIFICATIONS] Event type:', payload.eventType);
-          console.log('[NOTIFICATIONS] Table:', payload.table);
-          console.log('[NOTIFICATIONS] New data:', payload.new);
-          console.log('[NOTIFICATIONS] Filter matched for user:', currentUserId);
-          console.log('[NOTIFICATIONS] Payload full:', payload);
+          logger.log('[NOTIFICATIONS] Realtime event received:', {
+            eventType: payload.eventType,
+            table: payload.table,
+            userId: currentUserId,
+            hasNewData: !!payload.new
+          });
           
           if (payload.new) {
-            console.log('[NOTIFICATIONS] Calling handleNewNotification...');
+            logger.log('[NOTIFICATIONS] Processing new notification...');
             handleNewNotification(payload.new);
           } else {
-            console.error('[NOTIFICATIONS] No new data in payload');
+            logger.error('[NOTIFICATIONS] No new data in payload');
           }
         },
       )
       .subscribe((status) => {
-        console.log('[NOTIFICATIONS] === SUBSCRIPTION STATUS ===');
-        console.log('[NOTIFICATIONS] Status:', status);
-        console.log('[NOTIFICATIONS] Channel:', `notifications-${currentUserId}`);
-        console.log('[NOTIFICATIONS] Timestamp:', new Date().toISOString());
+        logger.log('[NOTIFICATIONS] Subscription status:', {
+          status,
+          channel: `notifications-${currentUserId}`,
+          timestamp: new Date().toISOString()
+        });
         
         if (status === 'SUBSCRIBED') {
-          console.log('[NOTIFICATIONS] ✅ Successfully subscribed to realtime notifications');
+          logger.log('[NOTIFICATIONS] ✅ Successfully subscribed to realtime notifications');
         } else if (status === 'CHANNEL_ERROR') {
-          console.error('[NOTIFICATIONS] ❌ Channel error - realtime not working');
+          logger.error('[NOTIFICATIONS] ❌ Channel error - realtime not working');
         } else if (status === 'TIMED_OUT') {
-          console.error('[NOTIFICATIONS] ❌ Subscription timed out');
+          logger.error('[NOTIFICATIONS] ❌ Subscription timed out');
         }
       });
 
     return () => {
-      console.log('[NOTIFICATIONS] Cleaning up subscription');
-      // clearInterval(interval);
+      logger.log('[NOTIFICATIONS] Cleaning up subscription and refresh listeners');
+      
+      // Clean up refresh mechanisms
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      
       supabase.removeChannel(subscription);
     };
   }, [currentUserId]);
@@ -104,59 +147,47 @@ export const NotificationProvider = ({ children }) => {
   // Fetch all notifications for the current user
   const fetchNotifications = async () => {
     if (!currentUserId) {
-      console.log('[NOTIFICATIONS] fetchNotifications: No currentUserId, skipping');
+      logger.log('[NOTIFICATIONS] fetchNotifications: No currentUserId, skipping');
       return;
     }
 
-    console.log('[NOTIFICATIONS] Fetching notifications for user:', currentUserId);
+    logger.log('[NOTIFICATIONS] Fetching notifications for user:', currentUserId);
     try {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', currentUserId) // CLAVE: user_id === currentUserId (destinatario)
-        .order('created_at', { ascending: false });
+        .lte('send_at', new Date().toISOString())
+        .order('send_at', { ascending: false });
 
       if (error) {
-        console.error('[NOTIFICATIONS] Error fetching notifications:', error);
+        logger.error('[NOTIFICATIONS] Error fetching notifications:', error);
         throw error;
       }
 
-      console.log('[NOTIFICATIONS] Fetched notifications:', {
+      logger.log('[NOTIFICATIONS] Fetched notifications:', {
         total: data?.length || 0,
-        byType: data?.reduce((acc, n) => {
-          acc[n.type] = (acc[n.type] || 0) + 1;
-          return acc;
-        }, {}) || {},
-        matchInvites: data?.filter((n) => n.type === 'match_invite').length || 0,
-        friendRequests: data?.filter((n) => n.type === 'friend_request').length || 0,
         unread: data?.filter((n) => !n.read).length || 0,
       });
 
       setNotifications(data || []);
       updateUnreadCount(data || []);
     } catch (error) {
-      console.error('[NOTIFICATIONS] Error fetching notifications:', error);
+      logger.error('[NOTIFICATIONS] Error fetching notifications:', error);
     }
   };
 
   // Handle new notification
   const handleNewNotification = (notification) => {
-    console.log('[NOTIFICATIONS] === NEW REALTIME NOTIFICATION ===');
-    console.log('[NOTIFICATIONS] Notification data:', {
+    logger.log('[NOTIFICATIONS] New realtime notification:', {
       id: notification.id,
-      user_id: notification.user_id,
       type: notification.type,
-      title: notification.title,
-      message: notification.message,
-      read: notification.read,
-      created_at: notification.created_at,
+      isForCurrentUser: notification.user_id === currentUserId
     });
-    console.log('[NOTIFICATIONS] Current user ID:', currentUserId);
-    console.log('[NOTIFICATIONS] Notification is for current user:', notification.user_id === currentUserId);
     
     // Verificar que la notificación es para el usuario actual
     if (notification.user_id !== currentUserId) {
-      console.warn('[NOTIFICATIONS] Notification not for current user, ignoring');
+      logger.warn('[NOTIFICATIONS] Notification not for current user, ignoring');
       return;
     }
 
@@ -166,41 +197,37 @@ export const NotificationProvider = ({ children }) => {
         const createdAt = new Date(notification.created_at).getTime();
         const ignoreBefore = new Date(ignoreBeforeRef.current).getTime();
         if (!Number.isNaN(createdAt) && !Number.isNaN(ignoreBefore) && createdAt <= ignoreBefore) {
-          console.log('[NOTIFICATIONS] Ignoring realtime insert older/equal than last clear threshold:', {
-            createdAt: notification.created_at,
-            ignoreBefore: ignoreBeforeRef.current,
-          });
+          logger.log('[NOTIFICATIONS] Ignoring old notification');
           return;
         }
       }
     } catch (e) {
-      console.warn('[NOTIFICATIONS] Error comparing timestamps for ignoreBefore, continuing normally:', e);
+      logger.warn('[NOTIFICATIONS] Error comparing timestamps:', e);
     }
     
     setNotifications((prev) => {
-      console.log('[NOTIFICATIONS] Current notifications before update:', prev.length);
+      logger.log('[NOTIFICATIONS] Current notifications count:', prev.length);
       // Evitar duplicados
       const exists = prev.find((n) => n.id === notification.id);
       if (exists) {
-        console.log('[NOTIFICATIONS] Notification already exists, skipping');
+        logger.log('[NOTIFICATIONS] Notification already exists, skipping');
         return prev;
       }
       
       const updated = [notification, ...prev];
-      console.log('[NOTIFICATIONS] Updated notifications count:', updated.length);
-      console.log('[NOTIFICATIONS] New notification added to state');
+      logger.log('[NOTIFICATIONS] Updated notifications count:', updated.length);
       updateUnreadCount(updated);
       return updated;
     });
     
     // Show toast notification for real-time updates
     showNotificationToast(notification);
-    console.log('[NOTIFICATIONS] Notification processed successfully');
+    logger.log('[NOTIFICATIONS] Notification processed successfully');
   };
 
   // Show toast notification based on type
   const showNotificationToast = (notification) => {
-    console.log('[NOTIFICATIONS] Showing toast for:', notification.type, notification.message);
+    logger.log('[NOTIFICATIONS] Showing toast for:', notification.type);
     
     const toastOptions = {
       position: 'top-right',
@@ -285,7 +312,7 @@ export const NotificationProvider = ({ children }) => {
       );
       updateUnreadCount(updatedNotifications);
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      logger.error('Error marking notification as read:', error);
     }
   };
 
@@ -304,7 +331,7 @@ export const NotificationProvider = ({ children }) => {
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount({ friends: 0, matches: 0, total: 0 });
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      logger.error('Error marking all notifications as read:', error);
     }
   };
 
@@ -331,7 +358,7 @@ export const NotificationProvider = ({ children }) => {
       );
       updateUnreadCount(updatedNotifications);
     } catch (error) {
-      console.error(`Error marking ${type} notifications as read:`, error);
+      logger.error(`Error marking ${type} notifications as read:`, error);
     }
   };
 
@@ -368,7 +395,7 @@ export const NotificationProvider = ({ children }) => {
 
       return newNotification;
     } catch (error) {
-      console.error('Error creating notification:', error);
+      logger.error('Error creating notification:', error);
       return null;
     }
   };
