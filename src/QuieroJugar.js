@@ -87,12 +87,12 @@ export default function QuieroJugar({ onVolver }) {
   // Auto-refresh partidos abiertos every 5 seconds
   useEffect(() => {
     if (activeTab === 'matches') {
-      const interval = setInterval(() => {
+      setIntervalSafe(() => {
         fetchPartidosAbiertos();
       }, 5000);
-      return () => clearInterval(interval);
+      return () => clearIntervalSafe();
     }
-  }, [activeTab]);
+  }, [activeTab, setIntervalSafe, clearIntervalSafe]);
 
   const fetchPartidosAbiertos = async () => {
     try {
