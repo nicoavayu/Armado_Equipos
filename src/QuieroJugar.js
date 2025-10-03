@@ -7,6 +7,7 @@ import { PlayerCardTrigger } from './components/ProfileComponents';
 import PageTitle from './components/PageTitle';
 import LoadingSpinner from './components/LoadingSpinner';
 import InviteAmigosModal from './components/InviteAmigosModal';
+import { handleError } from './lib/errorHandler';
 import './QuieroJugar.css';
 import './VotingView.css';
 
@@ -117,7 +118,7 @@ export default function QuieroJugar({ onVolver }) {
       const status = await getFreePlayerStatus();
       setIsRegisteredAsFree(status);
     } catch (error) {
-      console.error('Error checking free player status:', error);
+      handleError(error, { showToast: false });
     }
   };
 
@@ -170,7 +171,7 @@ export default function QuieroJugar({ onVolver }) {
       });
       setFreePlayers(players);
     } catch (error) {
-      console.error('Error fetching free players:', error);
+      handleError(error, { showToast: false });
     }
   };
 

@@ -4,6 +4,7 @@ import { getResultsUrl } from '../utils/routes';
 import { toBigIntId } from '../utils';
 import { grantAwardsForMatch } from './db/awards';
 import { applyNoShowPenalties } from './db/penalties';
+import { handleError } from '../lib/errorHandler';
 
 // Calcula y persiste premios (MVP, Mejor Arquero y Tarjeta Roja) en survey_results.awards
 export async function computeAndPersistAwards(partidoId) {
@@ -12,7 +13,7 @@ export async function computeAndPersistAwards(partidoId) {
   try {
     surveys = await db.fetchMany('post_match_surveys', { partido_id: idNum });
   } catch (error) {
-    console.error(error);
+    handleError(error, { showToast: false });
     return null;
   }
 
@@ -64,21 +65,21 @@ export async function computeAndPersistAwards(partidoId) {
   try {
     await db.update('survey_results', { partido_id: idNum }, { awards, results_ready: true, updated_at: new Date().toISOString() });
   } catch (upErr) {
-    console.error(upErr);
+    handleError(upErr, { showToast: false });
   }
   
   // Grant awards to registered players only
   try {
     await grantAwardsForMatch(idNum, awards);
   } catch (awardError) {
-    console.error('Error granting awards:', awardError);
+    handleError(awardError, { showToast: false });
   }
   
   // Apply no-show penalties to registered players
   try {
     await applyNoShowPenalties(idNum);
   } catch (penaltyError) {
-    console.error('Error applying no-show penalties:', penaltyError);
+    handleError(penaltyError, { showToast: false });
   }
   
   return awards;
@@ -160,7 +161,7 @@ export async function finalizeIfComplete(partidoId) {
     try {
       await db.insert('notifications', notificationPayloads);
     } catch (notifErr) {
-      console.error('[surveyCompletionService] insert notifications error:', notifErr);
+      handleError(notifErr, { showToast: false });
       throw notifErr;
     }
   }
