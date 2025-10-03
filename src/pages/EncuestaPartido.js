@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase, checkPartidoCalificado } from '../supabase';
 import { processAbsenceWithoutNotice } from '../utils/matchStatsManager';
 import { toast } from 'react-toastify';
+import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
 import { useAuth } from '../components/AuthProvider';
 import { useBadges } from '../context/BadgeContext';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -58,9 +59,7 @@ const EncuestaPartido = () => {
           
         if (partidoError) throw partidoError;
         if (!partidoData) {
-          toast.error('Partido no encontrado');
-          navigate('/');
-          return;
+          throw new AppError('Partido no encontrado', ERROR_CODES.NOT_FOUND);
         }
         
         setPartido(partidoData);
@@ -70,8 +69,7 @@ const EncuestaPartido = () => {
         }
         
       } catch (error) {
-        console.error('Error cargando datos del partido:', error);
-        toast.error('Error cargando datos del partido');
+        handleError(error, { showToast: true });
         navigate('/');
       } finally {
         setLoading(false);
@@ -188,8 +186,7 @@ const EncuestaPartido = () => {
       setCurrentStep(99);
       
     } catch (error) {
-      console.error('Error guardando encuesta:', error);
-      toast.error('Error guardando encuesta: ' + error.message);
+      handleError(error, { showToast: true });
     } finally {
       setSubmitting(false);
     }
