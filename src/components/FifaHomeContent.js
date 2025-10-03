@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
+import { useInterval } from '../hooks/useInterval';
 import { supabase, updateProfile } from '../supabase';
 import { parseLocalDateTime } from '../utils/dateLocal';
 import { toBigIntId } from '../utils';
@@ -15,6 +16,7 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
   const { user, profile, refreshProfile } = useAuth();
   const { unreadCount } = useNotifications();
   const navigate = useNavigate();
+  const { setIntervalSafe, clearIntervalSafe } = useInterval();
   const [activeMatches, setActiveMatches] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,15 +30,13 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
       fetchRecentActivity();
       
       // Actualizar cada 10 segundos para tiempo real
-      const interval = setInterval(() => {
+      setIntervalSafe(() => {
         fetchActiveMatches();
       }, 10000);
-      
-      return () => clearInterval(interval);
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, setIntervalSafe]);
 
   const fetchActiveMatches = async () => {
     if (!user) {
