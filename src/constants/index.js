@@ -8,7 +8,7 @@
 import * as appModes from './appModes';
 import * as dateTime from './dateTime';
 import * as ui from './ui';
-import * as validation from './validation';
+import * as validation from '../lib/validation';
 
 // Re-export for backward compatibility
 export const {

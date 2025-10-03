@@ -12,6 +12,7 @@ import WhatsappIcon from './WhatsappIcon';
 import { PlayerCardTrigger } from './ProfileComponents';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
+import MatchInfoSection from './MatchInfoSection';
 import { useAuth } from './AuthProvider';
 
 export default function ArmarEquiposView({ 
@@ -96,11 +97,6 @@ export default function ArmarEquiposView({
 
   async function handleCallToVote() {
     try {
-      if (!jugadores || jugadores.length === 0) {
-        toast.warn('No hay jugadores para notificar');
-        return;
-      }
-      
       const { createCallToVoteNotifications } = await import('../utils/matchNotifications');
       const notificaciones = await createCallToVoteNotifications(partidoActual);
       
@@ -298,8 +294,14 @@ export default function ArmarEquiposView({
   return (
     <>
       <PageTitle onBack={onBackToAdmin}>ARMAR EQUIPOS</PageTitle>
-      
-      <div className="admin-panel-content" style={{ paddingTop: '0px', marginTop: '-45px' }}>
+      <MatchInfoSection
+        fecha={partidoActual?.fecha}
+        hora={partidoActual?.hora}
+        sede={partidoActual?.sede}
+        modalidad={partidoActual?.modalidad}
+        tipo={partidoActual?.tipo_partido}
+      />
+      <div className="admin-panel-content" style={{ paddingTop: '0px', marginTop: '0px' }}>
         {/* Lista de jugadores */}
         <div className="admin-players-section">
           <div className="admin-players-title">

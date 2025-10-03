@@ -6,36 +6,49 @@ import { supabase } from '../supabase';
  * @returns {Promise<Array>} - Array de notificaciones creadas o array vacío si hay error
  */
 export const createCallToVoteNotifications = async (matchData) => {
-  if (!matchData?.id || !matchData?.jugadores) return [];
+  if (!matchData?.id) return [];
   
   try {
     // Obtener IDs de usuarios únicos de los participantes del partido
-    const userIds = matchData.jugadores
-      .filter((jugador) => jugador.uuid && !jugador.uuid.startsWith('guest_'))
-      .map((jugador) => jugador.uuid);
+    const recipients = (matchData.jugadores || [])
+      .filter((jugador) => jugador.usuario_id && !jugador.usuario_id.startsWith('guest_'))
+      .map((jugador) => jugador.usuario_id);
     
-    if (userIds.length === 0) return [];
+    // incluir admin sí o sí
+    const adminUserId = matchData.creado_por;
+    if (adminUserId && !recipients.includes(adminUserId)) {
+      recipients.push(adminUserId);
+    }
     
-    // Crear notificaciones para todos los participantes
-    const notifications = userIds.map((userId) => ({
-      user_id: userId,
-      type: 'call_to_vote',
-      title: '¡Hora de votar!',
-      message: `Ya podés calificar a los jugadores del partido ${matchData.nombre || 'actual'}.`,
+    // si quedó vacío (partido chico), al menos el admin
+    if (recipients.length === 0 && adminUserId) {
+      recipients.push(adminUserId);
+    }
+    
+    if (recipients.length === 0) return [];
+    
+    // construir payload (usar nombres de columnas REALES de la tabla)
+    const rows = recipients.map(user_id => ({
+      user_id,
+      type: 'pre_match_vote',
+      title: '¡Armemos los equipos!',
+      message: 'Calificá a los jugadores para armar el partido más parejo.',
       data: {
+        target_route: 'voting_view',
+        target_params: { partido_id: matchData.id },
+        action: { label: 'Ir a Voting View', route: 'voting_view' },
         matchId: matchData.id,
         matchCode: matchData.codigo,
         matchDate: matchData.fecha,
         matchTime: matchData.hora,
         matchVenue: matchData.sede,
       },
-      read: false,
-      created_at: new Date().toISOString(),
+      read: false
     }));
 
     const { data, error } = await supabase
       .from('notifications')
-      .insert(notifications)
+      .insert(rows)
       .select();
 
     if (error) throw error;

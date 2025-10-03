@@ -33,7 +33,7 @@ module.exports = {
   rules: {
     // Error prevention
     'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-    'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
+    'no-console': 'error',
     'no-debugger': 'warn',
     'no-duplicate-imports': 'error',
     

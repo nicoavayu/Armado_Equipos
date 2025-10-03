@@ -1,6 +1,6 @@
 .chat-float-btn {
   position: fixed !important;
-  bottom: 80px !important;
+  bottom: 120px !important;
   right: 20px !important;
   width: 56px;
   height: 56px;
@@ -61,7 +61,7 @@
 /* Mobile adjustments */
 @media (width <= 600px) {
   .chat-float-btn {
-    bottom: 80px !important;
+    bottom: 120px !important;
     right: 16px !important;
     width: 52px;
     height: 52px;

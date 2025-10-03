@@ -76,7 +76,7 @@
 
 /* ========== CONTENT WRAPPER ========== */
 .team-display-content {
-  padding: 0 var(--container-margin);
+  padding: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -161,9 +161,9 @@
   display: flex;
   flex-direction: row;
   gap: var(--team-gap);
-  width: 100%;
+  width: min(90vw, 980px);
+  margin: 0 auto 10px auto;
   box-sizing: border-box;
-  margin-bottom: 10px; /* ⬇️ Más valor = más separación de los botones */
 }
 
 /* ========== TEAM CONTAINERS ========== */
