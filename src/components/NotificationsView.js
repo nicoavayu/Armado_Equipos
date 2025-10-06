@@ -81,7 +81,15 @@ const NotificationsView = () => {
       return;
     }
     
-    // Priority 3: Use /partido/:id if matchId exists
+    // Priority 3: Handle call_to_vote BEFORE generic matchId check
+    if (notification.type === 'call_to_vote' && data.matchCode) {
+      const url = `/?codigo=${data.matchCode}`;
+      console.log('[NOTIFICATION_CLICK] call_to_vote - navigating to:', url);
+      window.location.replace(url);
+      return;
+    }
+    
+    // Priority 4: Use /partido/:id if matchId exists
     if (data.matchId) {
       navigate(`/partido/${toBigIntId(data.matchId)}`);
       return;
@@ -101,8 +109,17 @@ const NotificationsView = () => {
         }
         break;
       case 'call_to_vote':
+        console.log('[NOTIFICATION_CLICK] call_to_vote - matchCode:', data.matchCode);
         if (data.matchCode) {
-          navigate(`/?codigo=${data.matchCode}`);
+          const url = `/?codigo=${data.matchCode}`;
+          console.log('[NOTIFICATION_CLICK] About to navigate to:', url);
+          console.log('[NOTIFICATION_CLICK] Current location:', window.location.href);
+          // Force full page reload to ensure clean navigation
+          window.location.replace(url);
+          console.log('[NOTIFICATION_CLICK] Navigation initiated with replace');
+        } else {
+          console.error('[NOTIFICATION_CLICK] Missing matchCode in call_to_vote');
+          toast.error('Falta código del partido');
         }
         break;
       case 'pre_match_vote':

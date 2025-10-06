@@ -57,11 +57,11 @@
 .admin-panel-content {
   width: 90vw !important;
   max-width: 90vw !important;
-  padding: 15px 0 70px !important;
+  padding: 12px 0 70px !important;
   margin: 0 auto !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 8px !important;
+  gap: 12px !important;
   box-sizing: border-box !important;
   overflow-x: hidden !important;
 }
@@ -79,12 +79,12 @@
 }
 
 .match-info-wrapper {
-  margin-bottom: -12px;
+  margin-bottom: 0;
   margin-top: 0 !important;
 }
 
 .admin-add-section {
-  margin-bottom: 4px;
+  margin-bottom: 0;
   margin-top: 0 !important;
 }
 
@@ -164,12 +164,12 @@
   background: rgb(255 255 255 / 12%);
   border: 2px solid rgb(255 255 255 / 20%);
   border-radius: 12px;
-  padding: 20px;
+  padding: 12px;
   width: 90vw;
   max-width: 90vw;
   box-sizing: border-box;
   margin: 0 auto;
-  margin-bottom: 16px;
+  margin-bottom: 0;
   margin-top: 0 !important;
 }
 
@@ -177,7 +177,7 @@
 .admin-panel-content .admin-add-section .admin-add-form-new {
   display: flex !important;
   flex-direction: column !important;
-  gap: 12px !important;
+  gap: 8px !important;
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
@@ -274,7 +274,7 @@
   border-radius: 10px !important;
   margin: 0 !important;
   background: #0EA9C6 !important;
-  border: 2px solid #ffffff !important;
+  border: none !important;
   color: #fff !important;
   font-family: 'Bebas Neue', Arial, sans-serif !important;
   font-weight: 700 !important;
@@ -289,8 +289,8 @@
 }
 
 .admin-panel-content .admin-add-section .admin-btn-half:hover {
-  background: #0c94a8 !important;
-  transform: translateY(-1px) !important;
+  background: #0ea0bc !important;
+  transform: none !important;
 }
 
 .admin-panel-content .admin-add-section .admin-btn-half:disabled {
@@ -302,12 +302,11 @@
 /* Invite button specific styling */
 .admin-panel-content .admin-add-section .admin-btn-half.admin-invite-btn {
   background: #0865b2 !important;
-  border: 2px solid #ffffff !important;
+  border: none !important;
 }
 
 .admin-panel-content .admin-add-section .admin-btn-half.admin-invite-btn:hover {
-  background: #357ABD !important;
-  border-color: #357ABD !important;
+  background: #075a9e !important;
 }
 
 /* Button styling with high specificity */
@@ -456,7 +455,7 @@
   background: rgb(255 255 255 / 12%);
   border: 2px solid rgb(255 255 255 / 20%);
   border-radius: 12px;
-  padding: 16px;
+  padding: 12px;
   min-height: 120px;
   width: 90vw;
   max-width: 90vw;
@@ -471,7 +470,7 @@
   font-size: 20px;
   color: #fff;
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   margin-top: 8px;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -480,7 +479,7 @@
 .admin-players-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
   max-width: 100%;
   overflow: hidden;
@@ -493,7 +492,7 @@
   background: rgb(255 255 255 / 10%);
   border: 2px solid rgb(255 255 255 / 15%);
   border-radius: 8px;
-  padding: 6px;
+  padding: 8px;
   transition: all 0.2s ease;
   min-height: 36px;
   min-width: 0;
@@ -661,38 +660,36 @@
 .guest-action-btn {
   flex: 1;
   font-family: 'Bebas Neue', Arial, sans-serif;
-  font-size: 16px;
-  padding: 10px 16px;
-  border: 2px solid #fff;
-  border-radius: 6px;
+  font-size: 15px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
-  
   color: #fff;
+  height: 44px;
   min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .guest-action-btn.invite-btn {
   background: #128BE9;
-  border-color: #128BE9;
 }
 
 .guest-action-btn.invite-btn:hover {
   background: #0f7acc;
-  border-color: #0f7acc;
 }
 
 .guest-action-btn.leave-btn {
   background: #DE1C49;
-  border-color: #DE1C49;
 }
 
 .guest-action-btn.leave-btn:hover {
-  background: #c41841;
-  border-color: #c41841;
+  background: #cc1a43;
 }
 
 .guest-action-btn:disabled {
@@ -790,34 +787,35 @@
 
 /* Botón de armar equipos - estilo naranja */
 .admin-btn-orange {
-  background: #FF8C00 !important;
-  border: 2px solid #FF8C00 !important;
-  border-radius: 6px !important;
+  background: #0EA9C6 !important;
+  border: none !important;
+  border-radius: 10px !important;
   color: #fff !important;
   font-family: 'Bebas Neue', Arial, sans-serif !important;
-  font-size: 16px !important;
-  padding: 10px 16px !important;
+  font-size: 15px !important;
+  padding: 0 16px !important;
   cursor: pointer !important;
   transition: all 0.2s ease !important;
+  height: 44px !important;
   min-height: 44px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   text-align: center !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px !important;
 }
 
 .admin-btn-orange:hover {
-  background: #FF7F00 !important;
-  border-color: #FF7F00 !important;
-  transform: translateY(-1px) !important;
+  background: #0ea0bc !important;
+  transform: none !important;
 }
 
 .admin-btn-orange:disabled {
-  opacity: 0.6 !important;
   cursor: not-allowed !important;
   transform: none !important;
-  background: #B8860B !important;
-  border-color: #B8860B !important;
+  background: #a3a3a3 !important;
+  color: #525252 !important;
 }
 
 /* Botón azul - estilo para llamar a votar */
@@ -889,7 +887,7 @@
 /* Mobile responsive */
 @media (width <= 480px) {
   .admin-panel-content {
-    padding: 15px 0 70px !important;
+    padding: 12px 0 70px !important;
   }
   
   .match-name {
@@ -935,7 +933,7 @@
   }
   
   .admin-players-grid {
-    gap: 12px;
+    gap: 8px;
   }
   
   .admin-actions {

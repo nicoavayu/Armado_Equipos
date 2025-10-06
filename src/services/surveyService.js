@@ -258,11 +258,11 @@ export const processSurveyResults = async (partidoId) => {
 
     // Evitar duplicados: borrar pendientes previas de este partido
     await supabase
-      .from('notifications')
+      .from('notifications_ext')
       .delete()
       .eq('type', 'survey_results_ready')
       .eq('read', false)
-      .contains('data', { matchId: partidoId });
+      .eq('match_id_text', String(partidoId));
 
     const idNum = toBigIntId(partidoId);
     const perUserNotifs = (jugadoresPartido || []).map(j => ({

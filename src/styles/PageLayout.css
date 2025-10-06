@@ -4,6 +4,6 @@
 }
 
 .page-body{
-  padding-top: calc(var(--page-title-height) + 8px);
+  padding-top: 0;
   padding-bottom: calc(var(--tabbar-height) + 8px);
 }

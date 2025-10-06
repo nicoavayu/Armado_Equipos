@@ -121,28 +121,59 @@ export default function HealthCheck() {
       }));
     }
 
-    // Auth check
+    // Auth check with timeout
     const authStart = performance.now();
     try {
-      const { data: { user: authUser }, error } = await supabase.auth.getUser();
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('TIMEOUT')), 2500)
+      );
+      
+      const authPromise = supabase.auth.getUser();
+      
+      const { data: { user: authUser }, error } = await Promise.race([authPromise, timeoutPromise]);
       const ms = Math.round(performance.now() - authStart);
-      setChecks(prev => ({
-        ...prev,
-        auth: {
-          status: error ? 'FAIL' : 'OK',
-          latency: ms,
-          error: error ? error.message : (authUser ? `User: ${authUser.id.slice(0, 8)}...` : 'No autenticado')
-        }
-      }));
+      
+      if (error) {
+        const reason = error.message || 'Auth error';
+        console.error('[Health] Auth check failed:', { message: error.message, ms });
+        setChecks(prev => ({
+          ...prev,
+          auth: {
+            status: 'FAIL',
+            latency: ms,
+            error: reason
+          }
+        }));
+      } else if (authUser) {
+        setChecks(prev => ({
+          ...prev,
+          auth: {
+            status: 'OK',
+            latency: ms,
+            error: `User: ${authUser.id.slice(0, 8)}...`
+          }
+        }));
+      } else {
+        // Guest mode (no authenticated user)
+        setChecks(prev => ({
+          ...prev,
+          auth: {
+            status: 'OK',
+            latency: ms,
+            error: 'Guest (no autenticado)'
+          }
+        }));
+      }
     } catch (err) {
       const ms = Math.round(performance.now() - authStart);
-      console.error('[Health] Auth check failed:', err);
+      const reason = err.message === 'TIMEOUT' ? 'Timeout' : (err.message || 'Auth error');
+      console.error('[Health] Auth check failed:', { message: err.message, ms });
       setChecks(prev => ({
         ...prev,
         auth: {
           status: 'FAIL',
           latency: ms,
-          error: err.message
+          error: reason
         }
       }));
     }

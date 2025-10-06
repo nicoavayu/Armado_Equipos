@@ -58,8 +58,17 @@ const AuthPage = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    
+    // Anti-double-submit guard
+    if (loading) {
+      console.debug('[Login] submit blocked: already submitting');
+      return;
+    }
+    
     setError('');
     setValidationErrors({});
+    
+    console.debug('[Login] submit start', { hasEmail: !!email, hasPassword: !!password });
     
     if (!validateEmail(email)) {
       setValidationErrors({ email: 'Ingresá un email válido' });
@@ -69,10 +78,14 @@ const AuthPage = () => {
     setLoading(true);
 
     try {
+      console.debug('[Login] calling signInWithPassword');
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+
+      console.debug('[Login] signIn result', { ok: !error, userId: data?.user?.id });
 
       if (error) {
         if (error.message.includes('Email not confirmed')) {
@@ -84,6 +97,9 @@ const AuthPage = () => {
         }
         throw error;
       }
+      
+      // Success - AuthProvider will handle redirect
+      console.debug('[Login] redirect to', '/');
       toast.success('¡Inicio de sesión exitoso!');
     } catch (error) {
       handleError(error, { showToast: false });

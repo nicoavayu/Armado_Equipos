@@ -14,6 +14,8 @@ import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import MatchInfoSection from './MatchInfoSection';
 import { useAuth } from './AuthProvider';
+import { sendVotingNotifications } from '../services/notificationService';
+import { handleError } from '../lib/errorHandler';
 
 export default function ArmarEquiposView({ 
   onBackToAdmin, 
@@ -27,6 +29,7 @@ export default function ArmarEquiposView({
   const [votantesConNombres, setVotantesConNombres] = useState([]);
   const [isClosing, setIsClosing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [calling, setCalling] = useState(false);
 
   // Control de permisos: verificar si el usuario es admin del partido
   const isAdmin = user?.id && partidoActual?.creado_por === user.id;
@@ -96,23 +99,59 @@ export default function ArmarEquiposView({
   }, [partidoActual?.id]);
 
   async function handleCallToVote() {
+    if (calling) {
+      console.debug('[Teams] call-to-vote blocked: already running');
+      return;
+    }
+    
+    setCalling(true);
+    console.debug('[Teams] call-to-vote start', { partidoId: partidoActual?.id });
+    
     try {
-      const { createCallToVoteNotifications } = await import('../utils/matchNotifications');
-      const notificaciones = await createCallToVoteNotifications(partidoActual);
+      const meta = {
+        title: '¡Hora de votar!',
+        message: 'Entrá a la app y calificá a los jugadores para armar los equipos.',
+        type: 'call_to_vote',
+      };
       
-      if (notificaciones.length > 0) {
-        toast.success(`Notificación enviada a ${notificaciones.length} jugadores`);
+      const res = await sendVotingNotifications(partidoActual.id, meta);
+      console.debug('[Teams] notifications sent', res);
+      
+      if (res.inserted > 0) {
+        toast.success(`Notificación enviada a ${res.inserted} jugadores`);
       } else {
         toast.info('No se pudieron enviar notificaciones. Asegúrate que los jugadores tengan cuenta.');
       }
     } catch (error) {
-      toast.error('Error al enviar notificaciones: ' + error.message);
+      console.error('[Teams] call-to-vote failed', error);
+      toast.error('No se pudo iniciar la votación');
+      return;
+    } finally {
+      setCalling(false);
     }
   }
 
   function handleWhatsApp() {
-    const url = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent('Entrá a votar para armar los equipos: ' + url)}`, '_blank');
+    const publicLink = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
+    const text = `Votá para armar los equipos ⚽️\n${publicLink}`;
+    
+    console.debug('[Teams] share link', { partidoId: partidoActual?.id });
+    
+    // Intentar Web Share API (si disponible)
+    if (navigator.share) {
+      navigator.share({ 
+        title: 'Votación del partido', 
+        text, 
+        url: publicLink 
+      })
+        .then(() => console.debug('[Share] navigator.share success'))
+        .catch((e) => console.debug('[Share] navigator.share cancelled/error', e));
+      return;
+    }
+    
+    // Fallback WhatsApp
+    const wa = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(wa, '_blank', 'noopener,noreferrer');
   }
 
   async function handleCerrarVotacion() {
@@ -386,9 +425,10 @@ export default function ArmarEquiposView({
             <button 
               className="admin-btn-blue" 
               onClick={handleCallToVote}
-              style={{ flex: 1 }}
+              disabled={calling}
+              style={{ flex: 1, opacity: calling ? 0.6 : 1 }}
             >
-              LLAMAR A VOTAR
+              {calling ? 'ENVIANDO...' : 'LLAMAR A VOTAR'}
             </button>
           
             <button 

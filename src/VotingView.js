@@ -478,41 +478,72 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             style={{ marginTop: 8, fontWeight: 700, letterSpacing: 1.2 }}
             disabled={isSubmitting || hasAccess === false || hasAccess === null}
             onClick={async () => {
-              if (isSubmitting) return; // Anti-double submit guard
+              // Anti-double submit guard
+              if (isSubmitting) {
+                console.debug('[Vote] blocked: submitting');
+                return;
+              }
+              
               if (hasAccess === false) {
+                console.error('[Vote] error', { message: 'Access denied', code: ERROR_CODES.ACCESS_DENIED });
                 handleError(new AppError('No tienes permiso para votar en este partido.', ERROR_CODES.ACCESS_DENIED), { showToast: true });
                 return;
               }
               
+              // Validate payload
+              const voteCount = Object.keys(votos).filter(k => votos[k]).length;
+              if (voteCount === 0) {
+                console.debug('[Vote] invalid payload, abort');
+                toast.error('Debes calificar al menos a un jugador');
+                return;
+              }
+              
+              console.debug('[Vote] start', { matchId: partidoActual?.id, playerId: jugador?.uuid, voteCount });
+              
               setIsSubmitting(true);
               setConfirmando(true);
+              
               try {
-                console.log('[VOTING] Submitting votes...');
                 const urlParams = new URLSearchParams(window.location.search);
                 const codigo = urlParams.get('codigo');
                 if (!codigo) {
                   throw new AppError('Código del partido no encontrado en la URL', ERROR_CODES.VALIDATION_ERROR);
                 }
+                
                 const { data: partido, error: partidoError } = await supabase
                   .from('partidos')
                   .select('id')
                   .eq('codigo', codigo)
                   .single();
+                  
                 if (partidoError || !partido || !partido.id) {
                   throw new AppError('No se pudo encontrar el partido', ERROR_CODES.NOT_FOUND);
                 }
+                
                 const partidoId = Math.abs(parseInt(partido.id, 10));
+                
+                // Build safe payload for logging
+                const safePayload = {
+                  partidoId,
+                  jugadorUuid: jugador?.uuid,
+                  voteCount,
+                  hasNombre: !!jugador?.nombre
+                };
+                console.debug('[Vote] build payload', safePayload);
+                console.debug('[Vote] submit sending');
+                
                 await submitVotos(votos, jugador?.uuid, partidoId, jugador?.nombre, jugador?.avatar_url);
                 
-                // Trigger refresh for admin panel
-                await supabase
-                  .from('partidos')
-                  .update({ updated_at: new Date().toISOString() })
-                  .eq('id', partidoId);
+                console.debug('[Vote] submit result', { ok: true });
                 
-                console.log('[VOTING] Votes submitted successfully');
+                // Trigger refresh for admin panel
+                await db.update('partidos', partidoId, { updated_at: new Date().toISOString() });
+                
+                console.debug('[Vote] step change', { from: 3, to: 'finalizado' });
                 setFinalizado(true);
               } catch (error) {
+                console.error('[Vote] error', { message: error?.message, code: error?.code });
+                console.debug('[Vote] submit result', { ok: false });
                 handleError(error, { showToast: true });
               } finally {
                 setConfirmando(false);

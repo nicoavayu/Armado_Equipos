@@ -143,7 +143,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                         alignItems: 'center', 
                         justifyContent: 'center', 
                         gap: '12px', 
-                        margin: '16px auto', 
+                        margin: '12px auto', 
                         fontSize: '14px', 
                         color: 'rgba(255,255,255,0.8)',
                         fontFamily: 'Oswald, Arial, sans-serif',
@@ -194,7 +194,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
                     {/* Botón ARMAR EQUIPOS PAREJOS */}
                     {isAdmin && !adminState.pendingInvitation && (
-                      <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '8px auto 0', textAlign: 'center' }}>
+                      <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '12px auto 0', textAlign: 'center' }}>
                         <button 
                           className="admin-btn-orange" 
                           onClick={handleArmarEquipos}

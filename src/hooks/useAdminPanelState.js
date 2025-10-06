@@ -51,6 +51,9 @@ export const useAdminPanelState = ({
 
   // Check invitation
   useEffect(() => {
+    const search = new URLSearchParams(window.location.search);
+    if (search.has('codigo')) return; // no correr en voting view
+    
     const checkInvitation = async () => {
       if (!user?.id || !partidoActual?.id) {
         setInvitationChecked(true);
@@ -66,12 +69,12 @@ export const useAdminPanelState = ({
         }
         
         const { data: invitation } = await supabase
-          .from('notifications')
+          .from('notifications_ext')
           .select('id, data')
           .eq('user_id', user.id)
           .eq('type', 'match_invite')
           .eq('read', false)
-          .eq('data->>matchId', partidoActual.id.toString())
+          .eq('match_id_text', partidoActual.id.toString())
           .single();
           
         setPendingInvitation(!!invitation);
@@ -87,6 +90,9 @@ export const useAdminPanelState = ({
 
   // Fetch initial data and polling
   useEffect(() => {
+    const search = new URLSearchParams(window.location.search);
+    if (search.has('codigo')) return; // no correr en voting view
+    
     async function fetchInitialData() {
       if (!partidoActual?.id) return;
       try {

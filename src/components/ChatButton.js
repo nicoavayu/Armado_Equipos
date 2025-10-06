@@ -27,12 +27,12 @@ export default function ChatButton({ partidoId }) {
       try {
         // [TEAM_BALANCER_INVITE_EDIT] Verificar si hay invitación pendiente
         const { data: invitation } = await supabase
-          .from('notifications')
+          .from('notifications_ext')
           .select('id')
           .eq('user_id', user.id)
           .eq('type', 'match_invite')
           .eq('read', false)
-          .contains('data', { matchId: partidoId })
+          .eq('match_id_text', String(partidoId))
           .single();
           
         // Si hay invitación pendiente, no permitir acceso al chat

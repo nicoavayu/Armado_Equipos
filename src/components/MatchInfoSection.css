@@ -14,7 +14,6 @@
   align-items: flex-start !important;
   margin: 0 !important;
   padding: 0 !important;
-  z-index: 10 !important;
 }
 
 .app-card{
@@ -28,11 +27,10 @@
 }
 
 .match-info-card{
-  /* Fixed 30px from PageTitle bottom */
   margin: 0 !important;
-  margin-top: 110px !important; /* PageTitle height (~80px) + 30px gap */
-  margin-bottom: 20px !important;
-  padding: 16px !important;
+  margin-top: 76px !important;
+  margin-bottom: 0 !important;
+  padding: 8px 12px !important;
   position: relative !important;
   
   /* Reset inherited styles */
@@ -130,16 +128,20 @@
 @media (max-width: 480px){
   .match-info-card {
     margin: 0 !important;
-    margin-top: 10px !important; /* PageTitle mobile height (~72px) + 30px gap */
-    margin-bottom: 15px !important;
-    padding: 14px !important;
+    margin-top: 70px !important;
+    margin-bottom: 0 !important;
+    padding: 8px !important;
   }
   
   .match-info-row{
-    gap: 12px;
+    gap: 8px;
   }
   .match-info-text{
-    font-size: 12px;
+    font-size: 11px;
+  }
+  .match-info-icon{
+    width: 16px;
+    height: 16px;
   }
   .match-icons-row{
     gap: 16px;

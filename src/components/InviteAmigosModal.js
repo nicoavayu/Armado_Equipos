@@ -63,10 +63,10 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
       if (partidoActual?.id && friendsData?.length > 0) {
         const friendIds = friendsData.map((f) => f.id);
         const { data: existingInvitations } = await supabase
-          .from('notifications')
+          .from('notifications_ext')
           .select('user_id')
           .eq('type', 'match_invite')
-          .eq('data->>matchId', partidoActual.id.toString())
+          .eq('match_id_text', partidoActual.id.toString())
           .in('user_id', friendIds);
         
         if (existingInvitations) {
@@ -113,11 +113,11 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
 
       // Verificar si ya existe una invitación para este amigo en este partido
       const { data: existingInvitation, error: checkError } = await supabase
-        .from('notifications')
+        .from('notifications_ext')
         .select('id')
         .eq('user_id', amigo.id)
         .eq('type', 'match_invite')
-        .eq('data->>matchId', partidoActual.id.toString())
+        .eq('match_id_text', partidoActual.id.toString())
         .single();
 
       if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows found

@@ -137,12 +137,12 @@ const InviteFriendModal = ({ isOpen, onClose, friend, currentUserId }) => {
 
           // Verificar si ya tiene una invitación pendiente
           const { data: notifications } = await supabase
-            .from('notifications')
+            .from('notifications_ext')
             .select('id')
             .eq('user_id', friend.profile?.id)
             .eq('type', 'match_invite')
             .eq('read', false)
-            .contains('data', { matchId: toBigIntId(match.id) });
+            .eq('match_id_text', String(toBigIntId(match.id)));
 
           const hasInvitation = notifications && notifications.length > 0;
 

@@ -4,6 +4,12 @@ import './styles.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import './utils/updateExistingMatches'; // Importar script para actualizar partidos existentes
+import { initNetworkLogger } from './lib/networkLogger';
+
+// Inicializar network logger (detrás de flag si se desea)
+if (process.env.REACT_APP_NETLOG !== 'false') {
+  initNetworkLogger();
+}
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

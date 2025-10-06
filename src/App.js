@@ -8,6 +8,7 @@ import { MODES, ADMIN_STEPS } from './constants';
 import AmigosView from './components/AmigosView';
 
 import ErrorBoundary from './components/ErrorBoundary';
+import GlobalErrorBoundary from './components/GlobalErrorBoundary';
 import AuthProvider, { useAuth } from './components/AuthProvider';
 import DirectFix from './components/DirectFix';
 import Button from './components/Button';
@@ -19,6 +20,7 @@ import FifaHome from './FifaHome';
 
 const EncuestaPartido = lazy(() => import('./pages/EncuestaPartido'));
 const ResultadosEncuestaView = lazy(() => import('./pages/ResultadosEncuestaView'));
+const HealthCheck = lazy(() => import('./pages/HealthCheck'));
 
 import VotingView from './VotingView';
 const AdminPanel = lazy(() => import('./AdminPanel'));
@@ -211,6 +213,9 @@ const AdminPanelPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const search = new URLSearchParams(window.location.search);
+    if (search.has('codigo')) return; // no correr en voting view
+    
     const cargarPartido = async () => {
       try {
 
@@ -698,15 +703,20 @@ function AppWithSchedulers() {
 
 export default function App() {
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <BadgeProvider>
-          <NotificationProvider>
-            <TutorialProvider>
-              <Router>
-                <AppWithSchedulers />
-                <Routes>
-
+    <GlobalErrorBoundary>
+      <ErrorBoundary>
+        <AuthProvider>
+          <BadgeProvider>
+            <NotificationProvider>
+              <TutorialProvider>
+                <Router>
+                  <AppWithSchedulers />
+                  <Routes>
+                  <Route path="/health" element={
+                    <Suspense fallback={<div className="voting-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}><LoadingSpinner size="large" /></div>}>
+                      <HealthCheck />
+                    </Suspense>
+                  } />
                   <Route path="/encuesta/:partidoId" element={
                     <Suspense fallback={<div className="voting-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}><LoadingSpinner size="large" /></div>}>
                       <EncuestaPartido />
@@ -745,14 +755,15 @@ export default function App() {
                       } />
                     </Route>
                   </Route>
-                </Routes>
-                <ToastContainer position="top-right" autoClose={5000} />
-              </Router>
-            </TutorialProvider>
-          </NotificationProvider>
-        </BadgeProvider>
-      </AuthProvider>
-    </ErrorBoundary>
+                  </Routes>
+                  <ToastContainer position="top-right" autoClose={5000} />
+                </Router>
+              </TutorialProvider>
+            </NotificationProvider>
+          </BadgeProvider>
+        </AuthProvider>
+      </ErrorBoundary>
+    </GlobalErrorBoundary>
   );
 }
 
@@ -762,13 +773,17 @@ function AppAuthWrapper() {
   const location = useLocation();
   
   // Permitir acceso sin login si hay un código de partido (para votación)
-  const params = new URLSearchParams(location.search);
-  const codigo = params.get('codigo');
+  const search = new URLSearchParams(location.search);
+  const isVotingView = search.has('codigo');
   
-  if (!user && !codigo) {
-    // Si no está logueado y no hay código, muestra login/register
+  if (isVotingView) {
+    console.debug('[RouteGuard] allowVotingView');
+    return <Outlet />;
+  }
+  
+  if (!user) {
     return <AuthPage />;
   }
-  // Si está logueado o hay código de partido, muestra el outlet
+  
   return <Outlet />;
 }

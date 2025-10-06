@@ -1,184 +1,150 @@
 import { supabase } from '../supabase';
-import { processMatchStats } from './matchStatsService';
+import { handleError } from '../lib/errorHandler';
 
-// === TEST HELPER ===
-// Fuerza todas las notis survey_results_ready (pendientes) de un partido a scheduled_for = ahora
-export const forceSurveyResultsNow = async (partidoId) => {
-  const nowIso = new Date().toISOString();
-  // Traer pendientes del partido
-  const { data: pending, error: fetchErr } = await supabase
-    .from('notifications')
-    .select('id, data')
-    .eq('type', 'survey_results_ready')
+/**
+ * Get match invite notification for a user and match
+ * @param {string} userId - User ID
+ * @param {string|number} partidoId - Match ID
+ * @returns {Promise<{data, error}>}
+ */
+export async function getMatchInviteNotification(userId, partidoId) {
+  return supabase
+    .from('notifications_ext')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('type', 'match_invite')
     .eq('read', false)
-    .contains('data', { matchId: partidoId });
-  if (fetchErr) throw fetchErr;
-  if (!pending || pending.length === 0) return { updated: 0 };
+    .eq('match_id_text', String(partidoId));
+}
 
-  // Actualizar cada fila seteando scheduled_for = now
-  let updated = 0;
-  for (const n of pending) {
-    const newData = { ...(n.data || {}), scheduled_for: nowIso };
-    const { error: upErr } = await supabase
-      .from('notifications')
-      .update({ data: newData })
-      .eq('id', n.id);
-    if (!upErr) updated += 1;
-  }
-  return { updated };
-};
+/**
+ * Envía notificaciones a los usuarios registrados (jugadores) de un partido.
+ * @param {string|number} partidoId
+ * @param {{title?: string, message?: string, type?: string}} meta
+ */
+export async function sendVotingNotifications(partidoId, meta = {}) {
+  const title = meta.title ?? '¡Hora de votar!';
+  const message = meta.message ?? 'Entrá a la app y calificá a los jugadores para armar los equipos.';
+  const type = meta.type ?? 'call_to_vote';
 
-// Schedule post-match survey notification
-export const schedulePostMatchNotification = async (partidoId) => {
+  console.log('[CallToVote] start', { partidoId, type });
+
   try {
-    const { data: partido, error: matchError } = await supabase
+    console.log('[Notifications] query start - fetching match code');
+    
+    const { data: partido, error: partidoError } = await supabase
       .from('partidos')
-      .select('fecha, hora, id')
+      .select('codigo')
       .eq('id', partidoId)
       .single();
-      
-    if (matchError) throw matchError;
     
-    // Calculate notification time (1 hour after match)
-    const matchDateTime = new Date(`${partido.fecha}T${partido.hora}`);
-    const notificationTime = new Date(matchDateTime.getTime() + 60 * 60 * 1000);
-    
-    // Get match players
-    const { data: jugadores, error: playersError } = await supabase
-      .from('jugadores')
-      .select('usuario_id, nombre')
-      .eq('partido_id', partidoId)
-      .not('usuario_id', 'is', null);
-      
-    if (playersError) throw playersError;
-    
-    // Create notifications for each player
-    const notifications = jugadores.map((jugador) => ({
-      user_id: jugador.usuario_id,
-      type: 'post_match_survey',
-      title: 'Califica el partido',
-      message: 'Ya puedes calificar el partido. ¡Tu opinión es importante!',
-      data: { partido_id: partidoId, scheduled_for: notificationTime.toISOString() },
-      read: false,
-    }));
-    
-    // Also schedule match stats processing
-    notifications.push({
-      user_id: null,
-      type: 'process_match_stats',
-      title: 'Process Match Stats',
-      message: 'Internal notification to process match statistics',
-      data: { partido_id: partidoId, scheduled_for: notificationTime.toISOString() },
-      read: false,
-    });
-    
-    const { error: insertError } = await supabase
-      .from('notifications')
-      .insert(notifications);
-      
-    if (insertError) throw insertError;
-    
-    console.log(`Scheduled ${notifications.length} post-match notifications for match ${partidoId}`);
-    return { success: true, count: notifications.length };
-    
-  } catch (error) {
-    console.error('Error scheduling post-match notifications:', error);
-    throw error;
-  }
-};
-
-// Check and send pending notifications
-export const processPendingNotifications = async () => {
-  try {
-    const now = new Date().toISOString();
-    
-    const { data: pendingNotifications, error: fetchError } = await supabase
-      .from('notifications')
-      .select('*')
-      .in('type', ['post_match_survey', 'process_match_stats', 'survey_results_ready'])
-      .or('read.eq.false,status.eq.pending'); // aceptar ambos esquemas
-      
-    if (fetchError) throw fetchError;
-    
-    // Listas si:
-    // - NUEVO: data.scheduled_for <= now y read=false
-    // - VIEJO: send_at <= now y status='pending'
-    const readyNotifications = (pendingNotifications || []).filter((n) => {
-      const scheduledNew = n?.data?.scheduled_for;
-      const scheduledOld = n?.send_at;
-      const isNewReady = n?.read === false && scheduledNew && new Date(scheduledNew) <= new Date(now);
-      const isOldReady = n?.status === 'pending' && scheduledOld && new Date(scheduledOld) <= new Date(now);
-      return isNewReady || isOldReady;
-    });
-    
-    for (const notification of readyNotifications) {
-      if (notification.type === 'process_match_stats') {
-        await processMatchStats(notification.data.partido_id);
-        // Marcar procesado (ambos esquemas)
-        const patch = notification.status === 'pending'
-          ? { status: 'sent' }
-          : { read: true };
-        await supabase.from('notifications').update(patch).eq('id', notification.id);
-      } else if (notification.type === 'survey_results_ready') {
-        // Enviar al usuario (push / toast / lo que uses) y marcar como enviada
-        await sendNotificationToUser(notification);
-        const patch = notification.status === 'pending'
-          ? { status: 'sent', read: true }
-          : { read: true };
-        await supabase.from('notifications').update(patch).eq('id', notification.id);
-      } else {
-        await sendNotificationToUser(notification);
-        const patch = notification.status === 'pending'
-          ? { status: 'sent', read: true }
-          : { read: true };
-        await supabase.from('notifications').update(patch).eq('id', notification.id);
-      }
+    if (partidoError) {
+      console.error('[Notifications] query error', partidoError);
+      throw partidoError;
     }
     
-    return { processed: readyNotifications.length };
+    console.log('[Notifications] query result', { matchCode: partido?.codigo });
     
-  } catch (error) {
-    console.error('Error processing pending notifications:', error);
-    throw error;
+    const { data: roster, error: rosterError } = await supabase
+      .from('jugadores')
+      .select('usuario_id')
+      .eq('partido_id', partidoId);
+    
+    if (rosterError) {
+      console.error('[Notifications] roster query error', rosterError);
+      throw rosterError;
+    }
+    
+    const userIds = (roster ?? [])
+      .map(j => j.usuario_id)
+      .filter(Boolean);
+
+    if (userIds.length === 0) {
+      console.log('[Notifications] empty roster, nothing to send');
+      return { inserted: 0 };
+    }
+
+    const nowIso = new Date().toISOString();
+    const rows = userIds.map(uid => ({
+      user_id: uid,
+      title,
+      message,
+      type,
+      data: { matchId: partidoId, matchCode: partido.codigo },
+      read: false,
+      created_at: nowIso,
+      send_at: nowIso,
+    }));
+
+    console.log('[Notifications] inserting', { count: rows.length, sampleData: rows[0]?.data });
+    
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert(rows)
+      .select();
+    
+    if (error) {
+      console.error('[Notifications] insert error', error);
+      throw error;
+    }
+    
+    console.log('[CallToVote] success', { inserted: data?.length });
+    return { inserted: data?.length || 0 };
+  } catch (err) {
+    console.error('[CallToVote] failed', err);
+    handleError(err, { showToast: true });
+    throw err;
   }
-};
+}
 
-// Send notification to user (placeholder for actual implementation)
-const sendNotificationToUser = async (notification) => {
-  console.log(`Sending notification to user ${notification.user_id}:`, notification.title);
-  // Here you would integrate with your notification system (Firebase, etc.)
-};
+/**
+ * Programa notificación post-partido (encuesta)
+ */
+export async function schedulePostMatchNotification(matchId) {
+  try {
+    // Programar para 2 horas después del partido
+    const sendAt = new Date();
+    sendAt.setHours(sendAt.getHours() + 2);
+    
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert({
+        type: 'post_match_survey',
+        partido_id: matchId,
+        status: 'pending',
+        send_at: sendAt.toISOString(),
+      })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('[Notify] schedulePostMatchNotification failed', err);
+    throw err;
+  }
+}
 
-// Get user notifications
-export const getUserNotifications = async (userId) => {
+/**
+ * Fuerza resultados de encuesta ahora (para testing)
+ */
+export async function forceSurveyResultsNow(matchId) {
   try {
     const { data, error } = await supabase
       .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-      
-    if (error) throw error;
-    return data || [];
+      .insert({
+        type: 'survey_results_ready',
+        partido_id: matchId,
+        status: 'pending',
+        send_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
     
-  } catch (error) {
-    console.error('Error fetching user notifications:', error);
-    return [];
-  }
-};
-
-// Mark notification as read
-export const markNotificationAsRead = async (notificationId) => {
-  try {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ read: true })
-      .eq('id', notificationId);
-      
     if (error) throw error;
-    
-  } catch (error) {
-    console.error('Error marking notification as read:', error);
-    throw error;
+    return data;
+  } catch (err) {
+    console.error('[Notify] forceSurveyResultsNow failed', err);
+    throw err;
   }
-};
+}

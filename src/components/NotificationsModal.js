@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom'; // [TEAM_BALANCER_INVITE_ACCESS_FIX] Para navegación
+import { toast } from 'react-toastify';
 import supabase, { deleteMyNotifications } from '../supabase';
 import { toBigIntId } from '../utils';
 import { useAuth } from './AuthProvider';
@@ -118,94 +119,42 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     }
   };
   
-  // [TEAM_BALANCER_INVITE_ACCESS_FIX] Manejar click en notificaciones de invitación
   const handleNotificationClick = async (notification) => {
-    console.log('[NOTIFICATION_CLICK] Clicked notification:', notification);
-    console.log('[NOTIFICATION_CLICK] Notification data:', notification.data);
+    console.log('[NOTIFICATION_CLICK] START', { type: notification.type, data: notification.data });
     
     if (!notification.read) {
       await markAsRead(notification.id);
     }
     
-    // Si es invitación a partido, redirigir al AdminPanel
-    if (notification.type === 'match_invite' && notification.data?.matchId) {
-      console.log('[NOTIFICATION_CLICK] Match invite clicked, matchId:', notification.data.matchId);
-      onClose(); // Cerrar modal
-      
-      // Redirigir usando el código del partido
-      try {
-        const { data: partido, error } = await supabase
-          .from('partidos')
-          .select('codigo')
-          .eq('id', toBigIntId(notification.data.matchId))
-          .single();
-          
-        console.log('[NOTIFICATION_CLICK] Match query result:', { partido, error });
-          
-        if (error) throw error;
-        
-        if (partido?.codigo) {
-          console.log('[NOTIFICATION_CLICK] Navigating to admin panel for match:', notification.data.matchId);
-          // Navegar directamente al AdminPanel usando el ID del partido
-          navigate(`/admin/${notification.data.matchId}`);
-        }
-      } catch (error) {
-        console.error('[NOTIFICATION_CLICK] Error redirecting to match:', error);
-      }
-    }
+    onClose();
     
     // Si es llamada a votar, redirigir a la voting view
     if (notification.type === 'call_to_vote') {
-      console.log('[NOTIFICATION_CLICK] Call to vote clicked');
-      onClose(); // Cerrar modal
-      
-      if (notification.data?.matchCode) {
-        console.log('[NOTIFICATION_CLICK] Navigating to voting view with code:', notification.data.matchCode);
-        navigate(`/?codigo=${notification.data.matchCode}`);
-      } else {
-        console.log('[NOTIFICATION_CLICK] No matchCode found in call_to_vote notification');
-        console.log('[NOTIFICATION_CLICK] Available data keys:', Object.keys(notification.data || {}));
+      const { matchCode } = notification.data || {};
+      console.log('[NOTIFICATION_CLICK] call_to_vote detected', { matchCode, fullData: notification.data });
+      if (!matchCode) {
+        console.error('[NOTIFICATION_CLICK] Missing matchCode!');
+        toast.error('Falta matchCode');
+        return;
       }
-    }
-
-    // Handle survey_reminder and survey_results_ready with router
-    if (notification.type === 'survey_reminder' || notification.type === 'survey_results_ready') {
-      console.log('[NOTIFICATION_CLICK] Survey notification clicked:', notification.type);
-      onClose(); // Close modal before navigation
-      await openNotification(notification, navigate);
+      const url = `/?codigo=${matchCode}`;
+      console.log('[NOTIFICATION_CLICK] Navigating to:', url);
+      window.location.assign(url);
       return;
     }
     
-    // Resultados de encuesta listos → navegar a resultados/premios (fallback)
-    if (notification.type === 'survey_results_ready') {
-      console.log('[NOTIFICATION_CLICK] Survey results ready clicked');
-      console.log('[NOTIFICATION_CLICK] Full notification object:', notification);
-      console.log('[NOTIFICATION_CLICK] Notification data:', notification.data);
-      onClose(); // cerrar modal para navegar
+    // Si es invitación a partido, redirigir al AdminPanel
+    if (notification.type === 'match_invite') {
+      if (notification.data?.matchId) {
+        navigate(`/admin/${notification.data.matchId}`);
+      }
+      return;
+    }
 
-      const data = notification.data || {};
-      // 1) resultsUrl directo
-      if (data.resultsUrl) {
-        console.log('[NOTIFICATION_CLICK] Navigating to resultsUrl:', data.resultsUrl);
-        navigate(data.resultsUrl);
-        return;
-      }
-      // 2) matchId numérico → /resultados/:id
-      if (data.matchId != null) {
-        const id = toBigIntId(data.matchId);
-        if (id != null) {
-          console.log('[NOTIFICATION_CLICK] Navigating to resultados by matchId:', id);
-          navigate(`/resultados/${id}?showAwards=1`);
-          return;
-        }
-      }
-      // 3) Fallback por código
-      if (data.matchCode) {
-        console.log('[NOTIFICATION_CLICK] Navigating to resultados by matchCode:', data.matchCode);
-        navigate(`/?codigo=${data.matchCode}&view=resultados&showAwards=1`);
-        return;
-      }
-      console.warn('[NOTIFICATION_CLICK] Missing resultsUrl/matchId/matchCode for survey_results_ready');
+    // Handle survey notifications
+    if (notification.type === 'survey_reminder' || notification.type === 'survey_results_ready') {
+      await openNotification(notification, navigate);
+      return;
     }
   };
 
