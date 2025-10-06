@@ -62,12 +62,26 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
       // Verificar qué amigos ya fueron invitados a este partido
       if (partidoActual?.id && friendsData?.length > 0) {
         const friendIds = friendsData.map((f) => f.id);
-        const { data: existingInvitations } = await supabase
-          .from('notifications_ext')
-          .select('user_id')
-          .eq('type', 'match_invite')
-          .eq('match_id_text', partidoActual.id.toString())
-          .in('user_id', friendIds);
+        let existingInvitations = null;
+        
+        try {
+          const { data } = await supabase
+            .from('notifications_ext')
+            .select('user_id')
+            .eq('type', 'match_invite')
+            .eq('match_id_text', partidoActual.id.toString())
+            .in('user_id', friendIds);
+          existingInvitations = data;
+        } catch (viewError) {
+          console.warn('[MODAL_AMIGOS] notifications_ext not available for initial check, using fallback');
+          const { data } = await supabase
+            .from('notifications')
+            .select('user_id')
+            .eq('type', 'match_invite')
+            .eq('data->>matchId', partidoActual.id.toString())
+            .in('user_id', friendIds);
+          existingInvitations = data;
+        }
         
         if (existingInvitations) {
           const invitedIds = new Set(existingInvitations.map((inv) => inv.user_id));
@@ -112,15 +126,33 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
       });
 
       // Verificar si ya existe una invitación para este amigo en este partido
-      const { data: existingInvitation, error: checkError } = await supabase
-        .from('notifications_ext')
-        .select('id')
-        .eq('user_id', amigo.id)
-        .eq('type', 'match_invite')
-        .eq('match_id_text', partidoActual.id.toString())
-        .single();
+      let existingInvitation = null;
+      let checkError = null;
+      
+      try {
+        const { data, error } = await supabase
+          .from('notifications_ext')
+          .select('id')
+          .eq('user_id', amigo.id)
+          .eq('type', 'match_invite')
+          .eq('match_id_text', partidoActual.id.toString())
+          .single();
+        existingInvitation = data;
+        checkError = error;
+      } catch (viewError) {
+        console.warn('[MODAL_AMIGOS] notifications_ext not available, using fallback');
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('user_id', amigo.id)
+          .eq('type', 'match_invite')
+          .eq('data->>matchId', partidoActual.id.toString())
+          .single();
+        existingInvitation = data;
+        checkError = error;
+      }
 
-      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows found
+      if (checkError && checkError.code !== 'PGRST116') {
         console.error('[MODAL_AMIGOS] Error checking existing invitation:', checkError);
         throw new Error('Error verificando invitaciones existentes');
       }
