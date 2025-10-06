@@ -51,6 +51,7 @@ import { useNotifications } from './context/NotificationContext';
 import { forceSurveyResultsNow } from './services/notificationService';
 import { toBigIntId } from './utils';
 import './utils/testNotificationsView';
+import './utils/testNotifications';
 
 const HomePage = () => {
   const location = useLocation();

@@ -5,6 +5,7 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 import './utils/updateExistingMatches'; // Importar script para actualizar partidos existentes
 import { initNetworkLogger } from './lib/networkLogger';
+import './utils/debugNotifications'; // Debug utility for notifications
 
 // Inicializar network logger (detrás de flag si se desea)
 if (process.env.REACT_APP_NETLOG !== 'false') {

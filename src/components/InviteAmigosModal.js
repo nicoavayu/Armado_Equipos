@@ -72,14 +72,8 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
           .in('user_id', friendIds);
         
         if (extError && extError.code === '42P01') {
-          console.warn('[MODAL_AMIGOS] notifications_ext not available for initial check, using fallback');
-          const { data } = await supabase
-            .from('notifications')
-            .select('user_id')
-            .eq('type', 'match_invite')
-            .eq('data->>matchId', partidoActual.id.toString())
-            .in('user_id', friendIds);
-          existingInvitations = data;
+          console.warn('[MODAL_AMIGOS] notifications_ext not available for initial check, skipping');
+          existingInvitations = [];
         } else {
           existingInvitations = extData;
         }
@@ -140,17 +134,10 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
         .single();
       
       if (extError && extError.code === '42P01') {
-        // View doesn't exist, use fallback
-        console.warn('[MODAL_AMIGOS] notifications_ext not available, using fallback');
-        const { data, error } = await supabase
-          .from('notifications')
-          .select('id')
-          .eq('user_id', amigo.id)
-          .eq('type', 'match_invite')
-          .eq('data->>matchId', partidoActual.id.toString())
-          .single();
-        existingInvitation = data;
-        checkError = error;
+        // View doesn't exist, skip duplicate check and allow invitation
+        console.warn('[MODAL_AMIGOS] notifications_ext not available, skipping duplicate check');
+        existingInvitation = null;
+        checkError = null;
       } else {
         existingInvitation = extData;
         checkError = extError;
@@ -196,7 +183,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
       }
 
       const notificationData = {
-        user_id: amigo.id, // DESTINATARIO - UUID string
+        user_id: amigo.id,
         type: 'match_invite',
         title: 'Invitación a partido',
         message: `${currentUser?.nombre || 'Alguien'} te invitó a jugar "${partidoActual.nombre || 'un partido'}"`,
@@ -210,6 +197,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
           inviterName: currentUser?.nombre || 'Alguien',
         },
         read: false,
+        send_at: new Date().toISOString(),
       };
 
       console.log('[MODAL_AMIGOS] === INSERTING NOTIFICATION ===');
@@ -265,8 +253,12 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
         user_id: insertedNotification.user_id,
         type: insertedNotification.type,
         created_at: insertedNotification.created_at,
+        title: insertedNotification.title,
+        message: insertedNotification.message
       });
       console.log('[MODAL_AMIGOS] Recipient should receive realtime notification for user_id:', insertedNotification.user_id);
+      console.log('[MODAL_AMIGOS] 🔔 NOTIFICATION SENT - Check if recipient is logged in and has app open');
+      console.log('[MODAL_AMIGOS] 📱 Recipient can check notifications in their notifications panel');
 
       // Agregar al set de amigos invitados
       setInvitedFriends((prev) => new Set([...prev, amigo.id]));

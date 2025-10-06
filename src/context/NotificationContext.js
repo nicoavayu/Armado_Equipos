@@ -157,9 +157,8 @@ export const NotificationProvider = ({ children }) => {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', currentUserId) // CLAVE: user_id === currentUserId (destinatario)
-        .lte('send_at', new Date().toISOString())
-        .order('send_at', { ascending: false });
+        .eq('user_id', currentUserId)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
@@ -373,6 +372,7 @@ export const NotificationProvider = ({ children }) => {
     if (!currentUserId) return;
 
     try {
+      const now = new Date().toISOString();
       const notification = {
         user_id: currentUserId,
         type,
@@ -380,7 +380,8 @@ export const NotificationProvider = ({ children }) => {
         message,
         data,
         read: false,
-        created_at: new Date().toISOString(),
+        created_at: now,
+        send_at: now,
       };
 
       const { data: newNotification, error } = await supabase
