@@ -88,10 +88,10 @@ export const useAdminPanelState = ({
     checkInvitation();
   }, [user?.id, partidoActual?.id, jugadores]);
 
-  // Fetch initial data and polling
+  // Fetch initial data and real-time subscriptions
   useEffect(() => {
     const search = new URLSearchParams(window.location.search);
-    if (search.has('codigo')) return; // no correr en voting view
+    if (search.has('codigo')) return;
     
     async function fetchInitialData() {
       if (!partidoActual?.id) return;
@@ -109,22 +109,51 @@ export const useAdminPanelState = ({
     
     fetchInitialData();
     
-    const refreshInterval = setInterval(async () => {
-      try {
-        const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
-        const currentCount = jugadoresActuales.length;
-        const newCount = jugadoresPartido.length;
-        
-        if (currentCount !== newCount) {
+    // Real-time subscription for players
+    const playersChannel = supabase
+      .channel(`match-players-${partidoActual.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'jugadores',
+        filter: `partido_id=eq.${partidoActual.id}`
+      }, async () => {
+        console.log('[REALTIME] Players changed, refreshing...');
+        try {
+          const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
           setJugadoresLocal(jugadoresPartido);
           onJugadoresChange(jugadoresPartido);
+        } catch (error) {
+          console.error('Error refreshing players:', error);
         }
-      } catch (error) {
-        console.error('Error refreshing players:', error);
-      }
-    }, 3000);
+      })
+      .subscribe();
     
-    return () => clearInterval(refreshInterval);
+    // Real-time subscription for votes
+    const votesChannel = supabase
+      .channel(`match-votes-${partidoActual.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'votos',
+        filter: `partido_id=eq.${partidoActual.id}`
+      }, async () => {
+        console.log('[REALTIME] Votes changed, refreshing...');
+        try {
+          const votantesIds = await getVotantesIds(partidoActual.id);
+          const votantesNombres = await getVotantesConNombres(partidoActual.id);
+          setVotantes(votantesIds || []);
+          setVotantesConNombres(votantesNombres || []);
+        } catch (error) {
+          console.error('Error refreshing votes:', error);
+        }
+      })
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(playersChannel);
+      supabase.removeChannel(votesChannel);
+    };
   }, [partidoActual?.id]);
 
   // Initialize falta_jugadores state
@@ -436,9 +465,16 @@ export const useAdminPanelState = ({
       await notificarJugadoresNuevoMiembro(userProfile?.nombre || 'Un jugador');
       
       const jugadoresActualizados = await getJugadoresDelPartido(partidoActual.id);
+      setJugadoresLocal(jugadoresActualizados);
       onJugadoresChange(jugadoresActualizados);
+      setPendingInvitation(false);
       
       toast.success('Te has unido al partido', { autoClose: 3000 });
+      
+      // Force refresh to show guest view
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
       
     } catch (error) {
       toast.error('Error al unirse al partido: ' + error.message);

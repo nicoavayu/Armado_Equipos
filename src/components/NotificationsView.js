@@ -104,8 +104,8 @@ const NotificationsView = () => {
         navigate('/amigos');
         break;
       case 'match_invite':
-        if (data.matchCode) {
-          navigate(`/?codigo=${data.matchCode}`);
+        if (data.matchId) {
+          navigate(`/partido/${toBigIntId(data.matchId)}`);
         }
         break;
       case 'call_to_vote':

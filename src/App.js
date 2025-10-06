@@ -52,6 +52,7 @@ import { forceSurveyResultsNow } from './services/notificationService';
 import { toBigIntId } from './utils';
 import './utils/testNotificationsView';
 import './utils/testNotifications';
+import './utils/debugProximosPartidos';
 
 const HomePage = () => {
   const location = useLocation();
@@ -210,26 +211,24 @@ const AdminPanelPage = () => {
   const navigate = useNavigate();
   const { navigateWithAnimation } = useAnimatedNavigation();
   const { partidoId } = useParams();
+  const { user } = useAuth();
   const [partidoActual, setPartidoActual] = useState(null);
   const [jugadoresDelPartido, setJugadoresDelPartido] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const search = new URLSearchParams(window.location.search);
-    if (search.has('codigo')) return; // no correr en voting view
+    if (search.has('codigo')) return;
     
     const cargarPartido = async () => {
       try {
-
         const partido = await getPartidoPorId(partidoId);
         if (partido) {
           setPartidoActual(partido);
           
-          // Cargar jugadores específicos del partido desde la tabla jugadores
           const jugadores = await getJugadoresDelPartido(partidoId);
           setJugadoresDelPartido(jugadores);
           
-          // Si no hay jugadores en la tabla jugadores pero sí en el partido, hacer refresh
           if (jugadores.length === 0 && partido.jugadores && partido.jugadores.length > 0) {
             console.log('Refreshing players for match:', partidoId);
             try {
@@ -255,7 +254,7 @@ const AdminPanelPage = () => {
     if (partidoId) {
       cargarPartido();
     }
-  }, [partidoId, navigate]);
+  }, [partidoId, navigate, user]);
 
   const handleJugadoresChange = async (nuevosJugadores) => {
     if (!partidoActual) return;

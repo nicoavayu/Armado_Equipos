@@ -90,8 +90,8 @@ const PlayersSection = ({
     );
   };
 
-  // Guest view (non-admin)
-  if (!isAdmin) {
+  // Guest view (non-admin) OR user with pending invitation
+  if (!isAdmin || (!isPlayerInMatch && jugadores.length > 0)) {
     return (
       <div style={{ position: 'fixed', top: isPlayerInMatch ? '70px' : '70px', left: '0', right: '0', zIndex: 10, marginBottom: '8px' }}>
         {/* Botones de invitado (solo si no está en el partido) */}
