@@ -83,7 +83,9 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-bottom: 80px; /* Espacio adicional para asegurar que se pueda hacer scroll completo */
+  padding-bottom: 80px;
+  max-height: none;
+  min-height: 0;
 }
 
 .form-group {
@@ -487,10 +489,8 @@ select.input-modern-small option {
   width: 100%;
   margin: 0;
   overflow-y: auto;
-  max-height: calc(100vh - 300px);
   min-height: 310px;
   margin-top: 40px;
-  ;
 }
 
 .profile-form-footer {
