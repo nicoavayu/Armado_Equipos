@@ -479,10 +479,11 @@
 .admin-players-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   max-width: 100%;
-  overflow: hidden;
+  padding: 2px;
+  box-sizing: border-box;
 }
 
 .admin-player-item {
@@ -492,11 +493,10 @@
   background: rgb(255 255 255 / 10%);
   border: 2px solid rgb(255 255 255 / 15%);
   border-radius: 8px;
-  padding: 8px;
+  padding: 10px 8px;
   transition: all 0.2s ease;
   min-height: 36px;
   min-width: 0;
-  overflow: hidden;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
