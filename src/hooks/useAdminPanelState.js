@@ -337,9 +337,10 @@ export const useAdminPanelState = ({
       };
       await supabase.from('notifications').insert([payload]);
       
+      // Trigger a minimal update to refresh admin panel (updated_at handled by trigger)
       await supabase
         .from('partidos')
-        .update({ updated_at: new Date().toISOString() })
+        .update({ creado_por: jugador.usuario_id })
         .eq('id', partidoActual.id);
       
       onJugadoresChange([...jugadores]);
