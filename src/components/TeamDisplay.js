@@ -229,10 +229,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     
     if (lockedPlayers.includes(playerId)) {
       setLockedPlayers(lockedPlayers.filter((id) => id !== playerId));
-      toast.info('Jugador desbloqueado');
     } else {
       setLockedPlayers([...lockedPlayers, playerId]);
-      toast.info('Jugador bloqueado');
     }
   };
 
