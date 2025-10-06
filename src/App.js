@@ -50,6 +50,7 @@ import { supabase } from './supabase';
 import { useNotifications } from './context/NotificationContext';
 import { forceSurveyResultsNow } from './services/notificationService';
 import { toBigIntId } from './utils';
+import './utils/testNotificationsView';
 
 const HomePage = () => {
   const location = useLocation();
