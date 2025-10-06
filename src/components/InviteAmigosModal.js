@@ -64,15 +64,14 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
         const friendIds = friendsData.map((f) => f.id);
         let existingInvitations = null;
         
-        try {
-          const { data } = await supabase
-            .from('notifications_ext')
-            .select('user_id')
-            .eq('type', 'match_invite')
-            .eq('match_id_text', partidoActual.id.toString())
-            .in('user_id', friendIds);
-          existingInvitations = data;
-        } catch (viewError) {
+        const { data: extData, error: extError } = await supabase
+          .from('notifications_ext')
+          .select('user_id')
+          .eq('type', 'match_invite')
+          .eq('match_id_text', partidoActual.id.toString())
+          .in('user_id', friendIds);
+        
+        if (extError && extError.code === '42P01') {
           console.warn('[MODAL_AMIGOS] notifications_ext not available for initial check, using fallback');
           const { data } = await supabase
             .from('notifications')
@@ -81,6 +80,8 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
             .eq('data->>matchId', partidoActual.id.toString())
             .in('user_id', friendIds);
           existingInvitations = data;
+        } else {
+          existingInvitations = extData;
         }
         
         if (existingInvitations) {
@@ -129,17 +130,17 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
       let existingInvitation = null;
       let checkError = null;
       
-      try {
-        const { data, error } = await supabase
-          .from('notifications_ext')
-          .select('id')
-          .eq('user_id', amigo.id)
-          .eq('type', 'match_invite')
-          .eq('match_id_text', partidoActual.id.toString())
-          .single();
-        existingInvitation = data;
-        checkError = error;
-      } catch (viewError) {
+      // Try notifications_ext first
+      const { data: extData, error: extError } = await supabase
+        .from('notifications_ext')
+        .select('id')
+        .eq('user_id', amigo.id)
+        .eq('type', 'match_invite')
+        .eq('match_id_text', partidoActual.id.toString())
+        .single();
+      
+      if (extError && extError.code === '42P01') {
+        // View doesn't exist, use fallback
         console.warn('[MODAL_AMIGOS] notifications_ext not available, using fallback');
         const { data, error } = await supabase
           .from('notifications')
@@ -150,6 +151,9 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
           .single();
         existingInvitation = data;
         checkError = error;
+      } else {
+        existingInvitation = extData;
+        checkError = extError;
       }
 
       if (checkError && checkError.code !== 'PGRST116') {
