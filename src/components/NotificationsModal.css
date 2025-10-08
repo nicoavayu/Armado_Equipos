@@ -212,11 +212,9 @@
 }
 
 .notification-item {
-  display: flex;
-  align-items: flex-start;
+  display: block;
   padding: 16px 20px;
   border-bottom: 1px solid #2a2a2a;
-  gap: 12px;
   transition: background 0.2s;
   cursor: pointer;
 }

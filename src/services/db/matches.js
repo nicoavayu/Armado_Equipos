@@ -942,16 +942,8 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
       }
     }
     
-    // Schedule survey reminder for match end
-    if (newId && finalData) {
-      try {
-        await scheduleSurveyReminderForMatch(newId, finalData.fecha, finalData.hora);
-        console.log('[CREAR_PARTIDO] Survey reminder scheduled');
-      } catch (reminderError) {
-        console.error('[CREAR_PARTIDO] Error scheduling survey reminder:', reminderError);
-        // Continue without throwing error
-      }
-    }
+    // NOTE: Survey notifications are now handled by the fanout_survey_start_notifications() cron job
+    // No need to schedule survey reminders at match creation time
     
     return finalData;
     

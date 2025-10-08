@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { useNavigate } from 'react-router-dom'; // [TEAM_BALANCER_INVITE_ACCESS_FIX] Para navegación
+import { useNavigate, Link } from 'react-router-dom'; // [TEAM_BALANCER_INVITE_ACCESS_FIX] Para navegación
 import { toast } from 'react-toastify';
 import supabase, { deleteMyNotifications } from '../supabase';
 import { toBigIntId } from '../utils';
@@ -128,6 +128,31 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     
     onClose();
     
+    // Handle survey_start notifications
+    if (notification.type === 'survey_start') {
+      const link = notification?.data?.link;
+      const matchId = notification?.data?.match_id;
+      console.debug('[NOTIF] click', { id: notification?.id, type: notification?.type, link, matchId });
+      
+      if (link) {
+        console.debug('[NOTIFICATION_NAVIGATE]', { to: link });
+        navigate(link);
+        setTimeout(() => {
+          window.history.pushState({}, '', link);
+        }, 0);
+      } else if (matchId) {
+        const url = `/encuesta/${matchId}`;
+        console.debug('[NOTIFICATION_NAVIGATE]', { to: url });
+        navigate(url);
+        setTimeout(() => {
+          window.history.pushState({}, '', url);
+        }, 0);
+      } else {
+        console.error('survey_start sin link ni matchId', notification);
+      }
+      return;
+    }
+    
     // Si es llamada a votar, redirigir a la voting view
     if (notification.type === 'call_to_vote') {
       const { matchCode } = notification.data || {};
@@ -162,6 +187,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     switch (type) {
       case 'match_invite': return '⚽';
       case 'call_to_vote': return '⭐';
+      case 'survey_start': return '📋';
       case 'survey_reminder': return '📋';
       case 'survey_results_ready': return '🏆';
       case 'friend_request': return '👤';
@@ -194,16 +220,11 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     <div
       className="sheet-overlay"
       onClick={(e) => {
-        // Evitar cerrar mientras está limpiando
-        if (loading) {
-          e.preventDefault();
-          e.stopPropagation();
-          return;
-        }
-        onClose();
+        if (loading) return;
+        if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="sheet-container" onClick={(e) => e.stopPropagation()}>
+      <div className="sheet-container">
         <div className="sheet-handle"></div>
         <div className="sheet-header">
           <h3>Notificaciones</h3>
@@ -256,22 +277,61 @@ const NotificationsModal = ({ isOpen, onClose }) => {
             </div>
           ) : (
             <div className="notifications-list">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`notification-item${!notification.read ? ' unread' : ''} ${(notification.type === 'match_invite' || notification.type === 'call_to_vote' || notification.type === 'survey_reminder' || notification.type === 'survey_results_ready') ? 'clickable' : ''}`}
-                  onClick={() => handleNotificationClick(notification)}
-                  style={{ cursor: (notification.type === 'match_invite' || notification.type === 'call_to_vote' || notification.type === 'survey_reminder' || notification.type === 'survey_results_ready') ? 'pointer' : 'default' }}
-                >
-                  <div className="notification-icon">{getNotificationIcon(notification.type)}</div>
-                  <div className="notification-content">
-                    <div className="notification-title">{notification.title}</div>
-                    <div className="notification-message">{notification.message}</div>
-                    <div className="notification-time">{formatDate(notification.created_at)}</div>
+              {notifications.map((notification) => {
+                const to = notification?.data?.link || (notification?.data?.match_id ? `/encuesta/${notification.data.match_id}` : null);
+                const isSurveyStart = notification.type === 'survey_start' && to;
+                
+                const notificationContent = (
+                  <>
+                    <div className="notification-icon">{getNotificationIcon(notification.type)}</div>
+                    <div className="notification-content">
+                      <div className="notification-title">{notification.title}</div>
+                      <div className="notification-message">{notification.message}</div>
+                      <div className="notification-time">{formatDate(notification.created_at)}</div>
+                    </div>
+                    {!notification.read && <div className="notification-unread-dot"></div>}
+                  </>
+                );
+                
+                return (
+                  <div
+                    key={notification.id}
+                    className={`notification-item${!notification.read ? ' unread' : ''} ${(notification.type === 'match_invite' || notification.type === 'call_to_vote' || notification.type === 'survey_start' || notification.type === 'survey_reminder' || notification.type === 'survey_results_ready') ? 'clickable' : ''}`}
+                  >
+                    {isSurveyStart ? (
+                      <Link
+                        to={to}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!notification.read) markAsRead(notification.id);
+                          onClose();
+                        }}
+                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', textDecoration: 'none', color: 'inherit', width: '100%' }}
+                      >
+                        {notificationContent}
+                      </Link>
+                    ) : (
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNotificationClick(notification);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.stopPropagation();
+                            handleNotificationClick(notification);
+                          }
+                        }}
+                        style={{ cursor: (notification.type === 'match_invite' || notification.type === 'call_to_vote' || notification.type === 'survey_reminder' || notification.type === 'survey_results_ready') ? 'pointer' : 'default', display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%' }}
+                      >
+                        {notificationContent}
+                      </div>
+                    )}
                   </div>
-                  {!notification.read && <div className="notification-unread-dot"></div>}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

@@ -271,3 +271,86 @@ export const checkPartidosFrecuentesSchema = async () => {
     return { success: false, error: err };
   }
 };
+
+/**
+ * Get active matches for the current user
+ * @returns {Promise<Array>} Array of active matches
+ */
+export const getPartidosActivosUsuario = async () => {
+  console.log('[getPartidosActivosUsuario] Fetching active matches for current user');
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.warn('[getPartidosActivosUsuario] No authenticated user found');
+      return [];
+    }
+
+    // Fetch matches with likely "active" states. Adjust states if your app uses different ones.
+    const activeStates = ['equipos_formados', 'activo', 'en_juego', 'en_curso'];
+
+    const { data: partidos, error } = await supabase
+      .from('partidos')
+      .select('*')
+      .in('estado', activeStates)
+      .order('fecha', { ascending: true });
+
+    if (error) {
+      console.error('[getPartidosActivosUsuario] Error fetching partidas:', error);
+      return [];
+    }
+
+    console.log('[getPartidosActivosUsuario] Total active matches fetched:', partidos?.length || 0);
+
+    // Filter client-side to include only matches where the current user is among the jugadores
+    const uid = user.id;
+    const partidasDelUsuario = (partidos || []).filter((partido) => {
+      if (!partido.jugadores || !Array.isArray(partido.jugadores)) return false;
+
+      // jugador objects may contain usuario_id, uuid or id depending on how they were stored
+      return partido.jugadores.some((j) => {
+        try {
+          if (!j) return false;
+          if (j.usuario_id && String(j.usuario_id) === String(uid)) return true;
+          if (j.uuid && String(j.uuid) === String(uid)) return true;
+          if (j.id && String(j.id) === String(uid)) return true;
+          // Also support when jugadores is an array of simple ids
+          if (typeof j === 'string' || typeof j === 'number') {
+            return String(j) === String(uid);
+          }
+        } catch (err) {
+          return false;
+        }
+        return false;
+      });
+    });
+
+    console.log('[getPartidosActivosUsuario] Matches where user participates:', partidasDelUsuario.length);
+    if (partidasDelUsuario.length > 0) console.log('[getPartidosActivosUsuario] Sample match:', partidasDelUsuario[0]);
+
+    return partidasDelUsuario;
+  } catch (err) {
+    console.error('[getPartidosActivosUsuario] Exception:', err);
+    return [];
+  }
+};
+
+/**
+ * Helper to create a realtime subscription to partidos changes and call a callback
+ * @param {Function} callback - Callback function to call on changes
+ * @returns {Object|null} Supabase channel object or null if failed
+ */
+export const subscribeToPartidosChanges = (callback) => {
+  try {
+    const channel = supabase.channel('public:partidos')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'partidos' }, (payload) => {
+        console.log('[subscribeToPartidosChanges] Realtime payload received:', payload);
+        if (typeof callback === 'function') callback(payload);
+      })
+      .subscribe();
+
+    return channel;
+  } catch (err) {
+    console.error('[subscribeToPartidosChanges] Failed to create subscription:', err);
+    return null;
+  }
+};

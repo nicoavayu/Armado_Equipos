@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getPartidosFrecuentes, deletePartidoFrecuente } from './supabase';
+import { deletePartidoFrecuente } from './supabase';
 import { toast } from 'react-toastify';
 import { DIAS_SEMANA } from './constants';
 import PageTitle from './components/PageTitle';
@@ -20,19 +20,49 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
   const [partidoToDelete, setPartidoToDelete] = useState(null);
 
   useEffect(() => {
-    cargarPartidos();
-  }, []);
+    let channel = null;
 
-  const cargarPartidos = async () => {
-    try {
-      const partidos = await getPartidosFrecuentes();
-      setPartidosFrecuentes(partidos);
-    } catch (error) {
-      toast.error('Error al cargar partidos: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const cargarPartidosActivosUsuario = async () => {
+      try {
+        console.log('[ListaPartidosFrecuentes] Loading active matches for current user');
+        setLoading(true);
+        const { getPartidosActivosUsuario, subscribeToPartidosChanges } = await import('./services/db/frequentMatches');
+        const partidos = await getPartidosActivosUsuario();
+        console.log('[ListaPartidosFrecuentes] Active matches loaded:', partidos.length);
+        setPartidosFrecuentes(partidos || []);
+
+        // Subscribe to realtime changes to partidos table to refresh when status changes or new matches are created
+        channel = subscribeToPartidosChanges(async (payload) => {
+          console.log('[ListaPartidosFrecuentes] Realtime change detected, refreshing list', payload.event);
+          try {
+            const refreshed = await getPartidosActivosUsuario();
+            setPartidosFrecuentes(refreshed || []);
+          } catch (err) {
+            console.error('[ListaPartidosFrecuentes] Error refreshing after realtime event:', err);
+          }
+        });
+
+      } catch (error) {
+        toast.error('Error al cargar partidos: ' + (error?.message || error));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    cargarPartidosActivosUsuario();
+
+    return () => {
+      // cleanup subscription
+      try {
+        if (channel && channel.unsubscribe) {
+          channel.unsubscribe();
+          console.log('[ListaPartidosFrecuentes] Unsubscribed from realtime channel');
+        }
+      } catch (err) {
+        console.warn('Error cleaning up realtime subscription', err);
+      }
+    };
+  }, []);
 
   const handleDeleteClick = (partido) => {
     setPartidoToDelete(partido);

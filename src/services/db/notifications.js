@@ -16,38 +16,13 @@ export async function getMatchPlayers(partidoId) {
 }
 
 /**
- * Schedule survey reminder notification for match end
- * @param {number} partidoId - Match ID
- * @param {string} partidoFechaISO - Match date in ISO format
- * @param {string} partidoHoraHHmm - Match time in HH:mm format
- * @returns {Promise<{data, error}>} Insert result
+ * DEPRECATED: Survey notifications are now handled by fanout_survey_start_notifications() cron job
+ * This function is kept for backward compatibility but should not be used for new matches
+ * @deprecated Use fanout_survey_start_notifications() SQL function instead
  */
 export async function scheduleSurveyReminderForMatch(partidoId, partidoFechaISO, partidoHoraHHmm) {
-  const now = new Date();
-  const sendDate = isFastResults() 
-    ? new Date(now.getTime() + 10 * 1000)
-    : getMatchEndAt(partidoFechaISO, partidoHoraHHmm, Number(process.env.REACT_APP_MATCH_DURATION_MIN || process.env.NEXT_PUBLIC_MATCH_DURATION_MIN || 90));
-  const send_at = sendDate.toISOString();
-
-  const { data: players, error: playersErr } = await getMatchPlayers(partidoId);
-  if (playersErr) return { error: playersErr };
-
-  const rows = (players || [])
-    .filter(p => p?.usuario_id)
-    .map(p => ({
-      user_id: p.usuario_id,
-      type: 'survey_reminder',
-      title: '¡Hora de calificar!',
-      message: 'Completá la encuesta del partido.',
-      data: { matchId: Number(partidoId) },
-      send_at,
-      status: 'pending',
-      created_at: now.toISOString(),
-    }));
-
-  if (!rows.length) return { data: [], error: null };
-
-  return await supabase.from('notifications').insert(rows).select('id');
+  console.warn('[DEPRECATED] scheduleSurveyReminderForMatch is deprecated. Survey notifications are handled by cron job.');
+  return { data: [], error: null };
 }
 
 /**

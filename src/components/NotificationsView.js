@@ -52,9 +52,24 @@ const NotificationsView = () => {
     return date.toLocaleString();
   };
 
-  const handleNotificationClick = async (notification) => {
-    console.log('[NOTIFICATION_CLICK] Clicked notification:', notification);
-    console.log('[NOTIFICATION_CLICK] Notification data:', notification.data);
+  const handleNotificationClick = async (notification, e) => {
+    if (e) { e.preventDefault?.(); e.stopPropagation?.(); }
+    
+    const link = notification?.data?.link;
+    const matchId = notification?.data?.match_id ?? notification?.data?.partidoId ?? notification?.match_id;
+    
+    console.debug('[NOTIFICATION_CLICK]', { id: notification?.id, type: notification?.type, link, matchId });
+    
+    if (notification?.type === 'survey_start') {
+      if (link) {
+        navigate(link, { replace: false });
+      } else if (matchId) {
+        navigate(`/encuesta/${matchId}`, { replace: false });
+      } else {
+        console.error('[NOTIFICATION_CLICK] survey_start sin link ni matchId', notification);
+      }
+      return;
+    }
     
     if (!notification.read) {
       markAsRead(notification.id);
@@ -69,19 +84,16 @@ const NotificationsView = () => {
       return;
     }
     
-    // Priority 1: Check for matchUrl
     if (data.matchUrl) {
       navigate(data.matchUrl);
       return;
     }
     
-    // Priority 2: Check for resultsUrl
     if (data.resultsUrl) {
       navigate(data.resultsUrl);
       return;
     }
     
-    // Priority 3: Handle call_to_vote BEFORE generic matchId check
     if (notification.type === 'call_to_vote' && data.matchCode) {
       const url = `/?codigo=${data.matchCode}`;
       console.log('[NOTIFICATION_CLICK] call_to_vote - navigating to:', url);
@@ -89,16 +101,13 @@ const NotificationsView = () => {
       return;
     }
     
-    // Priority 4: Use /partido/:id if matchId exists
     if (data.matchId) {
       navigate(`/partido/${toBigIntId(data.matchId)}`);
       return;
     }
     
-    // Fallback: Handle specific notification types
     switch (notification.type) {
       case 'friend_request':
-        // Don't navigate, let user handle with action buttons
         break;
       case 'friend_accepted':
         navigate('/amigos');
@@ -114,7 +123,6 @@ const NotificationsView = () => {
           const url = `/?codigo=${data.matchCode}`;
           console.log('[NOTIFICATION_CLICK] About to navigate to:', url);
           console.log('[NOTIFICATION_CLICK] Current location:', window.location.href);
-          // Force full page reload to ensure clean navigation
           window.location.replace(url);
           console.log('[NOTIFICATION_CLICK] Navigation initiated with replace');
         } else {
@@ -123,9 +131,9 @@ const NotificationsView = () => {
         }
         break;
       case 'pre_match_vote':
-        const id = notification?.target_params?.partido_id;
-        if (id) {
-          navigate(`/voting/${id}`);
+        const preMatchId = notification?.target_params?.partido_id;
+        if (preMatchId) {
+          navigate(`/voting/${preMatchId}`);
         } else if (data.matchCode) {
           navigate(`/?codigo=${data.matchCode}`);
         }
@@ -147,7 +155,6 @@ const NotificationsView = () => {
         break;
       case 'survey_results':
       case 'survey_results_ready':
-        // Priorizar resultsUrl si existe (incluye ?showAwards=1)
         if (data.resultsUrl) {
           navigate(data.resultsUrl);
         } else if (data.partido_id) {
@@ -250,12 +257,19 @@ const NotificationsView = () => {
         <div className="notifications-list">
           {notifications.map((notification) => (
             <div 
-              key={notification.id} 
+              key={notification.id}
+              role="button"
+              tabIndex={0}
               className={`notification-item ${!notification.read ? 'unread' : ''} ${notification.type === 'friend_request' ? 'friend-request' : ''}`}
-              onClick={() => {
+              onClick={(e) => {
                 console.log('[NOTIFICATION_CLICK] Notification clicked, type:', notification.type);
                 if (notification.type !== 'friend_request') {
-                  handleNotificationClick(notification);
+                  handleNotificationClick(notification, e);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && notification.type !== 'friend_request') {
+                  handleNotificationClick(notification, e);
                 }
               }}
             >
