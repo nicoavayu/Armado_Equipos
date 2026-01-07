@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSurveys } from '../hooks/useSurveys';
 
 /**
@@ -7,6 +8,7 @@ import { useSurveys } from '../hooks/useSurveys';
  */
 const SurveyManager = () => {
   const { pendingSurveys } = useSurveys();
+  const navigate = useNavigate();
 
   // Check for pending surveys on component mount
   useEffect(() => {
@@ -15,7 +17,8 @@ const SurveyManager = () => {
       if (pendingSurveys.length > 0) {
         const firstSurvey = pendingSurveys[0];
         if (firstSurvey.partido?.id) {
-          window.location.href = `/encuesta/${firstSurvey.partido.id}`;
+          // SPA navigation to survey
+          navigate(`/encuesta/${firstSurvey.partido.id}`);
         }
       }
     }, 5000); // 5 seconds delay

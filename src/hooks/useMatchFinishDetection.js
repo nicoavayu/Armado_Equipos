@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import { checkAndNotifyMatchFinish } from '../services/matchFinishService';
+import { supabase } from '../supabase';
 
 /**
  * Hook to automatically detect when matches finish and send notifications
@@ -25,39 +26,65 @@ export const useMatchFinishDetection = (partidos) => {
         // Check if match just finished
         if (isMatchJustFinished(partido, now)) {
           try {
-            // Send notification through context
-            await createNotification(
-              'post_match_survey',
-              '¡Encuesta lista!',
-              `La encuesta ya está lista para completar sobre el partido ${partido.nombre || formatMatchDate(partido.fecha)}.`,
-              {
-                partido_id: partido.id,
-                partido_nombre: partido.nombre,
-                partido_fecha: partido.fecha,
-                partido_hora: partido.hora,
-                partido_sede: partido.sede
-              }
-            );
-            
-            // Mark as notified
-            notifiedMatches.current.add(partido.id);
-            
-            console.log(`Sent survey notification for finished match ${partido.id}`);
-          } catch (error) {
-            console.error('Error sending match finish notification:', error);
-          }
-        }
-      }
-    };
+            // Avoid duplicate notifications: if DB already has a survey_start/post_match_survey for this partido, skip
+            const { data: existing, error: existingError } = await supabase
+              .from('notifications')
+              .select('id, type')
+              .eq('partido_id', partido.id)
+              .in('type', ['survey_start', 'post_match_survey'])
+              .limit(1);
 
-    // Check immediately
-    checkFinishedMatches();
+            if (existingError) {
+              console.error('Error checking existing notifications for partido', partido.id, existingError);
+            }
+            if (existing && existing.length > 0) {
+              // Mark as notified to avoid re-checking
+              notifiedMatches.current.add(partido.id);
+              console.log(`Skipping client-side survey notification for match ${partido.id} because DB already has one.`);
+              continue;
+            }
 
-    // Set up interval to check every minute
-    const interval = setInterval(checkFinishedMatches, 60000);
+            // --- CANONICAL MODE CHECK: prevent client creation when DB is canonical ---
+            const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || "db";
+            if (SURVEY_FANOUT_MODE === "db") {
+              notifiedMatches.current.add(partido.id);
+              console.log(`Client-side skipped creating post_match_survey because SURVEY_FANOUT_MODE=db for match ${partido.id}`);
+              continue;
+            }
+                 
+             // Send notification through context
+             await createNotification(
+               'post_match_survey',
+               '¡Encuesta lista!',
+               `La encuesta ya está lista para completar sobre el partido ${partido.nombre || formatMatchDate(partido.fecha)}.`,
+               {
+                 partido_id: partido.id,
+                 partido_nombre: partido.nombre,
+                 partido_fecha: partido.fecha,
+                 partido_hora: partido.hora,
+                 partido_sede: partido.sede
+               }
+             );
+             
+             // Mark as notified
+             notifiedMatches.current.add(partido.id);
+             
+             console.log(`Sent survey notification for finished match ${partido.id}`);
+           } catch (error) {
+             console.error('Error sending match finish notification:', error);
+           }
+         }
+       }
+     };
 
-    return () => clearInterval(interval);
-  }, [partidos, user, createNotification]);
+     // Check immediately
+     checkFinishedMatches();
+
+     // Set up interval to check every minute
+     const interval = setInterval(checkFinishedMatches, 60000);
+
+     return () => clearInterval(interval);
+   }, [partidos, user, createNotification]);
 
   // Clean up notified matches when partidos change
   useEffect(() => {

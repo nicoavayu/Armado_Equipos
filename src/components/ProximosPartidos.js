@@ -194,6 +194,13 @@ const ProximosPartidos = ({ onClose }) => {
       for (const partido of partidosEnriquecidos) {
         if (isMatchFinished(partido) && !notifiedMatches.has(partido.id)) {
           try {
+            // --- CANONICAL MODE CHECK: prevent client creation when DB is canonical ---
+            const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || "db";
+            if (SURVEY_FANOUT_MODE === "db") {
+              setNotifiedMatches(prev => new Set([...prev, partido.id]));
+              continue;
+            }
+
             await createNotification(
               'post_match_survey',
               '¡Encuesta lista!',

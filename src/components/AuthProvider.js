@@ -16,7 +16,6 @@ const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-
   const fetchProfile = async (currentUser) => {
     console.log('AuthProvider fetchProfile called with:', currentUser?.id);
     if (!currentUser) {
@@ -29,21 +28,37 @@ const AuthProvider = ({ children }) => {
         console.log('Attempting to get existing profile...');
         profileData = await getProfile(currentUser.id);
         console.log('Existing profile found:', profileData);
-        
-        // Siempre actualizar el avatar_url si viene de un proveedor social
+
+        // NOTE: Do NOT update avatar_url during auth/login flow.
+        // The app must only change avatar when user explicitly uploads a new one.
         const metadataAvatar = currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture;
-        if (metadataAvatar) {
-          console.log('Updating profile with avatar from user metadata:', metadataAvatar);
-          profileData = await updateProfile(currentUser.id, { avatar_url: metadataAvatar });
+        if (metadataAvatar && !profileData?.avatar_url) {
+          console.log('[AUTH] Social provider avatar available but will NOT update usuarios.avatar_url on login:', metadataAvatar);
+          // Intentionally do NOT call updateProfile or createOrUpdateProfile here.
         }
       } catch (error) {
-        // Profile doesn't exist, create it
-        console.log('Profile not found, creating new profile for user:', currentUser.id);
-        profileData = await createOrUpdateProfile(currentUser);
-        console.log('New profile created:', profileData);
+        // Only create profile when PostgREST returned "no rows" (PGRST116).
+        // For any other error (SQL, missing column 42703, network, etc.) log and stop.
+        console.error('Error fetching profile from getProfile:', error);
+        const code = error?.code || error?.status || null;
+        if (code === 'PGRST116' || code === 116) {
+          console.log('Profile not found (PGRST116), creating profile for user:', currentUser.id);
+          profileData = await createOrUpdateProfile(currentUser);
+          console.log('New profile created:', profileData);
+        } else {
+          // Unexpected error: do NOT try to create a profile or continue — stop to avoid loops/rate limits.
+          console.error('Unexpected error fetching profile, aborting profile creation to avoid loops:', error);
+          setProfile(null);
+          return;
+        }
       }
+
       setProfile(profileData);
       console.log('Profile set in state:', profileData);
+      // Async check to observe the actual state value after React processes the update
+      setTimeout(() => {
+        console.log('[AUTH] profile state after set (async)', profile?.avatar_url);
+      }, 0);
       console.log('Profile avatar fields debug:', {
         avatar_url: profileData?.avatar_url,
         user_metadata_avatar: currentUser.user_metadata?.avatar_url,
@@ -55,6 +70,7 @@ const AuthProvider = ({ children }) => {
       setProfile(null);
     }
   };
+
 
   const refreshProfile = async () => {
     if (user) {

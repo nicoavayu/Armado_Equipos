@@ -301,9 +301,24 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                     {isSurveyStart ? (
                       <Link
                         to={to}
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          if (!notification.read) markAsRead(notification.id);
+                          
+                          // Mark notification as read before navigating
+                          const matchId = notification?.data?.match_id;
+                          if (user?.id && matchId) {
+                            try {
+                              await supabase
+                                .from('notifications')
+                                .update({ read: true, read_at: new Date().toISOString() })
+                                .eq('user_id', user.id)
+                                .eq('type', 'survey_start')
+                                .contains('data', { match_id: String(matchId) });
+                            } catch (error) {
+                              console.error('[MARK_NOTIF_READ] Error:', error);
+                            }
+                          }
+                          
                           onClose();
                         }}
                         style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', textDecoration: 'none', color: 'inherit', width: '100%' }}

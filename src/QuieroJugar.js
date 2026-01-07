@@ -525,7 +525,16 @@ export default function QuieroJugar({ onVolver }) {
                         <button 
                           className="cyan-btn"
                           onClick={() => {
-                            window.location.href = `/admin/${partido.id}`;
+                            try {
+                              if (typeof window !== 'undefined' && window.history) {
+                                window.history.pushState({}, '', `/admin/${partido.id}`);
+                                window.dispatchEvent(new PopStateEvent('popstate'));
+                              } else {
+                                window.location.href = `/admin/${partido.id}`;
+                              }
+                            } catch {
+                              window.location.href = `/admin/${partido.id}`;
+                            }
                           }}
                         >
                           VER PARTIDO

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import { handleError } from '../lib/errorHandler';
@@ -146,7 +146,7 @@ export const NotificationProvider = ({ children }) => {
   }, [currentUserId]);
 
   // Fetch all notifications for the current user
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!currentUserId) {
       logger.log('[NOTIFICATIONS] fetchNotifications: No currentUserId, skipping');
       return;
@@ -154,10 +154,15 @@ export const NotificationProvider = ({ children }) => {
 
     logger.log('[NOTIFICATIONS] Fetching notifications for user:', currentUserId);
     try {
+      // Only fetch notifications from the last 5 days to keep the UI light
+      const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+      const cutoffISO = fiveDaysAgo.toISOString();
+
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
         .eq('user_id', currentUserId)
+        .gte('created_at', cutoffISO)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -167,11 +172,104 @@ export const NotificationProvider = ({ children }) => {
         unread: data?.filter((n) => !n.read).length || 0,
       });
 
-      setNotifications(data || []);
-      updateUnreadCount(data || []);
+      // Deduplicate notifications by partido (match) preferring survey_start
+      const dedupedData = dedupeNotificationsForDisplay(data);
+
+      setNotifications(dedupedData);
+      updateUnreadCount(dedupedData);
     } catch (error) {
       handleError(error, { showToast: false });
     }
+  }, [currentUserId]);
+
+  // Deduplicate notifications per user+partido, preferring survey-related types
+  const dedupeNotificationsForDisplay = (notifs = []) => {
+    const preferredOrder = ['survey_start', 'post_match_survey', 'survey_reminder', 'call_to_vote'];
+    const keepMap = new Map(); // key -> notification for partido-linked
+    const othersMap = new Map(); // key -> notification for non-partido notifications (group by type+title+message)
+
+    for (const n of notifs) {
+      const pid = n.partido_id ?? (n.data?.match_id ?? n.data?.matchId ?? null);
+      if (pid === null || pid === undefined) {
+        // group generic notifications by type+title+message to avoid duplicate cards
+        const compKey = `${n.type}::${(n.title||'').trim()}::${(n.message||'').trim()}`;
+        const existingOther = othersMap.get(compKey);
+        if (!existingOther) {
+          othersMap.set(compKey, n);
+          continue;
+        }
+        // keep the newest
+        if (new Date(n.created_at) > new Date(existingOther.created_at)) {
+          othersMap.set(compKey, n);
+        }
+        continue;
+      }
+
+      const key = `${n.user_id}::${String(pid)}`;
+      const existing = keepMap.get(key);
+      if (!existing) {
+        keepMap.set(key, n);
+        continue;
+      }
+
+      const eIdx = preferredOrder.indexOf(existing.type);
+      const nIdx = preferredOrder.indexOf(n.type);
+
+      if (nIdx === -1 && eIdx === -1) {
+        // neither in preferred list => keep newest
+        if (new Date(n.created_at) > new Date(existing.created_at)) {
+          keepMap.set(key, n);
+        }
+      } else if (nIdx === -1) {
+        // existing has priority - do nothing
+      } else if (eIdx === -1) {
+        // new has priority
+        keepMap.set(key, n);
+      } else {
+        // both have priority positions, smaller index = higher priority
+        if (nIdx < eIdx) {
+          keepMap.set(key, n);
+        } else if (nIdx === eIdx) {
+          // same priority type => newest
+          if (new Date(n.created_at) > new Date(existing.created_at)) {
+            keepMap.set(key, n);
+          }
+        }
+      }
+    }
+
+    // If there's a survey-related notification for a partido, we should suppress lower-priority
+    // notifications (like 'call_to_vote') that reference the same partido even if they were stored
+    // as non-partido grouped notifications. Build a set of partido ids that have survey notifications.
+    const surveyTypes = new Set(['survey_start', 'post_match_survey', 'survey_reminder']);
+    const surveyPartidoIds = new Set();
+    for (const n of Array.from(keepMap.values())) {
+      if (surveyTypes.has(n.type)) {
+        const pid = n.partido_id ?? (n.data?.match_id ?? n.data?.matchId ?? null);
+        if (pid !== null && pid !== undefined) surveyPartidoIds.add(String(pid));
+      }
+    }
+    for (const n of Array.from(othersMap.values())) {
+      if (surveyTypes.has(n.type)) {
+        const pid = n.partido_id ?? (n.data?.match_id ?? n.data?.matchId ?? null);
+        if (pid !== null && pid !== undefined) surveyPartidoIds.add(String(pid));
+      }
+    }
+
+    // Build result: non-partido grouped notifications first, then deduped partido notifications
+    const nonPartido = Array.from(othersMap.values())
+      .filter((n) => {
+        // If this non-partido notification references a partido that already has a survey,
+        // and this notification is a lower-priority type (call_to_vote), suppress it.
+        const pid = n.partido_id ?? (n.data?.match_id ?? n.data?.matchId ?? null);
+        if (pid !== null && pid !== undefined && surveyPartidoIds.has(String(pid)) && n.type === 'call_to_vote') {
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const deduped = Array.from(keepMap.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return [...nonPartido, ...deduped];
   };
 
   // Handle new notification
@@ -201,20 +299,58 @@ export const NotificationProvider = ({ children }) => {
     } catch (e) {
       logger.warn('[NOTIFICATIONS] Error comparing timestamps:', e);
     }
-    
+
+    // If the user is currently on the survey page for the same partido, or viewing the partido page,
+    // don't insert the realtime notification. This prevents the survey UI from being reset by realtime inserts.
+    try {
+      const notifPid = notification.partido_id ?? (notification.data?.match_id ?? notification.data?.matchId ?? null);
+      if (notifPid && typeof window !== 'undefined' && window.location && window.location.pathname) {
+        const path = window.location.pathname;
+        const search = window.location.search || '';
+
+        // Common patterns used in the app:
+        // - /encuesta/:id
+        // - /partido/:id (survey might be embedded there)
+        // - query ?codigo= (matchCode)
+
+        const isOnEncuestaPath = path.includes('/encuesta') && path.includes(String(notifPid));
+        const isOnPartidoPath = path.includes(`/partido/${String(notifPid)}`) || path.includes(`/partido/${String(notifPid)}/`);
+        const isOnPartidoGeneric = path.includes('/partido/') && path.includes(String(notifPid));
+
+        // also check query string for matchCode if provided in notification
+        const matchCode = notification.data?.matchCode ?? notification.data?.match_code ?? null;
+        const isOnQueryCodigo = matchCode && search.includes(`codigo=${matchCode}`);
+
+        if (isOnEncuestaPath || isOnPartidoPath || isOnPartidoGeneric || isOnQueryCodigo) {
+          logger.log('[NOTIFICATIONS] Suppressing realtime notification while user is on survey/partido page for partido:', notifPid);
+          return;
+        }
+      }
+    } catch (e) {
+      logger.warn('[NOTIFICATIONS] Error while checking current path for survey suppression:', e);
+    }
+
+    // Insert and dedupe using the same logic as fetch (to avoid duplicate cards)
     setNotifications((prev) => {
       logger.log('[NOTIFICATIONS] Current notifications count:', prev.length);
-      // Evitar duplicados
-      const exists = prev.find((n) => n.id === notification.id);
-      if (exists) {
+      // Evitar duplicados por id
+      if (prev.find((n) => n.id === notification.id)) {
         logger.log('[NOTIFICATIONS] Notification already exists, skipping');
         return prev;
       }
-      
+
       const updated = [notification, ...prev];
-      logger.log('[NOTIFICATIONS] Updated notifications count:', updated.length);
-      updateUnreadCount(updated);
-      return updated;
+
+      try {
+        const deduped = dedupeNotificationsForDisplay(updated);
+        logger.log('[NOTIFICATIONS] Updated notifications count after dedupe:', deduped.length);
+        updateUnreadCount(deduped);
+        return deduped;
+      } catch (e) {
+        logger.error('[NOTIFICATIONS] Error during dedupe, falling back to raw list:', e);
+        updateUnreadCount(updated);
+        return updated;
+      }
     });
     
     // Show toast notification for real-time updates
@@ -226,14 +362,15 @@ export const NotificationProvider = ({ children }) => {
   const showNotificationToast = (notification) => {
     logger.log('[NOTIFICATIONS] Showing toast for:', notification.type);
     
-    const toastOptions = {
+    /** @type {any} */
+    const toastOptions = ({
       position: 'top-right',
       autoClose: 5000,
       hideProgressBar: false,
       closeOnClick: true,
       pauseOnHover: true,
       draggable: true,
-    };
+    });
 
     switch (notification.type) {
       case 'friend_request':
@@ -251,6 +388,7 @@ export const NotificationProvider = ({ children }) => {
       case 'call_to_vote':
         toast.info(`⭐ ${notification.title}: ${notification.message}`, toastOptions);
         break;
+      case 'survey_start':
       case 'post_match_survey':
         toast.info(`📋 ${notification.title}: ${notification.message}`, toastOptions);
         break;
@@ -278,12 +416,13 @@ export const NotificationProvider = ({ children }) => {
     const friendRequests = unread.filter((n) => n.type === 'friend_request').length;
     const matchInvites = unread.filter((n) => n.type === 'match_invite').length;
     const callToVote = unread.filter((n) => n.type === 'call_to_vote').length;
+    const surveyStarts = unread.filter((n) => n.type === 'survey_start').length;
     const postMatchSurveys = unread.filter((n) => n.type === 'post_match_survey').length;
     const surveyResults = unread.filter((n) => n.type === 'survey_results_ready').length;
     
     setUnreadCount({
       friends: friendRequests,
-      matches: matchInvites + callToVote + postMatchSurveys + surveyResults,
+      matches: matchInvites + callToVote + surveyStarts + postMatchSurveys + surveyResults,
       total: unread.length,
     });
   };
@@ -309,7 +448,7 @@ export const NotificationProvider = ({ children }) => {
       );
       updateUnreadCount(updatedNotifications);
     } catch (error) {
-      handleError(error, { showToast: false });
+      handleError(error, { showToast: false, onError: () => {} });
     }
   };
 
@@ -371,6 +510,10 @@ export const NotificationProvider = ({ children }) => {
   const createNotification = async (type, title, message, data = {}) => {
     if (!currentUserId) return;
 
+    // --- CANONICAL MODE CHECK: prevent client creation of survey notifications when DB is canonical ---
+    const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || "db";
+    if (SURVEY_FANOUT_MODE === "db" && (type === "survey_start" || type === "post_match_survey")) return;
+
     try {
       const now = new Date().toISOString();
       const notification = {
@@ -399,7 +542,7 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
-  const value = {
+  const value = useMemo(() => ({
     notifications,
     unreadCount,
     markAsRead,
@@ -408,7 +551,7 @@ export const NotificationProvider = ({ children }) => {
     createNotification,
     fetchNotifications,
     clearAllNotifications,
-  };
+  }), [notifications, unreadCount, markAsRead, markAllAsRead, markTypeAsRead, createNotification, fetchNotifications, clearAllNotifications]);
 
   return (
     <NotificationContext.Provider value={value}>
@@ -416,3 +559,5 @@ export const NotificationProvider = ({ children }) => {
     </NotificationContext.Provider>
   );
 };
+
+export default NotificationContext;

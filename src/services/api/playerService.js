@@ -147,10 +147,13 @@ export const uploadFoto = async (file, jugador) => {
   if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
   console.log('uploadFoto updating:', { jugador: jugador.uuid, fotoUrl });
   
-  // Update usuarios table with avatar_url
+  // Add cache buster so clients always receive the newest image
+  const cacheBusted = `${fotoUrl}${fotoUrl.includes('?') ? '&' : '?'}cb=${Date.now()}`;
+
+  // Update usuarios table with cache-busted avatar_url
   const { error: updateError } = await supabase
     .from('usuarios')
-    .update({ avatar_url: fotoUrl })
+    .update({ avatar_url: cacheBusted })
     .eq('id', jugador.uuid);
 
   if (updateError) {
@@ -161,7 +164,7 @@ export const uploadFoto = async (file, jugador) => {
   // Ahora ACTUALIZÁ la foto en la tabla jugadores
   const { error: updateJugadorError } = await supabase
     .from('jugadores')
-    .update({ foto_url: fotoUrl })
+    .update({ foto_url: cacheBusted })
     .eq('uuid', jugador.uuid);
 
   if (updateJugadorError) {
@@ -172,16 +175,16 @@ export const uploadFoto = async (file, jugador) => {
   // Also update user metadata to ensure consistency
   try {
     await supabase.auth.updateUser({
-      data: { avatar_url: fotoUrl },
+      data: { avatar_url: cacheBusted },
     });
-    console.log('Updated user metadata with avatar_url:', fotoUrl);
+    console.log('Updated user metadata with avatar_url:', cacheBusted);
   } catch (error) {
     console.error('Error updating user metadata:', error);
     // Continue even if this fails
   }
   
-  console.log('uploadFoto success:', fotoUrl);
-  return fotoUrl;
+  console.log('uploadFoto success:', cacheBusted);
+  return cacheBusted;
 };
 
 /**

@@ -75,10 +75,13 @@ export const uploadFoto = async (file, jugador) => {
   if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
   console.log('uploadFoto updating:', { jugador: jugador.uuid, fotoUrl: encodeURIComponent(fotoUrl || '') });
   
+  // Add cache buster so clients always receive the newest image
+  const cacheBusted = `${fotoUrl}${fotoUrl.includes('?') ? '&' : '?'}cb=${Date.now()}`;
+
   // Update usuarios table with avatar_url
   const { error: updateError } = await supabase
     .from('usuarios')
-    .update({ avatar_url: fotoUrl })
+    .update({ avatar_url: cacheBusted })
     .eq('id', jugador.uuid);
 
   if (updateError) {
@@ -89,27 +92,20 @@ export const uploadFoto = async (file, jugador) => {
   // Ahora ACTUALIZÁ la foto en la tabla jugadores
   const { error: updateJugadorError } = await supabase
     .from('jugadores')
-    .update({ foto_url: fotoUrl })
+    .update({ foto_url: cacheBusted })
     .eq('uuid', jugador.uuid);
 
   if (updateJugadorError) {
     console.error('uploadFoto update jugador error:', updateJugadorError);
-  // No lanzamos el error, solo lo logueamos
+    // No lanzamos el error, solo lo logueamos
   }
-  
-  // Also update user metadata to ensure consistency
-  try {
-    await supabase.auth.updateUser({
-      data: { avatar_url: fotoUrl },
-    });
-    console.log('Updated user metadata with avatar_url:', fotoUrl);
-  } catch (error) {
-    console.error('Error updating user metadata:', error);
-    // Continue even if this fails
-  }
-  
-  console.log('uploadFoto success:', encodeURIComponent(fotoUrl || ''));
-  return fotoUrl;
+
+  // NOTE: Do NOT update auth user metadata from here to avoid duplicate updates.
+  // auth metadata update is handled by the client (ProfileMenu) which calls supabase.auth.updateUser after upload.
+  console.log('Skipping auth metadata update in uploadFoto; handled by client ProfileMenu');
+
+  console.log('uploadFoto success:', encodeURIComponent(cacheBusted || ''));
+  return cacheBusted;
 };
 
 /**
@@ -119,17 +115,19 @@ export const uploadFoto = async (file, jugador) => {
  */
 export const getProfile = async (userId) => {
   console.log('getProfile called for userId:', userId);
+  // Use a simple, safe select of all columns from usuarios filtered by id.
+  // Do NOT mix explicit columns with '*' and do NOT request non-existent columns.
   const { data, error } = await supabase
     .from('usuarios')
-    .select('id, usuario_id, nombre, avatar_url, ranking, mvp_badges, gk_badges, red_badges, *, lesion_activa')
+    .select('*')
     .eq('id', userId)
     .single();
-  
+
   if (error) {
     console.error('getProfile error:', error);
     throw error;
   }
-  
+
   // Get badge counts from player_awards table
   if (data) {
     try {
@@ -137,26 +135,24 @@ export const getProfile = async (userId) => {
         .from('player_awards')
         .select('award_type')
         .eq('jugador_id', userId);
-      
+
       if (!badgesError && badges) {
-        // Count badges by type
         const badgeCounts = {
           mvps: 0,
           guantes_dorados: 0,
           tarjetas_rojas: 0,
         };
-        
+
         badges.forEach((badge) => {
           if (badge.award_type === 'mvp') badgeCounts.mvps++;
           if (badge.award_type === 'best_gk') badgeCounts.guantes_dorados++;
           if (badge.award_type === 'red_card') badgeCounts.tarjetas_rojas++;
         });
-        
-        // Add badge counts to profile data
+
         data.mvps = badgeCounts.mvps;
         data.guantes_dorados = badgeCounts.guantes_dorados;
         data.tarjetas_rojas = badgeCounts.tarjetas_rojas;
-        
+
         console.log('[GET_PROFILE] Badge counts added:', badgeCounts);
       }
     } catch (badgeError) {
@@ -164,11 +160,11 @@ export const getProfile = async (userId) => {
       // Continue without badges if there's an error
     }
   }
-  
+
   // Convert date format for frontend - FORCE conversion
   if (data && data.fecha_nacimiento) {
     let dateValue = data.fecha_nacimiento;
-    
+
     if (typeof dateValue === 'string') {
       // Handle ISO string format
       if (dateValue.includes('T')) {
@@ -182,28 +178,28 @@ export const getProfile = async (userId) => {
       // Convert Date object to YYYY-MM-DD format
       dateValue = dateValue.toISOString().split('T')[0];
     }
-    
+
     // Ensure final format is YYYY-MM-DD
-    if (typeof dateValue === 'string' && /^\\d{4}-\\d{2}-\\d{2}/.test(dateValue)) {
+    if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateValue)) {
       data.fecha_nacimiento = dateValue.substring(0, 10); // Take only first 10 chars (YYYY-MM-DD)
     }
-    
+
     // Update the actual data field
     data.fecha_nacimiento = dateValue;
-    
+
     console.log('[GET_PROFILE] Date conversion:', {
       original: data.fecha_nacimiento,
       converted: dateValue,
     });
   }
-  
+
   console.log('getProfile result:', {
     data: data,
     avatar_url: data?.avatar_url,
     foto_url: data?.foto_url,
     all_fields: Object.keys(data || {}),
   });
-  
+
   return data;
 };
 
@@ -324,11 +320,11 @@ export const updateProfile = async (userId, profileData) => {
   if (error) throw error;
   
   // Actualizar el nombre en todos los partidos donde el usuario es jugador
-  if (finalData.nombre) {
+  if (cleanProfileData && cleanProfileData.nombre) {
     try {
       await supabase
         .from('jugadores')
-        .update({ nombre: finalData.nombre })
+        .update({ nombre: cleanProfileData.nombre })
         .eq('usuario_id', userId);
       console.log('[UPDATE_PROFILE] Updated player name in all matches');
     } catch (updateError) {
@@ -346,18 +342,30 @@ export const updateProfile = async (userId, profileData) => {
  * @returns {Promise<Object>} Created/updated profile
  */
 export const createOrUpdateProfile = async (user) => {
-  // Avatar de Google o proveedor social
+  // Avatar from social provider (if any)
   const avatarUrl =
     user.user_metadata?.picture ||
     user.user_metadata?.avatar_url ||
     null;
 
-  // Buscá si ya existe el usuario
-  const { data: existingUser } = await supabase
+  // Check if the usuarios row already exists WITHOUT throwing when not found
+  const { data: existingUser, error: existingCheckError } = await supabase
     .from('usuarios')
     .select('avatar_url')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
+
+  if (existingCheckError) {
+    console.error('Error checking existing user in createOrUpdateProfile:', existingCheckError);
+    throw existingCheckError;
+  }
+
+  // Decide avatar value:
+  // - If usuarios already has an avatar_url, KEEP IT (never overwrite).
+  // - If user row does not exist or avatar is null, use social avatar only for initial creation.
+  const avatarForProfile = existingUser && existingUser.avatar_url
+    ? existingUser.avatar_url
+    : (avatarUrl || null);
 
   // Default nationality from environment or fallback
   const defaultNationality = process.env.REACT_APP_DEFAULT_NATIONALITY || 'argentina';
@@ -365,24 +373,24 @@ export const createOrUpdateProfile = async (user) => {
     console.warn('⚠️ Missing REACT_APP_DEFAULT_NATIONALITY in environment variables, using default: argentina');
   }
 
-  // SOLO campos que EXISTEN en la tabla usuarios
+  // ONLY fields that exist in usuarios
   const profileData = {
     id: user.id,
     nombre: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
     email: user.email,
-    avatar_url: avatarUrl || existingUser?.avatar_url || null,
-    red_social: null,                 // o traelo si lo tenés
-    localidad: null,                  // editable luego
+    avatar_url: avatarForProfile,
+    red_social: null,                 // or map if you have it
+    localidad: null,                  // editable later
     ranking: 0,
     partidos_jugados: 0,
-    posicion: null,                   // editable luego
+    posicion: null,                   // editable later
     acepta_invitaciones: true,
-    bio: null,                        // editable luego
+    bio: null,                        // editable later
     fecha_alta: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     perfil_completo: false,
     profile_completion: 0,
-    pais_codigo: null,                // editable luego
+    pais_codigo: null,                // editable later
     nacionalidad: defaultNationality,
     latitud: null,
     longitud: null,
@@ -391,19 +399,10 @@ export const createOrUpdateProfile = async (user) => {
     numero: null,
   };
 
-  // Actualizar metadata en Supabase Auth
-  if (avatarUrl) {
-    try {
-      await supabase.auth.updateUser({
-        data: { avatar_url: avatarUrl },
-      });
-      console.log('Updated user metadata with avatar_url:', avatarUrl);
-    } catch (error) {
-      console.error('Error updating user metadata:', error);
-    }
-  }
+  // IMPORTANT: Do NOT update Supabase Auth user metadata here.
+  // Auth metadata updates should only happen when the user explicitly uploads/changes avatar.
 
-  // Insertar o actualizar (upsert)
+  // Insert or update (upsert)
   const { data, error } = await supabase
     .from('usuarios')
     .upsert(profileData, { onConflict: 'id' })
@@ -522,7 +521,36 @@ export const addFreePlayer = async () => {
 };
 
 /**
- * Remove user from free players
+ * Get free player status for current user
+ * @returns {Promise<boolean>} True if user is registered as free player
+ */
+export const getFreePlayerStatus = async () => {
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return false;
+    }
+
+    const { data, error } = await supabase
+      .from('jugadores_sin_partido')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('disponible', true);
+    
+    if (error) {
+      console.error('Error checking free player status:', error);
+      return false;
+    }
+
+    return data && data.length > 0;
+  } catch (error) {
+    console.error('getFreePlayerStatus failed:', error);
+    return false;
+  }
+};
+
+/**
+ * Remove user as free player
  * @returns {Promise<void>}
  */
 export const removeFreePlayer = async () => {
@@ -537,37 +565,4 @@ export const removeFreePlayer = async () => {
     .eq('user_id', user.id);
 
   if (error) throw error;
-};
-
-/**
- * Get free player status for current user
- * @returns {Promise<boolean>} Whether user is registered as free player
- */
-export const getFreePlayerStatus = async () => {
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) return false;
-
-  const { data } = await supabase
-    .from('jugadores_sin_partido')
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('disponible', true)
-    .single();
-
-  return !!data;
-};
-
-/**
- * Get list of free players
- * @returns {Promise<Array>} List of free players
- */
-export const getFreePlayersList = async () => {
-  const { data, error } = await supabase
-    .from('jugadores_sin_partido')
-    .select('*')
-    .eq('disponible', true)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return data || [];
 };

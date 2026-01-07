@@ -37,22 +37,27 @@ BEGIN
     WHERE creado_por IS NOT NULL
   ),
   inserted_notifications AS (
-    INSERT INTO notifications (user_id, type, title, message, data)
+    INSERT INTO notifications (user_id, type, title, message, data, partido_id)
     SELECT
       r.user_id,
       'survey_start',
       '¡HORA DE CALIFICAR!',
       'Completá la encuesta del partido.',
-      jsonb_build_object('match_id', r.match_id, 'link', '/encuesta/' || r.match_id::TEXT)
+      jsonb_build_object('match_id', r.match_id, 'link', '/encuesta/' || r.match_id::TEXT),
+      r.match_id::bigint
     FROM recipients r
-    ON CONFLICT DO NOTHING
-    RETURNING data->>'match_id' AS match_id
+    ON CONFLICT ON CONSTRAINT uniq_notifications_user_matchref_type DO NOTHING
+    RETURNING partido_id
   )
-  UPDATE partidos
-  SET surveys_sent = true
-  WHERE id::TEXT IN (SELECT DISTINCT match_id FROM inserted_notifications)
-  RETURNING 1 INTO v_inserted;
-  
+  SELECT COUNT(*) INTO v_inserted FROM inserted_notifications;
+
+  -- Only mark partidos as surveys_sent if we actually inserted notifications
+  IF v_inserted > 0 THEN
+    UPDATE partidos
+    SET surveys_sent = true
+    WHERE id IN (SELECT DISTINCT partido_id FROM inserted_notifications);
+  END IF;
+
   RETURN COALESCE(v_inserted, 0);
 END;
 $$;

@@ -3,7 +3,7 @@ import { PlayerCardTrigger } from './ProfileComponents';
 import InviteFriendModal from './InviteFriendModal';
 import './MiniFriendCard.css';
 
-const MiniFriendCard = ({ friend, onRemove, currentUserId }) => {
+const MiniFriendCard = ({ friend, onRemove, currentUserId, distanceKm }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
 
@@ -33,6 +33,9 @@ const MiniFriendCard = ({ friend, onRemove, currentUserId }) => {
   const profile = friend.profile;
   const avatarUrl = profile?.avatar_url || profile?.foto_url;
   const name = profile?.nombre || 'Usuario';
+  const rating = (typeof profile?.ranking === 'number' ? profile.ranking : (typeof profile?.rating === 'number' ? profile.rating : null));
+  const ratingStr = rating != null ? rating.toFixed(1) : null;
+  const distanceStr = typeof distanceKm === 'number' && isFinite(distanceKm) ? `${distanceKm.toFixed(1)} km` : null;
 
   return (
     <div className="mini-friend-card">
@@ -61,7 +64,16 @@ const MiniFriendCard = ({ friend, onRemove, currentUserId }) => {
               </div>
             )}
           </div>
-          <span className="mini-friend-name">{name}</span>
+          <span className="mini-friend-name">
+            {name}
+            {(ratingStr || distanceStr) && (
+              <span style={{ fontSize: '12px', fontWeight: 500, color: '#666', marginLeft: 8 }}>
+                {ratingStr ? `⭐ ${ratingStr}` : ''}
+                {ratingStr && distanceStr ? ' · ' : ''}
+                {distanceStr ? `📍 ${distanceStr}` : ''}
+              </span>
+            )}
+          </span>
         </div>
       </PlayerCardTrigger>
       

@@ -1,45 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { getUserNotifications, markNotificationAsRead } from '../services/notificationService';
-import { useAuth } from '../context/AuthContext';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
+import './NotificationBell.css';
 
 const NotificationBell = () => {
-  const [notifications, setNotifications] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { notifications, markAsRead } = useNotifications();
 
-  useEffect(() => {
-    if (user?.id) {
-      loadNotifications();
-    }
-  }, [user]);
-
-  const loadNotifications = async () => {
-    try {
-      const data = await getUserNotifications(user.id);
-      setNotifications(data);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-    }
-  };
+  const unreadCount = (notifications || []).filter((n) => !n.read).length;
 
   const handleNotificationClick = async (notification) => {
     try {
-      await markNotificationAsRead(notification.id);
-      
+      await markAsRead(notification.id);
       if (notification.type === 'post_match_survey') {
         navigate(`/partido/${notification.data?.partido_id}/encuesta`);
       }
-      
       setShowDropdown(false);
-      loadNotifications();
     } catch (error) {
-      console.error('Error handling notification:', error);
+      console.error('Error handling notification click:', error);
     }
   };
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
 
   if (!user) return null;
 
@@ -62,20 +45,16 @@ const NotificationBell = () => {
           <div className="p-3 border-b">
             <h3 className="font-semibold">Notificaciones</h3>
           </div>
-          
+
           <div className="max-h-96 overflow-y-auto">
-            {notifications.length === 0 ? (
-              <div className="p-4 text-gray-500 text-center">
-                No hay notificaciones
-              </div>
+            {(!notifications || notifications.length === 0) ? (
+              <div className="p-4 text-gray-500 text-center">No hay notificaciones</div>
             ) : (
               notifications.map((notification) => (
                 <div
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
-                  className={`p-3 border-b cursor-pointer hover:bg-gray-50 ${
-                    !notification.read ? 'bg-blue-50' : ''
-                  }`}
+                  className={`p-3 border-b cursor-pointer hover:bg-gray-50 ${!notification.read ? 'bg-blue-50' : ''}`}
                 >
                   <div className="font-medium">{notification.title}</div>
                   <div className="text-sm text-gray-600">{notification.message}</div>

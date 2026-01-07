@@ -30,31 +30,56 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
   console.log('[CallToVote] start', { partidoId, type });
 
   try {
-    console.log('[Notifications] query start - fetching match code');
-    
-    const { data: partido, error: partidoError } = await supabase
+    // Fetch partido metadata early to decide whether to proceed
+    const { data: partidoMeta, error: partidoMetaError } = await supabase
       .from('partidos')
-      .select('codigo')
+      .select('codigo, survey_scheduled, survey_time')
       .eq('id', partidoId)
       .single();
-    
-    if (partidoError) {
-      console.error('[Notifications] query error', partidoError);
-      throw partidoError;
+
+    if (partidoMetaError) {
+      console.error('[Notifications] error fetching partido metadata', partidoMetaError);
+      throw partidoMetaError;
     }
-    
-    console.log('[Notifications] query result', { matchCode: partido?.codigo });
-    
+
+    // If the partido already has a scheduled survey, skip sending call_to_vote
+    if (partidoMeta?.survey_scheduled) {
+      console.log('[Notifications] partido already has survey_scheduled=true, skipping call_to_vote', { partidoId });
+      return { inserted: 0, skippedDueToSurveyScheduled: true };
+    }
+
+    // --- NEW: also check if there's already a survey-related notification for this partido, skip if present ---
+    const orExpr = `partido_id.eq.${partidoId},data->>match_id.eq.${String(partidoId)},data->>matchId.eq.${String(partidoId)}`;
+    const { data: existingSurvey, error: existingError } = await supabase
+      .from('notifications')
+      .select('id')
+      .or(orExpr)
+      .in('type', ['survey_start', 'post_match_survey', 'survey_reminder'])
+      .limit(1);
+
+    if (existingError) {
+      console.error('[Notifications] error checking existing survey notifications', existingError);
+      throw existingError;
+    }
+
+    if (existingSurvey && existingSurvey.length > 0) {
+      console.log('[Notifications] Survey notification exists for partido, skipping call_to_vote', { partidoId });
+      return { inserted: 0, skippedDueToSurvey: true };
+    }
+    // --- END NEW ---
+
+    console.log('[Notifications] query result', { matchCode: partidoMeta?.codigo });
+
     const { data: roster, error: rosterError } = await supabase
       .from('jugadores')
       .select('usuario_id')
       .eq('partido_id', partidoId);
-    
+
     if (rosterError) {
       console.error('[Notifications] roster query error', rosterError);
       throw rosterError;
     }
-    
+
     const userIds = (roster ?? [])
       .map(j => j.usuario_id)
       .filter(Boolean);
@@ -70,29 +95,30 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
       title,
       message,
       type,
-      data: { matchId: partidoId, matchCode: partido.codigo },
+      partido_id: partidoId,
+      data: { match_id: String(partidoId), matchId: partidoId, matchCode: partidoMeta?.codigo },
       read: false,
       created_at: nowIso,
       send_at: nowIso,
     }));
 
     console.log('[Notifications] inserting', { count: rows.length, sampleData: rows[0]?.data });
-    
+
     const { data, error } = await supabase
       .from('notifications')
       .insert(rows)
       .select();
-    
+
     if (error) {
       console.error('[Notifications] insert error', error);
       throw error;
     }
-    
+
     console.log('[CallToVote] success', { inserted: data?.length });
     return { inserted: data?.length || 0 };
   } catch (err) {
     console.error('[CallToVote] failed', err);
-    handleError(err, { showToast: true });
+    handleError(err, { showToast: true, onError: () => {} });
     throw err;
   }
 }
@@ -102,6 +128,13 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
  */
 export async function schedulePostMatchNotification(matchId) {
   try {
+    // Canonical guard: if DB is canonical, do not schedule from JS
+    const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || "db";
+    if (SURVEY_FANOUT_MODE === "db") {
+      console.log('[Notify] schedulePostMatchNotification skipped because SURVEY_FANOUT_MODE=db');
+      return null;
+    }
+
     // Programar para 2 horas después del partido
     const sendAt = new Date();
     sendAt.setHours(sendAt.getHours() + 2);
@@ -109,7 +142,7 @@ export async function schedulePostMatchNotification(matchId) {
     const { data, error } = await supabase
       .from('notifications')
       .insert({
-        type: 'post_match_survey',
+        type: 'survey_start',
         partido_id: matchId,
         status: 'pending',
         send_at: sendAt.toISOString(),

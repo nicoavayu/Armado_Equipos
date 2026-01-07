@@ -8,8 +8,21 @@ import { toBigIntId } from '../utils';
  * @returns {Promise<Array>} - Array of created notifications or empty array if error
  */
 export const createPostMatchSurveyNotifications = async (partido) => {
+  // DEPRECATED: Prefer DB-side fanout via fanout_survey_start_notifications() cron job.
+  // To enable JS fanout for local/dev testing set USE_JS_FANOUT=1 in the environment.
+  const useJsFanout = typeof process !== 'undefined' && process.env && process.env.USE_JS_FANOUT === '1';
+  if (!useJsFanout) {
+    console.warn('[DEPRECATED] createPostMatchSurveyNotifications is disabled in production. Use DB cron fanout_survey_start_notifications(). To enable JS fanout for dev set USE_JS_FANOUT=1');
+    return [];
+  }
+
+  // --- CANONICAL MODE CHECK: prevent JS creation when DB is canonical ---
+  const type = 'survey_start';
+  const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || "db";
+  if (SURVEY_FANOUT_MODE === "db" && (type === "survey_start" || type === "post_match_survey")) return;
+
   if (!partido || !partido.jugadores || !partido.jugadores.length) return [];
-  
+
   try {
     // Get unique user IDs from the match participants (exclude guest users)
     const userIds = partido.jugadores
@@ -17,14 +30,17 @@ export const createPostMatchSurveyNotifications = async (partido) => {
       .map((jugador) => jugador.uuid);
     
     if (userIds.length === 0) return [];
-    
+
     // Create notifications for all players
     const notifications = userIds.map((userId) => ({
       user_id: userId,
-      type: 'post_match_survey',
+      type: 'survey_start',
       title: '¡Completá la encuesta!',
       message: `Ayudanos calificando la experiencia del partido ${partido.nombre || 'reciente'}.`,
+      partido_id: partido.id,
       data: {
+        match_id: String(partido.id),
+        // legacy compatibility (to be removed after full migration)
         matchId: partido.id,
         matchCode: partido.codigo,
         matchDate: partido.fecha,
@@ -65,7 +81,7 @@ export const checkPendingSurveys = async (userId) => {
       .from('notifications')
       .select('*, partidos(*)')
       .eq('user_id', userId)
-      .eq('type', 'post_match_survey')
+      .in('type', ['post_match_survey', 'survey_start'])
       .eq('read', false);
       
     if (error) throw error;
@@ -74,13 +90,18 @@ export const checkPendingSurveys = async (userId) => {
     const pendingSurveys = [];
     
     for (const notification of notifications || []) {
-      if (!notification.match_id) continue;
+      const notifMatchId =
+        notification.match_id ??
+        notification?.data?.match_id ??
+        notification?.data?.matchId ??
+        notification?.partidos?.id;
+      if (!notifMatchId) continue;
       
       // Check if user has already submitted a survey for this match
       const { data: existingSurvey, error: surveyError } = await supabase
         .from('post_match_surveys')
         .select('id')
-        .eq('partido_id', notification.match_id)
+        .eq('partido_id', notifMatchId)
         .eq('votante_id', userId)
         .single();
         
@@ -226,7 +247,7 @@ export const processSurveyResults = async (partidoId) => {
     
     // Update player ratings for absent players (-0.5)
     if (absentPlayers.size > 0) {
-      for (const playerId of absentPlayers) {
+      for (const playerId of Array.from(absentPlayers)) {
         const { data: player, error: playerError } = await supabase
           .from('usuarios')
           .select('rating')
@@ -270,7 +291,8 @@ export const processSurveyResults = async (partidoId) => {
       type: 'survey_results_ready',
       title: 'Resultados listos',
       message: 'Ya podés ver los premios del partido.',
-      data: { matchId: idNum, resultsUrl: getResultsUrl(idNum), scheduled_for: scheduledFor },
+      partido_id: partidoId,
+      data: { match_id: String(partidoId), matchId: idNum, resultsUrl: getResultsUrl(idNum), scheduled_for: scheduledFor },
       read: false,
     }));
 

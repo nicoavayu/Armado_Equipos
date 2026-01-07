@@ -61,6 +61,7 @@ const NotificationsView = () => {
     console.debug('[NOTIFICATION_CLICK]', { id: notification?.id, type: notification?.type, link, matchId });
     
     if (notification?.type === 'survey_start') {
+      try { if (!notification.read) await markAsRead(notification.id); } catch {}
       if (link) {
         navigate(link, { replace: false });
       } else if (matchId) {
@@ -97,7 +98,7 @@ const NotificationsView = () => {
     if (notification.type === 'call_to_vote' && data.matchCode) {
       const url = `/?codigo=${data.matchCode}`;
       console.log('[NOTIFICATION_CLICK] call_to_vote - navigating to:', url);
-      window.location.replace(url);
+      navigate(url, { replace: true });
       return;
     }
     
@@ -122,9 +123,7 @@ const NotificationsView = () => {
         if (data.matchCode) {
           const url = `/?codigo=${data.matchCode}`;
           console.log('[NOTIFICATION_CLICK] About to navigate to:', url);
-          console.log('[NOTIFICATION_CLICK] Current location:', window.location.href);
-          window.location.replace(url);
-          console.log('[NOTIFICATION_CLICK] Navigation initiated with replace');
+          navigate(url, { replace: true });
         } else {
           console.error('[NOTIFICATION_CLICK] Missing matchCode in call_to_vote');
           toast.error('Falta código del partido');

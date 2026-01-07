@@ -9,20 +9,24 @@ import { useBadges } from '../context/BadgeContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { finalizeIfComplete } from '../services/surveyCompletionService';
 import { toBigIntId } from '../utils';
+import { useNotifications } from '../context/NotificationContext';
 
 import ProfileCard from '../components/ProfileCard';
 import '../VotingView.css';
 
 const EncuestaPartido = () => {
-  const { partidoId } = useParams();
+  const { partidoId, matchId } = useParams();
+  const id = partidoId ?? matchId;
   const { user } = useAuth();
   const { triggerBadgeRefresh } = useBadges();
+  const { fetchNotifications } = useNotifications();
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [partido, setPartido] = useState(null);
   const [currentStep, setCurrentStep] = useState(0);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
   const [formData, setFormData] = useState({
     se_jugo: true,
@@ -44,17 +48,38 @@ const EncuestaPartido = () => {
   useEffect(() => {
     const fetchPartidoData = async () => {
       try {
-        if (!partidoId || !user) {
+        if (!id || !user) {
           navigate('/');
           return;
         }
         
         setLoading(true);
         
+        // Check if user already submitted survey
+        const currentUserPlayer = await supabase
+          .from('jugadores')
+          .select('id')
+          .eq('partido_id', id)
+          .eq('usuario_id', user.id)
+          .single();
+        
+        if (currentUserPlayer.data?.id) {
+          const { data: existingSurvey } = await supabase
+            .from('post_match_surveys')
+            .select('id')
+            .eq('partido_id', parseInt(id))
+            .eq('votante_id', currentUserPlayer.data.id)
+            .single();
+          
+          if (existingSurvey) {
+            setAlreadySubmitted(true);
+          }
+        }
+        
         const { data: partidoData, error: partidoError } = await supabase
           .from('partidos')
           .select('*')
-          .eq('id', partidoId)
+          .eq('id', id)
           .single();
           
         if (partidoError) throw partidoError;
@@ -69,17 +94,49 @@ const EncuestaPartido = () => {
         }
         
       } catch (error) {
-        handleError(error, { showToast: true });
+        handleError(error, { showToast: true, onError: () => {} });
         navigate('/');
       } finally {
         setLoading(false);
       }
     };
     
-    if (partidoId && user) {
+    if (id && user) {
       fetchPartidoData();
     }
-  }, [partidoId, user, navigate]);
+  }, [id, user, navigate]);
+
+  // Mark survey related notifications as read when entering survey page
+  useEffect(() => {
+    const markNotificationRead = async () => {
+      if (!id || !user?.id) return;
+      try {
+        const nowIso = new Date().toISOString();
+        const partidoIdNum = Number(id);
+
+        // Prefer the canonical fields inserted by the DB cron: top-level partido_id and data.match_id (string)
+        await Promise.all([
+          supabase.from('notifications')
+            .update({ read: true, read_at: nowIso })
+            .eq('user_id', user.id)
+            .in('type', ['survey_start', 'post_match_survey'])
+            .eq('partido_id', partidoIdNum),
+
+          supabase.from('notifications')
+            .update({ read: true, read_at: nowIso })
+            .eq('user_id', user.id)
+            .in('type', ['survey_start', 'post_match_survey'])
+            .contains('data', { match_id: String(id) }),
+        ]);
+
+        try { await fetchNotifications?.(); } catch {}
+      } catch (error) {
+        console.error('[MARK_NOTIF_READ] Error:', error);
+      }
+    };
+
+    markNotificationRead();
+  }, [id, user?.id, fetchNotifications]);
 
 
 
@@ -123,6 +180,11 @@ const EncuestaPartido = () => {
 
   const continueSubmitFlow = async () => {
     try {
+      if (alreadySubmitted) {
+        toast.info('Ya completaste esta encuesta');
+        return;
+      }
+      
       // Convertir UUIDs a IDs numéricos para la base de datos
       const mvpPlayer = formData.mvp_id ? jugadores.find(j => j.uuid === formData.mvp_id) : null;
       const arqueroPlayer = formData.arquero_id ? jugadores.find(j => j.uuid === formData.arquero_id) : null;
@@ -140,7 +202,7 @@ const EncuestaPartido = () => {
         .filter(Boolean);
       
       const surveyData = {
-        partido_id: parseInt(partidoId),
+        partido_id: parseInt(id),
         votante_id: currentUserPlayer?.id || null,
         se_jugo: formData.se_jugo,
         motivo_no_jugado: formData.motivo_no_jugado || null,
@@ -159,7 +221,7 @@ const EncuestaPartido = () => {
             // Encontrar el jugador y obtener su usuario_id
             const jugador = jugadores.find(j => j.uuid === jugadorUuid);
             if (jugador && jugador.usuario_id) {
-              await processAbsenceWithoutNotice(jugador.usuario_id, parseInt(partidoId), user.id);
+              await processAbsenceWithoutNotice(jugador.usuario_id, parseInt(id), user.id);
             }
           } catch (error) {
             console.error('Error processing absence without notice:', error);
@@ -174,19 +236,36 @@ const EncuestaPartido = () => {
         
       if (error) throw error;
       
-      // 2) intentar cierre si ya están todos (no bloquear el flujo si falla)
+      // 2) Marcar notificaciones relacionadas como leídas (usa contrato canónico)
       try {
-        await finalizeIfComplete(parseInt(partidoId));
+        const nowIso = new Date().toISOString();
+        const partidoIdNum = Number(id);
+        await Promise.all([
+          supabase.from('notifications').update({ read: true, read_at: nowIso })
+            .eq('user_id', user.id).in('type', ['survey_start', 'post_match_survey']).eq('partido_id', partidoIdNum),
+
+          supabase.from('notifications').update({ read: true, read_at: nowIso })
+            .eq('user_id', user.id).in('type', ['survey_start', 'post_match_survey']).contains('data', { match_id: String(id) }),
+        ]);
+        try { await fetchNotifications?.(); } catch {}
+      } catch (notifError) {
+        console.error('[MARK_NOTIF_READ] Error:', notifError);
+      }
+      
+      // 3) intentar cierre si ya están todos (no bloquear el flujo si falla)
+      try {
+        await finalizeIfComplete(parseInt(id));
       } catch (e) {
         console.warn('[finalizeIfComplete] non-blocking error:', e);
       }
       
-      // 3) Mostrar pantalla final interna (sin toast, sin redirect)
+      // 4) Mostrar pantalla final interna (sin toast, sin redirect)
+      setAlreadySubmitted(true);
       setEncuestaFinalizada(true);
       setCurrentStep(99);
       
     } catch (error) {
-      handleError(error, { showToast: true });
+      handleError(error, { showToast: true, onError: () => {} });
     } finally {
       setSubmitting(false);
     }
@@ -195,8 +274,13 @@ const EncuestaPartido = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!user || !partidoId) {
+    if (!user || !id) {
       toast.error('Debes iniciar sesión para calificar un partido');
+      return;
+    }
+    
+    if (alreadySubmitted) {
+      toast.info('Ya completaste esta encuesta');
       return;
     }
     
@@ -249,13 +333,13 @@ const EncuestaPartido = () => {
     );
   }
 
-  if (yaCalificado) {
+  if (yaCalificado || alreadySubmitted) {
     return (
       <div className="voting-bg">
         <div className="voting-modern-card">
-          <div className="voting-title-modern">YA CALIFICASTE</div>
+          <div className="voting-title-modern">YA COMPLETASTE LA ENCUESTA</div>
           <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: 'center' }}>
-            Ya has calificado este partido.<br />¡Gracias por tu participación!
+            Ya has completado la encuesta de este partido.<br />¡Gracias por tu participación!
           </div>
           <button className="voting-confirm-btn" onClick={() => navigate('/')}>
             VOLVER AL INICIO

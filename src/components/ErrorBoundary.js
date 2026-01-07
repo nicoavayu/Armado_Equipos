@@ -20,7 +20,20 @@ class ErrorBoundary extends React.Component {
         <div style={{ padding: '20px', textAlign: 'center', color: 'white' }}>
           <h2>Algo salió mal</h2>
           <p>Error: {this.state.error?.message || 'Error desconocido'}</p>
-          <button onClick={() => window.location.href = '/'}>
+          <button onClick={() => {
+            try {
+              // Soft navigation back to home
+              if (typeof window !== 'undefined' && window.history) {
+                window.history.pushState({}, '', '/');
+                // Trigger a popstate so routers can update if needed
+                window.dispatchEvent(new PopStateEvent('popstate'));
+              } else {
+                window.location.href = '/';
+              }
+            } catch {
+              window.location.href = '/';
+            }
+          }}>
             Volver al inicio
           </button>
         </div>

@@ -143,18 +143,21 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       const fotoUrl = data?.publicUrl;
       if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
 
+      // Add cache buster so clients always fetch the newest image
+      const cacheBusted = `${fotoUrl}${fotoUrl.includes('?') ? '&' : '?'}cb=${Date.now()}`;
+
       // Update profile in database
-      await updateProfile(user.id, { avatar_url: fotoUrl });
+      await updateProfile(user.id, { avatar_url: cacheBusted });
 
       // Update user metadata
       await supabase.auth.updateUser({
-        data: { avatar_url: fotoUrl },
+        data: { avatar_url: cacheBusted },
       });
 
-      // Update local state with permanent URL
+      // Update local state with permanent cache-busted URL
       setLiveProfile((prev) => ({
         ...prev,
-        avatar_url: fotoUrl,
+        avatar_url: cacheBusted,
       }));
 
       setHasChanges(true);

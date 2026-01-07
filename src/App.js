@@ -4,17 +4,14 @@ import { ToastContainer, toast } from 'react-toastify';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useParams, useLocation, Outlet } from 'react-router-dom';
 import PageTransition from './components/PageTransition';
 import { useAnimatedNavigation } from './hooks/useAnimatedNavigation';
-import { MODES, ADMIN_STEPS } from './constants';
 import AmigosView from './components/AmigosView';
 
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
 import AuthProvider, { useAuth } from './components/AuthProvider';
-import DirectFix from './components/DirectFix';
 import Button from './components/Button';
 import LoadingSpinner from './components/LoadingSpinner';
 import NetworkStatus from './components/NetworkStatus';
-import TabBar from './components/TabBar';
 import FifaHome from './FifaHome';
 
 
@@ -44,18 +41,17 @@ import { getPartidoPorCodigo, getPartidoPorId, updateJugadoresPartido, crearPart
 
 import AuthPage from './components/AuthPage';
 import ResetPassword from './components/ResetPassword';
-import { useSurveyScheduler } from './hooks/useSurveyScheduler';
-import matchScheduler from './services/matchScheduler';
-import { supabase } from './supabase';
-import { useNotifications } from './context/NotificationContext';
-import { forceSurveyResultsNow } from './services/notificationService';
-import { toBigIntId } from './utils';
-import './utils/testNotificationsView';
-import './utils/testNotifications';
-import './utils/debugProximosPartidos';
+
+// Dev-only diagnostics (excluded in production builds)
+if (process.env.NODE_ENV === 'development') {
+  try { require('./utils/testNotificationsView'); } catch {}
+  try { require('./utils/testNotifications'); } catch {}
+  try { require('./utils/debugProximosPartidos'); } catch {}
+}
 
 const HomePage = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [partidoActual, setPartidoActual] = useState(null);
   const [showVotingView, setShowVotingView] = useState(false);
   
@@ -94,7 +90,7 @@ const HomePage = () => {
             setShowVotingView(false);
             setPartidoActual(null);
             // Navegar al home limpio
-            window.location.href = '/';
+            navigate('/');
           }}
         />
       </div>
@@ -111,7 +107,7 @@ const HomePage = () => {
           <FifaHome onModoSeleccionado={(modo) => {
             if (modo === 'admin-historial') {
               // Navegar directamente a la lista de partidos frecuentes
-              window.location.href = '/?admin=historial';
+              navigate('/?admin=historial');
             }
           }} />
         </div>
@@ -361,346 +357,8 @@ const HistorialPage = () => {
   );
 };
 
-const SeleccionarTipoPartido = ({ onNuevo, onExistente }) => (
-  <div className="voting-bg content-with-tabbar">
-    <div className="voting-modern-card">
-      <div className="match-name" style={{ marginBottom: 24 }}>ARMAR EQUIPOS</div>
-      <button className="voting-confirm-btn" style={{ marginBottom: 12, background: '#8178e5', borderRadius: '50px' }} onClick={onNuevo}>
-        ARMAR PARTIDO NUEVO
-      </button>
-      <button className="voting-confirm-btn" style={{ marginBottom: 16, background: '#8178e5', borderRadius: '50px' }} onClick={onExistente}>
-        HISTORIAL
-      </button>
-    </div>
-  </div>
-);
 
-function _MainAppContent({ _user }) {
-  useSurveyScheduler();
-  
-  // Initialize match scheduler
-  useEffect(() => {
-    matchScheduler.start();
-    matchScheduler.loadActiveMatches();
-    
-    return () => {
-      matchScheduler.stop();
-    };
-  }, []);
-  
-  const [modo, setModo] = useState('home');
-  const [partidoActual, setPartidoActual] = useState(undefined);
-  const [stepPartido, setStepPartido] = useState(ADMIN_STEPS.SELECT_TYPE);
-  const [partidoFrecuenteEditando, setPartidoFrecuenteEditando] = useState(null);
-
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const codigo = params.get('codigo');
-    if (codigo) {
-      setModo(MODES.PLAYER);
-      getPartidoPorCodigo(codigo)
-        .then((partido) => setPartidoActual(partido))
-        .catch(() => setPartidoActual(null));
-    }
-  }, []);
-
-  const handleJugadoresChange = async (nuevosJugadores) => {
-    if (!partidoActual) return;
-    await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
-    setPartidoActual({ ...partidoActual, jugadores: nuevosJugadores });
-    if (partidoActual.from_frequent_match_id) {
-      try {
-        await updateJugadoresFrecuentes(partidoActual.from_frequent_match_id, nuevosJugadores);
-      } catch (error) {
-        toast.error('Error actualizando partido frecuente');
-      }
-    }
-  };
-
-  let content;
-  let showTabBar = true;
-  let activeTab = modo;
-
-  if (modo === MODES.ADMIN) {
-    activeTab = 'votacion';
-    if (stepPartido === ADMIN_STEPS.SELECT_TYPE) {
-      content = (
-        <SeleccionarTipoPartido
-          onNuevo={() => setStepPartido(ADMIN_STEPS.CREATE_MATCH)}
-          onExistente={() => setStepPartido(ADMIN_STEPS.SELECT_FREQUENT)}
-        />
-      );
-    }
-    else if (stepPartido === ADMIN_STEPS.CREATE_MATCH) {
-      content = (
-        <FormularioNuevoPartidoFlow
-          onConfirmar={async (partido) => {
-            console.log('Match created from flow:', partido.id);
-            setPartidoActual(partido);
-            setStepPartido(ADMIN_STEPS.MANAGE);
-            return partido;
-          }}
-          onVolver={() => setStepPartido(ADMIN_STEPS.SELECT_TYPE)}
-        />
-      );
-    }
-    else if (stepPartido === ADMIN_STEPS.SELECT_FREQUENT) {
-      content = (
-        <ListaPartidosFrecuentes
-          onEntrar={async (partidoFrecuente) => {
-            try {
-              const hoy = new Date().toISOString().split('T')[0];
-              const partido = await crearPartidoDesdeFrec(partidoFrecuente, hoy);
-              partido.from_frequent_match_id = partidoFrecuente.id;
-              setPartidoActual(partido);
-              setStepPartido(ADMIN_STEPS.MANAGE);
-            } catch (error) {
-              toast.error('Error al crear el partido');
-            }
-          }}
-          onEditar={(partido) => {
-            setPartidoFrecuenteEditando(partido);
-            setStepPartido(ADMIN_STEPS.EDIT_FREQUENT);
-          }}
-          onVolver={() => setStepPartido(ADMIN_STEPS.SELECT_TYPE)}
-        />
-      );
-    }
-    else if (stepPartido === ADMIN_STEPS.EDIT_FREQUENT && partidoFrecuenteEditando) {
-      content = (
-        <EditarPartidoFrecuente
-          partido={partidoFrecuenteEditando}
-          onGuardado={() => {
-            setPartidoFrecuenteEditando(null);
-            setStepPartido(ADMIN_STEPS.SELECT_FREQUENT);
-          }}
-          onVolver={() => {
-            setPartidoFrecuenteEditando(null);
-            setStepPartido(ADMIN_STEPS.SELECT_FREQUENT);
-          }}
-        />
-      );
-    }
-    else if (stepPartido === ADMIN_STEPS.MANAGE && partidoActual) {
-      content = (
-        <div className="voting-bg content-with-tabbar">
-          <div className="voting-modern-card" style={{ maxWidth: 650 }}>
-            <AdminPanel
-              partidoActual={partidoActual}
-              jugadores={partidoActual?.jugadores || []}
-              onJugadoresChange={handleJugadoresChange}
-              onBackToHome={() => {
-                setModo('home');
-                setPartidoActual(null);
-                setPartidoFrecuenteEditando(null);
-                setStepPartido(ADMIN_STEPS.SELECT_TYPE);
-              }}
-            />
-          </div>
-        </div>
-      );
-    }
-    else if (stepPartido === ADMIN_STEPS.MANAGE && !partidoActual) {
-      setStepPartido(ADMIN_STEPS.SELECT_TYPE);
-      return null;
-    }
-  }
-  else if (modo === 'home') {
-    content = (
-      <div className="voting-bg content-with-tabbar">
-        <div className="voting-modern-card" style={{ maxWidth: 800, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 0 }}>
-          <FifaHome onModoSeleccionado={(m, tab) => {
-            setModo(m);
-            if (m === MODES.ADMIN) setStepPartido(ADMIN_STEPS.SELECT_TYPE);
-            if (m === 'quiero-jugar' && tab) {
-              sessionStorage.setItem('quiero-jugar-tab', tab);
-            }
-          }} />
-        </div>
-      </div>
-    );
-  } else if (modo === 'votacion') {
-    setModo(MODES.ADMIN);
-    setStepPartido(ADMIN_STEPS.SELECT_TYPE);
-    return null;
-  } else if (modo === 'quiero-jugar') {
-    content = <QuieroJugar onVolver={() => setModo(MODES.HOME)} />;
-  } else if (modo === 'profile') {
-    content = (
-      <div className="voting-bg content-with-tabbar">
-        <div className="voting-modern-card" style={{ maxWidth: 440, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <PageTitle onBack={() => setModo('home')}>PERFIL</PageTitle>
-          <ProfileEditor 
-            isOpen={true} 
-            onClose={() => setModo('home')} 
-          />
-        </div>
-      </div>
-    );
-  } else if (modo === 'notifications') {
-    content = (
-      <div className="voting-bg content-with-tabbar">
-        <div className="voting-modern-card" style={{ maxWidth: 600, padding: '20px' }}>
-          <PageTitle onBack={() => setModo('home')}>NOTIFICACIONES</PageTitle>
-          <NotificationsView />
-        </div>
-      </div>
-    );
-  } else if (modo === 'amigos') {
-    content = (
-      <div className="voting-bg content-with-tabbar">
-        <div className="voting-modern-card" style={{ maxWidth: 1200, padding: '20px' }}>
-          <PageTitle onBack={() => setModo('home')}>AMIGOS</PageTitle>
-          <AmigosView />
-        </div>
-      </div>
-    );
-  } else if (modo === MODES.PLAYER) {
-    activeTab = 'quiero-jugar';
-    content = (
-      <div className="content-with-tabbar">
-        <NetworkStatus />
-        <VotingView
-          jugadores={partidoActual ? partidoActual.jugadores : []}
-          partidoActual={partidoActual}
-          onReset={() => { 
-            setModo('home'); 
-            setPartidoActual(null);
-            setPartidoFrecuenteEditando(null);
-            setStepPartido(ADMIN_STEPS.SELECT_TYPE);
-          }}
-        />
-      </div>
-    );
-  }
-
-  if (!content) {
-    content = (
-      <div className="voting-bg content-with-tabbar">
-        <div className="voting-modern-card">
-          <div className="match-name">MODO NO DISPONIBLE</div>
-          <div style={{ color:'#fff', padding: '20px', fontSize: '18px', textAlign: 'center' }}>
-            El modo seleccionado no está disponible o ha ocurrido un error.
-          </div>
-          <Button
-            onClick={() => setModo('home')}
-            style={{ marginTop: '34px', marginBottom: '0', width: '100%', maxWidth: '400px', fontSize: '1.5rem', height: '64px', borderRadius: '9px' }}
-            ariaLabel="Volver al inicio"
-          >
-            VOLVER AL INICIO
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-
-
-  return (
-    <>
-      <DirectFix />
-      {content}
-      {showTabBar && (
-        <TabBar 
-          activeTab={activeTab} 
-          onTabChange={(tab) => {
-            setModo(tab);
-            console.log('Tab changed to:', tab);
-            if (tab === 'votacion') {
-              setStepPartido(ADMIN_STEPS.SELECT_TYPE);
-            }
-          }} 
-        />
-      )}
-    </>
-  );
-}
-
-// Hook de notificaciones integrado directamente
-function AppWithSchedulers() {
-  const { createNotification } = useNotifications();
-
-  useEffect(() => {
-    let timer = null;
-
-    const qs = new URLSearchParams(window.location.search);
-    const FAST = qs.get('fastResults') === '1' || localStorage.getItem('SURVEY_RESULTS_TEST_FAST') === '1';
-
-    async function tick() {
-      try {
-        console.log('[Scheduler] run FAST=', FAST, 'at', new Date().toISOString());
-        const { data, error } = await supabase
-          .from('notifications')
-          .select('*')
-          .eq('status', 'pending')
-          .lte('send_at', new Date().toISOString())
-          .limit(20);
-
-        if (!error && data && data.length) {
-          for (const notif of data) {
-            if (notif.type === 'survey_results_ready') {
-              await supabase
-                .from('survey_results')
-                .update({ results_ready: true, updated_at: new Date().toISOString() })
-                .eq('partido_id', notif.partido_id);
-
-              const { data: jugadores, error: jErr } = await supabase
-                .from('jugadores')
-                .select('usuario_id')
-                .eq('partido_id', notif.partido_id);
-
-              const nowIso = new Date().toISOString();
-              const rows = (jugadores || [])
-                .filter(j => j.usuario_id)
-                .map(j => ({
-                  user_id: j.usuario_id,
-                  type: 'survey_results_ready',
-                  title: 'Resultados listos',
-                  message: 'Los resultados de la encuesta ya están listos.',
-                  data: { matchId: toBigIntId(notif.partido_id) },
-                  read: false,
-                  created_at: nowIso,
-                }));
-              if (rows.length) {
-                console.log('[SURVEY RESULTS NOTIFICATIONS] payload:', rows);
-                await supabase.from('notifications').insert(rows);
-              }
-
-              await supabase.from('notifications').update({ status: 'sent' }).eq('id', notif.id);
-            } else {
-              await supabase
-                .from('notifications')
-                .update({ status: 'sent' })
-                .eq('id', notif.id);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error processing notifications:', error);
-      }
-    }
-
-    timer = setInterval(tick, FAST ? 5000 : 60000);
-    tick();
-
-    return () => clearInterval(timer);
-  }, [createNotification]);
-
-  // === TEST: helper global para forzar resultados ahora ===
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.__forceResultsNowResults = async (matchId) => {
-        const id = toBigIntId ? toBigIntId(matchId) : Number(matchId);
-        const res = await forceSurveyResultsNow(id);
-        console.log('[TEST] forceSurveyResultsNow →', res);
-        return res;
-      };
-    }
-  }, []);
-
-  return null;
-}
+// AppWithSchedulers eliminado: procesamiento de notificaciones debe vivir en backend/DB
 
 export default function App() {
   return (
@@ -711,8 +369,7 @@ export default function App() {
             <NotificationProvider>
               <TutorialProvider>
                 <Router>
-                  <AppWithSchedulers />
-                  <Routes>
+                                    <Routes>
                   <Route path="/health" element={
                     <Suspense fallback={<div className="voting-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}><LoadingSpinner size="large" /></div>}>
                       <HealthCheck />

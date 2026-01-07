@@ -9,6 +9,13 @@ import { toBigIntId } from '../utils';
 export const checkAndNotifyMatchFinish = async (partido) => {
   if (!partido || !partido.fecha || !partido.hora) return false;
   
+  // --- CANONICAL MODE CHECK: prevent JS creation when DB is canonical ---
+  const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || "db";
+  if (SURVEY_FANOUT_MODE === "db") {
+    // In DB mode the canonical fanout will create survey_start notifications
+    return false;
+  }
+
   try {
     const [hours, minutes] = partido.hora.split(':').map(Number);
     const partidoDateTime = new Date(partido.fecha);
@@ -20,7 +27,7 @@ export const checkAndNotifyMatchFinish = async (partido) => {
     const justFinished = timeDiff >= 0 && timeDiff <= 5 * 60 * 1000;
     
     if (!justFinished) return false;
-    
+
     // Get all players in the match
     const { data: jugadores, error: playersError } = await supabase
       .from('jugadores')
@@ -34,10 +41,12 @@ export const checkAndNotifyMatchFinish = async (partido) => {
     // Create survey notifications for each player
     const notifications = jugadores.map((jugador) => ({
       user_id: jugador.usuario_id,
-      type: 'post_match_survey',
+      type: 'survey_start',
       title: '¡Encuesta lista!',
       message: `La encuesta ya está lista para completar sobre el partido ${partido.nombre || formatMatchDate(partido.fecha)}.`,
       data: {
+        match_id: String(partido.id),
+        // legacy for consumers aún no migrados
         partido_id: partido.id,
         partido_nombre: partido.nombre,
         partido_fecha: partido.fecha,

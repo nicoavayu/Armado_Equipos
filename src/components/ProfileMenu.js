@@ -6,6 +6,7 @@ import AvatarWithProgress from './AvatarWithProgress';
 import ModernToggle from './ModernToggle';
 import PartidosPendientesNotification from './PartidosPendientesNotification';
 import './ProfileMenu.css';
+import { addFreePlayer, removeFreePlayer } from '../services';
 
 export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
   const { user, profile, refreshProfile } = useAuth();
@@ -68,13 +69,49 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
     setLoading(true);
     try {
       const fotoUrl = await uploadFoto(file, { uuid: user.id });
-      await updateProfile(user.id, { avatar_url: fotoUrl });
+      // Add a cache buster parameter so clients reload the new image immediately
+      const cacheBusted = fotoUrl ? `${fotoUrl}${fotoUrl.includes('?') ? '&' : '?'}cb=${Date.now()}` : fotoUrl;
+
+      // Update profile in database with cache-busted url
+      await updateProfile(user.id, { avatar_url: cacheBusted });
+      
+      // Update user metadata
+      await supabase.auth.updateUser({
+        data: { avatar_url: cacheBusted },
+      });
+      
+      // Inform parent/component about profile change if callback provided
+      if (onProfileChange) onProfileChange({ ...profile, avatar_url: cacheBusted });
+
+      setHasChanges(true);
+      // Refresh global profile so other components reflect the change
       await refreshProfile();
-      toast.success('Foto actualizada');
+      toast.success('Foto actualizada correctamente');
+
     } catch (error) {
+      console.error('Error uploading photo:', error);
       toast.error('Error subiendo foto: ' + error.message);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  // Optional: expose availability toggle through profile menu as well
+  const handleSetAvailability = async (value) => {
+    if (!user) return;
+    try {
+      await updateProfile(user.id, { acepta_invitaciones: value });
+      // keep jugadores_sin_partido in sync
+      if (value) {
+        await addFreePlayer();
+      } else {
+        await removeFreePlayer();
+      }
+      await refreshProfile();
+      toast.success(value ? 'Ahora estás disponible' : 'Ahora estás no disponible');
+    } catch (err) {
+      console.error('Error updating availability from ProfileMenu:', err);
+      toast.error('Error actualizando estado');
     }
   };
 
@@ -176,8 +213,8 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
         )}
         
         {/* Notificación de partidos pendientes */}
-        {user && user.id && (
-          <PartidosPendientesNotification userId={user.id} />
+        {user && (
+          <PartidosPendientesNotification />
         )}
 
         {/* Form Fields */}
@@ -257,7 +294,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
             <label>Acepta Invitaciones</label>
             <ModernToggle
               checked={formData.acepta_invitaciones}
-              onChange={(value) => handleInputChange('acepta_invitaciones', value)}
+              onChange={(value) => { handleInputChange('acepta_invitaciones', value); handleSetAvailability(value); }}
               label="Recibir invitaciones a partidos"
             />
           </div>

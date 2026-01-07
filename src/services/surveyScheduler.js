@@ -56,9 +56,17 @@ export const checkMatchesForSurveys = async () => {
  * This function sets up a periodic check for matches that need surveys
  */
 export const initSurveyScheduler = () => {
-  // Check immediately on startup
+  // DEPRECATED: use the DB-side cron job fanout_survey_start_notifications() instead.
+  // Running JS-based scheduler in production can cause duplication with the DB cron
+  // and make notifications non-idempotent. To enable JS fanout for local/dev testing,
+  // set the environment variable USE_JS_FANOUT=1 when starting the app.
+  const useJsFanout = typeof process !== 'undefined' && process.env && process.env.USE_JS_FANOUT === '1';
+  if (!useJsFanout) {
+    console.warn('[DEPRECATED] initSurveyScheduler is disabled. Use DB cron fanout_survey_start_notifications(). To enable JS fanout for dev set USE_JS_FANOUT=1');
+    return;
+  }
+
+  // If explicitly enabled for dev, run the original scheduler behavior
   checkMatchesForSurveys();
-  
-  // Then check every 5 minutes
   setInterval(checkMatchesForSurveys, 5 * 60 * 1000);
 };
