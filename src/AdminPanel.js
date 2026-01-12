@@ -85,6 +85,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
               sede={partidoActual?.sede}
               modalidad={partidoActual?.modalidad}
               tipo={partidoActual?.tipo_partido}
+              precio={partidoActual?.valor_cancha || partidoActual?.valorCancha || partidoActual?.valor || partidoActual?.precio}
             />
           )}
           

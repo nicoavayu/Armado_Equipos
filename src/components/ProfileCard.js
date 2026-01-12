@@ -356,7 +356,13 @@ const ProfileCardComponent = ({
 
           <div className="pc-bottom-container">
             <div className="pc-handle-container">
-              <span className="pc-handle" title={`@${playerData.handle}`}>@{playerData.handle}</span>
+              <span
+                className="pc-handle"
+                title={`@${playerData.handle}`}
+                style={{ display: 'block', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+              >
+                @{playerData.handle}
+              </span>
             </div>
             <div className="pc-matches-vertical">
               <span className="pc-matches-played">PJ {playerData.matchesPlayed}</span>

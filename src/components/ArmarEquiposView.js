@@ -103,29 +103,58 @@ export default function ArmarEquiposView({
       console.debug('[Teams] call-to-vote blocked: already running');
       return;
     }
-    
+
+    if (!partidoActual?.id) {
+      toast.error('No hay partido activo');
+      return;
+    }
+
     setCalling(true);
     console.debug('[Teams] call-to-vote start', { partidoId: partidoActual?.id });
-    
+
     try {
-      const meta = {
+      // Count how many players have linked accounts (usuario_id)
+      const jugadoresDelPartido = await getJugadoresDelPartido(partidoActual.id);
+      const playersWithAccount = (jugadoresDelPartido || []).filter(j => j.usuario_id);
+
+      // If none, warn admin and offer to proceed
+      if (playersWithAccount.length === 0) {
+        const proceed = window.confirm('No se detectaron jugadores con cuenta vinculada. ¿Querés enviar notificaciones de todas formas (se intentará enviar a usuarios registrados)?');
+        if (!proceed) return;
+      } else {
+        const proceed = window.confirm(`Se detectaron ${playersWithAccount.length} jugadores con cuenta. ¿Querés notificarles ahora para iniciar la votación?`);
+        if (!proceed) return;
+      }
+
+      // Call service
+      const res = await sendVotingNotifications(partidoActual.id, {
         title: '¡Hora de votar!',
         message: 'Entrá a la app y calificá a los jugadores para armar los equipos.',
         type: 'call_to_vote',
-      };
-      
-      const res = await sendVotingNotifications(partidoActual.id, meta);
-      console.debug('[Teams] notifications sent', res);
-      
-      if (res.inserted > 0) {
+      });
+
+      console.debug('[Teams] notifications sent result', res);
+
+      if (res?.error) {
+        console.error('[Teams] sendVotingNotifications error result', res.error);
+        toast.error('No se pudo iniciar la votación: ' + (res.error.message || 'Error desconocido'));
+        return;
+      }
+
+      if (res?.skippedDueToSurveyScheduled || res?.skippedDueToSurvey) {
+        toast.info('No se envió la notificación porque ya hay una encuesta/programación asociada al partido.');
+        return;
+      }
+
+      if ((res.inserted || 0) > 0) {
         toast.success(`Notificación enviada a ${res.inserted} jugadores`);
       } else {
-        toast.info('No se pudieron enviar notificaciones. Asegúrate que los jugadores tengan cuenta.');
+        toast.info('No se pudieron enviar notificaciones. Asegurate que los jugadores tengan cuenta.');
       }
+
     } catch (error) {
       console.error('[Teams] call-to-vote failed', error);
-      toast.error('No se pudo iniciar la votación');
-      return;
+      toast.error('No se pudo iniciar la votación: ' + (error.message || 'Error desconocido'));
     } finally {
       setCalling(false);
     }
@@ -334,11 +363,14 @@ export default function ArmarEquiposView({
     <>
       <PageTitle onBack={onBackToAdmin}>ARMAR EQUIPOS</PageTitle>
       <MatchInfoSection
+        nombre={partidoActual?.nombre}
         fecha={partidoActual?.fecha}
         hora={partidoActual?.hora}
         sede={partidoActual?.sede}
         modalidad={partidoActual?.modalidad}
         tipo={partidoActual?.tipo_partido}
+        precio={partidoActual?.valor_cancha || partidoActual?.valorCancha || partidoActual?.valor || partidoActual?.precio}
+        rightActions={null}
       />
       <div className="admin-panel-content" style={{ paddingTop: '0px', marginTop: '0px' }}>
         {/* Lista de jugadores */}

@@ -7,7 +7,6 @@ import { useInterval } from '../hooks/useInterval';
 import { supabase, updateProfile } from '../supabase';
 import { parseLocalDateTime } from '../utils/dateLocal';
 import { toBigIntId } from '../utils';
-import PanelInfo from './PanelInfo';
 import ProximosPartidos from './ProximosPartidos';
 import NotificationsBell from './NotificationsBell';
 import './FifaHomeContent.css';
@@ -23,6 +22,13 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
   const [showProximosPartidos, setShowProximosPartidos] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const statusDropdownRef = useRef(null);
+
+  // Agregar aquí los ítems estáticos que antes provenían de PanelInfo
+  const panelInfoItems = [
+    { id: 'panel-1', message: 'Hoy jugás a las 20:00 en Sede Palermo', type: 'match' },
+    { id: 'panel-2', message: 'Se sumó Juan al partido del viernes', type: 'player' },
+    { id: 'panel-3', message: 'Faltan 3 jugadores para el partido', type: 'alert' },
+  ];
 
   useEffect(() => {
     if (user) {
@@ -205,6 +211,16 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
     );
   }
 
+  // Combinar los ítems estáticos con la actividad reciente traída desde la BD
+  const combinedActivity = [
+    ...panelInfoItems,
+    ...(recentActivity || []).map((activity) => ({
+      id: `recent-${activity.id}`,
+      message: `Partido creado en ${activity.sede} para el ${new Date(activity.fecha).toLocaleDateString()}`,
+      type: 'match',
+    })),
+  ];
+
   return (
     <div className="fifa-home-content">
       {/* Header elements - Avatar and Notifications */}
@@ -318,20 +334,19 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
 
       </div>
       
-      {/* Panel Info */}
-      <PanelInfo />
-      
       {/* Recent Activity */}
       <div className="fifa-recent-activity">
         <h3>ACTIVIDAD RECIENTE</h3>
         <div className="fifa-activity-list">
-          {recentActivity.length > 0 ? (
-            recentActivity.map((activity) => (
-              <div key={activity.id} className="fifa-activity-item">
-                <div className="fifa-activity-icon">🏆</div>
-                <div className="fifa-activity-text">
-                  Partido creado en {activity.sede} para el {new Date(activity.fecha).toLocaleDateString()}
+          {combinedActivity.length > 0 ? (
+            combinedActivity.map((item) => (
+              <div key={item.id} className="fifa-activity-item">
+                <div className="fifa-activity-icon">
+                  {item.type === 'match' && '🏆'}
+                  {item.type === 'player' && '👤'}
+                  {item.type === 'alert' && '⚠️'}
                 </div>
+                <div className="fifa-activity-text">{item.message}</div>
               </div>
             ))
           ) : (

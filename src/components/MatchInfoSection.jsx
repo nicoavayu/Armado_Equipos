@@ -1,7 +1,8 @@
+import React from 'react';
 import MatchInfoHeader from './MatchInfoHeader';
 import './MatchInfoSection.css';
 
-export default function MatchInfoSection({ nombre, fecha, hora, sede, modalidad, tipo, rightActions }) {
+export default function MatchInfoSection({ nombre, fecha, hora, sede, modalidad, tipo, rightActions, precio }) {
   const getShortVenue = (venue) => {
     if (!venue) return '';
     return venue.split(' ')[0];
@@ -10,6 +11,14 @@ export default function MatchInfoSection({ nombre, fecha, hora, sede, modalidad,
   const getGoogleMapsUrl = (venue) => {
     if (!venue) return '#';
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue)}`;
+  };
+
+  // Format price as ARS currency if provided
+  const formatPrice = (p) => {
+    if (p === null || p === undefined || p === '') return '';
+    const n = Number(p);
+    if (Number.isNaN(n)) return p;
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
   };
 
   return (
@@ -50,7 +59,7 @@ export default function MatchInfoSection({ nombre, fecha, hora, sede, modalidad,
             </svg>
             <div className="match-info-text">{tipo || 'Masculino'}</div>
           </div>
-          
+
           {sede && (
             <>
               <div className="match-info-separator"></div>
@@ -69,6 +78,14 @@ export default function MatchInfoSection({ nombre, fecha, hora, sede, modalidad,
               </div>
             </>
           )}
+
+          <div className="match-info-separator"></div>
+          <div className="match-info-item match-info-price">
+            <svg className="match-info-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 1C5.925 1 1 5.925 1 12s4.925 11 11 11 11-4.925 11-11S18.075 1 12 1zm1 17.93V20h-2v-1.07A6.002 6.002 0 0 1 7 12c0-1.63.62-3.12 1.64-4.24L9.05 9.17A4 4 0 0 0 8 12a4 4 0 1 0 4-4v2h2V8a6 6 0 1 1-6 6c0 .9.2 1.75.56 2.5L7.5 20.5a9 9 0 1 0 5.5-1.57z" />
+            </svg>
+            <div className="match-info-text">{(precio !== null && precio !== undefined && precio !== '') ? formatPrice(precio) : 'No definido'}</div>
+          </div>
         </div>
         
         {rightActions ? <div className="match-info-actions">{rightActions}</div> : null}

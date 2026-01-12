@@ -383,10 +383,10 @@ const ProximosPartidos = ({ onClose }) => {
 
           </div>
         ) : partidos.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📅</div>
-            <p>No tienes partidos próximos</p>
-            <span>Crea un partido o únete a uno para verlo aquí</span>
+          <div className="empty-state" style={{ marginTop: 70 }}>
+            {/* icon removed on request */}
+            <p style={{ fontSize: '22px', fontWeight: 700, marginBottom: '8px', color: 'white', textAlign: 'center' }}>No tienes partidos próximos</p>
+            <span style={{ fontSize: '15px', opacity: 0.95, display: 'block', textAlign: 'center' }}>Crea un partido o únete a uno para verlo aquí</span>
           </div>
         ) : (
           <>

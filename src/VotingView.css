@@ -862,131 +862,43 @@ select.input-modern {
 }
 
 .number-rating-container {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin: 24px 0 12px;
-}
-
-.number-btn {
-  background: rgb(255 255 255 / 8%);
-  color: #fff;
-  border: 2.5px solid #fff;
-  border-radius: 12px;
-  width: 44px;
-  height: 44px;
-  font-size: 1.6rem;
-  font-family: 'Bebas Neue', Arial, sans-serif;
-  cursor: pointer;
-  transition: background 0.14s, color 0.15s, border-color 0.13s, transform 0.1s;
-  outline: none;
-  box-shadow: 0 1px 6px rgb(0 0 0 / 10%);
-}
-
-.number-btn.selected,
-.number-btn:hover {
-  background: #0EA9C6;
-  color: #fff;
-  border-color: #DE1C49;
-  transform: scale(1.08);
-}
-
-.number-btn:active {
-  filter: brightness(0.92);
-}
-
-.number-rating-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: center;
-  margin: 24px 0 12px;
-  width: 100%;
-  max-width: 98vw;
-  box-sizing: border-box;
-}
-
-.number-btn {
-  flex: 1 1 34px;
-  min-width: 34px;
-  max-width: 44px;
-  width: 44px;
-  height: 44px;
-  font-size: 1.2rem;
-}
-
-.number-rating-container {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 12px;
-  justify-content: center;
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(38px, 1fr));
+  grid-auto-rows: 44px;
+  gap: 10px;
+  justify-items: center;
   align-items: center;
   width: 100%;
-  overflow-x: auto;
-  padding-bottom: 8px;
+  max-width: 520px; /* keeps the control from stretching too wide */
+  margin: 20px auto;
+  padding-bottom: 0;
   box-sizing: border-box;
-
-  /* No max-width ni overflow:hidden en padres */
+  overflow: visible !important;
 }
 
-.number-btn {
-  flex: 0 0 44px;
-  width: 44px;
+.number-rating-container .number-btn {
+  flex: none !important;
+  width: 100% !important;
+  max-width: 64px !important;
   height: 44px;
-  border-radius: 9px;
-  font-size: 1.3rem;
-  font-family: 'Bebas Neue', Arial, sans-serif;
-  background: rgb(255 255 255 / 10%);
-  color: #fff;
-  border: 2px solid #fff;
-  margin: 0;
-  padding: 0;
-  cursor: pointer;
-  transition: background 0.18s, color 0.18s, border-color 0.18s;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.number-btn.selected,
-.number-btn:hover {
-  background: #0EA9C6;
-  color: #fff;
-  border-color: #DE1C49;
-}
-
-@media (width <= 600px) {
+@media (max-width: 600px) {
   .number-rating-container {
+    grid-template-columns: repeat(5, minmax(34px, 1fr));
     gap: 8px;
-    padding-bottom: 5px;
-
-    /* El ancho total se maneja con overflow-x: auto */
+    max-width: 100%;
   }
 
-  .number-btn {
-    width: 38px;
+  .number-rating-container .number-btn {
     height: 38px;
+    max-width: 56px !important;
     font-size: 1rem;
   }
 }
-
-.confirmation-item-score.not-graded {
-  font-size: 20px !important;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  opacity: 0.93;
-  text-transform: uppercase;
-}
-
-.voting-final-message {
-  color: #fff;
-  font-family: Oswald, Arial, sans-serif;
-  font-size: 27px;
-  margin-bottom: 27px;
-  letter-spacing: 1.1px;
-  text-align: center;
-}
-
 
 /* En el card principal */
 .voting-modern-card.confirmaciones-wrapper {
@@ -1203,11 +1115,6 @@ input::placeholder,
   display: flex;
   gap: 12px;
   margin-top: 16px;
-}
-
-.frequent-form-actions .voting-confirm-btn {
-  flex: 1;
-  margin: 0;
 }
 
 /* Badge Animations */
@@ -1774,5 +1681,97 @@ input::placeholder,
   
   .frequent-form-actions {
     flex-direction: column;
+  }
+}
+
+/* Force full-mobile layout for voting/armar equipos cards */
+@media (max-width: 480px) {
+  .voting-modern-card {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 12px 0 !important;
+    /* Add side padding instead of relying on child margins so content never touches screen edge */
+    padding: 12px !important;
+    padding-left: calc(12px + env(safe-area-inset-left, 0px)) !important;
+    padding-right: calc(12px + env(safe-area-inset-right, 0px)) !important;
+    box-sizing: border-box !important;
+    left: 0 !important;
+  }
+
+  /* Remove horizontal margins from children and make them full width inside the padded card */
+  .voting-modern-card > .voting-title-modern,
+  .voting-modern-card > .voting-player-name,
+  .voting-modern-card > .voting-photo-box,
+  .voting-modern-card > .voting-confirm-btn,
+  .voting-modern-card > .confirmation-list,
+  .voting-modern-card .admin-players-section,
+  .voting-modern-card .admin-players-grid,
+  .voting-modern-card .admin-actions {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Ensure buttons fill the mobile width (inside padding) */
+  .voting-modern-card .voting-confirm-btn,
+  .voting-modern-card .admin-actions .voting-confirm-btn,
+  .voting-modern-card .admin-actions button,
+  .voting-modern-card .admin-actions .admin-btn-half {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 6px 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Grid columns: keep two columns on slightly wider phones, collapse to one on very small widths */
+  .voting-modern-card .admin-players-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  @media (max-width: 360px) {
+    .voting-modern-card .admin-players-grid {
+      grid-template-columns: 1fr !important; /* single column on very small screens */
+    }
+  }
+
+  .voting-modern-card .admin-player-item {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* Force two-row layout on mobile even if other rules set flex/overflow */
+@media (max-width: 600px) {
+  .voting-modern-card .number-rating-container {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(34px, 1fr)) !important;
+    grid-auto-rows: 40px;
+    gap: 8px !important;
+    justify-items: center;
+    align-items: center;
+    width: calc(100% - 32px) !important;
+    max-width: 520px !important;
+    margin: 12px auto !important;
+    padding-bottom: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+
+  .voting-modern-card .number-rating-container .number-btn {
+    width: 100% !important;
+    max-width: 64px !important;
+    height: 38px !important;
+    flex: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 }

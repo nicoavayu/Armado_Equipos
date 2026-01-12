@@ -4,7 +4,8 @@
   background: rgb(0 0 0 / 80%);
   z-index: 1000;
   display: flex;
-  align-items: flex-start;
+  /* Center the modal vertically on larger screens */
+  align-items: center;
   justify-content: center;
   backdrop-filter: blur(4px);
   overflow-y: auto;
@@ -86,6 +87,16 @@
   padding-bottom: 80px;
   max-height: none;
   min-height: 0;
+  /* center inner form blocks horizontally */
+  align-items: center;
+}
+
+/* Ensure form groups don't stretch full width so they appear centered */
+.profile-menu-content .form-group,
+.profile-form-embedded .form-group {
+  width: 100%;
+  max-width: 520px;
+  box-sizing: border-box;
 }
 
 .form-group {
@@ -169,7 +180,8 @@ select.input-modern-small option {
 /* Avatar and Name section */
 .avatar-name-section {
   display: flex;
-  align-items: flex-start;
+  /* center avatar and name vertically for a balanced look */
+  align-items: center;
   gap: 12px;
   width: 100%;
   margin-bottom: 16px;
@@ -491,6 +503,7 @@ select.input-modern-small option {
   overflow-y: auto;
   min-height: 310px;
   margin-top: 40px;
+  align-items: center;
 }
 
 .profile-form-footer {

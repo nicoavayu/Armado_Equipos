@@ -15,15 +15,28 @@ import './ListaDeFechasModal.css';
 const ListaDeFechasModal = ({ partidos, onClose, nombrePartido, error, loading }) => {
   const [selectedPartido, setSelectedPartido] = useState(null);
   const [partidoJugadores, setPartidoJugadores] = useState({});
+  // Added state to track which card is in confirmation mode
+  // BEFORE: global delete confirmation (centrado, obligaba scrollear)
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  // AFTER: inline confirmation inside the card (pendingDeleteId === partido.id)
+  // Local copy of partidos so we can optimistically remove a deleted item from the list
+  const [displayedPartidos, setDisplayedPartidos] = useState(partidos || []);
+  const [deletingId, setDeletingId] = useState(null);
+
+  // Keep displayedPartidos in sync when parent partidos prop changes
+  useEffect(() => {
+    setDisplayedPartidos(partidos || []);
+  }, [partidos]);
 
   // Cargar jugadores para todos los partidos
   useEffect(() => {
     const loadPlayersForMatches = async () => {
-      if (!partidos || partidos.length === 0) return;
+      const sourcePartidos = displayedPartidos || [];
+      if (!sourcePartidos || sourcePartidos.length === 0) return;
       
       const playersData = {};
       
-      for (const partido of partidos) {
+      for (const partido of sourcePartidos) {
         try {
           const { data: jugadores, error } = await supabase
             .from('jugadores')
@@ -42,7 +55,7 @@ const ListaDeFechasModal = ({ partidos, onClose, nombrePartido, error, loading }
     };
     
     loadPlayersForMatches();
-  }, [partidos]);
+  }, [displayedPartidos]);
 
   // Seleccionar un partido para ver su ficha
   const handleSelectPartido = (partido) => {
@@ -55,6 +68,48 @@ const ListaDeFechasModal = ({ partidos, onClose, nombrePartido, error, loading }
   // Volver a la lista de fechas
   const handleBack = () => {
     setSelectedPartido(null);
+  };
+
+  // Inicia el modo de confirmación inline para un partido (no abre la ficha)
+  const handleStartDelete = (partidoId, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setPendingDeleteId(partidoId);
+  };
+
+  // Cancela el modo de confirmación inline
+  const handleCancelDelete = (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    setPendingDeleteId(null);
+  };
+
+  // Confirma el borrado: llama a supabase, actualiza la lista local y limpia el estado
+  const handleConfirmDelete = async (partidoId, e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    try {
+      setDeletingId(partidoId);
+      const { error: deleteError } = await supabase
+        .from('partidos')
+        .delete()
+        .eq('id', partidoId);
+
+      if (deleteError) {
+        console.error('Error deleting partido:', deleteError);
+        // keep pendingDeleteId so user can retry or cancel
+        return;
+      }
+
+      // Optimistically remove from local list
+      setDisplayedPartidos((prev) => prev.filter((p) => p.id !== partidoId));
+      setPendingDeleteId(null);
+      // If the deleted partido was currently selected, go back to list
+      if (selectedPartido && selectedPartido.id === partidoId) {
+        setSelectedPartido(null);
+      }
+    } catch (err) {
+      console.error('Error confirming delete:', err);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   // Formatear fecha para mostrar en formato corto (ej: "Lunes 18/7")
@@ -102,7 +157,7 @@ const ListaDeFechasModal = ({ partidos, onClose, nombrePartido, error, loading }
                 <div className="error-state">
                   <p>{error}</p>
                 </div>
-              ) : partidos.length === 0 ? (
+              ) : (!displayedPartidos || displayedPartidos.length === 0) ? (
                 // Estado vacío
                 <div className="empty-state">
                   <p>No hay partidos jugados en el historial.</p>
@@ -110,9 +165,11 @@ const ListaDeFechasModal = ({ partidos, onClose, nombrePartido, error, loading }
               ) : (
                 // Lista de fechas
                 <div className="fechas-list">
-                  {partidos.map((partido) => {
+                  {displayedPartidos.map((partido) => {
                     const jugadores = partidoJugadores[partido.id] || [];
                     const equipos = partido.equipos || [];
+                    const isPendingDelete = pendingDeleteId === partido.id;
+                    const isDeleting = deletingId === partido.id;
                     
                     return (
                       <div 
@@ -132,7 +189,39 @@ const ListaDeFechasModal = ({ partidos, onClose, nombrePartido, error, loading }
                             )}
                           </div>
                         </div>
-                        <div className="fecha-arrow">›</div>
+
+                        {/* Inline confirmation / actions area */}
+                        <div className="fecha-actions">
+                          {isPendingDelete ? (
+                            <div className="inline-confirm" onClick={(e) => e.stopPropagation()}>
+                              <div className="confirm-text">¿Eliminar este partido?</div>
+                              <div className="confirm-buttons">
+                                <button 
+                                  className="confirm-btn" 
+                                  onClick={(e) => handleConfirmDelete(partido.id, e)}
+                                  disabled={isDeleting}
+                                >
+                                  {isDeleting ? 'Eliminando...' : 'CONFIRMAR'}
+                                </button>
+                                <button 
+                                  className="cancel-btn" 
+                                  onClick={(e) => handleCancelDelete(e)}
+                                >CANCELAR</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="normal-actions">
+                              <button 
+                                className="delete-trigger" 
+                                onClick={(e) => handleStartDelete(partido.id, e)}
+                                aria-label={`Eliminar partido ${partido.id}`}
+                              >
+                                🗑
+                              </button>
+                              <div className="fecha-arrow">›</div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}

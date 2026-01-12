@@ -429,11 +429,14 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       <div className="voting-bg">
         <PageTitle>CONFIRMÁ TUS CALIFICACIONES</PageTitle>
         <MatchInfoSection
+          nombre={partidoActual?.nombre}
           fecha={partidoActual?.fecha}
           hora={partidoActual?.hora}
           sede={partidoActual?.sede}
           modalidad={partidoActual?.modalidad}
           tipo={partidoActual?.tipo_partido}
+          precio={partidoActual?.valor_cancha || partidoActual?.valorCancha || partidoActual?.valor || partidoActual?.precio}
+          rightActions={null}
         />
         <div className="voting-modern-card" style={{ marginTop: '20px' }}>
           <div className="confirmation-list">

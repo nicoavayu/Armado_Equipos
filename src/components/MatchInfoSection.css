@@ -1,7 +1,9 @@
-:root{ --container-max: 980px; }
+:root{ --container-max: 980px; --content-horizontal-padding: 32px; }
 
 .view-container{
-  width: min(90vw, var(--container-max));
+  width: 100%;
+  padding: 0 var(--content-horizontal-padding); /* ensure equal left/right padding */
+  box-sizing: border-box;
   margin: 0 auto;
 }
 
@@ -30,7 +32,7 @@
   margin: 0 !important;
   margin-top: 76px !important;
   margin-bottom: 0 !important;
-  padding: 8px 12px !important;
+  padding: 12px !important; /* match admin-add-section padding */
   position: relative !important;
   
   /* Reset inherited styles */
@@ -40,10 +42,12 @@
   bottom: auto !important;
   transform: none !important;
   
-  /* Consistent layout */
-  width: 100% !important;
-  max-width: 100% !important;
+  /* Use same width as admin-add-section */
+  width: 90vw !important;
+  max-width: 90vw !important;
   box-sizing: border-box !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
   
   /* Original design preserved */
   background: rgba(255,255,255,0.08);
@@ -52,23 +56,31 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: center; /* ensure contents centered */
 }
 
 .match-info-row{
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center; /* center items instead of space-between */
   width: 100%;
+  max-width: calc(var(--container-max) - 48px); /* keep row narrower than card so it centers like the form */
+  margin: 0 auto;
   margin-bottom: 0;
+  gap: 20px; /* increased gap between items */
+  padding: 4px 6px;
 }
 
 .match-info-item{
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   color: rgba(255,255,255,1);
-  flex: 1;
+  flex: 0 0 auto; /* fixed size items, don't stretch */
+  min-width: 64px; /* avoid collapsing completely */
+  max-width: 160px; /* prevent extremely wide items */
 }
 
 .match-info-icon{
@@ -84,12 +96,21 @@
   color: rgba(255,255,255,1);
   white-space: nowrap;
   text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis; /* ensure long texts truncate */
+  padding: 0 6px; /* small padding so truncated text doesn't touch separators */
+}
+
+.match-info-price .match-info-text{
+  font-weight: 700;
+  color: #fff;
 }
 
 .match-info-separator{
   width: 1px;
   height: 20px;
   background: rgba(255,255,255,0.3);
+  flex-shrink: 0;
 }
 
 .match-icons-row{
@@ -125,19 +146,35 @@
   text-decoration: underline;
 }
 
+@media (max-width: 720px){
+  .match-info-row{ gap: 12px; max-width: calc(100vw - 40px); }
+  .match-info-item{ min-width: 48px; }
+  .match-info-text{ font-size: 12px; }
+  .match-info-icon{ width: 18px; height: 18px; }
+}
+
 @media (max-width: 480px){
   .match-info-card {
     margin: 0 !important;
     margin-top: 70px !important;
     margin-bottom: 0 !important;
-    padding: 8px !important;
+    padding: 8px 12px !important;
   }
   
   .match-info-row{
     gap: 8px;
+    flex-wrap: nowrap; /* keep everything on one line */
+    overflow-x: visible; /* do not allow scrolling */
+    max-width: calc(100vw - 24px);
+    padding-bottom: 6px;
+    justify-content: center;
+  }
+  .match-info-item{
+    min-width: 0; /* allow items to shrink below intrinsic width */
+    flex: 1 1 0; /* allow equal shrinking to fit the row */
   }
   .match-info-text{
-    font-size: 11px;
+    font-size: clamp(10px, 2.2vw, 12px); /* responsive smaller text */
   }
   .match-info-icon{
     width: 16px;

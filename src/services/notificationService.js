@@ -31,15 +31,43 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
 
   try {
     // Fetch partido metadata early to decide whether to proceed
-    const { data: partidoMeta, error: partidoMetaError } = await supabase
-      .from('partidos')
-      .select('codigo, survey_scheduled, survey_time')
-      .eq('id', partidoId)
-      .single();
+    let partidoMeta = null;
+    let partidoMetaError = null;
+
+    try {
+      const res = await supabase
+        .from('partidos')
+        .select('codigo, survey_scheduled, survey_time')
+        .eq('id', partidoId)
+        .single();
+      partidoMeta = res.data;
+      partidoMetaError = res.error;
+    } catch (e) {
+      // supabase client can throw in some environments
+      partidoMetaError = e;
+    }
 
     if (partidoMetaError) {
-      console.error('[Notifications] error fetching partido metadata', partidoMetaError);
-      throw partidoMetaError;
+      // If the error is due to missing column (e.g. 42703), fallback to minimal query
+      const isMissingColumn = String(partidoMetaError.code || partidoMetaError.message || '').includes('42703') || String(partidoMetaError.message || '').toLowerCase().includes('does not exist');
+      if (isMissingColumn) {
+        console.warn('[Notifications] partido survey column missing, falling back to minimal metadata query', { partidoId, error: partidoMetaError });
+        try {
+          const fallback = await supabase
+            .from('partidos')
+            .select('codigo')
+            .eq('id', partidoId)
+            .single();
+          partidoMeta = { codigo: fallback.data?.codigo, survey_scheduled: false };
+        } catch (fallbackErr) {
+          console.error('[Notifications] fallback partido query failed', fallbackErr);
+          // Give up but don't crash the whole app: set sensible defaults
+          partidoMeta = { codigo: null, survey_scheduled: false };
+        }
+      } else {
+        console.error('[Notifications] error fetching partido metadata', partidoMetaError);
+        throw partidoMetaError;
+      }
     }
 
     // If the partido already has a scheduled survey, skip sending call_to_vote
@@ -119,7 +147,8 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
   } catch (err) {
     console.error('[CallToVote] failed', err);
     handleError(err, { showToast: true, onError: () => {} });
-    throw err;
+    // Return a failure object so caller can handle it instead of only throwing
+    return { inserted: 0, error: err };
   }
 }
 

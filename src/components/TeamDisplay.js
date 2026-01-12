@@ -329,6 +329,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
             sede={sede}
             modalidad={modalidad}
             tipo={tipo}
+            precio={ (typeof partidoId === 'object' && partidoId?.valor_cancha) ? partidoId?.valor_cancha : undefined }
           />
           <div className="team-display-content" style={{ paddingTop: '20px' }}>
 

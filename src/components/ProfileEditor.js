@@ -66,11 +66,12 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         pais_codigo: profile.pais_codigo || 'AR',
         posicion: profile.posicion || profile.rol_favorito || 'DEF', // Fallback to rol_favorito for backward compatibility
         fecha_nacimiento: cleanDate(profile.fecha_nacimiento),
-        social: profile.red_social || '',
+        social: normalizeInstagram(profile.red_social || profile.social || ''),
         localidad: profile.localidad || '',
         latitud: profile.latitud || null,
         longitud: profile.longitud || null,
         partidos_jugados: profile.partidos_jugados || 0,
+        partidos_abandonados: profile.partidos_abandonados || 0,
         ranking: profile.ranking || profile.calificacion || 4.5, // Support both ranking and calificacion for backward compatibility
         bio: profile.bio || '',
         acepta_invitaciones: profile.acepta_invitaciones !== false,
@@ -87,6 +88,9 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       setHasChanges(false);
     }
   }, [profile, user, refreshProfile]);
+
+  const MAX_NOMBRE = 14;
+  const nombreRestantes = Math.max(0, MAX_NOMBRE - (formData.nombre?.length || 0));
 
   const handleInputChange = (field, value) => {
     // Add debug log for position and ranking fields
@@ -412,6 +416,38 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
   ];
 
+  // Normalize Instagram input: extract username from URL or @handle, allow only letters, numbers, '.' and '_', max 14 chars
+  const normalizeInstagram = (raw) => {
+    if (!raw) return '';
+    let v = String(raw).trim();
+
+    // If it's a full URL, try to extract the username path segment
+    const urlMatch = v.match(/(?:instagram\.com\/(?:p\/)?|instagr\.am\/)(?:u\/)?@?([^\/?#\s]+)/i);
+    if (urlMatch && urlMatch[1]) {
+      v = urlMatch[1];
+    }
+
+    // If contains query params or trailing slashes, remove them
+    v = v.split(/[\/?#]/)[0];
+
+    // Remove leading @ if present
+    if (v.startsWith('@')) v = v.slice(1);
+
+    // Keep only allowed characters: letters, numbers, dot and underscore
+    const allowed = (v.match(/[A-Za-z0-9._]+/g) || []).join('');
+    v = allowed.slice(0, 14);
+    return v;
+  };
+
+  const handleSocialChange = (rawValue) => {
+    const cleaned = normalizeInstagram(rawValue);
+    handleInputChange('social', cleaned);
+  };
+
+  // Prepare a truncated display version of the social handle to avoid layout break
+  const socialDisplay = (liveProfile?.social || formData.social || '').toString();
+  const socialDisplayTrunc = socialDisplay.length > 20 ? socialDisplay.slice(0, 20) + '…' : socialDisplay;
+
   if (!isOpen) return null;
 
   if (isEmbedded) {
@@ -422,9 +458,11 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           <ProfileCard
             profile={{
               ...liveProfile,
+              social: socialDisplayTrunc,
               avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
             }}
             isVisible={true}
+            currentUserId={user?.id}
             key={`profile-card-${Date.now()}`}
           />
         </div>
@@ -477,9 +515,13 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                   className="input-modern-small"
                   type="text"
                   value={formData.nombre}
-                  onChange={(e) => handleInputChange('nombre', e.target.value)}
+                  maxLength={MAX_NOMBRE}
+                  onChange={(e) => handleInputChange('nombre', e.target.value.slice(0, MAX_NOMBRE))}
                   placeholder="Tu nombre completo"
                 />
+                <div style={{ marginTop: 6, fontSize: 12, color: '#ffffff', fontStyle: 'italic', opacity: 0.85 }}>
+                  {nombreRestantes} caracteres restantes
+                </div>
               </div>
 
               <input
@@ -579,8 +621,10 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 className="input-modern-small"
                 type="text"
                 value={formData.social}
-                onChange={(e) => handleInputChange('social', e.target.value)}
+                onChange={(e) => handleSocialChange(e.target.value)}
                 placeholder="@usuario"
+                maxLength={14}
+                style={{ whiteSpace: 'nowrap', overflowX: 'auto', width: '100%', boxSizing: 'border-box', display: 'block' }}
               />
             </div>
 
@@ -666,9 +710,11 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           <ProfileCard
             profile={{
               ...liveProfile,
+              social: socialDisplayTrunc,
               avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
             }}
             isVisible={true}
+            currentUserId={user?.id}
             key={`profile-card-${Date.now()}`} // Force re-render on every render
           />
         </div>
@@ -726,9 +772,13 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                   className="input-modern-small"
                   type="text"
                   value={formData.nombre}
-                  onChange={(e) => handleInputChange('nombre', e.target.value)}
+                  maxLength={MAX_NOMBRE}
+                  onChange={(e) => handleInputChange('nombre', e.target.value.slice(0, MAX_NOMBRE))}
                   placeholder="Tu nombre completo"
                 />
+                <div style={{ marginTop: 6, fontSize: 12, color: '#ffffff', fontStyle: 'italic', opacity: 0.85 }}>
+                  {nombreRestantes} caracteres restantes
+                </div>
               </div>
 
               <input
@@ -741,7 +791,7 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               />
             </div>
 
-            {/* Resto del formulario */}
+            {/* Email */}
             <div className="form-group">
               <label>Email</label>
               <input

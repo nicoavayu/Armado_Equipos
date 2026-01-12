@@ -478,11 +478,12 @@
 
 .admin-players-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   width: 100%;
-  max-width: 100%;
-  padding: 2px;
+  max-width: 720px;
+  margin: 6px auto;
+  justify-items: center;
   box-sizing: border-box;
 }
 
@@ -498,7 +499,8 @@
   min-height: 36px;
   min-width: 0;
   width: 100%;
-  max-width: 100%;
+  max-width: 660px; /* allow full width inside the centered grid */
+  margin: 0 auto;
   box-sizing: border-box;
 }
 
@@ -757,7 +759,7 @@
 }
 
 .admin-btn-secondary:hover {
-  background: rgb(255 255 255 / 10%);
+  background: rgb(255, 255, 255, 0.1);
   border-color: #fff;
   color: #fff;
 }
@@ -902,6 +904,67 @@
   .invitation-buttons {
     gap: 6px;
   }
+
+  /* Force full-mobile behavior for Armar Equipos */
+  .admin-panel-content .admin-players-section {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 10px !important;
+    box-sizing: border-box !important;
+    align-items: stretch !important;
+  }
+
+  .admin-panel-content .admin-players-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    justify-items: stretch !important;
+  }
+
+  .admin-panel-content .admin-player-item {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  /* Actions: stacked and full-width on mobile */
+  .admin-panel-content .admin-actions {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 12px 0 0 !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    align-items: stretch !important;
+    justify-content: center !important;
+  }
+
+  .admin-panel-content .admin-actions .voting-confirm-btn,
+  .admin-panel-content .admin-actions .admin-btn-half,
+  .admin-panel-content .admin-actions .admin-btn-primary,
+  .admin-panel-content .admin-actions .admin-btn-whatsapp,
+  .admin-panel-content .admin-actions .admin-btn-orange,
+  .admin-panel-content .admin-actions .admin-btn-green {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* keep avatar and remove button visible and aligned */
+  .admin-panel-content .admin-player-item .admin-player-avatar,
+  .admin-panel-content .admin-player-item .admin-player-avatar-placeholder,
+  .admin-panel-content .admin-player-item .admin-remove-btn {
+    flex-shrink: 0 !important;
+  }
+
+  .admin-panel-content .admin-player-item .admin-player-name {
+    text-align: left !important;
+  }
 }
 
 /* Ensure match details are always centered on mobile */
@@ -986,4 +1049,199 @@
     max-height: 50px !important;
     font-size: 14px !important;
   }
+}
+
+/* Center admin players and actions for the Armar Equipos view */
+.admin-players-section {
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+}
+
+.admin-players-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 720px;
+  margin: 6px auto;
+  justify-items: center;
+  box-sizing: border-box;
+}
+
+.admin-player-item {
+  width: 100%;
+  max-width: 660px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.admin-actions {
+  width: 100%;
+  max-width: 720px;
+  margin: 12px auto 0;
+  box-sizing: border-box;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-direction: row;
+}
+
+.admin-actions .voting-confirm-btn {
+  flex: 1 1 320px;
+  max-width: 520px;
+  min-width: 180px;
+}
+
+.admin-player-avatar,
+.admin-player-avatar-placeholder {
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .admin-players-section {
+    width: 100%;
+    max-width: 100%;
+    padding: 8px;
+  }
+
+  .admin-players-grid {
+    max-width: 100%;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .admin-player-item {
+    max-width: 100%;
+  }
+
+  .admin-actions {
+    width: 100%;
+    max-width: 100%;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .admin-actions .voting-confirm-btn {
+    width: 100%;
+    max-width: 100%;
+    flex: none;
+  }
+}
+
+/* Stronger centering rules for Armar Equipos (higher specificity + !important) */
+.admin-panel-content .admin-players-section {
+  width: 100% !important;
+  max-width: 820px !important;
+  margin: 0 auto !important;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  text-align: center;
+}
+
+.admin-panel-content .admin-players-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 12px !important;
+  width: 100% !important;
+  max-width: 720px !important;
+  margin: 6px auto !important;
+  justify-items: stretch !important;
+  align-items: stretch !important;
+  box-sizing: border-box;
+}
+
+.admin-panel-content .admin-player-item {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  box-sizing: border-box;
+}
+
+.admin-panel-content .admin-actions {
+  width: 100% !important;
+  max-width: 720px !important;
+  margin: 12px auto 0 !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  gap: 12px !important;
+  justify-content: center !important;
+  align-items: center !important;
+  flex-direction: row !important;
+}
+
+.admin-panel-content .admin-actions .voting-confirm-btn {
+  flex: 1 1 48% !important;
+  max-width: none !important;
+  min-width: 160px !important;
+}
+
+/* Make sure avatar and remove button keep their layout */
+.admin-panel-content .admin-player-item .admin-player-avatar,
+.admin-panel-content .admin-player-item .admin-player-avatar-placeholder {
+  flex-shrink: 0 !important;
+}
+
+@media (max-width: 480px) {
+  .admin-panel-content .admin-players-section {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 8px !important;
+  }
+
+  .admin-panel-content .admin-players-grid {
+    max-width: 100% !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .admin-panel-content .admin-player-item {
+    max-width: 100% !important;
+  }
+
+  .admin-panel-content .admin-actions {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  .admin-panel-content .admin-actions .voting-confirm-btn {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+  }
+}
+
+/* Force center the players form and action buttons within the admin panel */
+.admin-panel-content .admin-players-section,
+.admin-panel-content .admin-actions {
+  align-self: center !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  width: 100% !important;
+  max-width: 720px !important;
+  box-sizing: border-box !important;
+}
+
+/* Make sure grid inside the centered section fills the available centered area */
+.admin-panel-content .admin-players-section .admin-players-grid {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
+}
+
+/* Ensure actions buttons are centered and stacked nicely on small screens */
+.admin-panel-content .admin-actions {
+  justify-content: center !important;
+  gap: 12px !important;
 }

@@ -17,30 +17,45 @@ body, html {
   padding-bottom: 3.5rem !important;
 }
 
-/* Elimina cualquier fondo/blanco en los wrappers */
-.player-vote-card,
-.voting-modern-card {
-  background: transparent !important;
-  box-shadow: none !important;
-  border: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
+/* Compact thumbnail + name block */
+.name-image-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 8px;
 }
 
-/* Título de formularios */
-.form-title {
-  margin-top: 2.2rem;
-  margin-bottom: 2rem;
-  color: #fff;
-  font-weight: 900;
-  font-size: 38px;
-  font-family: 'Oswald', Arial, sans-serif;
-  text-align: center;
-  letter-spacing: 0.02em;
-  text-shadow: 0 4px 16px rgba(0,0,0,0.6);
+.match-thumbnail {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  border: 1.5px dashed rgba(255,255,255,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
 }
 
-/* Inputs */
+.match-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnail-placeholder {
+  font-size: 18px;
+  color: rgba(255,255,255,0.8);
+}
+
+.input-modern.input-modern--grow {
+  width: 100%;
+}
+
+/* Keep existing input-modern styles */
 .input-modern {
   appearance: none;
   background: rgb(255 255 255 / 10%) !important;
@@ -79,6 +94,7 @@ body, html {
 @media (max-width: 480px) {
   .form-title { font-size: 32px; }
   .input-modern { font-size: 16px !important; height: 44px !important; }
+  .match-thumbnail { width: 48px; height: 48px; min-width: 48px; }
 }
 
 /* Si hay confirm-list, también sobre fondo transparente */

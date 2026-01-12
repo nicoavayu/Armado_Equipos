@@ -23,6 +23,8 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const [hora, setHora] = useState('');
   const [sede, setSede] = useState('');
   const [sedeInfo, setSedeInfo] = useState(null);
+  // NEW: optional campo para valor de cancha por persona (UI-only)
+  const [valorCancha, setValorCancha] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [_animation, setAnimation] = useState('slide-in');
@@ -161,61 +163,68 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   if (step === STEPS.NAME) {
     return (
       <div style={mainStyles}>
-        <PageTitle onBack={onVolver}>NUEVO PARTIDO</PageTitle>
+        <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div style={innerStyles}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '1rem', marginTop: '5.5rem' }}>
-            <div
-              className="voting-photo-box"
-              onClick={() => document.getElementById('partido-foto-input').click()}
-              style={{
-                cursor: 'pointer', width: 112, height: 112,
-                borderRadius: 12, border: '2px dashed #fff4',
-                background: 'rgba(130,120,255,0.05)',
-                overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-              title={fotoPreview ? 'Cambiar foto' : 'Agregar foto opcional'}
-            >
-              {fotoPreview ? (
-                <img src={fotoPreview} alt="foto partido"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <span className="photo-plus" style={{ fontSize: 48, color: '#fff7' }}>+</span>
-              )}
-              <input
-                id="partido-foto-input"
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handleFile}
-              />
+            {/*
+              // BEFORE: large image upload area
+              // (was a big dashed box 112x112 with optional preview and large "+" placeholder)
+
+              // AFTER: compact inline image + name field
+              // Thumbnail (48-64px) left, text input right. Image optional and clickable to open file selector.
+            */}
+
+            {/* Label moved ABOVE the inline block so thumbnail aligns with the input */}
+            <label className="name-image-label" style={{ width: '100%', color: '#fff', fontWeight: 500, marginBottom: 8, fontFamily: "'Oswald', Arial, sans-serif" }}>
+              Nombre del partido
+            </label>
+
+            <div className="name-image-block">
+              <div
+                className="match-thumbnail"
+                role="button"
+                aria-label={fotoPreview ? 'Cambiar imagen del partido' : 'Agregar imagen opcional'}
+                onClick={() => document.getElementById('partido-foto-input').click()}
+                title={fotoPreview ? 'Cambiar imagen' : 'Agregar imagen opcional'}
+              >
+                {fotoPreview ? (
+                  <img src={fotoPreview} alt="foto partido" />
+                ) : (
+                  <span className="thumbnail-placeholder">📷</span>
+                )}
+                <input
+                  id="partido-foto-input"
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleFile}
+                />
+              </div>
+
+              <div style={{ flex: 1 }}>
+                <input
+                  className="input-modern input-modern--grow"
+                  type="text"
+                  placeholder="Ej: Partido del Viernes"
+                  value={nombrePartido}
+                  onChange={(e) => setNombrePartido(e.target.value)}
+                  autoFocus
+                />
+              </div>
             </div>
+
+            {/* Small helper text kept subtle */}
             <div style={{
-              fontSize: 14,
+              fontSize: 13,
               color: 'rgba(255,255,255,0.7)',
               textAlign: 'center',
-              marginTop: 11,
+              marginTop: 8,
               fontFamily: "'Oswald', Arial, sans-serif",
             }}>
-              Agregá una imagen para el partido (opcional)
+              La imagen es opcional. El nombre es obligatorio.
             </div>
           </div>
-          <div style={{ width: '100%', marginBottom: '1.2rem', marginTop: '0.3rem' }}>
-            <label style={{ fontWeight: 500, color: '#fff', marginBottom: 12, marginLeft: 2, display: 'block', fontFamily: "'Oswald', Arial, sans-serif" }}>
-              Ingresá un nombre para el partido
-            </label>
-            <input
-              className="input-modern"
-              type="text"
-              placeholder="Ej: Partido del Viernes"
-              value={nombrePartido}
-              onChange={(e) => setNombrePartido(e.target.value)}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-              }}
-              autoFocus
-            />
-          </div>
+
           {/* Selector de modalidad */}
           <div style={{ width: '100%', marginBottom: '2rem', marginTop: '0.3rem' }}>
             <label style={{ fontWeight: 500, color: '#fff', marginBottom: 12, display: 'block', fontFamily: "'Oswald', Arial, sans-serif" }}>
@@ -323,7 +332,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   if (step === STEPS.WHEN) {
     return (
       <div style={mainStyles}>
-        <PageTitle onBack={onVolver}>NUEVO PARTIDO</PageTitle>
+        <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div style={innerStyles}>
           <div style={{
             fontSize: 18,
@@ -373,7 +382,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   if (step === STEPS.WHERE) {
     return (
       <div style={mainStyles}>
-        <PageTitle onBack={onVolver}>NUEVO PARTIDO</PageTitle>
+        <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div style={innerStyles}>
           <div style={{
             fontSize: 18,
@@ -392,6 +401,22 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               setSedeInfo(info);
             }}
           />
+
+          {/* Optional: valor de la cancha por persona */}
+          <div style={{ width: '100%', marginTop: 12, marginBottom: 12 }}>
+            <label style={{ fontWeight: 500, color: '#fff', marginBottom: 8, display: 'block', fontFamily: "'Oswald', Arial, sans-serif" }}>
+              Valor de la cancha (por persona) — opcional
+            </label>
+            <input
+              className="input-modern"
+              type="number"
+              placeholder="Ej: 300"
+              value={valorCancha}
+              onChange={(e) => setValorCancha(e.target.value)}
+              style={{ marginBottom: 6 }}
+              min="0"
+            />
+          </div>
           <button
             className="voting-confirm-btn"
             disabled={!sede}
@@ -416,7 +441,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   if (step === STEPS.CONFIRM) {
     return (
       <div style={mainStyles}>
-        <PageTitle onBack={onVolver}>NUEVO PARTIDO</PageTitle>
+        <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div style={innerStyles}>
           <div style={{ marginTop: '8.2rem' }}></div>
           {fotoPreview && (
@@ -439,6 +464,11 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               <span className="confirmation-item-name">Nombre:</span>
               <span className="confirmation-item-score">{nombrePartido}</span>
               <button className="confirmation-item-edit-btn" onClick={() => editField(STEPS.NAME)}>EDITAR</button>
+            </li>
+            <li className="confirmation-item">
+              <span className="confirmation-item-name">Valor cancha:</span>
+              <span className="confirmation-item-score">{valorCancha ? `${valorCancha} por persona` : 'No definido'}</span>
+              <button className="confirmation-item-edit-btn" onClick={() => editField(STEPS.WHERE)}>EDITAR</button>
             </li>
             <li className="confirmation-item">
               <span className="confirmation-item-name">Modalidad:</span>
