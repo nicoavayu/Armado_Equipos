@@ -159,7 +159,7 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
     try {
       const { data, error } = await supabase
         .from('partidos')
-        .select('id, fecha, hora, sede, created_at')
+        .select('id, fecha, hora, sede, created_at, precio_cancha_por_persona')
         .order('created_at', { ascending: false })
         .limit(3);
       

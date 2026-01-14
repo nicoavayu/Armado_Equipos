@@ -9,6 +9,7 @@ import ChatButton from './ChatButton';
 import PageTitle from './PageTitle';
 import PlayerBadges from './PlayerBadges';
 import MatchInfoSection from './MatchInfoSection';
+import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import './TeamDisplay.css';
 import WhatsappIcon from './WhatsappIcon';
 import LoadingSpinner from './LoadingSpinner';
@@ -324,6 +325,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         <div className="team-display-container">
           <PageTitle onBack={onBackToHome}>EQUIPOS ARMADOS</PageTitle>
           <MatchInfoSection
+            partido={normalizePartidoForHeader(typeof partidoId === 'object' ? partidoId : undefined)}
             fecha={fecha}
             hora={hora}
             sede={sede}

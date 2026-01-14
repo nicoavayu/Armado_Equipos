@@ -152,6 +152,26 @@
   border-radius: 9px !important;
 }
 
+/* Precio cancha styles */
+.precio-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.precio-symbol {
+  position: absolute;
+  left: 12px;
+  color: rgba(255,255,255,0.9);
+  font-weight: 700;
+  pointer-events: none;
+  font-family: 'Oswald', Arial, sans-serif;
+}
+
+.precio-input {
+  padding-left: 30px !important; /* space for $ */
+}
+
 /* Responsive para móvil */
 @media (width <= 480px) {
   .edit-form-container .input-modern,

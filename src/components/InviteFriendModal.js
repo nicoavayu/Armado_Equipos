@@ -45,7 +45,7 @@ const InviteFriendModal = ({ isOpen, onClose, friend, currentUserId }) => {
       // 1. SELECT partidos futuros con campos requeridos
       const { data: partidosData, error: partidosError } = await supabase
         .from('partidos')
-        .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido, creado_por')
+        .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido, creado_por, precio_cancha_por_persona')
         .gte('fecha', new Date().toISOString().split('T')[0]) // 4. Filtrar por fecha >= hoy
         .order('fecha', { ascending: true })
         .order('hora', { ascending: true });

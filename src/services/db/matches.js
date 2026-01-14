@@ -769,21 +769,21 @@ export const refreshJugadoresPartido = async (partidoId) => {
  * @param {Object} matchData - Match data
  * @returns {Promise<Object>} Created match
  */
-export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modalidad, cupo_jugadores, falta_jugadores, tipo_partido }) => {
-  try {
+export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modalidad, cupo_jugadores, falta_jugadores, tipo_partido, precio_cancha_por_persona }) => {
+   try {
     // Normalize date to prevent timezone issues
     const normalizedDate = typeof fecha === 'string' ? fecha.split('T')[0] : fecha;
     console.log('Creating match with data:', { fecha: normalizedDate, hora, sede, sedeMaps });
-    
+
     // Get user without throwing error if not authenticated
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError) {
       console.warn('Auth error (continuing as guest):', authError);
     }
-    
+
     const codigo = generarCodigoPartido();
     console.log('Generated match code:', codigo);
-    
+
     const matchData = {
       codigo,
       nombre: nombre || 'PARTIDO', // Asegurar que siempre tenga nombre
@@ -799,15 +799,25 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
       falta_jugadores: falta_jugadores || false,
       tipo_partido: tipo_partido || 'Masculino',
     };
-    
-    console.log('Inserting match data:', matchData);
-    
+
+    // Only include precio_cancha_por_persona if the column exists in the DB and value provided
+    if (precio_cancha_por_persona !== undefined && precio_cancha_por_persona !== null) {
+      matchData.precio_cancha_por_persona = precio_cancha_por_persona;
+    }
+    // IMPORTANT: Do NOT write valor_cancha or precio into the partidos table here.
+    // The partidos table does not have those columns in the target schema for some deployments.
+    console.log('INSERT matchData', matchData);
+
+    // Insert and return the full created object (all available columns).
     const { data, error } = await supabase
       .from('partidos')
       .insert([matchData])
-      .select('id')
+      .select('*')
       .single();
-    
+
+    console.log('INSERT response', { data, error });
+    // debug log removed in cleanup
+
     if (error) {
       console.error('Supabase insert error:', error);
       console.error('Error details:', {
@@ -816,71 +826,38 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
         details: error.details,
         hint: error.hint,
       });
-      
+
       if (error.code === '42501') {
         throw new Error('Permission denied. Please check Supabase RLS policies for partidos table.');
       }
       if (error.code === '23505') {
         throw new Error('Match code already exists. Please try again.');
       }
-      
+
       throw new Error(`Error creating match: ${error.message}`);
     }
-    
-    const newId = data.id;
+
+    const finalData = data; // use the object returned by the INSERT (contains all columns)
+    const newId = finalData?.id;
     console.log('Match created with new ID:', newId);
-    
-    // Get the full match data with the new ID
-    const { data: fullMatchData, error: fetchError } = await supabase
-      .from('partidos')
-      .select('*')
-      .eq('id', newId)
-      .single();
-      
-    if (fetchError) {
-      console.error('Error fetching created match:', fetchError);
-      throw new Error(`Error fetching created match: ${fetchError.message}`);
-    }
-    
-    console.log('Match created successfully:', fullMatchData);
-    
-    // Use the full match data for the rest of the function
-    const finalData = fullMatchData;
-    
-    // Actualizar el partido para que sea frecuente y su propio partido_frecuente_id sea igual a su id
-    if (finalData && newId) {
-      const { error: updateError } = await supabase
-        .from('partidos')
-        .update({
-          partido_frecuente_id: newId,
-          es_frecuente: true,
-        })
-        .eq('id', newId);
-      
-      if (updateError) {
-        console.error('Error updating match as frequent:', updateError);
-      } else {
-        // Actualizar el objeto finalData con las nuevas propiedades
-        finalData.partido_frecuente_id = newId;
-        finalData.es_frecuente = true;
-      }
-    }
-    
+
+    console.log('Match created successfully:', finalData);
+
     // Agregar automáticamente al creador como jugador si está autenticado
     if (user?.id && newId) {
       try {
-        console.log('[CREAR_PARTIDO] Adding creator as player to match:', { 
-          userId: user.id, 
+        console.log('[CREAR_PARTIDO] Adding creator as player to match:', {
+          userId: user.id,
           matchId: newId,
         });
-        
+
         // Obtener perfil del usuario
         const { data: userProfile, error: profileError } = await supabase
           .from('usuarios')
           .select('nombre, avatar_url')
           .eq('id', user.id)
           .single();
-        
+
         const playerData = {
           partido_id: parseInt(newId),  // Asegurar que sea número
           usuario_id: user.id,  // UUID del usuario
@@ -891,15 +868,15 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
           score: 5,
           is_goalkeeper: false,
         };
-        
+
         console.log('[CREAR_PARTIDO] Inserting player data:', playerData);
-        
+
         const { data: insertedPlayer, error: playerError } = await supabase
           .from('jugadores')
           .insert([playerData])
           .select()
           .single();
-        
+
         if (playerError) {
           console.error('[CREAR_PARTIDO] Error adding creator as player:', playerError);
           // Intentar crear perfil mínimo si no existe
@@ -911,12 +888,12 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
               email: user.email,
               avatar_url: null,
             }, { onConflict: 'id' });
-            
+
             // Reintentar inserción
             const { error: retryError } = await supabase
               .from('jugadores')
               .insert([playerData]);
-            
+
             if (retryError) {
               console.error('[CREAR_PARTIDO] Retry failed:', retryError);
             } else {
@@ -930,7 +907,7 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
         console.error('[CREAR_PARTIDO] Exception adding creator as player:', playerAddError);
       }
     }
-    
+
     // Schedule post-match survey notification
     if (newId) {
       try {
@@ -941,17 +918,17 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
         // Continue without throwing error
       }
     }
-    
+
     // NOTE: Survey notifications are now handled by the fanout_survey_start_notifications() cron job
     // No need to schedule survey reminders at match creation time
-    
+
     return finalData;
-    
-  } catch (error) {
-    console.error('crearPartido failed:', error);
-    throw error;
-  }
-};
+ 
+    } catch (error) {
+      console.error('crearPartido failed:', error);
+      throw error;
+    }
+  };
 
 /**
  * Generate random match code

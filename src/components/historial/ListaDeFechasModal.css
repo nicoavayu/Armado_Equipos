@@ -74,6 +74,8 @@
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgb(0 0 0 / 10%);
+  position: relative;
+  pointer-events: auto;
 }
 
 .fecha-card:hover {
@@ -136,6 +138,9 @@
   color: #8178e5;
   font-size: 24px;
   font-weight: bold;
+  position: relative;
+  z-index: 5;
+  pointer-events: auto;
 }
 
 .empty-state, .loading-state, .error-state {
@@ -176,6 +181,9 @@
   gap: 8px;
   min-width: 160px;
   justify-content: flex-end;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .normal-actions {
@@ -192,6 +200,9 @@
   cursor: pointer;
   padding: 6px;
   border-radius: 8px;
+  pointer-events: auto;
+  position: relative;
+  z-index: 11;
 }
 
 .delete-trigger:hover {

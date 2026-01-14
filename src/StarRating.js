@@ -2,7 +2,7 @@ import React from 'react';
 import { RATING_BUTTONS } from './constants';
 import './StarRating.css';
 
-const StarRating = React.memo(({ value, onChange, onRate, hovered, setHovered }) => {
+const StarRating = ({ value, onChange, onRate, hovered, setHovered }) => {
   // Usar onChange si está disponible, de lo contrario usar onRate (para compatibilidad)
   const handleRating = (rating) => {
     if (onChange) {
@@ -28,7 +28,7 @@ const StarRating = React.memo(({ value, onChange, onRate, hovered, setHovered })
       ))}
     </div>
   );
-});
+};
 
 StarRating.displayName = 'StarRating';
 

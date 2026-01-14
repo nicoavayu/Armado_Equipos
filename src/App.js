@@ -66,6 +66,7 @@ const HomePage = () => {
       getPartidoPorCodigo(codigo)
         .then((partido) => {
 
+          // temporary debug log removed in cleanup
           setPartidoActual(partido);
         })
         .catch((error) => {

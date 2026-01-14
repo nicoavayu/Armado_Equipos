@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
+import { weekdayFromYMD } from '../../utils/dateLocal';
 
 /**
  * Creates a new frequent match template
@@ -108,7 +109,7 @@ export const getPartidosFrecuentes = async () => {
 
 /**
  * Update a frequent match
- * @param {number} id - Frequent match ID
+ * @param {string} id - Frequent match ID (UUID)
  * @param {Object} updates - Updates to apply
  * @returns {Promise<Object>} Updated frequent match
  */
@@ -137,7 +138,7 @@ export const updatePartidoFrecuente = async (id, updates) => {
 
 /**
  * Delete (disable) a frequent match
- * @param {number} id - Frequent match ID
+ * @param {string} id - Frequent match ID (UUID)
  * @returns {Promise<void>}
  */
 export const deletePartidoFrecuente = async (id) => {
@@ -213,7 +214,7 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
 
 /**
  * Update frequent match players specifically
- * @param {number} partidoFrecuenteId - Frequent match ID
+ * @param {string} partidoFrecuenteId - Frequent match ID (UUID)
  * @param {Array} nuevosJugadores - New players array
  * @returns {Promise<Object>} Updated frequent match
  */
@@ -351,6 +352,65 @@ export const subscribeToPartidosChanges = (callback) => {
     return channel;
   } catch (err) {
     console.error('[subscribeToPartidosChanges] Failed to create subscription:', err);
+    return null;
+  }
+};
+
+/**
+ * Create a partidos_frecuentes record from an existing partido row
+ * @param {string} partidoId
+ * @returns {Promise<Object>} Created frequent match
+ */
+export const insertPartidoFrecuenteFromPartido = async (partidoId) => {
+  if (!partidoId) throw new Error('partidoId required');
+  // Fetch the partido row
+  const { data: partido, error: fetchError } = await supabase
+    .from('partidos')
+    .select('*')
+    .eq('id', partidoId)
+    .single();
+
+  if (fetchError) throw new Error(`Error fetching partido ${partidoId}: ${fetchError.message}`);
+  if (!partido) throw new Error(`Partido ${partidoId} not found`);
+
+  // Map partido fields into the frequent-match expected shape
+  const jugadores_frecuentes = Array.isArray(partido.jugadores) ? partido.jugadores.map((j) => ({
+    nombre: j?.nombre || j?.displayName || null,
+    avatar_url: j?.avatar_url || j?.foto_url || null,
+    uuid: j?.uuid || j?.id || null,
+  })) : [];
+
+  const insertPayload = {
+    nombre: partido.nombre || partido.lugar || 'Partido frecuente',
+    sede: partido.sede || partido.lugar || null,
+    hora: partido.hora || null,
+    jugadores_frecuentes,
+    dia_semana: partido.fecha ? weekdayFromYMD(partido.fecha) : null,
+    habilitado: true,
+    imagen_url: partido.imagen_url || null,
+    tipo_partido: partido.tipo_partido || 'Masculino',
+  };
+
+  // Use existing helper which performs validation and inserts the record
+  return crearPartidoFrecuente(insertPayload);
+};
+
+/**
+ * Subscribe to changes on partidos_frecuentes table
+ * @param {Function} callback
+ * @returns {Object|null} Supabase channel
+ */
+export const subscribeToPartidosFrecuentesChanges = (callback) => {
+  try {
+    const channel = supabase.channel('public:partidos_frecuentes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'partidos_frecuentes' }, (payload) => {
+        if (typeof callback === 'function') callback(payload);
+      })
+      .subscribe();
+
+    return channel;
+  } catch (err) {
+    console.error('[subscribeToPartidosFrecuentesChanges] Failed to create subscription:', err);
     return null;
   }
 };

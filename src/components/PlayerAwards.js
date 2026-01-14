@@ -18,7 +18,7 @@ window.testBadgeInsert = async () => {
     
     const { data: partidos, error: partidoError } = await supabase
       .from('partidos')
-      .select('id')
+      .select('id, precio_cancha_por_persona')
       .limit(1);
       
     if (partidoError || !partidos?.length) {

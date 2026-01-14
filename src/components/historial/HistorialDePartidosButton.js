@@ -10,31 +10,46 @@ const HistorialDePartidosButton = ({ partidoFrecuente }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Obtener historial de partidos desde Supabase
+  // Obtener historial de plantillas desde 'partidos_frecuentes'
   const fetchHistorialPartidos = async () => {
-    if (!partidoFrecuente || !partidoFrecuente.id) {
-      return;
-    }
-    
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Usar partido_frecuente_id si existe, sino usar el id del partido actual
-      const idBusqueda = partidoFrecuente.partido_frecuente_id || partidoFrecuente.id;
-      
-      const { data, error } = await supabase
-        .from('partidos')
+      // Intentamos ordenar por created_at si existe; si falla, reintentamos por id.
+      let res = await supabase
+        .from('partidos_frecuentes')
         .select('*')
-        .eq('partido_frecuente_id', idBusqueda)
-        .eq('estado', 'equipos_formados')
-        .order('fecha', { ascending: false });
-      
-      if (error) throw error;
-      setHistorialPartidos(data || []);
+        .order('created_at', { ascending: false });
+
+      if (res.error) {
+        // Si el error sugiere que no existe created_at, reintentar por id
+        console.debug('created_at no existe o error al ordenar, reintentando por id', res.error.message || res.error);
+        res = await supabase
+          .from('partidos_frecuentes')
+          .select('*')
+          .order('id', { ascending: false });
+      }
+
+      if (res.error) throw res.error;
+
+      // Normalizar salida para que el modal pueda mostrar campos esperados
+      const data = (res.data || []).map((item) => ({
+        id: item.id,
+        nombre: item.nombre ?? item.lugar ?? 'Sin nombre',
+        lugar: item.lugar ?? 'Sin lugar',
+        fecha: item.fecha ?? null,
+        hora: item.hora ?? null,
+        tipo_partido: item.tipo_partido ?? item.tipo ?? 'Sin tipo',
+        modalidad: item.modalidad ?? 'Sin modalidad',
+        raw: item, // mantener original por si el modal necesita más campos
+      }));
+
+      setHistorialPartidos(data);
     } catch (err) {
-      console.error('Error al cargar historial:', err);
-      setError('No se pudo cargar el historial de partidos');
+      console.error('Error al cargar historial de plantillas:', err);
+      setError('No se pudo cargar el historial de plantillas');
+      setHistorialPartidos([]);
     } finally {
       setLoading(false);
     }
@@ -63,9 +78,9 @@ const HistorialDePartidosButton = ({ partidoFrecuente }) => {
       
       {showModal && (
         <ListaDeFechasModal 
-          partidos={historialPartidos} 
+          partidosFrecuentes={historialPartidos}
           onClose={handleClose}
-          nombrePartido={partidoFrecuente.nombre || 'Partido'}
+          nombrePartido={partidoFrecuente?.nombre ?? 'Plantillas'}
           error={error}
           loading={loading}
         />

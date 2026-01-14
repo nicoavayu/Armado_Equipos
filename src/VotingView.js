@@ -12,9 +12,10 @@ import DOMPurify from 'dompurify';
 import { handleError, AppError, ERROR_CODES } from './lib/errorHandler';
 import { db } from './api/supabaseWrapper';
 import LoadingSpinner from './components/LoadingSpinner';
-import StarRating from './StarRating';
 import PageTitle from './components/PageTitle';
 import MatchInfoSection from './components/MatchInfoSection';
+import normalizePartidoForHeader from './utils/normalizePartidoForHeader';
+import StarRating from './StarRating';
 import './HomeStyleKit.css';
 
 // Feature flag for XSS sanitization
@@ -36,6 +37,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const [step, setStep] = useState(0);
   const [nombre, setNombre] = useState('');
   const [jugador, setJugador] = useState(null);
+  const [animating, setAnimating] = useState(false);
 
   // Foto
   const [file, setFile] = useState(null);
@@ -52,7 +54,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const [confirmando, setConfirmando] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
-  const [animating, setAnimating] = useState(false);
 
   // Chequeo global: ¿El usuario actual ya votó?
   const [usuarioYaVoto, setUsuarioYaVoto] = useState(false);
@@ -125,7 +126,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               setStep(1);
             }
           } catch (err) {
-            handleError(err, { showToast: false });
+            handleError(err, { showToast: false, onError: () => {} });
             setAuthzError('No se pudo validar permisos');
             setHasAccess(false);
             return setCargandoVotoUsuario(false);
@@ -187,7 +188,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (hasAccess === false) {
     return (
       <div className="voting-bg">
-        <PageTitle onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="voting-modern-card">
           <div className="voting-title-modern">
             ACCESO DENEGADO
@@ -214,7 +215,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (usuarioYaVoto) {
     return (
       <div className="voting-bg">
-        <PageTitle onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="voting-modern-card">
           <div className="voting-title-modern">
             ¡YA VOTASTE!
@@ -222,11 +223,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30 }}>
             Ya registraste tus votos.<br />No podés votar de nuevo en este partido.
           </div>
-          <button
-            className="voting-confirm-btn"
-            onClick={onReset}
-            style={{ marginTop: 16 }}
-          >VOLVER AL INICIO</button>
         </div>
       </div>
     );
@@ -236,7 +232,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (step === 0) {
     return (
       <div className="voting-bg">
-        <PageTitle onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="voting-modern-card">
           <div className="voting-title-modern">¿QUIÉN SOS?</div>
           <div className="player-select-grid">
@@ -290,7 +286,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
     return (
       <div className="voting-bg">
-        <PageTitle onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="voting-modern-card">
           <div className="voting-title-modern">¡HOLA, {clean(nombre)}!</div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 18 }}>
@@ -363,7 +359,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
     return (
       <div className="voting-bg">
-        <PageTitle>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="voting-modern-card" style={{ background: 'transparent', boxShadow: 'none', padding: 0 }}>
           <div className={`player-vote-card ${animating ? 'slide-out' : 'slide-in'}`}>
             <div className="voting-player-name">{clean(jugadorVotar.nombre)}</div>
@@ -377,6 +373,22 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             <StarRating
               value={valor}
               onChange={(valor) => {
+                if (animating) return;
+                setAnimating(true);
+                setVotos((prev) => ({ ...prev, [jugadorVotar.uuid]: valor }));
+
+                setTimeout(() => {
+                  if (editandoIdx !== null) {
+                    setEditandoIdx(null);
+                    setStep(3);
+                  } else {
+                    setCurrent((cur) => cur + 1);
+                  }
+                  setHovered(null);
+                  setAnimating(false);
+                }, 200);
+              }}
+              onRate={(valor) => {
                 if (animating) return;
                 setAnimating(true);
                 setVotos((prev) => ({ ...prev, [jugadorVotar.uuid]: valor }));
@@ -427,8 +439,9 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (step === 3 && !finalizado) {
     return (
       <div className="voting-bg">
-        <PageTitle>CONFIRMÁ TUS CALIFICACIONES</PageTitle>
+        <PageTitle title="CONFIRMÁ TUS CALIFICACIONES" onBack={onReset}>CONFIRMÁ TUS CALIFICACIONES</PageTitle>
         <MatchInfoSection
+          partido={normalizePartidoForHeader(partidoActual)}
           nombre={partidoActual?.nombre}
           fecha={partidoActual?.fecha}
           hora={partidoActual?.hora}
@@ -489,7 +502,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               
               if (hasAccess === false) {
                 console.error('[Vote] error', { message: 'Access denied', code: ERROR_CODES.ACCESS_DENIED });
-                handleError(new AppError('No tienes permiso para votar en este partido.', ERROR_CODES.ACCESS_DENIED), { showToast: true });
+                handleError(new AppError('No tienes permiso para votar en este partido.', ERROR_CODES.ACCESS_DENIED), { showToast: true, onError: () => {} });
                 return;
               }
               
@@ -547,7 +560,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               } catch (error) {
                 console.error('[Vote] error', { message: error?.message, code: error?.code });
                 console.debug('[Vote] submit result', { ok: false });
-                handleError(error, { showToast: true });
+                handleError(error, { showToast: true, onError: () => {} });
               } finally {
                 setConfirmando(false);
                 setIsSubmitting(false);
@@ -565,7 +578,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (finalizado) {
     return (
       <div className="voting-bg">
-        <PageTitle onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="voting-modern-card">
           <div className="voting-title-modern">
             ¡GRACIAS POR VOTAR!

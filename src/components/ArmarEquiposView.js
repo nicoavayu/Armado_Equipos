@@ -13,6 +13,7 @@ import { PlayerCardTrigger } from './ProfileComponents';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import MatchInfoSection from './MatchInfoSection';
+import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import { useAuth } from './AuthProvider';
 import { sendVotingNotifications } from '../services/notificationService';
 import { handleError } from '../lib/errorHandler';
@@ -363,6 +364,7 @@ export default function ArmarEquiposView({
     <>
       <PageTitle onBack={onBackToAdmin}>ARMAR EQUIPOS</PageTitle>
       <MatchInfoSection
+        partido={normalizePartidoForHeader(partidoActual)}
         nombre={partidoActual?.nombre}
         fecha={partidoActual?.fecha}
         hora={partidoActual?.hora}

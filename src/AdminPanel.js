@@ -13,6 +13,7 @@ import ChatButton from './components/ChatButton';
 import LoadingSpinner from './components/LoadingSpinner';
 import PageTitle from './components/PageTitle';
 import MatchInfoSection from './components/MatchInfoSection';
+import normalizePartidoForHeader from './utils/normalizePartidoForHeader';
 
 import AdminActions from './components/admin/AdminActions';
 import PlayersSection from './components/admin/PlayersSection';
@@ -80,6 +81,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
           
           {isAdmin && !showTeams && (
             <MatchInfoSection
+              partido={normalizePartidoForHeader(partidoActual)}
               fecha={partidoActual?.fecha}
               hora={partidoActual?.hora}
               sede={partidoActual?.sede}
