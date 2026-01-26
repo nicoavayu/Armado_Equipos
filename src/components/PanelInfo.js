@@ -1,5 +1,5 @@
 import React from 'react';
-import './PanelInfo.css';
+
 
 const PanelInfo = () => {
   // Datos hardcodeados para demo
@@ -9,20 +9,32 @@ const PanelInfo = () => {
     { id: 3, message: 'Faltan 3 jugadores para el partido', type: 'alert' },
   ];
 
+  const getTypeStyles = (type) => {
+    switch (type) {
+      case 'match': return 'border-l-[3px] border-[#4CAF50]';
+      case 'player': return 'border-l-[3px] border-[#2196F3]';
+      case 'alert': return 'border-l-[3px] border-[#FF9800]';
+      default: return '';
+    }
+  };
+
   return (
-    <div className="panel-info">
-      <div className="panel-info-header">
-        <h4>Resumen</h4>
+    <div className="bg-white/15 border border-white/20 rounded-xl my-5 p-4 w-full box-border">
+      <div className="mb-3">
+        <h4 className="text-white font-bebas text-xl m-0 uppercase">Resumen</h4>
       </div>
-      <div className="panel-info-content">
+      <div className="flex flex-col gap-2">
         {notifications.map((notification) => (
-          <div key={notification.id} className={`panel-info-item ${notification.type}`}>
-            <div className="panel-info-icon">
+          <div
+            key={notification.id}
+            className={`flex items-center px-3 py-2 bg-white/10 rounded-lg min-h-[48px] box-border ${getTypeStyles(notification.type)}`}
+          >
+            <div className="mr-3 text-lg min-w-[24px] text-center">
               {notification.type === 'match' && '⚽'}
               {notification.type === 'player' && '👤'}
               {notification.type === 'alert' && '⚠️'}
             </div>
-            <div className="panel-info-text">{notification.message}</div>
+            <div className="text-white/90 text-sm leading-[1.4] flex-1">{notification.message}</div>
           </div>
         ))}
       </div>

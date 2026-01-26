@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import MatchChat from './MatchChat';
 import { useAuth } from './AuthProvider';
-import './ChatButton.css';
+import { MessageCircle } from 'lucide-react';
 
 export default function ChatButton({ partidoId }) {
   const { user } = useAuth(); // [TEAM_BALANCER_EDIT] Para verificar permisos
@@ -17,13 +17,13 @@ export default function ChatButton({ partidoId }) {
         setCanAccessChat(false);
         return;
       }
-      
+
       // Si no hay usuario (invitado), permitir acceso al chat
       if (!user?.id) {
         setCanAccessChat(true);
         return;
       }
-      
+
       try {
         // [TEAM_BALANCER_INVITE_EDIT] Verificar si hay invitación pendiente
         const { data: invitation } = await supabase
@@ -34,39 +34,39 @@ export default function ChatButton({ partidoId }) {
           .eq('read', false)
           .eq('match_id_text', String(partidoId))
           .single();
-          
+
         // Si hay invitación pendiente, no permitir acceso al chat
         if (invitation) {
           setCanAccessChat(false);
           return;
         }
-        
+
         // Verificar si el usuario está en la nómina del partido
         const { data: jugadoresPartido } = await supabase
           .from('jugadores')
           .select('usuario_id')
           .eq('partido_id', partidoId);
-          
+
         const jugadorEnPartido = jugadoresPartido?.some((j) => j.usuario_id === user.id);
-        
+
         // Verificar si es admin del partido
         const { data: partidoData } = await supabase
           .from('partidos')
           .select('creado_por')
           .eq('id', partidoId)
           .single();
-          
+
         const esAdmin = partidoData?.creado_por === user.id;
-        
+
         setCanAccessChat(jugadorEnPartido || esAdmin);
       } catch (error) {
         console.error('Error checking chat access:', error);
         setCanAccessChat(false);
       }
     }
-    
+
     checkChatAccess();
-    
+
     // Suscripción en tiempo real para detectar cambios en jugadores
     const subscription = supabase
       .channel(`chat_access_${partidoId}`)
@@ -79,12 +79,12 @@ export default function ChatButton({ partidoId }) {
         checkChatAccess();
       })
       .subscribe();
-    
+
     return () => {
       subscription.unsubscribe();
     };
   }, [partidoId, user?.id]);
-  
+
   useEffect(() => {
     if (partidoId && canAccessChat) {
       checkUnreadMessages();
@@ -124,14 +124,20 @@ export default function ChatButton({ partidoId }) {
 
   return (
     <>
-      <button className="chat-float-btn" onClick={handleOpenChat}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
-        </svg>
-        {unreadCount > 0 && (
-          <span className="chat-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
-        )}
-      </button>
+      {!isChatOpen && (
+        <button
+          className="fixed bottom-[120px] right-5 w-12 h-12 bg-slate-700 border border-slate-600 rounded-full text-white/80 cursor-pointer flex items-center justify-center shadow-lg transition-all duration-200 z-[99999] hover:bg-slate-600 hover:text-white active:scale-95 max-[600px]:bottom-[120px] max-[600px]:right-4 max-[600px]:w-11 max-[600px]:h-11"
+          onClick={handleOpenChat}
+          aria-label="Abrir chat del partido"
+        >
+          <MessageCircle size={20} strokeWidth={2} />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-[#dc3545] text-white rounded-full min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold font-oswald border-2 border-slate-900 box-border max-[600px]:min-w-[16px] max-[600px]:h-[16px] max-[600px]:text-[9px]">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </button>
+      )}
 
       <MatchChat
         partidoId={partidoId}

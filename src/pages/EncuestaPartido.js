@@ -1,27 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase, checkPartidoCalificado } from '../supabase';
-import { processAbsenceWithoutNotice } from '../utils/matchStatsManager';
+import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
 import { useAuth } from '../components/AuthProvider';
-import { useBadges } from '../context/BadgeContext';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { finalizeIfComplete } from '../services/surveyCompletionService';
-import { toBigIntId } from '../utils';
 import { useNotifications } from '../context/NotificationContext';
+import LoadingSpinner from '../components/LoadingSpinner';
+import PageTitle from '../components/PageTitle';
+import PageTransition from '../components/PageTransition';
+import { finalizeIfComplete } from '../services/surveyCompletionService';
+import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 
-import ProfileCard from '../components/ProfileCard';
-import '../VotingView.css';
+// Styles are now directly in Tailwind
+// import './LegacyVoting.css'; // Removed
+
+const Utils_formatTime = (iso) => {
+  if (!iso) return '??';
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
 
 const EncuestaPartido = () => {
   const { partidoId, matchId } = useParams();
   const id = partidoId ?? matchId;
   const { user } = useAuth();
-  const { triggerBadgeRefresh } = useBadges();
   const { fetchNotifications } = useNotifications();
   const navigate = useNavigate();
-  
+  const { navigateWithAnimation } = useAnimatedNavigation();
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [partido, setPartido] = useState(null);
@@ -43,7 +48,6 @@ const EncuestaPartido = () => {
   const [jugadores, setJugadores] = useState([]);
   const [yaCalificado, setYaCalificado] = useState(false);
   const [encuestaFinalizada, setEncuestaFinalizada] = useState(false);
-  const toastShownRef = useRef(false);
 
   useEffect(() => {
     const fetchPartidoData = async () => {
@@ -52,9 +56,9 @@ const EncuestaPartido = () => {
           navigate('/');
           return;
         }
-        
+
         setLoading(true);
-        
+
         // Check if user already submitted survey
         const currentUserPlayer = await supabase
           .from('jugadores')
@@ -62,7 +66,7 @@ const EncuestaPartido = () => {
           .eq('partido_id', id)
           .eq('usuario_id', user.id)
           .single();
-        
+
         if (currentUserPlayer.data?.id) {
           const { data: existingSurvey } = await supabase
             .from('post_match_surveys')
@@ -70,37 +74,37 @@ const EncuestaPartido = () => {
             .eq('partido_id', parseInt(id))
             .eq('votante_id', currentUserPlayer.data.id)
             .single();
-          
+
           if (existingSurvey) {
             setAlreadySubmitted(true);
           }
         }
-        
+
         const { data: partidoData, error: partidoError } = await supabase
           .from('partidos')
           .select('*')
           .eq('id', id)
           .single();
-          
+
         if (partidoError) throw partidoError;
         if (!partidoData) {
           throw new AppError('Partido no encontrado', ERROR_CODES.NOT_FOUND);
         }
-        
+
         setPartido(partidoData);
-        
+
         if (partidoData.jugadores && Array.isArray(partidoData.jugadores)) {
           setJugadores(partidoData.jugadores);
         }
-        
+
       } catch (error) {
-        handleError(error, { showToast: true, onError: () => {} });
+        handleError(error, { showToast: true, onError: () => { } });
         navigate('/');
       } finally {
         setLoading(false);
       }
     };
-    
+
     if (id && user) {
       fetchPartidoData();
     }
@@ -114,7 +118,6 @@ const EncuestaPartido = () => {
         const nowIso = new Date().toISOString();
         const partidoIdNum = Number(id);
 
-        // Prefer the canonical fields inserted by the DB cron: top-level partido_id and data.match_id (string)
         await Promise.all([
           supabase.from('notifications')
             .update({ read: true, read_at: nowIso })
@@ -129,7 +132,7 @@ const EncuestaPartido = () => {
             .contains('data', { match_id: String(id) }),
         ]);
 
-        try { await fetchNotifications?.(); } catch {}
+        try { await fetchNotifications?.(); } catch { }
       } catch (error) {
         console.error('[MARK_NOTIF_READ] Error:', error);
       }
@@ -138,25 +141,21 @@ const EncuestaPartido = () => {
     markNotificationRead();
   }, [id, user?.id, fetchNotifications]);
 
-
-
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
-
-
 
   const toggleJugadorAusente = (jugadorId) => {
     setFormData((prev) => {
       const ausentes = [...prev.jugadores_ausentes];
       const index = ausentes.indexOf(jugadorId);
-      
+
       if (index === -1) {
         ausentes.push(jugadorId);
       } else {
         ausentes.splice(index, 1);
       }
-      
+
       return { ...prev, jugadores_ausentes: ausentes };
     });
   };
@@ -165,18 +164,16 @@ const EncuestaPartido = () => {
     setFormData((prev) => {
       const violentos = [...prev.jugadores_violentos];
       const index = violentos.indexOf(jugadorId);
-      
+
       if (index === -1) {
         violentos.push(jugadorId);
       } else {
         violentos.splice(index, 1);
       }
-      
+
       return { ...prev, jugadores_violentos: violentos };
     });
   };
-
-
 
   const continueSubmitFlow = async () => {
     try {
@@ -184,15 +181,11 @@ const EncuestaPartido = () => {
         toast.info('Ya completaste esta encuesta');
         return;
       }
-      
-      // Convertir UUIDs a IDs numéricos para la base de datos
+
       const mvpPlayer = formData.mvp_id ? jugadores.find(j => j.uuid === formData.mvp_id) : null;
       const arqueroPlayer = formData.arquero_id ? jugadores.find(j => j.uuid === formData.arquero_id) : null;
-      
-      // Encontrar el jugador actual para obtener su ID numérico
       const currentUserPlayer = jugadores.find(j => j.usuario_id === user.id);
-      
-      // Convertir arrays de UUID a IDs numéricos
+
       const uuidToId = new Map(jugadores.map(j => [j.uuid, j.id]));
       const violentosIds = (formData.jugadores_violentos || [])
         .map(u => uuidToId.get(u))
@@ -200,7 +193,7 @@ const EncuestaPartido = () => {
       const ausentesIds = (formData.jugadores_ausentes || [])
         .map(u => uuidToId.get(u))
         .filter(Boolean);
-      
+
       const surveyData = {
         partido_id: parseInt(id),
         votante_id: currentUserPlayer?.id || null,
@@ -211,61 +204,31 @@ const EncuestaPartido = () => {
         partido_limpio: formData.partido_limpio,
         jugadores_violentos: violentosIds,
         mejor_jugador_eq_a: mvpPlayer?.id || null,
-        mejor_jugador_eq_b: arqueroPlayer?.id || null,
+        mejor_jugador_eq_b: arqueroPlayer?.id || null, // Usamos este campo para el arquero
         created_at: new Date().toISOString(),
       };
-      
-      if (formData.jugadores_ausentes.length > 0) {
-        for (const jugadorUuid of formData.jugadores_ausentes) {
-          try {
-            // Encontrar el jugador y obtener su usuario_id
-            const jugador = jugadores.find(j => j.uuid === jugadorUuid);
-            if (jugador && jugador.usuario_id) {
-              await processAbsenceWithoutNotice(jugador.usuario_id, parseInt(id), user.id);
-            }
-          } catch (error) {
-            console.error('Error processing absence without notice:', error);
-          }
-        }
-      }
-      
-      // 1) guardar encuesta
-      const { error } = await supabase
+
+      const { data: insertData, error: insertError } = await supabase
         .from('post_match_surveys')
         .insert([surveyData]);
-        
-      if (error) throw error;
-      
-      // 2) Marcar notificaciones relacionadas como leídas (usa contrato canónico)
-      try {
-        const nowIso = new Date().toISOString();
-        const partidoIdNum = Number(id);
-        await Promise.all([
-          supabase.from('notifications').update({ read: true, read_at: nowIso })
-            .eq('user_id', user.id).in('type', ['survey_start', 'post_match_survey']).eq('partido_id', partidoIdNum),
 
-          supabase.from('notifications').update({ read: true, read_at: nowIso })
-            .eq('user_id', user.id).in('type', ['survey_start', 'post_match_survey']).contains('data', { match_id: String(id) }),
-        ]);
-        try { await fetchNotifications?.(); } catch {}
-      } catch (notifError) {
-        console.error('[MARK_NOTIF_READ] Error:', notifError);
+      if (insertError) {
+        console.error('[ENCUESTA] post_match_surveys insert error full:', insertError);
+        throw insertError;
       }
-      
-      // 3) intentar cierre si ya están todos (no bloquear el flujo si falla)
+
       try {
         await finalizeIfComplete(parseInt(id));
       } catch (e) {
         console.warn('[finalizeIfComplete] non-blocking error:', e);
       }
-      
-      // 4) Mostrar pantalla final interna (sin toast, sin redirect)
+
       setAlreadySubmitted(true);
       setEncuestaFinalizada(true);
       setCurrentStep(99);
-      
+
     } catch (error) {
-      handleError(error, { showToast: true, onError: () => {} });
+      handleError(error, { showToast: true, onError: () => { } });
     } finally {
       setSubmitting(false);
     }
@@ -273,29 +236,29 @@ const EncuestaPartido = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!user || !id) {
       toast.error('Debes iniciar sesión para calificar un partido');
       return;
     }
-    
+
     if (alreadySubmitted) {
       toast.info('Ya completaste esta encuesta');
       return;
     }
-    
+
     if (submitting || encuestaFinalizada) {
       return;
     }
-    
+
     setSubmitting(true);
-    
     await continueSubmitFlow();
   };
+
   const formatFecha = (fechaStr) => {
     try {
       const fecha = new Date(fechaStr);
-      return fecha.toLocaleDateString('es-ES', { 
+      return fecha.toLocaleDateString('es-ES', {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
@@ -306,94 +269,104 @@ const EncuestaPartido = () => {
     }
   };
 
-  const formatFechaCorta = (fechaStr) => {
-    try {
-      const fecha = new Date(fechaStr);
-      return fecha.toLocaleDateString('es-ES', { 
-        weekday: 'short',
-        day: 'numeric',
-        month: 'numeric',
-      });
-    } catch (e) {
-      return fechaStr || 'Fecha no disponible';
+  // Helper classes for consistency
+  const wrapperClass = "min-h-screen bg-fifa-gradient w-full p-0 flex flex-col overflow-x-hidden";
+  const cardClass = "w-[90%] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-5 relative";
+  const titleClass = "font-bebas text-[38px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-md break-words w-full";
+  const btnClass = "font-bebas text-[27px] md:text-[28px] text-white bg-primary border border-white/40 rounded-xl tracking-wide py-4 px-4 mt-4 w-full cursor-pointer font-bold transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden flex items-center justify-center shadow-[0_10px_30px_rgba(129,120,229,0.35)]";
+  const optionBtnClass = "w-full bg-white/10 border border-white/30 text-white font-bebas text-2xl md:text-[2rem] py-3 text-center cursor-pointer transition-all hover:bg-white/16 active:scale-[0.98] flex items-center justify-center min-h-[52px] rounded-xl shadow-[0_6px_18px_rgba(0,0,0,0.25)]";
+  const optionBtnSelectedClass = "bg-primary border-white/80 shadow-[0_8px_24px_rgba(129,120,229,0.45)]";
+  const gridClass = "grid grid-cols-2 gap-4 w-full max-w-[400px] mx-auto mb-[18px]";
+  const textClass = "text-white text-[20px] font-oswald text-center mb-[30px] font-normal tracking-wide";
+
+  // Animation style
+  const animationStyle = `
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
     }
-  };
-
-
-
-
+  `;
 
   if (loading) {
     return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
-          <LoadingSpinner size="large" />
+      <PageTransition>
+          <div className="min-h-screen w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className={cardClass}>
+            <LoadingSpinner size="large" />
+          </div>
         </div>
-      </div>
+      </PageTransition>
     );
   }
 
   if (yaCalificado || alreadySubmitted) {
     return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
-          <div className="voting-title-modern">YA COMPLETASTE LA ENCUESTA</div>
-          <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: 'center' }}>
-            Ya has completado la encuesta de este partido.<br />¡Gracias por tu participación!
-          </div>
-          <button className="voting-confirm-btn" onClick={() => navigate('/')}>
-            VOLVER AL INICIO
-          </button>
-        </div>
-      </div>
-    );
-  }
+      <PageTransition>
+        <div className="min-h-screen w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className={cardClass}>
+            <div className={titleClass}>YA COMPLETASTE LA ENCUESTA</div>
+            <div className={`${textClass} text-[26px]`}>
+              Ya has completado la encuesta de este partido.<br />¡Gracias por tu participación!
+            </div>
+            <button className={btnClass} onClick={() => navigate('/')}>
+              VOLVER AL INICIO
+            </button>
 
-  if (!partido) {
-    return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
-          <div className="voting-title-modern">PARTIDO NO ENCONTRADO</div>
-          <button className="voting-confirm-btn" onClick={() => navigate('/')}>
-            VOLVER AL INICIO
-          </button>
-        </div>
-      </div>
+              <button
+                className="mt-4 text-white/50 text-sm font-oswald underline cursor-pointer hover:text-white"
+                onClick={async () => {
+                  try {
+                    const res = await finalizeIfComplete(id);
+                    if (res.done) {
+                      toast.success('Estado actualizado: Encuesta finalizada');
+                    } else {
+                      toast.info(`Estado: ${res.surveysCount}/${res.playersCount} votos. Cierra: ${Utils_formatTime(res.deadlineAt)}`);
+                    }
+                  } catch (e) { console.error(e); toast.error('Error verificando estado'); }
+                }}
+              >
+                ADMIN: Verificar Estado / Forzar Cierre
+              </button>
+            </div>
+          </div>
+        </PageTransition>
     );
   }
 
   return (
-    <div className="voting-bg">
-      <div className="voting-modern-card">
+    <PageTransition>
+      <div className="min-h-screen w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <style>{animationStyle}</style>
+        <div className={cardClass}>
+
+        {/* STEP 0: ¿SE JUGÓ? */}
         {currentStep === 0 && (
-          <div className="player-vote-card slide-in">
-            <div className="voting-title-modern">
+          <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
+            <div className={titleClass}>
               ¿SE JUGÓ EL PARTIDO?
             </div>
-            <div style={{ color: '#fff', fontSize: 20, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: 'center' }}>
+            <div className={textClass}>
               {formatFecha(partido.fecha)}<br />
               {partido.hora && `${partido.hora} - `}{partido.sede ? partido.sede.split(/[,(]/)[0].trim() : 'Sin ubicación'}
             </div>
-            <div className="player-select-grid">
+            <div className={gridClass}>
               <button
-                className={`player-select-btn${formData.se_jugo ? ' selected' : ''}`}
+                className={`${optionBtnClass} ${formData.se_jugo ? optionBtnSelectedClass : ''}`}
                 onClick={() => {
                   handleInputChange('se_jugo', true);
                   setCurrentStep(1);
                 }}
                 type="button"
-                style={{ borderRadius: '6px' }}
               >
                 SÍ
               </button>
               <button
-                className={`player-select-btn${!formData.se_jugo ? ' selected' : ''}`}
+                className={`${optionBtnClass} ${!formData.se_jugo ? optionBtnSelectedClass : ''}`}
                 onClick={() => {
                   handleInputChange('se_jugo', false);
                   setCurrentStep(10);
                 }}
                 type="button"
-                style={{ borderRadius: '6px' }}
               >
                 NO
               </button>
@@ -401,31 +374,30 @@ const EncuestaPartido = () => {
           </div>
         )}
 
+        {/* STEP 1: ¿ASISTIERON TODOS? */}
         {currentStep === 1 && (
-          <div className="player-vote-card slide-in">
-            <div className="voting-title-modern">
+          <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
+            <div className={titleClass}>
               ¿ASISTIERON TODOS?
             </div>
-            <div className="player-select-grid">
+            <div className={gridClass}>
               <button
-                className="player-select-btn"
+                className={optionBtnClass}
                 onClick={() => {
                   handleInputChange('asistieron_todos', true);
                   setCurrentStep(2);
                 }}
                 type="button"
-                style={{ borderRadius: '6px' }}
               >
                 SÍ
               </button>
               <button
-                className="player-select-btn"
+                className={optionBtnClass}
                 onClick={() => {
                   handleInputChange('asistieron_todos', false);
                   setCurrentStep(12);
                 }}
                 type="button"
-                style={{ borderRadius: '6px' }}
               >
                 NO
               </button>
@@ -433,204 +405,130 @@ const EncuestaPartido = () => {
           </div>
         )}
 
+        {/* STEP 2: MVP */}
         {currentStep === 2 && (
-          <div className="player-vote-card slide-in">
-            <div className="voting-title-modern">
+          <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
+            <div className={titleClass}>
               ¿QUIÉN FUE EL MEJOR JUGADOR?
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', margin: '15px auto', maxWidth: '85%' }}>
+            <div className="grid grid-cols-4 gap-2 w-[85%] mx-auto mb-5">
               {jugadores.map((jugador) => (
                 <div
                   key={jugador.uuid}
                   onClick={() => handleInputChange('mvp_id', jugador.uuid)}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    padding: '10px',
-                    borderRadius: '6px',
-                    backgroundColor: formData.mvp_id === jugador.uuid ? '#00D49B' : '#2a2a40',
-                    border: formData.mvp_id === jugador.uuid ? '1px solid #00D49B' : '1px solid #444',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    minHeight: '90px',
-                  }}
+                  className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.mvp_id === jugador.uuid
+                    ? 'bg-[#00D49B] border border-[#00D49B]'
+                    : 'bg-white/10 border border-white/20 hover:bg-white/15'
+                    }`}
                 >
-                  <div style={{
-                    width: '55px',
-                    height: '55px',
-                    borderRadius: '4px',
-                    overflow: 'hidden',
-                    marginBottom: '6px',
-                    backgroundColor: '#1a1a2e',
-                    flexShrink: 0,
-                  }}>
+                  <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                     {jugador.avatar_url || jugador.foto_url ? (
-                      <img 
-                        src={jugador.avatar_url || jugador.foto_url} 
+                      <img
+                        src={jugador.avatar_url || jugador.foto_url}
                         alt={jugador.nombre}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div style={{
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#999',
-                        fontSize: '16px',
-                        fontWeight: '600',
-                      }}>
+                      <div className="w-full h-full flex items-center justify-center text-white/50 text-base font-semibold">
                         {jugador.nombre.charAt(0)}
                       </div>
                     )}
                   </div>
-                  <span style={{
-                    color: 'white',
-                    fontSize: '10px',
-                    fontWeight: '500',
-                    textAlign: 'center',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    width: '100%',
-                  }}>
+                  <span className="text-white text-[10px] font-medium text-center overflow-hidden text-ellipsis whitespace-nowrap w-full">
                     {jugador.nombre}
                   </span>
                 </div>
               ))}
             </div>
             <button
-              className="voting-confirm-btn"
+              className={btnClass}
               onClick={() => setCurrentStep(3)}
-              style={{ marginTop: '20px' }}
             >
               SIGUIENTE
             </button>
           </div>
         )}
 
+        {/* STEP 3: ARQUERO */}
         {currentStep === 3 && (
-          <div className="player-vote-card slide-in">
-            <div className="voting-title-modern">
+          <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
+            <div className={titleClass}>
               ¿QUIÉN FUE EL MEJOR ARQUERO?
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', margin: '15px auto', maxWidth: '85%' }}>
+            <div className="grid grid-cols-4 gap-2 w-[85%] mx-auto mb-5">
               {jugadores.map((jugador) => (
                 <div
                   key={jugador.uuid}
                   onClick={() => handleInputChange('arquero_id', jugador.uuid)}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    padding: '10px',
-                    borderRadius: '6px',
-                    backgroundColor: formData.arquero_id === jugador.uuid ? '#FFD700' : '#2a2a40',
-                    border: formData.arquero_id === jugador.uuid ? '1px solid #FFD700' : '1px solid #444',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    minHeight: '90px',
-                  }}
+                  className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.arquero_id === jugador.uuid
+                    ? 'bg-[#FFD700] border border-[#FFD700] shadow-[0_0_10px_rgba(255,215,0,0.3)]'
+                    : 'bg-white/10 border border-white/20 hover:bg-white/15'
+                    }`}
                 >
-                  <div style={{
-                    width: '55px',
-                    height: '55px',
-                    borderRadius: '4px',
-                    overflow: 'hidden',
-                    marginBottom: '6px',
-                    backgroundColor: '#1a1a2e',
-                    flexShrink: 0,
-                  }}>
+                  <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                     {jugador.avatar_url || jugador.foto_url ? (
-                      <img 
-                        src={jugador.avatar_url || jugador.foto_url} 
+                      <img
+                        src={jugador.avatar_url || jugador.foto_url}
                         alt={jugador.nombre}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div style={{
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#999',
-                        fontSize: '16px',
-                        fontWeight: '600',
-                      }}>
+                      <div className="w-full h-full flex items-center justify-center text-white/50 text-base font-semibold">
                         {jugador.nombre.charAt(0)}
                       </div>
                     )}
                   </div>
-                  <span style={{
-                    color: 'white',
-                    fontSize: '10px',
-                    fontWeight: '500',
-                    textAlign: 'center',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    width: '100%',
-                  }}>
+                  <span className="text-white text-[10px] font-medium text-center overflow-hidden text-ellipsis whitespace-nowrap w-full">
                     {jugador.nombre}
                   </span>
                 </div>
               ))}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+            <div className="flex justify-center mb-2.5">
               <button
-                className="player-select-btn"
+                className={`${optionBtnClass} bg-primary border-primary/80 shadow-[0_8px_24px_rgba(129,120,229,0.45)] w-[90%] mx-auto`}
                 onClick={() => {
                   handleInputChange('arquero_id', '');
                   setCurrentStep(4);
-                }}
-                style={{
-                  backgroundColor: 'rgba(255, 86, 34, 0.92)',
-                  borderColor: '#fff',
-                  borderRadius: '6px',
-                  width: '90%',
                 }}
               >
                 NO HUBO ARQUEROS FIJOS
               </button>
             </div>
             <button
-              className="voting-confirm-btn"
+              className={btnClass}
               onClick={() => setCurrentStep(4)}
-              style={{ marginTop: '10px' }}
+              style={{ marginTop: 10 }}
             >
               SIGUIENTE
             </button>
           </div>
         )}
 
+        {/* STEP 4: ¿PARTIDO LIMPIO? */}
         {currentStep === 4 && (
-          <div className="player-vote-card slide-in">
-            <div className="voting-title-modern">
+          <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
+            <div className={titleClass}>
               ¿FUE UN PARTIDO LIMPIO?
             </div>
-            <div className="player-select-grid">
+            <div className={gridClass}>
               <button
-                className={`player-select-btn${formData.partido_limpio ? ' selected' : ''}`}
+                className={`${optionBtnClass} ${formData.partido_limpio ? optionBtnSelectedClass : ''}`}
                 onClick={() => {
                   handleInputChange('partido_limpio', true);
                   setCurrentStep(5);
                 }}
                 type="button"
-                style={{ borderRadius: '6px' }}
               >
                 SÍ
               </button>
               <button
-                className={`player-select-btn${!formData.partido_limpio ? ' selected' : ''}`}
+                className={`${optionBtnClass} ${!formData.partido_limpio ? optionBtnSelectedClass : ''}`}
                 onClick={() => {
                   handleInputChange('partido_limpio', false);
                   setCurrentStep(6);
                 }}
                 type="button"
-                style={{ borderRadius: '6px' }}
               >
                 NO
               </button>
@@ -638,375 +536,234 @@ const EncuestaPartido = () => {
           </div>
         )}
 
+        {/* STEP 5: ¿QUIÉN GANÓ? */}
         {currentStep === 5 && (
-          <div className="player-vote-card slide-in">
-            <div className="voting-title-modern">
+          <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
+            <div className={titleClass}>
               ¿QUIÉN GANÓ?
             </div>
-            <div className="player-select-grid">
+            <div className={gridClass}>
               <button
-                className={`player-select-btn${formData.ganador === 'equipo_a' ? ' selected' : ''}`}
+                className={`${optionBtnClass} ${formData.ganador === 'equipo_a' ? 'bg-[#9C27B0] border-white' : 'bg-[#9C27B0]/30 border-white'}`}
                 onClick={() => handleInputChange('ganador', 'equipo_a')}
                 type="button"
-                style={{
-                  backgroundColor: formData.ganador === 'equipo_a' ? '#9C27B0' : 'rgba(156, 39, 176, 0.3)',
-                  borderColor: '#fff',
-                  borderRadius: '6px',
-                }}
               >
                 EQUIPO A
               </button>
               <button
-                className={`player-select-btn${formData.ganador === 'equipo_b' ? ' selected' : ''}`}
+                className={`${optionBtnClass} ${formData.ganador === 'equipo_b' ? 'bg-[#FF9800] border-white' : 'bg-[#FF9800]/30 border-white'}`}
                 onClick={() => handleInputChange('ganador', 'equipo_b')}
                 type="button"
-                style={{
-                  backgroundColor: formData.ganador === 'equipo_b' ? '#FF9800' : 'rgba(255, 152, 0, 0.3)',
-                  borderColor: '#fff',
-                  borderRadius: '6px',
-                }}
               >
                 EQUIPO B
               </button>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '20px' }}>
+            <div className="flex justify-center w-full mb-5">
               <input
                 type="text"
-                className="input-modern"
-                style={{ 
-                  width: '90%', 
-                  padding: '15px',
-                  textAlign: 'center',
-                  fontFamily: "'Oswald', Arial, sans-serif",
-                  backgroundColor: '#2a2a40',
-                  border: '1px solid #444',
-                  borderRadius: '8px',
-                  color: 'white',
-                }}
+                className="w-[90%] p-4 text-center font-oswald text-[19px] bg-white/90 border-[1.5px] border-[#eceaf1] rounded-none text-[#333] outline-none transition-all placeholder:text-gray-500 focus:border-[#0EA9C6] focus:bg-white"
                 value={formData.resultado || ''}
                 onChange={(e) => handleInputChange('resultado', e.target.value)}
                 placeholder="¿Te acordás cómo salió?"
               />
             </div>
             <button
-              className="voting-confirm-btn"
+              className={btnClass}
               onClick={handleSubmit}
-              style={{ marginTop: '20px' }}
             >
               FINALIZAR ENCUESTA
             </button>
           </div>
         )}
 
+        {/* STEP 6: JUGADORES VIOLENTOS */}
         {currentStep === 6 && (
-          <div className="player-vote-card slide-in">
-            <div className="voting-title-modern">
+          <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
+            <div className={titleClass}>
               ¿QUIÉN JUGÓ SUCIO?
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', margin: '15px auto', maxWidth: '85%' }}>
+            <div className="grid grid-cols-4 gap-2 w-[85%] mx-auto mb-5">
               {jugadores.map((jugador) => (
                 <div
                   key={jugador.uuid}
                   onClick={() => toggleJugadorViolento(jugador.uuid)}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    padding: '10px',
-                    borderRadius: '6px',
-                    backgroundColor: formData.jugadores_violentos.includes(jugador.uuid) ? '#DE1C49' : '#2a2a40',
-                    border: formData.jugadores_violentos.includes(jugador.uuid) ? '1px solid #DE1C49' : '1px solid #444',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    minHeight: '90px',
-                  }}
+                  className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.jugadores_violentos.includes(jugador.uuid)
+                    ? 'bg-[#DE1C49] border border-[#DE1C49] shadow-[0_0_10px_rgba(222,28,73,0.4)]'
+                    : 'bg-white/10 border border-white/20 hover:bg-white/15'
+                    }`}
                 >
-                  <div style={{
-                    width: '55px',
-                    height: '55px',
-                    borderRadius: '4px',
-                    overflow: 'hidden',
-                    marginBottom: '6px',
-                    backgroundColor: '#1a1a2e',
-                    flexShrink: 0,
-                  }}>
+                  <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                     {jugador.avatar_url || jugador.foto_url ? (
-                      <img 
-                        src={jugador.avatar_url || jugador.foto_url} 
+                      <img
+                        src={jugador.avatar_url || jugador.foto_url}
                         alt={jugador.nombre}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div style={{
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#999',
-                        fontSize: '16px',
-                        fontWeight: '600',
-                      }}>
+                      <div className="w-full h-full flex items-center justify-center text-white/50 text-base font-semibold">
                         {jugador.nombre.charAt(0)}
                       </div>
                     )}
                   </div>
-                  <span style={{
-                    color: 'white',
-                    fontSize: '10px',
-                    fontWeight: '500',
-                    textAlign: 'center',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    width: '100%',
-                  }}>
+                  <span className="text-white text-[10px] font-medium text-center overflow-hidden text-ellipsis whitespace-nowrap w-full">
                     {jugador.nombre}
                   </span>
                 </div>
               ))}
             </div>
             <button
-              className="voting-confirm-btn"
+              className={btnClass}
               onClick={() => setCurrentStep(5)}
-              style={{ marginTop: '20px' }}
             >
               SIGUIENTE
             </button>
           </div>
         )}
 
+        {/* STEP 10: MOTIVO NO JUGADO */}
         {currentStep === 10 && (
-          <div className="player-vote-card slide-in">
-            <div className="voting-title-modern">
+          <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
+            <div className={titleClass}>
               ¿POR QUÉ NO SE JUGÓ?
             </div>
-            <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '20px' }}>
+            <div className="flex justify-center w-full mb-5">
               <textarea
-                style={{ 
-                  width: '90%', 
-                  height: '80px', 
-                  resize: 'none',
-                  padding: '15px',
-                  textAlign: 'center',
-                  fontFamily: "'Oswald', Arial, sans-serif",
-                  backgroundColor: '#2a2a40',
-                  border: '1px solid #444',
-                  borderRadius: '8px',
-                  color: 'white',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              value={formData.motivo_no_jugado || ''}
-              onChange={(e) => handleInputChange('motivo_no_jugado', e.target.value)}
-              placeholder="Explica por qué no se pudo jugar..."
-                rows={2}
+                className="w-[90%] h-20 p-4 text-center font-oswald text-[19px] bg-white/90 border-[1.5px] border-[#eceaf1] rounded-lg text-[#333] outline-none transition-all placeholder:text-gray-500 focus:bg-white focus:border-[#0EA9C6] resize-none"
+                value={formData.motivo_no_jugado || ''}
+                onChange={(e) => handleInputChange('motivo_no_jugado', e.target.value)}
+                placeholder="Explica por qué no se pudo jugar..."
               />
             </div>
-            <style>
-              {`
-                textarea:focus {
-                  background-color: #2a2a40 !important;
-                  color: white !important;
-                  border: 1px solid #444 !important;
-                  outline: none !important;
-                }
-              `}
-            </style>
             <button
-              className="voting-confirm-btn"
+              className={btnClass}
               onClick={() => setCurrentStep(11)}
               style={{
                 backgroundColor: '#DE1C49',
                 borderColor: '#DE1C49',
-                marginBottom: '15px',
+                marginBottom: 15,
+                marginTop: 0
               }}
             >
               AUSENCIA SIN AVISO
             </button>
             <button
-              className="voting-confirm-btn"
+              className={btnClass}
               onClick={continueSubmitFlow}
+              style={{ marginTop: 0 }}
             >
               FINALIZAR
             </button>
           </div>
         )}
 
+        {/* STEP 11: AUSENTES SIN AVISO (PARTIDO NO JUGADO) */}
         {currentStep === 11 && (
-          <div className="player-vote-card slide-in">
-            <div className="voting-title-modern">
+          <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
+            <div className={titleClass}>
               ¿QUIÉNES FALTARON?
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', margin: '15px auto', maxWidth: '85%' }}>
+            <div className="grid grid-cols-4 gap-2 w-[85%] mx-auto mb-5">
               {jugadores.map((jugador) => (
                 <div
                   key={jugador.uuid}
                   onClick={() => toggleJugadorAusente(jugador.uuid)}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    padding: '10px',
-                    borderRadius: '6px',
-                    backgroundColor: formData.jugadores_ausentes.includes(jugador.uuid) ? '#DE1C49' : '#2a2a40',
-                    border: formData.jugadores_ausentes.includes(jugador.uuid) ? '1px solid #DE1C49' : '1px solid #444',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    minHeight: '90px',
-                  }}
+                  className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.jugadores_ausentes.includes(jugador.uuid)
+                    ? 'bg-[#DE1C49] border border-[#DE1C49] shadow-[0_0_10px_rgba(222,28,73,0.4)]'
+                    : 'bg-white/10 border border-white/20 hover:bg-white/15'
+                    }`}
                 >
-                  <div style={{
-                    width: '55px',
-                    height: '55px',
-                    borderRadius: '4px',
-                    overflow: 'hidden',
-                    marginBottom: '6px',
-                    backgroundColor: '#1a1a2e',
-                    flexShrink: 0,
-                  }}>
+                  <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                     {jugador.avatar_url || jugador.foto_url ? (
-                      <img 
-                        src={jugador.avatar_url || jugador.foto_url} 
+                      <img
+                        src={jugador.avatar_url || jugador.foto_url}
                         alt={jugador.nombre}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div style={{
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#999',
-                        fontSize: '16px',
-                        fontWeight: '600',
-                      }}>
+                      <div className="w-full h-full flex items-center justify-center text-white/50 text-base font-semibold">
                         {jugador.nombre.charAt(0)}
                       </div>
                     )}
                   </div>
-                  <span style={{
-                    color: 'white',
-                    fontSize: '10px',
-                    fontWeight: '500',
-                    textAlign: 'center',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    width: '100%',
-                  }}>
+                  <span className="text-white text-[10px] font-medium text-center overflow-hidden text-ellipsis whitespace-nowrap w-full">
                     {jugador.nombre}
                   </span>
                 </div>
               ))}
             </div>
             <button
-              className="voting-confirm-btn"
+              className={btnClass}
               onClick={handleSubmit}
-              style={{ marginTop: '20px' }}
             >
               FINALIZAR
             </button>
           </div>
         )}
 
+        {/* STEP 12: AUSENTES (PARTIDO JUGADO) */}
         {currentStep === 12 && (
-          <div className="player-vote-card slide-in">
-            <div className="voting-title-modern">
+          <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
+            <div className={titleClass}>
               ¿QUIÉNES FALTARON?
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', margin: '15px auto', maxWidth: '85%' }}>
+            <div className="grid grid-cols-4 gap-2 w-[85%] mx-auto mb-5">
               {jugadores.map((jugador) => (
                 <div
                   key={jugador.uuid}
                   onClick={() => toggleJugadorAusente(jugador.uuid)}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    padding: '10px',
-                    borderRadius: '6px',
-                    backgroundColor: formData.jugadores_ausentes.includes(jugador.uuid) ? '#DE1C49' : '#2a2a40',
-                    border: formData.jugadores_ausentes.includes(jugador.uuid) ? '1px solid #DE1C49' : '1px solid #444',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    minHeight: '90px',
-                  }}
+                  className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.jugadores_ausentes.includes(jugador.uuid)
+                    ? 'bg-[#DE1C49] border border-[#DE1C49] shadow-[0_0_10px_rgba(222,28,73,0.4)]'
+                    : 'bg-white/10 border border-white/20 hover:bg-white/15'
+                    }`}
                 >
-                  <div style={{
-                    width: '55px',
-                    height: '55px',
-                    borderRadius: '4px',
-                    overflow: 'hidden',
-                    marginBottom: '6px',
-                    backgroundColor: '#1a1a2e',
-                    flexShrink: 0,
-                  }}>
+                  <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                     {jugador.avatar_url || jugador.foto_url ? (
-                      <img 
-                        src={jugador.avatar_url || jugador.foto_url} 
+                      <img
+                        src={jugador.avatar_url || jugador.foto_url}
                         alt={jugador.nombre}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div style={{
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#999',
-                        fontSize: '16px',
-                        fontWeight: '600',
-                      }}>
+                      <div className="w-full h-full flex items-center justify-center text-white/50 text-base font-semibold">
                         {jugador.nombre.charAt(0)}
                       </div>
                     )}
                   </div>
-                  <span style={{
-                    color: 'white',
-                    fontSize: '10px',
-                    fontWeight: '500',
-                    textAlign: 'center',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    width: '100%',
-                  }}>
+                  <span className="text-white text-[10px] font-medium text-center overflow-hidden text-ellipsis whitespace-nowrap w-full">
                     {jugador.nombre}
                   </span>
                 </div>
               ))}
             </div>
             <button
-              className="voting-confirm-btn"
+              className={btnClass}
               onClick={() => setCurrentStep(2)}
-              style={{ marginTop: '20px' }}
             >
               SIGUIENTE
             </button>
           </div>
         )}
 
+        {/* STEP 99: FINAL */}
         {currentStep === 99 && (
-          <div className="player-vote-card slide-in">
-            <div className="voting-title-modern">
+          <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
+            <div className={titleClass}>
               ¡GRACIAS POR CALIFICAR!
             </div>
-            <div style={{ color: '#fff', fontSize: 26, fontFamily: "'Oswald', Arial, sans-serif", marginBottom: 30, textAlign: 'center' }}>
+            <div className={`${textClass} text-[26px]`}>
               Los resultados se publicarán en ~6 horas.
             </div>
-            <button 
-              className="voting-confirm-btn"
+            <button
+              className={btnClass}
               onClick={() => navigate('/')}
             >
               VOLVER AL INICIO
             </button>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </PageTransition>
   );
 };
 

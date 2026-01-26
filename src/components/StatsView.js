@@ -7,7 +7,6 @@ import { useAuth } from './AuthProvider';
 import PageTitle from './PageTitle';
 import ManualMatchModal from './ManualMatchModal';
 import InjuryModal from './InjuryModal';
-import './StatsView.css';
 
 const StatsView = ({ onVolver }) => {
   const { user } = useAuth();
@@ -53,7 +52,7 @@ const StatsView = ({ onVolver }) => {
       ]);
 
 
-      
+
       setStats({
         partidosJugados: partidosData.total + partidosManualesData.total,
         amigosDistintos: amigosData.distintos,
@@ -109,7 +108,7 @@ const StatsView = ({ onVolver }) => {
 
     if (error) throw error;
 
-    const userPartidos = partidos.filter(partido => 
+    const userPartidos = partidos.filter(partido =>
       partido.jugadores?.some(j => j.uuid === user.id || j.nombre === user.email)
     );
 
@@ -141,13 +140,13 @@ const StatsView = ({ onVolver }) => {
 
     if (error) throw error;
 
-    const userPartidos = partidos.filter(partido => 
+    const userPartidos = partidos.filter(partido =>
       partido.jugadores?.some(j => j.uuid === user.id || j.nombre === user.email)
     );
 
     const amigosCount = {};
     const amigosInfo = {};
-    
+
     userPartidos.forEach(partido => {
       partido.jugadores?.forEach(jugador => {
         if (jugador.uuid !== user.id && jugador.nombre !== user.email) {
@@ -170,7 +169,7 @@ const StatsView = ({ onVolver }) => {
         .from('usuarios')
         .select('id, nombre, avatar_url, lesion_activa')
         .in('id', userIds);
-      
+
       profiles?.forEach(profile => {
         if (amigosInfo[profile.id]) {
           amigosInfo[profile.id].nombre = profile.nombre;
@@ -196,7 +195,7 @@ const StatsView = ({ onVolver }) => {
   };
 
   const calculateLogros = async (allPartidos) => {
-    const userPartidos = allPartidos.filter(partido => 
+    const userPartidos = allPartidos.filter(partido =>
       partido.jugadores?.some(j => j.uuid === user.id || j.nombre === user.email)
     );
 
@@ -207,36 +206,36 @@ const StatsView = ({ onVolver }) => {
       supabase.from('partidos').select('*').eq('estado', 'finalizado'),
       supabase.from('partidos_manuales').select('*').eq('usuario_id', user.id)
     ]);
-    
-    const totalPartidosNormales = todosPartidos?.filter(partido => 
+
+    const totalPartidosNormales = todosPartidos?.filter(partido =>
       partido.jugadores?.some(j => j.uuid === user.id || j.nombre === user.email)
     ).length || 0;
-    
+
     const totalPartidosManuales = partidosManualesHistoricos?.length || 0;
     const totalHistorico = totalPartidosNormales + totalPartidosManuales;
 
     // Obtener premios del año seleccionado
     const yearStart = new Date(selectedYear, 0, 1).toISOString().split('T')[0];
     const yearEnd = new Date(selectedYear, 11, 31).toISOString().split('T')[0];
-    
+
     const { data: surveys } = await supabase
       .from('post_match_surveys')
       .select('*')
       .gte('created_at', yearStart)
       .lte('created_at', yearEnd);
-    
+
     // Contar MVPs
-    const mvpCount = surveys?.filter(survey => 
+    const mvpCount = surveys?.filter(survey =>
       survey.mejor_jugador === user.id || survey.mejor_jugador === user.email
     ).length || 0;
-    
+
     // Contar Guantes Dorados
-    const guanteDoradoCount = surveys?.filter(survey => 
+    const guanteDoradoCount = surveys?.filter(survey =>
       survey.guante_dorado === user.id || survey.guante_dorado === user.email
     ).length || 0;
-    
+
     // Contar Tarjetas Rojas
-    const tarjetaRojaCount = surveys?.filter(survey => 
+    const tarjetaRojaCount = surveys?.filter(survey =>
       survey.tarjeta_roja === user.id || survey.tarjeta_roja === user.email
     ).length || 0;
 
@@ -246,7 +245,7 @@ const StatsView = ({ onVolver }) => {
       const key = new Date(partido.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
       partidosPorMes[key] = (partidosPorMes[key] || 0) + 1;
     });
-    
+
     const mejorMes = Object.entries(partidosPorMes).sort((a, b) => b[1] - a[1])[0];
     logros.push({
       titulo: 'Mejor Mes',
@@ -264,7 +263,7 @@ const StatsView = ({ onVolver }) => {
       });
       mejorRating = Math.max(...ratings);
     }
-    
+
     logros.push({
       titulo: 'Mejor Rating',
       valor: mejorRating > 0 ? mejorRating.toFixed(1) : '0.0',
@@ -279,7 +278,7 @@ const StatsView = ({ onVolver }) => {
       detalle: `En ${selectedYear}`,
       icono: '🏅'
     });
-    
+
     // Guante Dorado (siempre mostrar)
     logros.push({
       titulo: 'Guante Dorado',
@@ -287,7 +286,7 @@ const StatsView = ({ onVolver }) => {
       detalle: `En ${selectedYear}`,
       icono: '🥅'
     });
-    
+
     // Tarjeta Roja (siempre mostrar)
     logros.push({
       titulo: 'Tarjeta Roja',
@@ -365,7 +364,7 @@ const StatsView = ({ onVolver }) => {
 
   const generateChartData = (partidos, period, isManual = false) => {
     const data = {};
-    
+
     partidos.forEach(partido => {
       const date = new Date(partido.fecha);
       let key;
@@ -386,7 +385,7 @@ const StatsView = ({ onVolver }) => {
       if (!data[key]) {
         data[key] = { amistosos: 0, torneos: 0 };
       }
-      
+
       if (isManual) {
         if (partido.tipo_partido === 'amistoso') {
           data[key].amistosos += 1;
@@ -398,8 +397,8 @@ const StatsView = ({ onVolver }) => {
       }
     });
 
-    return Object.entries(data).map(([name, counts]) => ({ 
-      name, 
+    return Object.entries(data).map(([name, counts]) => ({
+      name,
       amistosos: counts.amistosos || 0,
       torneos: counts.torneos || 0
     }));
@@ -407,7 +406,7 @@ const StatsView = ({ onVolver }) => {
 
   const mergeChartData = (chartData1, chartData2) => {
     const merged = {};
-    
+
     [...chartData1, ...chartData2].forEach(item => {
       if (!merged[item.name]) {
         merged[item.name] = { name: item.name, amistosos: 0, torneos: 0 };
@@ -415,7 +414,7 @@ const StatsView = ({ onVolver }) => {
       merged[item.name].amistosos += item.amistosos || 0;
       merged[item.name].torneos += item.torneos || 0;
     });
-    
+
     return Object.values(merged).map(item => ({
       ...item,
       total: item.amistosos + item.torneos
@@ -431,7 +430,7 @@ const StatsView = ({ onVolver }) => {
         type: 'active'
       };
     }
-    
+
     if (stats.ultimaLesion && stats.ultimaLesion.fecha_fin) {
       const diasDesde = Math.floor((new Date() - new Date(stats.ultimaLesion.fecha_fin)) / (1000 * 60 * 60 * 24));
       return {
@@ -440,7 +439,7 @@ const StatsView = ({ onVolver }) => {
         type: 'recovered'
       };
     }
-    
+
     return null;
   };
 
@@ -475,20 +474,20 @@ const StatsView = ({ onVolver }) => {
       const amistosos = payload.find(p => p.dataKey === 'amistosos')?.value || 0;
       const torneos = payload.find(p => p.dataKey === 'torneos')?.value || 0;
       const total = amistosos + torneos;
-      
+
       return (
-        <div className="chart-tooltip">
-          <p className="tooltip-label">{`${label}`}</p>
-          <p className="tooltip-value">
+        <div className="bg-black/90 border border-white/20 rounded-lg p-2 backdrop-blur-md">
+          <p className="text-white/80 text-xs m-0 font-oswald">{`${label}`}</p>
+          <p className="text-white text-sm font-semibold m-1 font-oswald">
             {`${total} partido${total !== 1 ? 's' : ''}`}
           </p>
           {amistosos > 0 && (
-            <p className="tooltip-detail">
+            <p className="text-white/80 text-xs font-normal m-0.5 font-oswald">
               {`${amistosos} amistoso${amistosos !== 1 ? 's' : ''}`}
             </p>
           )}
           {torneos > 0 && (
-            <p className="tooltip-detail">
+            <p className="text-white/80 text-xs font-normal m-0.5 font-oswald">
               {`${torneos} torneo${torneos !== 1 ? 's' : ''}`}
             </p>
           )}
@@ -500,79 +499,79 @@ const StatsView = ({ onVolver }) => {
 
   if (loading) {
     return (
-      <div className="stats-bg">
+      <div className="min-h-screen pb-[100px]">
         <PageTitle onBack={onVolver}>ESTADÍSTICAS</PageTitle>
-        <div className="stats-loading">
-          <div className="loading-spinner"></div>
+        <div className="flex justify-center items-center h-[50vh]">
+          <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="stats-bg">
+    <div className="min-h-screen pb-[100px]">
       <PageTitle onBack={onVolver}>ESTADÍSTICAS</PageTitle>
-      
-      <div className="stats-container">
-        <div className="kpi-grid">
-          <motion.div 
-            className="kpi-card"
+
+      <div className="pt-[100px] px-5 pb-5 max-w-[100vw] m-0 box-border md:pt-[90px] md:px-4 sm:pt-[90px]">
+        <div className="grid grid-cols-4 gap-4 mb-6 md:grid-cols-2 md:gap-3 sm:gap-2">
+          <motion.div
+            className="bg-white/10 rounded-2xl p-5 text-center backdrop-blur-md border border-white/20 transition-all hover:-translate-y-1 hover:shadow-xl hover:bg-white/15 md:p-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <div className="kpi-icon">⚽</div>
-            <div className="kpi-number">
+            <div className="text-[32px] mb-2 md:text-2xl">⚽</div>
+            <div className="font-oswald text-4xl font-bold text-white mb-1 leading-none md:text-[28px]">
               <CountUp end={stats.partidosJugados} duration={1.5} />
             </div>
-            <div className="kpi-label">Partidos Jugados</div>
+            <div className="font-oswald text-xs font-medium text-white/80 uppercase tracking-wide">Partidos Jugados</div>
           </motion.div>
 
-          <motion.div 
-            className="kpi-card"
+          <motion.div
+            className="bg-white/10 rounded-2xl p-5 text-center backdrop-blur-md border border-white/20 transition-all hover:-translate-y-1 hover:shadow-xl hover:bg-white/15 md:p-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <div className="kpi-icon">🤝</div>
-            <div className="kpi-number">
+            <div className="text-[32px] mb-2 md:text-2xl">🤝</div>
+            <div className="font-oswald text-4xl font-bold text-white mb-1 leading-none md:text-[28px]">
               <CountUp end={stats.amistosos} duration={1.5} />
             </div>
-            <div className="kpi-label">Amistosos</div>
+            <div className="font-oswald text-xs font-medium text-white/80 uppercase tracking-wide">Amistosos</div>
           </motion.div>
 
-          <motion.div 
-            className="kpi-card"
+          <motion.div
+            className="bg-white/10 rounded-2xl p-5 text-center backdrop-blur-md border border-white/20 transition-all hover:-translate-y-1 hover:shadow-xl hover:bg-white/15 md:p-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <div className="kpi-icon">🏆</div>
-            <div className="kpi-number">
+            <div className="text-[32px] mb-2 md:text-2xl">🏆</div>
+            <div className="font-oswald text-4xl font-bold text-white mb-1 leading-none md:text-[28px]">
               <CountUp end={stats.torneos} duration={1.5} />
             </div>
-            <div className="kpi-label">Torneos</div>
+            <div className="font-oswald text-xs font-medium text-white/80 uppercase tracking-wide">Torneos</div>
           </motion.div>
 
-          <motion.div 
-            className="kpi-card"
+          <motion.div
+            className="bg-white/10 rounded-2xl p-5 text-center backdrop-blur-md border border-white/20 transition-all hover:-translate-y-1 hover:shadow-xl hover:bg-white/15 md:p-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
           >
-            <div className="kpi-icon">⭐</div>
-            <div className="kpi-number">
+            <div className="text-[32px] mb-2 md:text-2xl">⭐</div>
+            <div className="font-oswald text-4xl font-bold text-white mb-1 leading-none md:text-[28px]">
               <CountUp end={stats.promedioRating} decimals={1} duration={1.5} />
             </div>
-            <div className="kpi-label">Rating Promedio</div>
+            <div className="font-oswald text-xs font-medium text-white/80 uppercase tracking-wide">Rating Promedio</div>
           </motion.div>
         </div>
 
-        <div className="period-filters">
+        <div className="flex gap-2 mb-6 justify-center md:gap-1">
           {['year', 'month', 'week'].map((p) => (
-            <div key={p} className="period-filter-container">
+            <div key={p} className="relative flex-1 max-w-[120px] sm:max-w-none">
               <button
-                className={`period-btn ${period === p ? 'active' : ''}`}
+                className={`w-full px-5 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-white/80 font-oswald text-base font-semibold cursor-pointer transition-all duration-300 uppercase flex items-center justify-center gap-1 hover:bg-white/15 hover:text-white md:px-4 md:py-2.5 md:text-sm sm:px-3 sm:py-2 sm:text-xs ${period === p ? 'bg-white/20 border-white/50 text-white -translate-y-0.5 shadow-md' : ''}`}
                 onClick={() => {
                   setPeriod(p);
                   if (p === 'year') setShowYearDropdown(!showYearDropdown);
@@ -584,15 +583,15 @@ const StatsView = ({ onVolver }) => {
                 }}
               >
                 {periodLabels[p]}
-                {p !== 'week' && <span className="dropdown-arrow">▼</span>}
+                {p !== 'week' && <span className="text-[10px] opacity-70">▼</span>}
               </button>
-              
+
               {p === 'year' && showYearDropdown && period === 'year' && (
-                <div className="period-dropdown">
+                <div className="absolute top-full left-0 right-0 bg-black/90 rounded-lg border border-white/20 z-[1000] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px]">
                   {getAvailableYears().map(year => (
                     <div
                       key={year}
-                      className={`dropdown-item ${selectedYear === year ? 'active' : ''}`}
+                      className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-white/10 hover:text-white ${selectedYear === year ? 'bg-white/20 text-white font-semibold' : ''}`}
                       onClick={() => {
                         setSelectedYear(year);
                         setShowYearDropdown(false);
@@ -603,13 +602,13 @@ const StatsView = ({ onVolver }) => {
                   ))}
                 </div>
               )}
-              
+
               {p === 'month' && showMonthDropdown && period === 'month' && (
-                <div className="period-dropdown">
+                <div className="absolute top-full left-0 right-0 bg-black/90 rounded-lg border border-white/20 z-[1000] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px]">
                   {monthNames.map((month, index) => (
                     <div
                       key={index}
-                      className={`dropdown-item ${selectedMonth === index ? 'active' : ''}`}
+                      className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-white/10 hover:text-white ${selectedMonth === index ? 'bg-white/20 text-white font-semibold' : ''}`}
                       onClick={() => {
                         setSelectedMonth(index);
                         setShowMonthDropdown(false);
@@ -624,9 +623,9 @@ const StatsView = ({ onVolver }) => {
           ))}
         </div>
 
-        <div className="action-buttons">
+        <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-1 sm:gap-2">
           <motion.button
-            className="action-btn manual-match-btn"
+            className="flex items-center justify-center gap-2 px-5 py-4 border-none rounded-xl font-oswald text-sm font-semibold uppercase cursor-pointer transition-all backdrop-blur-md border border-white/20 bg-primary/80 text-white hover:bg-primary hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(129,120,229,0.3)] md:px-4 md:py-3 md:text-xs sm:py-3.5"
             onClick={() => setShowManualMatchModal(true)}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -634,12 +633,12 @@ const StatsView = ({ onVolver }) => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            <span className="btn-icon">⚽</span>
-            <span className="btn-text">Sumar Partido Manual</span>
+            <span className="text-lg">⚽</span>
+            <span className="text-xs leading-none">Sumar Partido Manual</span>
           </motion.button>
-          
+
           <motion.button
-            className="action-btn injury-btn"
+            className="flex items-center justify-center gap-2 px-5 py-4 border-none rounded-xl font-oswald text-sm font-semibold uppercase cursor-pointer transition-all backdrop-blur-md border border-white/20 bg-[#ff6b6b]/80 text-white hover:bg-[#ff6b6b] hover:-translate-y-0.5 hover:shadow-lg md:px-4 md:py-3 md:text-xs sm:py-3.5"
             onClick={() => setShowInjuryModal(true)}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -647,36 +646,36 @@ const StatsView = ({ onVolver }) => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            <span className="btn-icon">🏥</span>
-            <span className="btn-text">Registrar Lesión</span>
+            <span className="text-lg">🏥</span>
+            <span className="text-xs leading-none">Registrar Lesión</span>
           </motion.button>
         </div>
 
         {formatInjuryStatus() && (
-          <motion.div 
-            className={`injury-status ${formatInjuryStatus().type}`}
+          <motion.div
+            className={`flex items-center gap-3 bg-white/10 rounded-xl p-4 mb-6 backdrop-blur-md border border-white/20 md:p-3 md:gap-2.5 ${formatInjuryStatus().type === 'active' ? 'bg-[#ff6b6b]/20 border-[#ff6b6b]/30' : 'bg-[#4CAF50]/20 border-[#4CAF50]/30'}`}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.7 }}
           >
-            <div className="injury-icon">
+            <div className="text-2xl shrink-0">
               {formatInjuryStatus().type === 'active' ? '🏥' : '✅'}
             </div>
-            <div className="injury-info">
-              <div className="injury-text">{formatInjuryStatus().text}</div>
-              <div className="injury-subtext">{formatInjuryStatus().subtext}</div>
+            <div className="flex-1">
+              <div className="font-oswald text-base font-semibold text-white mb-1 md:text-sm">{formatInjuryStatus().text}</div>
+              <div className="font-oswald text-sm font-normal text-white/80 md:text-xs">{formatInjuryStatus().subtext}</div>
             </div>
           </motion.div>
         )}
 
         {stats.chartData.length > 0 && (
-          <motion.div 
-            className="chart-container"
+          <motion.div
+            className="bg-white/10 rounded-2xl p-5 mb-6 backdrop-blur-md border border-white/20"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.8 }}
           >
-            <h3 className="chart-title">Partidos por {periodLabels[period]}</h3>
+            <h3 className="font-oswald text-lg font-semibold text-white mb-4 text-center uppercase">Partidos por {periodLabels[period]}</h3>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={stats.chartData}>
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.8)', fontSize: 12 }} />
@@ -686,13 +685,13 @@ const StatsView = ({ onVolver }) => {
                 <Bar dataKey="torneos" fill="#FF9800" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-            <div className="chart-legend">
-              <div className="legend-item">
-                <div className="legend-color" style={{ backgroundColor: '#242ad8ff' }}></div>
+            <div className="flex justify-center gap-5 mt-3 sm:flex-col sm:gap-2 sm:items-center">
+              <div className="flex items-center gap-1.5 font-oswald text-xs text-white/80">
+                <div className="w-3 h-3 rounded-[2px] bg-[#242ad8ff]"></div>
                 <span>Amistosos</span>
               </div>
-              <div className="legend-item">
-                <div className="legend-color" style={{ backgroundColor: '#FF9800' }}></div>
+              <div className="flex items-center gap-1.5 font-oswald text-xs text-white/80">
+                <div className="w-3 h-3 rounded-[2px] bg-[#FF9800]"></div>
                 <span>Torneos</span>
               </div>
             </div>
@@ -700,84 +699,83 @@ const StatsView = ({ onVolver }) => {
         )}
 
         {stats.topFriend && (
-          <motion.div 
-            className="top-friend-card"
+          <motion.div
+            className="bg-white/10 rounded-2xl p-5 mb-6 relative overflow-hidden backdrop-blur-md border border-[#ffd700]/30 shadow-[0_8px_32px_rgba(255,215,0,0.1)]"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.9 }}
           >
-            <div className="top-friend-badge">🏆 Top Friend</div>
-            <div className="top-friend-info">
-              <img src={stats.topFriend.avatar} alt={stats.topFriend.nombre} className="top-friend-avatar" />
+            <div className="bg-[#ffd700]/20 text-[#ffd700] px-3 py-1.5 rounded-full font-oswald text-xs font-semibold uppercase mb-3 inline-block border border-[#ffd700]/30">🏆 Top Friend</div>
+            <div className="flex items-center gap-4 sm:gap-3">
+              <img src={stats.topFriend.avatar} alt={stats.topFriend.nombre} className="w-[60px] h-[60px] rounded-full border-[3px] border-[#ffd700]/50 object-cover sm:w-[50px] sm:h-[50px]" />
               <div>
-                <div className="top-friend-name">{stats.topFriend.nombre}</div>
-                <div className="top-friend-count">{stats.topFriend.partidos} partidos juntos</div>
+                <div className="font-oswald text-2xl font-bold text-white uppercase mb-1 sm:text-lg">{stats.topFriend.nombre}</div>
+                <div className="font-oswald text-base font-medium text-white/70">{stats.topFriend.partidos} partidos juntos</div>
               </div>
             </div>
           </motion.div>
         )}
 
-        <motion.div 
-          className="logros-section"
+        <motion.div
+          className="mb-8"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.0 }}
         >
-            <h3 className="section-title">Logros</h3>
-            <div className="logros-grid">
-              {stats.logros.map((logro, index) => (
-                <motion.div
-                  key={index}
-                  className="logro-card"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 1.1 + index * 0.1 }}
-                >
-                  <div className="logro-icon">{logro.icono}</div>
-                  <div className="logro-info">
-                    <div className="logro-titulo">{logro.titulo}</div>
-                    <div className="logro-valor">{logro.valor}</div>
-                    <div className="logro-detalle">{logro.detalle}</div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        )}
+          <h3 className="font-oswald text-xl font-semibold text-white mb-4 text-center uppercase">Logros</h3>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 mt-4 md:grid-cols-2 sm:grid-cols-1">
+            {stats.logros.map((logro, index) => (
+              <motion.div
+                key={index}
+                className="bg-white/10 rounded-xl p-4 backdrop-blur-md border border-white/20 text-center transition-all hover:-translate-y-0.5 hover:bg-white/15 md:p-3"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 1.1 + index * 0.1 }}
+              >
+                <div className="text-2xl mb-2">{logro.icono}</div>
+                <div className="flex-1">
+                  <div className="font-oswald text-xs font-semibold text-white/80 uppercase mb-1">{logro.titulo}</div>
+                  <div className="font-oswald text-lg font-bold text-white mb-0.5">{logro.valor}</div>
+                  <div className="font-oswald text-[10px] text-white/60">{logro.detalle}</div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
 
         {stats.topAmigos.length > 0 && (
-          <motion.div 
-            className="top-amigos-section"
+          <motion.div
+            className="mb-8"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.2 }}
           >
-            <h3 className="section-title">Amigos con los que más jugaste</h3>
+            <h3 className="font-oswald text-xl font-semibold text-white mb-4 text-center uppercase">Amigos con los que más jugaste</h3>
             <AnimatePresence>
               {stats.topAmigos.map((amigo, index) => (
                 <motion.div
                   key={amigo.nombre}
-                  className="amigo-stat-card"
+                  className="flex items-center gap-4 bg-white/10 rounded-xl p-4 mb-3 backdrop-blur-md border border-white/20 transition-all hover:translate-x-2 hover:bg-white/15 md:p-3 md:gap-3"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 1.3 + index * 0.1 }}
                 >
-                  <div className="amigo-rank">#{index + 1}</div>
-                  <div className="amigo-avatar-container">
+                  <div className="font-oswald text-xl font-bold text-[#ffd700] min-w-[32px]">#{index + 1}</div>
+                  <div className="w-12 h-12 rounded-full border-2 border-white/30 overflow-hidden shrink-0 sm:w-10 sm:h-10">
                     {amigo.avatar && amigo.avatar !== '/profile.svg' ? (
-                      <img src={amigo.avatar} alt={amigo.nombre} className="amigo-avatar" />
+                      <img src={amigo.avatar} alt={amigo.nombre} className="w-full h-full object-cover" />
                     ) : (
-                      <div 
-                        className="amigo-avatar-initials"
+                      <div
+                        className="w-full h-full flex items-center justify-center text-white font-oswald text-base font-bold shadow-sm"
                         style={{ backgroundColor: amigo.color }}
                       >
                         {getInitials(amigo.nombre)}
                       </div>
                     )}
                   </div>
-                  <div className="amigo-info">
-                    <div className="amigo-name">{amigo.nombre}</div>
-                    <div className="amigo-count">{amigo.partidos} partidos</div>
+                  <div className="flex-1">
+                    <div className="font-oswald text-lg font-semibold text-white uppercase mb-1">{amigo.nombre}</div>
+                    <div className="font-oswald text-sm font-medium text-white/80">{amigo.partidos} partidos</div>
                   </div>
                 </motion.div>
               ))}
@@ -786,35 +784,35 @@ const StatsView = ({ onVolver }) => {
         )}
 
         {stats.partidosJugados === 0 && (
-          <motion.div 
-            className="no-data-message"
+          <motion.div
+            className="text-center p-10 bg-white/10 rounded-2xl backdrop-blur-md border border-white/20"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
           >
-            <div className="no-data-icon">📊</div>
-            <div className="no-data-text">
+            <div className="text-[64px] mb-4">📊</div>
+            <div className="font-oswald text-xl font-semibold text-white mb-2">
               ¡Todavía no jugaste ningún partido {period === 'week' ? 'esta semana' : period === 'month' ? `en ${monthNames[selectedMonth]} ${selectedYear}` : `en ${selectedYear}`}!
             </div>
-            <div className="no-data-subtitle">¡Animate a jugar tu primer partido!</div>
+            <div className="font-oswald text-base font-normal text-white/80">¡Animate a jugar tu primer partido!</div>
           </motion.div>
         )}
-        
-        <div className="last-updated">
-          Datos actualizados al {new Date().toLocaleDateString('es-ES', { 
-            day: 'numeric', 
-            month: 'long', 
-            year: 'numeric' 
+
+        <div className="text-center font-oswald text-xs text-white/60 mt-8 p-4">
+          Datos actualizados al {new Date().toLocaleDateString('es-ES', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
           })}
         </div>
       </div>
 
-      <ManualMatchModal 
+      <ManualMatchModal
         isOpen={showManualMatchModal}
         onClose={() => setShowManualMatchModal(false)}
         onSaved={handleManualMatchSaved}
       />
-      
-      <InjuryModal 
+
+      <InjuryModal
         isOpen={showInjuryModal}
         onClose={() => setShowInjuryModal(false)}
         onSaved={handleInjurySaved}

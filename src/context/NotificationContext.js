@@ -22,15 +22,25 @@ export const useNotifications = () => useContext(NotificationContext);
  */
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
+  // Notifications that are scheduled for the future (send_at > now)
+  const [scheduledNotifications, setScheduledNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState({
     friends: 0,
     matches: 0,
     total: 0,
   });
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState(null);
+  const [lastFetchAt, setLastFetchAt] = useState(null);
+  const [lastFetchCount, setLastFetchCount] = useState(null);
+  const [lastRealtimeAt, setLastRealtimeAt] = useState(null);
+  const [lastRealtimePayloadType, setLastRealtimePayloadType] = useState(null);
   const { setIntervalSafe } = useInterval();
   // Umbral para ignorar eventos realtime con created_at <= al último clear
   const ignoreBeforeRef = useRef(null);
+
+  // Very visible mount log for debugging notification connectivity
+  console.log('[NOTIFICATIONS] NotificationProvider mounted');
 
   // Get current user on mount
   useEffect(() => {
@@ -43,13 +53,23 @@ export const NotificationProvider = ({ children }) => {
       }
       if (user) {
         logger.log('[NOTIFICATIONS] Current user found:', user.id);
+        console.log('[NOTIFICATIONS] Current user id (supabase.auth.getUser):', user.id);
         setCurrentUserId(user.id);
       } else {
         logger.log('[NOTIFICATIONS] No authenticated user found');
       }
     };
-    
+
     getCurrentUser();
+  }, []);
+
+  // Listen for auth state changes and keep currentUserId in sync
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('[NOTIFICATIONS] onAuthStateChange', _event, session?.user?.id || null);
+      setCurrentUserId(session?.user?.id || null);
+    });
+    return () => sub?.subscription?.unsubscribe?.();
   }, []);
 
   // Fetch notifications from Supabase
@@ -57,7 +77,8 @@ export const NotificationProvider = ({ children }) => {
     if (!currentUserId) return;
 
     logger.log('[NOTIFICATIONS] Setting up for user:', currentUserId);
-    
+    console.log('[NOTIFICATIONS] Setting up NotificationContext for user:', currentUserId);
+
     // Initial fetch of notifications
     fetchNotifications();
 
@@ -65,7 +86,7 @@ export const NotificationProvider = ({ children }) => {
     const REFRESH_MS = 15000;
     let lastRefresh = 0;
     let refreshRunning = false;
-    
+
     const refresh = async () => {
       if (refreshRunning) return; // Anti-overlap guard
       const now = Date.now();
@@ -80,12 +101,12 @@ export const NotificationProvider = ({ children }) => {
         refreshRunning = false;
       }
     };
-    
+
     const onFocus = () => refresh();
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') refresh();
     };
-    
+
     // Set up refresh mechanisms
     setIntervalSafe(refresh, REFRESH_MS);
     window.addEventListener('focus', onFocus);
@@ -93,23 +114,29 @@ export const NotificationProvider = ({ children }) => {
 
     // Subscribe to real-time notifications
     logger.log('[NOTIFICATIONS] Setting up realtime subscription for user:', currentUserId);
+    console.log('[NOTIFICATIONS] Subscribing to realtime channel for user:', currentUserId);
     const subscription = supabase
       .channel(`notifications-${currentUserId}`)
-      .on('postgres_changes', 
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
+      .on('postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
           table: 'notifications',
           filter: `user_id=eq.${currentUserId}`, // CLAVE: Solo notificaciones para este usuario
-        }, 
+        },
         (payload) => {
+          console.log('[NOTIFICATIONS] Realtime INSERT payload received:', payload);
+          if (payload?.new) {
+            setLastRealtimeAt(new Date().toISOString());
+            setLastRealtimePayloadType(payload.new.type || null);
+          }
           logger.log('[NOTIFICATIONS] Realtime event received:', {
             eventType: payload.eventType,
             table: payload.table,
             userId: currentUserId,
             hasNewData: !!payload.new
           });
-          
+
           if (payload.new) {
             logger.log('[NOTIFICATIONS] Processing new notification...');
             handleNewNotification(payload.new);
@@ -119,12 +146,14 @@ export const NotificationProvider = ({ children }) => {
         },
       )
       .subscribe((status) => {
+        console.log('[NOTIFICATIONS] Realtime subscription status callback:', status);
+        setSubscriptionStatus(status);
         logger.log('[NOTIFICATIONS] Subscription status:', {
           status,
           channel: `notifications-${currentUserId}`,
           timestamp: new Date().toISOString()
         });
-        
+
         if (status === 'SUBSCRIBED') {
           logger.log('[NOTIFICATIONS] ✅ Successfully subscribed to realtime notifications');
         } else if (status === 'CHANNEL_ERROR') {
@@ -136,11 +165,12 @@ export const NotificationProvider = ({ children }) => {
 
     return () => {
       logger.log('[NOTIFICATIONS] Cleaning up subscription and refresh listeners');
-      
+      console.log('[NOTIFICATIONS] Removing realtime subscription for user:', currentUserId);
+
       // Clean up refresh mechanisms
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisibilityChange);
-      
+
       supabase.removeChannel(subscription);
     };
   }, [currentUserId]);
@@ -153,38 +183,81 @@ export const NotificationProvider = ({ children }) => {
     }
 
     logger.log('[NOTIFICATIONS] Fetching notifications for user:', currentUserId);
+    console.log('[NOTIFICATIONS] fetchNotifications START for user:', currentUserId);
     try {
       // Only fetch notifications from the last 5 days to keep the UI light
       const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
       const cutoffISO = fiveDaysAgo.toISOString();
+      console.log('[NOTIFICATIONS] fetch cutoffISO:', cutoffISO);
 
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', currentUserId)
-        .gte('created_at', cutoffISO)
-        .order('created_at', { ascending: false });
+      let data;
+      try {
+        const res = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', currentUserId)
+          .gte('created_at', cutoffISO)
+          .order('created_at', { ascending: false });
+        data = res.data;
+        if (res.error) {
+          console.log('[NOTIFICATIONS] fetch error from supabase:', res.error?.message, res.error?.details || null);
+          throw res.error;
+        }
+      } catch (selectErr) {
+        console.log('[NOTIFICATIONS] Exception during supabase select:', selectErr);
+        throw selectErr;
+      }
 
-      if (error) throw error;
+      setLastFetchAt(new Date().toISOString());
+      setLastFetchCount((data && data.length) || 0);
+      console.log('[NOTIFICATIONS] fetchNotifications RESULT count:', (data && data.length) || 0);
+      if (!data || data.length === 0) {
+        console.log('[NOTIFICATIONS] fetchNotifications empty result for user:', currentUserId, 'cutoffISO:', cutoffISO);
+      }
 
-      logger.log('[NOTIFICATIONS] Fetched notifications:', {
-        total: data?.length || 0,
-        unread: data?.filter((n) => !n.read).length || 0,
-      });
+      logger.log('[NOTIFICATIONS] Fetched notifications (total):', data?.length || 0);
 
-      // Deduplicate notifications by partido (match) preferring survey_start
-      const dedupedData = dedupeNotificationsForDisplay(data);
+      // Split visible vs scheduled based on send_at
+      const now = Date.now();
+      const visibleRaw = [];
+      const scheduledRaw = [];
+      for (const n of data) {
+        try {
+          const sendAt = n.send_at ? new Date(n.send_at).getTime() : null;
+          if (!sendAt || sendAt <= now) visibleRaw.push(n);
+          else scheduledRaw.push(n);
+        } catch (e) {
+          // If parsing fails, treat as visible to avoid hiding notifications
+          visibleRaw.push(n);
+        }
+      }
 
-      setNotifications(dedupedData);
-      updateUnreadCount(dedupedData);
+      logger.log('[NOTIFICATIONS] Visible fetched:', visibleRaw.length, 'Scheduled fetched:', scheduledRaw.length);
+
+      // Deduplicate only the visible notifications for display
+      const dedupedVisible = dedupeNotificationsForDisplay(visibleRaw);
+
+      setNotifications(dedupedVisible);
+      setScheduledNotifications(scheduledRaw);
+      updateUnreadCount(dedupedVisible);
     } catch (error) {
-      handleError(error, { showToast: false });
+      console.log('[NOTIFICATIONS] fetchNotifications CATCH error:', error);
+      handleError(error, { showToast: false, onError: () => { } });
     }
   }, [currentUserId]);
 
   // Deduplicate notifications per user+partido, preferring survey-related types
   const dedupeNotificationsForDisplay = (notifs = []) => {
-    const preferredOrder = ['survey_start', 'post_match_survey', 'survey_reminder', 'call_to_vote'];
+    // Ensure awards_ready is considered a survey-related notification and gets proper priority
+    const preferredOrder = [
+      'survey_finished',
+      'survey_results_ready',
+      'awards_ready',
+      'survey_start',
+      'post_match_survey',
+      'survey_reminder',
+      'call_to_vote'
+    ];
     const keepMap = new Map(); // key -> notification for partido-linked
     const othersMap = new Map(); // key -> notification for non-partido notifications (group by type+title+message)
 
@@ -192,7 +265,7 @@ export const NotificationProvider = ({ children }) => {
       const pid = n.partido_id ?? (n.data?.match_id ?? n.data?.matchId ?? null);
       if (pid === null || pid === undefined) {
         // group generic notifications by type+title+message to avoid duplicate cards
-        const compKey = `${n.type}::${(n.title||'').trim()}::${(n.message||'').trim()}`;
+        const compKey = `${n.type}::${(n.title || '').trim()}::${(n.message || '').trim()}`;
         const existingOther = othersMap.get(compKey);
         if (!existingOther) {
           othersMap.set(compKey, n);
@@ -241,7 +314,7 @@ export const NotificationProvider = ({ children }) => {
     // If there's a survey-related notification for a partido, we should suppress lower-priority
     // notifications (like 'call_to_vote') that reference the same partido even if they were stored
     // as non-partido grouped notifications. Build a set of partido ids that have survey notifications.
-    const surveyTypes = new Set(['survey_start', 'post_match_survey', 'survey_reminder']);
+    const surveyTypes = new Set(['survey_start', 'post_match_survey', 'survey_reminder', 'survey_results_ready', 'awards_ready']);
     const surveyPartidoIds = new Set();
     for (const n of Array.from(keepMap.values())) {
       if (surveyTypes.has(n.type)) {
@@ -269,7 +342,10 @@ export const NotificationProvider = ({ children }) => {
       })
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     const deduped = Array.from(keepMap.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return [...nonPartido, ...deduped];
+    // Merge and sort globally by created_at so updated rows keep expected order
+    const merged = [...nonPartido, ...deduped];
+    merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return merged;
   };
 
   // Handle new notification
@@ -279,11 +355,29 @@ export const NotificationProvider = ({ children }) => {
       type: notification.type,
       isForCurrentUser: notification.user_id === currentUserId
     });
-    
+
     // Verificar que la notificación es para el usuario actual
     if (notification.user_id !== currentUserId) {
       logger.warn('[NOTIFICATIONS] Notification not for current user, ignoring');
       return;
+    }
+
+    // If notification is scheduled for the future, keep it in scheduledNotifications and don't show it yet
+    try {
+      if (notification.send_at) {
+        const sendAt = new Date(notification.send_at).getTime();
+        if (!Number.isNaN(sendAt) && sendAt > Date.now()) {
+          logger.log('[NOTIFICATIONS] Received scheduled notification, queuing for later:', notification.id, notification.type, notification.send_at);
+          setScheduledNotifications((prev) => {
+            if (prev.find((n) => n.id === notification.id)) return prev;
+            return [notification, ...prev];
+          });
+          // Don't add to visible list or show toast yet
+          return;
+        }
+      }
+    } catch (e) {
+      logger.warn('[NOTIFICATIONS] Error parsing send_at for new notification, proceeding to show it:', e);
     }
 
     // Ignorar eventos antiguos (realtime que llegó tarde) si son <= último clear
@@ -321,7 +415,10 @@ export const NotificationProvider = ({ children }) => {
         const matchCode = notification.data?.matchCode ?? notification.data?.match_code ?? null;
         const isOnQueryCodigo = matchCode && search.includes(`codigo=${matchCode}`);
 
-        if (isOnEncuestaPath || isOnPartidoPath || isOnPartidoGeneric || isOnQueryCodigo) {
+        if (
+          (isOnEncuestaPath || isOnPartidoPath || isOnPartidoGeneric || isOnQueryCodigo) &&
+          notification.type !== 'awards_ready'
+        ) {
           logger.log('[NOTIFICATIONS] Suppressing realtime notification while user is on survey/partido page for partido:', notifPid);
           return;
         }
@@ -352,7 +449,7 @@ export const NotificationProvider = ({ children }) => {
         return updated;
       }
     });
-    
+
     // Show toast notification for real-time updates
     showNotificationToast(notification);
     logger.log('[NOTIFICATIONS] Notification processed successfully');
@@ -361,7 +458,7 @@ export const NotificationProvider = ({ children }) => {
   // Show toast notification based on type
   const showNotificationToast = (notification) => {
     logger.log('[NOTIFICATIONS] Showing toast for:', notification.type);
-    
+
     /** @type {any} */
     const toastOptions = ({
       position: 'top-right',
@@ -395,6 +492,9 @@ export const NotificationProvider = ({ children }) => {
       case 'survey_results_ready':
         toast.success(`🏆 ${notification.title}: ${notification.message}`, toastOptions);
         break;
+      case 'awards_ready':
+        toast.success(`🏆 ${notification.title}: ${notification.message}`, toastOptions);
+        break;
       case 'admin_transfer':
         toast.success(`👑 ${notification.title}: ${notification.message}`, toastOptions);
         // Auto-refresh if forceRefresh is true
@@ -419,10 +519,11 @@ export const NotificationProvider = ({ children }) => {
     const surveyStarts = unread.filter((n) => n.type === 'survey_start').length;
     const postMatchSurveys = unread.filter((n) => n.type === 'post_match_survey').length;
     const surveyResults = unread.filter((n) => n.type === 'survey_results_ready').length;
-    
+    const awardsReady = unread.filter((n) => n.type === 'awards_ready').length;
+
     setUnreadCount({
       friends: friendRequests,
-      matches: matchInvites + callToVote + surveyStarts + postMatchSurveys + surveyResults,
+      matches: matchInvites + callToVote + surveyStarts + postMatchSurveys + surveyResults + awardsReady,
       total: unread.length,
     });
   };
@@ -438,17 +539,17 @@ export const NotificationProvider = ({ children }) => {
       if (error) throw error;
 
       // Update local state
-      setNotifications((prev) => 
+      setNotifications((prev) =>
         prev.map((n) => n.id === notificationId ? { ...n, read: true } : n),
       );
-      
+
       // Update unread count
-      const updatedNotifications = notifications.map((n) => 
+      const updatedNotifications = notifications.map((n) =>
         n.id === notificationId ? { ...n, read: true } : n,
       );
       updateUnreadCount(updatedNotifications);
     } catch (error) {
-      handleError(error, { showToast: false, onError: () => {} });
+      handleError(error, { showToast: false, onError: () => { } });
     }
   };
 
@@ -484,12 +585,12 @@ export const NotificationProvider = ({ children }) => {
       if (error) throw error;
 
       // Update local state
-      setNotifications((prev) => 
+      setNotifications((prev) =>
         prev.map((n) => n.type === type ? { ...n, read: true } : n),
       );
-      
+
       // Update unread count
-      const updatedNotifications = notifications.map((n) => 
+      const updatedNotifications = notifications.map((n) =>
         n.type === type ? { ...n, read: true } : n,
       );
       updateUnreadCount(updatedNotifications);
@@ -503,47 +604,139 @@ export const NotificationProvider = ({ children }) => {
     // Registrar el instante de limpieza para ignorar eventos realtime antiguos
     ignoreBeforeRef.current = new Date().toISOString();
     setNotifications([]);
+    setScheduledNotifications([]);
     setUnreadCount({ friends: 0, matches: 0, total: 0 });
   };
 
   // Create a new notification (for testing or manual creation)
-  const createNotification = async (type, title, message, data = {}) => {
-    if (!currentUserId) return;
+  const createNotification = async (type, title, message, data = {}, partidoId = null) => {
+    if (!currentUserId) return { ok: false, error: { message: 'no_current_user' } };
 
     // --- CANONICAL MODE CHECK: prevent client creation of survey notifications when DB is canonical ---
     const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || "db";
-    if (SURVEY_FANOUT_MODE === "db" && (type === "survey_start" || type === "post_match_survey")) return;
+    if (SURVEY_FANOUT_MODE === "db" && (type === "survey_start" || type === "post_match_survey")) {
+      return { ok: false, error: { message: 'blocked_by_survey_fanout_mode' } };
+    }
 
     try {
       const now = new Date().toISOString();
+      const pidFromArg = partidoId != null ? Number(partidoId) : null;
+      const pidFromData = data?.matchId ?? data?.match_id ?? data?.partido_id ?? data?.match_id_text ?? null;
+      const pidNumber = pidFromArg != null ? (Number.isFinite(Number(pidFromArg)) ? Number(pidFromArg) : null) : (pidFromData != null ? (Number.isFinite(Number(pidFromData)) ? Number(pidFromData) : null) : null);
+
+      // If this is a survey_start or post_match_survey we require a partido_id to avoid creating null-match rows
+      if ((type === 'survey_start' || type === 'post_match_survey') && pidNumber == null) {
+        console.error('[NOTIFICATIONS] Attempt to create survey_start/post_match_survey without partido_id. Aborting insert.', { type, data, partidoId });
+        return { ok: false, error: { message: 'missing_partido_id_for_survey_notification' } };
+      }
+
       const notification = {
         user_id: currentUserId,
         type,
         title,
         message,
-        data,
+        partido_id: pidNumber != null ? pidNumber : null,
+        data: { ...data },
+        send_at: data?.send_at ?? null,
         read: false,
         created_at: now,
-        send_at: now,
       };
 
-      const { data: newNotification, error } = await supabase
+      console.log('[NOTIFICATIONS] createNotification called - currentUserId:', currentUserId);
+      console.log('[NOTIFICATIONS] createNotification payload:', notification);
+
+      // Log session user for extra diagnostics
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        console.log('[NOTIFICATIONS] session user:', sessionData?.session?.user?.id || null);
+      } catch (sessErr) {
+        console.log('[NOTIFICATIONS] getSession error:', sessErr);
+      }
+
+      // Attempt insert
+      const res = await supabase
         .from('notifications')
         .insert([notification])
         .select()
         .single();
 
-      if (error) throw error;
+      if (res.error) {
+        const errCode = String(res.error?.code || res.error?.message || '');
+        console.log('[NOTIFICATIONS] createNotification insert error:', res.error);
 
-      return newNotification;
+        // If unique constraint violation (duplicate), perform an update for the existing row
+        if (errCode === '23505') {
+          try {
+            const upd = await supabase
+              .from('notifications')
+              .update({ title, message, data: { ...data }, read: false, created_at: now, send_at: notification.send_at })
+              .eq('user_id', currentUserId)
+              .eq('partido_id', partidoId != null ? partidoId : null)
+              .eq('type', type)
+              .select()
+              .single();
+
+            if (upd.error) {
+              console.log('[NOTIFICATIONS] createNotification update-after-duplicate error:', upd.error);
+              return { ok: false, error: { code: upd.error.code, message: upd.error.message, details: upd.error.details, hint: upd.error.hint } };
+            }
+
+            const updatedRow = upd.data;
+            try { await fetchNotifications(); } catch (e) { console.log('[NOTIFICATIONS] fetchNotifications after update failed:', e); }
+            // Update local notifications array immediately to reflect the updated row (force re-render even if id unchanged)
+            try {
+              setNotifications((prev) => {
+                const next = prev.map((n) => (n.id === updatedRow.id ? { ...n, ...updatedRow } : n));
+                return next.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+              });
+            } catch (stateErr) {
+              console.log('[NOTIFICATIONS] Error updating local notifications after duplicate update:', stateErr);
+            }
+            return { ok: true, mode: 'updated', row: updatedRow };
+          } catch (updateException) {
+            console.log('[NOTIFICATIONS] exception during update-after-duplicate:', updateException);
+            return { ok: false, error: { message: String(updateException) } };
+          }
+        }
+
+        // Non-duplicate insert error: return structured error
+        const errObj = {
+          code: res.error?.code || null,
+          message: res.error?.message || null,
+          details: res.error?.details || null,
+          hint: res.error?.hint || null,
+        };
+        console.log('[NOTIFICATIONS] createNotification insert failed with error:', errObj);
+        return { ok: false, error: errObj };
+      }
+
+      // Successful insert
+      const newNotification = res.data;
+
+      // After successful insert, force a fetch to update UI
+      try {
+        await fetchNotifications();
+      } catch (e) {
+        console.log('[NOTIFICATIONS] fetchNotifications after createNotification failed:', e);
+      }
+      console.log('[NOTIFICATIONS] lastFetchCount after createNotification:', lastFetchCount);
+
+      return { ok: true, mode: 'inserted', row: newNotification };
     } catch (error) {
-      logger.error('Error creating notification:', error);
-      return null;
+      const errObj = {
+        code: error?.code || null,
+        message: error?.message || String(error),
+        details: error?.details || null,
+        hint: error?.hint || null,
+      };
+      console.log('[NOTIFICATIONS] createNotification unexpected error:', errObj);
+      return { ok: false, error: errObj };
     }
   };
 
   const value = useMemo(() => ({
     notifications,
+    scheduledNotifications,
     unreadCount,
     markAsRead,
     markAllAsRead,
@@ -551,7 +744,14 @@ export const NotificationProvider = ({ children }) => {
     createNotification,
     fetchNotifications,
     clearAllNotifications,
-  }), [notifications, unreadCount, markAsRead, markAllAsRead, markTypeAsRead, createNotification, fetchNotifications, clearAllNotifications]);
+    // Debug fields
+    currentUserId,
+    subscriptionStatus,
+    lastFetchAt,
+    lastFetchCount,
+    lastRealtimeAt,
+    lastRealtimePayloadType,
+  }), [notifications, scheduledNotifications, unreadCount, markAsRead, markAllAsRead, markTypeAsRead, createNotification, fetchNotifications, clearAllNotifications, currentUserId, subscriptionStatus, lastFetchAt, lastFetchCount, lastRealtimeAt, lastRealtimePayloadType]);
 
   return (
     <NotificationContext.Provider value={value}>

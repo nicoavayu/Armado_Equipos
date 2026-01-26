@@ -3,11 +3,10 @@ import { toast } from 'react-toastify';
 import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, uploadFoto, supabase } from '../supabase';
 import ProfileCard from './ProfileCard';
-import ModernToggle from './ModernToggle';
-import { useTutorial } from '../context/TutorialContext';
-import './ProfileEditor.css';
 
-export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
+import { useTutorial } from '../context/TutorialContext';
+
+function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const { user, profile, refreshProfile } = useAuth();
   const { replayTutorial } = useTutorial();
   const [loading, setLoading] = useState(false);
@@ -41,18 +40,8 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       // Asegurar que tengamos la URL del avatar desde todas las fuentes posibles
       const avatarUrl = profile.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
-      console.log('ProfileEditor: profile loaded', {
-        profile_email: profile.email,
-        user_email: user?.email,
-        profile_avatar_url: profile.avatar_url,
-        user_metadata_avatar: user?.user_metadata?.avatar_url,
-        user_metadata_picture: user?.user_metadata?.picture,
-        final_avatar_url: avatarUrl,
-      });
-
       // Si tenemos un avatar en los metadatos pero no en el perfil, actualizar el perfil
       if (!profile.avatar_url && (user?.user_metadata?.avatar_url || user?.user_metadata?.picture)) {
-        console.log('Updating profile with avatar from user metadata');
         updateProfile(user.id, { avatar_url: avatarUrl })
           .then(() => refreshProfile())
           .catch((err) => console.error('Error updating profile with avatar:', err));
@@ -64,7 +53,7 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         telefono: profile.telefono || '',
         nacionalidad: profile.nacionalidad || 'Argentina',
         pais_codigo: profile.pais_codigo || 'AR',
-        posicion: profile.posicion || profile.rol_favorito || 'DEF', // Fallback to rol_favorito for backward compatibility
+        posicion: profile.posicion || profile.rol_favorito || 'DEF',
         fecha_nacimiento: cleanDate(profile.fecha_nacimiento),
         social: normalizeInstagram(profile.red_social || profile.social || ''),
         localidad: profile.localidad || '',
@@ -72,40 +61,29 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         longitud: profile.longitud || null,
         partidos_jugados: profile.partidos_jugados || 0,
         partidos_abandonados: profile.partidos_abandonados || 0,
-        ranking: profile.ranking || profile.calificacion || 4.5, // Support both ranking and calificacion for backward compatibility
+        ranking: profile.ranking || profile.calificacion || 4.5,
         bio: profile.bio || '',
         acepta_invitaciones: profile.acepta_invitaciones !== false,
       };
       setFormData(newFormData);
 
-      // Asegurar que el liveProfile tenga el avatar_url correcto
       setLiveProfile({
         ...profile,
         ...newFormData,
         avatar_url: avatarUrl,
-        user: user, // Pasar el objeto user completo
+        user: user,
       });
       setHasChanges(false);
     }
   }, [profile, user, refreshProfile]);
 
-  const MAX_NOMBRE = 14;
+  const MAX_NOMBRE = 12;
   const nombreRestantes = Math.max(0, MAX_NOMBRE - (formData.nombre?.length || 0));
 
   const handleInputChange = (field, value) => {
-    // Add debug log for position and ranking fields
-    if (field === 'posicion') {
-      console.log('[AMIGOS] Updating position field in ProfileEditor:', { oldValue: formData.posicion, newValue: value });
-    }
-    if (field === 'ranking') {
-      console.log('[AMIGOS] Updating ranking field in ProfileEditor:', { oldValue: formData.ranking, newValue: value });
-    }
-
     const newData = { ...formData, [field]: value };
     setFormData(newData);
     setHasChanges(true);
-
-    // Update live profile for real-time card updates
     setLiveProfile({ ...liveProfile, ...newData });
   };
 
@@ -118,10 +96,8 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       return;
     }
 
-    // Create a local preview immediately
     const localPreviewUrl = URL.createObjectURL(file);
 
-    // Update UI immediately with local preview
     setLiveProfile((prev) => ({
       ...prev,
       avatar_url: localPreviewUrl,
@@ -129,7 +105,6 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
     setLoading(true);
     try {
-      // Upload to storage
       const fileExt = file.name.split('.').pop() || 'jpg';
       const fileName = `${user.id}_${Date.now()}.${fileExt}`;
 
@@ -139,7 +114,6 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data } = supabase.storage
         .from('jugadores-fotos')
         .getPublicUrl(fileName);
@@ -147,18 +121,14 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       const fotoUrl = data?.publicUrl;
       if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
 
-      // Add cache buster so clients always fetch the newest image
       const cacheBusted = `${fotoUrl}${fotoUrl.includes('?') ? '&' : '?'}cb=${Date.now()}`;
 
-      // Update profile in database
       await updateProfile(user.id, { avatar_url: cacheBusted });
 
-      // Update user metadata
       await supabase.auth.updateUser({
         data: { avatar_url: cacheBusted },
       });
 
-      // Update local state with permanent cache-busted URL
       setLiveProfile((prev) => ({
         ...prev,
         avatar_url: cacheBusted,
@@ -171,7 +141,6 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       console.error('Error uploading photo:', error);
       toast.error('Error subiendo foto: ' + error.message);
 
-      // Revert to previous avatar if upload fails
       setLiveProfile((prev) => ({
         ...prev,
         avatar_url: profile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
@@ -198,11 +167,8 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         fecha_nacimiento: cleanDate(formData.fecha_nacimiento),
       };
 
-      console.log('[DEBUG] Enviando a updateProfile:', profileDataToSave);
       const updatedProfile = await updateProfile(user.id, profileDataToSave);
-      console.log('[DEBUG] Resultado de updateProfile:', updatedProfile);
 
-      // Check if updateProfile returned an error
       if (updatedProfile?.error) {
         toast.error('Error guardando perfil: ' + updatedProfile.error.message);
         return;
@@ -217,11 +183,9 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
       await refreshProfile();
       setHasChanges(false);
-      onClose(); // Only close if successful
+      onClose();
     } catch (error) {
-      console.error('[DEBUG] Error en handleSave:', error);
       toast.error('Error guardando perfil: ' + error.message);
-      // Don't close modal on error
     } finally {
       setLoading(false);
     }
@@ -239,7 +203,7 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     }
 
     toast.info('Obteniendo ubicación...');
-    
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         handleInputChange('latitud', position.coords.latitude);
@@ -248,30 +212,22 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       },
       (error) => {
         let errorMessage = 'Error obteniendo ubicación';
-        
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            errorMessage = 'Permiso de ubicación denegado. Ve a Configuración > Privacidad > Ubicación para habilitarlo.';
+            errorMessage = 'Permiso denegado. Habilita la ubicación en tu dispositivo.';
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage = 'No se puede determinar la ubicación. Intenta moverte a un área con mejor señal GPS o conexión a internet.';
+            errorMessage = 'Ubicación no disponible.';
             break;
           case error.TIMEOUT:
-            errorMessage = 'Tiempo agotado. La ubicación está tardando mucho en obtenerse, intenta nuevamente.';
+            errorMessage = 'Tiempo agotado.';
             break;
           default:
-            errorMessage = `Error de ubicación (código ${error.code}). Verifica que los servicios de ubicación estén habilitados.`;
             break;
         }
-        
-        console.error('Geolocation error:', error);
         toast.error(errorMessage);
       },
-      {
-        enableHighAccuracy: false,
-        timeout: 15000,
-        maximumAge: 600000
-      }
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 }
     );
   };
 
@@ -288,35 +244,22 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     { key: 'DE', label: 'Alemania' },
     { key: 'AD', label: 'Andorra' },
     { key: 'AO', label: 'Angola' },
-
-
     { key: 'AR', label: 'Argentina' },
     { key: 'AM', label: 'Armenia' },
     { key: 'AW', label: 'Aruba' },
     { key: 'AU', label: 'Australia' },
     { key: 'AT', label: 'Austria' },
-
     { key: 'BS', label: 'Bahamas' },
-
-
-
     { key: 'BE', label: 'Bélgica' },
     { key: 'BZ', label: 'Belice' },
     { key: 'BJ', label: 'Benín' },
-
     { key: 'BY', label: 'Bielorrusia' },
     { key: 'BO', label: 'Bolivia' },
     { key: 'BA', label: 'Bosnia y Herzegovina' },
-
     { key: 'BR', label: 'Brasil' },
-
     { key: 'BG', label: 'Bulgaria' },
-
-
-
     { key: 'CM', label: 'Camerún' },
     { key: 'CA', label: 'Canadá' },
-
     { key: 'CL', label: 'Chile' },
     { key: 'CN', label: 'China' },
     { key: 'CO', label: 'Colombia' },
@@ -359,81 +302,50 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     { key: 'JM', label: 'Jamaica' },
     { key: 'JP', label: 'Japón' },
     { key: 'LV', label: 'Letonia' },
-
     { key: 'LT', label: 'Lituania' },
     { key: 'LU', label: 'Luxemburgo' },
-
     { key: 'MA', label: 'Marruecos' },
-
     { key: 'MX', label: 'México' },
-
     { key: 'MC', label: 'Mónaco' },
-
     { key: 'NI', label: 'Nicaragua' },
-
     { key: 'NO', label: 'Noruega' },
-
     { key: 'NZ', label: 'Nueva Zelanda' },
-
     { key: 'NL', label: 'Países Bajos' },
-
     { key: 'PA', label: 'Panamá' },
-
     { key: 'PY', label: 'Paraguay' },
     { key: 'PE', label: 'Perú' },
-
     { key: 'PL', label: 'Polonia' },
     { key: 'PT', label: 'Portugal' },
     { key: 'PR', label: 'Puerto Rico' },
-
     { key: 'GB', label: 'Reino Unido' },
-
     { key: 'CZ', label: 'República Checa' },
-
     { key: 'DO', label: 'República Dominicana' },
-
     { key: 'RO', label: 'Rumania' },
     { key: 'RU', label: 'Rusia' },
-
     { key: 'SN', label: 'Senegal' },
     { key: 'RS', label: 'Serbia' },
-
     { key: 'ZA', label: 'Sudáfrica' },
     { key: 'SE', label: 'Suecia' },
     { key: 'CH', label: 'Suiza' },
     { key: 'SR', label: 'Surinam' },
-
     { key: 'TT', label: 'Trinidad y Tobago' },
     { key: 'TN', label: 'Túnez' },
-
     { key: 'TR', label: 'Turquía' },
-
     { key: 'UA', label: 'Ucrania' },
-
     { key: 'UY', label: 'Uruguay' },
     { key: 'VE', label: 'Venezuela' },
     { key: 'VN', label: 'Vietnam' },
-
   ];
 
-  // Normalize Instagram input: extract username from URL or @handle, allow only letters, numbers, '.' and '_', max 14 chars
   const normalizeInstagram = (raw) => {
     if (!raw) return '';
     let v = String(raw).trim();
-
-    // If it's a full URL, try to extract the username path segment
     const urlMatch = v.match(/(?:instagram\.com\/(?:p\/)?|instagr\.am\/)(?:u\/)?@?([^\/?#\s]+)/i);
     if (urlMatch && urlMatch[1]) {
       v = urlMatch[1];
     }
-
-    // If contains query params or trailing slashes, remove them
     v = v.split(/[\/?#]/)[0];
-
-    // Remove leading @ if present
     if (v.startsWith('@')) v = v.slice(1);
-
-    // Keep only allowed characters: letters, numbers, dot and underscore
     const allowed = (v.match(/[A-Za-z0-9._]+/g) || []).join('');
     v = allowed.slice(0, 14);
     return v;
@@ -444,83 +356,79 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     handleInputChange('social', cleaned);
   };
 
-  // Prepare a truncated display version of the social handle to avoid layout break
   const socialDisplay = (liveProfile?.social || formData.social || '').toString();
   const socialDisplayTrunc = socialDisplay.length > 20 ? socialDisplay.slice(0, 20) + '…' : socialDisplay;
 
   if (!isOpen) return null;
 
+  // Shared classes
+  const inputClass = "w-full bg-white/10 border border-white/20 text-white px-4 py-3 rounded-xl text-base transition-all focus:outline-none focus:border-primary focus:bg-white/15 focus:ring-2 focus:ring-primary/30 placeholder:text-white/40 read-only:opacity-70 read-only:cursor-not-allowed shadow-inner backdrop-blur-sm";
+  const labelClass = "text-white/90 text-sm font-bold mb-2 block uppercase tracking-wider";
+  const formGroupClass = "flex flex-col w-full";
+
   if (isEmbedded) {
     return (
-      <div className="profile-editor-embedded">
-        {/* Player Card */}
-        <div className="profile-card-embedded">
-          <ProfileCard
-            profile={{
-              ...liveProfile,
-              social: socialDisplayTrunc,
-              avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
-            }}
-            isVisible={true}
-            currentUserId={user?.id}
-            key={`profile-card-${Date.now()}`}
-          />
+      <div className="flex-1 flex flex-col w-full overflow-hidden relative bg-transparent">
+        {/* STICKY CARD WRAPPER - FIXED AT TOP */}
+        <div className="sticky top-0 z-30 w-full bg-black/40 backdrop-blur-xl border-b border-white/10 shrink-0 overflow-visible">
+          <div className="mx-auto w-full max-w-[550px] px-0 pt-4 pb-4 flex justify-center items-center gap-4 overflow-visible">
+            <div className="w-full flex justify-center px-4 overflow-visible">
+              <ProfileCard
+                profile={{
+                  ...liveProfile,
+                  social: socialDisplayTrunc,
+                  avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
+                }}
+                isVisible={true}
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Edit Form */}
-        <div className="profile-form-embedded">
+        {/* SCROLLABLE FORM AREA - ONLY VERTICAL SCROLL */}
+        <div className="flex-1 overflow-y-auto overscroll-contain bg-transparent w-full custom-scrollbar">
+          <div className="mx-auto w-full max-w-[550px] px-4 pb-32 pt-4 flex flex-col gap-5 min-w-0">
+            {/* Form Content Wrapper */}
+            <div className="w-full flex flex-col gap-5 min-w-0">
 
-            {/* Avatar and Name in one row */}
-            <div className="avatar-name-section">
-              <div className="avatar-container">
+              {/* Header Info: Photo + Name (COMPACT ROW) */}
+              <div className="flex flex-row items-center gap-3 w-full min-w-0">
+                {/* Square Photo Avatar */}
                 <div
-                  className="profile-avatar"
+                  className="w-[44px] h-[44px] rounded-xl overflow-hidden border border-white/20 relative cursor-pointer group shadow-lg bg-white/5 shrink-0"
                   onClick={(e) => {
                     e.preventDefault();
-                    if (fileInputRef.current) {
-                      fileInputRef.current.click();
-                    }
+                    fileInputRef.current?.click();
                   }}
+                  title="Cambiar Foto"
                 >
                   {liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture ? (
                     <img
                       src={liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture}
                       alt="Perfil"
-                      key={`profile-photo-${Date.now()}`} // Force re-render
+                      className="w-full h-full object-cover object-center"
+                      key={`profile-photo-emb-${Date.now()}`}
                     />
                   ) : (
-                    <div className="photo-placeholder">👤</div>
+                    <div className="w-full h-full bg-white/5 flex items-center justify-center text-base text-white/40">👤</div>
                   )}
-                  <div className="avatar-overlay">
-                    <span className="avatar-edit-icon">📷</span>
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <span className="text-base">📷</span>
                   </div>
                 </div>
-                <button 
-                  className="change-photo-btn"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (fileInputRef.current) {
-                      fileInputRef.current.click();
-                    }
-                  }}
-                  type="button"
-                >
-                  Cambiar Foto
-                </button>
-              </div>
 
-              <div className="form-group" style={{ flex: 1, marginLeft: '12px' }}>
-                <label>Nombre *</label>
-                <input
-                  className="input-modern-small"
-                  type="text"
-                  value={formData.nombre}
-                  maxLength={MAX_NOMBRE}
-                  onChange={(e) => handleInputChange('nombre', e.target.value.slice(0, MAX_NOMBRE))}
-                  placeholder="Tu nombre completo"
-                />
-                <div style={{ marginTop: 6, fontSize: 12, color: '#ffffff', fontStyle: 'italic', opacity: 0.85 }}>
-                  {nombreRestantes} caracteres restantes
+                {/* Name Column (Integrated in row) */}
+                <div className="flex-1 flex flex-col gap-0.5 min-w-0 justify-center">
+                  <label className={labelClass + " !mb-0 !text-[11px]"}>Nombre Completo *</label>
+                  <input
+                    className={`${inputClass} w-full min-w-0 !py-2 !h-[40px] !text-sm`}
+                    type="text"
+                    value={formData.nombre}
+                    maxLength={MAX_NOMBRE}
+                    onChange={(e) => handleInputChange('nombre', e.target.value.slice(0, MAX_NOMBRE))}
+                    placeholder="Tu nombre..."
+                  />
+                  <span className="text-[10px] text-gray-400 mt-0.5">{formData.nombre?.length || 0}/{MAX_NOMBRE}</span>
                 </div>
               </div>
 
@@ -528,17 +436,240 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                style={{ display: 'none' }}
+                className="hidden"
+                onChange={handlePhotoChange}
+                onClick={(e) => e.stopPropagation()}
+              />
+
+              {/* Data Rows */}
+              <div className="grid grid-cols-1 gap-6 w-full min-w-0">
+                <div className={formGroupClass}>
+                  <label className={labelClass}>Email Registrado</label>
+                  <input
+                    className={inputClass + " !opacity-40 !bg-transparent min-w-0 w-full cursor-not-allowed"}
+                    type="email"
+                    value={user?.email || formData.email || ''}
+                    readOnly
+                  />
+                </div>
+
+                <div className={formGroupClass}>
+                  <label className={labelClass}>WhatsApp / Teléfono</label>
+                  <input
+                    className={`${inputClass} min-w-0 w-full`}
+                    type="tel"
+                    value={formData.telefono}
+                    onChange={(e) => handleInputChange('telefono', e.target.value)}
+                    placeholder="+54 9 11 ..."
+                  />
+                </div>
+
+                <div className={formGroupClass}>
+                  <label className={labelClass}>Nacionalidad</label>
+                  <div className="relative w-full min-w-0">
+                    <select
+                      className={inputClass + " appearance-none cursor-pointer min-w-0 w-full pr-10"}
+                      value={formData.pais_codigo}
+                      onChange={(e) => {
+                        const country = countries.find((c) => c.key === e.target.value);
+                        handleInputChange('pais_codigo', e.target.value);
+                        handleInputChange('nacionalidad', country?.label || 'Argentina');
+                        setLiveProfile((prev) => ({
+                          ...prev,
+                          pais_codigo: e.target.value,
+                          nacionalidad: country?.label || 'Argentina',
+                        }));
+                      }}
+                    >
+                      {countries.map((country) => (
+                        <option key={country.key} value={country.key} className="bg-[#1a1a1a] text-white">
+                          {country.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 text-xs">▼</div>
+                  </div>
+                </div>
+
+                <div className={formGroupClass}>
+                  <label className={labelClass}>Posición en Campo</label>
+                  <div className="grid grid-cols-4 gap-2 w-full min-w-0">
+                    {positions.map((pos) => (
+                      <button
+                        key={pos.key}
+                        type="button"
+                        className={`
+                              bg-white/5 border border-white/10 text-white/50 py-3.5 rounded-2xl text-[13px] font-bold cursor-pointer transition-all hover:bg-white/10 min-w-0
+                              ${formData.posicion === pos.key ? 'bg-primary !border-primary !text-white shadow-[0_5px_15px_rgba(129,120,229,0.3)] scale-105 active:scale-100' : ''}
+                            `}
+                        onClick={() => handleInputChange('posicion', pos.key)}
+                      >
+                        {pos.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={formGroupClass}>
+                  <label className={labelClass}>Localidad habitual</label>
+                  <div className="flex gap-2 items-center w-full min-w-0">
+                    <input
+                      className={`${inputClass} flex-1 min-w-0 truncate`}
+                      type="text"
+                      value={formData.localidad}
+                      onChange={(e) => handleInputChange('localidad', e.target.value)}
+                      placeholder="Ej: Palermo, CABA"
+                    />
+                    <button
+                      className="bg-primary/20 border border-primary/30 text-white w-[54px] h-[48px] rounded-xl text-xl cursor-pointer transition-all hover:bg-primary/30 flex items-center justify-center shrink-0 shadow-lg active:scale-95"
+                      onClick={handleGeolocation}
+                      type="button"
+                      title="Obtener ubicación actual"
+                    >
+                      📍
+                    </button>
+                  </div>
+                </div>
+
+                <div className={formGroupClass}>
+                  <label className={labelClass}>Breve Bio / Comentario</label>
+                  <textarea
+                    className={inputClass + " resize-none min-h-[110px] min-w-0 w-full overflow-hidden break-words line-clamp-4"}
+                    value={formData.bio}
+                    onChange={(e) => handleInputChange('bio', e.target.value)}
+                    placeholder="Contanos algo sobre vos..."
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons Container */}
+              <div className="grid grid-cols-2 gap-4 mt-8 pt-10 border-t border-white/10 w-full min-w-0 pb-16">
+                <button
+                  className={`
+                        col-span-2 w-full h-[54px] rounded-2xl text-base font-bold uppercase tracking-[2px] cursor-pointer transition-all flex items-center justify-center
+                        ${hasChanges ? 'bg-primary text-white shadow-[0_10px_30px_rgba(129,120,229,0.4)] hover:-translate-y-1 active:translate-y-0 active:scale-[0.98]' : 'bg-white/5 text-white/20 border border-white/5 cursor-not-allowed'}
+                      `}
+                  onClick={handleSave}
+                  disabled={loading || !hasChanges}
+                >
+                  {loading ? 'Procesando...' : 'Guardar Cambios'}
+                </button>
+
+                <button
+                  className="h-[48px] bg-white/5 border border-white/10 text-white/60 rounded-2xl text-[12px] font-bold uppercase tracking-wider cursor-pointer transition-all hover:bg-white/10 hover:text-white active:scale-95 flex items-center justify-center"
+                  onClick={() => {
+                    onClose();
+                    replayTutorial();
+                  }}
+                  disabled={loading}
+                >
+                  Tutorial
+                </button>
+
+                <button
+                  className="h-[48px] bg-red-500/5 border border-red-500/10 text-red-400 rounded-2xl text-[12px] font-bold uppercase tracking-wider cursor-pointer transition-all hover:bg-red-500/10 hover:text-red-300 active:scale-95 flex items-center justify-center"
+                  onClick={handleLogout}
+                  disabled={loading}
+                >
+                  Salir
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Overlay Mode (Default)
+  return (
+    <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center backdrop-blur-xl overflow-y-auto overflow-x-hidden py-5 px-0 sm:items-start sm:p-[10px_10px_20px] md:items-center md:py-5">
+      <div className="flex flex-col md:flex-row w-full md:w-[90vw] max-w-[1200px] min-h-[95vh] md:min-h-[80vh] bg-white/5 backdrop-blur-2xl rounded-none md:rounded-[30px] overflow-hidden shadow-[0_32px_64px_rgba(0,0,0,0.6)] border border-white/10 m-0 md:m-auto">
+
+        {/* Left Side - Player Card */}
+        <div className="flex-none w-full md:w-[400px] flex items-center justify-center p-5 md:p-10 bg-white/5 md:bg-white/10 border-b md:border-b-0 md:border-r border-white/20 relative">
+          <div className="w-full flex justify-center overflow-visible">
+            <ProfileCard
+              profile={{
+                ...liveProfile,
+                social: socialDisplayTrunc,
+                avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
+              }}
+              isVisible={true}
+            />
+          </div>
+        </div>
+
+        {/* Right Side - Edit Menu */}
+        <div className="flex-1 flex flex-col bg-white/5 min-h-0">
+          <div className="p-[12px_16px] md:p-[20px_30px] border-b border-white/20 flex justify-between items-center">
+            <h2 className="text-white text-xl md:text-2xl font-semibold font-oswald m-0">Editar Perfil</h2>
+            <button
+              className="bg-transparent border-none text-white text-[32px] cursor-pointer w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
+              onClick={onClose}
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-[12px_16px] md:p-[20px_30px] flex flex-col gap-4 pb-20 items-center">
+            <div className="w-full max-w-[520px] flex flex-col gap-4">
+              {/* Avatar and Name (COMPACT ROW OVERLAY) */}
+              <div className="flex items-end gap-3 w-full mt-4 mb-2">
+                <div className="flex flex-col items-center shrink-0">
+                  <div
+                    className="w-[50px] h-[50px] rounded-xl overflow-hidden border border-white/30 relative cursor-pointer group shadow-lg"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }}
+                    title="Cambiar Foto"
+                  >
+                    {liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture ? (
+                      <img
+                        src={liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture}
+                        alt="Perfil"
+                        className="w-full h-full object-cover object-center"
+                        key={`profile-photo-ov-${Date.now()}`}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-white/10 flex items-center justify-center text-xl text-white/70">👤</div>
+                    )}
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <span className="text-xl">📷</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <label className={labelClass}>Nombre *</label>
+                  <input
+                    className={`${inputClass} !py-3`}
+                    type="text"
+                    value={formData.nombre}
+                    maxLength={MAX_NOMBRE}
+                    onChange={(e) => handleInputChange('nombre', e.target.value.slice(0, MAX_NOMBRE))}
+                    placeholder="Tu nombre completo"
+                  />
+                </div>
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
                 onChange={handlePhotoChange}
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
 
-            {/* Email */}
-            <div className="form-group">
-              <label>Email</label>
+            <div className={formGroupClass}>
+              <label className={labelClass}>Email</label>
               <input
-                className="input-modern-small"
+                className={inputClass}
                 type="email"
                 value={user?.email || formData.email || ''}
                 readOnly
@@ -546,11 +677,10 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               />
             </div>
 
-            {/* Teléfono */}
-            <div className="form-group">
-              <label>Teléfono <span style={{ fontSize: '12px', opacity: 0.7 }}>(solo visible para admins)</span></label>
+            <div className={formGroupClass}>
+              <label className={labelClass}>Teléfono <span className="text-xs opacity-70">(solo visible para admins)</span></label>
               <input
-                className="input-modern-small"
+                className={inputClass}
                 type="tel"
                 value={formData.telefono}
                 onChange={(e) => handleInputChange('telefono', e.target.value)}
@@ -558,18 +688,15 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               />
             </div>
 
-            {/* Nationality (with real-time flag update) */}
-            <div className="form-group">
-              <label>Nacionalidad</label>
+            <div className={formGroupClass}>
+              <label className={labelClass}>Nacionalidad</label>
               <select
-                className="input-modern-small"
+                className={inputClass}
                 value={formData.pais_codigo}
                 onChange={(e) => {
                   const country = countries.find((c) => c.key === e.target.value);
                   handleInputChange('pais_codigo', e.target.value);
                   handleInputChange('nacionalidad', country?.label || 'Argentina');
-
-                  // Ensure immediate update of the profile card
                   setLiveProfile((prev) => ({
                     ...prev,
                     pais_codigo: e.target.value,
@@ -578,22 +705,24 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 }}
               >
                 {countries.map((country) => (
-                  <option key={country.key} value={country.key}>
+                  <option key={country.key} value={country.key} className="bg-[#2a2a40] text-white">
                     {country.label}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Position */}
-            <div className="form-group">
-              <label>Posición</label>
-              <div className="position-buttons">
+            <div className={formGroupClass}>
+              <label className={labelClass}>Posición</label>
+              <div className="grid grid-cols-4 gap-2 md:gap-1.5 mt-1">
                 {positions.map((pos) => (
                   <button
                     key={pos.key}
                     type="button"
-                    className={`position-btn ${formData.posicion === pos.key ? 'selected' : ''}`}
+                    className={`
+                          bg-white/10 border-2 border-white/30 text-white p-2 rounded-md text-xs sm:text-sm font-bold font-oswald cursor-pointer transition-all hover:bg-white/20 hover:border-white/50
+                          ${formData.posicion === pos.key ? 'bg-gradient-to-r from-[#f4d03f] to-[#f7dc6f] !border-[#f4d03f] !text-black shadow-md' : ''}
+                        `}
                     onClick={() => handleInputChange('posicion', pos.key)}
                   >
                     {pos.label}
@@ -601,60 +730,43 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 ))}
               </div>
             </div>
-
-            {/* Fecha de Nacimiento */}
-            <div className="form-group">
-              <label>Fecha de Nacimiento</label>
+            <div className={formGroupClass}>
+              <label className={labelClass}>Instagram</label>
               <input
-                className="input-modern-small"
-                type="date"
-                value={formData.fecha_nacimiento}
-                onChange={(e) => handleInputChange('fecha_nacimiento', e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
-              />
-            </div>
-
-            {/* Social Handle */}
-            <div className="form-group">
-              <label>Instagram</label>
-              <input
-                className="input-modern-small"
+                className={inputClass}
                 type="text"
                 value={formData.social}
                 onChange={(e) => handleSocialChange(e.target.value)}
                 placeholder="@usuario"
                 maxLength={14}
-                style={{ whiteSpace: 'nowrap', overflowX: 'auto', width: '100%', boxSizing: 'border-box', display: 'block' }}
               />
             </div>
 
-            {/* Location */}
-            <div className="form-group">
-              <label>Localidad</label>
-              <div className="location-input">
+            <div className={formGroupClass}>
+              <label className={labelClass}>Localidad</label>
+              <div className="flex gap-2 items-center">
                 <input
-                  className="input-modern-small"
+                  className={`${inputClass} flex-1`}
                   type="text"
                   value={formData.localidad}
                   onChange={(e) => handleInputChange('localidad', e.target.value)}
                   placeholder="Tu ciudad"
                 />
                 <button
-                  className="geo-btn"
+                  className="bg-[#f4d03f]/20 border border-[#f4d03f] text-[#f4d03f] px-3 py-2 rounded-md text-base cursor-pointer transition-all hover:bg-[#f4d03f]/30 flex items-center justify-center min-w-[44px] h-[38px]"
                   onClick={handleGeolocation}
                   type="button"
-                  title="Obtener ubicación actual - Asegúrate de tener los servicios de ubicación habilitados"
+                  title="Obtener ubicación actual"
                 >
                   📍
                 </button>
               </div>
             </div>
 
-            {/* Bio */}
-            <div className="form-group">
-              <label>Bio</label>
+            <div className={formGroupClass}>
+              <label className={labelClass}>Bio</label>
               <textarea
-                className="input-modern-small"
+                className={inputClass}
                 value={formData.bio}
                 onChange={(e) => handleInputChange('bio', e.target.value)}
                 placeholder="Contanos algo sobre vos..."
@@ -662,177 +774,37 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               />
             </div>
 
-
-
-            {/* Availability toggle removed - now in HomeHeader */}
-
-            {/* Footer Buttons */}
-            <div className="profile-form-footer">
+            <div className="grid grid-cols-2 gap-3 mt-5 pt-5 border-t border-white/20 w-full relative pb-5 md:pb-0">
               <button
-                className={`save-profile-btn ${hasChanges ? 'has-changes' : ''}`}
+                className={`
+                      col-span-2 w-full h-[50px] bg-white/10 border border-white/20 text-white rounded-xl text-base font-bold font-oswald uppercase tracking-[1px] cursor-pointer transition-all backdrop-blur-md flex items-center justify-center
+                      ${hasChanges ? 'bg-primary !border-primary shadow-[0_5px_15px_rgba(129,120,229,0.3)] -translate-y-[2px]' : ''}
+                      disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none
+                    `}
                 onClick={handleSave}
                 disabled={loading || !hasChanges}
               >
-                {loading ? 'Guardando...' : 'Guardar Perfil'}
+                {loading ? 'Procesando...' : 'Guardar Cambios'}
               </button>
 
-              <div className="profile-menu-actions">
-                <button
-                  className="tutorial-btn"
-                  onClick={() => {
-                    onClose();
-                    replayTutorial();
-                  }}
-                  disabled={loading}
-                >
-                  Ver Tutorial
-                </button>
-
-                <button
-                  className="logout-btn"
-                  onClick={handleLogout}
-                  disabled={loading}
-                >
-                  Cerrar Sesión
-                </button>
-              </div>
-            </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="profile-editor-overlay">
-      <div className="profile-editor-container">
-        {/* Left Side - Player Card */}
-        <div className="profile-card-side">
-          <ProfileCard
-            profile={{
-              ...liveProfile,
-              social: socialDisplayTrunc,
-              avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
-            }}
-            isVisible={true}
-            currentUserId={user?.id}
-            key={`profile-card-${Date.now()}`} // Force re-render on every render
-          />
-        </div>
-
-        {/* Right Side - Edit Menu */}
-        <div className="profile-menu-side">
-          <div className="profile-menu-header">
-            <h2>Editar Perfil</h2>
-            <button className="close-editor-btn" onClick={onClose}>×</button>
-          </div>
-
-          <div className="profile-menu-content">
-            {/* Avatar and Name in one row */}
-            <div className="avatar-name-section">
-              <div className="avatar-container">
-                <div
-                  className="profile-avatar"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (fileInputRef.current) {
-                      fileInputRef.current.click();
-                    }
-                  }}
-                >
-                  {liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture ? (
-                    <img
-                      src={liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture}
-                      alt="Perfil"
-                      key={`profile-photo-${Date.now()}`}
-                    />
-                  ) : (
-                    <div className="photo-placeholder">👤</div>
-                  )}
-                  <div className="avatar-overlay">
-                    <span className="avatar-edit-icon">📷</span>
-                  </div>
-                </div>
-                <button 
-                  className="change-photo-btn"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (fileInputRef.current) {
-                      fileInputRef.current.click();
-                    }
-                  }}
-                  type="button"
-                >
-                  Cambiar Foto
-                </button>
-              </div>
-
-              <div className="form-group" style={{ flex: 1, marginLeft: '12px' }}>
-                <label>Nombre *</label>
-                <input
-                  className="input-modern-small"
-                  type="text"
-                  value={formData.nombre}
-                  maxLength={MAX_NOMBRE}
-                  onChange={(e) => handleInputChange('nombre', e.target.value.slice(0, MAX_NOMBRE))}
-                  placeholder="Tu nombre completo"
-                />
-                <div style={{ marginTop: 6, fontSize: 12, color: '#ffffff', fontStyle: 'italic', opacity: 0.85 }}>
-                  {nombreRestantes} caracteres restantes
-                </div>
-              </div>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handlePhotoChange}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-
-            {/* Email */}
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                className="input-modern-small"
-                type="email"
-                value={user?.email || formData.email || ''}
-                readOnly
-                style={{ opacity: 0.8, cursor: 'not-allowed' }}
-              />
-            </div>
-
-            {/* Footer Buttons */}
-            <div className="profile-menu-footer">
               <button
-                className={`save-profile-btn ${hasChanges ? 'has-changes' : ''}`}
-                onClick={handleSave}
-                disabled={loading || !hasChanges}
+                className="h-[44px] bg-white/5 border border-white/10 text-white/70 rounded-lg text-xs font-semibold font-oswald uppercase tracking-wider cursor-pointer transition-all hover:bg-white/10 flex items-center justify-center disabled:opacity-50"
+                onClick={() => {
+                  onClose();
+                  replayTutorial();
+                }}
+                disabled={loading}
               >
-                {loading ? 'Guardando...' : 'Guardar Perfil'}
+                Tutorial
               </button>
 
-              <div className="profile-menu-actions">
-                <button
-                  className="tutorial-btn"
-                  onClick={() => {
-                    onClose();
-                    replayTutorial();
-                  }}
-                  disabled={loading}
-                >
-                  Ver Tutorial
-                </button>
-
-                <button
-                  className="logout-btn"
-                  onClick={handleLogout}
-                  disabled={loading}
-                >
-                  Cerrar Sesión
-                </button>
-              </div>
+              <button
+                className="h-[44px] bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-xs font-semibold font-oswald uppercase tracking-wider cursor-pointer transition-all hover:bg-red-500/20 flex items-center justify-center disabled:opacity-50"
+                onClick={handleLogout}
+                disabled={loading}
+              >
+                Salir
+              </button>
             </div>
           </div>
         </div>
@@ -840,3 +812,5 @@ export default function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     </div>
   );
 }
+
+export default ProfileEditor;

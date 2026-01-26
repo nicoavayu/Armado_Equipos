@@ -12,7 +12,7 @@ export const checkSurveysProcessed = async (partidoId) => {
       .select('surveys_processed')
       .eq('id', partidoId)
       .single();
-      
+
     if (error) throw error;
     return !!data?.surveys_processed;
   } catch (error) {
@@ -32,7 +32,7 @@ export const markSurveysAsProcessed = async (partidoId) => {
       .from('partidos')
       .update({ surveys_processed: true })
       .eq('id', partidoId);
-      
+
     if (error) throw error;
   } catch (error) {
     console.error('Error marking surveys as processed:', error);
@@ -49,32 +49,32 @@ export const processPostMatchSurveys = async (partidoId) => {
   if (!partidoId) {
     throw new Error('Match ID is required');
   }
-  
+
   console.log('[POST_MATCH] Processing surveys for match:', partidoId);
-  
+
   try {
     // Get all surveys for this match
     const { data: surveys, error: surveysError } = await supabase
       .from('post_match_surveys')
       .select('*')
       .eq('partido_id', partidoId);
-      
+
     if (surveysError) throw surveysError;
-    
+
     if (!surveys || surveys.length === 0) {
       console.log('[POST_MATCH] No surveys found for match:', partidoId);
       return { message: 'No surveys to process' };
     }
-    
+
     console.log('[POST_MATCH] Found', surveys.length, 'surveys');
-    
+
     // Get match players
     const { getJugadoresDelPartido } = await import('./matches');
     const matchPlayers = await getJugadoresDelPartido(partidoId);
     if (!matchPlayers || matchPlayers.length === 0) {
       throw new Error('No players found for this match');
     }
-    
+
     // Process MVP votes (combine both teams)
     const mvpVotes = {};
     surveys.forEach((survey) => {
@@ -85,7 +85,7 @@ export const processPostMatchSurveys = async (partidoId) => {
         mvpVotes[survey.mejor_jugador_eq_b] = (mvpVotes[survey.mejor_jugador_eq_b] || 0) + 1;
       }
     });
-    
+
     // Process violent player votes
     const violentVotes = {};
     surveys.forEach((survey) => {
@@ -95,7 +95,7 @@ export const processPostMatchSurveys = async (partidoId) => {
         });
       }
     });
-    
+
     // Process absent players with detailed analysis
     const absentPlayersSet = new Set();
     surveys.forEach((survey) => {
@@ -105,20 +105,20 @@ export const processPostMatchSurveys = async (partidoId) => {
         });
       }
     });
-    
+
     // Get absence data for all absent players
     const { getAbsenceDataForSurveyProcessing } = await import('../absenceService');
     const absentPlayersData = await getAbsenceDataForSurveyProcessing(
-      partidoId, 
+      partidoId,
       Array.from(absentPlayersSet),
     );
-    
+
     console.log('[POST_MATCH] Vote counts:', {
       mvpVotes,
       violentVotes,
       absentPlayersData,
     });
-    
+
     // Determine MVP (most voted) - ONLY 1 MVP per match
     let mvpPlayerId = null;
     let maxMvpVotes = 0;
@@ -133,7 +133,7 @@ export const processPostMatchSurveys = async (partidoId) => {
         }
       }
     });
-    
+
     // Determine most violent player - ONLY 1 red card per match
     let violentPlayerId = null;
     let maxViolentVotes = 0;
@@ -148,17 +148,17 @@ export const processPostMatchSurveys = async (partidoId) => {
         }
       }
     });
-    
+
     console.log('[POST_MATCH] Winners:', {
       mvpPlayerId,
       maxMvpVotes,
       violentPlayerId,
       maxViolentVotes,
     });
-    
+
     // Update player stats
     const updates = [];
-    
+
     // Update MVP - only if there are votes
     if (mvpPlayerId && maxMvpVotes > 0) {
       const mvpPlayer = matchPlayers.find((p) => p.uuid === mvpPlayerId || p.usuario_id === mvpPlayerId);
@@ -172,7 +172,7 @@ export const processPostMatchSurveys = async (partidoId) => {
         );
       }
     }
-    
+
     // Update red card - only if there are votes
     if (violentPlayerId && maxViolentVotes > 0) {
       const violentPlayer = matchPlayers.find((p) => p.uuid === violentPlayerId || p.usuario_id === violentPlayerId);
@@ -186,7 +186,7 @@ export const processPostMatchSurveys = async (partidoId) => {
         );
       }
     }
-    
+
     // Update ratings for absent players (penalty) - only if conditions are met
     Object.entries(absentPlayersData).forEach(([playerId, data]) => {
       const absentPlayer = matchPlayers.find((p) => p.uuid === playerId || p.usuario_id === playerId);
@@ -199,7 +199,7 @@ export const processPostMatchSurveys = async (partidoId) => {
           updates.push(
             supabase
               .from('usuarios')
-              .update({ 
+              .update({
                 rating: supabase.raw('GREATEST(COALESCE(rating, 5.0) - 0.5, 1.0)'), // Min rating of 1.0
               })
               .eq('id', absentPlayer.usuario_id),
@@ -211,19 +211,19 @@ export const processPostMatchSurveys = async (partidoId) => {
         }
       }
     });
-    
+
     // Execute all updates
     if (updates.length > 0) {
       console.log('[POST_MATCH] Executing', updates.length, 'updates');
       const results = await Promise.all(updates);
-      
+
       const errors = results.filter((r) => r.error);
       if (errors.length > 0) {
         console.error('[POST_MATCH] Update errors:', errors);
         throw new Error(`Failed to update ${errors.length} player stats`);
       }
     }
-    
+
     const result = {
       surveysProcessed: surveys.length,
       mvpAwarded: mvpPlayerId && maxMvpVotes > 0 ? 1 : 0,
@@ -231,10 +231,10 @@ export const processPostMatchSurveys = async (partidoId) => {
       ratingPenalties: Object.values(absentPlayersData).filter((d) => d.shouldApplyPenalty).length,
       updatesExecuted: updates.length,
     };
-    
+
     console.log('[POST_MATCH] Processing completed:', result);
     return result;
-    
+
   } catch (error) {
     console.error('[POST_MATCH] Error processing surveys:', error);
     throw error;
@@ -249,34 +249,92 @@ export const processPostMatchSurveys = async (partidoId) => {
  */
 export const checkPartidoCalificado = async (partidoId, userId) => {
   if (!partidoId || !userId) return false;
-  
+
   try {
     // Primero obtener los jugadores del partido para encontrar el ID numérico
     const { getJugadoresDelPartido } = await import('./matches');
     const jugadores = await getJugadoresDelPartido(partidoId);
     const currentUserPlayer = jugadores.find(j => j.usuario_id === userId);
-    
+
     if (!currentUserPlayer) {
       console.log('Usuario no encontrado en el partido:', userId);
       return false;
     }
-    
+
     const { data, error } = await supabase
       .from('post_match_surveys')
       .select('id')
       .eq('partido_id', partidoId)
       .eq('votante_id', currentUserPlayer.id) // Usar ID numérico del jugador
       .maybeSingle();
-    
+
     if (error) {
       console.error('Error verificando calificación:', error);
       return false;
     }
-    
+
     return !!data;
-    
+
   } catch (error) {
     console.error('Error en checkPartidoCalificado:', error);
     return false;
+  }
+};
+
+/**
+ * Get matches that need qualification from the user
+ * @param {string} userId - User ID
+ * @returns {Promise<Array>} List of matches pending qualification
+ */
+export const getPartidosPendientesCalificacion = async (userId) => {
+  if (!userId) return [];
+
+  try {
+    // 1. Get all finished matches
+    const { data: partidos, error: matchesError } = await supabase
+      .from('partidos')
+      .select(`
+        id, 
+        nombre, 
+        fecha, 
+        hora, 
+        estado,
+        surveys_processed,
+        jugadores:jugadores(usuario_id)
+      `)
+      .eq('estado', 'finalizado')
+      .order('fecha', { ascending: false })
+      .limit(20); // Limit to recent matches
+
+    if (matchesError) {
+      console.error('Error fetching finished matches:', matchesError);
+      return [];
+    }
+
+    // 2. Filter matches where user played using the fetched joined data
+    // Note: The structure returned by Supabase for foreign key join might vary slightly depending on relationship definition
+    // Here assuming jugadores is an array of objects
+    const playedMatches = partidos.filter(p =>
+      p.jugadores && p.jugadores.some(j => j.usuario_id === userId)
+    );
+
+    if (playedMatches.length === 0) return [];
+
+    // 3. For each played match, check if user already voted
+    const pendingMatches = [];
+
+    for (const match of playedMatches) {
+      // Check if user already voted in this match
+      const hasVoted = await checkPartidoCalificado(match.id, userId);
+      if (!hasVoted) {
+        pendingMatches.push(match);
+      }
+    }
+
+    return pendingMatches;
+
+  } catch (error) {
+    console.error('Error getting pending qualification matches:', error);
+    return [];
   }
 };

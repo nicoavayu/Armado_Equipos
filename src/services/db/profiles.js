@@ -12,12 +12,12 @@ const compressImage = (file, maxSizeMB = 1.5, quality = 0.8) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
-    
+
     img.onload = () => {
       // Calculate new dimensions (max 800px width/height)
       const maxDimension = 800;
       let { width, height } = img;
-      
+
       if (width > height && width > maxDimension) {
         height = (height * maxDimension) / width;
         width = maxDimension;
@@ -25,13 +25,13 @@ const compressImage = (file, maxSizeMB = 1.5, quality = 0.8) => {
         width = (width * maxDimension) / height;
         height = maxDimension;
       }
-      
+
       canvas.width = width;
       canvas.height = height;
-      
+
       // Draw and compress
       ctx.drawImage(img, 0, 0, width, height);
-      
+
       canvas.toBlob(
         (blob) => {
           resolve(new File([blob], file.name, { type: 'image/jpeg' }));
@@ -40,7 +40,7 @@ const compressImage = (file, maxSizeMB = 1.5, quality = 0.8) => {
         quality,
       );
     };
-    
+
     img.src = URL.createObjectURL(file);
   });
 };
@@ -59,22 +59,22 @@ export const uploadFoto = async (file, jugador) => {
     fileToUpload = await compressImage(file);
     console.log('Compressed to:', fileToUpload.size, 'bytes');
   }
-  
+
   const fileExt = file.name.split('.').pop() || 'jpg';
   const fileName = `${jugador.uuid}_${Date.now()}.${fileExt}`;
   const { error: uploadError } = await supabase.storage
     .from('jugadores-fotos')
     .upload(fileName, fileToUpload, { upsert: true });
   if (uploadError) throw uploadError;
-  
+
   const { data } = supabase.storage
     .from('jugadores-fotos')
     .getPublicUrl(fileName);
-  
+
   const fotoUrl = data?.publicUrl;
   if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
   console.log('uploadFoto updating:', { jugador: jugador.uuid, fotoUrl: encodeURIComponent(fotoUrl || '') });
-  
+
   // Add cache buster so clients always receive the newest image
   const cacheBusted = `${fotoUrl}${fotoUrl.includes('?') ? '&' : '?'}cb=${Date.now()}`;
 
@@ -210,25 +210,25 @@ export const getProfile = async (userId) => {
  */
 export const calculateProfileCompletion = (profile) => {
   if (!profile) return 0;
-  
+
   const fields = [
     'nombre',
     'avatar_url',
     'email',
     'numero_jugador',
     'nacionalidad',
-    'telefono', 
-    'localidad', 
+    'telefono',
+    'localidad',
     'fecha_nacimiento',
     'posicion_favorita',
     'bio',
   ];
-  
+
   const filledFields = fields.filter((field) => {
     const value = profile[field];
     return value && value.toString().trim() !== '';
   });
-  
+
   return Math.round((filledFields.length / fields.length) * 100);
 };
 
@@ -241,9 +241,9 @@ export const calculateProfileCompletion = (profile) => {
 export const updateProfile = async (userId, profileData) => {
   console.log('[UPDATE_PROFILE] Input fields:', Object.keys(profileData));
   console.log('[UPDATE_PROFILE] Input data:', profileData);
-  
+
   const completion = calculateProfileCompletion(profileData);
-  
+
   // Valid columns in usuarios table
   const validColumns = [
     'nombre', 'email', 'avatar_url', 'red_social', 'localidad', 'ranking',
@@ -251,9 +251,9 @@ export const updateProfile = async (userId, profileData) => {
     'perfil_completo', 'profile_completion', 'pais_codigo', 'nacionalidad',
     'latitud', 'longitud', 'fecha_nacimiento', 'partidos_abandonados',
     'numero', 'telefono', 'mvps', 'tarjetas_rojas', 'rating', 'updated_at',
-    'lesion_activa',
+    'lesion_activa', 'card_frame_color',
   ];
-  
+
   // Field mapping for frontend to database
   const fieldMapping = {
     'social': 'red_social',
@@ -272,14 +272,14 @@ export const updateProfile = async (userId, profileData) => {
     'playerNumber': 'numero',
     'player_number': 'numero',
   };
-  
+
   // Filter and map fields
   const cleanProfileData = {};
   Object.keys(profileData).forEach((key) => {
     const dbKey = fieldMapping[key] || key;
     if (validColumns.includes(dbKey)) {
       let value = profileData[key];
-      
+
       // Convert date format for fecha_nacimiento
       if (dbKey === 'fecha_nacimiento' && value) {
         if (typeof value === 'string') {
@@ -297,28 +297,28 @@ export const updateProfile = async (userId, profileData) => {
           value = value.toISOString().split('T')[0];
         }
       }
-      
-      if (value === null || value === undefined || 
-          typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+
+      if (value === null || value === undefined ||
+        typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
         cleanProfileData[dbKey] = value;
       }
     }
   });
-  
+
   const finalData = { ...cleanProfileData, profile_completion: completion, updated_at: new Date().toISOString() };
-  
+
   console.log('[UPDATE_PROFILE] Mapped fields:', Object.keys(finalData));
   console.log('[UPDATE_PROFILE] Final data:', finalData);
-  
+
   const { data, error } = await supabase
     .from('usuarios')
     .update(finalData)
     .eq('id', userId)
     .select()
     .single();
-  
+
   if (error) throw error;
-  
+
   // Actualizar el nombre en todos los partidos donde el usuario es jugador
   if (cleanProfileData && cleanProfileData.nombre) {
     try {
@@ -332,7 +332,7 @@ export const updateProfile = async (userId, profileData) => {
       // No lanzar error, solo loguearlo
     }
   }
-  
+
   return data;
 };
 
@@ -435,7 +435,7 @@ export const addFreePlayer = async () => {
     // Get user profile
     const profile = await getProfile(user.id);
     console.log('User profile:', profile);
-    
+
     if (!profile) {
       console.warn('Profile not found, creating minimal profile');
       // Create a minimal profile if none exists
@@ -443,14 +443,14 @@ export const addFreePlayer = async () => {
         nombre: user.email?.split('@')[0] || 'Usuario',
         localidad: 'Sin especificar',
       };
-      
+
       // Check if already registered
       const { data: existing, error: checkError } = await supabase
         .from('jugadores_sin_partido')
         .select('id')
         .eq('user_id', user.id)
         .eq('disponible', true);
-      
+
       if (checkError) {
         console.error('Error checking existing free player:', checkError);
         throw checkError;
@@ -475,7 +475,7 @@ export const addFreePlayer = async () => {
         console.error('Error inserting free player:', insertError);
         throw insertError;
       }
-      
+
       return;
     }
 
@@ -485,7 +485,7 @@ export const addFreePlayer = async () => {
       .select('id')
       .eq('user_id', user.id)
       .eq('disponible', true);
-    
+
     if (checkError) {
       console.error('Error checking existing free player:', checkError);
       throw checkError;
@@ -501,7 +501,7 @@ export const addFreePlayer = async () => {
       nombre: profile.nombre,
       localidad: profile.localidad,
     });
-    
+
     const { error: insertError } = await supabase
       .from('jugadores_sin_partido')
       .insert([{
@@ -536,7 +536,7 @@ export const getFreePlayerStatus = async () => {
       .select('id')
       .eq('user_id', user.id)
       .eq('disponible', true);
-    
+
     if (error) {
       console.error('Error checking free player status:', error);
       return false;
@@ -547,22 +547,4 @@ export const getFreePlayerStatus = async () => {
     console.error('getFreePlayerStatus failed:', error);
     return false;
   }
-};
-
-/**
- * Remove user as free player
- * @returns {Promise<void>}
- */
-export const removeFreePlayer = async () => {
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) {
-    throw new Error('User must be authenticated');
-  }
-
-  const { error } = await supabase
-    .from('jugadores_sin_partido')
-    .update({ disponible: false })
-    .eq('user_id', user.id);
-
-  if (error) throw error;
 };

@@ -10,9 +10,9 @@ async function getMatchPlayersMap(matchId) {
     .from('jugadores')
     .select('id, uuid, usuario_id')
     .eq('partido_id', matchId);
-  
+
   if (error) throw error;
-  
+
   const playersMap = new Map();
   (players || []).forEach(player => {
     playersMap.set(player.id, {
@@ -21,7 +21,7 @@ async function getMatchPlayersMap(matchId) {
       uuid: player.uuid
     });
   });
-  
+
   return playersMap;
 }
 
@@ -44,25 +44,37 @@ export async function grantAwardsForMatch(matchId, awards) {
     // Process each award type
     for (const [awardType, awardData] of Object.entries(awards)) {
       if (!awardData || !awardData.player_id) continue;
-      
+
       const playerId = awardData.player_id;
       const playerInfo = playersMap.get(playerId);
-      
+
       if (!playerInfo || !playerInfo.user_id) {
         skipped.push(`${awardType} (guest player)`);
         continue;
       }
 
       // Insert award record
+      // Check for existing award (manual dedupe to avoid missing unique constraint error)
+      const { data: existingAward } = await supabase
+        .from('player_awards')
+        .select('id')
+        .eq('partido_id', matchId)
+        .eq('award_type', awardType)
+        .maybeSingle();
+
+      if (existingAward) {
+        skipped.push(`${awardType} (already granted)`);
+        continue;
+      }
+
+      // Insert award record (using insert instead of upsert)
       const { error: insertError } = await supabase
         .from('player_awards')
-        .upsert({
+        .insert({
           partido_id: matchId,
           jugador_id: playerInfo.uuid,
           award_type: awardType,
           created_at: new Date().toISOString()
-        }, {
-          onConflict: 'partido_id,award_type'
         });
 
       if (insertError) {
@@ -72,10 +84,10 @@ export async function grantAwardsForMatch(matchId, awards) {
       }
 
       // Increment counter based on award type
-      const counterField = awardType === 'mvp' ? 'mvp_badges' 
-                         : awardType === 'best_gk' ? 'gk_badges'
-                         : awardType === 'red_card' ? 'red_badges'
-                         : null;
+      const counterField = awardType === 'mvp' ? 'mvp_badges'
+        : awardType === 'best_gk' ? 'gk_badges'
+          : awardType === 'red_card' ? 'red_badges'
+            : null;
 
       if (counterField && playerInfo.user_id) {
         // Try updating in profiles table first (if it exists)
@@ -91,7 +103,7 @@ export async function grantAwardsForMatch(matchId, awards) {
             .from('players')
             .update({ [counterField]: supabase.raw(`COALESCE(${counterField}, 0) + 1`) })
             .eq('id', playerId);
-          
+
           if (playerUpdateError) {
             console.error(`Error updating ${counterField} in players:`, playerUpdateError);
           }

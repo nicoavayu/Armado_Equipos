@@ -1,24 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { useNavigate, Link } from 'react-router-dom'; // [TEAM_BALANCER_INVITE_ACCESS_FIX] Para navegación
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import supabase, { deleteMyNotifications } from '../supabase';
-import { toBigIntId } from '../utils';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import { openNotification } from '../utils/notificationRouter';
 import { useTimeout } from '../hooks/useTimeout';
 import LoadingSpinner from './LoadingSpinner';
-import './NotificationsModal.css';
 
 const NotificationsModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const { notifications, fetchNotifications: refreshNotifications, clearAllNotifications: clearNotificationsLocal } = useNotifications();
-  const navigate = useNavigate(); // [TEAM_BALANCER_INVITE_ACCESS_FIX] Hook de navegación
+  const navigate = useNavigate();
   const { setTimeoutSafe } = useTimeout();
   const [loading, setLoading] = useState(false);
-
-
 
   useEffect(() => {
     if (isOpen) {
@@ -51,8 +47,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         .eq('id', notificationId);
 
       if (error) throw error;
-      
-      // Actualizar el contexto para refrescar el botón
+
       if (refreshNotifications) {
         await refreshNotifications();
       }
@@ -61,18 +56,15 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     }
   };
 
-  // util local para esperar entre reintentos
   const sleep = (ms) => new Promise((resolve) => setTimeoutSafe(resolve, ms));
 
   const handleClearAllNotifications = async () => {
     if (!window.confirm('¿Eliminar todas las notificaciones?')) return;
-    
+
     setLoading(true);
     try {
-      // 1) Limpiar UI de forma optimista (vaciar modal sin cerrarlo)
       clearNotificationsLocal?.();
 
-      // 2) Borrar en BD vía RPC (server-side, seguro) con 1 reintento
       let rpcError = null;
       for (let attempt = 1; attempt <= 2; attempt++) {
         const { error } = await deleteMyNotifications();
@@ -82,17 +74,14 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         }
         rpcError = error;
         console.warn('[RPC delete_my_notifications] intento', attempt, 'error:', error);
-        // Errores típicos de caché/404 → esperar y reintentar una vez
         const msg = `${error?.message || ''} ${error?.code || ''}`.toLowerCase();
         if (attempt === 1 && (msg.includes('schema cache') || msg.includes('pgrst202') || msg.includes('404'))) {
           await sleep(1200);
           continue;
         }
-        // otros errores: salir del loop
         break;
       }
 
-      // 2b) Fallback seguro: delete directo con RLS si el RPC siguió fallando
       if (rpcError) {
         console.warn('[RPC delete_my_notifications] fallback a delete directo por RLS');
         const { error: delErr } = await supabase
@@ -105,70 +94,59 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         }
       }
 
-      // 3) Revalidar contra BD (por si entraron nuevas en el medio)
       if (refreshNotifications) {
         await refreshNotifications();
       }
     } catch (error) {
       console.error('Error clearing notifications:', error);
       alert('Error al eliminar las notificaciones.');
-      // Si falló el delete, revalidar para mostrar lo real
       await refreshNotifications?.();
     } finally {
       setLoading(false);
     }
   };
-  
+
   const handleNotificationClick = async (notification) => {
     console.log('[NOTIFICATION_CLICK] START', { type: notification.type, data: notification.data });
-    
-    if (!notification.read) {
+
+    try {
       await markAsRead(notification.id);
+    } catch (e) {
+      console.error('[NOTIFICATION_CLICK] markAsRead error at start:', e);
     }
-    
-    onClose();
-    
-    // Handle survey_start notifications
+
+    try {
+      onClose();
+    } catch (e) {
+      console.warn('[NOTIFICATION_CLICK] onClose threw:', e);
+    }
+
     if (notification.type === 'survey_start') {
       const link = notification?.data?.link;
-      const matchId = notification?.data?.match_id;
-      console.debug('[NOTIF] click', { id: notification?.id, type: notification?.type, link, matchId });
-      
+      const matchId = notification?.data?.match_id || notification?.match_ref;
+
       if (link) {
-        console.debug('[NOTIFICATION_NAVIGATE]', { to: link });
         navigate(link);
-        setTimeout(() => {
-          window.history.pushState({}, '', link);
-        }, 0);
       } else if (matchId) {
         const url = `/encuesta/${matchId}`;
-        console.debug('[NOTIFICATION_NAVIGATE]', { to: url });
         navigate(url);
-        setTimeout(() => {
-          window.history.pushState({}, '', url);
-        }, 0);
       } else {
         console.error('survey_start sin link ni matchId', notification);
       }
       return;
     }
-    
-    // Si es llamada a votar, redirigir a la voting view
+
     if (notification.type === 'call_to_vote') {
       const { matchCode } = notification.data || {};
-      console.log('[NOTIFICATION_CLICK] call_to_vote detected', { matchCode, fullData: notification.data });
       if (!matchCode) {
-        console.error('[NOTIFICATION_CLICK] Missing matchCode!');
         toast.error('Falta matchCode');
         return;
       }
       const url = `/?codigo=${matchCode}`;
-      console.log('[NOTIFICATION_CLICK] Navigating to:', url);
       window.location.assign(url);
       return;
     }
-    
-    // Si es invitación a partido, redirigir al AdminPanel
+
     if (notification.type === 'match_invite') {
       if (notification.data?.matchId) {
         navigate(`/admin/${notification.data.matchId}`);
@@ -176,9 +154,23 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       return;
     }
 
-    // Handle survey notifications
-    if (notification.type === 'survey_reminder' || notification.type === 'survey_results_ready') {
+    if (notification.type === 'survey_reminder') {
       await openNotification(notification, navigate);
+      return;
+    }
+
+    if (notification.type === 'survey_results_ready' || notification.type === 'awards_ready') {
+      try {
+        const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId ?? null;
+        if (!matchId) {
+          console.error('[NOTIFICATION_CLICK] missing matchId for results/awards', notification);
+          return;
+        }
+        const link = notification?.data?.link || `/encuesta/${matchId}`;
+        navigate(link, { state: { forceAwards: true, fromNotification: true } });
+      } catch (err) {
+        console.error('[NOTIFICATION_CLICK] results/awards unexpected error:', err);
+      }
       return;
     }
   };
@@ -190,6 +182,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       case 'survey_start': return '📋';
       case 'survey_reminder': return '📋';
       case 'survey_results_ready': return '🏆';
+      case 'awards_ready': return '🏆';
       case 'friend_request': return '👤';
       case 'friend_accepted': return '✅';
       case 'match_update': return '📅';
@@ -201,7 +194,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffMs = now - date;
+    const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
@@ -218,33 +211,41 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
   const modalContent = (
     <div
-      className="sheet-overlay"
+      className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/75 backdrop-blur-[2px] pt-[90px] px-4 pb-4 md:px-3 md:pt-[75px]"
       onClick={(e) => {
         if (loading) return;
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="sheet-container">
-        <div className="sheet-handle"></div>
-        <div className="sheet-header">
-          <h3>Notificaciones</h3>
-          <div className="sheet-header-actions">
+      <div className="bg-[#1a1a1a] rounded-b-[20px] md:rounded-b-2xl w-full max-w-[500px] max-h-[calc(100vh-102px)] md:max-h-[calc(100vh-84px)] shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex flex-col relative overflow-hidden animate-[slideDownFromTop_0.3s_ease-out] mt-0">
+        <style>
+          {`
+            @keyframes slideDownFromTop {
+              0% { transform: translateY(-100%); opacity: 0; }
+              100% { transform: translateY(0); opacity: 1; }
+            }
+          `}
+        </style>
+
+        <div className="w-10 h-1 bg-[#666] rounded-sm mx-auto mt-2 mb-3 shrink-0"></div>
+
+        <div className="flex justify-between items-center px-5 pb-4 md:px-4 md:pb-3 border-b border-[#333] shrink-0">
+          <h3 className="text-white text-xl md:text-lg font-semibold m-0">Notificaciones</h3>
+          <div className="flex items-center gap-3">
             {notifications.length > 0 && (
-              <button 
-                className={`clear-notifications-btn${loading ? ' is-loading' : ''}`} 
+              <button
+                className={`bg-[#dc3545] border-none text-white text-sm font-medium cursor-pointer px-3 py-1.5 rounded-md transition-all flex items-center gap-2 hover:bg-[#c82333] disabled:opacity-60 disabled:cursor-not-allowed`}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   handleClearAllNotifications();
                 }}
                 disabled={loading || notifications.length === 0}
-                aria-busy={loading ? 'true' : 'false'}
-                aria-disabled={(loading || notifications.length === 0) ? 'true' : 'false'}
                 title={loading ? 'Limpiando tus notificaciones…' : 'Eliminar todas las notificaciones'}
               >
                 {loading ? (
                   <>
-                    <span className="btn-spinner" aria-hidden="true"></span>
+                    <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-r-transparent inline-block animate-spin"></span>
                     Limpiando…
                   </>
                 ) : (
@@ -253,97 +254,68 @@ const NotificationsModal = ({ isOpen, onClose }) => {
               </button>
             )}
             <button
-              className="sheet-close"
+              className="bg-transparent border-none text-[#999] text-[28px] cursor-pointer p-0 w-8 h-8 flex items-center justify-center shrink-0 transition-colors rounded-full hover:text-white hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={onClose}
               disabled={loading}
-              aria-disabled={loading ? 'true' : 'false'}
               title={loading ? 'Terminá de limpiar para cerrar' : 'Cerrar'}
             >
               ×
             </button>
           </div>
         </div>
-        <div className="sheet-body">
-          {loading ? (
-            <div className="loading-state">
-              <LoadingSpinner size="medium" />
 
+        <div className="p-0 overflow-y-auto flex-1 touch-pan-y">
+          {loading ? (
+            <div className="text-center text-[#999] py-[60px] px-5 text-base">
+              <LoadingSpinner size="medium" />
             </div>
           ) : notifications.length === 0 ? (
-            <div className="sin-notificaciones">
-              <div className="empty-icon">🔔</div>
-              <p>No tienes notificaciones</p>
-              <span>Te avisaremos cuando tengas algo nuevo</span>
+            <div className="text-center text-[#999] py-20 px-5 text-base leading-relaxed">
+              <div className="text-5xl mb-4 opacity-50">🔔</div>
+              <p className="my-2 text-lg font-medium text-[#ccc]">No tienes notificaciones</p>
+              <span className="text-sm text-[#666]">Te avisaremos cuando tengas algo nuevo</span>
             </div>
           ) : (
-            <div className="notifications-list">
+            <div className="p-0">
               {notifications.map((notification) => {
-                const to = notification?.data?.link || (notification?.data?.match_id ? `/encuesta/${notification.data.match_id}` : null);
-                const isSurveyStart = notification.type === 'survey_start' && to;
-                
+                const clickable = ['match_invite', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready'].includes(notification.type);
+
                 const notificationContent = (
                   <>
-                    <div className="notification-icon">{getNotificationIcon(notification.type)}</div>
-                    <div className="notification-content">
-                      <div className="notification-title">{notification.title}</div>
-                      <div className="notification-message">{notification.message}</div>
-                      <div className="notification-time">{formatDate(notification.created_at)}</div>
+                    <div className="text-xl w-8 h-8 bg-[#333] rounded-full flex items-center justify-center shrink-0 md:w-7 md:h-7 md:text-lg">
+                      {getNotificationIcon(notification.type)}
                     </div>
-                    {!notification.read && <div className="notification-unread-dot"></div>}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white text-base font-semibold mb-1 leading-tight md:text-[15px]">{notification.title}</div>
+                      <div className="text-[#ccc] text-sm leading-snug mb-1.5 overflow-hidden line-clamp-2 md:text-[13px]">{notification.message}</div>
+                      <div className="text-[#666] text-xs font-medium">{formatDate(notification.created_at)}</div>
+                    </div>
+                    {!notification.read && <div className="w-2 h-2 bg-[#2196F3] rounded-full shrink-0 mt-1.5"></div>}
                   </>
                 );
-                
+
                 return (
                   <div
-                    key={notification.id}
-                    className={`notification-item${!notification.read ? ' unread' : ''} ${(notification.type === 'match_invite' || notification.type === 'call_to_vote' || notification.type === 'survey_start' || notification.type === 'survey_reminder' || notification.type === 'survey_results_ready') ? 'clickable' : ''}`}
+                    key={`${notification.id}:${notification.created_at}`}
+                    className={`block p-4 border-b border-[#2a2a2a] transition-all cursor-pointer md:py-[14px] md:px-4
+                      ${!notification.read ? 'bg-[rgba(33,150,243,0.1)] border-l-[3px] border-l-[#2196F3]' : ''} 
+                      ${clickable ? 'hover:bg-white/15 hover:scale-[1.01]' : 'active:bg-white/5'}
+                    `}
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNotificationClick(notification);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.stopPropagation();
+                        handleNotificationClick(notification);
+                      }
+                    }}
+                    style={{ cursor: clickable ? 'pointer' : 'default', display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%' }}
                   >
-                    {isSurveyStart ? (
-                      <Link
-                        to={to}
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          
-                          // Mark notification as read before navigating
-                          const matchId = notification?.data?.match_id;
-                          if (user?.id && matchId) {
-                            try {
-                              await supabase
-                                .from('notifications')
-                                .update({ read: true, read_at: new Date().toISOString() })
-                                .eq('user_id', user.id)
-                                .eq('type', 'survey_start')
-                                .contains('data', { match_id: String(matchId) });
-                            } catch (error) {
-                              console.error('[MARK_NOTIF_READ] Error:', error);
-                            }
-                          }
-                          
-                          onClose();
-                        }}
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', textDecoration: 'none', color: 'inherit', width: '100%' }}
-                      >
-                        {notificationContent}
-                      </Link>
-                    ) : (
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleNotificationClick(notification);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.stopPropagation();
-                            handleNotificationClick(notification);
-                          }
-                        }}
-                        style={{ cursor: (notification.type === 'match_invite' || notification.type === 'call_to_vote' || notification.type === 'survey_reminder' || notification.type === 'survey_results_ready') ? 'pointer' : 'default', display: 'flex', alignItems: 'flex-start', gap: '12px', width: '100%' }}
-                      >
-                        {notificationContent}
-                      </div>
-                    )}
+                    {notificationContent}
                   </div>
                 );
               })}

@@ -3,10 +3,9 @@ import { useAuth } from './AuthProvider';
 import GoogleAuth from './GoogleAuth';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
-import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
+import { handleError } from '../lib/errorHandler';
 import LoadingSpinner from './LoadingSpinner';
-import './AuthPage.css';
-import logo from '../Logo.png'; // Import the logo
+import logo from '../Logo.png'; // Reverted to white logo
 
 const AuthPage = () => {
   const { user } = useAuth();
@@ -26,7 +25,7 @@ const AuthPage = () => {
       if (error) throw error;
       toast.success('Sesión cerrada correctamente');
     } catch (error) {
-      handleError(error, { showToast: true });
+      handleError(error, { showToast: true, onError: () => { } });
     }
   };
 
@@ -37,49 +36,49 @@ const AuthPage = () => {
 
   const validateForm = () => {
     const errors = {};
-    
+
     if (isRegistering) {
       if (!validateEmail(email)) {
         errors.email = 'Ingresá un email válido';
       }
-      
+
       if (password !== confirmPassword) {
         errors.confirmPassword = 'Las contraseñas no coinciden';
       }
-      
+
       if (!acceptTerms) {
         errors.terms = 'Debés aceptar los términos y condiciones';
       }
     }
-    
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    
+
     // Anti-double-submit guard
     if (loading) {
       console.debug('[Login] submit blocked: already submitting');
       return;
     }
-    
+
     setError('');
     setValidationErrors({});
-    
+
     console.debug('[Login] submit start', { hasEmail: !!email, hasPassword: !!password });
-    
+
     if (!validateEmail(email)) {
       setValidationErrors({ email: 'Ingresá un email válido' });
       return;
     }
-    
+
     setLoading(true);
 
     try {
       console.debug('[Login] calling signInWithPassword');
-      
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -97,12 +96,12 @@ const AuthPage = () => {
         }
         throw error;
       }
-      
+
       // Success - AuthProvider will handle redirect
       console.debug('[Login] redirect to', '/');
       toast.success('¡Inicio de sesión exitoso!');
     } catch (error) {
-      handleError(error, { showToast: false });
+      handleError(error, { showToast: false, onError: () => { } });
     } finally {
       setLoading(false);
     }
@@ -111,11 +110,11 @@ const AuthPage = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setLoading(true);
 
     try {
@@ -140,7 +139,7 @@ const AuthPage = () => {
       setConfirmPassword('');
       setAcceptTerms(false);
     } catch (error) {
-      handleError(error, { showToast: false });
+      handleError(error, { showToast: false, onError: () => { } });
     } finally {
       setLoading(false);
     }
@@ -150,12 +149,12 @@ const AuthPage = () => {
     e.preventDefault();
     setError('');
     setValidationErrors({});
-    
+
     if (!validateEmail(email)) {
       setValidationErrors({ email: 'Ingresá un email válido' });
       return;
     }
-    
+
     setLoading(true);
 
     try {
@@ -170,7 +169,7 @@ const AuthPage = () => {
       toast.success('Te enviamos un correo para restablecer tu contraseña. Revisá tu mail.');
       setResetPassword(false);
     } catch (error) {
-      handleError(error, { showToast: false });
+      handleError(error, { showToast: false, onError: () => { } });
     } finally {
       setLoading(false);
     }
@@ -191,27 +190,35 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-logo-container">
-        <img src={logo} alt="Team Balancer" className="auth-logo" />
+    <div
+      className="fixed inset-0 flex flex-col justify-center items-center p-5 z-[9999]"
+      style={{
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)',
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden'
+      }}
+    >
+      <div className="mb-[20px] text-center">
+        <img src={logo} alt="Team Balancer" className="max-w-full h-[120px]" />
       </div>
-      
-      <div className="auth-container">
+
+      <div className="w-[96vw] max-w-[360px] p-6 rounded-2xl bg-white/10 backdrop-blur-[20px] border border-white/20 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] max-[480px]:p-[15px]">
         {user ? (
-          <div className="logged-in-container">
-            <p className="welcome-message">
-              Bienvenido, <span className="user-email">{user.email}</span>
+          <div className="text-center text-white">
+            <p className="text-[18px] mb-5">
+              Bienvenido, <span className="font-bold text-white">{user.email}</span>
             </p>
-            <button onClick={handleLogout} className="logout-button">
+            <button onClick={handleLogout} className="p-0 rounded-lg border-none bg-[#dc3545] text-white text-base font-medium cursor-pointer transition-colors duration-200 h-11 w-full hover:bg-[#c82333] max-[480px]:h-[42px]">
               Cerrar Sesión
             </button>
           </div>
         ) : resetPassword ? (
-          <div className="auth-methods">
-            <h2 className="auth-title">Recuperar Contraseña</h2>
-            <form onSubmit={handleResetPassword} className="auth-form">
-              <div className="form-group">
-                <label htmlFor="reset-email">Email</label>
+          <div className="flex flex-col gap-[10px]">
+            <h2 className="text-xl text-white mt-0 mb-[15px] text-center">Recuperar Contraseña</h2>
+            <form onSubmit={handleResetPassword} className="flex flex-col gap-[10px]">
+              <div className="flex flex-col gap-1 mb-2">
+                <label htmlFor="reset-email" className="text-white text-sm font-medium">Email</label>
                 <input
                   id="reset-email"
                   type="email"
@@ -219,16 +226,17 @@ const AuthPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Tu email"
                   required
+                  className="px-4 rounded-lg border border-white/20 bg-white/10 text-white text-base transition-all duration-200 w-full h-11 box-border placeholder:text-white/40 focus:outline-none focus:border-[#8178e5] focus:bg-white/15 max-[480px]:h-[42px]"
                 />
-                {validationErrors.email && <div className="validation-error">{validationErrors.email}</div>}
+                {validationErrors.email && <div className="text-white text-[13px] mt-[2px] mb-[5px] italic">{validationErrors.email}</div>}
               </div>
-              {error && <div className="auth-error">{error}</div>}
-              <button type="submit" className="auth-button" disabled={loading}>
+              {error && <div className="text-[#fdfdfd] text-[13px] mb-[5px] italic">{error}</div>}
+              <button type="submit" className="p-0 rounded-lg border-none bg-[#8178e5] text-white text-base font-medium cursor-pointer transition-colors duration-200 flex justify-center items-center h-11 w-full mt-[5px] hover:not-disabled:bg-[#6a5fd0] disabled:opacity-70 disabled:cursor-not-allowed max-[480px]:h-[42px]" disabled={loading}>
                 {loading ? <LoadingSpinner size="small" /> : 'Enviar Instrucciones'}
               </button>
-              <button 
-                type="button" 
-                className="auth-link-button"
+              <button
+                type="button"
+                className="bg-none border-none text-white/80 text-sm text-center cursor-pointer p-1 mt-[2px] w-full hover:underline"
                 onClick={() => setResetPassword(false)}
               >
                 Volver al inicio de sesión
@@ -236,10 +244,10 @@ const AuthPage = () => {
             </form>
           </div>
         ) : isRegistering ? (
-          <div className="auth-methods">
-            <form onSubmit={handleRegister} className="auth-form">
-              <div className="form-group">
-                <label htmlFor="register-email">Email</label>
+          <div className="flex flex-col gap-[10px]">
+            <form onSubmit={handleRegister} className="flex flex-col gap-[10px]">
+              <div className="flex flex-col gap-1 mb-2">
+                <label htmlFor="register-email" className="text-white text-sm font-medium">Email</label>
                 <input
                   id="register-email"
                   type="email"
@@ -247,11 +255,12 @@ const AuthPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Tu email"
                   required
+                  className="px-4 rounded-lg border border-white/20 bg-white/10 text-white text-base transition-all duration-200 w-full h-11 box-border placeholder:text-white/40 focus:outline-none focus:border-[#8178e5] focus:bg-white/15 max-[480px]:h-[42px]"
                 />
-                {validationErrors.email && <div className="validation-error">{validationErrors.email}</div>}
+                {validationErrors.email && <div className="text-white text-[13px] mt-[2px] mb-[5px] italic">{validationErrors.email}</div>}
               </div>
-              <div className="form-group">
-                <label htmlFor="register-password">Contraseña</label>
+              <div className="flex flex-col gap-1 mb-2">
+                <label htmlFor="register-password" className="text-white text-sm font-medium">Contraseña</label>
                 <input
                   id="register-password"
                   type="password"
@@ -259,10 +268,11 @@ const AuthPage = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Tu contraseña"
                   required
+                  className="px-4 rounded-lg border border-white/20 bg-white/10 text-white text-base transition-all duration-200 w-full h-11 box-border placeholder:text-white/40 focus:outline-none focus:border-[#8178e5] focus:bg-white/15 max-[480px]:h-[42px]"
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="confirm-password">Confirmar Contraseña</label>
+              <div className="flex flex-col gap-1 mb-2">
+                <label htmlFor="confirm-password" className="text-white text-sm font-medium">Confirmar Contraseña</label>
                 <input
                   id="confirm-password"
                   type="password"
@@ -270,44 +280,46 @@ const AuthPage = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirmar contraseña"
                   required
+                  className="px-4 rounded-lg border border-white/20 bg-white/10 text-white text-base transition-all duration-200 w-full h-11 box-border placeholder:text-white/40 focus:outline-none focus:border-[#8178e5] focus:bg-white/15 max-[480px]:h-[42px]"
                 />
-                {validationErrors.confirmPassword && <div className="validation-error">{validationErrors.confirmPassword}</div>}
+                {validationErrors.confirmPassword && <div className="text-white text-[13px] mt-[2px] mb-[5px] italic">{validationErrors.confirmPassword}</div>}
               </div>
-              <div className="checkbox-group">
+              <div className="flex items-start gap-2 mb-[10px]">
                 <input
                   id="terms"
                   type="checkbox"
                   checked={acceptTerms}
                   onChange={(e) => setAcceptTerms(e.target.checked)}
+                  className="mt-[3px] w-4 h-4 accent-[#8178e5]"
                 />
-                <label htmlFor="terms">
-                  Acepto los <a href="#" onClick={(e) => e.preventDefault()}>Términos y Condiciones</a> y la <a href="#" onClick={(e) => e.preventDefault()}>Política de Privacidad</a>
+                <label htmlFor="terms" className="text-white/80 text-sm leading-[1.4]">
+                  Acepto los <a href="#" onClick={(e) => e.preventDefault()} className="text-white no-underline hover:underline">Términos y Condiciones</a> y la <a href="#" onClick={(e) => e.preventDefault()} className="text-white no-underline hover:underline">Política de Privacidad</a>
                 </label>
               </div>
-              {validationErrors.terms && <div className="validation-error">{validationErrors.terms}</div>}
-              {error && <div className="auth-error">{error}</div>}
-              <button type="submit" className="auth-button" disabled={loading}>
+              {validationErrors.terms && <div className="text-white text-[13px] mt-[2px] mb-[5px] italic">{validationErrors.terms}</div>}
+              {error && <div className="text-[#fdfdfd] text-[13px] mb-[5px] italic">{error}</div>}
+              <button type="submit" className="p-0 rounded-lg border-none bg-[#8178e5] text-white text-base font-medium cursor-pointer transition-colors duration-200 flex justify-center items-center h-11 w-full mt-[5px] hover:not-disabled:bg-[#6a5fd0] disabled:opacity-70 disabled:cursor-not-allowed max-[480px]:h-[42px]" disabled={loading}>
                 {loading ? <LoadingSpinner size="small" /> : 'Registrarme'}
               </button>
-              
-              <div className="auth-divider">
+
+              <div className="flex items-center text-center text-white/50 text-xs my-2 before:content-[''] before:flex-1 before:border-b before:border-white/20 before:mr-[10px] after:content-[''] after:flex-1 after:border-b after:border-white/20 after:ml-[10px]">
                 <span>o</span>
               </div>
-              
-              <div className="social-auth">
-                <GoogleAuth user={user} />
+
+              <div className="w-full">
+                <GoogleAuth user={user} className="flex items-center justify-center gap-2 p-0 rounded-lg border border-white/20 bg-white/10 text-white text-base font-medium cursor-pointer transition-all duration-200 w-full h-11 hover:bg-white/20 hover:border-white/30 max-[480px]:h-[42px]" />
               </div>
             </form>
-            
-            <div className="auth-footer">
-              <p>¿Ya tenés cuenta? <a href="#" onClick={switchToLogin} className="auth-link">Ingresar</a></p>
+
+            <div className="text-center mt-[10px] text-sm text-white/80">
+              <p>¿Ya tenés cuenta? <a href="#" onClick={switchToLogin} className="text-white no-underline font-medium hover:underline">Ingresar</a></p>
             </div>
           </div>
         ) : (
-          <div className="auth-methods">
-            <form onSubmit={handleLogin} className="auth-form">
-              <div className="form-group">
-                <label htmlFor="login-email">Email</label>
+          <div className="flex flex-col gap-[10px]">
+            <form onSubmit={handleLogin} className="flex flex-col gap-[10px]">
+              <div className="flex flex-col gap-1 mb-2">
+                <label htmlFor="login-email" className="text-white text-sm font-medium">Email</label>
                 <input
                   id="login-email"
                   type="email"
@@ -315,11 +327,12 @@ const AuthPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Tu email"
                   required
+                  className="px-4 rounded-lg border border-white/20 bg-white/10 text-white text-base transition-all duration-200 w-full h-11 box-border placeholder:text-white/40 focus:outline-none focus:border-[#8178e5] focus:bg-white/15 max-[480px]:h-[42px]"
                 />
-                {validationErrors.email && <div className="validation-error">{validationErrors.email}</div>}
+                {validationErrors.email && <div className="text-white text-[13px] mt-[2px] mb-[5px] italic">{validationErrors.email}</div>}
               </div>
-              <div className="form-group">
-                <label htmlFor="login-password">Contraseña</label>
+              <div className="flex flex-col gap-1 mb-2">
+                <label htmlFor="login-password" className="text-white text-sm font-medium">Contraseña</label>
                 <input
                   id="login-password"
                   type="password"
@@ -327,31 +340,32 @@ const AuthPage = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Tu contraseña"
                   required
+                  className="px-4 rounded-lg border border-white/20 bg-white/10 text-white text-base transition-all duration-200 w-full h-11 box-border placeholder:text-white/40 focus:outline-none focus:border-[#8178e5] focus:bg-white/15 max-[480px]:h-[42px]"
                 />
               </div>
-              {error && <div className="auth-error">{error}</div>}
-              <button type="submit" className="auth-button" disabled={loading}>
+              {error && <div className="text-[#fdfdfd] text-[13px] mb-[5px] italic">{error}</div>}
+              <button type="submit" className="p-0 rounded-lg border-none bg-[#8178e5] text-white text-base font-medium cursor-pointer transition-colors duration-200 flex justify-center items-center h-11 w-full mt-[5px] hover:not-disabled:bg-[#6a5fd0] disabled:opacity-70 disabled:cursor-not-allowed max-[480px]:h-[42px]" disabled={loading}>
                 {loading ? <LoadingSpinner size="small" /> : 'Ingresar'}
               </button>
-              <button 
-                type="button" 
-                className="auth-link-button"
+              <button
+                type="button"
+                className="bg-none border-none text-white/80 text-sm text-center cursor-pointer p-1 mt-[2px] w-full hover:underline"
                 onClick={() => setResetPassword(true)}
               >
                 ¿Olvidaste tu contraseña?
               </button>
-              
-              <div className="auth-divider">
+
+              <div className="flex items-center text-center text-white/50 text-xs my-2 before:content-[''] before:flex-1 before:border-b before:border-white/20 before:mr-[10px] after:content-[''] after:flex-1 after:border-b after:border-white/20 after:ml-[10px]">
                 <span>o</span>
               </div>
-              
-              <div className="social-auth">
-                <GoogleAuth user={user} />
+
+              <div className="w-full">
+                <GoogleAuth user={user} className="flex items-center justify-center gap-2 p-0 rounded-lg border border-white/20 bg-white/10 text-white text-base font-medium cursor-pointer transition-all duration-200 w-full h-11 hover:bg-white/20 hover:border-white/30 max-[480px]:h-[42px]" />
               </div>
             </form>
-            
-            <div className="auth-footer">
-              <p>¿No tenés una cuenta? <a href="#" onClick={switchToRegister} className="auth-link">Registrate</a></p>
+
+            <div className="text-center mt-[10px] text-sm text-white/80">
+              <p>¿No tenés una cuenta? <a href="#" onClick={switchToRegister} className="text-white no-underline font-medium hover:underline">Registrate</a></p>
             </div>
           </div>
         )}

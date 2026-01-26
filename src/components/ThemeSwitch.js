@@ -1,17 +1,18 @@
 // src/components/ThemeSwitch.js
 import React from 'react';
-import './ThemeSwitch.css';
 
 export default function ThemeSwitch({ theme, onToggle }) {
   return (
     <button
-      className={`switch-toggle${theme === 'dark' ? ' dark' : ''}`}
+      className="relative flex items-center p-0 border-none bg-transparent cursor-pointer transition-[filter] duration-120 w-[48px] h-[26px]"
       onClick={onToggle}
       aria-label="Cambiar tema"
       type="button"
     >
-      <span className="switch-track" />
-      <span className="switch-thumb">
+      <span className={`w-full h-full rounded-[16px] transition-colors duration-220 shadow-[0_0_5px_rgba(0,0,0,0.06)] ${theme === 'dark' ? 'bg-[#272839]' : 'bg-[#dbeafe]'}`} />
+      <span
+        className={`absolute top-1/2 -translate-y-1/2 w-[18px] h-[18px] bg-[#ffd800] rounded-full flex items-center justify-center shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition-[left,background-color] duration-240 ease-[cubic-bezier(0.6,1.6,0.41,0.99)] ${theme === 'dark' ? 'left-[calc(100%-18px-4px)]' : 'left-[4px]'}`}
+      >
         {theme === 'dark' ? (
           // SVG Luna
           <svg viewBox="0 0 22 22" width="20" height="20">

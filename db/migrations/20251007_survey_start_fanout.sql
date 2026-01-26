@@ -54,8 +54,9 @@ BEGIN
     END IF;
 
     -- Insert notifications for each participant; ON CONFLICT avoids duplicates
-    INSERT INTO public.notifications (user_id, match_id, type, message, deep_link, created_at)
-    SELECT uid::uuid, partido_row.partido_id, 'survey', 'El partido comenz\u00F3. Completá la encuesta.', '/partidos/' || partido_row.partido_id || '/encuesta', now()
+    -- Insert into both legacy match_id and canonical partido_id/match_ref fields
+    INSERT INTO public.notifications (user_id, partido_id, match_ref, match_id, type, message, deep_link, created_at)
+    SELECT uid::uuid, partido_row.partido_id, partido_row.partido_id, partido_row.partido_id, 'survey', 'El partido comenz\u00F3. Complet\u00E1 la encuesta.', '/partidos/' || partido_row.partido_id || '/encuesta', now()
     FROM unnest(participant_users) AS uid
     ON CONFLICT (user_id, match_id, type) DO NOTHING;
 

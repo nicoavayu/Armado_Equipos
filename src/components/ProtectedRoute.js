@@ -8,29 +8,21 @@ const ProtectedRoute = ({ children, requireAuth = true, fallback = null }) => {
 
   if (loading) {
     return (
-      <div className="voting-bg">
-        <div className="voting-modern-card">
-          <LoadingSpinner size="lg" message="Verificando autenticación..." />
-        </div>
+      <div className="min-h-screen w-screen bg-fifa-gradient flex flex-col items-center justify-center gap-4">
+        <LoadingSpinner size="lg" />
+        <div className="text-white font-oswald text-lg">Verificando autenticación...</div>
       </div>
     );
   }
 
   if (requireAuth && !user) {
     return fallback || (
-      <div className="voting-bg">
-        <div className="voting-modern-card" style={{ maxWidth: 400 }}>
-          <div className="match-name" style={{ marginBottom: '20px' }}>
+      <div className="min-h-screen w-screen bg-fifa-gradient flex items-center justify-center p-5">
+        <div className="bg-white/10 p-8 rounded-2xl shadow-fifa-card backdrop-blur-md flex flex-col items-center max-w-[400px] w-full">
+          <div className="text-white text-3xl font-bebas mb-5 tracking-wider">
             ACCESO RESTRINGIDO
           </div>
-          <div style={{
-            color: '#fff',
-            textAlign: 'center',
-            fontFamily: 'Oswald, Arial, sans-serif',
-            fontSize: '18px',
-            marginBottom: '30px',
-            lineHeight: '1.4',
-          }}>
+          <div className="text-white text-center font-oswald text-lg mb-8 leading-relaxed">
             Necesitas iniciar sesión para acceder a esta función.
           </div>
           <Button

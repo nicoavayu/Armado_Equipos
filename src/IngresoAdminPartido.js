@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { getPartidoPorCodigo } from './supabase';
-import './IngresoAdminPartido.css';
 
 export default function IngresoAdminPartido({ onAcceder, onCancelar }) {
   const [codigo, setCodigo] = useState('');
@@ -23,14 +22,14 @@ export default function IngresoAdminPartido({ onAcceder, onCancelar }) {
   }
 
   return (
-    <div className="ingreso-admin-modal-bg">
-      <div className="ingreso-admin-modal-box">
-        <div className="voting-title-modern" style={{ marginBottom: 22, textAlign: 'center' }}>
+    <div className="fixed z-[99] inset-0 w-screen h-screen bg-[rgba(30,20,70,0.46)] flex items-center justify-center">
+      <div className="bg-[#191942] rounded-[38px] shadow-[0_8px_54px_0_rgba(34,40,80,0.18)] px-[50px] pt-[54px] pb-[40px] max-w-[520px] w-[95vw] text-white flex flex-col items-center max-[600px]:p-[28px_10px_24px] max-[600px]:max-w-[98vw] max-[600px]:rounded-[14px]">
+        <div className="text-[2.3rem] font-[Bebas_Neue,Oswald,Arial,sans-serif] tracking-[0.03em] mb-[22px] text-center max-[600px]:text-[2.7rem]">
           ADMINISTRAR PARTIDO EXISTENTE
         </div>
-        <form onSubmit={handleIngresar} autoComplete="off" style={{ width: '100%' }}>
+        <form onSubmit={handleIngresar} autoComplete="off" style={{ width: '100%' }} className="w-full flex flex-col items-center">
           <input
-            className="input-modern"
+            className="w-full text-[32px] p-[14px_20px] bg-[#312e5a] border-[3px] border-white text-[#ccc] rounded-lg font-[Oswald,Arial,sans-serif] font-bold outline-none mb-[26px] max-[600px]:text-[18px]"
             type="text"
             placeholder="Código del partido"
             value={codigo}
@@ -38,9 +37,9 @@ export default function IngresoAdminPartido({ onAcceder, onCancelar }) {
             required
             autoFocus
           />
-          <div className="ingreso-admin-btn-row">
+          <div className="w-full flex gap-[22px] justify-center">
             <button
-              className="voting-confirm-btn wipe-btn"
+              className="w-full text-[2.1rem] py-[20px] m-0 rounded-[9px] border-[3px] border-white font-[Oswald,Arial,sans-serif] font-bold tracking-[0.04em] transition-all duration-200 active:opacity-93 max-[600px]:text-[1.1rem] max-[600px]:py-[12px]"
               type="submit"
               disabled={loading}
               style={{ flex: 1 }}
@@ -48,7 +47,7 @@ export default function IngresoAdminPartido({ onAcceder, onCancelar }) {
               {loading ? 'Cargando...' : 'INGRESAR'}
             </button>
             <button
-              className="voting-confirm-btn btn-volver"
+              className="w-full text-[2.1rem] py-[20px] m-0 rounded-[9px] border-[3px] border-white font-[Oswald,Arial,sans-serif] font-bold tracking-[0.04em] transition-all duration-200 bg-[#be3256] text-white max-[600px]:text-[1.1rem] max-[600px]:py-[12px]"
               type="button"
               style={{ flex: 1 }}
               onClick={onCancelar}
@@ -58,7 +57,11 @@ export default function IngresoAdminPartido({ onAcceder, onCancelar }) {
             </button>
           </div>
         </form>
-        {error && <div className="ingreso-admin-error">{error}</div>}
+        {error && (
+          <div className="text-white bg-[#d13c3c] rounded-lg p-[9px_10px] mt-[22px] text-center text-[18px] font-bold w-full">
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );

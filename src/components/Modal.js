@@ -1,15 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import './Modal.css';
 
-const Modal = ({ 
-  isOpen, 
-  onClose, 
-  children, 
+
+const Modal = ({
+  isOpen,
+  onClose,
+  children,
   title,
   className = '',
   closeOnBackdrop = true,
-  closeOnEscape = true, 
+  closeOnEscape = true,
 }) => {
   const modalRef = useRef(null);
 
@@ -56,22 +56,31 @@ const Modal = ({
   if (!isOpen) return null;
 
   const modalContent = (
-    <div className="centered-modal-overlay" onClick={handleBackdropClick}>
-      <div 
+    <div className="fixed inset-0 bg-black/75 backdrop-blur-[4px] z-[10001] flex items-center justify-center p-5 animate-[fadeIn_0.2s_ease-out]" onClick={handleBackdropClick}>
+      <div
         ref={modalRef}
-        className={`centered-modal-content ${className}`}
+        className={`bg-[#1a1a1a] rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] max-w-[95vw] max-h-[90vh] w-auto flex flex-col overflow-hidden border border-[#333] animate-[scaleIn_0.2s_ease-out] ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
-          <div className="centered-modal-header">
-            <h2 className="centered-modal-title">{title}</h2>
-            <button className="centered-modal-close" onClick={onClose}>×</button>
+          <div className="flex justify-between items-center p-5 border-b border-[#333] shrink-0">
+            <h2 className="text-white text-xl font-semibold m-0">{title}</h2>
+            <button
+              className="bg-transparent border-none text-[#999] text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 hover:text-white hover:bg-white/10 focus:outline-none focus:text-white focus:bg-white/10"
+              onClick={onClose}
+            >
+              ×
+            </button>
           </div>
         )}
-        <div className="centered-modal-body">
+        <div className="p-6 overflow-y-auto flex-1 touch-pan-y">
           {children}
         </div>
       </div>
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+      `}</style>
     </div>
   );
 

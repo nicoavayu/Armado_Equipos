@@ -37,10 +37,13 @@ export async function openNotification(n, navigate) {
       return;
     }
 
-    if (type === 'survey_results_ready') {
-      const base = n?.data?.resultsUrl || getResultsUrl(Number(matchId));
+    if (type === 'survey_results_ready' || type === 'awards_ready') {
+      // Prefer explicit resultsUrl
+      const base = n?.data?.resultsUrl || getResultsUrl(Number(matchId)) || n?.data?.link || `/encuesta/${matchId}`;
+      // Ensure showAwards=1 is in query so legacy pages open awards section
       const url = base.includes('?') ? `${base}&showAwards=1` : `${base}?showAwards=1`;
-      navigate(url);
+      // Pass navigation state to force awards computation on the destination
+      navigate(url, { state: { fromNotification: true, forceAwards: true } });
       return;
     }
 

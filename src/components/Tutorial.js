@@ -1,12 +1,12 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import Joyride, { STATUS } from 'react-joyride';
 import { useTutorial } from '../context/TutorialContext';
-import './Tutorial.css';
 
 const Tutorial = () => {
   const { run, setRun, completeTutorial } = useTutorial();
 
   // Define the tutorial steps
+  // @ts-ignore
   const steps = [
     // TabBar navigation
     {
@@ -93,6 +93,7 @@ const Tutorial = () => {
       backgroundColor: '#ffffff',
       textColor: '#333333',
       arrowColor: '#ffffff',
+      zIndex: 10000,
     },
     tooltipContainer: {
       textAlign: 'left',
@@ -102,32 +103,71 @@ const Tutorial = () => {
     },
     buttonNext: {
       backgroundColor: '#8178e5',
+      fontWeight: 'bold',
+      fontFamily: 'Oswald, sans-serif',
     },
     buttonSkip: {
       color: '#999999',
     },
+    tooltip: {
+      borderRadius: '8px',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+      fontFamily: 'system-ui, sans-serif',
+    },
+    tooltipContent: {
+      padding: '20px',
+    },
+    tooltipTitle: {
+      marginTop: 0,
+      fontFamily: 'Oswald, sans-serif',
+      color: '#5d54c0',
+      fontSize: '18px',
+      fontWeight: 'bold',
+    },
   };
 
   return (
-    <Joyride
-      steps={steps}
-      run={run}
-      continuous
-      showSkipButton
-      showProgress
-      disableScrolling={false}
-      disableOverlayClose
-      spotlightClicks
-      callback={handleJoyrideCallback}
-      styles={joyrideStyles}
-      locale={{
-        back: 'Anterior',
-        close: 'Cerrar',
-        last: 'Finalizar',
-        next: 'Siguiente',
-        skip: 'Omitir',
-      }}
-    />
+    <>
+      <style>
+        {`
+          .react-joyride__tooltip h3 {
+            margin-top: 0;
+            font-family: 'Oswald', sans-serif;
+            color: #5d54c0;
+          }
+          .react-joyride__spotlight {
+            z-index: 1500 !important;
+          }
+          .__floater {
+            z-index: 2000 !important;
+          }
+        `}
+      </style>
+      <Joyride
+        // @ts-ignore
+        steps={steps}
+        run={run}
+        continuous
+        showSkipButton
+        showProgress
+        disableScrolling={false}
+        disableOverlayClose
+        spotlightClicks
+        callback={handleJoyrideCallback}
+        // @ts-ignore
+        styles={joyrideStyles}
+        locale={{
+          back: 'Anterior',
+          close: 'Cerrar',
+          last: 'Finalizar',
+          next: 'Siguiente',
+          skip: 'Omitir',
+        }}
+        floaterProps={{
+          disableAnimation: true,
+        }}
+      />
+    </>
   );
 };
 

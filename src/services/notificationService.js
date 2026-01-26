@@ -118,13 +118,15 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
     }
 
     const nowIso = new Date().toISOString();
+    const pidNumber = Number(partidoId);
     const rows = userIds.map(uid => ({
       user_id: uid,
       title,
       message,
       type,
-      partido_id: partidoId,
-      data: { match_id: String(partidoId), matchId: partidoId, matchCode: partidoMeta?.codigo },
+      partido_id: pidNumber,
+      // Do not insert match_ref explicitly; let DB defaults/computed columns handle it
+      data: { match_id: String(partidoId), matchId: pidNumber, matchCode: partidoMeta?.codigo },
       read: false,
       created_at: nowIso,
       send_at: nowIso,
@@ -167,18 +169,19 @@ export async function schedulePostMatchNotification(matchId) {
     // Programar para 2 horas después del partido
     const sendAt = new Date();
     sendAt.setHours(sendAt.getHours() + 2);
-    
+    const pidNumber = Number(matchId);
     const { data, error } = await supabase
       .from('notifications')
       .insert({
         type: 'survey_start',
-        partido_id: matchId,
+        partido_id: pidNumber,
+        match_ref: pidNumber,
         status: 'pending',
         send_at: sendAt.toISOString(),
       })
       .select()
       .single();
-    
+
     if (error) throw error;
     return data;
   } catch (err) {
@@ -192,17 +195,19 @@ export async function schedulePostMatchNotification(matchId) {
  */
 export async function forceSurveyResultsNow(matchId) {
   try {
+    const pidNumber = Number(matchId);
     const { data, error } = await supabase
       .from('notifications')
       .insert({
         type: 'survey_results_ready',
-        partido_id: matchId,
+        partido_id: pidNumber,
+        match_ref: pidNumber,
         status: 'pending',
         send_at: new Date().toISOString(),
       })
       .select()
       .single();
-    
+
     if (error) throw error;
     return data;
   } catch (err) {

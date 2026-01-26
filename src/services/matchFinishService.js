@@ -44,9 +44,12 @@ export const checkAndNotifyMatchFinish = async (partido) => {
       type: 'survey_start',
       title: '¡Encuesta lista!',
       message: `La encuesta ya está lista para completar sobre el partido ${partido.nombre || formatMatchDate(partido.fecha)}.`,
+      partido_id: Number(partido.id),
+      match_ref: Number(partido.id),
       data: {
         match_id: String(partido.id),
         // legacy for consumers aún no migrados
+        matchId: Number(partido.id),
         partido_id: partido.id,
         partido_nombre: partido.nombre,
         partido_fecha: partido.fecha,

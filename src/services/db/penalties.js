@@ -19,63 +19,267 @@ async function getMatchPlayers(matchId) {
  */
 export async function applyNoShowPenalties(matchId) {
   const id = Number(matchId);
-  const { data: players, error } = await getMatchPlayers(id);
-  if (error) return { error };
+  // 1) read surveys for this match
+  const { data: surveys, error: surveysErr } = await supabase
+    .from('post_match_surveys')
+    .select('votante_id, jugadores_ausentes')
+    .eq('partido_id', id);
+  if (surveysErr) return { data: [], error: surveysErr };
 
-  // Detect no-shows (present/asistio false/estado='absent'/no_show true)
-  const noShows = (players || []).filter(p => {
-    const present = (p.present ?? p.asistio ?? p.presente ?? (p.estado === 'present'));
-    const isNoShow = (present === false) || p.no_show === true || p.estado === 'absent';
-    const registered = !!p.usuario_id;
-    return isNoShow && registered;
-  });
-
-  if (!noShows.length) return { data: [], error: null };
-
-  // Register penalties (idempotent with UNIQUE constraint)
-  const rows = noShows.map(p => ({ 
-    match_id: id, 
-    player_id: Number(p.id), 
-    amount: -0.3 
-  }));
-  
-  const { error: insertError } = await supabase
-    .from('no_show_penalties')
-    .upsert(rows, { onConflict: 'match_id,player_id' });
-  
-  if (insertError && !String(insertError.message || '').includes('duplicate')) {
-    return { error: insertError };
+  // 2) build confirm map: absentPlayerId -> Set of distinct votante_ids
+  const confirmMap = new Map();
+  for (const s of (surveys || [])) {
+    const voter = s.votante_id;
+    const absents = s.jugadores_ausentes || [];
+    if (!voter || !Array.isArray(absents) || absents.length === 0) continue;
+    for (const absentId of absents) {
+      if (!absentId) continue;
+      if (voter === absentId) continue; // ignore self-report
+      const set = confirmMap.get(absentId) || new Set();
+      set.add(voter);
+      confirmMap.set(absentId, set);
+    }
   }
 
-  // Apply ranking penalties - try profiles first, fallback to players
+  // 3) select players that reached threshold (>=2)
+  const toPenalizePlayerIds = Array.from(confirmMap.entries()).filter(([, votersSet]) => votersSet.size >= 2).map(([playerId]) => Number(playerId));
+  if (!toPenalizePlayerIds.length) return { data: [], error: null };
+
+  // 4) fetch jugadores to map player_id -> usuario_id
+  const { data: jugadoresRows, error: jugadoresErr } = await supabase
+    .from('jugadores')
+    .select('id, usuario_id')
+    .in('id', toPenalizePlayerIds);
+  if (jugadoresErr) return { data: [], error: jugadoresErr };
+
+  const playerIdToUsuario = new Map();
+  jugadoresRows?.forEach(r => { if (r.usuario_id) playerIdToUsuario.set(Number(r.id), r.usuario_id); });
+
+  // 5) prepare adjustments for insertion with usuario_id
+  const adjustments = toPenalizePlayerIds.map(pid => {
+    const uid = playerIdToUsuario.get(pid);
+    return uid ? {
+      user_id: uid,
+      partido_id: id,
+      type: 'no_show_penalty',
+      amount: -1,
+      meta: { reason: 'absence_without_notice', confirmations: Array.from(confirmMap.get(String(pid)) || []) },
+      created_at: new Date().toISOString()
+    } : null;
+  }).filter(Boolean);
+
+  if (!adjustments.length) return { data: [], error: null };
+
+  // 6) find already applied adjustments for these users
+  const userIds = adjustments.map(a => a.user_id);
+  const { data: existing, error: existingErr } = await supabase
+    .from('rating_adjustments')
+    .select('user_id')
+    .eq('partido_id', id)
+    .in('user_id', userIds)
+    .eq('type', 'no_show_penalty');
+  if (existingErr) return { data: [], error: existingErr };
+
+  const alreadyAppliedSet = new Set((existing || []).map(r => r.user_id));
+
+  const toInsert = adjustments.filter(a => !alreadyAppliedSet.has(a.user_id));
+  const appliedUserIds = [];
+
+  if (toInsert.length) {
+    const { data: insertRes, error: insertErr } = await supabase
+      .from('rating_adjustments')
+      .insert(toInsert);
+    if (insertErr) return { data: [], error: insertErr };
+    // collect applied user_ids from insertRes
+    (insertRes || []).forEach(r => appliedUserIds.push(r.user_id));
+  }
+
+  // 7) apply ranking decrement only for newly applied adjustments
   const table = 'profiles';
-  await Promise.allSettled(noShows.map(async p => {
-    const pid = p.usuario_id; // Use usuario_id for profiles table
-    if (!pid) return;
-    
+  await Promise.allSettled((appliedUserIds || []).map(async uid => {
     try {
-      // Try RPC function first
-      await supabase.rpc('dec_numeric', { 
-        p_table: table, 
-        p_column: 'ranking', 
-        p_id: pid, 
-        p_amount: 0.3 
-      });
+      await supabase.rpc('dec_numeric', { p_table: table, p_column: 'ranking', p_id: uid, p_amount: 1 });
+      console.log('[NO_SHOW_PENALTY] applied', { partidoId: id, userId: uid });
     } catch (rpcError) {
-      // Fallback: read current value and update
-      const { data: curr } = await supabase
-        .from(table)
-        .select('ranking')
-        .eq('id', pid)
-        .single();
-      
-      const newVal = (curr?.ranking ?? 0) - 0.3;
-      await supabase
-        .from(table)
-        .update({ ranking: newVal })
-        .eq('id', pid);
+      try {
+        const { data: curr } = await supabase.from(table).select('ranking').eq('id', uid).single();
+        const newVal = (curr?.ranking ?? 0) - 1;
+        await supabase.from(table).update({ ranking: newVal }).eq('id', uid);
+        console.log('[NO_SHOW_PENALTY] applied', { partidoId: id, userId: uid });
+      } catch (updateErr) {
+        console.error('[NO_SHOW_PENALTY] failed to apply ranking for', uid, updateErr);
+      }
+    }
+    // Also increment partidos_abandonados on usuarios for this user (only when penalty was newly applied)
+    try {
+      // Try RPC to increment numeric column on usuarios
+      await supabase.rpc('inc_numeric', { p_table: 'usuarios', p_column: 'partidos_abandonados', p_id: uid, p_amount: 1 });
+      console.log('[NO_SHOW_PENALTY] incremented partidos_abandonados', { partidoId: id, userId: uid });
+    } catch (incRpcErr) {
+      try {
+        // Fallback: read current value and update
+        const { data: currU } = await supabase.from('usuarios').select('partidos_abandonados').eq('id', uid).single();
+        const newValU = (currU?.partidos_abandonados ?? 0) + 1;
+        await supabase.from('usuarios').update({ partidos_abandonados: newValU }).eq('id', uid);
+        console.log('[NO_SHOW_PENALTY] incremented partidos_abandonados', { partidoId: id, userId: uid });
+      } catch (incErr) {
+        console.error('[NO_SHOW_PENALTY] failed to increment partidos_abandonados for', uid, incErr);
+      }
     }
   }));
 
-  return { data: noShows.map(p => p.usuario_id), error: null };
+  // 8) log skips for users already applied
+  (adjustments || []).forEach(a => {
+    if (alreadyAppliedSet.has(a.user_id)) {
+      console.log('[NO_SHOW_PENALTY] skipped (already applied)', { partidoId: id, userId: a.user_id });
+    }
+  });
+
+  return { data: appliedUserIds, error: null };
+}
+
+/**
+ * Apply no-show recoveries for players who attended the match
+ * @param {number} matchId - Match ID
+ * @returns {Promise<{data, error}>} Result with recovered players
+ */
+export async function applyNoShowRecoveries(matchId) {
+  const id = Number(matchId);
+
+  // 1) get one survey row to check se_jugo and jugadores_ausentes
+  const { data: surveyRows, error: surveyErr } = await supabase
+    .from('post_match_surveys')
+    .select('se_jugo, jugadores_ausentes')
+    .eq('partido_id', id)
+    .limit(1);
+  if (surveyErr) {
+    return { data: [], error: surveyErr };
+  }
+  const survey = (surveyRows && surveyRows[0]) || null;
+  if (!survey) return { data: [], error: null };
+  if (survey.se_jugo === false) {
+    // no action if match not played
+    return { data: [], error: null };
+  }
+
+  const absentList = Array.isArray(survey.jugadores_ausentes) ? survey.jugadores_ausentes.map(String) : [];
+
+  // 2) get players for match
+  const { data: jugadores, error: jugadoresErr } = await supabase
+    .from('jugadores')
+    .select('id, usuario_id')
+    .eq('partido_id', id);
+  if (jugadoresErr) return { data: [], error: jugadoresErr };
+
+  const applied = [];
+
+  for (const p of (jugadores || [])) {
+    const playerId = Number(p.id);
+    const userId = p.usuario_id;
+    if (!userId) continue;
+
+    // 3) determine asistio
+    const asistio = survey.se_jugo === true && !absentList.includes(String(playerId));
+
+    // 4) read existing streak
+    const { data: stateRows, error: stateErr } = await supabase
+      .from('no_show_recovery_state')
+      .select('current_streak')
+      .eq('user_id', userId)
+      .limit(1);
+    if (stateErr) return { data: applied, error: stateErr };
+
+    const existingState = (stateRows && stateRows[0]) || null;
+    let newStreak = existingState ? Number(existingState.current_streak || 0) : 0;
+
+    if (!asistio) {
+      newStreak = 0;
+      // upsert reset
+      const { error: upsertErr } = await supabase
+        .from('no_show_recovery_state')
+        .upsert({ user_id: userId, current_streak: newStreak, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+      if (upsertErr) return { data: applied, error: upsertErr };
+      console.log('[NO_SHOW_RECOVERY] reset streak', { userId });
+      continue;
+    }
+
+    // asistio true
+    newStreak = newStreak + 1;
+    const { error: upsertErr2 } = await supabase
+      .from('no_show_recovery_state')
+      .upsert({ user_id: userId, current_streak: newStreak, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if (upsertErr2) return { data: applied, error: upsertErr2 };
+
+    // 6) if cycle reached (every 3 assists)
+    if (newStreak % 3 !== 0) continue;
+
+    const cycleIndex = Math.floor(newStreak / 3);
+
+    // compute total already recovered
+    const { data: recoveredRows, error: recoveredErr } = await supabase
+      .from('rating_adjustments')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'no_show_recovery');
+    if (recoveredErr) return { data: applied, error: recoveredErr };
+
+    const totalRecovered = (recoveredRows || []).reduce((s, r) => s + Number(r.amount || 0), 0);
+    if (totalRecovered >= 1.0) {
+      console.log('[NO_SHOW_RECOVERY] skipped (cap reached)', { userId });
+      continue;
+    }
+
+    // check if adjustment for this match already exists
+    const { data: existsRows, error: existsErr } = await supabase
+      .from('rating_adjustments')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('partido_id', id)
+      .eq('type', 'no_show_recovery')
+      .limit(1);
+    if (existsErr) return { data: applied, error: existsErr };
+    if (existsRows && existsRows.length > 0) {
+      console.log('[NO_SHOW_RECOVERY] skipped (already applied)', { partidoId: id, userId });
+      continue;
+    }
+
+    // attempt insert
+    const adjustment = {
+      user_id: userId,
+      partido_id: id,
+      type: 'no_show_recovery',
+      amount: 0.2,
+      meta: { cycle_index: cycleIndex, source_partido_id: id },
+      created_at: new Date().toISOString()
+    };
+
+    const { data: insRes, error: insErr } = await supabase
+      .from('rating_adjustments')
+      .insert([adjustment]);
+    if (insErr) return { data: applied, error: insErr };
+    if (!insRes || !Array.isArray(insRes) || !insRes[0]) {
+      // insertion didn't create a row (possible conflict)
+      console.log('[NO_SHOW_RECOVERY] skipped (already applied)', { partidoId: id, userId });
+      continue;
+    }
+
+    // apply +0.2 to user's ranking
+    const table = 'profiles';
+    try {
+      await supabase.rpc('inc_numeric', { p_table: table, p_column: 'ranking', p_id: userId, p_amount: 0.2 });
+    } catch (rpcError) {
+      try {
+        const { data: curr } = await supabase.from(table).select('ranking').eq('id', userId).single();
+        const newVal = (curr?.ranking ?? 0) + 0.2;
+        await supabase.from(table).update({ ranking: newVal }).eq('id', userId);
+      } catch (updateErr) {
+        console.error('[NO_SHOW_RECOVERY] failed to apply rating increment for', userId, updateErr);
+      }
+    }
+
+    console.log('[NO_SHOW_RECOVERY] applied', { userId, cycle_index: cycleIndex });
+    applied.push(userId);
+  }
+
+  return { data: applied, error: null };
 }

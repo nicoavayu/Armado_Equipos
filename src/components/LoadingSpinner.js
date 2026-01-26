@@ -1,15 +1,19 @@
 import React from 'react';
-import './LoadingSpinner.css';
+
 
 const LoadingSpinner = ({ size = 'medium' }) => {
-  const sizeClass = `spinner-${size}`;
-  
+  const sizeClasses = {
+    small: 'w-6 h-6',
+    medium: 'w-12 h-12',
+    large: 'w-16 h-16'
+  };
+
   return (
-    <div className="spinner-container">
-      <img 
-        src="/spinner.svg" 
-        alt="Loading..." 
-        className={`spinner ${sizeClass}`}
+    <div className="flex justify-center items-center w-full h-full min-h-[100px]">
+      <img
+        src="/spinner.svg"
+        alt="Loading..."
+        className={`animate-spin ${sizeClasses[size] || sizeClasses.medium}`}
       />
     </div>
   );

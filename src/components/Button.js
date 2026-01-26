@@ -2,30 +2,40 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import LoadingSpinner from './LoadingSpinner';
 
-const Button = ({ 
-  children, 
-  onClick, 
-  disabled = false, 
-  loading = false, 
-  variant = 'primary', 
-  className = '', 
+const Button = ({
+  children,
+  onClick,
+  disabled = false,
+  loading = false,
+  variant = 'primary',
+  className = '',
   style = {},
   loadingText = 'CARGANDO...',
   ariaLabel,
-  ...props 
+  ...props
 }) => {
-  const getVariantClass = () => {
+  const getVariantClasses = () => {
     switch (variant) {
-      case 'whatsapp': return 'admin-btn-whatsapp';
-      case 'danger': return 'admin-btn-danger';
-      case 'secondary': return 'admin-btn-secondary';
-      default: return 'admin-btn-primary';
+      case 'whatsapp':
+        return 'bg-[#25D366] border-2 border-white text-white';
+      case 'danger':
+        return 'bg-fifa-accent border-2 border-white text-white';
+      case 'secondary':
+        return 'bg-transparent border-2 border-white/60 text-white/90 hover:bg-white/10 hover:border-white hover:text-white';
+      case 'primary':
+      default:
+        return 'bg-primary border-2 border-white/20 text-white shadow-[0_4px_14px_rgba(129,120,229,0.4)]';
     }
   };
 
   return (
     <motion.button
-      className={`voting-confirm-btn wipe-btn ${getVariantClass()} ${className}`}
+      className={`
+        w-full h-[54px] text-2xl rounded-[25px] flex items-center justify-center gap-2 
+        font-bebas tracking-[0.5px] uppercase transition-all duration-200
+        ${getVariantClasses()} 
+        ${className}
+      `}
       onClick={onClick}
       disabled={disabled || loading}
       style={{
@@ -40,8 +50,8 @@ const Button = ({
       {...props}
     >
       {loading ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <LoadingSpinner size="sm" message="" />
+        <div className="flex items-center gap-2">
+          <LoadingSpinner size="sm" />
           {loadingText}
         </div>
       ) : children}

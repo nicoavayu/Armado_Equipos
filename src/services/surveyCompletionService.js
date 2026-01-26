@@ -3,8 +3,14 @@ import { db } from '../api/supabaseWrapper';
 import { getResultsUrl } from '../utils/routes';
 import { toBigIntId } from '../utils';
 import { grantAwardsForMatch } from './db/awards';
-import { applyNoShowPenalties } from './db/penalties';
+import { applyNoShowPenalties, applyNoShowRecoveries } from './db/penalties';
 import { handleError } from '../lib/errorHandler';
+
+import { SURVEY_FINALIZE_DELAY_MS } from '../config/surveyConfig';
+
+// Read env var if available on globalThis (e.g. injected at build/runtime). Default to 2 minutes for debug.
+// Removed local definition in favor of config file
+
 
 // Calcula y persiste premios (MVP, Mejor Arquero y Tarjeta Roja) en survey_results.awards
 export async function computeAndPersistAwards(partidoId) {
@@ -13,7 +19,7 @@ export async function computeAndPersistAwards(partidoId) {
   try {
     surveys = await db.fetchMany('post_match_surveys', { partido_id: idNum });
   } catch (error) {
-    handleError(error, { showToast: false });
+    handleError(error, { showToast: false, onError: () => { } });
     return null;
   }
 
@@ -35,138 +41,298 @@ export async function computeAndPersistAwards(partidoId) {
   const pickWinner = (map) => {
     const entries = Object.entries(map);
     if (!entries.length) return null;
-    entries.sort((a,b) => b[1]-a[1] || Number(a[0]) - Number(b[0]));
+    entries.sort((a, b) => b[1] - a[1] || Number(a[0]) - Number(b[0]));
     const [player_id, votes] = entries[0];
-    const total = entries.reduce((s, [,v]) => s+v, 0) || 1;
-    const pct = Math.round((votes*100)/total);
+    const total = entries.reduce((s, [, v]) => s + v, 0) || 1;
+    const pct = Math.round((votes * 100) / total);
     return { player_id: Number(player_id), votes, pct, total };
   };
-  
+
   const mvpMap = count(surveys, 'mejor_jugador_eq_a');
   const gkMap = count(surveys, 'mejor_jugador_eq_b');
-  
+
   // Try multiple red card fields
   let redMap = countArray(surveys, 'jugadores_violentos');
   if (Object.keys(redMap).length === 0) {
     redMap = count(surveys, 'tarjeta_roja') || count(surveys, 'mas_sucio') || count(surveys, 'sucio') || count(surveys, 'player_dirty');
   }
-  
+
   const awards = {
     mvp: pickWinner(mvpMap),
     best_gk: pickWinner(gkMap),
     red_card: pickWinner(redMap),
-    totals: { 
-      mvp: Object.values(mvpMap).reduce((a,b)=>a+b,0), 
-      gk: Object.values(gkMap).reduce((a,b)=>a+b,0),
-      red: Object.values(redMap).reduce((a,b)=>a+b,0)
+    totals: {
+      mvp: Object.values(mvpMap).reduce((a, b) => a + b, 0),
+      gk: Object.values(gkMap).reduce((a, b) => a + b, 0),
+      red: Object.values(redMap).reduce((a, b) => a + b, 0)
     }
   };
 
   try {
-    await db.update('survey_results', { partido_id: idNum }, { awards, results_ready: true, updated_at: new Date().toISOString() });
+    // Persist survey_results awards and mark results_ready true
+    // Use direct supabase update to avoid .single() error if row doesn't exist
+    const { error: upErr } = await supabase
+      .from('survey_results')
+      .update({ awards, results_ready: true, updated_at: new Date().toISOString() })
+      .eq('partido_id', idNum);
+
+    if (upErr) throw upErr;
   } catch (upErr) {
-    handleError(upErr, { showToast: false });
+    handleError(upErr, { showToast: false, onError: () => { } });
   }
-  
+
   // Grant awards to registered players only
   try {
-    await grantAwardsForMatch(idNum, awards);
+    // Idempotency guard: if player_awards already exist for this partido, skip awarding to avoid double increments
+    let existingAwards = [];
+    try {
+      existingAwards = await db.fetchMany('player_awards', { partido_id: idNum });
+    } catch (e) {
+      // if this check fails, continue to attempt granting (best effort)
+      console.warn('[AWARDS] could not check existing player_awards, will attempt grant', e?.message || e);
+    }
+
+    if (existingAwards && existingAwards.length > 0) {
+      console.log('[AWARDS] player_awards already exist for partido, skipping grantAwardsForMatch to avoid double application', { partidoId: idNum });
+    } else {
+      await grantAwardsForMatch(idNum, awards);
+    }
   } catch (awardError) {
-    handleError(awardError, { showToast: false });
+    handleError(awardError, { showToast: false, onError: () => { } });
   }
-  
-  // Apply no-show penalties to registered players
+
+  // Apply no-show penalties to registered players - REMOVED from here to avoid double application
+  // They are applied in finalizeIfComplete now.
+  /*
   try {
     await applyNoShowPenalties(idNum);
   } catch (penaltyError) {
-    handleError(penaltyError, { showToast: false });
+    handleError(penaltyError, { showToast: false, onError: () => { } });
   }
-  
+  */
+
+  // Mark survey_results awards as applied (idempotent)
+  /*
+  try {
+    await db.update('survey_results', { partido_id: idNum }, { awards_status: 'applied', awards_applied_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+  } catch (err) {
+    console.warn('[AWARDS] could not mark survey_results awards as applied', err);
+  }
+  */
+
   return awards;
 }
 
-export async function finalizeIfComplete(partidoId) {
+export async function finalizeIfComplete(partidoId, options = {}) {
+  // ensure we have an anchored now for survey timing
+  const now = new Date();
+  const nowIso = now.toISOString();
+
+  // Upsert minimal survey_results to record existence (anchors created_at)
+  let existingSurvey = null;
+  try {
+    const { data, error } = await supabase
+      .from('survey_results')
+      .select('created_at')
+      .eq('partido_id', partidoId)
+      .maybeSingle();
+    if (error) throw error;
+    existingSurvey = data || null;
+  } catch (e) {
+    console.error('[FINALIZE] error fetching survey_results', { partidoId, e });
+    existingSurvey = null;
+  }
+
+  // Use created_at as the anchor for the deadline
+  const surveyOpenedAt = existingSurvey?.created_at || nowIso;
+  const computedDeadline = new Date(new Date(surveyOpenedAt).getTime() + SURVEY_FINALIZE_DELAY_MS).toISOString();
+
+  // We no longer rely on 'meta' column which seems to be missing in DB
+  try {
+    // Determine what to upsert.
+    // If it doesn't exist, we insert id and updated_at (created_at is auto or we let it be)
+    // Actually, to ensure we catch 'created_at' for next time if it didn't exist, we rely on the DB setting created_at on insert,
+    // OR we explicitly set it if we can.
+    // For now, minimal upsert to ensure row exists.
+    const payload = { partido_id: partidoId, updated_at: nowIso };
+
+    // Warning: if we don't return 'created_at' from the upsert, we might miss it if we just created it.
+    // But we calculated computedDeadline above using 'nowIso' if it didn't exist.
+    // The strict deadline logic relies on the row persisting.
+
+    const { error: upsertErr } = await supabase
+      .from('survey_results')
+      .upsert(payload);
+
+    if (upsertErr) throw upsertErr;
+  } catch (e) {
+    console.error('[FINALIZE] error upserting survey_results', { partidoId, e });
+    // If error is strictly about missing column, we might suppress it, but better minimal payload
+    // If even this fails, logic might degrade to sliding deadline, but "meta" error should be gone.
+    console.warn('[FINALIZE] continuing despite upsert error (best effort for deadline)');
+  }
+
+  // Re-calculate deadline for return
+  // If we just created it (existingSurvey is null), use current calculated deadline.
+  const deadlineReached = new Date() >= new Date(computedDeadline);
+
   // 1) jugadores del partido
   const { count: playersCount, error: playersErr } = await supabase
     .from('jugadores')
     .select('id', { count: 'exact', head: true })
     .eq('partido_id', partidoId);
-  if (playersErr) throw playersErr;
+  if (playersErr) {
+    console.error('[FINALIZE] error fetching playersCount', { partidoId, playersErr });
+    throw playersErr;
+  }
 
   // 2) encuestas distintas por votante
   const { data: surveysRows, error: surveysErr } = await supabase
     .from('post_match_surveys')
     .select('votante_id')
     .eq('partido_id', partidoId);
-  if (surveysErr) throw surveysErr;
+  if (surveysErr) {
+    console.error('[FINALIZE] error fetching surveysRows', { partidoId, surveysErr });
+    throw surveysErr;
+  }
   const distinctVoters = new Set((surveysRows || []).map(r => r.votante_id));
   const surveysCount = distinctVoters.size;
 
-  if (!playersCount || surveysCount < playersCount) {
-    return { done: false, playersCount, surveysCount };
+  // Log counts and sample voter ids
+  const voterIds = Array.from(distinctVoters);
+  console.log('[FINALIZE] counts', { partidoId, playersCount, surveysCount, voterIdsSample: voterIds.slice(0, 10) });
+
+  // determine completion by votes OR by deadline
+  const allVoted = Boolean(playersCount) && surveysCount >= playersCount;
+  // deadlineReached was calculated earlier (line 169)
+
+
+  const FAST = options.fastResults === true || options.fastResults === '1';
+
+  // now and nowIso were defined earlier and used for survey timing
+
+  // existing readyAt for results (kept for compatibility)
+  const readyAt = FAST
+    ? new Date(now.getTime() + 30 * 1000).toISOString()
+    : new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString();
+  console.log('[FINALIZE] Notification scheduled for:', readyAt, FAST ? '(30 seconds)' : '(6 hours)');
+  if (!allVoted && !deadlineReached) {
+    const msLeft = new Date(computedDeadline).getTime() - Date.now();
+    console.log('[FINALIZE] waiting', { partidoId, playersCount, surveysCount, deadlineAt: computedDeadline, msLeft });
+    return { done: false, playersCount, surveysCount, deadlineAt: computedDeadline };
+  }
+
+  console.log('[FINALIZE] proceeding to compute results and schedule notifications (allVoted || deadlineReached)', { partidoId, allVoted, deadlineReached });
+  // Always attempt to apply no-show penalties when finalizing (idempotent implementation should guard double application)
+  try {
+    console.log('[FINALIZE] applying no-show penalties', { partidoId });
+    await applyNoShowPenalties(partidoId);
+  } catch (penErr) {
+    console.error('[FINALIZE] applyNoShowPenalties error', { partidoId, penErr });
+  }
+  // Always attempt to run no-show recovery processing as well (non-blocking)
+  try {
+    console.log('[FINALIZE] running no-show recoveries', { partidoId });
+    await applyNoShowRecoveries(partidoId);
+  } catch (recErr) {
+    console.error('[NO_SHOW_RECOVERY] error', recErr);
+  }
+
+  // --- Create survey_finished notifications for all players immediately ---
+  try {
+    let jugadoresForNotifs = await db.fetchMany('jugadores', { partido_id: partidoId });
+    jugadoresForNotifs = (jugadoresForNotifs || []).filter(j => j.usuario_id != null);
+
+    // Strict dedupe: fetch existing 'survey_finished' notifications for this match
+    // Filters based on match_ref to ensure robustness
+    let existingNotifs = [];
+    try {
+      existingNotifs = await db.fetchMany('notifications', { match_ref: Number(partidoId), type: 'survey_finished' });
+    } catch (e) {
+      console.warn('[DEBUG] could not fetch existing survey_finished notifications', e?.message || e);
+      existingNotifs = [];
+    }
+
+    const alreadyNotifiedUserIds = new Set((existingNotifs || []).map(n => n.user_id).filter(Boolean));
+    const jugadoresToInsert = (jugadoresForNotifs || []).filter(j => !alreadyNotifiedUserIds.has(j.usuario_id));
+
+    if (jugadoresToInsert && jugadoresToInsert.length > 0) {
+      // Immediate sending (no delay)
+      const notificationPayloads = jugadoresToInsert.map(j => ({
+        user_id: j.usuario_id,
+        type: 'survey_finished',
+        title: 'Encuesta finalizada',
+        message: 'Ya podés ver los premios del partido.',
+        // match_ref: Number(partidoId), // Generated column, cannot insert manually
+        partido_id: Number(partidoId),
+        // Canonical data format
+        data: {
+          match_id: String(partidoId),
+          link: `/resultados-encuesta/${partidoId}`,
+          resultsUrl: `/resultados-encuesta/${partidoId}?showAwards=1`
+        },
+        read: false,
+        created_at: nowIso,
+      }));
+
+      console.log('[FINALIZE] inserting survey_finished notifications', { count: notificationPayloads.length });
+
+      try {
+        // Use supabase directly to support bulk insert (db.insert uses .single())
+        const { data: insertRes, error: notifErr } = await supabase
+          .from('notifications')
+          .insert(notificationPayloads)
+          .select(); // legitimate usage for bulk
+
+        if (notifErr) throw notifErr;
+        console.log('[FINALIZE] insert success', insertRes?.length);
+      } catch (notifErr) {
+        console.error('[FINALIZE] insert error', notifErr);
+        handleError(notifErr, { showToast: false, onError: () => { } });
+      }
+    } else {
+      console.log('[FINALIZE] no new notifications to insert (dedupe active)', { partidoId });
+    }
+  } catch (e) {
+    console.error('[FINALIZE] error processing survey_finished notifications', { partidoId, e });
+  }
+
+  // Determine whether we have enough voters to compute and award prizes
+  const MIN_VOTERS_FOR_AWARDS = 3;
+  const hasEnoughVotesForAwards = surveysCount >= MIN_VOTERS_FOR_AWARDS;
+
+  if (!hasEnoughVotesForAwards) {
+    console.log('[FINALIZE] awards skipped: not enough votes', { partidoId, surveysCount });
+    return { done: true, playersCount, surveysCount, awardsSkipped: true };
+  }
+
+  // We have enough votes: compute and persist awards (this function is idempotent)
+  try {
+    console.log('[FINALIZE] computing and persisting awards', { partidoId });
+    await computeAndPersistAwards(partidoId);
+  } catch (awardErr) {
+    console.error('[FINALIZE] computeAndPersistAwards error', { partidoId, awardErr });
+    handleError(awardErr, { showToast: false, onError: () => { } });
   }
 
   // 3) calcular resultados (stub o real)
   const results = await computeResultsAverages(partidoId);
 
-  const qs = new URLSearchParams(window.location.search);
-  const FAST = qs.get('fastResults') === '1' || localStorage.getItem('SURVEY_RESULTS_TEST_FAST') === '1';
-  console.log('[FAST_MODE] URL params:', window.location.search);
-  console.log('[FAST_MODE] fastResults param:', qs.get('fastResults'));
-  console.log('[FAST_MODE] localStorage FAST:', localStorage.getItem('SURVEY_RESULTS_TEST_FAST'));
-  console.log('[FAST_MODE] FAST mode enabled:', FAST);
-  const now = new Date();
-  const nowIso = now.toISOString();
-  const readyAt = FAST
-    ? new Date(now.getTime() + 30 * 1000).toISOString()
-    : new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString();
-  console.log('[FAST_MODE] Notification scheduled for:', readyAt, FAST ? '(30 seconds)' : '(6 hours)');
-
-  // 4) upsert survey_results
+  // 4) upsert survey_results with awards pending state
+  // We keep ready_at for compatibility but effective immediately
   const { error: upsertErr } = await supabase
     .from('survey_results')
     .upsert({
       partido_id: partidoId,
       ...results,
-      ready_at: readyAt,
-      results_ready: false,
+      ready_at: nowIso,
+      results_ready: true, // Mark ready immediately
+      // awards_status: 'pending', // Removed due to missing schema column
       updated_at: nowIso,
-    });
+    }, { onConflict: 'partido_id' });
   if (upsertErr) throw upsertErr;
 
-  // 5) programar notificación - crear una por cada jugador del partido
-  let jugadores;
-  try {
-    jugadores = await db.fetchMany('jugadores', { partido_id: partidoId });
-    // Filter out null usuario_id
-    jugadores = jugadores.filter(j => j.usuario_id != null);
-  } catch (error) {
-    throw error;
-  }
-
-  if (jugadores && jugadores.length > 0) {
-    const idNum = toBigIntId(partidoId);
-    const notificationPayloads = jugadores.map(j => ({
-      user_id: j.usuario_id,
-      type: 'survey_results_ready',
-      send_at: readyAt,
-      status: 'pending',
-      title: 'Resultados listos',
-      message: 'Los resultados de la encuesta del partido están listos.',
-      data: { matchId: idNum, resultsUrl: `${getResultsUrl(idNum)}?showAwards=1` },
-      created_at: nowIso,
-    }));
-    
-    console.log('[DEBUG insert notification][surveyCompletionService]', notificationPayloads);
-    try {
-      await db.insert('notifications', notificationPayloads);
-    } catch (notifErr) {
-      handleError(notifErr, { showToast: false });
-      throw notifErr;
-    }
-  }
-
-  return { done: true, playersCount, surveysCount, readyAt };
+  return { done: true, playersCount, surveysCount };
 }
 
 // Mantener / completar esta función con tu lógica real
@@ -214,7 +380,7 @@ export async function computeResultsAverages(partidoId) {
     }
     return null;
   };
-  const normalizeIdArray = (arr=[]) =>
+  const normalizeIdArray = (arr = []) =>
     arr.map(toNumId).filter((n) => typeof n === 'number' && Number.isFinite(n));
 
   // 4) contadores por jugadorId NUMÉRICO
@@ -234,25 +400,26 @@ export async function computeResultsAverages(partidoId) {
   // 5) helper para elegir ganador
   const pickWinner = (map) => {
     let winner = null, best = -1;
-    for (const [id, cnt] of map.entries()) {
+    // Use Array.from to avoid downlevelIteration TS issues
+    Array.from(map.entries()).forEach(([id, cnt]) => {
       if (cnt > best) { best = cnt; winner = id; }
-    }
+    });
     return winner;
   };
 
   const mvpIdNum = pickWinner(mvpCount);
-  const gkIdNum  = pickWinner(gkCount);
+  const gkIdNum = pickWinner(gkCount);
 
   // 6) umbral tarjetas rojas (>=25% de votantes)
   const threshold = totalVotantes > 0 ? Math.ceil(totalVotantes * 0.25) : Infinity;
   const redIdsNum = [];
-  for (const [id, cnt] of violentCount.entries()) {
+  Array.from(violentCount.entries()).forEach(([id, cnt]) => {
     if (cnt >= threshold) redIdsNum.push(id);
-  }
+  });
 
   // 7) mapear NUM -> UUID
-  const idsToFetch = [...new Set([mvpIdNum, gkIdNum, ...redIdsNum]
-    .filter((n) => typeof n === 'number' && Number.isFinite(n)))];
+  const idsToFetch = Array.from(new Set([mvpIdNum, gkIdNum, ...redIdsNum]
+    .filter((n) => typeof n === 'number' && Number.isFinite(n))));
   let idToUuid = new Map();
   if (idsToFetch.length) {
     const { data: jugRows, error: jErr } = await supabase

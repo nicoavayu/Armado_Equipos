@@ -458,6 +458,116 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
 };
 
 /**
+ * Reset all votes for a match
+ * @param {number} partidoId - Match ID
+ * @returns {Promise<Object>} Reset results
+ */
+export const resetVotacion = async (partidoId) => {
+  console.log('🔄 SUPABASE: Starting resetVotacion for match:', partidoId);
+
+  try {
+    if (!partidoId) {
+      throw new Error('Match ID is required to reset votes');
+    }
+
+    // Normalizar ID para evitar mismatches (string vs number)
+    const pidNumber = Number(partidoId);
+    const pidTargets = Number.isFinite(pidNumber) ? [pidNumber, String(pidNumber)] : [String(partidoId)];
+
+    // Primero, intentar vía RPC (security definer) para evitar restricciones RLS
+    let deletedCount = 0;
+    let rpcTried = false;
+
+    try {
+      rpcTried = true;
+      const { error: rpcError } = await supabase.rpc('reset_votacion', { match_id: pidNumber });
+      if (rpcError) {
+        console.warn('⚠️ SUPABASE: reset_votacion RPC falló, se usará fallback:', rpcError);
+      } else {
+        console.log('✅ SUPABASE: reset_votacion RPC ejecutada');
+      }
+    } catch (rpcErr) {
+      console.warn('⚠️ SUPABASE: reset_votacion RPC throw, usando fallback', rpcErr);
+    }
+
+    // Fallback o validación: borrar votos manualmente (agresivo, numérico y string)
+    for (const target of pidTargets) {
+      const { error: deleteError, count } = await supabase
+        .from('votos')
+        .delete()
+        .eq('partido_id', target);
+
+      if (deleteError) {
+        console.error('❌ SUPABASE: Error deleting votes:', deleteError);
+        throw new Error('Error al resetear votos: ' + deleteError.message);
+      }
+
+      deletedCount += count || 0;
+    }
+
+    console.log('✅ SUPABASE: Votes deleted (fallback/confirm):', { deletedCount, rpcTried });
+
+    // Reset scores for all players in the match
+    const { data: jugadores, error: playerError } = await supabase
+      .from('jugadores')
+      .select('uuid')
+      .in('partido_id', pidTargets);
+
+    if (playerError) {
+      console.error('❌ SUPABASE: Error fetching players:', playerError);
+      throw new Error('Error al obtener jugadores: ' + playerError.message);
+    }
+
+    if (jugadores && jugadores.length > 0) {
+      const resetPromises = jugadores.map((j) =>
+        supabase
+          .from('jugadores')
+          .update({ score: null })
+          .eq('uuid', j.uuid)
+          .in('partido_id', pidTargets)
+      );
+
+      const results = await Promise.allSettled(resetPromises);
+      const successCount = results.filter((r) => r.status === 'fulfilled').length;
+
+      console.log('✅ SUPABASE: Player scores reset:', {
+        total: jugadores.length,
+        successful: successCount,
+      });
+    }
+
+    // Verificar que no queden votos colgando
+    try {
+      const { data: remaining, error: remainingError } = await supabase
+        .from('votos')
+        .select('id')
+        .in('partido_id', pidTargets);
+
+      if (remainingError) {
+        console.warn('⚠️ SUPABASE: No se pudo verificar votos restantes', remainingError);
+      } else if (remaining && remaining.length > 0) {
+        console.warn('⚠️ SUPABASE: Quedaron votos sin borrar después de reset', remaining.length);
+      }
+    } catch (verifyError) {
+      console.warn('⚠️ SUPABASE: Error verificando votos restantes', verifyError);
+    }
+
+    const result = {
+      message: 'Votación reseteada exitosamente',
+      votesDeleted: deletedCount || 0,
+      playersReset: jugadores?.length || 0,
+    };
+
+    console.log('🎉 SUPABASE: resetVotacion completed successfully:', result);
+    return result;
+
+  } catch (error) {
+    console.error('❌ SUPABASE: resetVotacion failed:', error);
+    throw error;
+  }
+};
+
+/**
  * Clear votes for a match
  * @param {number} partidoId - Match ID
  * @returns {Promise<void>}

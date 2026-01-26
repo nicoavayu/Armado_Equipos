@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { supabase } from '../../supabase';
 import LoadingSpinner from '../LoadingSpinner';
 import ListaDeFechasModal from './ListaDeFechasModal';
-import './HistorialDePartidosButton.css';
 
-const HistorialDePartidosButton = ({ partidoFrecuente }) => {
+const HistorialDePartidosButton = ({ partidoFrecuente, className }) => {
   const [showModal, setShowModal] = useState(false);
   const [historialPartidos, setHistorialPartidos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -68,16 +67,16 @@ const HistorialDePartidosButton = ({ partidoFrecuente }) => {
 
   return (
     <>
-      <button 
-        className="historial-button" 
+      <button
+        className={className || "bg-white/20 border-2 border-white/40 rounded-lg text-white py-2 px-4 font-bebas text-sm font-semibold cursor-pointer transition-all duration-200 flex items-center justify-center uppercase tracking-[0.5px] flex-1 hover:bg-white/30 hover:border-white/60 hover:-translate-y-[1px] disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"}
         onClick={handleClick}
         disabled={loading}
       >
         {loading ? <LoadingSpinner size="small" /> : 'Historial'}
       </button>
-      
+
       {showModal && (
-        <ListaDeFechasModal 
+        <ListaDeFechasModal
           partidosFrecuentes={historialPartidos}
           onClose={handleClose}
           nombrePartido={partidoFrecuente?.nombre ?? 'Plantillas'}

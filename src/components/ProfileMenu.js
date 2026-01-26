@@ -5,7 +5,6 @@ import { updateProfile, calculateProfileCompletion, uploadFoto, supabase } from 
 import AvatarWithProgress from './AvatarWithProgress';
 import ModernToggle from './ModernToggle';
 import PartidosPendientesNotification from './PartidosPendientesNotification';
-import './ProfileMenu.css';
 import { addFreePlayer, removeFreePlayer } from '../services';
 
 export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
@@ -38,7 +37,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
       };
       setFormData(newFormData);
       setHasChanges(false);
-      
+
       // Initialize live profile
       if (onProfileChange) {
         onProfileChange(profile);
@@ -50,7 +49,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
     const newData = { ...formData, [field]: value };
     setFormData(newData);
     setHasChanges(true);
-    
+
     // Update card in real-time
     if (onProfileChange) {
       onProfileChange({ ...profile, ...newData });
@@ -74,12 +73,12 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
 
       // Update profile in database with cache-busted url
       await updateProfile(user.id, { avatar_url: cacheBusted });
-      
+
       // Update user metadata
       await supabase.auth.updateUser({
         data: { avatar_url: cacheBusted },
       });
-      
+
       // Inform parent/component about profile change if callback provided
       if (onProfileChange) onProfileChange({ ...profile, avatar_url: cacheBusted });
 
@@ -95,7 +94,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
       setLoading(false);
     }
   };
-  
+
   // Optional: expose availability toggle through profile menu as well
   const handleSetAvailability = async (value) => {
     if (!user) return;
@@ -125,14 +124,14 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
     try {
       const updatedData = { ...formData };
       const updatedProfile = await updateProfile(user.id, updatedData);
-      
+
       const completion = calculateProfileCompletion(updatedProfile);
       if (completion === 100 && (profile?.profile_completion || 0) < 100) {
         toast.success('¡Perfil completado al 100%! 🎉');
       } else {
         toast.success('Perfil actualizado');
       }
-      
+
       await refreshProfile();
     } catch (error) {
       toast.error('Error actualizando perfil: ' + error.message);
@@ -143,12 +142,12 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
 
   const completion = profile?.profile_completion || 0;
   const isIncomplete = completion < 100;
-  
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     onClose();
   };
-  
+
   const positions = [
     { key: 'arquero', label: 'ARQ' },
     { key: 'defensor', label: 'DEF' },
@@ -160,34 +159,34 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
     console.log('ProfileMenu not open, returning null');
     return null;
   }
-  
+
   console.log('ProfileMenu rendering with profile:', profile);
 
   return (
     <>
       {/* Backdrop */}
-      <div className="profile-menu-backdrop" onClick={onClose} />
-      
+      <div className="fixed inset-0 bg-black/50 z-[999] backdrop-blur-[2px]" onClick={onClose} />
+
       {/* Menu */}
-      <div className={`profile-menu ${isOpen ? 'open' : ''}`}>
+      <div className={`fixed top-0 right-[-400px] w-[400px] max-[600px]:w-screen max-[600px]:right-[-100vw] h-screen bg-gradient-to-br from-[#667eea] to-[#764ba2] z-[1000] flex flex-col transition-[right] duration-300 ease-in-out shadow-[-4px_0_20px_rgba(0,0,0,0.3)] ${isOpen ? '!right-0' : ''}`}>
         {/* Header with Avatar */}
-        <div className="profile-menu-header">
-          <div className="profile-menu-avatar">
-            <AvatarWithProgress 
-              profile={profile} 
+        <div className="p-6 text-center relative border-b border-white/20 max-[600px]:p-5 max-[600px]:px-4">
+          <div className="mb-4 flex justify-center">
+            <AvatarWithProgress
+              profile={profile}
               size={80}
               onClick={() => fileInputRef.current?.click()}
             />
           </div>
-          
-          <button 
-            className="change-photo-btn"
+
+          <button
+            className="bg-white/20 border border-white/30 text-white py-2 px-4 rounded-[20px] text-sm font-[Oswald,Arial,sans-serif] cursor-pointer transition-all duration-200 hover:not-disabled:bg-white/30 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => fileInputRef.current?.click()}
             disabled={loading}
           >
             {loading ? 'Subiendo...' : 'Cambiar Foto'}
           </button>
-          
+
           <input
             ref={fileInputRef}
             type="file"
@@ -195,34 +194,34 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
             style={{ display: 'none' }}
             onChange={handlePhotoChange}
           />
-          
-          <button className="close-menu-btn" onClick={onClose}>
+
+          <button className="absolute top-4 right-4 bg-transparent border-none text-white text-[28px] cursor-pointer w-10 h-10 flex items-center justify-center rounded-full transition-colors duration-200 hover:bg-white/20" onClick={onClose}>
             ×
           </button>
         </div>
 
         {/* Completion Banner */}
         {isIncomplete && (
-          <div className="completion-banner">
+          <div className="bg-[rgba(255,193,7,0.9)] text-[#333] py-3 px-5 flex items-center gap-3 mx-5 mt-5 rounded-lg max-[600px]:mx-4 max-[600px]:mb-4 max-[600px]:mt-4">
             <span>📋</span>
             <div>
-              <div className="banner-title">Completá tu perfil</div>
-              <div className="banner-subtitle">Para la mejor experiencia ({completion}% completo)</div>
+              <div className="font-semibold text-sm font-[Oswald,Arial,sans-serif]">Completá tu perfil</div>
+              <div className="text-xs opacity-80">Para la mejor experiencia ({completion}% completo)</div>
             </div>
           </div>
         )}
-        
+
         {/* Notificación de partidos pendientes */}
         {user && (
-          <PartidosPendientesNotification />
+          <PartidosPendientesNotification userId={user.id} />
         )}
 
         {/* Form Fields */}
-        <div className="profile-menu-content">
-          <div className="form-group">
-            <label>Nombre *</label>
+        <div className="flex-1 overflow-y-auto px-5 py-0 flex flex-col gap-4 max-[600px]:px-4">
+          <div className="flex flex-col">
+            <label className="text-white text-[13px] font-medium mb-1.5 font-[Oswald,Arial,sans-serif]">Nombre *</label>
             <input
-              className="input-modern"
+              className="bg-white/10 border border-white/30 text-white text-sm px-3 py-2.5 focus:border-white/60 focus:bg-white/15 placeholder:text-white/60 outline-none rounded"
               type="text"
               value={formData.nombre}
               onChange={(e) => handleInputChange('nombre', e.target.value)}
@@ -230,22 +229,21 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
             />
           </div>
 
-          <div className="form-group">
-            <label>Email</label>
+          <div className="flex flex-col">
+            <label className="text-white text-[13px] font-medium mb-1.5 font-[Oswald,Arial,sans-serif]">Email</label>
             <input
-              className="input-modern"
+              className="bg-white/10 border border-white/30 text-white text-sm px-3 py-2.5 outline-none rounded opacity-70 cursor-not-allowed"
               type="email"
               value={formData.email}
               readOnly
-              style={{ opacity: 0.7, cursor: 'not-allowed' }}
             />
-            <div className="field-note">El email no se puede modificar</div>
+            <div className="text-xs text-white/70 mt-1">El email no se puede modificar</div>
           </div>
 
-          <div className="form-group">
-            <label>Teléfono</label>
+          <div className="flex flex-col">
+            <label className="text-white text-[13px] font-medium mb-1.5 font-[Oswald,Arial,sans-serif]">Teléfono</label>
             <input
-              className="input-modern"
+              className="bg-white/10 border border-white/30 text-white text-sm px-3 py-2.5 focus:border-white/60 focus:bg-white/15 placeholder:text-white/60 outline-none rounded"
               type="tel"
               value={formData.telefono}
               onChange={(e) => handleInputChange('telefono', e.target.value)}
@@ -253,10 +251,10 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
             />
           </div>
 
-          <div className="form-group">
-            <label>Ciudad/Localidad</label>
+          <div className="flex flex-col">
+            <label className="text-white text-[13px] font-medium mb-1.5 font-[Oswald,Arial,sans-serif]">Ciudad/Localidad</label>
             <input
-              className="input-modern"
+              className="bg-white/10 border border-white/30 text-white text-sm px-3 py-2.5 focus:border-white/60 focus:bg-white/15 placeholder:text-white/60 outline-none rounded"
               type="text"
               value={formData.localidad}
               onChange={(e) => handleInputChange('localidad', e.target.value)}
@@ -264,24 +262,24 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
             />
           </div>
 
-          <div className="form-group">
-            <label>Fecha de Nacimiento</label>
+          <div className="flex flex-col">
+            <label className="text-white text-[13px] font-medium mb-1.5 font-[Oswald,Arial,sans-serif]">Fecha de Nacimiento</label>
             <input
-              className="input-modern"
+              className="bg-white/10 border border-white/30 text-white text-sm px-3 py-2.5 focus:border-white/60 focus:bg-white/15 placeholder:text-white/60 outline-none rounded"
               type="date"
               value={formData.fecha_nacimiento}
               onChange={(e) => handleInputChange('fecha_nacimiento', e.target.value)}
             />
           </div>
 
-          <div className="form-group">
-            <label>Posición</label>
-            <div className="position-buttons">
+          <div className="flex flex-col">
+            <label className="text-white text-[13px] font-medium mb-1.5 font-[Oswald,Arial,sans-serif]">Posición</label>
+            <div className="grid grid-cols-2 gap-2 mt-2">
               {positions.map((pos) => (
                 <button
                   key={pos.key}
                   type="button"
-                  className={`position-btn ${formData.posicion_favorita === pos.key ? 'selected' : ''}`}
+                  className={`bg-white/10 border-2 border-white/30 text-white p-3 rounded-lg text-base font-bold font-[Oswald,Arial,sans-serif] cursor-pointer transition-all duration-200 hover:bg-white/20 hover:border-white/50 ${formData.posicion_favorita === pos.key ? 'bg-[linear-gradient(45deg,#d4af37,#f4d03f)] !border-[#d4af37] text-black shadow-[0_4px_8px_rgba(212,175,55,0.3)]' : ''}`}
                   onClick={() => handleInputChange('posicion_favorita', pos.key)}
                 >
                   {pos.label}
@@ -290,8 +288,8 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
             </div>
           </div>
 
-          <div className="form-group">
-            <label>Acepta Invitaciones</label>
+          <div className="flex flex-col">
+            <label className="text-white text-[13px] font-medium mb-1.5 font-[Oswald,Arial,sans-serif]">Acepta Invitaciones</label>
             <ModernToggle
               checked={formData.acepta_invitaciones}
               onChange={(value) => { handleInputChange('acepta_invitaciones', value); handleSetAvailability(value); }}
@@ -299,10 +297,10 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
             />
           </div>
 
-          <div className="form-group">
-            <label>Bio</label>
+          <div className="flex flex-col">
+            <label className="text-white text-[13px] font-medium mb-1.5 font-[Oswald,Arial,sans-serif]">Bio</label>
             <textarea
-              className="input-modern"
+              className="bg-white/10 border border-white/30 text-white text-sm px-3 py-2.5 focus:border-white/60 focus:bg-white/15 placeholder:text-white/60 outline-none rounded resize-y"
               value={formData.bio}
               onChange={(e) => handleInputChange('bio', e.target.value)}
               placeholder="Contanos algo sobre vos..."
@@ -312,17 +310,17 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
         </div>
 
         {/* Save Button */}
-        <div className="profile-menu-footer">
+        <div className="p-5 border-t border-white/20 max-[600px]:p-4">
           <button
-            className={`save-profile-btn ${hasChanges ? 'has-changes' : ''}`}
+            className={`w-full bg-[linear-gradient(45deg,#0EA9C6,#25d366)] border-none text-white p-3.5 rounded-lg text-base font-semibold font-[Oswald,Arial,sans-serif] cursor-pointer transition-all duration-200 shadow-[0_4px_12px_rgba(14,169,198,0.3)] hover:not-disabled:-translate-y-0.5 hover:not-disabled:shadow-[0_6px_16px_rgba(14,169,198,0.4)] disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none ${hasChanges ? '!bg-[linear-gradient(45deg,#d4af37,#f4d03f)] !shadow-[0_4px_12px_rgba(212,175,55,0.4)]' : ''}`}
             onClick={handleSave}
             disabled={loading || !hasChanges}
           >
             {loading ? 'Guardando...' : 'Guardar Perfil'}
           </button>
-          
+
           <button
-            className="logout-btn"
+            className="w-full bg-[#dc3545]/80 border border-[#dc3545] text-white p-3 rounded-lg text-sm font-semibold font-[Oswald,Arial,sans-serif] cursor-pointer transition-all duration-200 mt-2 hover:not-disabled:bg-[#dc3545]"
             onClick={handleLogout}
             disabled={loading}
           >

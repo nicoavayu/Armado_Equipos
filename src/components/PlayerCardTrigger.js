@@ -1,6 +1,5 @@
 import React, { useState, useContext } from 'react';
 import ProfileCardModal from './ProfileCardModal';
-import './PlayerCardTrigger.css';
 
 // Create a context to determine if we're in TeamDisplay
 export const TeamDisplayContext = React.createContext(false);
@@ -9,7 +8,9 @@ export const TeamDisplayContext = React.createContext(false);
  * Wrapper component that makes any player item clickable to show a ProfileCardModal
  * @param {Object} props - Component props
  * @param {Object} props.profile - Player profile data
- * @param {ReactNode} props.children - Child components to render as the clickable trigger
+ * @param {React.ReactNode} props.children - Child components to render as the clickable trigger
+ * @param {Object} [props.partidoActual] - Current match data
+ * @param {Function} [props.onMakeAdmin] - Function to transfer admin rights
  */
 const PlayerCardTrigger = ({ profile, children, partidoActual, onMakeAdmin }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -17,13 +18,13 @@ const PlayerCardTrigger = ({ profile, children, partidoActual, onMakeAdmin }) =>
 
   const handleOpenModal = (e) => {
     e.stopPropagation(); // Prevent event from bubbling up to parent elements
-    
+
     // Don't open profile card if we're in TeamDisplay
     if (isInTeamDisplay) {
       console.log('[PLAYER_TRIGGER] Prevented opening modal in TeamDisplay');
       return;
     }
-    
+
     console.log('[PLAYER_TRIGGER] Opening modal for profile:', profile?.id);
     setIsModalOpen(true);
   };
@@ -35,8 +36,8 @@ const PlayerCardTrigger = ({ profile, children, partidoActual, onMakeAdmin }) =>
 
   return (
     <>
-      <div 
-        className="player-card-trigger"
+      <div
+        className="cursor-pointer transition-transform duration-200 ease-ease relative w-full h-full hover:-translate-y-0.5 active:translate-y-0 focus:outline-none focus-visible:outline-2 focus-visible:outline-white/50 focus-visible:outline-offset-2"
         onClick={handleOpenModal}
         role="button"
         tabIndex={0}
@@ -44,7 +45,7 @@ const PlayerCardTrigger = ({ profile, children, partidoActual, onMakeAdmin }) =>
       >
         {children}
       </div>
-      <ProfileCardModal 
+      <ProfileCardModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         profile={profile}

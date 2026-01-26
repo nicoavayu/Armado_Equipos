@@ -10,9 +10,10 @@
 /* Reset & body */
 body {
   margin: 0;
-  font-family: Inter, Arial, sans-serif;
+  font-family: Oswald, Inter, Arial, sans-serif;
   background: var(--bg);
   color: var(--fg);
+  overflow-x: hidden;
 }
 
 /* Contenedor principal */
@@ -63,8 +64,8 @@ body {
 
 .botonera-grid {
   display: grid;
-  grid-template-columns: repeat(3,1fr);
-  grid-template-rows: repeat(2,1fr);
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
   gap: 18px 16px;
 }
 
@@ -82,11 +83,28 @@ body {
   line-height: 1.2;
   transition: transform .1s, background .1s;
 }
-.botonera-grid .btn.green  { background: #20c25e; }
-.botonera-grid .btn.orange { background: #ef9321; }
-.botonera-grid .btn.purple { background: #8e44ad; }
-.botonera-grid .btn.red    { background: #e74c3c; grid-column:1/3; }
-.botonera-grid .btn.blue   { background: #3498db; grid-column:3/4; }
+
+.botonera-grid .btn.green {
+  background: #20c25e;
+}
+
+.botonera-grid .btn.orange {
+  background: #ef9321;
+}
+
+.botonera-grid .btn.purple {
+  background: #8e44ad;
+}
+
+.botonera-grid .btn.red {
+  background: #e74c3c;
+  grid-column: 1/3;
+}
+
+.botonera-grid .btn.blue {
+  background: #3498db;
+  grid-column: 3/4;
+}
 
 .botonera-grid .btn:disabled {
   background: #bdbdbd;
@@ -116,7 +134,7 @@ body {
 /* Lista de equipos: mostrar puntaje individual y total */
 .team-container {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px,1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 24px;
   margin-top: 32px;
   border-top: 2px solid var(--border);
@@ -185,6 +203,7 @@ body.page-exit-back {
     transform: translateX(0);
     opacity: 1;
   }
+
   to {
     transform: translateX(-100%);
     opacity: 0;
@@ -196,6 +215,7 @@ body.page-exit-back {
     transform: translateX(0);
     opacity: 1;
   }
+
   to {
     transform: translateX(100%);
     opacity: 0;
@@ -203,12 +223,14 @@ body.page-exit-back {
 }
 
 /* Responsive mobile */
-@media (width <= 800px) {
-  .content { grid-template-columns: 1fr; }
+@media (width <=800px) {
+  .content {
+    grid-template-columns: 1fr;
+  }
 
   .botonera-grid {
     grid-template-columns: 1fr;
-    grid-template-rows: repeat(5,1fr);
+    grid-template-rows: repeat(5, 1fr);
   }
 
   .botonera-grid .btn.red,

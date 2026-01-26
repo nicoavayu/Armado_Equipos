@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
-import './EmailAuth.css';
 
 const EmailAuth = ({ user }) => {
   const [activeTab, setActiveTab] = useState('login'); // 'login' o 'register'
@@ -100,11 +99,11 @@ const EmailAuth = ({ user }) => {
   // Renderizar formulario de recuperación de contraseña
   if (resetPassword) {
     return (
-      <div className="email-auth-container">
+      <div className="w-full mx-auto max-[480px]:max-w-[98%]">
         <h2>Recuperar Contraseña</h2>
-        <form onSubmit={handleResetPassword} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="reset-email">Email</label>
+        <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5 mb-2.5">
+            <label htmlFor="reset-email" className="text-white text-sm font-medium">Email</label>
             <input
               id="reset-email"
               type="email"
@@ -112,14 +111,15 @@ const EmailAuth = ({ user }) => {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Tu email"
               required
+              className="px-3.5 py-2.5 rounded-lg border border-white/20 bg-white/20 text-white text-base transition-colors duration-300 w-full placeholder:text-white/50 focus:outline-none focus:border-[#8178e5] max-[480px]:px-3 max-[480px]:text-sm"
             />
           </div>
-          <button type="submit" className="auth-button" disabled={loading}>
+          <button type="submit" className="p-2.5 rounded-lg border-none bg-[#0864b2] text-white text-base font-medium cursor-pointer transition-colors duration-300 flex justify-center items-center h-11 w-full mt-1.5 hover:not-disabled:bg-[#6a5fd0] disabled:opacity-70 disabled:cursor-not-allowed max-[480px]:p-2 max-[480px]:text-sm max-[480px]:h-10" disabled={loading}>
             {loading ? <LoadingSpinner size="small" /> : 'Enviar Instrucciones'}
           </button>
-          <button 
-            type="button" 
-            className="auth-link-button"
+          <button
+            type="button"
+            className="bg-none border-none text-white/80 text-sm text-center cursor-pointer p-1.5 mt-1.5 w-full hover:underline hover:text-white"
             onClick={() => setResetPassword(false)}
           >
             Volver al inicio de sesión
@@ -130,16 +130,16 @@ const EmailAuth = ({ user }) => {
   }
 
   return (
-    <div className="email-auth-container">
-      <div className="auth-tabs">
-        <button 
-          className={`tab-button ${activeTab === 'login' ? 'active' : ''}`}
+    <div className="w-full mx-auto max-[480px]:max-w-[98%]">
+      <div className="flex mb-4 rounded-lg overflow-hidden border border-white/20">
+        <button
+          className={`flex-1 p-2.5 border-none text-white text-base font-medium cursor-pointer transition-colors duration-300 max-[480px]:p-2 max-[480px]:text-sm ${activeTab === 'login' ? 'bg-[#0864b2]' : 'bg-black/20 hover:bg-black/30'}`}
           onClick={() => setActiveTab('login')}
         >
           Ingresar
         </button>
-        <button 
-          className={`tab-button ${activeTab === 'register' ? 'active' : ''}`}
+        <button
+          className={`flex-1 p-2.5 border-none text-white text-base font-medium cursor-pointer transition-colors duration-300 max-[480px]:p-2 max-[480px]:text-sm ${activeTab === 'register' ? 'bg-[#0864b2]' : 'bg-black/20 hover:bg-black/30'}`}
           onClick={() => setActiveTab('register')}
         >
           Registrarse
@@ -147,9 +147,9 @@ const EmailAuth = ({ user }) => {
       </div>
 
       {activeTab === 'login' ? (
-        <form onSubmit={handleLogin} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="login-email">Email</label>
+        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5 mb-2.5">
+            <label htmlFor="login-email" className="text-white text-sm font-medium">Email</label>
             <input
               id="login-email"
               type="email"
@@ -157,10 +157,11 @@ const EmailAuth = ({ user }) => {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Tu email"
               required
+              className="px-3.5 py-2.5 rounded-lg border border-white/20 bg-white/20 text-white text-base transition-colors duration-300 w-full placeholder:text-white/50 focus:outline-none focus:border-[#8178e5] max-[480px]:px-3 max-[480px]:text-sm"
             />
           </div>
-          <div className="form-group">
-            <label htmlFor="login-password">Contraseña</label>
+          <div className="flex flex-col gap-1.5 mb-2.5">
+            <label htmlFor="login-password" className="text-white text-sm font-medium">Contraseña</label>
             <input
               id="login-password"
               type="password"
@@ -168,23 +169,24 @@ const EmailAuth = ({ user }) => {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Tu contraseña"
               required
+              className="px-3.5 py-2.5 rounded-lg border border-white/20 bg-white/20 text-white text-base transition-colors duration-300 w-full placeholder:text-white/50 focus:outline-none focus:border-[#8178e5] max-[480px]:px-3 max-[480px]:text-sm"
             />
           </div>
-          <button type="submit" className="auth-button" disabled={loading}>
+          <button type="submit" className="p-2.5 rounded-lg border-none bg-[#0864b2] text-white text-base font-medium cursor-pointer transition-colors duration-300 flex justify-center items-center h-11 w-full mt-1.5 hover:not-disabled:bg-[#6a5fd0] disabled:opacity-70 disabled:cursor-not-allowed max-[480px]:p-2 max-[480px]:text-sm max-[480px]:h-10" disabled={loading}>
             {loading ? <LoadingSpinner size="small" /> : 'Ingresar'}
           </button>
-          <button 
-            type="button" 
-            className="auth-link-button"
+          <button
+            type="button"
+            className="bg-none border-none text-white/80 text-sm text-center cursor-pointer p-1.5 mt-1.5 w-full hover:underline hover:text-white"
             onClick={() => setResetPassword(true)}
           >
             ¿Olvidaste tu contraseña?
           </button>
         </form>
       ) : (
-        <form onSubmit={handleRegister} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="register-email">Email</label>
+        <form onSubmit={handleRegister} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5 mb-2.5">
+            <label htmlFor="register-email" className="text-white text-sm font-medium">Email</label>
             <input
               id="register-email"
               type="email"
@@ -192,10 +194,11 @@ const EmailAuth = ({ user }) => {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Tu email"
               required
+              className="px-3.5 py-2.5 rounded-lg border border-white/20 bg-white/20 text-white text-base transition-colors duration-300 w-full placeholder:text-white/50 focus:outline-none focus:border-[#8178e5] max-[480px]:px-3 max-[480px]:text-sm"
             />
           </div>
-          <div className="form-group">
-            <label htmlFor="register-password">Contraseña</label>
+          <div className="flex flex-col gap-1.5 mb-2.5">
+            <label htmlFor="register-password" className="text-white text-sm font-medium">Contraseña</label>
             <input
               id="register-password"
               type="password"
@@ -204,9 +207,10 @@ const EmailAuth = ({ user }) => {
               placeholder="Tu contraseña (mínimo 6 caracteres)"
               minLength={6}
               required
+              className="px-3.5 py-2.5 rounded-lg border border-white/20 bg-white/20 text-white text-base transition-colors duration-300 w-full placeholder:text-white/50 focus:outline-none focus:border-[#8178e5] max-[480px]:px-3 max-[480px]:text-sm"
             />
           </div>
-          <button type="submit" className="auth-button" disabled={loading}>
+          <button type="submit" className="p-2.5 rounded-lg border-none bg-[#0864b2] text-white text-base font-medium cursor-pointer transition-colors duration-300 flex justify-center items-center h-11 w-full mt-1.5 hover:not-disabled:bg-[#6a5fd0] disabled:opacity-70 disabled:cursor-not-allowed max-[480px]:p-2 max-[480px]:text-sm max-[480px]:h-10" disabled={loading}>
             {loading ? <LoadingSpinner size="small" /> : 'Registrarse'}
           </button>
         </form>

@@ -3,7 +3,6 @@ import { supabase } from '../supabase';
 import { useAmigos } from '../hooks/useAmigos';
 import { useAuth } from './AuthProvider';
 import { toast } from 'react-toastify';
-import './UserSearch.css';
 
 const UserSearch = ({ onClose }) => {
   const { user } = useAuth();
@@ -32,7 +31,7 @@ const UserSearch = ({ onClose }) => {
       if (error) throw error;
 
       setSearchResults(data || []);
-      
+
       // Check relationship status for each user
       if (data && data.length > 0) {
         const statuses = {};
@@ -80,7 +79,7 @@ const UserSearch = ({ onClose }) => {
   const getButtonText = (userId) => {
     const status = relationshipStatuses[userId];
     if (!status) return 'Enviar solicitud';
-    
+
     switch (status.status) {
       case 'pending':
         return 'Solicitud pendiente';
@@ -99,53 +98,59 @@ const UserSearch = ({ onClose }) => {
   };
 
   return (
-    <div className="user-search-overlay">
-      <div className="user-search-modal">
-        <div className="user-search-header">
-          <h3>Buscar usuarios</h3>
-          <button className="close-btn" onClick={onClose}>×</button>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]">
+      <div className="bg-gradient-to-b from-[#62c1ff] to-[#b579f8] rounded-xl w-[90%] max-w-[500px] max-h-[80vh] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
+        <div className="flex justify-between items-center p-5 border-b border-white/20">
+          <h3 className="m-0 text-white font-oswald text-xl">Buscar usuarios</h3>
+          <button
+            className="bg-none border-none text-white text-2xl cursor-pointer p-0 w-[30px] h-[30px] flex items-center justify-center rounded-full transition-colors duration-200 hover:bg-white/20"
+            onClick={onClose}
+          >
+            ×
+          </button>
         </div>
-        
-        <div className="search-input-container">
+
+        <div className="p-5">
           <input
             type="text"
             placeholder="Buscar por nombre o email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
+            className="w-full p-[12px_16px] border border-white/30 rounded-lg bg-white/10 text-white text-base box-border placeholder:text-white/70 focus:outline-none focus:border-white/50 focus:bg-white/15"
             autoFocus
           />
         </div>
 
-        <div className="search-results">
+        <div className="max-h-[400px] overflow-y-auto px-5 pb-5">
           {loading && (
-            <div className="loading-message">Buscando usuarios...</div>
+            <div className="text-center text-white/70 p-5 italic">Buscando usuarios...</div>
           )}
-          
+
           {!loading && searchTerm.length >= 2 && searchResults.length === 0 && (
-            <div className="no-results">No se encontraron usuarios</div>
+            <div className="text-center text-white/70 p-5 italic">No se encontraron usuarios</div>
           )}
-          
+
           {!loading && searchResults.map((searchUser) => (
-            <div key={searchUser.id} className="user-result">
-              <div className="user-info">
-                <div className="user-avatar">
+            <div key={searchUser.id} className="flex items-center justify-between p-3 bg-white/10 rounded-lg mb-2 border border-white/10">
+              <div className="flex items-center flex-1">
+                <div className="w-10 h-10 rounded-full overflow-hidden mr-3 bg-white/20 flex items-center justify-center">
                   {searchUser.avatar_url ? (
-                    <img src={searchUser.avatar_url} alt={searchUser.nombre} />
+                    <img src={searchUser.avatar_url} alt={searchUser.nombre} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="avatar-placeholder">👤</div>
+                    <div className="text-xl text-white/70">👤</div>
                   )}
                 </div>
-                <div className="user-details">
-                  <div className="user-name">{searchUser.nombre}</div>
-                  <div className="user-email">{searchUser.email}</div>
+                <div className="flex-1">
+                  <div className="text-white font-semibold mb-[2px]">{searchUser.nombre}</div>
+                  <div className="text-white/80 text-sm mb-[2px]">{searchUser.email}</div>
                   {searchUser.localidad && (
-                    <div className="user-location">{searchUser.localidad}</div>
+                    <div className="text-white/60 text-xs">{searchUser.localidad}</div>
                   )}
                 </div>
               </div>
               <button
-                className={`friend-request-btn ${isButtonDisabled(searchUser.id) ? 'disabled' : ''}`}
+                className={`bg-[#4CAF50] text-white border-none p-[8px_16px] rounded-md cursor-pointer text-sm font-medium transition-all duration-200 whitespace-nowrap hover:not-disabled:bg-[#45a049] hover:not-disabled:-translate-y-[1px] ${isButtonDisabled(searchUser.id) ? 'bg-white/30 text-white/70 cursor-not-allowed hover:bg-white/30 hover:transform-none' : ''
+                  }`}
                 onClick={() => handleSendFriendRequest(searchUser.id)}
                 disabled={isButtonDisabled(searchUser.id)}
               >

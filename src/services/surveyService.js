@@ -37,11 +37,12 @@ export const createPostMatchSurveyNotifications = async (partido) => {
       type: 'survey_start',
       title: '¡Completá la encuesta!',
       message: `Ayudanos calificando la experiencia del partido ${partido.nombre || 'reciente'}.`,
-      partido_id: partido.id,
+      partido_id: Number(partido.id),
+      match_ref: Number(partido.id),
       data: {
         match_id: String(partido.id),
         // legacy compatibility (to be removed after full migration)
-        matchId: partido.id,
+        matchId: Number(partido.id),
         matchCode: partido.codigo,
         matchDate: partido.fecha,
         matchTime: partido.hora,
@@ -50,7 +51,7 @@ export const createPostMatchSurveyNotifications = async (partido) => {
       read: false,
       created_at: new Date().toISOString(),
     }));
-    
+
     // Insert notifications into the database
     const { data, error } = await supabase
       .from('notifications')

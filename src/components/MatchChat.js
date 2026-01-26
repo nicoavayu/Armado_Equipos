@@ -1,10 +1,12 @@
+// src/components/MatchChat.js
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import { useAuth } from './AuthProvider';
 import { useKeyboard } from '../hooks/useKeyboard';
+// Eliminado import de Capacitor si no se usa, pero lo mantengo por si acaso
 import { Capacitor } from '@capacitor/core';
-import './MatchChat.css';
+// import './MatchChat.css'; // REMOVED
 
 export default function MatchChat({ partidoId, isOpen, onClose }) {
   const { user, profile } = useAuth();
@@ -97,7 +99,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
       setNewMessage('');
       fetchMessages();
-      
+
       // Devolver el foco al campo de texto
       setTimeout(() => {
         inputRef.current?.focus();
@@ -119,49 +121,64 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="chat-overlay" style={{
-      paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined
-    }}>
-      <div className="chat-modal" style={{
-        marginBottom: keyboardHeight > 0 ? 0 : undefined,
-        maxHeight: keyboardHeight > 0 
-          ? `calc(100vh - ${keyboardHeight + 40}px)` 
-          : undefined
-      }}>
-        <div className="chat-header">
-          <h3>Chat del Partido</h3>
-          <button className="chat-close" onClick={onClose}>×</button>
+    <div
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000] p-5 pb-24 sm:p-[15px] sm:pt-[max(15px,env(safe-area-inset-top,15px))] sm:items-start sm:h-[100dvh]"
+      style={{
+        paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined,
+      }}
+    >
+      <div
+        className="bg-slate-900 border-2 border-white/20 w-full max-w-[500px] h-[75vh] max-h-[600px] rounded-xl flex flex-col shadow-[0_30px_120px_rgba(0,0,0,0.55)] mb-5 min-h-[300px] sm:mt-4 sm:h-auto sm:max-h-[calc(100vh-30px)] sm:mb-0 sm:overflow-hidden"
+        style={{
+          marginBottom: keyboardHeight > 0 ? 0 : undefined,
+          maxHeight: keyboardHeight > 0
+            ? `calc(100vh - ${keyboardHeight + 40}px)`
+            : undefined
+        }}
+      >
+        <div className="flex flex-col px-5 py-3 border-b border-white/10 bg-slate-800 rounded-t-xl sm:px-4 sm:py-2.5 sm:shrink-0">
+          <div className="flex justify-between items-center">
+            <h3 className="m-0 font-bebas text-xl font-bold text-white tracking-wide uppercase">Chat del Partido</h3>
+            <button
+              className="bg-transparent border-none text-white/70 text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-white"
+              onClick={onClose}
+              aria-label="Cerrar chat"
+            >
+              ×
+            </button>
+          </div>
         </div>
-        
-        <div className="chat-messages">
+
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-[200px] touch-pan-y sm:p-3 bg-slate-900">
           {messages.map((msg) => (
-            <div key={msg.id} className="chat-message">
-              <div className="message-header">
-                <span className="message-author">{msg.autor}</span>
-                <span className="message-time">{formatTime(msg.timestamp)}</span>
+            <div key={msg.id} className="bg-slate-800 rounded-lg p-3 border-l-[3px] border-[#0EA9C6]">
+              <div className="flex justify-between items-center mb-1.5">
+                <span className="font-semibold text-[#0EA9C6] font-oswald text-sm">{msg.autor}</span>
+                <span className="text-xs text-white/50">{formatTime(msg.timestamp)}</span>
               </div>
-              <div className="message-text">{msg.mensaje}</div>
+              <div className="text-white/90 leading-[1.4] break-words text-sm">{msg.mensaje}</div>
             </div>
           ))}
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="chat-input-container">
+        <div className="flex py-3 px-4 border-t border-white/10 gap-2 bg-slate-800 min-h-[64px] rounded-b-xl items-center sm:p-3 sm:relative sm:z-10 sm:shrink-0">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Escribí tu mensaje..."
-            className="chat-input"
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+            placeholder="Escribí un mensaje…"
+            className="flex-1 py-3 px-4 border border-slate-700 rounded-xl outline-none font-oswald text-base transition-all focus:border-[#0EA9C6] focus:ring-2 focus:ring-[#0EA9C6]/20 sm:text-base sm:relative sm:z-20 bg-slate-900 text-white placeholder:text-white/40"
+            onKeyPress={(e) => e.key === 'Enter' && !loading && newMessage.trim() && handleSendMessage()}
             disabled={loading}
             ref={inputRef}
             autoFocus
           />
           <button
             onClick={handleSendMessage}
-            className="chat-send-btn"
+            className="bg-[#0EA9C6] border-none rounded-xl w-11 h-11 text-white text-lg cursor-pointer flex items-center justify-center transition-all hover:bg-[#0c94a8] active:scale-95 disabled:opacity-35 disabled:cursor-not-allowed"
             disabled={loading || !newMessage.trim()}
+            aria-label="Enviar mensaje"
           >
             {loading ? '...' : '➤'}
           </button>

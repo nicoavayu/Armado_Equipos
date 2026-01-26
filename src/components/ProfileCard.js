@@ -1,385 +1,338 @@
-import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
-import './ProfileCard.css';
-// Eliminado import de useAmigos y toast
-import LoadingSpinner from './LoadingSpinner';
+import React, { useEffect, useRef, useCallback, useMemo } from 'react';
 
-const DEFAULT_BEHIND_GRADIENT =
-  'radial-gradient(farthest-side circle at var(--pointer-x) var(--pointer-y),hsla(266,100%,90%,var(--card-opacity)) 4%,hsla(266,50%,80%,calc(var(--card-opacity)*0.75)) 10%,hsla(266,25%,70%,calc(var(--card-opacity)*0.5)) 50%,hsla(266,0%,60%,0) 100%),radial-gradient(35% 52% at 55% 20%,#00ffaac4 0%,#073aff00 100%),radial-gradient(100% 100% at 50% 50%,#00c1ffff 1%,#073aff00 76%),conic-gradient(from 124deg at 50% 50%,#c137ffff 0%,#07c6ffff 40%,#07c6ffff 60%,#c137ffff 100%)';
+// --- Pure Helper Functions (Outside Component) ---
+const clamp = (v, min = 0, max = 100) => Math.min(Math.max(v, min), max);
+const round = (v, prec = 3) => parseFloat(v.toFixed(prec));
+const adjust = (v, fmin, fmax, tmin, tmax) => round(tmin + ((tmax - tmin) * (v - fmin)) / (fmax - fmin));
+const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 
-const DEFAULT_INNER_GRADIENT =
-  'linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)';
-
-const ANIMATION_CONFIG = {
-  SMOOTH_DURATION: 600,
-  INITIAL_DURATION: 1500,
-  INITIAL_X_OFFSET: 70,
-  INITIAL_Y_OFFSET: 60,
+const getPos = (p) => {
+  const map = { 'ARQ': 'ARQ', 'DEF': 'DEF', 'MED': 'MED', 'DEL': 'DEL', 'arquero': 'ARQ', 'defensor': 'DEF', 'mediocampista': 'MED', 'delantero': 'DEL' };
+  return map[p] || 'DEF';
 };
 
-const clamp = (value, min = 0, max = 100) =>
-  Math.min(Math.max(value, min), max);
+const getPosColor = (p) => {
+  const map = { 'ARQ': '#FDB022', 'DEF': '#335CFF', 'MED': '#06C270', 'DEL': '#FF3B3B' };
+  return map[p] || '#8178e5';
+};
 
-const round = (value, precision = 3) =>
-  parseFloat(value.toFixed(precision));
+const getCountry = (c) => {
+  const map = { 'AR': 'ARG', 'BR': 'BRA', 'UY': 'URU', 'CL': 'CHI', 'CO': 'COL', 'PE': 'PER' };
+  return map[c] || c?.toUpperCase() || 'ARG';
+};
 
-const adjust = (
-  value,
-  fromMin,
-  fromMax,
-  toMin,
-  toMax,
-) =>
-  round(toMin + ((toMax - toMin) * (value - fromMin)) / (fromMax - fromMin));
+const getAvatar = (p) => {
+  const src = p?.avatar_url || p?.foto_url || p?.user?.user_metadata?.avatar_url || p?.user?.user_metadata?.picture || p?.user_metadata?.avatar_url || p?.user_metadata?.picture;
+  if (!src) return null;
+  if (src.startsWith('blob:')) return src;
+  return src.includes('?') ? src : `${src}?t=${Date.now()}`;
+};
 
-const easeInOutCubic = (x) =>
-  x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-
-// Badge counter selector
-const getBadgeCounts = (profile) => ({
-  mvp: Number(profile?.mvp_badges ?? profile?.mvps ?? 0),
-  gk: Number(profile?.gk_badges ?? profile?.guantes_dorados ?? 0),
-  red: Number(profile?.red_badges ?? profile?.tarjetas_rojas ?? 0),
-});
+const ANIM = { SMOOTH: 600, INIT: 1500, OX: 70, OY: 60 };
 
 const ProfileCardComponent = ({
   profile,
   isVisible = true,
   enableTilt = true,
-  currentUserId,
 }) => {
   const wrapRef = useRef(null);
   const cardRef = useRef(null);
 
-  const getPositionAbbr = (position) => {
-    const positions = {
-      'ARQ': 'ARQ', 'DEF': 'DEF', 'MED': 'MED', 'DEL': 'DEL',
-      'arquero': 'ARQ', 'defensor': 'DEF', 'mediocampista': 'MED', 'delantero': 'DEL',
-    };
-    return positions[position] || 'DEF';
-  };
-
-  const getCountryCode = (code) => {
-    const countries = {
-      'AR': 'ARG', 'BR': 'BRA', 'UY': 'URU', 'CL': 'CHI', 'CO': 'COL', 'PE': 'PER',
-    };
-    return countries[code] || code?.toUpperCase() || 'ARG';
-  };
-
-  const getAvatarUrl = () => {
-    if (profile?.avatar_url) {
-      if (profile.avatar_url.startsWith('blob:')) return profile.avatar_url;
-      const cacheBuster = `?t=${Date.now()}`;
-      return profile.avatar_url.includes('?')
-        ? profile.avatar_url
-        : profile.avatar_url + cacheBuster;
-    }
-    if (profile?.foto_url) {
-      if (profile.foto_url.startsWith('blob:')) return profile.foto_url;
-      const cacheBuster = `?t=${Date.now()}`;
-      return profile.foto_url.includes('?')
-        ? profile.foto_url
-        : profile.foto_url + cacheBuster;
-    }
-    const sources = [
-      profile?.user?.user_metadata?.avatar_url,
-      profile?.user?.user_metadata?.picture,
-      profile?.user_metadata?.avatar_url,
-      profile?.user_metadata?.picture,
-    ];
-    for (const source of sources) {
-      if (source) {
-        const cacheBuster = `?t=${Date.now()}`;
-        return source.includes('?') ? source : source + cacheBuster;
-      }
-    }
-    return null;
-  };
-
-  const avatarUrl = getAvatarUrl();
-
-  const playerData = {
-    name: profile?.nombre || 'JUGADOR',
-    handle: profile?.social?.replace('@', '') || 'jugador',
-    avatarUrl: avatarUrl,
-    rating: profile?.rating || profile?.ranking || profile?.calificacion || 5.0,
-    ranking: profile?.ranking || 5.0,
-    matchesPlayed: profile?.partidos_jugados || 0,
-    matchesAbandoned: profile?.partidos_abandonados || 0,
-    position: getPositionAbbr(profile?.posicion || profile?.posicion_favorita),
-    countryCode: profile?.pais_codigo || 'AR',
-    countryName: getCountryCode(profile?.pais_codigo),
-  };
-
-  // --- Animation logic (tilt effect) ---
-  const animationHandlers = useMemo(() => {
-    if (!enableTilt) return null;
-    let rafId = null;
-    const updateCardTransform = (offsetX, offsetY, card, wrap) => {
-      const width = card.clientWidth;
-      const height = card.clientHeight;
-      const percentX = clamp((100 / width) * offsetX);
-      const percentY = clamp((100 / height) * offsetY);
-      const centerX = percentX - 50;
-      const centerY = percentY - 50;
-      const properties = {
-        '--pointer-x': `${percentX}%`,
-        '--pointer-y': `${percentY}%`,
-        '--background-x': `${adjust(percentX, 0, 100, 35, 65)}%`,
-        '--background-y': `${adjust(percentY, 0, 100, 35, 65)}%`,
-        '--pointer-from-center': `${clamp(Math.hypot(percentY - 50, percentX - 50) / 50, 0, 1)}`,
-        '--pointer-from-top': `${percentY / 100}`,
-        '--pointer-from-left': `${percentX / 100}`,
-        '--rotate-x': `${round(-(centerX / 5))}deg`,
-        '--rotate-y': `${round(centerY / 4)}deg`,
-      };
-      Object.entries(properties).forEach(([property, value]) => {
-        wrap.style.setProperty(property, value);
-      });
-    };
-    const createSmoothAnimation = (duration, startX, startY, card, wrap) => {
-      const startTime = performance.now();
-      const targetX = wrap.clientWidth / 2;
-      const targetY = wrap.clientHeight / 2;
-      const animationLoop = (currentTime) => {
-        const elapsed = currentTime - startTime;
-        const progress = clamp(elapsed / duration);
-        const easedProgress = easeInOutCubic(progress);
-        const currentX = adjust(easedProgress, 0, 1, startX, targetX);
-        const currentY = adjust(easedProgress, 0, 1, startY, targetY);
-        updateCardTransform(currentX, currentY, card, wrap);
-        if (progress < 1) {
-          rafId = requestAnimationFrame(animationLoop);
-        }
-      };
-      rafId = requestAnimationFrame(animationLoop);
-    };
+  // 1. Single View Model for all data
+  const vm = useMemo(() => {
+    if (!profile) return null;
     return {
-      updateCardTransform,
-      createSmoothAnimation,
-      cancelAnimation: () => {
-        if (rafId) {
-          cancelAnimationFrame(rafId);
-          rafId = null;
-        }
-      },
+      name: profile.nombre || 'JUGADOR',
+      handle: profile.social?.replace('@', '') || 'jugador',
+      avatarUrl: getAvatar(profile),
+      rating: parseFloat(profile.ranking || profile.calificacion || 5.0).toFixed(1),
+      pj: profile.partidos_jugados || 0,
+      pa: profile.partidos_abandonados || 0,
+      pos: getPos(profile.posicion || profile.rol_favorito),
+      cc: (profile.pais_codigo || 'AR').toLowerCase(),
+      abbr: getCountry(profile.pais_codigo),
+      posColor: getPosColor(getPos(profile.posicion || profile.rol_favorito)),
+      mvp: profile.mvp_badges ?? profile.mvps ?? 0,
+      gk: profile.gk_badges ?? profile.guantes_dorados ?? 0,
+      red: profile.red_badges ?? profile.tarjetas_rojas ?? 0,
+      injured: !!profile.lesion_activa,
+      available: profile.acepta_invitaciones !== false,
     };
+  }, [profile]);
+
+  // 2. Consistent Tilt Logic
+  const handlers = useMemo(() => {
+    if (!enableTilt) return null;
+    let raf = null;
+    const upd = (ox, oy, card, wrap) => {
+      const w = card.clientWidth, h = card.clientHeight;
+      const px = clamp((100 / w) * ox), py = clamp((100 / h) * oy);
+      const props = {
+        '--pointer-x': `${px}%`, '--pointer-y': `${py}%`,
+        '--background-x': `${adjust(px, 0, 100, 35, 65)}%`, '--background-y': `${adjust(py, 0, 100, 35, 65)}%`,
+        '--rotate-x': `${round(-((px - 50) / 5))}deg`, '--rotate-y': `${round((py - 50) / 4)}deg`,
+      };
+      Object.entries(props).forEach(([k, v]) => wrap.style.setProperty(k, v));
+    };
+    const smooth = (dur, sx, sy, card, wrap) => {
+      const start = performance.now(), tx = wrap.clientWidth / 2, ty = wrap.clientHeight / 2;
+      const loop = (t) => {
+        const p = clamp((t - start) / dur), e = ease(p);
+        upd(adjust(e, 0, 1, sx, tx), adjust(e, 0, 1, sy, ty), card, wrap);
+        if (p < 1) raf = requestAnimationFrame(loop);
+      };
+      raf = requestAnimationFrame(loop);
+    };
+    return { upd, smooth, cancel: () => raf && cancelAnimationFrame(raf) };
   }, [enableTilt]);
 
-  const handlePointerMove = useCallback(
-    (event) => {
-      const card = cardRef.current;
-      const wrap = wrapRef.current;
-      if (!card || !wrap || !animationHandlers) return;
-      const rect = card.getBoundingClientRect();
-      animationHandlers.updateCardTransform(
-        event.clientX - rect.left,
-        event.clientY - rect.top,
-        card,
-        wrap,
-      );
-    },
-    [animationHandlers],
-  );
-  const handlePointerEnter = useCallback(() => {
-    const card = cardRef.current;
-    const wrap = wrapRef.current;
-    if (!card || !wrap || !animationHandlers) return;
-    animationHandlers.cancelAnimation();
-    wrap.classList.add('active');
-    card.classList.add('active');
-  }, [animationHandlers]);
-  const handlePointerLeave = useCallback(
-    (event) => {
-      const card = cardRef.current;
-      const wrap = wrapRef.current;
-      if (!card || !wrap || !animationHandlers) return;
-      animationHandlers.createSmoothAnimation(
-        ANIMATION_CONFIG.SMOOTH_DURATION,
-        event.offsetX,
-        event.offsetY,
-        card,
-        wrap,
-      );
-      wrap.classList.remove('active');
-      card.classList.remove('active');
-    },
-    [animationHandlers],
-  );
+  const onEnter = useCallback(() => { handlers?.cancel(); wrapRef.current?.classList.add('active'); }, [handlers]);
+  const onMove = useCallback((e) => {
+    if (!handlers || !cardRef.current || !wrapRef.current) return;
+    const r = cardRef.current.getBoundingClientRect();
+    handlers.upd(e.clientX - r.left, e.clientY - r.top, cardRef.current, wrapRef.current);
+  }, [handlers]);
+  const onLeave = useCallback((e) => {
+    if (!handlers || !cardRef.current || !wrapRef.current) return;
+    handlers.smooth(ANIM.SMOOTH, e.offsetX, e.offsetY, cardRef.current, wrapRef.current);
+    wrapRef.current.classList.remove('active');
+  }, [handlers]);
 
   useEffect(() => {
-    if (!enableTilt || !animationHandlers) return;
-    const card = cardRef.current;
-    const wrap = wrapRef.current;
-    if (!card || !wrap) return;
-    card.addEventListener('pointerenter', handlePointerEnter);
-    card.addEventListener('pointermove', handlePointerMove);
-    card.addEventListener('pointerleave', handlePointerLeave);
-
-    const initialX = wrap.clientWidth - ANIMATION_CONFIG.INITIAL_X_OFFSET;
-    const initialY = ANIMATION_CONFIG.INITIAL_Y_OFFSET;
-    animationHandlers.updateCardTransform(initialX, initialY, card, wrap);
-    animationHandlers.createSmoothAnimation(
-      ANIMATION_CONFIG.INITIAL_DURATION,
-      initialX,
-      initialY,
-      card,
-      wrap,
-    );
+    if (!enableTilt || !handlers || !cardRef.current || !wrapRef.current) return;
+    const c = cardRef.current;
+    c.addEventListener('pointerenter', onEnter);
+    c.addEventListener('pointermove', onMove);
+    c.addEventListener('pointerleave', onLeave);
+    handlers.upd(wrapRef.current.clientWidth - ANIM.OX, ANIM.OY, c, wrapRef.current);
+    handlers.smooth(ANIM.INIT, wrapRef.current.clientWidth - ANIM.OX, ANIM.OY, c, wrapRef.current);
     return () => {
-      card.removeEventListener('pointerenter', handlePointerEnter);
-      card.removeEventListener('pointermove', handlePointerMove);
-      card.removeEventListener('pointerleave', handlePointerLeave);
-      animationHandlers.cancelAnimation();
+      c.removeEventListener('pointerenter', onEnter);
+      c.removeEventListener('pointermove', onMove);
+      c.removeEventListener('pointerleave', onLeave);
+      handlers.cancel();
     };
-  }, [
-    enableTilt,
-    animationHandlers,
-    handlePointerMove,
-    handlePointerEnter,
-    handlePointerLeave,
-  ]);
+  }, [enableTilt, handlers, onEnter, onMove, onLeave]);
 
-  const cardStyle = useMemo(
-    () => ({
-      '--behind-gradient': DEFAULT_BEHIND_GRADIENT,
-      '--inner-gradient': DEFAULT_INNER_GRADIENT,
-    }),
-    [],
-  );
-
-  if (!isVisible) return null;
-
-  const isGuest = !profile?.usuario_id;
-  const { mvp, gk, red } = getBadgeCounts(profile);
+  if (!isVisible || !vm) return null;
 
   return (
-    <div
-      ref={wrapRef}
-      className="pc-card-wrapper"
-      style={cardStyle}
-    >
-      <section ref={cardRef} className="pc-card">
-        <div className={`pc-status-led ${profile?.acepta_invitaciones !== false ? 'available' : 'unavailable'}`}></div>
-        <div className="pc-inside">
-          {/* HOLO ANIMATION */}
-          <div className="pc-shine" />
-          <div className="pc-glare" />
+    <>
+      <style>{`
+        .profile-card-wrapper { 
+          --card-radius: 1.5rem; 
+          --glow-blue: rgba(0, 200, 255, 1); 
+          --rating-border: rgba(0, 200, 255, 1);
+          --rating-glow1: rgba(0, 200, 255, 0.8);
+          --rating-glow2: rgba(0, 200, 255, 0.4);
+        }
+        .profile-card-main { 
+          background: 
+            repeating-linear-gradient(
+              45deg,
+              transparent,
+              transparent 35px,
+              rgba(0, 200, 255, 0.03) 35px,
+              rgba(0, 200, 255, 0.03) 70px
+            ),
+            linear-gradient(180deg, #0a1628 0%, #050d1a 100%); 
+          border: 3px solid var(--rating-border); 
+          box-shadow: 
+            0 20px 60px rgba(0, 0, 0, 0.8), 
+            0 0 30px var(--rating-glow1),
+            0 0 50px var(--rating-glow2),
+            inset 0 0 40px rgba(0, 200, 255, 0.1); 
+        }
+        .photo-glow-outer { 
+          box-shadow: 
+            0 0 20px rgba(63, 169, 255, 0.6), 
+            0 0 40px rgba(63, 169, 255, 0.3);
+          border: 3px solid rgba(63, 169, 255, 0.7); 
+        }
+        .badge-glass { 
+          background: rgba(0, 0, 0, 0.7); 
+          backdrop-filter: blur(10px); 
+          border: 2px solid rgba(255, 215, 0, 0.6);
+          box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+        }
+        .rating-star-badge{
+          width: 32px;
+          height: 32px;
+          border-radius: 999px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          background: rgba(255, 215, 0, 0.15);
+          border: 2px solid rgba(255, 215, 0, 0.4);
+          box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+        .rating-star{
+          color:#FFD700;
+          font-size: 20px;
+          line-height: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.8));
+        }
+        .rating-value{
+          font-family: 'Bebas Neue', 'Arial Black', sans-serif;
+          color:#00C8FF;
+          font-weight: 900;
+          font-size: 64px;
+          line-height: 1;
+          letter-spacing: 0.02em;
+          filter: drop-shadow(0 0 12px rgba(0, 200, 255, 0.8));
+        }
+      `}</style>
 
-          <div className="pc-content">
-            <div className="pc-details">
-              <div className="pc-name-container">
-                {profile?.lesion_activa ? (
-                  <div className="pc-injury-badge" title="Lesionado">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={12} height={12}>
-                      <path d="M12 2C13.1 2 14 2.9 14 4V8H18C19.1 8 20 8.9 20 10V14C20 15.1 19.1 16 18 16H14V20C14 21.1 13.1 22 12 22H10C8.9 22 8 21.1 8 20V16H4C2.9 16 2 15.1 2 14V10C2 8.9 2.9 8 4 8H8V4C8 2.9 8.9 2 10 2H12Z"/>
-                    </svg>
+      <div ref={wrapRef} className="w-full flex justify-center overflow-visible perspective-[1000px] touch-none group profile-card-wrapper">
+        <div className="relative overflow-visible px-4" style={{ width: 'min(340px, 92vw)' }}>
+          <section
+            ref={cardRef}
+            className="profile-card-main mx-auto w-full aspect-[0.72] md:aspect-[0.7] rounded-[var(--card-radius)] overflow-hidden flex flex-col transition-transform duration-700 ease-out relative origin-center"
+          >
+            {/* Inner Recess */}
+            <div className="h-full w-full flex flex-col pt-4 pb-0 relative">
+
+              {/* Header - Nombre */}
+              <div className="flex justify-center items-center mb-3 px-6">
+                <h3 className="font-bebas font-black text-[2.8rem] leading-none text-white tracking-[0.05em] uppercase m-0 truncate max-w-full" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3)' }}>
+                  {vm.name.slice(0, 12)}
+                </h3>
+              </div>
+
+              {/* 3-Column Body Composition */}
+              <div className="flex-1 grid grid-cols-[60px_1fr_60px] items-center gap-3 md:gap-4 px-3 md:px-4 min-h-0 overflow-visible">
+
+                {/* Column 1: Left Badges */}
+                <div className="flex flex-col gap-2.5 z-20 items-center shrink-0">
+                  <div className="flex flex-col gap-1 items-center">
+                    <div className="badge-glass rounded-lg w-11 h-7 md:w-12 md:h-8 flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
+                      <img src={`https://flagcdn.com/w40/${vm.cc}.png`} alt={vm.abbr} className="w-full h-auto object-cover" />
+                    </div>
+                    <span className="text-white font-bebas text-xs md:text-sm tracking-wider font-bold">{vm.abbr}</span>
                   </div>
-                ) : (
-                  <div className={`pc-availability-led ${profile?.acepta_invitaciones !== false ? 'available' : 'unavailable'}`} 
-                       title={profile?.acepta_invitaciones !== false ? 'Disponible' : 'Ausente'}>
+                  <div
+                    className="badge-glass rounded-xl w-12 h-12 md:w-[52px] md:h-[52px] flex items-center justify-center shrink-0 shadow-xl"
+                    style={{ 
+                      background: `${vm.posColor}40`, 
+                      borderColor: `${vm.posColor}`,
+                      borderWidth: '2px',
+                      boxShadow: `0 0 20px ${vm.posColor}40`
+                    }}
+                  >
+                    <span
+                      className="font-bebas text-xl md:text-2xl tracking-wider font-black leading-none"
+                      style={{ 
+                        color: vm.posColor, 
+                        textShadow: `0 0 15px ${vm.posColor}88`,
+                        filter: `drop-shadow(0 0 10px ${vm.posColor})`
+                      }}
+                    >
+                      {vm.pos}
+                    </span>
                   </div>
-                )}
-                <h3>{playerData.name}</h3>
-              </div>
-            </div>
-            <div className="pc-avatar-container">
-              <div className="pc-avatar-wrapper">
-                {playerData.avatarUrl ? (
-                  <img
-                    className="avatar"
-                    src={playerData.avatarUrl}
-                    alt={`${playerData.name} avatar`}
-                    loading="eager"
-                    crossOrigin="anonymous"
-                    onError={(e) => {
-                      if (e.target instanceof HTMLImageElement) {
-                        e.target.style.display = 'none';
-                        const placeholder = document.createElement('div');
-                        placeholder.className = 'avatar-placeholder';
-                        placeholder.textContent = '👤';
-                        e.target.parentNode?.insertBefore(placeholder, e.target);
-                      }
-                    }}
-                  />
-                ) : (
-                  <div className="avatar-placeholder">👤</div>
-                )}
-              </div>
-            </div>
-            <div className="pc-overlays">
-              <div className="pc-middle-right-badges">
-                {/* MVP Badge */}
-                <div className={`pc-badge-mvp ${isGuest ? 'is-guest' : ''}`}>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width={16} height={16}>
-                    <path fillRule="evenodd" d="M5.166 2.621v.858c-1.035.148-2.059.33-3.071.543a.75.75 0 0 0-.584.859 6.753 6.753 0 0 0 6.138 5.6 6.73 6.73 0 0 0 2.743 1.346A6.707 6.707 0 0 1 9.279 15H8.54c-1.036 0-1.875.84-1.875 1.875V19.5h-.75a2.25 2.25 0 0 0-2.25 2.25c0 .414.336.75.75.75h15a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-2.25-2.25H16.5v-2.625c0-1.036-.84-1.875-1.875-1.875h-.739a6.706 6.706 0 0 1-1.112-3.173 6.73 6.73 0 0 0 2.743-1.347 6.753 6.753 0 0 0 6.139-5.6.75.75 0 0 0-.585-.858 47.077 47.077 0 0 0-3.07-.543V2.62a.75.75 0 0 0-.658-.744 49.22 49.22 0 0 0-6.093-.377c-2.063 0-4.096.128-6.093.377a.75.75 0 0 0-.657.744Z" clipRule="evenodd" />
-                  </svg>
-                  <span className="pc-badge-count">{mvp}</span>
                 </div>
-                {/* Red Card Badge */}
-                <div className={`pc-badge-red-card ${isGuest ? 'is-guest' : ''}`}>
-                  <svg className="pc-red-card-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-                    <mask id="ipSRectangle0">
-                      <path fill="#fff" stroke="#fff" strokeWidth="4" d="M38 4H10a2 2 0 0 0-2 2v36a2 2 0 0 0 2 2h28a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"/>
-                    </mask>
-                    <path fill="currentColor" d="M0 0h48v48H0z" mask="url(#ipSRectangle0)"/>
-                  </svg>
-                  <span className="pc-badge-count">{red}</span>
-                </div>
-                {/* Golden Glove Badge */}
-                <div className={`pc-badge-golden-glove ${isGuest ? 'is-guest' : ''}`}>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width={16} height={16} fill="currentColor">
-                    <path d="M448 448L160 448L101.4 242.9C97.8 230.4 96 217.4 96 204.3C96 126.8 158.8 64 236.3 64L239.7 64C305.7 64 363.2 108.9 379.2 172.9L410.6 298.7L428.2 278.6C440.8 264.2 458.9 256 478 256L480.8 256C515.7 256 544.1 284.3 544.1 319.3C544.1 335.2 538.1 350.5 527.3 362.2L448 448zM128 528C128 510.3 142.3 496 160 496L448 496C465.7 496 480 510.3 480 528L480 544C480 561.7 465.7 576 448 576L160 576C142.3 576 128 561.7 128 544L128 528z"/>
-                  </svg>
-                  <span className="pc-badge-count">{gk}</span>
-                </div>
-              </div>
-              <div className="pc-bottom-left-badges">
-                <div className={`pc-badge-position ${playerData.position.toLowerCase()}`}>
-                  <span className="pc-position">{playerData.position}</span>
-                </div>
-                <div className="pc-badge-column">
-                  <img
-                    src={`https://flagcdn.com/w40/${playerData.countryCode.toLowerCase()}.png`}
-                    alt={playerData.countryName}
-                    className="pc-flag"
-                    onError={(e) => {
-                      if (e.target instanceof HTMLImageElement) {
-                        e.target.style.display = 'none';
-                      }
-                    }}
-                  />
-                  <span className="pc-country-code">{playerData.countryName}</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <div className="pc-bottom-container">
-            <div className="pc-handle-container">
-              <span
-                className="pc-handle"
-                title={`@${playerData.handle}`}
-                style={{ display: 'block', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-              >
-                @{playerData.handle}
-              </span>
-            </div>
-            <div className="pc-matches-vertical">
-              <span className="pc-matches-played">PJ {playerData.matchesPlayed}</span>
-              <span className="pc-matches-abandoned">PA {playerData.matchesAbandoned}</span>
-            </div>
-            <div className="pc-rating-container">
-              <span className="pc-responsibility-label">R:</span>
-              <span className="pc-responsibility-value">{playerData.ranking.toFixed(1)}</span>
-            </div>
-          </div>
+                {/* Column 2: Center Photo */}
+                <div className="relative z-10 justify-self-center min-w-0">
+                  <div className="photo-glow-outer w-[160px] h-[160px] sm:w-[170px] sm:h-[170px] md:w-[180px] md:h-[180px] rounded-full p-1.5 flex items-center justify-center shrink-0">
+                    <div className="w-full h-full rounded-full overflow-hidden bg-[#05060f] border-2 border-black/40">
+                      {vm.avatarUrl ? (
+                        <img className="w-full h-full object-cover" src={vm.avatarUrl} alt={vm.name} loading="eager" crossOrigin="anonymous" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-5xl">👤</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
+                {/* Column 3: Right Prizes */}
+                <div className="flex flex-col gap-2.5 z-20 items-center shrink-0">
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="text-[#ffd700] drop-shadow-[0_0_8px_rgba(255,215,0,0.8)]">
+                      <svg viewBox="0 0 24 24" fill="currentColor" width={24} height={24} className="md:w-[26px] md:h-[26px]"><path d="M5.166 2.621v.858c-1.035.148-2.059.33-3.071.543a.75.75 0 0 0-.584.859 6.753 6.753 0 0 0 6.138 5.6 6.73 6.73 0 0 0 2.743 1.346A6.707 6.707 0 0 1 9.279 15H8.54c-1.036 0-1.875.84-1.875 1.875V19.5h-.75a2.25 2.25 0 0 0-2.25 2.25c0 .414.336.75.75.75h15a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-2.25-2.25H16.5v-2.625c0-1.036-.84-1.875-1.875-1.875h-.739a6.706 6.706 0 0 1-1.112-3.173 6.73 6.73 0 0 0 2.743-1.347 6.753 6.753 0 0 0 6.139-5.6.75.75 0 0 0-.585-.858 47.077 47.077 0 0 0-3.07-.543V2.62a.75.75 0 0 0-.658-.744 49.22 49.22 0 0 0-6.093-.377c-2.063 0-4.096.128-6.093.377a.75.75 0 0 0-.657.744Z" /></svg>
+                    </div>
+                    <span className="text-white text-sm md:text-[15px] font-black">{vm.mvp}</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-4 h-6 md:w-[18px] md:h-7 rounded-[2px] bg-[#f44336] shadow-[0_0_15px_rgba(244,67,54,0.7)]" />
+                    <span className="text-white text-sm md:text-[15px] font-black">{vm.red}</span>
+                  </div>
+                  {(vm.pos === 'ARQ' || vm.gk > 0) && (
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="text-[#8178e5] drop-shadow-[0_0_8px_rgba(129,120,229,0.8)]">
+                        <svg viewBox="0 0 640 640" width={24} height={24} className="md:w-[26px] md:h-[26px]" fill="currentColor"><path d="M448 448L160 448L101.4 242.9C97.8 230.4 96 217.4 96 204.3C96 126.8 158.8 64 236.3 64L239.7 64C305.7 64 363.2 108.9 379.2 172.9L410.6 298.7L428.2 278.6C440.8 264.2 458.9 256 478 256L480.8 256C515.7 256 544.1 284.3 544.1 319.3C544.1 335.2 538.1 350.5 527.3 362.2L448 448zM128 528C128 510.3 142.3 496 160 496L448 496C465.7 496 480 510.3 480 528L480 544C480 561.7 465.7 576 448 576L160 576C142.3 576 128 561.7 128 544L128 528z" /></svg>
+                      </div>
+                      <span className="text-white text-sm md:text-[15px] font-black">{vm.gk}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer Area: Stats + Rating */}
+              <div className="mt-32 flex flex-col px-5 pb-4 flex-1">
+
+                {/* Stats Row (PJ, PA) */}
+                <div className="flex items-center justify-center gap-8 mb-2">
+                  <div className="flex flex-col items-center">
+                    <span className="text-[#00C8FF] text-sm md:text-[15px] font-black uppercase tracking-[0.2em] mb-1">PJ</span>
+                    <span className="text-white font-black text-[32px] md:text-[36px] leading-none" style={{textShadow: '0 0 20px rgba(0, 200, 255, 0.8)'}}>{vm.pj}</span>
+                  </div>
+                  <div className="w-[2px] h-12 bg-gradient-to-b from-transparent via-[#00C8FF]/30 to-transparent" />
+                  <div className="flex flex-col items-center">
+                    <span className="text-[#00C8FF] text-sm md:text-[15px] font-black uppercase tracking-[0.2em] mb-1">PA</span>
+                    <span className="text-white font-black text-[32px] md:text-[36px] leading-none" style={{textShadow: '0 0 20px rgba(0, 200, 255, 0.8)'}}>{vm.pa}</span>
+                  </div>
+                </div>
+
+                {/* Rating */}
+                <div className="flex items-center justify-center relative">
+                  <div className="rating-star-badge absolute left-16 -translate-y-2">
+                    <span className="rating-star text-[10px]">★</span>
+                  </div>
+                  <span className="rating-value" style={{color: '#FFD700', filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))'}}>{vm.rating}</span>
+                </div>
+              </div>
+
+              {/* Status Bar - Full Width */}
+              {vm.injured ? (
+                <div 
+                  className="w-full h-8 flex items-center justify-center rounded-b-[var(--card-radius)]"
+                  style={{ 
+                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.6) 100%)',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: 'inset 0 2px 8px rgba(255, 255, 255, 0.6), inset 0 -1px 3px rgba(0, 0, 0, 0.2), 0 8px 16px rgba(0, 0, 0, 0.4)'
+                  }}
+                  title="Lesionado"
+                >
+                  <span className="text-[#FF4444] font-black text-lg uppercase tracking-wider">Lesionado</span>
+                </div>
+              ) : (
+                <div 
+                  className="w-full h-8 rounded-b-[var(--card-radius)]"
+                  style={{ 
+                    background: vm.available 
+                      ? 'linear-gradient(180deg, rgba(34, 197, 94, 0.9) 0%, rgba(34, 197, 94, 0.6) 100%)' 
+                      : 'linear-gradient(180deg, rgba(239, 68, 68, 0.9) 0%, rgba(239, 68, 68, 0.6) 100%)',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: vm.available
+                      ? 'inset 0 2px 8px rgba(255, 255, 255, 0.6), inset 0 -1px 3px rgba(0, 0, 0, 0.2), 0 8px 16px rgba(0, 0, 0, 0.4)'
+                      : 'inset 0 2px 8px rgba(255, 255, 255, 0.5), inset 0 -1px 3px rgba(0, 0, 0, 0.2), 0 8px 16px rgba(0, 0, 0, 0.4)'
+                  }}
+                  title={vm.available ? 'Disponible' : 'No disponible'}
+                />
+              )}
+            </div>
+          </section>
         </div>
-      </section>
-    </div>
+      </div>
+    </>
   );
 };
 
 const ProfileCard = React.memo(ProfileCardComponent);
+ProfileCard.displayName = 'ProfileCard';
 
 export default ProfileCard;

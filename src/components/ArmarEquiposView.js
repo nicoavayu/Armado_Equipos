@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { UI_SIZES } from '../appConstants';
 import {
@@ -6,6 +7,7 @@ import {
   getVotantesIds,
   getVotantesConNombres,
   getJugadoresDelPartido,
+  resetVotacion,
   supabase,
 } from '../supabase';
 import WhatsappIcon from './WhatsappIcon';
@@ -16,14 +18,16 @@ import MatchInfoSection from './MatchInfoSection';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import { useAuth } from './AuthProvider';
 import { sendVotingNotifications } from '../services/notificationService';
+import ConfirmModal from '../components/ConfirmModal';
 import { handleError } from '../lib/errorHandler';
+import { MoreVertical, LogOut, Crown as CrownIcon, X as XIcon, User as UserIcon } from 'lucide-react';
 
-export default function ArmarEquiposView({ 
-  onBackToAdmin, 
-  jugadores, 
-  onJugadoresChange, 
+export default function ArmarEquiposView({
+  onBackToAdmin,
+  jugadores,
+  onJugadoresChange,
   partidoActual,
-  onTeamsFormed 
+  onTeamsFormed
 }) {
   const { user } = useAuth();
   const [votantes, setVotantes] = useState([]);
@@ -31,6 +35,12 @@ export default function ArmarEquiposView({
   const [isClosing, setIsClosing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [calling, setCalling] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState({ open: false, action: null });
+  const [votingStarted, setVotingStarted] = useState(false);
+  const playersSectionRef = React.useRef(null);
+  const navigate = useNavigate();
 
   // Control de permisos: verificar si el usuario es admin del partido
   const isAdmin = user?.id && partidoActual?.creado_por === user.id;
@@ -40,16 +50,11 @@ export default function ArmarEquiposView({
     return (
       <>
         <PageTitle onBack={onBackToAdmin}>ARMAR EQUIPOS</PageTitle>
-        <div style={{ 
-          textAlign: 'center', 
-          padding: '40px 20px',
-          color: '#fff',
-          fontFamily: 'Oswald, Arial, sans-serif'
-        }}>
-          <div style={{ fontSize: '24px', marginBottom: '16px' }}>
+        <div className="text-center py-10 px-5 text-white font-oswald">
+          <div className="text-2xl mb-4">
             🚫 Acceso Denegado
           </div>
-          <div style={{ fontSize: '16px', opacity: 0.8 }}>
+          <div className="text-base opacity-80">
             No tenés permisos para acceder a esta función.
           </div>
         </div>
@@ -70,9 +75,9 @@ export default function ArmarEquiposView({
         console.error('Error loading votantes:', error);
       }
     };
-    
+
     loadVotantes();
-    
+
     // Suscripción en tiempo real para refrescar cuando hay cambios
     const subscription = supabase
       .channel(`match_${partidoActual?.id}`)
@@ -93,10 +98,34 @@ export default function ArmarEquiposView({
         }
       })
       .subscribe();
-    
+
     return () => {
       subscription.unsubscribe();
     };
+  }, [partidoActual?.id]);
+
+  // Derivar estado de votación desde DB (notificaciones de tipo call_to_vote)
+  useEffect(() => {
+    const fetchVotingState = async () => {
+      if (!partidoActual?.id) return;
+      try {
+        const pidNumber = Number(partidoActual.id);
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('id')
+          .eq('type', 'call_to_vote')
+          .eq('partido_id', pidNumber)
+          .limit(1);
+        if (error) {
+          console.warn('[VotingState] notifications lookup failed', error);
+          return;
+        }
+        setVotingStarted(Boolean(data && data.length > 0));
+      } catch (e) {
+        console.warn('[VotingState] failed', e);
+      }
+    };
+    fetchVotingState();
   }, [partidoActual?.id]);
 
   async function handleCallToVote() {
@@ -114,20 +143,7 @@ export default function ArmarEquiposView({
     console.debug('[Teams] call-to-vote start', { partidoId: partidoActual?.id });
 
     try {
-      // Count how many players have linked accounts (usuario_id)
-      const jugadoresDelPartido = await getJugadoresDelPartido(partidoActual.id);
-      const playersWithAccount = (jugadoresDelPartido || []).filter(j => j.usuario_id);
-
-      // If none, warn admin and offer to proceed
-      if (playersWithAccount.length === 0) {
-        const proceed = window.confirm('No se detectaron jugadores con cuenta vinculada. ¿Querés enviar notificaciones de todas formas (se intentará enviar a usuarios registrados)?');
-        if (!proceed) return;
-      } else {
-        const proceed = window.confirm(`Se detectaron ${playersWithAccount.length} jugadores con cuenta. ¿Querés notificarles ahora para iniciar la votación?`);
-        if (!proceed) return;
-      }
-
-      // Call service
+      // Call service (notify players with app accounts)
       const res = await sendVotingNotifications(partidoActual.id, {
         title: '¡Hora de votar!',
         message: 'Entrá a la app y calificá a los jugadores para armar los equipos.',
@@ -149,6 +165,20 @@ export default function ArmarEquiposView({
 
       if ((res.inserted || 0) > 0) {
         toast.success(`Notificación enviada a ${res.inserted} jugadores`);
+        // Refrescar estado de votación y ofrecer acceso directo
+        try {
+          const { data } = await supabase
+            .from('notifications')
+            .select('id')
+            .eq('type', 'call_to_vote')
+            .eq('partido_id', Number(partidoActual.id))
+            .limit(1);
+          setVotingStarted(Boolean(data && data.length > 0));
+        } catch {}
+        // Acceso directo: scroll a la sección de jugadores
+        if (isAdmin && playersSectionRef.current) {
+          playersSectionRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
       } else {
         toast.info('No se pudieron enviar notificaciones. Asegurate que los jugadores tengan cuenta.');
       }
@@ -161,24 +191,107 @@ export default function ArmarEquiposView({
     }
   }
 
+  async function handleResetVotacion() {
+    if (resetting) {
+      console.debug('[Teams] reset blocked: already running');
+      return;
+    }
+
+    if (!partidoActual?.id) {
+      toast.error('No hay partido activo');
+      return;
+    }
+
+    setResetting(true);
+    console.debug('[Teams] reset-voting start', { partidoId: partidoActual?.id });
+
+    try {
+      const result = await resetVotacion(partidoActual.id);
+      console.debug('[Teams] reset result', result);
+
+      toast.success('Votación reseteada');
+
+      // Volver a estado pre-votación: borrar notificaciones de call_to_vote y refrescar bandera local
+      try {
+        await supabase
+          .from('notifications')
+          .delete()
+          .eq('type', 'call_to_vote')
+          .eq('partido_id', Number(partidoActual.id));
+      } catch (notifError) {
+        console.warn('[Teams] reset voting: failed to delete call_to_vote notifications', notifError);
+      }
+
+      // Limpiar estado local inmediato para reflejar reset (sin esperar re-fetch)
+      setVotingStarted(false);
+      setVotantes([]);
+      setVotantesConNombres([]);
+
+      // Refrescar desde DB para confirmar estado limpio
+      setVotingStarted(false);
+
+      // Refrescar votantes
+      try {
+        const votantesIds = await getVotantesIds(partidoActual.id);
+        const votantesNombres = await getVotantesConNombres(partidoActual.id);
+        setVotantes(votantesIds || []);
+        setVotantesConNombres(votantesNombres || []);
+      } catch (e) {
+        console.warn('[Teams] error refreshing voters after reset', e);
+      }
+
+    } catch (error) {
+      console.error('[Teams] reset-voting failed', error);
+      toast.error('No se pudo resetear la votación: ' + (error.message || 'Error desconocido'));
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  const primaryLabel = (() => {
+    if (partidoActual?.estado === 'equipos_formados') return 'VER EQUIPOS';
+    if (votingStarted) return 'IR A VOTACIÓN';
+    return 'LLAMAR A VOTAR';
+  })();
+
+  const handlePrimaryClick = () => {
+    if (partidoActual?.estado === 'equipos_formados') {
+      // Already formed, keep current behavior (no redirect in minimal patch)
+      if (playersSectionRef.current) playersSectionRef.current.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    if (votingStarted) {
+      // Access voting directly via codigo
+      const codigo = partidoActual?.codigo;
+      if (!codigo) {
+        toast.error('No se pudo abrir la votación (código faltante)');
+        return;
+      }
+      navigate(`/?codigo=${codigo}`);
+      return;
+    }
+    // Open confirm modal to start voting
+    setConfirmConfig({ open: true, action: 'call_to_vote' });
+  };
+
   function handleWhatsApp() {
     const publicLink = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
     const text = `Votá para armar los equipos ⚽️\n${publicLink}`;
-    
+
     console.debug('[Teams] share link', { partidoId: partidoActual?.id });
-    
+
     // Intentar Web Share API (si disponible)
     if (navigator.share) {
-      navigator.share({ 
-        title: 'Votación del partido', 
-        text, 
-        url: publicLink 
+      navigator.share({
+        title: 'Votación del partido',
+        text,
+        url: publicLink
       })
         .then(() => console.debug('[Share] navigator.share success'))
         .catch((e) => console.debug('[Share] navigator.share cancelled/error', e));
       return;
     }
-    
+
     // Fallback WhatsApp
     const wa = `https://wa.me/?text=${encodeURIComponent(text)}`;
     window.open(wa, '_blank', 'noopener,noreferrer');
@@ -217,40 +330,26 @@ export default function ArmarEquiposView({
       return;
     }
 
-    // Confirmar acción
-    if (votantes.length === 0) {
-      const shouldContinue = window.confirm(
-        'No se detectaron votos. ¿Estás seguro de que querés continuar? Los equipos se formarán con puntajes por defecto.',
-      );
-      if (!shouldContinue) return;
-    }
-
-    const confirmMessage = votantes.length > 0 
-      ? `¿Cerrar votación y armar equipos? Se procesaron ${votantes.length} votos.`
-      : '¿Cerrar votación y armar equipos con puntajes por defecto?';
-    
-    if (!window.confirm(confirmMessage)) return;
-
     setIsClosing(true);
 
     try {
       // Cerrar votación y calcular puntajes
       const result = await closeVotingAndCalculateScores(partidoActual.id);
-      
+
       if (!result) {
         throw new Error('No se recibió respuesta del cierre de votación');
       }
 
       // Obtener jugadores actualizados
       const matchPlayers = await getJugadoresDelPartido(partidoActual.id);
-      
+
       if (!matchPlayers || matchPlayers.length === 0) {
         throw new Error('No se pudieron obtener los jugadores actualizados');
       }
 
       // Crear equipos balanceados
       const teams = armarEquipos(matchPlayers);
-      
+
       if (!teams || teams.length !== 2) {
         throw new Error('Error al crear los equipos');
       }
@@ -270,7 +369,7 @@ export default function ArmarEquiposView({
       }
 
       toast.success('¡Votación cerrada! Equipos armados.');
-      
+
       // Redirigir a vista de equipos
       onTeamsFormed(teams, matchPlayers);
 
@@ -297,23 +396,23 @@ export default function ArmarEquiposView({
     const jugadoresUnicos = jugadores.reduce((acc, jugador) => {
       const existeUuid = acc.find((j) => j.uuid === jugador.uuid);
       const existeNombre = acc.find((j) => j.nombre.toLowerCase() === jugador.nombre.toLowerCase());
-      
+
       if (!existeUuid && !existeNombre) {
         acc.push(jugador);
       }
       return acc;
     }, []);
-    
+
     if (jugadoresUnicos.length % 2 !== 0) {
       throw new Error('Se necesita un número par de jugadores para formar equipos');
     }
-    
+
     const jugadoresOrdenados = [...jugadoresUnicos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     const equipoA = [];
     const equipoB = [];
     let puntajeA = 0;
     let puntajeB = 0;
-    
+
     jugadoresOrdenados.forEach((jugador, index) => {
       if (index % 2 === 0) {
         equipoA.push(jugador.uuid);
@@ -332,9 +431,9 @@ export default function ArmarEquiposView({
 
   async function eliminarJugador(uuid) {
     const jugadorAEliminar = jugadores.find((j) => j.uuid === uuid);
-    
+
     if (!jugadorAEliminar) return;
-    
+
     setLoading(true);
     try {
       const { error } = await supabase
@@ -342,9 +441,9 @@ export default function ArmarEquiposView({
         .delete()
         .eq('uuid', uuid)
         .eq('partido_id', partidoActual.id);
-        
+
       if (error) throw error;
-      
+
       // Refrescar datos
       const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
       const votantesIds = await getVotantesIds(partidoActual.id);
@@ -352,7 +451,7 @@ export default function ArmarEquiposView({
       setVotantes(votantesIds || []);
       setVotantesConNombres(votantesNombres || []);
       onJugadoresChange(jugadoresPartido);
-      
+
     } catch (error) {
       toast.error('Error eliminando jugador: ' + error.message);
     } finally {
@@ -374,18 +473,53 @@ export default function ArmarEquiposView({
         precio={partidoActual?.valor_cancha || partidoActual?.valorCancha || partidoActual?.valor || partidoActual?.precio}
         rightActions={null}
       />
-      <div className="admin-panel-content" style={{ paddingTop: '0px', marginTop: '0px' }}>
+      <div className="w-[90vw] md:w-full max-w-[90vw] md:max-w-4xl mx-auto pb-20 flex flex-col gap-3 overflow-x-hidden mt-6 pt-0">
         {/* Lista de jugadores */}
-        <div className="admin-players-section">
-          <div className="admin-players-title">
-            JUGADORES ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'}) - VOTARON: {votantesConNombres.length}/{jugadores.length}
+        <div ref={playersSectionRef} className="bg-white/10 border-2 border-white/20 rounded-xl p-3 min-h-[120px] w-full mx-auto mt-0 box-border">
+          <div className="flex items-start justify-between gap-3 mb-3 mt-2">
+            <div className="font-bebas text-xl text-white tracking-wide uppercase">
+              JUGADORES ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+              <div className="text-[12px] text-white/60 font-oswald font-normal tracking-normal mt-1">
+                Votaron: {votantesConNombres.length}/{jugadores.length}
+              </div>
+              <div className="text-[11px] text-white/50 font-oswald font-normal tracking-normal mt-0.5 leading-snug">
+                Esperando votos para armar los equipos
+              </div>
+            </div>
+            {isAdmin && (
+              <div className="relative">
+                <button
+                  className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white/90 transition-colors"
+                  onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
+                  type="button"
+                  aria-label="Menú de acciones"
+                  title="Acciones de administración"
+                >
+                  <MoreVertical size={20} />
+                </button>
+                {actionsMenuOpen && (
+                  <div className="absolute top-full right-0 mt-1 rounded-lg border border-slate-700 bg-slate-900 shadow-lg z-10 min-w-[180px]">
+                    <button
+                      className="w-full px-4 py-3 flex items-center gap-2 text-left text-slate-200 hover:bg-slate-800 transition-colors text-sm font-oswald"
+                      onClick={() => {
+                        setActionsMenuOpen(false);
+                        setConfirmConfig({ open: true, action: 'reset' });
+                      }}
+                      type="button"
+                    >
+                      <span>Resetear votación</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           {jugadores.length === 0 ? (
-            <div className="admin-players-empty">
+            <div className="text-center text-white/60 font-oswald text-base p-5 italic">
               <LoadingSpinner size="medium" />
             </div>
           ) : (
-            <div className="admin-players-grid">
+            <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
               {jugadores.map((j) => {
                 // Comparación más robusta de nombres
                 const hasVoted = votantesConNombres.some((v) => {
@@ -394,45 +528,39 @@ export default function ArmarEquiposView({
                 }) || votantes.includes(j.uuid) || votantes.includes(j.usuario_id);
 
                 return (
-                  <PlayerCardTrigger 
-                    key={j.uuid} 
+                  <PlayerCardTrigger
+                    key={j.uuid}
                     profile={j}
                     partidoActual={partidoActual}
                   >
                     <div
-                      className={`admin-player-item${hasVoted ? ' voted' : ''}`}
-                      style={hasVoted ? {
-                        background: 'rgba(0,255,136,0.3) !important',
-                        border: '3px solid #00ff88 !important',
-                        boxShadow: '0 0 15px rgba(0,255,136,0.6) !important',
-                      } : {}}
+                      className={`flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 transition-all min-h-[36px] w-full max-w-[660px] mx-auto hover:bg-slate-800 hover:border-slate-700 ${hasVoted ? 'border-2 border-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.25)]' : ''}`}
                     >
                       {j.foto_url || j.avatar_url ? (
                         <img
                           src={j.foto_url || j.avatar_url}
                           alt={j.nombre}
-                          className="admin-player-avatar"
+                          className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
                         />
                       ) : (
-                        <div className="admin-player-avatar-placeholder">👤</div>
+                        <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm shrink-0 text-white/70">
+                          <UserIcon size={14} />
+                        </div>
                       )}
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                        <span className="admin-player-name" style={{ color: 'white' }}>
-                          {j.nombre}
-                        </span>
-                        {/* Corona para admin */}
-                        {partidoActual?.creado_por === j.usuario_id && (
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="#FFD700">
-                            <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z"/>
-                          </svg>
-                        )}
-                      </div>
-                      
+                      <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 break-words leading-tight">
+                        {j.nombre}
+                      </span>
+
+                      {/* Corona para admin */}
+                      {partidoActual?.creado_por === j.usuario_id && (
+                        <CrownIcon size={18} className="text-yellow-400/90" style={{ flexShrink: 0 }} />
+                      )}
+
                       {/* Botón eliminar - Solo admin puede eliminar otros */}
                       {j.usuario_id !== user?.id && (
                         <button
-                          className="admin-remove-btn"
+                          className="w-6 h-6 bg-slate-800 text-white/70 border border-slate-700 rounded-full cursor-pointer transition-all flex items-center justify-center shrink-0 hover:bg-slate-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (window.confirm(`¿Eliminar a ${j.nombre} del partido?`)) {
@@ -441,8 +569,9 @@ export default function ArmarEquiposView({
                           }}
                           type="button"
                           disabled={loading}
+                          aria-label={`Eliminar a ${j.nombre}`}
                         >
-                          ×
+                          <XIcon size={12} />
                         </button>
                       )}
                     </div>
@@ -454,42 +583,96 @@ export default function ArmarEquiposView({
         </div>
 
         {/* Botones de acción */}
-        <div style={{ width: '90vw', maxWidth: '90vw', boxSizing: 'border-box', margin: '16px auto 0', textAlign: 'center' }}>
-          <div style={{ display: 'flex', gap: '8px', width: '100%', marginBottom: '12px' }}>
-            <button 
-              className="admin-btn-blue" 
-              onClick={handleCallToVote}
-              disabled={calling}
-              style={{ flex: 1, opacity: calling ? 0.6 : 1 }}
-            >
-              {calling ? 'ENVIANDO...' : 'LLAMAR A VOTAR'}
-            </button>
-          
-            <button 
-              className="admin-btn-green" 
-              onClick={handleWhatsApp}
-              style={{ flex: 1 }}
-            >
-              <WhatsappIcon size={UI_SIZES.WHATSAPP_ICON_SIZE} style={{ marginRight: 8 }} />
-              COMPARTIR LINK
-            </button>
+        <div className="w-full box-border mx-auto mt-4 mb-0">
+          {/* Primary and Secondary CTAs */}
+          <div className="flex gap-2 w-full mb-3">
+            <div className="flex-1 flex flex-col gap-1">
+              <button
+                type="button"
+                className="relative z-10 w-full font-bebas text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:brightness-110 active:scale-95"
+                onClick={handlePrimaryClick}
+                disabled={calling}
+              >
+                {calling ? <LoadingSpinner size="small" /> : primaryLabel}
+              </button>
+              <div className="text-[11px] text-white/50 leading-snug text-center px-1">
+                Notifica a los jugadores que ya tienen la app
+              </div>
+            </div>
+
+            <div className="flex-1 flex flex-col gap-1">
+              <button
+                className="w-full font-bebas text-[15px] px-4 border border-slate-600 rounded-xl cursor-pointer transition-all text-white/80 h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed hover:border-slate-500 hover:text-white/90 bg-transparent"
+                onClick={handleWhatsApp}
+              >
+                <WhatsappIcon size={UI_SIZES.WHATSAPP_ICON_SIZE} style={{ marginRight: 6 }} />
+                COMPARTIR
+              </button>
+              <div className="text-[11px] text-white/50 leading-snug text-center px-1">
+                Enviá el link a quienes no tienen la app
+              </div>
+            </div>
           </div>
-          
-          <button 
-            className="admin-btn-orange" 
-            onClick={handleCerrarVotacion} 
-            disabled={isClosing || jugadores.length < 2}
-            style={{
-              width: '100%',
-            }}
-          >
-            {isClosing ? (
-              <LoadingSpinner size="small" />
-            ) : (
-              `CERRAR VOTACIÓN (${jugadores.length} jugadores)`
-            )}
-          </button>
+
+          {/* Flow progression: Cerrar votación */}
+          <div className="w-full flex flex-col gap-1 mt-3 pt-2 border-t border-slate-700/50">
+            <button
+              type="button"
+              className="w-full font-bebas text-[15px] px-4 border border-slate-600 rounded-xl cursor-pointer transition-all text-white/80 h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed hover:border-slate-500 hover:text-white/90 bg-transparent"
+              onClick={() => setConfirmConfig({ open: true, action: 'close' })}
+              disabled={isClosing}
+            >
+              {isClosing ? <LoadingSpinner size="small" /> : 'CERRAR VOTACIÓN'}
+            </button>
+            <div className="text-[11px] text-white/50 leading-snug text-center px-1">
+              Avanza al armado de equipos y bloquea nuevas votaciones
+            </div>
+          </div>
         </div>
+
+        <ConfirmModal
+          isOpen={confirmConfig.open && confirmConfig.action === 'call_to_vote'}
+          title={'Iniciar votación'}
+          message={'Se notificará a los jugadores que tienen la app para que voten y armemos los equipos.'}
+          onConfirm={() => {
+            setConfirmConfig({ open: false });
+            handleCallToVote();
+          }}
+          onCancel={() => setConfirmConfig({ open: false })}
+          confirmText={'Notificar ahora'}
+          cancelText={'Cancelar'}
+          isDeleting={calling}
+        />
+
+        <ConfirmModal
+          isOpen={confirmConfig.open && confirmConfig.action === 'reset'}
+          title={'Resetear votación'}
+          message={'Esta acción borra todos los votos del partido y vuelve la votación a cero. No se puede deshacer.'}
+          onConfirm={() => {
+            setConfirmConfig({ open: false });
+            handleResetVotacion();
+          }}
+          onCancel={() => setConfirmConfig({ open: false })}
+          confirmText={'Resetear votación'}
+          cancelText={'Cancelar'}
+          isDeleting={resetting}
+        />
+
+        <ConfirmModal
+          isOpen={confirmConfig.open && confirmConfig.action === 'close'}
+          title={'Cerrar votación'}
+          message={votantes.length > 0
+            ? `¿Cerrar votación y armar equipos? Se procesaron ${votantes.length} votos.`
+            : 'No se detectaron votos. Los equipos se formarán con puntajes por defecto.'}
+          onConfirm={() => {
+            setConfirmConfig({ open: false });
+            handleCerrarVotacion();
+          }}
+          onCancel={() => setConfirmConfig({ open: false })}
+          confirmText={'Cerrar votación'}
+          cancelText={'Cancelar'}
+          isDeleting={isClosing}
+        />
       </div>
     </>
   );

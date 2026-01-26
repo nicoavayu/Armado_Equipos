@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { getAmigos, supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
-import './InviteAmigosModal.css';
+
 
 const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) => {
   // ESTADO LOCAL INDEPENDIENTE - Solo para amigos
@@ -23,7 +23,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
       document.body.style.position = '';
       document.body.style.width = '';
     }
-    
+
     return () => {
       document.body.style.overflow = '';
       document.body.style.position = '';
@@ -42,42 +42,42 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
     try {
       console.log('[MODAL_AMIGOS] === FETCHING ONLY FRIENDS ===');
       console.log('[MODAL_AMIGOS] User ID:', currentUserId);
-      
+
       // SOLO AMIGOS - getAmigos devuelve array de usuarios directos
       const friendsData = await getAmigos(currentUserId);
-      
+
       console.log('[MODAL_AMIGOS] Friends data received:', {
         isArray: Array.isArray(friendsData),
         count: friendsData?.length || 0,
-        sample: friendsData?.slice(0, 2).map((f) => ({ 
-          id: f.id, 
+        sample: friendsData?.slice(0, 2).map((f) => ({
+          id: f.id,
           nombre: f.nombre,
-          avatar_url: f.avatar_url, 
+          avatar_url: f.avatar_url,
         })) || [],
       });
       console.log('[MODAL_AMIGOS] Current user (sender):', currentUserId);
-      
+
       setAmigos(friendsData || []);
-      
+
       // Verificar qué amigos ya fueron invitados a este partido
       if (partidoActual?.id && friendsData?.length > 0) {
         const friendIds = friendsData.map((f) => f.id);
         let existingInvitations = null;
-        
+
         const { data: extData, error: extError } = await supabase
           .from('notifications_ext')
           .select('user_id')
           .eq('type', 'match_invite')
           .eq('match_id_text', partidoActual.id.toString())
           .in('user_id', friendIds);
-        
+
         if (extError && extError.code === '42P01') {
           console.warn('[MODAL_AMIGOS] notifications_ext not available for initial check, skipping');
           existingInvitations = [];
         } else {
           existingInvitations = extData;
         }
-        
+
         if (existingInvitations) {
           const invitedIds = new Set(existingInvitations.map((inv) => inv.user_id));
           setInvitedFriends(invitedIds);
@@ -100,15 +100,15 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
     setInviting(true);
     try {
       console.log('[MODAL_AMIGOS] === STARTING INVITATION PROCESS ===');
-      
+
       // Verificar autenticación
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       console.log('[MODAL_AMIGOS] Auth check:', { user: user?.id, authError });
-      
+
       if (authError || !user) {
         throw new Error('Usuario no autenticado');
       }
-      
+
       console.log('[MODAL_AMIGOS] Sender (currentUserId):', currentUserId);
       console.log('[MODAL_AMIGOS] Authenticated user:', user.id);
       console.log('[MODAL_AMIGOS] Recipient (amigo):', {
@@ -123,7 +123,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
       // Verificar si ya existe una invitación para este amigo en este partido
       let existingInvitation = null;
       let checkError = null;
-      
+
       // Try notifications_ext first
       const { data: extData, error: extError } = await supabase
         .from('notifications_ext')
@@ -132,7 +132,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
         .eq('type', 'match_invite')
         .eq('match_id_text', partidoActual.id.toString())
         .single();
-      
+
       if (extError && extError.code === '42P01') {
         // View doesn't exist, skip duplicate check and allow invitation
         console.warn('[MODAL_AMIGOS] notifications_ext not available, skipping duplicate check');
@@ -171,12 +171,12 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
       console.log('[MODAL_AMIGOS] amigo.id (user_id):', amigo.id, 'type:', typeof amigo.id);
       console.log('[MODAL_AMIGOS] currentUserId:', currentUserId, 'type:', typeof currentUserId);
       console.log('[MODAL_AMIGOS] partidoActual.id:', partidoActual.id, 'type:', typeof partidoActual.id);
-      
+
       // Validar que user_id sea un UUID válido
       if (!amigo.id || typeof amigo.id !== 'string' || amigo.id.length !== 36) {
         throw new Error(`user_id inválido: ${amigo.id}`);
       }
-      
+
       // Validar que currentUserId sea un UUID válido
       if (!currentUserId || typeof currentUserId !== 'string' || currentUserId.length !== 36) {
         throw new Error(`currentUserId inválido: ${currentUserId}`);
@@ -212,7 +212,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
       console.log('[MODAL_AMIGOS] === ATTEMPTING INSERT ===');
       const { data: { session } } = await supabase.auth.getSession();
       console.log('[MODAL_AMIGOS] Session token exists:', !!session?.access_token);
-      
+
       const { data: insertedNotification, error } = await supabase
         .from('notifications')
         .insert([notificationData])
@@ -227,7 +227,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
         console.error('[MODAL_AMIGOS] Error hint:', error.hint);
         console.error('[MODAL_AMIGOS] Full error object:', error);
         console.error('[MODAL_AMIGOS] Data that failed to insert:', notificationData);
-        
+
         // Análisis específico de errores comunes
         if (error.code === '42501') {
           console.error('[MODAL_AMIGOS] 🚨 RLS POLICY ERROR - No tienes permisos para insertar');
@@ -261,8 +261,8 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
       console.log('[MODAL_AMIGOS] 📱 Recipient can check notifications in their notifications panel');
 
       // Agregar al set de amigos invitados
-      setInvitedFriends((prev) => new Set([...prev, amigo.id]));
-      
+      setInvitedFriends((prev) => new Set(Array.from(prev).concat(amigo.id)));
+
       toast.success(`Invitación enviada a ${amigo.nombre}`);
     } catch (error) {
       console.error('[MODAL_AMIGOS] Error sending invitation:', error);
@@ -280,38 +280,55 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
   if (!isOpen) return null;
 
   const modalContent = (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content invite-friends-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>Invitar amigos</h3>
-          <button className="modal-close" onClick={onClose}>×</button>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] p-5" onClick={onClose}>
+      <div
+        className="bg-[#1a1a1a] rounded-xl w-[calc(100vw-40px)] max-w-[360px] max-h-[80vh] overflow-hidden border-2 border-[#333] sm:w-[300px] sm:max-w-[calc(100vw-32px)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center px-5 py-4 border-b border-[#333] bg-[#222]">
+          <h3 className="text-white m-0 text-lg font-semibold">Invitar amigos</h3>
+          <button
+            className="bg-transparent border-none text-white text-2xl cursor-pointer p-0 w-[30px] h-[30px] flex items-center justify-center rounded-full transition-colors duration-200 hover:bg-white/10"
+            onClick={onClose}
+          >
+            ×
+          </button>
         </div>
 
-        <div className="modal-body">
+        <div className="px-5 py-4 max-h-[60vh] overflow-y-auto">
           {loading ? (
-            <div className="loading-state">
+            <div className="flex justify-center py-10">
               <LoadingSpinner size="medium" />
             </div>
           ) : amigos.length === 0 ? (
-            <div className="empty-state">
+            <div className="text-center text-white/70 py-10 px-5 text-base">
               No tenés amigos para invitar
             </div>
           ) : (
-            <div className="friends-list">
+            <div className="flex flex-col gap-2">
               {amigos.map((amigo) => (
-                <div key={amigo.id} className="friend-row">
-                  <img 
-                    src={amigo.avatar_url || '/profile.svg'} 
-                    alt={amigo.nombre || 'Usuario'} 
-                    className="friend-avatar"
-                    onError={(e) => { e.target.src = '/profile.svg'; }}
+                <div
+                  key={amigo.id}
+                  className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10 transition-all duration-200 hover:bg-white/[0.08] hover:border-white/20"
+                >
+                  <img
+                    src={amigo.avatar_url || '/profile.svg'}
+                    alt={amigo.nombre || 'Usuario'}
+                    className="w-10 h-10 rounded-full object-cover shrink-0 border-2 border-white/20"
+                    onError={(e) => { e.currentTarget.src = '/profile.svg'; }}
                   />
-                  <span className="friend-name">
+                  <span className="flex-1 text-white text-base font-medium min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
                     {amigo.nombre || 'Usuario'}
                   </span>
-                  <button 
+                  <button
                     onClick={() => handleInvitar(amigo)}
-                    className={`friend-invite-btn ${invitedFriends.has(amigo.id) ? 'invited' : ''}`}
+                    className={`
+                      border-none rounded-md px-4 py-2 text-sm font-semibold cursor-pointer transition-all duration-200 shrink-0 min-w-[80px]
+                      ${invitedFriends.has(amigo.id)
+                        ? 'bg-[#28a745] text-white cursor-default hover:bg-[#28a745] hover:transform-none'
+                        : 'bg-[#007bff] text-white hover:bg-[#0056b3] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none'
+                      }
+                    `}
                     disabled={inviting || invitedFriends.has(amigo.id)}
                   >
                     {inviting ? '...' : invitedFriends.has(amigo.id) ? 'Invitado' : 'Invitar'}
