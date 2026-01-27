@@ -14,11 +14,11 @@ async function getMatchPlayersMap(matchId) {
   if (error) throw error;
 
   const playersMap = new Map();
-  (players || []).forEach(player => {
+  (players || []).forEach((player) => {
     playersMap.set(player.id, {
       user_id: player.usuario_id,
       player_table_id: player.id,
-      uuid: player.uuid
+      uuid: player.uuid,
     });
   });
 
@@ -74,7 +74,7 @@ export async function grantAwardsForMatch(matchId, awards) {
           partido_id: matchId,
           jugador_id: playerInfo.uuid,
           award_type: awardType,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
         });
 
       if (insertError) {

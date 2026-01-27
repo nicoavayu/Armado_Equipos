@@ -29,7 +29,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
   // precio cancha state (string to allow empty value)
   const [precioCancha, setPrecioCancha] = useState(
     // Initialize from partido.precio_cancha first, fallback to partido.precio, else empty
-    (partido.precio_cancha !== undefined && partido.precio_cancha !== null) ? String(partido.precio_cancha) : (partido.precio !== undefined && partido.precio !== null ? String(partido.precio) : '')
+    (partido.precio_cancha !== undefined && partido.precio_cancha !== null) ? String(partido.precio_cancha) : (partido.precio !== undefined && partido.precio !== null ? String(partido.precio) : ''),
   );
 
   const normalizeTimeTo24 = (timeStr) => {
@@ -395,7 +395,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
                   className={`py-3 px-2 text-sm font-oswald font-bold rounded-xl cursor-pointer transition-all duration-300 min-h-[48px] flex items-center justify-center border-2 ${tipoPartido === tipo
                     ? 'bg-primary border-transparent text-white shadow-[0_8px_24px_rgba(129,120,229,0.4)]'
                     : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-white/20'
-                    }`}
+                  }`}
                 >
                   {tipo}
                 </button>
@@ -417,7 +417,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
                   className={`py-3 px-2 text-sm font-oswald font-bold rounded-xl cursor-pointer transition-all duration-300 min-h-[48px] flex items-center justify-center border-2 ${modalidad === mod
                     ? 'bg-primary border-transparent text-white shadow-[0_8px_24px_rgba(129,120,229,0.4)]'
                     : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-white/20'
-                    }`}
+                  }`}
                 >
                   {mod}
                 </button>

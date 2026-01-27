@@ -134,7 +134,7 @@ export const NotificationProvider = ({ children }) => {
             eventType: payload.eventType,
             table: payload.table,
             userId: currentUserId,
-            hasNewData: !!payload.new
+            hasNewData: !!payload.new,
           });
 
           if (payload.new) {
@@ -151,7 +151,7 @@ export const NotificationProvider = ({ children }) => {
         logger.log('[NOTIFICATIONS] Subscription status:', {
           status,
           channel: `notifications-${currentUserId}`,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
 
         if (status === 'SUBSCRIBED') {
@@ -256,7 +256,7 @@ export const NotificationProvider = ({ children }) => {
       'survey_start',
       'post_match_survey',
       'survey_reminder',
-      'call_to_vote'
+      'call_to_vote',
     ];
     const keepMap = new Map(); // key -> notification for partido-linked
     const othersMap = new Map(); // key -> notification for non-partido notifications (group by type+title+message)
@@ -353,7 +353,7 @@ export const NotificationProvider = ({ children }) => {
     logger.log('[NOTIFICATIONS] New realtime notification:', {
       id: notification.id,
       type: notification.type,
-      isForCurrentUser: notification.user_id === currentUserId
+      isForCurrentUser: notification.user_id === currentUserId,
     });
 
     // Verificar que la notificación es para el usuario actual
@@ -613,8 +613,8 @@ export const NotificationProvider = ({ children }) => {
     if (!currentUserId) return { ok: false, error: { message: 'no_current_user' } };
 
     // --- CANONICAL MODE CHECK: prevent client creation of survey notifications when DB is canonical ---
-    const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || "db";
-    if (SURVEY_FANOUT_MODE === "db" && (type === "survey_start" || type === "post_match_survey")) {
+    const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || 'db';
+    if (SURVEY_FANOUT_MODE === 'db' && (type === 'survey_start' || type === 'post_match_survey')) {
       return { ok: false, error: { message: 'blocked_by_survey_fanout_mode' } };
     }
 

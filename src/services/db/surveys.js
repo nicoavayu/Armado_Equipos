@@ -254,7 +254,7 @@ export const checkPartidoCalificado = async (partidoId, userId) => {
     // Primero obtener los jugadores del partido para encontrar el ID numérico
     const { getJugadoresDelPartido } = await import('./matches');
     const jugadores = await getJugadoresDelPartido(partidoId);
-    const currentUserPlayer = jugadores.find(j => j.usuario_id === userId);
+    const currentUserPlayer = jugadores.find((j) => j.usuario_id === userId);
 
     if (!currentUserPlayer) {
       console.log('Usuario no encontrado en el partido:', userId);
@@ -314,8 +314,8 @@ export const getPartidosPendientesCalificacion = async (userId) => {
     // 2. Filter matches where user played using the fetched joined data
     // Note: The structure returned by Supabase for foreign key join might vary slightly depending on relationship definition
     // Here assuming jugadores is an array of objects
-    const playedMatches = partidos.filter(p =>
-      p.jugadores && p.jugadores.some(j => j.usuario_id === userId)
+    const playedMatches = partidos.filter((p) =>
+      p.jugadores && p.jugadores.some((j) => j.usuario_id === userId),
     );
 
     if (playedMatches.length === 0) return [];

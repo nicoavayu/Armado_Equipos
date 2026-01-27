@@ -176,12 +176,12 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   // -- FIN HOOKS --
 
   // Common wrapper styles
-  const wrapperClass = "min-h-screen w-screen p-0 flex flex-col";
-  const cardClass = "w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-5";
+  const wrapperClass = 'min-h-screen w-screen p-0 flex flex-col';
+  const cardClass = 'w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-5';
   // Updated title class to match Legacy 'voting-title-modern' but with Tailwind
-  const titleClass = "font-bebas text-[46px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-lg";
-  const btnClass = "font-bebas text-[27px] md:text-[28px] text-white bg-primary border-2 border-white/20 rounded-2xl tracking-wide py-4 mt-4 w-full cursor-pointer font-bold transition-all duration-300 hover:brightness-110 hover:shadow-[0_4px_20px_rgba(129,120,229,0.5)] disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden flex items-center justify-center";
-  const textClass = "text-white text-[26px] font-oswald text-center mb-[30px] tracking-wide";
+  const titleClass = 'font-bebas text-[46px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-lg';
+  const btnClass = 'font-bebas text-[27px] md:text-[28px] text-white bg-primary border-2 border-white/20 rounded-2xl tracking-wide py-4 mt-4 w-full cursor-pointer font-bold transition-all duration-300 hover:brightness-110 hover:shadow-[0_4px_20px_rgba(129,120,229,0.5)] disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden flex items-center justify-center';
+  const textClass = 'text-white text-[26px] font-oswald text-center mb-[30px] tracking-wide';
 
   const openVotingLink = () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -326,7 +326,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <div className={titleClass}>¡HOLA, {clean(nombre)}!</div>
           <div className="flex flex-col items-center mb-[18px]">
             <div
-              className={`w-[80vw] h-[80vw] md:w-[320px] md:h-[320px] bg-white/10 border-2 border-white/25 rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden mx-auto mt-[18px] cursor-pointer hover:border-white/40`}
+              className={'w-[80vw] h-[80vw] md:w-[320px] md:h-[320px] bg-white/10 border-2 border-white/25 rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden mx-auto mt-[18px] cursor-pointer hover:border-white/40'}
               onClick={() => document.getElementById('foto-input').click()}
               title={fotoPreview ? 'Cambiar foto' : 'Agregar foto'}
             >
@@ -531,7 +531,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               }
 
               // Validate payload
-              const voteCount = Object.keys(votos).filter(k => votos[k]).length;
+              const voteCount = Object.keys(votos).filter((k) => votos[k]).length;
               if (voteCount === 0) {
                 console.debug('[Vote] invalid payload, abort');
                 toast.error('Debes calificar al menos a un jugador');
@@ -567,7 +567,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   partidoId,
                   jugadorUuid: jugador?.uuid,
                   voteCount,
-                  hasNombre: !!jugador?.nombre
+                  hasNombre: !!jugador?.nombre,
                 };
                 console.debug('[Vote] build payload', safePayload);
                 console.debug('[Vote] submit sending');

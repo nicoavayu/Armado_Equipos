@@ -124,8 +124,8 @@ const AuthPage = () => {
         options: {
           emailRedirectTo: `${window.location.origin}`,
           data: {
-            email_confirm: false // Temporal: deshabilitar confirmación
-          }
+            email_confirm: false, // Temporal: deshabilitar confirmación
+          },
         },
       });
 
@@ -196,7 +196,7 @@ const AuthPage = () => {
         background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)',
         width: '100vw',
         height: '100vh',
-        overflow: 'hidden'
+        overflow: 'hidden',
       }}
     >
       <div className="mb-[20px] text-center">

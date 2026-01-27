@@ -25,7 +25,7 @@ export function useKeyboard() {
     }
 
     // For native platforms, use Capacitor Keyboard plugin
-    const keyboardWillShow = Keyboard.addListener('keyboardWillShow', info => {
+    const keyboardWillShow = Keyboard.addListener('keyboardWillShow', (info) => {
       setKeyboardHeight(info.keyboardHeight);
       setIsKeyboardOpen(true);
     });

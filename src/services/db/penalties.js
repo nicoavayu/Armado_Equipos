@@ -53,10 +53,10 @@ export async function applyNoShowPenalties(matchId) {
   if (jugadoresErr) return { data: [], error: jugadoresErr };
 
   const playerIdToUsuario = new Map();
-  jugadoresRows?.forEach(r => { if (r.usuario_id) playerIdToUsuario.set(Number(r.id), r.usuario_id); });
+  jugadoresRows?.forEach((r) => { if (r.usuario_id) playerIdToUsuario.set(Number(r.id), r.usuario_id); });
 
   // 5) prepare adjustments for insertion with usuario_id
-  const adjustments = toPenalizePlayerIds.map(pid => {
+  const adjustments = toPenalizePlayerIds.map((pid) => {
     const uid = playerIdToUsuario.get(pid);
     return uid ? {
       user_id: uid,
@@ -64,14 +64,14 @@ export async function applyNoShowPenalties(matchId) {
       type: 'no_show_penalty',
       amount: -1,
       meta: { reason: 'absence_without_notice', confirmations: Array.from(confirmMap.get(String(pid)) || []) },
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     } : null;
   }).filter(Boolean);
 
   if (!adjustments.length) return { data: [], error: null };
 
   // 6) find already applied adjustments for these users
-  const userIds = adjustments.map(a => a.user_id);
+  const userIds = adjustments.map((a) => a.user_id);
   const { data: existing, error: existingErr } = await supabase
     .from('rating_adjustments')
     .select('user_id')
@@ -80,9 +80,9 @@ export async function applyNoShowPenalties(matchId) {
     .eq('type', 'no_show_penalty');
   if (existingErr) return { data: [], error: existingErr };
 
-  const alreadyAppliedSet = new Set((existing || []).map(r => r.user_id));
+  const alreadyAppliedSet = new Set((existing || []).map((r) => r.user_id));
 
-  const toInsert = adjustments.filter(a => !alreadyAppliedSet.has(a.user_id));
+  const toInsert = adjustments.filter((a) => !alreadyAppliedSet.has(a.user_id));
   const appliedUserIds = [];
 
   if (toInsert.length) {
@@ -91,12 +91,12 @@ export async function applyNoShowPenalties(matchId) {
       .insert(toInsert);
     if (insertErr) return { data: [], error: insertErr };
     // collect applied user_ids from insertRes
-    (insertRes || []).forEach(r => appliedUserIds.push(r.user_id));
+    (insertRes || []).forEach((r) => appliedUserIds.push(r.user_id));
   }
 
   // 7) apply ranking decrement only for newly applied adjustments
   const table = 'profiles';
-  await Promise.allSettled((appliedUserIds || []).map(async uid => {
+  await Promise.allSettled((appliedUserIds || []).map(async (uid) => {
     try {
       await supabase.rpc('dec_numeric', { p_table: table, p_column: 'ranking', p_id: uid, p_amount: 1 });
       console.log('[NO_SHOW_PENALTY] applied', { partidoId: id, userId: uid });
@@ -129,7 +129,7 @@ export async function applyNoShowPenalties(matchId) {
   }));
 
   // 8) log skips for users already applied
-  (adjustments || []).forEach(a => {
+  (adjustments || []).forEach((a) => {
     if (alreadyAppliedSet.has(a.user_id)) {
       console.log('[NO_SHOW_PENALTY] skipped (already applied)', { partidoId: id, userId: a.user_id });
     }
@@ -250,7 +250,7 @@ export async function applyNoShowRecoveries(matchId) {
       type: 'no_show_recovery',
       amount: 0.2,
       meta: { cycle_index: cycleIndex, source_partido_id: id },
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
 
     const { data: insRes, error: insErr } = await supabase

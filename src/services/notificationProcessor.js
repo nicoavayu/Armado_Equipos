@@ -28,7 +28,7 @@ export const processScheduledNotifications = async () => {
     
     // Agrupar por partido para evitar duplicados
     const notificationsByMatch = {};
-    scheduledNotifications.forEach(notification => {
+    scheduledNotifications.forEach((notification) => {
       const partidoId = notification.data?.partido_id;
       if (partidoId) {
         if (!notificationsByMatch[partidoId]) {
@@ -67,7 +67,7 @@ const processMatchResultsNotifications = async (partidoId, notifications) => {
     if (!awards || awards.length === 0) {
       console.log('[MATCH_RESULTS] No awards found for partido:', partidoId);
       // Marcar notificaciones como leídas si no hay resultados
-      const notificationIds = notifications.map(n => n.id);
+      const notificationIds = notifications.map((n) => n.id);
       await supabase
         .from('notifications')
         .update({ read: true })
@@ -76,13 +76,13 @@ const processMatchResultsNotifications = async (partidoId, notifications) => {
     }
     
     // Actualizar las notificaciones con los datos de los resultados
-    const updatedNotifications = notifications.map(notification => ({
+    const updatedNotifications = notifications.map((notification) => ({
       ...notification,
       data: {
         ...notification.data,
         awards: awards,
-        results_ready: true
-      }
+        results_ready: true,
+      },
     }));
     
     // Las notificaciones ya están en la base de datos, solo necesitamos que el frontend las procese
@@ -121,10 +121,10 @@ export const getMatchResults = async (partidoId) => {
     // Organizar resultados por tipo de premio
     const results = {
       partido: partido,
-      mvp: awards.find(a => a.award_type === 'mvp'),
-      guante_dorado: awards.find(a => a.award_type === 'guante_dorado'),
-      tarjetas_rojas: awards.filter(a => a.award_type === 'tarjeta_roja'),
-      total_awards: awards.length
+      mvp: awards.find((a) => a.award_type === 'mvp'),
+      guante_dorado: awards.find((a) => a.award_type === 'guante_dorado'),
+      tarjetas_rojas: awards.filter((a) => a.award_type === 'tarjeta_roja'),
+      total_awards: awards.length,
     };
     
     return results;

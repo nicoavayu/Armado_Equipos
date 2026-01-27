@@ -79,7 +79,7 @@ window.debugProximosPartidos = async () => {
     .eq('usuario_id', user.id);
     
   if (!jugadorError && userJugadorIdsData && userJugadorIdsData.length > 0) {
-    const jugadorIds = userJugadorIdsData.map(j => j.id);
+    const jugadorIds = userJugadorIdsData.map((j) => j.id);
     
     const { data: surveysData, error: surveysError } = await supabase
       .from('post_match_surveys')

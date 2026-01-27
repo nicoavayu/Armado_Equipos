@@ -112,4 +112,4 @@ const PlayerCard = ({ profile, user, isVisible }) => {
       </div>
     </div>
   );
-}
+};

@@ -54,8 +54,8 @@ const ProximosPartidos = ({ onClose }) => {
         const { partido_id, votante_id } = payload.new || {};
         if (!partido_id || !votante_id) return;
         if (!userJugadorIds.includes(votante_id)) return; // solo mis encuestas
-        setCompletedSurveys(prev => { const s = new Set(prev); s.add(partido_id); return s; });
-        setPartidos(prev => prev.filter(p => p.id !== partido_id)); // limpia inmediatamente
+        setCompletedSurveys((prev) => { const s = new Set(prev); s.add(partido_id); return s; });
+        setPartidos((prev) => prev.filter((p) => p.id !== partido_id)); // limpia inmediatamente
       });
     return () => { supabase.removeChannel(channel); };
   }, [user?.id, userJugadorIds]);
@@ -74,7 +74,7 @@ const ProximosPartidos = ({ onClose }) => {
 
   useEffect(() => {
     setIntervalSafe(() => {
-      setPartidos(prev => [...prev]); // Force re-render
+      setPartidos((prev) => [...prev]); // Force re-render
     }, 60000);
 
     return () => clearIntervalSafe();
@@ -142,7 +142,7 @@ const ProximosPartidos = ({ onClose }) => {
           .eq('usuario_id', user.id);
 
         if (!jugadorError && userJugadorIdsData && userJugadorIdsData.length > 0) {
-          const jugadorIds = userJugadorIdsData.map(j => j.id);
+          const jugadorIds = userJugadorIdsData.map((j) => j.id);
           setUserJugadorIds(jugadorIds);
 
           const { data: surveysData, error: surveysError } = await supabase
@@ -209,9 +209,9 @@ const ProximosPartidos = ({ onClose }) => {
         if (isMatchFinished(partido) && !notifiedMatches.has(partido.id)) {
           try {
             // --- CANONICAL MODE CHECK: prevent client creation when DB is canonical ---
-            const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || "db";
-            if (SURVEY_FANOUT_MODE === "db") {
-              setNotifiedMatches(prev => { const s = new Set(prev); s.add(partido.id); return s; });
+            const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || 'db';
+            if (SURVEY_FANOUT_MODE === 'db') {
+              setNotifiedMatches((prev) => { const s = new Set(prev); s.add(partido.id); return s; });
               continue;
             }
 
@@ -224,10 +224,10 @@ const ProximosPartidos = ({ onClose }) => {
                 partido_nombre: partido.nombre,
                 partido_fecha: partido.fecha,
                 partido_hora: partido.hora,
-                partido_sede: partido.sede
-              }
+                partido_sede: partido.sede,
+              },
             );
-            setNotifiedMatches(prev => { const s = new Set(prev); s.add(partido.id); return s; });
+            setNotifiedMatches((prev) => { const s = new Set(prev); s.add(partido.id); return s; });
           } catch (error) {
             console.error('Error sending match finish notification:', error);
           }
@@ -465,7 +465,7 @@ const ProximosPartidos = ({ onClose }) => {
                           </div>
                         ) : partido.userRole === 'admin' ? (
                           <div className="flex items-center gap-1.5 bg-slate-700 px-2.5 py-1.5 rounded-full text-[11px] font-semibold shrink-0 border border-[#0EA9C6]">
-                            <FaCrown size={12} color="#0EA9C6" style={{marginRight: '2px'}} />
+                            <FaCrown size={12} color="#0EA9C6" style={{ marginRight: '2px' }} />
                             <span className="font-semibold uppercase text-[#0EA9C6]">Admin</span>
                           </div>
                         ) : null}
@@ -476,7 +476,7 @@ const ProximosPartidos = ({ onClose }) => {
                               className="p-2 rounded-full border border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-200"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setMenuOpenId(prev => prev === partido.id ? null : partido.id);
+                                setMenuOpenId((prev) => prev === partido.id ? null : partido.id);
                               }}
                               aria-label="Más acciones"
                             >

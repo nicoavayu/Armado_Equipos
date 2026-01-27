@@ -227,7 +227,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         }
         toast.error(errorMessage);
       },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 }
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 },
     );
   };
 
@@ -362,9 +362,9 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   if (!isOpen) return null;
 
   // Shared classes
-  const inputClass = "w-full bg-white/10 border border-white/20 text-white px-4 py-3 rounded-xl text-base transition-all focus:outline-none focus:border-primary focus:bg-white/15 focus:ring-2 focus:ring-primary/30 placeholder:text-white/40 read-only:opacity-70 read-only:cursor-not-allowed shadow-inner backdrop-blur-sm";
-  const labelClass = "text-white/90 text-sm font-bold mb-2 block uppercase tracking-wider";
-  const formGroupClass = "flex flex-col w-full";
+  const inputClass = 'w-full bg-white/10 border border-white/20 text-white px-4 py-3 rounded-xl text-base transition-all focus:outline-none focus:border-primary focus:bg-white/15 focus:ring-2 focus:ring-primary/30 placeholder:text-white/40 read-only:opacity-70 read-only:cursor-not-allowed shadow-inner backdrop-blur-sm';
+  const labelClass = 'text-white/90 text-sm font-bold mb-2 block uppercase tracking-wider';
+  const formGroupClass = 'flex flex-col w-full';
 
   if (isEmbedded) {
     return (
@@ -419,7 +419,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
                 {/* Name Column (Integrated in row) */}
                 <div className="flex-1 flex flex-col gap-0.5 min-w-0 justify-center">
-                  <label className={labelClass + " !mb-0 !text-[11px]"}>Nombre Completo *</label>
+                  <label className={labelClass + ' !mb-0 !text-[11px]'}>Nombre Completo *</label>
                   <input
                     className={`${inputClass} w-full min-w-0 !py-2 !h-[40px] !text-sm`}
                     type="text"
@@ -446,7 +446,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 <div className={formGroupClass}>
                   <label className={labelClass}>Email Registrado</label>
                   <input
-                    className={inputClass + " !opacity-40 !bg-transparent min-w-0 w-full cursor-not-allowed"}
+                    className={inputClass + ' !opacity-40 !bg-transparent min-w-0 w-full cursor-not-allowed'}
                     type="email"
                     value={user?.email || formData.email || ''}
                     readOnly
@@ -468,7 +468,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                   <label className={labelClass}>Nacionalidad</label>
                   <div className="relative w-full min-w-0">
                     <select
-                      className={inputClass + " appearance-none cursor-pointer min-w-0 w-full pr-10"}
+                      className={inputClass + ' appearance-none cursor-pointer min-w-0 w-full pr-10'}
                       value={formData.pais_codigo}
                       onChange={(e) => {
                         const country = countries.find((c) => c.key === e.target.value);
@@ -534,7 +534,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 <div className={formGroupClass}>
                   <label className={labelClass}>Breve Bio / Comentario</label>
                   <textarea
-                    className={inputClass + " resize-none min-h-[110px] min-w-0 w-full overflow-hidden break-words line-clamp-4"}
+                    className={inputClass + ' resize-none min-h-[110px] min-w-0 w-full overflow-hidden break-words line-clamp-4'}
                     value={formData.bio}
                     onChange={(e) => handleInputChange('bio', e.target.value)}
                     placeholder="Contanos algo sobre vos..."

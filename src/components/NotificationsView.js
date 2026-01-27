@@ -164,7 +164,7 @@ const NotificationsView = () => {
         const finalMatchId = notification.match_ref || data.match_id || data.partidoId;
         if (finalMatchId) {
           navigate(`/resultados-encuesta/${toBigIntId(finalMatchId)}`, {
-            state: { forceAwards: true }
+            state: { forceAwards: true },
           });
         }
         break;
@@ -264,7 +264,7 @@ const NotificationsView = () => {
       className="w-full h-full px-4"
       style={{
         paddingTop: '16px',
-        paddingBottom: 'calc(72px + 16px + env(safe-area-inset-bottom, 0px))'
+        paddingBottom: 'calc(72px + 16px + env(safe-area-inset-bottom, 0px))',
       }}
     >
       <div className="w-full max-w-[600px] mx-auto">
@@ -282,7 +282,7 @@ const NotificationsView = () => {
                 role="button"
                 tabIndex={0}
                 className={`flex p-3 bg-white/10 rounded-lg cursor-pointer transition-all duration-200 relative border border-white/10 hover:bg-white/15 ${!notification.read ? 'bg-[#ff3366]/15 border-[#ff3366]/30' : ''
-                  } ${notification.type === 'friend_request' ? 'cursor-default' : ''}`}
+                } ${notification.type === 'friend_request' ? 'cursor-default' : ''}`}
                 onClick={(e) => {
                   console.log('[NOTIFICATION_CLICK] Notification clicked, type:', notification.type);
                   if (notification.type !== 'friend_request') {

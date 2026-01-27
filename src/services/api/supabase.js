@@ -69,7 +69,9 @@ export const subscribeToChanges = (callback) => {
       try {
         // eslint-disable-next-line no-console
         console.log('[SUPABASE_CHANGE]', payload);
-      } catch {}
+      } catch {
+        // Log failed, continue anyway
+      }
       callback?.(payload);
     })
     .subscribe();
@@ -84,7 +86,9 @@ export const removeSubscription = (subscription) => {
   if (!subscription) return;
   try {
     supabase.removeChannel(subscription);
-  } catch {}
+  } catch {
+    // Removal failed, continue anyway
+  }
 };
 
 /**

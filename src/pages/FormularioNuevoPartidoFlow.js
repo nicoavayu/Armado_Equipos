@@ -16,9 +16,9 @@ const STEPS = {
   CONFIRM: 4,
 };
 
-const INPUT_MODERN_CLASS = "appearance-none bg-white/10 border border-white/20 text-white font-oswald text-lg px-4 py-3 rounded-xl w-full h-12 transition-all focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 placeholder:text-white/40 focus:bg-white/15 mb-2 box-border shadow-none backdrop-blur-md";
-const CONFIRM_BTN_CLASS = "font-bebas text-[27px] text-white bg-primary border-2 border-white/20 rounded-2xl tracking-[0.05em] w-full min-h-[54px] font-bold transition-all duration-300 hover:brightness-110 hover:shadow-[0_8px_32px_rgba(129,120,229,0.4)] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center relative overflow-hidden box-border mt-4 mb-0";
-const CONFIRM_ITEM_CLASS = "bg-white/5 border border-white/10 backdrop-blur-md rounded-xl p-4 mb-3 flex justify-between items-center text-white font-oswald shadow-lg";
+const INPUT_MODERN_CLASS = 'appearance-none bg-white/10 border border-white/20 text-white font-oswald text-lg px-4 py-3 rounded-xl w-full h-12 transition-all focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 placeholder:text-white/40 focus:bg-white/15 mb-2 box-border shadow-none backdrop-blur-md';
+const CONFIRM_BTN_CLASS = 'font-bebas text-[27px] text-white bg-primary border-2 border-white/20 rounded-2xl tracking-[0.05em] w-full min-h-[54px] font-bold transition-all duration-300 hover:brightness-110 hover:shadow-[0_8px_32px_rgba(129,120,229,0.4)] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center relative overflow-hidden box-border mt-4 mb-0';
+const CONFIRM_ITEM_CLASS = 'bg-white/5 border border-white/10 backdrop-blur-md rounded-xl p-4 mb-3 flex justify-between items-center text-white font-oswald shadow-lg';
 
 const STEP_TITLE_STYLE = {
   color: '#fff',
@@ -142,7 +142,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     } catch (e) {
       console.error('Error preloading partido frecuente into form', e);
     } finally {
-      toast.success("Plantilla aplicada ✅");
+      toast.success('Plantilla aplicada ✅');
       setShowFrecuentes(false);
       setStep(STEPS.NAME);
     }

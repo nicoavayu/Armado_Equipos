@@ -120,7 +120,7 @@ export default function MatchInfoSection(props) {
   const precioNumber = precioFieldExists ? parsePriceNumber(rawPrecio) : null;
   const priceDisplay = precioFieldExists && precioNumber !== null ? formatPriceCompact(precioNumber) : 'Sin $';
 
-  const topOffset = topOffsetClassName || "mt-[76px] sm:mt-[70px]";
+  const topOffset = topOffsetClassName || 'mt-[76px] sm:mt-[70px]';
 
   return (
     <div className="w-screen max-w-none px-0 mx-0 overflow-hidden box-border -ml-[calc((100vw-100%)/2)]">
@@ -130,7 +130,7 @@ export default function MatchInfoSection(props) {
           <div className="flex items-center w-full overflow-hidden flex-nowrap" style={{
             display: 'grid',
             gridTemplateColumns: 'minmax(0, 1.35fr) minmax(0, 0.9fr) minmax(0, 0.65fr) minmax(0, 1.25fr) minmax(0, 0.7fr) minmax(0, 1.15fr)',
-            gap: 'clamp(6px, 2vw, 16px)'
+            gap: 'clamp(6px, 2vw, 16px)',
           }}>
             <div className="flex flex-col items-center gap-1.5 text-white flex-1 min-w-0 sm:gap-1">
               <svg className="w-[clamp(12px,2.2vw,20px)] h-[clamp(12px,2.2vw,20px)] shrink-0 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>

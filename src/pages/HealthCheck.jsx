@@ -10,7 +10,7 @@ const CheckCard = ({ title, status, latency, error }) => (
     border: `2px solid ${status === 'OK' ? '#4CAF50' : status === 'FAIL' ? '#DE1C49' : '#FFA500'}`,
     borderRadius: '12px',
     padding: '16px',
-    marginBottom: '12px'
+    marginBottom: '12px',
   }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
       <h3 style={{ margin: 0, color: 'white', fontFamily: 'Bebas Neue, Arial, sans-serif', fontSize: '20px' }}>
@@ -23,7 +23,7 @@ const CheckCard = ({ title, status, latency, error }) => (
         borderRadius: '6px',
         fontSize: '14px',
         fontWeight: '700',
-        fontFamily: 'Oswald, Arial, sans-serif'
+        fontFamily: 'Oswald, Arial, sans-serif',
       }}>
         {status}
       </span>
@@ -47,7 +47,7 @@ export default function HealthCheck() {
   const [checks, setChecks] = useState({
     supabase: { status: 'CHECKING', latency: null, error: null },
     auth: { status: 'CHECKING', latency: null, error: null },
-    notifications: { status: 'CHECKING', latency: null, error: null }
+    notifications: { status: 'CHECKING', latency: null, error: null },
   });
   const [running, setRunning] = useState(false);
 
@@ -59,7 +59,7 @@ export default function HealthCheck() {
     const supabaseStart = performance.now();
     try {
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('TIMEOUT')), 2500)
+        setTimeout(() => reject(new Error('TIMEOUT')), 2500),
       );
       
       const fetchPromise = supabase
@@ -80,22 +80,22 @@ export default function HealthCheck() {
         }
         
         console.error('[Health] Supabase check failed:', { status, message: error.message, ms });
-        setChecks(prev => ({
+        setChecks((prev) => ({
           ...prev,
           supabase: {
             status: 'FAIL',
             latency: ms,
-            error: reason
-          }
+            error: reason,
+          },
         }));
       } else {
-        setChecks(prev => ({
+        setChecks((prev) => ({
           ...prev,
           supabase: {
             status: 'OK',
             latency: ms,
-            error: null
-          }
+            error: null,
+          },
         }));
       }
     } catch (err) {
@@ -111,13 +111,13 @@ export default function HealthCheck() {
       }
       
       console.error('[Health] Supabase check failed:', { message: err.message, ms });
-      setChecks(prev => ({
+      setChecks((prev) => ({
         ...prev,
         supabase: {
           status: 'FAIL',
           latency: ms,
-          error: reason
-        }
+          error: reason,
+        },
       }));
     }
 
@@ -125,7 +125,7 @@ export default function HealthCheck() {
     const authStart = performance.now();
     try {
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('TIMEOUT')), 2500)
+        setTimeout(() => reject(new Error('TIMEOUT')), 2500),
       );
       
       const authPromise = supabase.auth.getUser();
@@ -136,45 +136,45 @@ export default function HealthCheck() {
       if (error) {
         const reason = error.message || 'Auth error';
         console.error('[Health] Auth check failed:', { message: error.message, ms });
-        setChecks(prev => ({
+        setChecks((prev) => ({
           ...prev,
           auth: {
             status: 'FAIL',
             latency: ms,
-            error: reason
-          }
+            error: reason,
+          },
         }));
       } else if (authUser) {
-        setChecks(prev => ({
+        setChecks((prev) => ({
           ...prev,
           auth: {
             status: 'OK',
             latency: ms,
-            error: `User: ${authUser.id.slice(0, 8)}...`
-          }
+            error: `User: ${authUser.id.slice(0, 8)}...`,
+          },
         }));
       } else {
         // Guest mode (no authenticated user)
-        setChecks(prev => ({
+        setChecks((prev) => ({
           ...prev,
           auth: {
             status: 'OK',
             latency: ms,
-            error: 'Guest (no autenticado)'
-          }
+            error: 'Guest (no autenticado)',
+          },
         }));
       }
     } catch (err) {
       const ms = Math.round(performance.now() - authStart);
       const reason = err.message === 'TIMEOUT' ? 'Timeout' : (err.message || 'Auth error');
       console.error('[Health] Auth check failed:', { message: err.message, ms });
-      setChecks(prev => ({
+      setChecks((prev) => ({
         ...prev,
         auth: {
           status: 'FAIL',
           latency: ms,
-          error: reason
-        }
+          error: reason,
+        },
       }));
     }
 
@@ -182,7 +182,7 @@ export default function HealthCheck() {
     const notifStart = performance.now();
     try {
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('TIMEOUT')), 3000)
+        setTimeout(() => reject(new Error('TIMEOUT')), 3000),
       );
       
       const fetchPromise = supabase
@@ -196,35 +196,35 @@ export default function HealthCheck() {
       if (error) {
         const reason = status === 401 ? 'FAIL(401)' : status === 403 ? 'FAIL(403)' : status >= 500 ? `FAIL(${status})` : 'FAIL';
         console.error('[Health] Notifications check failed:', { status, error: error.message });
-        setChecks(prev => ({
+        setChecks((prev) => ({
           ...prev,
           notifications: {
             status: 'FAIL',
             latency: ms,
-            error: reason
-          }
+            error: reason,
+          },
         }));
       } else {
-        setChecks(prev => ({
+        setChecks((prev) => ({
           ...prev,
           notifications: {
             status: 'OK',
             latency: ms,
-            error: null
-          }
+            error: null,
+          },
         }));
       }
     } catch (err) {
       const ms = Math.round(performance.now() - notifStart);
       const reason = err.message === 'TIMEOUT' ? 'FAIL(TIMEOUT)' : 'FAIL';
       console.error('[Health] Notifications check failed:', err.message);
-      setChecks(prev => ({
+      setChecks((prev) => ({
         ...prev,
         notifications: {
           status: 'FAIL',
           latency: ms,
-          error: reason
-        }
+          error: reason,
+        },
       }));
     }
 
@@ -277,7 +277,7 @@ export default function HealthCheck() {
             fontFamily: 'Bebas Neue, Arial, sans-serif',
             letterSpacing: '0.5px',
             opacity: running ? 0.6 : 1,
-            marginTop: '12px'
+            marginTop: '12px',
           }}
         >
           {running ? 'EJECUTANDO...' : 'RE-EJECUTAR CHEQUEOS'}

@@ -25,7 +25,9 @@ export default function ConfirmModal({
   useEffect(() => {
     if (!isOpen) return;
     const focusTarget = cancelRef.current || confirmRef.current;
-    try { focusTarget && focusTarget.focus(); } catch (_) { }
+    try { focusTarget && focusTarget.focus(); } catch {
+      // Focus attempt failed, continue anyway
+    }
 
     const keyHandler = (e) => {
       if (e.key === 'Escape') {

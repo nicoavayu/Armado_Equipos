@@ -150,7 +150,7 @@ const UserSearch = ({ onClose }) => {
               </div>
               <button
                 className={`bg-[#4CAF50] text-white border-none p-[8px_16px] rounded-md cursor-pointer text-sm font-medium transition-all duration-200 whitespace-nowrap hover:not-disabled:bg-[#45a049] hover:not-disabled:-translate-y-[1px] ${isButtonDisabled(searchUser.id) ? 'bg-white/30 text-white/70 cursor-not-allowed hover:bg-white/30 hover:transform-none' : ''
-                  }`}
+                }`}
                 onClick={() => handleSendFriendRequest(searchUser.id)}
                 disabled={isButtonDisabled(searchUser.id)}
               >

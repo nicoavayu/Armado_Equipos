@@ -137,7 +137,7 @@ const notifyPlayersOfResults = async (partido, results) => {
       data: {
         partido_id: partido.id,
         results: results,
-        resultsUrl: `/resultados-encuesta/${partido.id}?showAwards=1`
+        resultsUrl: `/resultados-encuesta/${partido.id}?showAwards=1`,
       },
       created_at: new Date().toISOString(),
     }));

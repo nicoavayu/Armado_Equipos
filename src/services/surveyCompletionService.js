@@ -28,10 +28,10 @@ export async function computeAndPersistAwards(partidoId) {
   }, {});
   const countArray = (arr, key) => {
     const map = {};
-    arr.forEach(v => {
+    arr.forEach((v) => {
       const ids = v[key];
       if (Array.isArray(ids)) {
-        ids.forEach(id => { if (id) map[id] = (map[id] || 0) + 1; });
+        ids.forEach((id) => { if (id) map[id] = (map[id] || 0) + 1; });
       } else if (ids) {
         map[ids] = (map[ids] || 0) + 1;
       }
@@ -64,8 +64,8 @@ export async function computeAndPersistAwards(partidoId) {
     totals: {
       mvp: Object.values(mvpMap).reduce((a, b) => a + b, 0),
       gk: Object.values(gkMap).reduce((a, b) => a + b, 0),
-      red: Object.values(redMap).reduce((a, b) => a + b, 0)
-    }
+      red: Object.values(redMap).reduce((a, b) => a + b, 0),
+    },
   };
 
   try {
@@ -195,7 +195,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     console.error('[FINALIZE] error fetching surveysRows', { partidoId, surveysErr });
     throw surveysErr;
   }
-  const distinctVoters = new Set((surveysRows || []).map(r => r.votante_id));
+  const distinctVoters = new Set((surveysRows || []).map((r) => r.votante_id));
   const surveysCount = distinctVoters.size;
 
   // Log counts and sample voter ids
@@ -241,7 +241,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   // --- Create survey_finished notifications for all players immediately ---
   try {
     let jugadoresForNotifs = await db.fetchMany('jugadores', { partido_id: partidoId });
-    jugadoresForNotifs = (jugadoresForNotifs || []).filter(j => j.usuario_id != null);
+    jugadoresForNotifs = (jugadoresForNotifs || []).filter((j) => j.usuario_id != null);
 
     // Strict dedupe: fetch existing 'survey_finished' notifications for this match
     // Filters based on match_ref to ensure robustness
@@ -253,12 +253,12 @@ export async function finalizeIfComplete(partidoId, options = {}) {
       existingNotifs = [];
     }
 
-    const alreadyNotifiedUserIds = new Set((existingNotifs || []).map(n => n.user_id).filter(Boolean));
-    const jugadoresToInsert = (jugadoresForNotifs || []).filter(j => !alreadyNotifiedUserIds.has(j.usuario_id));
+    const alreadyNotifiedUserIds = new Set((existingNotifs || []).map((n) => n.user_id).filter(Boolean));
+    const jugadoresToInsert = (jugadoresForNotifs || []).filter((j) => !alreadyNotifiedUserIds.has(j.usuario_id));
 
     if (jugadoresToInsert && jugadoresToInsert.length > 0) {
       // Immediate sending (no delay)
-      const notificationPayloads = jugadoresToInsert.map(j => ({
+      const notificationPayloads = jugadoresToInsert.map((j) => ({
         user_id: j.usuario_id,
         type: 'survey_finished',
         title: 'Encuesta finalizada',
@@ -269,7 +269,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
         data: {
           match_id: String(partidoId),
           link: `/resultados-encuesta/${partidoId}`,
-          resultsUrl: `/resultados-encuesta/${partidoId}?showAwards=1`
+          resultsUrl: `/resultados-encuesta/${partidoId}?showAwards=1`,
         },
         read: false,
         created_at: nowIso,
@@ -343,7 +343,7 @@ export async function computeResultsAverages(partidoId) {
     .select('votante_id, mejor_jugador_eq_a, mejor_jugador_eq_b, jugadores_violentos')
     .eq('partido_id', partidoId);
   if (sErr) throw sErr;
-  const totalVotantes = new Set((surveys || []).map(s => s.votante_id)).size || 0;
+  const totalVotantes = new Set((surveys || []).map((s) => s.votante_id)).size || 0;
 
   // 2) recolectar UUIDs para mapear
   const uuidSet = new Set();
@@ -354,7 +354,7 @@ export async function computeResultsAverages(partidoId) {
     if (s.mejor_jugador_eq_b && typeof s.mejor_jugador_eq_b === 'string' && !/^\d+$/.test(s.mejor_jugador_eq_b)) {
       uuidSet.add(s.mejor_jugador_eq_b);
     }
-    (s.jugadores_violentos || []).forEach(val => {
+    (s.jugadores_violentos || []).forEach((val) => {
       if (val && typeof val === 'string' && !/^\d+$/.test(val)) {
         uuidSet.add(val);
       }
@@ -367,7 +367,7 @@ export async function computeResultsAverages(partidoId) {
       .from('jugadores')
       .select('id, uuid')
       .in('uuid', Array.from(uuidSet));
-    mapRows?.forEach(r => uuidToId.set(r.uuid, r.id));
+    mapRows?.forEach((r) => uuidToId.set(r.uuid, r.id));
   }
 
   // 3) helpers de normalización
@@ -394,7 +394,7 @@ export async function computeResultsAverages(partidoId) {
     const gkId = toNumId(s.mejor_jugador_eq_b);
     if (gkId) gkCount.set(gkId, (gkCount.get(gkId) || 0) + 1);
     const violentNums = normalizeIdArray(s.jugadores_violentos || []);
-    violentNums.forEach(id => violentCount.set(id, (violentCount.get(id) || 0) + 1));
+    violentNums.forEach((id) => violentCount.set(id, (violentCount.get(id) || 0) + 1));
   }
 
   // 5) helper para elegir ganador
@@ -427,12 +427,12 @@ export async function computeResultsAverages(partidoId) {
       .select('id, uuid')
       .in('id', idsToFetch);
     if (jErr) throw jErr;
-    jugRows?.forEach(j => idToUuid.set(j.id, j.uuid));
+    jugRows?.forEach((j) => idToUuid.set(j.id, j.uuid));
   }
 
   return {
     mvp: mvpIdNum ? idToUuid.get(mvpIdNum) || null : null,
     golden_glove: gkIdNum ? idToUuid.get(gkIdNum) || null : null,
-    red_cards: redIdsNum.map(id => idToUuid.get(id)).filter(Boolean)
+    red_cards: redIdsNum.map((id) => idToUuid.get(id)).filter(Boolean),
   };
 }

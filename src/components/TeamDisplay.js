@@ -286,20 +286,40 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       <div data-debug="TEAMDISPLAY_ACTIVE" className="w-[90vw] max-w-[90vw] mx-auto pb-[70px] flex flex-col gap-3 overflow-x-hidden mt-4">
         {/* Team cards */}
         <div className="flex flex-row gap-3 w-full mb-0 box-border">
-              {realtimeTeams.map((team) => {
-                // Create normalized player keys once before JSX
-                const rawPlayers = getPlayersArrayFromTeam(team);
-                const teamPlayerKeys = rawPlayers.map(normalizeKey).filter(Boolean);
+          {realtimeTeams.map((team) => {
+            // Create normalized player keys once before JSX
+            const rawPlayers = getPlayersArrayFromTeam(team);
+            const teamPlayerKeys = rawPlayers.map(normalizeKey).filter(Boolean);
 
-                return (
-                  <div key={team.id} className="relative bg-white/10 border border-white/20 rounded-xl p-2.5 w-[calc(50%-6px)] box-border transition-all shadow-xl flex flex-col min-h-0 hover:bg-white/[0.12] hover:border-white/25">
-                    {editingTeamId === team.id && isAdmin ? (
-                    <input
-                      type="text"
-                      className="font-bebas text-lg text-[#333] bg-white/95 border-2 border-[#0EA9C6] rounded-lg px-3 py-2 text-center tracking-widest uppercase w-full box-border shadow-sm md:text-xl lg:text-2xl"
-                      value={editingTeamName}
-                      onChange={(e) => setEditingTeamName(e.target.value)}
-                      onBlur={async () => {
+            return (
+              <div key={team.id} className="relative bg-white/10 border border-white/20 rounded-xl p-2.5 w-[calc(50%-6px)] box-border transition-all shadow-xl flex flex-col min-h-0 hover:bg-white/[0.12] hover:border-white/25">
+                {editingTeamId === team.id && isAdmin ? (
+                  <input
+                    type="text"
+                    className="font-bebas text-lg text-[#333] bg-white/95 border-2 border-[#0EA9C6] rounded-lg px-3 py-2 text-center tracking-widest uppercase w-full box-border shadow-sm md:text-xl lg:text-2xl"
+                    value={editingTeamName}
+                    onChange={(e) => setEditingTeamName(e.target.value)}
+                    onBlur={async () => {
+                      if (editingTeamName.trim()) {
+                        const newTeams = realtimeTeams.map((t) =>
+                          t.id === team.id ? { ...t, name: editingTeamName.trim() } : t,
+                        );
+                        setRealtimeTeams(newTeams);
+                        onTeamsChange(newTeams);
+
+                        // Save changes to database
+                        if (isAdmin && partidoId) {
+                          try {
+                            await saveTeamsToDatabase(partidoId, newTeams);
+                          } catch (error) {
+                            console.error('[TEAMS_SAVE] Error saving teams:', error);
+                          }
+                        }
+                      }
+                      setEditingTeamId(null);
+                    }}
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Enter') {
                         if (editingTeamName.trim()) {
                           const newTeams = realtimeTeams.map((t) =>
                             t.id === team.id ? { ...t, name: editingTeamName.trim() } : t,
@@ -317,155 +337,135 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                           }
                         }
                         setEditingTeamId(null);
-                      }}
-                      onKeyDown={async (e) => {
-                        if (e.key === 'Enter') {
-                          if (editingTeamName.trim()) {
-                            const newTeams = realtimeTeams.map((t) =>
-                              t.id === team.id ? { ...t, name: editingTeamName.trim() } : t,
-                            );
-                            setRealtimeTeams(newTeams);
-                            onTeamsChange(newTeams);
+                      } else if (e.key === 'Escape') {
+                        setEditingTeamId(null);
+                      }
+                    }}
+                    autoFocus
+                  />
+                ) : (
+                  <h3
+                    className="font-bebas text-xl text-white m-0 tracking-wide uppercase cursor-pointer px-0 py-2 rounded-lg transition-all bg-transparent break-words text-center block w-full hover:bg-white/5 mb-2 flex justify-center items-center"
+                    onClick={isAdmin ? () => {
+                      setEditingTeamId(team.id);
+                      setEditingTeamName(team.name);
+                    } : undefined}
+                    style={{ cursor: isAdmin ? 'pointer' : 'default' }}
+                  >
+                    {team.name}
+                  </h3>
+                )}
 
-                            // Save changes to database
-                            if (isAdmin && partidoId) {
-                              try {
-                                await saveTeamsToDatabase(partidoId, newTeams);
-                              } catch (error) {
-                                console.error('[TEAMS_SAVE] Error saving teams:', error);
-                              }
-                            }
-                          }
-                          setEditingTeamId(null);
-                        } else if (e.key === 'Escape') {
-                          setEditingTeamId(null);
-                        }
-                      }}
-                      autoFocus
-                    />
-                  ) : (
-                    <h3
-                      className="font-bebas text-xl text-white m-0 tracking-wide uppercase cursor-pointer px-0 py-2 rounded-lg transition-all bg-transparent break-words text-center block w-full hover:bg-white/5 mb-2 flex justify-center items-center"
-                      onClick={isAdmin ? () => {
-                        setEditingTeamId(team.id);
-                        setEditingTeamName(team.name);
-                      } : undefined}
-                      style={{ cursor: isAdmin ? 'pointer' : 'default' }}
-                    >
-                      {team.name}
-                    </h3>
-                  )}
-
-                  {/* Lista de jugadores sin DnD */}
-                  <div className="flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto max-h-[52vh] md:max-h-[60vh] pr-1">
-                    {teamPlayerKeys.length === 0 && (
-                      <div className="text-white/60 text-sm p-3 border border-white/10 rounded bg-black/20">
+                {/* Lista de jugadores sin DnD */}
+                <div className="flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto max-h-[52vh] md:max-h-[60vh] pr-1">
+                  {teamPlayerKeys.length === 0 && (
+                    <div className="text-white/60 text-sm p-3 border border-white/10 rounded bg-black/20">
                         No hay jugadores cargados en este equipo (players vacío).
-                      </div>
-                    )}
-                    {teamPlayerKeys.map((playerKey, index) => {
-                            const player = getPlayerDetails(playerKey);
+                    </div>
+                  )}
+                  {teamPlayerKeys.map((playerKey, index) => {
+                    const player = getPlayerDetails(playerKey);
 
-                            const isLocked =
+                    const isLocked =
                               lockedPlayers.includes(playerKey) ||
                               lockedPlayers.includes(Number(playerKey));
 
-                            if (!player?.nombre) {
-                              return (
-                                <div
-                                  key={`missing-${playerKey}`}
-                                  className="bg-slate-900 border border-slate-800 rounded-lg p-2 text-white/70"
-                                >
+                    if (!player?.nombre) {
+                      return (
+                        <div
+                          key={`missing-${playerKey}`}
+                          className="bg-slate-900 border border-slate-800 rounded-lg p-2 text-white/70"
+                        >
                                   Jugador desconocido ({playerKey})
-                                </div>
-                              );
-                            }
+                        </div>
+                      );
+                    }
 
-                            return (
-                              <div
-                                key={playerKey}
-                                onClick={isAdmin ? () => togglePlayerLock(playerKey) : undefined}
-                                className={`bg-slate-900 border border-slate-800 rounded-lg p-2 flex items-center gap-1.5 text-white transition-all min-h-[36px] relative w-full box-border overflow-hidden select-none hover:bg-slate-800 hover:border-slate-700
+                    return (
+                      <div
+                        key={playerKey}
+                        onClick={isAdmin ? () => togglePlayerLock(playerKey) : undefined}
+                        className={`bg-slate-900 border border-slate-800 rounded-lg p-2 flex items-center gap-1.5 text-white transition-all min-h-[36px] relative w-full box-border overflow-hidden select-none hover:bg-slate-800 hover:border-slate-700
                                   ${isLocked ? 'bg-[#FFC107]/20 border-[#FFC107]/60 shadow-[0_0_8px_rgba(255,193,7,0.3)]' : ''}
                                   ${!isAdmin ? 'cursor-default pointer-events-none' : 'cursor-pointer'}
                                 `}
-                              >
-                                <div className="flex items-center gap-1.5 w-full h-full">
-                                  {/* Avatar: Photo or Initials Badge */}
-                                  {player.avatar_url ? (
-                                    <img
-                                      src={player.avatar_url}
-                                      alt={player.nombre}
-                                      className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
-                                    />
-                                  ) : (
-                                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 border border-slate-700 shrink-0">
-                                      <span className="text-xs font-bold text-white">
-                                        {(() => {
-                                          const name = player.nombre || '';
-                                          const words = name.trim().split(/\s+/).filter(Boolean);
-                                          if (words.length === 0) return '?';
-                                          if (words.length === 1) return words[0][0].toUpperCase();
-                                          return (words[0][0] + words[1][0]).toUpperCase();
-                                        })()}
-                                      </span>
-                                    </div>
-                                  )}
-                                  <span className="font-oswald text-sm font-semibold text-white flex-1 tracking-wide overflow-hidden text-ellipsis whitespace-nowrap min-w-0 leading-tight">
-                                    {player.nombre}
-                                  </span>
+                      >
+                        <div className="flex items-center gap-1.5 w-full h-full">
+                          {/* Avatar: Photo or Initials Badge */}
+                          {player.avatar_url ? (
+                            <img
+                              src={player.avatar_url}
+                              alt={player.nombre}
+                              className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 border border-slate-700 shrink-0">
+                              <span className="text-xs font-bold text-white">
+                                {(() => {
+                                  const name = player.nombre || '';
+                                  const words = name.trim().split(/\s+/).filter(Boolean);
+                                  if (words.length === 0) return '?';
+                                  if (words.length === 1) return words[0][0].toUpperCase();
+                                  return (words[0][0] + words[1][0]).toUpperCase();
+                                })()}
+                              </span>
+                            </div>
+                          )}
+                          <span className="font-oswald text-sm font-semibold text-white flex-1 tracking-wide overflow-hidden text-ellipsis whitespace-nowrap min-w-0 leading-tight">
+                            {player.nombre}
+                          </span>
 
-                                  {showAverages && isAdmin && (
-                                    <span
-                                      className="font-bebas text-xs font-bold text-white bg-slate-800 px-2 py-1 rounded-md border border-slate-700 shrink-0 whitespace-nowrap"
-                                      style={{
-                                        background: getScoreColor(player.score),
-                                        borderColor: getScoreColor(player.score).replace('0.9', '0.5'),
-                                      }}
-                                    >
-                                      {(player.score || 0).toFixed(2)}
-                                    </span>
-                                  )}
+                          {showAverages && isAdmin && (
+                            <span
+                              className="font-bebas text-xs font-bold text-white bg-slate-800 px-2 py-1 rounded-md border border-slate-700 shrink-0 whitespace-nowrap"
+                              style={{
+                                background: getScoreColor(player.score),
+                                borderColor: getScoreColor(player.score).replace('0.9', '0.5'),
+                              }}
+                            >
+                              {(player.score || 0).toFixed(2)}
+                            </span>
+                          )}
 
-                                  {isLocked && isAdmin && (
-                                    <span className="text-base text-[#FFC107] shrink-0 p-1 rounded bg-[#FFC107]/20 border border-[#FFC107]/40 animate-pulse">
-                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-                                        <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
-                                      </svg>
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                        })}
+                          {isLocked && isAdmin && (
+                            <span className="text-base text-[#FFC107] shrink-0 p-1 rounded bg-[#FFC107]/20 border border-[#FFC107]/40 animate-pulse">
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                                <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
+                              </svg>
+                            </span>
+                          )}
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
 
-                    {/* Prominent score capsule with balance color */}
-                    <div className="bg-slate-900 rounded-lg text-center px-3 py-2 w-full box-border mt-2" style={{
-                      borderWidth: '2px',
-                      borderStyle: 'solid',
-                      borderColor: (() => {
-                        const teamA = realtimeTeams.find(t => t.id === 'equipoA');
-                        const teamB = realtimeTeams.find(t => t.id === 'equipoB');
-                        const diff = Math.abs((teamA?.score ?? 0) - (teamB?.score ?? 0));
-                        if (diff === 0 || diff <= 2) return '#10B981';
-                        if (diff <= 5) return '#84CC16';
-                        if (diff <= 8) return '#F59E0B';
-                        return '#EF4444';
-                      })()
-                    }}>
-                      <div className="text-white/70 text-xs font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
-                      <div className="text-white font-bebas text-xl font-bold">{(team.score ?? 0).toFixed(1)}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                {/* Prominent score capsule with balance color */}
+                <div className="bg-slate-900 rounded-lg text-center px-3 py-2 w-full box-border mt-2" style={{
+                  borderWidth: '2px',
+                  borderStyle: 'solid',
+                  borderColor: (() => {
+                    const teamA = realtimeTeams.find((t) => t.id === 'equipoA');
+                    const teamB = realtimeTeams.find((t) => t.id === 'equipoB');
+                    const diff = Math.abs((teamA?.score ?? 0) - (teamB?.score ?? 0));
+                    if (diff === 0 || diff <= 2) return '#10B981';
+                    if (diff <= 5) return '#84CC16';
+                    if (diff <= 8) return '#F59E0B';
+                    return '#EF4444';
+                  })(),
+                }}>
+                  <div className="text-white/70 text-xs font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
+                  <div className="text-white font-bebas text-xl font-bold">{(team.score ?? 0).toFixed(1)}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
         {/* Balance summary block - placed after team cards */}
         {(() => {
-          const teamA = realtimeTeams.find(t => t.id === 'equipoA');
-          const teamB = realtimeTeams.find(t => t.id === 'equipoB');
+          const teamA = realtimeTeams.find((t) => t.id === 'equipoA');
+          const teamB = realtimeTeams.find((t) => t.id === 'equipoB');
           const scoreA = teamA?.score ?? 0;
           const scoreB = teamB?.score ?? 0;
           const diff = Math.abs(scoreA - scoreB);
@@ -501,49 +501,49 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           );
         })()}
 
-            {/* Botones de acción con helper copy */}
-            <div className="w-full mt-2 box-border flex flex-col gap-4">
-              {isAdmin && (
-                <>
-                  <div className="flex flex-col gap-2">
-                    <div className="flex gap-2 w-full">
-                      {/* Primary CTA */}
-                      <button
-                        className="flex-1 font-bebas text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide bg-[#128BE9] hover:brightness-110 active:scale-95 disabled:opacity-50"
-                        onClick={randomizeTeams}
-                      >
-                        RANDOMIZAR
-                      </button>
-
-                      {/* Secondary outlined */}
-                      <button
-                        className="flex-1 font-bebas text-[15px] px-4 border border-slate-600 rounded-xl cursor-pointer transition-all text-white/80 h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide hover:border-slate-500 hover:text-white/90 bg-transparent active:scale-95 disabled:opacity-50"
-                        onClick={() => setShowAverages(!showAverages)}
-                      >
-                        {showAverages ? 'OCULTAR PROMEDIOS' : 'VER PROMEDIOS'}
-                      </button>
-                    </div>
-                    <div className="flex gap-2 w-full">
-                      <div className="flex-1 text-white/50 text-xs font-oswald text-center leading-tight px-1">Recalcula los equipos para dejarlos lo más parejos posible.</div>
-                      <div className="flex-1 text-white/50 text-xs font-oswald text-center leading-tight px-1">Mirá los promedios y métricas usadas para armar los equipos.</div>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Share button with helper */}
+        {/* Botones de acción con helper copy */}
+        <div className="w-full mt-2 box-border flex flex-col gap-4">
+          {isAdmin && (
+            <>
               <div className="flex flex-col gap-2">
-                <button
-                  className="w-full font-bebas text-[15px] px-4 border border-slate-700/50 rounded-xl cursor-pointer transition-all text-white/70 h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide hover:border-slate-600 hover:text-white/80 bg-transparent active:scale-95 disabled:opacity-50"
-                  onClick={handleWhatsAppShare}
-                >
-                  <SafeWhatsappIcon size={16} style={{ marginRight: 8 }} />
-                  COMPARTIR
-                </button>
-                <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1">Comparte los equipos armados al grupo de WhatsApp.</div>
+                <div className="flex gap-2 w-full">
+                  {/* Primary CTA */}
+                  <button
+                    className="flex-1 font-bebas text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide bg-[#128BE9] hover:brightness-110 active:scale-95 disabled:opacity-50"
+                    onClick={randomizeTeams}
+                  >
+                        RANDOMIZAR
+                  </button>
+
+                  {/* Secondary outlined */}
+                  <button
+                    className="flex-1 font-bebas text-[15px] px-4 border border-slate-600 rounded-xl cursor-pointer transition-all text-white/80 h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide hover:border-slate-500 hover:text-white/90 bg-transparent active:scale-95 disabled:opacity-50"
+                    onClick={() => setShowAverages(!showAverages)}
+                  >
+                    {showAverages ? 'OCULTAR PROMEDIOS' : 'VER PROMEDIOS'}
+                  </button>
+                </div>
+                <div className="flex gap-2 w-full">
+                  <div className="flex-1 text-white/50 text-xs font-oswald text-center leading-tight px-1">Recalcula los equipos para dejarlos lo más parejos posible.</div>
+                  <div className="flex-1 text-white/50 text-xs font-oswald text-center leading-tight px-1">Mirá los promedios y métricas usadas para armar los equipos.</div>
+                </div>
               </div>
-            </div>
+            </>
+          )}
+
+          {/* Share button with helper */}
+          <div className="flex flex-col gap-2">
+            <button
+              className="w-full font-bebas text-[15px] px-4 border border-slate-700/50 rounded-xl cursor-pointer transition-all text-white/70 h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide hover:border-slate-600 hover:text-white/80 bg-transparent active:scale-95 disabled:opacity-50"
+              onClick={handleWhatsAppShare}
+            >
+              <SafeWhatsappIcon size={16} style={{ marginRight: 8 }} />
+                  COMPARTIR
+            </button>
+            <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1">Comparte los equipos armados al grupo de WhatsApp.</div>
           </div>
+        </div>
+      </div>
     </SafeTeamDisplayContext.Provider>
   );
 };

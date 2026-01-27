@@ -41,7 +41,7 @@ window.debugNotifications = async () => {
     message: 'This is a test',
     data: { test: true },
     read: false,
-    send_at: new Date().toISOString()
+    send_at: new Date().toISOString(),
   };
   
   const { data: test3, error: error3 } = await supabase

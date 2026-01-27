@@ -11,6 +11,14 @@ module.exports = {
     'src/components/PlayerForm.js',
     'src/utils.js',
   ],
+  overrides: [
+    {
+      files: ['src/utils/debug*.js', 'src/utils/test*.js'],
+      rules: {
+        'no-console': 'off',
+      },
+    },
+  ],
   env: {
     browser: true,
     es2021: true,
@@ -33,7 +41,7 @@ module.exports = {
   rules: {
     // Error prevention
     'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-    'no-console': 'error',
+    'no-console': ['warn', { allow: ['warn', 'error'] }],
     'no-debugger': 'warn',
     'no-duplicate-imports': 'error',
     

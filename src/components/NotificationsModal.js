@@ -234,7 +234,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           <div className="flex items-center gap-3">
             {notifications.length > 0 && (
               <button
-                className={`bg-[#dc3545] border-none text-white text-sm font-medium cursor-pointer px-3 py-1.5 rounded-md transition-all flex items-center gap-2 hover:bg-[#c82333] disabled:opacity-60 disabled:cursor-not-allowed`}
+                className={'bg-[#dc3545] border-none text-white text-sm font-medium cursor-pointer px-3 py-1.5 rounded-md transition-all flex items-center gap-2 hover:bg-[#c82333] disabled:opacity-60 disabled:cursor-not-allowed'}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();

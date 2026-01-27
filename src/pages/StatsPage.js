@@ -4,12 +4,12 @@ import PageTransition from '../components/PageTransition';
 import StatsView from '../components/StatsView';
 
 const StatsPage = () => {
-    const { navigateWithAnimation } = useAnimatedNavigation();
-    return (
-        <PageTransition>
-            <StatsView onVolver={() => navigateWithAnimation('/', 'back')} />
-        </PageTransition>
-    );
+  const { navigateWithAnimation } = useAnimatedNavigation();
+  return (
+    <PageTransition>
+      <StatsView onVolver={() => navigateWithAnimation('/', 'back')} />
+    </PageTransition>
+  );
 };
 
 export default StatsPage;

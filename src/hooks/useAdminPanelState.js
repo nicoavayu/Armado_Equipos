@@ -16,7 +16,7 @@ export const useAdminPanelState = ({
   partidoActual, 
   user, 
   isAdmin, 
-  onBackToHome 
+  onBackToHome, 
 }) => {
   const [votantes, setVotantes] = useState([]);
   const [votantesConNombres, setVotantesConNombres] = useState([]);
@@ -61,7 +61,7 @@ export const useAdminPanelState = ({
       }
       
       try {
-        const isInMatch = jugadores.some(j => j.usuario_id === user.id);
+        const isInMatch = jugadores.some((j) => j.usuario_id === user.id);
         if (isInMatch) {
           setPendingInvitation(false);
           setInvitationChecked(true);
@@ -116,7 +116,7 @@ export const useAdminPanelState = ({
         event: '*',
         schema: 'public',
         table: 'jugadores',
-        filter: `partido_id=eq.${partidoActual.id}`
+        filter: `partido_id=eq.${partidoActual.id}`,
       }, async () => {
         console.log('[REALTIME] Players changed, refreshing...');
         try {
@@ -136,7 +136,7 @@ export const useAdminPanelState = ({
         event: '*',
         schema: 'public',
         table: 'votos',
-        filter: `partido_id=eq.${partidoActual.id}`
+        filter: `partido_id=eq.${partidoActual.id}`,
       }, async () => {
         console.log('[REALTIME] Votes changed, refreshing...');
         try {

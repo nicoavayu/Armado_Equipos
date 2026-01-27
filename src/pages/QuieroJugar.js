@@ -269,7 +269,7 @@ const QuieroJugar = () => {
       'estados unidos': '🇺🇸',
       'united states': '🇺🇸',
       'reino unido': '🇬🇧',
-      'united kingdom': '🇬🇧'
+      'united kingdom': '🇬🇧',
     };
 
     return flags[nationality.toLowerCase()] || '🌍';
@@ -421,7 +421,7 @@ const QuieroJugar = () => {
                     className={`flex-1 py-2.5 px-3 rounded-lg  text-[13px] font-semibold cursor-pointer transition-all duration-300 uppercase border ${matchSortBy === 'proximidad'
                       ? 'bg-white/20 text-white border-white/40'
                       : 'bg-white/10 text-white/70 border-white/20 hover:bg-white/15 hover:text-white/90'
-                      }`}
+                    }`}
                   >
                     📅 Proximidad
                   </button>
@@ -430,7 +430,7 @@ const QuieroJugar = () => {
                     className={`flex-1 py-2.5 px-3 rounded-lg  text-[13px] font-semibold cursor-pointer transition-all duration-300 uppercase border ${matchSortBy === 'recientes'
                       ? 'bg-white/20 text-white border-white/40'
                       : 'bg-white/10 text-white/70 border-white/20 hover:bg-white/15 hover:text-white/90'
-                      }`}
+                    }`}
                   >
                     🕒 Recientes
                   </button>
@@ -569,7 +569,7 @@ const QuieroJugar = () => {
                     className={`flex-1 py-2.5 px-3 rounded-lg  text-[13px] font-semibold cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'distance'
                       ? 'bg-white/20 text-white border-white/40'
                       : 'bg-white/10 text-white/70 border-white/20 hover:bg-white/15 hover:text-white/90'
-                      }`}
+                    }`}
                     onClick={() => setSortBy('distance')}
                   >
                     📍 Distancia
@@ -578,7 +578,7 @@ const QuieroJugar = () => {
                     className={`flex-1 py-2.5 px-3 rounded-lg  text-[13px] font-semibold cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'rating'
                       ? 'bg-white/20 text-white border-white/40'
                       : 'bg-white/10 text-white/70 border-white/20 hover:bg-white/15 hover:text-white/90'
-                      }`}
+                    }`}
                     onClick={() => setSortBy('rating')}
                   >
                     ⭐ Rating
@@ -665,6 +665,6 @@ const QuieroJugar = () => {
       />
     </>
   );
-}
+};
 
 export default QuieroJugar;

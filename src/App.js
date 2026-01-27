@@ -37,9 +37,15 @@ const AdminPanelPage = lazy(() => import('./pages/AdminPanelPage'));
 
 // Dev-only diagnostics (excluded in production builds)
 if (process.env.NODE_ENV === 'development') {
-  try { require('./utils/testNotificationsView'); } catch { }
-  try { require('./utils/testNotifications'); } catch { }
-  try { require('./utils/debugProximosPartidos'); } catch { }
+  try { require('./utils/testNotificationsView'); } catch {
+    // Silently fail if file not available
+  }
+  try { require('./utils/testNotifications'); } catch {
+    // Silently fail if file not available
+  }
+  try { require('./utils/debugProximosPartidos'); } catch {
+    // Silently fail if file not available
+  }
 }
 
 export default function App() {

@@ -46,7 +46,7 @@ export default function normalizePartidoForHeader(raw) {
     'costo','COSTO','cost','COST',
     'valor','VALOR',
     'price','PRICE',
-    'cancha_valor','CANCHA_VALOR'
+    'cancha_valor','CANCHA_VALOR',
   ];
 
   const nombre = firstPresent(base, nameKeys) || null;

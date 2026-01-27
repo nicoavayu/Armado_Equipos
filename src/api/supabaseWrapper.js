@@ -53,7 +53,7 @@ class SupabaseAPI {
     
     if (options.orderBy) {
       query = query.order(options.orderBy.column, { 
-        ascending: options.orderBy.ascending ?? true 
+        ascending: options.orderBy.ascending ?? true, 
       });
     }
     

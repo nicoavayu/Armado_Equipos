@@ -28,7 +28,7 @@ export default function ArmarEquiposView({
   jugadores,
   onJugadoresChange,
   partidoActual,
-  onTeamsFormed
+  onTeamsFormed,
 }) {
   const { user } = useAuth();
   const [votantes, setVotantes] = useState([]);
@@ -300,7 +300,7 @@ export default function ArmarEquiposView({
       navigator.share({
         title: 'Votación del partido',
         text,
-        url: publicLink
+        url: publicLink,
       })
         .then(() => console.debug('[Share] navigator.share success'))
         .catch((e) => console.debug('[Share] navigator.share cancelled/error', e));

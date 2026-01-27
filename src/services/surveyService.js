@@ -18,8 +18,8 @@ export const createPostMatchSurveyNotifications = async (partido) => {
 
   // --- CANONICAL MODE CHECK: prevent JS creation when DB is canonical ---
   const type = 'survey_start';
-  const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || "db";
-  if (SURVEY_FANOUT_MODE === "db" && (type === "survey_start" || type === "post_match_survey")) return;
+  const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || 'db';
+  if (SURVEY_FANOUT_MODE === 'db' && (type === 'survey_start' || type === 'post_match_survey')) return;
 
   if (!partido || !partido.jugadores || !partido.jugadores.length) return [];
 
@@ -287,7 +287,7 @@ export const processSurveyResults = async (partidoId) => {
       .eq('match_id_text', String(partidoId));
 
     const idNum = toBigIntId(partidoId);
-    const perUserNotifs = (jugadoresPartido || []).map(j => ({
+    const perUserNotifs = (jugadoresPartido || []).map((j) => ({
       user_id: j.usuario_id,
       type: 'survey_results_ready',
       title: 'Resultados listos',

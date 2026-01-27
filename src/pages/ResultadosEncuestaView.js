@@ -25,7 +25,7 @@ const ensurePlayersList = (players) => {
       red_badges: 0,
       fouls: 1,
       yellow_cards: 0,
-      red_cards: 0
+      red_cards: 0,
     },
     {
       uuid: 'demo-2',
@@ -37,7 +37,7 @@ const ensurePlayersList = (players) => {
       red_badges: 0,
       fouls: 0,
       yellow_cards: 0,
-      red_cards: 0
+      red_cards: 0,
     },
     {
       uuid: 'demo-3',
@@ -50,7 +50,7 @@ const ensurePlayersList = (players) => {
       fouls: 4,
       yellow_cards: 1,
       red_cards: 0,
-      ausencias: [{ fecha: new Date().toISOString() }]
+      ausencias: [{ fecha: new Date().toISOString() }],
     },
     {
       uuid: 'demo-4',
@@ -63,8 +63,8 @@ const ensurePlayersList = (players) => {
       fouls: 2,
       yellow_cards: 1,
       red_cards: 0,
-      ausencias: []
-    }
+      ausencias: [],
+    },
   ];
 };
 
@@ -99,7 +99,7 @@ const createMockResults = (players) => {
     penalty_player: penalized.uuid || penalized.usuario_id || 'penalty-demo',
     penalty_player_nombre: penalized.nombre || 'Penalizado',
     results_ready: true,
-    estado: 'finalizado'
+    estado: 'finalizado',
   };
 };
 
@@ -145,19 +145,19 @@ const ResultadosEncuestaView = () => {
       setPreviewPlayers((prev) => prev.map((p) =>
         (p.uuid === results.mvp || p.usuario_id === results.mvp)
           ? { ...p, mvp_badges: (p.mvp_badges || 0) + 1 }
-          : p
+          : p,
       ));
     } else if (slideType === 'glove' && results?.golden_glove) {
       setPreviewPlayers((prev) => prev.map((p) =>
         (p.uuid === results.golden_glove || p.usuario_id === results.golden_glove)
           ? { ...p, gk_badges: (p.gk_badges || 0) + 1 }
-          : p
+          : p,
       ));
     } else if (slideType === 'dirty' && results?.dirty_player) {
       setPreviewPlayers((prev) => prev.map((p) =>
         (p.uuid === results.dirty_player || p.usuario_id === results.dirty_player)
           ? { ...p, red_badges: (p.red_badges || 0) + 1 }
-          : p
+          : p,
       ));
     } else if (slideType === 'penalty' && penaltyListRef.current.length > 0) {
       const ids = new Set(penaltyListRef.current.map((p) => p.playerId));
@@ -256,7 +256,7 @@ const ResultadosEncuestaView = () => {
         }
         return normalizeBadges(p);
       });
-      console.log(`📊 previewPlayers after update:`, updated);
+      console.log('📊 previewPlayers after update:', updated);
       return updated.map(normalizeBadges);
     });
   };
@@ -287,7 +287,7 @@ const ResultadosEncuestaView = () => {
       if (!pid) return normalizeBadges(player);
       const pidStr = String(pid);
       const found = previewPlayers.find((j) =>
-        String(j.uuid) === pidStr || String(j.usuario_id) === pidStr || String(j.id) === pidStr
+        String(j.uuid) === pidStr || String(j.usuario_id) === pidStr || String(j.id) === pidStr,
       );
       const result = normalizeBadges(found || player);
       console.log(`🔍 resolvedPlayer updated: mvp=${result.mvp_badges}, gk=${result.gk_badges}, red=${result.red_badges}`);
@@ -399,10 +399,10 @@ const ResultadosEncuestaView = () => {
             kind === 'mvp'
               ? 'linear-gradient(135deg,#070B18 0%,#1B1030 35%,#070B18 100%)'
               : kind === 'glove'
-              ? 'linear-gradient(135deg,#061019 0%,#062F3A 40%,#061019 100%)'
-              : kind === 'dirty'
-              ? 'linear-gradient(135deg,#12060B 0%,#3A0A18 42%,#12060B 100%)'
-              : 'linear-gradient(135deg,#0B0F16 0%,#1B2432 45%,#0B0F16 100%)',
+                ? 'linear-gradient(135deg,#061019 0%,#062F3A 40%,#061019 100%)'
+                : kind === 'dirty'
+                  ? 'linear-gradient(135deg,#12060B 0%,#3A0A18 42%,#12060B 100%)'
+                  : 'linear-gradient(135deg,#0B0F16 0%,#1B2432 45%,#0B0F16 100%)',
         }}
       >
         {/* glow */}
@@ -437,19 +437,19 @@ const ResultadosEncuestaView = () => {
 
         {/* Acto 2: card */}
         <div className="relative z-10 w-full h-full flex items-center justify-center">
-            {stage >= 1 && resolvedPlayer && (
-              <div
-                style={{
-                  animation: stage === 1 ? 'eaCardIn 520ms ease-out both' : 'none',
-                }}
-              >
-                <ProfileCard
-                  profile={resolvedPlayer}
-                  isVisible={true}
-                  ratingOverride={kind === 'penalty' ? penaltyNow : null}
-                />
-              </div>
-            )}
+          {stage >= 1 && resolvedPlayer && (
+            <div
+              style={{
+                animation: stage === 1 ? 'eaCardIn 520ms ease-out both' : 'none',
+              }}
+            >
+              <ProfileCard
+                profile={resolvedPlayer}
+                isVisible={true}
+                ratingOverride={kind === 'penalty' ? penaltyNow : null}
+              />
+            </div>
+          )}
 
           {/* Token (Acto 3) - Aparece ARRIBA en stage 2, vuela en stage 3 */}
           {stage >= 2 && stage < 4 && (
@@ -496,7 +496,7 @@ const ResultadosEncuestaView = () => {
                   width: 220,
                   height: 220,
                   borderRadius: '50%',
-                  background: `radial-gradient(closest-side, rgba(255,255,255,0.85), rgba(255,255,255,0.35) 40%, rgba(255,255,255,0) 70%)`,
+                  background: 'radial-gradient(closest-side, rgba(255,255,255,0.85), rgba(255,255,255,0.35) 40%, rgba(255,255,255,0) 70%)',
                   boxShadow: `0 0 60px ${accent}`,
                   animation: 'eaMergeFlash 540ms ease-out forwards',
                   filter: `drop-shadow(0 0 22px ${accent})`,
@@ -583,11 +583,11 @@ const ResultadosEncuestaView = () => {
 
     const findP = (id) => {
       if (!id) return null;
-      return roster.find(j =>
+      return roster.find((j) =>
         j.uuid === id ||
         j.usuario_id === id ||
         String(j.id) === String(id) ||
-        (j.uuid && id && String(j.uuid).toLowerCase() === String(id).toLowerCase())
+        (j.uuid && id && String(j.uuid).toLowerCase() === String(id).toLowerCase()),
       );
     };
 
@@ -729,7 +729,7 @@ const ResultadosEncuestaView = () => {
 
     // PENALIZACIÓN
     const penalized = (() => {
-      const punished = absences.filter(a => a.absencePenalty || a.ineligible);
+      const punished = absences.filter((a) => a.absencePenalty || a.ineligible);
       if (punished?.length) {
         const first = punished[0];
         const pid = first.uuid || first.usuario_id || first.id;
@@ -1158,10 +1158,10 @@ const ResultadosEncuestaView = () => {
 
   useEffect(() => {
     const computeAbsences = () => {
-        if (!jugadores || !Array.isArray(jugadores) || jugadores.length === 0) {
-          setAbsences([]);
-          return;
-        }
+      if (!jugadores || !Array.isArray(jugadores) || jugadores.length === 0) {
+        setAbsences([]);
+        return;
+      }
 
       const now = new Date();
       const updatedAbsences = jugadores.map((jugador) => {

@@ -45,46 +45,46 @@ export const useMatchFinishDetection = (partidos) => {
             }
 
             // --- CANONICAL MODE CHECK: prevent client creation when DB is canonical ---
-            const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || "db";
-            if (SURVEY_FANOUT_MODE === "db") {
+            const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || 'db';
+            if (SURVEY_FANOUT_MODE === 'db') {
               notifiedMatches.current.add(partido.id);
               console.log(`Client-side skipped creating post_match_survey because SURVEY_FANOUT_MODE=db for match ${partido.id}`);
               continue;
             }
                  
-             // Send notification through context
-             await createNotification(
-               'post_match_survey',
-               '¡Encuesta lista!',
-               `La encuesta ya está lista para completar sobre el partido ${partido.nombre || formatMatchDate(partido.fecha)}.`,
-               {
-                 partido_id: partido.id,
-                 partido_nombre: partido.nombre,
-                 partido_fecha: partido.fecha,
-                 partido_hora: partido.hora,
-                 partido_sede: partido.sede
-               }
-             );
+            // Send notification through context
+            await createNotification(
+              'post_match_survey',
+              '¡Encuesta lista!',
+              `La encuesta ya está lista para completar sobre el partido ${partido.nombre || formatMatchDate(partido.fecha)}.`,
+              {
+                partido_id: partido.id,
+                partido_nombre: partido.nombre,
+                partido_fecha: partido.fecha,
+                partido_hora: partido.hora,
+                partido_sede: partido.sede,
+              },
+            );
              
-             // Mark as notified
-             notifiedMatches.current.add(partido.id);
+            // Mark as notified
+            notifiedMatches.current.add(partido.id);
              
-             console.log(`Sent survey notification for finished match ${partido.id}`);
-           } catch (error) {
-             console.error('Error sending match finish notification:', error);
-           }
-         }
-       }
-     };
+            console.log(`Sent survey notification for finished match ${partido.id}`);
+          } catch (error) {
+            console.error('Error sending match finish notification:', error);
+          }
+        }
+      }
+    };
 
-     // Check immediately
-     checkFinishedMatches();
+    // Check immediately
+    checkFinishedMatches();
 
-     // Set up interval to check every minute
-     const interval = setInterval(checkFinishedMatches, 60000);
+    // Set up interval to check every minute
+    const interval = setInterval(checkFinishedMatches, 60000);
 
-     return () => clearInterval(interval);
-   }, [partidos, user, createNotification]);
+    return () => clearInterval(interval);
+  }, [partidos, user, createNotification]);
 
   // Clean up notified matches when partidos change
   useEffect(() => {
@@ -94,10 +94,10 @@ export const useMatchFinishDetection = (partidos) => {
     }
 
     // Remove notifications for matches that are no longer in the list
-    const currentMatchIds = new Set(partidos.map(p => p.id));
+    const currentMatchIds = new Set(partidos.map((p) => p.id));
     const notifiedIds = Array.from(notifiedMatches.current);
     
-    notifiedIds.forEach(id => {
+    notifiedIds.forEach((id) => {
       if (!currentMatchIds.has(id)) {
         notifiedMatches.current.delete(id);
       }
@@ -137,7 +137,7 @@ const formatMatchDate = (fecha) => {
   try {
     return new Date(fecha).toLocaleDateString('es-ES', {
       day: 'numeric',
-      month: 'numeric'
+      month: 'numeric',
     });
   } catch {
     return fecha;

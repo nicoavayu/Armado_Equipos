@@ -254,7 +254,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
         type: insertedNotification.type,
         created_at: insertedNotification.created_at,
         title: insertedNotification.title,
-        message: insertedNotification.message
+        message: insertedNotification.message,
       });
       console.log('[MODAL_AMIGOS] Recipient should receive realtime notification for user_id:', insertedNotification.user_id);
       console.log('[MODAL_AMIGOS] 🔔 NOTIFICATION SENT - Check if recipient is logged in and has app open');
@@ -325,9 +325,9 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
                     className={`
                       border-none rounded-md px-4 py-2 text-sm font-semibold cursor-pointer transition-all duration-200 shrink-0 min-w-[80px]
                       ${invitedFriends.has(amigo.id)
-                        ? 'bg-[#28a745] text-white cursor-default hover:bg-[#28a745] hover:transform-none'
-                        : 'bg-[#007bff] text-white hover:bg-[#0056b3] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none'
-                      }
+                  ? 'bg-[#28a745] text-white cursor-default hover:bg-[#28a745] hover:transform-none'
+                  : 'bg-[#007bff] text-white hover:bg-[#0056b3] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none'
+                }
                     `}
                     disabled={inviting || invitedFriends.has(amigo.id)}
                   >

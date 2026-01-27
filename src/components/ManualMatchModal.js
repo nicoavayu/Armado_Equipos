@@ -11,7 +11,7 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
   const [formData, setFormData] = useState({
     tipo_partido: 'amistoso',
     resultado: 'ganaste',
-    fecha: new Date().toISOString().split('T')[0]
+    fecha: new Date().toISOString().split('T')[0],
   });
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +28,7 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
           tipo_partido: formData.tipo_partido,
           resultado: formData.resultado,
           fecha: formData.fecha,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
         }]);
 
       if (error) throw error;
@@ -41,7 +41,7 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
       setFormData({
         tipo_partido: 'amistoso',
         resultado: 'ganaste',
-        fecha: new Date().toISOString().split('T')[0]
+        fecha: new Date().toISOString().split('T')[0],
       });
     } catch (error) {
       console.error('Error saving manual match:', error);
@@ -87,7 +87,7 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
               {[
                 { value: 'ganaste', label: 'Ganaste', emoji: '🏆' },
                 { value: 'empate', label: 'Empate', emoji: '🤝' },
-                { value: 'perdiste', label: 'Perdiste', emoji: '😔' }
+                { value: 'perdiste', label: 'Perdiste', emoji: '😔' },
               ].map((option) => (
                 <button
                   key={option.value}

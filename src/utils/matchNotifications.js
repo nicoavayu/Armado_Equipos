@@ -28,7 +28,7 @@ export const createCallToVoteNotifications = async (matchData) => {
     if (recipients.length === 0) return [];
     
     // construir payload (usar nombres de columnas REALES de la tabla)
-    const rows = recipients.map(user_id => ({
+    const rows = recipients.map((user_id) => ({
       user_id,
       type: 'pre_match_vote',
       title: '¡Armemos los equipos!',
@@ -43,7 +43,7 @@ export const createCallToVoteNotifications = async (matchData) => {
         matchTime: matchData.hora,
         matchVenue: matchData.sede,
       },
-      read: false
+      read: false,
     }));
 
     const { data, error } = await supabase

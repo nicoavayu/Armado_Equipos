@@ -217,7 +217,7 @@ const ProfileCardComponent = ({
               bottom: '-40px',
               background: 'radial-gradient(ellipse at center, rgba(0, 180, 255, 0.5) 0%, rgba(0, 160, 255, 0.3) 30%, transparent 65%)',
               filter: 'blur(35px)',
-              zIndex: 0
+              zIndex: 0,
             }}
           />
           
@@ -227,156 +227,156 @@ const ProfileCardComponent = ({
               ref={cardRef}
               className="profile-card-main mx-auto w-full aspect-[0.72] md:aspect-[0.7] rounded-[var(--card-radius)] overflow-hidden flex flex-col transition-transform duration-700 ease-out relative origin-center"
             >
-            {/* Layer 0: Player Photo Background (behind card, only visible through hole) */}
-            <div 
-              className="absolute rounded-full overflow-hidden z-0 photo-glow-outer"
-              style={{
-                width: `${HOLE_SIZE}px`,
-                height: `${HOLE_SIZE}px`,
-                top: `${HOLE_TOP}px`,
-                left: '50%',
-                transform: 'translateX(-50%)',
-              }}
-            >
-              <div className="w-full h-full rounded-full overflow-hidden">
-                {vm.avatarUrl ? (
-                  <img 
-                    className="w-full h-full object-cover" 
-                    style={{ objectPosition: 'center' }}
-                    src={vm.avatarUrl} 
-                    alt={vm.name} 
-                    loading="eager" 
-                    crossOrigin="anonymous" 
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-5xl bg-[#05060f]">👤</div>
-                )}
-              </div>
-            </div>
-
-            {/* Layer 1: Card Mockup Overlay */}
-            <img 
-              src="/card_mockup.png" 
-              alt="" 
-              className="absolute inset-0 w-full h-full object-contain pointer-events-none z-10"
-            />
-
-            {/* Inner Recess */}
-            <div className="h-full w-full flex flex-col pt-4 pb-0 relative z-20">
-
-              {/* Header - Nombre */}
-              <div className="flex justify-center items-center mb-8 px-6 pt-3">
-                <h3 className="font-bebas font-black text-[2.6rem] md:text-[2.8rem] leading-none text-white tracking-[0.05em] uppercase m-0 truncate max-w-full" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3)' }}>
-                  {vm.name.slice(0, 12)}
-                </h3>
+              {/* Layer 0: Player Photo Background (behind card, only visible through hole) */}
+              <div 
+                className="absolute rounded-full overflow-hidden z-0 photo-glow-outer"
+                style={{
+                  width: `${HOLE_SIZE}px`,
+                  height: `${HOLE_SIZE}px`,
+                  top: `${HOLE_TOP}px`,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                }}
+              >
+                <div className="w-full h-full rounded-full overflow-hidden">
+                  {vm.avatarUrl ? (
+                    <img 
+                      className="w-full h-full object-cover" 
+                      style={{ objectPosition: 'center' }}
+                      src={vm.avatarUrl} 
+                      alt={vm.name} 
+                      loading="eager" 
+                      crossOrigin="anonymous" 
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-5xl bg-[#05060f]">👤</div>
+                  )}
+                </div>
               </div>
 
-              {/* 3-Column Body Composition - Wider columns and more spacing to push elements away from center */}
-              <div className="grid grid-cols-[88px_1fr_88px] items-start gap-6 md:gap-7 px-6 md:px-7 min-h-0 overflow-visible pt-2">
+              {/* Layer 1: Card Mockup Overlay */}
+              <img 
+                src="/card_mockup.png" 
+                alt="" 
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none z-10"
+              />
 
-                {/* Column 1: Left Badges - With right padding buffer to prevent circle overlap */}
-                <div className="flex flex-col gap-2.5 items-center shrink-0 pr-3 md:pr-4 h-full">
-                  <div className="flex flex-col gap-0.5 items-center -mt-3">
-                    <div className="badge-glass rounded w-11 h-6 md:w-12 md:h-7 flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
-                      <img src={`https://flagcdn.com/w40/${vm.cc}.png`} alt={vm.abbr} className="w-full h-auto object-cover" />
+              {/* Inner Recess */}
+              <div className="h-full w-full flex flex-col pt-4 pb-0 relative z-20">
+
+                {/* Header - Nombre */}
+                <div className="flex justify-center items-center mb-8 px-6 pt-3">
+                  <h3 className="font-bebas font-black text-[2.6rem] md:text-[2.8rem] leading-none text-white tracking-[0.05em] uppercase m-0 truncate max-w-full" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3)' }}>
+                    {vm.name.slice(0, 12)}
+                  </h3>
+                </div>
+
+                {/* 3-Column Body Composition - Wider columns and more spacing to push elements away from center */}
+                <div className="grid grid-cols-[88px_1fr_88px] items-start gap-6 md:gap-7 px-6 md:px-7 min-h-0 overflow-visible pt-2">
+
+                  {/* Column 1: Left Badges - With right padding buffer to prevent circle overlap */}
+                  <div className="flex flex-col gap-2.5 items-center shrink-0 pr-3 md:pr-4 h-full">
+                    <div className="flex flex-col gap-0.5 items-center -mt-3">
+                      <div className="badge-glass rounded w-11 h-6 md:w-12 md:h-7 flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
+                        <img src={`https://flagcdn.com/w40/${vm.cc}.png`} alt={vm.abbr} className="w-full h-auto object-cover" />
+                      </div>
+                      <span className="text-white font-bebas text-xs md:text-sm tracking-wider font-bold">{vm.abbr}</span>
                     </div>
-                    <span className="text-white font-bebas text-xs md:text-sm tracking-wider font-bold">{vm.abbr}</span>
-                  </div>
-                  <div
-                    className="badge-glass rounded w-12 h-7 md:w-12 md:h-8 flex items-center justify-center shrink-0 shadow-xl mt-auto"
-                    style={{ 
-                      background: `${vm.posColor}40`, 
-                      borderColor: `${vm.posColor}`,
-                      borderWidth: '2px',
-                      boxShadow: `0 0 20px ${vm.posColor}40`,
-                      marginLeft: '3px'
-                    }}
-                  >
-                    <span
-                      className="font-bebas text-lg md:text-xl tracking-wider font-black leading-none"
+                    <div
+                      className="badge-glass rounded w-12 h-7 md:w-12 md:h-8 flex items-center justify-center shrink-0 shadow-xl mt-auto"
                       style={{ 
-                        color: vm.posColor, 
-                        textShadow: `0 0 15px ${vm.posColor}88`,
-                        filter: `drop-shadow(0 0 10px ${vm.posColor})`
+                        background: `${vm.posColor}40`, 
+                        borderColor: `${vm.posColor}`,
+                        borderWidth: '2px',
+                        boxShadow: `0 0 20px ${vm.posColor}40`,
+                        marginLeft: '3px',
                       }}
                     >
-                      {vm.pos}
-                    </span>
+                      <span
+                        className="font-bebas text-lg md:text-xl tracking-wider font-black leading-none"
+                        style={{ 
+                          color: vm.posColor, 
+                          textShadow: `0 0 15px ${vm.posColor}88`,
+                          filter: `drop-shadow(0 0 10px ${vm.posColor})`,
+                        }}
+                      >
+                        {vm.pos}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Column 2: Center Photo - Now Empty (photo rendered in background layer) */}
+                  <div className="relative justify-self-center min-w-0">
+                    {/* Spacer to maintain layout */}
+                    <div className="w-[176px] h-[176px]" />
+                  </div>
+
+                  {/* Column 3: Right Prizes - Positioned in right gutter between circle and edge */}
+                  <div className="flex flex-col gap-2.5 items-center shrink-0 pl-6 md:pl-7 pr-0">
+                    <div className="flex flex-col items-center gap-1">
+                      <img 
+                        src="/mvp.png" 
+                        alt="MVP Award" 
+                        width={24}
+                        height={24}
+                        className="md:w-[26px] md:h-[26px]"
+                        draggable={false}
+                      />
+                      <span ref={mvpRef} className="text-white text-sm md:text-[15px] font-black pc-badge-count">{vm.mvp}</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <img 
+                        src="/red_card.png" 
+                        alt="Red Card" 
+                        width={16}
+                        height={24}
+                        className="md:w-[18px] md:h-7"
+                        draggable={false}
+                      />
+                      <span ref={redRef} className="text-white text-sm md:text-[15px] font-black pc-badge-count">{vm.red}</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <img 
+                        src="/glove.png" 
+                        alt="Guante" 
+                        width={24}
+                        height={24}
+                        className="md:w-[26px] md:h-[26px]"
+                        draggable={false}
+                      />
+                      <span ref={gkRef} className="text-white text-sm md:text-[15px] font-black pc-badge-count">{vm.gk}</span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Column 2: Center Photo - Now Empty (photo rendered in background layer) */}
-                <div className="relative justify-self-center min-w-0">
-                  {/* Spacer to maintain layout */}
-                  <div className="w-[176px] h-[176px]" />
+                {/* Footer Area: Stats + Rating - Adjusted spacing */}
+                <div className="flex flex-col px-8 pb-8">
+
+                  {/* Stats Row (PJ, PA) - Slightly more space from photo */}
+                  <div className="flex items-center justify-center gap-5 mb-0" style={{ marginTop: '-8px' }}>
+                    <div className="flex flex-col items-center">
+                      <span className="text-[#00C8FF] text-sm md:text-[15px] font-black uppercase tracking-[0.2em] mb-1">PJ</span>
+                      <span className="text-white font-black text-[32px] md:text-[36px] leading-none" style={{ textShadow: '0 0 20px rgba(0, 200, 255, 0.8)' }}>{vm.pj}</span>
+                    </div>
+                    <div className="w-[2px] h-12 bg-gradient-to-b from-transparent via-[#00C8FF]/30 to-transparent" />
+                    <div className="flex flex-col items-center">
+                      <span className="text-[#00C8FF] text-sm md:text-[15px] font-black uppercase tracking-[0.2em] mb-1">PA</span>
+                      <span className="text-white font-black text-[32px] md:text-[36px] leading-none" style={{ textShadow: '0 0 20px rgba(0, 200, 255, 0.8)' }}>{vm.pa}</span>
+                    </div>
+                  </div>
+
+                  {/* Rating */}
+                  <div className="flex items-center justify-center relative mt-3">
+                    <div className="rating-star-badge absolute left-14 -translate-y-1" style={{ width: '26px', height: '26px' }}>
+                      <span className="rating-star text-[16px]">★</span>
+                    </div>
+                    <span className="rating-value" style={{ color: '#FFD700', filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))' }}>{ratingOverride !== null ? ratingOverride.toFixed(1) : vm.rating}</span>
+                  </div>
                 </div>
 
-                {/* Column 3: Right Prizes - Positioned in right gutter between circle and edge */}
-                <div className="flex flex-col gap-2.5 items-center shrink-0 pl-6 md:pl-7 pr-0">
-                  <div className="flex flex-col items-center gap-1">
-                    <img 
-                      src="/mvp.png" 
-                      alt="MVP Award" 
-                      width={24}
-                      height={24}
-                      className="md:w-[26px] md:h-[26px]"
-                      draggable={false}
-                    />
-                    <span ref={mvpRef} className="text-white text-sm md:text-[15px] font-black pc-badge-count">{vm.mvp}</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <img 
-                      src="/red_card.png" 
-                      alt="Red Card" 
-                      width={16}
-                      height={24}
-                      className="md:w-[18px] md:h-7"
-                      draggable={false}
-                    />
-                    <span ref={redRef} className="text-white text-sm md:text-[15px] font-black pc-badge-count">{vm.red}</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <img 
-                      src="/glove.png" 
-                      alt="Guante" 
-                      width={24}
-                      height={24}
-                      className="md:w-[26px] md:h-[26px]"
-                      draggable={false}
-                    />
-                    <span ref={gkRef} className="text-white text-sm md:text-[15px] font-black pc-badge-count">{vm.gk}</span>
-                  </div>
-                </div>
+
               </div>
-
-              {/* Footer Area: Stats + Rating - Adjusted spacing */}
-              <div className="flex flex-col px-8 pb-8">
-
-                {/* Stats Row (PJ, PA) - Slightly more space from photo */}
-                <div className="flex items-center justify-center gap-5 mb-0" style={{ marginTop: '-8px' }}>
-                  <div className="flex flex-col items-center">
-                    <span className="text-[#00C8FF] text-sm md:text-[15px] font-black uppercase tracking-[0.2em] mb-1">PJ</span>
-                    <span className="text-white font-black text-[32px] md:text-[36px] leading-none" style={{textShadow: '0 0 20px rgba(0, 200, 255, 0.8)'}}>{vm.pj}</span>
-                  </div>
-                  <div className="w-[2px] h-12 bg-gradient-to-b from-transparent via-[#00C8FF]/30 to-transparent" />
-                  <div className="flex flex-col items-center">
-                    <span className="text-[#00C8FF] text-sm md:text-[15px] font-black uppercase tracking-[0.2em] mb-1">PA</span>
-                    <span className="text-white font-black text-[32px] md:text-[36px] leading-none" style={{textShadow: '0 0 20px rgba(0, 200, 255, 0.8)'}}>{vm.pa}</span>
-                  </div>
-                </div>
-
-                {/* Rating */}
-                <div className="flex items-center justify-center relative mt-3">
-                  <div className="rating-star-badge absolute left-14 -translate-y-1" style={{ width: '26px', height: '26px' }}>
-                    <span className="rating-star text-[16px]">★</span>
-                  </div>
-                  <span className="rating-value" style={{color: '#FFD700', filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))'}}>{ratingOverride !== null ? ratingOverride.toFixed(1) : vm.rating}</span>
-                </div>
-              </div>
-
-
-            </div>
-          </section>
+            </section>
           </div>
         </div>
       </div>

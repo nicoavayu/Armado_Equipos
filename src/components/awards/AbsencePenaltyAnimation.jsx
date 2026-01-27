@@ -19,7 +19,7 @@ const AbsencePenaltyAnimation = ({ players }) => {
   useEffect(() => {
     if (players && players.length > 1 && currentIndex < players.length - 1) {
       setTimeoutSafe(() => {
-        setCurrentIndex(prev => prev + 1);
+        setCurrentIndex((prev) => prev + 1);
         setAnimatedValue(0); // Reset for next player
       }, 3000);
     }

@@ -133,7 +133,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
           marginBottom: keyboardHeight > 0 ? 0 : undefined,
           maxHeight: keyboardHeight > 0
             ? `calc(100vh - ${keyboardHeight + 40}px)`
-            : undefined
+            : undefined,
         }}
       >
         <div className="flex flex-col px-5 py-3 border-b border-white/10 bg-slate-800 rounded-t-xl sm:px-4 sm:py-2.5 sm:shrink-0">

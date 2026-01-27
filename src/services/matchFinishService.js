@@ -10,8 +10,8 @@ export const checkAndNotifyMatchFinish = async (partido) => {
   if (!partido || !partido.fecha || !partido.hora) return false;
   
   // --- CANONICAL MODE CHECK: prevent JS creation when DB is canonical ---
-  const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || "db";
-  if (SURVEY_FANOUT_MODE === "db") {
+  const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || 'db';
+  if (SURVEY_FANOUT_MODE === 'db') {
     // In DB mode the canonical fanout will create survey_start notifications
     return false;
   }
@@ -54,9 +54,9 @@ export const checkAndNotifyMatchFinish = async (partido) => {
         partido_nombre: partido.nombre,
         partido_fecha: partido.fecha,
         partido_hora: partido.hora,
-        partido_sede: partido.sede
+        partido_sede: partido.sede,
       },
-      read: false
+      read: false,
     }));
     
     // Insert notifications
@@ -89,7 +89,7 @@ export const clearMatchFromList = async (userId, partidoId) => {
       .from('cleared_matches')
       .insert([{
         user_id: userId,
-        partido_id: toBigIntId(partidoId)
+        partido_id: toBigIntId(partidoId),
       }]);
       
     if (error) {
@@ -156,7 +156,7 @@ const formatMatchDate = (fecha) => {
   try {
     return new Date(fecha).toLocaleDateString('es-ES', {
       day: 'numeric',
-      month: 'numeric'
+      month: 'numeric',
     });
   } catch {
     return fecha;

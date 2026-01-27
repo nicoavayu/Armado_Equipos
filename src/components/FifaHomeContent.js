@@ -122,7 +122,7 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
           .eq('usuario_id', user.id);
 
         if (userJugadorIdsData?.length > 0) {
-          const jugadorIds = userJugadorIdsData.map(j => j.id);
+          const jugadorIds = userJugadorIdsData.map((j) => j.id);
           const { data: surveysData } = await supabase
             .from('post_match_surveys')
             .select('partido_id')
@@ -288,7 +288,7 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
                   <span>No disponible</span>
                 </div>
               </div>,
-              document.body
+              document.body,
             )}
             <style>{`
               @keyframes dropdownSlideIn {

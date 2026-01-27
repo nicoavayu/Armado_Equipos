@@ -30,7 +30,7 @@ const StatsView = ({ onVolver }) => {
     amistosos: 0,
     torneos: 0,
     lesionActiva: null,
-    ultimaLesion: null
+    ultimaLesion: null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +48,7 @@ const StatsView = ({ onVolver }) => {
         getPartidosStats(dateRange),
         getAmigosStats(dateRange),
         getPartidosManualesStats(dateRange),
-        getLesionesStats()
+        getLesionesStats(),
       ]);
 
 
@@ -66,7 +66,7 @@ const StatsView = ({ onVolver }) => {
         amistosos: partidosData.total + partidosManualesData.amistosos,
         torneos: partidosManualesData.torneos,
         lesionActiva: lesionesData.activa,
-        ultimaLesion: lesionesData.ultima
+        ultimaLesion: lesionesData.ultima,
       });
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -108,12 +108,12 @@ const StatsView = ({ onVolver }) => {
 
     if (error) throw error;
 
-    const userPartidos = partidos.filter(partido =>
-      partido.jugadores?.some(j => j.uuid === user.id || j.nombre === user.email)
+    const userPartidos = partidos.filter((partido) =>
+      partido.jugadores?.some((j) => j.uuid === user.id || j.nombre === user.email),
     );
 
-    const ratings = userPartidos.map(p => {
-      const userPlayer = p.jugadores?.find(j => j.uuid === user.id || j.nombre === user.email);
+    const ratings = userPartidos.map((p) => {
+      const userPlayer = p.jugadores?.find((j) => j.uuid === user.id || j.nombre === user.email);
       return userPlayer?.score || 5;
     });
     const promedioRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
@@ -126,7 +126,7 @@ const StatsView = ({ onVolver }) => {
       promedioRating: promedioRating,
       chartData,
       record: userPartidos.length,
-      logros
+      logros,
     };
   };
 
@@ -140,15 +140,15 @@ const StatsView = ({ onVolver }) => {
 
     if (error) throw error;
 
-    const userPartidos = partidos.filter(partido =>
-      partido.jugadores?.some(j => j.uuid === user.id || j.nombre === user.email)
+    const userPartidos = partidos.filter((partido) =>
+      partido.jugadores?.some((j) => j.uuid === user.id || j.nombre === user.email),
     );
 
     const amigosCount = {};
     const amigosInfo = {};
 
-    userPartidos.forEach(partido => {
-      partido.jugadores?.forEach(jugador => {
+    userPartidos.forEach((partido) => {
+      partido.jugadores?.forEach((jugador) => {
         if (jugador.uuid !== user.id && jugador.nombre !== user.email) {
           const key = jugador.uuid || jugador.nombre;
           amigosCount[key] = (amigosCount[key] || 0) + 1;
@@ -156,21 +156,21 @@ const StatsView = ({ onVolver }) => {
             amigosInfo[key] = {
               nombre: jugador.nombre || key,
               avatar: jugador.foto_url || '/profile.svg',
-              uuid: jugador.uuid
+              uuid: jugador.uuid,
             };
           }
         }
       });
     });
 
-    const userIds = Object.keys(amigosInfo).filter(key => amigosInfo[key].uuid);
+    const userIds = Object.keys(amigosInfo).filter((key) => amigosInfo[key].uuid);
     if (userIds.length > 0) {
       const { data: profiles } = await supabase
         .from('usuarios')
         .select('id, nombre, avatar_url, lesion_activa')
         .in('id', userIds);
 
-      profiles?.forEach(profile => {
+      profiles?.forEach((profile) => {
         if (amigosInfo[profile.id]) {
           amigosInfo[profile.id].nombre = profile.nombre;
           amigosInfo[profile.id].avatar = profile.avatar_url || '/profile.svg';
@@ -183,20 +183,20 @@ const StatsView = ({ onVolver }) => {
       .map(([key, count]) => ({
         ...amigosInfo[key],
         partidos: count,
-        color: getAvatarColor(amigosInfo[key].nombre)
+        color: getAvatarColor(amigosInfo[key].nombre),
       }))
       .sort((a, b) => b.partidos - a.partidos)
       .slice(0, 5);
 
     return {
       distintos: Object.keys(amigosCount).length,
-      top5: topAmigos
+      top5: topAmigos,
     };
   };
 
   const calculateLogros = async (allPartidos) => {
-    const userPartidos = allPartidos.filter(partido =>
-      partido.jugadores?.some(j => j.uuid === user.id || j.nombre === user.email)
+    const userPartidos = allPartidos.filter((partido) =>
+      partido.jugadores?.some((j) => j.uuid === user.id || j.nombre === user.email),
     );
 
     const logros = [];
@@ -204,11 +204,11 @@ const StatsView = ({ onVolver }) => {
     // Obtener total histórico de todos los partidos
     const [{ data: todosPartidos }, { data: partidosManualesHistoricos }] = await Promise.all([
       supabase.from('partidos').select('*').eq('estado', 'finalizado'),
-      supabase.from('partidos_manuales').select('*').eq('usuario_id', user.id)
+      supabase.from('partidos_manuales').select('*').eq('usuario_id', user.id),
     ]);
 
-    const totalPartidosNormales = todosPartidos?.filter(partido =>
-      partido.jugadores?.some(j => j.uuid === user.id || j.nombre === user.email)
+    const totalPartidosNormales = todosPartidos?.filter((partido) =>
+      partido.jugadores?.some((j) => j.uuid === user.id || j.nombre === user.email),
     ).length || 0;
 
     const totalPartidosManuales = partidosManualesHistoricos?.length || 0;
@@ -225,23 +225,23 @@ const StatsView = ({ onVolver }) => {
       .lte('created_at', yearEnd);
 
     // Contar MVPs
-    const mvpCount = surveys?.filter(survey =>
-      survey.mejor_jugador === user.id || survey.mejor_jugador === user.email
+    const mvpCount = surveys?.filter((survey) =>
+      survey.mejor_jugador === user.id || survey.mejor_jugador === user.email,
     ).length || 0;
 
     // Contar Guantes Dorados
-    const guanteDoradoCount = surveys?.filter(survey =>
-      survey.guante_dorado === user.id || survey.guante_dorado === user.email
+    const guanteDoradoCount = surveys?.filter((survey) =>
+      survey.guante_dorado === user.id || survey.guante_dorado === user.email,
     ).length || 0;
 
     // Contar Tarjetas Rojas
-    const tarjetaRojaCount = surveys?.filter(survey =>
-      survey.tarjeta_roja === user.id || survey.tarjeta_roja === user.email
+    const tarjetaRojaCount = surveys?.filter((survey) =>
+      survey.tarjeta_roja === user.id || survey.tarjeta_roja === user.email,
     ).length || 0;
 
     // Mejor mes (siempre mostrar)
     const partidosPorMes = {};
-    userPartidos.forEach(partido => {
+    userPartidos.forEach((partido) => {
       const key = new Date(partido.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
       partidosPorMes[key] = (partidosPorMes[key] || 0) + 1;
     });
@@ -251,14 +251,14 @@ const StatsView = ({ onVolver }) => {
       titulo: 'Mejor Mes',
       valor: mejorMes ? `${mejorMes[1]} partidos` : '0 partidos',
       detalle: mejorMes ? mejorMes[0] : 'Sin partidos aún',
-      icono: '🏆'
+      icono: '🏆',
     });
 
     // Mejor rating (siempre mostrar)
     let mejorRating = 0;
     if (userPartidos.length > 0) {
-      const ratings = userPartidos.map(p => {
-        const userPlayer = p.jugadores?.find(j => j.uuid === user.id || j.nombre === user.email);
+      const ratings = userPartidos.map((p) => {
+        const userPlayer = p.jugadores?.find((j) => j.uuid === user.id || j.nombre === user.email);
         return userPlayer?.score || 5;
       });
       mejorRating = Math.max(...ratings);
@@ -268,7 +268,7 @@ const StatsView = ({ onVolver }) => {
       titulo: 'Mejor Rating',
       valor: mejorRating > 0 ? mejorRating.toFixed(1) : '0.0',
       detalle: mejorRating > 0 ? 'En un partido' : 'Sin partidos aún',
-      icono: '⭐'
+      icono: '⭐',
     });
 
     // MVP (siempre mostrar)
@@ -276,7 +276,7 @@ const StatsView = ({ onVolver }) => {
       titulo: 'MVP del Partido',
       valor: `${mvpCount} ${mvpCount === 1 ? 'vez' : 'veces'}`,
       detalle: `En ${selectedYear}`,
-      icono: '🏅'
+      icono: '🏅',
     });
 
     // Guante Dorado (siempre mostrar)
@@ -284,7 +284,7 @@ const StatsView = ({ onVolver }) => {
       titulo: 'Guante Dorado',
       valor: `${guanteDoradoCount} ${guanteDoradoCount === 1 ? 'vez' : 'veces'}`,
       detalle: `En ${selectedYear}`,
-      icono: '🥅'
+      icono: '🥅',
     });
 
     // Tarjeta Roja (siempre mostrar)
@@ -292,7 +292,7 @@ const StatsView = ({ onVolver }) => {
       titulo: 'Tarjeta Roja',
       valor: `${tarjetaRojaCount} ${tarjetaRojaCount === 1 ? 'vez' : 'veces'}`,
       detalle: `En ${selectedYear}`,
-      icono: '🟥'
+      icono: '🟥',
     });
 
     // Total Histórico (siempre mostrar)
@@ -300,7 +300,7 @@ const StatsView = ({ onVolver }) => {
       titulo: 'Total Histórico',
       valor: `${totalHistorico} partidos`,
       detalle: 'Desde el inicio',
-      icono: '📊'
+      icono: '📊',
     });
 
 
@@ -319,7 +319,7 @@ const StatsView = ({ onVolver }) => {
 
   const getInitials = (nombre) => {
     if (!nombre) return '?';
-    return nombre.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2);
+    return nombre.split(' ').map((word) => word.charAt(0)).join('').toUpperCase().slice(0, 2);
   };
 
   const getPartidosManualesStats = async (dateRange) => {
@@ -332,15 +332,15 @@ const StatsView = ({ onVolver }) => {
 
     if (error) throw error;
 
-    const amistosos = partidosManuales?.filter(p => p.tipo_partido === 'amistoso').length || 0;
-    const torneos = partidosManuales?.filter(p => p.tipo_partido === 'torneo').length || 0;
+    const amistosos = partidosManuales?.filter((p) => p.tipo_partido === 'amistoso').length || 0;
+    const torneos = partidosManuales?.filter((p) => p.tipo_partido === 'torneo').length || 0;
     const chartData = generateChartData(partidosManuales || [], period, true);
 
     return {
       total: partidosManuales?.length || 0,
       amistosos,
       torneos,
-      chartData
+      chartData,
     };
   };
 
@@ -353,19 +353,19 @@ const StatsView = ({ onVolver }) => {
 
     if (error) throw error;
 
-    const lesionActiva = lesiones?.find(l => !l.fecha_fin);
-    const ultimaLesion = lesiones?.find(l => l.fecha_fin) || lesiones?.[0];
+    const lesionActiva = lesiones?.find((l) => !l.fecha_fin);
+    const ultimaLesion = lesiones?.find((l) => l.fecha_fin) || lesiones?.[0];
 
     return {
       activa: lesionActiva,
-      ultima: ultimaLesion
+      ultima: ultimaLesion,
     };
   };
 
   const generateChartData = (partidos, period, isManual = false) => {
     const data = {};
 
-    partidos.forEach(partido => {
+    partidos.forEach((partido) => {
       const date = new Date(partido.fecha);
       let key;
 
@@ -400,14 +400,14 @@ const StatsView = ({ onVolver }) => {
     return Object.entries(data).map(([name, counts]) => ({
       name,
       amistosos: counts.amistosos || 0,
-      torneos: counts.torneos || 0
+      torneos: counts.torneos || 0,
     }));
   };
 
   const mergeChartData = (chartData1, chartData2) => {
     const merged = {};
 
-    [...chartData1, ...chartData2].forEach(item => {
+    [...chartData1, ...chartData2].forEach((item) => {
       if (!merged[item.name]) {
         merged[item.name] = { name: item.name, amistosos: 0, torneos: 0 };
       }
@@ -415,9 +415,9 @@ const StatsView = ({ onVolver }) => {
       merged[item.name].torneos += item.torneos || 0;
     });
 
-    return Object.values(merged).map(item => ({
+    return Object.values(merged).map((item) => ({
       ...item,
-      total: item.amistosos + item.torneos
+      total: item.amistosos + item.torneos,
     }));
   };
 
@@ -427,7 +427,7 @@ const StatsView = ({ onVolver }) => {
       return {
         text: `En recuperación desde ${new Date(stats.lesionActiva.fecha_inicio).toLocaleDateString('es-ES')}`,
         subtext: `${stats.lesionActiva.tipo_lesion} - ${diasDesde} días`,
-        type: 'active'
+        type: 'active',
       };
     }
 
@@ -436,7 +436,7 @@ const StatsView = ({ onVolver }) => {
       return {
         text: `Última lesión: ${diasDesde} días atrás`,
         subtext: stats.ultimaLesion.tipo_lesion,
-        type: 'recovered'
+        type: 'recovered',
       };
     }
 
@@ -456,12 +456,12 @@ const StatsView = ({ onVolver }) => {
   const periodLabels = {
     year: 'Año',
     month: 'Mes',
-    week: 'Semana'
+    week: 'Semana',
   };
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
   ];
 
   const getAvailableYears = () => {
@@ -471,8 +471,8 @@ const StatsView = ({ onVolver }) => {
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
-      const amistosos = payload.find(p => p.dataKey === 'amistosos')?.value || 0;
-      const torneos = payload.find(p => p.dataKey === 'torneos')?.value || 0;
+      const amistosos = payload.find((p) => p.dataKey === 'amistosos')?.value || 0;
+      const torneos = payload.find((p) => p.dataKey === 'torneos')?.value || 0;
       const total = amistosos + torneos;
 
       return (
@@ -588,7 +588,7 @@ const StatsView = ({ onVolver }) => {
 
               {p === 'year' && showYearDropdown && period === 'year' && (
                 <div className="absolute top-full left-0 right-0 bg-black/90 rounded-lg border border-white/20 z-[1000] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px]">
-                  {getAvailableYears().map(year => (
+                  {getAvailableYears().map((year) => (
                     <div
                       key={year}
                       className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-white/10 hover:text-white ${selectedYear === year ? 'bg-white/20 text-white font-semibold' : ''}`}
@@ -801,7 +801,7 @@ const StatsView = ({ onVolver }) => {
           Datos actualizados al {new Date().toLocaleDateString('es-ES', {
             day: 'numeric',
             month: 'long',
-            year: 'numeric'
+            year: 'numeric',
           })}
         </div>
       </div>

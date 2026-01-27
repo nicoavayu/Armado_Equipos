@@ -409,7 +409,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
         index,
         player: scoreUpdates[index]?.nombre,
         uuid: scoreUpdates[index]?.uuid,
-        reason: e.reason
+        reason: e.reason,
       })));
       
       console.warn(`⚠️ SUPABASE: ${updateErrors.length} updates failed, ${successfulUpdates.length} succeeded`);
@@ -524,7 +524,7 @@ export const resetVotacion = async (partidoId) => {
           .from('jugadores')
           .update({ score: null })
           .eq('uuid', j.uuid)
-          .in('partido_id', pidTargets)
+          .in('partido_id', pidTargets),
       );
 
       const results = await Promise.allSettled(resetPromises);
@@ -898,7 +898,7 @@ export const refreshJugadoresPartido = async (partidoId) => {
  * @returns {Promise<Object>} Created match
  */
 export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modalidad, cupo_jugadores, falta_jugadores, tipo_partido, precio_cancha_por_persona }) => {
-   try {
+  try {
     // Normalize date to prevent timezone issues
     const normalizedDate = typeof fecha === 'string' ? fecha.split('T')[0] : fecha;
     console.log('Creating match with data:', { fecha: normalizedDate, hora, sede, sedeMaps });
@@ -1052,11 +1052,11 @@ export const crearPartido = async ({ nombre, fecha, hora, sede, sedeMaps, modali
 
     return finalData;
  
-    } catch (error) {
-      console.error('crearPartido failed:', error);
-      throw error;
-    }
-  };
+  } catch (error) {
+    console.error('crearPartido failed:', error);
+    throw error;
+  }
+};
 
 /**
  * Generate random match code

@@ -11,7 +11,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
   const [formData, setFormData] = useState({
     tipo_lesion: '',
     fecha_inicio: new Date().toISOString().split('T')[0],
-    fecha_fin: ''
+    fecha_fin: '',
   });
   const [loading, setLoading] = useState(false);
   const [activeLesion, setActiveLesion] = useState(null);
@@ -93,7 +93,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
     'Distensión muscular',
     'Lesión de menisco',
     'Lesión de ligamentos',
-    'Otra'
+    'Otra',
   ];
 
   const handleSubmit = async (e) => {
@@ -109,7 +109,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
           tipo_lesion: formData.tipo_lesion,
           fecha_inicio: formData.fecha_inicio,
           fecha_fin: formData.fecha_fin || null,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
         }]);
 
       if (error) throw error;
@@ -136,7 +136,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
       setFormData({
         tipo_lesion: '',
         fecha_inicio: new Date().toISOString().split('T')[0],
-        fecha_fin: ''
+        fecha_fin: '',
       });
     } catch (error) {
       console.error('Error saving injury:', error);

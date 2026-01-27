@@ -31,12 +31,12 @@ export const testUserNotifications = async () => {
         type: notif.type,
         title: notif.title,
         read: notif.read,
-        created_at: notif.created_at
+        created_at: notif.created_at,
       });
     });
     
     // Check specifically for match invites
-    const matchInvites = notifications.filter(n => n.type === 'match_invite');
+    const matchInvites = notifications.filter((n) => n.type === 'match_invite');
     console.log('[TEST_NOTIFICATIONS] Match invites:', matchInvites.length);
     
     return notifications;

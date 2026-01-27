@@ -31,7 +31,7 @@ class GlobalErrorBoundary extends React.Component {
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',
           fontFamily: 'Oswald, Arial, sans-serif',
-          textAlign: 'center'
+          textAlign: 'center',
         }}>
           <h1 style={{ fontSize: '48px', marginBottom: '16px', fontFamily: 'Bebas Neue, Arial, sans-serif' }}>
             Uy, algo falló
@@ -51,7 +51,7 @@ class GlobalErrorBoundary extends React.Component {
               fontWeight: '700',
               cursor: 'pointer',
               fontFamily: 'Bebas Neue, Arial, sans-serif',
-              letterSpacing: '0.5px'
+              letterSpacing: '0.5px',
             }}
           >
             Reintentar
