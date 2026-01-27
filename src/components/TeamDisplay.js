@@ -1,8 +1,6 @@
 // src/components/TeamDisplay.js
 import React, { useState, useEffect } from 'react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { toast } from 'react-toastify';
-import { PlayerCardTrigger } from './ProfileComponents';
 import { TeamDisplayContext } from './PlayerCardTrigger';
 import { supabase, saveTeamsToDatabase, getTeamsFromDatabase, subscribeToTeamsChanges, unsubscribeFromTeamsChanges } from '../supabase';
 import ChatButton from './ChatButton';
@@ -11,6 +9,22 @@ import MatchInfoSection from './MatchInfoSection';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import WhatsappIcon from './WhatsappIcon';
 import LoadingSpinner from './LoadingSpinner';
+
+// Safe wrappers to prevent runtime crashes if any import resolves undefined
+const safeComp = (Comp, name) => {
+  if (!Comp) {
+    console.error(`[TeamDisplay] Undefined component: ${name}`);
+    return ({ children }) => <>{children ?? null}</>;
+  }
+  return Comp;
+};
+
+const SafeTeamDisplayContext = safeComp(TeamDisplayContext, 'TeamDisplayContext');
+const SafeChatButton = safeComp(ChatButton, 'ChatButton');
+const SafePageTitle = safeComp(PageTitle, 'PageTitle');
+const SafeMatchInfoSection = safeComp(MatchInfoSection, 'MatchInfoSection');
+const SafeWhatsappIcon = safeComp(WhatsappIcon, 'WhatsappIcon');
+const SafeLoadingSpinner = safeComp(LoadingSpinner, 'LoadingSpinner');
 
 const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null, nombre, fecha, hora, sede, modalidad, tipo }) => {
   const [showAverages, setShowAverages] = useState(false);
@@ -83,18 +97,55 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     };
   }, [partidoId, onTeamsChange]);
 
+  // Helper functions for player key normalization and matching
+  const normalizeKey = (v) => {
+    if (v == null) return null;
+    if (typeof v === 'object') return String(v.uuid ?? v.id ?? v.player_id ?? v.user_id ?? '');
+    const s = String(v).trim();
+    return s ? s : null;
+  };
+
+  const matchesKey = (p, key) => {
+    if (!p || !key) return false;
+    return (
+      String(p.uuid ?? '') === key ||
+      String(p.id ?? '') === key ||
+      String(p.player_id ?? '') === key
+    );
+  };
+
+  const getPlayerDetails = (raw) => {
+    const key = normalizeKey(raw);
+    if (!key) return {};
+    return realtimePlayers.find((p) => matchesKey(p, key)) || {};
+  };
+
+  // Robust player array extraction from team object
+  const getPlayersArrayFromTeam = (team) => {
+    const candidates = [
+      'players',
+      'player_ids',
+      'players_ids',
+      'team_players',
+      'jugadores',
+      'members',
+      'roster',
+    ];
+    for (const k of candidates) {
+      const v = team?.[k];
+      if (Array.isArray(v) && v.length) return v;
+    }
+    return Array.isArray(team?.players) ? team.players : [];
+  };
+
   if (
     !Array.isArray(realtimeTeams) ||
     realtimeTeams.length < 2 ||
     !realtimeTeams.find((t) => t.id === 'equipoA') ||
     !realtimeTeams.find((t) => t.id === 'equipoB')
   ) {
-    return <LoadingSpinner size="large" />;
+    return <SafeLoadingSpinner size="large" />;
   }
-
-  const getPlayerDetails = (playerId) => {
-    return realtimePlayers.find((p) => p.uuid === playerId) || {};
-  };
 
   // Función para obtener color basado en el puntaje (1-10)
   const getScoreColor = (score) => {
@@ -117,104 +168,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     }
   };
 
-  const handleDragEnd = async (result) => {
-    // [TEAM_BALANCER_EDIT] Solo admin puede mover jugadores
-    if (!isAdmin) {
-      toast.error('Solo el admin puede reorganizar los equipos');
-      return;
-    }
 
-    const { source, destination } = result;
-    if (!destination) return;
-
-    // Check if player is locked
-    const playerId = realtimeTeams[realtimeTeams.findIndex((t) => t.id === source.droppableId)].players[source.index];
-    if (lockedPlayers.includes(playerId)) {
-      toast.error('Este jugador está bloqueado y no puede ser movido.');
-      return;
-    }
-
-    const sourceTeamIndex = realtimeTeams.findIndex((t) => t.id === source.droppableId);
-    const destTeamIndex = realtimeTeams.findIndex((t) => t.id === destination.droppableId);
-
-    if (sourceTeamIndex !== destTeamIndex) {
-      const sourceTeam = realtimeTeams[sourceTeamIndex];
-      const destTeam = realtimeTeams[destTeamIndex];
-
-      if (destination.index >= destTeam.players.length) {
-        return;
-      }
-
-      // Check if destination player is locked
-      const destPlayerId = destTeam.players[destination.index];
-      if (lockedPlayers.includes(destPlayerId)) {
-        toast.error('No puedes intercambiar con un jugador bloqueado.');
-        return;
-      }
-
-      const newSourcePlayers = Array.from(sourceTeam.players);
-      const newDestPlayers = Array.from(destTeam.players);
-      const [movedPlayerId] = newSourcePlayers.splice(source.index, 1);
-      const [swappedPlayerId] = newDestPlayers.splice(destination.index, 1, movedPlayerId);
-
-      newSourcePlayers.splice(source.index, 0, swappedPlayerId);
-
-      const movedPlayer = getPlayerDetails(movedPlayerId);
-      const swappedPlayer = getPlayerDetails(swappedPlayerId);
-
-      const newTeams = [...realtimeTeams];
-      newTeams[sourceTeamIndex] = { ...sourceTeam, players: newSourcePlayers, score: sourceTeam.score - movedPlayer.score + swappedPlayer.score };
-      newTeams[destTeamIndex] = { ...destTeam, players: newDestPlayers, score: destTeam.score - swappedPlayer.score + movedPlayer.score };
-
-      if (Math.abs(newTeams[0].score - newTeams[1].score) > 5) {
-        toast.error('La diferencia de puntaje no puede ser mayor a 5.');
-        return;
-      }
-
-      setRealtimeTeams(newTeams);
-      onTeamsChange(newTeams);
-
-      // Save changes to database
-      if (isAdmin && partidoId) {
-        try {
-          await saveTeamsToDatabase(partidoId, newTeams);
-        } catch (error) {
-          console.error('[TEAMS_SAVE] Error saving teams:', error);
-        }
-      }
-      return;
-    }
-
-    // Same team reordering
-    const team = realtimeTeams[sourceTeamIndex];
-    const newPlayerIds = Array.from(team.players);
-
-    // Check if destination player is locked
-    if (source.index !== destination.index) {
-      const destPlayerId = team.players[destination.index];
-      if (lockedPlayers.includes(destPlayerId)) {
-        toast.error('No puedes intercambiar con un jugador bloqueado.');
-        return;
-      }
-    }
-
-    const [removed] = newPlayerIds.splice(source.index, 1);
-    newPlayerIds.splice(destination.index, 0, removed);
-    const newTeams = realtimeTeams.map((t, i) => (
-      i === sourceTeamIndex ? { ...t, players: newPlayerIds } : t
-    ));
-    setRealtimeTeams(newTeams);
-    onTeamsChange(newTeams);
-
-    // Save changes to database
-    if (isAdmin && partidoId) {
-      try {
-        await saveTeamsToDatabase(partidoId, newTeams);
-      } catch (error) {
-        console.error('[TEAMS_SAVE] Error saving teams:', error);
-      }
-    }
-  };
 
   const togglePlayerLock = (playerId) => {
     // [TEAM_BALANCER_EDIT] Solo admin puede bloquear/desbloquear jugadores
@@ -312,27 +266,34 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   };
 
   return (
-    <TeamDisplayContext.Provider value={true}>
+    <SafeTeamDisplayContext.Provider value={true}>
       {/* Chat button para todos los usuarios */}
-      <ChatButton partidoId={partidoId} />
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="w-full max-w-full p-0 mx-auto flex flex-col gap-3 box-border lg:max-w-[1000px]">
-          <PageTitle onBack={onBackToHome}>EQUIPOS ARMADOS</PageTitle>
-          <MatchInfoSection
-            partido={normalizePartidoForHeader(typeof partidoId === 'object' ? partidoId : undefined)}
-            fecha={fecha}
-            hora={hora}
-            sede={sede}
-            modalidad={modalidad}
-            tipo={tipo}
-            precio={(typeof partidoId === 'object' && partidoId?.valor_cancha) ? partidoId?.valor_cancha : undefined}
-          />
-          <div className="p-0 flex-1 flex flex-col gap-3 pt-5">
+      <SafeChatButton partidoId={partidoId} />
+      <SafePageTitle onBack={onBackToHome}>EQUIPOS ARMADOS</SafePageTitle>
+      <div className="relative left-1/2 right-1/2 w-screen -ml-[50vw] -mr-[50vw] px-3 md:px-4">
+        <SafeMatchInfoSection
+          partido={normalizePartidoForHeader(typeof partidoId === 'object' ? partidoId : undefined)}
+          fecha={fecha}
+          hora={hora}
+          sede={sede}
+          modalidad={modalidad}
+          tipo={tipo}
+          precio={(typeof partidoId === 'object' && partidoId?.valor_cancha) ? partidoId?.valor_cancha : undefined}
+          rightActions={null}
+        />
+      </div>
 
-            <div className="flex flex-row gap-4 w-[min(90vw,980px)] mx-auto mb-[10px] box-border">
-              {realtimeTeams.map((team) => (
-                <div key={team.id} className="bg-white/12 border-2 border-white/25 rounded-2xl p-4 pb-1 w-[calc(50%-8px)] box-border transition-all shadow-md flex flex-col h-auto min-h-auto hover:bg-white/15 hover:border-white/35 hover:shadow-lg md:p-[18px] lg:p-6 sm:p-3 sm:pb-2">
-                  {editingTeamId === team.id && isAdmin ? (
+      <div data-debug="TEAMDISPLAY_ACTIVE" className="w-[90vw] max-w-[90vw] mx-auto pb-[70px] flex flex-col gap-3 overflow-x-hidden mt-4">
+        {/* Team cards */}
+        <div className="flex flex-row gap-3 w-full mb-0 box-border">
+              {realtimeTeams.map((team) => {
+                // Create normalized player keys once before JSX
+                const rawPlayers = getPlayersArrayFromTeam(team);
+                const teamPlayerKeys = rawPlayers.map(normalizeKey).filter(Boolean);
+
+                return (
+                  <div key={team.id} className="relative bg-white/10 border border-white/20 rounded-xl p-2.5 w-[calc(50%-6px)] box-border transition-all shadow-xl flex flex-col min-h-0 hover:bg-white/[0.12] hover:border-white/25">
+                    {editingTeamId === team.id && isAdmin ? (
                     <input
                       type="text"
                       className="font-bebas text-lg text-[#333] bg-white/95 border-2 border-[#0EA9C6] rounded-lg px-3 py-2 text-center tracking-widest uppercase w-full box-border shadow-sm md:text-xl lg:text-2xl"
@@ -384,7 +345,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                     />
                   ) : (
                     <h3
-                      className="font-bebas text-lg text-white m-0 tracking-widest uppercase shadow-sm cursor-pointer px-3 py-2 rounded-lg transition-all bg-transparent break-words text-center block w-full hover:bg-white/10 md:text-xl lg:text-2xl mb-4 flex justify-center items-center"
+                      className="font-bebas text-xl text-white m-0 tracking-wide uppercase cursor-pointer px-0 py-2 rounded-lg transition-all bg-transparent break-words text-center block w-full hover:bg-white/5 mb-2 flex justify-center items-center"
                       onClick={isAdmin ? () => {
                         setEditingTeamId(team.id);
                         setEditingTeamName(team.name);
@@ -394,114 +355,196 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                       {team.name}
                     </h3>
                   )}
-                  <Droppable droppableId={team.id} key={team.id}>
-                    {(provided) => (
-                      <div
-                        className="flex flex-col gap-1 mb-1.5 w-full flex-1"
-                        {...provided.droppableProps}
-                        ref={provided.innerRef}
-                      >
-                        {team.players
-                          .filter((playerId) => realtimePlayers.some((p) => p.uuid === playerId))
-                          .map((playerId, index) => {
-                            const player = getPlayerDetails(playerId);
-                            if (!playerId || !player?.nombre) return null;
 
-                            const isLocked = lockedPlayers.includes(playerId);
-
-                            return (
-                              <Draggable key={String(playerId)} draggableId={String(playerId)} index={index} isDragDisabled={!isAdmin}>
-                                {(provided, snapshot) => (
-                                  <div
-                                    className={`bg-white/15 border-2 border-white/20 rounded-md py-1.5 px-2.5 flex items-center gap-2.5 cursor-grab text-white transition-all min-h-[32px] relative w-full box-border overflow-hidden select-none hover:bg-white/20 hover:border-white/40 hover:-translate-y-px hover:shadow-md active:bg-white/25 active:scale-[0.98] sm:min-h-[28px] sm:py-1 sm:gap-2 md:min-h-[36px] md:py-2 md:px-3 lg:min-h-[40px] lg:py-3 lg:px-4 ${isLocked ? 'bg-[#FFC107]/20 border-[#FFC107]/60 shadow-[0_0_8px_rgba(255,193,7,0.3)] hover:bg-[#FFC107]/30 hover:border-[#FFC107]/80 hover:shadow-[0_0_12px_rgba(255,193,7,0.4)]' : ''} ${!isAdmin ? 'cursor-default pointer-events-none' : ''} ${snapshot.isDragging ? 'scale-105 rotate-2 shadow-xl z-50 !bg-white/30 !border-white/80 opacity-90' : ''}`}
-                                    ref={provided.innerRef}
-                                    {...(isAdmin ? provided.draggableProps : {})}
-                                    {...(isAdmin ? provided.dragHandleProps : {})}
-                                    onClick={isAdmin ? () => togglePlayerLock(playerId) : undefined}
-                                    style={{
-                                      cursor: isAdmin ? 'grab' : 'default',
-                                      ...provided.draggableProps.style
-                                    }}
-                                  >
-                                    <div className="flex items-center gap-2.5 w-full h-full sm:gap-2">
-                                      <div className="flex items-center justify-center">
-                                        <div className="flex items-center justify-center">
-                                          <img
-                                            src={player.avatar_url || 'https://api.dicebear.com/6.x/pixel-art/svg?seed=default'}
-                                            alt={player.nombre}
-                                            className="w-7 h-7 rounded-full object-cover border border-white/40 shrink-0 sm:w-6 sm:h-6 md:w-8 md:h-8 lg:w-10 lg:h-10"
-                                          />
-                                        </div>
-                                      </div>
-                                      <span className="font-oswald text-[13px] font-semibold text-white flex-1 shadow-sm overflow-hidden text-ellipsis whitespace-nowrap min-w-0 max-w-[140px] sm:text-[11px] sm:max-w-[100px] md:text-sm md:max-w-[150px] lg:text-base lg:max-w-[180px]">{player.nombre}</span>
-                                      {/* [TEAM_BALANCER_EDIT] Solo admin ve promedios y controles */}
-                                      {showAverages && isAdmin && (
-                                        <span
-                                          className="font-bebas text-xs font-bold text-white bg-[#22293b]/90 px-2 py-1 rounded-md border border-white/20 shrink-0 whitespace-nowrap shadow-sm sm:text-[10px] sm:px-1.5 sm:py-0.5 md:text-[13px] lg:text-[15px] lg:px-3 lg:py-1.5"
-                                          style={{
-                                            background: getScoreColor(player.score),
-                                            borderColor: getScoreColor(player.score).replace('0.9', '0.5'),
-                                          }}
-                                        >
-                                          {(player.score || 0).toFixed(2)}
-                                        </span>
-                                      )}
-                                      {isLocked && isAdmin && (
-                                        <span className="text-base text-[#FFC107] shadow-sm shrink-0 ml-auto mr-1 p-1 rounded bg-[#FFC107]/20 border border-[#FFC107]/40 animate-pulse lg:text-lg sm:text-sm sm:p-0.5">
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-                                            <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
-                                          </svg>
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </Draggable>
-                            );
-                          })}
-                        {provided.placeholder}
+                  {/* Lista de jugadores sin DnD */}
+                  <div className="flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto max-h-[52vh] md:max-h-[60vh] pr-1">
+                    {teamPlayerKeys.length === 0 && (
+                      <div className="text-white/60 text-sm p-3 border border-white/10 rounded bg-black/20">
+                        No hay jugadores cargados en este equipo (players vacío).
                       </div>
                     )}
-                  </Droppable>
-                  {/* Todos ven puntajes de equipos */}
-                  <div className="bg-white/20 border-2 border-white/30 text-white p-[8px_6px] rounded-lg text-center font-bebas text-[13px] font-bold tracking-[0.5px] shadow-sm w-full box-border break-words mt-1.5 mb-0 md:text-[15px] md:p-[10px_8px] lg:text-base lg:p-[12px_10px] sm:text-[11px] sm:p-[6px_4px]">
-                    Puntaje: {team.score?.toFixed(2) ?? '0'}
-                  </div>
-                </div>
-              ))}
-            </div>
-            {/* Botones de acción */}
-            <div className="w-[min(90vw,980px)] mx-auto mt-4 text-center box-border">
-              {isAdmin && (
-                <div className="flex gap-2 w-full mb-3">
-                  <button
-                    className="flex-1 font-bebas text-base text-white bg-white/20 border-2 border-white/40 rounded-[10px] tracking-[0.05em] p-0 m-0 h-[50px] cursor-pointer font-bold transition-all relative overflow-hidden box-border flex items-center justify-center gap-2 hover:bg-white/30 hover:border-white/60 hover:-translate-y-px active:scale-[0.98] sm:h-[46px] sm:text-[1.3rem] md:h-[52px] md:text-[1.5rem] lg:h-[54px] lg:text-[1.6rem] bg-orange-500/80 hover:bg-orange-600/90 border-orange-400"
-                    onClick={randomizeTeams}
-                  >
-                    RANDOMIZAR
-                  </button>
+                    {teamPlayerKeys.map((playerKey, index) => {
+                            const player = getPlayerDetails(playerKey);
 
-                  <button
-                    className="flex-1 font-bebas text-base text-white bg-white/20 border-2 border-white/40 rounded-[10px] tracking-[0.05em] p-0 m-0 h-[50px] cursor-pointer font-bold transition-all relative overflow-hidden box-border flex items-center justify-center gap-2 hover:bg-white/30 hover:border-white/60 hover:-translate-y-px active:scale-[0.98] sm:h-[46px] sm:text-[1.3rem] md:h-[52px] md:text-[1.5rem] lg:h-[54px] lg:text-[1.6rem] bg-blue-500/80 hover:bg-blue-600/90 border-blue-400"
-                    onClick={() => setShowAverages(!showAverages)}
-                  >
-                    {showAverages ? 'OCULTAR PROMEDIOS' : 'VER PROMEDIOS'}
-                  </button>
-                </div>
+                            const isLocked =
+                              lockedPlayers.includes(playerKey) ||
+                              lockedPlayers.includes(Number(playerKey));
+
+                            if (!player?.nombre) {
+                              return (
+                                <div
+                                  key={`missing-${playerKey}`}
+                                  className="bg-slate-900 border border-slate-800 rounded-lg p-2 text-white/70"
+                                >
+                                  Jugador desconocido ({playerKey})
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div
+                                key={playerKey}
+                                onClick={isAdmin ? () => togglePlayerLock(playerKey) : undefined}
+                                className={`bg-slate-900 border border-slate-800 rounded-lg p-2 flex items-center gap-1.5 text-white transition-all min-h-[36px] relative w-full box-border overflow-hidden select-none hover:bg-slate-800 hover:border-slate-700
+                                  ${isLocked ? 'bg-[#FFC107]/20 border-[#FFC107]/60 shadow-[0_0_8px_rgba(255,193,7,0.3)]' : ''}
+                                  ${!isAdmin ? 'cursor-default pointer-events-none' : 'cursor-pointer'}
+                                `}
+                              >
+                                <div className="flex items-center gap-1.5 w-full h-full">
+                                  {/* Avatar: Photo or Initials Badge */}
+                                  {player.avatar_url ? (
+                                    <img
+                                      src={player.avatar_url}
+                                      alt={player.nombre}
+                                      className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+                                    />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 border border-slate-700 shrink-0">
+                                      <span className="text-xs font-bold text-white">
+                                        {(() => {
+                                          const name = player.nombre || '';
+                                          const words = name.trim().split(/\s+/).filter(Boolean);
+                                          if (words.length === 0) return '?';
+                                          if (words.length === 1) return words[0][0].toUpperCase();
+                                          return (words[0][0] + words[1][0]).toUpperCase();
+                                        })()}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <span className="font-oswald text-sm font-semibold text-white flex-1 tracking-wide overflow-hidden text-ellipsis whitespace-nowrap min-w-0 leading-tight">
+                                    {player.nombre}
+                                  </span>
+
+                                  {showAverages && isAdmin && (
+                                    <span
+                                      className="font-bebas text-xs font-bold text-white bg-slate-800 px-2 py-1 rounded-md border border-slate-700 shrink-0 whitespace-nowrap"
+                                      style={{
+                                        background: getScoreColor(player.score),
+                                        borderColor: getScoreColor(player.score).replace('0.9', '0.5'),
+                                      }}
+                                    >
+                                      {(player.score || 0).toFixed(2)}
+                                    </span>
+                                  )}
+
+                                  {isLocked && isAdmin && (
+                                    <span className="text-base text-[#FFC107] shrink-0 p-1 rounded bg-[#FFC107]/20 border border-[#FFC107]/40 animate-pulse">
+                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                                        <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
+                                      </svg>
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                        })}
+                      </div>
+
+                    {/* Prominent score capsule with balance color */}
+                    <div className="bg-slate-900 rounded-lg text-center px-3 py-2 w-full box-border mt-2" style={{
+                      borderWidth: '2px',
+                      borderStyle: 'solid',
+                      borderColor: (() => {
+                        const teamA = realtimeTeams.find(t => t.id === 'equipoA');
+                        const teamB = realtimeTeams.find(t => t.id === 'equipoB');
+                        const diff = Math.abs((teamA?.score ?? 0) - (teamB?.score ?? 0));
+                        if (diff === 0 || diff <= 2) return '#10B981';
+                        if (diff <= 5) return '#84CC16';
+                        if (diff <= 8) return '#F59E0B';
+                        return '#EF4444';
+                      })()
+                    }}>
+                      <div className="text-white/70 text-xs font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
+                      <div className="text-white font-bebas text-xl font-bold">{(team.score ?? 0).toFixed(1)}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+        {/* Balance summary block - placed after team cards */}
+        {(() => {
+          const teamA = realtimeTeams.find(t => t.id === 'equipoA');
+          const teamB = realtimeTeams.find(t => t.id === 'equipoB');
+          const scoreA = teamA?.score ?? 0;
+          const scoreB = teamB?.score ?? 0;
+          const diff = Math.abs(scoreA - scoreB);
+          
+          let balanceStatus = '';
+          let balanceColor = '';
+          
+          if (diff === 0) {
+            balanceStatus = 'MATCH PERFECTO';
+            balanceColor = '#10B981'; // green
+          } else if (diff <= 2) {
+            balanceStatus = 'MUY PAREJO';
+            balanceColor = '#10B981';
+          } else if (diff <= 5) {
+            balanceStatus = 'PAREJO';
+            balanceColor = '#84CC16'; // yellow/lime
+          } else if (diff <= 8) {
+            balanceStatus = 'DESBALANCEADO';
+            balanceColor = '#F59E0B'; // orange
+          } else {
+            balanceStatus = 'MUY DESBALANCEADO';
+            balanceColor = '#EF4444'; // red
+          }
+          
+          return (
+            <div className="w-full bg-slate-900 border-2 rounded-xl px-4 py-2.5 mt-2" style={{ borderColor: balanceColor }}>
+              <div className="text-center">
+                <div className="font-bebas text-base text-white/90 tracking-wider mb-0.5">BALANCE DEL PARTIDO</div>
+                <div className="font-bebas text-2xl text-white font-bold mb-0.5">DIF: {diff.toFixed(1)}</div>
+                <div className="font-oswald text-xs font-semibold tracking-wide" style={{ color: balanceColor }}>{balanceStatus}</div>
+              </div>
+            </div>
+          );
+        })()}
+
+            {/* Botones de acción con helper copy */}
+            <div className="w-full mt-2 box-border flex flex-col gap-4">
+              {isAdmin && (
+                <>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2 w-full">
+                      {/* Primary CTA */}
+                      <button
+                        className="flex-1 font-bebas text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide bg-[#128BE9] hover:brightness-110 active:scale-95 disabled:opacity-50"
+                        onClick={randomizeTeams}
+                      >
+                        RANDOMIZAR
+                      </button>
+
+                      {/* Secondary outlined */}
+                      <button
+                        className="flex-1 font-bebas text-[15px] px-4 border border-slate-600 rounded-xl cursor-pointer transition-all text-white/80 h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide hover:border-slate-500 hover:text-white/90 bg-transparent active:scale-95 disabled:opacity-50"
+                        onClick={() => setShowAverages(!showAverages)}
+                      >
+                        {showAverages ? 'OCULTAR PROMEDIOS' : 'VER PROMEDIOS'}
+                      </button>
+                    </div>
+                    <div className="flex gap-2 w-full">
+                      <div className="flex-1 text-white/50 text-xs font-oswald text-center leading-tight px-1">Recalcula los equipos para dejarlos lo más parejos posible.</div>
+                      <div className="flex-1 text-white/50 text-xs font-oswald text-center leading-tight px-1">Mirá los promedios y métricas usadas para armar los equipos.</div>
+                    </div>
+                  </div>
+                </>
               )}
 
-              <button
-                className="w-full font-bebas text-base text-white bg-white/20 border-2 border-white/40 rounded-[10px] tracking-[0.05em] p-0 m-0 h-[50px] cursor-pointer font-bold transition-all relative overflow-hidden box-border flex items-center justify-center gap-2 hover:bg-white/30 hover:border-white/60 hover:-translate-y-px active:scale-[0.98] sm:h-[46px] sm:text-[1.3rem] md:h-[52px] md:text-[1.5rem] lg:h-[54px] lg:text-[1.6rem] bg-[#25d366]/80 hover:bg-[#25d366]/90 border-white"
-                onClick={handleWhatsAppShare}
-              >
-                <WhatsappIcon size={16} style={{ marginRight: 8 }} />
-                COMPARTIR
-              </button>
+              {/* Share button with helper */}
+              <div className="flex flex-col gap-2">
+                <button
+                  className="w-full font-bebas text-[15px] px-4 border border-slate-700/50 rounded-xl cursor-pointer transition-all text-white/70 h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide hover:border-slate-600 hover:text-white/80 bg-transparent active:scale-95 disabled:opacity-50"
+                  onClick={handleWhatsAppShare}
+                >
+                  <SafeWhatsappIcon size={16} style={{ marginRight: 8 }} />
+                  COMPARTIR
+                </button>
+                <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1">Comparte los equipos armados al grupo de WhatsApp.</div>
+              </div>
             </div>
           </div>
-        </div>
-      </DragDropContext>
-    </TeamDisplayContext.Provider>
+    </SafeTeamDisplayContext.Provider>
   );
 };
 

@@ -128,8 +128,8 @@ const StoryLikeCarousel = ({
       </div>
 
       {/* Slide */}
-      <div className="relative z-10 w-full h-full flex items-center justify-center px-4 md:px-10 pt-14 pb-10">
-        <div className="w-full max-w-[1100px] h-full flex items-center justify-center">
+      <div className="relative z-10 w-full h-full flex items-center justify-center px-0 md:px-0 pt-0 pb-0">
+        <div className="w-full h-full flex items-center justify-center">
           {node}
         </div>
       </div>

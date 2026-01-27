@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { db } from '../api/supabaseWrapper';
@@ -20,6 +20,9 @@ const ensurePlayersList = (players) => {
       usuario_id: 'demo-1',
       nombre: 'Capitán Demo',
       avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Capitan',
+      mvp_badges: 1,
+      gk_badges: 0,
+      red_badges: 0,
       fouls: 1,
       yellow_cards: 0,
       red_cards: 0
@@ -29,6 +32,9 @@ const ensurePlayersList = (players) => {
       usuario_id: 'demo-2',
       nombre: 'Guante Fantasma',
       avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Guante',
+      mvp_badges: 0,
+      gk_badges: 2,
+      red_badges: 0,
       fouls: 0,
       yellow_cards: 0,
       red_cards: 0
@@ -38,28 +44,47 @@ const ensurePlayersList = (players) => {
       usuario_id: 'demo-3',
       nombre: 'Rayo Nocturno',
       avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Relampago',
+      mvp_badges: 0,
+      gk_badges: 0,
+      red_badges: 1,
       fouls: 4,
       yellow_cards: 1,
       red_cards: 0,
       ausencias: [{ fecha: new Date().toISOString() }]
+    },
+    {
+      uuid: 'demo-4',
+      usuario_id: 'demo-4',
+      nombre: 'Maestro Medio',
+      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Maestro',
+      mvp_badges: 2,
+      gk_badges: 0,
+      red_badges: 0,
+      fouls: 2,
+      yellow_cards: 1,
+      red_cards: 0,
+      ausencias: []
     }
   ];
 };
+
+// Context to broadcast live previewPlayers without recreating slides
+const PreviewPlayersContext = createContext([]);
 
 const createMockResults = (players) => {
   const roster = ensurePlayersList(players);
   if (roster.length === 0) return null;
 
-  const pickIndex = () => Math.floor(Math.random() * roster.length);
-  let mvpIndex = pickIndex();
-  let gloveIndex = pickIndex();
-  if (roster.length > 1 && gloveIndex === mvpIndex) {
-    gloveIndex = (gloveIndex + 1) % roster.length;
-  }
+  // Shuffle indices to get distinct players per award when possible
+  const shuffled = [...Array(roster.length).keys()].sort(() => Math.random() - 0.5);
+  const pickAt = (idx) => roster[shuffled[idx % roster.length]];
 
-  const mvp = roster[mvpIndex];
-  const glove = roster[gloveIndex];
-  const dirtiest = roster.find((p) => p.fouls > 0 || p.yellow_cards > 0) || roster[0];
+  const mvp = pickAt(0);
+  const glove = pickAt(1);
+  const dirtiest =
+    roster.find((p, i) => (p.fouls > 0 || p.yellow_cards > 0 || p.red_cards > 0) && i !== shuffled[0] && i !== shuffled[1])
+    || pickAt(2);
+  const penalized = pickAt(3);
 
   return {
     mvp: mvp.uuid || mvp.usuario_id || 'mvp-demo',
@@ -71,6 +96,8 @@ const createMockResults = (players) => {
     dirty_player: dirtiest.uuid || dirtiest.usuario_id || 'dirty-demo',
     dirty_player_nombre: dirtiest.nombre || 'Jugador Sucio',
     dirty_player_fouls: dirtiest.fouls || 3,
+    penalty_player: penalized.uuid || penalized.usuario_id || 'penalty-demo',
+    penalty_player_nombre: penalized.nombre || 'Penalizado',
     results_ready: true,
     estado: 'finalizado'
   };
@@ -98,6 +125,7 @@ const ResultadosEncuestaView = () => {
   const mockToastShown = useRef(false);
   const loadingFallbackTriggered = useRef(false);
   const badgesApplied = useRef(new Set());
+  const liveApplied = useRef(new Set());
   const badgeTimers = useRef([]);
 
   const setStage = (key, stage) => {
@@ -155,11 +183,6 @@ const ResultadosEncuestaView = () => {
     const t1 = setTimeout(() => setStage(slideType, 1), 900); // Card aparece
     const t2 = setTimeout(() => {
       setStage(slideType, 2); // Token en vuelo
-      const t3 = setTimeout(() => {
-        applyAward(slideType);
-        setStage(slideType, 3);
-      }, 900);
-      badgeTimers.current.push(t3);
     }, 1700);
 
     badgeTimers.current.push(t1, t2);
@@ -181,23 +204,61 @@ const ResultadosEncuestaView = () => {
   const clamp1 = (v) => Math.max(0, Math.min(10, v)); // si tu rating es 0..10
   const fmt1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : '0.0');
 
+  const normalizeBadges = (p) => {
+    if (!p) return p;
+    return {
+      ...p,
+      mvp_badges: p.mvp_badges ?? p.mvps ?? 0,
+      mvps: p.mvps ?? p.mvp_badges ?? 0,
+      gk_badges: p.gk_badges ?? p.guantes_dorados ?? 0,
+      guantes_dorados: p.guantes_dorados ?? p.gk_badges ?? 0,
+      red_badges: p.red_badges ?? p.tarjetas_rojas ?? 0,
+      tarjetas_rojas: p.tarjetas_rojas ?? p.red_badges ?? 0,
+    };
+  };
+
   const applyLiveAward = (type, playerId) => {
-    setPreviewPlayers((prev) =>
-      prev.map((p) => {
+    const key = `${type}-${playerId}`;
+    if (liveApplied.current.has(key) || badgesApplied.current.has(key)) {
+      return;
+    }
+    liveApplied.current.add(key);
+    badgesApplied.current.add(key);
+    console.log(`🎬 applyLiveAward called: type=${type}, playerId=${playerId}`);
+    setPreviewPlayers((prev) => {
+      const updated = prev.map((p) => {
         const pid = p.uuid || p.usuario_id || p.id;
         if (String(pid) !== String(playerId)) return p;
 
-        if (type === 'mvp') return { ...p, mvp_badges: (p.mvp_badges || 0) + 1 };
-        if (type === 'glove') return { ...p, gk_badges: (p.gk_badges || 0) + 1 };
-        if (type === 'dirty') return { ...p, red_badges: (p.red_badges || 0) + 1 };
+        if (type === 'mvp') {
+          const current = p.mvp_badges ?? p.mvps ?? 0;
+          const newVal = current + 1;
+          console.log(`✅ MVP Updated: ${current} → ${newVal}`);
+          return normalizeBadges({ ...p, mvp_badges: newVal, mvps: newVal });
+        }
+        if (type === 'glove') {
+          const current = p.gk_badges ?? p.guantes_dorados ?? 0;
+          const newVal = current + 1;
+          console.log(`✅ GK Updated: ${current} → ${newVal}`);
+          return normalizeBadges({ ...p, gk_badges: newVal, guantes_dorados: newVal });
+        }
+        if (type === 'dirty') {
+          const current = p.red_badges ?? p.tarjetas_rojas ?? 0;
+          const newVal = current + 1;
+          console.log(`✅ RED Updated: ${current} → ${newVal}`);
+          return normalizeBadges({ ...p, red_badges: newVal, tarjetas_rojas: newVal });
+        }
         if (type === 'penalty') {
           const base = toRating(p, 5.0);
           const next = clamp1(base - 0.5);
-          return { ...p, ranking: fmt1(next) };
+          console.log(`✅ PENALTY Updated: ${base} → ${next}`);
+          return normalizeBadges({ ...p, ranking: fmt1(next) });
         }
-        return p;
-      })
-    );
+        return normalizeBadges(p);
+      });
+      console.log(`📊 previewPlayers after update:`, updated);
+      return updated.map(normalizeBadges);
+    });
   };
 
   // ✅ Componente "EA Sports" para cada premio
@@ -213,20 +274,25 @@ const ResultadosEncuestaView = () => {
     bottomLabel,
     onApply,
   }) => {
+    const previewPlayers = useContext(PreviewPlayersContext);
     const [stage, setStage] = React.useState(0); // 0: título, 1: card, 2: token aparece, 3: token vuela, 4: premio aplicado
     const appliedRef = React.useRef(false);
-    const playerIdRef = React.useRef(playerId || player?.uuid || player?.usuario_id || player?.id);
+    const [showFlash, setShowFlash] = React.useState(false);
+    const flashPlayedRef = React.useRef(false);
+    const flashTimerRef = React.useRef(null);
 
     // Resolve live player from previewPlayers to reflect real-time award impacts
     const resolvedPlayer = React.useMemo(() => {
-      const pid = playerIdRef.current;
-      if (!pid) return player;
+      const pid = playerId || player?.uuid || player?.usuario_id || player?.id;
+      if (!pid) return normalizeBadges(player);
       const pidStr = String(pid);
       const found = previewPlayers.find((j) =>
         String(j.uuid) === pidStr || String(j.usuario_id) === pidStr || String(j.id) === pidStr
       );
-      return found || player;
-    }, [previewPlayers, player]);
+      const result = normalizeBadges(found || player);
+      console.log(`🔍 resolvedPlayer updated: mvp=${result.mvp_badges}, gk=${result.gk_badges}, red=${result.red_badges}`);
+      return result;
+    }, [previewPlayers, player, playerId]);
 
     // Penalty rating animation states
     const [penaltyFrom, setPenaltyFrom] = React.useState(null);
@@ -234,32 +300,39 @@ const ResultadosEncuestaView = () => {
     const [penaltyNow, setPenaltyNow] = React.useState(null);
 
     React.useEffect(() => {
-      // Reset stage cuando cambia el premio (nueva slide)
+      // Reset stage solo cuando cambia la slide (tipo o identidad), no por cambios de conteo
       setStage(0);
       appliedRef.current = false;
-      playerIdRef.current = playerId || player?.uuid || player?.usuario_id || player?.id;
+      setShowFlash(false);
+      flashPlayedRef.current = false;
+      if (flashTimerRef.current) {
+        clearTimeout(flashTimerRef.current);
+        flashTimerRef.current = null;
+      }
 
-      // Precompute penalty animation values per slide
+      // Precompute animation values per slide
+      const base = toRating(resolvedPlayer, 5.0);
+      
       if (kind === 'penalty') {
-        const base = toRating(resolvedPlayer, 5.0);
         const next = clamp1(base - 0.5);
         setPenaltyFrom(base);
         setPenaltyTo(next);
         setPenaltyNow(base);
       } else {
+        // For MVP, GLOVE, DIRTY: no rating change, only award count change
         setPenaltyFrom(null);
         setPenaltyTo(null);
         setPenaltyNow(null);
       }
 
       // Stage 0 → 1: Título visible, card aparece (suspenso)
-      const t0 = setTimeout(() => setStage(1), 900);
+      const t0 = setTimeout(() => setStage(1), 600);
       
       // Stage 1 → 2: Card visible, token aparece ARRIBA
-      const t1 = setTimeout(() => setStage(2), 2200);
+      const t1 = setTimeout(() => setStage(2), 1200);
       
       // Stage 2 → 3: Token empieza a volar hacia la card
-      const t2 = setTimeout(() => setStage(3), 2800);
+      const t2 = setTimeout(() => setStage(3), 1700);
       
       // Stage 3 → 4: Token termina el vuelo, APLICAR PREMIO
       const t3 = setTimeout(() => {
@@ -268,7 +341,7 @@ const ResultadosEncuestaView = () => {
           appliedRef.current = true;
           onApply?.();
         }
-      }, 4100); // 2800 + 1300ms de animación del vuelo
+      }, 2600); // 1700 + ~900ms de animación del vuelo
 
       return () => {
         clearTimeout(t0);
@@ -276,7 +349,24 @@ const ResultadosEncuestaView = () => {
         clearTimeout(t2);
         clearTimeout(t3);
       };
-    }, [kind, playerId, player?.uuid, player?.usuario_id, player?.id, onApply, resolvedPlayer]);
+    }, [kind, playerId, player?.uuid, player?.usuario_id, player?.id, onApply]);
+
+    // Programar flash justo al final del vuelo (antes de aplicar el premio)
+    React.useEffect(() => {
+      if (stage !== 3) return;
+      if (flashPlayedRef.current) return; // asegurar una sola vez
+      // El vuelo dura ~1300ms; disparamos el flash apenas llega (ligeramente antes)
+      flashTimerRef.current = setTimeout(() => {
+        flashPlayedRef.current = true;
+        setShowFlash(true);
+      }, 780);
+      return () => {
+        if (flashTimerRef.current) {
+          clearTimeout(flashTimerRef.current);
+          flashTimerRef.current = null;
+        }
+      };
+    }, [stage]);
 
     // Animate penalty rating change on stage 4
     React.useEffect(() => {
@@ -313,9 +403,6 @@ const ResultadosEncuestaView = () => {
               : kind === 'dirty'
               ? 'linear-gradient(135deg,#12060B 0%,#3A0A18 42%,#12060B 100%)'
               : 'linear-gradient(135deg,#0B0F16 0%,#1B2432 45%,#0B0F16 100%)',
-          borderRadius: 28,
-          border: `1px solid rgba(255,255,255,0.10)`,
-          boxShadow: '0 30px 120px rgba(0,0,0,0.55)',
         }}
       >
         {/* glow */}
@@ -349,33 +436,33 @@ const ResultadosEncuestaView = () => {
         </div>
 
         {/* Acto 2: card */}
-        <div className="relative z-10 w-full flex items-center justify-center px-4 md:px-8">
-          {stage >= 1 && (
-            <div
-              className="w-full max-w-[720px]"
-              style={{
-                opacity: stage >= 1 ? 1 : 0,
-                transform: stage >= 1 ? 'translateY(0) scale(1)' : 'translateY(34px) scale(0.96)',
-                transition: 'opacity 650ms ease, transform 650ms ease',
-                animation: stage === 1 ? 'eaCardIn 650ms ease-out both' : 'none',
-                boxShadow: `0 18px 65px rgba(0,0,0,0.55)`,
-              }}
-            >
-              <ProfileCard profile={resolvedPlayer} isVisible={true} />
-            </div>
-          )}
+        <div className="relative z-10 w-full h-full flex items-center justify-center">
+            {stage >= 1 && resolvedPlayer && (
+              <div
+                style={{
+                  animation: stage === 1 ? 'eaCardIn 520ms ease-out both' : 'none',
+                }}
+              >
+                <ProfileCard
+                  profile={resolvedPlayer}
+                  isVisible={true}
+                  ratingOverride={kind === 'penalty' ? penaltyNow : null}
+                />
+              </div>
+            )}
 
           {/* Token (Acto 3) - Aparece ARRIBA en stage 2, vuela en stage 3 */}
           {stage >= 2 && stage < 4 && (
             <div
-              className="absolute pointer-events-none"
+              className="absolute pointer-events-none z-50"
               style={{
                 right: stage >= 3 ? '50%' : '10%',
-                top: stage >= 3 ? '48%' : '8%',
+                top: stage >= 3 ? '42%' : '2%',
                 transform: stage >= 3 ? 'translate(50%, -50%)' : 'none',
                 opacity: stage >= 3 ? 0.3 : 1,
-                transition: stage >= 3 ? 'right 1300ms cubic-bezier(.25,.8,.25,1), top 1300ms cubic-bezier(.25,.8,.25,1), opacity 1300ms ease-out' : 'none',
-                animation: stage === 2 ? 'eaTokenAppear 520ms cubic-bezier(.2,.85,.2,1) both' : 'none',
+                transition: stage >= 3 ? 'right 900ms cubic-bezier(.25,.8,.25,1), top 900ms cubic-bezier(.25,.8,.25,1), opacity 900ms ease-out' : 'none',
+                animation: stage === 2 ? 'eaTokenAppear 360ms cubic-bezier(.2,.85,.2,1) both' : 'none',
+                zIndex: 60,
               }}
             >
               <div
@@ -388,9 +475,13 @@ const ResultadosEncuestaView = () => {
                 }}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl" style={{ filter: `drop-shadow(0 0 18px ${accent})` }}>
-                    {icon}
-                  </span>
+                  {typeof icon === 'string' && icon.startsWith('/') ? (
+                    <img src={icon} alt="award" width={32} height={32} draggable={false} style={{ filter: `drop-shadow(0 0 18px ${accent})` }} />
+                  ) : (
+                    <span className="text-2xl" style={{ filter: `drop-shadow(0 0 18px ${accent})` }}>
+                      {icon}
+                    </span>
+                  )}
                   <span className="text-white font-bold">
                     {kind === 'penalty' ? '-0.5' : '+1'}
                   </span>
@@ -398,13 +489,21 @@ const ResultadosEncuestaView = () => {
               </div>
             </div>
           )}
-
-          {/* Pulse (stage 4: premio aplicado) */}
-          {stage >= 4 && (
-            <div
-              className="absolute right-6 md:right-10 top-24 md:top-20 pointer-events-none"
-              style={{ width: 18, height: 18, borderRadius: 999, background: border, animation: 'eaPulse 520ms ease-out both' }}
-            />
+          {showFlash && (
+            <div className="absolute inset-0 pointer-events-none z-[60] flex items-center justify-center">
+              <div
+                style={{
+                  width: 220,
+                  height: 220,
+                  borderRadius: '50%',
+                  background: `radial-gradient(closest-side, rgba(255,255,255,0.85), rgba(255,255,255,0.35) 40%, rgba(255,255,255,0) 70%)`,
+                  boxShadow: `0 0 60px ${accent}`,
+                  animation: 'eaMergeFlash 540ms ease-out forwards',
+                  filter: `drop-shadow(0 0 22px ${accent})`,
+                }}
+                onAnimationEnd={() => setShowFlash(false)}
+              />
+            </div>
           )}
         </div>
 
@@ -466,6 +565,11 @@ const ResultadosEncuestaView = () => {
             40% { transform: scale(1.0); opacity: 0.9; }
             100% { transform: scale(2.2); opacity: 0; }
           }
+          @keyframes eaMergeFlash {
+            0% { transform: scale(0.8); opacity: 0; }
+            30% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(1.6); opacity: 0; }
+          }
         `}</style>
       </div>
     );
@@ -492,7 +596,7 @@ const ResultadosEncuestaView = () => {
     // INTRO: Primera slide siempre
     slides.push({
       key: 'intro',
-      duration: 2800,
+      duration: 1800,
       content: (
         <div
           className="relative w-full h-full flex flex-col items-center justify-center text-center py-10 md:py-14"
@@ -552,11 +656,11 @@ const ResultadosEncuestaView = () => {
         const pid = p.uuid || p.usuario_id || p.id;
         slides.push({
           key: 'mvp',
-          duration: 5500,
+          duration: 4500,
           content: (
             <AwardStory
               kind="mvp"
-              icon="🏆"
+              icon="/mvp.png"
               title="MVP"
               subtitle={null}
               accent="rgba(255,215,0,0.65)"
@@ -578,11 +682,11 @@ const ResultadosEncuestaView = () => {
         const pid = p.uuid || p.usuario_id || p.id;
         slides.push({
           key: 'glove',
-          duration: 5500,
+          duration: 4500,
           content: (
             <AwardStory
               kind="glove"
-              icon="🧤"
+              icon="/glove.png"
               title="GUANTE DE ORO"
               subtitle={null}
               accent="rgba(34,211,238,0.55)"
@@ -604,11 +708,11 @@ const ResultadosEncuestaView = () => {
         const pid = p.uuid || p.usuario_id || p.id;
         slides.push({
           key: 'dirty',
-          duration: 5500,
+          duration: 4500,
           content: (
             <AwardStory
               kind="dirty"
-              icon="🟥"
+              icon="/red_card.png"
               title="MÁS SUCIO"
               subtitle={null}
               accent="rgba(248,113,113,0.55)"
@@ -631,6 +735,12 @@ const ResultadosEncuestaView = () => {
         const pid = first.uuid || first.usuario_id || first.id;
         return { player: first, playerId: pid };
       }
+      // If mock results included a designated penalty player, use it
+      if (currentResults?.penalty_player) {
+        const pid = currentResults.penalty_player;
+        const found = roster.find((p) => String(p.uuid) === String(pid) || String(p.usuario_id) === String(pid) || String(p.id) === String(pid));
+        if (found) return { player: found, playerId: pid };
+      }
       if (roster.length) {
         const first = roster[0];
         const pid = first.uuid || first.usuario_id || first.id;
@@ -644,11 +754,11 @@ const ResultadosEncuestaView = () => {
       const next = clamp1(base - 0.5);
       slides.push({
         key: 'penalty',
-        duration: 5500,
+        duration: 4500,
         content: (
           <AwardStory
             kind="penalty"
-            icon="⚖️"
+            icon="/penalizacion.png"
             title="PENALIZACIÓN"
             subtitle={null}
             accent="rgba(251,146,60,0.55)"
@@ -670,14 +780,14 @@ const ResultadosEncuestaView = () => {
       summaryAwards.push({
         awardName: 'MVP',
         playerName: mvpPlayer.nombre,
-        icon: '🏆',
+        icon: '/mvp.png',
         color: '#FFD700',
       });
     } else {
       summaryAwards.push({
         awardName: 'MVP',
         playerName: '—',
-        icon: '🏆',
+        icon: '/mvp.png',
         color: '#FFD700',
       });
     }
@@ -687,14 +797,14 @@ const ResultadosEncuestaView = () => {
       summaryAwards.push({
         awardName: 'Guante de Oro',
         playerName: glovePlayer.nombre,
-        icon: '🧤',
+        icon: '/glove.png',
         color: '#22d3ee',
       });
     } else {
       summaryAwards.push({
         awardName: 'Guante de Oro',
         playerName: '—',
-        icon: '🧤',
+        icon: '/glove.png',
         color: '#22d3ee',
       });
     }
@@ -704,14 +814,14 @@ const ResultadosEncuestaView = () => {
       summaryAwards.push({
         awardName: 'Más Sucio',
         playerName: dirtyPlayer.nombre,
-        icon: '🟥',
+        icon: '/red_card.png',
         color: '#f87171',
       });
     } else {
       summaryAwards.push({
         awardName: 'Más Sucio',
         playerName: '—',
-        icon: '🟥',
+        icon: '/red_card.png',
         color: '#f87171',
       });
     }
@@ -720,29 +830,26 @@ const ResultadosEncuestaView = () => {
       summaryAwards.push({
         awardName: 'Penalización',
         playerName: penalized.player.nombre,
-        icon: '⚖️',
+        icon: '/penalizacion.png',
         color: '#FDBA74',
       });
     } else {
       summaryAwards.push({
         awardName: 'Penalización',
         playerName: '—',
-        icon: '⚖️',
+        icon: '/penalizacion.png',
         color: '#FDBA74',
       });
     }
 
     slides.push({
       key: 'summary',
-      duration: 6000,
+      duration: 5000,
       content: (
         <div
           className="relative w-full h-full flex flex-col items-center justify-center px-6 md:px-10 py-10 md:py-14"
           style={{
             background: 'linear-gradient(135deg,#070B18 0%,#0F1419 50%,#070B18 100%)',
-            borderRadius: 28,
-            border: '1px solid rgba(255,255,255,0.10)',
-            boxShadow: '0 30px 120px rgba(0,0,0,0.55)',
           }}
         >
           {/* glow */}
@@ -777,9 +884,21 @@ const ResultadosEncuestaView = () => {
                     animation: `slideInUp 650ms ease-out ${idx * 80}ms both`,
                   }}
                 >
-                  <span className="text-4xl mb-3" style={{ filter: `drop-shadow(0 0 12px ${award.color})` }}>
-                    {award.icon}
-                  </span>
+                  {typeof award.icon === 'string' && award.icon.startsWith('/') ? (
+                    <img
+                      src={award.icon}
+                      alt={award.awardName}
+                      width={38}
+                      height={38}
+                      draggable={false}
+                      style={{ filter: `drop-shadow(0 0 12px ${award.color})` }}
+                      className="mb-3"
+                    />
+                  ) : (
+                    <span className="text-4xl mb-3" style={{ filter: `drop-shadow(0 0 12px ${award.color})` }}>
+                      {award.icon}
+                    </span>
+                  )}
                   <div className="text-center">
                     <div className="text-xs text-white/60 uppercase tracking-wider font-bold mb-1">
                       {award.awardName}
@@ -830,10 +949,6 @@ const ResultadosEncuestaView = () => {
     if (slides.length > 0) {
       setCarouselSlides(slides);
       setShowingBadgeAnimations(true);
-      if (!mockToastShown.current) {
-        toast.info('Mostrando premiación demo.', { toastId: 'mock-awards' });
-        mockToastShown.current = true;
-      }
     }
   };
 
@@ -1160,6 +1275,7 @@ const ResultadosEncuestaView = () => {
     // Initialize previewPlayers with current jugadores state
     setPreviewPlayers(JSON.parse(JSON.stringify(jugadores)));
     badgesApplied.current.clear();
+    liveApplied.current.clear();
     setSlideStages({});
     
     const slides = prepareCarouselSlides();
@@ -1174,17 +1290,20 @@ const ResultadosEncuestaView = () => {
   if (showingBadgeAnimations && carouselSlides.length > 0) {
     return (
       <>
-        <StoryLikeCarousel
-          slides={carouselSlides}
-          onClose={() => {
-            clearTimers();
-            setShowingBadgeAnimations(false);
-            badgesApplied.current.clear();
-            setSlideStages({});
-            navigate('/');
-          }}
-          onIndexChange={handleCarouselIndexChange}
-        />
+        <PreviewPlayersContext.Provider value={previewPlayers}>
+          <StoryLikeCarousel
+            slides={carouselSlides}
+            onClose={() => {
+              clearTimers();
+              setShowingBadgeAnimations(false);
+              badgesApplied.current.clear();
+              liveApplied.current.clear();
+              setSlideStages({});
+              navigate('/');
+            }}
+            onIndexChange={handleCarouselIndexChange}
+          />
+        </PreviewPlayersContext.Provider>
 
         <style>{`
           @keyframes awardDropIn {

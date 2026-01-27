@@ -108,7 +108,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
           <main className="pb-20 pt-0">
             <div className="main-content">
-              <div className={`w-[90vw] max-w-[90vw] mx-auto pb-[70px] flex flex-col gap-3 overflow-x-hidden ${isAdmin ? 'pt-3' : 'pt-0'}`}>
+              {showTeams && (
                 <TeamsPanel
                   showTeams={showTeams}
                   teams={adminState.teams}
@@ -118,6 +118,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                   isAdmin={isAdmin}
                   partidoActual={partidoActual}
                 />
+              )}
+              <div className={`w-[90vw] max-w-[90vw] mx-auto pb-[70px] flex flex-col gap-3 overflow-x-hidden ${isAdmin ? 'pt-3' : 'pt-0'}`}>
 
                 {!showTeams && (
                   <>

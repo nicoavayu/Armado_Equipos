@@ -40,7 +40,14 @@ const ProfilePage = () => {
 
     return (
         <PageTransition>
-            <div className="h-[100svh] w-full overflow-x-clip flex flex-col relative text-white">
+            <div 
+                className="min-h-[100svh] h-[100svh] w-full overflow-x-clip flex flex-col relative text-white"
+                style={{
+                    minHeight: '100svh',
+                    backgroundImage: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)',
+                    backgroundAttachment: 'fixed'
+                }}
+            >
                 {/* Fixed Top Title */}
                 <div className="flex-none h-[72px] relative z-[1000]">
                     <PageTitle onBack={() => navigateWithAnimation('/', 'back')}>EDITAR PERFIL</PageTitle>

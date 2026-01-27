@@ -8,6 +8,7 @@ import {
   getVotantesConNombres,
   getJugadoresDelPartido,
   resetVotacion,
+  clearGuestSession,
   supabase,
 } from '../supabase';
 import WhatsappIcon from './WhatsappIcon';
@@ -39,6 +40,7 @@ export default function ArmarEquiposView({
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState({ open: false, action: null });
   const [votingStarted, setVotingStarted] = useState(false);
+  const [estadoOverride, setEstadoOverride] = useState(null); // Override local para estado después de reset
   const playersSectionRef = React.useRef(null);
   const navigate = useNavigate();
 
@@ -164,8 +166,9 @@ export default function ArmarEquiposView({
       }
 
       if ((res.inserted || 0) > 0) {
-        toast.success(`Notificación enviada a ${res.inserted} jugadores`);
-        // Refrescar estado de votación y ofrecer acceso directo
+        toast.success(`Notificación enviada a ${res.inserted} jugadores. Entrando a votación...`);
+        
+        // Refrescar estado de votación
         try {
           const { data } = await supabase
             .from('notifications')
@@ -175,10 +178,14 @@ export default function ArmarEquiposView({
             .limit(1);
           setVotingStarted(Boolean(data && data.length > 0));
         } catch {}
-        // Acceso directo: scroll a la sección de jugadores
-        if (isAdmin && playersSectionRef.current) {
-          playersSectionRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
+        
+        // Navegar al admin a la pantalla de votación inmediatamente
+        setTimeout(() => {
+          const codigo = partidoActual?.codigo;
+          if (codigo) {
+            navigate(`/?codigo=${codigo}`);
+          }
+        }, 500);
       } else {
         toast.info('No se pudieron enviar notificaciones. Asegurate que los jugadores tengan cuenta.');
       }
@@ -209,7 +216,7 @@ export default function ArmarEquiposView({
       const result = await resetVotacion(partidoActual.id);
       console.debug('[Teams] reset result', result);
 
-      toast.success('Votación reseteada');
+      toast.success('Votación reseteada - Ahora podés votar de nuevo');
 
       // Volver a estado pre-votación: borrar notificaciones de call_to_vote y refrescar bandera local
       try {
@@ -226,11 +233,17 @@ export default function ArmarEquiposView({
       setVotingStarted(false);
       setVotantes([]);
       setVotantesConNombres([]);
+      setActionsMenuOpen(false);
+      setEstadoOverride('votacion'); // Override local para forzar recálculo de CTA
 
-      // Refrescar desde DB para confirmar estado limpio
-      setVotingStarted(false);
+      // Limpiar guest session cache para permitir revotación
+      try {
+        clearGuestSession(partidoActual.id);
+      } catch (e) {
+        console.warn('[Teams] error clearing guest session', e);
+      }
 
-      // Refrescar votantes
+      // Refrescar votantes desde DB para confirmar estado limpio
       try {
         const votantesIds = await getVotantesIds(partidoActual.id);
         const votantesNombres = await getVotantesConNombres(partidoActual.id);
@@ -249,13 +262,15 @@ export default function ArmarEquiposView({
   }
 
   const primaryLabel = (() => {
-    if (partidoActual?.estado === 'equipos_formados') return 'VER EQUIPOS';
+    const estado = estadoOverride || partidoActual?.estado;
+    if (estado === 'equipos_formados') return 'VER EQUIPOS';
     if (votingStarted) return 'IR A VOTACIÓN';
     return 'LLAMAR A VOTAR';
   })();
 
   const handlePrimaryClick = () => {
-    if (partidoActual?.estado === 'equipos_formados') {
+    const estado = estadoOverride || partidoActual?.estado;
+    if (estado === 'equipos_formados') {
       // Already formed, keep current behavior (no redirect in minimal patch)
       if (playersSectionRef.current) playersSectionRef.current.scrollIntoView({ behavior: 'smooth' });
       return;
@@ -633,13 +648,13 @@ export default function ArmarEquiposView({
         <ConfirmModal
           isOpen={confirmConfig.open && confirmConfig.action === 'call_to_vote'}
           title={'Iniciar votación'}
-          message={'Se notificará a los jugadores que tienen la app para que voten y armemos los equipos.'}
+          message={`Se notificará a los ${jugadores.length} jugadores que tienen la app para que voten. Luego entrarás a la pantalla de votación.`}
           onConfirm={() => {
             setConfirmConfig({ open: false });
             handleCallToVote();
           }}
           onCancel={() => setConfirmConfig({ open: false })}
-          confirmText={'Notificar ahora'}
+          confirmText={'Notificar y votar'}
           cancelText={'Cancelar'}
           isDeleting={calling}
         />

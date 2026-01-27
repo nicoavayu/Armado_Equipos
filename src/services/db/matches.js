@@ -536,6 +536,24 @@ export const resetVotacion = async (partidoId) => {
       });
     }
 
+    // Reset partido estado y limpiar equipos formados
+    console.log('🔄 SUPABASE: Resetting partido estado to "votacion"...');
+    const { error: partidoError } = await supabase
+      .from('partidos')
+      .update({
+        estado: 'votacion',
+        equipos_json: null,
+        equipos_formados_at: null,
+      })
+      .eq('id', pidNumber);
+
+    if (partidoError) {
+      console.error('❌ SUPABASE: Error updating partido estado:', partidoError);
+      throw new Error('Error al resetear estado del partido: ' + partidoError.message);
+    }
+
+    console.log('✅ SUPABASE: Partido estado reset to "votacion"');
+
     // Verificar que no queden votos colgando
     try {
       const { data: remaining, error: remainingError } = await supabase

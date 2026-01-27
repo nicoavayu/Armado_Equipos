@@ -17,6 +17,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
   const [file, setFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(partido.imagen_url);
   const [tipoPartido, setTipoPartido] = useState(partido.tipo_partido || 'Masculino');
+  const [modalidad, setModalidad] = useState(partido.modalidad || 'F5');
 
   const handleFile = (e) => {
     if (e.target && e.target.files && e.target.files[0]) {
@@ -30,19 +31,6 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
     // Initialize from partido.precio_cancha first, fallback to partido.precio, else empty
     (partido.precio_cancha !== undefined && partido.precio_cancha !== null) ? String(partido.precio_cancha) : (partido.precio !== undefined && partido.precio !== null ? String(partido.precio) : '')
   );
-
-  const getFrequentIdFromPartido = (p) => {
-    if (!p) return null;
-    // Use ONLY partido.partido_frecuente_id or partido.partido_frecuente?.id
-    if (typeof p.partido_frecuente_id === 'string') return p.partido_frecuente_id;
-    if (p.partido_frecuente && typeof p.partido_frecuente.id === 'string') return p.partido_frecuente.id;
-    return null;
-  };
-
-  // hasTemplate state initialized from current partido prop
-  const initialHasTemplate = !!getFrequentIdFromPartido(partido);
-  // keep initialHasTemplate for informational purposes but remove create-as-frequent UI from this editor
-  // (The save-as-frequent action has been moved to the New Match flow)
 
   const normalizeTimeTo24 = (timeStr) => {
     if (!timeStr) return '00:00';
@@ -167,6 +155,13 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
 
   const guardarCambios = async () => {
     try {
+      console.log('[EditarPartidoFrecuente] Editando plantilla frecuente');
+      if (!partido?.id) {
+        console.warn('[EditarPartidoFrecuente] plantillaFrecuente sin id, se aborta update');
+        toast.warn('No se encontró la plantilla para guardar');
+        return;
+      }
+
       // Validate precioCancha: no negativos, empty => null, accept decimals
       const raw = (precioCancha === null || precioCancha === undefined || precioCancha === '') ? '' : String(precioCancha).trim();
       let precioVal = null;
@@ -198,15 +193,6 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
         return;
       }
 
-      // Compute revival rule: if fechaHoraEditada > (now - 5 minutes) -> revive
-      const now = new Date();
-      const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-      const shouldRevive = fechaHoraEditada.getTime() > fiveMinutesAgo.getTime();
-
-      // Determine active states from project conventions
-      const ACTIVE_STATES = ['equipos_formados', 'activo', 'en_juego', 'en_curso'];
-      const currentlyActive = ACTIVE_STATES.includes(partido.estado);
-
       setLoading(true);
 
       // Upload image if provided (do this once, then include in updatesFrecuente if uploaded)
@@ -233,63 +219,28 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
       // Only fields allowed in partidos_frecuentes
       if (nombre !== undefined) updatesFrecuente.nombre = nombre;
       if (sede !== undefined) updatesFrecuente.sede = sede;
+      if (hora !== undefined) updatesFrecuente.hora = time24;
+      if (fecha !== undefined) updatesFrecuente.dia_semana = weekdayFromYMD(fecha);
       if (tipoPartido !== undefined) updatesFrecuente.tipo_partido = tipoPartido;
+      if (modalidad !== undefined) updatesFrecuente.modalidad = modalidad;
       if (precioVal !== undefined) {
         updatesFrecuente.precio_cancha = precioVal; // write to existing column
         updatesFrecuente.precio = precioVal; // also write legacy 'precio' for backward compatibility
       }
       if (uploadedImageUrl) updatesFrecuente.imagen_url = uploadedImageUrl;
 
-      const updatesPartido = {};
-      if (fecha !== undefined) updatesPartido.fecha = fecha;
-      if (hora !== undefined) updatesPartido.hora = hora;
-      // Do not send dia_semana to the partidos table (the partidos table does not have this column).
-      // If the UI needs the day of week, compute it client-side from `fecha` using weekdayFromYMD(fecha) when rendering.
-      // estado only if reviving
-      if (shouldRevive && !currentlyActive) updatesPartido.estado = 'activo';
-
-      // Execute updates in sequence. Determine frequent id using strict fields only
-      const frequentIdCandidate = getFrequentIdFromPartido(partido);
-
-      // Defensive validation: ensure frequentIdCandidate is a UUID string (contains '-')
-      const hasValidFrequentUuid = typeof frequentIdCandidate === 'string' && frequentIdCandidate.includes('-');
-
-      // Track whether estado update succeeded to show 'Partido reactivado' only if it was applied in partidos
-      let partidoUpdateResult = null;
-
-      // Update frequent template if id available and there are fields to update
+      // Update frequent template only (no partido updates here)
       if (Object.keys(updatesFrecuente).length > 0) {
-        if (hasValidFrequentUuid) {
-          const resFrecuente = await updatePartidoFrecuente(frequentIdCandidate, updatesFrecuente);
-          // handle functions that return {data, error}
-          if (resFrecuente && typeof resFrecuente === 'object' && 'error' in resFrecuente && resFrecuente.error) {
-            throw resFrecuente.error;
-          }
-        } else {
-          console.warn('[EditarPartidoFrecuente] plantilla frecuente inválida o inexistente. Omitting updatePartidoFrecuente. partido:', partido);
-          toast.warn('Este partido no tiene plantilla asociada');
+        console.log('[EditarPartidoFrecuente] Actualizando partidos_frecuentes', updatesFrecuente);
+        const resFrecuente = await updatePartidoFrecuente(partido.id, updatesFrecuente);
+        if (resFrecuente && typeof resFrecuente === 'object' && 'error' in resFrecuente && resFrecuente.error) {
+          throw resFrecuente.error;
         }
+      } else {
+        console.log('[EditarPartidoFrecuente] Sin cambios para actualizar');
       }
 
-      // Now update the actual partido row
-      const { data: partidoData, error: partidoError } = await supabase
-        .from('partidos')
-        .update(updatesPartido)
-        .eq('id', partido.id)
-        .select()
-        .single();
-
-      if (partidoError) throw partidoError;
-      partidoUpdateResult = partidoData;
-
-      // Both updates succeeded
-      toast.success('Cambios guardados');
-
-      // If revived (we included estado in updatesPartido), show extra toast
-      if (updatesPartido.estado === 'activo') {
-        toast.success('Partido reactivado ✅');
-      }
-
+      toast.success('Plantilla guardada');
       onGuardado && onGuardado();
     } catch (error) {
       console.error('[EditarPartidoFrecuente] guardarCambios error', error);
@@ -328,7 +279,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
         // Log helpful SQL for debugging (kept for other errors)
         console.error('SQL to add column precio_cancha (recommended type numeric):\nALTER TABLE partidos_frecuentes ADD COLUMN precio_cancha numeric;\n-- or, if you use the main partidos table: ALTER TABLE partidos ADD COLUMN precio_cancha numeric;');
 
-        toast.error('Error al guardar: ' + (mensajeCorto || 'Error desconocido'));
+        toast.error('Error al guardar la plantilla: ' + (mensajeCorto || 'Error desconocido'));
       }
     } finally {
       setLoading(false);
@@ -447,6 +398,28 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
                     }`}
                 >
                   {tipo}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Selector de modalidad */}
+          <div className="space-y-3">
+            <label className="text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1">
+              Modalidad
+            </label>
+            <div className="grid grid-cols-3 gap-3 w-full">
+              {['F5', 'F7', 'F11'].map((mod) => (
+                <button
+                  key={mod}
+                  type="button"
+                  onClick={() => setModalidad(mod)}
+                  className={`py-3 px-2 text-sm font-oswald font-bold rounded-xl cursor-pointer transition-all duration-300 min-h-[48px] flex items-center justify-center border-2 ${modalidad === mod
+                    ? 'bg-primary border-transparent text-white shadow-[0_8px_24px_rgba(129,120,229,0.4)]'
+                    : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-white/20'
+                    }`}
+                >
+                  {mod}
                 </button>
               ))}
             </div>

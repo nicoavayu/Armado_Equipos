@@ -87,7 +87,7 @@ function sedeUnaPalabra(sede) {
 
 export default function MatchInfoSection(props) {
   // Keep named props for compatibility
-  const { nombre, fecha, hora, sede, modalidad, tipo, rightActions } = props;
+  const { nombre, fecha, hora, sede, modalidad, tipo, rightActions, topOffsetClassName } = props;
   const partidoObj = props.partido || {};
 
   const fechaRaw = partidoObj?.fecha ?? fecha;
@@ -120,10 +120,12 @@ export default function MatchInfoSection(props) {
   const precioNumber = precioFieldExists ? parsePriceNumber(rawPrecio) : null;
   const priceDisplay = precioFieldExists && precioNumber !== null ? formatPriceCompact(precioNumber) : 'Sin $';
 
+  const topOffset = topOffsetClassName || "mt-[76px] sm:mt-[70px]";
+
   return (
     <div className="w-screen max-w-none px-0 mx-0 overflow-hidden box-border -ml-[calc((100vw-100%)/2)]">
       <div className="relative w-full flex justify-center items-start m-0 p-0">
-        <div className="mt-[76px] mb-0 p-3 relative w-full max-w-none box-border bg-white/[0.04] rounded-none md:rounded-xl flex justify-center sm:max-w-full sm:mt-[70px] sm:p-[8px_10px]">
+        <div className={`${topOffset} mb-0 p-3 relative w-full max-w-none box-border bg-white/[0.04] rounded-none md:rounded-xl flex justify-center sm:max-w-full sm:p-[8px_10px]`}>
           {/* Use CSS grid with explicit weighted columns and minmax(0, fr) as requested */}
           <div className="flex items-center w-full overflow-hidden flex-nowrap" style={{
             display: 'grid',

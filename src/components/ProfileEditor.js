@@ -370,7 +370,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     return (
       <div className="flex-1 flex flex-col w-full overflow-hidden relative bg-transparent">
         {/* STICKY CARD WRAPPER - FIXED AT TOP */}
-        <div className="sticky top-0 z-30 w-full bg-black/40 backdrop-blur-xl border-b border-white/10 shrink-0 overflow-visible">
+        <div className="sticky top-0 z-30 w-full backdrop-blur-xl border-b border-white/10 shrink-0 overflow-visible">
           <div className="mx-auto w-full max-w-[550px] px-0 pt-4 pb-4 flex justify-center items-center gap-4 overflow-visible">
             <div className="w-full flex justify-center px-4 overflow-visible">
               <ProfileCard

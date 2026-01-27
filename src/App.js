@@ -31,6 +31,8 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const StatsPage = lazy(() => import('./pages/StatsPage'));
 const HistorialPage = lazy(() => import('./pages/HistorialPage'));
+const TemplateDetailsPage = lazy(() => import('./pages/TemplateDetailsPage'));
+const TemplateHistoryPage = lazy(() => import('./pages/TemplateHistoryPage'));
 const AdminPanelPage = lazy(() => import('./pages/AdminPanelPage'));
 
 // Dev-only diagnostics (excluded in production builds)
@@ -112,6 +114,16 @@ export default function App() {
                         <Route path="historial" element={
                           <Suspense fallback={<div className="min-h-screen w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
                             <HistorialPage />
+                          </Suspense>
+                        } />
+                        <Route path="historial/:templateId" element={
+                          <Suspense fallback={<div className="min-h-screen w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                            <TemplateDetailsPage />
+                          </Suspense>
+                        } />
+                        <Route path="historial/:templateId/historial" element={
+                          <Suspense fallback={<div className="min-h-screen w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                            <TemplateHistoryPage />
                           </Suspense>
                         } />
                         <Route path="admin/:partidoId" element={

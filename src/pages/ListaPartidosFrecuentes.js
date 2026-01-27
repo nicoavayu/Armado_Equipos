@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase, crearPartido } from '../supabase';
 import { toast } from 'react-toastify';
-import { DIAS_SEMANA } from '../constants';
 import PageTitle from '../components/PageTitle';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { HistorialDePartidosButton } from '../components/historial';
+import HistoryTemplateCard from '../components/historial/HistoryTemplateCard';
 
 function formatearSede(sede) {
   if (sede === 'La Terraza Fútbol 5, 8') return 'La Terraza Fútbol 5 y 8';
@@ -95,7 +95,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
         hora: editTime ? selectedTime : (template.hora || ''),
         sede: template.sede || template.lugar || '',
         sedeMaps: '',
-        modalidad: 'F5',
+        modalidad: template.modalidad || 'F5',
         cupo_jugadores: 10,
         falta_jugadores: false,
         tipo_partido: template.tipo_partido || 'Masculino',
@@ -189,6 +189,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
 }
 
 export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }) {
+  const navigate = useNavigate();
   const [partidosFrecuentes, setPartidosFrecuentes] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -264,6 +265,35 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
     console.log('[ELIMINAR HISTORIAL] click', { id: partido?.id, item: partido });
   };
 
+  const deleteTemplate = async (templateId) => {
+    if (!templateId) {
+      console.warn('[ELIMINAR HISTORIAL] templateId ausente');
+      return;
+    }
+    try {
+      const { deletePartidoFrecuente } = await import('../services/db/frequentMatches');
+      await deletePartidoFrecuente(templateId);
+    } catch (err) {
+      console.warn('[ELIMINAR HISTORIAL] deleteTemplate fallback/TODO', err);
+      throw err;
+    }
+  };
+
+  const handleViewDetails = (partido) => {
+    if (!partido?.id) return;
+    navigate(`/historial/${partido.id}`, { state: { template: partido } });
+  };
+
+  const handleHistoryView = (partido) => {
+    if (!partido?.id) return;
+    navigate(`/historial/${partido.id}/historial`, { state: { template: partido } });
+  };
+
+  const handleEditTemplate = (partido) => {
+    if (typeof onEditar === 'function') return onEditar(partido);
+    console.log('[HISTORIAL] Editar plantilla', partido?.id);
+  };
+
   const confirmarEliminacion = async () => {
     if (!partidoToDelete) return;
     if (isDeleting) return;
@@ -271,8 +301,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
 
     try {
       console.log('[ELIMINAR HISTORIAL] requesting delete', { id: partidoToDelete?.id });
-      const { deletePartidoFrecuente } = await import('../services/db/frequentMatches');
-      await deletePartidoFrecuente(partidoToDelete.id);
+      await deleteTemplate(partidoToDelete.id);
 
       setPartidosFrecuentes((prev) => prev.filter((p) => p.id !== partidoToDelete.id));
       toast.success('Plantilla eliminada correctamente');
@@ -318,60 +347,16 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
             <p className="text-lg">No hay partidos frecuentes configurados</p>
           </div>
         ) : (
-          <div className="flex flex-col gap-6 w-full">
+          <div className="flex flex-col gap-3 w-full">
             {partidosFrecuentes.map((partido) => (
-              <div
+              <HistoryTemplateCard
                 key={partido.id}
-                className="bg-white/5 border border-white/10 rounded-[2rem] p-6 flex flex-col gap-6 backdrop-blur-xl shadow-2xl transition-all duration-300 w-full box-border"
-              >
-                <div className="flex items-center gap-5">
-                  <div className="flex-shrink-0">
-                    {partido.imagen_url ? (
-                      <img
-                        src={partido.imagen_url}
-                        alt={partido.nombre}
-                        className="w-16 h-16 rounded-2xl object-cover border-2 border-white/20 shadow-lg"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-2xl bg-white/10 border-2 border-white/10 flex items-center justify-center text-3xl shadow-inner">
-                        ⚽
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-white text-2xl font-bold uppercase tracking-wider font-bebas truncate drop-shadow-sm">
-                      {partido.nombre}
-                    </div>
-                    <div className="text-white/80 text-base font-medium font-oswald mt-0.5 uppercase">
-                      {DIAS_SEMANA[partido.dia_semana] || `Día ${partido.dia_semana}`} • {partido.hora}
-                    </div>
-                    <div className="text-white/60 text-sm font-oswald mt-1 truncate">
-                      {formatearSede(partido.sede || partido.lugar || '')}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3 pt-2">
-                  <button
-                    className="w-full py-3.5 bg-primary hover:brightness-110 text-white font-bebas font-bold text-lg rounded-xl transition-all active:scale-95 shadow-[0_8px_32px_rgba(129,120,229,0.3)] border border-white/20 uppercase tracking-widest flex items-center justify-center"
-                    onClick={() => onEntrar(partido)}
-                  >
-                    ENTRAR
-                  </button>
-
-                  <HistorialDePartidosButton
-                    partidoFrecuente={partido}
-                    className="w-full py-3.5 bg-white/10 hover:bg-white/20 text-white font-bebas font-bold text-lg rounded-xl transition-all active:scale-95 shadow-md border border-white/10 uppercase tracking-widest flex items-center justify-center min-h-[52px]"
-                  />
-
-                  <button
-                    className="w-full py-3.5 bg-red-500/20 hover:bg-red-500/40 text-red-200 font-bebas font-bold text-lg rounded-xl transition-all active:scale-95 shadow-md border border-red-500/30 uppercase tracking-widest flex items-center justify-center"
-                    onClick={() => handleDeleteClick(partido)}
-                  >
-                    BORRAR
-                  </button>
-                </div>
-              </div>
+                template={partido}
+                onViewDetails={handleViewDetails}
+                onHistory={handleHistoryView}
+                onDelete={handleDeleteClick}
+                onEdit={handleEditTemplate}
+              />
             ))}
           </div>
         )}

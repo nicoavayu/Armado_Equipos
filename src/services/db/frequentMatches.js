@@ -171,13 +171,17 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
   
   console.log('Creating new match');
   const { crearPartido, updateJugadoresPartido } = await import('./matches');
+  
+  // Use modalidad from template if available, otherwise use parameter default
+  const finalModalidad = partidoFrecuente.modalidad || modalidad;
+  
   const partido = await crearPartido({
     nombre: partidoFrecuente.nombre, // Usar el nombre del partido frecuente
     fecha: normalizedDate,
     hora: partidoFrecuente.hora,
     sede: partidoFrecuente.sede,
     sedeMaps: '',
-    modalidad,
+    modalidad: finalModalidad,
     cupo_jugadores: cupo,
     falta_jugadores: false,
     tipo_partido: partidoFrecuente.tipo_partido || 'Masculino',
