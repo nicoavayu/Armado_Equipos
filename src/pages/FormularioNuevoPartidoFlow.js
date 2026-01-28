@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '../components/AuthProvider';
 import AutocompleteSede from '../components/AutocompleteSede';
 import { crearPartido, supabase } from '../supabase';
 import { insertPartidoFrecuenteFromPartido } from '../services/db/frequentMatches';
@@ -41,6 +42,7 @@ const isDateInPast = (dateStr) => {
 
 
 export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
+  const { user } = useAuth();
   const { setTimeoutSafe } = useTimeout();
   const [step, setStep] = useState(STEPS.NAME);
   const [nombrePartido, setNombrePartido] = useState('');
@@ -162,7 +164,6 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     console.log('[NuevoPartido] saveAsFrequent:', saveAsFrequent, 'shouldSaveFrequent:', shouldSaveFrequent);
 
     try {
-      await supabase.auth.getUser();
       let partido;
 
       // Upload image if present (unchanged)
@@ -198,6 +199,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
         cupo_jugadores: cupo,
         falta_jugadores: false,
         tipo_partido: tipoPartido,
+        creado_por: user?.id,
         ...(precioVal !== undefined ? { precio_cancha_por_persona: precioVal } : {}),
       };
 
