@@ -23,7 +23,7 @@ const MainLayout = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-[100dvh] bg-[#0b1020]">
+    <div className="flex flex-col min-h-[100dvh]">
       <DirectFix />
 
       {/* App Shell / Main Content Container */}
