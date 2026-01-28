@@ -4,10 +4,14 @@ import MatchChat from './MatchChat';
 import { useAuth } from './AuthProvider';
 import { MessageCircle } from 'lucide-react';
 
-export default function ChatButton({ partidoId }) {
+export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenChange, onUnreadCountChange }) {
   const { user } = useAuth(); // [TEAM_BALANCER_EDIT] Para verificar permisos
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [internalIsChatOpen, setInternalIsChatOpen] = useState(false);
+  
+  // Usar control externo si está disponible, sino usar interno
+  const isChatOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsChatOpen;
+  const setIsChatOpen = onOpenChange || setInternalIsChatOpen;
   const [canAccessChat, setCanAccessChat] = useState(false); // [TEAM_BALANCER_EDIT] Control de acceso
 
   // [TEAM_BALANCER_EDIT] Verificar acceso al chat
@@ -103,7 +107,11 @@ export default function ChatButton({ partidoId }) {
         .gt('timestamp', lastReadTime.toISOString());
 
       if (error) throw error;
-      setUnreadCount(data?.length || 0);
+      const count = data?.length || 0;
+      setUnreadCount(count);
+      if (onUnreadCountChange) {
+        onUnreadCountChange(count);
+      }
     } catch (error) {
       console.error('Error checking unread messages:', error);
     }
@@ -112,6 +120,9 @@ export default function ChatButton({ partidoId }) {
   const handleOpenChat = () => {
     setIsChatOpen(true);
     setUnreadCount(0);
+      if (onUnreadCountChange) {
+        onUnreadCountChange(0);
+      }
   };
 
   const handleCloseChat = () => {
@@ -124,7 +135,7 @@ export default function ChatButton({ partidoId }) {
 
   return (
     <>
-      {!isChatOpen && (
+      {!isChatOpen && externalIsOpen === undefined && (
         <button
           className="fixed bottom-[120px] right-5 w-12 h-12 bg-slate-700 border border-slate-600 rounded-full text-white/80 cursor-pointer flex items-center justify-center shadow-lg transition-all duration-200 z-[99999] hover:bg-slate-600 hover:text-white active:scale-95 max-[600px]:bottom-[120px] max-[600px]:right-4 max-[600px]:w-11 max-[600px]:h-11"
           onClick={handleOpenChat}

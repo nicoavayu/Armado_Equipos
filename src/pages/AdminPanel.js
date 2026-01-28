@@ -41,6 +41,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState({ open: false, type: null });
   const [processingAction, setProcessingAction] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
   const { safeSetTeams, handleArmarEquipos: handleArmarEquiposUtil } = useTeamFormation();
 
@@ -93,7 +95,13 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         />
       ) : (
         <>
-          <PageTitle title={isAdmin ? "CONVOCA JUGADORES" : "TE INVITARON A JUGAR"} onBack={onBackToHome} />
+          <PageTitle 
+            title={isAdmin ? "CONVOCA JUGADORES" : "TE INVITARON A JUGAR"} 
+            onBack={onBackToHome}
+            showChatButton={!isAdmin}
+            onChatClick={() => setIsChatOpen(true)}
+            unreadCount={chatUnreadCount}
+          />
 
           {!showTeams && (
             <MatchInfoSection
@@ -270,11 +278,14 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       {/* ChatButton */}
       {!isAdmin && (
         <>
-
-          <ChatButton partidoId={partidoActual?.id} />
+          <ChatButton 
+            partidoId={partidoActual?.id}
+            isOpen={isChatOpen}
+            onOpenChange={setIsChatOpen}
+            onUnreadCountChange={setChatUnreadCount}
+          />
         </>
       )}
-      {isAdmin && <ChatButton partidoId={partidoActual?.id} />}
     </>
   );
 }

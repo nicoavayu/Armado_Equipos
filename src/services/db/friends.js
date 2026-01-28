@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabaseClient';
 /**
  * Get all friends for a user with status 'accepted'
  * @param {string} userId - Current user ID (UUID)
- * @returns {Promise<Array>} Array of friend users
+ * @returns {Promise<Array>} Array of friend objects with relationship ID and user data
  */
 export const getAmigos = async (userId) => {
   if (!userId) return [];
@@ -11,51 +11,68 @@ export const getAmigos = async (userId) => {
   console.log('[GET_AMIGOS] Fetching friends for user:', userId);
   
   try {
-    // 1. Traer relaciones donde user_id = userId y status = \"accepted\"
+    // 1. Traer relaciones donde user_id = userId y status = "accepted"
     const { data: directFriends, error: directError } = await supabase
       .from('amigos')
-      .select('friend_id')
+      .select('id, friend_id')
       .eq('user_id', userId)
       .eq('status', 'accepted');
       
     if (directError) throw directError;
     
-    // 2. Traer relaciones donde friend_id = userId y status = \"accepted\"
+    // 2. Traer relaciones donde friend_id = userId y status = "accepted"
     const { data: reverseFriends, error: reverseError } = await supabase
       .from('amigos')
-      .select('user_id')
+      .select('id, user_id')
       .eq('friend_id', userId)
       .eq('status', 'accepted');
       
     if (reverseError) throw reverseError;
     
-    // 3. Armar array con los IDs del otro usuario en cada relación
-    const friendIds = [
-      ...(directFriends || []).map((f) => f.friend_id),
-      ...(reverseFriends || []).map((f) => f.user_id),
+    // 3. Armar array con los IDs del otro usuario y el ID de la relación
+    const friendMappings = [
+      ...(directFriends || []).map((f) => ({ relationshipId: f.id, friendId: f.friend_id })),
+      ...(reverseFriends || []).map((f) => ({ relationshipId: f.id, friendId: f.user_id })),
     ];
     
-    // Eliminar duplicados y el propio userId
-    const uniqueFriendIds = [...new Set(friendIds)].filter((id) => id !== userId);
+    // Eliminar duplicados basado en friendId
+    const uniqueFriendMappings = [];
+    const seenIds = new Set();
+    for (const mapping of friendMappings) {
+      if (!seenIds.has(mapping.friendId) && mapping.friendId !== userId) {
+        seenIds.add(mapping.friendId);
+        uniqueFriendMappings.push(mapping);
+      }
+    }
     
-    console.log('[GET_AMIGOS] userId:', userId, 'allIds:', uniqueFriendIds);
+    console.log('[GET_AMIGOS] userId:', userId, 'friendCount:', uniqueFriendMappings.length);
     
-    if (uniqueFriendIds.length === 0) {
+    if (uniqueFriendMappings.length === 0) {
       console.log('[GET_AMIGOS] No friends found');
       return [];
     }
     
-    // 4. Hacer SELECT * FROM usuarios WHERE id IN (...) para traer datos completos
+    // 4. Hacer SELECT FROM usuarios WHERE id IN (friendIds) - usar campos que sabemos que existen
+    const friendIds = uniqueFriendMappings.map((m) => m.friendId);
     const { data: users, error: usersError } = await supabase
       .from('usuarios')
-      .select('*')
-      .in('id', uniqueFriendIds);
+      .select('id, nombre, avatar_url, localidad, ranking, partidos_jugados, posicion, email')
+      .in('id', friendIds);
       
     if (usersError) throw usersError;
     
-    console.log('[GET_AMIGOS] userId:', userId, 'allIds:', uniqueFriendIds, 'users:', users?.length || 0);
+    // 5. Combinar datos de usuarios con IDs de relaciones
+    const friendsWithRelationships = uniqueFriendMappings.map((mapping) => {
+      const user = users?.find((u) => u.id === mapping.friendId);
+      return {
+        relationshipId: mapping.relationshipId,
+        ...user,
+      };
+    });
     
-    return users || [];
+    console.log('[GET_AMIGOS] Returning friends with relationship IDs:', friendsWithRelationships.length);
+    
+    return friendsWithRelationships || [];
     
   } catch (err) {
     console.error('[GET_AMIGOS] Error fetching friends:', err);
@@ -187,22 +204,69 @@ export const rejectFriendRequest = async (requestId) => {
 };
 
 /**
- * Remove a friend
- * @param {string} friendshipId - ID of the friendship
+ * Remove a friend relationship
+ * @param {string} friendshipId - ID of the friendship relation
  * @returns {Promise<Object>} Result of the operation
  */
 export const removeFriend = async (friendshipId) => {
   try {
-    const { error } = await supabase
+    console.log('[REMOVE_FRIEND] Attempting to delete friendship with ID:', friendshipId);
+    
+    // Primero obtener la relación para saber quiénes son user_id y friend_id
+    const { data: relationship, error: fetchError } = await supabase
+      .from('amigos')
+      .select('user_id, friend_id')
+      .eq('id', friendshipId)
+      .single();
+      
+    if (fetchError) {
+      console.error('[REMOVE_FRIEND] Error fetching relationship:', fetchError);
+      throw fetchError;
+    }
+    
+    if (!relationship) {
+      console.error('[REMOVE_FRIEND] Relationship not found');
+      throw new Error('Relación de amistad no encontrada');
+    }
+    
+    console.log('[REMOVE_FRIEND] Found relationship:', {
+      userId: relationship.user_id,
+      friendId: relationship.friend_id
+    });
+    
+    // Eliminar TODAS las relaciones entre estos dos usuarios (en ambas direcciones)
+    const { data: deletedData, error: deleteError } = await supabase
       .from('amigos')
       .delete()
-      .eq('id', friendshipId);
+      .or(`and(user_id.eq.${relationship.user_id},friend_id.eq.${relationship.friend_id}),and(user_id.eq.${relationship.friend_id},friend_id.eq.${relationship.user_id})`)
+      .select();
       
-    if (error) throw error;
+    if (deleteError) {
+      console.error('[REMOVE_FRIEND] Error deleting relationships:', deleteError);
+      throw deleteError;
+    }
     
+    console.log('[REMOVE_FRIEND] Delete operation result:', {
+      deletedCount: deletedData?.length || 0,
+      deletedRecords: deletedData
+    });
+    
+    // VALIDACIÓN: Verificar que realmente se borraron
+    const { data: stillExists, error: checkError } = await supabase
+      .from('amigos')
+      .select('id, user_id, friend_id, status')
+      .or(`and(user_id.eq.${relationship.user_id},friend_id.eq.${relationship.friend_id}),and(user_id.eq.${relationship.friend_id},friend_id.eq.${relationship.user_id})`);
+    
+    if (checkError) {
+      console.error('[REMOVE_FRIEND] Error checking deletion:', checkError);
+    } else {
+      console.log('[REMOVE_FRIEND] Verification check - records still exist:', stillExists?.length || 0, stillExists);
+    }
+    
+    console.log('[REMOVE_FRIEND] Successfully deleted all relationships between users');
     return { success: true };
   } catch (err) {
-    console.error('Error removing friend:', err);
+    console.error('[REMOVE_FRIEND] Error removing friend:', err);
     return { success: false, message: err.message };
   }
 };

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAmigos } from '../hooks/useAmigos';
 import { PlayerCardTrigger } from './ProfileComponents';
 import MiniFriendCard from './MiniFriendCard';
+import ConfirmModal from './ConfirmModal';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
@@ -16,6 +17,10 @@ const AmigosView = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const { markTypeAsRead } = useNotifications();
+  
+  // Estado centralizado para el modal de confirmación de eliminación
+  const [friendToDelete, setFriendToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const {
     amigos,
@@ -126,18 +131,43 @@ const AmigosView = () => {
 
   // Handle removing a friend
   const handleRemoveFriend = async (friend) => {
-    if (!confirm(`¿Estás seguro de que quieres eliminar a ${friend.profile?.nombre} de tus amigos?`)) {
+    // friend.id es el relationship ID (de tabla amigos)
+    // friend.profile es el objeto usuario con todos los datos
+    console.log('[AMIGOS] Removing friend:', {
+      relationshipId: friend.id,
+      friendName: friend.profile?.nombre,
+      friendUserId: friend.profile?.id,
+    });
+
+    if (!friend.id) {
+      console.error('[AMIGOS] No relationship ID found:', friend);
+      toast.error('Error: No se pudo identificar la relación');
+      setFriendToDelete(null); // Cerrar modal
       return;
     }
 
-    console.log('[AMIGOS] Removing friend:', friend.profile?.id);
-    const result = await removeFriend(friend.profile?.id);
+    try {
+      setIsDeleting(true);
+      console.log('[AMIGOS] Calling removeFriend with relationship ID:', friend.id);
+      const result = await removeFriend(friend.id);
 
-    if (result.success) {
-      toast.success('Amigo eliminado');
-      await getAmigos();
-    } else {
-      toast.error(result.message || 'Error al eliminar amigo');
+      if (result.success) {
+        toast.success('Amigo eliminado');
+        // Pequeño delay para asegurar que la DB se actualice antes de refrescar
+        await new Promise(resolve => setTimeout(resolve, 300));
+        console.log('[AMIGOS] Refreshing friends list after deletion');
+        await getAmigos();
+      } else {
+        console.error('[AMIGOS] Error removing friend:', result.message);
+        toast.error(result.message || 'Error al eliminar amigo');
+      }
+    } catch (error) {
+      console.error('[AMIGOS] Exception in handleRemoveFriend:', error);
+      toast.error('Error al eliminar amigo');
+    } finally {
+      // Cerrar el modal SIEMPRE después de intentar eliminar
+      setFriendToDelete(null);
+      setIsDeleting(false);
     }
   };
 
@@ -273,7 +303,7 @@ const AmigosView = () => {
         const hasAmigos = Array.isArray(amigos) && amigos.length > 0;
 
         return hasAmigos ? (
-          <div className="flex flex-col items-center mb-[350px] w-full max-w-4xl mx-auto">
+          <div className="flex flex-col items-center mb-[350px] w-full max-w-4xl mx-auto relative z-0">
             <h3 className="text-xl font-semibold my-[20px] mb-[15px] text-white">Mis Amigos ({amigos.length})</h3>
             <div className="flex flex-col gap-2 mt-[15px] w-full max-w-none overflow-visible sm:gap-1.5">
               {amigos.map((amigo) => (
@@ -281,6 +311,7 @@ const AmigosView = () => {
                   key={amigo.profile?.uuid || amigo.profile?.id || amigo.id}
                   friend={amigo}
                   onRemove={handleRemoveFriend}
+                  onRequestRemoveClick={(friend) => setFriendToDelete(friend)}
                   currentUserId={currentUserId}
                 />
               ))}
@@ -293,6 +324,22 @@ const AmigosView = () => {
           </div>
         );
       })()}
+      
+      {/* Modal centralizado de confirmación de eliminación */}
+      <ConfirmModal
+        isOpen={!!friendToDelete}
+        onCancel={() => setFriendToDelete(null)}
+        onConfirm={async () => {
+          if (friendToDelete) {
+            await handleRemoveFriend(friendToDelete);
+          }
+        }}
+        title="Eliminar amigo"
+        message={`¿Estás seguro que deseas eliminar a ${friendToDelete?.profile?.nombre || 'este jugador'} de tu lista de amigos?`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        isDeleting={isDeleting}
+      />
     </div>
   );
 };
@@ -333,11 +380,11 @@ const SearchUserItem = ({ user, currentUserId, onRequestSent }) => {
 
   const getButtonText = () => {
     if (loading) return 'Enviando...';
-    if (!relationshipStatus) return 'Enviar solicitud';
+    if (!relationshipStatus) return 'Solicitar';
     if (relationshipStatus.status === 'pending') return 'Solicitud enviada';
     if (relationshipStatus.status === 'accepted') return 'Ya son amigos';
-    if (relationshipStatus.status === 'rejected') return 'Reenviar solicitud';
-    return 'Enviar solicitud';
+    if (relationshipStatus.status === 'rejected') return 'Reenviar';
+    return 'Solicitar';
   };
 
   const isButtonDisabled = () => {
@@ -363,7 +410,7 @@ const SearchUserItem = ({ user, currentUserId, onRequestSent }) => {
 
       <button
         className={`
-          px-3 py-1.5 bg-[#4CAF50] text-white border-none rounded text-xs font-medium cursor-pointer transition-all hover:bg-[#45a049]
+          px-4 py-1.5 bg-[#2196F3] text-white border-none rounded text-xs font-medium cursor-pointer transition-all hover:bg-[#1976D2] whitespace-nowrap
           ${isButtonDisabled() ? 'bg-white/20 text-white/50 cursor-not-allowed hover:bg-white/20' : ''}
         `}
         onClick={handleSendRequest}

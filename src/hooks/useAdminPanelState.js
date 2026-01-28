@@ -349,34 +349,42 @@ export const useAdminPanelState = ({
   };
 
   const transferirAdmin = async (jugadorId) => {
+    console.log('[TRANSFER_ADMIN] Starting admin transfer', { jugadorId, isAdmin, currentUserId: user?.id });
+    
     if (!isAdmin) {
-      toast.error('Solo el creador puede transferir el rol de admin');
-      return;
+      const msg = 'Solo el creador puede transferir el rol de admin';
+      console.error('[TRANSFER_ADMIN]', msg);
+      throw new Error(msg);
     }
 
     const jugador = jugadores.find((j) => j.id === jugadorId || j.usuario_id === jugadorId);
+    console.log('[TRANSFER_ADMIN] Found jugador:', { jugador, searchedId: jugadorId });
+    
     if (!jugador || !jugador.usuario_id) {
-      toast.error('El jugador debe tener una cuenta para ser admin');
-      return;
+      const msg = 'El jugador debe tener una cuenta para ser admin';
+      console.error('[TRANSFER_ADMIN]', msg);
+      throw new Error(msg);
     }
 
     if (jugador.usuario_id === user.id) {
-      toast.error('Ya eres el admin del partido');
-      return;
-    }
-
-    if (!window.confirm('¿Estás seguro de transferir el rol de admin? Perderás el control del partido.')) {
-      return;
+      const msg = 'Ya eres el admin del partido';
+      console.error('[TRANSFER_ADMIN]', msg);
+      throw new Error(msg);
     }
 
     try {
+      console.log('[TRANSFER_ADMIN] Updating partido creado_por to', jugador.usuario_id);
       const { error } = await supabase
         .from('partidos')
         .update({ creado_por: jugador.usuario_id })
         .eq('id', partidoActual.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[TRANSFER_ADMIN] Supabase update error:', error);
+        throw error;
+      }
 
+      console.log('[TRANSFER_ADMIN] Update successful, updating local state');
       partidoActual.creado_por = jugador.usuario_id;
 
       const payload = {
@@ -391,9 +399,12 @@ export const useAdminPanelState = ({
         },
         read: false,
       };
+      
+      console.log('[TRANSFER_ADMIN] Inserting notification');
       await supabase.from('notifications').insert([payload]);
 
       // Trigger a minimal update to refresh admin panel (updated_at handled by trigger)
+      console.log('[TRANSFER_ADMIN] Final update to trigger refresh');
       await supabase
         .from('partidos')
         .update({ creado_por: jugador.usuario_id })
@@ -401,14 +412,17 @@ export const useAdminPanelState = ({
 
       onJugadoresChange([...jugadores]);
 
+      console.log('[TRANSFER_ADMIN] Transfer completed successfully');
       toast.success(`${jugador.nombre || 'El jugador'} es ahora el admin del partido`);
 
+      // Don't reload page, let the modal stay open to show changes
       setTimeout(() => {
         window.location.reload();
       }, 2000);
 
     } catch (error) {
-      toast.error('Error al transferir admin: ' + error.message);
+      console.error('[TRANSFER_ADMIN] Catch block error:', error);
+      throw error;
     }
   };
 

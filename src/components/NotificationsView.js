@@ -306,7 +306,7 @@ const NotificationsView = () => {
                   {notification.type === 'friend_request' && !notification.read && (
                     <div className="flex gap-2 mt-2">
                       <button
-                        className="px-3 py-1.5 rounded border-none cursor-pointer text-xs font-medium transition-all min-w-[70px] bg-[#4CAF50] text-white hover:bg-[#45a049] disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="px-3 py-1.5 rounded border-none cursor-pointer text-xs font-medium transition-all min-w-[70px] bg-[#2196F3] text-white hover:bg-[#1976D2] disabled:opacity-60 disabled:cursor-not-allowed"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleAcceptFriend(notification);

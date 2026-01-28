@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 
 export default function ConfirmModal({
   isOpen,
@@ -15,6 +16,11 @@ export default function ConfirmModal({
   const cancelRef = useRef(null);
   const confirmRef = useRef(null);
   const [visible, setVisible] = useState(false);
+
+  // Debug logs
+  useEffect(() => {
+    console.log('[CONFIRM_MODAL] State changed:', { isOpen, visible, isDeleting });
+  }, [isOpen, visible, isDeleting]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -34,6 +40,7 @@ export default function ConfirmModal({
       if (e.key === 'Escape') {
         if (isDeleting) return;
         e.preventDefault();
+        console.log('[CONFIRM_MODAL] Escape key pressed, calling onCancel');
         onCancel && onCancel();
         return;
       }
@@ -61,23 +68,51 @@ export default function ConfirmModal({
     return () => document.removeEventListener('keydown', keyHandler, true);
   }, [isOpen, isDeleting, onCancel]);
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    console.log('[CONFIRM_MODAL] Not open, returning null');
+    return null;
+  }
 
-
-
-  const handleOverlayClick = () => {
-    if (isDeleting) return;
+  const handleOverlayClick = (e) => {
+    console.log('[CONFIRM_MODAL] Backdrop clicked');
+    if (isDeleting) {
+      console.log('[CONFIRM_MODAL] isDeleting=true, not closing');
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[CONFIRM_MODAL] Calling onCancel from backdrop');
     onCancel && onCancel();
   };
 
-  return (
+  const handleCancelClick = (e) => {
+    console.log('[CONFIRM_MODAL] Cancel button clicked');
+    e.preventDefault();
+    e.stopPropagation();
+    onCancel && onCancel();
+  };
+
+  const handleConfirmClick = (e) => {
+    console.log('[CONFIRM_MODAL] Confirm button clicked, isDeleting:', isDeleting);
+    e.preventDefault();
+    e.stopPropagation();
+    if (isDeleting) {
+      console.log('[CONFIRM_MODAL] isDeleting=true, ignoring click');
+      return;
+    }
+    onConfirm && onConfirm();
+  };
+
+  const modalContent = (
     <div
       ref={overlayRef}
       className={`
-        fixed inset-0 bg-black/80 z-[2000] flex items-center justify-center p-4 
+        fixed inset-0 bg-black/80 z-[20000] flex items-center justify-center p-4 
         transition-opacity duration-200 backdrop-blur-md
         ${visible ? 'opacity-100' : 'opacity-0'}
       `}
+      style={{ pointerEvents: 'auto' }}
+      onMouseDown={handleOverlayClick}
       onClick={handleOverlayClick}
       role="dialog"
       aria-modal="true"
@@ -90,6 +125,8 @@ export default function ConfirmModal({
           border border-white/10 text-white transition-all duration-180 ease-[cubic-bezier(.2,.9,.3,1)]
           ${visible ? 'scale-100 opacity-100' : 'scale-[0.98] opacity-0'}
         `}
+        style={{ pointerEvents: 'auto' }}
+        onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
@@ -104,25 +141,30 @@ export default function ConfirmModal({
           {!singleButton && (
             <button
               ref={cancelRef}
-              className="px-3.5 py-2.5 rounded-lg font-bold cursor-pointer border-none font-['Oswald'] bg-white/[0.06] text-white hover:bg-white/10 disabled:opacity-50 disabled:cursor-default"
-              onClick={() => { if (isDeleting) return; onCancel && onCancel(); }}
-              disabled={isDeleting}
-              aria-disabled={isDeleting}
+              className="px-4 py-2.5 rounded-xl font-bold cursor-pointer border border-slate-600 font-['Oswald'] bg-white/[0.06] text-white hover:bg-white/10 hover:border-slate-500 disabled:opacity-50 disabled:cursor-default transition-all"
+              onMouseDown={handleCancelClick}
+              onClick={handleCancelClick}
+              disabled={false}
+              aria-disabled={false}
             >
               {cancelText}
             </button>
           )}
           <button
             ref={confirmRef}
-            className="px-3.5 py-2.5 rounded-lg font-bold cursor-pointer border-none font-['Oswald'] bg-gradient-to-tr from-[#f4d03f] to-[#f7dc6f] text-black hover:opacity-90 disabled:opacity-50 disabled:cursor-default"
-            onClick={() => { if (isDeleting) return; onConfirm && onConfirm(); }}
+            className="px-4 py-2.5 rounded-xl font-bold cursor-pointer border-0 font-['Oswald'] bg-[#8178e5] text-white hover:shadow-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-default transition-all"
+            onMouseDown={handleConfirmClick}
+            onClick={handleConfirmClick}
             disabled={isDeleting}
             aria-disabled={isDeleting}
           >
-            {isDeleting ? (confirmText || 'ELIMINANDO…') : (confirmText || 'ELIMINAR')}
+            {isDeleting ? 'PROCESANDO…' : confirmText}
           </button>
         </div>
       </div>
     </div>
   );
+
+  // Renderizar via portal a document.body para escapar de overlays
+  return ReactDOM.createPortal(modalContent, document.body);
 }

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import LoadingSpinner from '../LoadingSpinner';
+import ConfirmModal from '../ConfirmModal';
 import { MoreVertical, LogOut } from 'lucide-react';
 
 /**
@@ -35,6 +37,11 @@ const PlayersSection = ({
   invitationStatus,
 }) => {
   const [localMenuOpen, setLocalMenuOpen] = useState(false);
+  const [playerToRemove, setPlayerToRemove] = useState(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const menuButtonRef = useRef(null);
+  const adminMenuButtonRef = useRef(null);
+  
   const menuOpen = isAdmin ? (actionsMenuOpen !== undefined ? actionsMenuOpen : localMenuOpen) : false;
   const setMenuOpen = isAdmin && setActionsMenuOpen ? setActionsMenuOpen : setLocalMenuOpen;
   const renderPlayerCard = (j) => {
@@ -80,18 +87,12 @@ const PlayersSection = ({
               className="w-6 h-6 bg-fifa-danger/70 text-white/80 border-0 rounded-full font-bebas text-xl font-bold cursor-pointer transition-all flex items-center justify-center shrink-0 hover:bg-fifa-danger hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={(e) => {
                 e.stopPropagation();
-                const isOwnPlayer = j.usuario_id === user?.id;
-                const confirmMessage = isOwnPlayer
-                  ? '¿Estás seguro de que quieres salir del partido?'
-                  : `¿Eliminar a ${j.nombre} del partido?`;
-                if (window.confirm(confirmMessage)) {
-                  eliminarJugador(j.uuid);
-                }
+                setPlayerToRemove({ uuid: j.uuid, nombre: j.nombre, isOwnPlayer: false });
               }}
               type="button"
-              aria-label={j.usuario_id === user?.id ? 'Salir del partido' : 'Eliminar jugador'}
+              aria-label="Eliminar jugador"
               disabled={isClosing}
-              title={j.usuario_id === user?.id ? 'Salir del partido' : 'Eliminar jugador'}
+              title="Eliminar jugador"
             >
               ×
             </button>
@@ -115,27 +116,55 @@ const PlayersSection = ({
             {isPlayerInMatch && (
               <div className="relative">
                 <button
+                  ref={menuButtonRef}
                   className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white/90 transition-colors"
-                  onClick={() => setLocalMenuOpen(!localMenuOpen)}
+                  onClick={() => {
+                    if (menuButtonRef.current) {
+                      const rect = menuButtonRef.current.getBoundingClientRect();
+                      setMenuPosition({
+                        top: rect.bottom + 8,
+                        left: rect.left - 140 + rect.width
+                      });
+                    }
+                    setLocalMenuOpen(!localMenuOpen);
+                  }}
                   aria-label="Opciones"
                   type="button"
                 >
                   <MoreVertical size={20} />
                 </button>
-                {localMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-slate-700 bg-slate-900 shadow-xl z-30 overflow-hidden">
-                    <button
-                      className="w-full px-4 py-3 flex items-center gap-3 text-left text-red-400 hover:bg-white/5 transition-colors font-medium text-[15px]"
-                      onClick={() => {
-                        setLocalMenuOpen(false);
-                        setConfirmConfig({ open: true, type: 'abandon' });
+                {localMenuOpen && ReactDOM.createPortal(
+                  <>
+                    {/* Overlay transparente primero (z-index menor) */}
+                    <div
+                      className="fixed inset-0 z-[9998] bg-transparent"
+                      onClick={() => setLocalMenuOpen(false)}
+                    />
+                    {/* Menú después (z-index mayor) con animación */}
+                    <div 
+                      className="fixed w-48 rounded-lg border border-slate-700 bg-slate-900 shadow-xl z-[9999] overflow-hidden transition-all duration-200 ease-out"
+                      style={{
+                        top: `${menuPosition.top}px`,
+                        left: `${menuPosition.left}px`,
+                        opacity: localMenuOpen ? 1 : 0,
+                        transform: localMenuOpen ? 'scale(1)' : 'scale(0.95)',
                       }}
-                      type="button"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <LogOut size={16} />
-                      <span>Abandonar partido</span>
-                    </button>
-                  </div>
+                      <button
+                        className="w-full px-4 py-3 flex items-center gap-3 text-left text-[#DE1C49] hover:bg-white/5 transition-colors font-medium text-[15px]"
+                        onClick={() => {
+                          setLocalMenuOpen(false);
+                          setConfirmConfig({ open: true, type: 'abandon' });
+                        }}
+                        type="button"
+                      >
+                        <LogOut size={16} />
+                        <span>Abandonar partido</span>
+                      </button>
+                    </div>
+                  </>,
+                  document.body
                 )}
               </div>
             )}
@@ -248,30 +277,58 @@ const PlayersSection = ({
         {isAdmin && isPlayerInMatch && (
           <div className="relative">
             <button
+              ref={adminMenuButtonRef}
               className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white/90 transition-colors"
-              onClick={() => setMenuOpen(!menuOpen)}
+              onClick={() => {
+                if (adminMenuButtonRef.current) {
+                  const rect = adminMenuButtonRef.current.getBoundingClientRect();
+                  setMenuPosition({
+                    top: rect.bottom + 8,
+                    left: rect.left - 140 + rect.width
+                  });
+                }
+                setMenuOpen(!menuOpen);
+              }}
               aria-label="Más acciones"
               type="button"
               title="Acciones de administración"
             >
               <MoreVertical size={20} />
             </button>
-            {menuOpen && (
-              <div className="absolute right-0 mt-1.5 w-48 rounded-lg border border-slate-700 bg-slate-900 shadow-lg z-20">
-                <div className="py-1">
-                  <button
-                    className="w-full px-3 py-2 flex items-center gap-2 text-left text-slate-200 hover:bg-slate-800 transition-colors text-sm"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setConfirmConfig({ open: true, type: 'abandon' });
-                    }}
-                    type="button"
-                  >
-                    <LogOut size={14} />
-                    <span>Abandonar partido</span>
-                  </button>
+            {menuOpen && ReactDOM.createPortal(
+              <>
+                {/* Overlay transparente primero (z-index menor) */}
+                <div
+                  className="fixed inset-0 z-[9998] bg-transparent"
+                  onClick={() => setMenuOpen(false)}
+                />
+                {/* Menú después (z-index mayor) con animación */}
+                <div 
+                  className="fixed w-48 rounded-lg border border-slate-700 bg-slate-900 shadow-lg z-[9999] transition-all duration-200 ease-out"
+                  style={{
+                    top: `${menuPosition.top}px`,
+                    left: `${menuPosition.left}px`,
+                    opacity: menuOpen ? 1 : 0,
+                    transform: menuOpen ? 'scale(1)' : 'scale(0.95)',
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="py-1">
+                    <button
+                      className="w-full px-3 py-2 flex items-center gap-2 text-left text-[#DE1C49] hover:bg-slate-800 transition-colors text-sm font-medium"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setConfirmConfig({ open: true, type: 'abandon' });
+                      }}
+                      type="button"
+                    >
+                      <LogOut size={14} />
+                      <span>Abandonar partido</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </>,
+              document.body
             )}
           </div>
         )}
@@ -285,6 +342,22 @@ const PlayersSection = ({
           {jugadores.map(renderPlayerCard)}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={playerToRemove !== null}
+        title="Eliminar jugador"
+        message={`¿Eliminar a ${playerToRemove?.nombre} del partido?`}
+        onConfirm={() => {
+          if (playerToRemove) {
+            eliminarJugador(playerToRemove.uuid);
+            setPlayerToRemove(null);
+          }
+        }}
+        onCancel={() => setPlayerToRemove(null)}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        isDeleting={isClosing}
+      />
     </div>
   );
 };

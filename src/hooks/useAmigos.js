@@ -3,6 +3,16 @@ import { supabase, getAmigos as getAmigosFromSupabase } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
 
 /**
+ * Validate if a string is a valid UUID format
+ * UUIDs have format: 8-4-4-4-12 hex characters
+ */
+const isValidUUID = (value) => {
+  if (!value || typeof value !== 'string') return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(value);
+};
+
+/**
  * Hook for managing friend relationships
  * @returns {Object} Friend management functions and state
  */
@@ -35,7 +45,7 @@ export const useAmigos = (currentUserId) => {
       
       // Convertir a formato esperado por la UI (con profile wrapper)
       const formattedAmigos = friendUsers.map((user) => ({
-        id: user.id, // Usar el ID del usuario como ID de la "amistad"
+        id: user.relationshipId, // ID de la relación en tabla amigos (es lo que removeFriend necesita)
         status: 'accepted',
         created_at: new Date().toISOString(),
         profile: user, // El usuario completo va en profile
@@ -70,26 +80,31 @@ export const useAmigos = (currentUserId) => {
       return null;
     }
     
+    // Validate UUID formats
+    if (!isValidUUID(currentUserId) || !isValidUUID(playerId)) {
+      console.error('[AMIGOS] Invalid UUID format detected', {
+        currentUserIdValid: isValidUUID(currentUserId),
+        playerIdValid: isValidUUID(playerId),
+        currentUserId,
+        playerId,
+      });
+      return null;
+    }
+    
     console.log('[AMIGOS] Checking relationship status between users:', { currentUserId, playerId });
     try {
-      // Ensure we're working with UUIDs
-      const userIdUuid = typeof currentUserId === 'string' ? currentUserId : String(currentUserId);
-      const friendIdUuid = typeof playerId === 'string' ? playerId : String(playerId);
-      
-      console.log('[AMIGOS] Using UUID values:', { userIdUuid, friendIdUuid });
-      
       // Check if there's a relationship where current user is user_id
       console.log('[AMIGOS] Checking if current user is the requester (user_id)');
       const { data, error } = await supabase
         .from('amigos')
         .select('id, status')
-        .eq('user_id', userIdUuid)
-        .eq('friend_id', friendIdUuid)
+        .eq('user_id', currentUserId)
+        .eq('friend_id', playerId)
         .maybeSingle();
         
       if (error) {
         console.error('[AMIGOS] Error checking relationship as user_id:', error);
-        throw error;
+        return null;
       }
       
       if (data) {
@@ -102,17 +117,17 @@ export const useAmigos = (currentUserId) => {
       const { data: reverseData, error: reverseError } = await supabase
         .from('amigos')
         .select('id, status')
-        .eq('user_id', friendIdUuid)
-        .eq('friend_id', userIdUuid)
+        .eq('user_id', playerId)
+        .eq('friend_id', currentUserId)
         .maybeSingle();
         
       if (reverseError) {
         console.error('[AMIGOS] Error checking relationship as friend_id:', reverseError);
-        throw reverseError;
+        return null;
       }
       
-      console.log('[AMIGOS] Relationship found as friend_id:', reverseData || 'No relationship found');
-      return reverseData;
+      console.log('[AMIGOS] Relationship check complete - no existing relationship found');
+      return reverseData || null;
     } catch (err) {
       console.error('[AMIGOS] Error getting relationship status:', err);
       console.error('[AMIGOS] Error context:', { currentUserId, playerId });
@@ -123,21 +138,26 @@ export const useAmigos = (currentUserId) => {
   // Send friend request
   const sendFriendRequest = useCallback(async (friendId) => {
     if (!currentUserId || !friendId) {
-      console.log('[AMIGOS] sendFriendRequest: Missing parameters', { currentUserId, friendId });
+      console.error('[AMIGOS] sendFriendRequest: Missing parameters', { currentUserId, friendId });
       return { success: false, message: 'Faltan parámetros necesarios' };
+    }
+    
+    // Validate UUID formats
+    if (!isValidUUID(currentUserId) || !isValidUUID(friendId)) {
+      console.error('[AMIGOS] Invalid UUID format in sendFriendRequest', {
+        currentUserIdValid: isValidUUID(currentUserId),
+        friendIdValid: isValidUUID(friendId),
+        currentUserId,
+        friendId,
+      });
+      return { success: false, message: 'Error: Identificadores inválidos' };
     }
     
     console.log('[AMIGOS] Sending friend request:', { from: currentUserId, to: friendId });
     try {
-      // Ensure we're working with UUIDs
-      const userIdUuid = typeof currentUserId === 'string' ? currentUserId : String(currentUserId);
-      const friendIdUuid = typeof friendId === 'string' ? friendId : String(friendId);
-      
-      console.log('[AMIGOS] Using UUID values:', { userIdUuid, friendIdUuid });
-      
       // Check if a relationship already exists
       console.log('[AMIGOS] Checking if relationship already exists');
-      const existingRelation = await getRelationshipStatus(friendIdUuid);
+      const existingRelation = await getRelationshipStatus(friendId);
       
       let data;
       if (existingRelation) {
@@ -164,6 +184,7 @@ export const useAmigos = (currentUserId) => {
           data = updateData;
         } else {
           // Other statuses (pending, accepted) should not allow new requests
+          console.warn('[AMIGOS] Relationship exists with status:', existingRelation.status);
           return { success: false, message: 'Ya existe una relación con este jugador' };
         }
       } else {
@@ -172,8 +193,8 @@ export const useAmigos = (currentUserId) => {
         const { data: insertData, error } = await supabase
           .from('amigos')
           .insert([{
-            user_id: userIdUuid,
-            friend_id: friendIdUuid,
+            user_id: currentUserId,
+            friend_id: friendId,
             status: 'pending',
           }])
           .select()
@@ -196,20 +217,20 @@ export const useAmigos = (currentUserId) => {
         const { data: senderProfile } = await supabase
           .from('usuarios')
           .select('nombre')
-          .eq('id', userIdUuid)
+          .eq('id', currentUserId)
           .single();
           
         // Create notification in the database for the recipient
         const notificationResult = await supabase
           .from('notifications')
           .insert([{
-            user_id: friendIdUuid,
+            user_id: friendId,
             type: 'friend_request',
             title: 'Nueva solicitud de amistad',
             message: `${senderProfile?.nombre || 'Alguien'} te ha enviado una solicitud de amistad`,
             data: { 
               requestId: data.id, 
-              senderId: userIdUuid,
+              senderId: currentUserId,
               senderName: senderProfile?.nombre || 'Alguien',
             },
             read: false,
@@ -228,6 +249,13 @@ export const useAmigos = (currentUserId) => {
     } catch (err) {
       console.error('[AMIGOS] Error sending friend request:', err);
       console.error('[AMIGOS] Error context:', { currentUserId, friendId });
+      
+      // Return friendly error message based on error type
+      if (err.message && err.message.includes('UUID')) {
+        return { success: false, message: 'Error: Identificadores inválidos' };
+      }
+      
+      return { success: false, message: 'Error al enviar solicitud de amistad' };
       return { success: false, message: err.message };
     }
   }, [currentUserId, getRelationshipStatus]);
@@ -347,48 +375,48 @@ export const useAmigos = (currentUserId) => {
     }
   }, []);
 
-  // Remove friend
-  const removeFriend = useCallback(async (friendUserId) => {
-    if (!friendUserId || !currentUserId) {
-      console.log('[AMIGOS] removeFriend: Missing parameters', { friendUserId, currentUserId });
+  // Remove friend (by relationshipId)
+  const removeFriend = useCallback(async (relationshipId) => {
+    if (!relationshipId || !currentUserId) {
+      console.log('[AMIGOS] removeFriend: Missing parameters', { relationshipId, currentUserId });
       return { success: false, message: 'Parámetros faltantes' };
     }
-    
-    console.log('[AMIGOS] Removing friendship with user:', friendUserId);
+
+    console.log('[AMIGOS] Removing friendship relationshipId:', relationshipId);
+
     try {
-      // Ensure we're working with UUIDs
-      const userIdUuid = typeof currentUserId === 'string' ? currentUserId : String(currentUserId);
-      const friendIdUuid = typeof friendUserId === 'string' ? friendUserId : String(friendUserId);
-      
-      // Delete friendship where current user is user_id and friend is friend_id
-      const { error: error1 } = await supabase
+      // Borrar por PK (id de la relación)
+      const { data, error } = await supabase
         .from('amigos')
         .delete()
-        .eq('user_id', userIdUuid)
-        .eq('friend_id', friendIdUuid);
-        
-      // Delete friendship where current user is friend_id and friend is user_id
-      const { error: error2 } = await supabase
-        .from('amigos')
-        .delete()
-        .eq('user_id', friendIdUuid)
-        .eq('friend_id', userIdUuid);
-        
-      if (error1 && error2) {
-        console.error('[AMIGOS] Error deleting friendship:', error1, error2);
-        throw error1;
+        .eq('id', relationshipId)
+        .select('id'); // Clave para saber si borró algo
+
+      if (error) {
+        console.error('[AMIGOS] Error removing friendship:', error);
+        throw error;
       }
-      
-      console.log('[AMIGOS] Friendship removed successfully');
+
+      if (!data || data.length === 0) {
+        // Si no borró nada, es porque relationshipId no existe o RLS bloqueó el delete
+        console.warn('[AMIGOS] Delete returned 0 rows. Relationship not deleted.', {
+          relationshipId,
+          currentUserId,
+        });
+        throw new Error('No se pudo borrar la amistad (0 filas afectadas). Revisar RLS o ID inválido.');
+      }
+
+      console.log('[AMIGOS] Friendship removed successfully:', data[0]?.id);
+
       // Refresh friends list
       await getAmigos();
+
       return { success: true };
     } catch (err) {
       console.error('[AMIGOS] Error removing friend:', err);
-      console.error('[AMIGOS] Error context:', { friendUserId, currentUserId });
       return { success: false, message: err.message };
     }
-  }, [getAmigos, currentUserId]);
+  }, [currentUserId, getAmigos]);
 
   // Get pending friend requests (received)
   const getPendingRequests = useCallback(async () => {
