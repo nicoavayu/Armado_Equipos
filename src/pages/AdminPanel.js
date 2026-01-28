@@ -92,13 +92,15 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
           onJugadoresChange={onJugadoresChange}
           partidoActual={partidoActual}
           onTeamsFormed={handleTeamsFormed}
+          onChatClick={() => setIsChatOpen(true)}
+          chatUnreadCount={chatUnreadCount}
         />
       ) : (
         <>
-          <PageTitle 
-            title={isAdmin ? "CONVOCA JUGADORES" : "TE INVITARON A JUGAR"} 
+          <PageTitle
+            title={isAdmin ? "CONVOCA JUGADORES" : "TE INVITARON A JUGAR"}
             onBack={onBackToHome}
-            showChatButton={!isAdmin}
+            showChatButton={true}
             onChatClick={() => setIsChatOpen(true)}
             unreadCount={chatUnreadCount}
           />
@@ -276,16 +278,12 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       />
 
       {/* ChatButton */}
-      {!isAdmin && (
-        <>
-          <ChatButton 
-            partidoId={partidoActual?.id}
-            isOpen={isChatOpen}
-            onOpenChange={setIsChatOpen}
-            onUnreadCountChange={setChatUnreadCount}
-          />
-        </>
-      )}
+      <ChatButton
+        partidoId={partidoActual?.id}
+        isOpen={isChatOpen}
+        onOpenChange={setIsChatOpen}
+        onUnreadCountChange={setChatUnreadCount}
+      />
     </>
   );
 }

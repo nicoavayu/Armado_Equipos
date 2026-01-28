@@ -28,6 +28,8 @@ export default function ArmarEquiposView({
   onJugadoresChange,
   partidoActual,
   onTeamsFormed,
+  onChatClick,
+  chatUnreadCount = 0,
 }) {
   const { user } = useAuth();
   const [votantes, setVotantes] = useState([]);
@@ -487,7 +489,14 @@ export default function ArmarEquiposView({
 
   return (
     <>
-      <PageTitle onBack={onBackToAdmin}>ARMAR EQUIPOS</PageTitle>
+      <PageTitle
+        onBack={onBackToAdmin}
+        showChatButton={true}
+        onChatClick={onChatClick}
+        unreadCount={chatUnreadCount}
+      >
+        ARMAR EQUIPOS
+      </PageTitle>
       <MatchInfoSection
         partido={normalizePartidoForHeader(partidoActual)}
         nombre={partidoActual?.nombre}
@@ -659,10 +668,10 @@ export default function ArmarEquiposView({
           title={'Iniciar votación'}
           message={`Se notificará a los ${jugadores.length} jugadores que tienen la app para que voten. Luego entrarás a la pantalla de votación.`}
           onConfirm={() => {
-            setConfirmConfig({ open: false });
+            setConfirmConfig({ open: false, action: null });
             handleCallToVote();
           }}
-          onCancel={() => setConfirmConfig({ open: false })}
+          onCancel={() => setConfirmConfig({ open: false, action: null })}
           confirmText={'Notificar y votar'}
           cancelText={'Cancelar'}
           isDeleting={calling}
@@ -673,10 +682,10 @@ export default function ArmarEquiposView({
           title={'Resetear votación'}
           message={'Esta acción borra todos los votos del partido y vuelve la votación a cero. No se puede deshacer.'}
           onConfirm={() => {
-            setConfirmConfig({ open: false });
+            setConfirmConfig({ open: false, action: null });
             handleResetVotacion();
           }}
-          onCancel={() => setConfirmConfig({ open: false })}
+          onCancel={() => setConfirmConfig({ open: false, action: null })}
           confirmText={'Resetear votación'}
           cancelText={'Cancelar'}
           isDeleting={resetting}
@@ -689,10 +698,10 @@ export default function ArmarEquiposView({
             ? `¿Cerrar votación y armar equipos? Se procesaron ${votantes.length} votos.`
             : 'No se detectaron votos. Los equipos se formarán con puntajes por defecto.'}
           onConfirm={() => {
-            setConfirmConfig({ open: false });
+            setConfirmConfig({ open: false, action: null });
             handleCerrarVotacion();
           }}
-          onCancel={() => setConfirmConfig({ open: false })}
+          onCancel={() => setConfirmConfig({ open: false, action: null })}
           confirmText={'Cerrar votación'}
           cancelText={'Cancelar'}
           isDeleting={isClosing}
@@ -702,8 +711,8 @@ export default function ArmarEquiposView({
           isOpen={confirmConfig.open && confirmConfig.action === 'already_voted'}
           title="YA VOTASTE"
           message="Ya registramos tu voto para este partido. Esperá a que el administrador cierre la votación para ver los equipos."
-          onConfirm={() => setConfirmConfig({ open: false })}
-          onCancel={() => setConfirmConfig({ open: false })}
+          onConfirm={() => setConfirmConfig({ open: false, action: null })}
+          onCancel={() => setConfirmConfig({ open: false, action: null })}
           confirmText="Aceptar"
           cancelText=""
           isDeleting={false}

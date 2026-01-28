@@ -136,6 +136,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       style={{
         paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined,
       }}
+      onClick={onClose}
     >
       <div
         className="bg-slate-900 border-2 border-white/20 w-full max-w-[500px] h-[75vh] max-h-[600px] rounded-xl flex flex-col shadow-[0_30px_120px_rgba(0,0,0,0.55)] mb-5 min-h-[300px] sm:mt-4 sm:h-auto sm:max-h-[calc(100vh-30px)] sm:mb-0 sm:overflow-hidden"
@@ -145,6 +146,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
             ? `calc(100vh - ${keyboardHeight + 40}px)`
             : undefined,
         }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col px-5 py-3 border-b border-white/10 bg-slate-800 rounded-t-xl sm:px-4 sm:py-2.5 sm:shrink-0">
           <div className="flex justify-between items-center">

@@ -208,9 +208,9 @@ const ProfileCardComponent = ({
       <div ref={wrapRef} className="w-full flex justify-center overflow-visible perspective-[1000px] touch-none group profile-card-wrapper">
         <div className="relative inline-block overflow-visible px-4">
           {/* Glow layer behind the card */}
-          <div 
+          <div
             className="absolute pointer-events-none"
-            style={{ 
+            style={{
               top: '-40px',
               left: '-40px',
               right: '-40px',
@@ -220,7 +220,7 @@ const ProfileCardComponent = ({
               zIndex: 0,
             }}
           />
-          
+
           {/* Card container */}
           <div className="relative" style={{ width: 'min(340px, 92vw)', zIndex: 1 }}>
             <section
@@ -228,7 +228,7 @@ const ProfileCardComponent = ({
               className="profile-card-main mx-auto w-full aspect-[0.72] md:aspect-[0.7] rounded-[var(--card-radius)] overflow-hidden flex flex-col transition-transform duration-700 ease-out relative origin-center"
             >
               {/* Layer 0: Player Photo Background (behind card, only visible through hole) */}
-              <div 
+              <div
                 className="absolute rounded-full overflow-hidden z-0 photo-glow-outer"
                 style={{
                   width: `${HOLE_SIZE}px`,
@@ -240,13 +240,13 @@ const ProfileCardComponent = ({
               >
                 <div className="w-full h-full rounded-full overflow-hidden">
                   {vm.avatarUrl ? (
-                    <img 
-                      className="w-full h-full object-cover" 
+                    <img
+                      className="w-full h-full object-cover"
                       style={{ objectPosition: 'center' }}
-                      src={vm.avatarUrl} 
-                      alt={vm.name} 
-                      loading="eager" 
-                      crossOrigin="anonymous" 
+                      src={vm.avatarUrl}
+                      alt={vm.name}
+                      loading="eager"
+                      crossOrigin="anonymous"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-5xl bg-[#05060f]">👤</div>
@@ -255,9 +255,9 @@ const ProfileCardComponent = ({
               </div>
 
               {/* Layer 1: Card Mockup Overlay */}
-              <img 
-                src="/card_mockup.png" 
-                alt="" 
+              <img
+                src="/card_mockup.png"
+                alt=""
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none z-10"
               />
 
@@ -266,7 +266,7 @@ const ProfileCardComponent = ({
 
                 {/* Header - Nombre */}
                 <div className="flex justify-center items-center mb-8 px-6 pt-3">
-                  <h3 className="font-bebas font-black text-[2.6rem] md:text-[2.8rem] leading-none text-white tracking-[0.05em] uppercase m-0 truncate max-w-full" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3)' }}>
+                  <h3 className="font-bebas-real font-black text-[2.6rem] md:text-[2.8rem] leading-none text-white tracking-[0.05em] uppercase m-0 truncate max-w-full" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3)' }}>
                     {vm.name.slice(0, 12)}
                   </h3>
                 </div>
@@ -284,8 +284,8 @@ const ProfileCardComponent = ({
                     </div>
                     <div
                       className="badge-glass rounded w-12 h-7 md:w-12 md:h-8 flex items-center justify-center shrink-0 shadow-xl mt-auto"
-                      style={{ 
-                        background: `${vm.posColor}40`, 
+                      style={{
+                        background: `${vm.posColor}40`,
                         borderColor: `${vm.posColor}`,
                         borderWidth: '2px',
                         boxShadow: `0 0 20px ${vm.posColor}40`,
@@ -294,8 +294,8 @@ const ProfileCardComponent = ({
                     >
                       <span
                         className="font-bebas text-lg md:text-xl tracking-wider font-black leading-none"
-                        style={{ 
-                          color: vm.posColor, 
+                        style={{
+                          color: vm.posColor,
                           textShadow: `0 0 15px ${vm.posColor}88`,
                           filter: `drop-shadow(0 0 10px ${vm.posColor})`,
                         }}
@@ -314,9 +314,9 @@ const ProfileCardComponent = ({
                   {/* Column 3: Right Prizes - Positioned in right gutter between circle and edge */}
                   <div className="flex flex-col gap-2.5 items-center shrink-0 pl-6 md:pl-7 pr-0">
                     <div className="flex flex-col items-center gap-1">
-                      <img 
-                        src="/mvp.png" 
-                        alt="MVP Award" 
+                      <img
+                        src="/mvp.png"
+                        alt="MVP Award"
                         width={24}
                         height={24}
                         className="md:w-[26px] md:h-[26px]"
@@ -325,9 +325,9 @@ const ProfileCardComponent = ({
                       <span ref={mvpRef} className="text-white text-sm md:text-[15px] font-black pc-badge-count">{vm.mvp}</span>
                     </div>
                     <div className="flex flex-col items-center gap-1">
-                      <img 
-                        src="/red_card.png" 
-                        alt="Red Card" 
+                      <img
+                        src="/red_card.png"
+                        alt="Red Card"
                         width={16}
                         height={24}
                         className="md:w-[18px] md:h-7"
@@ -336,9 +336,9 @@ const ProfileCardComponent = ({
                       <span ref={redRef} className="text-white text-sm md:text-[15px] font-black pc-badge-count">{vm.red}</span>
                     </div>
                     <div className="flex flex-col items-center gap-1">
-                      <img 
-                        src="/glove.png" 
-                        alt="Guante" 
+                      <img
+                        src="/glove.png"
+                        alt="Guante"
                         width={24}
                         height={24}
                         className="md:w-[26px] md:h-[26px]"

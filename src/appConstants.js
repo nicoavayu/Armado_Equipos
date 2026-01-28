@@ -15,6 +15,14 @@ export const ANIMATION_DURATIONS = {
   HOVER_TRANSITION: 150,
 };
 
+export const POSITION_COLORS = {
+  ARQ: '#FDB022', // Mustard/Gold
+  DEF: '#FF6B9D', // Pink
+  MED: '#06C270', // Green
+  DEL: '#FF3B3B', // Red
+  DEFAULT: '#8178e5', // Purple default
+};
+
 export const UI_SIZES = {
   WHATSAPP_ICON_SIZE: 20,
   PLAYER_AVATAR_MOBILE: 24,

@@ -6,8 +6,10 @@ module.exports = {
     theme: {
         extend: {
             fontFamily: {
-                'bebas': ['"Bebas Neue"', 'sans-serif'],
-                'oswald': ['Oswald', 'sans-serif'],
+                'sans': ['Inter', 'sans-serif'],
+                'bebas': ['Inter', 'sans-serif'],
+                'bebas-real': ['"Bebas Neue"', 'sans-serif'],
+                'oswald': ['Inter', 'sans-serif'],
             },
             colors: {
                 bg: 'var(--bg)',

@@ -45,10 +45,12 @@ html, body, #root {
   --gray-txt: #b2b2c7;
 }
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 /* --- GENERAL --- */
 body {
   margin: 0;
-  font-family: Oswald, Inter, Arial, sans-serif;
+  font-family: 'Inter', sans-serif;
   background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
   background-attachment: fixed;
   color: #f8f9fa;
