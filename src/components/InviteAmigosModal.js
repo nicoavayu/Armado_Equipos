@@ -339,9 +339,9 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
                       className={`
                       border-none rounded-md px-4 py-2 text-sm font-semibold cursor-pointer transition-all duration-200 shrink-0 min-w-[80px]
                       ${invitedFriends.has(amigo.id)
-                          ? 'bg-[#28a745] text-white cursor-default hover:bg-[#28a745] hover:transform-none'
-                          : 'bg-[#007bff] text-white hover:bg-[#0056b3] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none'
-                        }
+                    ? 'bg-[#28a745] text-white cursor-default hover:bg-[#28a745] hover:transform-none'
+                    : 'bg-[#007bff] text-white hover:bg-[#0056b3] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none'
+                  }
                     `}
                       disabled={inviting || invitedFriends.has(amigo.id)}
                     >

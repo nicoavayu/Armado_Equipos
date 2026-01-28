@@ -194,7 +194,7 @@ const QuieroJugar = () => {
   });
 
   // Filter out current user from the general list
-  const otherPlayers = sortedFreePlayers.filter(p => p.user_id !== user?.id);
+  const otherPlayers = sortedFreePlayers.filter((p) => p.user_id !== user?.id);
 
   const handleRegisterAsFree = async () => {
     try {
@@ -340,7 +340,7 @@ const QuieroJugar = () => {
                     className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${matchSortBy === 'proximidad'
                       ? 'bg-white/10 text-white border-white/30'
                       : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
-                      }`}
+                    }`}
                   >
                     <span className="flex items-center gap-1.5 justify-center"><Calendar size={12} /> Fecha</span>
                   </button>
@@ -349,7 +349,7 @@ const QuieroJugar = () => {
                     className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${matchSortBy === 'recientes'
                       ? 'bg-white/10 text-white border-white/30'
                       : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
-                      }`}
+                    }`}
                   >
                     <span className="flex items-center gap-1.5 justify-center"><Clock size={12} /> Creados</span>
                   </button>
@@ -421,7 +421,7 @@ const QuieroJugar = () => {
                     className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'distance'
                       ? 'bg-white/10 text-white border-white/30'
                       : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
-                      }`}
+                    }`}
                     onClick={() => setSortBy('distance')}
                   >
                     <span className="flex items-center gap-1.5 justify-center"><MapPin size={12} /> Distancia</span>
@@ -430,7 +430,7 @@ const QuieroJugar = () => {
                     className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'rating'
                       ? 'bg-white/10 text-white border-white/30'
                       : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
-                      }`}
+                    }`}
                     onClick={() => setSortBy('rating')}
                   >
                     <span className="flex items-center gap-1.5 justify-center"><Star size={12} /> Rating</span>
@@ -439,7 +439,7 @@ const QuieroJugar = () => {
                     className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'position'
                       ? 'bg-white/10 text-white border-white/30'
                       : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
-                      }`}
+                    }`}
                     onClick={() => setSortBy('position')}
                   >
                     <span className="flex items-center gap-1.5 justify-center"><ListOrdered size={12} /> Posición</span>

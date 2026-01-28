@@ -98,7 +98,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       ) : (
         <>
           <PageTitle
-            title={isAdmin ? "CONVOCA JUGADORES" : "TE INVITARON A JUGAR"}
+            title={isAdmin ? 'CONVOCA JUGADORES' : 'TE INVITARON A JUGAR'}
             onBack={onBackToHome}
             showChatButton={true}
             onChatClick={() => setIsChatOpen(true)}

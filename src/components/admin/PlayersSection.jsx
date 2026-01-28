@@ -164,7 +164,7 @@ const PlayersSection = ({
                       </button>
                     </div>
                   </>,
-                  document.body
+                  document.body,
                 )}
               </div>
             )}
@@ -229,9 +229,9 @@ const PlayersSection = ({
                   <button
                     className={`w-full font-bebas text-[18px] h-14 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-bold tracking-wide bg-primary shadow-[0_4px_14px_rgba(129,120,229,0.3)]
                       ${(partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)
-                        ? 'opacity-40 grayscale cursor-not-allowed shadow-none'
-                        : 'hover:brightness-110 active:scale-95'
-                      }`}
+                  ? 'opacity-40 grayscale cursor-not-allowed shadow-none'
+                  : 'hover:brightness-110 active:scale-95'
+                }`}
                     onClick={() => {
                       if (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) return;
                       setShowInviteModal(true);
@@ -328,7 +328,7 @@ const PlayersSection = ({
                   </div>
                 </div>
               </>,
-              document.body
+              document.body,
             )}
           </div>
         )}

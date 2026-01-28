@@ -231,7 +231,7 @@ export const removeFriend = async (friendshipId) => {
     
     console.log('[REMOVE_FRIEND] Found relationship:', {
       userId: relationship.user_id,
-      friendId: relationship.friend_id
+      friendId: relationship.friend_id,
     });
     
     // Eliminar TODAS las relaciones entre estos dos usuarios (en ambas direcciones)
@@ -248,7 +248,7 @@ export const removeFriend = async (friendshipId) => {
     
     console.log('[REMOVE_FRIEND] Delete operation result:', {
       deletedCount: deletedData?.length || 0,
-      deletedRecords: deletedData
+      deletedRecords: deletedData,
     });
     
     // VALIDACIÓN: Verificar que realmente se borraron
