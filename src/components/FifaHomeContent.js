@@ -232,7 +232,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   ];
 
   return (
-    <div className="w-full max-w-[800px] mx-auto px-4 pb-[100px] bg-transparent shadow-none">
+    <div className="w-full max-w-[800px] mx-auto px-4 bg-transparent shadow-none">
       {/* Header elements - Avatar and Notifications */}
       {user && (
         <div className="flex items-center justify-between -mx-4 mb-5 px-4 py-3 bg-white/5 border-b border-white/10 backdrop-blur-[20px] w-screen ml-[calc(-50vw+50%)] shadow-lg">
