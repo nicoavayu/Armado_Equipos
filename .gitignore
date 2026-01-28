@@ -56,18 +56,18 @@ coverage/
 *.rar
 *.7z
 
-# Images/Media
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.webp
-*.svg
-*.pdf
-*.mp3
-*.mp4
-*.mov
-*.avi
+# Images/Media - Allowed for UI assets
+# *.png
+# *.jpg
+# *.jpeg
+# *.gif
+# *.webp
+# *.svg
+# *.pdf
+# *.mp3
+# *.mp4
+# *.mov
+# *.avi
 
 # System backup files
 *.swp
