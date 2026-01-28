@@ -5,7 +5,7 @@ import DirectFix from './DirectFix';
 
 const MainLayout = () => {
   const location = useLocation();
-  
+
   // Determine active tab based on current route
   const getActiveTab = () => {
     if (location.pathname === '/') return 'home';
@@ -23,14 +23,19 @@ const MainLayout = () => {
   };
 
   return (
-    <>
+    <div className="flex flex-col min-h-[100dvh] bg-[#0b1020]">
       <DirectFix />
-      <Outlet />
-      <TabBar 
-        activeTab={getActiveTab()} 
+
+      {/* App Shell / Main Content Container */}
+      <main className="flex-1 flex flex-col pt-[var(--safe-top,0px)] pb-[calc(var(--safe-bottom,0px)+70px)] md:pb-[calc(var(--safe-bottom,0px)+80px)] overflow-x-hidden">
+        <Outlet />
+      </main>
+
+      <TabBar
+        activeTab={getActiveTab()}
         onTabChange={handleTabChange}
       />
-    </>
+    </div>
   );
 };
 

@@ -444,7 +444,7 @@ const ProximosPartidos = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed top-0 left-0 w-screen h-screen text-white flex flex-col overflow-hidden z-[1000]">
+    <div className="fixed top-0 left-0 w-screen h-[100dvh] text-white flex flex-col overflow-hidden z-[1000]">
       <PageTitle onBack={onClose} title="PRÓXIMOS PARTIDOS">PRÓXIMOS PARTIDOS</PageTitle>
 
       <div className="flex-1 pt-[96px] px-4 pb-[100px] overflow-y-auto w-full box-border sm:pt-[96px] sm:px-4 sm:pb-[100px]">
@@ -584,8 +584,8 @@ const ProximosPartidos = ({ onClose }) => {
                         const isComplete = jugadoresCount >= cupoMaximo;
                         return (
                           <div className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 whitespace-nowrap ${isComplete
-                              ? 'bg-[#165a2e] text-[#22c55e] border border-[#22c55e]'
-                              : 'bg-slate-900 text-slate-300 border border-slate-700'
+                            ? 'bg-[#165a2e] text-[#22c55e] border border-[#22c55e]'
+                            : 'bg-slate-900 text-slate-300 border border-slate-700'
                             } ${matchFinished ? 'opacity-70' : ''}`}>
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="currentColor">
                               <path d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z" />

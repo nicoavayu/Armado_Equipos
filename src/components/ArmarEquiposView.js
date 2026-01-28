@@ -264,7 +264,7 @@ export default function ArmarEquiposView({
     }
     if (votingStarted) {
       // START CHANGE: Check if user already voted
-      const hasVoted = votantes.includes(user?.id) || (user?.id && votantesConNombres.some(v => v.id === user.id));
+      const hasVoted = votantes.includes(user?.id) || (user?.id && votantesConNombres.some((v) => v.id === user.id));
 
       if (hasVoted) {
         setConfirmConfig({ open: true, action: 'already_voted' });

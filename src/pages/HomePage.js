@@ -53,7 +53,7 @@ const HomePage = () => {
 
   return (
     <>
-      <div className="min-h-screen w-screen max-w-[100vw] flex flex-col items-center pt-5 overflow-x-hidden pb-24">
+      <div className="min-h-[100dvh] w-screen max-w-[100vw] flex flex-col items-center pt-5 overflow-x-hidden pb-24">
         <div className="flex flex-col items-center pt-0 max-w-[800px]" >
           <FifaHome onModoSeleccionado={(modo) => {
             if (modo === 'admin-historial') {

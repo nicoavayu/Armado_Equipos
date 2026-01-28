@@ -278,7 +278,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
   const renderFriendActionButton = () => {
     const profileUserId = profile?.usuario_id || profile?.id;
     console.log('[PROFILE_MODAL] renderFriendActionButton - profileUserId:', profileUserId, 'currentUserId:', currentUserId);
-    
+
     // Check if it's the current user
     if (currentUserId === profileUserId) {
       console.log('[PROFILE_MODAL] Not rendering friend button - same user');
@@ -289,8 +289,8 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     if (!isValidUUID(profileUserId)) {
       console.log('[PROFILE_MODAL] Player not registered in app - no valid UUID:', profileUserId);
       return (
-        <button 
-          className="bg-slate-700/40 border border-slate-600/50 rounded-xl py-2 px-4 text-[11px] font-semibold text-slate-400 cursor-default flex items-center justify-center gap-0.5 min-w-fit whitespace-nowrap md:py-2.5 md:px-5 md:text-xs sm:py-2 sm:px-4" 
+        <button
+          className="bg-slate-700/40 border border-slate-600/50 rounded-xl py-2 px-4 text-[11px] font-semibold text-slate-400 cursor-default flex items-center justify-center gap-0.5 min-w-fit whitespace-nowrap md:py-2.5 md:px-5 md:text-xs sm:py-2 sm:px-4"
           disabled
           title="Este jugador no está registrado en la aplicación"
         >
@@ -446,7 +446,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
                   Cancelar
                 </button>
                 <button
-                  className={`bg-[#8178e5] border-none rounded-xl py-2 px-4 text-[11px] font-semibold text-white cursor-pointer transition-all flex items-center justify-center gap-0.5 hover:bg-[#8178e5]/90 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed md:py-2.5 md:px-5 md:text-xs sm:py-2 sm:px-4`}
+                  className='bg-[#8178e5] border-none rounded-xl py-2 px-4 text-[11px] font-semibold text-white cursor-pointer transition-all flex items-center justify-center gap-0.5 hover:bg-[#8178e5]/90 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed md:py-2.5 md:px-5 md:text-xs sm:py-2 sm:px-4'
                   onClick={handleConfirmAdmin}
                   disabled={isAdminLoading}
                   type="button"

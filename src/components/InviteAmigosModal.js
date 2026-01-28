@@ -46,13 +46,13 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
       // FILTRAR AMIGOS:
       // 1. No mostrar al organizador
       // 2. No mostrar jugadores que YA están en el partido
-      const filteredFriends = (friendsData || []).filter(friend => {
+      const filteredFriends = (friendsData || []).filter((friend) => {
         // Excluir organizador
         if (friend.id === partidoActual?.creado_por) return false;
 
         // Excluir jugadores ya unidos (comparar IDs)
-        const isAlreadyInMatch = jugadores.some(p =>
-          p.usuario_id === friend.id || p.uuid === friend.id
+        const isAlreadyInMatch = jugadores.some((p) =>
+          p.usuario_id === friend.id || p.uuid === friend.id,
         );
         if (isAlreadyInMatch) return false;
 
@@ -315,12 +315,12 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {amigos.filter(amigo => !invitedFriends.has(amigo.id)).length === 0 ? (
+              {amigos.filter((amigo) => !invitedFriends.has(amigo.id)).length === 0 ? (
                 <div className="text-center text-white/70 py-10 px-5 text-base">
                   No tenés más amigos para invitar
                 </div>
               ) : (
-                amigos.filter(amigo => !invitedFriends.has(amigo.id)).map((amigo) => (
+                amigos.filter((amigo) => !invitedFriends.has(amigo.id)).map((amigo) => (
                   <div
                     key={amigo.id}
                     className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10 transition-all duration-200 hover:bg-white/[0.08] hover:border-white/20"

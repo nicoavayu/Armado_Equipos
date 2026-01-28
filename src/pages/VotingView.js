@@ -193,7 +193,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   // -- FIN HOOKS --
 
   // Common wrapper styles
-  const wrapperClass = 'min-h-screen w-screen p-0 flex flex-col';
+  const wrapperClass = 'min-h-[100dvh] w-screen p-0 flex flex-col';
   const cardClass = 'w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-5';
   // Updated title class to match Legacy 'voting-title-modern' but with Tailwind
   const titleClass = 'font-bebas text-[46px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-lg';

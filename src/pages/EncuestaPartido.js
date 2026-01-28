@@ -281,7 +281,7 @@ const EncuestaPartido = () => {
   };
 
   // Helper classes for consistency
-  const _wrapperClass = 'min-h-screen bg-fifa-gradient w-full p-0 flex flex-col overflow-x-hidden';
+  const _wrapperClass = 'min-h-[100dvh] bg-fifa-gradient w-full p-0 flex flex-col overflow-x-hidden';
   const cardClass = 'w-[90%] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-5 relative';
   const titleClass = 'font-bebas text-[38px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-md break-words w-full';
   const btnClass = 'font-bebas text-[27px] md:text-[28px] text-white bg-primary border border-white/40 rounded-xl tracking-wide py-4 px-4 mt-4 w-full cursor-pointer font-bold transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden flex items-center justify-center shadow-[0_10px_30px_rgba(129,120,229,0.35)]';
@@ -301,7 +301,7 @@ const EncuestaPartido = () => {
   if (loading) {
     return (
       <PageTransition>
-        <div className="min-h-screen w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="min-h-[100dvh] w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className={cardClass}>
             <LoadingSpinner size="large" />
           </div>
@@ -313,7 +313,7 @@ const EncuestaPartido = () => {
   if (yaCalificado || alreadySubmitted) {
     return (
       <PageTransition>
-        <div className="min-h-screen w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="min-h-[100dvh] w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className={cardClass}>
             <div className={titleClass}>YA COMPLETASTE LA ENCUESTA</div>
             <div className={`${textClass} text-[26px]`}>
@@ -336,7 +336,7 @@ const EncuestaPartido = () => {
                 } catch (e) { console.error(e); toast.error('Error verificando estado'); }
               }}
             >
-                ADMIN: Verificar Estado / Forzar Cierre
+              ADMIN: Verificar Estado / Forzar Cierre
             </button>
           </div>
         </div>
@@ -346,7 +346,7 @@ const EncuestaPartido = () => {
 
   return (
     <PageTransition>
-      <div className="min-h-screen w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="min-h-[100dvh] w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <style>{animationStyle}</style>
         <div className={cardClass}>
 
@@ -354,7 +354,7 @@ const EncuestaPartido = () => {
           {currentStep === 0 && (
             <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
               <div className={titleClass}>
-              ¿SE JUGÓ EL PARTIDO?
+                ¿SE JUGÓ EL PARTIDO?
               </div>
               <div className={textClass}>
                 {formatFecha(partido.fecha)}<br />
@@ -369,7 +369,7 @@ const EncuestaPartido = () => {
                   }}
                   type="button"
                 >
-                SÍ
+                  SÍ
                 </button>
                 <button
                   className={`${optionBtnClass} ${!formData.se_jugo ? optionBtnSelectedClass : ''}`}
@@ -379,7 +379,7 @@ const EncuestaPartido = () => {
                   }}
                   type="button"
                 >
-                NO
+                  NO
                 </button>
               </div>
             </div>
@@ -389,7 +389,7 @@ const EncuestaPartido = () => {
           {currentStep === 1 && (
             <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
               <div className={titleClass}>
-              ¿ASISTIERON TODOS?
+                ¿ASISTIERON TODOS?
               </div>
               <div className={gridClass}>
                 <button
@@ -400,7 +400,7 @@ const EncuestaPartido = () => {
                   }}
                   type="button"
                 >
-                SÍ
+                  SÍ
                 </button>
                 <button
                   className={optionBtnClass}
@@ -410,7 +410,7 @@ const EncuestaPartido = () => {
                   }}
                   type="button"
                 >
-                NO
+                  NO
                 </button>
               </div>
             </div>
@@ -420,7 +420,7 @@ const EncuestaPartido = () => {
           {currentStep === 2 && (
             <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
               <div className={titleClass}>
-              ¿QUIÉN FUE EL MEJOR JUGADOR?
+                ¿QUIÉN FUE EL MEJOR JUGADOR?
               </div>
               <div className="grid grid-cols-4 gap-2 w-[85%] mx-auto mb-5">
                 {jugadores.map((jugador) => (
@@ -430,7 +430,7 @@ const EncuestaPartido = () => {
                     className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.mvp_id === jugador.uuid
                       ? 'bg-[#00D49B] border border-[#00D49B]'
                       : 'bg-white/10 border border-white/20 hover:bg-white/15'
-                    }`}
+                      }`}
                   >
                     <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                       {jugador.avatar_url || jugador.foto_url ? (
@@ -455,7 +455,7 @@ const EncuestaPartido = () => {
                 className={btnClass}
                 onClick={() => setCurrentStep(3)}
               >
-              SIGUIENTE
+                SIGUIENTE
               </button>
             </div>
           )}
@@ -464,7 +464,7 @@ const EncuestaPartido = () => {
           {currentStep === 3 && (
             <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
               <div className={titleClass}>
-              ¿QUIÉN FUE EL MEJOR ARQUERO?
+                ¿QUIÉN FUE EL MEJOR ARQUERO?
               </div>
               <div className="grid grid-cols-4 gap-2 w-[85%] mx-auto mb-5">
                 {jugadores.map((jugador) => (
@@ -474,7 +474,7 @@ const EncuestaPartido = () => {
                     className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.arquero_id === jugador.uuid
                       ? 'bg-[#FFD700] border border-[#FFD700] shadow-[0_0_10px_rgba(255,215,0,0.3)]'
                       : 'bg-white/10 border border-white/20 hover:bg-white/15'
-                    }`}
+                      }`}
                   >
                     <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                       {jugador.avatar_url || jugador.foto_url ? (
@@ -503,7 +503,7 @@ const EncuestaPartido = () => {
                     setCurrentStep(4);
                   }}
                 >
-                NO HUBO ARQUEROS FIJOS
+                  NO HUBO ARQUEROS FIJOS
                 </button>
               </div>
               <button
@@ -511,7 +511,7 @@ const EncuestaPartido = () => {
                 onClick={() => setCurrentStep(4)}
                 style={{ marginTop: 10 }}
               >
-              SIGUIENTE
+                SIGUIENTE
               </button>
             </div>
           )}
@@ -520,7 +520,7 @@ const EncuestaPartido = () => {
           {currentStep === 4 && (
             <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
               <div className={titleClass}>
-              ¿FUE UN PARTIDO LIMPIO?
+                ¿FUE UN PARTIDO LIMPIO?
               </div>
               <div className={gridClass}>
                 <button
@@ -531,7 +531,7 @@ const EncuestaPartido = () => {
                   }}
                   type="button"
                 >
-                SÍ
+                  SÍ
                 </button>
                 <button
                   className={`${optionBtnClass} ${!formData.partido_limpio ? optionBtnSelectedClass : ''}`}
@@ -541,7 +541,7 @@ const EncuestaPartido = () => {
                   }}
                   type="button"
                 >
-                NO
+                  NO
                 </button>
               </div>
             </div>
@@ -551,7 +551,7 @@ const EncuestaPartido = () => {
           {currentStep === 5 && (
             <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
               <div className={titleClass}>
-              ¿QUIÉN GANÓ?
+                ¿QUIÉN GANÓ?
               </div>
               <div className={gridClass}>
                 <button
@@ -559,14 +559,14 @@ const EncuestaPartido = () => {
                   onClick={() => handleInputChange('ganador', 'equipo_a')}
                   type="button"
                 >
-                EQUIPO A
+                  EQUIPO A
                 </button>
                 <button
                   className={`${optionBtnClass} ${formData.ganador === 'equipo_b' ? 'bg-[#FF9800] border-white' : 'bg-[#FF9800]/30 border-white'}`}
                   onClick={() => handleInputChange('ganador', 'equipo_b')}
                   type="button"
                 >
-                EQUIPO B
+                  EQUIPO B
                 </button>
               </div>
               <div className="flex justify-center w-full mb-5">
@@ -582,7 +582,7 @@ const EncuestaPartido = () => {
                 className={btnClass}
                 onClick={handleSubmit}
               >
-              FINALIZAR ENCUESTA
+                FINALIZAR ENCUESTA
               </button>
             </div>
           )}
@@ -591,7 +591,7 @@ const EncuestaPartido = () => {
           {currentStep === 6 && (
             <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
               <div className={titleClass}>
-              ¿QUIÉN JUGÓ SUCIO?
+                ¿QUIÉN JUGÓ SUCIO?
               </div>
               <div className="grid grid-cols-4 gap-2 w-[85%] mx-auto mb-5">
                 {jugadores.map((jugador) => (
@@ -601,7 +601,7 @@ const EncuestaPartido = () => {
                     className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.jugadores_violentos.includes(jugador.uuid)
                       ? 'bg-[#DE1C49] border border-[#DE1C49] shadow-[0_0_10px_rgba(222,28,73,0.4)]'
                       : 'bg-white/10 border border-white/20 hover:bg-white/15'
-                    }`}
+                      }`}
                   >
                     <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                       {jugador.avatar_url || jugador.foto_url ? (
@@ -626,7 +626,7 @@ const EncuestaPartido = () => {
                 className={btnClass}
                 onClick={() => setCurrentStep(5)}
               >
-              SIGUIENTE
+                SIGUIENTE
               </button>
             </div>
           )}
@@ -635,7 +635,7 @@ const EncuestaPartido = () => {
           {currentStep === 10 && (
             <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
               <div className={titleClass}>
-              ¿POR QUÉ NO SE JUGÓ?
+                ¿POR QUÉ NO SE JUGÓ?
               </div>
               <div className="flex justify-center w-full mb-5">
                 <textarea
@@ -655,14 +655,14 @@ const EncuestaPartido = () => {
                   marginTop: 0,
                 }}
               >
-              AUSENCIA SIN AVISO
+                AUSENCIA SIN AVISO
               </button>
               <button
                 className={btnClass}
                 onClick={continueSubmitFlow}
                 style={{ marginTop: 0 }}
               >
-              FINALIZAR
+                FINALIZAR
               </button>
             </div>
           )}
@@ -671,7 +671,7 @@ const EncuestaPartido = () => {
           {currentStep === 11 && (
             <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
               <div className={titleClass}>
-              ¿QUIÉNES FALTARON?
+                ¿QUIÉNES FALTARON?
               </div>
               <div className="grid grid-cols-4 gap-2 w-[85%] mx-auto mb-5">
                 {jugadores.map((jugador) => (
@@ -681,7 +681,7 @@ const EncuestaPartido = () => {
                     className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.jugadores_ausentes.includes(jugador.uuid)
                       ? 'bg-[#DE1C49] border border-[#DE1C49] shadow-[0_0_10px_rgba(222,28,73,0.4)]'
                       : 'bg-white/10 border border-white/20 hover:bg-white/15'
-                    }`}
+                      }`}
                   >
                     <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                       {jugador.avatar_url || jugador.foto_url ? (
@@ -706,7 +706,7 @@ const EncuestaPartido = () => {
                 className={btnClass}
                 onClick={handleSubmit}
               >
-              FINALIZAR
+                FINALIZAR
               </button>
             </div>
           )}
@@ -715,7 +715,7 @@ const EncuestaPartido = () => {
           {currentStep === 12 && (
             <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
               <div className={titleClass}>
-              ¿QUIÉNES FALTARON?
+                ¿QUIÉNES FALTARON?
               </div>
               <div className="grid grid-cols-4 gap-2 w-[85%] mx-auto mb-5">
                 {jugadores.map((jugador) => (
@@ -725,7 +725,7 @@ const EncuestaPartido = () => {
                     className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.jugadores_ausentes.includes(jugador.uuid)
                       ? 'bg-[#DE1C49] border border-[#DE1C49] shadow-[0_0_10px_rgba(222,28,73,0.4)]'
                       : 'bg-white/10 border border-white/20 hover:bg-white/15'
-                    }`}
+                      }`}
                   >
                     <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                       {jugador.avatar_url || jugador.foto_url ? (
@@ -750,7 +750,7 @@ const EncuestaPartido = () => {
                 className={btnClass}
                 onClick={() => setCurrentStep(2)}
               >
-              SIGUIENTE
+                SIGUIENTE
               </button>
             </div>
           )}
@@ -759,16 +759,16 @@ const EncuestaPartido = () => {
           {currentStep === 99 && (
             <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
               <div className={titleClass}>
-              ¡GRACIAS POR CALIFICAR!
+                ¡GRACIAS POR CALIFICAR!
               </div>
               <div className={`${textClass} text-[26px]`}>
-              Los resultados se publicarán en ~6 horas.
+                Los resultados se publicarán en ~6 horas.
               </div>
               <button
                 className={btnClass}
                 onClick={() => navigate('/proximos?surveyDone=1')}
               >
-              VOLVER AL INICIO
+                VOLVER AL INICIO
               </button>
             </div>
           )}

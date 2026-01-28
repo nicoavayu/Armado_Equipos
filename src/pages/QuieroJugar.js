@@ -13,7 +13,7 @@ import { handleError } from '../lib/errorHandler';
 import { User, CheckCircle2, Calendar, Clock, MapPin, Star, Trophy, ListOrdered } from 'lucide-react';
 import { POSITION_COLORS } from '../appConstants';
 
-const containerClass = 'flex flex-col items-center min-h-screen pb-28 px-4 box-border font-oswald';
+const containerClass = 'flex flex-col items-center min-h-[100dvh] pb-28 px-4 box-border font-oswald';
 
 const QuieroJugar = () => {
   const navigate = useNavigate();
@@ -229,7 +229,7 @@ const QuieroJugar = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen w-screen flex items-center justify-center p-0">
+      <div className="min-h-[100dvh] w-screen flex items-center justify-center p-0">
         <LoadingSpinner size="large" />
       </div>
     );

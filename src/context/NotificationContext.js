@@ -127,7 +127,7 @@ export const NotificationProvider = ({ children }) => {
         // Ideally we update the specific item in state
         console.log('[NOTIFICATIONS] Update received:', payload.new);
         setNotifications((prev) =>
-          prev.map((n) => (n.id === payload.new.id ? { ...n, ...payload.new } : n))
+          prev.map((n) => (n.id === payload.new.id ? { ...n, ...payload.new } : n)),
         );
       }
     });

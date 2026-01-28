@@ -93,7 +93,7 @@ const MiniFriendCard = ({ friend, onRemove, onRequestRemoveClick, currentUserId,
           <span className="text-sm font-medium text-[#333] whitespace-nowrap overflow-hidden text-ellipsis max-[768px]:text-[15px]">
             {name}
           </span>
-          
+
           {/* Stats row: Rating + Position + Distance */}
           <div style={{ fontSize: '12px', fontWeight: 500, color: '#666', marginTop: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {/* Rating with SVG star */}
@@ -103,7 +103,7 @@ const MiniFriendCard = ({ friend, onRemove, onRequestRemoveClick, currentUserId,
                 <span>{ratingStr}</span>
               </div>
             )}
-            
+
             {/* Position badge */}
             <div
               style={{
@@ -117,12 +117,12 @@ const MiniFriendCard = ({ friend, onRemove, onRequestRemoveClick, currentUserId,
                 fontSize: '11px',
                 fontWeight: 600,
                 minWidth: '28px',
-                textAlign: 'center'
+                textAlign: 'center',
               }}
             >
               {posicion}
             </div>
-            
+
             {/* Distance */}
             {distanceStr && (
               <span>📍 {distanceStr}</span>
@@ -141,7 +141,7 @@ const MiniFriendCard = ({ friend, onRemove, onRequestRemoveClick, currentUserId,
               const rect = buttonRef.current.getBoundingClientRect();
               setMenuPosition({
                 top: rect.bottom + 8,
-                left: rect.left - 140 + rect.width
+                left: rect.left - 140 + rect.width,
               });
             }
             setShowMenu(!showMenu);
@@ -170,7 +170,7 @@ const MiniFriendCard = ({ friend, onRemove, onRequestRemoveClick, currentUserId,
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,
-              pointerEvents: 'auto'
+              pointerEvents: 'auto',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -198,7 +198,7 @@ const MiniFriendCard = ({ friend, onRemove, onRequestRemoveClick, currentUserId,
             </button>
           </div>
         </>,
-        document.body
+        document.body,
       )}
 
       <InviteFriendModal

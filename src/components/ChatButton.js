@@ -8,7 +8,7 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
   const { user } = useAuth(); // [TEAM_BALANCER_EDIT] Para verificar permisos
   const [unreadCount, setUnreadCount] = useState(0);
   const [internalIsChatOpen, setInternalIsChatOpen] = useState(false);
-  
+
   // Usar control externo si está disponible, sino usar interno
   const isChatOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsChatOpen;
   const setIsChatOpen = onOpenChange || setInternalIsChatOpen;
@@ -120,9 +120,9 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
   const handleOpenChat = () => {
     setIsChatOpen(true);
     setUnreadCount(0);
-      if (onUnreadCountChange) {
-        onUnreadCountChange(0);
-      }
+    if (onUnreadCountChange) {
+      onUnreadCountChange(0);
+    }
   };
 
   const handleCloseChat = () => {

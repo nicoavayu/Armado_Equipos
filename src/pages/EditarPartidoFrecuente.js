@@ -287,7 +287,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
   };
 
   return (
-    <div className="min-h-screen bg-transparent w-full p-5 flex flex-col items-center justify-start font-oswald box-border pb-24 pt-24">
+    <div className="min-h-[100dvh] bg-transparent w-full p-5 flex flex-col items-center justify-start font-oswald box-border pb-24 pt-24">
       <PageTitle title="EDITAR" onBack={onVolver}>EDITAR</PageTitle>
       <div className="w-full max-w-[500px] flex flex-col gap-6 mt-6">
         <PageTitle title="EDITAR" onBack={onVolver}>EDITAR</PageTitle>
@@ -395,7 +395,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
                   className={`py-3 px-2 text-sm font-oswald font-bold rounded-xl cursor-pointer transition-all duration-300 min-h-[48px] flex items-center justify-center border-2 ${tipoPartido === tipo
                     ? 'bg-primary border-transparent text-white shadow-[0_8px_24px_rgba(129,120,229,0.4)]'
                     : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-white/20'
-                  }`}
+                    }`}
                 >
                   {tipo}
                 </button>
@@ -417,7 +417,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
                   className={`py-3 px-2 text-sm font-oswald font-bold rounded-xl cursor-pointer transition-all duration-300 min-h-[48px] flex items-center justify-center border-2 ${modalidad === mod
                     ? 'bg-primary border-transparent text-white shadow-[0_8px_24px_rgba(129,120,229,0.4)]'
                     : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-white/20'
-                  }`}
+                    }`}
                 >
                   {mod}
                 </button>

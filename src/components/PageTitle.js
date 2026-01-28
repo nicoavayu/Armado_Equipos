@@ -1,4 +1,4 @@
-import { HiMiniChatBubbleOvalLeft } from "react-icons/hi2";
+import { HiMiniChatBubbleOvalLeft } from 'react-icons/hi2';
 
 /**
  * @param {Object} props

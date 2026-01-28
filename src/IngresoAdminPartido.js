@@ -22,7 +22,7 @@ export default function IngresoAdminPartido({ onAcceder, onCancelar }) {
   }
 
   return (
-    <div className="fixed z-[99] inset-0 w-screen h-screen bg-[rgba(30,20,70,0.46)] flex items-center justify-center">
+    <div className="fixed z-[99] inset-0 w-screen h-[100dvh] bg-[rgba(30,20,70,0.46)] flex items-center justify-center">
       <div className="bg-[#191942] rounded-[38px] shadow-[0_8px_54px_0_rgba(34,40,80,0.18)] px-[50px] pt-[54px] pb-[40px] max-w-[520px] w-[95vw] text-white flex flex-col items-center max-[600px]:p-[28px_10px_24px] max-[600px]:max-w-[98vw] max-[600px]:rounded-[14px]">
         <div className="text-[2.3rem] font-[Bebas_Neue,Oswald,Arial,sans-serif] tracking-[0.03em] mb-[22px] text-center max-[600px]:text-[2.7rem]">
           ADMINISTRAR PARTIDO EXISTENTE

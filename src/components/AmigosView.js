@@ -17,7 +17,7 @@ const AmigosView = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const { markTypeAsRead } = useNotifications();
-  
+
   // Estado centralizado para el modal de confirmación de eliminación
   const [friendToDelete, setFriendToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -154,7 +154,7 @@ const AmigosView = () => {
       if (result.success) {
         toast.success('Amigo eliminado');
         // Pequeño delay para asegurar que la DB se actualice antes de refrescar
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 300));
         console.log('[AMIGOS] Refreshing friends list after deletion');
         await getAmigos();
       } else {
@@ -324,7 +324,7 @@ const AmigosView = () => {
           </div>
         );
       })()}
-      
+
       {/* Modal centralizado de confirmación de eliminación */}
       <ConfirmModal
         isOpen={!!friendToDelete}

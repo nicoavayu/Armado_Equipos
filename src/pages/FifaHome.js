@@ -42,7 +42,7 @@ export default function FifaHome({ onModoSeleccionado }) {
   // If showing notifications, render the NotificationsView
   if (showNotifications) {
     return (
-      <div className="fixed inset-0 min-h-screen w-full overflow-y-auto z-[9999]" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="fixed inset-0 min-h-[100dvh] w-full overflow-y-auto z-[9999]" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <PageTitle title="NOTIFICACIONES" onBack={() => setShowNotifications(false)}>NOTIFICACIONES</PageTitle>
         <NotificationsView />
       </div>

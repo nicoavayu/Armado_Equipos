@@ -237,14 +237,14 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
 
 
   // --- Todas las vistas van sobre el fondo sin wrappers adicionales ---
-  // mainStyles replaced by Tailwind classes: min-h-screen w-screen bg-gradient-to-br from-[#24c6dc] via-[#514a9d] to-[#514a9d] overflow-y-auto flex flex-col items-center p-0 pb-10
+  // mainStyles replaced by Tailwind classes: min-h-[100dvh] w-screen bg-gradient-to-br from-[#24c6dc] via-[#514a9d] to-[#514a9d] overflow-y-auto flex flex-col items-center p-0 pb-10
   // innerStyles replaced by Tailwind classes: w-full max-w-[440px] mx-auto px-4 pb-10
 
 
   // ------ Paso 1: NOMBRE ------
   if (step === STEPS.NAME) {
     return (
-      <div className="min-h-screen w-full max-w-full overflow-x-hidden pt-[80px]">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[80px]">
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4">
@@ -460,7 +460,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // ------ Paso 2: FECHA/HORA ------
   if (step === STEPS.WHEN) {
     return (
-      <div className="min-h-screen w-full max-w-full overflow-x-hidden pt-[80px]">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[80px]">
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4">
@@ -511,7 +511,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // ------ Paso 3: SEDE ------
   if (step === STEPS.WHERE) {
     return (
-      <div className="min-h-screen w-full max-w-full overflow-x-hidden pt-[80px]">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[80px]">
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4">
@@ -565,7 +565,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // ------ Paso 4: CONFIRMAR ------
   if (step === STEPS.CONFIRM) {
     return (
-      <div className="min-h-screen w-full max-w-full overflow-x-hidden pt-[80px]">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[80px]">
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4">

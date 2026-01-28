@@ -10,7 +10,7 @@ const NotificationsPage = () => {
     <>
       <PageTitle onBack={() => navigateWithAnimation('/', 'back')}>NOTIFICACIONES</PageTitle>
       <PageTransition>
-        <div className="min-h-screen w-full overflow-y-auto" style={{ paddingTop: 'calc(64px + 10px + env(safe-area-inset-top))', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="min-h-[100dvh] w-full overflow-y-auto" style={{ paddingTop: 'calc(64px + 10px + env(safe-area-inset-top))', paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <NotificationsView />
         </div>
       </PageTransition>

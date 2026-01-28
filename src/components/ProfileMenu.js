@@ -168,7 +168,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
       <div className="fixed inset-0 bg-black/50 z-[999] backdrop-blur-[2px]" onClick={onClose} />
 
       {/* Menu */}
-      <div className={`fixed top-0 right-[-400px] w-[400px] max-[600px]:w-screen max-[600px]:right-[-100vw] h-screen bg-gradient-to-br from-[#667eea] to-[#764ba2] z-[1000] flex flex-col transition-[right] duration-300 ease-in-out shadow-[-4px_0_20px_rgba(0,0,0,0.3)] ${isOpen ? '!right-0' : ''}`}>
+      <div className={`fixed top-0 right-[-400px] w-[400px] max-[600px]:w-screen max-[600px]:right-[-100vw] h-[100dvh] bg-gradient-to-br from-[#667eea] to-[#764ba2] z-[1000] flex flex-col transition-[right] duration-300 ease-in-out shadow-[-4px_0_20px_rgba(0,0,0,0.3)] ${isOpen ? '!right-0' : ''}`}>
         {/* Header with Avatar */}
         <div className="p-6 text-center relative border-b border-white/20 max-[600px]:p-5 max-[600px]:px-4">
           <div className="mb-4 flex justify-center">

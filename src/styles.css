@@ -19,12 +19,23 @@
   --gray-txt: #888;
   --chip-radius: 13px;
   --gradient-bg: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+
+  /* Safe Area Variables */
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+  --safe-left: env(safe-area-inset-left);
+  --safe-right: env(safe-area-inset-right);
 }
 
-html, body, #root {
+html,
+body,
+#root {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+  background: #0b1020;
+  /* Shell background matches theme-color */
+  min-height: 100dvh;
 }
 
 /* DARK MODE VARIABLES */
@@ -121,7 +132,7 @@ body {
   .container {
     padding: 10px 2px 18px;
     border-radius: 12px;
-    min-height: 96vh;
+    min-height: 96dvh;
   }
 
   .header-bar .title {

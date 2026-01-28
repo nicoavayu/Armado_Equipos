@@ -7,7 +7,7 @@ const PlayerActionModal = ({
     player,
     onInvite,
     onViewProfile,
-    onAddFriend
+    onAddFriend,
 }) => {
     if (!isOpen || !player) return null;
 

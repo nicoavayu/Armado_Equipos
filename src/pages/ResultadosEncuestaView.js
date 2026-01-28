@@ -1272,7 +1272,7 @@ const ResultadosEncuestaView = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen w-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
+      <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
         <LoadingSpinner size="large" />
       </div>
     );
@@ -1372,7 +1372,7 @@ const ResultadosEncuestaView = () => {
   }
 
   return (
-    <div className="min-h-screen w-screen p-0 flex flex-col" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
+    <div className="min-h-[100dvh] w-screen p-0 flex flex-col" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
       {/* Main Card Container */}
       <div className="w-[90vw] max-w-[1100px] mt-[70px] mx-auto py-6 px-4 pb-11 bg-card dark:bg-[#1a1a1a] shadow-fifa-card rounded-[20px] min-h-[82vh] md:w-full md:mt-12 md:shadow-none md:rounded-none relative mb-20">
 

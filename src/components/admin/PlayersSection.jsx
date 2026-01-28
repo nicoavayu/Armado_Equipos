@@ -41,7 +41,7 @@ const PlayersSection = ({
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef(null);
   const adminMenuButtonRef = useRef(null);
-  
+
   const menuOpen = isAdmin ? (actionsMenuOpen !== undefined ? actionsMenuOpen : localMenuOpen) : false;
   const setMenuOpen = isAdmin && setActionsMenuOpen ? setActionsMenuOpen : setLocalMenuOpen;
   const renderPlayerCard = (j) => {
@@ -123,7 +123,7 @@ const PlayersSection = ({
                       const rect = menuButtonRef.current.getBoundingClientRect();
                       setMenuPosition({
                         top: rect.bottom + 8,
-                        left: rect.left - 140 + rect.width
+                        left: rect.left - 140 + rect.width,
                       });
                     }
                     setLocalMenuOpen(!localMenuOpen);
@@ -141,7 +141,7 @@ const PlayersSection = ({
                       onClick={() => setLocalMenuOpen(false)}
                     />
                     {/* Menú después (z-index mayor) con animación */}
-                    <div 
+                    <div
                       className="fixed w-48 rounded-lg border border-slate-700 bg-slate-900 shadow-xl z-[9999] overflow-hidden transition-all duration-200 ease-out"
                       style={{
                         top: `${menuPosition.top}px`,
@@ -284,7 +284,7 @@ const PlayersSection = ({
                   const rect = adminMenuButtonRef.current.getBoundingClientRect();
                   setMenuPosition({
                     top: rect.bottom + 8,
-                    left: rect.left - 140 + rect.width
+                    left: rect.left - 140 + rect.width,
                   });
                 }
                 setMenuOpen(!menuOpen);
@@ -303,7 +303,7 @@ const PlayersSection = ({
                   onClick={() => setMenuOpen(false)}
                 />
                 {/* Menú después (z-index mayor) con animación */}
-                <div 
+                <div
                   className="fixed w-48 rounded-lg border border-slate-700 bg-slate-900 shadow-lg z-[9999] transition-all duration-200 ease-out"
                   style={{
                     top: `${menuPosition.top}px`,

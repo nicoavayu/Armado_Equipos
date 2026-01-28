@@ -500,7 +500,7 @@ const StatsView = ({ onVolver }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen pb-[100px]">
+      <div className="min-h-[100dvh] pb-[100px]">
         <PageTitle onBack={onVolver}>ESTADÍSTICAS</PageTitle>
         <div className="flex justify-center items-center h-[50vh]">
           <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -510,7 +510,7 @@ const StatsView = ({ onVolver }) => {
   }
 
   return (
-    <div className="min-h-screen pb-[100px]">
+    <div className="min-h-[100dvh] pb-[100px]">
       <PageTitle onBack={onVolver}>ESTADÍSTICAS</PageTitle>
 
       <div className="pt-[100px] px-5 pb-5 max-w-[100vw] m-0 box-border md:pt-[90px] md:px-4 sm:pt-[90px]">

@@ -8,7 +8,7 @@ const ProtectedRoute = ({ children, requireAuth = true, fallback = null }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen w-screen bg-fifa-gradient flex flex-col items-center justify-center gap-4">
+      <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex flex-col items-center justify-center gap-4">
         <LoadingSpinner size="lg" />
         <div className="text-white font-oswald text-lg">Verificando autenticación...</div>
       </div>
@@ -17,7 +17,7 @@ const ProtectedRoute = ({ children, requireAuth = true, fallback = null }) => {
 
   if (requireAuth && !user) {
     return fallback || (
-      <div className="min-h-screen w-screen bg-fifa-gradient flex items-center justify-center p-5">
+      <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-5">
         <div className="bg-white/10 p-8 rounded-2xl shadow-fifa-card backdrop-blur-md flex flex-col items-center max-w-[400px] w-full">
           <div className="text-white text-3xl font-bebas mb-5 tracking-wider">
             ACCESO RESTRINGIDO
