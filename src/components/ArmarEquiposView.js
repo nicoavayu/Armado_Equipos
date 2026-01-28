@@ -40,6 +40,7 @@ export default function ArmarEquiposView({
   const [confirmConfig, setConfirmConfig] = useState({ open: false, action: null });
   const [votingStarted, setVotingStarted] = useState(false);
   const [estadoOverride, setEstadoOverride] = useState(null); // Override local para estado después de reset
+  const [playerToRemove, setPlayerToRemove] = useState(null); // Para modal de eliminación
   const playersSectionRef = React.useRef(null);
   const navigate = useNavigate();
 
@@ -588,9 +589,7 @@ export default function ArmarEquiposView({
                           className="w-6 h-6 bg-slate-800 text-white/70 border border-slate-700 rounded-full cursor-pointer transition-all flex items-center justify-center shrink-0 hover:bg-slate-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm(`¿Eliminar a ${j.nombre} del partido?`)) {
-                              eliminarJugador(j.uuid);
-                            }
+                            setPlayerToRemove({ uuid: j.uuid, nombre: j.nombre });
                           }}
                           type="button"
                           disabled={loading}
@@ -709,6 +708,22 @@ export default function ArmarEquiposView({
           cancelText=""
           isDeleting={false}
           singleButton={true}
+        />
+
+        <ConfirmModal
+          isOpen={playerToRemove !== null}
+          title="Eliminar jugador"
+          message={`¿Eliminar a ${playerToRemove?.nombre} del partido?`}
+          onConfirm={() => {
+            if (playerToRemove) {
+              eliminarJugador(playerToRemove.uuid);
+              setPlayerToRemove(null);
+            }
+          }}
+          onCancel={() => setPlayerToRemove(null)}
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          isDeleting={loading}
         />
       </div>
     </>
