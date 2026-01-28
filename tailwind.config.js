@@ -7,7 +7,7 @@ module.exports = {
         extend: {
             fontFamily: {
                 'sans': ['Inter', 'sans-serif'],
-                'bebas': ['"Bebas Neue"', 'sans-serif'],
+                'bebas': ['Inter', 'sans-serif'],
                 'bebas-real': ['"Bebas Neue"', 'sans-serif'],
                 'oswald': ['Inter', 'sans-serif'],
             },

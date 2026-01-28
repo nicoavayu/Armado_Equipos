@@ -96,7 +96,7 @@ const GlobalHeader = ({ _onProfileClick }) => {
         <div className="flex flex-col" onClick={toggleStatusDropdown}>
           <div className="flex items-baseline">
             <div className="text-white font-oswald text-sm mr-1.5 opacity-90 shadow-sm text-shadow-sm">Hola,</div>
-            <div className="text-white font-bebas text-lg font-bold shadow-sm text-shadow-sm">{truncatedName}</div>
+            <div className="text-white font-bebas-real text-lg font-bold shadow-sm text-shadow-sm">{truncatedName}</div>
           </div>
           <div className={`font-oswald text-xs mt-0.5 shadow-sm text-shadow-sm ${isAvailable ? 'text-green-500' : 'text-red-500'}`}>{statusText}</div>
         </div>

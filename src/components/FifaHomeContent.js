@@ -257,7 +257,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
             <div className="flex flex-col" onClick={toggleStatusDropdown}>
               <div className="flex items-baseline">
                 <div className="text-white font-oswald text-sm mr-[5px] opacity-90 drop-shadow-[0_1px_2px_rgba(255,255,255,0.2)]">Hola,</div>
-                <div className="text-white font-bebas text-lg font-bold drop-shadow-[0_1px_2px_rgba(255,255,255,0.2)]">{truncatedName}</div>
+                <div className="text-white font-bebas-real text-lg font-bold drop-shadow-[0_1px_2px_rgba(255,255,255,0.2)]">{truncatedName}</div>
               </div>
               <div className={`font-oswald text-xs mt-[2px] ${isAvailable ? 'text-[#4CAF50]' : 'text-[#F44336]'}`}>{statusText}</div>
             </div>
@@ -363,7 +363,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       {/* Recent Activity */}
       <div className="bg-white/5 border border-white/10 backdrop-blur-[15px] rounded-2xl p-6 mt-5 mb-10 shadow-xl">
-        <h3 className="font-bebas text-[28px] m-0 mb-4 text-white/90 uppercase font-bold tracking-tight">ACTIVIDAD RECIENTE</h3>
+        <h3 className="font-bebas-real text-[28px] m-0 mb-4 text-white/90 uppercase font-bold tracking-tight">ACTIVIDAD RECIENTE</h3>
         <div className="flex flex-col gap-3 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
           {combinedActivity.length > 0 ? (
             combinedActivity.map((item) => (

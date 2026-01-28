@@ -28,7 +28,7 @@ const PageTitle = ({ children, title, onBack, showChatButton, onChatClick, unrea
             </svg>
           </button>
         )}
-        <h2 className="m-0 font-bebas text-[30px] font-bold tracking-[2px] text-center text-white absolute top-1/2 left-0 -translate-y-1/2 w-full truncate uppercase md:text-[26px] md:mt-[2px] xs:text-[24px] drop-shadow-lg px-[52px]">
+        <h2 className="m-0 font-bebas-real text-[30px] font-bold tracking-[2px] text-center text-white absolute top-1/2 left-0 -translate-y-1/2 w-full truncate uppercase md:text-[26px] md:mt-[2px] xs:text-[24px] drop-shadow-lg px-[52px]">
           {titleText}
         </h2>
 

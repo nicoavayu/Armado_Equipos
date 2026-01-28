@@ -16,16 +16,16 @@ const STEPS = {
   CONFIRM: 4,
 };
 
-const INPUT_MODERN_CLASS = 'appearance-none bg-white/10 border border-white/20 text-white font-oswald text-lg px-4 py-3 rounded-xl w-full h-12 transition-all focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 placeholder:text-white/40 focus:bg-white/15 mb-2 box-border shadow-none backdrop-blur-md';
-const CONFIRM_BTN_CLASS = 'font-bebas text-[27px] text-white bg-primary border-2 border-white/20 rounded-2xl tracking-[0.05em] w-full min-h-[54px] font-bold transition-all duration-300 hover:brightness-110 hover:shadow-[0_8px_32px_rgba(129,120,229,0.4)] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center relative overflow-hidden box-border mt-4 mb-0';
-const CONFIRM_ITEM_CLASS = 'bg-white/5 border border-white/10 backdrop-blur-md rounded-xl p-4 mb-3 flex justify-between items-center text-white font-oswald shadow-lg';
+const INPUT_MODERN_CLASS = 'appearance-none bg-white/10 border border-white/20 text-white font-sans text-lg px-4 py-3 rounded-xl w-full h-12 transition-all focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 placeholder:text-white/40 focus:bg-white/15 mb-2 box-border shadow-none backdrop-blur-md';
+const CONFIRM_BTN_CLASS = 'text-xl text-white bg-primary border-2 border-white/20 rounded-2xl tracking-[0.05em] w-full min-h-[48px] font-bold transition-all duration-300 hover:brightness-110 hover:shadow-[0_8px_32px_rgba(129,120,229,0.4)] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center relative overflow-hidden box-border mt-4 mb-0';
+const CONFIRM_ITEM_CLASS = 'bg-white/5 border border-white/10 backdrop-blur-md rounded-xl p-4 mb-3 flex justify-between items-center text-white font-sans shadow-lg';
 
 const STEP_TITLE_STYLE = {
   color: '#fff',
   textAlign: 'left',
   marginBottom: '1rem',
   marginTop: '0',
-  fontFamily: "'Oswald', Arial, sans-serif",
+  fontFamily: "'Inter', sans-serif",
   fontWeight: 500,
   width: '100%',
   display: 'block',
@@ -244,7 +244,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // ------ Paso 1: NOMBRE ------
   if (step === STEPS.NAME) {
     return (
-      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[80px]">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]">
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4">
@@ -262,7 +262,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             */}
 
               {/* Label moved ABOVE the inline block so thumbnail aligns with the input */}
-              <label className="block w-full text-white font-medium mb-2 font-oswald" style={STEP_TITLE_STYLE}>
+              <label className="block w-full text-white font-medium mb-2 font-sans" style={STEP_TITLE_STYLE}>
                 Nombre del partido
               </label>
 
@@ -306,7 +306,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 color: 'rgba(255,255,255,0.7)',
                 textAlign: 'center',
                 marginTop: 8,
-                fontFamily: "'Oswald', Arial, sans-serif",
+                fontFamily: "'Inter', sans-serif",
               }}>
                 La imagen es opcional. El nombre es obligatorio.
               </div>
@@ -314,7 +314,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
 
             {/* Selector de modalidad */}
             <div style={{ width: '100%', marginBottom: '2rem', marginTop: '0.3rem' }}>
-              <label style={{ fontWeight: 500, color: '#fff', marginBottom: 12, display: 'block', fontFamily: "'Oswald', Arial, sans-serif" }}>
+              <label style={{ fontWeight: 500, color: '#fff', marginBottom: 12, display: 'block', fontFamily: "'Inter', sans-serif" }}>
                 Modalidad
               </label>
               <div style={{
@@ -333,7 +333,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                       padding: '12px 8px',
                       fontSize: '16px',
                       fontWeight: modalidad === tipo ? '700' : '500',
-                      fontFamily: "'Oswald', Arial, sans-serif",
+                      fontFamily: "'Inter', sans-serif",
                       border: modalidad === tipo ? '2px solid transparent' : '1.5px solid rgba(255,255,255,0.2)',
                       borderRadius: '12px',
                       background: modalidad === tipo ? 'var(--btn-primary)' : 'rgba(255,255,255,0.05)',
@@ -357,7 +357,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             </div>
             {/* Selector de tipo de partido */}
             <div style={{ width: '100%', marginBottom: '3rem', marginTop: '0.3rem' }}>
-              <label style={{ fontWeight: 500, color: '#fff', marginBottom: 12, display: 'block', fontFamily: "'Oswald', Arial, sans-serif" }}>
+              <label style={{ fontWeight: 500, color: '#fff', marginBottom: 12, display: 'block', fontFamily: "'Inter', sans-serif" }}>
                 Tipo de partido
               </label>
               <div style={{
@@ -376,7 +376,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                       padding: '12px 8px',
                       fontSize: '16px',
                       fontWeight: tipoPartido === tipo ? '700' : '500',
-                      fontFamily: "'Oswald', Arial, sans-serif",
+                      fontFamily: "'Inter', sans-serif",
                       border: tipoPartido === tipo ? '2px solid transparent' : '1.5px solid rgba(255,255,255,0.2)',
                       borderRadius: '12px',
                       background: tipoPartido === tipo ? 'var(--btn-primary)' : 'rgba(255,255,255,0.05)',
@@ -460,7 +460,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // ------ Paso 2: FECHA/HORA ------
   if (step === STEPS.WHEN) {
     return (
-      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[80px]">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]">
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4">
@@ -511,7 +511,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // ------ Paso 3: SEDE ------
   if (step === STEPS.WHERE) {
     return (
-      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[80px]">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]">
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4">
@@ -528,7 +528,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
 
             {/* Optional: valor de la cancha por persona */}
             <div style={{ width: '100%', marginTop: 12, marginBottom: 12 }}>
-              <label style={{ fontWeight: 500, color: '#fff', marginBottom: 8, display: 'block', fontFamily: "'Oswald', Arial, sans-serif" }}>
+              <label style={{ fontWeight: 500, color: '#fff', marginBottom: 8, display: 'block', fontFamily: "'Inter', sans-serif" }}>
                 Valor de la cancha (por persona) — opcional
               </label>
               <input
@@ -565,7 +565,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // ------ Paso 4: CONFIRMAR ------
   if (step === STEPS.CONFIRM) {
     return (
-      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[80px]">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]">
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4">
@@ -585,7 +585,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 />
               </div>
             )}
-            <ul className="bg-transparent border-none shadow-none p-0 mt-[68px] mb-0 list-none">
+            <ul className="bg-transparent border-none shadow-none p-0 mt-[10px] mb-0 list-none">
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Nombre:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{nombrePartido}</span>
@@ -621,7 +621,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 <span className="font-normal text-base text-white flex-1 text-center mx-3" style={{ fontSize: 16, textAlign: 'right' }}>
                   {sede.length > 30 ? sede.substring(0, 30) + '...' : sede}
                 </span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHERE)}>EDITAR</button>
+                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-sans hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHERE)}>EDITAR</button>
               </li>
             </ul>
 
@@ -640,7 +640,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                     className="w-11 h-[26px] bg-white/10 rounded-full relative transition-all duration-150 shadow-inner flex-none peer-checked:bg-primary peer-disabled:opacity-45 peer-disabled:cursor-not-allowed after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all after:duration-150 after:ease-[cubic-bezier(.2,.9,.3,1)] after:shadow-md peer-checked:after:translate-x-[18px]"
                     aria-hidden="true"
                   />
-                  <span className="inline-block ml-3 text-white font-bold font-oswald peer-disabled:opacity-45 peer-disabled:cursor-not-allowed">Guardar como partido frecuente</span>
+                  <span className="inline-block ml-3 text-white font-bold font-sans peer-disabled:opacity-45 peer-disabled:cursor-not-allowed">Guardar como partido frecuente</span>
                 </label>
                 <div className="pf-switch-note" style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginLeft: 40 }}>
                   Guarda lugar, hora y precio para reutilizarlo luego. (fecha opcional)
