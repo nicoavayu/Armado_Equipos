@@ -113,3 +113,5 @@ const PlayerCard = ({ profile, user, isVisible }) => {
     </div>
   );
 };
+
+export default PlayerCard;

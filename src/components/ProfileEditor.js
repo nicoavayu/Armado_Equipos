@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { useAuth } from './AuthProvider';
-import { updateProfile, calculateProfileCompletion, uploadFoto, supabase } from '../supabase';
+import { updateProfile, calculateProfileCompletion, supabase } from '../supabase';
 import ProfileCard from './ProfileCard';
 
 import { useTutorial } from '../context/TutorialContext';
@@ -78,7 +78,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   }, [profile, user, refreshProfile]);
 
   const MAX_NOMBRE = 12;
-  const nombreRestantes = Math.max(0, MAX_NOMBRE - (formData.nombre?.length || 0));
 
   const handleInputChange = (field, value) => {
     const newData = { ...formData, [field]: value };
@@ -340,11 +339,11 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const normalizeInstagram = (raw) => {
     if (!raw) return '';
     let v = String(raw).trim();
-    const urlMatch = v.match(/(?:instagram\.com\/(?:p\/)?|instagr\.am\/)(?:u\/)?@?([^\/?#\s]+)/i);
+    const urlMatch = v.match(/(?:instagram\.com\/(?:p\/)?|instagr\.am\/)(?:u\/)?@?([^/?#\s]+)/i);
     if (urlMatch && urlMatch[1]) {
       v = urlMatch[1];
     }
-    v = v.split(/[\/?#]/)[0];
+    v = v.split(/[/?#]/)[0];
     if (v.startsWith('@')) v = v.slice(1);
     const allowed = (v.match(/[A-Za-z0-9._]+/g) || []).join('');
     v = allowed.slice(0, 14);

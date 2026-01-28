@@ -7,6 +7,7 @@ import {
   supabase,
   getGuestSessionId,
 } from '../supabase';
+import { subscribeToMatchUpdates } from '../services/realtimeService';
 import { toast } from 'react-toastify';
 import DOMPurify from 'dompurify';
 import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
@@ -158,6 +159,22 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     checkVotoUsuarioActual();
     // eslint-disable-next-line
   }, []);
+
+  // Realtime match updates
+  useEffect(() => {
+    if (!partidoActual?.id) return;
+    const unsubscribe = subscribeToMatchUpdates(partidoActual.id, (event) => {
+      console.debug('[RT] Voting update:', event);
+      if (event.type === 'match_update' && event.payload.new) {
+        // Example: If admin closes voting, we might want to refresh
+        // For now, simpler: just refresh if status changes drastically or force reload
+        if (event.payload.new.status !== partidoActual.status) {
+          window.location.reload();
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [partidoActual?.id]);
 
 
 
@@ -324,9 +341,9 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         <div className={cardClass}>
           <div className={titleClass}>¡HOLA, {clean(nombre)}!</div>
-          <div className="flex flex-col items-center mb-[18px]">
+          <div className="flex flex-col items-center mb-6">
             <div
-              className={'w-[80vw] h-[80vw] md:w-[320px] md:h-[320px] bg-white/10 border-2 border-white/25 rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden mx-auto mt-[18px] cursor-pointer hover:border-white/40'}
+              className={'w-64 h-64 md:w-[320px] md:h-[320px] bg-white/10 border-2 border-white/25 rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden mx-auto mt-4 cursor-pointer hover:border-white/40 transition-all'}
               onClick={() => document.getElementById('foto-input').click()}
               title={fotoPreview ? 'Cambiar foto' : 'Agregar foto'}
             >
@@ -349,27 +366,29 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             </div>
           </div>
           {!fotoPreview && (
-            <div className="text-[18px] text-white/70 text-center mb-[18px] font-oswald">
+            <div className="text-[18px] text-white/70 text-center mb-6 font-oswald">
               Mandale selfie <br />
             </div>
           )}
-          {file && (
+
+          <div className="w-full flex flex-col gap-3 mt-2">
+            {file && (
+              <button
+                className={`${btnClass} !mt-0`}
+                style={{ background: 'rgba(255,255,255,0.17)', borderColor: '#fff' }}
+                disabled={subiendoFoto}
+                onClick={handleFotoUpload}
+              >
+                {subiendoFoto ? 'SUBIENDO...' : 'GUARDAR FOTO'}
+              </button>
+            )}
             <button
-              className={btnClass}
-              style={{ background: 'rgba(255,255,255,0.17)', borderColor: '#fff' }}
-              disabled={subiendoFoto}
-              onClick={handleFotoUpload}
+              className={`${btnClass} !mt-0`}
+              onClick={() => setStep(2)}
             >
-              {subiendoFoto ? 'SUBIENDO...' : 'GUARDAR FOTO'}
+              {fotoPreview ? 'CONTINUAR' : 'CONTINUAR SIN FOTO'}
             </button>
-          )}
-          <button
-            className={btnClass}
-            style={{ marginTop: 8 }}
-            onClick={() => setStep(2)}
-          >
-            {fotoPreview ? 'CONTINUAR' : 'CONTINUAR SIN FOTO'}
-          </button>
+          </div>
         </div>
       </div>
     );

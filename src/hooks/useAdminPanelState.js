@@ -10,29 +10,30 @@ import { toast } from 'react-toastify';
  * @param {Object} props - Hook props
  * @returns {Object} State and handlers
  */
-export const useAdminPanelState = ({ 
-  jugadores, 
-  onJugadoresChange, 
-  partidoActual, 
-  user, 
-  isAdmin, 
-  onBackToHome, 
+export const useAdminPanelState = ({
+  jugadores,
+  onJugadoresChange,
+  partidoActual,
+  user,
+  isAdmin,
+  onBackToHome,
 }) => {
   const [votantes, setVotantes] = useState([]);
   const [votantesConNombres, setVotantesConNombres] = useState([]);
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
+  const [isClosing, _setIsClosing] = useState(false);
   const [showTeamView, setShowTeamView] = useState(false);
   const [showArmarEquiposView, setShowArmarEquiposView] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [duplicatesDetected, setDuplicatesDetected] = useState(0);
+  const [duplicatesDetected, _setDuplicatesDetected] = useState(0);
   const [teams, setTeams] = useState([
     { id: 'equipoA', name: 'Equipo A', players: [], score: 0 },
     { id: 'equipoB', name: 'Equipo B', players: [], score: 0 },
   ]);
   const [jugadoresLocal, setJugadoresLocal] = useState(jugadores || []);
   const [pendingInvitation, setPendingInvitation] = useState(false);
+  const [invitationStatus, setInvitationStatus] = useState(null); // 'pending', 'declined', 'accepted', etc.
   const [invitationLoading, setInvitationLoading] = useState(false);
   const [invitationChecked, setInvitationChecked] = useState(false);
   const [faltanJugadoresState, setFaltanJugadoresState] = useState(partidoActual?.falta_jugadores || false);
@@ -53,13 +54,13 @@ export const useAdminPanelState = ({
   useEffect(() => {
     const search = new URLSearchParams(window.location.search);
     if (search.has('codigo')) return; // no correr en voting view
-    
+
     const checkInvitation = async () => {
       if (!user?.id || !partidoActual?.id) {
         setInvitationChecked(true);
         return;
       }
-      
+
       try {
         const isInMatch = jugadores.some((j) => j.usuario_id === user.id);
         if (isInMatch) {
@@ -67,24 +68,50 @@ export const useAdminPanelState = ({
           setInvitationChecked(true);
           return;
         }
-        
+
         const { data: invitation } = await supabase
           .from('notifications_ext')
           .select('id, data')
           .eq('user_id', user.id)
           .eq('type', 'match_invite')
-          .eq('read', false)
+          // .eq('read', false) // REMOVER: queremos ver si existe aunque esté leída para controlar estado
           .eq('match_id_text', partidoActual.id.toString())
+          .order('send_at', { ascending: false }) // Get latest
+          .limit(1)
           .single();
-          
-        setPendingInvitation(!!invitation);
+
+        if (invitation) {
+          const status = invitation.data?.status || 'pending';
+          setInvitationStatus(status);
+          // Sólo mostrar como pending si el status es pending (o undefined) Y no está leída (opcional, pero user quiere que rejection invalide)
+          // User req: "Si invite status != 'pending' ... mostrar pantalla read-only"
+          // So actually we want to KNOW if there is an invitation even if handled/declined to show the invalid screen?
+          // Or does 'pendingInvitation' boolean drive the UI?
+          // AdminPanel uses `pendingInvitation` to show the guest view UI (checking MatchInfoSection vs PlayersSection).
+          // If I set pendingInvitation=true, it shows guest view.
+          // I should set pendingInvitation=true if there is ANY recent invite record, and let the view handle the 'Invalid' state based on 'invitationStatus'.
+          // WAIT. AdminPanel logic: `!showTeams && ( ... AdminActions ... PlayersSection )`
+          // PlayersSection handles `!isPlayerInMatch`.
+
+          // Correct approach:
+          // If status IS pending, treat as valid invite -> pendingInvitation = true.
+          // If status IS declined, we still might want to show "You declined this".
+          // But normally if I declined, I proceed to see the match as a stranger (or see nothing special).
+          // User wants: "Al abrir la pantalla de Aceptar invitación ... Si invite status != pending ... mostrar pantalla read-only".
+          // This implies we DO enter the flow.
+          setPendingInvitation(true);
+        } else {
+          setPendingInvitation(false);
+          setInvitationStatus(null);
+        }
+
       } catch (error) {
         setPendingInvitation(false);
       } finally {
         setInvitationChecked(true);
       }
     };
-    
+
     checkInvitation();
   }, [user?.id, partidoActual?.id, jugadores]);
 
@@ -92,7 +119,7 @@ export const useAdminPanelState = ({
   useEffect(() => {
     const search = new URLSearchParams(window.location.search);
     if (search.has('codigo')) return;
-    
+
     async function fetchInitialData() {
       if (!partidoActual?.id) return;
       try {
@@ -106,9 +133,9 @@ export const useAdminPanelState = ({
         console.error('Error loading initial data:', error);
       }
     }
-    
+
     fetchInitialData();
-    
+
     // Real-time subscription for players
     const playersChannel = supabase
       .channel(`match-players-${partidoActual.id}`)
@@ -128,7 +155,7 @@ export const useAdminPanelState = ({
         }
       })
       .subscribe();
-    
+
     // Real-time subscription for votes
     const votesChannel = supabase
       .channel(`match-votes-${partidoActual.id}`)
@@ -149,7 +176,7 @@ export const useAdminPanelState = ({
         }
       })
       .subscribe();
-    
+
     return () => {
       supabase.removeChannel(playersChannel);
       supabase.removeChannel(votesChannel);
@@ -158,39 +185,39 @@ export const useAdminPanelState = ({
 
   // Initialize falta_jugadores state
   useEffect(() => {
-    if (partidoActual?.falta_jugadores !== undefined && 
-        faltanJugadoresState === false && 
-        !partidoActual.falta_jugadores) {
+    if (partidoActual?.falta_jugadores !== undefined &&
+      faltanJugadoresState === false &&
+      !partidoActual.falta_jugadores) {
       setFaltanJugadoresState(partidoActual.falta_jugadores);
     }
   }, [partidoActual?.id, faltanJugadoresState, partidoActual?.falta_jugadores]);
 
   const agregarJugador = async (e) => {
     e.preventDefault();
-    
+
     if (!isAdmin) {
       toast.error('Solo el admin puede agregar jugadores');
       return;
     }
-    
+
     if (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) {
       toast.error('El partido está lleno');
       return;
     }
-    
+
     const nombre = nuevoNombre.trim();
     if (!nombre) return;
-    
+
     const nombreExiste = jugadores.some((j) => j.nombre.toLowerCase() === nombre.toLowerCase());
     if (nombreExiste) {
       toast.warn('Ya existe un jugador con ese nombre.');
       return;
     }
-    
+
     setLoading(true);
     try {
       const uuid = crypto.randomUUID();
-      
+
       const { error } = await supabase
         .from('jugadores')
         .insert([{
@@ -202,16 +229,16 @@ export const useAdminPanelState = ({
         }])
         .select()
         .single();
-        
+
       if (error) throw error;
       setNuevoNombre('');
-      
+
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
         }
       }, 200);
-      
+
       setTimeout(async () => {
         try {
           await autoCleanupDuplicates(partidoActual.id);
@@ -219,14 +246,14 @@ export const useAdminPanelState = ({
           // Error cleaning duplicates
         }
       }, 1500);
-      
+
       const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
       const votantesIds = await getVotantesIds(partidoActual.id);
       const votantesNombres = await getVotantesConNombres(partidoActual.id);
       setVotantes(votantesIds || []);
       setVotantesConNombres(votantesNombres || []);
       onJugadoresChange(jugadoresPartido);
-      
+
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
@@ -239,14 +266,14 @@ export const useAdminPanelState = ({
     }
   };
 
-  const eliminarJugador = async (uuid, esExpulsion = false) => {
+  const eliminarJugador = async (uuid, _esExpulsion = false) => {
     const jugadorAEliminar = jugadores.find((j) => j.uuid === uuid);
-    
+
     if (!isAdmin && jugadorAEliminar?.usuario_id !== user?.id) {
       toast.error('Solo puedes eliminarte a ti mismo o ser admin');
       return;
     }
-    
+
     if (isAdmin && jugadorAEliminar?.usuario_id === user?.id) {
       const otrosJugadoresConCuenta = jugadores.filter((j) => j.usuario_id && j.usuario_id !== user?.id);
       if (otrosJugadoresConCuenta.length === 0) {
@@ -254,9 +281,9 @@ export const useAdminPanelState = ({
         return;
       }
     }
-    
+
     const esAutoEliminacion = jugadorAEliminar?.usuario_id === user?.id;
-    
+
     setLoading(true);
     try {
       const { error } = await supabase
@@ -264,13 +291,13 @@ export const useAdminPanelState = ({
         .delete()
         .eq('uuid', uuid)
         .eq('partido_id', partidoActual.id);
-        
+
       if (error) throw error;
-      
+
       if (esAutoEliminacion && jugadorAEliminar?.usuario_id) {
         try {
           const canAbandonSafely = canAbandonWithoutPenalty(
-            partidoActual.fecha, 
+            partidoActual.fecha,
             partidoActual.hora,
           );
           if (!canAbandonSafely) {
@@ -280,12 +307,12 @@ export const useAdminPanelState = ({
           // Error processing match abandonment
         }
       }
-      
+
       if (esAutoEliminacion) {
         toast.success('Te has eliminado del partido');
         setTimeout(() => onBackToHome(), 1000);
       }
-      
+
       if (isAdmin && !esAutoEliminacion && jugadorAEliminar?.usuario_id) {
         try {
           const payload = {
@@ -305,7 +332,7 @@ export const useAdminPanelState = ({
           // Error sending kick notification
         }
       }
-      
+
       if (!esAutoEliminacion) {
         const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
         const votantesIds = await getVotantesIds(partidoActual.id);
@@ -326,32 +353,32 @@ export const useAdminPanelState = ({
       toast.error('Solo el creador puede transferir el rol de admin');
       return;
     }
-    
+
     const jugador = jugadores.find((j) => j.id === jugadorId || j.usuario_id === jugadorId);
     if (!jugador || !jugador.usuario_id) {
       toast.error('El jugador debe tener una cuenta para ser admin');
       return;
     }
-    
+
     if (jugador.usuario_id === user.id) {
       toast.error('Ya eres el admin del partido');
       return;
     }
-    
+
     if (!window.confirm('¿Estás seguro de transferir el rol de admin? Perderás el control del partido.')) {
       return;
     }
-    
+
     try {
       const { error } = await supabase
         .from('partidos')
         .update({ creado_por: jugador.usuario_id })
         .eq('id', partidoActual.id);
-        
+
       if (error) throw error;
-      
+
       partidoActual.creado_por = jugador.usuario_id;
-      
+
       const payload = {
         user_id: jugador.usuario_id,
         type: 'admin_transfer',
@@ -365,21 +392,21 @@ export const useAdminPanelState = ({
         read: false,
       };
       await supabase.from('notifications').insert([payload]);
-      
+
       // Trigger a minimal update to refresh admin panel (updated_at handled by trigger)
       await supabase
         .from('partidos')
         .update({ creado_por: jugador.usuario_id })
         .eq('id', partidoActual.id);
-      
+
       onJugadoresChange([...jugadores]);
-      
+
       toast.success(`${jugador.nombre || 'El jugador'} es ahora el admin del partido`);
-      
+
       setTimeout(() => {
         window.location.reload();
       }, 2000);
-      
+
     } catch (error) {
       toast.error('Error al transferir admin: ' + error.message);
     }
@@ -387,19 +414,19 @@ export const useAdminPanelState = ({
 
   const aceptarInvitacion = async () => {
     if (!user?.id || !partidoActual?.id) return;
-    
+
     const yaEstaEnPartido = jugadores.some((j) => j.usuario_id === user.id);
     if (yaEstaEnPartido) {
       toast.error('Ya estás en este partido');
       setPendingInvitation(false);
       return;
     }
-    
+
     if (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) {
       toast.error('El partido está lleno');
       return;
     }
-    
+
     setInvitationLoading(true);
     try {
       const { data: existingPlayer } = await supabase
@@ -408,20 +435,20 @@ export const useAdminPanelState = ({
         .eq('partido_id', partidoActual.id)
         .eq('usuario_id', user.id)
         .single();
-        
+
       if (existingPlayer) {
         toast.error('Ya estás en este partido');
         return;
       }
-      
+
       const { data: userProfile, error: profileError } = await supabase
         .from('usuarios')
         .select('nombre, avatar_url')
         .eq('id', user.id)
         .single();
-        
+
       if (profileError) throw profileError;
-      
+
       const { error: insertError } = await supabase
         .from('jugadores')
         .insert([{
@@ -434,7 +461,7 @@ export const useAdminPanelState = ({
           score: 5,
           is_goalkeeper: false,
         }]);
-        
+
       if (insertError) {
         if (insertError.code === '23505') {
           toast.error('Ya estás en este partido');
@@ -443,39 +470,39 @@ export const useAdminPanelState = ({
         }
         throw insertError;
       }
-      
+
       const { data: notifications } = await supabase
         .from('notifications')
         .select('id, data')
         .eq('user_id', user.id)
         .eq('type', 'match_invite')
         .eq('read', false);
-        
-      const matchNotification = notifications?.find((n) => 
+
+      const matchNotification = notifications?.find((n) =>
         n.data && n.data.matchId === partidoActual.id,
       );
-      
+
       if (matchNotification) {
         await supabase
           .from('notifications')
           .update({ read: true })
           .eq('id', matchNotification.id);
       }
-      
+
       await notificarJugadoresNuevoMiembro(userProfile?.nombre || 'Un jugador');
-      
+
       const jugadoresActualizados = await getJugadoresDelPartido(partidoActual.id);
       setJugadoresLocal(jugadoresActualizados);
       onJugadoresChange(jugadoresActualizados);
       setPendingInvitation(false);
-      
+
       toast.success('Te has unido al partido', { autoClose: 3000 });
-      
+
       // Force refresh to show guest view
       setTimeout(() => {
         window.location.reload();
       }, 1500);
-      
+
     } catch (error) {
       toast.error('Error al unirse al partido: ' + error.message);
     } finally {
@@ -485,7 +512,7 @@ export const useAdminPanelState = ({
 
   const rechazarInvitacion = async () => {
     if (!user?.id || !partidoActual?.id) return;
-    
+
     setInvitationLoading(true);
     try {
       const { data: notifications } = await supabase
@@ -494,28 +521,28 @@ export const useAdminPanelState = ({
         .eq('user_id', user.id)
         .eq('type', 'match_invite')
         .eq('read', false);
-        
-      const matchNotification = notifications?.find((n) => 
+
+      const matchNotification = notifications?.find((n) =>
         n.data && n.data.matchId === partidoActual.id,
       );
-      
+
       if (matchNotification) {
         await supabase
           .from('notifications')
           .update({ read: true })
           .eq('id', matchNotification.id);
       }
-      
+
       const { data: userProfile } = await supabase
         .from('usuarios')
         .select('nombre')
         .eq('id', user.id)
         .single();
-      
+
       await notificarRechazoInvitacion(userProfile?.nombre || 'Un jugador');
-      
+
       onBackToHome();
-      
+
     } catch (error) {
       toast.error('Error al rechazar invitación: ' + error.message);
     } finally {
@@ -526,7 +553,7 @@ export const useAdminPanelState = ({
   const notificarJugadoresNuevoMiembro = async (nombreJugador) => {
     try {
       const jugadoresConCuenta = jugadores.filter((j) => j.usuario_id && j.usuario_id !== user.id);
-      
+
       const notificaciones = jugadoresConCuenta.map((jugador) => ({
         user_id: jugador.usuario_id,
         type: 'match_update',
@@ -539,7 +566,7 @@ export const useAdminPanelState = ({
         },
         read: false,
       }));
-      
+
       if (notificaciones.length > 0) {
         await supabase.from('notifications').insert(notificaciones);
       }
@@ -551,7 +578,7 @@ export const useAdminPanelState = ({
   const notificarRechazoInvitacion = async (nombreJugador) => {
     try {
       const jugadoresConCuenta = jugadores.filter((j) => j.usuario_id);
-      
+
       const notificaciones = jugadoresConCuenta.map((jugador) => ({
         user_id: jugador.usuario_id,
         type: 'match_update',
@@ -564,7 +591,7 @@ export const useAdminPanelState = ({
         },
         read: false,
       }));
-      
+
       if (notificaciones.length > 0) {
         await supabase.from('notifications').insert(notificaciones);
       }
@@ -578,28 +605,28 @@ export const useAdminPanelState = ({
       toast.error('Solo el admin puede cambiar este estado');
       return;
     }
-    
+
     const isAtCapacity = partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores;
-    
+
     if (isAtCapacity && !faltanJugadoresState) {
       toast.error('No se puede abrir el partido cuando está lleno');
       return;
     }
-    
+
     try {
       const nuevoEstado = !faltanJugadoresState;
       const { error } = await supabase
         .from('partidos')
         .update({ falta_jugadores: nuevoEstado })
         .eq('id', partidoActual.id);
-      
+
       if (error) throw error;
-      
+
       setFaltanJugadoresState(nuevoEstado);
       partidoActual.falta_jugadores = nuevoEstado;
-      
-      toast.success(nuevoEstado ? 
-        '¡Partido abierto a la comunidad!' : 
+
+      toast.success(nuevoEstado ?
+        '¡Partido abierto a la comunidad!' :
         'Partido cerrado a nuevos jugadores',
       );
     } catch (error) {
@@ -633,7 +660,7 @@ export const useAdminPanelState = ({
     jugadoresActuales,
     currentPlayerInMatch,
     isPlayerInMatch,
-    
+
     // Handlers
     agregarJugador,
     eliminarJugador,
@@ -641,5 +668,6 @@ export const useAdminPanelState = ({
     aceptarInvitacion,
     rechazarInvitacion,
     handleFaltanJugadores,
+    invitationStatus, // Export status
   };
 };

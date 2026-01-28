@@ -1,5 +1,5 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { supabase, getProfile, createOrUpdateProfile, updateProfile } from '../supabase';
+import { supabase, getProfile, createOrUpdateProfile } from '../supabase';
 import LoadingSpinner from './LoadingSpinner';
 
 const AuthContext = createContext();

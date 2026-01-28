@@ -2,7 +2,7 @@ import { supabase } from '../supabase';
 import { logger } from '../lib/logger';
 import { getResultsUrl } from './routes';
 
-const encuestaUrl = (matchId) => `/encuesta/${matchId}`;
+// const encuestaUrl = (matchId) => `/encuesta/${matchId}`;
 
 export async function openNotification(n, navigate) {
   try {

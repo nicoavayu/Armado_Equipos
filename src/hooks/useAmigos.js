@@ -10,7 +10,7 @@ export const useAmigos = (currentUserId) => {
   const [amigos, setAmigos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { createNotification } = useNotifications();
+  const { createNotification: _createNotification } = useNotifications();
 
   // Get all friends with status 'accepted' usando la nueva función refactorizada
   const getAmigos = useCallback(async () => {

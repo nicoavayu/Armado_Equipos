@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -37,7 +37,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     if (isOpen && user?.id && refreshNotifications) {
       refreshNotifications();
     }
-  }, [isOpen, user?.id]);
+  }, [isOpen, user?.id, refreshNotifications]);
 
   const markAsRead = async (notificationId) => {
     try {

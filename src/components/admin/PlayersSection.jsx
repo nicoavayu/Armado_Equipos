@@ -13,6 +13,7 @@ const PlayersSection = ({
   partidoActual,
   duplicatesDetected,
   votantesConNombres,
+  votantes,
   transferirAdmin,
   user,
   eliminarJugador,
@@ -27,16 +28,20 @@ const PlayersSection = ({
   // Menu & confirmation props
   actionsMenuOpen,
   setActionsMenuOpen,
-  confirmConfig,
+  confirmConfig: _confirmConfig,
   setConfirmConfig,
-  processingAction,
-  handleAbandon,
+  processingAction: _processingAction,
+  handleAbandon: _handleAbandon,
+  invitationStatus,
 }) => {
   const [localMenuOpen, setLocalMenuOpen] = useState(false);
   const menuOpen = isAdmin ? (actionsMenuOpen !== undefined ? actionsMenuOpen : localMenuOpen) : false;
   const setMenuOpen = isAdmin && setActionsMenuOpen ? setActionsMenuOpen : setLocalMenuOpen;
   const renderPlayerCard = (j) => {
-    const hasVoted = votantesConNombres.some((v) => v.nombre === j.nombre);
+    const hasVoted = votantesConNombres.some((v) => {
+      if (!v.nombre || !j.nombre) return false;
+      return v.nombre.toLowerCase().trim() === j.nombre.toLowerCase().trim();
+    }) || (votantes && (votantes.includes(j.uuid) || votantes.includes(j.usuario_id)));
 
     return (
       <PlayerCardTrigger
@@ -46,7 +51,7 @@ const PlayersSection = ({
         onMakeAdmin={transferirAdmin}
       >
         <div
-          className={`flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 transition-all min-h-[36px] w-full max-w-[660px] mx-auto hover:bg-slate-800 hover:border-slate-700 ${hasVoted ? 'border-2 border-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.25)]' : ''}`}
+          className={`flex items-center gap-1.5 bg-slate-900 border rounded-lg p-2 transition-all min-h-[36px] w-full max-w-[660px] mx-auto hover:bg-slate-800 ${hasVoted ? 'border-emerald-500 hover:border-emerald-400 border-[1.5px]' : 'border-slate-800 hover:border-slate-700'}`}
         >
           {j.foto_url || j.avatar_url ? (
             <img
@@ -92,88 +97,130 @@ const PlayersSection = ({
             </button>
           ) : null}
         </div>
-      </PlayerCardTrigger>
+      </PlayerCardTrigger >
     );
   };
 
   // Guest view (non-admin) OR user with pending invitation
+  // Guest view (non-admin) OR user with pending invitation
   if (!isAdmin || (!isPlayerInMatch && jugadores.length > 0)) {
     return (
-      <div style={{ position: 'fixed', top: isPlayerInMatch ? '70px' : '70px', left: '0', right: '0', zIndex: 10, marginBottom: '8px' }}>
-        {/* Botones de invitado (solo si no está en el partido) */}
-        {!isPlayerInMatch && (
-          <div className="bg-white/10 border-2 border-white/20 rounded-xl p-3 w-[90vw] max-w-[90vw] mx-auto box-border mb-0 mt-2">
-            <div className="flex flex-row gap-2 w-full">
-              <button
-                className="flex-1 font-bebas text-[15px] px-4 border-none rounded-[10px] cursor-pointer transition-all text-white h-11 min-h-[44px] flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:bg-[#0f7acc]"
-                onClick={aceptarInvitacion}
-                disabled={invitationLoading || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
-                style={{
-                  flex: 1,
-                  fontSize: '13px',
-                  padding: '10px 4px',
-                  opacity: (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) ? 0.5 : 1,
-                }}
-              >
-                {invitationLoading ? <LoadingSpinner size="small" /> : 'SUMARME AL PARTIDO'}
-              </button>
-              <button
-                className="flex-1 font-bebas text-[15px] px-4 border-none rounded-[10px] cursor-pointer transition-all text-white h-11 min-h-[44px] flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-fifa-danger hover:bg-red-700"
-                onClick={rechazarInvitacion}
-                disabled={invitationLoading}
-                style={{
-                  flex: 1,
-                  fontSize: '13px',
-                  padding: '10px 4px',
-                  background: 'rgb(222 28 73)',
-                  borderColor: 'rgb(222 28 73)',
-                }}
-              >
-                {invitationLoading ? <LoadingSpinner size="small" /> : 'RECHAZAR INVITACIÓN'}
-              </button>
-            </div>
-          </div>
-        )}
-
+      <div className="w-full flex flex-col pb-32">
         {/* Lista de jugadores para no-admin */}
-        <div className="admin-players-section" style={{ marginTop: isPlayerInMatch ? '52px' : '12px' }}>
-          <div className="admin-players-title">
-            JUGADORES ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+        <div className="w-[90vw] max-w-[90vw] mx-auto mt-2 bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px]">
+          <div className="flex items-start justify-between gap-3 mb-3 mt-1 px-1">
+            <div className="font-bebas text-xl text-white tracking-wide uppercase">
+              JUGADORES ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+            </div>
+            {isPlayerInMatch && (
+              <div className="relative">
+                <button
+                  className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white/90 transition-colors"
+                  onClick={() => setLocalMenuOpen(!localMenuOpen)}
+                  aria-label="Opciones"
+                  type="button"
+                >
+                  <MoreVertical size={20} />
+                </button>
+                {localMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border border-slate-700 bg-slate-900 shadow-xl z-30 overflow-hidden">
+                    <button
+                      className="w-full px-4 py-3 flex items-center gap-3 text-left text-red-400 hover:bg-white/5 transition-colors font-medium text-[15px]"
+                      onClick={() => {
+                        setLocalMenuOpen(false);
+                        setConfirmConfig({ open: true, type: 'abandon' });
+                      }}
+                      type="button"
+                    >
+                      <LogOut size={16} />
+                      <span>Abandonar partido</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           {jugadores.length === 0 ? (
-            <div className="admin-players-empty">
+            <div className="text-center text-white/60 font-oswald text-base p-5 italic">
               <LoadingSpinner size="medium" />
             </div>
           ) : (
-            <div className="admin-players-grid">
+            <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
               {jugadores.map(renderPlayerCard)}
             </div>
           )}
         </div>
 
-        {/* Botones para jugador ya en el partido (no-admin) */}
-        {isPlayerInMatch && (
-          <div className="w-[90vw] max-w-[90vw] box-border mx-auto mt-2">
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                className="flex-1 font-bebas text-[15px] px-4 border border-red-400/30 rounded-xl cursor-pointer transition-all text-white h-11 min-h-[44px] flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-red-500/80 hover:brightness-110 active:scale-95 uppercase shadow-[0_8px_32px_rgba(244,68,68,0.3)]"
-                onClick={() => {
-                  if (window.confirm('¿Estás seguro de que quieres abandonar el partido?')) {
-                    eliminarJugador(currentPlayerInMatch?.uuid || user.id, false);
-                  }
-                }}
-              >
-                ABANDONAR PARTIDO
-              </button>
-              <button
-                className="flex-1 font-bebas text-[15px] px-4 border border-white/20 rounded-xl cursor-pointer transition-all text-white h-11 min-h-[44px] flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-primary hover:brightness-110 active:scale-95 uppercase shadow-[0_8px_32px_rgba(129,120,229,0.3)]"
-                onClick={() => setShowInviteModal(true)}
-              >
-                INVITAR AMIGOS
-              </button>
+        {/* Botones de acción - Static flow instead of fixed, closer to list */}
+        <div className="w-full px-4 mt-6 relative z-10 text-center">
+          {/* Texto de estado si faltan jugadores */}
+          {(!partidoActual.cupo_jugadores || jugadores.length < partidoActual.cupo_jugadores) && (
+            <div className="mb-4 text-white/60 font-oswald text-sm">
+              {partidoActual.cupo_jugadores
+                ? `Falta${partidoActual.cupo_jugadores - jugadores.length > 1 ? 'n' : ''} ${partidoActual.cupo_jugadores - jugadores.length} jugador${partidoActual.cupo_jugadores - jugadores.length > 1 ? 'es' : ''}`
+                : 'Cupos disponibles'}
+            </div>
+          )}
+
+          <div className="w-full max-w-[500px] mx-auto bg-[#0f172a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+            <div className="flex gap-3">
+              {!isPlayerInMatch ? (
+                // Guest View: Check if invitation is valid
+                invitationStatus && invitationStatus !== 'pending' ? (
+                  <div className="w-full flex flex-col items-center justify-center py-2 text-white/60">
+                    <span className="font-bebas text-xl mb-1 opacity-80">
+                      {invitationStatus === 'declined' ? 'INVITACIÓN RECHAZADA' : 'INVITACIÓN NO VÁLIDA'}
+                    </span>
+                    <span className="text-sm font-light opacity-60">
+                      {invitationStatus === 'declined' ? 'Ya rechazaste esta invitación.' : 'Esta invitación ha expirado o ya fue respondida.'}
+                    </span>
+                  </div>
+                ) : (
+                  // Valid Pending Invitation
+                  <>
+                    <button
+                      className="flex-[1.4] font-bebas text-[20px] h-14 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:bg-[#0f7acc] hover:shadow-[0_0_20px_rgba(18,139,233,0.4)] active:scale-95 shadow-[0_4px_10px_rgba(0,0,0,0.3)]"
+                      onClick={aceptarInvitacion}
+                      disabled={invitationLoading || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
+                    >
+                      {invitationLoading ? <LoadingSpinner size="small" /> : 'ACEPTAR INVITACIÓN'}
+                    </button>
+                    <button
+                      className="flex-1 font-bebas text-[18px] h-14 rounded-xl cursor-pointer transition-all text-white/80 flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-slate-800 hover:bg-slate-700 border border-white/10 active:scale-95 hover:text-white"
+                      onClick={rechazarInvitacion}
+                      disabled={invitationLoading}
+                    >
+                      NO PUEDO
+                    </button>
+                  </>
+                )
+              ) : (
+                // Botones para jugador ya en el partido (guest view) - SOLO INVITAR
+                <div className="flex flex-col w-full">
+                  <button
+                    className={`w-full font-bebas text-[18px] h-14 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-bold tracking-wide bg-primary shadow-[0_4px_14px_rgba(129,120,229,0.3)]
+                      ${(partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)
+                        ? 'opacity-40 grayscale cursor-not-allowed shadow-none'
+                        : 'hover:brightness-110 active:scale-95'
+                      }`}
+                    onClick={() => {
+                      if (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) return;
+                      setShowInviteModal(true);
+                    }}
+                    disabled={partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores}
+                  >
+                    INVITAR AMIGOS
+                  </button>
+                  {(partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) && (
+                    <div className="text-center text-white/40 font-oswald text-[12px] mt-1.5 uppercase tracking-wide">
+                      Cupo completo ({jugadores.length}/{partidoActual.cupo_jugadores})
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
       </div>
     );
   }

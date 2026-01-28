@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
@@ -6,10 +6,10 @@ import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
 import { useAuth } from '../components/AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import LoadingSpinner from '../components/LoadingSpinner';
-import PageTitle from '../components/PageTitle';
 import PageTransition from '../components/PageTransition';
 import { finalizeIfComplete } from '../services/surveyCompletionService';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
+import { clearMatchFromList } from '../services/matchFinishService';
 
 // Styles are now directly in Tailwind
 // import './LegacyVoting.css'; // Removed
@@ -25,7 +25,7 @@ const EncuestaPartido = () => {
   const { user } = useAuth();
   const { fetchNotifications } = useNotifications();
   const navigate = useNavigate();
-  const { navigateWithAnimation } = useAnimatedNavigation();
+  const { navigateWithAnimation: _navigateWithAnimation } = useAnimatedNavigation();
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -46,7 +46,7 @@ const EncuestaPartido = () => {
     resultado: '',
   });
   const [jugadores, setJugadores] = useState([]);
-  const [yaCalificado, setYaCalificado] = useState(false);
+  const [yaCalificado, _setYaCalificado] = useState(false);
   const [encuestaFinalizada, setEncuestaFinalizada] = useState(false);
 
   useEffect(() => {
@@ -132,7 +132,11 @@ const EncuestaPartido = () => {
             .contains('data', { match_id: String(id) }),
         ]);
 
-        try { await fetchNotifications?.(); } catch { }
+        try {
+          await fetchNotifications?.();
+        } catch (_e) {
+          // Intentionally ignored: notification refresh failure shouldn't block survey.
+        }
       } catch (error) {
         console.error('[MARK_NOTIF_READ] Error:', error);
       }
@@ -208,7 +212,7 @@ const EncuestaPartido = () => {
         created_at: new Date().toISOString(),
       };
 
-      const { data: insertData, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('post_match_surveys')
         .insert([surveyData]);
 
@@ -221,6 +225,13 @@ const EncuestaPartido = () => {
         await finalizeIfComplete(parseInt(id));
       } catch (e) {
         console.warn('[finalizeIfComplete] non-blocking error:', e);
+      }
+
+      // NEW: ensure match disappears from Próximos Partidos for this user
+      try {
+        await clearMatchFromList(user.id, parseInt(id));
+      } catch (_e) {
+        // non-blocking
       }
 
       setAlreadySubmitted(true);
@@ -270,7 +281,7 @@ const EncuestaPartido = () => {
   };
 
   // Helper classes for consistency
-  const wrapperClass = 'min-h-screen bg-fifa-gradient w-full p-0 flex flex-col overflow-x-hidden';
+  const _wrapperClass = 'min-h-screen bg-fifa-gradient w-full p-0 flex flex-col overflow-x-hidden';
   const cardClass = 'w-[90%] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-5 relative';
   const titleClass = 'font-bebas text-[38px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-md break-words w-full';
   const btnClass = 'font-bebas text-[27px] md:text-[28px] text-white bg-primary border border-white/40 rounded-xl tracking-wide py-4 px-4 mt-4 w-full cursor-pointer font-bold transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden flex items-center justify-center shadow-[0_10px_30px_rgba(129,120,229,0.35)]';
@@ -755,7 +766,7 @@ const EncuestaPartido = () => {
               </div>
               <button
                 className={btnClass}
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/proximos?surveyDone=1')}
               >
               VOLVER AL INICIO
               </button>

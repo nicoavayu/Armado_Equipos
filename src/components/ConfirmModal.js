@@ -9,6 +9,7 @@ export default function ConfirmModal({
   confirmText = 'CONFIRMAR',
   cancelText = 'CANCELAR',
   isDeleting = false,
+  singleButton = false,
 }) {
   const overlayRef = useRef(null);
   const cancelRef = useRef(null);
@@ -100,15 +101,17 @@ export default function ConfirmModal({
           {message}
         </div>
         <div className="flex gap-2 justify-end">
-          <button
-            ref={cancelRef}
-            className="px-3.5 py-2.5 rounded-lg font-bold cursor-pointer border-none font-['Oswald'] bg-white/[0.06] text-white hover:bg-white/10 disabled:opacity-50 disabled:cursor-default"
-            onClick={() => { if (isDeleting) return; onCancel && onCancel(); }}
-            disabled={isDeleting}
-            aria-disabled={isDeleting}
-          >
-            {cancelText}
-          </button>
+          {!singleButton && (
+            <button
+              ref={cancelRef}
+              className="px-3.5 py-2.5 rounded-lg font-bold cursor-pointer border-none font-['Oswald'] bg-white/[0.06] text-white hover:bg-white/10 disabled:opacity-50 disabled:cursor-default"
+              onClick={() => { if (isDeleting) return; onCancel && onCancel(); }}
+              disabled={isDeleting}
+              aria-disabled={isDeleting}
+            >
+              {cancelText}
+            </button>
+          )}
           <button
             ref={confirmRef}
             className="px-3.5 py-2.5 rounded-lg font-bold cursor-pointer border-none font-['Oswald'] bg-gradient-to-tr from-[#f4d03f] to-[#f7dc6f] text-black hover:opacity-90 disabled:opacity-50 disabled:cursor-default"

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 
 import FitText from './FitText';
 
@@ -87,7 +87,7 @@ function sedeUnaPalabra(sede) {
 
 export default function MatchInfoSection(props) {
   // Keep named props for compatibility
-  const { nombre, fecha, hora, sede, modalidad, tipo, rightActions, topOffsetClassName } = props;
+  const { fecha, hora, sede, modalidad, tipo, rightActions, topOffsetClassName } = props;
   const partidoObj = props.partido || {};
 
   const fechaRaw = partidoObj?.fecha ?? fecha;

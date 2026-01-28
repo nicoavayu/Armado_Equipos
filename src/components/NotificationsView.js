@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { toBigIntId } from '../utils';
 import { useNotifications } from '../context/NotificationContext';
-import { useSurveys } from '../hooks/useSurveys';
 import { useAmigos } from '../hooks/useAmigos';
 import { useAuth } from './AuthProvider';
 
@@ -11,11 +10,9 @@ import { toast } from 'react-toastify';
 const NotificationsView = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const {
     notifications,
     markAsRead,
-    markAllAsRead,
     fetchNotifications,
   } = useNotifications();
 
@@ -60,7 +57,7 @@ const NotificationsView = () => {
     console.debug('[NOTIFICATION_CLICK]', { id: notification?.id, type: notification?.type, link, matchId });
 
     if (notification?.type === 'survey_start') {
-      try { if (!notification.read) await markAsRead(notification.id); } catch { }
+      try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
       if (link) {
         navigate(link, { replace: false });
       } else if (matchId) {
@@ -128,7 +125,7 @@ const NotificationsView = () => {
           toast.error('Falta código del partido');
         }
         break;
-      case 'pre_match_vote':
+      case 'pre_match_vote': {
         const preMatchId = notification?.target_params?.partido_id;
         if (preMatchId) {
           navigate(`/voting/${preMatchId}`);
@@ -136,6 +133,7 @@ const NotificationsView = () => {
           navigate(`/?codigo=${data.matchCode}`);
         }
         break;
+      }
       case 'post_match_survey':
         if (data.partido_id) {
           navigate(`/encuesta/${toBigIntId(data.partido_id)}`);
@@ -159,7 +157,7 @@ const NotificationsView = () => {
           navigate(`/resultados-encuesta/${toBigIntId(data.partido_id)}?showAwards=1`);
         }
         break;
-      case 'survey_finished':
+      case 'survey_finished': {
         // Robust matchId resolution
         const finalMatchId = notification.match_ref || data.match_id || data.partidoId;
         if (finalMatchId) {
@@ -168,6 +166,7 @@ const NotificationsView = () => {
           });
         }
         break;
+      }
       default:
         console.log('[NOTIFICATION_CLICK] Unknown notification type:', notification.type);
         break;

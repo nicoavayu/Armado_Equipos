@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
 
 
-const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) => {
+const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, jugadores = [] }) => {
   // ESTADO LOCAL INDEPENDIENTE - Solo para amigos
   const [amigos, setAmigos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -40,28 +40,30 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
   const fetchAmigos = async () => {
     setLoading(true);
     try {
-      console.log('[MODAL_AMIGOS] === FETCHING ONLY FRIENDS ===');
-      console.log('[MODAL_AMIGOS] User ID:', currentUserId);
-
       // SOLO AMIGOS - getAmigos devuelve array de usuarios directos
       const friendsData = await getAmigos(currentUserId);
 
-      console.log('[MODAL_AMIGOS] Friends data received:', {
-        isArray: Array.isArray(friendsData),
-        count: friendsData?.length || 0,
-        sample: friendsData?.slice(0, 2).map((f) => ({
-          id: f.id,
-          nombre: f.nombre,
-          avatar_url: f.avatar_url,
-        })) || [],
-      });
-      console.log('[MODAL_AMIGOS] Current user (sender):', currentUserId);
+      // FILTRAR AMIGOS:
+      // 1. No mostrar al organizador
+      // 2. No mostrar jugadores que YA están en el partido
+      const filteredFriends = (friendsData || []).filter(friend => {
+        // Excluir organizador
+        if (friend.id === partidoActual?.creado_por) return false;
 
-      setAmigos(friendsData || []);
+        // Excluir jugadores ya unidos (comparar IDs)
+        const isAlreadyInMatch = jugadores.some(p =>
+          p.usuario_id === friend.id || p.uuid === friend.id
+        );
+        if (isAlreadyInMatch) return false;
+
+        return true;
+      });
+
+      setAmigos(filteredFriends);
 
       // Verificar qué amigos ya fueron invitados a este partido
-      if (partidoActual?.id && friendsData?.length > 0) {
-        const friendIds = friendsData.map((f) => f.id);
+      if (partidoActual?.id && filteredFriends.length > 0) {
+        const friendIds = filteredFriends.map((f) => f.id);
         let existingInvitations = null;
 
         const { data: extData, error: extError } = await supabase
@@ -94,6 +96,12 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
   const handleInvitar = async (amigo) => {
     if (!partidoActual?.id) {
       toast.error('No hay partido seleccionado');
+      return;
+    }
+
+    // Validar cupo lleno antes de enviar
+    if (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) {
+      toast.error('El partido ya está completo, no se pueden enviar más invitaciones.');
       return;
     }
 
@@ -195,13 +203,14 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
           matchLocation: partidoActual.sede || null,
           inviterId: currentUserId,
           inviterName: currentUser?.nombre || 'Alguien',
+          status: 'pending',
         },
         read: false,
         send_at: new Date().toISOString(),
       };
 
-      console.log('[MODAL_AMIGOS] === INSERTING NOTIFICATION ===');
-      console.log('[MODAL_AMIGOS] Notification data to insert:', {
+      console.log('[MODAL_AMIGOS] === UPSERTING NOTIFICATION ===');
+      console.log('[MODAL_AMIGOS] Notification data to upsert:', {
         user_id: notificationData.user_id,
         type: notificationData.type,
         title: notificationData.title,
@@ -209,13 +218,13 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
         read: notificationData.read,
       });
 
-      console.log('[MODAL_AMIGOS] === ATTEMPTING INSERT ===');
+      console.log('[MODAL_AMIGOS] === ATTEMPTING UPSERT ===');
       const { data: { session } } = await supabase.auth.getSession();
       console.log('[MODAL_AMIGOS] Session token exists:', !!session?.access_token);
 
       const { data: insertedNotification, error } = await supabase
         .from('notifications')
-        .insert([notificationData])
+        .upsert([notificationData], { onConflict: 'user_id,match_ref,type' })
         .select()
         .single();
 
@@ -306,35 +315,41 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual }) =>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {amigos.map((amigo) => (
-                <div
-                  key={amigo.id}
-                  className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10 transition-all duration-200 hover:bg-white/[0.08] hover:border-white/20"
-                >
-                  <img
-                    src={amigo.avatar_url || '/profile.svg'}
-                    alt={amigo.nombre || 'Usuario'}
-                    className="w-10 h-10 rounded-full object-cover shrink-0 border-2 border-white/20"
-                    onError={(e) => { e.currentTarget.src = '/profile.svg'; }}
-                  />
-                  <span className="flex-1 text-white text-base font-medium min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-                    {amigo.nombre || 'Usuario'}
-                  </span>
-                  <button
-                    onClick={() => handleInvitar(amigo)}
-                    className={`
+              {amigos.filter(amigo => !invitedFriends.has(amigo.id)).length === 0 ? (
+                <div className="text-center text-white/70 py-10 px-5 text-base">
+                  No tenés más amigos para invitar
+                </div>
+              ) : (
+                amigos.filter(amigo => !invitedFriends.has(amigo.id)).map((amigo) => (
+                  <div
+                    key={amigo.id}
+                    className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/10 transition-all duration-200 hover:bg-white/[0.08] hover:border-white/20"
+                  >
+                    <img
+                      src={amigo.avatar_url || '/profile.svg'}
+                      alt={amigo.nombre || 'Usuario'}
+                      className="w-10 h-10 rounded-full object-cover shrink-0 border-2 border-white/20"
+                      onError={(e) => { e.currentTarget.src = '/profile.svg'; }}
+                    />
+                    <span className="flex-1 text-white text-base font-medium min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                      {amigo.nombre || 'Usuario'}
+                    </span>
+                    <button
+                      onClick={() => handleInvitar(amigo)}
+                      className={`
                       border-none rounded-md px-4 py-2 text-sm font-semibold cursor-pointer transition-all duration-200 shrink-0 min-w-[80px]
                       ${invitedFriends.has(amigo.id)
-                  ? 'bg-[#28a745] text-white cursor-default hover:bg-[#28a745] hover:transform-none'
-                  : 'bg-[#007bff] text-white hover:bg-[#0056b3] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none'
-                }
+                          ? 'bg-[#28a745] text-white cursor-default hover:bg-[#28a745] hover:transform-none'
+                          : 'bg-[#007bff] text-white hover:bg-[#0056b3] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none'
+                        }
                     `}
-                    disabled={inviting || invitedFriends.has(amigo.id)}
-                  >
-                    {inviting ? '...' : invitedFriends.has(amigo.id) ? 'Invitado' : 'Invitar'}
-                  </button>
-                </div>
-              ))}
+                      disabled={inviting || invitedFriends.has(amigo.id)}
+                    >
+                      {inviting ? '...' : invitedFriends.has(amigo.id) ? 'Invitado' : 'Invitar'}
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>

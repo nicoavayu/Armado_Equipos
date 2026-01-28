@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
-import { checkAndNotifyMatchFinish } from '../services/matchFinishService';
 import { supabase } from '../supabase';
 
 /**

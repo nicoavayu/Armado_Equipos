@@ -43,7 +43,7 @@ const CheckCard = ({ title, status, latency, error }) => (
 
 export default function HealthCheck() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
   const [checks, setChecks] = useState({
     supabase: { status: 'CHECKING', latency: null, error: null },
     auth: { status: 'CHECKING', latency: null, error: null },
@@ -190,7 +190,7 @@ export default function HealthCheck() {
         .select('id')
         .limit(1);
       
-      const { data, error, status } = await Promise.race([fetchPromise, timeoutPromise]);
+      const { error, status } = await Promise.race([fetchPromise, timeoutPromise]);
       const ms = Math.round(performance.now() - notifStart);
       
       if (error) {

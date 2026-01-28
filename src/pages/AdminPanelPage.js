@@ -67,13 +67,30 @@ const AdminPanelPage = () => {
 
   const handleJugadoresChange = async (nuevosJugadores) => {
     if (!partidoActual) return;
-    await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
-    setPartidoActual({ ...partidoActual, jugadores: nuevosJugadores });
-    if (partidoActual.from_frequent_match_id) {
-      try {
-        await updateJugadoresFrecuentes(partidoActual.from_frequent_match_id, nuevosJugadores);
-      } catch (error) {
-        toast.error('Error actualizando partido frecuente');
+    try {
+      await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
+      setPartidoActual({ ...partidoActual, jugadores: nuevosJugadores });
+      if (partidoActual.from_frequent_match_id) {
+        try {
+          await updateJugadoresFrecuentes(partidoActual.from_frequent_match_id, nuevosJugadores);
+        } catch (error) {
+          toast.error('Error actualizando partido frecuente');
+        }
+      }
+    } catch (error) {
+      console.error('Error updating players:', error);
+      if (error?.code === '23505') {
+        console.warn('Duplicate key error, refreshing players...');
+        // Silent recovery or mild warning
+        try {
+          const refreshedPlayers = await refreshJugadoresPartido(partidoActual.id);
+          setJugadoresDelPartido(refreshedPlayers);
+          // Optional: toast.success('Lista de jugadores sincronizada');
+        } catch (refreshError) {
+          console.error('Error refreshing after duplicate error:', refreshError);
+        }
+      } else {
+        toast.error('Error al actualizar jugadores: ' + (error.message || 'Error desconocido'));
       }
     }
   };

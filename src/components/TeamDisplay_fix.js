@@ -1,9 +1,4 @@
-              </button>
-            </div>
-          </div>
-      </SafeTeamDisplayContext.Provider>
-    </>
-  );
-};
+// This file previously contained a truncated copy of TeamDisplay and caused a parsing error.
+// Keeping it as a compatibility re-export in case anything imports it.
 
-export default TeamDisplay;
+export { default } from './TeamDisplay';

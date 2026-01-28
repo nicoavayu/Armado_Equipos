@@ -75,11 +75,11 @@ export const deleteJugador = async (uuid) => {
 /**
  * Compress image to reduce file size
  * @param {File} file - Image file
- * @param {number} maxSizeMB - Maximum size in MB
+ * @param {number} _maxSizeMB - Maximum size in MB
  * @param {number} quality - Compression quality (0-1)
  * @returns {Promise<File>} Compressed file
  */
-const compressImage = (file, maxSizeMB = 1.5, quality = 0.8) => {
+const compressImage = (file, _maxSizeMB = 1.5, quality = 0.8) => {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');

@@ -1,6 +1,4 @@
 import { supabase } from '../../lib/supabaseClient';
-import { getMatchEndAt } from '../../lib/postMatchTime';
-import { isFastResults } from '../../lib/resultsDelay';
 
 /**
  * Get match players for notifications
@@ -20,7 +18,7 @@ export async function getMatchPlayers(partidoId) {
  * This function is kept for backward compatibility but should not be used for new matches
  * @deprecated Use fanout_survey_start_notifications() SQL function instead
  */
-export async function scheduleSurveyReminderForMatch(partidoId, partidoFechaISO, partidoHoraHHmm) {
+export async function scheduleSurveyReminderForMatch(_partidoId, _partidoFechaISO, _partidoHoraHHmm) {
   console.warn('[DEPRECATED] scheduleSurveyReminderForMatch is deprecated. Survey notifications are handled by cron job.');
   return { data: [], error: null };
 }

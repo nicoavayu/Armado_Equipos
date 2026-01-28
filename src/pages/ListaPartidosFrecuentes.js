@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, crearPartido } from '../supabase';
+import { crearPartido } from '../supabase';
 import { toast } from 'react-toastify';
 import PageTitle from '../components/PageTitle';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -200,7 +200,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
   // Modal state for using a template
   const [showUseModal, setShowUseModal] = useState(false);
   const [templateToUse, setTemplateToUse] = useState(null);
-  const [isCreatingFromTemplate, setIsCreatingFromTemplate] = useState(false);
+  const [isCreatingFromTemplate, _setIsCreatingFromTemplate] = useState(false);
 
   useEffect(() => {
     let channel = null;
@@ -381,9 +381,19 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
           // close modal and notify parent that a match was created
           setShowUseModal(false);
           setTemplateToUse(null);
-          try { if (typeof onEntrar === 'function') { /* keep existing onEntrar behavior separate */ } } catch (_) { }
+          try {
+            if (typeof onEntrar === 'function') {
+              /* keep existing onEntrar behavior separate */
+            }
+          } catch (_e) {
+            // Intentionally ignored.
+          }
           // If parent passed an onVolver that expects navigation, prefer calling onEntrar with created match
-          try { if (typeof onEntrar === 'function') onEntrar(created); } catch (_) { }
+          try {
+            if (typeof onEntrar === 'function') onEntrar(created);
+          } catch (_e) {
+            // Intentionally ignored.
+          }
         }}
       />
     </div>

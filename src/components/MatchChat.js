@@ -4,8 +4,7 @@ import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import { useAuth } from './AuthProvider';
 import { useKeyboard } from '../hooks/useKeyboard';
-// Eliminado import de Capacitor si no se usa, pero lo mantengo por si acaso
-import { Capacitor } from '@capacitor/core';
+import { subscribeToMatchChat } from '../services/realtimeService';
 // import './MatchChat.css'; // REMOVED
 
 export default function MatchChat({ partidoId, isOpen, onClose }) {
@@ -20,9 +19,20 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     if (isOpen && partidoId) {
       fetchMessages();
       markAsRead();
-      // Interval disabled to prevent ERR_INSUFFICIENT_RESOURCES
-      // const interval = setInterval(fetchMessages, 5000);
-      // return () => clearInterval(interval);
+
+      const unsubscribe = subscribeToMatchChat(partidoId, (payload) => {
+        console.debug(`[RT] Chat msg received for ${partidoId}:`, payload.new?.id);
+        if (payload.new) {
+          setMessages((prev) => {
+            if (prev.find((m) => m.id === payload.new.id)) return prev;
+            return [...prev, payload.new];
+          });
+        }
+      });
+
+      return () => {
+        unsubscribe();
+      };
     }
   }, [isOpen, partidoId]);
 

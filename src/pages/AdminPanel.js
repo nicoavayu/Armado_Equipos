@@ -25,6 +25,7 @@ import Modals from '../components/admin/Modals';
  * @param {Object} props - Component props
  */
 export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange, partidoActual }) {
+  // Rebuild trace
   const { user } = useAuth();
   const isAdmin = user?.id && partidoActual?.creado_por === user.id;
 
@@ -92,9 +93,9 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         />
       ) : (
         <>
-          <PageTitle title="CONVOCA JUGADORES" onBack={onBackToHome} />
+          <PageTitle title={isAdmin ? "CONVOCA JUGADORES" : "TE INVITARON A JUGAR"} onBack={onBackToHome} />
 
-          {isAdmin && !showTeams && (
+          {!showTeams && (
             <MatchInfoSection
               partido={normalizePartidoForHeader(partidoActual)}
               fecha={partidoActual?.fecha}
@@ -144,6 +145,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                       partidoActual={partidoActual}
                       duplicatesDetected={adminState.duplicatesDetected}
                       votantesConNombres={adminState.votantesConNombres}
+                      votantes={adminState.votantes}
                       transferirAdmin={adminState.transferirAdmin}
                       user={user}
                       eliminarJugador={adminState.eliminarJugador}
@@ -160,6 +162,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                       setConfirmConfig={setConfirmConfig}
                       processingAction={processingAction}
                       handleAbandon={handleAbandon}
+                      invitationStatus={adminState.invitationStatus}
                     />
 
                     {/* Toggle para abrir partido a la comunidad */}
@@ -244,6 +247,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             setShowInviteModal={adminState.setShowInviteModal}
             partidoActual={partidoActual}
             user={user}
+            jugadores={jugadores}
           />
         </>
       )}

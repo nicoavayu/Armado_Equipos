@@ -8,7 +8,7 @@ import { createPostMatchSurveyNotifications } from './surveyService';
 export const checkMatchesForSurveys = async () => {
   try {
     const now = new Date();
-    const nowStr = now.toISOString();
+    const _nowStr = new Date().toISOString();
     
     // Buscar partidos activos con fecha y hora
     const { data: activeMatches, error: scheduleError } = await supabase

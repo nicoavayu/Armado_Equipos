@@ -1,8 +1,8 @@
 // src/components/TeamDisplay.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { TeamDisplayContext } from './PlayerCardTrigger';
-import { supabase, saveTeamsToDatabase, getTeamsFromDatabase, subscribeToTeamsChanges, unsubscribeFromTeamsChanges } from '../supabase';
+import { saveTeamsToDatabase, getTeamsFromDatabase, subscribeToTeamsChanges, unsubscribeFromTeamsChanges } from '../supabase';
 import ChatButton from './ChatButton';
 import PageTitle from './PageTitle';
 import MatchInfoSection from './MatchInfoSection';
@@ -14,7 +14,9 @@ import LoadingSpinner from './LoadingSpinner';
 const safeComp = (Comp, name) => {
   if (!Comp) {
     console.error(`[TeamDisplay] Undefined component: ${name}`);
-    return ({ children }) => <>{children ?? null}</>;
+    const Fallback = ({ children }) => <>{children ?? null}</>;
+    Fallback.displayName = `SafeFallback(${name})`;
+    return Fallback;
   }
   return Comp;
 };
@@ -26,14 +28,14 @@ const SafeMatchInfoSection = safeComp(MatchInfoSection, 'MatchInfoSection');
 const SafeWhatsappIcon = safeComp(WhatsappIcon, 'WhatsappIcon');
 const SafeLoadingSpinner = safeComp(LoadingSpinner, 'LoadingSpinner');
 
-const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null, nombre, fecha, hora, sede, modalidad, tipo }) => {
+const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null, nombre: _nombre, fecha, hora, sede, modalidad, tipo }) => {
   const [showAverages, setShowAverages] = useState(false);
   const [lockedPlayers, setLockedPlayers] = useState([]);
   const [editingTeamId, setEditingTeamId] = useState(null);
   const [editingTeamName, setEditingTeamName] = useState('');
   const [realtimeTeams, setRealtimeTeams] = useState(teams);
   const [realtimePlayers, setRealtimePlayers] = useState(players);
-  const [teamsSubscription, setTeamsSubscription] = useState(null);
+  const teamsSubscriptionRef = useRef(null);
 
   // [TEAM_BALANCER_EDIT] Para jugadores no-admin, ocultar promedios por defecto
   useEffect(() => {
@@ -88,12 +90,10 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       }
     });
 
-    setTeamsSubscription(subscription);
+    teamsSubscriptionRef.current = subscription;
 
     return () => {
-      if (subscription) {
-        unsubscribeFromTeamsChanges(subscription);
-      }
+      if (subscription) unsubscribeFromTeamsChanges(subscription);
     };
   }, [partidoId, onTeamsChange]);
 
@@ -220,9 +220,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     });
 
     // Then distribute remaining players
-    const remainingCount = playersToRandomize.length;
     const teamANeeds = Math.ceil(allPlayers.length / 2) - newTeamA.players.length;
-    const teamBNeeds = allPlayers.length - Math.ceil(allPlayers.length / 2) - newTeamB.players.length;
 
     newTeamA.players = [...newTeamA.players, ...playersToRandomize.slice(0, teamANeeds)];
     newTeamB.players = [...newTeamB.players, ...playersToRandomize.slice(teamANeeds)];
@@ -363,7 +361,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         No hay jugadores cargados en este equipo (players vacío).
                     </div>
                   )}
-                  {teamPlayerKeys.map((playerKey, index) => {
+                  {teamPlayerKeys.map((playerKey, _index) => {
                     const player = getPlayerDetails(playerKey);
 
                     const isLocked =

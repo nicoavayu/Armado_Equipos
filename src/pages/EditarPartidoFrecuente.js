@@ -59,7 +59,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
   };
 
   // Inline ConfirmModal copied from ListaPartidosFrecuentes for app-style overlay
-  function ConfirmModal({ isOpen, title, message, onConfirm, onCancel, confirmText = 'CONFIRMAR', cancelText = 'CANCELAR', isDeleting = false }) {
+  function _ConfirmModal({ isOpen, title, message, onConfirm, onCancel, confirmText = 'CONFIRMAR', cancelText = 'CANCELAR', isDeleting = false }) {
     const overlayRef = useRef(null);
     const cancelRef = useRef(null);
     const confirmRef = useRef(null);
@@ -75,7 +75,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
     useEffect(() => {
       if (!isOpen) return;
       const focusTarget = cancelRef.current || confirmRef.current;
-      try { focusTarget && focusTarget.focus(); } catch (_) { }
+      try { focusTarget && focusTarget.focus(); } catch (_) { /* Intentionally empty */ }
 
       const keyHandler = (e) => {
         if (e.key === 'Escape') {
@@ -110,7 +110,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
 
     if (!isOpen) return null;
 
-    const prefersReduced = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const _prefersReduced = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     return (
       <div

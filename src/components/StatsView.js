@@ -79,11 +79,12 @@ const StatsView = ({ onVolver }) => {
     let start, end;
 
     switch (period) {
-      case 'week':
+      case 'week': {
         const now = new Date();
         start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
         end = now;
         break;
+      }
       case 'month':
         start = new Date(selectedYear, selectedMonth, 1);
         end = new Date(selectedYear, selectedMonth + 1, 0);

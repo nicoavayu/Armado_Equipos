@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { handleError } from '../lib/errorHandler';
 import { useInterval } from '../hooks/useInterval';
 import { logger } from '../lib/logger';
+import { subscribeToNotifications } from '../services/realtimeService';
 
 const NotificationContext = createContext();
 
@@ -13,6 +14,7 @@ const NotificationContext = createContext();
  * @returns {Object} Notification context value
  */
 export const useNotifications = () => useContext(NotificationContext);
+// Rebuild trace
 
 /**
  * Notification provider component
@@ -82,8 +84,8 @@ export const NotificationProvider = ({ children }) => {
     // Initial fetch of notifications
     fetchNotifications();
 
-    // Lightweight refresh system
-    const REFRESH_MS = 15000;
+    // Lightweight refresh system (Fallback)
+    const REFRESH_MS = 300000; // 5 minutes
     let lastRefresh = 0;
     let refreshRunning = false;
 
@@ -112,66 +114,32 @@ export const NotificationProvider = ({ children }) => {
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisibilityChange);
 
-    // Subscribe to real-time notifications
-    logger.log('[NOTIFICATIONS] Setting up realtime subscription for user:', currentUserId);
-    console.log('[NOTIFICATIONS] Subscribing to realtime channel for user:', currentUserId);
-    const subscription = supabase
-      .channel(`notifications-${currentUserId}`)
-      .on('postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${currentUserId}`, // CLAVE: Solo notificaciones para este usuario
-        },
-        (payload) => {
-          console.log('[NOTIFICATIONS] Realtime INSERT payload received:', payload);
-          if (payload?.new) {
-            setLastRealtimeAt(new Date().toISOString());
-            setLastRealtimePayloadType(payload.new.type || null);
-          }
-          logger.log('[NOTIFICATIONS] Realtime event received:', {
-            eventType: payload.eventType,
-            table: payload.table,
-            userId: currentUserId,
-            hasNewData: !!payload.new,
-          });
+    // Subscribe to real-time notifications via Service
+    const unsubscribe = subscribeToNotifications(currentUserId, (payload) => {
+      console.debug('[RT] Notifications payload:', payload);
 
-          if (payload.new) {
-            logger.log('[NOTIFICATIONS] Processing new notification...');
-            handleNewNotification(payload.new);
-          } else {
-            logger.error('[NOTIFICATIONS] No new data in payload');
-          }
-        },
-      )
-      .subscribe((status) => {
-        console.log('[NOTIFICATIONS] Realtime subscription status callback:', status);
-        setSubscriptionStatus(status);
-        logger.log('[NOTIFICATIONS] Subscription status:', {
-          status,
-          channel: `notifications-${currentUserId}`,
-          timestamp: new Date().toISOString(),
-        });
-
-        if (status === 'SUBSCRIBED') {
-          logger.log('[NOTIFICATIONS] ✅ Successfully subscribed to realtime notifications');
-        } else if (status === 'CHANNEL_ERROR') {
-          logger.error('[NOTIFICATIONS] ❌ Channel error - realtime not working');
-        } else if (status === 'TIMED_OUT') {
-          logger.error('[NOTIFICATIONS] ❌ Subscription timed out');
-        }
-      });
+      if (payload.new) {
+        setLastRealtimeAt(new Date().toISOString());
+        setLastRealtimePayloadType(payload.new.type || null);
+        handleNewNotification(payload.new);
+      } else if (payload.eventType === 'UPDATE') {
+        // Handle updates (e.g. read status changed elsewhere)
+        // Ideally we update the specific item in state
+        console.log('[NOTIFICATIONS] Update received:', payload.new);
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === payload.new.id ? { ...n, ...payload.new } : n))
+        );
+      }
+    });
 
     return () => {
       logger.log('[NOTIFICATIONS] Cleaning up subscription and refresh listeners');
-      console.log('[NOTIFICATIONS] Removing realtime subscription for user:', currentUserId);
 
       // Clean up refresh mechanisms
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisibilityChange);
 
-      supabase.removeChannel(subscription);
+      unsubscribe();
     };
   }, [currentUserId]);
 
@@ -197,7 +165,7 @@ export const NotificationProvider = ({ children }) => {
           .select('*')
           .eq('user_id', currentUserId)
           .gte('created_at', cutoffISO)
-          .order('created_at', { ascending: false });
+          .order('send_at', { ascending: false });
         data = res.data;
         if (res.error) {
           console.log('[NOTIFICATIONS] fetch error from supabase:', res.error?.message, res.error?.details || null);
@@ -340,11 +308,11 @@ export const NotificationProvider = ({ children }) => {
         }
         return true;
       })
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    const deduped = Array.from(keepMap.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    // Merge and sort globally by created_at so updated rows keep expected order
+      .sort((a, b) => new Date(b.send_at || b.created_at).getTime() - new Date(a.send_at || a.created_at).getTime());
+    const deduped = Array.from(keepMap.values()).sort((a, b) => new Date(b.send_at || b.created_at).getTime() - new Date(a.send_at || a.created_at).getTime());
+    // Merge and sort globally by send_at (or created_at) so updated rows keep expected order
     const merged = [...nonPartido, ...deduped];
-    merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    merged.sort((a, b) => new Date(b.send_at || b.created_at).getTime() - new Date(a.send_at || a.created_at).getTime());
     return merged;
   };
 

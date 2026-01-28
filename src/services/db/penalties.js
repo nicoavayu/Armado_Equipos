@@ -2,15 +2,18 @@ import { supabase } from '../../lib/supabaseClient';
 
 /**
  * Get match players for penalty calculation
- * @param {number} matchId - Match ID
+ * @param {number} partidoId - Match ID
  * @returns {Promise<{data, error}>} Players data
  */
-async function getMatchPlayers(matchId) {
-  return await supabase
-    .from('jugadores')
-    .select('id, usuario_id, presente, asistio, present, estado, no_show')
-    .eq('partido_id', matchId);
-}
+const _getMatchPlayers = async (partidoId) => {
+  const { data, error } = await supabase
+    .from('partidos_jugadores')
+    .select('jugador_id')
+    .eq('partido_id', partidoId);
+
+  if (error) throw error;
+  return data?.map((p) => p.jugador_id) ?? [];
+};
 
 /**
  * Apply no-show penalties to registered players only

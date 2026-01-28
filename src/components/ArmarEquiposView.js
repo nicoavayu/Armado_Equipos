@@ -20,8 +20,7 @@ import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import { useAuth } from './AuthProvider';
 import { sendVotingNotifications } from '../services/notificationService';
 import ConfirmModal from '../components/ConfirmModal';
-import { handleError } from '../lib/errorHandler';
-import { MoreVertical, LogOut, Crown as CrownIcon, X as XIcon, User as UserIcon } from 'lucide-react';
+import { MoreVertical, Crown as CrownIcon, X as XIcon, User as UserIcon } from 'lucide-react';
 
 export default function ArmarEquiposView({
   onBackToAdmin,
@@ -46,23 +45,6 @@ export default function ArmarEquiposView({
 
   // Control de permisos: verificar si el usuario es admin del partido
   const isAdmin = user?.id && partidoActual?.creado_por === user.id;
-
-  // Si no es admin, mostrar acceso denegado
-  if (!isAdmin) {
-    return (
-      <>
-        <PageTitle onBack={onBackToAdmin}>ARMAR EQUIPOS</PageTitle>
-        <div className="text-center py-10 px-5 text-white font-oswald">
-          <div className="text-2xl mb-4">
-            🚫 Acceso Denegado
-          </div>
-          <div className="text-base opacity-80">
-            No tenés permisos para acceder a esta función.
-          </div>
-        </div>
-      </>
-    );
-  }
 
   // Cargar votantes y suscripción en tiempo real
   useEffect(() => {
@@ -167,7 +149,7 @@ export default function ArmarEquiposView({
 
       if ((res.inserted || 0) > 0) {
         toast.success(`Notificación enviada a ${res.inserted} jugadores. Entrando a votación...`);
-        
+
         // Refrescar estado de votación
         try {
           const { data } = await supabase
@@ -177,8 +159,10 @@ export default function ArmarEquiposView({
             .eq('partido_id', Number(partidoActual.id))
             .limit(1);
           setVotingStarted(Boolean(data && data.length > 0));
-        } catch {}
-        
+        } catch (_e) {
+          // Intentionally ignored: failure to refresh voting state shouldn't block navigation.
+        }
+
         // Navegar al admin a la pantalla de votación inmediatamente
         setTimeout(() => {
           const codigo = partidoActual?.codigo;
@@ -234,7 +218,7 @@ export default function ArmarEquiposView({
       setVotantes([]);
       setVotantesConNombres([]);
       setActionsMenuOpen(false);
-      setEstadoOverride('votacion'); // Override local para forzar recálculo de CTA
+      setEstadoOverride('votacion'); // Forzar UI a salir de "equipos_formados" mientras se actualiza partidoActual
 
       // Limpiar guest session cache para permitir revotación
       try {
@@ -276,6 +260,15 @@ export default function ArmarEquiposView({
       return;
     }
     if (votingStarted) {
+      // START CHANGE: Check if user already voted
+      const hasVoted = votantes.includes(user?.id) || (user?.id && votantesConNombres.some(v => v.id === user.id));
+
+      if (hasVoted) {
+        setConfirmConfig({ open: true, action: 'already_voted' });
+        return;
+      }
+      // END CHANGE
+
       // Access voting directly via codigo
       const codigo = partidoActual?.codigo;
       if (!codigo) {
@@ -474,6 +467,23 @@ export default function ArmarEquiposView({
     }
   }
 
+  // Si no es admin, mostrar acceso denegado
+  if (!isAdmin) {
+    return (
+      <>
+        <PageTitle onBack={onBackToAdmin}>ARMAR EQUIPOS</PageTitle>
+        <div className="text-center py-10 px-5 text-white font-oswald">
+          <div className="text-2xl mb-4">
+            🚫 Acceso Denegado
+          </div>
+          <div className="text-base opacity-80">
+            No tenés permisos para acceder a esta función.
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <PageTitle onBack={onBackToAdmin}>ARMAR EQUIPOS</PageTitle>
@@ -549,7 +559,7 @@ export default function ArmarEquiposView({
                     partidoActual={partidoActual}
                   >
                     <div
-                      className={`flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 transition-all min-h-[36px] w-full max-w-[660px] mx-auto hover:bg-slate-800 hover:border-slate-700 ${hasVoted ? 'border-2 border-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.25)]' : ''}`}
+                      className={`flex items-center gap-1.5 bg-slate-900 border rounded-lg p-2 transition-all min-h-[36px] w-full max-w-[660px] mx-auto hover:bg-slate-800 ${hasVoted ? 'border-emerald-500 hover:border-emerald-400 border-[1.5px]' : 'border-slate-800 hover:border-slate-700'}`}
                     >
                       {j.foto_url || j.avatar_url ? (
                         <img
@@ -687,6 +697,18 @@ export default function ArmarEquiposView({
           confirmText={'Cerrar votación'}
           cancelText={'Cancelar'}
           isDeleting={isClosing}
+        />
+
+        <ConfirmModal
+          isOpen={confirmConfig.open && confirmConfig.action === 'already_voted'}
+          title="YA VOTASTE"
+          message="Ya registramos tu voto para este partido. Esperá a que el administrador cierre la votación para ver los equipos."
+          onConfirm={() => setConfirmConfig({ open: false })}
+          onCancel={() => setConfirmConfig({ open: false })}
+          confirmText="Aceptar"
+          cancelText=""
+          isDeleting={false}
+          singleButton={true}
         />
       </div>
     </>

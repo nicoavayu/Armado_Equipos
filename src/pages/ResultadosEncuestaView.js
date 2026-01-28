@@ -8,6 +8,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ProfileCard from '../components/ProfileCard';
 import StoryLikeCarousel from '../components/StoryLikeCarousel';
 import { ensureAwards } from '../services/awardsService';
+import { subscribeToMatchUpdates } from '../services/realtimeService';
 import Logo from '../Logo.png';
 
 // Helpers to fabricate demo awards when backend data is missing
@@ -114,15 +115,15 @@ const ResultadosEncuestaView = () => {
   const [results, setResults] = useState(null);
   const [jugadores, setJugadores] = useState([]);
   const [showingBadgeAnimations, setShowingBadgeAnimations] = useState(false);
-  const [badgeAnimations, setBadgeAnimations] = useState([]);
-  const [currentAnimationIndex, setCurrentAnimationIndex] = useState(0);
-  const [animationComplete, setAnimationComplete] = useState(false);
+  const [_badgeAnimations, setBadgeAnimations] = useState([]);
+  const [_currentAnimationIndex, _setCurrentAnimationIndex] = useState(0);
+  const [_animationComplete, _setAnimationComplete] = useState(false);
   const [absences, setAbsences] = useState([]);
   const [carouselSlides, setCarouselSlides] = useState([]);
   const [previewPlayers, setPreviewPlayers] = useState([]);
   const [slideStages, setSlideStages] = useState({}); // 0 award only, 1 card visible, 2 token fly/apply, 3 done
   const penaltyListRef = useRef([]);
-  const mockToastShown = useRef(false);
+  const _mockToastShown = useRef(false);
   const loadingFallbackTriggered = useRef(false);
   const badgesApplied = useRef(new Set());
   const liveApplied = useRef(new Set());
@@ -137,7 +138,7 @@ const ResultadosEncuestaView = () => {
     badgeTimers.current = [];
   };
 
-  const applyAward = (slideType) => {
+  const _applyAward = (slideType) => {
     if (badgesApplied.current.has(slideType)) return;
     badgesApplied.current.add(slideType);
 
@@ -312,7 +313,7 @@ const ResultadosEncuestaView = () => {
 
       // Precompute animation values per slide
       const base = toRating(resolvedPlayer, 5.0);
-      
+
       if (kind === 'penalty') {
         const next = clamp1(base - 0.5);
         setPenaltyFrom(base);
@@ -327,13 +328,13 @@ const ResultadosEncuestaView = () => {
 
       // Stage 0 → 1: Título visible, card aparece (suspenso)
       const t0 = setTimeout(() => setStage(1), 600);
-      
+
       // Stage 1 → 2: Card visible, token aparece ARRIBA
       const t1 = setTimeout(() => setStage(2), 1200);
-      
+
       // Stage 2 → 3: Token empieza a volar hacia la card
       const t2 = setTimeout(() => setStage(3), 1700);
-      
+
       // Stage 3 → 4: Token termina el vuelo, APLICAR PREMIO
       const t3 = setTimeout(() => {
         setStage(4);
@@ -629,7 +630,7 @@ const ResultadosEncuestaView = () => {
               {matchInfo.titulo || 'Partido'}
             </div>
           </div>
-          
+
           {/* Logo app al pie */}
           <div className="absolute bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 z-10" style={{ opacity: 0.55 }}>
             <img src={Logo} alt="Logo" style={{ width: 72, height: 'auto', filter: 'drop-shadow(0 0 6px rgba(0,0,0,0.4))' }} />
@@ -774,7 +775,7 @@ const ResultadosEncuestaView = () => {
 
     // RESUMEN FINAL: Última slide siempre
     const summaryAwards = [];
-    
+
     const mvpPlayer = currentResults.mvp ? findP(currentResults.mvp) : null;
     if (mvpPlayer) {
       summaryAwards.push({
@@ -1086,6 +1087,22 @@ const ResultadosEncuestaView = () => {
     fetchResultsData();
   }, [partidoId, user, navigate, location.search]);
 
+  // Realtime updates
+  useEffect(() => {
+    if (!partidoId) return;
+    const unsubscribe = subscribeToMatchUpdates(partidoId, (event) => {
+      console.debug('[RT] Resultados update:', event.type);
+      // Refetch on any significant change
+      if (event.type === 'results_update' || event.type === 'votes_update' || event.type === 'match_update') {
+        // Debounce could be added here if high volume, but for now direct refetch
+        // We reuse handleRetry but maybe without setting loading=true to avoid flicker?
+        // For now, handleRetry does set loading. Let's try to call it.
+        handleRetry();
+      }
+    });
+    return () => unsubscribe();
+  }, [partidoId]);
+
   // Safety net: if loading spins too long, fallback to mock awards for demo/testing
   useEffect(() => {
     const demoMode = new URLSearchParams(location.search).get('demoAwards') === 'true';
@@ -1277,7 +1294,7 @@ const ResultadosEncuestaView = () => {
     badgesApplied.current.clear();
     liveApplied.current.clear();
     setSlideStages({});
-    
+
     const slides = prepareCarouselSlides();
     if (!slides || slides.length === 0) {
       triggerMockAwards();

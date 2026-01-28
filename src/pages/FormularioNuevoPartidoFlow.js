@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import AutocompleteSede from '../components/AutocompleteSede';
-import { crearPartidoDesdeFrec, crearPartido, supabase } from '../supabase';
+import { crearPartido, supabase } from '../supabase';
 import { insertPartidoFrecuenteFromPartido } from '../services/db/frequentMatches';
-import { weekdayFromYMD, formatLocalDateShort } from '../utils/dateLocal';
+import { formatLocalDateShort } from '../utils/dateLocal';
 import { useTimeout } from '../hooks/useTimeout';
 
 import PageTitle from '../components/PageTitle';
@@ -51,7 +51,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // NEW: optional campo para valor de cancha por persona (UI-only)
   const [valorCancha, setValorCancha] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [_error, setError] = useState('');
   const [_animation, setAnimation] = useState('slide-in');
   const [editMode, setEditMode] = useState(false);
 
@@ -60,24 +60,24 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const [saveAsFrequent, setSaveAsFrequent] = useState(false);
 
   // Ensure toggle is reset when the flow component mounts (covers modal open case)
-  React.useEffect(() => {
+  useEffect(() => {
     setSaveAsFrequent(false);
   }, []);
 
   // Also reset the toggle whenever the flow returns to the first step
-  React.useEffect(() => {
+  useEffect(() => {
     if (step === STEPS.NAME) {
       setSaveAsFrequent(false);
     }
   }, [step]);
 
-  const modalidadToCupo = React.useMemo(() => ({
+  const modalidadToCupo = useMemo(() => ({
     F5: 10, F6: 12, F7: 14, F8: 16, F9: 18, F11: 22,
   }), []);
   const [modalidad, setModalidad] = useState('F5');
   const [cupo, setCupo] = useState(modalidadToCupo['F5']);
   const [tipoPartido, setTipoPartido] = useState('Masculino');
-  React.useEffect(() => { setCupo(modalidadToCupo[modalidad]); }, [modalidad, modalidadToCupo]);
+  useEffect(() => { setCupo(modalidadToCupo[modalidad]); }, [modalidad, modalidadToCupo]);
 
   const [file, setFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
@@ -148,7 +148,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     }
   };
 
-  const handleEditarFrecuenteFromList = (p) => {
+  const handleEditarFrecuenteFromList = (_p) => {
     toast.info('Editar desde la lista no disponible aquí');
   };
 
@@ -162,11 +162,11 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     console.log('[NuevoPartido] saveAsFrequent:', saveAsFrequent, 'shouldSaveFrequent:', shouldSaveFrequent);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.auth.getUser();
       let partido;
 
       // Upload image if present (unchanged)
-      let imagenUrl = null;
+      let _imagenUrl = null;
       if (file) {
         try {
           const fileExt = file.name.split('.').pop();
@@ -178,7 +178,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
           const { data } = supabase.storage
             .from('jugadores-fotos')
             .getPublicUrl(fileName);
-          imagenUrl = data?.publicUrl;
+          _imagenUrl = data?.publicUrl;
         } catch (error) { /* ignore */ }
       }
 

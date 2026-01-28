@@ -10,14 +10,13 @@ import { parseLocalDateTime } from '../utils/dateLocal';
 import ProximosPartidos from './ProximosPartidos';
 import NotificationsBell from './NotificationsBell';
 
-const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onViewActivePlayers }) => {
+const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _onViewActivePlayers }) => {
   const { user, profile, refreshProfile } = useAuth();
   const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   const { setIntervalSafe } = useInterval();
   const [activeMatches, setActiveMatches] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showProximosPartidos, setShowProximosPartidos] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const statusDropdownRef = useRef(null);
@@ -55,14 +54,11 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
       setIntervalSafe(() => {
         fetchActiveMatches();
       }, 10000);
-    } else {
-      setLoading(false);
     }
   }, [user, setIntervalSafe]);
 
   const fetchActiveMatches = async () => {
     if (!user) {
-      setLoading(false);
       return;
     }
 
@@ -164,8 +160,6 @@ const FifaHomeContent = ({ onCreateMatch, onViewHistory, onViewInvitations, onVi
       setActiveMatches(partidosFiltrados);
     } catch (error) {
       console.error('Error fetching active matches:', error);
-    } finally {
-      setLoading(false);
     }
   };
 

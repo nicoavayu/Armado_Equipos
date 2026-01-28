@@ -164,7 +164,7 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
   const normalizedDate = typeof fecha === 'string' ? fecha.split('T')[0] : fecha;
   
   // Get current user to make search more specific
-  const { data: { user } } = await supabase.auth.getUser();
+  await supabase.auth.getUser();
   
   // ALWAYS create a new match - no reuse of existing matches
   console.log('Creating fresh match - no reuse policy');

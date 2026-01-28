@@ -10,6 +10,7 @@ const Modals = ({
   setShowInviteModal,
   partidoActual,
   user,
+  jugadores,
 }) => {
   return (
     <>
@@ -20,6 +21,7 @@ const Modals = ({
           onClose={() => setShowInviteModal(false)}
           currentUserId={user?.id}
           partidoActual={partidoActual}
+          jugadores={jugadores}
         />
       )}
     </>

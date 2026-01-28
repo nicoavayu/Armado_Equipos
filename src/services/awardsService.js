@@ -15,7 +15,7 @@ export async function computeAwardsForMatch(partidoId) {
 export async function ensureAwards(partidoId) {
   try {
     // Call server RPC to compute/persist awards (idempotent server implementation expected)
-    const { data: rpcData, error: rpcErr } = await supabase.rpc('compute_awards_for_match', { partido_id: Number(partidoId) });
+    const { error: rpcErr } = await supabase.rpc('compute_awards_for_match', { partido_id: Number(partidoId) });
     if (rpcErr) return { ok: false, error: rpcErr };
 
     // Re-select persisted survey_results for the UI

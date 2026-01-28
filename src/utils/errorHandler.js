@@ -1,8 +1,40 @@
-import { toast } from 'react-toastify';
+// eslint-disable-next-line global-require
+const { toast } = require('react-toastify');
+
+const normalizeToError = (err, fallbackMessage = 'Ha ocurrido un error') => {
+  if (err instanceof Error) return err;
+  if (err && typeof err === 'object') {
+    const msg =
+      err.message ||
+      err.error_description ||
+      err.details ||
+      err.hint ||
+      (err.code ? `Error ${err.code}` : null) ||
+      (() => {
+        try {
+          return JSON.stringify(err, null, 2);
+        } catch (_e) {
+          if (err && typeof err === 'object') {
+            try {
+              return `Object with keys: ${Object.keys(err).join(', ')}`;
+            } catch (__e) {
+              return String(err);
+            }
+          }
+          return fallbackMessage;
+        }
+      })();
+    const e = new Error(msg);
+    Object.assign(e, err);
+    return e;
+  }
+  return new Error(typeof err === 'string' ? err : fallbackMessage);
+};
 
 export const handleError = (error, userMessage = 'Ha ocurrido un error') => {
-  console.error('Error:', error);
-  const message = error?.message || userMessage;
+  const normalized = normalizeToError(error, userMessage);
+  console.error('Error:', normalized);
+  const message = normalized?.message || userMessage;
   toast.error(message, {
     position: 'top-right',
     autoClose: 5000,
@@ -11,7 +43,7 @@ export const handleError = (error, userMessage = 'Ha ocurrido un error') => {
     pauseOnHover: true,
     draggable: true,
   });
-  return error;
+  return normalized;
 };
 
 export const handleSuccess = (message) => {
@@ -40,7 +72,7 @@ export const safeAsync = async (asyncFn, errorMessage) => {
   try {
     return await asyncFn();
   } catch (error) {
-    throw handleError(error, errorMessage);
+    throw normalizeToError(handleError(error, errorMessage), errorMessage);
   }
 };
 
@@ -50,7 +82,7 @@ export const withLoading = async (asyncFn, loadingSetter, errorMessage) => {
     loadingSetter(true);
     return await asyncFn();
   } catch (error) {
-    throw handleError(error, errorMessage);
+    throw normalizeToError(handleError(error, errorMessage), errorMessage);
   } finally {
     loadingSetter(false);
   }

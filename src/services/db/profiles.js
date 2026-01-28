@@ -3,11 +3,11 @@ import { supabase } from '../../lib/supabaseClient';
 /**
  * Compress image to reduce file size
  * @param {File} file - Image file
- * @param {number} maxSizeMB - Max size in MB
+ * @param {number} _maxSizeMB
  * @param {number} quality - Compression quality
  * @returns {Promise<File>} Compressed file
  */
-const compressImage = (file, maxSizeMB = 1.5, quality = 0.8) => {
+const compressImage = (file, _maxSizeMB = 1.5, quality = 0.8) => {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -515,36 +515,7 @@ export const addFreePlayer = async () => {
       throw insertError;
     }
   } catch (error) {
-    console.error('addFreePlayer failed:', error);
+    console.error('Error registering free player:', error);
     throw error;
-  }
-};
-
-/**
- * Get free player status for current user
- * @returns {Promise<boolean>} True if user is registered as free player
- */
-export const getFreePlayerStatus = async () => {
-  try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return false;
-    }
-
-    const { data, error } = await supabase
-      .from('jugadores_sin_partido')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('disponible', true);
-
-    if (error) {
-      console.error('Error checking free player status:', error);
-      return false;
-    }
-
-    return data && data.length > 0;
-  } catch (error) {
-    console.error('getFreePlayerStatus failed:', error);
-    return false;
   }
 };

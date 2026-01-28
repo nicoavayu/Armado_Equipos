@@ -19,9 +19,9 @@ const AdminActions = ({
   user,
   inputRef,
 }) => {
-  if (!isAdmin) return null;
-
   const [showManual, setShowManual] = useState(false);
+
+  if (!isAdmin) return null;
 
   return (
     <>

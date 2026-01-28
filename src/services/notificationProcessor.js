@@ -76,13 +76,9 @@ const processMatchResultsNotifications = async (partidoId, notifications) => {
     }
     
     // Actualizar las notificaciones con los datos de los resultados
-    const updatedNotifications = notifications.map((notification) => ({
-      ...notification,
-      data: {
-        ...notification.data,
-        awards: awards,
-        results_ready: true,
-      },
+    const _updatedNotifications = notifications.map((n) => ({
+      ...n,
+      read: true,
     }));
     
     // Las notificaciones ya están en la base de datos, solo necesitamos que el frontend las procese

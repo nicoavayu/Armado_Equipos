@@ -1,7 +1,5 @@
 import { supabase } from '../supabase';
 import { db } from '../api/supabaseWrapper';
-import { getResultsUrl } from '../utils/routes';
-import { toBigIntId } from '../utils';
 import { grantAwardsForMatch } from './db/awards';
 import { applyNoShowPenalties, applyNoShowRecoveries } from './db/penalties';
 import { handleError } from '../lib/errorHandler';

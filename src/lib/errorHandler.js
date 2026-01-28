@@ -44,49 +44,69 @@ export const ERROR_MESSAGES = {
 /**
  * Maneja errores de forma centralizada
  * 
- * @param {Error|AppError} error - Error a manejar
- * @param {Object} options - Opciones de configuración
- * @param {boolean} options.showToast - Si debe mostrar toast (default: true)
- * @param {Function} options.onError - Callback adicional
+ * @param {unknown} error - Error a manejar
+ * @param {{ showToast?: boolean, onError?: (err: Error) => void }} [options] - Opciones de configuración
  * @returns {string} Mensaje de error procesado
- * 
- * @example
- * try {
- *   await someAsyncOperation();
- * } catch (error) {
- *   handleError(error, {
- *     showToast: true,
- *     onError: () => setLoading(false)
- *   });
- * }
  */
 export const handleError = (error, options = {}) => {
-  console.error('[ERROR]', error);
-  
-  let message = ERROR_MESSAGES[ERROR_CODES.UNKNOWN];
-  
-  if (error instanceof AppError) {
-    message = ERROR_MESSAGES[error.code] || error.message;
-  } else if (error?.message) {
-    message = error.message;
-  }
-  
-  if (options.showToast !== false) {
+  // Normalize non-Error values (Supabase sometimes returns plain objects)
+  /** @type {any} */
+  const raw = error;
+
+  const safeStringify = (value) => {
     try {
-      // Intentar usar react-toastify si está disponible
-      const { toast } = require('react-toastify');
-      if (toast?.error) {
-        toast.error(message);
+      return JSON.stringify(value, null, 2);
+    } catch (_e) {
+      if (value && typeof value === 'object') {
+        try {
+          return `Object with keys: ${Object.keys(value).join(', ')}`;
+        } catch (__e) {
+          return String(value);
+        }
       }
-    } catch (e) {
-      // Si react-toastify no está disponible, solo loguear
-      console.warn('[ERROR_HANDLER] Toast not available:', message);
+      return String(value);
     }
+  };
+
+  const normalizedError = (() => {
+    if (raw instanceof Error) return raw;
+    if (raw && typeof raw === 'object') {
+      const msg =
+        raw.message ||
+        raw.error_description ||
+        raw.details ||
+        raw.hint ||
+        (raw.code ? `Error ${raw.code}` : null) ||
+        safeStringify(raw);
+      const e = new Error(msg);
+      // Preserve useful fields for debugging
+      Object.assign(e, raw);
+      return e;
+    }
+    return new Error(String(raw));
+  })();
+
+  // Dev-only marker so we can identify which handler is being called
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.warn('[handleError:lib] called', { message: normalizedError?.message });
+    // eslint-disable-next-line no-console
+    console.warn('[handleError:lib] stack', new Error('handleError:lib').stack);
   }
-  
-  if (options.onError) {
-    options.onError(error);
+
+  console.error('[ERROR]', normalizedError);
+
+  let message = ERROR_MESSAGES[ERROR_CODES.UNKNOWN];
+
+  if (normalizedError instanceof AppError) {
+    message = ERROR_MESSAGES[normalizedError.code] || normalizedError.message;
+  } else if (normalizedError?.message) {
+    message = normalizedError.message;
   }
-  
+
+  if (options?.onError) {
+    options.onError(normalizedError);
+  }
+
   return message;
 };

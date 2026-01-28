@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { supabase } from '../supabase';
 
 // Este componente es una solución temporal para forzar la actualización del avatar

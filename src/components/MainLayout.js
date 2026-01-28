@@ -18,7 +18,7 @@ const MainLayout = () => {
     return 'home';
   };
 
-  const handleTabChange = (tab) => {
+  const handleTabChange = (_tab) => {
     // Navigation will be handled by TabBar component
   };
 

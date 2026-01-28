@@ -27,8 +27,6 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
   const {
     getRelationshipStatus,
     sendFriendRequest,
-    acceptFriendRequest,
-    rejectFriendRequest,
     removeFriend,
   } = useAmigos(currentUserId);
 

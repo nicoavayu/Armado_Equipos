@@ -5,7 +5,7 @@ import { updateProfile } from '../supabase';
 import NotificationsBell from './NotificationsBell';
 import NotificationsModal from './NotificationsModal';
 
-const GlobalHeader = ({ onProfileClick }) => {
+const GlobalHeader = ({ _onProfileClick }) => {
   const { user, profile, refreshProfile } = useAuth();
   const { unreadCount } = useNotifications();
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
