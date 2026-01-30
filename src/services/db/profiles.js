@@ -92,8 +92,8 @@ export const uploadFoto = async (file, jugador) => {
   // Ahora ACTUALIZÁ la foto en la tabla jugadores
   const { error: updateJugadorError } = await supabase
     .from('jugadores')
-    .update({ foto_url: cacheBusted })
-    .eq('uuid', jugador.uuid);
+    .update({ avatar_url: cacheBusted })
+    .eq('usuario_id', jugador.uuid);
 
   if (updateJugadorError) {
     console.error('uploadFoto update jugador error:', updateJugadorError);
@@ -342,6 +342,8 @@ export const updateProfile = async (userId, profileData) => {
  * @returns {Promise<Object>} Created/updated profile
  */
 export const createOrUpdateProfile = async (user) => {
+  console.log('[PROFILE_BOOTSTRAP] Starting profile creation/update for user:', user.id);
+
   // Avatar from social provider (if any)
   const avatarUrl =
     user.user_metadata?.picture ||
@@ -356,7 +358,7 @@ export const createOrUpdateProfile = async (user) => {
     .maybeSingle();
 
   if (existingCheckError) {
-    console.error('Error checking existing user in createOrUpdateProfile:', existingCheckError);
+    console.error('[PROFILE_BOOTSTRAP] Error checking existing user:', existingCheckError);
     throw existingCheckError;
   }
 
@@ -373,10 +375,16 @@ export const createOrUpdateProfile = async (user) => {
     console.warn('⚠️ Missing REACT_APP_DEFAULT_NATIONALITY in environment variables, using default: argentina');
   }
 
+  // Determine nombre for profile
+  const nombre = user.user_metadata?.full_name ||
+    user.user_metadata?.name ||
+    user.email?.split('@')[0] ||
+    'Jugador';
+
   // ONLY fields that exist in usuarios
   const profileData = {
     id: user.id,
-    nombre: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
+    nombre,
     email: user.email,
     avatar_url: avatarForProfile,
     red_social: null,                 // or map if you have it
@@ -402,7 +410,7 @@ export const createOrUpdateProfile = async (user) => {
   // IMPORTANT: Do NOT update Supabase Auth user metadata here.
   // Auth metadata updates should only happen when the user explicitly uploads/changes avatar.
 
-  // Insert or update (upsert)
+  // Insert or update (upsert) into usuarios table
   const { data, error } = await supabase
     .from('usuarios')
     .upsert(profileData, { onConflict: 'id' })
@@ -410,11 +418,54 @@ export const createOrUpdateProfile = async (user) => {
     .single();
 
   if (error) {
-    console.error('Error upserting user profile:', error);
+    console.error('[PROFILE_BOOTSTRAP] Error upserting user profile to usuarios:', error);
     throw error;
   }
 
-  console.log('createOrUpdateProfile OK:', data);
+  console.log('[PROFILE_BOOTSTRAP] Successfully upserted to usuarios table:', {
+    id: data.id,
+    nombre: data.nombre,
+    avatar_url: data.avatar_url
+  });
+
+  // ALSO ensure a row exists in public.profiles table
+  // This is critical for approve_join_request RPC to find user data
+  try {
+    const profilesData = {
+      id: user.id,
+      nombre,
+      avatar_url: avatarForProfile,
+      estadisticas: {
+        pj: 0,
+        rating: null
+      }
+    };
+
+    const { error: profilesError } = await supabase
+      .from('profiles')
+      .upsert(profilesData, { onConflict: 'id' });
+
+    if (profilesError) {
+      console.error('[PROFILE_BOOTSTRAP] Error upserting to profiles table:', {
+        code: profilesError.code,
+        message: profilesError.message,
+        details: profilesError.details,
+        hint: profilesError.hint
+      });
+      // Don't throw - profiles table might not exist or have different schema
+      // The main usuarios upsert already succeeded
+    } else {
+      console.log('[PROFILE_BOOTSTRAP] Successfully upserted to profiles table:', {
+        id: user.id,
+        nombre
+      });
+    }
+  } catch (profilesError) {
+    console.error('[PROFILE_BOOTSTRAP] Unexpected error upserting to profiles:', profilesError);
+    // Don't throw - continue with usuarios data
+  }
+
+  console.log('[PROFILE_BOOTSTRAP] Profile bootstrap completed for user:', user.id);
   return data;
 };
 
