@@ -226,7 +226,7 @@ const PlayersSection = ({
           {jugadores.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 gap-4 w-full">
               <button
-                className="w-full max-w-xs h-14 rounded-xl bg-primary text-white font-bebas text-xl tracking-widest shadow-lg hover:brightness-110 active:scale-95 transition-all"
+                className="w-full max-w-xs h-14 rounded-xl bg-[#128BE9] text-white font-bebas text-xl tracking-widest shadow-[0_4px_14px_rgba(18,139,233,0.3)] hover:brightness-110 active:scale-95 transition-all"
                 type="button"
                 onClick={() => setShowInviteModal(true)}
               >
@@ -236,10 +236,8 @@ const PlayersSection = ({
                 className="w-full max-w-xs h-14 rounded-xl bg-slate-800 text-white font-bebas text-xl tracking-widest border border-white/20 hover:bg-slate-700 active:scale-95 transition-all"
                 type="button"
                 onClick={() => {
-                  // Simula el toggle "Mostrar" de AdminActions.jsx
-                  const evt = new KeyboardEvent('keydown', { key: 'Enter' });
-                  document.querySelector('input[placeholder="Nombre del jugador"]')?.focus();
-                  document.querySelector('input[placeholder="Nombre del jugador"]')?.dispatchEvent(evt);
+                  // Focus the manual input field
+                  document.querySelector('input[placeholder="Agregar jugador manualmente"]')?.focus();
                 }}
               >
                 AGREGAR MANUALMENTE
@@ -309,7 +307,7 @@ const PlayersSection = ({
                 // Botones para jugador ya en el partido (guest view) - SOLO INVITAR
                 <div className="flex flex-col w-full">
                   <button
-                    className={`w-full font-bebas text-[18px] h-14 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-bold tracking-wide bg-primary shadow-[0_4px_14px_rgba(129,120,229,0.3)]
+                    className={`w-full font-bebas text-[18px] h-14 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-bold tracking-wide bg-[#128BE9] shadow-[0_4px_14px_rgba(18,139,233,0.3)]
                       ${(partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)
                         ? 'opacity-40 grayscale cursor-not-allowed shadow-none'
                         : 'hover:brightness-110 active:scale-95'

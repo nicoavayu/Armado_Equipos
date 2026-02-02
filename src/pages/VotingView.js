@@ -18,6 +18,7 @@ import PageTitle from '../components/PageTitle';
 import MatchInfoSection from '../components/MatchInfoSection';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import StarRating from '../components/StarRating';
+import { AvatarFallback } from '../components/ProfileComponents';
 
 // Styles are now handled via Tailwind CSS
 // Legacy styles: src/pages/LegacyVoting.css (for other components)
@@ -26,15 +27,7 @@ import StarRating from '../components/StarRating';
 const SANITIZE_ON = process.env.REACT_APP_SANITIZE_VOTING === 'true';
 const clean = (value) => SANITIZE_ON ? DOMPurify.sanitize(String(value ?? '')) : String(value ?? '');
 
-const DefaultAvatar = (
-  <div className="w-full h-full flex items-center justify-center bg-[#eceaf1]">
-    <svg width="80" height="80" viewBox="0 0 38 38" fill="none" className="opacity-50">
-      <rect width="38" height="38" rx="6" fill="#eceaf1" />
-      <circle cx="19" cy="14" r="7" fill="#bbb" />
-      <ellipse cx="19" cy="29" rx="11" ry="7" fill="#bbb" />
-    </svg>
-  </div>
-);
+
 
 export default function VotingView({ onReset, jugadores, partidoActual }) {
   // Estados principales
@@ -452,7 +445,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               {jugadorVotar.avatar_url ? (
                 <img src={jugadorVotar.avatar_url} alt="foto" className="w-full h-full object-cover" />
               ) : (
-                DefaultAvatar
+                <AvatarFallback name={jugadorVotar.nombre} size="w-full h-full" className="rounded-none text-[80px]" />
               )}
             </div>
             <div className="flex flex-col items-center mt-7 select-none">
@@ -535,7 +528,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                 <div className="w-10 h-10 rounded-full overflow-hidden shrink-0">
                   {j.avatar_url ?
                     <img src={j.avatar_url} alt="foto" className="w-full h-full object-cover" />
-                    : DefaultAvatar
+                    : <AvatarFallback name={j.nombre} size="w-10 h-10" />
                   }
                 </div>
                 <span className="flex-grow font-bold text-base md:text-lg font-oswald text-white tracking-wide truncate drop-shadow-sm">{clean(j.nombre)}</span>

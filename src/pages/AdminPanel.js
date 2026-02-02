@@ -336,6 +336,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
         isOpen={isChatOpen}
         onOpenChange={setIsChatOpen}
         onUnreadCountChange={setChatUnreadCount}
+        hideTrigger={adminState.showArmarEquiposView}
       />
     </>
   );

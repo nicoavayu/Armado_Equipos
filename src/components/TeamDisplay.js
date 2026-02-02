@@ -9,6 +9,7 @@ import MatchInfoSection from './MatchInfoSection';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import WhatsappIcon from './WhatsappIcon';
 import LoadingSpinner from './LoadingSpinner';
+import { AvatarFallback } from './ProfileComponents';
 
 // Safe wrappers to prevent runtime crashes if any import resolves undefined
 const safeComp = (Comp, name) => {
@@ -265,8 +266,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
   return (
     <SafeTeamDisplayContext.Provider value={true}>
-      {/* Chat button para todos los usuarios */}
-      <SafeChatButton partidoId={partidoId} />
+      {/* Chat button para todos los usuarios - Hide floating trigger as it is in the header */}
+      <SafeChatButton partidoId={partidoId} hideTrigger={true} />
       <SafePageTitle onBack={onBackToHome}>EQUIPOS ARMADOS</SafePageTitle>
       <div className="relative left-1/2 right-1/2 w-screen -ml-[50vw] -mr-[50vw] px-3 md:px-4">
         <SafeMatchInfoSection
@@ -358,15 +359,15 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                 <div className="flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto max-h-[52vh] md:max-h-[60vh] pr-1">
                   {teamPlayerKeys.length === 0 && (
                     <div className="text-white/60 text-sm p-3 border border-white/10 rounded bg-black/20">
-                        No hay jugadores cargados en este equipo (players vacío).
+                      No hay jugadores cargados en este equipo (players vacío).
                     </div>
                   )}
                   {teamPlayerKeys.map((playerKey, _index) => {
                     const player = getPlayerDetails(playerKey);
 
                     const isLocked =
-                              lockedPlayers.includes(playerKey) ||
-                              lockedPlayers.includes(Number(playerKey));
+                      lockedPlayers.includes(playerKey) ||
+                      lockedPlayers.includes(Number(playerKey));
 
                     if (!player?.nombre) {
                       return (
@@ -374,7 +375,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                           key={`missing-${playerKey}`}
                           className="bg-slate-900 border border-slate-800 rounded-lg p-2 text-white/70"
                         >
-                                  Jugador desconocido ({playerKey})
+                          Jugador desconocido ({playerKey})
                         </div>
                       );
                     }
@@ -397,17 +398,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                               className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 border border-slate-700 shrink-0">
-                              <span className="text-xs font-bold text-white">
-                                {(() => {
-                                  const name = player.nombre || '';
-                                  const words = name.trim().split(/\s+/).filter(Boolean);
-                                  if (words.length === 0) return '?';
-                                  if (words.length === 1) return words[0][0].toUpperCase();
-                                  return (words[0][0] + words[1][0]).toUpperCase();
-                                })()}
-                              </span>
-                            </div>
+                            <AvatarFallback name={player.nombre} size="w-8 h-8" />
                           )}
                           <span className="font-oswald text-sm font-semibold text-white flex-1 tracking-wide overflow-hidden text-ellipsis whitespace-nowrap min-w-0 leading-tight">
                             {player.nombre}
@@ -467,10 +458,10 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           const scoreA = teamA?.score ?? 0;
           const scoreB = teamB?.score ?? 0;
           const diff = Math.abs(scoreA - scoreB);
-          
+
           let balanceStatus = '';
           let balanceColor = '';
-          
+
           if (diff === 0) {
             balanceStatus = 'MATCH PERFECTO';
             balanceColor = '#10B981'; // green
@@ -487,7 +478,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
             balanceStatus = 'MUY DESBALANCEADO';
             balanceColor = '#EF4444'; // red
           }
-          
+
           return (
             <div className="w-full bg-slate-900 border-2 rounded-xl px-4 py-2.5 mt-2" style={{ borderColor: balanceColor }}>
               <div className="text-center">
@@ -510,7 +501,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                     className="flex-1 font-bebas text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide bg-[#128BE9] hover:brightness-110 active:scale-95 disabled:opacity-50"
                     onClick={randomizeTeams}
                   >
-                        RANDOMIZAR
+                    RANDOMIZAR
                   </button>
 
                   {/* Secondary outlined */}
@@ -536,7 +527,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
               onClick={handleWhatsAppShare}
             >
               <SafeWhatsappIcon size={16} style={{ marginRight: 8 }} />
-                  COMPARTIR
+              COMPARTIR
             </button>
             <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1">Comparte los equipos armados al grupo de WhatsApp.</div>
           </div>

@@ -4,7 +4,7 @@ import MatchChat from './MatchChat';
 import { useAuth } from './AuthProvider';
 import { MessageCircle } from 'lucide-react';
 
-export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenChange, onUnreadCountChange }) {
+export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenChange, onUnreadCountChange, hideTrigger = false }) {
   const { user } = useAuth(); // [TEAM_BALANCER_EDIT] Para verificar permisos
   const [unreadCount, setUnreadCount] = useState(0);
   const [internalIsChatOpen, setInternalIsChatOpen] = useState(false);
@@ -144,7 +144,7 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
 
   return (
     <>
-      {!isChatOpen && externalIsOpen === undefined && (
+      {!isChatOpen && externalIsOpen === undefined && !hideTrigger && (
         <button
           className="fixed bottom-[120px] right-5 w-12 h-12 bg-slate-700 border border-slate-600 rounded-full text-white/80 cursor-pointer flex items-center justify-center shadow-lg transition-all duration-200 z-[99999] hover:bg-slate-600 hover:text-white active:scale-95 max-[600px]:bottom-[120px] max-[600px]:right-4 max-[600px]:w-11 max-[600px]:h-11"
           onClick={handleOpenChat}

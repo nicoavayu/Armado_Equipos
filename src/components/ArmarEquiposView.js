@@ -12,7 +12,7 @@ import {
   supabase,
 } from '../supabase';
 import WhatsappIcon from './WhatsappIcon';
-import { PlayerCardTrigger } from './ProfileComponents';
+import { PlayerCardTrigger, AvatarFallback } from './ProfileComponents';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import MatchInfoSection from './MatchInfoSection';
@@ -574,9 +574,7 @@ export default function ArmarEquiposView({
                           className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
                         />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm shrink-0 text-white/70">
-                          <UserIcon size={14} />
-                        </div>
+                        <AvatarFallback name={j.nombre} size="w-8 h-8" />
                       )}
 
                       <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 break-words leading-tight">
