@@ -425,7 +425,7 @@ const ResultadosEncuestaView = () => {
           )}
 
           <div
-            className="font-bebas text-[56px] md:text-[78px] leading-[0.9]"
+            className="font-bebas-real text-[56px] md:text-[78px] leading-[0.9]"
             style={{
               color: border,
               textShadow: `0 0 22px ${accent}`,
@@ -620,7 +620,7 @@ const ResultadosEncuestaView = () => {
           />
 
           <div className="relative z-10 flex flex-col items-center justify-center flex-1">
-            <div className="font-bebas text-[56px] md:text-[78px] leading-[0.9] text-white" style={{ animation: 'eaTitleIn 760ms cubic-bezier(.2,.9,.2,1) both', textShadow: '0 0 22px rgba(14,169,198,0.5)' }}>
+            <div className="font-bebas-real text-[56px] md:text-[78px] leading-[0.9] text-white" style={{ animation: 'eaTitleIn 760ms cubic-bezier(.2,.9,.2,1) both', textShadow: '0 0 22px rgba(14,169,198,0.5)' }}>
               PREMIACIÓN
             </div>
             <div className="text-white/70 tracking-[0.35em] text-xs md:text-sm mt-2 mb-6" style={{ animation: 'eaSubIn 740ms ease-out 120ms both' }}>
@@ -688,7 +688,7 @@ const ResultadosEncuestaView = () => {
             <AwardStory
               kind="glove"
               icon="/glove.png"
-              title="GUANTE DE ORO"
+              title="MEJOR ARQUERO"
               subtitle={null}
               accent="rgba(34,211,238,0.55)"
               border="#22d3ee"
@@ -796,14 +796,14 @@ const ResultadosEncuestaView = () => {
     const glovePlayer = currentResults.golden_glove ? findP(currentResults.golden_glove) : null;
     if (glovePlayer) {
       summaryAwards.push({
-        awardName: 'Guante de Oro',
+        awardName: 'MEJOR ARQUERO',
         playerName: glovePlayer.nombre,
         icon: '/glove.png',
         color: '#22d3ee',
       });
     } else {
       summaryAwards.push({
-        awardName: 'Guante de Oro',
+        awardName: 'MEJOR ARQUERO',
         playerName: '—',
         icon: '/glove.png',
         color: '#22d3ee',
@@ -813,14 +813,14 @@ const ResultadosEncuestaView = () => {
     const dirtyPlayer = currentResults.dirty_player ? findP(currentResults.dirty_player) : null;
     if (dirtyPlayer) {
       summaryAwards.push({
-        awardName: 'Más Sucio',
+        awardName: 'MÁS SUCIO',
         playerName: dirtyPlayer.nombre,
         icon: '/red_card.png',
         color: '#f87171',
       });
     } else {
       summaryAwards.push({
-        awardName: 'Más Sucio',
+        awardName: 'MÁS SUCIO',
         playerName: '—',
         icon: '/red_card.png',
         color: '#f87171',
@@ -829,14 +829,14 @@ const ResultadosEncuestaView = () => {
 
     if (penalized?.player) {
       summaryAwards.push({
-        awardName: 'Penalización',
+        awardName: 'PENALIZACIÓN',
         playerName: penalized.player.nombre,
         icon: '/penalizacion.png',
         color: '#FDBA74',
       });
     } else {
       summaryAwards.push({
-        awardName: 'Penalización',
+        awardName: 'PENALIZACIÓN',
         playerName: '—',
         icon: '/penalizacion.png',
         color: '#FDBA74',
@@ -866,7 +866,7 @@ const ResultadosEncuestaView = () => {
 
           <div className="relative z-10 w-full flex flex-col items-center">
             <div className="text-center mb-8">
-              <div className="font-bebas text-[52px] md:text-[72px] leading-[0.9] text-white" style={{ animation: 'eaTitleIn 760ms cubic-bezier(.2,.9,.2,1) both', textShadow: '0 0 22px rgba(14,169,198,0.5)' }}>
+              <div className="font-bebas-real text-[52px] md:text-[72px] leading-[0.9] text-white" style={{ animation: 'eaTitleIn 760ms cubic-bezier(.2,.9,.2,1) both', textShadow: '0 0 22px rgba(14,169,198,0.5)' }}>
                 RESUMEN
               </div>
               <div className="text-white/70 tracking-[0.35em] text-xs md:text-sm mt-2" style={{ animation: 'eaSubIn 680ms ease-out both' }}>
@@ -901,7 +901,7 @@ const ResultadosEncuestaView = () => {
                     </span>
                   )}
                   <div className="text-center">
-                    <div className="text-xs text-white/60 uppercase tracking-wider font-bold mb-1">
+                    <div className="font-bebas-real text-lg text-white/60 uppercase tracking-wider mb-1">
                       {award.awardName}
                     </div>
                     <div className="text-base md:text-lg text-white font-bold">
@@ -1065,7 +1065,7 @@ const ResultadosEncuestaView = () => {
                 playerName: player.nombre,
                 playerAvatar: player.avatar_url || player.foto_url,
                 badgeType: 'golden_glove',
-                badgeText: 'Guante de Oro',
+                badgeText: 'MEJOR ARQUERO',
                 badgeIcon: '🥇',
                 votes: Number(finalResults.golden_glove_votes || 1),
               });
@@ -1249,7 +1249,7 @@ const ResultadosEncuestaView = () => {
             playerName: player.nombre,
             playerAvatar: player.avatar_url || player.foto_url,
             badgeType: 'golden_glove',
-            badgeText: 'Guante de Oro',
+            badgeText: 'MEJOR ARQUERO',
             badgeIcon: '🥇',
             votes: resultsData.golden_glove_votes || 1,
           });
@@ -1402,14 +1402,14 @@ const ResultadosEncuestaView = () => {
               <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
                 <span className="text-2xl">🏆</span>
                 <div className="flex flex-col">
-                  <span className="text-xs text-gray-400 uppercase font-bold">MVP</span>
+                  <span className="font-bebas-real text-lg text-gray-400 uppercase tracking-wider">MVP</span>
                   <span className="text-lg text-white  text-shadow-sm">{results.mvp_nombre || 'Nadie'}</span>
                 </div>
               </div>
               <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
                 <span className="text-2xl">🥇</span>
                 <div className="flex flex-col">
-                  <span className="text-xs text-gray-400 uppercase font-bold">Guante de Oro</span>
+                  <span className="font-bebas-real text-lg text-gray-400 uppercase tracking-wider">MEJOR ARQUERO</span>
                   <span className="text-lg text-white  text-shadow-sm">{results.golden_glove_nombre || 'Nadie'}</span>
                 </div>
               </div>
