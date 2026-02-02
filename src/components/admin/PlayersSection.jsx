@@ -88,6 +88,7 @@ const PlayersSection = ({
   invitationStatus,
   onInviteFriends,
   onAddManual,
+  onShareClick,
 }) => {
   const [localMenuOpen, setLocalMenuOpen] = useState(false);
   const [playerToRemove, setPlayerToRemove] = useState(null);
@@ -243,11 +244,11 @@ const PlayersSection = ({
                 AGREGAR MANUALMENTE
               </button>
               {/* Botón compartir link solo si existe handler */}
-              {typeof onShareClick === 'function' && (
+              {(typeof onShareClick === 'function') && (
                 <button
                   className="mt-4 text-xs text-white/70 bg-white/10 px-3 py-2 rounded-lg border border-white/20 hover:bg-white/15 transition-all"
                   type="button"
-                  onClick={onShareClick}
+                  onClick={() => onShareClick?.()}
                 >
                   Compartir link
                 </button>
@@ -440,6 +441,11 @@ const PlayersSection = ({
         cancelText="Cancelar"
         isDeleting={isClosing}
       />
+
+      {/* Render EmptyPlayersState logic when list is empty - but usually redundant if handled above */}
+      {isAdmin && jugadores.length === 0 && (
+        <EmptyPlayersState view="admin" onShareClick={onShareClick} />
+      )}
     </div>
   );
 };

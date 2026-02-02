@@ -4,6 +4,7 @@ import { useAdminPanelState } from '../hooks/useAdminPanelState';
 import { useTeamFormation } from '../hooks/useTeamFormation';
 import { useSearchParams } from 'react-router-dom';
 import { usePendingRequestsCount } from '../hooks/usePendingRequestsCount';
+import { useNativeFeatures } from '../hooks/useNativeFeatures';
 
 import 'react-lazy-load-image-component/src/effects/blur.css';
 // import '../HomeStyleKit.css'; // Removed in Tailwind migration
@@ -52,6 +53,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
   // Get pending requests count with realtime updates
   const pendingRequestsCount = usePendingRequestsCount(partidoActual?.id);
+  const { shareContent } = useNativeFeatures();
 
   // Handle tab from URL
   useEffect(() => {
@@ -100,6 +102,16 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     } finally {
       setProcessingAction(false);
       setConfirmConfig({ open: false, type: null });
+    }
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    const text = `¡Sumate al partido "${partidoActual.nombre || 'Partido'}"!`;
+    try {
+      await shareContent('Invitar al partido', text, url);
+    } catch (err) {
+      console.error('Error sharing:', err);
     }
   };
 
@@ -220,6 +232,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                         invitationStatus={adminState.invitationStatus}
                         onInviteFriends={() => adminState.setShowInviteModal(true)}
                         onAddManual={adminState.agregarJugador}
+                        onShareClick={handleShare}
                       />
                     ) : (
                       <SolicitudesSection
