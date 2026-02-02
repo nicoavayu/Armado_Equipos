@@ -63,26 +63,32 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
 
       // Verificar qué amigos ya fueron invitados a este partido
       if (partidoActual?.id && filteredFriends.length > 0) {
-        const friendIds = filteredFriends.map((f) => f.id);
-        let existingInvitations = null;
-
-        const { data: extData, error: extError } = await supabase
-          .from('notifications_ext')
-          .select('user_id')
-          .eq('type', 'match_invite')
-          .eq('match_id_text', partidoActual.id.toString())
-          .in('user_id', friendIds);
-
-        if (extError && extError.code === '42P01') {
-          console.warn('[MODAL_AMIGOS] notifications_ext not available for initial check, skipping');
-          existingInvitations = [];
+        // Validate partidoActual.id to prevent 400 errors
+        if (partidoActual.id === 'undefined' || partidoActual.id === 'null') {
+          console.warn('[MODAL_AMIGOS] Invalid partidoActual.id, skipping invitation check');
         } else {
-          existingInvitations = extData;
-        }
+          console.log('[MODAL_AMIGOS] Checking existing invitations for match:', partidoActual.id);
+          const friendIds = filteredFriends.map((f) => f.id);
+          let existingInvitations = null;
 
-        if (existingInvitations) {
-          const invitedIds = new Set(existingInvitations.map((inv) => inv.user_id));
-          setInvitedFriends(invitedIds);
+          const { data: extData, error: extError } = await supabase
+            .from('notifications_ext')
+            .select('user_id')
+            .eq('type', 'match_invite')
+            .eq('match_id_text', partidoActual.id.toString())
+            .in('user_id', friendIds);
+
+          if (extError && extError.code === '42P01') {
+            console.warn('[MODAL_AMIGOS] notifications_ext not available for initial check, skipping');
+            existingInvitations = [];
+          } else {
+            existingInvitations = extData;
+          }
+
+          if (existingInvitations) {
+            const invitedIds = new Set(existingInvitations.map((inv) => inv.user_id));
+            setInvitedFriends(invitedIds);
+          }
         }
       }
     } catch (error) {
@@ -132,23 +138,32 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
       let existingInvitation = null;
       let checkError = null;
 
-      // Try notifications_ext first
-      const { data: extData, error: extError } = await supabase
-        .from('notifications_ext')
-        .select('id')
-        .eq('user_id', amigo.id)
-        .eq('type', 'match_invite')
-        .eq('match_id_text', partidoActual.id.toString())
-        .single();
-
-      if (extError && extError.code === '42P01') {
-        // View doesn't exist, skip duplicate check and allow invitation
-        console.warn('[MODAL_AMIGOS] notifications_ext not available, skipping duplicate check');
+      // Validate partidoActual.id before query
+      if (!partidoActual.id || partidoActual.id === 'undefined' || partidoActual.id === 'null') {
+        console.warn('[MODAL_AMIGOS] Invalid partidoActual.id, skipping duplicate check');
         existingInvitation = null;
         checkError = null;
       } else {
-        existingInvitation = extData;
-        checkError = extError;
+        console.log('[MODAL_AMIGOS] Checking existing invitation for:', { amigoId: amigo.id, matchId: partidoActual.id });
+
+        // Try notifications_ext first
+        const { data: extData, error: extError } = await supabase
+          .from('notifications_ext')
+          .select('id')
+          .eq('user_id', amigo.id)
+          .eq('type', 'match_invite')
+          .eq('match_id_text', partidoActual.id.toString())
+          .single();
+
+        if (extError && extError.code === '42P01') {
+          // View doesn't exist, skip duplicate check and allow invitation
+          console.warn('[MODAL_AMIGOS] notifications_ext not available, skipping duplicate check');
+          existingInvitation = null;
+          checkError = null;
+        } else {
+          existingInvitation = extData;
+          checkError = extError;
+        }
       }
 
       if (checkError && checkError.code !== 'PGRST116') {
@@ -195,6 +210,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
         type: 'match_invite',
         title: 'Invitación a partido',
         message: `${currentUser?.nombre || 'Alguien'} te invitó a jugar "${partidoActual.nombre || 'un partido'}"`,
+        partido_id: Number(partidoActual.id), // Required for match_ref generation
         data: {
           matchId: partidoActual.id,
           matchName: partidoActual.nombre || null,
@@ -209,22 +225,25 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
         send_at: new Date().toISOString(),
       };
 
-      console.log('[MODAL_AMIGOS] === UPSERTING NOTIFICATION ===');
-      console.log('[MODAL_AMIGOS] Notification data to upsert:', {
+      console.log('[MODAL_AMIGOS] === INSERTING NOTIFICATION ===');
+      console.log('[MODAL_AMIGOS] Notification data to insert:', {
         user_id: notificationData.user_id,
         type: notificationData.type,
+        partido_id: notificationData.partido_id,
         title: notificationData.title,
         message: notificationData.message,
         read: notificationData.read,
       });
 
-      console.log('[MODAL_AMIGOS] === ATTEMPTING UPSERT ===');
+      console.log('[MODAL_AMIGOS] === ATTEMPTING INSERT ===');
       const { data: { session } } = await supabase.auth.getSession();
       console.log('[MODAL_AMIGOS] Session token exists:', !!session?.access_token);
 
+      // Use INSERT instead of UPSERT to avoid match_ref constraint issues
+      // Duplicate check already done above
       const { data: insertedNotification, error } = await supabase
         .from('notifications')
-        .upsert([notificationData], { onConflict: 'user_id,match_ref,type' })
+        .insert([notificationData])
         .select()
         .single();
 
@@ -339,9 +358,9 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
                       className={`
                       border-none rounded-md px-4 py-2 text-sm font-semibold cursor-pointer transition-all duration-200 shrink-0 min-w-[80px]
                       ${invitedFriends.has(amigo.id)
-                    ? 'bg-[#28a745] text-white cursor-default hover:bg-[#28a745] hover:transform-none'
-                    : 'bg-[#007bff] text-white hover:bg-[#0056b3] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none'
-                  }
+                          ? 'bg-[#28a745] text-white cursor-default hover:bg-[#28a745] hover:transform-none'
+                          : 'bg-[#007bff] text-white hover:bg-[#0056b3] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none'
+                        }
                     `}
                       disabled={inviting || invitedFriends.has(amigo.id)}
                     >

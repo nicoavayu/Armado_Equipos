@@ -25,7 +25,7 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
       try {
         // Obtener detalles del partido con equipos y encuestas
         const { data: partidoData, error: partidoError } = await supabase
-          .from('partidos')
+          .from('partidos_view')
           .select(`
             *,
             equipos:equipos_partidos(
@@ -183,7 +183,7 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
                     <div className="flex justify-between items-center mb-[15px] pb-[10px] border-b border-[#444]">
                       <h4 className="m-0 text-[#8178e5] text-[1.1rem]">{equipo.name || `Equipo ${index + 1}`}</h4>
                       <span className="bg-[#8178e5] text-white py-1 px-2 rounded-[15px] text-[0.9rem] font-semibold">
-                        {equipo.score ? equipo.score.toFixed(1) : '0.0'}
+                        {(equipo.score ?? 0).toFixed(1)}
                       </span>
                     </div>
                     <div className="flex flex-col gap-2">

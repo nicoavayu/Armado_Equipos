@@ -52,9 +52,16 @@ const NotificationsView = () => {
     if (e) { e.preventDefault?.(); e.stopPropagation?.(); }
 
     const link = notification?.data?.link;
-    const matchId = notification?.data?.match_id ?? notification?.data?.partidoId ?? notification?.match_id;
+    const matchId = notification?.data?.match_id ?? notification?.data?.matchId ?? notification?.data?.partidoId ?? notification?.match_id;
 
     console.debug('[NOTIFICATION_CLICK]', { id: notification?.id, type: notification?.type, link, matchId });
+
+    // Priority 1: Use link if available (for join requests and other notifications with direct links)
+    if (link && notification?.type === 'match_join_request') {
+      try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
+      navigate(link, { replace: false });
+      return;
+    }
 
     if (notification?.type === 'survey_start') {
       try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
@@ -155,6 +162,12 @@ const NotificationsView = () => {
           navigate(data.resultsUrl);
         } else if (data.partido_id) {
           navigate(`/resultados-encuesta/${toBigIntId(data.partido_id)}?showAwards=1`);
+        }
+        break;
+      case 'match_join_request':
+        // Fallback if link is not available
+        if (data.matchId) {
+          navigate(`/admin/${toBigIntId(data.matchId)}?tab=solicitudes`);
         }
         break;
       case 'survey_finished': {
@@ -281,7 +294,7 @@ const NotificationsView = () => {
                 role="button"
                 tabIndex={0}
                 className={`flex p-3 bg-white/10 rounded-lg cursor-pointer transition-all duration-200 relative border border-white/10 hover:bg-white/15 ${!notification.read ? 'bg-[#ff3366]/15 border-[#ff3366]/30' : ''
-                } ${notification.type === 'friend_request' ? 'cursor-default' : ''}`}
+                  } ${notification.type === 'friend_request' ? 'cursor-default' : ''}`}
                 onClick={(e) => {
                   console.log('[NOTIFICATION_CLICK] Notification clicked, type:', notification.type);
                   if (notification.type !== 'friend_request') {

@@ -5,6 +5,7 @@ import { crearPartido, supabase } from '../supabase';
 import { insertPartidoFrecuenteFromPartido } from '../services/db/frequentMatches';
 import { formatLocalDateShort } from '../utils/dateLocal';
 import { useTimeout } from '../hooks/useTimeout';
+import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchDateDebug';
 
 import PageTitle from '../components/PageTitle';
 import ListaPartidosFrecuentes from './ListaPartidosFrecuentes';
@@ -32,17 +33,8 @@ const STEP_TITLE_STYLE = {
   display: 'block',
 };
 
-const isDateInPast = (dateStr) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const selectedDate = new Date(dateStr);
-  selectedDate.setHours(0, 0, 0, 0);
-  return selectedDate < today;
-};
-
-
 export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { setTimeoutSafe } = useTimeout();
   const [step, setStep] = useState(STEPS.NAME);
   const [nombrePartido, setNombrePartido] = useState('');
@@ -60,10 +52,12 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const [showFrecuentes, setShowFrecuentes] = useState(false);
   // New: toggle to save created party as frequent
   const [saveAsFrequent, setSaveAsFrequent] = useState(false);
+  const [willPlay, setWillPlay] = useState(true);
 
-  // Ensure toggle is reset when the flow component mounts (covers modal open case)
+  // Ensure toggles are reset when the flow component mounts (covers modal open case)
   useEffect(() => {
     setSaveAsFrequent(false);
+    setWillPlay(true);
   }, []);
 
   // Also reset the toggle whenever the flow returns to the first step
@@ -213,6 +207,54 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
       }
 
       console.log('[CREATE] created partido', { id: partido?.id, shouldSaveFrequent });
+
+      console.log('[CREAR_PARTIDO] willPlay:', willPlay, 'user:', user?.id, 'partido:', partido?.id);
+
+      if (willPlay === true && user?.id && partido?.id) {
+        try {
+          const { data: existingPlayer, error: existingError } = await supabase
+            .from('jugadores')
+            .select('id')
+            .eq('partido_id', partido.id)
+            .eq('usuario_id', user.id)
+            .maybeSingle();
+
+          const alreadyExists = (!existingError && !!existingPlayer);
+
+          if (!alreadyExists) {
+            const { data: usuarioData } = await supabase
+              .from('usuarios')
+              .select('nombre, avatar_url')
+              .eq('id', user.id)
+              .maybeSingle();
+
+            const nombre = profile?.nombre || usuarioData?.nombre || user?.email?.split('@')[0] || 'Creador';
+            const avatarUrl = profile?.avatar_url || usuarioData?.avatar_url || null;
+
+            const jugadorRow = {
+              partido_id: Number(partido.id),
+              usuario_id: user.id,
+              nombre,
+              avatar_url: avatarUrl,
+              is_goalkeeper: false,
+              score: 5,
+            };
+
+            const { error: insertError } = await supabase
+              .from('jugadores')
+              .insert([jugadorRow]);
+
+            if (insertError) {
+              console.error('[CREAR_PARTIDO] Error insert jugador creador:', insertError);
+              toast.error('No pude agregarte como jugador: ' + insertError.message);
+            } else {
+              console.log('[CREAR_PARTIDO] Creador agregado como jugador ✅', jugadorRow);
+            }
+          }
+        } catch (err) {
+          console.error('[CREAR_PARTIDO] Error checking/adding creator:', err);
+        }
+      }
 
       // Only after the partido is successfully created, optionally save a frequent template
       if (shouldSaveFrequent === true) {
@@ -488,8 +530,18 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               disabled={!fecha || !hora}
               style={{ opacity: (fecha && hora) ? 1 : 0.4, marginBottom: 12 }}
               onClick={() => {
-                if (isDateInPast(fecha)) {
-                  toast.error('No se puede crear un partido anterior a hoy');
+                // Validate time format
+                if (!normalizeTimeHHmm(hora)) {
+                  toast.error('Se requiere una hora válida');
+                  return;
+                }
+
+                // DEBUG: Log validation info
+                const debugInfo = getDebugInfo(fecha, hora);
+                console.log('[DEBUG] Match validation:', debugInfo);
+
+                if (isBlockedInDebug(fecha, hora)) {
+                  toast.error('No podés crear un partido en el pasado.');
                   return;
                 }
                 editMode ? saveAndReturn() : nextStep();
@@ -516,48 +568,89 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
       <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]">
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div className="w-full flex flex-col items-center pb-10">
-          <div className="w-full max-w-[440px] px-4">
-            <div style={STEP_TITLE_STYLE}>
-              Ingresá la dirección o nombre del lugar
-            </div>
-            <AutocompleteSede
-              value={sede}
-              onSelect={(info) => {
-                setSede(info.description);
-                setSedeInfo(info);
-              }}
-            />
-
-            {/* Optional: valor de la cancha por persona */}
-            <div style={{ width: '100%', marginTop: 12, marginBottom: 12 }}>
-              <label style={{ fontWeight: 500, color: '#fff', marginBottom: 8, display: 'block', fontFamily: "'Inter', sans-serif" }}>
-                Valor de la cancha (por persona) — opcional
-              </label>
-              <input
-                className={INPUT_MODERN_CLASS}
-                type="number"
-                placeholder="Ej: 300"
-                value={valorCancha}
-                onChange={(e) => setValorCancha(e.target.value)}
-                style={{ marginBottom: 6 }}
-                min="0"
+          <div className="w-full max-w-[440px] px-4 flex flex-col h-full">
+            {/* Form section: header + inputs */}
+            <div className="flex-shrink-0">
+              <div style={STEP_TITLE_STYLE}>
+                Ingresá la dirección o nombre del lugar
+              </div>
+              <AutocompleteSede
+                value={sede}
+                onSelect={(info) => {
+                  setSede(info.description);
+                  setSedeInfo(info);
+                }}
               />
+
+              {/* Optional: valor de la cancha por persona */}
+              <div style={{ width: '100%', marginTop: 12, marginBottom: 12 }}>
+                <label style={{ fontWeight: 500, color: '#fff', marginBottom: 8, display: 'block', fontFamily: "'Inter', sans-serif" }}>
+                  Valor de la cancha (por persona) — opcional
+                </label>
+                <input
+                  className={INPUT_MODERN_CLASS}
+                  type="number"
+                  placeholder="Ej: 300"
+                  value={valorCancha}
+                  onChange={(e) => setValorCancha(e.target.value)}
+                  style={{ marginBottom: 6 }}
+                  min="0"
+                />
+              </div>
+
+              {/* ¿Vos jugás este partido? selector */}
+              <div style={{ width: '100%', marginTop: 6, marginBottom: 0 }}>
+                <label style={{ fontWeight: 500, color: '#fff', marginBottom: 8, display: 'block', fontFamily: "'Inter', sans-serif" }}>
+                  ¿Vos jugás este partido?
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setWillPlay(true)}
+                    className="flex-1 h-11 rounded-xl font-bold font-sans text-sm transition-all"
+                    style={{
+                      background: willPlay ? 'var(--btn-primary)' : 'rgba(255,255,255,0.08)',
+                      border: willPlay ? '2px solid transparent' : '1.5px solid rgba(255,255,255,0.2)',
+                      color: '#fff',
+                    }}
+                  >
+                    Sí, juego
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWillPlay(false)}
+                    className="flex-1 h-11 rounded-xl font-bold font-sans text-sm transition-all"
+                    style={{
+                      background: !willPlay ? 'var(--btn-primary)' : 'rgba(255,255,255,0.08)',
+                      border: !willPlay ? '2px solid transparent' : '1.5px solid rgba(255,255,255,0.2)',
+                      color: '#fff',
+                    }}
+                  >
+                    No, solo admin
+                  </button>
+                </div>
+              </div>
             </div>
-            <button
-              className={CONFIRM_BTN_CLASS}
-              disabled={!sede}
-              style={{ opacity: sede ? 1 : 0.4, marginBottom: 12 }}
-              onClick={editMode ? saveAndReturn : nextStep}
-            >
-              {editMode ? 'GUARDAR' : 'CONTINUAR'}
-            </button>
-            <button
-              className={CONFIRM_BTN_CLASS}
-              style={{ background: 'rgba(255,255,255,0.1)', borderColor: '#fff', color: '#fff' }}
-              onClick={editMode ? saveAndReturn : prevStep}
-            >
-              {editMode ? 'CANCELAR' : 'VOLVER ATRÁS'}
-            </button>
+
+            {/* Bottom Actions: spacer + navigation buttons */}
+            <div className="flex-grow" style={{ marginTop: 72 }} />
+            <div className="flex-shrink-0" style={{ paddingTop: 8 }}>
+              <button
+                className={CONFIRM_BTN_CLASS}
+                disabled={!sede}
+                style={{ opacity: sede ? 1 : 0.4, marginBottom: 12 }}
+                onClick={editMode ? saveAndReturn : nextStep}
+              >
+                {editMode ? 'GUARDAR' : 'CONTINUAR'}
+              </button>
+              <button
+                className={CONFIRM_BTN_CLASS}
+                style={{ background: 'rgba(255,255,255,0.1)', borderColor: '#fff', color: '#fff', marginBottom: 0 }}
+                onClick={editMode ? saveAndReturn : prevStep}
+              >
+                {editMode ? 'CANCELAR' : 'VOLVER ATRÁS'}
+              </button>
+            </div>
           </div>
         </div>
       </div >
@@ -624,6 +717,11 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                   {sede.length > 30 ? sede.substring(0, 30) + '...' : sede}
                 </span>
                 <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-sans hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHERE)}>EDITAR</button>
+              </li>
+              <li className={CONFIRM_ITEM_CLASS}>
+                <span className="font-semibold text-base text-white/90">Te sumás:</span>
+                <span className="font-normal text-base text-white flex-1 text-center mx-3">{willPlay ? 'Sí, como jugador' : 'No, solo administro'}</span>
+                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHERE)}>EDITAR</button>
               </li>
             </ul>
 

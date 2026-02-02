@@ -1,0 +1,115 @@
+// src/utils/matchResolver.js
+import { supabase } from '../supabase';
+import { db } from '../api/supabaseWrapper';
+import { toast } from 'react-toastify';
+
+const IS_DEV = process.env.NODE_ENV === 'development';
+
+/**
+ * Resolves match ID from query parameters
+ * Priority: partidoId > codigo
+ * 
+ * @param {URLSearchParams} params - URL search params
+ * @returns {Promise<{ partidoId: number|null, error: string|null, source: 'partidoId'|'codigo'|null }>}
+ */
+export async function resolveMatchIdFromQueryParams(params) {
+    const partidoIdParam = params.get('partidoId');
+    const codigoParam = params.get('codigo');
+
+    if (IS_DEV) {
+        console.log('[VOTING] Resolving match with params:', { partidoIdParam, codigoParam });
+    }
+
+    // No parameters provided
+    if (!partidoIdParam && !codigoParam) {
+        return { partidoId: null, error: 'No partidoId or codigo provided', source: null };
+    }
+
+    // Priority 1: Use partidoId directly
+    if (partidoIdParam) {
+        const partidoId = Math.abs(parseInt(partidoIdParam, 10));
+        if (isNaN(partidoId) || partidoId <= 0) {
+            return { partidoId: null, error: 'Invalid partidoId format', source: null };
+        }
+        if (IS_DEV) {
+            console.log('[VOTING] Using partidoId:', partidoId);
+        }
+        return { partidoId, error: null, source: 'partidoId' };
+    }
+
+    // Priority 2: Resolve codigo to partidoId
+    if (codigoParam) {
+        const codigo = codigoParam.trim();
+        if (!codigo) {
+            return { partidoId: null, error: 'Empty codigo after trim', source: null };
+        }
+
+        if (IS_DEV) {
+            console.log('[VOTING] Resolving codigo:', codigo);
+        }
+
+        try {
+            const partido = await db.fetchOne('partidos', { codigo });
+
+            if (!partido?.id) {
+                console.error('[VOTING] No match found for codigo:', codigo);
+                return { partidoId: null, error: `No se encontró partido con código: ${codigo}`, source: null };
+            }
+
+            const partidoId = Math.abs(parseInt(partido.id, 10));
+            if (IS_DEV) {
+                console.log('[VOTING] Resolved codigo -> partidoId:', partidoId);
+            }
+            return { partidoId, error: null, source: 'codigo' };
+        } catch (error) {
+            console.error('[VOTING] Error resolving codigo:', error);
+            return { partidoId: null, error: 'Error al buscar partido por código', source: null };
+        }
+    }
+
+    return { partidoId: null, error: 'Unexpected state', source: null };
+}
+
+/**
+ * Fetch match data by ID
+ * @param {number} partidoId - Match ID
+ * @returns {Promise<{ partido: object|null, error: string|null }>}
+ */
+export async function fetchMatchById(partidoId) {
+    try {
+        const { data: partido, error } = await supabase
+            .from('partidos_view')
+            .select('*')
+            .eq('id', partidoId)
+            .single();
+
+        if (error || !partido) {
+            console.error('[VOTING] Error fetching match by ID:', error);
+            return { partido: null, error: 'No se pudo cargar el partido' };
+        }
+
+        if (IS_DEV) {
+            console.log('[VOTING] Match loaded:', partido.id);
+        }
+        return { partido, error: null };
+    } catch (err) {
+        console.error('[VOTING] Exception fetching match:', err);
+        return { partido: null, error: 'Error al cargar el partido' };
+    }
+}
+
+/**
+ * Handle match resolution error with user feedback
+ * @param {string} error - Error message
+ * @param {Function} navigate - Navigate function (optional)
+ */
+export function handleMatchResolutionError(error, navigate = null) {
+    console.error('[VOTING] Match resolution error:', error);
+    toast.error(error || 'No se pudo cargar el partido');
+
+    if (navigate) {
+        setTimeout(() => {
+            navigate('/');
+        }, 2000);
+    }
+}

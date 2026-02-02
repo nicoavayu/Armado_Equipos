@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../components/AuthProvider';
 import { useAdminPanelState } from '../hooks/useAdminPanelState';
 import { useTeamFormation } from '../hooks/useTeamFormation';
+import { useSearchParams } from 'react-router-dom';
+import { usePendingRequestsCount } from '../hooks/usePendingRequestsCount';
 
 import 'react-lazy-load-image-component/src/effects/blur.css';
 // import '../HomeStyleKit.css'; // Removed in Tailwind migration
@@ -19,6 +21,8 @@ import AdminActions from '../components/admin/AdminActions';
 import PlayersSection from '../components/admin/PlayersSection';
 import TeamsPanel from '../components/admin/TeamsPanel';
 import Modals from '../components/admin/Modals';
+import AdminTabs from '../components/admin/AdminTabs';
+import SolicitudesSection from '../components/admin/SolicitudesSection';
 
 /**
  * Main AdminPanel component for match management
@@ -43,6 +47,33 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const [processingAction, setProcessingAction] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState('jugadores');
+
+  // Get pending requests count with realtime updates
+  const pendingRequestsCount = usePendingRequestsCount(partidoActual?.id);
+
+  // Handle tab from URL
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'solicitudes') {
+      setActiveTab('solicitudes');
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'solicitudes') {
+      setSearchParams({ tab: 'solicitudes' });
+    } else {
+      setSearchParams({});
+    }
+  };
+
+  const handleRequestAccepted = async () => {
+    // Refresh players list from server
+    await adminState.fetchJugadores();
+  };
 
   const { safeSetTeams, handleArmarEquipos: handleArmarEquiposUtil } = useTeamFormation();
 
@@ -134,49 +165,71 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
                 {!showTeams && (
                   <>
-                    <AdminActions
-                      isAdmin={isAdmin}
-                      pendingInvitation={adminState.pendingInvitation}
-                      nuevoNombre={adminState.nuevoNombre}
-                      setNuevoNombre={adminState.setNuevoNombre}
-                      loading={adminState.loading}
-                      isClosing={adminState.isClosing}
-                      partidoActual={partidoActual}
-                      jugadores={jugadores}
-                      agregarJugador={adminState.agregarJugador}
-                      setShowInviteModal={adminState.setShowInviteModal}
-                      user={user}
-                      inputRef={adminState.inputRef}
-                    />
-
-                    <PlayersSection
-                      isAdmin={isAdmin}
-                      jugadores={jugadores}
-                      partidoActual={partidoActual}
-                      duplicatesDetected={adminState.duplicatesDetected}
-                      votantesConNombres={adminState.votantesConNombres}
-                      votantes={adminState.votantes}
-                      transferirAdmin={adminState.transferirAdmin}
-                      user={user}
-                      eliminarJugador={adminState.eliminarJugador}
-                      isClosing={adminState.isClosing}
-                      isPlayerInMatch={adminState.isPlayerInMatch}
-                      aceptarInvitacion={adminState.aceptarInvitacion}
-                      rechazarInvitacion={adminState.rechazarInvitacion}
-                      invitationLoading={adminState.invitationLoading}
-                      setShowInviteModal={adminState.setShowInviteModal}
-                      currentPlayerInMatch={adminState.currentPlayerInMatch}
-                      actionsMenuOpen={actionsMenuOpen}
-                      setActionsMenuOpen={setActionsMenuOpen}
-                      confirmConfig={confirmConfig}
-                      setConfirmConfig={setConfirmConfig}
-                      processingAction={processingAction}
-                      handleAbandon={handleAbandon}
-                      invitationStatus={adminState.invitationStatus}
-                    />
-
-                    {/* Toggle para abrir partido a la comunidad */}
+                    {/* Tabs - only show for admin */}
                     {isAdmin && !adminState.pendingInvitation && (
+                      <AdminTabs
+                        activeTab={activeTab}
+                        onTabChange={handleTabChange}
+                        pendingCount={pendingRequestsCount}
+                      />
+                    )}
+
+                    {/* Show AdminActions only on Jugadores tab */}
+                    {activeTab === 'jugadores' && (
+                      <AdminActions
+                        isAdmin={isAdmin}
+                        pendingInvitation={adminState.pendingInvitation}
+                        nuevoNombre={adminState.nuevoNombre}
+                        setNuevoNombre={adminState.setNuevoNombre}
+                        loading={adminState.loading}
+                        isClosing={adminState.isClosing}
+                        partidoActual={partidoActual}
+                        jugadores={jugadores}
+                        agregarJugador={adminState.agregarJugador}
+                        setShowInviteModal={adminState.setShowInviteModal}
+                        user={user}
+                        inputRef={adminState.inputRef}
+                      />
+                    )}
+
+                    {/* Conditional content based on active tab */}
+                    {activeTab === 'jugadores' ? (
+                      <PlayersSection
+                        isAdmin={isAdmin}
+                        jugadores={jugadores}
+                        partidoActual={partidoActual}
+                        duplicatesDetected={adminState.duplicatesDetected}
+                        votantesConNombres={adminState.votantesConNombres}
+                        votantes={adminState.votantes}
+                        transferirAdmin={adminState.transferirAdmin}
+                        user={user}
+                        eliminarJugador={adminState.eliminarJugador}
+                        isClosing={adminState.isClosing}
+                        isPlayerInMatch={adminState.isPlayerInMatch}
+                        aceptarInvitacion={adminState.aceptarInvitacion}
+                        rechazarInvitacion={adminState.rechazarInvitacion}
+                        invitationLoading={adminState.invitationLoading}
+                        setShowInviteModal={adminState.setShowInviteModal}
+                        currentPlayerInMatch={adminState.currentPlayerInMatch}
+                        actionsMenuOpen={actionsMenuOpen}
+                        setActionsMenuOpen={setActionsMenuOpen}
+                        confirmConfig={confirmConfig}
+                        setConfirmConfig={setConfirmConfig}
+                        processingAction={processingAction}
+                        handleAbandon={handleAbandon}
+                        invitationStatus={adminState.invitationStatus}
+                        onInviteFriends={() => adminState.setShowInviteModal(true)}
+                        onAddManual={adminState.agregarJugador}
+                      />
+                    ) : (
+                      <SolicitudesSection
+                        partidoActual={partidoActual}
+                        onRequestAccepted={handleRequestAccepted}
+                      />
+                    )}
+
+                    {/* Toggle para abrir partido a la comunidad - only on Jugadores tab */}
+                    {isAdmin && !adminState.pendingInvitation && activeTab === 'jugadores' && (
                       <div className="flex flex-col items-center gap-1 my-3 mx-auto text-sm text-white/80 font-oswald">
                         <div className="flex items-center justify-center gap-3">
                           <span>¿Faltan jugadores?</span>
@@ -227,8 +280,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                       </div>
                     )}
 
-                    {/* Botón ARMAR EQUIPOS PAREJOS */}
-                    {isAdmin && !adminState.pendingInvitation && (
+                    {/* Botón ARMAR EQUIPOS PAREJOS - only on Jugadores tab */}
+                    {isAdmin && !adminState.pendingInvitation && activeTab === 'jugadores' && (
                       <div className="w-[90vw] max-w-[90vw] mx-auto mt-3 text-center">
                         <button
                           className="w-full bg-primary text-white font-bebas text-[15px] px-4 py-3 rounded-xl hover:brightness-110 transition-all disabled:opacity-35 disabled:cursor-not-allowed shadow-[0_8px_32px_rgba(129,120,229,0.3)] border border-white/20 active:scale-95 uppercase tracking-wider font-bold"

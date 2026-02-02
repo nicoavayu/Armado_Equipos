@@ -16,30 +16,30 @@ import { supabase } from './supabase';
  */
 export const getJugadores = async () => {
   console.log('📊 SUPABASE: Fetching all players with scores');
-  
+
   try {
     const { data, error } = await supabase
       .from('jugadores')
-      .select('id, uuid, nombre, foto_url, score, is_goalkeeper')
+      .select('id, usuario_id, nombre, avatar_url, score, is_goalkeeper')
       .order('nombre', { ascending: true });
-      
+
     if (error) {
       console.error('❌ SUPABASE: Error fetching players:', error);
       throw new Error(`Error fetching players: ${error.message}`);
     }
-    
+
     console.log('✅ SUPABASE: Players fetched successfully:', {
       count: data?.length || 0,
       playersWithScores: data?.filter((p) => p.score !== null && p.score !== undefined).length || 0,
-      sample: data?.slice(0, 3).map((p) => ({ 
-        nombre: p.nombre, 
-        uuid: p.uuid, 
-        score: p.score, 
+      sample: data?.slice(0, 3).map((p) => ({
+        nombre: p.nombre,
+        uuid: p.uuid,
+        score: p.score,
       })) || [],
     });
-    
+
     return data || [];
-    
+
   } catch (error) {
     console.error('❌ SUPABASE: getJugadores failed:', error);
     throw error;
@@ -66,10 +66,10 @@ export const addJugador = async (nombre) => {
  * @param {string} uuid - Player UUID
  * @returns {Promise<void>}
  */
-export const deleteJugador = async (uuid) => {
-  await supabase.from('jugadores').delete().eq('uuid', uuid);
-  await supabase.from('votos').delete().eq('votante_id', uuid);
-  await supabase.from('votos').delete().eq('votado_id', uuid);
+export const deleteJugador = async (userId) => {
+  await supabase.from('jugadores').delete().eq('usuario_id', userId);
+  await supabase.from('votos').delete().eq('votante_id', userId);
+  await supabase.from('votos').delete().eq('votado_id', userId);
 };
 
 /**
@@ -84,12 +84,12 @@ const compressImage = (file, _maxSizeMB = 1.5, quality = 0.8) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
-    
+
     img.onload = () => {
       // Calculate new dimensions (max 800px width/height)
       const maxDimension = 800;
       let { width, height } = img;
-      
+
       if (width > height && width > maxDimension) {
         height = (height * maxDimension) / width;
         width = maxDimension;
@@ -97,13 +97,13 @@ const compressImage = (file, _maxSizeMB = 1.5, quality = 0.8) => {
         width = (width * maxDimension) / height;
         height = maxDimension;
       }
-      
+
       canvas.width = width;
       canvas.height = height;
-      
+
       // Draw and compress
       ctx.drawImage(img, 0, 0, width, height);
-      
+
       canvas.toBlob(
         (blob) => {
           resolve(new File([blob], file.name, { type: 'image/jpeg' }));
@@ -112,7 +112,7 @@ const compressImage = (file, _maxSizeMB = 1.5, quality = 0.8) => {
         quality,
       );
     };
-    
+
     img.src = URL.createObjectURL(file);
   });
 };
@@ -131,22 +131,22 @@ export const uploadFoto = async (file, jugador) => {
     fileToUpload = await compressImage(file);
     console.log('Compressed to:', fileToUpload.size, 'bytes');
   }
-  
+
   const fileExt = file.name.split('.').pop() || 'jpg';
   const fileName = `${jugador.uuid}_${Date.now()}.${fileExt}`;
   const { error: uploadError } = await supabase.storage
     .from('jugadores-fotos')
     .upload(fileName, fileToUpload, { upsert: true });
   if (uploadError) throw uploadError;
-  
+
   const { data } = supabase.storage
     .from('jugadores-fotos')
     .getPublicUrl(fileName);
-  
+
   const fotoUrl = data?.publicUrl;
   if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
   console.log('uploadFoto updating:', { jugador: jugador.uuid, fotoUrl });
-  
+
   // Add cache buster so clients always receive the newest image
   const cacheBusted = `${fotoUrl}${fotoUrl.includes('?') ? '&' : '?'}cb=${Date.now()}`;
 
@@ -164,14 +164,14 @@ export const uploadFoto = async (file, jugador) => {
   // Ahora ACTUALIZÁ la foto en la tabla jugadores
   const { error: updateJugadorError } = await supabase
     .from('jugadores')
-    .update({ foto_url: cacheBusted })
-    .eq('uuid', jugador.uuid);
+    .update({ avatar_url: cacheBusted })
+    .eq('usuario_id', jugador.uuid);
 
   if (updateJugadorError) {
     console.error('uploadFoto update jugador error:', updateJugadorError);
     // No lanzamos el error, solo lo logueamos
   }
-  
+
   // Also update user metadata to ensure consistency
   try {
     await supabase.auth.updateUser({
@@ -182,7 +182,7 @@ export const uploadFoto = async (file, jugador) => {
     console.error('Error updating user metadata:', error);
     // Continue even if this fails
   }
-  
+
   console.log('uploadFoto success:', cacheBusted);
   return cacheBusted;
 };
@@ -199,19 +199,19 @@ export const getProfile = async (userId) => {
     .select('*')
     .eq('id', userId)
     .single();
-  
+
   if (error) {
     console.error('getProfile error:', error);
     throw error;
   }
-  
+
   console.log('getProfile result:', {
     data: data,
     avatar_url: data?.avatar_url,
     foto_url: data?.foto_url,
     all_fields: Object.keys(data || {}),
   });
-  
+
   return data;
 };
 
@@ -223,14 +223,14 @@ export const getProfile = async (userId) => {
  */
 export const updateProfile = async (userId, profileData) => {
   const completion = calculateProfileCompletion(profileData);
-  
+
   const { data, error } = await supabase
     .from('usuarios')
     .update({ ...profileData, profile_completion: completion })
     .eq('id', userId)
     .select()
     .single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -315,25 +315,25 @@ export const createOrUpdateProfile = async (user) => {
  */
 export const calculateProfileCompletion = (profile) => {
   if (!profile) return 0;
-  
+
   const fields = [
     'nombre',
     'avatar_url',
     'email',
     'numero_jugador',
     'nacionalidad',
-    'telefono', 
-    'localidad', 
+    'telefono',
+    'localidad',
     'fecha_nacimiento',
     'posicion_favorita',
     'bio',
   ];
-  
+
   const filledFields = fields.filter((field) => {
     const value = profile[field];
     return value && value.toString().trim() !== '';
   });
-  
+
   return Math.round((filledFields.length / fields.length) * 100);
 };
 
@@ -354,7 +354,7 @@ export const addFreePlayer = async () => {
     // Get user profile
     const profile = await getProfile(user.id);
     console.log('User profile:', profile);
-    
+
     if (!profile) {
       console.warn('Profile not found, creating minimal profile');
       // Create a minimal profile if none exists
@@ -362,14 +362,14 @@ export const addFreePlayer = async () => {
         nombre: user.email?.split('@')[0] || 'Usuario',
         localidad: 'Sin especificar',
       };
-      
+
       // Check if already registered
       const { data: existing, error: checkError } = await supabase
         .from('jugadores_sin_partido')
         .select('id')
         .eq('user_id', user.id)
         .eq('disponible', true);
-      
+
       if (checkError) {
         console.error('Error checking existing free player:', checkError);
         throw checkError;
@@ -394,7 +394,7 @@ export const addFreePlayer = async () => {
         console.error('Error inserting free player:', insertError);
         throw insertError;
       }
-      
+
       return;
     }
 
@@ -404,7 +404,7 @@ export const addFreePlayer = async () => {
       .select('id')
       .eq('user_id', user.id)
       .eq('disponible', true);
-    
+
     if (checkError) {
       console.error('Error checking existing free player:', checkError);
       throw checkError;
@@ -420,7 +420,7 @@ export const addFreePlayer = async () => {
       nombre: profile.nombre,
       localidad: profile.localidad,
     });
-    
+
     const { error: insertError } = await supabase
       .from('jugadores_sin_partido')
       .insert([{
@@ -497,7 +497,7 @@ export const getFreePlayersList = async () => {
  */
 export const getAmigos = async (userId) => {
   if (!userId) return [];
-  
+
   try {
     // Get friends where current user is user_id
     const { data, error } = await supabase
@@ -511,9 +511,9 @@ export const getAmigos = async (userId) => {
       `)
       .eq('user_id', userId)
       .eq('status', 'accepted');
-      
+
     if (error) throw error;
-    
+
     // Also get friends where current user is friend_id
     const { data: reverseData, error: reverseError } = await supabase
       .from('amigos')
@@ -526,9 +526,9 @@ export const getAmigos = async (userId) => {
       `)
       .eq('friend_id', userId)
       .eq('status', 'accepted');
-      
+
     if (reverseError) throw reverseError;
-    
+
     // Combine and format both sets of friends
     const formattedAmigos = [
       ...data.map((item) => ({
@@ -544,7 +544,7 @@ export const getAmigos = async (userId) => {
         profile: item.jugadores,
       })),
     ];
-    
+
     return formattedAmigos;
   } catch (err) {
     console.error('Error fetching friends:', err);
@@ -560,7 +560,7 @@ export const getAmigos = async (userId) => {
  */
 export const getRelationshipStatus = async (userId, friendId) => {
   if (!userId || !friendId) return null;
-  
+
   try {
     // Check if there's a relationship where current user is user_id
     const { data, error } = await supabase
@@ -569,11 +569,11 @@ export const getRelationshipStatus = async (userId, friendId) => {
       .eq('user_id', userId)
       .eq('friend_id', friendId)
       .maybeSingle();
-      
+
     if (error) throw error;
-    
+
     if (data) return data;
-    
+
     // Check if there's a relationship where current user is friend_id
     const { data: reverseData, error: reverseError } = await supabase
       .from('amigos')
@@ -581,9 +581,9 @@ export const getRelationshipStatus = async (userId, friendId) => {
       .eq('user_id', friendId)
       .eq('friend_id', userId)
       .maybeSingle();
-      
+
     if (reverseError) throw reverseError;
-    
+
     return reverseData;
   } catch (err) {
     console.error('Error getting relationship status:', err);
@@ -601,14 +601,14 @@ export const sendFriendRequest = async (userId, friendId) => {
   if (!userId || !friendId) {
     return { success: false, message: 'IDs de usuario inválidos' };
   }
-  
+
   try {
     // Check if a relationship already exists
     const existingRelation = await getRelationshipStatus(userId, friendId);
     if (existingRelation) {
       return { success: false, message: 'Ya existe una relación con este jugador' };
     }
-    
+
     // Create new friend request
     const { data, error } = await supabase
       .from('amigos')
@@ -619,9 +619,9 @@ export const sendFriendRequest = async (userId, friendId) => {
       }])
       .select()
       .single();
-      
+
     if (error) throw error;
-    
+
     return { success: true, data };
   } catch (err) {
     console.error('Error sending friend request:', err);
@@ -642,9 +642,9 @@ export const acceptFriendRequest = async (requestId) => {
       .eq('id', requestId)
       .select()
       .single();
-      
+
     if (error) throw error;
-    
+
     return { success: true, data };
   } catch (err) {
     console.error('Error accepting friend request:', err);
@@ -665,9 +665,9 @@ export const rejectFriendRequest = async (requestId) => {
       .eq('id', requestId)
       .select()
       .single();
-      
+
     if (error) throw error;
-    
+
     return { success: true, data };
   } catch (err) {
     console.error('Error rejecting friend request:', err);
@@ -686,9 +686,9 @@ export const removeFriend = async (friendshipId) => {
       .from('amigos')
       .delete()
       .eq('id', friendshipId);
-      
+
     if (error) throw error;
-    
+
     return { success: true };
   } catch (err) {
     console.error('Error removing friend:', err);
@@ -703,7 +703,7 @@ export const removeFriend = async (friendshipId) => {
  */
 export const getPendingRequests = async (userId) => {
   if (!userId) return [];
-  
+
   try {
     const { data, error } = await supabase
       .from('amigos')
@@ -716,9 +716,9 @@ export const getPendingRequests = async (userId) => {
       `)
       .eq('friend_id', userId)
       .eq('status', 'pending');
-      
+
     if (error) throw error;
-    
+
     return data.map((item) => ({
       id: item.id,
       status: item.status,

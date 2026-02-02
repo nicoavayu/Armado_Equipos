@@ -255,8 +255,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     const teamA = realtimeTeams.find((t) => t.id === 'equipoA');
     const teamB = realtimeTeams.find((t) => t.id === 'equipoB');
 
-    const teamAText = `*${teamA.name}* (Puntaje: ${teamA.score.toFixed(2)})\\n${teamA.players.map((pId) => getPlayerDetails(pId).nombre).join('\\n')}`;
-    const teamBText = `*${teamB.name}* (Puntaje: ${teamB.score.toFixed(2)})\\n${teamB.players.map((pId) => getPlayerDetails(pId).nombre).join('\\n')}`;
+    const teamAText = `*${teamA.name}* (Puntaje: ${(teamA.score ?? 0).toFixed(2)})\n${teamA.players.map((pId) => getPlayerDetails(pId).nombre).join('\n')}`;
+    const teamBText = `*${teamB.name}* (Puntaje: ${(teamB.score ?? 0).toFixed(2)})\n${teamB.players.map((pId) => getPlayerDetails(pId).nombre).join('\n')}`;
 
     const message = `Equipos armados:\\n\\n${teamAText}\\n\\n${teamBText}`;
 

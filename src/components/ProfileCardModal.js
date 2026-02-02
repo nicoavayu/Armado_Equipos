@@ -287,7 +287,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
     // Check if profile has a valid UUID (not registered in app = no UUID)
     if (!isValidUUID(profileUserId)) {
-      console.log('[PROFILE_MODAL] Player not registered in app - no valid UUID:', profileUserId);
+      // Player may not have UUID if manually added - this is OK for deletion
       return (
         <button
           className="bg-slate-700/40 border border-slate-600/50 rounded-xl py-2 px-4 text-[11px] font-semibold text-slate-400 cursor-default flex items-center justify-center gap-0.5 min-w-fit whitespace-nowrap md:py-2.5 md:px-5 md:text-xs sm:py-2 sm:px-4"

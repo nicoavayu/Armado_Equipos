@@ -317,7 +317,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           className={cardClass}
           onClick={() => user && setShowProximosPartidos(true)}
         >
-          <div className="text-white font-bebas text-[20px] font-bold uppercase leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.11)] sm:text-[17px]">PRÓXIMOS<br />PARTIDOS</div>
+          <div className="text-white font-bebas text-[20px] font-bold uppercase leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.11)] sm:text-[17px]">MIS<br />PARTIDOS</div>
           <div className="absolute bottom-5 right-5 text-white/95 text-[28px] w-[52px] h-[52px] flex items-center justify-center sm:w-11 sm:h-11 sm:bottom-4 sm:right-4 sm:text-2xl">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={48} height={48}>
               <path d="M64 320C64 461.4 178.6 576 320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320zM305 441C295.6 450.4 280.4 450.4 271.1 441C261.8 431.6 261.7 416.4 271.1 407.1L358.1 320.1L271.1 233.1C261.7 223.7 261.7 208.5 271.1 199.2C280.5 189.9 295.7 189.8 305 199.2L409 303C418.4 312.4 418.4 327.6 409 336.9L305 441z" />

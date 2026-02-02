@@ -1,5 +1,5 @@
 // src/VotingView.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   checkIfAlreadyVoted,
   uploadFoto,
@@ -12,6 +12,7 @@ import { toast } from 'react-toastify';
 import DOMPurify from 'dompurify';
 import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
 import { db } from '../api/supabaseWrapper';
+import { resolveMatchIdFromQueryParams } from '../utils/matchResolver';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PageTitle from '../components/PageTitle';
 import MatchInfoSection from '../components/MatchInfoSection';
@@ -67,26 +68,35 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const [authzError, setAuthzError] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // -- GUARDS FOR DOUBLE-FETCH PREVENTION --
+  // Prevent React Strict Mode double-init
+  const didInitRef = useRef(false);
+  // Cache resolved matchId to avoid re-resolution
+  const resolvedMatchIdRef = useRef(null);
+
   // -- HOOKS, TODOS ARRIBA --
 
   // Chequeo global apenas entra a la vista
   useEffect(() => {
+    // GUARD: Prevent double-init in React Strict Mode
+    if (didInitRef.current) {
+      return;
+    }
+    didInitRef.current = true;
+
     async function checkVotoUsuarioActual() {
       setCargandoVotoUsuario(true);
       try {
         const urlParams = new URLSearchParams(window.location.search);
-        const codigo = urlParams.get('codigo');
-        if (!codigo) return setCargandoVotoUsuario(false);
+        const { partidoId, error } = await resolveMatchIdFromQueryParams(urlParams);
 
-        let partido;
-        try {
-          partido = await db.fetchOne('partidos', { codigo });
-        } catch (error) {
+        if (error || !partidoId) {
+          console.warn('[VOTING] Cannot check vote status:', error);
           return setCargandoVotoUsuario(false);
         }
-        if (!partido?.id) return setCargandoVotoUsuario(false);
 
-        const partidoId = Math.abs(parseInt(partido.id, 10));
+        // CACHE: Store resolved matchId for reuse
+        resolvedMatchIdRef.current = partidoId;
 
         let userId = null;
         const { data: { user } } = await supabase.auth.getUser();
@@ -201,14 +211,28 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const textClass = 'text-white text-[26px] font-oswald text-center mb-[30px] tracking-wide';
 
   const openVotingLink = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const codigoFromUrl = urlParams.get('codigo');
-    const codigo = partidoActual?.codigo || codigoFromUrl;
-    if (!codigo) {
-      toast.error('No se pudo abrir la votación');
+    // GUARD: Use cached matchId if available, avoid re-resolution
+    if (resolvedMatchIdRef.current) {
+      window.location.href = `/?partidoId=${resolvedMatchIdRef.current}`;
       return;
     }
-    window.location.href = `/?codigo=${codigo}`;
+
+    // Fallback: try URL params or partidoActual
+    const urlParams = new URLSearchParams(window.location.search);
+    const partidoIdParam = urlParams.get('partidoId');
+    const codigoParam = urlParams.get('codigo');
+
+    // Priority: use partidoId if available
+    if (partidoIdParam || partidoActual?.id) {
+      const id = partidoIdParam || partidoActual.id;
+      window.location.href = `/?partidoId=${id}`;
+    } else if (codigoParam || partidoActual?.codigo) {
+      const codigo = codigoParam || partidoActual.codigo;
+      window.location.href = `/?codigo=${codigo}`;
+    } else {
+      console.error('[VOTING] No partidoId or codigo available');
+      toast.error('No se pudo abrir la votación');
+    }
   };
 
   // Si es admin, volver a ArmarEquiposView (via onReset al AdminPanel)
@@ -563,23 +587,19 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               setConfirmando(true);
 
               try {
-                const urlParams = new URLSearchParams(window.location.search);
-                const codigo = urlParams.get('codigo');
-                if (!codigo) {
-                  throw new AppError('Código del partido no encontrado en la URL', ERROR_CODES.VALIDATION_ERROR);
+                // GUARD: Use cached matchId if available, avoid re-resolution
+                let partidoId = resolvedMatchIdRef.current;
+
+                if (!partidoId) {
+                  // Fallback: resolve from URL params
+                  const urlParams = new URLSearchParams(window.location.search);
+                  const { partidoId: resolvedId, error } = await resolveMatchIdFromQueryParams(urlParams);
+
+                  if (error || !resolvedId) {
+                    throw new AppError(error || 'No se pudo resolver el partido', ERROR_CODES.VALIDATION_ERROR);
+                  }
+                  partidoId = resolvedId;
                 }
-
-                const { data: partido, error: partidoError } = await supabase
-                  .from('partidos')
-                  .select('id')
-                  .eq('codigo', codigo)
-                  .single();
-
-                if (partidoError || !partido || !partido.id) {
-                  throw new AppError('No se pudo encontrar el partido', ERROR_CODES.NOT_FOUND);
-                }
-
-                const partidoId = Math.abs(parseInt(partido.id, 10));
 
                 // Build safe payload for logging
                 const safePayload = {
@@ -630,25 +650,11 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <div className={`${textClass} text-[27px] mb-[27px] tracking-[1.1px]`}>
             Tus votos fueron registrados.<br />Podés cerrar esta ventana.
           </div>
-          {isAdmin && (
-            <button
-              className={btnClass}
-              style={{ marginTop: 8, background: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.30)', color: 'rgba(255,255,255,0.92)' }}
-              onClick={handleFinalAction}
-            >VOLVER A ARMAR EQUIPOS</button>
-          )}
-          {!isAdmin && (
-            <button
-              className={btnClass}
-              style={{ marginTop: 8, background: 'rgba(255,255,255,0.10)', borderColor: 'rgba(255,255,255,0.30)', color: 'rgba(255,255,255,0.92)' }}
-              onClick={openVotingLink}
-            >VOLVER A LA VOTACIÓN</button>
-          )}
           <button
             className={btnClass}
             style={{ marginTop: 16 }}
-            onClick={onReset}
-          >VOLVER AL INICIO</button>
+            onClick={handleFinalAction}
+          >VOLVER</button>
         </div>
       </div>
     );

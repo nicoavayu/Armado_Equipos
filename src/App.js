@@ -34,6 +34,7 @@ const HistorialPage = lazy(() => import('./pages/HistorialPage'));
 const TemplateDetailsPage = lazy(() => import('./pages/TemplateDetailsPage'));
 const TemplateHistoryPage = lazy(() => import('./pages/TemplateHistoryPage'));
 const AdminPanelPage = lazy(() => import('./pages/AdminPanelPage'));
+const PartidoInvitacion = lazy(() => import('./pages/PartidoInvitacion'));
 
 // Dev-only diagnostics (excluded in production builds)
 if (process.env.NODE_ENV === 'development') {
@@ -79,6 +80,13 @@ export default function App() {
                       </Suspense>
                     } />
                     <Route path="/reset-password" element={<ResetPassword />} />
+
+                    {/* Ruta pública: invitación a partido (sin auth requerido) */}
+                    <Route path="/partido/:partidoId/invitacion" element={
+                      <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <PartidoInvitacion />
+                      </Suspense>
+                    } />
 
                     <Route path="/" element={<AppAuthWrapper />}>
                       <Route path="" element={<MainLayout />}>
@@ -139,7 +147,12 @@ export default function App() {
                         } />
                         <Route path="partido/:partidoId" element={
                           <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
-                            <AdminPanelPage />
+                            <PartidoInvitacion mode="invite" />
+                          </Suspense>
+                        } />
+                        <Route path="partido-publico/:partidoId" element={
+                          <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                            <PartidoInvitacion mode="public" />
                           </Suspense>
                         } />
                       </Route>

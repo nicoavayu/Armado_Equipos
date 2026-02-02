@@ -81,7 +81,7 @@ const EncuestaPartido = () => {
         }
 
         const { data: partidoData, error: partidoError } = await supabase
-          .from('partidos')
+          .from('partidos_view')
           .select('*')
           .eq('id', id)
           .single();
@@ -430,7 +430,7 @@ const EncuestaPartido = () => {
                     className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.mvp_id === jugador.uuid
                       ? 'bg-[#00D49B] border border-[#00D49B]'
                       : 'bg-white/10 border border-white/20 hover:bg-white/15'
-                    }`}
+                      }`}
                   >
                     <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                       {jugador.avatar_url || jugador.foto_url ? (
@@ -474,7 +474,7 @@ const EncuestaPartido = () => {
                     className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.arquero_id === jugador.uuid
                       ? 'bg-[#FFD700] border border-[#FFD700] shadow-[0_0_10px_rgba(255,215,0,0.3)]'
                       : 'bg-white/10 border border-white/20 hover:bg-white/15'
-                    }`}
+                      }`}
                   >
                     <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                       {jugador.avatar_url || jugador.foto_url ? (
@@ -601,7 +601,7 @@ const EncuestaPartido = () => {
                     className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.jugadores_violentos.includes(jugador.uuid)
                       ? 'bg-[#DE1C49] border border-[#DE1C49] shadow-[0_0_10px_rgba(222,28,73,0.4)]'
                       : 'bg-white/10 border border-white/20 hover:bg-white/15'
-                    }`}
+                      }`}
                   >
                     <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                       {jugador.avatar_url || jugador.foto_url ? (
@@ -681,7 +681,7 @@ const EncuestaPartido = () => {
                     className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.jugadores_ausentes.includes(jugador.uuid)
                       ? 'bg-[#DE1C49] border border-[#DE1C49] shadow-[0_0_10px_rgba(222,28,73,0.4)]'
                       : 'bg-white/10 border border-white/20 hover:bg-white/15'
-                    }`}
+                      }`}
                   >
                     <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                       {jugador.avatar_url || jugador.foto_url ? (
@@ -725,7 +725,7 @@ const EncuestaPartido = () => {
                     className={`flex flex-col items-center p-2.5 rounded-md cursor-pointer transition-all min-h-[90px] ${formData.jugadores_ausentes.includes(jugador.uuid)
                       ? 'bg-[#DE1C49] border border-[#DE1C49] shadow-[0_0_10px_rgba(222,28,73,0.4)]'
                       : 'bg-white/10 border border-white/20 hover:bg-white/15'
-                    }`}
+                      }`}
                   >
                     <div className="w-[55px] h-[55px] rounded border border-black/10 overflow-hidden mb-1.5 bg-black/20 shrink-0">
                       {jugador.avatar_url || jugador.foto_url ? (

@@ -5,6 +5,7 @@ import { toast } from 'react-toastify';
 import PageTitle from '../components/PageTitle';
 import LoadingSpinner from '../components/LoadingSpinner';
 import HistoryTemplateCard from '../components/historial/HistoryTemplateCard';
+import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchDateDebug';
 
 function formatearSede(sede) {
   if (sede === 'La Terraza Fútbol 5, 8') return 'La Terraza Fútbol 5 y 8';
@@ -81,11 +82,20 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
 
   const handleCreate = async () => {
     if (!selectedDate) return toast.error('Seleccioná una fecha');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selected = new Date(selectedDate);
-    selected.setHours(0, 0, 0, 0);
-    if (selected < today) return toast.error('No se puede crear un partido anterior a hoy');
+    const timeToUse = editTime ? selectedTime : (template.hora || '');
+    
+    // Validate time format
+    if (!normalizeTimeHHmm(timeToUse)) {
+      return toast.error('Se requiere una hora válida');
+    }
+    
+    // DEBUG: Log validation info
+    const debugInfo = getDebugInfo(selectedDate, timeToUse);
+    console.log('[DEBUG] Template match validation:', debugInfo);
+    
+    if (isBlockedInDebug(selectedDate, timeToUse)) {
+      return toast.error('No podés crear un partido en el pasado.');
+    }
     setCreating(true);
     try {
       const nombre = template.nombre || `Partido en ${template.sede || template.lugar || 'Lugar'}`;
@@ -142,6 +152,11 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
             >
               {editTime ? 'CAMBIAR CERRADO' : 'CAMBIAR HORA'}
             </button>
+          </div>
+
+          <div>
+            <label className="text-white/50 text-[10px] uppercase font-bold tracking-widest block mb-2 font-[Oswald,sans-serif]">Precio (por persona)</label>
+            <div className="text-white text-lg font-medium font-[Oswald,sans-serif]">{template.precio_cancha ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(template.precio_cancha) : 'Sin precio'}</div>
           </div>
 
           {editTime && (

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
+import { isUserMemberOfMatch, clearGuestMembership } from '../utils/membershipCheck';
 import { formatLocalDateShort } from '../utils/dateLocal';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
@@ -13,6 +14,16 @@ import { PlayerCardTrigger } from '../components/ProfileComponents';
 /**
  * Pantalla pública de invitación a un partido
  */
+
+// Helper function to get initials from name
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase();
+  }
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
 
 function PlayersReadOnly({ jugadores, partido, mode }) {
   const cupoMaximo = partido.cupo_jugadores || partido.cupo || 'Sin límite';
@@ -42,15 +53,12 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
                     className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm shrink-0 text-white/70">👤</div>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
+                    {getInitials(j.nombre)}
+                  </div>
                 )}
                 <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 break-words leading-tight">
                   {j.nombre || 'Jugador'}
-                  {!j.usuario_id && (
-                    <span className="ml-1.5 text-[10px] bg-white/20 text-white/70 px-1.5 py-0.5 rounded font-sans font-normal">
-                      invitado
-                    </span>
-                  )}
                 </span>
                 {partido?.creado_por === j.usuario_id && (
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
@@ -82,6 +90,7 @@ function SharedInviteLayout({
 }) {
   const isSent = joinStatus === 'pending';
   const isApproved = joinStatus === 'approved';
+  const isPendingSync = joinStatus === 'approved_pending_sync';
   const isSending = submitting && joinStatus === 'none';
 
   return (
@@ -124,13 +133,27 @@ function SharedInviteLayout({
                   <div className="flex flex-col gap-3 w-full">
                     <button
                       onClick={onSumarse}
-                      disabled={submitting || isSent || isApproved}
-                      className={`w-full py-3 rounded-xl font-bebas text-lg tracking-widest transition-all uppercase font-bold border-2 border-white/10 ${isSent || isApproved
-                        ? 'bg-[#128BE9] opacity-60 text-white/80 cursor-not-allowed shadow-none'
-                        : 'bg-[#128BE9] text-white hover:brightness-110 active:scale-[0.98]'
+                      disabled={submitting || isSent || isApproved || isPendingSync || joinStatus === 'checking'}
+                      className={`w-full py-3 rounded-xl font-bebas text-lg tracking-widest transition-all uppercase font-bold border-2 border-white/10 ${joinStatus === 'checking'
+                        ? 'bg-white/10 text-white/60 cursor-wait shadow-none'
+                        : isPendingSync
+                          ? 'bg-emerald-500/70 text-white cursor-wait shadow-none'
+                          : isSent || isApproved
+                            ? 'bg-[#128BE9] opacity-60 text-white/80 cursor-not-allowed shadow-none'
+                            : 'bg-[#128BE9] text-white hover:brightness-110 active:scale-[0.98]'
                         }`}
                     >
-                      {isSending ? 'ENVIANDO...' :
+                      {joinStatus === 'checking' ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <LoadingSpinner size="small" />
+                          VERIFICANDO...
+                        </span>
+                      ) : isPendingSync ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <LoadingSpinner size="small" />
+                          APROBADO — SINCRONIZANDO...
+                        </span>
+                      ) : isSending ? 'ENVIANDO...' :
                         isSent ? 'SOLICITUD ENVIADA' :
                           isApproved ? 'YA FORMÁS PARTE' :
                             'SOLICITAR UNIRME'}
@@ -144,6 +167,11 @@ function SharedInviteLayout({
                     {isApproved && (
                       <p className="text-emerald-400 font-oswald text-sm mt-1">
                         Ya sos parte del partido. Entrás desde Mis partidos.
+                      </p>
+                    )}
+                    {isPendingSync && (
+                      <p className="text-emerald-300 font-oswald text-sm mt-1">
+                        Tu solicitud fue aprobada. Sincronizando acceso...
                       </p>
                     )}
                   </div>
@@ -188,11 +216,21 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const [submitting, setSubmitting] = useState(false);
   const [codigoValido, setCodigoValido] = useState(true); // Flag de validación de código
   const [alreadyJoined, setAlreadyJoined] = useState(false);
-  const [joinStatus, setJoinStatus] = useState('none'); // 'none', 'pending', 'approved'
+  const [joinStatus, setJoinStatus] = useState('checking'); // 'checking', 'none', 'pending', 'approved', 'approved_pending_sync'
   const [joinSubmitting, setJoinSubmitting] = useState(false);
+
+  // Anti-race condition: track request ID
+  const reqIdRef = useRef(0);
 
   // Obtener código del query param
   const codigoParam = searchParams.get('codigo');
+
+  // Clear guest localStorage when authenticated user accesses match
+  useEffect(() => {
+    if (user && partidoId) {
+      clearGuestMembership(partidoId);
+    }
+  }, [user, partidoId]);
 
   // Verificar idempotencia: si ya se sumó como guest
   useEffect(() => {
@@ -208,6 +246,20 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   // Cargar datos del partido según modo
   useEffect(() => {
     async function loadPartido() {
+      // 1. HARD RESET: Clear all states at start
+      const reqId = ++reqIdRef.current;
+
+      // Reset states based on user auth
+      if (user) {
+        setJoinStatus('checking');
+      } else {
+        setJoinStatus('none');
+      }
+      setSubmitting(false);
+      setJoinSubmitting(false);
+
+      console.log('[LOAD_PARTIDO] Starting load', { partidoId, mode, user: !!user, reqId });
+
       if (!partidoId) {
         setError('Partido no encontrado');
         setLoading(false);
@@ -216,54 +268,125 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
       if (mode === 'public') {
         try {
-          const { data, error } = await supabase
+          const { data, error: fetchError } = await supabase
             .from('partidos')
             .select('*')
             .eq('id', partidoId)
             .maybeSingle();
-          if (error || !data) {
+
+          // Check if this request is stale
+          if (reqId !== reqIdRef.current) {
+            console.log('[LOAD_PARTIDO] Aborting stale request (after partido fetch)', { reqId, current: reqIdRef.current });
+            return;
+          }
+
+          if (fetchError || !data) {
             setError('Partido no encontrado');
             setLoading(false);
             return;
           }
+
           const { data: jugadoresData, count } = await supabase
             .from('jugadores')
             .select('*', { count: 'exact' })
             .eq('partido_id', partidoId);
+
+          // Check if this request is stale
+          if (reqId !== reqIdRef.current) {
+            console.log('[LOAD_PARTIDO] Aborting stale request (after jugadores fetch)', { reqId, current: reqIdRef.current });
+            return;
+          }
+
           setPartido({ ...data, jugadoresCount: count || 0 });
           setJugadores(jugadoresData || []);
 
-          if (user) {
-            // 1. Verificar si ya es jugador (Aprobado) - source of truth
-            const joined = jugadoresData?.some(j => j.usuario_id === user.id);
-            if (joined) {
-              setJoinStatus('approved');
+          // If no user, set to 'none' and skip membership check
+          if (!user) {
+            console.log('[LOAD_PARTIDO] No user, setting status: none', { reqId });
+            setJoinStatus('none');
+            setLoading(false);
+            return;
+          }
+
+          // User is authenticated - check membership
+          console.log('[PUBLIC_MATCH] membership_check_start', {
+            partidoId: Number(partidoId),
+            currentUserUuid: user.id,
+            jugadoresCount: jugadoresData?.length || 0,
+            reqId
+          });
+
+          // 1. Use centralized membership check (single source of truth)
+          const { isMember, jugadorRow } = await isUserMemberOfMatch(user.id, Number(partidoId));
+
+          // Check if this request is stale
+          if (reqId !== reqIdRef.current) {
+            console.log('[LOAD_PARTIDO] Aborting stale request (after membership check)', { reqId, current: reqIdRef.current });
+            return;
+          }
+
+          console.log('[PUBLIC_MATCH] membership_result', {
+            source: 'centralized_db_check',
+            isMember,
+            jugadorRow,
+            reqId
+          });
+
+          if (isMember) {
+            console.log('[PUBLIC_MATCH] setJoinStatus: approved', { partidoId, userId: user.id, source: 'db_member', reqId });
+            setJoinStatus('approved');
+          } else {
+            // 2. Verificar si hay solicitud (más reciente)
+            const { data: request, error: reqErr } = await supabase
+              .from('match_join_requests')
+              .select('id, status, created_at')
+              .eq('match_id', Number(partidoId))
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            // Check if this request is stale
+            if (reqId !== reqIdRef.current) {
+              console.log('[LOAD_PARTIDO] Aborting stale request (after request check)', { reqId, current: reqIdRef.current });
+              return;
+            }
+
+            if (reqErr) console.error('[INVITE_PUBLIC] request check error', reqErr);
+
+            if (request?.status === 'pending') {
+              console.log('[PUBLIC_MATCH] setJoinStatus: pending', { partidoId, userId: user.id, source: 'request_pending', reqId });
+              setJoinStatus('pending');
+            } else if (request?.status === 'approved') {
+              // CRITICAL: Request is approved but user NOT in jugadores yet
+              // This means admin approved but DB sync hasn't happened
+              console.warn('[PUBLIC_MATCH] Request approved but NOT in jugadores - starting recheck', {
+                partidoId,
+                userId: user.id,
+                requestId: request.id,
+                reqId
+              });
+
+              console.log('[PUBLIC_MATCH] setJoinStatus: approved_pending_sync', { partidoId, userId: user.id, source: 'request_approved_no_member', reqId });
+              setJoinStatus('approved_pending_sync');
+
+              // Start recheck loop (5 attempts, 2s interval, 10s total)
+              recheckMembership(user.id, Number(partidoId), reqId);
             } else {
-              // 2. Verificar si hay solicitud (más reciente)
-              const { data: request, error: reqErr } = await supabase
-                .from('match_join_requests')
-                .select('id, status, created_at')
-                .eq('match_id', Number(partidoId))
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-
-              if (reqErr) console.error('[INVITE_PUBLIC] request check error', reqErr);
-
-              if (request?.status === 'pending') {
-                setJoinStatus('pending');
-              } else if (request?.status === 'approved') {
-                setJoinStatus('approved');
-              } else {
-                setJoinStatus('none');
-              }
+              console.log('[PUBLIC_MATCH] setJoinStatus: none', { partidoId, userId: user.id, source: 'no_request', reqId });
+              setJoinStatus('none');
             }
           }
-          setLoading(false);
+
+          // Only set loading false if this request is still current
+          if (reqId === reqIdRef.current) {
+            setLoading(false);
+          }
         } catch (err) {
-          setError('Partido no encontrado');
-          setLoading(false);
+          if (reqId === reqIdRef.current) {
+            setError('Partido no encontrado');
+            setLoading(false);
+          }
         }
         return;
       }
@@ -280,6 +403,12 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           p_partido_id: Number(partidoId),
           p_codigo: codigoParam
         });
+
+        if (reqId !== reqIdRef.current) {
+          console.log('[LOAD_PARTIDO] Aborting stale request (invite mode)', { reqId, current: reqIdRef.current });
+          return;
+        }
+
         if (fetchError) {
           setError('Partido no encontrado.');
           setLoading(false);
@@ -296,16 +425,77 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           .from('jugadores')
           .select('*', { count: 'exact' })
           .eq('partido_id', partidoId);
-        setPartido({ ...partidoData, jugadoresCount: count || 0 });
-        setJugadores(jugadoresData || []);
-        setLoading(false);
+
+        if (reqId === reqIdRef.current) {
+          setPartido({ ...partidoData, jugadoresCount: count || 0 });
+          setJugadores(jugadoresData || []);
+          setLoading(false);
+        }
       } catch (err) {
-        setError('Partido no encontrado');
-        setLoading(false);
+        if (reqId === reqIdRef.current) {
+          setError('Partido no encontrado');
+          setLoading(false);
+        }
       }
     }
     loadPartido();
   }, [partidoId, codigoParam, mode, user]);
+
+  // Recheck membership for approved_pending_sync state
+  async function recheckMembership(userUuid, matchId, originalReqId, attempt = 1) {
+    const maxAttempts = 5;
+    const intervalMs = 2000;
+
+    if (attempt > maxAttempts) {
+      console.warn('[RECHECK] Max attempts reached, falling back to none', { matchId, userUuid, originalReqId });
+
+      // Only update if this is still the current request
+      if (originalReqId === reqIdRef.current) {
+        console.log('[PUBLIC_MATCH] setJoinStatus: none', {
+          partidoId: matchId,
+          userId: userUuid,
+          source: 'recheck_timeout',
+          reqId: originalReqId
+        });
+        setJoinStatus('none');
+        toast.error('Tu aprobación aún no se reflejó, reintentá más tarde');
+      }
+      return;
+    }
+
+    console.log('[RECHECK] Attempt', { attempt, maxAttempts, matchId, userUuid, originalReqId });
+
+    setTimeout(async () => {
+      // Check if request is still current
+      if (originalReqId !== reqIdRef.current) {
+        console.log('[RECHECK] Aborting - request is stale', { originalReqId, current: reqIdRef.current });
+        return;
+      }
+
+      const { isMember, jugadorRow } = await isUserMemberOfMatch(userUuid, matchId);
+
+      // Check again after async operation
+      if (originalReqId !== reqIdRef.current) {
+        console.log('[RECHECK] Aborting - request became stale during check', { originalReqId, current: reqIdRef.current });
+        return;
+      }
+
+      if (isMember) {
+        console.log('[RECHECK] Success! User now in jugadores', { matchId, userUuid, jugadorRow, attempt, originalReqId });
+        console.log('[PUBLIC_MATCH] setJoinStatus: approved', {
+          partidoId: matchId,
+          userId: userUuid,
+          source: 'recheck_success',
+          reqId: originalReqId
+        });
+        setJoinStatus('approved');
+        toast.success('¡Listo! Ya formás parte del partido');
+      } else {
+        console.log('[RECHECK] Not yet synced, retrying...', { attempt, matchId, userUuid, originalReqId });
+        recheckMembership(userUuid, matchId, originalReqId, attempt + 1);
+      }
+    }, intervalMs);
+  }
 
   // Si el usuario ya está logueado, ofrecerle sumar directamente
   useEffect(() => {

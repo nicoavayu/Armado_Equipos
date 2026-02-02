@@ -96,7 +96,7 @@ const QuieroJugar = () => {
   const fetchPartidosAbiertos = async () => {
     try {
       const { data, error } = await supabase
-        .from('partidos')
+        .from('partidos_view')
         .select('*')
         .eq('falta_jugadores', true)
         .eq('estado', 'activo')
@@ -144,7 +144,7 @@ const QuieroJugar = () => {
 
       const { data: userProfiles, error: usersError } = await supabase
         .from('usuarios')
-        .select('id, nombre, avatar_url, localidad, latitud, longitud, ranking, partidos_jugados, posicion, acepta_invitaciones, bio, fecha_alta, updated_at, nacionalidad')
+        .select('id, nombre, avatar_url, localidad, latitud, longitud, ranking, partidos_jugados, posicion, acepta_invitaciones, bio, fecha_alta, updated_at, nacionalidad, mvps')
         .in('id', userIds);
 
       if (usersError) throw usersError;
@@ -153,13 +153,14 @@ const QuieroJugar = () => {
         const userProfile = userProfiles?.find((up) => up.id === freePlayer.user_id);
         return {
           ...freePlayer,
-          nombre: userProfile?.nombre || freePlayer.nombre,
-          avatar_url: userProfile?.avatar_url || null,
+          nombre: userProfile?.nombre || freePlayer.nombre || 'Jugador',
+          avatar_url: userProfile?.avatar_url || freePlayer.avatar_url,
           localidad: userProfile?.localidad || freePlayer.localidad,
           latitud: userProfile?.latitud || null,
           longitud: userProfile?.longitud || null,
           ranking: userProfile?.ranking || 4.5,
           rating: userProfile?.ranking || 4.5,
+          mvps: userProfile?.mvps || 0,
           nacionalidad: userProfile?.nacionalidad || 'Argentina',
           posicion: userProfile?.posicion || 'Jugador',
         };
@@ -168,7 +169,7 @@ const QuieroJugar = () => {
     } catch (error) {
       handleError(error, { showToast: false, onError: () => console.error(error) });
     }
-  };
+  }
 
   const sortedFreePlayers = [...freePlayers].sort((a, b) => {
     if (sortBy === 'rating') {
@@ -334,39 +335,21 @@ const QuieroJugar = () => {
               </div>
             ) : (
               <>
-                <div className="flex gap-2 mb-4 w-full max-w-[500px]">
-                  <button
-                    onClick={() => setMatchSortBy('proximidad')}
-                    className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${matchSortBy === 'proximidad'
-                      ? 'bg-white/10 text-white border-white/30'
-                      : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
-                    }`}
-                  >
-                    <span className="flex items-center gap-1.5 justify-center"><Calendar size={12} /> Fecha</span>
-                  </button>
-                  <button
-                    onClick={() => setMatchSortBy('recientes')}
-                    className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${matchSortBy === 'recientes'
-                      ? 'bg-white/10 text-white border-white/30'
-                      : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
-                    }`}
-                  >
-                    <span className="flex items-center gap-1.5 justify-center"><Clock size={12} /> Creados</span>
-                  </button>
-                </div>
                 {sortedPartidos.map((partido) => {
                   const jugadoresCount = partido.jugadores?.length || 0;
                   const cupoMaximo = partido.cupo_jugadores || 20;
                   const isComplete = jugadoresCount >= cupoMaximo;
 
+                  const barrio = partido.barrio || partido.zona || partido.neighborhood;
+                  const formattedDate = new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+
                   return (
                     <div key={partido.id} className="w-full max-w-[500px] bg-[#1e293b]/70 backdrop-blur-sm rounded-2xl p-5 mb-3 border border-white/10 shadow-lg hover:border-white/20 transition-all duration-300">
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex flex-col flex-1 min-w-0 pr-3">
-                          <span className="text-[24px] font-bebas text-white leading-none tracking-wide text-left truncate w-full">{partido.sede?.split(',')[0] || partido.sede}</span>
-                          <span className="text-xs text-white/60 font-oswald flex items-center gap-1.5 mt-1.5 font-light tracking-wide">
-                            <span className="bg-white/10 px-1.5 py-0.5 rounded flex items-center gap-1"><Calendar size={10} /> {new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-                            <span className="bg-white/10 px-1.5 py-0.5 rounded flex items-center gap-1"><Clock size={10} /> {partido.hora} hs</span>
+                          <span className="text-xs text-white/60 font-oswald flex items-center gap-1.5 font-light tracking-wide uppercase">
+                            <span className="bg-white/10 px-2 py-1 rounded-lg flex items-center gap-1.5 border border-white/5"><Calendar size={12} className="text-[#128BE9]" /> {formattedDate}</span>
+                            <span className="bg-white/10 px-2 py-1 rounded-lg flex items-center gap-1.5 border border-white/5"><Clock size={12} className="text-[#128BE9]" /> {partido.hora} hs</span>
                           </span>
                         </div>
                         <div className="shrink-0">
@@ -380,23 +363,22 @@ const QuieroJugar = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 mb-5">
-                        <span className="text-[10px] font-bold text-white/60 border border-white/10 px-2 py-0.5 rounded uppercase">{partido.modalidad || 'F5'}</span>
-                        <span className="text-[10px] font-bold text-white/60 border border-white/10 px-2 py-0.5 rounded uppercase">{partido.tipo_partido || 'Mixto'}</span>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-[10px] font-bold text-white/40 border border-white/5 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider">{partido.modalidad || 'F5'}</span>
+                        <span className="text-[10px] font-bold text-white/40 border border-white/5 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider">{partido.tipo_partido || 'Mixto'}</span>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="text-[13px] text-white/50 font-oswald leading-snug truncate">
+                        {partido.sede || 'Dirección no disponible'}{barrio ? ` · ${barrio}` : ''}
+                      </div>
+
+
+                      <div className="flex gap-2 mt-4">
                         <button
-                          className="flex-[2] py-3 rounded-xl text-xs font-bold bg-[#128BE9] hover:brightness-110 text-white uppercase tracking-wider shadow-lg active:scale-[0.98] transition-all"
-                          onClick={() => window.location.href = `/admin/${partido.id}`}
+                          className="flex-1 py-3 rounded-xl text-xs font-bold bg-[#128BE9] hover:brightness-110 text-white uppercase tracking-wider shadow-lg active:scale-[0.98] transition-all"
+                          onClick={() => navigate(`/partido-publico/${partido.id}`)}
                         >
                           VER PARTIDO
-                        </button>
-                        <button
-                          className="flex-1 py-3 rounded-xl text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-white uppercase tracking-wider active:scale-[0.98] transition-all flex items-center justify-center"
-                          onClick={() => handleInviteFriends(partido)}
-                        >
-                          INVITAR
                         </button>
                       </div>
                     </div>
@@ -421,7 +403,7 @@ const QuieroJugar = () => {
                     className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'distance'
                       ? 'bg-white/10 text-white border-white/30'
                       : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
-                    }`}
+                      }`}
                     onClick={() => setSortBy('distance')}
                   >
                     <span className="flex items-center gap-1.5 justify-center"><MapPin size={12} /> Distancia</span>
@@ -430,7 +412,7 @@ const QuieroJugar = () => {
                     className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'rating'
                       ? 'bg-white/10 text-white border-white/30'
                       : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
-                    }`}
+                      }`}
                     onClick={() => setSortBy('rating')}
                   >
                     <span className="flex items-center gap-1.5 justify-center"><Star size={12} /> Rating</span>
@@ -439,7 +421,7 @@ const QuieroJugar = () => {
                     className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'position'
                       ? 'bg-white/10 text-white border-white/30'
                       : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
-                    }`}
+                      }`}
                     onClick={() => setSortBy('position')}
                   >
                     <span className="flex items-center gap-1.5 justify-center"><ListOrdered size={12} /> Posición</span>

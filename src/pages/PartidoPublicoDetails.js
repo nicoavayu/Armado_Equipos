@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
+import { isUserMemberOfMatch } from '../utils/membershipCheck';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
 
@@ -14,7 +15,7 @@ export default function PartidoPublicoDetails() {
   const [partido, setPartido] = useState(null);
   const [jugadores, setJugadores] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [joinStatus, setJoinStatus] = useState('none'); // 'none', 'pending', 'joined', 'full', 'closed'
+  const [joinStatus, setJoinStatus] = useState('checking'); // 'checking', 'none', 'pending', 'joined', 'full', 'closed'
 
   useEffect(() => {
     fetchPartido();
@@ -51,23 +52,23 @@ export default function PartidoPublicoDetails() {
   }
 
   async function checkJoinStatus() {
-    // 1. ¿Ya está unido? (Fuente de verdad primaria)
-    const { data: joined, error: joinedError } = await supabase
-      .from('jugadores')
-      .select('id')
-      .eq('partido_id', matchId)
-      .eq('usuario_id', user.id)
-      .maybeSingle();
+    console.log('[PUBLIC_MATCH] checkJoinStatus start', {
+      partidoId: matchId,
+      currentUserUuid: user?.id
+    });
 
-    if (joinedError) {
-      console.error('[PartidoPublicoDetails] Error checking joined status:', {
-        code: joinedError.code,
-        message: joinedError.message,
-        details: joinedError.details,
-        hint: joinedError.hint,
-      });
+    // 1. Use centralized membership check (single source of truth)
+    const { isMember, jugadorRow, error } = await isUserMemberOfMatch(user.id, matchId);
+
+    if (error) {
+      console.error('[PUBLIC_MATCH] Membership check failed', error);
     }
-    if (joined) { setJoinStatus('joined'); return; }
+
+    if (isMember) {
+      console.log('[PUBLIC_MATCH] setting status: joined', { jugadorRow });
+      setJoinStatus('joined');
+      return;
+    }
 
     // 2. Check latest join request status (handle potential duplicates)
     const { data: requestData, error: requestError } = await supabase
@@ -87,6 +88,12 @@ export default function PartidoPublicoDetails() {
         hint: requestError.hint,
       });
     } else if (requestData) {
+      console.log('[PUBLIC_MATCH] join_request found', {
+        requestId: requestData.id,
+        status: requestData.status,
+        settingStatus: requestData.status
+      });
+
       if (requestData.status === 'pending' || requestData.status === 'approved') {
         setJoinStatus(requestData.status);
         return;
@@ -110,10 +117,20 @@ export default function PartidoPublicoDetails() {
     }
 
     const { count } = await supabase.from('jugadores').select('*', { count: 'exact', head: true }).eq('partido_id', matchId);
-    if (partidoData && count >= partidoData.cupo_jugadores) { setJoinStatus('full'); return; }
+    if (partidoData && count >= partidoData.cupo_jugadores) {
+      console.log('[PUBLIC_MATCH] setting status: full');
+      setJoinStatus('full');
+      return;
+    }
 
     // 4. ¿Cerrado?
-    if (partido && partido.estado !== 'activo') { setJoinStatus('closed'); return; }
+    if (partido && partido.estado !== 'activo') {
+      console.log('[PUBLIC_MATCH] setting status: closed');
+      setJoinStatus('closed');
+      return;
+    }
+
+    console.log('[PUBLIC_MATCH] setting status: none');
     setJoinStatus('none');
   }
 
@@ -206,6 +223,12 @@ export default function PartidoPublicoDetails() {
 
         {/* Bloque CTA */}
         <div className="px-6 py-5 flex flex-col items-center">
+          {joinStatus === 'checking' && (
+            <div className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-white/10 text-white/60 uppercase tracking-wider shadow-lg text-center flex items-center justify-center gap-2">
+              <LoadingSpinner size="small" />
+              <span>Verificando...</span>
+            </div>
+          )}
           {joinStatus === 'none' && (
             <button
               className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-[#128BE9] hover:brightness-110 text-white uppercase tracking-wider shadow-lg active:scale-[0.98] transition-all"

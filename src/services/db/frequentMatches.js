@@ -9,11 +9,11 @@ import { weekdayFromYMD } from '../../utils/dateLocal';
 export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frecuentes, dia_semana, habilitado, imagen_url, tipo_partido }) => {
   // Get current authenticated user
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !user) {
     throw new Error('User must be authenticated to create frequent matches');
   }
-  
+
   // Validate required fields
   if (!nombre || !sede || !hora || dia_semana === undefined) {
     const missingFields = [];
@@ -21,10 +21,10 @@ export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frec
     if (!sede) missingFields.push('sede');
     if (!hora) missingFields.push('hora');
     if (dia_semana === undefined) missingFields.push('dia_semana');
-    
+
     throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
   }
-  
+
   const insertData = {
     nombre: nombre.trim(),
     sede: sede.trim(),
@@ -37,21 +37,21 @@ export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frec
     imagen_url: imagen_url || null,
     tipo_partido: tipo_partido || 'Masculino',
   };
-  
+
   const { data, error } = await supabase
     .from('partidos_frecuentes')
     .insert([insertData])
     .select()
     .single();
-    
+
   if (error) {
     throw new Error(`Error creating frequent match: ${error.message}`);
   }
-  
+
   if (!data) {
     throw new Error('No data returned from frequent match creation');
   }
-  
+
   return data;
 };
 
@@ -61,27 +61,27 @@ export const crearPartidoFrecuente = async ({ nombre, sede, hora, jugadores_frec
  */
 export const getPartidosFrecuentes = async () => {
   console.log('Fetching frequent matches...');
-  
+
   try {
     // First, let's get ALL records to see what's in the table
     const { data: allData, error: allError } = await supabase
       .from('partidos_frecuentes')
       .select('*');
-    
+
     console.log('All frequent matches in table:', allData);
     console.log('Count of all records:', allData?.length || 0);
-    
+
     if (allError) {
       console.error('Error fetching all frequent matches:', allError);
     }
-    
+
     // Now get only enabled ones
     const { data, error } = await supabase
       .from('partidos_frecuentes')
       .select('*')
       .eq('habilitado', true)
       .order('creado_en', { ascending: false });
-      
+
     if (error) {
       console.error('Error fetching enabled frequent matches:', error);
       console.error('Error details:', {
@@ -91,16 +91,16 @@ export const getPartidosFrecuentes = async () => {
       });
       throw new Error(`Error fetching frequent matches: ${error.message}`);
     }
-    
+
     console.log('Enabled frequent matches fetched:', data);
     console.log('Count of enabled records:', data?.length || 0);
-    
+
     if (data && data.length > 0) {
       console.log('Sample record structure:', data[0]);
     }
-    
+
     return data || [];
-    
+
   } catch (err) {
     console.error('Exception in getPartidosFrecuentes:', err);
     throw err;
@@ -116,7 +116,7 @@ export const getPartidosFrecuentes = async () => {
 export const updatePartidoFrecuente = async (id, updates) => {
   // Only update the provided fields, don't touch jugadores_frecuentes unless explicitly provided
   const updateData = { ...updates };
-  
+
   // Only clean jugadores_frecuentes if it's being updated
   if (updates.jugadores_frecuentes) {
     updateData.jugadores_frecuentes = updates.jugadores_frecuentes.map((j) => ({
@@ -125,7 +125,7 @@ export const updatePartidoFrecuente = async (id, updates) => {
       uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     }));
   }
-  
+
   const { data, error } = await supabase
     .from('partidos_frecuentes')
     .update(updateData)
@@ -159,22 +159,22 @@ export const deletePartidoFrecuente = async (id) => {
  */
 export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad = 'F5', cupo = 10) => {
   console.log('Creating/finding match from frequent match:', partidoFrecuente, 'for date:', fecha);
-  
+
   // Ensure date is in YYYY-MM-DD format without timezone conversion
   const normalizedDate = typeof fecha === 'string' ? fecha.split('T')[0] : fecha;
-  
+
   // Get current user to make search more specific
   await supabase.auth.getUser();
-  
+
   // ALWAYS create a new match - no reuse of existing matches
   console.log('Creating fresh match - no reuse policy');
-  
+
   console.log('Creating new match');
   const { crearPartido, updateJugadoresPartido } = await import('./matches');
-  
+
   // Use modalidad from template if available, otherwise use parameter default
   const finalModalidad = partidoFrecuente.modalidad || modalidad;
-  
+
   const partido = await crearPartido({
     nombre: partidoFrecuente.nombre, // Usar el nombre del partido frecuente
     fecha: normalizedDate,
@@ -186,17 +186,17 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     falta_jugadores: false,
     tipo_partido: partidoFrecuente.tipo_partido || 'Masculino',
   });
-  
+
   console.log('New match created with ID:', partido.id);
-  
+
   // Add frequent match type and reference
   partido.frequent_match_name = partidoFrecuente.nombre;
   partido.from_frequent_match_id = partidoFrecuente.id;
   partido.tipo_partido = partidoFrecuente.tipo_partido || 'Masculino';
-  
+
   // Always copy the players from the frequent match, even if empty
   const jugadoresFrecuentes = partidoFrecuente.jugadores_frecuentes || [];
-  
+
   if (jugadoresFrecuentes.length > 0) {
     // Clean player data - keep only nombre and foto_url
     const jugadoresLimpios = jugadoresFrecuentes.map((j) => ({
@@ -205,14 +205,14 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
       uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       score: j.score || 5, // Default score
     }));
-    
+
     console.log('Adding players to new match:', jugadoresLimpios);
     await updateJugadoresPartido(partido.id, jugadoresLimpios);
     partido.jugadores = jugadoresLimpios;
   } else {
     partido.jugadores = [];
   }
-  
+
   return partido;
 };
 
@@ -235,7 +235,7 @@ export const updateJugadoresFrecuentes = async (partidoFrecuenteId, nuevosJugado
  */
 export const checkPartidosFrecuentesSchema = async () => {
   console.log('Checking partidos_frecuentes table schema...');
-  
+
   try {
     // Try to insert a test record to see what fields are expected
     const testData = {
@@ -248,18 +248,18 @@ export const checkPartidosFrecuentesSchema = async () => {
       habilitado: true,
       creado_en: new Date().toISOString(),
     };
-    
+
     const { data, error } = await supabase
       .from('partidos_frecuentes')
       .insert([testData])
       .select()
       .single();
-    
+
     if (error) {
       console.error('Schema check failed:', error);
       return { success: false, error };
     }
-    
+
     // Clean up test record
     if (data?.id) {
       await supabase
@@ -267,10 +267,10 @@ export const checkPartidosFrecuentesSchema = async () => {
         .delete()
         .eq('id', data.id);
     }
-    
+
     console.log('Schema check passed:', data);
     return { success: true, data };
-    
+
   } catch (err) {
     console.error('Exception during schema check:', err);
     return { success: false, error: err };
@@ -294,7 +294,7 @@ export const getPartidosActivosUsuario = async () => {
     const activeStates = ['equipos_formados', 'activo', 'en_juego', 'en_curso'];
 
     const { data: partidos, error } = await supabase
-      .from('partidos')
+      .from('partidos_view')
       .select('*')
       .in('estado', activeStates)
       .order('fecha', { ascending: true });
@@ -369,7 +369,7 @@ export const insertPartidoFrecuenteFromPartido = async (partidoId) => {
   if (!partidoId) throw new Error('partidoId required');
   // Fetch the partido row
   const { data: partido, error: fetchError } = await supabase
-    .from('partidos')
+    .from('partidos_view')
     .select('*')
     .eq('id', partidoId)
     .single();

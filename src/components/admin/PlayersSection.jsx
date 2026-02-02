@@ -3,7 +3,58 @@ import ReactDOM from 'react-dom';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
-import { MoreVertical, LogOut } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { MoreVertical, LogOut, Share2 } from 'lucide-react';
+import { supabase } from '../../supabase';
+
+// Helper function to get initials from name
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase();
+  }
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+/**
+ * Empty state component for players list
+ * @param {Object} props - Component props
+ * @param {string} props.view - 'admin' or 'guest'
+ * @param {Function} props.onShareClick - Optional callback for share action (admin only)
+ */
+const EmptyPlayersState = ({ view = 'guest', onShareClick }) => {
+  if (view === 'admin') {
+    return (
+      <div className="text-center p-5">
+        <div className="text-white/60 font-oswald text-base mb-2">
+          Todavía no hay jugadores.
+        </div>
+        <div className="text-white/40 font-oswald text-sm leading-relaxed mb-4">
+          Tocá <span className="text-white/60">+ Agregar jugador</span> (arriba) o compartí el link.
+        </div>
+        {onShareClick && (
+          <button
+            onClick={onShareClick}
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/20 text-white/70 hover:text-white text-xs font-oswald font-semibold transition-all"
+            type="button"
+            title="Compartir enlace del partido"
+          >
+            <Share2 size={12} />
+            Compartir link
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Guest view - simple message
+  return (
+    <div className="text-center text-white/60 font-oswald text-base p-5 italic">
+      Agregá jugadores para empezar el partido.
+    </div>
+  );
+};
 
 /**
  * Players list section component
@@ -35,6 +86,8 @@ const PlayersSection = ({
   processingAction: _processingAction,
   handleAbandon: _handleAbandon,
   invitationStatus,
+  onInviteFriends,
+  onAddManual,
 }) => {
   const [localMenuOpen, setLocalMenuOpen] = useState(false);
   const [playerToRemove, setPlayerToRemove] = useState(null);
@@ -67,7 +120,9 @@ const PlayersSection = ({
               className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
             />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm shrink-0 text-white/70">👤</div>
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
+              {getInitials(j.nombre)}
+            </div>
           )}
 
           <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 break-words leading-tight">
@@ -87,7 +142,7 @@ const PlayersSection = ({
               className="w-6 h-6 bg-fifa-danger/70 text-white/80 border-0 rounded-full font-bebas text-xl font-bold cursor-pointer transition-all flex items-center justify-center shrink-0 hover:bg-fifa-danger hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={(e) => {
                 e.stopPropagation();
-                setPlayerToRemove({ uuid: j.uuid, nombre: j.nombre, isOwnPlayer: false });
+                setPlayerToRemove({ id: j.id, nombre: j.nombre, isOwnPlayer: false });
               }}
               type="button"
               aria-label="Eliminar jugador"
@@ -102,7 +157,6 @@ const PlayersSection = ({
     );
   };
 
-  // Guest view (non-admin) OR user with pending invitation
   // Guest view (non-admin) OR user with pending invitation
   if (!isAdmin || (!isPlayerInMatch && jugadores.length > 0)) {
     return (
@@ -170,8 +224,36 @@ const PlayersSection = ({
             )}
           </div>
           {jugadores.length === 0 ? (
-            <div className="text-center text-white/60 font-oswald text-base p-5 italic">
-              <LoadingSpinner size="medium" />
+            <div className="flex flex-col items-center justify-center py-8 gap-4 w-full">
+              <button
+                className="w-full max-w-xs h-14 rounded-xl bg-primary text-white font-bebas text-xl tracking-widest shadow-lg hover:brightness-110 active:scale-95 transition-all"
+                type="button"
+                onClick={() => setShowInviteModal(true)}
+              >
+                INVITAR AMIGOS
+              </button>
+              <button
+                className="w-full max-w-xs h-14 rounded-xl bg-slate-800 text-white font-bebas text-xl tracking-widest border border-white/20 hover:bg-slate-700 active:scale-95 transition-all"
+                type="button"
+                onClick={() => {
+                  // Simula el toggle "Mostrar" de AdminActions.jsx
+                  const evt = new KeyboardEvent('keydown', { key: 'Enter' });
+                  document.querySelector('input[placeholder="Nombre del jugador"]')?.focus();
+                  document.querySelector('input[placeholder="Nombre del jugador"]')?.dispatchEvent(evt);
+                }}
+              >
+                AGREGAR MANUALMENTE
+              </button>
+              {/* Botón compartir link solo si existe handler */}
+              {typeof onShareClick === 'function' && (
+                <button
+                  className="mt-4 text-xs text-white/70 bg-white/10 px-3 py-2 rounded-lg border border-white/20 hover:bg-white/15 transition-all"
+                  type="button"
+                  onClick={onShareClick}
+                >
+                  Compartir link
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
@@ -229,9 +311,9 @@ const PlayersSection = ({
                   <button
                     className={`w-full font-bebas text-[18px] h-14 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-bold tracking-wide bg-primary shadow-[0_4px_14px_rgba(129,120,229,0.3)]
                       ${(partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)
-                  ? 'opacity-40 grayscale cursor-not-allowed shadow-none'
-                  : 'hover:brightness-110 active:scale-95'
-                }`}
+                        ? 'opacity-40 grayscale cursor-not-allowed shadow-none'
+                        : 'hover:brightness-110 active:scale-95'
+                      }`}
                     onClick={() => {
                       if (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) return;
                       setShowInviteModal(true);
@@ -334,8 +416,10 @@ const PlayersSection = ({
         )}
       </div>
       {jugadores.length === 0 ? (
-        <div className="text-center text-white/60 font-oswald text-base p-5 italic">
-          <LoadingSpinner size="medium" />
+        <div className="w-full flex flex-col items-center justify-center py-10 px-6">
+          <p className="text-sm text-white/70 text-center leading-relaxed max-w-[420px]">
+            Usá ‘Invitar amigos’ o ‘Agregar manualmente’ arriba para sumar jugadores.
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
@@ -349,7 +433,7 @@ const PlayersSection = ({
         message={`¿Eliminar a ${playerToRemove?.nombre} del partido?`}
         onConfirm={() => {
           if (playerToRemove) {
-            eliminarJugador(playerToRemove.uuid);
+            eliminarJugador(playerToRemove.id);
             setPlayerToRemove(null);
           }
         }}

@@ -45,7 +45,7 @@ const InviteFriendModal = ({ isOpen, onClose, friend, currentUserId }) => {
 
       // 1. SELECT partidos futuros con campos requeridos
       const { data: partidosData, error: partidosError } = await supabase
-        .from('partidos')
+        .from('partidos_view')
         .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido, creado_por, precio_cancha_por_persona')
         .gte('fecha', new Date().toISOString().split('T')[0]) // 4. Filtrar por fecha >= hoy
         .order('fecha', { ascending: true })
@@ -103,8 +103,8 @@ const InviteFriendModal = ({ isOpen, onClose, friend, currentUserId }) => {
           jugadores: jugadoresDelPartido,
         };
       })
-        // Solo partidos con al menos 1 jugador
-        .filter((partido) => partido.jugadores.length > 0);
+        // Incluir partido si tiene jugadores O si el usuario es el creador
+        .filter((partido) => partido.jugadores.length > 0 || partido.creado_por === currentUserId);
 
       // 4. Incluir partido si usuario está en jugadores O es creador
       const userMatches = partidosConJugadores.filter((match) => {
@@ -136,16 +136,23 @@ const InviteFriendModal = ({ isOpen, onClose, friend, currentUserId }) => {
             (jugador) => jugador.usuario_id === friend.profile?.id,
           );
 
-          // Verificar si ya tiene una invitación pendiente
-          const { data: notifications } = await supabase
-            .from('notifications_ext')
-            .select('id')
-            .eq('user_id', friend.profile?.id)
-            .eq('type', 'match_invite')
-            .eq('read', false)
-            .eq('match_id_text', String(toBigIntId(match.id)));
+          // Validate match.id before querying notifications_ext
+          let hasInvitation = false;
+          if (!match.id || match.id === 'undefined' || match.id === 'null') {
+            console.warn('[INVITE_MODAL] Invalid match.id, skipping invitation check');
+          } else {
+            console.log('[INVITE_MODAL] Checking invitation for match:', match.id);
+            // Verificar si ya tiene una invitación pendiente
+            const { data: notifications } = await supabase
+              .from('notifications_ext')
+              .select('id')
+              .eq('user_id', friend.profile?.id)
+              .eq('type', 'match_invite')
+              .eq('read', false)
+              .eq('match_id_text', String(toBigIntId(match.id)));
 
-          const hasInvitation = notifications && notifications.length > 0;
+            hasInvitation = notifications && notifications.length > 0;
+          }
 
           return {
             ...match,

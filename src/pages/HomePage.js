@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getPartidoPorCodigo } from '../supabase';
+import { resolveMatchIdFromQueryParams, fetchMatchById, handleMatchResolutionError } from '../utils/matchResolver';
 import NetworkStatus from '../components/NetworkStatus';
 import VotingView from './VotingView';
 import FifaHome from './FifaHome';
@@ -11,27 +11,64 @@ const HomePage = () => {
   const navigate = useNavigate();
   const [partidoActual, setPartidoActual] = useState(null);
   const [showVotingView, setShowVotingView] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Prevent double-fetch with ref to track last processed search
+  const lastSearchRef = useRef('');
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const codigo = params.get('codigo');
-    if (codigo) {
+    const currentSearch = location.search;
 
-      setShowVotingView(true);
-      getPartidoPorCodigo(codigo)
-        .then((partido) => {
-          // temporary debug log removed in cleanup
-          setPartidoActual(partido);
-        })
-        .catch((error) => {
-          console.error('Error loading match:', error);
-          setPartidoActual(null);
-        });
-    } else {
+    // Prevent double-fetch: skip if same search string
+    if (currentSearch === lastSearchRef.current) {
+      return;
+    }
+    lastSearchRef.current = currentSearch;
+
+    const params = new URLSearchParams(currentSearch);
+    const partidoId = params.get('partidoId');
+    const codigo = params.get('codigo');
+
+    // No voting parameters - show home
+    if (!partidoId && !codigo) {
       setShowVotingView(false);
       setPartidoActual(null);
+      setIsLoading(false);
+      return;
     }
-  }, [location.search]);
+
+    // Has voting parameters - resolve and load
+    setShowVotingView(true);
+    setIsLoading(true);
+
+    resolveMatchIdFromQueryParams(params)
+      .then(async ({ partidoId: resolvedId, error }) => {
+        if (error || !resolvedId) {
+          handleMatchResolutionError(error, navigate);
+          setPartidoActual(null);
+          setIsLoading(false);
+          return;
+        }
+
+        // Fetch match data
+        const { partido, error: fetchError } = await fetchMatchById(resolvedId);
+        if (fetchError || !partido) {
+          handleMatchResolutionError(fetchError, navigate);
+          setPartidoActual(null);
+          setIsLoading(false);
+          return;
+        }
+
+        setPartidoActual(partido);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error('[VOTING] Unexpected error:', err);
+        handleMatchResolutionError('Error inesperado al cargar el partido', navigate);
+        setPartidoActual(null);
+        setIsLoading(false);
+      });
+  }, [location.search, navigate]);
 
   if (showVotingView) {
     return (
@@ -40,9 +77,11 @@ const HomePage = () => {
         <VotingView
           jugadores={partidoActual ? partidoActual.jugadores : []}
           partidoActual={partidoActual}
+          isLoading={isLoading}
           onReset={() => {
             setShowVotingView(false);
             setPartidoActual(null);
+            lastSearchRef.current = ''; // Reset ref on manual reset
             // Navegar al home limpio
             navigate('/');
           }}
@@ -68,3 +107,36 @@ const HomePage = () => {
 };
 
 export default HomePage;
+
+/*
+MANUAL TEST CASES:
+==================
+
+1. Link with partidoId:
+   URL: /?partidoId=123
+   Expected: Direct load, no codigo resolution
+   
+2. Link with codigo:
+   URL: /?codigo=ABC123
+   Expected: Resolve codigo -> partidoId, then load
+   
+3. Both parameters:
+   URL: /?partidoId=123&codigo=ABC123
+   Expected: Use partidoId (priority), ignore codigo
+   
+4. No parameters:
+   URL: /
+   Expected: Show home page, no voting view
+   
+5. Invalid codigo:
+   URL: /?codigo=INVALID999
+   Expected: Toast error, navigate back to home after 2s
+   
+6. Invalid partidoId:
+   URL: /?partidoId=abc
+   Expected: Toast error, navigate back to home after 2s
+   
+7. Non-existent partidoId:
+   URL: /?partidoId=999999
+   Expected: Toast error, navigate back to home after 2s
+*/

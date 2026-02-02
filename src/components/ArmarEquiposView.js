@@ -272,13 +272,9 @@ export default function ArmarEquiposView({
       }
       // END CHANGE
 
-      // Access voting directly via codigo
-      const codigo = partidoActual?.codigo;
-      if (!codigo) {
-        toast.error('No se pudo abrir la votación (código faltante)');
-        return;
-      }
-      navigate(`/?codigo=${codigo}`);
+      // Navigate to voting using partidoId (codigo may not be loaded)
+      console.log('[Teams] Navigating to voting for match:', partidoActual.id);
+      navigate(`/?partidoId=${partidoActual.id}`);
       return;
     }
     // Open confirm modal to start voting
@@ -440,8 +436,8 @@ export default function ArmarEquiposView({
     ];
   }
 
-  async function eliminarJugador(uuid) {
-    const jugadorAEliminar = jugadores.find((j) => j.uuid === uuid);
+  async function eliminarJugador(jugadorId) {
+    const jugadorAEliminar = jugadores.find((j) => j.id === jugadorId);
 
     if (!jugadorAEliminar) return;
 
@@ -450,7 +446,7 @@ export default function ArmarEquiposView({
       const { error } = await supabase
         .from('jugadores')
         .delete()
-        .eq('uuid', uuid)
+        .eq('id', jugadorId)
         .eq('partido_id', partidoActual.id);
 
       if (error) throw error;
@@ -598,7 +594,7 @@ export default function ArmarEquiposView({
                           className="w-6 h-6 bg-slate-800 text-white/70 border border-slate-700 rounded-full cursor-pointer transition-all flex items-center justify-center shrink-0 hover:bg-slate-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setPlayerToRemove({ uuid: j.uuid, nombre: j.nombre });
+                            setPlayerToRemove({ id: j.id, nombre: j.nombre });
                           }}
                           type="button"
                           disabled={loading}
@@ -725,7 +721,7 @@ export default function ArmarEquiposView({
           message={`¿Eliminar a ${playerToRemove?.nombre} del partido?`}
           onConfirm={() => {
             if (playerToRemove) {
-              eliminarJugador(playerToRemove.uuid);
+              eliminarJugador(playerToRemove.id);
               setPlayerToRemove(null);
             }
           }}

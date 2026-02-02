@@ -101,7 +101,7 @@ const StatsView = ({ onVolver }) => {
 
   const getPartidosStats = async (dateRange) => {
     const { data: partidos, error } = await supabase
-      .from('partidos')
+      .from('partidos_view')
       .select('*')
       .gte('fecha', dateRange.start.split('T')[0])
       .lte('fecha', dateRange.end.split('T')[0])
@@ -133,7 +133,7 @@ const StatsView = ({ onVolver }) => {
 
   const getAmigosStats = async (dateRange) => {
     const { data: partidos, error } = await supabase
-      .from('partidos')
+      .from('partidos_view')
       .select('*')
       .gte('fecha', dateRange.start.split('T')[0])
       .lte('fecha', dateRange.end.split('T')[0])

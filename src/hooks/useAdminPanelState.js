@@ -69,6 +69,15 @@ export const useAdminPanelState = ({
           return;
         }
 
+        // Validate partidoActual.id is a valid value
+        if (!partidoActual.id || partidoActual.id === 'undefined' || partidoActual.id === 'null') {
+          console.warn('[ADMIN_PANEL] Invalid partidoActual.id, skipping invitation check');
+          setInvitationChecked(true);
+          return;
+        }
+
+        console.log('[ADMIN_PANEL] Checking invitation for match:', partidoActual.id);
+
         const { data: invitation } = await supabase
           .from('notifications_ext')
           .select('id, data')
@@ -115,26 +124,26 @@ export const useAdminPanelState = ({
     checkInvitation();
   }, [user?.id, partidoActual?.id, jugadores]);
 
+  const fetchJugadores = async () => {
+    if (!partidoActual?.id) return;
+    try {
+      const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
+      const votantesIds = await getVotantesIds(partidoActual.id);
+      const votantesNombres = await getVotantesConNombres(partidoActual.id);
+      setVotantes(votantesIds || []);
+      setVotantesConNombres(votantesNombres || []);
+      onJugadoresChange(jugadoresPartido);
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+    }
+  };
+
   // Fetch initial data and real-time subscriptions
   useEffect(() => {
     const search = new URLSearchParams(window.location.search);
     if (search.has('codigo')) return;
 
-    async function fetchInitialData() {
-      if (!partidoActual?.id) return;
-      try {
-        const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
-        const votantesIds = await getVotantesIds(partidoActual.id);
-        const votantesNombres = await getVotantesConNombres(partidoActual.id);
-        setVotantes(votantesIds || []);
-        setVotantesConNombres(votantesNombres || []);
-        onJugadoresChange(jugadoresPartido);
-      } catch (error) {
-        console.error('Error loading initial data:', error);
-      }
-    }
-
-    fetchInitialData();
+    fetchJugadores();
 
     // Real-time subscription for players
     const playersChannel = supabase
@@ -221,7 +230,6 @@ export const useAdminPanelState = ({
       const { error } = await supabase
         .from('jugadores')
         .insert([{
-          uuid,
           nombre,
           partido_id: partidoActual.id,
           score: 5,
@@ -266,8 +274,8 @@ export const useAdminPanelState = ({
     }
   };
 
-  const eliminarJugador = async (uuid, _esExpulsion = false) => {
-    const jugadorAEliminar = jugadores.find((j) => j.uuid === uuid);
+  const eliminarJugador = async (jugadorId, _esExpulsion = false) => {
+    const jugadorAEliminar = jugadores.find((j) => j.id === jugadorId);
 
     if (!isAdmin && jugadorAEliminar?.usuario_id !== user?.id) {
       toast.error('Solo puedes eliminarte a ti mismo o ser admin');
@@ -286,13 +294,30 @@ export const useAdminPanelState = ({
 
     setLoading(true);
     try {
+      console.log('[LEAVE_MATCH] Deleting player from match:', {
+        matchId: partidoActual.id,
+        jugadorId: jugadorId,
+        isSelfRemoval: esAutoEliminacion
+      });
+
+      // Use jugador.id (BIGINT) as source of truth - works for ALL players
       const { error } = await supabase
         .from('jugadores')
         .delete()
-        .eq('uuid', uuid)
+        .eq('id', jugadorId)
         .eq('partido_id', partidoActual.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('[LEAVE_MATCH] Error:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        throw error;
+      }
+
+      console.log('[LEAVE_MATCH] Deleted successfully');
 
       if (esAutoEliminacion && jugadorAEliminar?.usuario_id) {
         try {
@@ -304,7 +329,7 @@ export const useAdminPanelState = ({
             await incrementMatchesAbandoned(jugadorAEliminar.usuario_id);
           }
         } catch (abandonError) {
-          // Error processing match abandonment
+          console.error('[LEAVE_MATCH] Error incrementing abandonment counter:', abandonError);
         }
       }
 
@@ -329,7 +354,7 @@ export const useAdminPanelState = ({
           };
           await supabase.from('notifications').insert([payload]);
         } catch (notifError) {
-          // Error sending kick notification
+          console.error('[LEAVE_MATCH] Error sending kick notification:', notifError);
         }
       }
 
@@ -342,6 +367,7 @@ export const useAdminPanelState = ({
         onJugadoresChange(jugadoresPartido);
       }
     } catch (error) {
+      console.error('[LEAVE_MATCH] Unexpected error:', error);
       toast.error('Error eliminando jugador: ' + error.message);
     } finally {
       setLoading(false);
@@ -350,7 +376,7 @@ export const useAdminPanelState = ({
 
   const transferirAdmin = async (jugadorId) => {
     console.log('[TRANSFER_ADMIN] Starting admin transfer', { jugadorId, isAdmin, currentUserId: user?.id });
-    
+
     if (!isAdmin) {
       const msg = 'Solo el creador puede transferir el rol de admin';
       console.error('[TRANSFER_ADMIN]', msg);
@@ -359,7 +385,7 @@ export const useAdminPanelState = ({
 
     const jugador = jugadores.find((j) => j.id === jugadorId || j.usuario_id === jugadorId);
     console.log('[TRANSFER_ADMIN] Found jugador:', { jugador, searchedId: jugadorId });
-    
+
     if (!jugador || !jugador.usuario_id) {
       const msg = 'El jugador debe tener una cuenta para ser admin';
       console.error('[TRANSFER_ADMIN]', msg);
@@ -399,7 +425,7 @@ export const useAdminPanelState = ({
         },
         read: false,
       };
-      
+
       console.log('[TRANSFER_ADMIN] Inserting notification');
       await supabase.from('notifications').insert([payload]);
 
@@ -470,8 +496,6 @@ export const useAdminPanelState = ({
           usuario_id: user.id,
           nombre: userProfile?.nombre || user.email?.split('@')[0] || 'Jugador',
           avatar_url: userProfile?.avatar_url || null,
-          foto_url: userProfile?.avatar_url || null,
-          uuid: user.id,
           score: 5,
           is_goalkeeper: false,
         }]);
@@ -629,15 +653,18 @@ export const useAdminPanelState = ({
 
     try {
       const nuevoEstado = !faltanJugadoresState;
+      const updateObj = { falta_jugadores: nuevoEstado };
+      if (nuevoEstado) updateObj.estado = 'activo';
       const { error } = await supabase
         .from('partidos')
-        .update({ falta_jugadores: nuevoEstado })
+        .update(updateObj)
         .eq('id', partidoActual.id);
 
       if (error) throw error;
 
       setFaltanJugadoresState(nuevoEstado);
       partidoActual.falta_jugadores = nuevoEstado;
+      if (nuevoEstado) partidoActual.estado = 'activo';
 
       toast.success(nuevoEstado ?
         '¡Partido abierto a la comunidad!' :
@@ -683,5 +710,6 @@ export const useAdminPanelState = ({
     rechazarInvitacion,
     handleFaltanJugadores,
     invitationStatus, // Export status
+    fetchJugadores,
   };
 };

@@ -56,7 +56,7 @@ const ListaDeFechasModal = ({ partidosFrecuentes, onClose, nombrePartido, error,
         try {
           const { data: jugadores, error } = await supabase
             .from('jugadores')
-            .select('uuid, nombre, foto_url, avatar_url')
+            .select('usuario_id, nombre, avatar_url')
             .eq('partido_id', partido.id);
 
           if (!error && jugadores) {

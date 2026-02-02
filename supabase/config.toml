@@ -1,0 +1,2 @@
+[functions.join-match-guest]
+verify_jwt = false

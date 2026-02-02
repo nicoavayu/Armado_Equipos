@@ -7,21 +7,21 @@ import { db } from '../api/supabaseWrapper';
 export const processSurveyResults = async (partidoId) => {
   try {
     console.log('[SURVEY_RESULTS] Processing results for partido:', { partidoId });
-    
+
     // Obtener datos del partido
     let partido;
     try {
-      partido = await db.fetchOne('partidos', { id: partidoId });
+      partido = await db.fetchOne('partidos_view', { id: partidoId });
     } catch (error) {
       console.error('[SURVEY_RESULTS] Error getting partido:', { error: encodeURIComponent(error?.message || '') });
       return;
     }
-    
+
     if (!partido) {
       console.error('[SURVEY_RESULTS] Error getting partido:', { error: 'not_found' });
       return;
     }
-    
+
     // Obtener todas las encuestas del partido
     let surveys;
     try {
@@ -30,14 +30,14 @@ export const processSurveyResults = async (partidoId) => {
       console.error('[SURVEY_RESULTS] Error getting surveys:', { error: encodeURIComponent(error?.message || '') });
       return;
     }
-    
+
     if (!surveys || surveys.length === 0) {
       console.log('[SURVEY_RESULTS] No surveys found for partido:', { partidoId });
       return;
     }
-    
+
     console.log('[SURVEY_RESULTS] Found surveys:', { count: surveys?.length || 0 });
-    
+
     // Procesar MVP (por cantidad de votos)
     const mvpVotes = {};
     surveys.forEach((survey) => {
@@ -45,7 +45,7 @@ export const processSurveyResults = async (partidoId) => {
         mvpVotes[survey.mvp_id] = (mvpVotes[survey.mvp_id] || 0) + 1;
       }
     });
-    
+
     // Procesar Arquero (por cantidad de votos)
     const arqueroVotes = {};
     surveys.forEach((survey) => {
@@ -53,7 +53,7 @@ export const processSurveyResults = async (partidoId) => {
         arqueroVotes[survey.arquero_id] = (arqueroVotes[survey.arquero_id] || 0) + 1;
       }
     });
-    
+
     // Procesar jugadores ausentes (no acumulativo - con 1 voto ya se aplica)
     const ausentesSet = new Set();
     surveys.forEach((survey) => {
@@ -61,7 +61,7 @@ export const processSurveyResults = async (partidoId) => {
         survey.jugadores_ausentes.forEach((jugadorId) => ausentesSet.add(jugadorId));
       }
     });
-    
+
     // Procesar jugadores violentos (no acumulativo - con 1 voto ya se aplica)
     const violentosSet = new Set();
     surveys.forEach((survey) => {
@@ -69,11 +69,11 @@ export const processSurveyResults = async (partidoId) => {
         survey.jugadores_violentos.forEach((jugadorId) => violentosSet.add(jugadorId));
       }
     });
-    
+
     // Determinar ganadores
     const mvpWinner = Object.keys(mvpVotes).reduce((a, b) => mvpVotes[a] > mvpVotes[b] ? a : b, null);
     const arqueroWinner = Object.keys(arqueroVotes).reduce((a, b) => arqueroVotes[a] > arqueroVotes[b] ? a : b, null);
-    
+
     // Crear resultados finales
     const results = {
       partido_id: partidoId,
@@ -86,22 +86,22 @@ export const processSurveyResults = async (partidoId) => {
       total_surveys: surveys.length,
       processed_at: new Date().toISOString(),
     };
-    
+
     // Guardar resultados
     const { error: resultsError } = await supabase
       .from('survey_results')
       .upsert([results]);
-    
+
     if (resultsError) {
       console.error('[SURVEY_RESULTS] Error saving results:', { error: encodeURIComponent(resultsError?.message || '') });
       return;
     }
-    
+
     // Notificar a todos los jugadores del partido
     await notifyPlayersOfResults(partido, results);
-    
+
     console.log('[SURVEY_RESULTS] Results processed successfully:', { partidoId: results?.partido_id, totalSurveys: results?.total_surveys });
-    
+
   } catch (error) {
     console.error('[SURVEY_RESULTS] Error processing survey results:', { error: encodeURIComponent(error?.message || '') });
   }
@@ -115,11 +115,11 @@ const notifyPlayersOfResults = async (partido, results) => {
     if (!partido.jugadores || !Array.isArray(partido.jugadores)) {
       return;
     }
-    
+
     const formatFecha = (fechaStr) => {
       try {
         const fecha = new Date(fechaStr);
-        return fecha.toLocaleDateString('es-ES', { 
+        return fecha.toLocaleDateString('es-ES', {
           day: 'numeric',
           month: 'long',
           year: 'numeric',
@@ -128,7 +128,7 @@ const notifyPlayersOfResults = async (partido, results) => {
         return fechaStr;
       }
     };
-    
+
     const notifications = partido.jugadores.map((jugador) => ({
       usuario_id: jugador.usuario_id || jugador.id,
       tipo: 'survey_results',
@@ -141,17 +141,17 @@ const notifyPlayersOfResults = async (partido, results) => {
       },
       created_at: new Date().toISOString(),
     }));
-    
+
     const { error } = await supabase
       .from('notificaciones')
       .insert(notifications);
-    
+
     if (error) {
       console.error('[SURVEY_RESULTS] Error creating notifications:', { error: encodeURIComponent(error?.message || '') });
     } else {
       console.log('[SURVEY_RESULTS] Notifications sent to players:', { count: notifications?.length || 0 });
     }
-    
+
   } catch (error) {
     console.error('[SURVEY_RESULTS] Error notifying players:', { error: encodeURIComponent(error?.message || '') });
   }
@@ -166,20 +166,20 @@ export const scheduleSurveyResultsProcessing = (partidoId, partidoFecha, partido
     const matchDateTime = new Date(`${partidoFecha}T${partidoHora}`);
     const surveyCloseTime = new Date(matchDateTime.getTime() + (7 * 60 * 60 * 1000)); // +7 horas total
     const now = new Date();
-    
+
     const timeUntilProcessing = surveyCloseTime.getTime() - now.getTime();
-    
+
     if (timeUntilProcessing > 0) {
       setTimeout(() => {
         processSurveyResults(partidoId);
       }, timeUntilProcessing);
-      
+
       console.log('[SURVEY_RESULTS] Scheduled processing:', { partidoId, minutesUntil: Math.round(timeUntilProcessing / 1000 / 60) });
     } else {
       // Si ya pasó el tiempo, procesar inmediatamente
       processSurveyResults(partidoId);
     }
-    
+
   } catch (error) {
     console.error('[SURVEY_RESULTS] Error scheduling processing:', { error: encodeURIComponent(error?.message || '') });
   }

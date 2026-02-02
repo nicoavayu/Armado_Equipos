@@ -29,6 +29,15 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
       }
 
       try {
+        // Validate partidoId before query
+        if (!partidoId || partidoId === 'undefined' || partidoId === 'null') {
+          console.warn('[CHAT_BUTTON] Invalid partidoId, cannot check invitation');
+          setCanAccessChat(false);
+          return;
+        }
+
+        console.log('[CHAT_BUTTON] Checking chat access for match:', partidoId);
+
         // [TEAM_BALANCER_INVITE_EDIT] Verificar si hay invitación pendiente
         const { data: invitation } = await supabase
           .from('notifications_ext')

@@ -8,6 +8,14 @@ import { handleError } from '../lib/errorHandler';
  * @returns {Promise<{data, error}>}
  */
 export async function getMatchInviteNotification(userId, partidoId) {
+  // Validate inputs to prevent 400 errors
+  if (!userId || !partidoId || partidoId === 'undefined' || partidoId === 'null') {
+    console.warn('[NOTIFICATION_SERVICE] Invalid userId or partidoId', { userId, partidoId });
+    return { data: null, error: { message: 'Invalid parameters' } };
+  }
+
+  console.log('[NOTIFICATION_SERVICE] Querying match invite', { userId, partidoId });
+
   return supabase
     .from('notifications_ext')
     .select('id')
@@ -148,7 +156,7 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
     return { inserted: data?.length || 0 };
   } catch (err) {
     console.error('[CallToVote] failed', err);
-    handleError(err, { showToast: true, onError: () => {} });
+    handleError(err, { showToast: true, onError: () => { } });
     // Return a failure object so caller can handle it instead of only throwing
     return { inserted: 0, error: err };
   }
