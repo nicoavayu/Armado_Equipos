@@ -25,20 +25,22 @@ const getAvatar = (p) => {
   const src = p?.avatar_url || p?.foto_url || p?.user?.user_metadata?.avatar_url || p?.user?.user_metadata?.picture || p?.user_metadata?.avatar_url || p?.user_metadata?.picture;
   if (!src) return null;
   if (src.startsWith('blob:')) return src;
-  return src.includes('?') ? src : `${src}?t=${Date.now()}`;
+  return src;
 };
 
 const ANIM = { SMOOTH: 600, INIT: 1500, OX: 70, OY: 60 };
 
 // Photo mask positioning constants (adjust for perfect alignment)
 const HOLE_SIZE = 176; // px - diameter of circular mask (increased ~10%)
-const HOLE_TOP = 95; // px - distance from card top
+const HOLE_TOP = 80; // px - distance from card top
 
 const ProfileCardComponent = ({
   profile,
   isVisible = true,
   enableTilt = true,
   ratingOverride = null,
+  disableInternalMotion = false,
+  performanceMode = false,
 }) => {
   const wrapRef = useRef(null);
   const cardRef = useRef(null);
@@ -161,10 +163,14 @@ const ProfileCardComponent = ({
           /* No glow on photo circle - glow is behind entire card */
         }
         .badge-glass { 
-          background: rgba(0, 0, 0, 0.7); 
-          backdrop-filter: blur(10px); 
-          border: 2px solid rgba(255, 215, 0, 0.6);
-          box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+          background: rgba(0, 0, 0, 0.5); 
+          backdrop-filter: blur(8px); 
+          border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        .badge-glass--perf {
+          background: rgba(0, 0, 0, 0.65);
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          backdrop-filter: none;
         }
         .rating-star-badge{
           width: 32px;
@@ -186,6 +192,15 @@ const ProfileCardComponent = ({
           justify-content: center;
           filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.8));
         }
+        .rating-star--perf{
+          color:#FFD700;
+          font-size: 20px;
+          line-height: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          filter: none;
+        }
         .rating-value{
           font-family: 'Bebas Neue', 'Arial Black', sans-serif;
           color:#00C8FF;
@@ -194,6 +209,15 @@ const ProfileCardComponent = ({
           line-height: 1;
           letter-spacing: 0.02em;
           filter: drop-shadow(0 0 12px rgba(0, 200, 255, 0.8));
+        }
+        .rating-value--perf{
+          font-family: 'Bebas Neue', 'Arial Black', sans-serif;
+          color:#00C8FF;
+          font-weight: 900;
+          font-size: 64px;
+          line-height: 1;
+          letter-spacing: 0.02em;
+          filter: none;
         }
           .pc-badge-count.pc-pop {
             animation: pcBadgePop 520ms cubic-bezier(.2,.85,.2,1);
@@ -207,27 +231,35 @@ const ProfileCardComponent = ({
 
       <div ref={wrapRef} className="w-full flex justify-center overflow-visible perspective-[1000px] touch-none group profile-card-wrapper">
         <div className="relative inline-block overflow-visible px-4">
-          {/* Glow layer behind the card */}
-          <div
-            className="absolute pointer-events-none"
-            style={{
-              top: '-40px',
-              left: '-40px',
-              right: '-40px',
-              bottom: '-40px',
-              background: 'radial-gradient(ellipse at center, rgba(0, 180, 255, 0.5) 0%, rgba(0, 160, 255, 0.3) 30%, transparent 65%)',
-              filter: 'blur(35px)',
-              zIndex: 0,
-            }}
-          />
+          {/* Glow layer behind the card - disabled during scroll for performance */}
+          {!performanceMode && (
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                top: '-40px',
+                left: '-40px',
+                right: '-40px',
+                bottom: '-40px',
+                background: 'radial-gradient(ellipse at center, rgba(0, 180, 255, 0.5) 0%, rgba(0, 160, 255, 0.3) 30%, transparent 65%)',
+                filter: 'blur(35px)',
+                zIndex: 0,
+              }}
+            />
+          )}
 
           {/* Card container */}
           <div className="relative" style={{ width: 'min(340px, 92vw)', zIndex: 1 }}>
             <section
               ref={cardRef}
-              className="profile-card-main mx-auto w-full aspect-[0.72] md:aspect-[0.7] rounded-[var(--card-radius)] overflow-hidden flex flex-col transition-transform duration-700 ease-out relative origin-center"
+              className={`profile-card-main mx-auto w-full aspect-[0.72] md:aspect-[0.7] rounded-[var(--card-radius)] overflow-hidden flex flex-col relative origin-center ${!disableInternalMotion ? 'transition-transform duration-700 ease-out' : ''}`}
+              style={{
+                willChange: 'transform',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                transformStyle: 'preserve-3d'
+              }}
             >
-              {/* Layer 0: Player Photo Background (behind card, only visible through hole) */}
+              {/* Layer 0: Player Photo Background (centered hole) */}
               <div
                 className="absolute rounded-full overflow-hidden z-0 photo-glow-outer"
                 style={{
@@ -261,119 +293,125 @@ const ProfileCardComponent = ({
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none z-10"
               />
 
-              {/* Inner Recess */}
-              <div className="h-full w-full flex flex-col pt-4 pb-0 relative z-20">
+              {/* Inner Content - Flex Col for vertical zones */}
+              <div className="h-full w-full flex flex-col pt-5 pb-4 relative z-20">
 
-                {/* Header - Nombre */}
-                <div className="flex justify-center items-center mb-8 px-6 pt-3">
-                  <h3 className="font-bebas-real font-black text-[2.6rem] md:text-[2.8rem] leading-none text-white tracking-[0.05em] uppercase m-0 truncate max-w-full" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3)' }}>
-                    {vm.name.slice(0, 12)}
-                  </h3>
+                {/* --- 1. TOP ZONE: Header --- */}
+                <div className="relative w-full px-6 mb-2">
+                  {/* Name (Centered) */}
+                  <div className="flex justify-center items-center h-12">
+                    <h3 className="font-bebas-real font-black text-[2.6rem] leading-none text-white tracking-[0.05em] uppercase m-0 truncate max-w-[80%]" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3)' }}>
+                      {vm.name.slice(0, 12)}
+                    </h3>
+                  </div>
                 </div>
 
-                {/* 3-Column Body Composition - Wider columns and more spacing to push elements away from center */}
-                <div className="grid grid-cols-[88px_1fr_88px] items-start gap-6 md:gap-7 px-6 md:px-7 min-h-0 overflow-visible pt-2">
+                {/* --- 2. MIDDLE ZONE: Content Area --- */}
+                <div className="flex-1 flex flex-col items-center relative w-full pt-4">
+                  {/* Photo Placeholder (Layer 0 occupies this space) */}
+                  <div className="w-[176px] h-[176px] mb-2" />
 
-                  {/* Column 1: Left Badges - With right padding buffer to prevent circle overlap */}
-                  <div className="flex flex-col gap-2.5 items-center shrink-0 pr-3 md:pr-4 h-full">
-                    <div className="flex flex-col gap-0.5 items-center -mt-3">
-                      <div className="badge-glass rounded w-11 h-6 md:w-12 md:h-7 flex items-center justify-center overflow-hidden shrink-0 shadow-lg">
-                        <img src={`https://flagcdn.com/w40/${vm.cc}.png`} alt={vm.abbr} className="w-full h-auto object-cover" />
+                  {/* Layout Wrapper */}
+                  <div className="relative w-full px-6 flex flex-col items-center">
+
+                    {/* RIGHT SIDE STATS (Vertical Stack in Smaller Glass Container - Raised) */}
+                    <div className="absolute right-[40px] -top-[20px] flex flex-col items-center p-1.5 rounded-lg bg-white/5 border border-white/10 backdrop-blur-md">
+                      {/* PJ Stack */}
+                      <div className="flex flex-col items-center scale-90">
+                        <span className="text-[#00C8FF]/80 text-[10px] font-black uppercase tracking-[0.2em] mb-0.5">PJ</span>
+                        <span className="text-white font-black text-xl leading-none" style={{ textShadow: '0 0 10px rgba(0, 200, 255, 0.6)' }}>{vm.pj}</span>
                       </div>
-                      <span className="text-white font-bebas text-xs md:text-sm tracking-wider font-bold">{vm.abbr}</span>
-                    </div>
-                    <div
-                      className="badge-glass rounded w-12 h-7 md:w-12 md:h-8 flex items-center justify-center shrink-0 shadow-xl mt-auto"
-                      style={{
-                        background: `${vm.posColor}40`,
-                        borderColor: `${vm.posColor}`,
-                        borderWidth: '2px',
-                        boxShadow: `0 0 20px ${vm.posColor}40`,
-                        marginLeft: '3px',
-                      }}
-                    >
-                      <span
-                        className="font-bebas text-lg md:text-xl tracking-wider font-black leading-none"
-                        style={{
-                          color: vm.posColor,
-                          textShadow: `0 0 15px ${vm.posColor}88`,
-                          filter: `drop-shadow(0 0 10px ${vm.posColor})`,
-                        }}
-                      >
-                        {vm.pos}
-                      </span>
-                    </div>
-                  </div>
 
-                  {/* Column 2: Center Photo - Now Empty (photo rendered in background layer) */}
-                  <div className="relative justify-self-center min-w-0">
-                    {/* Spacer to maintain layout */}
-                    <div className="w-[176px] h-[176px]" />
-                  </div>
+                      {/* Inner Horizontal Divider */}
+                      <div className="w-6 h-[1px] bg-white/10 my-1.5" />
 
-                  {/* Column 3: Right Prizes - Positioned in right gutter between circle and edge */}
-                  <div className="flex flex-col gap-2.5 items-center shrink-0 pl-6 md:pl-7 pr-0">
-                    <div className="flex flex-col items-center gap-1">
-                      <img
-                        src="/mvp.png"
-                        alt="MVP Award"
-                        width={24}
-                        height={24}
-                        className="md:w-[26px] md:h-[26px]"
-                        draggable={false}
-                      />
-                      <span ref={mvpRef} className="text-white text-sm md:text-[15px] font-black pc-badge-count">{vm.mvp}</span>
+                      {/* PA Stack */}
+                      <div className="flex flex-col items-center scale-90">
+                        <span className="text-[#00C8FF]/80 text-[10px] font-black uppercase tracking-[0.2em] mb-0.5">PA</span>
+                        <span className="text-white font-black text-xl leading-none" style={{ textShadow: '0 0 10px rgba(0, 200, 255, 0.6)' }}>{vm.pa}</span>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-center gap-1">
-                      <img
-                        src="/red_card.png"
-                        alt="Red Card"
-                        width={16}
-                        height={24}
-                        className="md:w-[18px] md:h-7"
-                        draggable={false}
-                      />
-                      <span ref={redRef} className="text-white text-sm md:text-[15px] font-black pc-badge-count">{vm.red}</span>
+
+                    {/* CENTER COLUMN: Badges Row + Rating (Tilted 2px lower) */}
+                    <div className="flex flex-col items-center -mt-[8px]">
+                      {/* Unified Badges Row (Horizontal + Divider - No Shadows) */}
+                      <div className="flex items-center justify-center gap-3 mb-1.5">
+                        {/* Flag Badge (No shadow, white border) */}
+                        <div className={`${performanceMode ? 'badge-glass--perf' : 'badge-glass'} rounded-md w-9 h-6 flex items-center justify-center overflow-hidden shrink-0`}>
+                          <img src={`https://flagcdn.com/w40/${vm.cc}.png`} alt={vm.abbr} className="w-full h-auto object-cover" />
+                        </div>
+
+                        {/* Divider Line */}
+                        <div className="w-[1px] h-3 bg-white/20" />
+
+                        {/* Position Badge (No shadow, translucent border color) */}
+                        <div
+                          className="rounded-md w-9 h-6 flex items-center justify-center shrink-0 border-[1.5px] bg-white/5"
+                          style={{
+                            borderColor: vm.posColor,
+                          }}
+                        >
+                          <span
+                            className="font-bebas text-[11px] tracking-wider font-black leading-none"
+                            style={{
+                              color: vm.posColor,
+                              textShadow: `0 0 4px ${vm.posColor}AA`,
+                            }}
+                          >
+                            {vm.pos}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Rating Block - PERFECT CENTERED NUMBER with close star accessory (+12px Lower, Larger) */}
+                      <div className="flex items-center justify-center w-full max-w-[150px] h-14 mt-3">
+                        <div className="relative inline-flex items-center">
+                          {/* Star as independent accessory (approx 10px from number) */}
+                          <div className="absolute right-full mr-2.5 flex items-center">
+                            <div className="rating-star-badge" style={{ width: '22px', height: '22px' }}>
+                              <span className={`${performanceMode ? 'rating-star--perf' : 'rating-star'} text-[14px]`}>★</span>
+                            </div>
+                          </div>
+                          <span className={`${performanceMode ? 'rating-value--perf' : 'rating-value'} leading-none`} style={{ fontSize: '76px', color: '#FFD700' }}>
+                            {ratingOverride !== null ? ratingOverride.toFixed(1) : vm.rating}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-center gap-1">
-                      <img
-                        src="/glove.png"
-                        alt="Guante"
-                        width={24}
-                        height={24}
-                        className="md:w-[26px] md:h-[26px]"
-                        draggable={false}
-                      />
-                      <span ref={gkRef} className="text-white text-sm md:text-[15px] font-black pc-badge-count">{vm.gk}</span>
-                    </div>
+
                   </div>
                 </div>
 
-                {/* Footer Area: Stats + Rating - Adjusted spacing */}
-                <div className="flex flex-col px-8 pb-8">
+                <div className="flex flex-col items-center w-full px-8 pb-8 mt-auto">
+                  {/* Footer Divider Removed as requested */}
 
-                  {/* Stats Row (PJ, PA) - Slightly more space from photo */}
-                  <div className="flex items-center justify-center gap-5 mb-0" style={{ marginTop: '-8px' }}>
-                    <div className="flex flex-col items-center">
-                      <span className="text-[#00C8FF] text-sm md:text-[15px] font-black uppercase tracking-[0.2em] mb-1">PJ</span>
-                      <span className="text-white font-black text-[32px] md:text-[36px] leading-none" style={{ textShadow: '0 0 20px rgba(0, 200, 255, 0.8)' }}>{vm.pj}</span>
+                  {/* Prizes Row (Divided into 3 sections, container removed) */}
+                  <div className="flex items-center justify-center gap-6 mb-2">
+                    {/* MVP Prize */}
+                    <div className="flex items-center gap-2 min-w-[44px]">
+                      <img src="/mvp.png" alt="MVP" width={22} height={22} className="shrink-0" draggable={false} />
+                      <span ref={mvpRef} className="text-white text-sm font-black pc-badge-count leading-none">{vm.mvp}</span>
                     </div>
-                    <div className="w-[2px] h-12 bg-gradient-to-b from-transparent via-[#00C8FF]/30 to-transparent" />
-                    <div className="flex flex-col items-center">
-                      <span className="text-[#00C8FF] text-sm md:text-[15px] font-black uppercase tracking-[0.2em] mb-1">PA</span>
-                      <span className="text-white font-black text-[32px] md:text-[36px] leading-none" style={{ textShadow: '0 0 20px rgba(0, 200, 255, 0.8)' }}>{vm.pa}</span>
-                    </div>
-                  </div>
 
-                  {/* Rating */}
-                  <div className="flex items-center justify-center relative mt-3">
-                    <div className="rating-star-badge absolute left-14 -translate-y-1" style={{ width: '26px', height: '26px' }}>
-                      <span className="rating-star text-[16px]">★</span>
+                    {/* Divider */}
+                    <div className="w-[1px] h-4 bg-white/10" />
+
+                    {/* Glove Prize */}
+                    <div className="flex items-center gap-2 min-w-[44px]">
+                      <img src="/glove.png" alt="Glove" width={22} height={22} className="shrink-0" draggable={false} />
+                      <span ref={gkRef} className="text-white text-sm font-black pc-badge-count leading-none">{vm.gk}</span>
                     </div>
-                    <span className="rating-value" style={{ color: '#FFD700', filter: 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))' }}>{ratingOverride !== null ? ratingOverride.toFixed(1) : vm.rating}</span>
+
+                    {/* Divider */}
+                    <div className="w-[1px] h-4 bg-white/10" />
+
+                    {/* Red Card Prize (Last) */}
+                    <div className="flex items-center gap-2 min-w-[38px]">
+                      <img src="/red_card.png" alt="Card" width={16} height={22} className="shrink-0" draggable={false} />
+                      <span ref={redRef} className="text-white text-sm font-black pc-badge-count leading-none">{vm.red}</span>
+                    </div>
                   </div>
                 </div>
-
 
               </div>
             </section>
@@ -385,6 +423,4 @@ const ProfileCardComponent = ({
 };
 
 const ProfileCard = ProfileCardComponent;
-ProfileCard.displayName = 'ProfileCard';
-
 export default ProfileCard;

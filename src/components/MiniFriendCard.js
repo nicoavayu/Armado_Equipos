@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { PlayerCardTrigger } from './ProfileComponents';
-import InviteFriendModal from './InviteFriendModal';
+import InviteToMatchModal from './InviteToMatchModal';
 
 // Helper functions para posición
 const getPos = (p) => {
@@ -201,7 +201,7 @@ const MiniFriendCard = ({ friend, onRemove, onRequestRemoveClick, currentUserId,
         document.body,
       )}
 
-      <InviteFriendModal
+      <InviteToMatchModal
         isOpen={showInviteModal}
         onClose={() => setShowInviteModal(false)}
         friend={friend}

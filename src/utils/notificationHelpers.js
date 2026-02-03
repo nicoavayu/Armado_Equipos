@@ -6,7 +6,7 @@ export const createMatchInviteNotification = async (recipientId, inviterName, ma
     user_id: recipientId,
     type: 'match_invite',
     title: 'Invitación a partido',
-    message: `${inviterName} te invitó a jugar "${matchData.nombre}" el ${new Date(matchData.fecha).toLocaleDateString()} a las ${matchData.hora}`,
+    message: `${inviterName} te invitó a jugar el ${new Date(matchData.fecha).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })} a las ${matchData.hora}`,
     data: {
       matchId: matchData.id,
       matchName: matchData.nombre,
@@ -68,23 +68,23 @@ export const createFriendAcceptedNotification = async (recipientId, accepterName
 // Crear notificación de actualización de partido
 export const createMatchUpdateNotification = async (recipientId, matchData, updateType) => {
   let title, message;
-  
+
   switch (updateType) {
     case 'cancelled':
       title = 'Partido cancelado';
-      message = `El partido "${matchData.nombre}" ha sido cancelado`;
+      message = `¡Atención! El partido ha sido cancelado`;
       break;
     case 'rescheduled':
       title = 'Partido reprogramado';
-      message = `El partido "${matchData.nombre}" ha sido reprogramado`;
+      message = `¡Atención! El partido ha sido reprogramado`;
       break;
     case 'location_changed':
       title = 'Cambio de sede';
-      message = `La sede del partido "${matchData.nombre}" ha cambiado a ${matchData.sede}`;
+      message = `¡Cambio de planes! La sede ha cambiado a ${matchData.sede}`;
       break;
     default:
       title = 'Actualización de partido';
-      message = `El partido "${matchData.nombre}" ha sido actualizado`;
+      message = `¡Atención! El partido ha sido actualizado`;
   }
 
   const notification = {

@@ -223,7 +223,7 @@ const AmigosView = () => {
               setSearchResults([]);
             }
           }}
-          className="w-[95%] max-w-none p-[16px_20px] text-[20px] border border-white/20 rounded-2xl bg-white/5 text-white font-oswald box-border placeholder-white/30 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md sm:text-[17px] sm:p-[14px_10px]"
+          className="w-[95%] max-w-none p-[16px_20px] text-[15px] border border-white/20 rounded-2xl bg-white/5 text-white font-oswald box-border placeholder-white/30 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md sm:text-[14px] sm:p-[14px_10px]"
         />
 
         {/* Search results */}

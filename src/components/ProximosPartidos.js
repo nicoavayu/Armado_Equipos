@@ -13,6 +13,7 @@ import { toast } from 'react-toastify';
 
 import { FaCrown } from 'react-icons/fa';
 import { MoreVertical, LogOut, XCircle } from 'lucide-react';
+import MatchCard from './MatchCard';
 
 const ProximosPartidos = ({ onClose }) => {
   const { user } = useAuth();
@@ -442,28 +443,10 @@ const ProximosPartidos = ({ onClose }) => {
     });
   };
 
-  const getModalidadClass = (modalidad) => {
-    if (!modalidad) return 'bg-slate-700 border-2 border-[#4CAF50]';
-    if (modalidad.includes('5')) return 'bg-slate-700 border-2 border-[#4CAF50]';
-    if (modalidad.includes('6')) return 'bg-slate-700 border-2 border-[#FF9800]';
-    if (modalidad.includes('7')) return 'bg-slate-700 border-2 border-[#9c27b0]';
-    if (modalidad.includes('8')) return 'bg-slate-700 border-2 border-[#f44336]';
-    if (modalidad.includes('11')) return 'bg-slate-700 border-2 border-[#3f51b5]';
-    return 'bg-slate-700 border-2 border-[#4CAF50]';
-  };
-
-  const getTipoClass = (tipo) => {
-    if (!tipo) return 'bg-slate-700 border-2 border-[#2196F3]';
-    const tipoLower = String(tipo).toLowerCase();
-    if (tipoLower.includes('masculino')) return 'bg-slate-700 border-2 border-[#2196F3]';
-    if (tipoLower.includes('femenino')) return 'bg-slate-700 border-2 border-[#E91E63]';
-    if (tipoLower.includes('mixto')) return 'bg-slate-700 border-2 border-[#FFC107]';
-    return 'bg-slate-700 border-2 border-[#2196F3]';
-  };
 
   return (
     <div className="fixed top-0 left-0 w-screen h-[100dvh] text-white flex flex-col overflow-hidden z-[1000]">
-      <PageTitle onBack={onClose} title="PRÓXIMOS PARTIDOS">PRÓXIMOS PARTIDOS</PageTitle>
+      <PageTitle onBack={onClose} title="MIS PARTIDOS">MIS PARTIDOS</PageTitle>
 
       <div className="flex-1 pt-[96px] px-4 pb-[100px] overflow-y-auto w-full box-border sm:pt-[96px] sm:px-4 sm:pb-[100px]">
         {loading ? (
@@ -485,157 +468,31 @@ const ProximosPartidos = ({ onClose }) => {
                 const showMenu = partido.userJoined || partido.userRole === 'admin';
 
                 return (
-                  <div key={partido.id} className={`relative bg-slate-900 rounded-2xl p-5 mb-3 min-h-[150px] border border-slate-800 transition-all duration-300 shadow-xl hover:-translate-y-[2px] hover:shadow-2xl hover:border-slate-700 sm:p-4 ${matchFinished ? '!opacity-100 !bg-slate-950 !border-slate-900' : ''}`}>
-                    {/* Header: Fecha/Hora a la izquierda, Admin Badge a la derecha */}
-                    <div className="flex justify-between items-start mb-4 sm:items-start">
-                      <div className={`flex items-center gap-2 ${matchFinished ? 'opacity-70' : ''}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="currentColor">
-                          <path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z" />
-                        </svg>
-                        <div className="font-oswald text-[18px] font-bold text-white capitalize">
-                          {formatDate(partido.fecha)} • {partido.hora}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {matchFinished ? (
-                          <div className="bg-[#4CAF50] text-white px-2 py-1 rounded-xl text-[11px] font-semibold whitespace-nowrap flex items-center gap-1 shadow-sm opacity-100">
-                            ✓ Finalizado
-                          </div>
-                        ) : partido.userRole === 'admin' ? (
-                          <div className="flex items-center gap-1.5 bg-slate-700 px-2.5 py-1.5 rounded-full text-[11px] font-semibold shrink-0 border border-[#0EA9C6]">
-                            <FaCrown size={12} color="#0EA9C6" style={{ marginRight: '2px' }} />
-                            <span className="font-semibold uppercase text-[#0EA9C6]">Admin</span>
-                          </div>
-                        ) : null}
-
-                        {/* Menu */}
-                        {showMenu && (
-                          <div className="relative">
-                            <button
-                              className="p-2 rounded-full border border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-200"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setMenuOpenId((prev) => prev === partido.id ? null : partido.id);
-                              }}
-                              aria-label="Más acciones"
-                            >
-                              <MoreVertical size={16} />
-                            </button>
-                            {menuOpenId === partido.id && (
-                              <div
-                                className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-lg z-10"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <div className="py-1">
-                                  {/* Upcoming match actions */}
-                                  {partido.userJoined && canAbandon(partido) && (
-                                    <button
-                                      className="w-full px-3 py-2 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800"
-                                      onClick={(e) => handleAbandonMatch(e, partido)}
-                                    >
-                                      <LogOut size={16} />
-                                      <span>Abandonar partido</span>
-                                    </button>
-                                  )}
-                                  {partido.userRole === 'admin' && canCancel(partido) && (
-                                    <button
-                                      className="w-full px-3 py-2 flex items-center gap-2 text-left text-red-200 hover:bg-slate-800"
-                                      onClick={(e) => handleCancelMatch(e, partido)}
-                                    >
-                                      <XCircle size={16} />
-                                      <span>Cancelar partido</span>
-                                    </button>
-                                  )}
-
-                                  {/* Finished match action: allow removing from list */}
-                                  {matchFinished && (
-                                    <button
-                                      className="w-full px-3 py-2 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800"
-                                      onClick={(e) => _handleClearMatch(e, partido)}
-                                    >
-                                      <XCircle size={16} />
-                                      <span>Borrar partido</span>
-                                    </button>
-                                  )}
-
-                                  {/* If no actions apply, show an explanatory disabled row */}
-                                  {!matchFinished && !(partido.userJoined && canAbandon(partido)) && !(partido.userRole === 'admin' && canCancel(partido)) && (
-                                    <div className="w-full px-3 py-2 text-left text-slate-400 text-sm">
-                                      No hay acciones disponibles
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Modalidad, Tipo, Precio y Jugadores en una sola línea */}
-                    <div className="flex flex-nowrap items-center gap-2 mb-4">
-                      <div className={`font-oswald text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getModalidadClass(partido.modalidad)} ${matchFinished ? 'opacity-70' : ''}`}>
-                        {partido.modalidad || 'F5'}
-                      </div>
-                      <div className={`font-oswald text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getTipoClass(partido.tipo_partido)} ${matchFinished ? 'opacity-70' : ''}`}>
-                        {partido.tipo_partido || 'Masculino'}
-                      </div>
-                      {(() => {
-                        const precioRaw = (partido?.precio_cancha_por_persona ?? partido?.precio_cancha ?? partido?.precio ?? partido?.valor_cancha);
-                        let precioNumber = null;
-                        if (precioRaw !== undefined && precioRaw !== null && String(precioRaw).trim() !== '') {
-                          const parsed = Number(String(precioRaw).replace(/[^0-9.,-]/g, '').replace(/,/g, '.'));
-                          if (!Number.isNaN(parsed) && Number.isFinite(parsed)) precioNumber = parsed;
+                  <MatchCard
+                    key={partido.id}
+                    partido={{
+                      ...partido,
+                      fecha_display: formatDate(partido.fecha)
+                    }}
+                    isFinished={matchFinished}
+                    userRole={partido.userRole}
+                    userJoined={partido.userJoined}
+                    onMenuToggle={(id) => setMenuOpenId((prev) => prev === id ? null : id)}
+                    isMenuOpen={menuOpenId === partido.id}
+                    onAbandon={handleAbandonMatch}
+                    onCancel={handleCancelMatch}
+                    onClear={_handleClearMatch}
+                    primaryAction={{
+                      label: primaryCta.label,
+                      disabled: primaryCta.disabled,
+                      className: getPrimaryCtaButtonClass(primaryCta.kind),
+                      onClick: (e) => {
+                        if (typeof primaryCta.onClick === 'function') {
+                          primaryCta.onClick(e);
                         }
-                        const label = (precioNumber !== null && precioNumber > 0)
-                          ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(precioNumber)
-                          : 'Sin precio';
-                        return (
-                          <div className={`font-oswald text-[11px] font-semibold text-slate-200 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 shrink-0 whitespace-nowrap ${matchFinished ? 'opacity-70' : ''}`}>
-                            {label}
-                          </div>
-                        );
-                      })()}
-                      {(() => {
-                        const jugadoresCount = partido.jugadores?.[0]?.count || 0;
-                        const cupoMaximo = partido.cupo_jugadores || 20;
-                        const isComplete = jugadoresCount >= cupoMaximo;
-                        return (
-                          <div className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 whitespace-nowrap ${isComplete
-                            ? 'bg-[#165a2e] text-[#22c55e] border border-[#22c55e]'
-                            : 'bg-slate-900 text-slate-300 border border-slate-700'
-                            } ${matchFinished ? 'opacity-70' : ''}`}>
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="currentColor">
-                              <path d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z" />
-                            </svg>
-                            {jugadoresCount}/{cupoMaximo} jugadores
-                          </div>
-                        );
-                      })()}
-                    </div>
-
-                    {/* Ubicación */}
-                    <div className={`font-oswald text-sm font-medium text-white/90 flex items-center gap-2 mb-5 overflow-hidden text-ellipsis ${matchFinished ? 'opacity-70' : ''}`}>
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="16" height="16" fill="rgba(255, 255, 255, 0.9)">
-                        <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z" />
-                      </svg>
-                      <span className="truncate">{partido.sede}</span>
-                    </div>
-
-                    <div className="flex gap-3 mt-4">
-                      <button
-                        className={`flex-1 font-bebas text-base px-4 py-2.5 border-2 border-transparent rounded-xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px] ${primaryCta.disabled ? 'bg-slate-700 text-slate-300 cursor-not-allowed' : getPrimaryCtaButtonClass(primaryCta.kind)} disabled:opacity-60`}
-                        onClick={(e) => {
-                          if (primaryCta.disabled) return;
-                          if (typeof primaryCta.onClick === 'function') {
-                            primaryCta.onClick(e);
-                          }
-                        }}
-                      >
-                        {primaryCta.label}
-                      </button>
-                    </div>
-                  </div>
+                      }
+                    }}
+                  />
                 );
               })}
             </div>

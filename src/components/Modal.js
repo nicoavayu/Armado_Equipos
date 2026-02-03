@@ -7,7 +7,9 @@ const Modal = ({
   onClose,
   children,
   title,
+  footer,
   className = '',
+  classNameContent = '',
   closeOnBackdrop = true,
   closeOnEscape = true,
 }) => {
@@ -73,9 +75,14 @@ const Modal = ({
             </button>
           </div>
         )}
-        <div className="p-6 overflow-y-auto flex-1 touch-pan-y">
+        <div className={`p-6 overflow-y-auto flex-1 touch-pan-y ${classNameContent}`}>
           {children}
         </div>
+        {footer && (
+          <div className="p-6 border-t border-[#333] shrink-0">
+            {footer}
+          </div>
+        )}
       </div>
       <style>{`
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

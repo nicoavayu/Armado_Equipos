@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { getAmigos, supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
+import { formatLocalDateShort } from '../utils/dateLocal';
 
 
 const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, jugadores = [] }) => {
@@ -209,7 +210,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
         user_id: amigo.id,
         type: 'match_invite',
         title: 'Invitación a partido',
-        message: `${currentUser?.nombre || 'Alguien'} te invitó a jugar "${partidoActual.nombre || 'un partido'}"`,
+        message: `${currentUser?.nombre || 'Alguien'} te invitó a jugar el ${partidoActual.fecha ? formatLocalDateShort(partidoActual.fecha) : ''} a las ${partidoActual.hora || ''}`,
         partido_id: Number(partidoActual.id), // Required for match_ref generation
         data: {
           matchId: partidoActual.id,
