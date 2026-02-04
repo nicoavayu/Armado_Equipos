@@ -87,7 +87,8 @@ export const useAdminPanelState = ({
           .eq('match_id_text', partidoActual.id.toString())
           .order('send_at', { ascending: false }) // Get latest
           .limit(1)
-          .single();
+          .limit(1)
+          .maybeSingle();
 
         if (invitation) {
           const status = invitation.data?.status || 'pending';
@@ -548,6 +549,50 @@ export const useAdminPanelState = ({
     }
   };
 
+  const unirseAlPartido = async () => {
+    if (!user?.id || !partidoActual?.id) return;
+
+    if (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) {
+      toast.error('El partido está lleno');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data: userProfile, error: profileError } = await supabase
+        .from('usuarios')
+        .select('nombre, avatar_url')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      const { error: insertError } = await supabase
+        .from('jugadores')
+        .insert([{
+          partido_id: partidoActual.id,
+          usuario_id: user.id,
+          nombre: userProfile?.nombre || user.email?.split('@')[0] || 'Jugador',
+          avatar_url: userProfile?.avatar_url || null,
+          score: 5,
+          is_goalkeeper: false,
+        }]);
+
+      if (insertError) throw insertError;
+
+      const jugadoresActualizados = await getJugadoresDelPartido(partidoActual.id);
+      setJugadoresLocal(jugadoresActualizados);
+      onJugadoresChange(jugadoresActualizados);
+
+      toast.success('¡Te sumaste al partido!');
+    } catch (error) {
+      console.error("Error uniéndose:", error);
+      toast.error("No se pudo unir: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const rechazarInvitacion = async () => {
     if (!user?.id || !partidoActual?.id) return;
 
@@ -710,6 +755,7 @@ export const useAdminPanelState = ({
     rechazarInvitacion,
     handleFaltanJugadores,
     invitationStatus, // Export status
+    unirseAlPartido,
     fetchJugadores,
   };
 };

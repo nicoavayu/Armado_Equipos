@@ -6,6 +6,7 @@ import PageTitle from '../components/PageTitle';
 import LoadingSpinner from '../components/LoadingSpinner';
 import HistoryTemplateCard from '../components/historial/HistoryTemplateCard';
 import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchDateDebug';
+import { v4 as uuidv4 } from 'uuid';
 
 function formatearSede(sede) {
   if (sede === 'La Terraza Fútbol 5, 8') return 'La Terraza Fútbol 5 y 8';
@@ -99,7 +100,9 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
     setCreating(true);
     try {
       const nombre = template.nombre || `Partido en ${template.sede || template.lugar || 'Lugar'}`;
+      const match_ref = uuidv4();
       const payload = {
+        match_ref,
         nombre,
         fecha: selectedDate,
         hora: editTime ? selectedTime : (template.hora || ''),

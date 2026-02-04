@@ -10,7 +10,12 @@ import { incrementPartidosAbandonados } from '../matchStatsService';
  */
 export const getJugadoresDelPartido = async (partidoId) => {
   const pid = Number(partidoId);
-  if (!pid || Number.isNaN(pid)) return [];
+  if (!pid || Number.isNaN(pid)) {
+    console.warn('[getJugadoresDelPartido] Invalid ID:', partidoId);
+    return [];
+  }
+
+  console.log('[getJugadoresDelPartido] Fetching for:', pid);
 
   const { data, error } = await supabase
     .from('jugadores')
@@ -19,8 +24,11 @@ export const getJugadoresDelPartido = async (partidoId) => {
     .order('created_at', { ascending: true });
 
   if (error) {
+    console.error('[getJugadoresDelPartido] Error:', error);
     throw new Error(`Error fetching match players: ${error.message}`);
   }
+
+  console.log('[getJugadoresDelPartido] Raw data:', data?.length, data);
 
   const seen = new Set();
   const unique = [];
@@ -130,7 +138,7 @@ export const crearPartido = async (partidoData) => {
   const { data, error } = await supabase
     .from('partidos')
     .insert([partidoData])
-    .select('*')
+    .select()
     .single();
   if (error) throw error;
   return data;

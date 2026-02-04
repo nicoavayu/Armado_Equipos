@@ -81,7 +81,8 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       if (adminError) throw adminError;
 
       const partidosAdminIds = partidosComoAdmin?.map((p) => p.id) || [];
-      const todosLosPartidosIds = Array.from(new Set([...partidosComoJugador, ...partidosAdminIds]));
+      const todosLosPartidosIds = Array.from(new Set([...partidosComoJugador, ...partidosAdminIds]))
+        .filter((id) => id != null);
 
       if (todosLosPartidosIds.length === 0) {
         setActiveMatches([]);

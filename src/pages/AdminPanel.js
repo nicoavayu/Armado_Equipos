@@ -233,6 +233,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                         onInviteFriends={() => adminState.setShowInviteModal(true)}
                         onAddManual={adminState.agregarJugador}
                         onShareClick={handleShare}
+                        unirseAlPartido={adminState.unirseAlPartido}
                       />
                     ) : (
                       <SolicitudesSection

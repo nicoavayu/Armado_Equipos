@@ -27,9 +27,22 @@ import { AvatarFallback } from '../components/ProfileComponents';
 const SANITIZE_ON = process.env.REACT_APP_SANITIZE_VOTING === 'true';
 const clean = (value) => SANITIZE_ON ? DOMPurify.sanitize(String(value ?? '')) : String(value ?? '');
 
+// Debug logging
+const DEBUG = false;
 
 
 export default function VotingView({ onReset, jugadores, partidoActual }) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const isPublicRoute = window.location.pathname.includes('/votar-equipos') || urlParams.has('codigo');
+  const isPublicVoting = isPublicRoute;
+
+  const resolvePublicStorageKey = () => {
+    const pidFromRef = resolvedMatchIdRef.current;
+    if (pidFromRef) return `public_voter_name_${pidFromRef}`;
+    const pidParam = urlParams.get('partidoId');
+    const pid = pidParam ? Number(pidParam) : (partidoActual?.id ? Number(partidoActual.id) : null);
+    return pid ? `public_voter_name_${pid}` : null;
+  };
   // Estados principales
   const [step, setStep] = useState(0);
   const [nombre, setNombre] = useState('');
@@ -51,6 +64,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const [confirmando, setConfirmando] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [finalizado, setFinalizado] = useState(false);
+  const [publicAlreadyVoted, setPublicAlreadyVoted] = useState(false);
+  const [checkingPublicVoter, setCheckingPublicVoter] = useState(false);
 
   // Chequeo global: ¿El usuario actual ya votó?
   const [usuarioYaVoto, setUsuarioYaVoto] = useState(false);
@@ -66,6 +81,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const didInitRef = useRef(false);
   // Cache resolved matchId to avoid re-resolution
   const resolvedMatchIdRef = useRef(null);
+  // Lock to prevent state changes once voter is detected as duplicate
+  const lockedRef = useRef(false);
 
   // -- HOOKS, TODOS ARRIBA --
 
@@ -92,60 +109,71 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         resolvedMatchIdRef.current = partidoId;
 
         let userId = null;
-        const { data: { user } } = await supabase.auth.getUser();
-
-        // Check permissions
-        if (user?.id) {
-          userId = user.id;
-
-          try {
-            // Check if user is match creator
-            const { data: partidoData, error: partidoError } = await supabase
-              .from('partidos')
-              .select('creado_por')
-              .eq('id', partidoId)
-              .single();
-
-            if (partidoError) throw partidoError;
-
-            const isCreator = partidoData?.creado_por === user.id;
-
-            // Check if user is in match roster
-            const { data: jugadoresPartido, error: jugadoresError } = await supabase
-              .from('jugadores')
-              .select('usuario_id, nombre')
-              .eq('partido_id', partidoId);
-
-            if (jugadoresError) throw jugadoresError;
-
-            const jugadorEnPartido = jugadoresPartido?.find((j) => j.usuario_id === user.id);
-
-            const allowed = isCreator || !!jugadorEnPartido;
-            setHasAccess(allowed);
-            setIsAdmin(isCreator);
-
-            if (!allowed) {
-              return setCargandoVotoUsuario(false);
-            }
-
-            // Auto-detect name for registered users in roster
-            if (jugadorEnPartido) {
-              setNombre(jugadorEnPartido.nombre);
-              setStep(1);
-            }
-          } catch (err) {
-            handleError(err, { showToast: false, onError: () => { } });
-            setAuthzError('No se pudo validar permisos');
-            setHasAccess(false);
-            return setCargandoVotoUsuario(false);
-          }
-        } else {
-          // Guest users allowed
+        if (isPublicVoting) {
+          // Public voting: skip auth and permission checks
           setHasAccess(true);
+          setIsAdmin(false);
           if (typeof getGuestSessionId === 'function') {
             userId = getGuestSessionId(partidoId);
           } else {
             userId = `guest_${partidoId}_${Date.now()}`;
+          }
+        } else {
+          const { data: { user } } = await supabase.auth.getUser();
+
+          // Check permissions
+          if (user?.id) {
+            userId = user.id;
+
+            try {
+              // Check if user is match creator
+              const { data: partidoData, error: partidoError } = await supabase
+                .from('partidos')
+                .select('creado_por')
+                .eq('id', partidoId)
+                .single();
+
+              if (partidoError) throw partidoError;
+
+              const isCreator = partidoData?.creado_por === user.id;
+
+              // Check if user is in match roster
+              const { data: jugadoresPartido, error: jugadoresError } = await supabase
+                .from('jugadores')
+                .select('usuario_id, nombre')
+                .eq('partido_id', partidoId);
+
+              if (jugadoresError) throw jugadoresError;
+
+              const jugadorEnPartido = jugadoresPartido?.find((j) => j.usuario_id === user.id);
+
+              const allowed = isCreator || !!jugadorEnPartido;
+              setHasAccess(allowed);
+              setIsAdmin(isCreator);
+
+              if (!allowed) {
+                return setCargandoVotoUsuario(false);
+              }
+
+              // Auto-detect name for registered users in roster
+              if (jugadorEnPartido) {
+                setNombre(jugadorEnPartido.nombre);
+                setStep(1);
+              }
+            } catch (err) {
+              handleError(err, { showToast: false, onError: () => { } });
+              setAuthzError('No se pudo validar permisos');
+              setHasAccess(false);
+              return setCargandoVotoUsuario(false);
+            }
+          } else {
+            // Guest users allowed
+            setHasAccess(true);
+            if (typeof getGuestSessionId === 'function') {
+              userId = getGuestSessionId(partidoId);
+            } else {
+              userId = `guest_${partidoId}_${Date.now()}`;
+            }
           }
         }
 
@@ -193,6 +221,35 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     setFotoPreview(j?.avatar_url || null);
   }, [nombre, jugadores]);
 
+  // Modo público: precargar nombre desde localStorage si existe
+  useEffect(() => {
+    if (!isPublicRoute) return;
+    if (nombre) return;
+    if (!jugadores || jugadores.length === 0) return;
+
+    const storageKey = resolvePublicStorageKey();
+    if (!storageKey) return;
+
+    const savedName = localStorage.getItem(storageKey);
+    if (!savedName) return;
+
+    const match = jugadores.find((j) => j.nombre === savedName);
+    if (match) {
+      setNombre(savedName);
+      setStep(1);
+    }
+  }, [isPublicRoute, nombre, jugadores]);
+
+  // Guard: Lock voter if already voted
+  useEffect(() => {
+    if (publicAlreadyVoted || usuarioYaVoto || finalizado) {
+      if (!lockedRef.current) {
+        lockedRef.current = true;
+        if (DEBUG) console.debug('[Guard] Voter locked - already voted');
+      }
+    }
+  }, [publicAlreadyVoted, usuarioYaVoto, finalizado]);
+
   // -- FIN HOOKS --
 
   // Common wrapper styles
@@ -202,6 +259,61 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const titleClass = 'font-bebas text-[46px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-lg';
   const btnClass = 'font-bebas text-[27px] md:text-[28px] text-white bg-primary border-2 border-white/20 rounded-2xl tracking-wide py-4 mt-4 w-full cursor-pointer font-bold transition-all duration-300 hover:brightness-110 hover:shadow-[0_4px_20px_rgba(129,120,229,0.5)] disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden flex items-center justify-center';
   const textClass = 'text-white text-[26px] font-oswald text-center mb-[30px] tracking-wide';
+
+  // Guard: Check if should show final screen (happy path or already voted)
+  const shouldShowFinal = publicAlreadyVoted || usuarioYaVoto || finalizado;
+
+  // ============ EARLY GUARD: Return final screen if already voted ============
+  if (lockedRef.current || publicAlreadyVoted || usuarioYaVoto || finalizado) {
+    if (DEBUG) console.debug('[Guard] Rendering final screen - voter locked or already voted', { publicAlreadyVoted, usuarioYaVoto, finalizado, locked: lockedRef.current });
+    return (
+      <div className={wrapperClass}>
+        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
+        <div className={cardClass}>
+          <div className={titleClass}>
+            {publicAlreadyVoted ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
+          </div>
+          <div className={`${textClass} text-[27px] mb-[27px] tracking-[1.1px]`}>
+            {publicAlreadyVoted
+              ? 'Tus votos ya fueron registrados ✅'
+              : 'Tus votos fueron registrados.\nPodés cerrar esta ventana.'}
+          </div>
+          <button
+            className={btnClass}
+            style={{ marginTop: 16 }}
+            onClick={handleFinalAction}
+          >VOLVER</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ============ EARLY GUARD: Return final screen if already voted or voted successfully ============
+  if (shouldShowFinal) {
+    if (DEBUG) console.debug('[Guard] Rendering final screen', { publicAlreadyVoted, usuarioYaVoto, finalizado });
+    return (
+      <div className={wrapperClass}>
+        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
+        <div className={cardClass}>
+          <div className={titleClass}>
+            {publicAlreadyVoted || usuarioYaVoto ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
+          </div>
+          <div className={`${textClass} text-[27px] mb-[27px] tracking-[1.1px]`}>
+            {publicAlreadyVoted || usuarioYaVoto
+              ? 'Tus votos ya fueron registrados ✅'
+              : 'Tus votos fueron registrados.\nPodés cerrar esta ventana.'}
+          </div>
+          <button
+            className={btnClass}
+            style={{ marginTop: 16 }}
+            onClick={onReset}
+          >VOLVER</button>
+        </div>
+      </div>
+    );
+  }
 
   const openVotingLink = () => {
     // GUARD: Use cached matchId if available, avoid re-resolution
@@ -228,6 +340,55 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     }
   };
 
+  const handleConfirmNombre = async () => {
+    // Guard: Check if already locked/voted
+    if (lockedRef.current) {
+      if (DEBUG) console.debug('[Guard] handleConfirmNombre blocked - voter locked');
+      return;
+    }
+
+    if (isPublicRoute) {
+      const storageKey = resolvePublicStorageKey();
+      if (storageKey && nombre) {
+        localStorage.setItem(storageKey, nombre);
+      }
+
+      const partidoIdParam = urlParams.get('partidoId');
+      const codigoParam = urlParams.get('codigo');
+      const partidoId = partidoIdParam ? parseInt(partidoIdParam, 10) : (resolvedMatchIdRef.current || partidoActual?.id);
+      const codigo = codigoParam ? codigoParam.trim().toUpperCase() : null;
+
+      if (!partidoId || Number.isNaN(partidoId) || !codigo || !nombre) {
+        toast.error('No se pudo validar tu votación');
+        return;
+      }
+
+      setCheckingPublicVoter(true);
+      try {
+        const { data, error } = await supabase.rpc('public_has_voter_already_voted', {
+          p_partido_id: partidoId,
+          p_codigo: codigo,
+          p_votante_nombre: nombre,
+        });
+
+        if (error) {
+          toast.error('No se pudo validar tu votación');
+        } else if (data === true) {
+          lockedRef.current = true;
+          setPublicAlreadyVoted(true);
+          if (DEBUG) console.debug('[Guard] handleConfirmNombre detected duplicate - locked');
+          return;
+        }
+      } catch (err) {
+        toast.error('No se pudo validar tu votación');
+      } finally {
+        setCheckingPublicVoter(false);
+      }
+    }
+
+    setStep(1);
+  };
+
   // Si es admin, volver a ArmarEquiposView (via onReset al AdminPanel)
   // Si no es admin, volver al inicio
   const handleFinalAction = () => {
@@ -250,7 +411,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   }
 
   // Block if no access
-  if (hasAccess === false) {
+  if (hasAccess === false && !isPublicVoting) {
     return (
       <div className={wrapperClass}>
         <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
@@ -319,9 +480,9 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             className={btnClass}
             disabled={!nombre}
             style={{ opacity: nombre ? 1 : 0.4, pointerEvents: nombre ? 'auto' : 'none' }}
-            onClick={() => setStep(1)}
+            onClick={handleConfirmNombre}
           >
-            CONFIRMAR
+            {checkingPublicVoter ? 'VERIFICANDO...' : 'CONFIRMAR'}
           </button>
         </div>
       </div>
@@ -560,63 +721,215 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                 return;
               }
 
-              if (hasAccess === false) {
+              if (hasAccess === false && !isPublicVoting) {
                 console.error('[Vote] error', { message: 'Access denied', code: ERROR_CODES.ACCESS_DENIED });
                 handleError(new AppError('No tienes permiso para votar en este partido.', ERROR_CODES.ACCESS_DENIED), { showToast: true, onError: () => { } });
                 return;
               }
 
-              // Validate payload
-              const voteCount = Object.keys(votos).filter((k) => votos[k]).length;
-              if (voteCount === 0) {
-                console.debug('[Vote] invalid payload, abort');
-                toast.error('Debes calificar al menos a un jugador');
-                return;
-              }
-
-              console.debug('[Vote] start', { matchId: partidoActual?.id, playerId: jugador?.uuid, voteCount });
-
               setIsSubmitting(true);
               setConfirmando(true);
 
               try {
-                // GUARD: Use cached matchId if available, avoid re-resolution
-                let partidoId = resolvedMatchIdRef.current;
+                if (isPublicVoting) {
+                  const partidoIdParam = urlParams.get('partidoId');
+                  const codigoParam = urlParams.get('codigo');
+                  const partidoId = partidoIdParam ? parseInt(partidoIdParam, 10) : (resolvedMatchIdRef.current || partidoActual?.id);
+                  const codigo = codigoParam ? codigoParam.trim().toUpperCase() : null;
 
-                if (!partidoId) {
-                  // Fallback: resolve from URL params
-                  const urlParams = new URLSearchParams(window.location.search);
-                  const { partidoId: resolvedId, error } = await resolveMatchIdFromQueryParams(urlParams);
-
-                  if (error || !resolvedId) {
-                    throw new AppError(error || 'No se pudo resolver el partido', ERROR_CODES.VALIDATION_ERROR);
+                  if (!partidoId || Number.isNaN(partidoId)) {
+                    toast.error('No se pudo resolver el partido para votar');
+                    return;
                   }
-                  partidoId = resolvedId;
+                  if (!codigo) {
+                    toast.error('Código de votación inválido');
+                    return;
+                  }
+                  if (!nombre) {
+                    toast.error('Seleccioná tu nombre para votar');
+                    return;
+                  }
+
+                  const mapScore = (value) => {
+                    const num = Number(value);
+                    if (!Number.isFinite(num)) return null;
+                    if (num >= 1 && num <= 5) return num;
+                    if (num >= 1 && num <= 10) return Math.min(5, Math.max(1, Math.ceil(num / 2)));
+                    return null;
+                  };
+
+                  const resultados = { ok: 0, already: 0, invalid: 0 };
+
+                  for (const j of jugadoresParaVotar) {
+                    const rawVote = votos[j.uuid];
+
+                    if (rawVote === undefined || rawVote === null) {
+                      const { data, error } = await supabase.rpc('public_submit_no_lo_conozco', {
+                        p_partido_id: partidoId,
+                        p_codigo: codigo,
+                        p_votante_nombre: nombre,
+                        p_votado_jugador_id: j.uuid,
+                      });
+
+                      if (error) {
+                        resultados.invalid += 1;
+                        toast.error('No se pudo enviar un voto');
+                        continue;
+                      }
+
+                      const result = data?.result || data;
+                      if (result === 'already_voted_session') {
+                        lockedRef.current = true;
+                        setPublicAlreadyVoted(true);
+                        toast.info('Tus votos ya fueron registrados ✅');
+                        return;
+                      }
+                      if (result === 'already_voted_for_match') {
+                        lockedRef.current = true;
+                        setPublicAlreadyVoted(true);
+                        toast.info('Tus votos ya fueron registrados ✅');
+                        if (DEBUG) console.debug('[Guard] First RPC detected duplicate - locked');
+                        return;
+                      }
+                      if (result === 'already_voted_for_player') {
+                        resultados.already += 1;
+                        continue;
+                      }
+                      if (result === 'invalid' || result === 'invalid_player') {
+                        resultados.invalid += 1;
+                        toast.error('Jugador inválido');
+                        continue;
+                      }
+                      resultados.ok += 1;
+                      continue;
+                    }
+
+                    const puntaje = mapScore(rawVote);
+                    if (!puntaje) {
+                      resultados.invalid += 1;
+                      toast.error('Puntaje inválido');
+                      continue;
+                    }
+
+                    const { data, error } = await supabase.rpc('public_submit_player_rating', {
+                      p_partido_id: partidoId,
+                      p_codigo: codigo,
+                      p_votante_nombre: nombre,
+                      p_votado_jugador_id: j.uuid,
+                      p_puntaje: puntaje,
+                    });
+
+                    if (error) {
+                      resultados.invalid += 1;
+                      toast.error('No se pudo enviar un voto');
+                      continue;
+                    }
+
+                    const result = data?.result || data;
+                    if (result === 'already_voted_session') {
+                      lockedRef.current = true;
+                      setPublicAlreadyVoted(true);
+                      toast.info('Tus votos ya fueron registrados ✅');
+                      return;
+                    }
+                    if (result === 'already_voted_for_match') {
+                      lockedRef.current = true;
+                      setPublicAlreadyVoted(true);
+                      toast.info('Tus votos ya fueron registrados ✅');
+                      if (DEBUG) console.debug('[Guard] Second RPC detected duplicate - locked');
+                      return;
+                    }
+                    if (result === 'already_voted_for_player') {
+                      resultados.already += 1;
+                      continue;
+                    }
+                    if (result === 'invalid' || result === 'invalid_player') {
+                      resultados.invalid += 1;
+                      toast.error('Jugador inválido');
+                      continue;
+                    }
+                    resultados.ok += 1;
+                  }
+
+                  // ✅ Marcar que este votante ya confirmó (bloquea re-voto por nombre)
+                  const { data: doneData, error: doneError } = await supabase.rpc('public_mark_voter_completed', {
+                    p_partido_id: partidoId,
+                    p_codigo: codigo,
+                    p_votante_nombre: nombre,
+                  });
+
+                  if (doneError) {
+                    // Si falla igual guardamos votos, pero avisamos suave
+                    console.warn('[Vote] could not mark completed', doneError);
+                  } else {
+                    const r = doneData?.result || doneData;
+                    if (r === 'already_completed') {
+                      lockedRef.current = true;
+                      setPublicAlreadyVoted(true);
+                      toast.info('Tus votos ya fueron registrados ✅');
+                      if (DEBUG) console.debug('[Guard] Mark completed detected duplicate - locked');
+                      return;
+                    }
+                  }
+
+                  toast.success('Votos enviados');
+                  console.debug('[Vote] public submit result', resultados);
+                  lockedRef.current = true;
+                  setFinalizado(true);
+                } else {
+                  // Validate payload
+                  const voteCount = Object.keys(votos).filter((k) => votos[k]).length;
+                  if (voteCount === 0) {
+                    console.debug('[Vote] invalid payload, abort');
+                    toast.error('Debes calificar al menos a un jugador');
+                    return;
+                  }
+
+                  console.debug('[Vote] start', { matchId: partidoActual?.id, playerId: jugador?.uuid, voteCount });
+
+                  // GUARD: Use cached matchId if available, avoid re-resolution
+                  let partidoId = resolvedMatchIdRef.current;
+
+                  if (!partidoId) {
+                    // Fallback: resolve from URL params
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const { partidoId: resolvedId, error } = await resolveMatchIdFromQueryParams(urlParams);
+
+                    if (error || !resolvedId) {
+                      throw new AppError(error || 'No se pudo resolver el partido', ERROR_CODES.VALIDATION_ERROR);
+                    }
+                    partidoId = resolvedId;
+                  }
+
+                  // Build safe payload for logging
+                  const safePayload = {
+                    partidoId,
+                    jugadorUuid: jugador?.uuid,
+                    voteCount,
+                    hasNombre: !!jugador?.nombre,
+                  };
+                  console.debug('[Vote] build payload', safePayload);
+                  console.debug('[Vote] submit sending');
+
+                  await submitVotos(votos, jugador?.uuid, partidoId, jugador?.nombre, jugador?.avatar_url);
+
+                  console.debug('[Vote] submit result', { ok: true });
+
+                  // Trigger refresh for admin panel (updated_at handled by trigger)
+                  await supabase.from('partidos').update({ status: 'voted' }).eq('id', partidoId);
+
+                  console.debug('[Vote] step change', { from: 3, to: 'finalizado' });
+                  lockedRef.current = true;
+                  setFinalizado(true);
                 }
-
-                // Build safe payload for logging
-                const safePayload = {
-                  partidoId,
-                  jugadorUuid: jugador?.uuid,
-                  voteCount,
-                  hasNombre: !!jugador?.nombre,
-                };
-                console.debug('[Vote] build payload', safePayload);
-                console.debug('[Vote] submit sending');
-
-                await submitVotos(votos, jugador?.uuid, partidoId, jugador?.nombre, jugador?.avatar_url);
-
-                console.debug('[Vote] submit result', { ok: true });
-
-                // Trigger refresh for admin panel (updated_at handled by trigger)
-                await supabase.from('partidos').update({ status: 'voted' }).eq('id', partidoId);
-
-                console.debug('[Vote] step change', { from: 3, to: 'finalizado' });
-                setFinalizado(true);
               } catch (error) {
                 console.error('[Vote] error', { message: error?.message, code: error?.code });
                 console.debug('[Vote] submit result', { ok: false });
-                handleError(error, { showToast: true, onError: () => { } });
+                if (isPublicVoting) {
+                  toast.error('No se pudo enviar tus votos');
+                } else {
+                  handleError(error, { showToast: true, onError: () => { } });
+                }
               } finally {
                 setConfirmando(false);
                 setIsSubmitting(false);
@@ -638,10 +951,12 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         <div className={cardClass}>
           <div className={titleClass}>
-            ¡GRACIAS POR VOTAR!
+            {publicAlreadyVoted ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
           </div>
           <div className={`${textClass} text-[27px] mb-[27px] tracking-[1.1px]`}>
-            Tus votos fueron registrados.<br />Podés cerrar esta ventana.
+            {publicAlreadyVoted
+              ? 'Tus votos ya fueron registrados ✅'
+              : 'Tus votos fueron registrados.\nPodés cerrar esta ventana.'}
           </div>
           <button
             className={btnClass}

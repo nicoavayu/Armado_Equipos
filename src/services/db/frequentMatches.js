@@ -174,8 +174,11 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
 
   // Use modalidad from template if available, otherwise use parameter default
   const finalModalidad = partidoFrecuente.modalidad || modalidad;
+  const { v4: uuidv4 } = await import('uuid');
+  const match_ref = uuidv4();
 
   const partido = await crearPartido({
+    match_ref,
     nombre: partidoFrecuente.nombre, // Usar el nombre del partido frecuente
     fecha: normalizedDate,
     hora: partidoFrecuente.hora,
@@ -187,7 +190,7 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     tipo_partido: partidoFrecuente.tipo_partido || 'Masculino',
   });
 
-  console.log('New match created with ID:', partido.id);
+  console.log('New match created with match_ref:', partido.match_ref);
 
   // Add frequent match type and reference
   partido.frequent_match_name = partidoFrecuente.nombre;
@@ -207,7 +210,7 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     }));
 
     console.log('Adding players to new match:', jugadoresLimpios);
-    await updateJugadoresPartido(partido.id, jugadoresLimpios);
+    await updateJugadoresPartido(partido.match_ref, jugadoresLimpios);
     partido.jugadores = jugadoresLimpios;
   } else {
     partido.jugadores = [];
@@ -365,17 +368,17 @@ export const subscribeToPartidosChanges = (callback) => {
  * @param {string} partidoId
  * @returns {Promise<Object>} Created frequent match
  */
-export const insertPartidoFrecuenteFromPartido = async (partidoId) => {
-  if (!partidoId) throw new Error('partidoId required');
+export const insertPartidoFrecuenteFromPartido = async (match_ref) => {
+  if (!match_ref) throw new Error('match_ref required');
   // Fetch the partido row
   const { data: partido, error: fetchError } = await supabase
     .from('partidos_view')
     .select('*')
-    .eq('id', partidoId)
+    .eq('match_ref', match_ref)
     .single();
 
-  if (fetchError) throw new Error(`Error fetching partido ${partidoId}: ${fetchError.message}`);
-  if (!partido) throw new Error(`Partido ${partidoId} not found`);
+  if (fetchError) throw new Error(`Error fetching partido ${match_ref}: ${fetchError.message}`);
+  if (!partido) throw new Error(`Partido ${match_ref} not found`);
 
   // Map partido fields into the frequent-match expected shape
   const jugadores_frecuentes = Array.isArray(partido.jugadores) ? partido.jugadores.map((j) => ({

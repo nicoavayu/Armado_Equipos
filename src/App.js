@@ -22,6 +22,7 @@ import { BadgeProvider } from './context/BadgeContext';
 const EncuestaPartido = lazy(() => import('./pages/EncuestaPartido'));
 const ResultadosEncuestaView = lazy(() => import('./pages/ResultadosEncuestaView'));
 const HealthCheck = lazy(() => import('./pages/HealthCheck'));
+const VotarEquiposPage = lazy(() => import('./pages/VotarEquiposPage'));
 
 const HomePage = lazy(() => import('./pages/HomePage'));
 const NuevoPartidoPage = lazy(() => import('./pages/NuevoPartidoPage'));
@@ -80,11 +81,18 @@ export default function App() {
                       </Suspense>
                     } />
                     <Route path="/reset-password" element={<ResetPassword />} />
-
+                    
                     {/* Ruta pública: invitación a partido (sin auth requerido) */}
                     <Route path="/partido/:partidoId/invitacion" element={
                       <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
                         <PartidoInvitacion />
+                      </Suspense>
+                    } />
+                    
+                    {/* Ruta pública: votación de equipos (sin auth requerido) */}
+                    <Route path="/votar-equipos" element={
+                      <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <VotarEquiposPage />
                       </Suspense>
                     } />
 
@@ -147,7 +155,7 @@ export default function App() {
                         } />
                         <Route path="partido/:partidoId" element={
                           <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
-                            <PartidoInvitacion mode="invite" />
+                            <AdminPanelPage />
                           </Suspense>
                         } />
                         <Route path="partido-publico/:partidoId" element={

@@ -6,6 +6,7 @@ import { insertPartidoFrecuenteFromPartido } from '../services/db/frequentMatche
 import { formatLocalDateShort } from '../utils/dateLocal';
 import { useTimeout } from '../hooks/useTimeout';
 import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchDateDebug';
+import { v4 as uuidv4 } from 'uuid';
 
 import PageTitle from '../components/PageTitle';
 import ListaPartidosFrecuentes from './ListaPartidosFrecuentes';
@@ -178,23 +179,29 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
       }
 
       // Normalize numeric precio value (used only for the frequent template insert)
-      const precioVal = (valorCancha !== undefined && valorCancha !== null && String(valorCancha).trim() !== '')
-        ? Number(String(valorCancha).replace(/[^0-9.,-]/g, '').replace(/,/g, '.'))
-        : undefined;
+      const precioRaw = (valorCancha !== undefined && valorCancha !== null)
+        ? String(valorCancha).trim()
+        : '';
+      const precioClean = precioRaw.replace(/[^0-9.,-]/g, '').replace(/,/g, '.');
+      const precioNum = precioClean === '' ? NaN : Number(precioClean);
+      const precioVal = Number.isFinite(precioNum) ? precioNum : null;
 
       // Build payload for crearPartido - include precio_cancha_por_persona when provided
+      const resolvedCupo = modalidadToCupo[modalidad] ?? cupo;
+      const match_ref = uuidv4();
       const payload = {
+        match_ref,
         nombre: nombrePartido.trim(),
         fecha,
         hora: hora.trim(),
         sede: sede.trim(),
-        sedeMaps: sedeInfo?.place_id || '',
+        sedeMaps: { place_id: sedeInfo?.place_id || '' },
         modalidad,
-        cupo_jugadores: cupo,
+        cupo_jugadores: Number(resolvedCupo),
         falta_jugadores: false,
         tipo_partido: tipoPartido,
         creado_por: user?.id,
-        ...(precioVal !== undefined ? { precio_cancha_por_persona: precioVal } : {}),
+        ...(precioVal !== null ? { precio_cancha_por_persona: precioVal } : { precio_cancha_por_persona: null }),
       };
 
       // Finally, create the match in partidos (never with valor_cancha)
@@ -206,12 +213,13 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
         return;
       }
 
-      console.log('[CREATE] created partido', { id: partido?.id, shouldSaveFrequent });
+      console.log('[CREATE] created partido', { match_ref: partido?.match_ref, shouldSaveFrequent });
 
-      console.log('[CREAR_PARTIDO] willPlay:', willPlay, 'user:', user?.id, 'partido:', partido?.id);
+      console.log('[CREAR_PARTIDO] willPlay:', willPlay, 'user:', user?.id, 'partido:', partido?.match_ref);
 
       if (willPlay === true && user?.id && partido?.id) {
         try {
+          // Check using partido_id (stable ID)
           const { data: existingPlayer, error: existingError } = await supabase
             .from('jugadores')
             .select('id')
@@ -232,7 +240,8 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             const avatarUrl = profile?.avatar_url || usuarioData?.avatar_url || null;
 
             const jugadorRow = {
-              partido_id: Number(partido.id),
+              partido_id: partido.id, // Use numeric ID as primary link
+              match_ref: partido.match_ref, // Keep ref just in case
               usuario_id: user.id,
               nombre,
               avatar_url: avatarUrl,
@@ -258,9 +267,9 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
 
       // Only after the partido is successfully created, optionally save a frequent template
       if (shouldSaveFrequent === true) {
-        console.log('[NuevoPartido] will insert frequent template for partido id:', partido?.id);
+        console.log('[NuevoPartido] will insert frequent template for partido match_ref:', partido?.match_ref);
         try {
-          await insertPartidoFrecuenteFromPartido(partido?.id);
+          await insertPartidoFrecuenteFromPartido(partido?.match_ref);
           toast.success('Plantilla guardada ✅');
         } catch (err) {
           console.error('[Guardar frecuente] error inserting frequent template:', err);

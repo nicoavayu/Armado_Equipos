@@ -31,19 +31,8 @@ const EmptyPlayersState = ({ view = 'guest', onShareClick }) => {
           Todavía no hay jugadores.
         </div>
         <div className="text-white/40 font-oswald text-sm leading-relaxed mb-4">
-          Tocá <span className="text-white/60">+ Agregar jugador</span> (arriba) o compartí el link.
+          Usá 'Invitar amigos' o 'Agregar manualmente' arriba para sumar jugadores.
         </div>
-        {onShareClick && (
-          <button
-            onClick={onShareClick}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/20 text-white/70 hover:text-white text-xs font-oswald font-semibold transition-all"
-            type="button"
-            title="Compartir enlace del partido"
-          >
-            <Share2 size={12} />
-            Compartir link
-          </button>
-        )}
       </div>
     );
   }
@@ -89,6 +78,7 @@ const PlayersSection = ({
   onInviteFriends,
   onAddManual,
   onShareClick,
+  unirseAlPartido,
 }) => {
   const [localMenuOpen, setLocalMenuOpen] = useState(false);
   const [playerToRemove, setPlayerToRemove] = useState(null);
@@ -226,6 +216,15 @@ const PlayersSection = ({
           </div>
           {jugadores.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 gap-4 w-full">
+              {isAdmin && !isPlayerInMatch && (
+                <button
+                  className="w-full max-w-xs h-14 rounded-xl bg-emerald-600 text-white font-bebas text-xl tracking-widest shadow-[0_4px_14px_rgba(16,185,129,0.3)] hover:brightness-110 active:scale-95 transition-all mb-2"
+                  type="button"
+                  onClick={() => unirseAlPartido && unirseAlPartido()}
+                >
+                  ¡ME SUMO! (JUGAR)
+                </button>
+              )}
               <button
                 className="w-full max-w-xs h-14 rounded-xl bg-[#128BE9] text-white font-bebas text-xl tracking-widest shadow-[0_4px_14px_rgba(18,139,233,0.3)] hover:brightness-110 active:scale-95 transition-all"
                 type="button"
@@ -415,36 +414,11 @@ const PlayersSection = ({
         )}
       </div>
       {jugadores.length === 0 ? (
-        <div className="w-full flex flex-col items-center justify-center py-10 px-6">
-          <p className="text-sm text-white/70 text-center leading-relaxed max-w-[420px]">
-            Usá ‘Invitar amigos’ o ‘Agregar manualmente’ arriba para sumar jugadores.
-          </p>
-        </div>
+        <EmptyPlayersState view={isAdmin ? 'admin' : 'guest'} onShareClick={onShareClick} />
       ) : (
         <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
           {jugadores.map(renderPlayerCard)}
         </div>
-      )}
-
-      <ConfirmModal
-        isOpen={playerToRemove !== null}
-        title="Eliminar jugador"
-        message={`¿Eliminar a ${playerToRemove?.nombre} del partido?`}
-        onConfirm={() => {
-          if (playerToRemove) {
-            eliminarJugador(playerToRemove.id);
-            setPlayerToRemove(null);
-          }
-        }}
-        onCancel={() => setPlayerToRemove(null)}
-        confirmText="Eliminar"
-        cancelText="Cancelar"
-        isDeleting={isClosing}
-      />
-
-      {/* Render EmptyPlayersState logic when list is empty - but usually redundant if handled above */}
-      {isAdmin && jugadores.length === 0 && (
-        <EmptyPlayersState view="admin" onShareClick={onShareClick} />
       )}
     </div>
   );
