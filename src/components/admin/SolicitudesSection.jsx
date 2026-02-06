@@ -98,13 +98,16 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted }) => {
             });
 
             if (rpcError) {
-                console.error('[ACCEPT] RPC Error:', {
-                    code: rpcError.code,
-                    message: rpcError.message,
-                    details: rpcError.details,
-                    hint: rpcError.hint,
-                });
-                throw rpcError;
+                console.error('[ACCEPT] RPC Error:', rpcError);
+                // Handle case where player is already in the match (Duplicate key)
+                if (rpcError.code === '23505' || rpcError.message?.includes('unique constraint')) {
+                    console.log('[ACCEPT] User already in match, treating as success');
+                    toast.success('El jugador ya forma parte del partido');
+                    // Continue to success UI logic
+                } else {
+                    toast.error(`Error al aceptar: ${rpcError.message}`);
+                    throw rpcError;
+                }
             }
 
             console.log('[ACCEPT] RPC approve_join_request completed successfully for request:', request.id);

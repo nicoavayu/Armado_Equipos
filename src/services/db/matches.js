@@ -102,30 +102,59 @@ export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
   const pid = Number(partidoId);
   if (!pid || Number.isNaN(pid)) throw new Error('partidoId inválido');
 
-  // Remove current players for match
-  const { error: delErr } = await supabase
-    .from('jugadores')
-    .delete()
-    .eq('partido_id', pid);
-  if (delErr) throw delErr;
-
-  // Deduplicate rows by UUID to prevent 23505 errors
+  // 1. Prepare data for upsert
   const uniqueRowsMap = new Map();
   (nuevosJugadores || []).forEach((j) => {
-    if (j.uuid && !uniqueRowsMap.has(j.uuid)) {
-      uniqueRowsMap.set(j.uuid, { ...j, partido_id: pid });
+    // We favor usuario_id or uuid for identity
+    const identity = j.usuario_id || j.uuid || j.id;
+    if (identity && !uniqueRowsMap.has(identity)) {
+      uniqueRowsMap.set(identity, {
+        partido_id: pid,
+        usuario_id: j.usuario_id || (j.uuid ? j.uuid : null),
+        nombre: j.nombre || 'Jugador',
+        avatar_url: j.avatar_url || null,
+        is_goalkeeper: !!j.is_goalkeeper,
+        score: j.score ?? 5
+      });
     }
   });
   const rows = Array.from(uniqueRowsMap.values());
 
-  if (!rows.length) return [];
+  // 2. SAFEGUARD: If the list is empty, we only DELETE if we are SURE it's intentional.
+  // In many cases, an empty list here is a race condition or fetch error.
+  if (rows.length === 0) {
+    console.warn('[UPDATE_JUGADORES] Attempted to set empty player list for match:', pid, '- Skipping for safety');
+    return [];
+  }
 
-  const { data: inserted, error: insErr } = await supabase
+  // 3. Upsert existing/new players
+  // This uses the UNIQUE(partido_id, usuario_id) constraint we added in the migration
+  const { data: upserted, error: upsertErr } = await supabase
     .from('jugadores')
-    .insert(rows)
+    .upsert(rows, { onConflict: 'partido_id, usuario_id' })
     .select('*');
-  if (insErr) throw insErr;
-  return inserted || [];
+
+  if (upsertErr) {
+    console.error('[UPDATE_JUGADORES] Upsert error:', upsertErr);
+    throw upsertErr;
+  }
+
+  // 4. Cleanup: Remove players that are NO LONGER in the list
+  // Only remove if they are NOT in the 'rows' identity list
+  const activeUserIds = rows.map(r => r.usuario_id).filter(Boolean);
+  if (activeUserIds.length > 0) {
+    const { error: cleanErr } = await supabase
+      .from('jugadores')
+      .delete()
+      .eq('partido_id', pid)
+      .not('usuario_id', 'in', `(${activeUserIds.join(',')})`);
+
+    if (cleanErr) {
+      console.warn('[UPDATE_JUGADORES] Cleanup error (non-fatal):', cleanErr);
+    }
+  }
+
+  return upserted || [];
 };
 
 /**

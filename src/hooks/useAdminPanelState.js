@@ -41,7 +41,12 @@ export const useAdminPanelState = ({
 
   const jugadoresActuales = jugadoresLocal || [];
   const currentPlayerInMatch = jugadoresActuales.find((j) => j.usuario_id === user?.id);
-  const isPlayerInMatch = !!currentPlayerInMatch;
+
+  // New state to track if user has an approved request but isn't in players table yet
+  const [hasApprovedRequest, setHasApprovedRequest] = useState(false);
+
+  // Combined membership state
+  const isPlayerInMatch = !!currentPlayerInMatch || hasApprovedRequest;
 
   // Sync with initial props
   useEffect(() => {
@@ -65,9 +70,27 @@ export const useAdminPanelState = ({
         const isInMatch = jugadores.some((j) => j.usuario_id === user.id);
         if (isInMatch) {
           setPendingInvitation(false);
+          setHasApprovedRequest(false);
           setInvitationChecked(true);
           return;
         }
+
+        // --- NEW: Check match_join_requests for approved status ---
+        const { data: joinReq } = await supabase
+          .from('match_join_requests')
+          .select('status')
+          .eq('match_id', partidoActual.id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (joinReq?.status === 'approved') {
+          console.log('[ADMIN_PANEL] User has approved request, synchronizing...');
+          setHasApprovedRequest(true);
+          setPendingInvitation(false);
+          setInvitationChecked(true);
+          return;
+        }
+        // ---------------------------------------------------------
 
         // Validate partidoActual.id is a valid value
         if (!partidoActual.id || partidoActual.id === 'undefined' || partidoActual.id === 'null') {
@@ -133,7 +156,10 @@ export const useAdminPanelState = ({
       const votantesNombres = await getVotantesConNombres(partidoActual.id);
       setVotantes(votantesIds || []);
       setVotantesConNombres(votantesNombres || []);
-      onJugadoresChange(jugadoresPartido);
+
+      // Update local state instead of calling parent onJugadoresChange 
+      // which triggers a destructive updateJugadoresPartido.
+      setJugadoresLocal(jugadoresPartido || []);
     } catch (error) {
       console.error('Error loading initial data:', error);
     }
@@ -159,7 +185,6 @@ export const useAdminPanelState = ({
         try {
           const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
           setJugadoresLocal(jugadoresPartido);
-          onJugadoresChange(jugadoresPartido);
         } catch (error) {
           console.error('Error refreshing players:', error);
         }
@@ -757,5 +782,6 @@ export const useAdminPanelState = ({
     invitationStatus, // Export status
     unirseAlPartido,
     fetchJugadores,
+    hasApprovedRequest, // Export new state
   };
 };
