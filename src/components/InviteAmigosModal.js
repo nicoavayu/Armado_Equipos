@@ -77,6 +77,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
             .select('user_id')
             .eq('type', 'match_invite')
             .eq('match_id_text', partidoActual.id.toString())
+            .eq('read', false) // Only count UNREAD (pending) invitations
             .in('user_id', friendIds);
 
           if (extError && extError.code === '42P01') {
@@ -156,6 +157,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
           .eq('user_id', amigo.id)
           .eq('type', 'match_invite')
           .eq('match_id_text', partidoActual.id.toString())
+          .eq('read', false) // Only block if UNREAD
           .single();
 
         if (extError && extError.code === '42P01') {

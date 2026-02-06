@@ -117,8 +117,10 @@ const NotificationsView = () => {
         navigate('/amigos');
         break;
       case 'match_invite':
-        if (data.matchId) {
-          navigate(`/partido/${toBigIntId(data.matchId)}`);
+        if (matchId) {
+          navigate(`/partido/${toBigIntId(matchId)}`);
+        } else {
+          console.error('[NOTIFICATION_CLICK] match_invite missing matchId', notification);
         }
         break;
       case 'call_to_vote':

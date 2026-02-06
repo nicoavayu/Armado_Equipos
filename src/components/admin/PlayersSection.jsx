@@ -288,18 +288,18 @@ const PlayersSection = ({
                   // Valid Pending Invitation
                   <>
                     <button
-                      className="flex-[1.4] font-bebas text-[20px] h-14 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:bg-[#0f7acc] hover:shadow-[0_0_20px_rgba(18,139,233,0.4)] active:scale-95 shadow-[0_4px_10px_rgba(0,0,0,0.3)]"
+                      className="flex-[1.5] font-bebas text-lg h-12 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:bg-[#0f7acc] hover:shadow-[0_0_20px_rgba(18,139,233,0.4)] active:scale-95 shadow-[0_4px_10px_rgba(0,0,0,0.3)]"
                       onClick={aceptarInvitacion}
                       disabled={invitationLoading || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
                     >
-                      {invitationLoading ? <LoadingSpinner size="small" /> : 'ACEPTAR INVITACIÓN'}
+                      {invitationLoading ? <LoadingSpinner size="small" /> : 'ACEPTAR'}
                     </button>
                     <button
-                      className="flex-1 font-bebas text-[18px] h-14 rounded-xl cursor-pointer transition-all text-white/80 flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-slate-800 hover:bg-slate-700 border border-white/10 active:scale-95 hover:text-white"
+                      className="flex-1 font-bebas text-lg h-12 rounded-xl cursor-pointer transition-all text-white/70 flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-transparent border border-white/20 hover:bg-white/10 hover:text-white active:scale-95"
                       onClick={rechazarInvitacion}
                       disabled={invitationLoading}
                     >
-                      NO PUEDO
+                      RECHAZAR
                     </button>
                   </>
                 )

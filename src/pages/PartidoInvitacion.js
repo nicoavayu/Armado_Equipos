@@ -176,28 +176,28 @@ function SharedInviteLayout({
                     )}
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-3 w-full">
+                  <div className="flex flex-row gap-3 w-full justify-center items-stretch">
+                    <button
+                      onClick={onNavigateHome}
+                      className="flex-1 bg-white/5 text-white/70 py-4 rounded-xl font-bebas text-xl tracking-widest hover:bg-white/10 hover:text-white transition-all border border-white/10 active:scale-95 uppercase font-bold"
+                    >
+                      RECHAZAR
+                    </button>
                     <button
                       onClick={onSumarse}
                       disabled={!codigoValido || submitting}
-                      className="w-full bg-primary text-white py-4 rounded-xl font-bebas text-xl tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 uppercase font-bold border-2 border-white/10"
+                      className="flex-[2] bg-primary text-white py-4 rounded-xl font-bebas text-xl tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 uppercase font-bold border-2 border-white/10 shadow-[0_0_20px_rgba(43,230,12,0.3)]"
                     >
-                      {submitting ? 'Sumándote...' : 'ACEPTAR INVITACIÓN'}
-                    </button>
-                    <button
-                      onClick={onNavigateHome}
-                      className="w-full bg-slate-800/80 text-white/70 py-3 rounded-xl font-bebas text-lg tracking-widest hover:bg-slate-700 hover:text-white transition-all border border-white/10 active:scale-95 uppercase font-bold"
-                    >
-                      NO PUEDO
+                      {submitting ? 'SUMANDO...' : 'ACEPTAR'}
                     </button>
                   </div>
                 )}
               </div>
             </div>
           </div>
-        </main>
-      </div>
-    </div>
+        </main >
+      </div >
+    </div >
   );
 }
 
@@ -269,7 +269,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       if (mode === 'public') {
         try {
           const { data, error: fetchError } = await supabase
-            .from('partidos')
+            .from('partidos_view')
             .select('*')
             .eq('id', partidoId)
             .maybeSingle();

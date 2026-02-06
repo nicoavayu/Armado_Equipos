@@ -97,8 +97,15 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const handleAbandon = async () => {
     if (!adminState.currentPlayerInMatch && !user?.id) return;
     setProcessingAction(true);
+    setProcessingAction(true);
     try {
-      await adminState.eliminarJugador(adminState.currentPlayerInMatch?.uuid || user.id, false);
+      // Must pass the numerical ID (PK) of the player, not the UUID
+      const playerId = adminState.currentPlayerInMatch?.id;
+      if (!playerId) {
+        console.error('Cannot abandon: No player ID found for current user');
+        return;
+      }
+      await adminState.eliminarJugador(playerId, false);
     } finally {
       setProcessingAction(false);
       setConfirmConfig({ open: false, type: null });

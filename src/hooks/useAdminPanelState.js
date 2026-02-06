@@ -110,7 +110,6 @@ export const useAdminPanelState = ({
           .eq('match_id_text', partidoActual.id.toString())
           .order('send_at', { ascending: false }) // Get latest
           .limit(1)
-          .limit(1)
           .maybeSingle();
 
         if (invitation) {
@@ -568,7 +567,11 @@ export const useAdminPanelState = ({
       }, 1500);
 
     } catch (error) {
-      toast.error('Error al unirse al partido: ' + error.message);
+      if (error.message && error.message.includes('row-level security policy')) {
+        console.warn('Suppressing RLS error during join sync (expected for non-admins):', error);
+      } else {
+        toast.error('Error al unirse al partido: ' + error.message);
+      }
     } finally {
       setInvitationLoading(false);
     }

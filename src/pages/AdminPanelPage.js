@@ -89,6 +89,8 @@ const AdminPanelPage = () => {
         } catch (refreshError) {
           console.error('Error refreshing after duplicate error:', refreshError);
         }
+      } else if (error?.message?.includes('row-level security policy')) {
+        console.warn('Suppressing RLS error during sync (expected for non-admins):', error);
       } else {
         toast.error('Error al actualizar jugadores: ' + (error.message || 'Error desconocido'));
       }

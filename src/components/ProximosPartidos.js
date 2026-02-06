@@ -190,6 +190,9 @@ const ProximosPartidos = ({ onClose }) => {
 
       if (partidosError) throw partidosError;
 
+      console.log('[PROXIMOS] Fetched matches IDs:', todosLosPartidosIds);
+      console.log('[PROXIMOS] Returned matches from DB:', partidosData?.length);
+
       const now = new Date();
       const partidosFiltrados = partidosData.filter((partido) => {
         // Filter out cleared matches
