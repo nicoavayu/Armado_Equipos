@@ -1,6 +1,6 @@
 import React from 'react';
 import { FaCrown } from 'react-icons/fa';
-import { MoreVertical, LogOut, XCircle } from 'lucide-react';
+import { MoreVertical, LogOut, XCircle, Trash2 } from 'lucide-react';
 import { formatLocalDM } from '../utils/dateLocal';
 
 const formatMatchDate = (fecha) => formatLocalDM(fecha);
@@ -33,12 +33,13 @@ const MatchCard = ({
     isMenuOpen = false,
     onAbandon = null,
     onCancel = null,
+    onDelete = null,
     onClear = null,
     primaryAction = null,
     isSelected = false,
     onSelect = () => { },
 }) => {
-    const showMenu = (userJoined || userRole === 'admin' || isFinished) && (onAbandon || onCancel || onClear);
+    const showMenu = (userJoined || userRole === 'admin' || isFinished) && (onAbandon || onCancel || onDelete || onClear);
 
     const precioRaw = (partido?.precio_cancha_por_persona ?? partido?.precio_cancha ?? partido?.precio ?? partido?.valor_cancha);
     let precioNumber = null;
@@ -120,6 +121,15 @@ const MatchCard = ({
                                             >
                                                 <XCircle size={16} />
                                                 <span>Cancelar partido</span>
+                                            </button>
+                                        )}
+                                        {userRole === 'admin' && onDelete && (
+                                            <button
+                                                className="w-full px-3 py-2 flex items-center gap-2 text-left text-red-500 font-medium hover:bg-slate-800"
+                                                onClick={(e) => { e.stopPropagation(); onDelete(partido); }}
+                                            >
+                                                <Trash2 size={16} />
+                                                <span>Eliminar partido</span>
                                             </button>
                                         )}
                                         {isFinished && onClear && (

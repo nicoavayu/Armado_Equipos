@@ -1,0 +1,104 @@
+.notif-debug-panel {
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    color: #fff;
+}
+
+.notif-debug-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.notif-debug-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.notif-debug-header button {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.notif-debug-header button:disabled {
+    background: #666;
+    cursor: not-allowed;
+}
+
+.notif-debug-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.notif-debug-filters input,
+.notif-debug-filters select {
+    flex: 1;
+    padding: 8px 12px;
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #fff;
+    font-size: 14px;
+}
+
+.notif-debug-logs {
+    overflow-x: auto;
+}
+
+.notif-debug-logs table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.notif-debug-logs th {
+    background: #2a2a2a;
+    padding: 10px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #444;
+}
+
+.notif-debug-logs td {
+    padding: 10px;
+    border-bottom: 1px solid #333;
+}
+
+.notif-debug-logs tr:hover {
+    background: #252525;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: white;
+}
+
+.error-cell {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #f44336;
+    font-size: 12px;
+}
+
+.no-logs {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+    font-style: italic;
+}

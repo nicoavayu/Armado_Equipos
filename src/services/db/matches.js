@@ -109,8 +109,10 @@ export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
     const identity = j.usuario_id || j.uuid || j.id;
     if (identity && !uniqueRowsMap.has(identity)) {
       uniqueRowsMap.set(identity, {
+        id: j.id, // Preserve ID if present
         partido_id: pid,
-        usuario_id: j.usuario_id || (j.uuid ? j.uuid : null),
+        usuario_id: j.usuario_id || null, // Ensure NULL if not a real user
+        uuid: j.uuid || null, // Preserve UUID for manual players
         nombre: j.nombre || 'Jugador',
         avatar_url: j.avatar_url || null,
         is_goalkeeper: !!j.is_goalkeeper,
@@ -121,22 +123,40 @@ export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
   const rows = Array.from(uniqueRowsMap.values());
 
   // 2. SAFEGUARD: If the list is empty, we only DELETE if we are SURE it's intentional.
-  // In many cases, an empty list here is a race condition or fetch error.
   if (rows.length === 0) {
     console.warn('[UPDATE_JUGADORES] Attempted to set empty player list for match:', pid, '- Skipping for safety');
     return [];
   }
 
-  // 3. Upsert existing/new players
-  // This uses the UNIQUE(partido_id, usuario_id) constraint we added in the migration
-  const { data: upserted, error: upsertErr } = await supabase
-    .from('jugadores')
-    .upsert(rows, { onConflict: 'partido_id, usuario_id' })
-    .select('*');
+  // 3. Split into Real Users vs Manual Players
+  // Real users have a valid usuario_id and subject to UNIQUE(partido_id, usuario_id)
+  // Manual players do NOT have usuario_id, so we must upsert by ID or insert new.
+  const realUsers = rows.filter(r => r.usuario_id);
+  const manualPlayers = rows.filter(r => !r.usuario_id && r.id); // Only update manual players that have an ID
 
-  if (upsertErr) {
-    console.error('[UPDATE_JUGADORES] Upsert error:', upsertErr);
-    throw upsertErr;
+  const results = [];
+
+  // 3a. Upsert Real Users
+  if (realUsers.length > 0) {
+    const { data: upsertedUsers, error: userErr } = await supabase
+      .from('jugadores')
+      .upsert(realUsers, { onConflict: 'partido_id, usuario_id' })
+      .select('*');
+
+    if (userErr) throw userErr;
+    if (upsertedUsers) results.push(...upsertedUsers);
+  }
+
+  // 3b. Upsert Manual Players (Update by ID)
+  if (manualPlayers.length > 0) {
+    // We use onConflict: 'id' to update existing manual players
+    const { data: upsertedManual, error: manualErr } = await supabase
+      .from('jugadores')
+      .upsert(manualPlayers, { onConflict: 'id' })
+      .select('*');
+
+    if (manualErr) throw manualErr;
+    if (upsertedManual) results.push(...upsertedManual);
   }
 
   // 4. Cleanup: Remove players that are NO LONGER in the list
@@ -154,7 +174,7 @@ export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
     }
   }
 
-  return upserted || [];
+  return results || [];
 };
 
 /**
@@ -244,28 +264,39 @@ export const getVotantesIds = async (partidoId) => {
 
   console.log('Fetching voters for match:', partidoId);
 
-  const { data, error } = await supabase
+  // 1. Fetch authenticated/legacy voters from 'votos'
+  const { data: regularData, error: regularError } = await supabase
     .from('votos')
     .select('votante_id')
     .eq('partido_id', partidoId);
 
-  if (error) {
-    console.error('Error fetching voters:', error);
-    throw new Error(`Error fetching voters: ${error.message}`);
+  if (regularError) {
+    console.error('Error fetching regular voters:', regularError);
   }
 
-  const votantes = Array.from(new Set((data || []).map((v) => v.votante_id).filter((id) => id)));
-  const authVoters = votantes.filter((id) => !id.startsWith('guest_'));
-  const guestVoters = votantes.filter((id) => id.startsWith('guest_'));
+  // 2. Fetch public voters from 'public_voters'
+  const { data: publicData, error: publicError } = await supabase
+    .from('public_voters')
+    .select('id')
+    .eq('partido_id', partidoId);
+
+  if (publicError) {
+    console.warn('Error fetching public voters (non-fatal):', publicError);
+  }
+
+  const regularIds = (regularData || []).map((v) => v.votante_id).filter(Boolean);
+  const publicIds = (publicData || []).map((pv) => `public_${pv.id}`);
+
+  const combinedVoters = Array.from(new Set([...regularIds, ...publicIds]));
 
   console.log('Voters found for match:', {
     partidoId,
-    total: votantes.length,
-    authenticated: authVoters.length,
-    guests: guestVoters.length,
+    total: combinedVoters.length,
+    authenticated: regularIds.length,
+    public: publicIds.length,
   });
 
-  return votantes;
+  return combinedVoters;
 };
 
 /**
@@ -281,23 +312,47 @@ export const getVotantesConNombres = async (partidoId) => {
 
   console.log('Fetching voters with names for match:', partidoId);
 
-  const { data, error } = await supabase
+  // 1. Fetch authenticated/legacy voters from 'votos' table
+  const { data: votosData, error: votosError } = await supabase
     .from('votos')
     .select('votante_id, jugador_nombre, jugador_avatar_url')
     .eq('partido_id', partidoId);
 
-  if (error) {
-    console.error('Error fetching voters with names:', error);
-    throw new Error(`Error fetching voters: ${error.message}`);
+  if (votosError) {
+    console.error('Error fetching voters with names:', votosError);
+    throw new Error(`Error fetching voters: ${votosError.message}`);
+  }
+
+  // 2. Fetch public voters from 'public_voters' table
+  const { data: publicVotersData, error: publicVotersError } = await supabase
+    .from('public_voters')
+    .select('id, nombre')
+    .eq('partido_id', partidoId);
+
+  if (publicVotersError) {
+    console.warn('Error fetching public voters (non-fatal):', publicVotersError);
   }
 
   // Group by votante_id and get unique voters with their names
   const votantesMap = new Map();
-  (data || []).forEach((voto) => {
+
+  // Add voters from 'votos'
+  (votosData || []).forEach((voto) => {
     if (voto.votante_id && !votantesMap.has(voto.votante_id)) {
       votantesMap.set(voto.votante_id, {
         nombre: voto.jugador_nombre || 'Jugador',
         avatar_url: voto.jugador_avatar_url,
+      });
+    }
+  });
+
+  // Add voters from 'public_voters'
+  (publicVotersData || []).forEach((pv) => {
+    const guestId = `public_${pv.id}`;
+    if (!votantesMap.has(guestId)) {
+      votantesMap.set(guestId, {
+        nombre: pv.nombre || 'Invitado',
+        avatar_url: null,
       });
     }
   });
@@ -308,7 +363,10 @@ export const getVotantesConNombres = async (partidoId) => {
     avatar_url: data.avatar_url,
   }));
 
-  console.log('Voters with names found:', votantes);
+  console.log('Voters with names found (combined):', {
+    total: votantes.length,
+    public: (publicVotersData || []).length
+  });
   return votantes;
 };
 
@@ -330,29 +388,89 @@ export const checkIfAlreadyVoted = async (votanteId, partidoId) => {
     return false;
   }
 
-  console.log('🔎 Chequeando si YA VOTÓ:', { votanteId, partidoId: pid, typeofPartidoId: typeof pid });
+  console.log('🔎 Chequeando si YA VOTÓ (Legacy + Public):', { votanteId, partidoId: pid });
 
-  const { data, error } = await supabase
-    .from('votos')
-    .select('id')
-    .eq('votante_id', votanteId)
-    .eq('partido_id', pid)
-    .limit(1);
+  try {
+    // 1. Check regular 'votos' table
+    const { data: authVotes, error: authError } = await supabase
+      .from('votos')
+      .select('id')
+      .eq('votante_id', votanteId)
+      .eq('partido_id', pid);
 
-  if (error) {
-    console.error('❌ Error consultando votos:', error);
-    throw new Error(`Error consultando votos: ${error.message}`);
+    if (authError) throw authError;
+    if (authVotes && authVotes.length > 0) return true;
+
+    // 2. Check public votes
+    // If it's a guest ID, check by public_voter_id
+    if (votanteId.toString().startsWith('public_')) {
+      const publicId = votanteId.replace('public_', '');
+      const { data: pubVotes, error: pubError } = await supabase
+        .from('votos_publicos')
+        .select('id')
+        .eq('public_voter_id', publicId)
+        .eq('partido_id', pid);
+      if (pubError) throw pubError;
+      if (pubVotes && pubVotes.length > 0) return true;
+    }
+
+    // 3. Name-based check (Paranoid)
+    // Try to find the name of this votanteId from jugadores or public_voters
+    let voterName = null;
+
+    // Is it a registered user?
+    const { data: player } = await supabase
+      .from('jugadores')
+      .select('nombre')
+      .eq('usuario_id', votanteId)
+      .eq('partido_id', pid)
+      .maybeSingle();
+
+    if (player) voterName = player.nombre;
+
+    if (!voterName && votanteId.toString().startsWith('public_')) {
+      // Is it a guest?
+      const publicId = votanteId.replace('public_', '');
+      const { data: pv } = await supabase
+        .from('public_voters')
+        .select('nombre')
+        .eq('id', publicId)
+        .maybeSingle();
+      if (pv) voterName = pv.nombre;
+    }
+
+    // 3. NAME-BASED CHECK (Case-insensitive)
+    if (voterName) {
+      const normalized = voterName.trim().toLowerCase();
+
+      // Check in public votes by name (case-insensitive)
+      const { data: pubVotes } = await supabase
+        .from('votos_publicos')
+        .select('id, votante_nombre')
+        .eq('partido_id', pid);
+
+      const alreadyInPubVotos = pubVotes?.some(v =>
+        v.votante_nombre && v.votante_nombre.trim().toLowerCase() === normalized
+      );
+      if (alreadyInPubVotos) return true;
+
+      // Check in authenticated 'votos' by name (case-insensitive)
+      const { data: vbn } = await supabase
+        .from('votos')
+        .select('id, jugador_nombre')
+        .eq('partido_id', pid);
+
+      const alreadyInAuthVotos = vbn?.some(v =>
+        v.jugador_nombre && v.jugador_nombre.trim().toLowerCase() === normalized
+      );
+      if (alreadyInAuthVotos) return true;
+    }
+
+    return false;
+  } catch (err) {
+    console.warn('⚠️ Error in deep voting check:', err);
+    return false;
   }
-
-  const hasVoted = Array.isArray(data) && data.length > 0;
-
-  if (hasVoted) {
-    console.log('🔴 YA VOTASTE en este partido:', { votanteId, partidoId });
-  } else {
-    console.log('🟢 No hay voto previo, podés votar:', { votanteId, partidoId });
-  }
-
-  return hasVoted;
 };
 
 /**
@@ -450,6 +568,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
   console.log('📊 SUPABASE: Starting closeVotingAndCalculateScores');
 
   try {
+    // 1. Fetch votes from regular 'votos' table (authenticated users)
     const { data: votos, error: fetchError } = await supabase
       .from('votos')
       .select('votado_id, puntaje, votante_id')
@@ -460,14 +579,24 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       throw new Error('Error al obtener los votos: ' + fetchError.message);
     }
 
-    console.log('✅ SUPABASE: Votes fetched:', {
-      count: votos?.length || 0,
-      sample: votos?.slice(0, 3) || [],
+    // 2. Fetch votes from 'votos_publicos' table (guest users)
+    const { data: publicVotes, error: publicFetchError } = await supabase
+      .from('votos_publicos')
+      .select('votado_jugador_id, puntaje, no_lo_conozco')
+      .eq('partido_id', partidoId);
+
+    if (publicFetchError) {
+      console.warn('⚠️ SUPABASE: Error fetching public votes (non-fatal):', publicFetchError);
+    }
+
+    console.log('✅ SUPABASE: All votes fetched:', {
+      regularCount: votos?.length || 0,
+      publicCount: publicVotes?.length || 0,
     });
 
     const { data: jugadores, error: playerError } = await supabase
       .from('jugadores')
-      .select('uuid, nombre, is_goalkeeper')
+      .select('id, uuid, nombre, is_goalkeeper')
       .eq('partido_id', partidoId);
 
     if (playerError) {
@@ -490,33 +619,51 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     let totalValidVotes = 0;
     let totalInvalidVotes = 0;
 
+    // Process regular votes (uuid-based)
     if (votos && votos.length > 0) {
       for (const voto of votos) {
         if (!voto.votado_id) {
-          console.warn('⚠️ SUPABASE: Vote without votado_id:', { ...voto, votado_id: encodeURIComponent(voto.votado_id || '') });
           totalInvalidVotes++;
           continue;
         }
-
-        if (!votesByPlayer[voto.votado_id]) {
-          votesByPlayer[voto.votado_id] = [];
-        }
+        if (!votesByPlayer[voto.votado_id]) votesByPlayer[voto.votado_id] = [];
 
         if (voto.puntaje !== null && voto.puntaje !== undefined) {
           const score = Number(voto.puntaje);
           if (!isNaN(score)) {
-            if (score === -2) {
-              goalkeepers.add(voto.votado_id);
-            } else {
-              votesByPlayer[voto.votado_id].push(score);
-            }
+            if (score === -2) goalkeepers.add(voto.votado_id);
+            else votesByPlayer[voto.votado_id].push(score);
             totalValidVotes++;
-          } else {
-            console.warn('⚠️ SUPABASE: Invalid score:', encodeURIComponent(String(voto.puntaje || '')));
-            totalInvalidVotes++;
+          } else totalInvalidVotes++;
+        } else totalInvalidVotes++;
+      }
+    }
+
+    // Process public votes (id-based or uuid correlation)
+    if (publicVotes && publicVotes.length > 0) {
+      // Map player numeric IDs to UUIDs for consistency
+      const idToUuidMap = new Map();
+      jugadores.forEach(j => idToUuidMap.set(j.id, j.uuid));
+
+      for (const pv of publicVotes) {
+        if (!pv.votado_jugador_id) continue;
+
+        const playerUuid = idToUuidMap.get(pv.votado_jugador_id);
+        if (!playerUuid) continue;
+
+        if (!votesByPlayer[playerUuid]) votesByPlayer[playerUuid] = [];
+
+        if (pv.no_lo_conozco) {
+          // Skip these or handle as -1? The logic below filters out -1/NaN
+          continue;
+        }
+
+        if (pv.puntaje !== null && pv.puntaje !== undefined) {
+          const score = Number(pv.puntaje);
+          if (!isNaN(score) && score >= 1 && score <= 10) {
+            votesByPlayer[playerUuid].push(score);
+            totalValidVotes++;
           }
-        } else {
-          totalInvalidVotes++;
         }
       }
     }
@@ -598,17 +745,24 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     console.log('✅ SUPABASE: All scores updated successfully');
 
     console.log('📊 SUPABASE: Step 5 - Clearing votes for match:', partidoId);
+
+    // Clear regular votes
     const { error: deleteError, count: deletedCount } = await supabase
       .from('votos')
       .delete()
       .eq('partido_id', partidoId);
 
-    if (deleteError) {
-      console.error('❌ SUPABASE: Error clearing votes:', deleteError);
-      throw new Error('Puntajes actualizados, pero hubo un error al limpiar los votos: ' + deleteError.message);
+    // Clear public votes
+    const { error: publicDeleteError, count: publicDeletedCount } = await supabase
+      .from('votos_publicos')
+      .delete()
+      .eq('partido_id', partidoId);
+
+    if (deleteError || publicDeleteError) {
+      console.error('❌ SUPABASE: Error clearing votes:', { deleteError, publicDeleteError });
     }
 
-    console.log('✅ SUPABASE: Votes cleared:', { deletedCount });
+    console.log('✅ SUPABASE: Votes cleared:', { deletedCount, publicDeletedCount });
 
     const result = {
       message: `Votación cerrada. Se actualizaron los puntajes de ${successfulUpdates.length}/${jugadores.length} jugadores.`,
@@ -664,20 +818,43 @@ export const resetVotacion = async (partidoId) => {
 
     // Fallback o validación: borrar votos manualmente (agresivo, numérico y string)
     for (const target of pidTargets) {
-      const { error: deleteError, count } = await supabase
-        .from('votos')
-        .delete()
-        .eq('partido_id', target);
+      try {
+        // Clear regular votes
+        await supabase.from('votos').delete().eq('partido_id', target);
 
-      if (deleteError) {
-        console.error('❌ SUPABASE: Error deleting votes:', deleteError);
-        throw new Error('Error al resetear votos: ' + deleteError.message);
+        // Clear public votes and voters
+        await supabase.from('votos_publicos').delete().eq('partido_id', target);
+        await supabase.from('public_voters').delete().eq('partido_id', target);
+
+        deletedCount += 1; // Increment just to show activity
+      } catch (fallbackErr) {
+        console.warn(`⚠️ Error in fallback deletion for target ${target}:`, fallbackErr);
       }
-
-      deletedCount += count || 0;
     }
 
-    console.log('✅ SUPABASE: Votes deleted (fallback/confirm):', { deletedCount, rpcTried });
+    console.log('✅ SUPABASE: All votes (regular and public) deleted/reset', { rpcTried });
+
+    // Force match update to signal all clients via realtime
+    try {
+      const { error: updateErr } = await supabase
+        .from('partidos')
+        .update({
+          estado: 'votacion',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', pidNumber);
+
+      if (updateErr) {
+        console.warn('⚠️ SUPABASE: Update with updated_at failed, retrying simplified:', updateErr);
+        await supabase
+          .from('partidos')
+          .update({ estado: 'votacion' })
+          .eq('id', pidNumber);
+      }
+    } catch (err) {
+      console.warn('⚠️ Error triggering match update in reset:', err);
+    }
+
 
     // Reset scores for all players in the match
     const { data: jugadores, error: playerError } = await supabase
@@ -771,13 +948,14 @@ export const resetVotacion = async (partidoId) => {
  * @returns {Promise<void>}
  */
 export const clearVotesForMatch = async (partidoId) => {
-  const { error } = await supabase
-    .from('votos')
-    .delete()
-    .eq('partido_id', partidoId);
-  if (error && error.code !== 'PGRST116') {
-    throw new Error(`Error clearing votes: ${error.message}`);
-  }
+  // Clear regular votes
+  await supabase.from('votos').delete().eq('partido_id', partidoId);
+
+  // Clear public votes and voters
+  await supabase.from('votos_publicos').delete().eq('partido_id', partidoId);
+  await supabase.from('public_voters').delete().eq('partido_id', partidoId);
+
+  console.log('✅ Votes cleared for match:', partidoId);
 };
 
 /**
@@ -786,22 +964,25 @@ export const clearVotesForMatch = async (partidoId) => {
  */
 export const cleanupInvalidVotes = async () => {
   console.log('🧹 Starting cleanup of invalid votes...');
-  const { data: invalidVotes, error: checkError } = await supabase
+
+  // 1. Cleanup regular votes
+  const { error: errorAuth, count: countAuth } = await supabase
     .from('votos')
-    .select('id, votante_id, partido_id, created_at')
+    .delete()
     .or('partido_id.is.null,votante_id.is.null,votado_id.is.null');
-  if (checkError) throw checkError;
-  console.log(`Found ${invalidVotes?.length || 0} invalid votes`);
-  if (invalidVotes && invalidVotes.length > 0) {
-    const { error: deleteError, count } = await supabase
-      .from('votos')
-      .delete()
-      .or('partido_id.is.null,votante_id.is.null,votado_id.is.null');
-    if (deleteError) throw deleteError;
-    console.log(`✅ Cleaned up ${count || 0} invalid votes`);
-    return { cleaned: count || 0, found: invalidVotes.length };
-  }
-  return { cleaned: 0, found: 0 };
+
+  // 2. Cleanup public votes
+  const { error: errorPub, count: countPub } = await supabase
+    .from('votos_publicos')
+    .delete()
+    .or('partido_id.is.null,public_voter_id.is.null,votado_jugador_id.is.null');
+
+  if (errorAuth) console.error('Error cleaning auth votes:', errorAuth);
+  if (errorPub) console.error('Error cleaning public votes:', errorPub);
+
+  const total = (countAuth || 0) + (countPub || 0);
+  console.log(`✅ Cleaned up ${total} total invalid votes`);
+  return { cleaned: total };
 };
 
 /**
@@ -868,4 +1049,67 @@ export const debugTestVoting = async (partidoId) => {
     console.error('❌ Error en debugTestVoting:', error);
     return { error: error.message };
   }
+};
+
+/**
+ * Cancel a match with notifications
+ * Uses RPC to notify all participants before soft-deleting
+ * @param {number} partidoId - Match ID
+ * @param {string} reason - Cancellation reason
+ * @returns {Promise<Object>} Result with notification details
+ */
+export const cancelPartidoWithNotification = async (partidoId, reason = 'Partido cancelado') => {
+  console.log('[NOTIF_DEBUG] Cancelling match with notification:', partidoId, reason);
+
+  const { data, error } = await supabase.rpc('cancel_partido_with_notification', {
+    p_partido_id: partidoId,
+    p_reason: reason
+  });
+
+  if (error) {
+    console.error('[NOTIF_DEBUG] Error cancelling match:', error);
+    throw error;
+  }
+
+  console.log('[NOTIF_DEBUG] Match cancelled, notification result:', data);
+  return data;
+};
+
+/**
+ * Delete a match with notifications
+ * Sends notifications before marking as deleted
+ * @param {number} partidoId - Match ID
+ * @returns {Promise<Object>} Result with notification details
+ */
+export const deletePartidoWithNotification = async (partidoId) => {
+  console.log('[NOTIF_DEBUG] Deleting match with notification:', partidoId);
+
+  // First notify
+  const { data: notifResult, error: notifError } = await supabase.rpc('enqueue_partido_notification', {
+    p_partido_id: partidoId,
+    p_type: 'match_deleted',
+    p_title: 'Partido eliminado',
+    p_message: 'El partido ha sido eliminado por el administrador',
+    p_payload: { match_id: partidoId }
+  });
+
+  if (notifError) {
+    console.error('[NOTIF_DEBUG] Error sending delete notification:', notifError);
+    // Continue with delete even if notification fails
+  } else {
+    console.log('[NOTIF_DEBUG] Delete notification sent:', notifResult);
+  }
+
+  // Then soft delete
+  const { error: deleteError } = await supabase
+    .from('partidos')
+    .update({ estado: 'deleted', deleted_at: new Date().toISOString() })
+    .eq('id', partidoId);
+
+  if (deleteError) {
+    console.error('[NOTIF_DEBUG] Error deleting match:', deleteError);
+    throw deleteError;
+  }
+
+  return notifResult;
 };

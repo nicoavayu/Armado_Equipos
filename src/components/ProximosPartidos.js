@@ -36,7 +36,7 @@ const ProximosPartidos = ({ onClose }) => {
 
   // Confirmation modal state (shared for delete / clean / cancel / abandon)
   const [showConfirm, setShowConfirm] = useState(false);
-  const [actionType, setActionType] = useState(null); // 'cancel' | 'clean' | 'abandon'
+  const [actionType, setActionType] = useState(null); // 'cancel' | 'clean' | 'abandon' | 'delete'
   const [partidoTarget, setPartidoTarget] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -287,6 +287,13 @@ const ProximosPartidos = ({ onClose }) => {
     setShowConfirm(true);
   };
 
+  const handleDeleteMatch = (partido) => {
+    setMenuOpenId(null);
+    setPartidoTarget(partido);
+    setActionType('delete');
+    setShowConfirm(true);
+  };
+
   const _handleSurveyClick = (e, partido) => {
     e.stopPropagation();
     navigate(`/encuesta/${partido.id}`);
@@ -308,12 +315,15 @@ const ProximosPartidos = ({ onClose }) => {
 
     setIsProcessing(true);
     try {
-      if (actionType === 'cancel') {
+      if (actionType === 'delete' || actionType === 'cancel') {
         setProcessingDeleteId(partidoTarget.id);
-        const { error } = await supabase.from('partidos').delete().eq('id', partidoTarget.id);
-        if (error) throw error;
+
+        // Use new notification-aware delete function
+        await deletePartidoWithNotification(partidoTarget.id);
+
+        toast.success(actionType === 'delete' ? 'Partido eliminado' : 'Partido cancelado');
+
         setPartidos((prev) => prev.filter((p) => p.id !== partidoTarget.id));
-        toast.success('Partido cancelado');
         setProcessingDeleteId(null);
       } else if (actionType === 'abandon') {
         console.log('[LEAVE_MATCH] Deleting player from match:', {
@@ -485,6 +495,7 @@ const ProximosPartidos = ({ onClose }) => {
                     isMenuOpen={menuOpenId === partido.id}
                     onAbandon={handleAbandonMatch}
                     onCancel={handleCancelMatch}
+                    onDelete={handleDeleteMatch}
                     onClear={_handleClearMatch}
                     primaryAction={{
                       label: primaryCta.label,
@@ -507,21 +518,38 @@ const ProximosPartidos = ({ onClose }) => {
       {/* Confirmación de acción (cancelar / limpiar / abandonar) */}
       <ConfirmModal
         isOpen={showConfirm}
-        title={actionType === 'cancel' ? 'Cancelar partido' : actionType === 'clean' ? 'Limpiar partido' : 'Abandonar partido'}
+        title={
+          actionType === 'delete' ? '¿Eliminar este partido?' :
+            actionType === 'cancel' ? 'Cancelar partido' :
+              actionType === 'clean' ? 'Limpiar partido' :
+                'Abandonar partido'
+        }
         message={
-          actionType === 'cancel'
-            ? '¿Estás seguro de que deseas cancelar este partido? Esta acción no se puede deshacer.'
-            : actionType === 'clean'
-              ? '¿Estás seguro de que deseas limpiar este partido de tu lista? Podrás volver a verlo en "Partidos finalizados".'
-              : actionType === 'abandon'
-                ? '¿Estás seguro de que deseas abandonar este partido?'
-                : ''
+          actionType === 'delete'
+            ? <>
+              Este partido se cancelará definitivamente.<br />
+              Todos los jugadores serán notificados de que el administrador canceló el partido.<br />
+              Esta acción no se puede deshacer.
+            </>
+            : actionType === 'cancel'
+              ? '¿Estás seguro de que deseas cancelar este partido? Esta acción no se puede deshacer.'
+              : actionType === 'clean'
+                ? '¿Estás seguro de que deseas limpiar este partido de tu lista? Podrás volver a verlo en "Partidos finalizados".'
+                : actionType === 'abandon'
+                  ? '¿Estás seguro de que deseas abandonar este partido?'
+                  : ''
         }
         onConfirm={handleConfirmAction}
         onCancel={() => setShowConfirm(false)}
         isDeleting={isProcessing}
-        confirmText={actionType === 'cancel' ? 'Cancelar partido' : actionType === 'clean' ? 'Limpiar partido' : 'Abandonar partido'}
-        cancelText="Cancelar"
+        confirmText={
+          actionType === 'delete' ? 'Sí, eliminar partido' :
+            actionType === 'cancel' ? 'Cancelar partido' :
+              actionType === 'clean' ? 'Limpiar partido' :
+                'Abandonar partido'
+        }
+        cancelText="Volver"
+        danger={actionType === 'delete' || actionType === 'cancel'}
       />
     </div>
   );

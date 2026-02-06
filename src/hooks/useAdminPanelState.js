@@ -190,7 +190,7 @@ export const useAdminPanelState = ({
       })
       .subscribe();
 
-    // Real-time subscription for votes
+    // Real-time subscription for votes (authenticated)
     const votesChannel = supabase
       .channel(`match-votes-${partidoActual.id}`)
       .on('postgres_changes', {
@@ -199,7 +199,7 @@ export const useAdminPanelState = ({
         table: 'votos',
         filter: `partido_id=eq.${partidoActual.id}`,
       }, async () => {
-        console.log('[REALTIME] Votes changed, refreshing...');
+        console.log('[REALTIME] Auth votes changed, refreshing...');
         try {
           const votantesIds = await getVotantesIds(partidoActual.id);
           const votantesNombres = await getVotantesConNombres(partidoActual.id);
@@ -211,9 +211,53 @@ export const useAdminPanelState = ({
       })
       .subscribe();
 
+    // Real-time subscription for public votes
+    const publicVotesChannel = supabase
+      .channel(`match-public-votes-${partidoActual.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'votos_publicos',
+        filter: `partido_id=eq.${partidoActual.id}`,
+      }, async () => {
+        console.log('[REALTIME] Public votes changed, refreshing...');
+        try {
+          const votantesIds = await getVotantesIds(partidoActual.id);
+          const votantesNombres = await getVotantesConNombres(partidoActual.id);
+          setVotantes(votantesIds || []);
+          setVotantesConNombres(votantesNombres || []);
+        } catch (error) {
+          console.error('Error refreshing public votes:', error);
+        }
+      })
+      .subscribe();
+
+    // Real-time subscription for public voters (identities)
+    const publicVotersChannel = supabase
+      .channel(`match-public-voters-${partidoActual.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'public_voters',
+        filter: `partido_id=eq.${partidoActual.id}`,
+      }, async () => {
+        console.log('[REALTIME] Public voters changed, refreshing...');
+        try {
+          const votantesIds = await getVotantesIds(partidoActual.id);
+          const votantesNombres = await getVotantesConNombres(partidoActual.id);
+          setVotantes(votantesIds || []);
+          setVotantesConNombres(votantesNombres || []);
+        } catch (error) {
+          console.error('Error refreshing public voters:', error);
+        }
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(playersChannel);
       supabase.removeChannel(votesChannel);
+      supabase.removeChannel(publicVotesChannel);
+      supabase.removeChannel(publicVotersChannel);
     };
   }, [partidoActual?.id]);
 

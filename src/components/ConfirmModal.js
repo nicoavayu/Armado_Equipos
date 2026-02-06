@@ -11,6 +11,7 @@ export default function ConfirmModal({
   cancelText = 'CANCELAR',
   isDeleting = false,
   singleButton = false,
+  danger = false,
 }) {
   const overlayRef = useRef(null);
   const cancelRef = useRef(null);
@@ -152,7 +153,7 @@ export default function ConfirmModal({
           )}
           <button
             ref={confirmRef}
-            className="px-4 py-2.5 rounded-xl font-bold cursor-pointer border-0 font-['Oswald'] bg-[#8178e5] text-white hover:shadow-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-default transition-all"
+            className={`px-4 py-2.5 rounded-xl font-bold cursor-pointer border-0 font-['Oswald'] text-white hover:shadow-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-default transition-all ${danger ? 'bg-[#f44336]' : 'bg-[#8178e5]'}`}
             onMouseDown={handleConfirmClick}
             onClick={handleConfirmClick}
             disabled={isDeleting}

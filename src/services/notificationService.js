@@ -106,54 +106,28 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
 
     console.log('[Notifications] query result', { matchCode: partidoMeta?.codigo });
 
-    const { data: roster, error: rosterError } = await supabase
-      .from('jugadores')
-      .select('usuario_id')
-      .eq('partido_id', partidoId);
+    // --- USE RPC FOR SECURE NOTIFICATION SENDING ---
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('send_call_to_vote', {
+      p_partido_id: Number(partidoId),
+      p_title: title,
+      p_message: message
+    });
 
-    if (rosterError) {
-      console.error('[Notifications] roster query error', rosterError);
-      throw rosterError;
+    if (rpcError) {
+      console.error('[Notifications] RPC error', rpcError);
+      throw rpcError;
     }
 
-    const userIds = (roster ?? [])
-      .map((j) => j.usuario_id)
-      .filter(Boolean);
+    console.log('[CallToVote] success', rpcResult);
 
-    if (userIds.length === 0) {
-      console.log('[Notifications] empty roster, nothing to send');
-      return { inserted: 0 };
+    // Normalize RPC result to expected format
+    if (rpcResult && rpcResult.success) {
+      return { inserted: rpcResult.inserted };
+    } else {
+      // Handle cases where RPC returns success: false (e.g. survey already exists)
+      console.log('[CallToVote] RPC skipped insertion:', rpcResult?.reason);
+      return { inserted: 0, reason: rpcResult?.reason };
     }
-
-    const nowIso = new Date().toISOString();
-    const pidNumber = Number(partidoId);
-    const rows = userIds.map((uid) => ({
-      user_id: uid,
-      title,
-      message,
-      type,
-      partido_id: pidNumber,
-      // Do not insert match_ref explicitly; let DB defaults/computed columns handle it
-      data: { match_id: String(partidoId), matchId: pidNumber, matchCode: partidoMeta?.codigo },
-      read: false,
-      created_at: nowIso,
-      send_at: nowIso,
-    }));
-
-    console.log('[Notifications] inserting', { count: rows.length, sampleData: rows[0]?.data });
-
-    const { data, error } = await supabase
-      .from('notifications')
-      .insert(rows)
-      .select();
-
-    if (error) {
-      console.error('[Notifications] insert error', error);
-      throw error;
-    }
-
-    console.log('[CallToVote] success', { inserted: data?.length });
-    return { inserted: data?.length || 0 };
   } catch (err) {
     console.error('[CallToVote] failed', err);
     handleError(err, { showToast: true, onError: () => { } });

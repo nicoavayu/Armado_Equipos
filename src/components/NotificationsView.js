@@ -98,11 +98,20 @@ const NotificationsView = () => {
       return;
     }
 
-    if (notification.type === 'call_to_vote' && data.matchCode) {
-      const url = `/?codigo=${data.matchCode}`;
-      console.log('[NOTIFICATION_CLICK] call_to_vote - navigating to:', url);
-      navigate(url, { replace: true });
-      return;
+    if (notification.type === 'call_to_vote') {
+      const { matchCode, matchId } = data;
+      if (matchCode) {
+        const url = `/votar-equipos?codigo=${matchCode}`;
+        console.log('[NOTIFICATION_CLICK] call_to_vote - navigating to:', url);
+        navigate(url, { replace: true });
+        return;
+      }
+      if (matchId) {
+        const url = `/votar-equipos?partidoId=${matchId}`;
+        console.log('[NOTIFICATION_CLICK] call_to_vote - navigating to:', url);
+        navigate(url, { replace: true });
+        return;
+      }
     }
 
     if (data.matchId) {
@@ -123,17 +132,22 @@ const NotificationsView = () => {
           console.error('[NOTIFICATION_CLICK] match_invite missing matchId', notification);
         }
         break;
-      case 'call_to_vote':
-        console.log('[NOTIFICATION_CLICK] call_to_vote - matchCode:', data.matchCode);
-        if (data.matchCode) {
-          const url = `/?codigo=${data.matchCode}`;
+      case 'call_to_vote': {
+        const { matchCode, matchId } = data;
+        if (matchCode) {
+          const url = `/votar-equipos?codigo=${matchCode}`;
+          console.log('[NOTIFICATION_CLICK] About to navigate to:', url);
+          navigate(url, { replace: true });
+        } else if (matchId) {
+          const url = `/votar-equipos?partidoId=${matchId}`;
           console.log('[NOTIFICATION_CLICK] About to navigate to:', url);
           navigate(url, { replace: true });
         } else {
-          console.error('[NOTIFICATION_CLICK] Missing matchCode in call_to_vote');
+          console.error('[NOTIFICATION_CLICK] Missing matchCode/ID in call_to_vote');
           toast.error('Falta código del partido');
         }
         break;
+      }
       case 'pre_match_vote': {
         const preMatchId = notification?.target_params?.partido_id;
         if (preMatchId) {

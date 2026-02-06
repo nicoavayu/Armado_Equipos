@@ -109,72 +109,67 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         resolvedMatchIdRef.current = partidoId;
 
         let userId = null;
-        if (isPublicVoting) {
-          // Public voting: skip auth and permission checks
+
+        // Check for authenticated user first (even on public routes)
+        const { data: { user } } = await supabase.auth.getUser();
+
+        let matchPlayer = null;
+        let isCreator = false;
+
+        if (user?.id) {
+          userId = user.id;
+          try {
+            // Check if user is match creator
+            const { data: partidoData, error: partidoError } = await supabase
+              .from('partidos')
+              .select('creado_por')
+              .eq('id', partidoId)
+              .single();
+
+            if (!partidoError) {
+              isCreator = partidoData?.creado_por === user.id;
+            }
+
+            // Check if user is in match roster
+            const { data: jugadoresPartido, error: jugadoresError } = await supabase
+              .from('jugadores')
+              .select('usuario_id, nombre')
+              .eq('partido_id', partidoId);
+
+            if (!jugadoresError) {
+              matchPlayer = jugadoresPartido?.find((j) => j.usuario_id === user.id);
+            }
+          } catch (err) {
+            console.warn('[VOTING] Check roster failed', err);
+          }
+        }
+
+        // If user is recognized as player or creator, use authenticated logic
+        if (userId && (matchPlayer || isCreator)) {
+          setHasAccess(true);
+          setIsAdmin(isCreator);
+
+          if (matchPlayer) {
+            setNombre(matchPlayer.nombre);
+            setStep(1); // Skip identification step
+          }
+        } else if (isPublicVoting) {
+          // Fallback to guest logic
           setHasAccess(true);
           setIsAdmin(false);
+          // If logged in but not in match, treat as guest (or should we use their auth ID for guest voting? 
+          // Requirements imply guests select name from list. Let's keep guest ID logic unless they are in roster)
+
           if (typeof getGuestSessionId === 'function') {
             userId = getGuestSessionId(partidoId);
           } else {
             userId = `guest_${partidoId}_${Date.now()}`;
           }
         } else {
-          const { data: { user } } = await supabase.auth.getUser();
-
-          // Check permissions
-          if (user?.id) {
-            userId = user.id;
-
-            try {
-              // Check if user is match creator
-              const { data: partidoData, error: partidoError } = await supabase
-                .from('partidos')
-                .select('creado_por')
-                .eq('id', partidoId)
-                .single();
-
-              if (partidoError) throw partidoError;
-
-              const isCreator = partidoData?.creado_por === user.id;
-
-              // Check if user is in match roster
-              const { data: jugadoresPartido, error: jugadoresError } = await supabase
-                .from('jugadores')
-                .select('usuario_id, nombre')
-                .eq('partido_id', partidoId);
-
-              if (jugadoresError) throw jugadoresError;
-
-              const jugadorEnPartido = jugadoresPartido?.find((j) => j.usuario_id === user.id);
-
-              const allowed = isCreator || !!jugadorEnPartido;
-              setHasAccess(allowed);
-              setIsAdmin(isCreator);
-
-              if (!allowed) {
-                return setCargandoVotoUsuario(false);
-              }
-
-              // Auto-detect name for registered users in roster
-              if (jugadorEnPartido) {
-                setNombre(jugadorEnPartido.nombre);
-                setStep(1);
-              }
-            } catch (err) {
-              handleError(err, { showToast: false, onError: () => { } });
-              setAuthzError('No se pudo validar permisos');
-              setHasAccess(false);
-              return setCargandoVotoUsuario(false);
-            }
-          } else {
-            // Guest users allowed
-            setHasAccess(true);
-            if (typeof getGuestSessionId === 'function') {
-              userId = getGuestSessionId(partidoId);
-            } else {
-              userId = `guest_${partidoId}_${Date.now()}`;
-            }
-          }
+          // Not public, not in roster -> Denied
+          setAuthzError('No tienes permiso para votar en este partido');
+          setHasAccess(false);
+          return setCargandoVotoUsuario(false);
         }
 
         if (!userId) return setCargandoVotoUsuario(false);
@@ -197,9 +192,14 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     const unsubscribe = subscribeToMatchUpdates(partidoActual.id, (event) => {
       console.debug('[RT] Voting update:', event);
       if (event.type === 'match_update' && event.payload.new) {
-        // Example: If admin closes voting, we might want to refresh
-        // For now, simpler: just refresh if status changes drastically or force reload
-        if (event.payload.new.status !== partidoActual.status) {
+        // Force reload on any significant change to catch resets or status transitions
+        const newStatus = event.payload.new.estado || event.payload.new.status;
+        const oldStatus = partidoActual.estado || partidoActual.status;
+        const newUpdate = event.payload.new.updated_at;
+        const oldUpdate = partidoActual.updated_at;
+
+        if (newStatus !== oldStatus || (newUpdate && newUpdate !== oldUpdate)) {
+          if (DEBUG) console.debug('[RT] Reloading due to match update:', { newStatus, newUpdate });
           window.location.reload();
         }
       }
@@ -262,6 +262,16 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
   // Guard: Check if should show final screen (happy path or already voted)
   const shouldShowFinal = publicAlreadyVoted || usuarioYaVoto || finalizado;
+
+  // Si es admin, volver a ArmarEquiposView (via onReset al AdminPanel)
+  // Si no es admin, volver al inicio
+  const handleFinalAction = () => {
+    if (isAdmin) {
+      window.history.back();
+    } else {
+      onReset();
+    }
+  };
 
   // ============ EARLY GUARD: Return final screen if already voted ============
   if (lockedRef.current || publicAlreadyVoted || usuarioYaVoto || finalizado) {
@@ -391,13 +401,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
   // Si es admin, volver a ArmarEquiposView (via onReset al AdminPanel)
   // Si no es admin, volver al inicio
-  const handleFinalAction = () => {
-    if (isAdmin) {
-      window.history.back();
-    } else {
-      onReset();
-    }
-  };
+
 
   // Pantalla de carga
   if (cargandoVotoUsuario) {
@@ -735,13 +739,41 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   const partidoIdParam = urlParams.get('partidoId');
                   const codigoParam = urlParams.get('codigo');
                   const partidoId = partidoIdParam ? parseInt(partidoIdParam, 10) : (resolvedMatchIdRef.current || partidoActual?.id);
-                  const codigo = codigoParam ? codigoParam.trim().toUpperCase() : null;
 
                   if (!partidoId || Number.isNaN(partidoId)) {
                     toast.error('No se pudo resolver el partido para votar');
                     return;
                   }
+
+                  // Get codigo from URL or from partidoActual (already loaded in memory)
+                  let codigo = codigoParam ? codigoParam.trim().toUpperCase() : null;
+
+                  console.log('[VOTING] Codigo resolution:', {
+                    codigoParam,
+                    codigo,
+                    partidoActualCodigo: partidoActual?.codigo,
+                    partidoActual: partidoActual ? 'loaded' : 'null'
+                  });
+
+                  if (!codigo && partidoActual?.codigo) {
+                    codigo = partidoActual.codigo;
+                    console.log('[VOTING] Using codigo from partidoActual:', codigo);
+                  }
+
+                  // Fallback: generate codigo from partidoId if missing
+                  if (!codigo && partidoId) {
+                    codigo = `M${partidoId}`;
+                    console.log('[VOTING] Generated fallback codigo:', codigo);
+                  }
+
+                  // codigo is still required for RPC calls
                   if (!codigo) {
+                    console.error('[VOTING] No codigo available:', {
+                      codigoParam,
+                      partidoActualCodigo: partidoActual?.codigo,
+                      partidoActualKeys: partidoActual ? Object.keys(partidoActual) : [],
+                      partidoActualFull: partidoActual
+                    });
                     toast.error('Código de votación inválido');
                     return;
                   }
@@ -759,6 +791,17 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   };
 
                   const resultados = { ok: 0, already: 0, invalid: 0 };
+                  const ratedPlayerIds = Object.keys(votos).filter(k => votos[k] !== undefined && votos[k] !== null);
+
+                  if (ratedPlayerIds.length === 0) {
+                    console.debug('[VOTING] No players rated, aborting public submit');
+                    toast.error('Debes calificar al menos a un jugador');
+                    setIsSubmitting(false);
+                    setConfirmando(false);
+                    return;
+                  }
+
+                  console.debug('[VOTING] Starting public submit', { playerIds: ratedPlayerIds, voterName: nombre });
 
                   for (const j of jugadoresParaVotar) {
                     const rawVote = votos[j.uuid];
@@ -768,7 +811,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                         p_partido_id: partidoId,
                         p_codigo: codigo,
                         p_votante_nombre: nombre,
-                        p_votado_jugador_id: j.uuid,
+                        p_votado_jugador_id: j.id,
                       });
 
                       if (error) {
@@ -815,13 +858,26 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                       p_partido_id: partidoId,
                       p_codigo: codigo,
                       p_votante_nombre: nombre,
-                      p_votado_jugador_id: j.uuid,
+                      p_votado_jugador_id: j.id,
                       p_puntaje: puntaje,
                     });
 
                     if (error) {
+                      console.error('[VOTING] public_submit_player_rating error:', {
+                        error,
+                        errorMessage: error.message,
+                        errorDetails: error.details,
+                        errorHint: error.hint,
+                        errorCode: error.code,
+                        partidoId,
+                        codigo,
+                        nombre,
+                        jugadorId: j.id,
+                        jugadorUuid: j.uuid,
+                        puntaje
+                      });
                       resultados.invalid += 1;
-                      toast.error('No se pudo enviar un voto');
+                      toast.error(`No se pudo enviar el voto para ${j.nombre}`);
                       continue;
                     }
 

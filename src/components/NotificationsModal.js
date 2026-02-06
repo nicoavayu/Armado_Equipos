@@ -137,13 +137,18 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     }
 
     if (notification.type === 'call_to_vote') {
-      const { matchCode } = notification.data || {};
-      if (!matchCode) {
-        toast.error('Falta matchCode');
+      const { matchCode, matchId } = notification.data || {};
+      if (matchCode) {
+        const url = `/votar-equipos?codigo=${matchCode}`;
+        window.location.assign(url);
         return;
       }
-      const url = `/?codigo=${matchCode}`;
-      window.location.assign(url);
+      if (matchId) {
+        const url = `/votar-equipos?partidoId=${matchId}`;
+        window.location.assign(url);
+        return;
+      }
+      toast.error('Falta información del partido');
       return;
     }
 
