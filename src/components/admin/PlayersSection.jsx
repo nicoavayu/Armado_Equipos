@@ -82,12 +82,27 @@ const PlayersSection = ({
 }) => {
   const [localMenuOpen, setLocalMenuOpen] = useState(false);
   const [playerToRemove, setPlayerToRemove] = useState(null);
+  const [isRemovingPlayer, setIsRemovingPlayer] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef(null);
   const adminMenuButtonRef = useRef(null);
 
   const menuOpen = isAdmin ? (actionsMenuOpen !== undefined ? actionsMenuOpen : localMenuOpen) : false;
   const setMenuOpen = isAdmin && setActionsMenuOpen ? setActionsMenuOpen : setLocalMenuOpen;
+
+  const handleConfirmRemovePlayer = async () => {
+    if (!playerToRemove?.id) return;
+    setIsRemovingPlayer(true);
+    try {
+      await eliminarJugador(playerToRemove.id, true);
+      toast.success(`${playerToRemove.nombre || 'Jugador'} fue expulsado del partido`);
+      setPlayerToRemove(null);
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo expulsar al jugador');
+    } finally {
+      setIsRemovingPlayer(false);
+    }
+  };
   const renderPlayerCard = (j) => {
     const hasVoted = votantesConNombres.some((v) => {
       if (!v.nombre || !j.nombre) return false;
@@ -151,7 +166,8 @@ const PlayersSection = ({
   // Guest view (non-admin) OR user with pending invitation
   if (!isAdmin || (!isPlayerInMatch && jugadores.length > 0)) {
     return (
-      <div className="w-full flex flex-col pb-32">
+      <>
+        <div className="w-full flex flex-col pb-32">
         {/* Lista de jugadores para no-admin */}
         <div className="w-[90vw] max-w-[90vw] mx-auto mt-2 bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px]">
           <div className="flex items-start justify-between gap-3 mb-3 mt-1 px-1">
@@ -330,13 +346,30 @@ const PlayersSection = ({
             </div>
           </div>
         </div>
-      </div>
+        </div>
+
+        <ConfirmModal
+          isOpen={!!playerToRemove}
+          title="Expulsar jugador"
+          message={`¿Seguro que querés expulsar a ${playerToRemove?.nombre || 'este jugador'}?`}
+          onConfirm={handleConfirmRemovePlayer}
+          onCancel={() => {
+            if (isRemovingPlayer) return;
+            setPlayerToRemove(null);
+          }}
+          confirmText="EXPULSAR"
+          cancelText="CANCELAR"
+          isDeleting={isRemovingPlayer}
+          danger
+        />
+      </>
     );
   }
 
   // Admin view
   return (
-    <div className="bg-white/10 border-2 border-white/20 rounded-xl p-3 min-h-[120px] w-[90vw] max-w-[90vw] mx-auto mt-0 box-border">
+    <>
+      <div className="bg-white/10 border-2 border-white/20 rounded-xl p-3 min-h-[120px] w-[90vw] max-w-[90vw] mx-auto mt-0 box-border">
       <div className="flex items-start justify-between gap-3 mb-3 mt-2">
         <div className="font-bebas text-xl text-white tracking-wide uppercase">
           JUGADORES ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
@@ -420,7 +453,22 @@ const PlayersSection = ({
           {jugadores.map(renderPlayerCard)}
         </div>
       )}
-    </div>
+      </div>
+      <ConfirmModal
+        isOpen={!!playerToRemove}
+        title="Expulsar jugador"
+        message={`¿Seguro que querés expulsar a ${playerToRemove?.nombre || 'este jugador'}?`}
+        onConfirm={handleConfirmRemovePlayer}
+        onCancel={() => {
+          if (isRemovingPlayer) return;
+          setPlayerToRemove(null);
+        }}
+        confirmText="EXPULSAR"
+        cancelText="CANCELAR"
+        isDeleting={isRemovingPlayer}
+        danger
+      />
+    </>
   );
 };
 

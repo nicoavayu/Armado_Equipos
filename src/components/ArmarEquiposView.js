@@ -168,9 +168,11 @@ export default function ArmarEquiposView({
 
         // Navegar al admin a la pantalla de votación inmediatamente
         setTimeout(() => {
-          const codigo = partidoActual?.codigo;
+          const codigo = normalizeMatchCode(partidoActual?.codigo);
           if (codigo) {
             navigate(`/?codigo=${codigo}`);
+          } else {
+            navigate(`/?partidoId=${partidoActual.id}`);
           }
         }, 500);
       } else {
@@ -281,11 +283,44 @@ export default function ArmarEquiposView({
     setConfirmConfig({ open: true, action: 'call_to_vote' });
   };
 
-  function handleWhatsApp() {
-    const publicLink = `${window.location.origin}/?codigo=${partidoActual.codigo}`;
-    const text = `Votá para armar los equipos ⚽️\n${publicLink}`;
+  const normalizeMatchCode = (value) => {
+    const raw = String(value ?? '').trim();
+    if (!raw || raw.toLowerCase() === 'null' || raw.toLowerCase() === 'undefined') return null;
+    return raw;
+  };
 
-    console.debug('[Teams] share link', { partidoId: partidoActual?.id });
+  const resolveMatchCode = async () => {
+    const inMemoryCode = normalizeMatchCode(partidoActual?.codigo);
+    if (inMemoryCode) return inMemoryCode;
+    if (!partidoActual?.id) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('partidos')
+        .select('codigo')
+        .eq('id', Number(partidoActual.id))
+        .maybeSingle();
+      if (error) {
+        console.error('[Teams] Could not fetch match code from DB:', error);
+        return null;
+      }
+      return normalizeMatchCode(data?.codigo);
+    } catch (error) {
+      console.error('[Teams] Unexpected error resolving match code:', error);
+      return null;
+    }
+  };
+
+  async function handleWhatsApp() {
+    const matchCode = await resolveMatchCode();
+    if (!matchCode) {
+      toast.error('No se pudo obtener el código del partido para compartir.');
+      return;
+    }
+    const publicLink = `${window.location.origin}/votar-equipos?codigo=${encodeURIComponent(matchCode)}`;
+    const text = 'Votá para armar los equipos ⚽️';
+
+    console.debug('[Teams] share link', { partidoId: partidoActual?.id, matchCode });
 
     // Intentar Web Share API (si disponible)
     if (navigator.share) {
@@ -300,7 +335,8 @@ export default function ArmarEquiposView({
     }
 
     // Fallback WhatsApp
-    const wa = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    const waText = `${text}\n${publicLink}`;
+    const wa = `https://wa.me/?text=${encodeURIComponent(waText)}`;
     window.open(wa, '_blank', 'noopener,noreferrer');
   }
 

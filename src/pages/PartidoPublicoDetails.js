@@ -124,7 +124,7 @@ export default function PartidoPublicoDetails() {
     }
 
     // 4. ¿Cerrado?
-    if (partido && partido.estado !== 'activo') {
+    if (partido && !['active', 'activo'].includes(String(partido.estado || '').toLowerCase())) {
       console.log('[PUBLIC_MATCH] setting status: closed');
       setJoinStatus('closed');
       return;

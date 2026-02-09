@@ -35,6 +35,13 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const urlParams = new URLSearchParams(window.location.search);
   const isPublicRoute = window.location.pathname.includes('/votar-equipos') || urlParams.has('codigo');
   const isPublicVoting = isPublicRoute;
+  const isGuestPlayer = (player) => {
+    const userId = player?.usuario_id;
+    return !userId || String(userId).startsWith('guest_');
+  };
+  const jugadoresIdentificacion = isPublicVoting
+    ? jugadores.filter(isGuestPlayer)
+    : jugadores;
 
   const resolvePublicStorageKey = () => {
     const pidFromRef = resolvedMatchIdRef.current;
@@ -233,12 +240,12 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     const savedName = localStorage.getItem(storageKey);
     if (!savedName) return;
 
-    const match = jugadores.find((j) => j.nombre === savedName);
+    const match = jugadoresIdentificacion.find((j) => j.nombre === savedName);
     if (match) {
       setNombre(savedName);
       setStep(1);
     }
-  }, [isPublicRoute, nombre, jugadores]);
+  }, [isPublicRoute, nombre, jugadores, jugadoresIdentificacion]);
 
   // Guard: Lock voter if already voted
   useEffect(() => {
@@ -358,6 +365,12 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     }
 
     if (isPublicRoute) {
+      const allowedNames = new Set(jugadoresIdentificacion.map((j) => j.nombre));
+      if (!allowedNames.has(nombre)) {
+        toast.error('Seleccioná un jugador invitado (sin cuenta)');
+        return;
+      }
+
       const storageKey = resolvePublicStorageKey();
       if (storageKey && nombre) {
         localStorage.setItem(storageKey, nombre);
@@ -469,9 +482,9 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         <div className={cardClass}>
           <div className={titleClass}>¿QUIÉN SOS?</div>
           <div className="grid grid-cols-2 gap-4 w-full max-w-[400px] mb-[18px]">
-            {jugadores.map((j) => (
+            {jugadoresIdentificacion.map((j) => (
               <button
-                key={j.uuid}
+                key={j.uuid || j.id || j.nombre}
                 className={`w-full bg-white/5 border border-white/20 text-white font-bebas text-2xl md:text-[2rem] py-3 text-center cursor-pointer transition-all hover:bg-white/15 min-h-[48px] flex items-center justify-center rounded-xl ${nombre === j.nombre ? 'bg-primary/40 border-primary' : ''}`}
                 onClick={() => setNombre(j.nombre)}
                 type="button"
@@ -480,10 +493,15 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               </button>
             ))}
           </div>
+          {jugadoresIdentificacion.length === 0 && (
+            <div className="text-white/70 text-sm font-oswald text-center mb-2">
+              No hay jugadores invitados para identificarse en esta votación.
+            </div>
+          )}
           <button
             className={btnClass}
-            disabled={!nombre}
-            style={{ opacity: nombre ? 1 : 0.4, pointerEvents: nombre ? 'auto' : 'none' }}
+            disabled={!nombre || jugadoresIdentificacion.length === 0}
+            style={{ opacity: nombre && jugadoresIdentificacion.length > 0 ? 1 : 0.4, pointerEvents: nombre && jugadoresIdentificacion.length > 0 ? 'auto' : 'none' }}
             onClick={handleConfirmNombre}
           >
             {checkingPublicVoter ? 'VERIFICANDO...' : 'CONFIRMAR'}

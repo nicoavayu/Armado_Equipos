@@ -409,6 +409,15 @@ export const useAdminPanelState = ({
 
       if (isAdmin && !esAutoEliminacion && jugadorAEliminar?.usuario_id) {
         try {
+          // If an approved request exists, demote it so the user can request access again.
+          // This prevents the public screen from getting stuck in "approved syncing".
+          await supabase
+            .from('match_join_requests')
+            .update({ status: 'rejected', decided_at: new Date().toISOString(), decided_by: user.id })
+            .eq('match_id', partidoActual.id)
+            .eq('user_id', jugadorAEliminar.usuario_id)
+            .eq('status', 'approved');
+
           const payload = {
             user_id: jugadorAEliminar.usuario_id,
             type: 'match_kicked',
@@ -771,7 +780,7 @@ export const useAdminPanelState = ({
     try {
       const nuevoEstado = !faltanJugadoresState;
       const updateObj = { falta_jugadores: nuevoEstado };
-      if (nuevoEstado) updateObj.estado = 'activo';
+      if (nuevoEstado) updateObj.estado = 'active';
       const { error } = await supabase
         .from('partidos')
         .update(updateObj)
@@ -781,7 +790,7 @@ export const useAdminPanelState = ({
 
       setFaltanJugadoresState(nuevoEstado);
       partidoActual.falta_jugadores = nuevoEstado;
-      if (nuevoEstado) partidoActual.estado = 'activo';
+      if (nuevoEstado) partidoActual.estado = 'active';
 
       toast.success(nuevoEstado ?
         '¡Partido abierto a la comunidad!' :

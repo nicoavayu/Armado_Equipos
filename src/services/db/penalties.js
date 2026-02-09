@@ -91,7 +91,8 @@ export async function applyNoShowPenalties(matchId) {
   if (toInsert.length) {
     const { data: insertRes, error: insertErr } = await supabase
       .from('rating_adjustments')
-      .insert(toInsert);
+      .insert(toInsert)
+      .select('user_id');
     if (insertErr) return { data: [], error: insertErr };
     // collect applied user_ids from insertRes
     (insertRes || []).forEach((r) => appliedUserIds.push(r.user_id));
@@ -258,7 +259,8 @@ export async function applyNoShowRecoveries(matchId) {
 
     const { data: insRes, error: insErr } = await supabase
       .from('rating_adjustments')
-      .insert([adjustment]);
+      .insert([adjustment])
+      .select('id');
     if (insErr) return { data: applied, error: insErr };
     if (!insRes || !Array.isArray(insRes) || !insRes[0]) {
       // insertion didn't create a row (possible conflict)

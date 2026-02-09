@@ -25,6 +25,13 @@ function getInitials(name) {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
+const CLOSED_MATCH_STATUSES = new Set(['cancelado', 'deleted', 'finalizado']);
+const GUEST_SELF_JOIN_ENABLED = false;
+const isMatchClosed = (match) => {
+  const estado = String(match?.estado || '').toLowerCase();
+  return CLOSED_MATCH_STATUSES.has(estado);
+};
+
 function PlayersReadOnly({ jugadores, partido, mode }) {
   const cupoMaximo = partido.cupo_jugadores || partido.cupo || 'Sin límite';
   const displayCount = jugadores?.length ?? 0;
@@ -300,6 +307,13 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           setPartido({ ...data, jugadoresCount: count || 0 });
           setJugadores(jugadoresData || []);
 
+          if (isMatchClosed(data)) {
+            setError('Este partido fue cancelado o cerrado.');
+            setJoinStatus('none');
+            setLoading(false);
+            return;
+          }
+
           // If no user, set to 'none' and skip membership check
           if (!user) {
             console.log('[LOAD_PARTIDO] No user, setting status: none', { reqId });
@@ -358,20 +372,15 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
               console.log('[PUBLIC_MATCH] setJoinStatus: pending', { partidoId, userId: user.id, source: 'request_pending', reqId });
               setJoinStatus('pending');
             } else if (request?.status === 'approved') {
-              // CRITICAL: Request is approved but user NOT in jugadores yet
-              // This means admin approved but DB sync hasn't happened
-              console.warn('[PUBLIC_MATCH] Request approved but NOT in jugadores - starting recheck', {
+              // If request says approved but user is not in jugadores, treat as stale state.
+              // This happens after admin kicks a user and should allow re-request immediately.
+              console.warn('[PUBLIC_MATCH] stale approved request without membership, resetting to none', {
                 partidoId,
                 userId: user.id,
                 requestId: request.id,
                 reqId
               });
-
-              console.log('[PUBLIC_MATCH] setJoinStatus: approved_pending_sync', { partidoId, userId: user.id, source: 'request_approved_no_member', reqId });
-              setJoinStatus('approved_pending_sync');
-
-              // Start recheck loop (5 attempts, 2s interval, 10s total)
-              recheckMembership(user.id, Number(partidoId), reqId);
+              setJoinStatus('none');
             } else {
               console.log('[PUBLIC_MATCH] setJoinStatus: none', { partidoId, userId: user.id, source: 'no_request', reqId });
               setJoinStatus('none');
@@ -429,6 +438,11 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         if (reqId === reqIdRef.current) {
           setPartido({ ...partidoData, jugadoresCount: count || 0 });
           setJugadores(jugadoresData || []);
+          if (isMatchClosed(partidoData)) {
+            setError('Este partido fue cancelado o cerrado.');
+            setLoading(false);
+            return;
+          }
           setLoading(false);
         }
       } catch (err) {
@@ -440,6 +454,31 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     }
     loadPartido();
   }, [partidoId, codigoParam, mode, user]);
+
+  // Realtime membership guard:
+  // If the user is removed from jugadores while viewing the match, return to home immediately.
+  useEffect(() => {
+    if (mode !== 'public' || !user?.id || !partidoId) return undefined;
+
+    const channel = supabase
+      .channel(`public-match-membership-${partidoId}-${user.id}`)
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'jugadores',
+        filter: `partido_id=eq.${Number(partidoId)}`,
+      }, (payload) => {
+        const removedUserId = payload?.old?.usuario_id;
+        if (String(removedUserId) !== String(user.id)) return;
+        toast.info('Fuiste removido del partido por el admin');
+        navigate('/');
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [mode, user?.id, partidoId, navigate]);
 
   // Recheck membership for approved_pending_sync state
   async function recheckMembership(userUuid, matchId, originalReqId, attempt = 1) {
@@ -505,6 +544,11 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   }, [user, partido, step]);
 
   const handleSumarse = () => {
+    if (isMatchClosed(partido)) {
+      toast.error('Este partido fue cancelado o cerrado.');
+      return;
+    }
+
     if (mode === 'public') {
       handleSolicitarUnirme();
       return;
@@ -526,6 +570,11 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   };
 
   const handleSolicitarUnirme = async () => {
+    if (isMatchClosed(partido)) {
+      toast.error('Este partido fue cancelado o cerrado.');
+      return;
+    }
+
     if (!user) {
       const currentUrl = window.location.pathname + window.location.search;
       navigate(`/auth?redirect=${encodeURIComponent(currentUrl)}`);
@@ -660,8 +709,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   };
 
   const handleSumarseComoInvitado = async () => {
-    if (!guestName.trim()) {
-      toast.error('Ingresá tu nombre');
+    if (!GUEST_SELF_JOIN_ENABLED) {
+      toast.info('Ingreso como invitado deshabilitado por ahora. El admin debe agregarte manualmente.');
       return;
     }
 
@@ -962,4 +1011,3 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
   return null;
 }
-

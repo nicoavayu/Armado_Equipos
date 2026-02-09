@@ -47,6 +47,24 @@ export async function openNotification(n, navigate) {
       return;
     }
 
+    if (type === 'match_join_request') {
+      if (deepLink) {
+        navigate(deepLink);
+      } else {
+        navigate(`/admin/${matchId}?tab=solicitudes`);
+      }
+      return;
+    }
+
+    if (type === 'match_join_approved') {
+      if (deepLink) {
+        navigate(deepLink);
+      } else {
+        navigate(`/partido-publico/${matchId}`);
+      }
+      return;
+    }
+
     // default: home
     navigate('/');
   } catch (e) {

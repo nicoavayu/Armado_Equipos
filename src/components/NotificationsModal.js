@@ -159,6 +159,26 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       return;
     }
 
+    if (notification.type === 'match_join_request') {
+      const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId;
+      const link = notification?.data?.link || (matchId ? `/admin/${matchId}?tab=solicitudes` : null);
+      if (link) navigate(link);
+      return;
+    }
+
+    if (notification.type === 'match_join_approved') {
+      const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId;
+      const link = notification?.data?.link || (matchId ? `/partido-publico/${matchId}` : null);
+      if (link) navigate(link);
+      return;
+    }
+
+    if (notification.type === 'match_kicked') {
+      toast.info('Fuiste removido del partido');
+      navigate('/');
+      return;
+    }
+
     if (notification.type === 'survey_reminder') {
       await openNotification(notification, navigate);
       return;
@@ -192,6 +212,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       case 'friend_accepted': return '✅';
       case 'match_update': return '📅';
       case 'match_cancelled': return '❌';
+      case 'match_join_request': return '📥';
+      case 'match_join_approved': return '✅';
+      case 'match_kicked': return '🚫';
       default: return '🔔';
     }
   };

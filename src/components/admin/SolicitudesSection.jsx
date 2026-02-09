@@ -112,6 +112,24 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted }) => {
 
             console.log('[ACCEPT] RPC approve_join_request completed successfully for request:', request.id);
 
+            try {
+                await supabase.from('notifications').insert([{
+                    user_id: request.user_id,
+                    type: 'match_join_approved',
+                    title: 'Solicitud aprobada',
+                    message: `Tu solicitud para unirte al partido fue aprobada`,
+                    partido_id: request.match_id,
+                    data: {
+                        match_id: request.match_id,
+                        matchId: request.match_id,
+                        link: `/partido-publico/${request.match_id}`,
+                    },
+                    read: false,
+                }]);
+            } catch (notifError) {
+                console.error('[ACCEPT] Could not send approval notification:', notifError);
+            }
+
             // Refetch requests list immediately
             await fetchRequests();
 

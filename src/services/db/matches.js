@@ -2,6 +2,15 @@ import { supabase } from '../../lib/supabaseClient';
 import { schedulePostMatchNotification } from '../notificationService';
 import { incrementPartidosAbandonados } from '../matchStatsService';
 
+const generateMatchCode = (length = 6) => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
 /**
  * Fetch ALL players for a match (deduped by normalized nombre).
  * Kept for backward compatibility (used by Admin/Encuesta flows).
@@ -184,13 +193,32 @@ export const updateJugadoresPartido = async (partidoId, nuevosJugadores) => {
  * @returns {Promise<Object>}
  */
 export const crearPartido = async (partidoData) => {
-  const { data, error } = await supabase
-    .from('partidos')
-    .insert([partidoData])
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  let attempts = 0;
+  let payload = {
+    ...partidoData,
+    codigo: String(partidoData?.codigo || '').trim() || generateMatchCode(),
+  };
+
+  while (attempts < 3) {
+    const { data, error } = await supabase
+      .from('partidos')
+      .insert([payload])
+      .select()
+      .single();
+    if (!error) return data;
+
+    // Retry only when code collides with unique constraint.
+    const errMsg = `${error?.message || ''}`.toLowerCase();
+    if (error?.code === '23505' && errMsg.includes('codigo')) {
+      attempts += 1;
+      payload = { ...payload, codigo: generateMatchCode() };
+      continue;
+    }
+
+    throw error;
+  }
+
+  throw new Error('No se pudo generar un código único para el partido');
 };
 
 // --- Guest Session Management ---

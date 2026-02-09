@@ -5,6 +5,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { useInterval } from '../hooks/useInterval';
 import { supabase } from '../supabase';
 import { clearMatchFromList } from '../services/matchFinishService';
+import { deletePartidoWithNotification } from '../services/db/matches';
 import { parseLocalDateTime, formatLocalDateShort, formatLocalDM } from '../utils/dateLocal';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';

@@ -1,5 +1,30 @@
 import { supabase } from '../supabase';
 
+const incrementNumericColumn = async (table, column, userId, amount = 1) => {
+  try {
+    await supabase.rpc('inc_numeric', {
+      p_table: table,
+      p_column: column,
+      p_id: userId,
+      p_amount: amount,
+    });
+    return;
+  } catch {
+    const { data: row, error: readErr } = await supabase
+      .from(table)
+      .select(column)
+      .eq('id', userId)
+      .single();
+    if (readErr) throw readErr;
+    const nextValue = Number(row?.[column] || 0) + amount;
+    const { error: updateErr } = await supabase
+      .from(table)
+      .update({ [column]: nextValue })
+      .eq('id', userId);
+    if (updateErr) throw updateErr;
+  }
+};
+
 // Process match stats 1 hour after match end
 export const processMatchStats = async (partidoId) => {
   try {
@@ -41,18 +66,12 @@ export const processMatchStats = async (partidoId) => {
       if (isAbsent) {
         // Player was absent - increment partidos_abandonados
         updates.push(
-          supabase
-            .from('usuarios')
-            .update({ partidos_abandonados: supabase.raw('COALESCE(partidos_abandonados, 0) + 1') })
-            .eq('id', jugador.usuario_id),
+          incrementNumericColumn('usuarios', 'partidos_abandonados', jugador.usuario_id, 1),
         );
       } else {
         // Player participated - increment partidos_jugados
         updates.push(
-          supabase
-            .from('usuarios')
-            .update({ partidos_jugados: supabase.raw('COALESCE(partidos_jugados, 0) + 1') })
-            .eq('id', jugador.usuario_id),
+          incrementNumericColumn('usuarios', 'partidos_jugados', jugador.usuario_id, 1),
         );
       }
     }
@@ -80,12 +99,7 @@ export const processMatchStats = async (partidoId) => {
 // Increment partidos_abandonados when player leaves match
 export const incrementPartidosAbandonados = async (userId) => {
   try {
-    const { error } = await supabase
-      .from('usuarios')
-      .update({ partidos_abandonados: supabase.raw('COALESCE(partidos_abandonados, 0) + 1') })
-      .eq('id', userId);
-      
-    if (error) throw error;
+    await incrementNumericColumn('usuarios', 'partidos_abandonados', userId, 1);
     console.log('[MATCH_STATS] Incremented partidos_abandonados for user:', userId);
     
   } catch (error) {

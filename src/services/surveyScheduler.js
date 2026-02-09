@@ -14,7 +14,7 @@ export const checkMatchesForSurveys = async () => {
     const { data: activeMatches, error: scheduleError } = await supabase
       .from('partidos')
       .select('*')
-      .eq('estado', 'activo')
+      .in('estado', ['activo', 'active'])
       .not('fecha', 'is', null)
       .not('hora', 'is', null);
       

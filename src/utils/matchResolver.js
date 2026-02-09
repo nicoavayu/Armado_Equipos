@@ -1,6 +1,5 @@
 // src/utils/matchResolver.js
 import { supabase } from '../supabase';
-import { db } from '../api/supabaseWrapper';
 import { toast } from 'react-toastify';
 
 const IS_DEV = process.env.NODE_ENV === 'development';
@@ -14,7 +13,7 @@ const IS_DEV = process.env.NODE_ENV === 'development';
  */
 export async function resolveMatchIdFromQueryParams(params) {
     const partidoIdParam = params.get('partidoId');
-    const codigoParam = params.get('codigo');
+    const codigoParam = params.get('codigo') || params.get('CODIGO');
 
     if (IS_DEV) {
         console.log('[VOTING] Resolving match with params:', { partidoIdParam, codigoParam });
@@ -39,7 +38,11 @@ export async function resolveMatchIdFromQueryParams(params) {
 
     // Priority 2: Resolve codigo to partidoId
     if (codigoParam) {
-        const codigo = codigoParam.trim();
+        // Defensive parse: keep only the first code-like token in case the URL
+        // was pasted together with extra text (e.g. "ABC123 Votá para...").
+        const rawCodigo = String(codigoParam || '').trim();
+        const token = rawCodigo.match(/[A-Za-z0-9]+/)?.[0] || '';
+        const codigo = token.toUpperCase();
         if (!codigo) {
             return { partidoId: null, error: 'Empty codigo after trim', source: null };
         }
@@ -49,18 +52,68 @@ export async function resolveMatchIdFromQueryParams(params) {
         }
 
         try {
-            const partido = await db.fetchOne('partidos', { codigo });
+            // Preferred path: SECURITY DEFINER RPC (works for anon/public links)
+            const { data: rpcId, error: rpcError } = await supabase.rpc('resolve_match_by_code', {
+                p_codigo: codigo,
+            });
 
-            if (!partido?.id) {
+            if (!rpcError && rpcId) {
+                const partidoId = Math.abs(parseInt(rpcId, 10));
+                if (!Number.isNaN(partidoId) && partidoId > 0) {
+                    if (IS_DEV) {
+                        console.log('[VOTING] Resolved codigo -> partidoId via RPC:', partidoId);
+                    }
+                    return { partidoId, error: null, source: 'codigo' };
+                }
+            }
+
+            // Fallback 1: partidos_view (if readable in current environment)
+            const { data: viewRow, error: viewError } = await supabase
+                .from('partidos_view')
+                .select('id')
+                .ilike('codigo', codigo)
+                .maybeSingle();
+
+            if (!viewError && viewRow?.id) {
+                const partidoId = Math.abs(parseInt(viewRow.id, 10));
+                if (!Number.isNaN(partidoId) && partidoId > 0) {
+                    if (IS_DEV) {
+                        console.log('[VOTING] Resolved codigo -> partidoId via partidos_view:', partidoId);
+                    }
+                    return { partidoId, error: null, source: 'codigo' };
+                }
+            }
+
+            // Fallback 2: direct table lookup (may fail on anon RLS in some envs)
+            const { data: directRow, error: directError } = await supabase
+                .from('partidos')
+                .select('id')
+                .ilike('codigo', codigo)
+                .maybeSingle();
+
+            if (!directError && directRow?.id) {
+                const partidoId = Math.abs(parseInt(directRow.id, 10));
+                if (!Number.isNaN(partidoId) && partidoId > 0) {
+                    if (IS_DEV) {
+                        console.log('[VOTING] Resolved codigo -> partidoId via partidos:', partidoId);
+                    }
+                    return { partidoId, error: null, source: 'codigo' };
+                }
+            }
+
+            if (IS_DEV) {
+                console.error('[VOTING] resolve by codigo failed details:', {
+                    rpcError,
+                    viewError,
+                    directError,
+                    codigo,
+                });
+            }
+            if (!rpcId && !viewRow?.id && !directRow?.id) {
                 console.error('[VOTING] No match found for codigo:', codigo);
                 return { partidoId: null, error: `No se encontró partido con código: ${codigo}`, source: null };
             }
-
-            const partidoId = Math.abs(parseInt(partido.id, 10));
-            if (IS_DEV) {
-                console.log('[VOTING] Resolved codigo -> partidoId:', partidoId);
-            }
-            return { partidoId, error: null, source: 'codigo' };
+            return { partidoId: null, error: 'No se pudo resolver el código del partido', source: null };
         } catch (error) {
             console.error('[VOTING] Error resolving codigo:', error);
             return { partidoId: null, error: 'Error al buscar partido por código', source: null };

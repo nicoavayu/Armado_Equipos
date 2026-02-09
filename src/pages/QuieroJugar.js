@@ -99,7 +99,7 @@ const QuieroJugar = () => {
         .from('partidos_view')
         .select('*')
         .eq('falta_jugadores', true)
-        .eq('estado', 'activo')
+        .in('estado', ['active', 'activo'])
         .order('fecha', { ascending: true });
 
       if (error) throw error;
