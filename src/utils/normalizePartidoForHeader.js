@@ -11,6 +11,16 @@ function firstPresent(obj, keys) {
   return null;
 }
 
+function normalizeYmdDate(value) {
+  if (value === undefined || value === null) return null;
+  const str = String(value).trim();
+  if (!str) return null;
+  // Keep only YYYY-MM-DD part when receiving full ISO timestamps.
+  const isoDate = str.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (isoDate) return isoDate[1];
+  return str;
+}
+
 export default function normalizePartidoForHeader(raw) {
   // If raw is falsy, return a canonical empty object (avoid returning null)
   if (!raw || typeof raw !== 'object') {
@@ -50,7 +60,7 @@ export default function normalizePartidoForHeader(raw) {
   ];
 
   const nombre = firstPresent(base, nameKeys) || null;
-  const fecha = firstPresent(base, fechaKeys) || null;
+  const fecha = normalizeYmdDate(firstPresent(base, fechaKeys)) || null;
   const hora = firstPresent(base, horaKeys) || null;
   const sede = firstPresent(base, sedeKeys) || null;
   const modalidad = firstPresent(base, modalidadKeys) || null;

@@ -94,7 +94,18 @@ const NotificationsView = () => {
     }
 
     if (data.resultsUrl) {
-      navigate(data.resultsUrl);
+      const isAwardsNotif = ['survey_results', 'survey_results_ready', 'survey_finished', 'awards_ready'].includes(notification?.type);
+      if (isAwardsNotif) {
+        navigate(data.resultsUrl, {
+          state: {
+            forceAwards: true,
+            fromNotification: true,
+            matchName: data?.match_name || data?.partido_nombre || null,
+          },
+        });
+      } else {
+        navigate(data.resultsUrl);
+      }
       return;
     }
 
@@ -174,10 +185,26 @@ const NotificationsView = () => {
         break;
       case 'survey_results':
       case 'survey_results_ready':
+      case 'awards_ready':
         if (data.resultsUrl) {
-          navigate(data.resultsUrl);
-        } else if (data.partido_id) {
-          navigate(`/resultados-encuesta/${toBigIntId(data.partido_id)}?showAwards=1`);
+          navigate(data.resultsUrl, {
+            state: {
+              forceAwards: true,
+              fromNotification: true,
+              matchName: data?.match_name || data?.partido_nombre || null,
+            },
+          });
+        } else {
+          const resultsMatchId = notification.partido_id || data.partido_id || data.match_id || data.matchId;
+          if (resultsMatchId) {
+            navigate(`/resultados-encuesta/${toBigIntId(resultsMatchId)}?showAwards=1`, {
+              state: {
+                forceAwards: true,
+                fromNotification: true,
+                matchName: data?.match_name || data?.partido_nombre || null,
+              },
+            });
+          }
         }
         break;
       case 'match_join_request':
@@ -188,10 +215,14 @@ const NotificationsView = () => {
         break;
       case 'survey_finished': {
         // Robust matchId resolution
-        const finalMatchId = notification.match_ref || data.match_id || data.partidoId;
+        const finalMatchId = notification.match_ref || notification.partido_id || data.match_id || data.matchId || data.partidoId;
         if (finalMatchId) {
           navigate(`/resultados-encuesta/${toBigIntId(finalMatchId)}`, {
-            state: { forceAwards: true },
+            state: {
+              forceAwards: true,
+              fromNotification: true,
+              matchName: data?.match_name || data?.partido_nombre || null,
+            },
           });
         }
         break;

@@ -2,18 +2,16 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import supabase, { deleteMyNotifications } from '../supabase';
+import supabase from '../supabase';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import { openNotification } from '../utils/notificationRouter';
-import { useTimeout } from '../hooks/useTimeout';
 import LoadingSpinner from './LoadingSpinner';
 
 const NotificationsModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const { notifications, fetchNotifications: refreshNotifications, clearAllNotifications: clearNotificationsLocal } = useNotifications();
   const navigate = useNavigate();
-  const { setTimeoutSafe } = useTimeout();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -56,50 +54,29 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const sleep = (ms) => new Promise((resolve) => setTimeoutSafe(resolve, ms));
-
   const handleClearAllNotifications = async () => {
-    if (!window.confirm('¿Eliminar todas las notificaciones?')) return;
+    if (!window.confirm('¿Marcar todas las notificaciones como leídas?')) return;
 
     setLoading(true);
     try {
+      const nowIso = new Date().toISOString();
+      const { error: markErr } = await supabase
+        .from('notifications')
+        .update({ read: true, read_at: nowIso, status: 'sent' })
+        .eq('user_id', user.id)
+        .eq('read', false);
+
+      if (markErr) throw markErr;
+
+      // Keep UX snappy while server refetches
       clearNotificationsLocal?.();
-
-      let rpcError = null;
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        const { error } = await deleteMyNotifications();
-        if (!error) {
-          rpcError = null;
-          break;
-        }
-        rpcError = error;
-        console.warn('[RPC delete_my_notifications] intento', attempt, 'error:', error);
-        const msg = `${error?.message || ''} ${error?.code || ''}`.toLowerCase();
-        if (attempt === 1 && (msg.includes('schema cache') || msg.includes('pgrst202') || msg.includes('404'))) {
-          await sleep(1200);
-          continue;
-        }
-        break;
-      }
-
-      if (rpcError) {
-        console.warn('[RPC delete_my_notifications] fallback a delete directo por RLS');
-        const { error: delErr } = await supabase
-          .from('notifications')
-          .delete()
-          .eq('user_id', user.id);
-        if (delErr) {
-          console.error('[DELETE notifications fallback] Error:', delErr);
-          throw delErr;
-        }
-      }
 
       if (refreshNotifications) {
         await refreshNotifications();
       }
     } catch (error) {
-      console.error('Error clearing notifications:', error);
-      alert('Error al eliminar las notificaciones.');
+      console.error('Error marking notifications as read:', error);
+      alert('Error al marcar notificaciones como leídas.');
       await refreshNotifications?.();
     } finally {
       setLoading(false);
@@ -191,10 +168,31 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           console.error('[NOTIFICATION_CLICK] missing matchId for results/awards', notification);
           return;
         }
-        const link = notification?.data?.link || `/encuesta/${matchId}`;
-        navigate(link, { state: { forceAwards: true, fromNotification: true } });
+        const link = notification?.data?.resultsUrl || notification?.data?.link || `/resultados-encuesta/${matchId}?showAwards=1`;
+        navigate(link, {
+          state: {
+            forceAwards: true,
+            fromNotification: true,
+            matchName: notification?.data?.match_name || notification?.data?.partido_nombre || null,
+          },
+        });
       } catch (err) {
         console.error('[NOTIFICATION_CLICK] results/awards unexpected error:', err);
+      }
+      return;
+    }
+
+    if (notification.type === 'survey_finished') {
+      const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId ?? notification?.match_ref ?? null;
+      if (matchId) {
+        const link = notification?.data?.resultsUrl || `/resultados-encuesta/${matchId}?showAwards=1`;
+        navigate(link, {
+          state: {
+            forceAwards: true,
+            fromNotification: true,
+            matchName: notification?.data?.match_name || notification?.data?.partido_nombre || null,
+          },
+        });
       }
       return;
     }
@@ -208,6 +206,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       case 'survey_reminder': return '📋';
       case 'survey_results_ready': return '🏆';
       case 'awards_ready': return '🏆';
+      case 'survey_finished': return '🏆';
       case 'friend_request': return '👤';
       case 'friend_accepted': return '✅';
       case 'match_update': return '📅';
@@ -269,15 +268,15 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                   handleClearAllNotifications();
                 }}
                 disabled={loading || notifications.length === 0}
-                title={loading ? 'Limpiando tus notificaciones…' : 'Eliminar todas las notificaciones'}
+                title={loading ? 'Marcando notificaciones…' : 'Marcar todas como leídas'}
               >
                 {loading ? (
                   <>
                     <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-r-transparent inline-block animate-spin"></span>
-                    Limpiando…
+                    Marcando…
                   </>
                 ) : (
-                  'Limpiar'
+                  'Marcar leídas'
                 )}
               </button>
             )}
@@ -306,7 +305,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           ) : (
             <div className="p-0">
               {notifications.map((notification) => {
-                const clickable = ['match_invite', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready'].includes(notification.type);
+                const clickable = ['match_invite', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished'].includes(notification.type);
 
                 const notificationContent = (
                   <>

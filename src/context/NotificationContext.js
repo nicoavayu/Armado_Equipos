@@ -282,7 +282,7 @@ export const NotificationProvider = ({ children }) => {
     // If there's a survey-related notification for a partido, we should suppress lower-priority
     // notifications (like 'call_to_vote') that reference the same partido even if they were stored
     // as non-partido grouped notifications. Build a set of partido ids that have survey notifications.
-    const surveyTypes = new Set(['survey_start', 'post_match_survey', 'survey_reminder', 'survey_results_ready', 'awards_ready']);
+    const surveyTypes = new Set(['survey_start', 'post_match_survey', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished']);
     const surveyPartidoIds = new Set();
     for (const n of Array.from(keepMap.values())) {
       if (surveyTypes.has(n.type)) {
@@ -463,6 +463,9 @@ export const NotificationProvider = ({ children }) => {
       case 'awards_ready':
         toast.success(`🏆 ${notification.title}: ${notification.message}`, toastOptions);
         break;
+      case 'survey_finished':
+        toast.success(`🏆 ${notification.title}: ${notification.message}`, toastOptions);
+        break;
       case 'admin_transfer':
         toast.success(`👑 ${notification.title}: ${notification.message}`, toastOptions);
         // Auto-refresh if forceRefresh is true
@@ -488,10 +491,11 @@ export const NotificationProvider = ({ children }) => {
     const postMatchSurveys = unread.filter((n) => n.type === 'post_match_survey').length;
     const surveyResults = unread.filter((n) => n.type === 'survey_results_ready').length;
     const awardsReady = unread.filter((n) => n.type === 'awards_ready').length;
+    const surveyFinished = unread.filter((n) => n.type === 'survey_finished').length;
 
     setUnreadCount({
       friends: friendRequests,
-      matches: matchInvites + callToVote + surveyStarts + postMatchSurveys + surveyResults + awardsReady,
+      matches: matchInvites + callToVote + surveyStarts + postMatchSurveys + surveyResults + awardsReady + surveyFinished,
       total: unread.length,
     });
   };

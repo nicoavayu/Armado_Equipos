@@ -11,110 +11,37 @@ import { ensureAwards } from '../services/awardsService';
 import { subscribeToMatchUpdates } from '../services/realtimeService';
 import Logo from '../Logo.png';
 
-// Helpers to fabricate demo awards when backend data is missing
 const ensurePlayersList = (players) => {
   if (players && players.length > 0) return players;
-
-  return [
-    {
-      uuid: 'demo-1',
-      usuario_id: 'demo-1',
-      nombre: 'Capitán Demo',
-      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Capitan',
-      mvp_badges: 1,
-      gk_badges: 0,
-      red_badges: 0,
-      fouls: 1,
-      yellow_cards: 0,
-      red_cards: 0,
-    },
-    {
-      uuid: 'demo-2',
-      usuario_id: 'demo-2',
-      nombre: 'Guante Fantasma',
-      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Guante',
-      mvp_badges: 0,
-      gk_badges: 2,
-      red_badges: 0,
-      fouls: 0,
-      yellow_cards: 0,
-      red_cards: 0,
-    },
-    {
-      uuid: 'demo-3',
-      usuario_id: 'demo-3',
-      nombre: 'Rayo Nocturno',
-      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Relampago',
-      mvp_badges: 0,
-      gk_badges: 0,
-      red_badges: 1,
-      fouls: 4,
-      yellow_cards: 1,
-      red_cards: 0,
-      ausencias: [{ fecha: new Date().toISOString() }],
-    },
-    {
-      uuid: 'demo-4',
-      usuario_id: 'demo-4',
-      nombre: 'Maestro Medio',
-      avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Maestro',
-      mvp_badges: 2,
-      gk_badges: 0,
-      red_badges: 0,
-      fouls: 2,
-      yellow_cards: 1,
-      red_cards: 0,
-      ausencias: [],
-    },
-  ];
+  return [];
 };
 
 // Context to broadcast live previewPlayers without recreating slides
 const PreviewPlayersContext = createContext([]);
-
-const createMockResults = (players) => {
-  const roster = ensurePlayersList(players);
-  if (roster.length === 0) return null;
-
-  // Shuffle indices to get distinct players per award when possible
-  const shuffled = [...Array(roster.length).keys()].sort(() => Math.random() - 0.5);
-  const pickAt = (idx) => roster[shuffled[idx % roster.length]];
-
-  const mvp = pickAt(0);
-  const glove = pickAt(1);
-  const dirtiest =
-    roster.find((p, i) => (p.fouls > 0 || p.yellow_cards > 0 || p.red_cards > 0) && i !== shuffled[0] && i !== shuffled[1])
-    || pickAt(2);
-  const penalized = pickAt(3);
-
-  return {
-    mvp: mvp.uuid || mvp.usuario_id || 'mvp-demo',
-    mvp_nombre: mvp.nombre || 'MVP Demo',
-    mvp_votes: 12 + Math.floor(Math.random() * 9),
-    golden_glove: glove.uuid || glove.usuario_id || 'gk-demo',
-    golden_glove_nombre: glove.nombre || 'Guante Demo',
-    golden_glove_votes: 8 + Math.floor(Math.random() * 6),
-    dirty_player: dirtiest.uuid || dirtiest.usuario_id || 'dirty-demo',
-    dirty_player_nombre: dirtiest.nombre || 'Jugador Sucio',
-    dirty_player_fouls: dirtiest.fouls || 3,
-    penalty_player: penalized.uuid || penalized.usuario_id || 'penalty-demo',
-    penalty_player_nombre: penalized.nombre || 'Penalizado',
-    results_ready: true,
-    estado: 'finalizado',
-  };
-};
 
 const ResultadosEncuestaView = () => {
   const { partidoId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const fallbackMatchName =
+    location?.state?.matchName ||
+    location?.state?.partidoNombre ||
+    location?.state?.partido_nombre ||
+    'Partido';
+  const searchParams = new URLSearchParams(location.search);
+  const forceAwardsMode =
+    Boolean(location?.state?.forceAwards) ||
+    Boolean(location?.state?.fromNotification) ||
+    searchParams.get('forceAwards') === 'true' ||
+    searchParams.get('showAwards') === '1';
 
   const [loading, setLoading] = useState(true);
   const [partido, setPartido] = useState(null);
   const [results, setResults] = useState(null);
   const [jugadores, setJugadores] = useState([]);
   const [showingBadgeAnimations, setShowingBadgeAnimations] = useState(false);
+  const [autoOpeningAwards, setAutoOpeningAwards] = useState(false);
   const [_badgeAnimations, setBadgeAnimations] = useState([]);
   const [_currentAnimationIndex, _setCurrentAnimationIndex] = useState(0);
   const [_animationComplete, _setAnimationComplete] = useState(false);
@@ -123,11 +50,11 @@ const ResultadosEncuestaView = () => {
   const [previewPlayers, setPreviewPlayers] = useState([]);
   const [slideStages, setSlideStages] = useState({}); // 0 award only, 1 card visible, 2 token fly/apply, 3 done
   const penaltyListRef = useRef([]);
-  const _mockToastShown = useRef(false);
-  const loadingFallbackTriggered = useRef(false);
   const badgesApplied = useRef(new Set());
   const liveApplied = useRef(new Set());
   const badgeTimers = useRef([]);
+  const forceStoryOpenedRef = useRef(null);
+  const autoOpenGuardRef = useRef(null);
 
   const setStage = (key, stage) => {
     setSlideStages((prev) => ({ ...prev, [key]: stage }));
@@ -136,6 +63,13 @@ const ResultadosEncuestaView = () => {
   const clearTimers = () => {
     badgeTimers.current.forEach((t) => clearTimeout(t));
     badgeTimers.current = [];
+  };
+
+  const clearAutoOpenGuard = () => {
+    if (autoOpenGuardRef.current) {
+      clearTimeout(autoOpenGuardRef.current);
+      autoOpenGuardRef.current = null;
+    }
   };
 
   const _applyAward = (slideType) => {
@@ -580,7 +514,7 @@ const ResultadosEncuestaView = () => {
     if (!currentResults) return [];
 
     const roster = ensurePlayersList(currentPlayers);
-    const matchInfo = partido || { titulo: 'Partido Demo', fecha: new Date().toISOString(), awards_status: 'ready' };
+    const matchInfo = partido || { nombre: fallbackMatchName, fecha: new Date().toISOString(), awards_status: 'ready' };
 
     const findP = (id) => {
       if (!id) return null;
@@ -593,6 +527,10 @@ const ResultadosEncuestaView = () => {
     };
 
     const slides = [];
+    const awardsObj = currentResults?.awards || {};
+    const mvpWinnerId = currentResults?.mvp ?? awardsObj?.mvp?.player_id ?? null;
+    const gloveWinnerId = currentResults?.golden_glove ?? awardsObj?.best_gk?.player_id ?? null;
+    const dirtyWinnerIdFromAwards = awardsObj?.red_card?.player_id ?? null;
 
     // INTRO: Primera slide siempre
     slides.push({
@@ -627,7 +565,7 @@ const ResultadosEncuestaView = () => {
               DEL PARTIDO
             </div>
             <div className="text-[#0EA9C6] text-lg md:text-xl font-bold" style={{ textShadow: '0 0 18px rgba(14,169,198,0.55)' }}>
-              {matchInfo.titulo || 'Partido'}
+              {matchInfo.nombre || matchInfo.titulo || fallbackMatchName}
             </div>
           </div>
 
@@ -651,8 +589,8 @@ const ResultadosEncuestaView = () => {
     });
 
     // MVP
-    if (currentResults.mvp) {
-      const p = findP(currentResults.mvp);
+    if (mvpWinnerId) {
+      const p = findP(mvpWinnerId);
       if (p) {
         const pid = p.uuid || p.usuario_id || p.id;
         slides.push({
@@ -668,7 +606,7 @@ const ResultadosEncuestaView = () => {
               border="#FFD700"
               player={p}
               playerId={pid}
-              bottomLabel={`${currentResults.mvp_votes || 0} VOTOS`}
+              bottomLabel={`${currentResults.mvp_votes || awardsObj?.mvp?.votes || 0} VOTOS`}
               onApply={() => applyLiveAward('mvp', pid)}
             />
           ),
@@ -677,8 +615,8 @@ const ResultadosEncuestaView = () => {
     }
 
     // Guante
-    if (currentResults.golden_glove) {
-      const p = findP(currentResults.golden_glove);
+    if (gloveWinnerId) {
+      const p = findP(gloveWinnerId);
       if (p) {
         const pid = p.uuid || p.usuario_id || p.id;
         slides.push({
@@ -694,7 +632,7 @@ const ResultadosEncuestaView = () => {
               border="#22d3ee"
               player={p}
               playerId={pid}
-              bottomLabel={`${currentResults.golden_glove_votes || 0} VOTOS`}
+              bottomLabel={`${currentResults.golden_glove_votes || awardsObj?.best_gk?.votes || 0} VOTOS`}
               onApply={() => applyLiveAward('glove', pid)}
             />
           ),
@@ -702,9 +640,12 @@ const ResultadosEncuestaView = () => {
       }
     }
 
-    // Rudo
-    if (currentResults.dirty_player) {
-      const p = findP(currentResults.dirty_player);
+    // Tarjeta roja / Más sucio
+    const dirtyId = currentResults.dirty_player
+      || (Array.isArray(currentResults.red_cards) ? currentResults.red_cards[0] : null)
+      || dirtyWinnerIdFromAwards;
+    if (dirtyId) {
+      const p = findP(dirtyId);
       if (p) {
         const pid = p.uuid || p.usuario_id || p.id;
         slides.push({
@@ -720,7 +661,7 @@ const ResultadosEncuestaView = () => {
               border="#f87171"
               player={p}
               playerId={pid}
-              bottomLabel={`${currentResults.dirty_player_fouls || p.fouls || 0} FALTAS`}
+              bottomLabel={`${currentResults.dirty_player_fouls || currentResults.red_card_votes || awardsObj?.red_card?.votes || 0} VOTOS`}
               onApply={() => applyLiveAward('dirty', pid)}
             />
           ),
@@ -733,17 +674,6 @@ const ResultadosEncuestaView = () => {
       const punished = absences.filter((a) => a.absencePenalty || a.ineligible);
       if (punished?.length) {
         const first = punished[0];
-        const pid = first.uuid || first.usuario_id || first.id;
-        return { player: first, playerId: pid };
-      }
-      // If mock results included a designated penalty player, use it
-      if (currentResults?.penalty_player) {
-        const pid = currentResults.penalty_player;
-        const found = roster.find((p) => String(p.uuid) === String(pid) || String(p.usuario_id) === String(pid) || String(p.id) === String(pid));
-        if (found) return { player: found, playerId: pid };
-      }
-      if (roster.length) {
-        const first = roster[0];
         const pid = first.uuid || first.usuario_id || first.id;
         return { player: first, playerId: pid };
       }
@@ -776,7 +706,7 @@ const ResultadosEncuestaView = () => {
     // RESUMEN FINAL: Última slide siempre
     const summaryAwards = [];
 
-    const mvpPlayer = currentResults.mvp ? findP(currentResults.mvp) : null;
+    const mvpPlayer = mvpWinnerId ? findP(mvpWinnerId) : null;
     if (mvpPlayer) {
       summaryAwards.push({
         awardName: 'MVP',
@@ -784,16 +714,9 @@ const ResultadosEncuestaView = () => {
         icon: '/mvp.png',
         color: '#FFD700',
       });
-    } else {
-      summaryAwards.push({
-        awardName: 'MVP',
-        playerName: '—',
-        icon: '/mvp.png',
-        color: '#FFD700',
-      });
     }
 
-    const glovePlayer = currentResults.golden_glove ? findP(currentResults.golden_glove) : null;
+    const glovePlayer = gloveWinnerId ? findP(gloveWinnerId) : null;
     if (glovePlayer) {
       summaryAwards.push({
         awardName: 'MEJOR ARQUERO',
@@ -801,27 +724,13 @@ const ResultadosEncuestaView = () => {
         icon: '/glove.png',
         color: '#22d3ee',
       });
-    } else {
-      summaryAwards.push({
-        awardName: 'MEJOR ARQUERO',
-        playerName: '—',
-        icon: '/glove.png',
-        color: '#22d3ee',
-      });
     }
 
-    const dirtyPlayer = currentResults.dirty_player ? findP(currentResults.dirty_player) : null;
+    const dirtyPlayer = dirtyId ? findP(dirtyId) : null;
     if (dirtyPlayer) {
       summaryAwards.push({
         awardName: 'MÁS SUCIO',
         playerName: dirtyPlayer.nombre,
-        icon: '/red_card.png',
-        color: '#f87171',
-      });
-    } else {
-      summaryAwards.push({
-        awardName: 'MÁS SUCIO',
-        playerName: '—',
         icon: '/red_card.png',
         color: '#f87171',
       });
@@ -834,13 +743,10 @@ const ResultadosEncuestaView = () => {
         icon: '/penalizacion.png',
         color: '#FDBA74',
       });
-    } else {
-      summaryAwards.push({
-        awardName: 'PENALIZACIÓN',
-        playerName: '—',
-        icon: '/penalizacion.png',
-        color: '#FDBA74',
-      });
+    }
+
+    if (summaryAwards.length === 0) {
+      return [];
     }
 
     slides.push({
@@ -934,23 +840,39 @@ const ResultadosEncuestaView = () => {
     return slides;
   };
 
-  const triggerMockAwards = () => {
-    const playersList = ensurePlayersList(jugadores);
-    const mockResults = createMockResults(playersList);
-    if (!mockResults) return;
-
-    // Ensure we have a partido-like object so the carousel renders titles
-    setPartido((prev) => prev || { titulo: 'Partido Demo', fecha: new Date().toISOString(), awards_status: 'ready' });
-    setLoading(false);
-    setJugadores(playersList);
-    setPreviewPlayers(JSON.parse(JSON.stringify(playersList))); // Deep clone for live preview
-    setResults(mockResults);
-    badgesApplied.current.clear();
-    const slides = prepareCarouselSlides(mockResults, playersList);
-    if (slides.length > 0) {
-      setCarouselSlides(slides);
-      setShowingBadgeAnimations(true);
-    }
+  const prepareForceFallbackSlides = () => {
+    const matchInfo = partido || { nombre: fallbackMatchName };
+    return [{
+      key: 'awards-pending',
+      duration: 3200,
+      content: (
+        <div
+          className="relative w-full h-full flex flex-col items-center justify-center text-center py-10 md:py-14"
+          style={{
+            background: 'linear-gradient(135deg,#070B18 0%,#120B2A 45%,#070B18 100%)',
+            borderRadius: 28,
+            border: '1px solid rgba(255,255,255,0.10)',
+            boxShadow: '0 30px 120px rgba(0,0,0,0.55)',
+          }}
+        >
+          <div className="font-bebas-real text-[48px] md:text-[68px] leading-[0.9] text-white" style={{ textShadow: '0 0 22px rgba(14,169,198,0.5)' }}>
+            PREMIACIÓN
+          </div>
+          <div className="text-white/70 tracking-[0.35em] text-xs md:text-sm mt-2 mb-6">
+            DEL PARTIDO
+          </div>
+          <div className="text-[#0EA9C6] text-lg md:text-xl font-bold mb-2">
+            {matchInfo.nombre || matchInfo.titulo || fallbackMatchName}
+          </div>
+          <div className="text-white/80 text-base md:text-lg">
+            Todavía no hay premios listos para mostrar.
+          </div>
+          <div className="text-white/60 text-sm mt-2">
+            Volvé en un momento.
+          </div>
+        </div>
+      ),
+    }];
   };
 
   // Animation Styles encapsulated here to avoid external CSS
@@ -964,25 +886,14 @@ const ResultadosEncuestaView = () => {
   // }, [slideStages, previewPlayers]);
 
   useEffect(() => {
-    // DEMO MODE: Skip all fetching and show mock carousel immediately
-    const demoMode = new URLSearchParams(location.search).get('demoAwards') === 'true';
-    if (demoMode) {
-      console.log('[DEMO MODE] Activado - mostrando carrusel demo sin backend');
-      triggerMockAwards();
-      return;
-    }
-
     const fetchResultsData = async () => {
       if (!partidoId) {
         setLoading(false);
-        triggerMockAwards();
         return;
       }
 
       if (!user) {
-        // Sin usuario: mostramos demo para probar estilos
         setLoading(false);
-        triggerMockAwards();
         return;
       }
 
@@ -1000,7 +911,6 @@ const ResultadosEncuestaView = () => {
 
         if (!partidoData) {
           toast.error('Partido no encontrado');
-          triggerMockAwards();
           setLoading(false);
           return;
         }
@@ -1078,7 +988,6 @@ const ResultadosEncuestaView = () => {
       } catch (error) {
         console.error('Error fetching results data:', error);
         toast.error('Error al cargar los resultados');
-        triggerMockAwards();
       } finally {
         setLoading(false);
       }
@@ -1103,75 +1012,137 @@ const ResultadosEncuestaView = () => {
     return () => unsubscribe();
   }, [partidoId]);
 
-  // Safety net: if loading spins too long, fallback to mock awards for demo/testing
+  // Force story-like awards entry from notification/ring/showAwards links.
   useEffect(() => {
-    const demoMode = new URLSearchParams(location.search).get('demoAwards') === 'true';
-    if (demoMode || !loading || loadingFallbackTriggered.current) return;
+    const shouldForce = forceAwardsMode && partidoId;
+    const forceKey = `${partidoId}:${location.key || location.search}`;
 
-    const timer = setTimeout(() => {
-      if (loading) {
-        loadingFallbackTriggered.current = true;
-        setLoading(false);
-        triggerMockAwards();
-      }
-    }, 4000);
+    if (!shouldForce) {
+      forceStoryOpenedRef.current = null;
+      clearAutoOpenGuard();
+      setAutoOpeningAwards(false);
+      return;
+    }
 
-    return () => clearTimeout(timer);
-  }, [loading]);
+    if (loading || showingBadgeAnimations) return;
+    if (forceStoryOpenedRef.current === forceKey) return;
+    forceStoryOpenedRef.current = forceKey;
 
-  // Auto-show mock awards on first mount if nothing renders quickly
-  useEffect(() => {
-    const demoMode = new URLSearchParams(location.search).get('demoAwards') === 'true';
-    if (demoMode) return; // Demo mode already handled in main useEffect
-
-    const timer = setTimeout(() => {
-      if (!showingBadgeAnimations) {
-        setLoading(false);
-        triggerMockAwards();
-      }
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Effect to handle forceAwards flag from notification navigation
-  useEffect(() => {
-    const checkAwards = async () => {
-      const forceState = location.state?.forceAwards;
-      const forceQuery = new URLSearchParams(location.search).get('forceAwards') === 'true';
-
-      if ((forceState || forceQuery) && partidoId) {
-        console.log('[RESULTADOS] forcing awards ensure based on navigation flag', { partidoId });
-        setLoading(true);
-        try {
-          const res = await ensureAwards(partidoId);
-          if (res.ok && res.row && (res.row.mvp || res.row.golden_glove)) {
-            console.log('[RESULTADOS] awards ensured successfully, auto-triggering carousel');
-            setResults(res.row);
-            setPreviewPlayers(JSON.parse(JSON.stringify(jugadores)));
+    let cancelled = false;
+    const runForceAwards = async () => {
+      console.log('[RESULTADOS] forcing awards ensure (one-shot)', { partidoId });
+      clearAutoOpenGuard();
+      setAutoOpeningAwards(true);
+      let openedStory = false;
+      autoOpenGuardRef.current = setTimeout(() => {
+        if (!cancelled) {
+          console.warn('[RESULTADOS] auto-open guard timeout, waiting for real slides (no fallback flash)');
+          // Last check before giving up loading, but never show fallback story in forced mode.
+          const roster = ensurePlayersList(jugadores);
+          const row = results;
+          const maybeSlides = row ? prepareCarouselSlides(row, roster) : [];
+          if (maybeSlides.length > 0) {
+            setPreviewPlayers(JSON.parse(JSON.stringify(roster)));
             badgesApplied.current.clear();
-            const slides = prepareCarouselSlides(res.row, jugadores);
-            if (slides.length > 0) {
-              setCarouselSlides(slides);
-              setShowingBadgeAnimations(true);
-            }
-          } else {
-            console.log('[RESULTADOS] awards missing, showing mock demo');
-            triggerMockAwards();
+            liveApplied.current.clear();
+            setSlideStages({});
+            setCarouselSlides(maybeSlides);
+            setShowingBadgeAnimations(true);
+            openedStory = true;
           }
-        } catch (e) {
-          console.error('[RESULTADOS] ensureAwards failed', e);
-          triggerMockAwards();
-        } finally {
-          setLoading(false);
+          setAutoOpeningAwards(false);
+        }
+      }, 3200);
+      try {
+        let row = results;
+
+        // If results are missing/not ready, ask backend once.
+        if (!row || !row.results_ready) {
+          const res = await ensureAwards(partidoId);
+          if (!cancelled && res?.ok && res.row) {
+            row = res.row;
+            setResults(res.row);
+          }
+        }
+
+        if (cancelled) return;
+
+        let roster = ensurePlayersList(jugadores);
+        if (!roster.length) {
+          const { data: playersData, error: playersError } = await supabase
+            .from('jugadores')
+            .select('*')
+            .eq('partido_id', Number(partidoId));
+          if (!playersError && Array.isArray(playersData)) {
+            roster = playersData;
+            if (!cancelled) {
+              setJugadores(playersData);
+            }
+          }
+        }
+
+        const slides = row ? prepareCarouselSlides(row, roster) : [];
+        if (slides.length === 0) {
+          // Don't flash fallback if real slides may arrive on next state sync.
+          // Let guard timeout handle true no-data cases.
+          forceStoryOpenedRef.current = null;
+          return;
+        }
+
+        setPreviewPlayers(JSON.parse(JSON.stringify(roster)));
+        badgesApplied.current.clear();
+        liveApplied.current.clear();
+        setSlideStages({});
+        setCarouselSlides(slides);
+        setShowingBadgeAnimations(true);
+        openedStory = true;
+      } catch (e) {
+        console.error('[RESULTADOS] ensureAwards failed', e);
+        if (cancelled) return;
+        // Don't render fallback story here to avoid micro-flash before real carousel.
+      } finally {
+        clearAutoOpenGuard();
+        if (!cancelled && openedStory) {
+          setAutoOpeningAwards(false);
         }
       }
     };
 
-    if (!loading) {
-      checkAwards();
-    }
-  }, [partidoId, location.state, location.search, loading, jugadores]);
+    runForceAwards();
+
+    return () => {
+      cancelled = true;
+      clearAutoOpenGuard();
+    };
+  }, [forceAwardsMode, partidoId, location.key, location.search, loading, jugadores, results, showingBadgeAnimations]);
+
+  useEffect(() => {
+    return () => {
+      clearAutoOpenGuard();
+    };
+  }, []);
+
+  // If we entered in forced story mode and initially showed "awards-pending",
+  // upgrade to real award slides as soon as results/roster become available.
+  useEffect(() => {
+    if (!forceAwardsMode) return;
+    if (!showingBadgeAnimations) return;
+    if (!Array.isArray(carouselSlides) || carouselSlides.length === 0) return;
+    if (carouselSlides[0]?.key !== 'awards-pending') return;
+    if (!results || !results.results_ready) return;
+
+    const roster = ensurePlayersList(jugadores);
+    if (!roster.length) return;
+
+    const slides = prepareCarouselSlides(results, roster);
+    if (!slides.length) return;
+
+    setPreviewPlayers(JSON.parse(JSON.stringify(roster)));
+    badgesApplied.current.clear();
+    liveApplied.current.clear();
+    setSlideStages({});
+    setCarouselSlides(slides);
+  }, [forceAwardsMode, showingBadgeAnimations, carouselSlides, results, jugadores]);
 
   useEffect(() => {
     const computeAbsences = () => {
@@ -1297,7 +1268,6 @@ const ResultadosEncuestaView = () => {
 
     const slides = prepareCarouselSlides();
     if (!slides || slides.length === 0) {
-      triggerMockAwards();
       return;
     }
     setCarouselSlides(slides);
@@ -1371,6 +1341,24 @@ const ResultadosEncuestaView = () => {
     );
   }
 
+  // Never render static results page when entering from bell/ring/story link.
+  // In forced story mode, keep loader until carousel is ready.
+  if (forceAwardsMode && !showingBadgeAnimations) {
+    return (
+      <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
+
+  if (autoOpeningAwards && !showingBadgeAnimations) {
+    return (
+      <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
+        <LoadingSpinner size="large" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[100dvh] w-screen p-0 flex flex-col" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
       {/* Main Card Container */}
@@ -1381,7 +1369,7 @@ const ResultadosEncuestaView = () => {
         {/* Partido Info */}
         <div className="bg-white/5 rounded-xl p-5 mb-6 border border-white/10 text-center">
           <h2 className="text-xl md:text-2xl text-[#0EA9C6]  mb-3 uppercase tracking-wide">
-            {partido.titulo || 'Partido'}
+            {partido.nombre || partido.titulo || fallbackMatchName}
           </h2>
           <p className="text-gray-300  text-lg mb-1">
             {new Date(partido.fecha).toLocaleString('es-ES', { dateStyle: 'full', timeStyle: 'short' })}
@@ -1399,20 +1387,33 @@ const ResultadosEncuestaView = () => {
           <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-xl p-5 mb-8 border border-white/10">
             <h3 className="text-xl text-white  mb-4 border-b border-white/10 pb-2">Destacados</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
-                <span className="text-2xl">🏆</span>
-                <div className="flex flex-col">
-                  <span className="font-bebas-real text-lg text-gray-400 uppercase tracking-wider">MVP</span>
-                  <span className="text-lg text-white  text-shadow-sm">{results.mvp_nombre || 'Nadie'}</span>
+              {results.mvp && (
+                <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
+                  <span className="text-2xl">🏆</span>
+                  <div className="flex flex-col">
+                    <span className="font-bebas-real text-lg text-gray-400 uppercase tracking-wider">MVP</span>
+                    <span className="text-lg text-white  text-shadow-sm">{results.mvp_nombre || '—'}</span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
-                <span className="text-2xl">🥇</span>
-                <div className="flex flex-col">
-                  <span className="font-bebas-real text-lg text-gray-400 uppercase tracking-wider">MEJOR ARQUERO</span>
-                  <span className="text-lg text-white  text-shadow-sm">{results.golden_glove_nombre || 'Nadie'}</span>
+              )}
+              {results.golden_glove && (
+                <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
+                  <span className="text-2xl">🥇</span>
+                  <div className="flex flex-col">
+                    <span className="font-bebas-real text-lg text-gray-400 uppercase tracking-wider">MEJOR ARQUERO</span>
+                    <span className="text-lg text-white  text-shadow-sm">{results.golden_glove_nombre || '—'}</span>
+                  </div>
                 </div>
-              </div>
+              )}
+              {(results.dirty_player || (Array.isArray(results.red_cards) && results.red_cards.length > 0)) && (
+                <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
+                  <span className="text-2xl">🟥</span>
+                  <div className="flex flex-col">
+                    <span className="font-bebas-real text-lg text-gray-400 uppercase tracking-wider">MÁS SUCIO</span>
+                    <span className="text-lg text-white  text-shadow-sm">{results.dirty_player_nombre || '—'}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1464,24 +1465,21 @@ const ResultadosEncuestaView = () => {
                 try {
                   setLoading(true);
                   const res = await ensureAwards(partidoId);
-                  if (res?.ok && res.row && (res.row.mvp || res.row.golden_glove)) {
-                    setResults(res.row);
-                    setPreviewPlayers(JSON.parse(JSON.stringify(jugadores)));
-                    badgesApplied.current.clear();
-                    const slides = prepareCarouselSlides(res.row, jugadores);
-                    if (slides.length > 0) {
-                      setCarouselSlides(slides);
-                      setShowingBadgeAnimations(true);
-                    }
-                  } else {
-                    triggerMockAwards();
+                if (res?.ok && res.row && (res.row.mvp || res.row.golden_glove || res.row.dirty_player || (Array.isArray(res.row.red_cards) && res.row.red_cards.length > 0))) {
+                  setResults(res.row);
+                  setPreviewPlayers(JSON.parse(JSON.stringify(jugadores)));
+                  badgesApplied.current.clear();
+                  const slides = prepareCarouselSlides(res.row, jugadores);
+                  if (slides.length > 0) {
+                    setCarouselSlides(slides);
+                    setShowingBadgeAnimations(true);
                   }
-                } catch (e) {
-                  console.error('[RESULTADOS] ensureAwards from CTA failed', e);
-                  triggerMockAwards();
-                } finally {
-                  setLoading(false);
                 }
+              } catch (e) {
+                console.error('[RESULTADOS] ensureAwards from CTA failed', e);
+              } finally {
+                setLoading(false);
+              }
               }}
               className="px-6 py-3 rounded-lg text-xl uppercase tracking-wide text-black bg-[#FFD700] hover:bg-[#ffc800] transition-transform hover:scale-105 shadow-[0_0_15px_rgba(255,215,0,0.4)] flex items-center justify-center gap-2"
             >

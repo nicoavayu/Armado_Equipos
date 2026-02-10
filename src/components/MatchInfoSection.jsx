@@ -1,4 +1,5 @@
 import React from 'react';
+import { parseLocalDate } from '../utils/dateLocal';
 
 import FitText from './FitText';
 
@@ -94,13 +95,14 @@ export default function MatchInfoSection(props) {
   const fechaDisplay = (() => {
     try {
       if (!fechaRaw) return 'Sin fecha';
-      const d = new Date(fechaRaw);
-      if (!isFinite(d.getTime())) return String(fechaRaw).slice(0, 10);
+      const normalized = String(fechaRaw).trim().slice(0, 10);
+      const d = parseLocalDate(normalized);
+      if (!d || !isFinite(d.getTime())) return normalized;
       const dd = `${String(d.getDate()).padStart(2, '0')}`;
       const mm = `${String(d.getMonth() + 1).padStart(2, '0')}`;
       const yy = String(d.getFullYear()).slice(-2);
       return `${dd}/${mm}/${yy}`;
-    } catch (_) { return String(fechaRaw).slice(0, 10); }
+    } catch (_) { return String(fechaRaw).trim().slice(0, 10); }
   })();
 
   const horaRaw = partidoObj?.hora ?? hora;

@@ -4,17 +4,19 @@ import { checkMatchesForSurveys } from '../services/surveyScheduler';
 /**
  * Hook to periodically check for matches that need post-match survey notifications
  */
-export const useSurveyScheduler = () => {
+export const useSurveyScheduler = (enabled = true) => {
   useEffect(() => {
+    if (!enabled) return;
+
     // Check immediately on mount
     checkMatchesForSurveys();
     
-    // Then check every 5 minutes
+    // Then check every minute for debug feedback
     const interval = setInterval(() => {
       checkMatchesForSurveys();
-    }, 5 * 60 * 1000);
+    }, 60 * 1000);
     
     // Clean up on unmount
     return () => clearInterval(interval);
-  }, []);
+  }, [enabled]);
 };

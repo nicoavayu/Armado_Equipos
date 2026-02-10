@@ -1,5 +1,7 @@
 import { supabase } from '../supabase';
 import { toBigIntId } from '../utils';
+import { parseLocalDateTime } from '../utils/dateLocal';
+import { SURVEY_START_DELAY_MS } from '../config/surveyConfig';
 
 /**
  * Checks if a match has finished and sends survey notifications
@@ -8,31 +10,66 @@ import { toBigIntId } from '../utils';
  */
 export const checkAndNotifyMatchFinish = async (partido) => {
   if (!partido || !partido.fecha || !partido.hora) return false;
-  
-  // --- CANONICAL MODE CHECK: prevent JS creation when DB is canonical ---
-  const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || 'db';
-  if (SURVEY_FANOUT_MODE === 'db') {
-    // In DB mode the canonical fanout will create survey_start notifications
-    return false;
-  }
 
   try {
-    const [hours, minutes] = partido.hora.split(':').map(Number);
-    const partidoDateTime = new Date(partido.fecha);
-    partidoDateTime.setHours(hours, minutes, 0, 0);
+    const partidoDateTime = parseLocalDateTime(partido.fecha, partido.hora);
+    if (!partidoDateTime) return false;
     const now = new Date();
-    
-    // Check if match just finished (within last 5 minutes)
-    const timeDiff = now - partidoDateTime;
-    const justFinished = timeDiff >= 0 && timeDiff <= 5 * 60 * 1000;
-    
-    if (!justFinished) return false;
+
+    // Encuesta habilitada tras delay configurable (debug: 1 minuto, prod: 1 hora).
+    const surveyStartTime = new Date(partidoDateTime.getTime() + SURVEY_START_DELAY_MS);
+    if (now < surveyStartTime) return false;
+
+    const partidoId = Number(partido.id);
+    if (!partidoId || Number.isNaN(partidoId)) return false;
+
+    // Idempotencia: si ya existe una noti de encuesta, no reenviar.
+    const { data: existingNotifications, error: existingError } = await supabase
+      .from('notifications')
+      .select('id')
+      .eq('partido_id', partidoId)
+      .in('type', ['survey_start', 'post_match_survey'])
+      .limit(1);
+
+    if (existingError) {
+      console.warn('[MATCH_FINISH] Could not check existing survey notifications:', existingError);
+    } else if ((existingNotifications || []).length > 0) {
+      return false;
+    }
+
+    const title = '¡Encuesta lista!';
+    const message = `La encuesta ya está lista para completar sobre el partido ${partido.nombre || formatMatchDate(partido.fecha)}.`;
+    const payload = {
+      match_id: partidoId,
+      matchCode: partido.codigo || null,
+      link: `/encuesta/${partidoId}`,
+      partido_nombre: partido.nombre || null,
+      partido_fecha: partido.fecha || null,
+      partido_hora: partido.hora || null,
+      partido_sede: partido.sede || null,
+    };
+
+    // Intentar camino canónico (RPC fanout para todos los logueados del partido).
+    const { data: rpcData, error: rpcError } = await supabase.rpc('enqueue_partido_notification', {
+      p_partido_id: partidoId,
+      p_type: 'survey_start',
+      p_title: title,
+      p_message: message,
+      p_payload: payload,
+    });
+
+    if (!rpcError) {
+      const recipients = Number(rpcData?.recipients_count || 0);
+      return recipients > 0;
+    }
+
+    console.warn('[MATCH_FINISH] enqueue_partido_notification failed, using direct insert fallback:', rpcError);
 
     // Get all players in the match
     const { data: jugadores, error: playersError } = await supabase
       .from('jugadores')
       .select('usuario_id, nombre')
-      .eq('partido_id', partido.id)
+      .eq('partido_id', partidoId)
       .not('usuario_id', 'is', null);
       
     if (playersError) throw playersError;
@@ -42,19 +79,20 @@ export const checkAndNotifyMatchFinish = async (partido) => {
     const notifications = jugadores.map((jugador) => ({
       user_id: jugador.usuario_id,
       type: 'survey_start',
-      title: '¡Encuesta lista!',
-      message: `La encuesta ya está lista para completar sobre el partido ${partido.nombre || formatMatchDate(partido.fecha)}.`,
-      partido_id: Number(partido.id),
-      match_ref: Number(partido.id),
+      title,
+      message,
+      partido_id: partidoId,
+      match_ref: partidoId,
       data: {
-        match_id: String(partido.id),
+        match_id: String(partidoId),
         // legacy for consumers aún no migrados
-        matchId: Number(partido.id),
-        partido_id: partido.id,
+        matchId: partidoId,
+        partido_id: partidoId,
         partido_nombre: partido.nombre,
         partido_fecha: partido.fecha,
         partido_hora: partido.hora,
         partido_sede: partido.sede,
+        link: `/encuesta/${partidoId}`,
       },
       read: false,
     }));
@@ -66,7 +104,7 @@ export const checkAndNotifyMatchFinish = async (partido) => {
       
     if (insertError) throw insertError;
     
-    console.log(`Sent ${notifications.length} survey notifications for finished match ${partido.id}`);
+    console.log(`Sent ${notifications.length} survey notifications for finished match ${partidoId}`);
     return true;
     
   } catch (error) {

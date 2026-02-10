@@ -1,24 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
-import { useNotifications } from '../context/NotificationContext';
 import { useInterval } from '../hooks/useInterval';
 import { supabase } from '../supabase';
 import { clearMatchFromList } from '../services/matchFinishService';
-import { deletePartidoWithNotification } from '../services/db/matches';
-import { parseLocalDateTime, formatLocalDateShort, formatLocalDM } from '../utils/dateLocal';
+import { checkAndNotifyMatchFinish } from '../services/matchFinishService';
+import { cancelPartidoWithNotification } from '../services/db/matches';
+import { parseLocalDateTime, formatLocalDateShort } from '../utils/dateLocal';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import ConfirmModal from './ConfirmModal';
 import { toast } from 'react-toastify';
 
-import { FaCrown } from 'react-icons/fa';
-import { MoreVertical, LogOut, XCircle } from 'lucide-react';
 import MatchCard from './MatchCard';
 
 const ProximosPartidos = ({ onClose }) => {
   const { user } = useAuth();
-  const { createNotification: _createNotification } = useNotifications();
   const navigate = useNavigate();
   const [partidos, setPartidos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,9 +32,9 @@ const ProximosPartidos = ({ onClose }) => {
   const [_processingDeleteId, setProcessingDeleteId] = useState(null);
   const [_processingClearId, setProcessingClearId] = useState(null);
 
-  // Confirmation modal state (shared for delete / clean / cancel / abandon)
+  // Confirmation modal state (shared for clean / cancel / abandon)
   const [showConfirm, setShowConfirm] = useState(false);
-  const [actionType, setActionType] = useState(null); // 'cancel' | 'clean' | 'abandon' | 'delete'
+  const [actionType, setActionType] = useState(null); // 'cancel' | 'clean' | 'abandon'
   const [partidoTarget, setPartidoTarget] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -196,6 +193,11 @@ const ProximosPartidos = ({ onClose }) => {
 
       const now = new Date();
       const partidosFiltrados = partidosData.filter((partido) => {
+        const estado = String(partido?.estado || '').toLowerCase();
+        if (['cancelado', 'cancelled', 'deleted'].includes(estado) || partido?.deleted_at) {
+          return false;
+        }
+
         // Filter out cleared matches
         if (clearedMatchIds.has(String(partido.id))) {
           return false;
@@ -232,26 +234,10 @@ const ProximosPartidos = ({ onClose }) => {
       for (const partido of partidosEnriquecidos) {
         if (isMatchFinished(partido) && !notifiedMatches.has(partido.id)) {
           try {
-            // --- CANONICAL MODE CHECK: prevent client creation when DB is canonical ---
-            const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || 'db';
-            if (SURVEY_FANOUT_MODE === 'db') {
+            const sent = await checkAndNotifyMatchFinish(partido);
+            if (sent) {
               setNotifiedMatches((prev) => { const s = new Set(prev); s.add(partido.id); return s; });
-              continue;
             }
-
-            await _createNotification(
-              'post_match_survey',
-              '¡Encuesta lista!',
-              `La encuesta ya está lista para completar sobre el partido ${partido.nombre || formatMatchDate(partido.fecha)}.`,
-              {
-                partido_id: partido.id,
-                partido_nombre: partido.nombre,
-                partido_fecha: partido.fecha,
-                partido_hora: partido.hora,
-                partido_sede: partido.sede,
-              },
-            );
-            setNotifiedMatches((prev) => { const s = new Set(prev); s.add(partido.id); return s; });
           } catch (error) {
             console.error('Error sending match finish notification:', error);
           }
@@ -272,26 +258,21 @@ const ProximosPartidos = ({ onClose }) => {
     navigate(`/admin/${partido.id}`);
   };
 
-  const handleCancelMatch = (e, partido) => {
-    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+  const handleCancelMatch = (partido) => {
     setMenuOpenId(null);
     setPartidoTarget(partido);
     setActionType('cancel');
     setShowConfirm(true);
   };
 
-  const handleAbandonMatch = (e, partido) => {
-    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+  const handleAbandonMatch = (partido) => {
+    if (partido?.userRole === 'admin') {
+      toast.info('Antes de abandonar, asigná el rol de admin a otro jugador.');
+      return;
+    }
     setMenuOpenId(null);
     setPartidoTarget(partido);
     setActionType('abandon');
-    setShowConfirm(true);
-  };
-
-  const handleDeleteMatch = (partido) => {
-    setMenuOpenId(null);
-    setPartidoTarget(partido);
-    setActionType('delete');
     setShowConfirm(true);
   };
 
@@ -316,13 +297,12 @@ const ProximosPartidos = ({ onClose }) => {
 
     setIsProcessing(true);
     try {
-      if (actionType === 'delete' || actionType === 'cancel') {
+      if (actionType === 'cancel') {
         setProcessingDeleteId(partidoTarget.id);
 
-        // Use new notification-aware delete function
-        await deletePartidoWithNotification(partidoTarget.id);
+        await cancelPartidoWithNotification(partidoTarget.id, 'Partido cancelado por el administrador');
 
-        toast.success(actionType === 'delete' ? 'Partido eliminado' : 'Partido cancelado');
+        toast.success('Partido cancelado');
 
         setPartidos((prev) => prev.filter((p) => p.id !== partidoTarget.id));
         setProcessingDeleteId(null);
@@ -395,20 +375,6 @@ const ProximosPartidos = ({ onClose }) => {
 
   const formatDate = (dateString) => formatLocalDateShort(dateString);
 
-  const formatMatchDate = (fecha) => formatLocalDM(fecha);
-
-  const canAbandon = (partido) => {
-    const partidoDateTime = parseLocalDateTime(partido.fecha, partido.hora);
-    if (!partidoDateTime) return false;
-    return new Date() < partidoDateTime;
-  };
-
-  const canCancel = (partido) => {
-    const partidoDateTime = parseLocalDateTime(partido.fecha, partido.hora);
-    if (!partidoDateTime) return false;
-    return new Date() < partidoDateTime;
-  };
-
   const getPrimaryCta = (partido) => {
     const matchFinished = isMatchFinished(partido);
     const joined = !!partido.userJoined;
@@ -480,7 +446,6 @@ const ProximosPartidos = ({ onClose }) => {
               {getSortedPartidos().map((partido) => {
                 const matchFinished = isMatchFinished(partido);
                 const primaryCta = getPrimaryCta(partido);
-                const showMenu = partido.userJoined || partido.userRole === 'admin';
 
                 return (
                   <MatchCard
@@ -496,7 +461,6 @@ const ProximosPartidos = ({ onClose }) => {
                     isMenuOpen={menuOpenId === partido.id}
                     onAbandon={handleAbandonMatch}
                     onCancel={handleCancelMatch}
-                    onDelete={handleDeleteMatch}
                     onClear={_handleClearMatch}
                     primaryAction={{
                       label: primaryCta.label,
@@ -520,37 +484,33 @@ const ProximosPartidos = ({ onClose }) => {
       <ConfirmModal
         isOpen={showConfirm}
         title={
-          actionType === 'delete' ? '¿Eliminar este partido?' :
-            actionType === 'cancel' ? 'Cancelar partido' :
-              actionType === 'clean' ? 'Limpiar partido' :
-                'Abandonar partido'
+          actionType === 'cancel' ? 'Cancelar partido' :
+            actionType === 'clean' ? 'Limpiar partido' :
+              'Abandonar partido'
         }
         message={
-          actionType === 'delete'
+          actionType === 'cancel'
             ? <>
               Este partido se cancelará definitivamente.<br />
               Todos los jugadores serán notificados de que el administrador canceló el partido.<br />
               Esta acción no se puede deshacer.
             </>
-            : actionType === 'cancel'
-              ? '¿Estás seguro de que deseas cancelar este partido? Esta acción no se puede deshacer.'
-              : actionType === 'clean'
-                ? '¿Estás seguro de que deseas limpiar este partido de tu lista? Podrás volver a verlo en "Partidos finalizados".'
-                : actionType === 'abandon'
-                  ? '¿Estás seguro de que deseas abandonar este partido?'
-                  : ''
+            : actionType === 'clean'
+              ? '¿Estás seguro de que deseas limpiar este partido de tu lista? Podrás volver a verlo en "Partidos finalizados".'
+              : actionType === 'abandon'
+                ? '¿Estás seguro de que deseas abandonar este partido?'
+                : ''
         }
         onConfirm={handleConfirmAction}
         onCancel={() => setShowConfirm(false)}
         isDeleting={isProcessing}
         confirmText={
-          actionType === 'delete' ? 'Sí, eliminar partido' :
-            actionType === 'cancel' ? 'Cancelar partido' :
-              actionType === 'clean' ? 'Limpiar partido' :
-                'Abandonar partido'
+          actionType === 'cancel' ? 'Cancelar partido' :
+            actionType === 'clean' ? 'Limpiar partido' :
+              'Abandonar partido'
         }
         cancelText="Volver"
-        danger={actionType === 'delete' || actionType === 'cancel'}
+        danger={actionType === 'cancel'}
       />
     </div>
   );

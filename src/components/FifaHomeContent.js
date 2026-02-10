@@ -12,7 +12,7 @@ import NotificationsBell from './NotificationsBell';
 
 const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _onViewActivePlayers }) => {
   const { user, profile, refreshProfile } = useAuth();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, notifications, markAsRead } = useNotifications();
   const navigate = useNavigate();
   const { setIntervalSafe } = useInterval();
   const [activeMatches, setActiveMatches] = useState([]);
@@ -28,7 +28,50 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       toast.info('No hay un partido activo para mostrar premiación.');
       return;
     }
-    navigate(`/resultados-encuesta/${targetMatch.id}?demoAwards=true`);
+    navigate(`/resultados-encuesta/${targetMatch.id}?showAwards=1`, {
+      state: { matchName: targetMatch?.nombre || null },
+    });
+  };
+
+  const nowTs = Date.now();
+  const AWARDS_STORY_WINDOW_MS = 24 * 60 * 60 * 1000;
+  const awardsStoryNotifs = (notifications || [])
+    .filter((n) => ['survey_results_ready', 'awards_ready', 'survey_finished'].includes(n.type))
+    .filter((n) => {
+      const createdTs = n?.created_at ? new Date(n.created_at).getTime() : 0;
+      return createdTs > 0 && (nowTs - createdTs) <= AWARDS_STORY_WINDOW_MS;
+    })
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const hasAwardsStoryPending = awardsStoryNotifs.some((n) => !n.read);
+  const hasAwardsStoryViewed = !hasAwardsStoryPending && awardsStoryNotifs.some((n) => n.read);
+  const hasAwardsStory = hasAwardsStoryPending || hasAwardsStoryViewed;
+
+  const openAwardsStoryFromNotification = async (notif) => {
+    const matchId = notif?.partido_id ?? notif?.data?.match_id ?? notif?.data?.matchId ?? notif?.match_ref;
+    if (!matchId) return false;
+    if (!notif?.read && notif?.id) {
+      try { await markAsRead(notif.id); } catch (_) { /* non-blocking */ }
+    }
+    const resultsUrl = notif?.data?.resultsUrl || `/resultados-encuesta/${matchId}?showAwards=1`;
+    navigate(resultsUrl, {
+      state: {
+        forceAwards: true,
+        fromNotification: true,
+        matchName: notif?.data?.match_name || notif?.data?.partido_nombre || null,
+      },
+    });
+    return true;
+  };
+
+  const handleAvatarClick = async (e) => {
+    e.stopPropagation();
+    if (hasAwardsStory) {
+      const latestPending = awardsStoryNotifs.find((n) => !n.read);
+      const latestViewed = awardsStoryNotifs.find((n) => n.read);
+      if (latestPending && await openAwardsStoryFromNotification(latestPending)) return;
+      if (latestViewed && await openAwardsStoryFromNotification(latestViewed)) return;
+    }
+    toggleStatusDropdown(e);
   };
 
   useEffect(() => {
@@ -100,14 +143,14 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         if (clearedError) {
           const key = `cleared_matches_${user.id}`;
           const existing = JSON.parse(localStorage.getItem(key) || '[]');
-          clearedMatchIds = new Set(existing);
+          clearedMatchIds = new Set(existing.map((v) => String(v)));
         } else {
-          clearedMatchIds = new Set(clearedData?.map((c) => c.partido_id) || []);
+          clearedMatchIds = new Set((clearedData?.map((c) => String(c.partido_id)) || []));
         }
       } catch (error) {
         const key = `cleared_matches_${user.id}`;
         const existing = JSON.parse(localStorage.getItem(key) || '[]');
-        clearedMatchIds = new Set(existing);
+        clearedMatchIds = new Set(existing.map((v) => String(v)));
       }
 
       // Obtener completed surveys
@@ -124,7 +167,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
             .from('post_match_surveys')
             .select('partido_id')
             .in('votante_id', jugadorIds);
-          completedSurveys = new Set(surveysData?.map((s) => s.partido_id) || []);
+          completedSurveys = new Set((surveysData?.map((s) => String(s.partido_id)) || []));
         }
       } catch (error) {
         console.error('Error fetching completed surveys:', error);
@@ -141,7 +184,13 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       const now = new Date();
       const partidosFiltrados = partidosData?.filter((partido) => {
-        if (clearedMatchIds.has(partido.id) || completedSurveys.has(partido.id)) {
+        const estado = String(partido?.estado || '').toLowerCase();
+        if (['cancelado', 'cancelled', 'deleted'].includes(estado) || partido?.deleted_at) {
+          return false;
+        }
+
+        const partidoIdStr = String(partido.id);
+        if (clearedMatchIds.has(partidoIdStr) || completedSurveys.has(partidoIdStr)) {
           return false;
         }
 
@@ -238,8 +287,8 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       {user && (
         <div className="flex items-center justify-between -mx-4 mb-5 px-4 py-3 bg-white/5 border-b border-white/10 backdrop-blur-[20px] w-screen ml-[calc(-50vw+50%)] shadow-lg">
           <div className="flex flex-row items-center justify-center cursor-pointer relative z-[10000]" ref={statusDropdownRef}>
-            <div className="relative mr-4" onClick={toggleStatusDropdown}>
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-white/20 flex items-center justify-center text-white font-bold text-base">
+            <div className="relative mr-4" onClick={handleAvatarClick}>
+              <div className={`w-10 h-10 rounded-full overflow-hidden bg-white/20 flex items-center justify-center text-white font-bold text-base ${hasAwardsStoryPending ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-transparent' : hasAwardsStoryViewed ? 'ring-2 ring-gray-400 ring-offset-2 ring-offset-transparent' : ''}`}>
                 {profile?.avatar_url ? (
                   <img
                     src={profile.avatar_url}

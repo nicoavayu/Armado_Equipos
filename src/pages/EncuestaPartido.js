@@ -322,22 +322,6 @@ const EncuestaPartido = () => {
             <button className={btnClass} onClick={() => navigate('/')}>
               VOLVER AL INICIO
             </button>
-
-            <button
-              className="mt-4 text-white/50 text-sm font-oswald underline cursor-pointer hover:text-white"
-              onClick={async () => {
-                try {
-                  const res = await finalizeIfComplete(id);
-                  if (res.done) {
-                    toast.success('Estado actualizado: Encuesta finalizada');
-                  } else {
-                    toast.info(`Estado: ${res.surveysCount}/${res.playersCount} votos. Cierra: ${Utils_formatTime(res.deadlineAt)}`);
-                  }
-                } catch (e) { console.error(e); toast.error('Error verificando estado'); }
-              }}
-            >
-              ADMIN: Verificar Estado / Forzar Cierre
-            </button>
           </div>
         </div>
       </PageTransition>

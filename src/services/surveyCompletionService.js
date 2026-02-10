@@ -4,7 +4,11 @@ import { grantAwardsForMatch } from './db/awards';
 import { applyNoShowPenalties, applyNoShowRecoveries } from './db/penalties';
 import { handleError } from '../lib/errorHandler';
 
-import { SURVEY_FINALIZE_DELAY_MS } from '../config/surveyConfig';
+import {
+  SURVEY_FINALIZE_DELAY_MS,
+  SURVEY_MIN_VOTERS_FOR_AWARDS,
+  SURVEY_MIN_VOTERS_IMMEDIATE_FINALIZE,
+} from '../config/surveyConfig';
 
 // Read env var if available on globalThis (e.g. injected at build/runtime). Default to 2 minutes for debug.
 // Removed local definition in favor of config file
@@ -122,6 +126,7 @@ export async function computeAndPersistAwards(partidoId) {
 }
 
 export async function finalizeIfComplete(partidoId, options = {}) {
+  const SKIP_SIDE_EFFECTS = options.skipSideEffects === true;
   // ensure we have an anchored now for survey timing
   const now = new Date();
   const nowIso = now.toISOString();
@@ -152,7 +157,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     // Actually, to ensure we catch 'created_at' for next time if it didn't exist, we rely on the DB setting created_at on insert,
     // OR we explicitly set it if we can.
     // For now, minimal upsert to ensure row exists.
-    const payload = { partido_id: partidoId, updated_at: nowIso };
+    const payload = { partido_id: partidoId };
 
     // Warning: if we don't return 'created_at' from the upsert, we might miss it if we just created it.
     // But we calculated computedDeadline above using 'nowIso' if it didn't exist.
@@ -193,7 +198,11 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     console.error('[FINALIZE] error fetching surveysRows', { partidoId, surveysErr });
     throw surveysErr;
   }
-  const distinctVoters = new Set((surveysRows || []).map((r) => r.votante_id));
+  const distinctVoters = new Set(
+    (surveysRows || []).map((r, idx) => (
+      r.votante_id == null ? `row:${idx}` : `voter:${r.votante_id}`
+    )),
+  );
   const surveysCount = distinctVoters.size;
 
   // Log counts and sample voter ids
@@ -214,30 +223,38 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     ? new Date(now.getTime() + 30 * 1000).toISOString()
     : new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString();
   console.log('[FINALIZE] Notification scheduled for:', readyAt, FAST ? '(30 seconds)' : '(6 hours)');
-  if (!allVoted && !deadlineReached) {
+  const minVotesImmediateReached = surveysCount >= SURVEY_MIN_VOTERS_IMMEDIATE_FINALIZE;
+  if (!allVoted && !deadlineReached && !minVotesImmediateReached) {
     const msLeft = new Date(computedDeadline).getTime() - Date.now();
     console.log('[FINALIZE] waiting', { partidoId, playersCount, surveysCount, deadlineAt: computedDeadline, msLeft });
     return { done: false, playersCount, surveysCount, deadlineAt: computedDeadline };
   }
 
-  console.log('[FINALIZE] proceeding to compute results and schedule notifications (allVoted || deadlineReached)', { partidoId, allVoted, deadlineReached });
+  console.log('[FINALIZE] proceeding to compute results and schedule notifications (allVoted || deadlineReached || minVotesImmediateReached)', {
+    partidoId,
+    allVoted,
+    deadlineReached,
+    minVotesImmediateReached,
+  });
   // Always attempt to apply no-show penalties when finalizing (idempotent implementation should guard double application)
-  try {
-    console.log('[FINALIZE] applying no-show penalties', { partidoId });
-    await applyNoShowPenalties(partidoId);
-  } catch (penErr) {
-    console.error('[FINALIZE] applyNoShowPenalties error', { partidoId, penErr });
-  }
-  // Always attempt to run no-show recovery processing as well (non-blocking)
-  try {
-    console.log('[FINALIZE] running no-show recoveries', { partidoId });
-    await applyNoShowRecoveries(partidoId);
-  } catch (recErr) {
-    console.error('[NO_SHOW_RECOVERY] error', recErr);
+  if (!SKIP_SIDE_EFFECTS) {
+    try {
+      console.log('[FINALIZE] applying no-show penalties', { partidoId });
+      await applyNoShowPenalties(partidoId);
+    } catch (penErr) {
+      console.error('[FINALIZE] applyNoShowPenalties error', { partidoId, penErr });
+    }
+    // Always attempt to run no-show recovery processing as well (non-blocking)
+    try {
+      console.log('[FINALIZE] running no-show recoveries', { partidoId });
+      await applyNoShowRecoveries(partidoId);
+    } catch (recErr) {
+      console.error('[NO_SHOW_RECOVERY] error', recErr);
+    }
   }
 
   // --- Create survey_finished notifications for all players immediately ---
-  try {
+  if (!SKIP_SIDE_EFFECTS) try {
     let jugadoresForNotifs = await db.fetchMany('jugadores', { partido_id: partidoId });
     jugadoresForNotifs = (jugadoresForNotifs || []).filter((j) => j.usuario_id != null);
 
@@ -245,7 +262,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     // Filters based on match_ref to ensure robustness
     let existingNotifs = [];
     try {
-      existingNotifs = await db.fetchMany('notifications', { match_ref: Number(partidoId), type: 'survey_finished' });
+      existingNotifs = await db.fetchMany('notifications', { partido_id: Number(partidoId), type: 'survey_finished' });
     } catch (e) {
       console.warn('[DEBUG] could not fetch existing survey_finished notifications', e?.message || e);
       existingNotifs = [];
@@ -296,8 +313,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   }
 
   // Determine whether we have enough voters to compute and award prizes
-  const MIN_VOTERS_FOR_AWARDS = 3;
-  const hasEnoughVotesForAwards = surveysCount >= MIN_VOTERS_FOR_AWARDS;
+  const hasEnoughVotesForAwards = surveysCount >= SURVEY_MIN_VOTERS_FOR_AWARDS;
 
   if (!hasEnoughVotesForAwards) {
     console.log('[FINALIZE] awards skipped: not enough votes', { partidoId, surveysCount });
@@ -318,17 +334,36 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 
   // 4) upsert survey_results with awards pending state
   // We keep ready_at for compatibility but effective immediately
-  const { error: upsertErr } = await supabase
-    .from('survey_results')
-    .upsert({
+  const basePayload = {
+    partido_id: partidoId,
+    ...results,
+    results_ready: true,
+  };
+  let upsertRes = await supabase.from('survey_results').upsert(basePayload, { onConflict: 'partido_id' });
+  if (upsertRes.error) {
+    upsertRes = await supabase.from('survey_results').upsert({
       partido_id: partidoId,
-      ...results,
-      ready_at: nowIso,
-      results_ready: true, // Mark ready immediately
-      // awards_status: 'pending', // Removed due to missing schema column
-      updated_at: nowIso,
+      mvp: results?.mvp ?? null,
+      golden_glove: results?.golden_glove ?? null,
+      red_cards: Array.isArray(results?.red_cards) ? results.red_cards : [],
+      results_ready: true,
     }, { onConflict: 'partido_id' });
-  if (upsertErr) throw upsertErr;
+  }
+  if (upsertRes.error) {
+    upsertRes = await supabase.from('survey_results').upsert({
+      partido_id: partidoId,
+      mvp: results?.mvp ?? null,
+      golden_glove: results?.golden_glove ?? null,
+      results_ready: true,
+    }, { onConflict: 'partido_id' });
+  }
+  if (upsertRes.error) {
+    upsertRes = await supabase.from('survey_results').upsert({
+      partido_id: partidoId,
+      results_ready: true,
+    }, { onConflict: 'partido_id' });
+  }
+  if (upsertRes.error) throw upsertRes.error;
 
   return { done: true, playersCount, surveysCount };
 }
@@ -415,22 +450,26 @@ export async function computeResultsAverages(partidoId) {
     if (cnt >= threshold) redIdsNum.push(id);
   });
 
-  // 7) mapear NUM -> UUID
+  // 7) mapear NUM -> identificador estable del jugador
+  // Preferencia: uuid -> usuario_id -> id (string)
   const idsToFetch = Array.from(new Set([mvpIdNum, gkIdNum, ...redIdsNum]
     .filter((n) => typeof n === 'number' && Number.isFinite(n))));
-  let idToUuid = new Map();
+  let idToPlayerRef = new Map();
   if (idsToFetch.length) {
     const { data: jugRows, error: jErr } = await supabase
       .from('jugadores')
-      .select('id, uuid')
+      .select('id, uuid, usuario_id')
       .in('id', idsToFetch);
     if (jErr) throw jErr;
-    jugRows?.forEach((j) => idToUuid.set(j.id, j.uuid));
+    jugRows?.forEach((j) => {
+      const playerRef = j.uuid || j.usuario_id || String(j.id);
+      idToPlayerRef.set(j.id, playerRef);
+    });
   }
 
   return {
-    mvp: mvpIdNum ? idToUuid.get(mvpIdNum) || null : null,
-    golden_glove: gkIdNum ? idToUuid.get(gkIdNum) || null : null,
-    red_cards: redIdsNum.map((id) => idToUuid.get(id)).filter(Boolean),
+    mvp: mvpIdNum ? idToPlayerRef.get(mvpIdNum) || String(mvpIdNum) : null,
+    golden_glove: gkIdNum ? idToPlayerRef.get(gkIdNum) || String(gkIdNum) : null,
+    red_cards: redIdsNum.map((id) => idToPlayerRef.get(id) || String(id)).filter(Boolean),
   };
 }
