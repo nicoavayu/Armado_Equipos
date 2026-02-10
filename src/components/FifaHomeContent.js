@@ -298,18 +298,31 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         <div className="flex items-center justify-between -mx-4 mb-5 px-4 py-3 bg-white/5 border-b border-white/10 backdrop-blur-[20px] w-screen ml-[calc(-50vw+50%)] shadow-lg">
           <div className="flex flex-row items-center justify-center cursor-pointer relative z-[10000]" ref={statusDropdownRef}>
             <div className="relative mr-4" onClick={handleAvatarClick}>
-              <div className={`w-10 h-10 rounded-full overflow-hidden bg-white/20 flex items-center justify-center text-white font-bold text-base ${hasAwardsStoryPending ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-transparent' : hasAwardsStoryViewed ? 'ring-2 ring-gray-400 ring-offset-2 ring-offset-transparent' : ''}`}>
-                {profile?.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div>
-                    {getInitial()}
-                  </div>
-                )}
+              {/* "Historias" ring: pending = violet->blue gradient, viewed = muted gray. */}
+              <div
+                className={[
+                  'rounded-full',
+                  hasAwardsStoryPending || hasAwardsStoryViewed ? 'p-[2px]' : 'p-0',
+                  hasAwardsStoryPending
+                    ? 'bg-gradient-to-r from-[#8178e5] to-[#128BE9] shadow-[0_0_0_2px_rgba(255,255,255,0.10),0_0_16px_rgba(18,139,233,0.25)]'
+                    : hasAwardsStoryViewed
+                      ? 'bg-white/25'
+                      : 'bg-transparent',
+                ].join(' ')}
+              >
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-white/20 flex items-center justify-center text-white font-bold text-base">
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div>
+                      {getInitial()}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white/80 ${isAvailable ? 'bg-[#4CAF50]' : 'bg-[#F44336]'}`}></div>
             </div>
