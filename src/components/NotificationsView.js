@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Bell, CalendarClock, CheckCircle, ClipboardList, Trophy, UserPlus, Users, Vote, XCircle } from 'lucide-react';
 import { toBigIntId } from '../utils';
 import { useNotifications } from '../context/NotificationContext';
 import { useAmigos } from '../hooks/useAmigos';
@@ -296,25 +297,25 @@ const NotificationsView = () => {
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'friend_request':
-        return '👥';
+        return UserPlus;
       case 'friend_accepted':
-        return '✅';
+        return CheckCircle;
       case 'friend_rejected':
-        return '❌';
+        return XCircle;
       case 'match_invite':
-        return '⚽';
+        return CalendarClock;
       case 'match_update':
-        return '🔄';
+        return Users;
       case 'post_match_survey':
-        return '📋';
+        return ClipboardList;
       case 'survey_reminder':
-        return '📋';
+        return ClipboardList;
       case 'call_to_vote':
-        return '⭐';
+        return Vote;
       case 'survey_results_ready':
-        return '🏆';
+        return Trophy;
       default:
-        return '📣';
+        return Bell;
     }
   };
 
@@ -329,14 +330,18 @@ const NotificationsView = () => {
       <div className="w-full max-w-[600px] mx-auto">
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-[60px] px-5 text-center">
-            <div className="text-[64px] mb-4 opacity-60">🔔</div>
+            <div className="mb-4 opacity-60">
+              <Bell size={48} />
+            </div>
             <p className="text-white font-oswald text-lg font-semibold m-0 mb-2">No tienes notificaciones</p>
             <span className="text-white/70 text-sm m-0">Aquí aparecerán tus notificaciones cuando las recibas</span>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3">
-            {notifications.map((notification) => (
-              <div
+            {notifications.map((notification) => {
+              const Icon = getNotificationIcon(notification.type);
+              return (
+                <div
                 key={notification.id}
                 role="button"
                 tabIndex={0}
@@ -354,8 +359,8 @@ const NotificationsView = () => {
                   }
                 }}
               >
-                <div className="text-2xl mr-3 flex items-center justify-center w-10 h-10 bg-white/10 rounded-full">
-                  {getNotificationIcon(notification.type)}
+                <div className="text-2xl mr-3 flex items-center justify-center w-10 h-10 bg-white/10 rounded-full text-white/90">
+                  <Icon size={18} />
                 </div>
                 <div className="flex-1">
                   <div className="font-bold text-white mb-1">{notification.title}</div>
@@ -392,7 +397,8 @@ const NotificationsView = () => {
                   <div className="absolute top-3 right-3 w-2 h-2 bg-[#ff3366] rounded-full"></div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -4,6 +4,11 @@ import { toast } from 'react-toastify';
 import AutocompleteSede from '../components/AutocompleteSede';
 import PageTitle from '../components/PageTitle';
 import { parseLocalDateTime, weekdayFromYMD } from '../utils/dateLocal';
+import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
+
+const SECTION_LABEL_CLASS = 'text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1 mb-2';
+const INPUT_CLASS = 'appearance-none bg-white/5 border border-white/20 text-white font-oswald text-lg px-4 py-3 rounded-xl w-full box-border h-[54px] transition-all duration-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md placeholder:text-white/30';
+const PRIMARY_NAV_BUTTON_CLASS = `${PRIMARY_CTA_BUTTON_CLASS} relative overflow-hidden box-border mt-4 mb-0`;
 
 export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }) {
   const [nombre, setNombre] = useState(partido.nombre);
@@ -287,12 +292,11 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
   };
 
   return (
-    <div className="min-h-[100dvh] bg-transparent w-full p-5 flex flex-col items-center justify-start font-oswald box-border pb-24 pt-24">
+    <div className="min-h-[100dvh] bg-transparent w-full px-5 flex flex-col items-center justify-start font-oswald box-border pb-28 pt-24">
       <PageTitle title="EDITAR" onBack={onVolver}>EDITAR</PageTitle>
-      <div className="w-full max-w-[500px] flex flex-col gap-6 mt-6">
-        <PageTitle title="EDITAR" onBack={onVolver}>EDITAR</PageTitle>
+      <div className="w-full max-w-[520px] flex flex-col gap-5 mt-6">
 
-        <div className="flex flex-col gap-0 w-[90vw] max-w-[400px]">
+        <div className="flex flex-col gap-4 w-full">
           <div className="flex items-center gap-4 w-full bg-white/5 p-4 rounded-2xl border border-white/10 backdrop-blur-md">
             <div
               className="cursor-pointer w-[72px] h-[72px] rounded-xl bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden shrink-0 transition-all duration-300 hover:bg-white/20 hover:border-white/40 shadow-inner"
@@ -316,12 +320,12 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
               Foto del partido (opcional)
             </div>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1">
+          <div>
+            <label className={SECTION_LABEL_CLASS}>
               Nombre del partido
             </label>
             <input
-              className="appearance-none bg-white/5 border border-white/20 text-white font-oswald text-lg px-4 py-3 rounded-xl w-full box-border h-[54px] transition-all duration-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md placeholder:text-white/30"
+              className={INPUT_CLASS}
               type="text"
               placeholder="Nombre del partido"
               value={nombre}
@@ -329,32 +333,32 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1">
+          <div>
+            <label className={SECTION_LABEL_CLASS}>
               Fecha
             </label>
             <input
-              className="appearance-none bg-white/5 border border-white/20 text-white font-oswald text-lg px-4 py-3 rounded-xl w-full box-border h-[54px] transition-all duration-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md"
+              className={INPUT_CLASS}
               type="date"
               value={fecha}
               onChange={(e) => setFecha(e.target.value)}
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1">
+          <div>
+            <label className={SECTION_LABEL_CLASS}>
               Hora
             </label>
             <input
-              className="appearance-none bg-white/5 border border-white/20 text-white font-oswald text-lg px-4 py-3 rounded-xl w-full box-border h-[54px] transition-all duration-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md"
+              className={INPUT_CLASS}
               type="time"
               value={hora}
               onChange={(e) => setHora(e.target.value)}
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1">
+          <div>
+            <label className={SECTION_LABEL_CLASS}>
               Sede
             </label>
             <AutocompleteSede
@@ -366,12 +370,12 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
             />
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1">Precio Cancha</label>
+          <div>
+            <label className={SECTION_LABEL_CLASS}>Precio Cancha</label>
             <div className="relative flex items-center">
               <span className="absolute left-4 text-white/50 font-bold pointer-events-none font-oswald">$</span>
               <input
-                className="appearance-none bg-white/5 border border-white/20 text-white font-oswald text-lg px-4 pl-8 py-3 rounded-xl w-full box-border h-[54px] transition-all duration-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md placeholder:text-white/30"
+                className={`${INPUT_CLASS} pl-8`}
                 type="number"
                 step="any"
                 placeholder="Ej: 25000"
@@ -382,8 +386,8 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
           </div>
 
           {/* Selector de tipo de partido */}
-          <div className="space-y-3">
-            <label className="text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1">
+          <div className="space-y-3 pt-1">
+            <label className={SECTION_LABEL_CLASS}>
               Tipo de partido
             </label>
             <div className="grid grid-cols-3 gap-3 w-full">
@@ -405,7 +409,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
 
           {/* Selector de modalidad */}
           <div className="space-y-3">
-            <label className="text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1">
+            <label className={SECTION_LABEL_CLASS}>
               Modalidad
             </label>
             <div className="grid grid-cols-3 gap-3 w-full">
@@ -427,7 +431,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
         </div>
 
         <button
-          className="w-full font-bebas text-[28px] text-white bg-primary border-2 border-white/20 rounded-2xl tracking-widest min-h-[60px] mt-8 cursor-pointer font-bold transition-all duration-300 shadow-xl hover:brightness-110 hover:shadow-[0_12px_40px_rgba(129,120,229,0.5)] active:scale-[0.98] disabled:opacity-40"
+          className={PRIMARY_NAV_BUTTON_CLASS}
           onClick={guardarCambios}
           disabled={loading}
         >

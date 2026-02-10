@@ -439,35 +439,35 @@ export const NotificationProvider = ({ children }) => {
 
     switch (notification.type) {
       case 'friend_request':
-        toast.info(`👥 Nueva solicitud de amistad de ${notification.data?.senderName || 'alguien'}`, toastOptions);
+        toast.info(`Nueva solicitud de amistad de ${notification.data?.senderName || 'alguien'}`, toastOptions);
         break;
       case 'friend_accepted':
-        toast.success(`✅ ${notification.title}: ${notification.message}`, toastOptions);
+        toast.success(`${notification.title}: ${notification.message}`, toastOptions);
         break;
       case 'friend_rejected':
-        toast.warning(`❌ ${notification.title}: ${notification.message}`, toastOptions);
+        toast.warning(`${notification.title}: ${notification.message}`, toastOptions);
         break;
       case 'match_invite':
-        toast.info(`⚽ ${notification.title}: ${notification.message}`, toastOptions);
+        toast.info(`${notification.title}: ${notification.message}`, toastOptions);
         break;
       case 'call_to_vote':
-        toast.info(`⭐ ${notification.title}: ${notification.message}`, toastOptions);
+        toast.info(`${notification.title}: ${notification.message}`, toastOptions);
         break;
       case 'survey_start':
       case 'post_match_survey':
-        toast.info(`📋 ${notification.title}: ${notification.message}`, toastOptions);
+        toast.info(`${notification.title}: ${notification.message}`, toastOptions);
         break;
       case 'survey_results_ready':
-        toast.success(`🏆 ${notification.title}: ${notification.message}`, toastOptions);
+        toast.success(`${notification.title}: ${notification.message}`, toastOptions);
         break;
       case 'awards_ready':
-        toast.success(`🏆 ${notification.title}: ${notification.message}`, toastOptions);
+        toast.success(`${notification.title}: ${notification.message}`, toastOptions);
         break;
       case 'survey_finished':
-        toast.success(`🏆 ${notification.title}: ${notification.message}`, toastOptions);
+        toast.success(`${notification.title}: ${notification.message}`, toastOptions);
         break;
       case 'admin_transfer':
-        toast.success(`👑 ${notification.title}: ${notification.message}`, toastOptions);
+        toast.success(`${notification.title}: ${notification.message}`, toastOptions);
         // Auto-refresh if forceRefresh is true
         if (notification.data?.forceRefresh) {
           setTimeout(() => {
@@ -476,7 +476,7 @@ export const NotificationProvider = ({ children }) => {
         }
         break;
       default:
-        toast.info(`📣 ${notification.title}: ${notification.message}`, toastOptions);
+        toast.info(`${notification.title}: ${notification.message}`, toastOptions);
         break;
     }
   };

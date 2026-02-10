@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+import { Bell, CalendarClock, CheckCircle, ClipboardList, ShieldAlert, Trophy, User, UserPlus, Users, Vote, XCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import supabase from '../supabase';
 import { useAuth } from './AuthProvider';
@@ -200,21 +201,21 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
   const getNotificationIcon = (type) => {
     switch (type) {
-      case 'match_invite': return '⚽';
-      case 'call_to_vote': return '⭐';
-      case 'survey_start': return '📋';
-      case 'survey_reminder': return '📋';
-      case 'survey_results_ready': return '🏆';
-      case 'awards_ready': return '🏆';
-      case 'survey_finished': return '🏆';
-      case 'friend_request': return '👤';
-      case 'friend_accepted': return '✅';
-      case 'match_update': return '📅';
-      case 'match_cancelled': return '❌';
-      case 'match_join_request': return '📥';
-      case 'match_join_approved': return '✅';
-      case 'match_kicked': return '🚫';
-      default: return '🔔';
+      case 'match_invite': return CalendarClock;
+      case 'call_to_vote': return Vote;
+      case 'survey_start': return ClipboardList;
+      case 'survey_reminder': return ClipboardList;
+      case 'survey_results_ready': return Trophy;
+      case 'awards_ready': return Trophy;
+      case 'survey_finished': return Trophy;
+      case 'friend_request': return UserPlus;
+      case 'friend_accepted': return CheckCircle;
+      case 'match_update': return Users;
+      case 'match_cancelled': return XCircle;
+      case 'match_join_request': return UserPlus;
+      case 'match_join_approved': return CheckCircle;
+      case 'match_kicked': return ShieldAlert;
+      default: return Bell;
     }
   };
 
@@ -298,7 +299,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
             </div>
           ) : notifications.length === 0 ? (
             <div className="text-center text-[#999] py-20 px-5 text-base leading-relaxed">
-              <div className="text-5xl mb-4 opacity-50">🔔</div>
+              <div className="mb-4 opacity-50 flex justify-center">
+                <Bell size={48} />
+              </div>
               <p className="my-2 text-lg font-medium text-[#ccc]">No tienes notificaciones</p>
               <span className="text-sm text-[#666]">Te avisaremos cuando tengas algo nuevo</span>
             </div>
@@ -306,11 +309,12 @@ const NotificationsModal = ({ isOpen, onClose }) => {
             <div className="p-0">
               {notifications.map((notification) => {
                 const clickable = ['match_invite', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished'].includes(notification.type);
+                const Icon = getNotificationIcon(notification.type) || User;
 
                 const notificationContent = (
                   <>
-                    <div className="text-xl w-8 h-8 bg-[#333] rounded-full flex items-center justify-center shrink-0 md:w-7 md:h-7 md:text-lg">
-                      {getNotificationIcon(notification.type)}
+                    <div className="text-xl w-8 h-8 bg-[#333] rounded-full flex items-center justify-center shrink-0 md:w-7 md:h-7 md:text-lg text-white/85">
+                      <Icon size={16} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-white text-base font-semibold mb-1 leading-tight md:text-[15px]">{notification.title}</div>

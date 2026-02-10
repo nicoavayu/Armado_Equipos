@@ -1,6 +1,8 @@
 // src/components/ManualMatchModal.js
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { motion } from 'framer-motion';
+import { CalendarDays, Handshake, Trophy, CircleX, X } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
 import { toast } from 'react-toastify';
@@ -53,18 +55,20 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] p-5 md:items-start md:pt-20 md:px-2.5" onClick={onClose}>
+  const modalContent = (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] p-4 sm:p-3" onClick={onClose}>
       <motion.div
-        className="bg-gradient-to-br from-[#667eea] to-[#764ba2] rounded-2xl p-6 w-full max-w-[400px] border border-white/20 backdrop-blur-md md:p-5 md:m-0 md:max-h-[90vh] md:overflow-y-auto"
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
+        className="bg-[#1F2252] rounded-3xl p-6 w-full max-w-[540px] border border-white/15 backdrop-blur-md max-h-[90vh] overflow-y-auto"
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
           <h3 className="font-oswald text-xl font-semibold text-white m-0 uppercase">Sumar Partido Manual</h3>
-          <button className="bg-transparent border-none text-white/80 text-2xl cursor-pointer p-1 rounded transition-all hover:bg-white/10 hover:text-white" onClick={onClose}>×</button>
+          <button className="bg-transparent border-none text-white/80 cursor-pointer p-1 rounded transition-all hover:bg-white/10 hover:text-white" onClick={onClose}>
+            <X size={24} />
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -85,20 +89,25 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
             <label className="font-oswald text-sm font-semibold text-white uppercase">Resultado</label>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-1 sm:gap-1.5">
               {[
-                { value: 'ganaste', label: 'Ganaste', emoji: '🏆' },
-                { value: 'empate', label: 'Empate', emoji: '🤝' },
-                { value: 'perdiste', label: 'Perdiste', emoji: '😔' },
-              ].map((option) => (
+                { value: 'ganaste', label: 'Ganaste', icon: Trophy },
+                { value: 'empate', label: 'Empate', icon: Handshake },
+                { value: 'perdiste', label: 'Perdiste', icon: CircleX },
+              ].map((option) => {
+                const Icon = option.icon;
+                return (
                 <button
                   key={option.value}
                   type="button"
                   className={`flex flex-col items-center gap-1 p-3 px-2 bg-white/10 border-2 border-white/20 rounded-lg cursor-pointer transition-all font-oswald hover:bg-white/15 hover:-translate-y-0.5 sm:flex-row sm:justify-center sm:p-2.5 sm:px-4 ${formData.resultado === option.value ? 'bg-white/20 border-white/50 -translate-y-0.5 shadow-lg' : ''}`}
                   onClick={() => setFormData({ ...formData, resultado: option.value })}
                 >
-                  <span className="text-xl sm:text-base">{option.emoji}</span>
+                  <span className="text-white/85">
+                    <Icon size={24} />
+                  </span>
                   <span className="text-xs font-semibold text-white uppercase sm:text-sm">{option.label}</span>
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -111,6 +120,10 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
               required
               className="p-3 px-4 border-2 border-white/20 rounded-lg bg-white/10 text-white font-oswald text-base backdrop-blur-md outline-none focus:border-white/50 focus:bg-white/15"
             />
+            <div className="text-white/55 text-xs flex items-center gap-1.5">
+              <CalendarDays size={16} />
+              Fecha del partido manual
+            </div>
           </div>
 
           <div className="flex gap-3 mt-2">
@@ -119,7 +132,7 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
             </button>
             <button
               type="submit"
-              className="flex-1 p-3 border-none rounded-lg bg-[#4CAF50] text-white font-oswald text-sm font-semibold uppercase cursor-pointer transition-all hover:bg-[#45a049] hover:-translate-y-px hover:shadow-lg disabled:bg-white/20 disabled:text-white/50 disabled:cursor-not-allowed"
+              className="flex-1 p-3 border-none rounded-lg bg-primary text-white font-oswald text-sm font-semibold uppercase cursor-pointer transition-all hover:brightness-110 hover:-translate-y-px hover:shadow-lg disabled:bg-white/20 disabled:text-white/50 disabled:cursor-not-allowed"
               disabled={loading}
             >
               {loading ? 'Guardando...' : 'Guardar Partido'}
@@ -129,6 +142,8 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
       </motion.div>
     </div>
   );
+
+  return ReactDOM.createPortal(modalContent, document.body);
 };
 
 export default ManualMatchModal;

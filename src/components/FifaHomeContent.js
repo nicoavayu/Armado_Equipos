@@ -1,37 +1,45 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
+import { Activity, AlertTriangle, Bell, CalendarClock, CheckCircle, ChevronRight, ClipboardList, Trophy, UserPlus, Users, Vote } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
-import { toast } from 'react-toastify';
 import { useInterval } from '../hooks/useInterval';
 import { supabase, updateProfile } from '../supabase';
 import { parseLocalDateTime } from '../utils/dateLocal';
+import { buildActivityFeed } from '../utils/activityFeed';
 import ProximosPartidos from './ProximosPartidos';
 import NotificationsBell from './NotificationsBell';
 
+const activityIconMap = {
+  Activity,
+  AlertTriangle,
+  Bell,
+  CalendarClock,
+  CheckCircle,
+  ClipboardList,
+  Trophy,
+  UserPlus,
+  Users,
+  Vote,
+};
+
 const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _onViewActivePlayers }) => {
   const { user, profile, refreshProfile } = useAuth();
-  const { unreadCount, notifications, markAsRead } = useNotifications();
+  const notificationsCtx = useNotifications() || {};
+  const unreadCount = notificationsCtx.unreadCount || { friends: 0, matches: 0, total: 0 };
+  const notifications = notificationsCtx.notifications || [];
+  const markAsRead = notificationsCtx.markAsRead || (async () => {});
   const navigate = useNavigate();
   const { setIntervalSafe } = useInterval();
   const [activeMatches, setActiveMatches] = useState([]);
-  const [recentActivity, setRecentActivity] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activityItems, setActivityItems] = useState([]);
   const [showProximosPartidos, setShowProximosPartidos] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const statusDropdownRef = useRef(null);
   const [isMounted, setIsMounted] = useState(false);
-
-  const handleVerPremiacion = () => {
-    const targetMatch = activeMatches?.[0];
-    if (!targetMatch?.id) {
-      toast.info('No hay un partido activo para mostrar premiación.');
-      return;
-    }
-    navigate(`/resultados-encuesta/${targetMatch.id}?showAwards=1`, {
-      state: { matchName: targetMatch?.nombre || null },
-    });
-  };
+  const activityLoadedRef = useRef(false);
 
   const nowTs = Date.now();
   const AWARDS_STORY_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -81,17 +89,9 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
   const cardClass = `bg-white/10 border border-white/20 rounded-2xl p-5 cursor-pointer ${isMounted ? 'transition-all duration-300' : ''} aspect-square relative overflow-hidden flex flex-col justify-start min-h-[120px] no-underline text-white backdrop-blur-[15px] z-[1] hover:-translate-y-1.5 hover:scale-[1.02] hover:bg-white/20 hover:border-white/40 active:translate-y-0 active:scale-100 sm:min-h-[100px] sm:p-4 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]`;
 
-  // Agregar aquí los ítems estáticos que antes provenían de PanelInfo
-  const panelInfoItems = [
-    { id: 'panel-1', message: 'Hoy jugás a las 20:00 en Sede Palermo', type: 'match' },
-    { id: 'panel-2', message: 'Se sumó Juan al partido del viernes', type: 'player' },
-    { id: 'panel-3', message: 'Faltan 3 jugadores para el partido', type: 'alert' },
-  ];
-
   useEffect(() => {
     if (user) {
       fetchActiveMatches();
-      fetchRecentActivity();
 
       // Actualizar cada 10 segundos para tiempo real
       setIntervalSafe(() => {
@@ -175,7 +175,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       const { data: partidosData, error: partidosError } = await supabase
         .from('partidos')
-        .select('*')
+        .select('*, jugadores(count)')
         .in('id', todosLosPartidosIds)
         .order('fecha', { ascending: true })
         .order('hora', { ascending: true });
@@ -210,23 +210,8 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       setActiveMatches(partidosFiltrados);
     } catch (error) {
       console.error('Error fetching active matches:', error);
-    }
-  };
-
-
-
-  const fetchRecentActivity = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('partidos')
-        .select('id, fecha, hora, sede, created_at, precio_cancha_por_persona')
-        .order('created_at', { ascending: false })
-        .limit(3);
-
-      if (error) throw error;
-      setRecentActivity(data || []);
-    } catch (error) {
-      console.error('Error fetching recent activity:', error);
+    } finally {
+      // Activity loading is managed by the feed builder effect.
     }
   };
 
@@ -262,6 +247,41 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     }
   };
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadActivity = async () => {
+      if (!user?.id) {
+        if (!cancelled) {
+          setActivityItems([]);
+          setActivityLoading(false);
+        }
+        return;
+      }
+
+      if (!activityLoadedRef.current) {
+        setActivityLoading(true);
+      }
+      const items = await buildActivityFeed(notifications || [], {
+        activeMatches,
+        currentUserId: user.id,
+        supabaseClient: supabase,
+      });
+
+      if (!cancelled) {
+        setActivityItems(items);
+        activityLoadedRef.current = true;
+        setActivityLoading(false);
+      }
+    };
+
+    loadActivity();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeMatches, notifications, user?.id]);
+
   // Mostrar ProximosPartidos si está activo
   if (showProximosPartidos) {
     return (
@@ -270,16 +290,6 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       />
     );
   }
-
-  // Combinar los ítems estáticos con la actividad reciente traída desde la BD
-  const combinedActivity = [
-    ...panelInfoItems,
-    ...(recentActivity || []).map((activity) => ({
-      id: `recent-${activity.id}`,
-      message: `Partido creado en ${activity.sede} para el ${new Date(activity.fecha).toLocaleDateString()}`,
-      type: 'match',
-    })),
-  ];
 
   return (
     <div className="w-full max-w-[800px] mx-auto px-4 bg-transparent shadow-none">
@@ -401,35 +411,45 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       </div>
 
-      {/* CTA for Awards Preview */}
-      <div className="mt-2 mb-6">
-        <button
-          onClick={handleVerPremiacion}
-          className="w-full py-3 rounded-xl bg-primary text-white font-bebas text-lg uppercase tracking-widest shadow-[0_8px_24px_rgba(129,120,229,0.35)] hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 transition-all text-center border border-white/20"
-        >
-          Ver Premiación
-        </button>
-      </div>
-
       {/* Recent Activity */}
       <div className="bg-white/5 border border-white/10 backdrop-blur-[15px] rounded-2xl p-6 mt-5 mb-10 shadow-xl">
         <h3 className="font-bebas-real text-[28px] m-0 mb-4 text-white/90 uppercase font-bold tracking-tight">ACTIVIDAD RECIENTE</h3>
-        <div className="flex flex-col gap-3 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
-          {combinedActivity.length > 0 ? (
-            combinedActivity.map((item) => (
-              <div key={item.id} className="flex items-center p-3.5 bg-white/5 rounded-xl border border-white/5 transition-all duration-200 hover:bg-white/10 hover:border-white/10">
-                <div className="mr-3 text-xl">
-                  {item.type === 'match' && '🏆'}
-                  {item.type === 'player' && '👤'}
-                  {item.type === 'alert' && '⚠️'}
-                </div>
-                <div className="text-white/90 text-sm">{item.message}</div>
-              </div>
-            ))
-          ) : (
-            <div className="text-white/50 text-center py-5">No hay actividad reciente</div>
-          )}
-        </div>
+        {activityLoading ? (
+          <div className="text-white/60 text-sm">Cargando actividad...</div>
+        ) : activityItems.length > 0 ? (
+          <div className="flex flex-col gap-3 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
+            {activityItems.map((item) => {
+              const Icon = activityIconMap[item.icon] || Bell;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => navigate(item.route)}
+                  className="w-full flex items-center justify-between gap-3 p-3.5 bg-white/5 rounded-xl border border-white/5 text-left hover:bg-white/10 active:bg-white/15 transition-colors"
+                >
+                  <div className="flex items-start min-w-0">
+                    <div className="mr-3 mt-0.5 text-white/80 shrink-0">
+                      <Icon size={24} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-white text-sm leading-snug truncate">{item.title}</div>
+                      <div className="text-white/65 text-xs mt-1 truncate">{item.subtitle}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 text-white/60">
+                    {item.count > 1 && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/10 border border-white/15">
+                        x{item.count}
+                      </span>
+                    )}
+                    <ChevronRight size={16} />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-white/60 text-sm">No hay notificaciones para mostrar.</div>
+        )}
       </div>
 
 

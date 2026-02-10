@@ -1,22 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CountUp from 'react-countup';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
+import {
+  Activity,
+  AlertCircle,
+  CalendarDays,
+  CircleAlert,
+  ClipboardPlus,
+  Dribbble,
+  Hand,
+  Handshake,
+  Medal,
+  ShieldAlert,
+  Sparkles,
+  Star,
+  Trophy,
+} from 'lucide-react';
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
 import PageTitle from './PageTitle';
 import ManualMatchModal from './ManualMatchModal';
 import InjuryModal from './InjuryModal';
+import { toast } from 'react-toastify';
 
 const StatsView = ({ onVolver }) => {
   const { user } = useAuth();
   const [period, setPeriod] = useState('year');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedWeek, setSelectedWeek] = useState(Math.floor((new Date().getDate() - 1) / 7));
   const [showYearDropdown, setShowYearDropdown] = useState(false);
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
+  const [showWeekDropdown, setShowWeekDropdown] = useState(false);
   const [showManualMatchModal, setShowManualMatchModal] = useState(false);
   const [showInjuryModal, setShowInjuryModal] = useState(false);
+  const [showLesionesDetalle, setShowLesionesDetalle] = useState(false);
   const [stats, setStats] = useState({
     partidosJugados: 0,
     amigosDistintos: 0,
@@ -25,10 +44,12 @@ const StatsView = ({ onVolver }) => {
     topAmigos: [],
     topFriend: null,
     recordPersonal: null,
-    logros: [],
+    logros: { annual: [], historical: [] },
     partidosManuales: 0,
     amistosos: 0,
     torneos: 0,
+    lesionesPeriodo: 0,
+    lesionesDetallePeriodo: [],
     lesionActiva: null,
     ultimaLesion: null,
   });
@@ -38,7 +59,7 @@ const StatsView = ({ onVolver }) => {
     if (user) {
       loadStats();
     }
-  }, [user, period, selectedYear, selectedMonth]);
+  }, [user, period, selectedYear, selectedMonth, selectedWeek]);
 
   const loadStats = async () => {
     setLoading(true);
@@ -65,6 +86,8 @@ const StatsView = ({ onVolver }) => {
         partidosManuales: partidosManualesData.total,
         amistosos: partidosData.total + partidosManualesData.amistosos,
         torneos: partidosManualesData.torneos,
+        lesionesPeriodo: lesionesData.enPeriodoCount,
+        lesionesDetallePeriodo: lesionesData.enPeriodoDetalle,
         lesionActiva: lesionesData.activa,
         ultimaLesion: lesionesData.ultima,
       });
@@ -80,9 +103,10 @@ const StatsView = ({ onVolver }) => {
 
     switch (period) {
       case 'week': {
-        const now = new Date();
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
-        end = now;
+        const weekStartDay = selectedWeek * 7 + 1;
+        const weekEndDay = Math.min(weekStartDay + 6, new Date(selectedYear, selectedMonth + 1, 0).getDate());
+        start = new Date(selectedYear, selectedMonth, weekStartDay);
+        end = new Date(selectedYear, selectedMonth, weekEndDay);
         break;
       }
       case 'month':
@@ -200,7 +224,8 @@ const StatsView = ({ onVolver }) => {
       partido.jugadores?.some((j) => j.uuid === user.id || j.nombre === user.email),
     );
 
-    const logros = [];
+    const annualLogros = [];
+    const historicalLogros = [];
 
     // Obtener total histórico de todos los partidos
     const [{ data: todosPartidos }, { data: partidosManualesHistoricos }] = await Promise.all([
@@ -248,11 +273,11 @@ const StatsView = ({ onVolver }) => {
     });
 
     const mejorMes = Object.entries(partidosPorMes).sort((a, b) => b[1] - a[1])[0];
-    logros.push({
+    annualLogros.push({
       titulo: 'Mejor Mes',
       valor: mejorMes ? `${mejorMes[1]} partidos` : '0 partidos',
       detalle: mejorMes ? mejorMes[0] : 'Sin partidos aún',
-      icono: '🏆',
+      icono: 'Trophy',
     });
 
     // Mejor rating (siempre mostrar)
@@ -265,48 +290,46 @@ const StatsView = ({ onVolver }) => {
       mejorRating = Math.max(...ratings);
     }
 
-    logros.push({
+    annualLogros.push({
       titulo: 'Mejor Rating',
       valor: mejorRating > 0 ? mejorRating.toFixed(1) : '0.0',
       detalle: mejorRating > 0 ? 'En un partido' : 'Sin partidos aún',
-      icono: '⭐',
+      icono: 'Star',
     });
 
     // MVP (siempre mostrar)
-    logros.push({
+    annualLogros.push({
       titulo: 'MVP del Partido',
       valor: `${mvpCount} ${mvpCount === 1 ? 'vez' : 'veces'}`,
       detalle: `En ${selectedYear}`,
-      icono: '🏅',
+      icono: 'Medal',
     });
 
     // Guante Dorado (siempre mostrar)
-    logros.push({
+    annualLogros.push({
       titulo: 'Guante Dorado',
       valor: `${guanteDoradoCount} ${guanteDoradoCount === 1 ? 'vez' : 'veces'}`,
       detalle: `En ${selectedYear}`,
-      icono: '🥅',
+      icono: 'Hand',
     });
 
     // Tarjeta Roja (siempre mostrar)
-    logros.push({
+    annualLogros.push({
       titulo: 'Tarjeta Roja',
       valor: `${tarjetaRojaCount} ${tarjetaRojaCount === 1 ? 'vez' : 'veces'}`,
       detalle: `En ${selectedYear}`,
-      icono: '🟥',
+      icono: 'ShieldAlert',
     });
 
     // Total Histórico (siempre mostrar)
-    logros.push({
+    historicalLogros.push({
       titulo: 'Total Histórico',
       valor: `${totalHistorico} partidos`,
       detalle: 'Desde el inicio',
-      icono: '📊',
+      icono: 'Activity',
     });
 
-
-
-    return logros;
+    return { annual: annualLogros, historical: historicalLogros };
   };
 
   const getAvatarColor = (nombre) => {
@@ -356,11 +379,46 @@ const StatsView = ({ onVolver }) => {
 
     const lesionActiva = lesiones?.find((l) => !l.fecha_fin);
     const ultimaLesion = lesiones?.find((l) => l.fecha_fin) || lesiones?.[0];
+    const dateRange = getDateRange(period);
+    const start = dateRange.start.split('T')[0];
+    const end = dateRange.end.split('T')[0];
+    const enPeriodo = (lesiones || []).filter((l) => l?.fecha_inicio && l.fecha_inicio >= start && l.fecha_inicio <= end);
 
     return {
       activa: lesionActiva,
       ultima: ultimaLesion,
+      enPeriodoCount: enPeriodo.length,
+      enPeriodoDetalle: enPeriodo.map((l) => ({
+        id: l.id,
+        tipo_lesion: l.tipo_lesion,
+        fecha_inicio: l.fecha_inicio,
+        fecha_fin: l.fecha_fin,
+      })),
     };
+  };
+
+  const markActiveLesionAsRecovered = async () => {
+    if (!stats?.lesionActiva?.id || !user?.id) return;
+    try {
+      const fechaFin = new Date().toISOString().split('T')[0];
+      const { error: lesionError } = await supabase
+        .from('lesiones')
+        .update({ fecha_fin: fechaFin })
+        .eq('id', stats.lesionActiva.id);
+      if (lesionError) throw lesionError;
+
+      const { error: userError } = await supabase
+        .from('usuarios')
+        .update({ lesion_activa: false })
+        .eq('id', user.id);
+      if (userError) throw userError;
+
+      toast.success('Lesión marcada como recuperada');
+      await loadStats();
+    } catch (error) {
+      console.error('Error marking lesion as recovered:', error);
+      toast.error('No se pudo marcar la lesión como recuperada');
+    }
   };
 
   const generateChartData = (partidos, period, isManual = false) => {
@@ -470,6 +528,36 @@ const StatsView = ({ onVolver }) => {
     return Array.from({ length: 5 }, (_, i) => currentYear - i);
   };
 
+  const getAvailableWeeks = () => {
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    const totalWeeks = Math.ceil(daysInMonth / 7);
+    return Array.from({ length: totalWeeks }, (_, idx) => {
+      const startDay = idx * 7 + 1;
+      const endDay = Math.min(startDay + 6, daysInMonth);
+      return {
+        index: idx,
+        label: `Semana ${idx + 1}`,
+        range: `${startDay}-${endDay} ${monthNames[selectedMonth]}`,
+      };
+    });
+  };
+
+  useEffect(() => {
+    const maxWeekIndex = getAvailableWeeks().length - 1;
+    if (selectedWeek > maxWeekIndex) {
+      setSelectedWeek(maxWeekIndex);
+    }
+  }, [selectedMonth, selectedYear]);
+
+  const iconMap = {
+    Trophy,
+    Star,
+    Medal,
+    Hand,
+    ShieldAlert,
+    Activity,
+  };
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const amistosos = payload.find((p) => p.dataKey === 'amistosos')?.value || 0;
@@ -514,160 +602,197 @@ const StatsView = ({ onVolver }) => {
       <PageTitle onBack={onVolver}>ESTADÍSTICAS</PageTitle>
 
       <div className="pt-[100px] px-5 pb-5 max-w-[100vw] m-0 box-border md:pt-[90px] md:px-4 sm:pt-[90px]">
-        <div className="grid grid-cols-4 gap-4 mb-6 md:grid-cols-2 md:gap-3 sm:gap-2">
-          <motion.div
-            className="bg-white/10 rounded-2xl p-5 text-center backdrop-blur-md border border-white/20 transition-all hover:-translate-y-1 hover:shadow-xl hover:bg-white/15 md:p-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <div className="text-[32px] mb-2 md:text-2xl">⚽</div>
-            <div className="font-oswald text-4xl font-bold text-white mb-1 leading-none md:text-[28px]">
-              <CountUp end={stats.partidosJugados} duration={1.5} />
-            </div>
-            <div className="font-oswald text-xs font-medium text-white/80 uppercase tracking-wide">Partidos Jugados</div>
-          </motion.div>
+        {/* Period selector first: segmented control to define reading context before metrics */}
+        <motion.div
+          className="bg-white/10 rounded-2xl p-2 mb-6 backdrop-blur-md border border-white/20 relative z-40 overflow-visible"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div className="grid grid-cols-3 gap-2">
+            {['week', 'month', 'year'].map((p) => (
+              <div key={p} className="relative">
+                <button
+                  className={`w-full py-2.5 rounded-lg font-oswald text-sm font-semibold transition-all uppercase ${period === p ? 'bg-primary text-white shadow-[0_8px_24px_rgba(129,120,229,0.35)]' : 'text-white/75 hover:text-white hover:bg-white/10'}`}
+                  onClick={() => {
+                    setPeriod(p);
+                    if (p === 'year') setShowYearDropdown(!showYearDropdown);
+                    if (p === 'month') setShowMonthDropdown(!showMonthDropdown);
+                    if (p === 'week') setShowWeekDropdown(!showWeekDropdown);
+                    if (p !== 'year') setShowYearDropdown(false);
+                    if (p !== 'month') setShowMonthDropdown(false);
+                    if (p !== 'week') setShowWeekDropdown(false);
+                  }}
+                >
+                  {p === 'week' ? `Semana ${selectedWeek + 1}` : periodLabels[p]}
+                </button>
 
-          <motion.div
-            className="bg-white/10 rounded-2xl p-5 text-center backdrop-blur-md border border-white/20 transition-all hover:-translate-y-1 hover:shadow-xl hover:bg-white/15 md:p-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="text-[32px] mb-2 md:text-2xl">🤝</div>
-            <div className="font-oswald text-4xl font-bold text-white mb-1 leading-none md:text-[28px]">
-              <CountUp end={stats.amistosos} duration={1.5} />
-            </div>
-            <div className="font-oswald text-xs font-medium text-white/80 uppercase tracking-wide">Amistosos</div>
-          </motion.div>
+                {p === 'week' && showWeekDropdown && period === 'week' && (
+                  <div className="absolute top-full left-0 right-0 bg-black/90 rounded-lg border border-white/20 z-[1200] mt-1 max-h-[240px] overflow-y-auto backdrop-blur-md md:max-h-[150px]">
+                    {getAvailableWeeks().map((week) => (
+                      <div
+                        key={week.index}
+                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-white/10 hover:text-white ${selectedWeek === week.index ? 'bg-white/20 text-white font-semibold' : ''}`}
+                        onClick={() => {
+                          setSelectedWeek(week.index);
+                          setShowWeekDropdown(false);
+                        }}
+                      >
+                        <div>{week.label}</div>
+                        <div className="text-[11px] text-white/60">{week.range}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-          <motion.div
-            className="bg-white/10 rounded-2xl p-5 text-center backdrop-blur-md border border-white/20 transition-all hover:-translate-y-1 hover:shadow-xl hover:bg-white/15 md:p-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <div className="text-[32px] mb-2 md:text-2xl">🏆</div>
-            <div className="font-oswald text-4xl font-bold text-white mb-1 leading-none md:text-[28px]">
-              <CountUp end={stats.torneos} duration={1.5} />
-            </div>
-            <div className="font-oswald text-xs font-medium text-white/80 uppercase tracking-wide">Torneos</div>
-          </motion.div>
+                {p === 'year' && showYearDropdown && period === 'year' && (
+                  <div className="absolute top-full left-0 right-0 bg-black/90 rounded-lg border border-white/20 z-[1200] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px]">
+                    {getAvailableYears().map((year) => (
+                      <div
+                        key={year}
+                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-white/10 hover:text-white ${selectedYear === year ? 'bg-white/20 text-white font-semibold' : ''}`}
+                        onClick={() => {
+                          setSelectedYear(year);
+                          setShowYearDropdown(false);
+                        }}
+                      >
+                        {year}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-          <motion.div
-            className="bg-white/10 rounded-2xl p-5 text-center backdrop-blur-md border border-white/20 transition-all hover:-translate-y-1 hover:shadow-xl hover:bg-white/15 md:p-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <div className="text-[32px] mb-2 md:text-2xl">⭐</div>
-            <div className="font-oswald text-4xl font-bold text-white mb-1 leading-none md:text-[28px]">
-              <CountUp end={stats.promedioRating} decimals={1} duration={1.5} />
-            </div>
-            <div className="font-oswald text-xs font-medium text-white/80 uppercase tracking-wide">Rating Promedio</div>
-          </motion.div>
-        </div>
+                {p === 'month' && showMonthDropdown && period === 'month' && (
+                  <div className="absolute top-full left-0 right-0 bg-black/90 rounded-lg border border-white/20 z-[1200] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px]">
+                    {monthNames.map((month, index) => (
+                      <div
+                        key={index}
+                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-white/10 hover:text-white ${selectedMonth === index ? 'bg-white/20 text-white font-semibold' : ''}`}
+                        onClick={() => {
+                          setSelectedMonth(index);
+                          setShowMonthDropdown(false);
+                        }}
+                      >
+                        {month} {selectedYear}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </motion.div>
 
-        <div className="flex gap-2 mb-6 justify-center md:gap-1">
-          {['year', 'month', 'week'].map((p) => (
-            <div key={p} className="relative flex-1 max-w-[120px] sm:max-w-none">
-              <button
-                className={`w-full px-5 py-3 bg-white/10 border-2 border-white/20 rounded-xl text-white/80 font-oswald text-base font-semibold cursor-pointer transition-all duration-300 uppercase flex items-center justify-center gap-1 hover:bg-white/15 hover:text-white md:px-4 md:py-2.5 md:text-sm sm:px-3 sm:py-2 sm:text-xs ${period === p ? 'bg-white/20 border-white/50 text-white -translate-y-0.5 shadow-md' : ''}`}
-                onClick={() => {
-                  setPeriod(p);
-                  if (p === 'year') setShowYearDropdown(!showYearDropdown);
-                  if (p === 'month') setShowMonthDropdown(!showMonthDropdown);
-                  if (p === 'week') {
-                    setShowYearDropdown(false);
-                    setShowMonthDropdown(false);
-                  }
-                }}
+        <div className="grid grid-cols-2 gap-3 mb-6 relative z-10">
+          {[
+            { key: 'partidos', label: 'Partidos', value: stats.partidosJugados, icon: Dribbble, decimals: 0 },
+            { key: 'amistosos', label: 'Amistosos', value: stats.amistosos, icon: Handshake, decimals: 0 },
+            { key: 'torneos', label: 'Torneos', value: stats.torneos, icon: Trophy, decimals: 0 },
+            { key: 'lesiones', label: 'Lesiones', value: stats.lesionesPeriodo, icon: ShieldAlert, decimals: 0 },
+          ].map((metric, idx) => {
+            const Icon = metric.icon;
+            return (
+              <motion.div
+                key={metric.key}
+                className={`bg-white/10 rounded-2xl p-5 text-left backdrop-blur-md border border-white/20 transition-all hover:-translate-y-1 hover:shadow-xl hover:bg-white/15 md:p-4 ${metric.key === 'lesiones' ? 'cursor-pointer' : ''}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + idx * 0.08 }}
+                onClick={metric.key === 'lesiones' ? () => setShowLesionesDetalle((v) => !v) : undefined}
               >
-                {periodLabels[p]}
-                {p !== 'week' && <span className="text-[10px] opacity-70">▼</span>}
-              </button>
-
-              {p === 'year' && showYearDropdown && period === 'year' && (
-                <div className="absolute top-full left-0 right-0 bg-black/90 rounded-lg border border-white/20 z-[1000] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px]">
-                  {getAvailableYears().map((year) => (
-                    <div
-                      key={year}
-                      className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-white/10 hover:text-white ${selectedYear === year ? 'bg-white/20 text-white font-semibold' : ''}`}
-                      onClick={() => {
-                        setSelectedYear(year);
-                        setShowYearDropdown(false);
-                      }}
-                    >
-                      {year}
-                    </div>
-                  ))}
+                <div className="mb-3 text-white/80">
+                  <Icon size={26} />
                 </div>
-              )}
-
-              {p === 'month' && showMonthDropdown && period === 'month' && (
-                <div className="absolute top-full left-0 right-0 bg-black/90 rounded-lg border border-white/20 z-[1000] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px]">
-                  {monthNames.map((month, index) => (
-                    <div
-                      key={index}
-                      className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-white/10 hover:text-white ${selectedMonth === index ? 'bg-white/20 text-white font-semibold' : ''}`}
-                      onClick={() => {
-                        setSelectedMonth(index);
-                        setShowMonthDropdown(false);
-                      }}
-                    >
-                      {month} {selectedYear}
-                    </div>
-                  ))}
+                <div className="font-oswald text-3xl font-bold text-white mb-1 leading-none md:text-[28px]">
+                  <CountUp end={metric.value} decimals={metric.decimals} duration={1.2} />
                 </div>
-              )}
-            </div>
-          ))}
+                <div className="font-oswald text-xs font-medium text-white/80 uppercase tracking-wide">{metric.label}</div>
+              </motion.div>
+            );
+          })}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-1 sm:gap-2">
+        {showLesionesDetalle && (
+          <motion.div
+            className="bg-white/10 rounded-xl p-3.5 mb-6 backdrop-blur-md border border-white/20"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="font-oswald text-xs text-white/70 uppercase tracking-wide mb-2">Lesiones del período</div>
+            {stats.lesionesDetallePeriodo.length === 0 ? (
+              <div className="font-oswald text-sm text-white/75">No registraste lesiones en este período.</div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {stats.lesionesDetallePeriodo.map((lesion) => (
+                  <div key={lesion.id} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                    <div className="font-oswald text-sm text-white">{lesion.tipo_lesion}</div>
+                    <div className="font-oswald text-xs text-white/65">
+                      {new Date(lesion.fecha_inicio).toLocaleDateString('es-ES')} {lesion.fecha_fin ? `- ${new Date(lesion.fecha_fin).toLocaleDateString('es-ES')}` : '(activa)'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 mb-6">
           <motion.button
             className="flex items-center justify-center gap-2 px-5 py-4 border-none rounded-xl font-oswald text-sm font-semibold uppercase cursor-pointer transition-all backdrop-blur-md border border-white/20 bg-primary/80 text-white hover:bg-primary hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(129,120,229,0.3)] md:px-4 md:py-3 md:text-xs sm:py-3.5"
             onClick={() => setShowManualMatchModal(true)}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            transition={{ delay: 0.45 }}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
           >
-            <span className="text-lg">⚽</span>
-            <span className="text-xs leading-none">Sumar Partido Manual</span>
-          </motion.button>
-
-          <motion.button
-            className="flex items-center justify-center gap-2 px-5 py-4 border-none rounded-xl font-oswald text-sm font-semibold uppercase cursor-pointer transition-all backdrop-blur-md border border-white/20 bg-[#ff6b6b]/80 text-white hover:bg-[#ff6b6b] hover:-translate-y-0.5 hover:shadow-lg md:px-4 md:py-3 md:text-xs sm:py-3.5"
-            onClick={() => setShowInjuryModal(true)}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <span className="text-lg">🏥</span>
-            <span className="text-xs leading-none">Registrar Lesión</span>
+            <ClipboardPlus size={24} />
+            <span className="text-xs leading-none">Sumar partido manual</span>
           </motion.button>
         </div>
 
-        {formatInjuryStatus() && (
-          <motion.div
-            className={`flex items-center gap-3 bg-white/10 rounded-xl p-4 mb-6 backdrop-blur-md border border-white/20 md:p-3 md:gap-2.5 ${formatInjuryStatus().type === 'active' ? 'bg-[#ff6b6b]/20 border-[#ff6b6b]/30' : 'bg-[#4CAF50]/20 border-[#4CAF50]/30'}`}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.7 }}
+        {/* Injury as informational status block with secondary action (not a primary CTA) */}
+        <motion.div
+          className="bg-white/10 rounded-xl p-3.5 mb-6 backdrop-blur-md border border-white/20"
+          initial={{ opacity: 0, x: -16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <div className="flex items-start gap-2.5">
+            <div className={`mt-0.5 shrink-0 ${formatInjuryStatus()?.type === 'active' ? 'text-[#ff8a8a]' : 'text-[#8ddf9a]'}`}>
+              {formatInjuryStatus()?.type === 'active' ? <CircleAlert size={24} /> : <AlertCircle size={24} />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-oswald text-xs text-white/70 uppercase tracking-wide mb-1">Estado físico</div>
+              {formatInjuryStatus() ? (
+                <>
+                  <div className="font-oswald text-[18px] leading-tight font-semibold text-white mb-0.5">
+                    {formatInjuryStatus().type === 'active' ? 'En recuperación' : 'Sin lesión activa'}
+                  </div>
+                  <div className="font-oswald text-xs text-white/70 truncate">{formatInjuryStatus().subtext || formatInjuryStatus().text}</div>
+                </>
+              ) : (
+                <>
+                  <div className="font-oswald text-[18px] leading-tight font-semibold text-white mb-0.5">Sin lesión activa</div>
+                  <div className="font-oswald text-xs text-white/70 truncate">Sin registros recientes</div>
+                </>
+              )}
+            </div>
+          </div>
+          <button
+            className="mt-3 w-full px-3 py-2 rounded-lg border border-white/20 text-white/85 text-xs uppercase tracking-wide hover:bg-white/10 transition-colors"
+            onClick={() => setShowInjuryModal(true)}
           >
-            <div className="text-2xl shrink-0">
-              {formatInjuryStatus().type === 'active' ? '🏥' : '✅'}
-            </div>
-            <div className="flex-1">
-              <div className="font-oswald text-base font-semibold text-white mb-1 md:text-sm">{formatInjuryStatus().text}</div>
-              <div className="font-oswald text-sm font-normal text-white/80 md:text-xs">{formatInjuryStatus().subtext}</div>
-            </div>
-          </motion.div>
-        )}
+            Registrar nueva lesión
+          </button>
+          {formatInjuryStatus()?.type === 'active' && (
+            <button
+              className="mt-2 w-full px-3 py-2 rounded-lg border border-primary/40 bg-primary/20 text-white text-xs uppercase tracking-wide hover:bg-primary/30 transition-colors"
+              onClick={markActiveLesionAsRecovered}
+            >
+              Marcar recuperado
+            </button>
+          )}
+        </motion.div>
 
         {stats.chartData.length > 0 && (
           <motion.div
@@ -677,22 +802,23 @@ const StatsView = ({ onVolver }) => {
             transition={{ delay: 0.8 }}
           >
             <h3 className="font-oswald text-lg font-semibold text-white mb-4 text-center uppercase">Partidos por {periodLabels[period]}</h3>
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={220}>
               <BarChart data={stats.chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'rgba(255,255,255,0.8)', fontSize: 12 }} />
                 <YAxis hide />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="amistosos" fill="#242ad8ff" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="torneos" fill="#FF9800" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="amistosos" fill="#7D74E8" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="torneos" fill="#24C4E8" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
             <div className="flex justify-center gap-5 mt-3 sm:flex-col sm:gap-2 sm:items-center">
               <div className="flex items-center gap-1.5 font-oswald text-xs text-white/80">
-                <div className="w-3 h-3 rounded-[2px] bg-[#242ad8ff]"></div>
+                <div className="w-3 h-3 rounded-[2px] bg-[#7D74E8]"></div>
                 <span>Amistosos</span>
               </div>
               <div className="flex items-center gap-1.5 font-oswald text-xs text-white/80">
-                <div className="w-3 h-3 rounded-[2px] bg-[#FF9800]"></div>
+                <div className="w-3 h-3 rounded-[2px] bg-[#24C4E8]"></div>
                 <span>Torneos</span>
               </div>
             </div>
@@ -706,7 +832,10 @@ const StatsView = ({ onVolver }) => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.9 }}
           >
-            <div className="bg-[#ffd700]/20 text-[#ffd700] px-3 py-1.5 rounded-full font-oswald text-xs font-semibold uppercase mb-3 inline-block border border-[#ffd700]/30">🏆 Top Friend</div>
+            <div className="bg-[#ffd700]/20 text-[#ffd700] px-3 py-1.5 rounded-full font-oswald text-xs font-semibold uppercase mb-3 inline-flex items-center gap-1.5 border border-[#ffd700]/30">
+              <Trophy size={16} />
+              Top Friend
+            </div>
             <div className="flex items-center gap-4 sm:gap-3">
               <img src={stats.topFriend.avatar} alt={stats.topFriend.nombre} className="w-[60px] h-[60px] rounded-full border-[3px] border-[#ffd700]/50 object-cover sm:w-[50px] sm:h-[50px]" />
               <div>
@@ -724,23 +853,51 @@ const StatsView = ({ onVolver }) => {
           transition={{ delay: 1.0 }}
         >
           <h3 className="font-oswald text-xl font-semibold text-white mb-4 text-center uppercase">Logros</h3>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 mt-4 md:grid-cols-2 sm:grid-cols-1">
-            {stats.logros.map((logro, index) => (
-              <motion.div
-                key={index}
-                className="bg-white/10 rounded-xl p-4 backdrop-blur-md border border-white/20 text-center transition-all hover:-translate-y-0.5 hover:bg-white/15 md:p-3"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1.1 + index * 0.1 }}
-              >
-                <div className="text-2xl mb-2">{logro.icono}</div>
-                <div className="flex-1">
+
+          <div className="mb-3 text-white/70 font-oswald text-xs uppercase tracking-wide">Anuales</div>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 mt-2 md:grid-cols-2 sm:grid-cols-1">
+            {(stats.logros?.annual || []).map((logro, index) => {
+              const Icon = iconMap[logro.icono] || Sparkles;
+              return (
+                <motion.div
+                  key={`annual-${index}`}
+                  className="bg-white/10 rounded-xl p-4 backdrop-blur-md border border-white/20 text-left transition-all hover:-translate-y-0.5 hover:bg-white/15 md:p-3"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 1.1 + index * 0.08 }}
+                >
+                  <div className="mb-3 text-primary">
+                    <Icon size={24} />
+                  </div>
                   <div className="font-oswald text-xs font-semibold text-white/80 uppercase mb-1">{logro.titulo}</div>
                   <div className="font-oswald text-lg font-bold text-white mb-0.5">{logro.valor}</div>
-                  <div className="font-oswald text-[10px] text-white/60">{logro.detalle}</div>
-                </div>
-              </motion.div>
-            ))}
+                  <div className="font-oswald text-[11px] text-white/60">{logro.detalle}</div>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          <div className="mt-5 mb-3 text-white/70 font-oswald text-xs uppercase tracking-wide">Históricos</div>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 mt-2 md:grid-cols-2 sm:grid-cols-1">
+            {(stats.logros?.historical || []).map((logro, index) => {
+              const Icon = iconMap[logro.icono] || Activity;
+              return (
+                <motion.div
+                  key={`historical-${index}`}
+                  className="bg-white/10 rounded-xl p-4 backdrop-blur-md border border-white/20 text-left transition-all hover:-translate-y-0.5 hover:bg-white/15 md:p-3"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 1.4 + index * 0.08 }}
+                >
+                  <div className="mb-3 text-[#95a6ff]">
+                    <Icon size={24} />
+                  </div>
+                  <div className="font-oswald text-xs font-semibold text-white/80 uppercase mb-1">{logro.titulo}</div>
+                  <div className="font-oswald text-lg font-bold text-white mb-0.5">{logro.valor}</div>
+                  <div className="font-oswald text-[11px] text-white/60">{logro.detalle}</div>
+                </motion.div>
+              );
+            })}
           </div>
         </motion.div>
 
@@ -790,7 +947,9 @@ const StatsView = ({ onVolver }) => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
           >
-            <div className="text-[64px] mb-4">📊</div>
+            <div className="mb-4 flex justify-center text-white/70">
+              <CalendarDays size={28} />
+            </div>
             <div className="font-oswald text-xl font-semibold text-white mb-2">
               ¡Todavía no jugaste ningún partido {period === 'week' ? 'esta semana' : period === 'month' ? `en ${monthNames[selectedMonth]} ${selectedYear}` : `en ${selectedYear}`}!
             </div>

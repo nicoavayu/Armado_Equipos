@@ -1,0 +1,1 @@
+export const PRIMARY_CTA_BUTTON_CLASS = 'w-full bg-primary text-white font-bebas text-[15px] px-4 py-3 rounded-xl hover:brightness-110 transition-all disabled:opacity-35 disabled:cursor-not-allowed shadow-[0_8px_32px_rgba(129,120,229,0.3)] border border-white/20 active:scale-95 uppercase tracking-wider font-bold min-h-[48px] flex items-center justify-center';
