@@ -43,12 +43,14 @@ export const getJugadoresDelPartido = async (partidoId) => {
   const unique = [];
   (data || []).forEach((p) => {
     const key = String(p?.nombre || '').toLowerCase().trim();
+    const slot = p?.is_substitute ? 'sub' : 'tit';
+    const compositeKey = key ? `${key}::${slot}` : '';
     if (!key) {
       unique.push(p);
       return;
     }
-    if (seen.has(key)) return;
-    seen.add(key);
+    if (seen.has(compositeKey)) return;
+    seen.add(compositeKey);
     unique.push(p);
   });
 

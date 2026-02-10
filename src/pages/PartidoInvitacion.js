@@ -10,6 +10,8 @@ import PageTitle from '../components/PageTitle';
 import MatchInfoSection from '../components/MatchInfoSection';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import { PlayerCardTrigger } from '../components/ProfileComponents';
+import { Camera, UserRound, CircleAlert, Zap, LockKeyhole, CheckCircle2, Calendar, Clock, MapPin } from 'lucide-react';
+import Logo from '../Logo.png';
 
 /**
  * Pantalla pública de invitación a un partido
@@ -26,10 +28,17 @@ function getInitials(name) {
 }
 
 const CLOSED_MATCH_STATUSES = new Set(['cancelado', 'deleted', 'finalizado']);
-const GUEST_SELF_JOIN_ENABLED = false;
+const GUEST_SELF_JOIN_ENABLED = true;
+const MAX_SUBSTITUTES = 2;
 const isMatchClosed = (match) => {
   const estado = String(match?.estado || '').toLowerCase();
   return CLOSED_MATCH_STATUSES.has(estado);
+};
+
+const getMatchCapacity = (match) => Number(match?.cupo_jugadores || match?.cupo || 0);
+const getMaxRosterSlots = (match) => {
+  const baseCapacity = getMatchCapacity(match);
+  return baseCapacity > 0 ? baseCapacity + MAX_SUBSTITUTES : 0;
 };
 
 function PlayersReadOnly({ jugadores, partido, mode }) {
@@ -93,12 +102,16 @@ function SharedInviteLayout({
   onNavigateBack,
   codigoValido,
   mode,
-  joinStatus
+  joinStatus,
+  isMatchFull,
 }) {
   const isSent = joinStatus === 'pending';
   const isApproved = joinStatus === 'approved';
   const isPendingSync = joinStatus === 'approved_pending_sync';
   const isSending = submitting && joinStatus === 'none';
+  const starterCapacity = getMatchCapacity(partido);
+  const titularesCount = (jugadores || []).filter((j) => !j?.is_substitute).length;
+  const remainingTitulares = starterCapacity > 0 ? Math.max(0, starterCapacity - titularesCount) : null;
 
   return (
     <div className="min-h-[100dvh] w-screen max-w-[100vw] pb-24 overflow-x-hidden bg-fifa-gradient">
@@ -126,11 +139,16 @@ function SharedInviteLayout({
               <PlayersReadOnly jugadores={jugadores} partido={partido} mode={mode} />
 
               {/* Texto de estado si faltan jugadores */}
-              {(!partido.cupo_jugadores || jugadores.length < partido.cupo_jugadores) && (
+              {(!starterCapacity || (remainingTitulares !== null && remainingTitulares > 0)) && (
                 <div className="mt-4 text-center text-white/60 font-oswald text-sm">
-                  {partido.cupo_jugadores
-                    ? `Falta${partido.cupo_jugadores - jugadores.length > 1 ? 'n' : ''} ${partido.cupo_jugadores - jugadores.length} jugador${partido.cupo_jugadores - jugadores.length > 1 ? 'es' : ''}`
+                  {starterCapacity
+                    ? `Falta${remainingTitulares > 1 ? 'n' : ''} ${remainingTitulares} titular${remainingTitulares > 1 ? 'es' : ''}`
                     : 'Cupos disponibles'}
+                </div>
+              )}
+              {isMatchFull && (
+                <div className="mt-4 text-center text-rose-300 font-oswald text-sm">
+                  El partido ya está completo
                 </div>
               )}
 
@@ -140,9 +158,11 @@ function SharedInviteLayout({
                   <div className="flex flex-col gap-3 w-full">
                     <button
                       onClick={onSumarse}
-                      disabled={submitting || isSent || isApproved || isPendingSync || joinStatus === 'checking'}
+                      disabled={submitting || isSent || isApproved || isPendingSync || joinStatus === 'checking' || isMatchFull}
                       className={`w-full py-3 rounded-xl font-bebas text-lg tracking-widest transition-all uppercase font-bold border-2 border-white/10 ${joinStatus === 'checking'
                         ? 'bg-white/10 text-white/60 cursor-wait shadow-none'
+                        : isMatchFull
+                          ? 'bg-white/10 text-white/55 cursor-not-allowed shadow-none'
                         : isPendingSync
                           ? 'bg-emerald-500/70 text-white cursor-wait shadow-none'
                           : isSent || isApproved
@@ -160,10 +180,11 @@ function SharedInviteLayout({
                           <LoadingSpinner size="small" />
                           APROBADO — SINCRONIZANDO...
                         </span>
-                      ) : isSending ? 'ENVIANDO...' :
-                        isSent ? 'SOLICITUD ENVIADA' :
-                          isApproved ? 'YA FORMÁS PARTE' :
-                            'SOLICITAR UNIRME'}
+                      ) : isMatchFull ? 'PARTIDO COMPLETO' :
+                        isSending ? 'ENVIANDO...' :
+                          isSent ? 'SOLICITUD ENVIADA' :
+                            isApproved ? 'YA FORMÁS PARTE' :
+                              'SOLICITAR UNIRME'}
                     </button>
 
                     {isSent && (
@@ -186,16 +207,16 @@ function SharedInviteLayout({
                   <div className="flex flex-row gap-3 w-full justify-center items-stretch">
                     <button
                       onClick={onNavigateHome}
-                      className="flex-1 bg-white/5 text-white/70 py-4 rounded-xl font-bebas text-xl tracking-widest hover:bg-white/10 hover:text-white transition-all border border-white/10 active:scale-95 uppercase font-bold"
+                      className="flex-1 h-14 bg-white/5 text-white/70 rounded-xl font-bebas text-[18px] tracking-widest hover:bg-white/10 hover:text-white transition-all border border-white/20 active:scale-95 uppercase font-bold flex items-center justify-center"
                     >
                       RECHAZAR
                     </button>
                     <button
                       onClick={onSumarse}
-                      disabled={!codigoValido || submitting}
-                      className="flex-[2] bg-primary text-white py-4 rounded-xl font-bebas text-xl tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 uppercase font-bold border-2 border-white/10 shadow-[0_0_20px_rgba(43,230,12,0.3)]"
+                      disabled={!codigoValido || submitting || isMatchFull}
+                      className="flex-1 h-14 bg-primary text-white rounded-xl font-bebas text-[18px] tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 uppercase font-bold border-2 border-white/10 shadow-[0_4px_14px_rgba(18,139,233,0.25)] flex items-center justify-center"
                     >
-                      {submitting ? 'SUMANDO...' : 'ACEPTAR'}
+                      {isMatchFull ? 'PARTIDO COMPLETO' : (submitting ? 'SUMANDO...' : 'ACEPTAR')}
                     </button>
                   </div>
                 )}
@@ -220,17 +241,67 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const [error, setError] = useState(null);
   const [step, setStep] = useState('invitation'); // 'invitation', 'choose-method', 'guest-form', 'success', 'already-joined'
   const [guestName, setGuestName] = useState('');
+  const [guestPhotoDataUrl, setGuestPhotoDataUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [codigoValido, setCodigoValido] = useState(true); // Flag de validación de código
   const [alreadyJoined, setAlreadyJoined] = useState(false);
   const [joinStatus, setJoinStatus] = useState('checking'); // 'checking', 'none', 'pending', 'approved', 'approved_pending_sync'
   const [joinSubmitting, setJoinSubmitting] = useState(false);
 
+  const toCompressedDataUrl = async (file) => {
+    const readAsDataUrl = () => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const loadImage = (src) => new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+
+    const rawDataUrl = await readAsDataUrl();
+    const img = await loadImage(rawDataUrl);
+    const maxSide = 360;
+    const ratio = Math.min(1, maxSide / Math.max(img.width, img.height));
+    const width = Math.max(1, Math.round(img.width * ratio));
+    const height = Math.max(1, Math.round(img.height * ratio));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', 0.82);
+  };
+
+  const handleGuestPhotoChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Elegí una imagen válida');
+      return;
+    }
+    try {
+      const dataUrl = await toCompressedDataUrl(file);
+      setGuestPhotoDataUrl(dataUrl);
+    } catch (err) {
+      console.error('[INVITE] photo parse error:', err);
+      toast.error('No se pudo procesar la foto');
+    } finally {
+      event.target.value = '';
+    }
+  };
+
   // Anti-race condition: track request ID
   const reqIdRef = useRef(0);
 
   // Obtener código del query param
   const codigoParam = searchParams.get('codigo');
+  const inviteTokenParam = searchParams.get('invite');
 
   // Clear guest localStorage when authenticated user accesses match
   useEffect(() => {
@@ -438,6 +509,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         if (reqId === reqIdRef.current) {
           setPartido({ ...partidoData, jugadoresCount: count || 0 });
           setJugadores(jugadoresData || []);
+          // UX: for invite links, unauthenticated users go straight to "Sumarte rápido".
+          if (!user && mode === 'invite') {
+            setStep('guest-form');
+          }
           if (isMatchClosed(partidoData)) {
             setError('Este partido fue cancelado o cerrado.');
             setLoading(false);
@@ -549,6 +624,12 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       return;
     }
 
+    const maxRoster = getMaxRosterSlots(partido);
+    if (maxRoster > 0 && jugadores.length >= maxRoster) {
+      toast.error('El partido ya está completo (incluye suplentes)');
+      return;
+    }
+
     if (mode === 'public') {
       handleSolicitarUnirme();
       return;
@@ -564,14 +645,20 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       // Usuario logueado: sumar directamente
       handleSumarseConCuenta();
     } else {
-      // Usuario sin login: mostrar opciones
-      setStep('choose-method');
+      // Usuario sin login: ingreso rápido con nombre + foto
+      setStep('guest-form');
     }
   };
 
   const handleSolicitarUnirme = async () => {
     if (isMatchClosed(partido)) {
       toast.error('Este partido fue cancelado o cerrado.');
+      return;
+    }
+
+    const maxRoster = getMaxRosterSlots(partido);
+    if (maxRoster > 0 && jugadores.length >= maxRoster) {
+      toast.error('El partido ya está completo (incluye suplentes)');
       return;
     }
 
@@ -652,6 +739,12 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       return;
     }
 
+    const maxRoster = getMaxRosterSlots(partido);
+    if (maxRoster > 0 && jugadores.length >= maxRoster) {
+      toast.error('El partido ya está completo (incluye suplentes)');
+      return;
+    }
+
     setSubmitting(true);
     try {
       // Verificar si ya está en el partido
@@ -716,6 +809,15 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
     // Protección double-click
     if (submitting) return;
+    const maxRoster = getMaxRosterSlots(partido);
+    if (maxRoster > 0 && jugadores.length >= maxRoster) {
+      toast.error('El partido ya está completo (incluye suplentes)');
+      return;
+    }
+    if (!guestName.trim()) {
+      toast.error('Ingresá tu nombre');
+      return;
+    }
 
     const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
     const anonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
@@ -740,7 +842,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         body: JSON.stringify({
           partido_id: Number(partidoId),
           codigo: codigoParam,
+          invite: inviteTokenParam,
           nombre: guestName.trim(),
+          avatar_data_url: guestPhotoDataUrl || null,
         }),
       });
 
@@ -749,13 +853,22 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       if (!response.ok) {
         // Log completo para debug
         console.error('[INVITE] join-match-guest error', { status: response.status, result });
-        if (result.code === 'INVALID_CODE') {
+        const reason = String(result?.reason || result?.code || '').toLowerCase();
+        if (reason === 'invalid_code' || reason === 'invalidcode') {
           toast.error('Código inválido o vencido');
           setCodigoValido(false);
           return;
         }
-        if (result.code === 'FULL') {
-          toast.error('Cupos completos');
+        if (reason === 'invalid_invite') {
+          toast.error('Link vencido o inválido. Pedile al admin un link nuevo.');
+          return;
+        }
+        if (reason === 'invite_consume_error') {
+          toast.error('No se pudo validar el link. Reintentá en un momento.');
+          return;
+        }
+        if (reason === 'full') {
+          toast.error('El partido ya está completo');
           return;
         }
         throw new Error(result.error || 'Error al sumarse');
@@ -792,7 +905,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     return (
       <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-4">
         <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-md w-full text-center">
-          <div className="text-6xl mb-4">⚽</div>
+          <div className="flex items-center justify-center mb-4">
+            <CircleAlert className="w-10 h-10 text-white/70" />
+          </div>
           <h2 className="text-white text-xl font-bold mb-2">Partido no encontrado</h2>
           <p className="text-white/70 mb-4">{error}</p>
           <button
@@ -806,7 +921,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     );
   }
 
-  const cuposDisponibles = partido.cupo - partido.jugadoresCount;
+  const maxRoster = getMaxRosterSlots(partido);
+  const isMatchFull = maxRoster > 0 && jugadores.length >= maxRoster;
 
   // Pantalla 1: Invitación inicial o público
   if (step === 'invitation') {
@@ -825,6 +941,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         codigoValido={codigoValido}
         mode={mode}
         joinStatus={joinStatus}
+        isMatchFull={isMatchFull}
       />
     );
   }
@@ -833,7 +950,16 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   if (step === 'choose-method') {
     return (
       <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-4">
-        <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-md w-full">
+        <div className="w-full max-w-md">
+          <div className="w-full flex justify-center mb-6">
+            <img
+              src={Logo}
+              alt="ARMA2"
+              className="h-[88px] w-auto drop-shadow-2xl"
+            />
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 w-full">
           <div className="text-center mb-6">
             <h2 className="text-white text-2xl font-bold mb-2">¿Cómo querés sumarte?</h2>
             <p className="text-white/70 text-sm">Elegí la opción que prefieras</p>
@@ -845,7 +971,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             className="w-full bg-white/15 border-2 border-white/30 hover:bg-white/20 hover:border-white/40 rounded-xl p-5 mb-4 text-left transition-all group"
           >
             <div className="flex items-start gap-4">
-              <div className="text-4xl">⚡</div>
+              <div className="w-11 h-11 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+                <Zap className="w-6 h-6 text-white/85" />
+              </div>
               <div className="flex-1">
                 <h3 className="text-white font-bold text-lg mb-1 group-hover:text-primary transition-colors">
                   Sumarte rápido
@@ -864,7 +992,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             className="w-full bg-white/15 border-2 border-white/30 hover:bg-white/20 hover:border-white/40 rounded-xl p-5 mb-4 text-left transition-all group disabled:opacity-50"
           >
             <div className="flex items-start gap-4">
-              <div className="text-4xl">🔐</div>
+              <div className="w-11 h-11 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+                <LockKeyhole className="w-6 h-6 text-white/85" />
+              </div>
               <div className="flex-1">
                 <h3 className="text-white font-bold text-lg mb-1 group-hover:text-primary transition-colors">
                   Entrar con mi cuenta
@@ -882,6 +1012,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           >
             ← Volver
           </button>
+          </div>
         </div>
       </div>
     );
@@ -891,11 +1022,47 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   if (step === 'guest-form') {
     return (
       <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-4">
-        <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-md w-full">
+        <div className="w-full max-w-md">
+          <div className="w-full flex justify-center mb-6">
+            <img
+              src={Logo}
+              alt="ARMA2"
+              className="h-[88px] w-auto drop-shadow-2xl"
+            />
+          </div>
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 w-full">
           <div className="text-center mb-6">
-            <div className="text-5xl mb-3">⚡</div>
             <h2 className="text-white text-2xl font-bold mb-2">Sumarte rápido</h2>
-            <p className="text-white/70 text-sm">Solo necesitamos tu nombre</p>
+            <p className="text-white/70 text-sm">Ingresá tu nombre (foto opcional)</p>
+            {partido?.nombre && (
+              <p className="text-white/55 text-xs mt-2">
+                Partido: <span className="text-white/80 font-semibold">{partido.nombre}</span>
+              </p>
+            )}
+          </div>
+
+          <div className="mb-4">
+            <label className="block text-white font-semibold mb-2">Tu foto (opcional)</label>
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-full overflow-hidden border border-white/30 bg-white/5 flex items-center justify-center shrink-0">
+                {guestPhotoDataUrl ? (
+                  <img src={guestPhotoDataUrl} alt="Tu foto" className="w-full h-full object-cover" />
+                ) : (
+                  <UserRound size={24} className="text-white/50" />
+                )}
+              </div>
+              <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/20 bg-white/5 text-white/85 text-sm cursor-pointer hover:bg-white/10 transition-colors">
+                <Camera size={16} />
+                {guestPhotoDataUrl ? 'Cambiar foto' : 'Subir foto'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  onChange={handleGuestPhotoChange}
+                  className="hidden"
+                />
+              </label>
+            </div>
           </div>
 
           <div className="mb-6">
@@ -923,12 +1090,13 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           </button>
 
           <button
-            onClick={() => setStep('choose-method')}
+            onClick={() => navigate('/')}
             disabled={submitting}
             className="w-full text-white/70 text-sm hover:text-white transition-all py-2"
           >
             ← Volver
           </button>
+          </div>
         </div>
       </div>
     );
@@ -938,8 +1106,18 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   if (step === 'success') {
     return (
       <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-4">
-        <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-md w-full text-center">
-          <div className="text-6xl mb-4">✅</div>
+        <div className="w-full max-w-md">
+          <div className="w-full flex justify-center mb-6">
+            <img
+              src={Logo}
+              alt="ARMA2"
+              className="h-[88px] w-auto drop-shadow-2xl"
+            />
+          </div>
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 w-full text-center">
+          <div className="flex items-center justify-center mb-4">
+            <CheckCircle2 className="w-12 h-12 text-emerald-300/90" />
+          </div>
           <h2 className="text-white text-2xl font-bold mb-2">¡Listo!</h2>
           <p className="text-white/70 mb-4">
             Te sumaste al partido como <span className="font-bold text-white">{guestName}</span>
@@ -947,6 +1125,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           <p className="text-white/50 text-sm">
             Preparando vista...
           </p>
+          </div>
         </div>
       </div>
     );
@@ -956,9 +1135,20 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   if (step === 'already-joined') {
     return (
       <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-4">
-        <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-md w-full">
+        <div className="w-full max-w-md">
+          <div className="w-full flex justify-center mb-6">
+            <img
+              src={Logo}
+              alt="ARMA2"
+              className="h-[88px] w-auto drop-shadow-2xl"
+            />
+          </div>
+
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 w-full">
           <div className="text-center mb-6">
-            <div className="text-6xl mb-4">✅</div>
+            <div className="flex items-center justify-center mb-4">
+              <CheckCircle2 className="w-12 h-12 text-emerald-300/90" />
+            </div>
             <h2 className="text-white text-2xl font-bold mb-2">Ya estás anotado</h2>
             <p className="text-white/70 text-sm">
               Ya te sumaste a este partido anteriormente
@@ -971,21 +1161,21 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
               <h3 className="text-white text-lg font-bold">{partido?.nombre}</h3>
             </div>
             <div className="flex items-center gap-3 text-white">
-              <span className="text-2xl">📅</span>
+              <Calendar className="w-6 h-6 text-white/80" />
               <div>
                 <div className="text-sm text-white/60">Fecha</div>
                 <div className="font-semibold">{partido?.fecha ? formatLocalDateShort(partido.fecha) : '-'}</div>
               </div>
             </div>
             <div className="flex items-center gap-3 text-white">
-              <span className="text-2xl">⏰</span>
+              <Clock className="w-6 h-6 text-white/80" />
               <div>
                 <div className="text-sm text-white/60">Hora</div>
                 <div className="font-semibold">{partido?.hora || '-'}</div>
               </div>
             </div>
             <div className="flex items-center gap-3 text-white">
-              <span className="text-2xl">📍</span>
+              <MapPin className="w-6 h-6 text-white/80" />
               <div>
                 <div className="text-sm text-white/60">Sede</div>
                 <div className="font-semibold text-sm">{partido?.sede || '-'}</div>
@@ -1003,6 +1193,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             >
               Volver al inicio
             </button>
+          </div>
           </div>
         </div>
       </div>

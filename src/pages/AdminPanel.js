@@ -5,6 +5,8 @@ import { useTeamFormation } from '../hooks/useTeamFormation';
 import { useSearchParams } from 'react-router-dom';
 import { usePendingRequestsCount } from '../hooks/usePendingRequestsCount';
 import { useNativeFeatures } from '../hooks/useNativeFeatures';
+import { toast } from 'react-toastify';
+import { supabase } from '../supabase';
 
 import 'react-lazy-load-image-component/src/effects/blur.css';
 // import '../HomeStyleKit.css'; // Removed in Tailwind migration
@@ -93,6 +95,9 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const handleArmarEquipos = () => {
     handleArmarEquiposUtil(jugadores, adminState.setShowArmarEquiposView);
   };
+  const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
+  const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0;
+  const isRosterFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
 
   const handleAbandon = async () => {
     if (!adminState.currentPlayerInMatch && !user?.id) return;
@@ -113,12 +118,37 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   };
 
   const handleShare = async () => {
-    const url = window.location.href;
-    const text = `¡Sumate al partido "${partidoActual.nombre || 'Partido'}"!`;
+    const matchId = partidoActual?.id;
+    const matchCode = String(partidoActual?.codigo || '').trim();
+    if (!matchId || !matchCode) {
+      toast.error('No se pudo generar el link de invitación');
+      return;
+    }
+
+    // Guest self-join needs a short-lived token (6h / 14 uses).
+    // Admin-only RPC enforces permissions server-side.
+    const { data: inviteRows, error: inviteErr } = await supabase.rpc('create_guest_match_invite', {
+      p_partido_id: Number(matchId),
+    });
+
+    if (inviteErr || !inviteRows?.[0]?.token) {
+      console.error('[SHARE_INVITE] create_guest_match_invite failed', inviteErr);
+      toast.error('No se pudo generar el link (token inválido)');
+      return;
+    }
+
+    const inviteToken = String(inviteRows[0].token || '').trim();
+    const url = `${window.location.origin}/partido/${matchId}/invitacion?codigo=${encodeURIComponent(matchCode)}&invite=${encodeURIComponent(inviteToken)}`;
+    const text = `Sumate al partido "${partidoActual.nombre || 'Partido'}"\n${url}`;
     try {
-      await shareContent('Invitar al partido', text, url);
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      const opened = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+      if (!opened) {
+        await shareContent('Invitar al partido', text, url);
+      }
     } catch (err) {
       console.error('Error sharing:', err);
+      toast.error('No se pudo abrir WhatsApp');
     }
   };
 
@@ -259,13 +289,13 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                             display: 'inline-block',
                             width: '50px',
                             height: '24px',
-                            cursor: (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores && !adminState.faltanJugadoresState) ? 'not-allowed' : 'pointer',
+                            cursor: (isRosterFull && !adminState.faltanJugadoresState) ? 'not-allowed' : 'pointer',
                           }}>
                             <input
                               type="checkbox"
                               checked={adminState.faltanJugadoresState}
                               onChange={adminState.handleFaltanJugadores}
-                              disabled={partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores}
+                              disabled={isRosterFull}
                               style={{ opacity: 0, width: 0, height: 0 }}
                             />
                             <span style={{
@@ -278,7 +308,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                               backgroundColor: adminState.faltanJugadoresState ? '#009dff' : '#ccc',
                               transition: '0.3s',
                               borderRadius: '24px',
-                              opacity: (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) ? 0.5 : 1,
+                              opacity: isRosterFull ? 0.5 : 1,
                             }}>
                               <span style={{
                                 position: 'absolute',

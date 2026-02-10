@@ -68,6 +68,7 @@ const AdminActions = ({
                 {loading ? <LoadingSpinner size="small" /> : 'AGREGAR'}
               </button>
             </div>
+
           </div>
         </div>
       )}

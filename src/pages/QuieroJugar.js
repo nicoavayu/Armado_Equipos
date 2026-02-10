@@ -4,14 +4,16 @@ import { supabase, addFreePlayer, removeFreePlayer, getFreePlayerStatus } from '
 import { toast } from 'react-toastify';
 import { useAuth } from '../components/AuthProvider';
 import { useInterval } from '../hooks/useInterval';
-import { PlayerCardTrigger } from '../components/ProfileComponents';
+import { useAmigos } from '../hooks/useAmigos';
 import PageTitle from '../components/PageTitle';
 import LoadingSpinner from '../components/LoadingSpinner';
 import InviteAmigosModal from '../components/InviteAmigosModal';
+import InviteToMatchModal from '../components/InviteToMatchModal';
 import PlayerActionModal from '../components/PlayerActionModal';
+import ProfileCardModal from '../components/ProfileCardModal';
+import PlayerMiniCard from '../components/PlayerMiniCard';
 import { handleError } from '../lib/errorHandler';
 import { User, CheckCircle2, Calendar, Clock, MapPin, Star, Trophy, ListOrdered } from 'lucide-react';
-import { POSITION_COLORS } from '../appConstants';
 
 const containerClass = 'flex flex-col items-center min-h-[100dvh] pb-28 px-4 box-border font-oswald';
 
@@ -33,6 +35,12 @@ const QuieroJugar = () => {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [actionPlayer, setActionPlayer] = useState(null);
+  const [actionAnchorPoint, setActionAnchorPoint] = useState(null);
+  const [profileModalPlayer, setProfileModalPlayer] = useState(null);
+  const [inviteTargetPlayer, setInviteTargetPlayer] = useState(null);
+  const [actionFriendStatus, setActionFriendStatus] = useState(null);
+  const [isSubmittingFriend, setIsSubmittingFriend] = useState(false);
+  const { getRelationshipStatus, sendFriendRequest } = useAmigos(user?.id || null);
 
   useEffect(() => {
     fetchPartidosAbiertos();
@@ -42,6 +50,21 @@ const QuieroJugar = () => {
       getUserLocation();
     }
   }, [user]);
+
+  useEffect(() => {
+    const resolveActionPlayerRelationship = async () => {
+      const targetUserId = actionPlayer?.user_id || actionPlayer?.uuid || actionPlayer?.id;
+      if (!actionPlayer || !targetUserId || !user?.id || targetUserId === user.id) {
+        setActionFriendStatus(null);
+        return;
+      }
+
+      const relation = await getRelationshipStatus(targetUserId);
+      setActionFriendStatus(relation?.status || null);
+    };
+
+    resolveActionPlayerRelationship();
+  }, [actionPlayer, user?.id, getRelationshipStatus]);
 
   const getUserLocation = () => {
     if (navigator.geolocation) {
@@ -430,50 +453,30 @@ const QuieroJugar = () => {
 
                 <div className="w-full max-w-[500px] flex flex-col gap-2.5">
                   {otherPlayers.map((player) => (
-                    <div
+                    <PlayerMiniCard
                       key={player.uuid || player.id}
-                      onClick={() => setActionPlayer(player)}
-                      className="flex items-center gap-3 bg-[#1e293b]/70 backdrop-blur-sm rounded-xl p-3.5 border border-white/5 hover:border-white/20 hover:bg-[#1e293b] active:scale-[0.99] transition-all cursor-pointer group shadow-sm"
-                    >
-                      <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-white/10 bg-slate-800 flex items-center justify-center shadow-inner">
-                        {player.avatar_url ? (
-                          <img src={player.avatar_url} alt={player.nombre} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                        ) : (
-                          <User size={20} className="text-white/40" />
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-white font-bebas text-lg tracking-wide leading-none truncate group-hover:text-[#128BE9] transition-colors">{player.nombre}</span>
-                          {(player.mvps > 0) && (
-                            <span className="text-[9px] bg-yellow-500/10 text-yellow-500 px-1 py-0.5 rounded flex items-center gap-0.5 border border-yellow-500/20 font-bold">
-                              <Trophy size={10} /> {player.mvps}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-white/40 text-[11px] font-oswald flex items-center gap-3 uppercase tracking-wide">
-                          <span style={{ color: POSITION_COLORS[player.posicion] || POSITION_COLORS.DEFAULT }}>{player.posicion || 'Jugador'}</span>
-                          {userLocation && (
-                            <span className="flex items-center gap-1">
-                              <MapPin size={10} /> {Math.round(calculateDistance(
-                                userLocation.lat,
-                                userLocation.lng,
-                                player.latitud || -34.6037,
-                                player.longitud || -58.3816,
-                              ))} km
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="shrink-0 flex flex-col items-end gap-1">
-                        <div className="flex items-center gap-1 text-[#FFD700] text-xs font-bold font-oswald bg-[#FFD700]/5 px-2 py-1 rounded border border-[#FFD700]/20">
-                          <span>{(player.rating || 4.5).toFixed(1)}</span>
-                          <Star size={10} fill="#FFD700" />
-                        </div>
-                      </div>
-                    </div>
+                      profile={player}
+                      variant="searching"
+                      distanceKm={userLocation ? calculateDistance(
+                        userLocation.lat,
+                        userLocation.lng,
+                        player.latitud || -34.6037,
+                        player.longitud || -58.3816,
+                      ) : null}
+                      onClick={(e) => {
+                        const rect = e?.currentTarget?.getBoundingClientRect?.();
+                        setActionAnchorPoint({
+                          x: rect ? (rect.left + rect.width / 2) : window.innerWidth / 2,
+                          y: rect ? (rect.top + rect.height / 2) : window.innerHeight / 2,
+                        });
+                        setActionPlayer(player);
+                      }}
+                      metaBadge={(player.mvps > 0) ? (
+                        <span className="text-[9px] bg-yellow-500/10 text-yellow-500 px-1 py-0.5 rounded flex items-center gap-0.5 border border-yellow-500/20 font-bold">
+                          <Trophy size={10} /> {player.mvps}
+                        </span>
+                      ) : null}
+                    />
                   ))}
                 </div>
               </>
@@ -492,21 +495,71 @@ const QuieroJugar = () => {
       {/* 4. Player Interaction Modal - Centered */}
       <PlayerActionModal
         isOpen={!!actionPlayer}
-        onClose={() => setActionPlayer(null)}
+        onClose={() => {
+          setActionPlayer(null);
+          setActionAnchorPoint(null);
+          setActionFriendStatus(null);
+        }}
         player={actionPlayer}
+        anchorPoint={actionAnchorPoint}
+        friendStatus={actionFriendStatus}
+        isSubmittingFriend={isSubmittingFriend}
         onInvite={(p) => {
-          console.log('Inviting', p);
-          if (partidosAbiertos.length > 0) {
-            toast.info(`Invitar a ${p.nombre} próximamente`);
-          } else {
-            toast.info('No tenés partidos abiertos para invitar');
+          const targetId = p?.user_id || p?.uuid || p?.id || null;
+          if (!targetId) {
+            toast.error('No se pudo identificar al jugador para invitar');
+            return;
           }
+          setInviteTargetPlayer({
+            nombre: p?.nombre || 'Jugador',
+            profile: {
+              id: targetId,
+              nombre: p?.nombre || 'Jugador',
+            },
+          });
         }}
-        onViewProfile={(p) => navigate(`/perfil/${p.user_id || p.uuid}`)}
-        onAddFriend={(p) => {
-          console.log('Adding friend', p);
-          toast.success('Solicitud de amistad enviada');
+        onViewProfile={(p) => setProfileModalPlayer(p)}
+        onAddFriend={async (p) => {
+          const targetUserId = p?.user_id || p?.uuid || p?.id;
+          if (!targetUserId || !user?.id || targetUserId === user.id) return;
+
+          setIsSubmittingFriend(true);
+          const result = await sendFriendRequest(targetUserId);
+          setIsSubmittingFriend(false);
+
+          if (result.success) {
+            setActionFriendStatus('pending');
+            toast.success('Solicitud de amistad enviada');
+            return;
+          }
+
+          const currentStatus = await getRelationshipStatus(targetUserId);
+          setActionFriendStatus(currentStatus?.status || null);
+
+          if (currentStatus?.status === 'accepted') {
+            toast.info('Ya son amigos');
+            return;
+          }
+          if (currentStatus?.status === 'pending') {
+            toast.info('Ya existe una solicitud pendiente');
+            return;
+          }
+
+          toast.error(result.message || 'No se pudo enviar la solicitud');
         }}
+      />
+
+      <ProfileCardModal
+        isOpen={!!profileModalPlayer}
+        onClose={() => setProfileModalPlayer(null)}
+        profile={profileModalPlayer}
+      />
+
+      <InviteToMatchModal
+        isOpen={!!inviteTargetPlayer}
+        onClose={() => setInviteTargetPlayer(null)}
+        friend={inviteTargetPlayer}
+        currentUserId={user?.id}
       />
     </>
   );

@@ -4,7 +4,7 @@ import { PlayerCardTrigger } from '../ProfileComponents';
 import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
 import { toast } from 'react-toastify';
-import { MoreVertical, LogOut, Share2 } from 'lucide-react';
+import { MoreVertical, LogOut } from 'lucide-react';
 import { supabase } from '../../supabase';
 
 // Helper function to get initials from name
@@ -31,7 +31,7 @@ const EmptyPlayersState = ({ view = 'guest', onShareClick }) => {
           Todavía no hay jugadores.
         </div>
         <div className="text-white/40 font-oswald text-sm leading-relaxed mb-4">
-          Usá 'Invitar amigos' o 'Agregar manualmente' arriba para sumar jugadores.
+          Usá 'Invitar amigos', 'Agregar manualmente' o compartí el link para sumar jugadores.
         </div>
       </div>
     );
@@ -89,6 +89,14 @@ const PlayersSection = ({
 
   const menuOpen = isAdmin ? (actionsMenuOpen !== undefined ? actionsMenuOpen : localMenuOpen) : false;
   const setMenuOpen = isAdmin && setActionsMenuOpen ? setActionsMenuOpen : setLocalMenuOpen;
+  const capacity = Number(partidoActual?.cupo_jugadores || 0);
+  const maxRosterSlots = capacity > 0 ? capacity + 2 : 0;
+  const titularPlayers = jugadores.filter((j) => !j?.is_substitute);
+  const substitutePlayers = jugadores.filter((j) => !!j?.is_substitute);
+  const sortedPlayers = [...titularPlayers, ...substitutePlayers];
+  const remainingTitularSlots = capacity > 0 ? Math.max(0, capacity - titularPlayers.length) : null;
+  const isMatchFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
+  const canShareInviteLink = isAdmin && typeof onShareClick === 'function' && !isMatchFull;
 
   const handleConfirmRemovePlayer = async () => {
     if (!playerToRemove?.id) return;
@@ -135,6 +143,12 @@ const PlayersSection = ({
             {j.nombre}
           </span>
 
+          {j?.is_substitute && (
+            <span className="px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-400/35 text-amber-300 text-[10px] font-bold uppercase tracking-wider shrink-0">
+              SUP
+            </span>
+          )}
+
           {/* Corona para admin */}
           {partidoActual?.creado_por === j.usuario_id && (
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="#FFD700" style={{ flexShrink: 0 }}>
@@ -172,7 +186,7 @@ const PlayersSection = ({
         <div className="w-[90vw] max-w-[90vw] mx-auto mt-2 bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px]">
           <div className="flex items-start justify-between gap-3 mb-3 mt-1 px-1">
             <div className="font-bebas text-xl text-white tracking-wide uppercase">
-              JUGADORES ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+              JUGADORES ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
             </div>
             {isPlayerInMatch && (
               <div className="relative">
@@ -259,7 +273,7 @@ const PlayersSection = ({
                 AGREGAR MANUALMENTE
               </button>
               {/* Botón compartir link solo si existe handler */}
-              {(typeof onShareClick === 'function') && (
+              {canShareInviteLink && (
                 <button
                   className="mt-4 text-xs text-white/70 bg-white/10 px-3 py-2 rounded-lg border border-white/20 hover:bg-white/15 transition-all"
                   type="button"
@@ -270,19 +284,26 @@ const PlayersSection = ({
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
-              {jugadores.map(renderPlayerCard)}
-            </div>
+            <>
+              <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
+                {sortedPlayers.map(renderPlayerCard)}
+              </div>
+              {substitutePlayers.length > 0 && (
+                <div className="mt-2 text-center text-[11px] text-amber-300/90 font-oswald uppercase tracking-wide">
+                  Suplentes: {substitutePlayers.length}/2 (suben automáticamente si se libera un cupo)
+                </div>
+              )}
+            </>
           )}
         </div>
 
         {/* Botones de acción - Static flow instead of fixed, closer to list */}
         <div className="w-full px-4 mt-6 relative z-10 text-center">
           {/* Texto de estado si faltan jugadores */}
-          {(!partidoActual.cupo_jugadores || jugadores.length < partidoActual.cupo_jugadores) && (
+          {(!partidoActual.cupo_jugadores || (remainingTitularSlots !== null && remainingTitularSlots > 0)) && (
             <div className="mb-4 text-white/60 font-oswald text-sm">
-              {partidoActual.cupo_jugadores
-                ? `Falta${partidoActual.cupo_jugadores - jugadores.length > 1 ? 'n' : ''} ${partidoActual.cupo_jugadores - jugadores.length} jugador${partidoActual.cupo_jugadores - jugadores.length > 1 ? 'es' : ''}`
+              {capacity
+                ? `Falta${remainingTitularSlots > 1 ? 'n' : ''} ${remainingTitularSlots} titular${remainingTitularSlots > 1 ? 'es' : ''}`
                 : 'Cupos disponibles'}
             </div>
           )}
@@ -306,7 +327,7 @@ const PlayersSection = ({
                     <button
                       className="flex-[1.5] font-bebas text-lg h-12 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:bg-[#0f7acc] hover:shadow-[0_0_20px_rgba(18,139,233,0.4)] active:scale-95 shadow-[0_4px_10px_rgba(0,0,0,0.3)]"
                       onClick={aceptarInvitacion}
-                      disabled={invitationLoading || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
+                      disabled={invitationLoading || isMatchFull}
                     >
                       {invitationLoading ? <LoadingSpinner size="small" /> : 'ACEPTAR'}
                     </button>
@@ -324,21 +345,21 @@ const PlayersSection = ({
                 <div className="flex flex-col w-full">
                   <button
                     className={`w-full font-bebas text-[18px] h-14 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-bold tracking-wide bg-[#128BE9] shadow-[0_4px_14px_rgba(18,139,233,0.3)]
-                      ${(partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)
+                      ${isMatchFull
                         ? 'opacity-40 grayscale cursor-not-allowed shadow-none'
                         : 'hover:brightness-110 active:scale-95'
                       }`}
                     onClick={() => {
-                      if (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) return;
+                      if (isMatchFull) return;
                       setShowInviteModal(true);
                     }}
-                    disabled={partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores}
+                    disabled={isMatchFull}
                   >
                     INVITAR AMIGOS
                   </button>
-                  {(partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) && (
+                  {isMatchFull && (
                     <div className="text-center text-white/40 font-oswald text-[12px] mt-1.5 uppercase tracking-wide">
-                      Cupo completo ({jugadores.length}/{partidoActual.cupo_jugadores})
+                      Cupo completo ({jugadores.length}/{maxRosterSlots})
                     </div>
                   )}
                 </div>
@@ -372,7 +393,7 @@ const PlayersSection = ({
       <div className="bg-white/10 border-2 border-white/20 rounded-xl p-3 min-h-[120px] w-[90vw] max-w-[90vw] mx-auto mt-0 box-border">
       <div className="flex items-start justify-between gap-3 mb-3 mt-2">
         <div className="font-bebas text-xl text-white tracking-wide uppercase">
-          JUGADORES ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+          JUGADORES ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
           {duplicatesDetected > 0 && isAdmin && (
             <span style={{
               color: '#ff6b35',
@@ -449,11 +470,33 @@ const PlayersSection = ({
       {jugadores.length === 0 ? (
         <EmptyPlayersState view={isAdmin ? 'admin' : 'guest'} onShareClick={onShareClick} />
       ) : (
-        <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
-          {jugadores.map(renderPlayerCard)}
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
+            {sortedPlayers.map(renderPlayerCard)}
+          </div>
+          {substitutePlayers.length > 0 && (
+            <div className="mt-2 text-center text-[11px] text-amber-300/90 font-oswald uppercase tracking-wide">
+              Suplentes: {substitutePlayers.length}/2 (suben automáticamente si se libera un cupo)
+            </div>
+          )}
+        </>
       )}
       </div>
+      {isAdmin && canShareInviteLink && (
+        <div className="w-[90vw] max-w-[90vw] mx-auto mt-2 text-center">
+          <p className="text-[11px] text-white/60 font-oswald leading-relaxed">
+            Ingresá jugadores manualmente o compartí el link del partido.
+          </p>
+          <button
+            type="button"
+            className="mt-1 text-[11px] uppercase tracking-wider text-[#7bc6ff] hover:text-[#a9ddff] transition-colors disabled:opacity-40"
+            onClick={() => onShareClick?.()}
+            disabled={typeof onShareClick !== 'function'}
+          >
+            Compartir link por WhatsApp
+          </button>
+        </div>
+      )}
       <ConfirmModal
         isOpen={!!playerToRemove}
         title="Expulsar jugador"

@@ -58,9 +58,9 @@ serve(async (req) => {
       );
     }
 
-    const { partido_id, nombre, codigo, guest_uuid } = body;
+    const { partido_id, nombre, codigo, invite, guest_uuid, avatar_data_url } = body;
 
-    if (!partido_id || !nombre?.trim() || !codigo?.trim()) {
+    if (!partido_id || !nombre?.trim() || !codigo?.trim() || !String(invite ?? "").trim()) {
       return new Response(
         JSON.stringify({ ok: false, reason: "missing_fields" }),
         { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
@@ -75,8 +75,11 @@ serve(async (req) => {
       );
     }
 
-    // Idempotencia
-    if (guest_uuid) {
+    const uuidRe =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    // Idempotencia (solo si viene un UUID válido)
+    if (guest_uuid && uuidRe.test(String(guest_uuid))) {
       const { data: existing } = await supabase
         .from("jugadores")
         .select("id,nombre,uuid")
@@ -100,7 +103,7 @@ serve(async (req) => {
     // Partido + validación de código (TU TABLA TIENE "codigo")
     const { data: partido, error: partidoError } = await supabase
       .from("partidos")
-      .select("id,codigo,cupo")
+      .select("id,codigo,cupo_jugadores")
       .eq("id", partidoIdNum)
       .maybeSingle();
 
@@ -132,16 +135,51 @@ serve(async (req) => {
     }
 
     const jugadoresCount = count ?? 0;
-    if (partido.cupo && jugadoresCount >= partido.cupo) {
+    const capacity = Number(partido.cupo_jugadores ?? 0);
+    const maxRosterSlots = capacity > 0 ? capacity + 2 : 0;
+    if (maxRosterSlots > 0 && jugadoresCount >= maxRosterSlots) {
       return new Response(
         JSON.stringify({ ok: false, reason: "full" }),
         { status: 409, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
 
+    // Validate + consume invite token (6h / 14 uses).
+    const token = String(invite ?? "").trim();
+    const { data: consumeRows, error: consumeErr } = await supabase.rpc(
+      "consume_guest_match_invite",
+      {
+        p_partido_id: partidoIdNum,
+        p_token: token,
+      },
+    );
+
+    if (consumeErr) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          reason: "invite_consume_error",
+          details: consumeErr.message ?? String(consumeErr),
+        }),
+        { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
+      );
+    }
+    const consume = Array.isArray(consumeRows) ? consumeRows[0] : null;
+    if (!consume?.ok) {
+      return new Response(
+        JSON.stringify({ ok: false, reason: "invalid_invite" }),
+        { status: 401, headers: { ...cors, "Content-Type": "application/json" } }
+      );
+    }
+
+    const avatarDataUrl = typeof avatar_data_url === "string" ? avatar_data_url.trim() : "";
+    const hasAvatar = avatarDataUrl.startsWith("data:image/") && avatarDataUrl.length <= 900_000;
+
     // Insert guest
-    const guestUuid =
-      guest_uuid || `guest_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+    // jugadores.uuid es tipo uuid en DB, así que siempre debe ser UUID válido.
+    const guestUuid = (guest_uuid && uuidRe.test(String(guest_uuid)))
+      ? String(guest_uuid)
+      : crypto.randomUUID();
 
     const { data: jugador, error: insertError } = await supabase
       .from("jugadores")
@@ -151,6 +189,7 @@ serve(async (req) => {
           usuario_id: null,
           nombre: nombre.trim().slice(0, 50),
           uuid: guestUuid,
+          avatar_url: hasAvatar ? avatarDataUrl : null,
         },
       ])
       .select("id,nombre,uuid")
@@ -173,7 +212,11 @@ serve(async (req) => {
     );
   } catch (e) {
     return new Response(
-      JSON.stringify({ ok: false, reason: "internal_error" }),
+      JSON.stringify({
+        ok: false,
+        reason: "internal_error",
+        details: (e as Error)?.message ?? String(e),
+      }),
       { status: 500, headers: { ...buildCorsHeaders(req), "Content-Type": "application/json" } }
     );
   }

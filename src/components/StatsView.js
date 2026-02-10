@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CountUp from 'react-countup';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
@@ -36,6 +36,7 @@ const StatsView = ({ onVolver }) => {
   const [showManualMatchModal, setShowManualMatchModal] = useState(false);
   const [showInjuryModal, setShowInjuryModal] = useState(false);
   const [showLesionesDetalle, setShowLesionesDetalle] = useState(false);
+  const periodSelectorRef = useRef(null);
   const [stats, setStats] = useState({
     partidosJugados: 0,
     amigosDistintos: 0,
@@ -60,6 +61,27 @@ const StatsView = ({ onVolver }) => {
       loadStats();
     }
   }, [user, period, selectedYear, selectedMonth, selectedWeek]);
+
+  useEffect(() => {
+    const hasOpenDropdown = showWeekDropdown || showMonthDropdown || showYearDropdown;
+    if (!hasOpenDropdown) return undefined;
+
+    const handleOutsidePointer = (event) => {
+      if (!periodSelectorRef.current) return;
+      if (periodSelectorRef.current.contains(event.target)) return;
+      setShowWeekDropdown(false);
+      setShowMonthDropdown(false);
+      setShowYearDropdown(false);
+    };
+
+    document.addEventListener('mousedown', handleOutsidePointer);
+    document.addEventListener('touchstart', handleOutsidePointer, { passive: true });
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsidePointer);
+      document.removeEventListener('touchstart', handleOutsidePointer);
+    };
+  }, [showWeekDropdown, showMonthDropdown, showYearDropdown]);
 
   const loadStats = async () => {
     setLoading(true);
@@ -604,6 +626,7 @@ const StatsView = ({ onVolver }) => {
       <div className="pt-[100px] px-5 pb-5 max-w-[100vw] m-0 box-border md:pt-[90px] md:px-4 sm:pt-[90px]">
         {/* Period selector first: segmented control to define reading context before metrics */}
         <motion.div
+          ref={periodSelectorRef}
           className="bg-white/10 rounded-2xl p-2 mb-6 backdrop-blur-md border border-white/20 relative z-40 overflow-visible"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}

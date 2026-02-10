@@ -323,23 +323,27 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
             </div>
 
             {showStatusDropdown && createPortal(
-              <div className="fixed top-20 left-4 bg-black/90 rounded-xl w-[180px] z-[2147483647] overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.4)] border border-white/10 origin-top-left transition-all duration-200 animate-[dropdownSlideIn_0.2s_ease-out]">
-                <div className="px-4 py-2.5 font-bold text-white border-b border-white/20 font-bebas">
-                  Estado
+              <div className="fixed top-20 left-4 bg-[#1f2252]/95 rounded-2xl w-[210px] z-[2147483647] overflow-hidden shadow-[0_12px_36px_rgba(8,12,38,0.55)] border border-white/15 backdrop-blur-xl origin-top-left transition-all duration-200 animate-[dropdownSlideIn_0.2s_ease-out]">
+                <div className="px-4 py-3 font-semibold text-white/90 border-b border-white/10 font-oswald uppercase tracking-wide text-xs">
+                  Estado de disponibilidad
                 </div>
-                <div
-                  className={`flex items-center px-4 py-2.5 cursor-pointer transition-colors duration-200 text-white hover:bg-white/10 ${isAvailable ? 'bg-white/20' : ''}`}
-                  onClick={() => updateAvailabilityStatus(true)}
-                >
-                  <div className="w-2.5 h-2.5 rounded-full mr-2.5 bg-[#4CAF50]"></div>
-                  <span>Disponible</span>
-                </div>
-                <div
-                  className={`flex items-center px-4 py-2.5 cursor-pointer transition-colors duration-200 text-white hover:bg-white/10 ${!isAvailable ? 'bg-white/20' : ''}`}
-                  onClick={() => updateAvailabilityStatus(false)}
-                >
-                  <div className="w-2.5 h-2.5 rounded-full mr-2.5 bg-[#F44336]"></div>
-                  <span>No disponible</span>
+                <div className="p-2.5 space-y-2">
+                  <button
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors duration-200 text-white/95 border ${isAvailable ? 'bg-primary/25 border-primary/45' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                    onClick={() => updateAvailabilityStatus(true)}
+                    type="button"
+                  >
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#4CAF50]"></div>
+                    <span className="font-oswald text-base leading-none">Disponible</span>
+                  </button>
+                  <button
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl cursor-pointer transition-colors duration-200 text-white/95 border ${!isAvailable ? 'bg-primary/25 border-primary/45' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                    onClick={() => updateAvailabilityStatus(false)}
+                    type="button"
+                  >
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#F44336]"></div>
+                    <span className="font-oswald text-base leading-none">No disponible</span>
+                  </button>
                 </div>
               </div>,
               document.body,

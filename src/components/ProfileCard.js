@@ -230,7 +230,7 @@ const ProfileCardComponent = ({
       `}</style>
 
       <div ref={wrapRef} className="w-full flex justify-center overflow-visible perspective-[1000px] touch-none group profile-card-wrapper">
-        <div className="relative inline-block overflow-visible px-4">
+        <div className="relative inline-block overflow-visible px-0">
           {/* Glow layer behind the card - disabled during scroll for performance */}
           {!performanceMode && (
             <div
@@ -248,7 +248,7 @@ const ProfileCardComponent = ({
           )}
 
           {/* Card container */}
-          <div className="relative" style={{ width: 'min(340px, 92vw)', zIndex: 1 }}>
+          <div className="relative" style={{ width: 'min(340px, calc(100vw - 6rem))', zIndex: 1 }}>
             <section
               ref={cardRef}
               className={`profile-card-main mx-auto w-full aspect-[0.72] md:aspect-[0.7] rounded-[var(--card-radius)] overflow-hidden flex flex-col relative origin-center ${!disableInternalMotion ? 'transition-transform duration-700 ease-out' : ''}`}

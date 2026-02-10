@@ -110,8 +110,10 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
     }
 
     // Validar cupo lleno antes de enviar
-    if (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) {
-      toast.error('El partido ya está completo, no se pueden enviar más invitaciones.');
+    const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
+    const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0;
+    if (maxRosterSlots > 0 && jugadores.length >= maxRosterSlots) {
+      toast.error('El partido ya está completo (titulares y suplentes), no se pueden enviar más invitaciones.');
       return;
     }
 

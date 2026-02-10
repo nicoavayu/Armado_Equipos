@@ -5,6 +5,7 @@ import ProfileCard from './ProfileCard';
 import { useAmigos } from '../hooks/useAmigos';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
+import { Phone, PhoneOff } from 'lucide-react';
 // import './ProfileCardModal.css'; // REMOVED
 
 /**
@@ -17,6 +18,14 @@ const isValidUUID = (value) => {
   return uuidRegex.test(value);
 };
 
+const resolveProfileUserId = (profile) => (
+  profile?.usuario_id
+  || profile?.user_id
+  || profile?.uuid
+  || profile?.id
+  || null
+);
+
 /**
  * Reusable modal component for displaying a player's ProfileCard
  * @param {Object} props - Component props
@@ -27,6 +36,7 @@ const isValidUUID = (value) => {
  * @param {function} [props.onMakeAdmin] - Function to make player admin
  */
 const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin }) => {
+  const profileUserId = resolveProfileUserId(profile);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [relationshipStatus, setRelationshipStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -66,7 +76,6 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
   // Check relationship status when modal opens
   useEffect(() => {
     const checkRelationship = async () => {
-      const profileUserId = profile?.usuario_id || profile?.id;
       console.log('[PROFILE_MODAL] Checking relationship status', { currentUserId, profileUserId, profileId: profile?.id });
 
       if (!currentUserId || !profileUserId || currentUserId === profileUserId) {
@@ -85,11 +94,10 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     if (isOpen && profile && currentUserId) {
       checkRelationship();
     }
-  }, [isOpen, currentUserId, profile?.usuario_id, profile?.id]);
+  }, [isOpen, currentUserId, profileUserId]);
 
   // Handle friend request actions
   const handleAddFriend = async () => {
-    const profileUserId = profile?.usuario_id || profile?.id;
     if (!currentUserId || !profileUserId || isLoading) {
       console.log('[PROFILE_MODAL] Cannot send friend request - missing data', { currentUserId, profileUserId, isLoading });
       return;
@@ -276,7 +284,6 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
   // Render friend action button based on relationship status
   const renderFriendActionButton = () => {
-    const profileUserId = profile?.usuario_id || profile?.id;
     console.log('[PROFILE_MODAL] renderFriendActionButton - profileUserId:', profileUserId, 'currentUserId:', currentUserId);
 
     // Check if it's the current user
@@ -365,7 +372,8 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      className="w-auto max-w-[400px]"
+      className="w-[calc(100vw-2rem)] max-w-[400px]"
+      classNameContent="p-4 sm:p-5 overflow-x-hidden"
       closeOnBackdrop={true}
       closeOnEscape={true}
       title=""
@@ -390,7 +398,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000]" onClick={() => setShowContactInfo(false)}>
             <div className="bg-[#1a1a1a] rounded-xl p-6 max-w-[400px] w-[90%] border-2 border-[#333] shadow-[0_8px_32px_rgba(0,0,0,0.5)] sm:p-5 sm:w-[95%]" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-5">
-                <h3 className="text-white m-0 text-lg font-semibold sm:text-base">📞 Contactar a {profile?.nombre}</h3>
+                <h3 className="text-white m-0 text-lg font-semibold sm:text-base">Contactar a {profile?.nombre}</h3>
                 <button
                   className="bg-transparent border-none text-white text-2xl cursor-pointer p-0 w-[30px] h-[30px] flex items-center justify-center rounded-full transition-colors hover:bg-white/10"
                   onClick={() => setShowContactInfo(false)}
@@ -401,7 +409,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
               <div className="text-white py-2">
                 {playerPhone ? (
                   <div className="flex items-center gap-4 p-5 bg-[#2196F3]/10 rounded-xl border border-[#2196F3]/20">
-                    <div className="text-[32px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">📞</div>
+                    <div className="text-[#2196F3]"><Phone size={30} /></div>
                     <div className="flex-1">
                       <div className="text-xs text-white/70 uppercase tracking-wider mb-1">Teléfono</div>
                       <span className="text-[#2196F3] text-lg font-semibold block hover:text-[#42A5F5]">
@@ -416,7 +424,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
                   </div>
                 ) : (
                   <div className="flex items-center gap-4 p-5 bg-[#FF9800]/10 rounded-xl border border-[#FF9800]/20">
-                    <div className="text-[32px] opacity-70 drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">📵</div>
+                    <div className="text-[#FF9800] opacity-80"><PhoneOff size={30} /></div>
                     <div className="flex-1">
                       <div className="text-[#FF9800] font-semibold text-base mb-1">Sin teléfono</div>
                       <div className="text-white/60 text-sm leading-[1.4]">Este jugador no ha registrado su número</div>

@@ -6,12 +6,16 @@ import { toast } from 'react-toastify';
 import Modal from './Modal';
 import LoadingSpinner from './LoadingSpinner';
 import MatchSelectionCard from './MatchSelectionCard';
+import { CalendarDays, UserPlus, X } from 'lucide-react';
 
 const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
     const [matches, setMatches] = useState([]);
     const [loading, setLoading] = useState(false);
     const [inviting, setInviting] = useState(false);
     const [selectedMatchId, setSelectedMatchId] = useState(null);
+    const targetProfile = friend?.profile || friend || null;
+    const targetUserId = targetProfile?.id || targetProfile?.user_id || targetProfile?.uuid || null;
+    const targetName = targetProfile?.nombre || friend?.nombre || 'jugador';
 
     useEffect(() => {
         if (isOpen && currentUserId) {
@@ -62,7 +66,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                 userMatches.map(async (match) => {
                     const playersInMatch = jugadoresData.filter((j) => j.partido_id === match.id);
                     const isParticipating = playersInMatch.some(
-                        (j) => j.usuario_id === friend.profile?.id
+                        (j) => j.usuario_id === targetUserId
                     );
 
                     let hasInvitation = false;
@@ -71,7 +75,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                         const { data: notifications } = await supabase
                             .from('notifications')
                             .select('id')
-                            .eq('user_id', friend.profile?.id)
+                            .eq('user_id', targetUserId)
                             .eq('type', 'match_invite')
                             .or(`match_ref.eq.${pid},data->>matchId.eq.${pid}`);
 
@@ -106,6 +110,10 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
     const handleInvite = async () => {
         const match = matches.find((m) => m.id === selectedMatchId);
         if (!match) return;
+        if (!targetUserId) {
+            toast.error('No se pudo identificar al jugador para invitar');
+            return;
+        }
 
         // Logging before post
         console.log('[INVITE_DEBUG] Attempting invite:', {
@@ -128,7 +136,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                 .single();
 
             const notificationData = {
-                user_id: friend.profile.id,
+                user_id: targetUserId,
                 type: 'match_invite',
                 partido_id: Number(match.id),
                 title: 'Invitación a partido',
@@ -160,7 +168,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                 throw error;
             }
 
-            toast.success(`Invitación enviada a ${friend.profile?.nombre}`);
+            toast.success(`Invitación enviada a ${targetName}`);
             onClose();
         } catch (error) {
             console.error('[INVITE_MODAL] Error sending invitation:', error);
@@ -188,7 +196,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
     };
 
     const footerContent = (
-        <div className="h-[96px] flex flex-col justify-center items-center">
+        <div className="h-[106px] flex flex-col justify-center items-center">
             {/* Status Message: Always present in DOM, visibility-controlled */}
             <div className={`min-h-[20px] mb-2 px-2 transition-opacity duration-300 ${inviteStatus === 'member' || inviteStatus === 'invited_pending' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 <p className={`text-[11px] font-medium text-center leading-tight ${inviteStatus === 'member' ? 'text-emerald-500/80' : 'text-blue-400/80'
@@ -199,21 +207,23 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
 
             <div className="w-full flex flex-col items-center gap-2">
                 <button
-                    className={`w-full h-10 px-6 rounded-xl font-oswald text-sm font-bold uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-2 ${canSubmit
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20 hover:bg-blue-500 hover:-translate-y-px active:scale-[0.98]'
-                        : 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
+                    className={`w-full h-11 px-6 rounded-xl font-oswald text-sm font-bold uppercase tracking-wide transition-all duration-200 flex items-center justify-center gap-2 ${canSubmit
+                        ? 'bg-[#128BE9] text-white shadow-lg shadow-[#128BE9]/25 hover:brightness-110 hover:-translate-y-px active:scale-[0.98]'
+                        : 'bg-white/5 text-white/25 cursor-not-allowed border border-white/10'
                         }`}
                     onClick={handleInvite}
                     disabled={!canSubmit}
                 >
+                    {!inviting && <UserPlus size={16} />}
                     {getButtonLabel()}
                 </button>
 
                 <button
-                    className="text-[10px] font-semibold text-white/30 hover:text-white/60 transition-colors uppercase tracking-widest"
+                    className="text-[10px] font-semibold text-white/45 hover:text-white/70 transition-colors uppercase tracking-widest inline-flex items-center gap-1"
                     onClick={onClose}
                     disabled={inviting}
                 >
+                    <X size={12} />
                     Cancelar
                 </button>
             </div>
@@ -224,26 +234,39 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title={`Invitar a ${friend?.nombre || 'jugador'}`}
+            title=""
             footer={footerContent}
-            className="w-full max-w-[450px] !bg-slate-950/98"
-            classNameContent="p-4"
+            className="w-full max-w-[460px] !bg-[#101a35] border border-white/15 rounded-3xl"
+            classNameContent="p-4 overflow-x-hidden"
         >
+            <div className="mb-3 px-1">
+                <div className="flex items-center gap-2 mb-1">
+                    <CalendarDays size={16} className="text-[#1fa0ff]" />
+                    <h3 className="font-oswald text-[24px] leading-none tracking-wide text-white m-0 uppercase whitespace-nowrap">
+                        Invitar a jugador
+                    </h3>
+                </div>
+                <p className="text-white/60 text-[11px] font-oswald uppercase tracking-wider truncate">
+                    Elegí uno de tus partidos para invitar a {targetName}
+                </p>
+            </div>
+
             {loading ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-4">
+                <div className="flex flex-col items-center justify-center py-12 gap-4 bg-white/5 rounded-2xl border border-white/10">
                     <LoadingSpinner size="lg" />
                     <p className="text-white/40 text-[11px] font-oswald uppercase tracking-widest animate-pulse">
                         Buscando tus partidos...
                     </p>
                 </div>
             ) : matches.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 px-6 text-center bg-white/5 rounded-2xl border border-white/5 border-dashed">
-                    <p className="text-white/40 text-sm leading-relaxed mb-4">
+                <div className="flex flex-col items-center justify-center py-10 px-6 text-center bg-white/5 rounded-2xl border border-white/10 border-dashed">
+                    <p className="text-white/50 text-sm leading-relaxed mb-1">
                         No tenés partidos próximos creados o donde seas admin.
                     </p>
+                    <p className="text-white/35 text-xs">Creá uno nuevo y volvé a intentar.</p>
                 </div>
             ) : (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2.5">
                     {matches.map((match) => {
                         const isSelected = selectedMatchId === match.id;
                         return (

@@ -41,6 +41,9 @@ export const useAdminPanelState = ({
 
   const jugadoresActuales = jugadoresLocal || [];
   const currentPlayerInMatch = jugadoresActuales.find((j) => j.usuario_id === user?.id);
+  const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
+  const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0; // titulares + 2 suplentes
+  const isRosterFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
 
   // New state to track if user has an approved request but isn't in players table yet
   const [hasApprovedRequest, setHasApprovedRequest] = useState(false);
@@ -278,8 +281,8 @@ export const useAdminPanelState = ({
       return;
     }
 
-    if (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) {
-      toast.error('El partido está lleno');
+    if (isRosterFull) {
+      toast.error('El partido está completo (titulares y suplentes)');
       return;
     }
 
@@ -540,8 +543,8 @@ export const useAdminPanelState = ({
       return;
     }
 
-    if (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) {
-      toast.error('El partido está lleno');
+    if (isRosterFull) {
+      toast.error('El partido está completo (titulares y suplentes)');
       return;
     }
 
@@ -633,8 +636,8 @@ export const useAdminPanelState = ({
   const unirseAlPartido = async () => {
     if (!user?.id || !partidoActual?.id) return;
 
-    if (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores) {
-      toast.error('El partido está lleno');
+    if (isRosterFull) {
+      toast.error('El partido está completo (titulares y suplentes)');
       return;
     }
 
@@ -770,7 +773,7 @@ export const useAdminPanelState = ({
       return;
     }
 
-    const isAtCapacity = partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores;
+    const isAtCapacity = isRosterFull;
 
     if (isAtCapacity && !faltanJugadoresState) {
       toast.error('No se puede abrir el partido cuando está lleno');
