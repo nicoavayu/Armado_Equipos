@@ -19,6 +19,7 @@ import PageTitle from '../components/PageTitle';
 import MatchInfoSection from '../components/MatchInfoSection';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import ConfirmModal from '../components/ConfirmModal';
+import { getPublicBaseUrl } from '../utils/publicBaseUrl';
 
 import AdminActions from '../components/admin/AdminActions';
 import PlayersSection from '../components/admin/PlayersSection';
@@ -138,7 +139,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
 
     const inviteToken = String(inviteRows[0].token || '').trim();
-    const url = `${window.location.origin}/partido/${matchId}/invitacion?codigo=${encodeURIComponent(matchCode)}&invite=${encodeURIComponent(inviteToken)}`;
+    const baseUrl = getPublicBaseUrl() || window.location.origin;
+    const url = `${baseUrl}/partido/${matchId}/invitacion?codigo=${encodeURIComponent(matchCode)}&invite=${encodeURIComponent(inviteToken)}`;
     const text = `Sumate al partido "${partidoActual.nombre || 'Partido'}"\n${url}`;
     try {
       const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;

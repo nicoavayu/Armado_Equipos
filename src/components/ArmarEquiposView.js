@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { getPublicBaseUrl } from '../utils/publicBaseUrl';
 import { UI_SIZES } from '../appConstants';
 import {
   closeVotingAndCalculateScores,
@@ -317,7 +318,8 @@ export default function ArmarEquiposView({
       toast.error('No se pudo obtener el código del partido para compartir.');
       return;
     }
-    const publicLink = `${window.location.origin}/votar-equipos?codigo=${encodeURIComponent(matchCode)}`;
+    const baseUrl = getPublicBaseUrl() || window.location.origin;
+    const publicLink = `${baseUrl}/votar-equipos?codigo=${encodeURIComponent(matchCode)}`;
     const text = 'Votá para armar los equipos ⚽️';
 
     console.debug('[Teams] share link', { partidoId: partidoActual?.id, matchCode });
