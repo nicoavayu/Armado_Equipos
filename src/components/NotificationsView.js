@@ -95,7 +95,7 @@ const NotificationsView = () => {
     }
 
     if (data.resultsUrl) {
-      const isAwardsNotif = ['survey_results', 'survey_results_ready', 'survey_finished', 'awards_ready'].includes(notification?.type);
+      const isAwardsNotif = ['survey_results', 'survey_results_ready', 'awards_ready'].includes(notification?.type);
       if (isAwardsNotif) {
         navigate(data.resultsUrl, {
           state: {
@@ -126,7 +126,7 @@ const NotificationsView = () => {
       }
     }
 
-    if (data.matchId) {
+    if (data.matchId && notification?.type !== 'match_invite') {
       navigate(`/partido/${toBigIntId(data.matchId)}`);
       return;
     }
@@ -139,7 +139,7 @@ const NotificationsView = () => {
         break;
       case 'match_invite':
         if (matchId) {
-          navigate(`/partido/${toBigIntId(matchId)}`);
+          navigate(`/admin/${toBigIntId(matchId)}`);
         } else {
           console.error('[NOTIFICATION_CLICK] match_invite missing matchId', notification);
         }
@@ -218,13 +218,7 @@ const NotificationsView = () => {
         // Robust matchId resolution
         const finalMatchId = notification.match_ref || notification.partido_id || data.match_id || data.matchId || data.partidoId;
         if (finalMatchId) {
-          navigate(`/resultados-encuesta/${toBigIntId(finalMatchId)}`, {
-            state: {
-              forceAwards: true,
-              fromNotification: true,
-              matchName: data?.match_name || data?.partido_nombre || null,
-            },
-          });
+          navigate(`/resultados-encuesta/${toBigIntId(finalMatchId)}`);
         }
         break;
       }

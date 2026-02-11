@@ -92,15 +92,17 @@ const EncuestaPartido = () => {
           throw new AppError('Partido no encontrado', ERROR_CODES.NOT_FOUND);
         }
 
-        // teams_confirmed is stored on public.partidos (not always present in partidos_view)
-        let teamsConfirmedValue = false;
+        // teams_confirmed may come from partidos_view or public.partidos depending on environment
+        let teamsConfirmedValue = Boolean(partidoData?.teams_confirmed);
         try {
           const { data: pRow, error: pErr } = await supabase
             .from('partidos')
             .select('teams_confirmed')
             .eq('id', Number(id))
             .maybeSingle();
-          if (!pErr) teamsConfirmedValue = Boolean(pRow?.teams_confirmed);
+          if (!pErr && pRow && typeof pRow.teams_confirmed === 'boolean') {
+            teamsConfirmedValue = pRow.teams_confirmed;
+          }
         } catch (_e) {
           // non-blocking
         }
@@ -316,8 +318,8 @@ const EncuestaPartido = () => {
   const _wrapperClass = 'min-h-[100dvh] bg-fifa-gradient w-full p-0 flex flex-col overflow-x-hidden';
   const cardClass = 'w-[90%] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-5 relative';
   const titleClass = 'font-bebas text-[38px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-md break-words w-full';
-  const btnClass = 'font-bebas text-[27px] md:text-[28px] text-white bg-primary border border-white/40 rounded-xl tracking-wide py-4 px-4 mt-4 w-full cursor-pointer font-bold transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden flex items-center justify-center shadow-[0_10px_30px_rgba(129,120,229,0.35)]';
-  const optionBtnClass = 'w-full bg-white/10 border border-white/30 text-white font-bebas text-2xl md:text-[2rem] py-3 text-center cursor-pointer transition-all hover:bg-white/16 active:scale-[0.98] flex items-center justify-center min-h-[52px] rounded-xl shadow-[0_6px_18px_rgba(0,0,0,0.25)]';
+  const btnClass = 'font-bebas text-[22px] md:text-[24px] text-white bg-primary border border-white/40 rounded-xl tracking-wide py-3.5 px-4 mt-4 w-full cursor-pointer font-bold transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden flex items-center justify-center min-h-[64px] shadow-[0_10px_30px_rgba(129,120,229,0.35)]';
+  const optionBtnClass = 'w-full bg-white/10 border border-white/30 text-white font-bebas text-[22px] md:text-[24px] py-3 text-center cursor-pointer transition-all hover:bg-white/16 active:scale-[0.98] flex items-center justify-center min-h-[64px] rounded-xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] tracking-wide';
   const optionBtnSelectedClass = 'bg-primary border-white/80 shadow-[0_8px_24px_rgba(129,120,229,0.45)]';
   const gridClass = 'grid grid-cols-2 gap-4 w-full max-w-[400px] mx-auto mb-[18px]';
   const textClass = 'text-white text-[20px] font-oswald text-center mb-[30px] font-normal tracking-wide';
@@ -347,9 +349,11 @@ const EncuestaPartido = () => {
       <PageTransition>
         <div className="min-h-[100dvh] w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className={cardClass}>
-            <div className={titleClass}>YA COMPLETASTE LA ENCUESTA</div>
-            <div className={`${textClass} text-[26px]`}>
-              Ya has completado la encuesta de este partido.<br />¡Gracias por tu participación!
+            <div className="font-bebas text-[30px] md:text-[44px] text-white tracking-[0.04em] font-bold mb-8 text-center leading-[1.05] uppercase drop-shadow-md break-words w-full">
+              YA COMPLETASTE<br />LA ENCUESTA
+            </div>
+            <div className="text-white text-[18px] md:text-[22px] font-oswald text-center mb-10 font-normal tracking-wide leading-[1.25] whitespace-nowrap">
+              ¡Gracias por tu participación!
             </div>
             <button className={btnClass} onClick={() => navigate('/')}>
               VOLVER AL INICIO
@@ -513,7 +517,7 @@ const EncuestaPartido = () => {
               </div>
               <div className="flex justify-center mb-2.5">
                 <button
-                  className={`${optionBtnClass} bg-primary border-primary/80 shadow-[0_8px_24px_rgba(129,120,229,0.45)] w-[90%] mx-auto`}
+                  className={`${optionBtnClass} ${!formData.arquero_id ? optionBtnSelectedClass : ''} w-[90%] mx-auto`}
                   onClick={() => {
                     handleInputChange('arquero_id', '');
                     setCurrentStep(4);
@@ -571,14 +575,14 @@ const EncuestaPartido = () => {
               </div>
               <div className={gridClass}>
                 <button
-                  className={`${optionBtnClass} ${formData.ganador === 'equipo_a' ? 'bg-[#9C27B0] border-white' : 'bg-[#9C27B0]/30 border-white'}`}
+                  className={`${optionBtnClass} ${formData.ganador === 'equipo_a' ? optionBtnSelectedClass : ''}`}
                   onClick={() => handleInputChange('ganador', 'equipo_a')}
                   type="button"
                 >
                   EQUIPO A
                 </button>
                 <button
-                  className={`${optionBtnClass} ${formData.ganador === 'equipo_b' ? 'bg-[#FF9800] border-white' : 'bg-[#FF9800]/30 border-white'}`}
+                  className={`${optionBtnClass} ${formData.ganador === 'equipo_b' ? optionBtnSelectedClass : ''}`}
                   onClick={() => handleInputChange('ganador', 'equipo_b')}
                   type="button"
                 >

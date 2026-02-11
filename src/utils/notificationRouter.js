@@ -55,14 +55,7 @@ export async function openNotification(n, navigate) {
 
     if (type === 'survey_finished') {
       const base = n?.data?.resultsUrl || getResultsUrl(Number(matchId)) || n?.data?.link || `/resultados-encuesta/${matchId}`;
-      const url = base.includes('?') ? `${base}&showAwards=1` : `${base}?showAwards=1`;
-      navigate(url, {
-        state: {
-          fromNotification: true,
-          forceAwards: true,
-          matchName: n?.data?.match_name || n?.data?.partido_nombre || null,
-        },
-      });
+      navigate(base);
       return;
     }
 
@@ -81,6 +74,11 @@ export async function openNotification(n, navigate) {
       } else {
         navigate(`/partido-publico/${matchId}`);
       }
+      return;
+    }
+
+    if (type === 'match_invite') {
+      navigate(`/admin/${matchId}`);
       return;
     }
 

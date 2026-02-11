@@ -186,14 +186,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     if (notification.type === 'survey_finished') {
       const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId ?? notification?.match_ref ?? null;
       if (matchId) {
-        const link = notification?.data?.resultsUrl || `/resultados-encuesta/${matchId}?showAwards=1`;
-        navigate(link, {
-          state: {
-            forceAwards: true,
-            fromNotification: true,
-            matchName: notification?.data?.match_name || notification?.data?.partido_nombre || null,
-          },
-        });
+        const link = notification?.data?.resultsUrl || `/resultados-encuesta/${matchId}`;
+        navigate(link);
       }
       return;
     }
@@ -207,7 +201,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       case 'survey_reminder': return ClipboardList;
       case 'survey_results_ready': return Trophy;
       case 'awards_ready': return Trophy;
-      case 'survey_finished': return Trophy;
+      case 'survey_finished': return ClipboardList;
       case 'friend_request': return UserPlus;
       case 'friend_accepted': return CheckCircle;
       case 'match_update': return Users;

@@ -1037,7 +1037,7 @@ const ResultadosEncuestaView = () => {
       autoOpenGuardRef.current = setTimeout(() => {
         if (!cancelled) {
           console.warn('[RESULTADOS] auto-open guard timeout, waiting for real slides (no fallback flash)');
-          // Last check before giving up loading, but never show fallback story in forced mode.
+          // Last check before giving up loading. In forced mode, always open a story fallback.
           const roster = ensurePlayersList(jugadores);
           const row = results;
           const maybeSlides = row ? prepareCarouselSlides(row, roster) : [];
@@ -1047,6 +1047,14 @@ const ResultadosEncuestaView = () => {
             liveApplied.current.clear();
             setSlideStages({});
             setCarouselSlides(maybeSlides);
+            setShowingBadgeAnimations(true);
+            openedStory = true;
+          } else {
+            setPreviewPlayers([]);
+            badgesApplied.current.clear();
+            liveApplied.current.clear();
+            setSlideStages({});
+            setCarouselSlides(prepareForceFallbackSlides());
             setShowingBadgeAnimations(true);
             openedStory = true;
           }
@@ -1083,9 +1091,14 @@ const ResultadosEncuestaView = () => {
 
         const slides = row ? prepareCarouselSlides(row, roster) : [];
         if (slides.length === 0) {
-          // Don't flash fallback if real slides may arrive on next state sync.
-          // Let guard timeout handle true no-data cases.
-          forceStoryOpenedRef.current = null;
+          // Forced mode: always open story, even if awards are not ready yet.
+          setPreviewPlayers([]);
+          badgesApplied.current.clear();
+          liveApplied.current.clear();
+          setSlideStages({});
+          setCarouselSlides(prepareForceFallbackSlides());
+          setShowingBadgeAnimations(true);
+          openedStory = true;
           return;
         }
 
@@ -1099,12 +1112,18 @@ const ResultadosEncuestaView = () => {
       } catch (e) {
         console.error('[RESULTADOS] ensureAwards failed', e);
         if (cancelled) return;
-        // Don't render fallback story here to avoid micro-flash before real carousel.
+        // Forced mode: keep UX in story flow even on transient errors.
+        setPreviewPlayers([]);
+        badgesApplied.current.clear();
+        liveApplied.current.clear();
+        setSlideStages({});
+        setCarouselSlides(prepareForceFallbackSlides());
+        setShowingBadgeAnimations(true);
+        openedStory = true;
       } finally {
         clearAutoOpenGuard();
-        if (!cancelled && openedStory) {
-          setAutoOpeningAwards(false);
-        }
+        // Always release spinner lock when attempt finishes.
+        if (!cancelled) setAutoOpeningAwards(false);
       }
     };
 
@@ -1113,6 +1132,8 @@ const ResultadosEncuestaView = () => {
     return () => {
       cancelled = true;
       clearAutoOpenGuard();
+      // Effect re-runs can cancel an in-flight attempt; never leave the spinner locked.
+      setAutoOpeningAwards(false);
     };
   }, [forceAwardsMode, partidoId, location.key, location.search, loading, jugadores, results, showingBadgeAnimations]);
 
@@ -1341,17 +1362,8 @@ const ResultadosEncuestaView = () => {
     );
   }
 
-  // Never render static results page when entering from bell/ring/story link.
-  // In forced story mode, keep loader until carousel is ready.
+  // In force awards mode, never show the static results page before story is ready.
   if (forceAwardsMode && !showingBadgeAnimations) {
-    return (
-      <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
-        <LoadingSpinner size="large" />
-      </div>
-    );
-  }
-
-  if (autoOpeningAwards && !showingBadgeAnimations) {
     return (
       <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
         <LoadingSpinner size="large" />

@@ -10,7 +10,6 @@ const RELEVANT_TYPES = new Set([
   'call_to_vote',
   'survey_results_ready',
   'awards_ready',
-  'survey_finished',
   'match_join_request',
   'match_join_approved',
   'match_invite',
@@ -38,10 +37,17 @@ const PRIORITY = {
   insight_weekly_matches: 40,
 };
 
+const severityForType = (type) => {
+  if (['match_today', 'falta_jugadores', 'call_to_vote', 'survey_start'].includes(type)) return 'urgent';
+  if (['match_join_request', 'match_invite', 'match_player_update', 'friend_request', 'match_tomorrow'].includes(type)) return 'warning';
+  if (['awards_ready', 'match_complete', 'match_join_approved', 'friend_accepted'].includes(type)) return 'success';
+  return 'neutral';
+};
+
 const normalizeType = (type, message = '') => {
   const msg = String(message || '').toLowerCase();
   if (type === 'survey_start' || type === 'post_match_survey') return 'survey_start';
-  if (type === 'survey_results_ready' || type === 'awards_ready' || type === 'survey_finished') return 'awards_ready';
+  if (type === 'survey_results_ready' || type === 'awards_ready') return 'awards_ready';
   if (type === 'match_update') {
     if (msg.includes('sum') || msg.includes('agreg')) return 'match_player_update';
     if (msg.includes('baj') || msg.includes('sali') || msg.includes('fue removido')) return 'match_player_update';
@@ -94,6 +100,19 @@ const routeForMatch = ({ matchId, matchCode, currentUserId, match }) => {
 
 const INSIGHT_STORAGE_KEY = 'activity_insight_weekly_matches_v1';
 const stripEmojis = (text = '') => String(text).replace(/[\p{Extended_Pictographic}\u2600-\u27BF]/gu, '').trim();
+
+const normalizeMatchPlayerMessage = (rawMessage = '') => {
+  const cleaned = stripEmojis(rawMessage);
+  if (!cleaned) return '';
+
+  // Common format in logs/notifications: "<partido>: <jugador> se unió al partido ..."
+  const prefixed = cleaned.match(/^[^:]+:\s*(.+)$/);
+  if (prefixed?.[1]) {
+    return prefixed[1].trim();
+  }
+
+  return cleaned;
+};
 
 const buildWeeklyInsightItem = async ({ currentUserId, supabaseClient }) => {
   if (!currentUserId || !supabaseClient || typeof window === 'undefined') return null;
@@ -160,6 +179,7 @@ const buildWeeklyInsightItem = async ({ currentUserId, supabaseClient }) => {
       route: '/stats',
       count: 1,
       priority: PRIORITY.insight_weekly_matches,
+      severity: severityForType('insight_weekly_matches'),
     };
   } catch (error) {
     console.error('[ACTIVITY_FEED] weekly insight failed:', error);
@@ -188,13 +208,14 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     title: '',
     subtitle: fallbackSubtitle,
     priority: PRIORITY[type] ?? 99,
+    severity: severityForType(type),
   };
 
   if (type === 'survey_start') {
     return {
       ...base,
       icon: 'ClipboardList',
-      title: `Encuesta habilitada para ${matchName}`,
+      title: `Completá la encuesta para ${matchName}`,
       subtitle: dateLabel || 'Completá tu encuesta del partido',
       route: partidoId ? `/encuesta/${partidoId}` : '/notifications',
     };
@@ -242,15 +263,16 @@ const toActivityFromNotification = (group, match, currentUserId) => {
       ...base,
       icon: 'CalendarClock',
       title: `Recibiste una invitación a ${matchName}`,
-      subtitle: dateLabel || 'Revisá los detalles del partido',
-      route: matchRoute || '/notifications',
+      subtitle: dateLabel || 'Entrá para aceptar o rechazar la invitación',
+      route: partidoId ? `/admin/${partidoId}` : '/notifications',
     };
   }
   if (type === 'match_player_update') {
+    const playerFirstMessage = normalizeMatchPlayerMessage(notification?.message || 'Hubo un cambio de jugadores');
     return {
       ...base,
       icon: 'Users',
-      title: `${matchName}: ${stripEmojis(notification?.message || 'Hubo un cambio de jugadores')}`,
+      title: playerFirstMessage || `Cambio de jugadores en ${matchName}`,
       subtitle: dateLabel || 'Revisá el estado del partido',
       route: matchRoute || '/notifications',
     };
@@ -309,6 +331,7 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
       route,
       count: 1,
       priority: isToday ? PRIORITY.match_today : PRIORITY.match_tomorrow,
+      severity: severityForType(isToday ? 'match_today' : 'match_tomorrow'),
     });
 
     if (missing > 0) {
@@ -316,13 +339,14 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
         id: `activity-falta_jugadores-${match.id}`,
         type: 'falta_jugadores',
         partidoId: Number(match.id),
-        title: `${name}: faltan ${missing} jugador${missing > 1 ? 'es' : ''}`,
+        title: `Faltan ${missing} jugador${missing > 1 ? 'es' : ''} para ${name}`,
         subtitle: `${playerCount}/${capacity} confirmados`,
         createdAt: matchDate.toISOString(),
         icon: 'AlertTriangle',
         route,
         count: 1,
         priority: PRIORITY.falta_jugadores,
+        severity: severityForType('falta_jugadores'),
       });
     } else {
       acc.push({
@@ -336,6 +360,7 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
         route,
         count: 1,
         priority: PRIORITY.match_complete,
+        severity: severityForType('match_complete'),
       });
     }
 
@@ -399,7 +424,7 @@ const fetchMissingMatches = async ({ groups, activeMatchMap, supabaseClient }) =
   try {
     const { data, error } = await supabaseClient
       .from('partidos')
-      .select('id,nombre,titulo,name,fecha,hora,sede,creado_por,cupo_jugadores,estado')
+      .select('id,nombre,fecha,hora,sede,creado_por,cupo_jugadores,estado')
       .in('id', missingIds);
     if (error) throw error;
 
@@ -412,15 +437,81 @@ const fetchMissingMatches = async ({ groups, activeMatchMap, supabaseClient }) =
   }
 };
 
+const fetchCompletedActionsByMatch = async ({ groups, currentUserId, supabaseClient }) => {
+  const empty = { votedMatchIds: new Set(), surveyedMatchIds: new Set() };
+  if (!currentUserId || !supabaseClient) return empty;
+
+  const actionableGroups = (groups || []).filter(
+    (g) => g?.matchId && (g.type === 'call_to_vote' || g.type === 'survey_start'),
+  );
+  if (actionableGroups.length === 0) return empty;
+
+  const matchIds = [...new Set(actionableGroups.map((g) => Number(g.matchId)).filter(Boolean))];
+  if (!matchIds.length) return empty;
+
+  const votedMatchIds = new Set();
+  const surveyedMatchIds = new Set();
+
+  try {
+    const { data: votesRows, error: votesError } = await supabaseClient
+      .from('votos')
+      .select('partido_id')
+      .eq('votante_id', currentUserId)
+      .in('partido_id', matchIds);
+    if (votesError) throw votesError;
+    (votesRows || []).forEach((row) => {
+      const pid = Number(row?.partido_id);
+      if (pid) votedMatchIds.add(pid);
+    });
+  } catch (error) {
+    console.error('[ACTIVITY_FEED] failed to resolve completed votes:', error);
+  }
+
+  try {
+    const { data: playerRows, error: playerError } = await supabaseClient
+      .from('jugadores')
+      .select('id,partido_id')
+      .eq('usuario_id', currentUserId)
+      .in('partido_id', matchIds);
+    if (playerError) throw playerError;
+
+    const playerIds = (playerRows || []).map((row) => Number(row?.id)).filter(Boolean);
+    if (playerIds.length > 0) {
+      const { data: surveyRows, error: surveyError } = await supabaseClient
+        .from('post_match_surveys')
+        .select('partido_id,votante_id')
+        .in('partido_id', matchIds)
+        .in('votante_id', playerIds);
+      if (surveyError) throw surveyError;
+      (surveyRows || []).forEach((row) => {
+        const pid = Number(row?.partido_id);
+        if (pid) surveyedMatchIds.add(pid);
+      });
+    }
+  } catch (error) {
+    console.error('[ACTIVITY_FEED] failed to resolve completed surveys:', error);
+  }
+
+  return { votedMatchIds, surveyedMatchIds };
+};
+
 export const buildActivityFeed = async (notifications = [], options = {}) => {
   const { activeMatches = [], currentUserId = null, supabaseClient = null } = options;
   const activeMatchMap = new Map((activeMatches || []).map((match) => [Number(match.id), match]));
 
   const activeMatchItems = buildActiveMatchItems(activeMatches, currentUserId);
   const groups = groupNotifications(notifications);
-  const fetchedMatchMap = await fetchMissingMatches({ groups, activeMatchMap, supabaseClient });
+  const completedActions = await fetchCompletedActionsByMatch({ groups, currentUserId, supabaseClient });
+  const pendingGroups = groups.filter((group) => {
+    const pid = Number(group?.matchId || 0);
+    if (!pid) return true;
+    if (group.type === 'call_to_vote' && completedActions.votedMatchIds.has(pid)) return false;
+    if (group.type === 'survey_start' && completedActions.surveyedMatchIds.has(pid)) return false;
+    return true;
+  });
+  const fetchedMatchMap = await fetchMissingMatches({ groups: pendingGroups, activeMatchMap, supabaseClient });
 
-  const notificationItems = groups
+  const notificationItems = pendingGroups
     .map((group) => {
       const match = group.matchId ? (activeMatchMap.get(Number(group.matchId)) || fetchedMatchMap.get(Number(group.matchId))) : null;
       return toActivityFromNotification(group, match, currentUserId);

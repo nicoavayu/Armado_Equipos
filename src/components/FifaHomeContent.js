@@ -24,6 +24,13 @@ const activityIconMap = {
   Vote,
 };
 
+const severityIconClass = {
+  urgent: 'text-[#ff5a5f]',
+  warning: 'text-[#f5c451]',
+  success: 'text-[#5ad17b]',
+  neutral: 'text-white/80',
+};
+
 const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _onViewActivePlayers }) => {
   const { user, profile, refreshProfile } = useAuth();
   const notificationsCtx = useNotifications() || {};
@@ -43,7 +50,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const nowTs = Date.now();
   const AWARDS_STORY_WINDOW_MS = 24 * 60 * 60 * 1000;
   const awardsStoryNotifs = (notifications || [])
-    .filter((n) => ['survey_results_ready', 'awards_ready', 'survey_finished'].includes(n.type))
+    .filter((n) => ['survey_results_ready', 'awards_ready'].includes(n.type))
     .filter((n) => {
       const createdTs = n?.created_at ? new Date(n.created_at).getTime() : 0;
       return createdTs > 0 && (nowTs - createdTs) <= AWARDS_STORY_WINDOW_MS;
@@ -447,6 +454,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
             <div className="flex flex-col gap-3 h-[320px] overflow-y-auto pr-1 custom-scrollbar">
               {activityItems.map((item) => {
                 const Icon = activityIconMap[item.icon] || Bell;
+                const iconColorClass = severityIconClass[item.severity] || severityIconClass.neutral;
                 return (
                   <button
                     key={item.id}
@@ -454,7 +462,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                     className="w-full flex items-center justify-between gap-3 p-3.5 bg-white/5 rounded-xl border border-white/5 text-left hover:bg-white/10 active:bg-white/15 transition-colors"
                   >
                     <div className="flex items-start min-w-0">
-                      <div className="mr-3 mt-0.5 text-white/80 shrink-0">
+                      <div className={`mr-3 mt-0.5 shrink-0 ${iconColorClass}`}>
                         <Icon size={24} />
                       </div>
                       <div className="min-w-0">
