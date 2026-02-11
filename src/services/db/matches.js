@@ -619,9 +619,25 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       console.warn('⚠️ SUPABASE: Error fetching public votes (non-fatal):', publicFetchError);
     }
 
+    const regularRowsCount = votos?.length || 0;
+    const publicRowsCount = publicVotes?.length || 0;
+    const authVotersCount = new Set((votos || []).map((v) => v.votante_id).filter(Boolean)).size;
+
+    // Public "voters completed" count (used for debug consistency checks)
+    const { count: publicVotersCount, error: publicVotersError } = await supabase
+      .from('public_voters')
+      .select('id', { count: 'exact', head: true })
+      .eq('partido_id', partidoId);
+
+    if (publicVotersError) {
+      console.warn('⚠️ SUPABASE: Error fetching public_voters count (non-fatal):', publicVotersError);
+    }
+
     console.log('✅ SUPABASE: All votes fetched:', {
       regularCount: votos?.length || 0,
       publicCount: publicVotes?.length || 0,
+      authVotersCount,
+      publicVotersCount: publicVotersCount || 0,
     });
 
     const { data: jugadores, error: playerError } = await supabase
@@ -708,6 +724,16 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
         votes: votes.filter((v) => v !== -1),
       })),
     });
+
+    // Hard guard: never close voting with zero valid votes.
+    // This prevents "all players score 5" false outcomes when persistence failed upstream.
+    if (totalValidVotes <= 0) {
+      throw new Error(
+        `No hay votos válidos guardados para cerrar la votación. ` +
+        `(auth_rows=${regularRowsCount}, public_rows=${publicRowsCount}, ` +
+        `auth_voters=${authVotersCount}, public_voters=${publicVotersCount || 0})`
+      );
+    }
 
     const updates = [];
     const scoreUpdates = [];

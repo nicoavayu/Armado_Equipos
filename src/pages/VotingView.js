@@ -822,6 +822,16 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   console.debug('[VOTING] Starting public submit', { playerIds: ratedPlayerIds, voterName: nombre });
 
                   for (const j of jugadoresParaVotar) {
+                    if (!j?.id) {
+                      console.error('[VOTING] Missing numeric player id for public vote', {
+                        jugadorNombre: j?.nombre,
+                        jugadorUuid: j?.uuid,
+                        partidoId,
+                      });
+                      resultados.invalid += 1;
+                      continue;
+                    }
+
                     const rawVote = votos[j.uuid];
 
                     if (rawVote === undefined || rawVote === null) {
@@ -925,6 +935,14 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                     resultados.ok += 1;
                   }
 
+                  console.debug('[Vote] public submit result (before completion mark)', resultados);
+
+                  // Evita falso positivo: no marcar "votó" si no hubo ningún voto válido persistido.
+                  if (resultados.ok <= 0) {
+                    toast.error('No se registró ningún voto válido. Probá de nuevo.');
+                    return;
+                  }
+
                   // ✅ Marcar que este votante ya confirmó (bloquea re-voto por nombre)
                   const { data: doneData, error: doneError } = await supabase.rpc('public_mark_voter_completed', {
                     p_partido_id: partidoId,
@@ -933,7 +951,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   });
 
                   if (doneError) {
-                    // Si falla igual guardamos votos, pero avisamos suave
                     console.warn('[Vote] could not mark completed', doneError);
                   } else {
                     const r = doneData?.result || doneData;
@@ -946,8 +963,12 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                     }
                   }
 
-                  toast.success('Votos enviados');
-                  console.debug('[Vote] public submit result', resultados);
+                  if (resultados.invalid > 0) {
+                    toast.warn('Se guardaron votos, pero algunos jugadores no se pudieron procesar.');
+                  } else {
+                    toast.success('Votos enviados');
+                  }
+                  console.debug('[Vote] public submit result (final)', resultados);
                   lockedRef.current = true;
                   setFinalizado(true);
                 } else {
