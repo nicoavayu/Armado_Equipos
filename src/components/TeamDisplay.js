@@ -654,15 +654,15 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           );
         })()}
 
-        {/* Botones de acción con helper copy */}
+        {/* Botones de acción con helper copy (mobile-first) */}
         <div className="w-full mt-2 box-border flex flex-col gap-4">
           {isAdmin && (
             <>
               <div className="flex flex-col gap-2">
-                <div className="flex gap-2 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
                   {/* Primary CTA */}
                   <button
-                    className="flex-1 font-bebas text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide bg-[#128BE9] hover:brightness-110 active:scale-95 disabled:opacity-50"
+                    className="w-full font-bebas text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide whitespace-nowrap bg-[#128BE9] hover:brightness-110 active:scale-95 disabled:opacity-50"
                     onClick={randomizeTeams}
                     disabled={teamsConfirmed}
                   >
@@ -670,27 +670,27 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                   </button>
 
                   <button
-                    className="flex-1 font-bebas text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide bg-primary hover:brightness-110 active:scale-95 disabled:opacity-50"
+                    className="w-full font-bebas text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide whitespace-nowrap bg-primary hover:brightness-110 active:scale-95 disabled:opacity-50"
                     onClick={teamsConfirmed ? unconfirmTeams : confirmTeams}
                     disabled={confirming || unconfirming}
                   >
-                    {teamsConfirmed ? (unconfirming ? 'DESCONFIRMANDO…' : 'EDITAR EQUIPOS') : (confirming ? 'CONFIRMANDO…' : 'CONFIRMAR EQUIPOS')}
+                    {teamsConfirmed ? (unconfirming ? 'DESCONFIRMANDO…' : 'EDITAR EQUIPOS') : (confirming ? 'CONFIRMANDO…' : 'CONFIRMAR')}
                   </button>
 
                   {/* Secondary outlined */}
                   <button
-                    className="flex-1 font-bebas text-[15px] px-4 border border-slate-600 rounded-xl cursor-pointer transition-all text-white/80 h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide hover:border-slate-500 hover:text-white/90 bg-transparent active:scale-95 disabled:opacity-50"
+                    className="w-full font-bebas text-[15px] px-4 border border-slate-600 rounded-xl cursor-pointer transition-all text-white/80 h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide whitespace-nowrap hover:border-slate-500 hover:text-white/90 bg-transparent active:scale-95 disabled:opacity-50"
                     onClick={() => setShowAverages(!showAverages)}
                   >
-                    {showAverages ? 'OCULTAR PROMEDIOS' : 'VER PROMEDIOS'}
+                    {showAverages ? 'OCULTAR PROMEDIOS' : 'PROMEDIOS'}
                   </button>
                 </div>
-                <div className="flex gap-2 w-full">
-                  <div className="flex-1 text-white/50 text-xs font-oswald text-center leading-tight px-1">Recalcula los equipos para dejarlos lo más parejos posible.</div>
-                  <div className="flex-1 text-white/50 text-xs font-oswald text-center leading-tight px-1">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full">
+                  <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1 sm:min-h-[48px] flex items-start justify-center">Recalcula los equipos para dejarlos lo más parejos posible.</div>
+                  <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1 sm:min-h-[48px] flex items-start justify-center">
                     {teamsConfirmed ? 'Los equipos están confirmados.' : 'Guarda los equipos de este partido y bloquea cambios.'}
                   </div>
-                  <div className="flex-1 text-white/50 text-xs font-oswald text-center leading-tight px-1">Mirá los promedios y métricas usadas para armar los equipos.</div>
+                  <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1 sm:min-h-[48px] flex items-start justify-center">Mirá los promedios y métricas usadas para armar los equipos.</div>
                 </div>
               </div>
             </>
