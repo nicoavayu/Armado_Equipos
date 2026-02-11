@@ -418,13 +418,23 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   const handleWhatsAppShare = () => {
     const teamA = realtimeTeams.find((t) => t.id === 'equipoA');
     const teamB = realtimeTeams.find((t) => t.id === 'equipoB');
+    if (!teamA || !teamB) {
+      toast.error('No se pudieron preparar los equipos para compartir');
+      return;
+    }
 
-    const teamAText = `*${teamA.name}* (Puntaje: ${(teamA.score ?? 0).toFixed(2)})\n${teamA.players.map((pId) => getPlayerDetails(pId).nombre).join('\n')}`;
-    const teamBText = `*${teamB.name}* (Puntaje: ${(teamB.score ?? 0).toFixed(2)})\n${teamB.players.map((pId) => getPlayerDetails(pId).nombre).join('\n')}`;
+    const playersToText = (team) =>
+      (team.players || [])
+        .map((pId) => `- ${getPlayerDetails(pId).nombre}`)
+        .join('\n');
 
-    const message = `Equipos armados:\\n\\n${teamAText}\\n\\n${teamBText}`;
+    const teamAText = `*EQUIPO A* (Puntaje: ${(teamA.score ?? 0).toFixed(2)})\n${playersToText(teamA)}`;
+    const teamBText = `*EQUIPO B* (Puntaje: ${(teamB.score ?? 0).toFixed(2)})\n${playersToText(teamB)}`;
 
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+    // WhatsApp friendly: no header, clear spacing, real line breaks.
+    const message = `${teamAText}\n\n${teamBText}`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
   };
 
   return (
