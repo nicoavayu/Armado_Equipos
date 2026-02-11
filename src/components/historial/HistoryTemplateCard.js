@@ -139,14 +139,14 @@ const HistoryTemplateCard = ({
           className="flex-[1.6] font-bebas text-base px-4 py-2.5 border-2 border-transparent rounded-xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-primary shadow-lg hover:brightness-110 hover:-translate-y-px"
           onClick={() => onViewDetails && onViewDetails(template)}
         >
-          VER DETALLES
+          CREAR PARTIDO
         </button>
         {onHistory && (
           <button
             className="flex-[1] font-bebas text-base px-4 py-2.5 border border-slate-700 rounded-xl cursor-pointer transition-all text-slate-200 min-h-[44px] flex items-center justify-center text-center bg-slate-900 hover:bg-slate-800 hover:text-white"
             onClick={() => onHistory && onHistory(template)}
           >
-            HISTORIAL
+            ESTADÍSTICAS
           </button>
         )}
       </div>

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { TeamDisplayContext } from './PlayerCardTrigger';
-import { saveTeamsToDatabase, getTeamsFromDatabase, subscribeToTeamsChanges, unsubscribeFromTeamsChanges } from '../supabase';
+import { saveTeamsToDatabase, getTeamsFromDatabase, subscribeToTeamsChanges, unsubscribeFromTeamsChanges, supabase } from '../supabase';
 import ChatButton from './ChatButton';
 import PageTitle from './PageTitle';
 import MatchInfoSection from './MatchInfoSection';
@@ -29,6 +29,8 @@ const SafeMatchInfoSection = safeComp(MatchInfoSection, 'MatchInfoSection');
 const SafeWhatsappIcon = safeComp(WhatsappIcon, 'WhatsappIcon');
 const SafeLoadingSpinner = safeComp(LoadingSpinner, 'LoadingSpinner');
 
+const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+
 const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null, nombre: _nombre, fecha, hora, sede, modalidad, tipo }) => {
   const [showAverages, setShowAverages] = useState(false);
   const [lockedPlayers, setLockedPlayers] = useState([]);
@@ -37,6 +39,10 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   const [realtimeTeams, setRealtimeTeams] = useState(teams);
   const [realtimePlayers, setRealtimePlayers] = useState(players);
   const teamsSubscriptionRef = useRef(null);
+  const [teamsConfirmed, setTeamsConfirmed] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [unconfirming, setUnconfirming] = useState(false);
+  const [templateId, setTemplateId] = useState(null);
 
   // [TEAM_BALANCER_EDIT] Para jugadores no-admin, ocultar promedios por defecto
   useEffect(() => {
@@ -67,6 +73,27 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     };
 
     loadTeamsFromDatabase();
+  }, [partidoId]);
+
+  // Load "teams_confirmed" + template_id (best-effort; doesn't break if columns don't exist)
+  useEffect(() => {
+    const loadConfirmState = async () => {
+      if (!partidoId) return;
+      try {
+        const { data, error } = await supabase
+          .from('partidos')
+          .select('teams_confirmed, template_id, from_frequent_match_id')
+          .eq('id', Number(partidoId))
+          .maybeSingle();
+        if (error) throw error;
+        setTeamsConfirmed(Boolean(data?.teams_confirmed));
+        setTemplateId(data?.template_id || data?.from_frequent_match_id || null);
+      } catch (e) {
+        // Older DBs may not have these columns yet.
+        console.warn('[TEAMS_CONFIRM] could not load teams_confirmed/template_id (non-blocking)', e?.message || e);
+      }
+    };
+    loadConfirmState();
   }, [partidoId]);
 
   // Update teams when props change
@@ -176,6 +203,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     if (!isAdmin) {
       return;
     }
+    if (teamsConfirmed) return;
 
     if (lockedPlayers.includes(playerId)) {
       setLockedPlayers(lockedPlayers.filter((id) => id !== playerId));
@@ -188,6 +216,10 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     // [TEAM_BALANCER_EDIT] Solo admin puede randomizar equipos
     if (!isAdmin) {
       toast.error('Solo el admin puede randomizar los equipos');
+      return;
+    }
+    if (teamsConfirmed) {
+      toast.info('Los equipos ya están confirmados.');
       return;
     }
 
@@ -249,6 +281,137 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       } catch (error) {
         console.error('[TEAMS_SAVE] Error saving teams:', error);
       }
+    }
+  };
+
+  const buildConfirmationSnapshot = () => {
+    const teamA = realtimeTeams.find((t) => t.id === 'equipoA');
+    const teamB = realtimeTeams.find((t) => t.id === 'equipoB');
+    const teamAKeys = getPlayersArrayFromTeam(teamA).map(normalizeKey).filter(Boolean);
+    const teamBKeys = getPlayersArrayFromTeam(teamB).map(normalizeKey).filter(Boolean);
+
+    const toPlayerUuid = (key) => {
+      const p = getPlayerDetails(key);
+      const u = p?.uuid || p?.usuario_id;
+      return isUuid(u) ? u : null;
+    };
+
+    const teamAUuid = teamAKeys.map(toPlayerUuid).filter(Boolean);
+    const teamBUuid = teamBKeys.map(toPlayerUuid).filter(Boolean);
+
+    // participants snapshot includes all team members with stable info
+    const allKeys = Array.from(new Set([...teamAKeys, ...teamBKeys]));
+    const participants = allKeys.map((key) => {
+      const p = getPlayerDetails(key);
+      return {
+        uuid: isUuid(p?.uuid) ? p.uuid : (isUuid(p?.usuario_id) ? p.usuario_id : null),
+        usuario_id: isUuid(p?.usuario_id) ? p.usuario_id : null,
+        nombre: p?.nombre || null,
+        avatar_url: p?.avatar_url || p?.foto_url || null,
+        score: typeof p?.score === 'number' ? p.score : null,
+        is_goalkeeper: Boolean(p?.is_goalkeeper),
+      };
+    }).filter((p) => p.nombre);
+
+    return {
+      teamAUuid,
+      teamBUuid,
+      participants,
+      teamsJson: realtimeTeams,
+    };
+  };
+
+  const confirmTeams = async () => {
+    if (!isAdmin) return;
+    if (!partidoId) return;
+    if (teamsConfirmed) return;
+    if (confirming) return;
+
+    setConfirming(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const snapshot = buildConfirmationSnapshot();
+
+      if (snapshot.teamAUuid.length === 0 || snapshot.teamBUuid.length === 0) {
+        toast.error('No se pudieron resolver los jugadores de los equipos.');
+        return;
+      }
+      if (snapshot.teamAUuid.length !== snapshot.teamBUuid.length) {
+        toast.error('Los equipos no tienen la misma cantidad de jugadores.');
+        return;
+      }
+
+      const payload = {
+        partido_id: Number(partidoId),
+        template_id: templateId,
+        confirmed_by: auth?.user?.id || null,
+        participants: snapshot.participants,
+        team_a: snapshot.teamAUuid,
+        team_b: snapshot.teamBUuid,
+        teams_json: snapshot.teamsJson,
+      };
+
+      // Upsert snapshot (idempotent)
+      const { error: snapErr } = await supabase
+        .from('partido_team_confirmations')
+        .upsert(payload, { onConflict: 'partido_id' });
+      if (snapErr) throw snapErr;
+
+      // Mark match as confirmed (best-effort if columns exist)
+      try {
+        await supabase
+          .from('partidos')
+          .update({ teams_confirmed: true, teams_confirmed_at: new Date().toISOString() })
+          .eq('id', Number(partidoId));
+      } catch (_e) {
+        // non-blocking
+      }
+
+      setTeamsConfirmed(true);
+      toast.success('Equipos confirmados');
+    } catch (e) {
+      console.error('[TEAMS_CONFIRM] confirmTeams error', e);
+      toast.error('No se pudieron confirmar los equipos');
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const unconfirmTeams = async () => {
+    if (!isAdmin) return;
+    if (!partidoId) return;
+    if (!teamsConfirmed) return;
+    if (unconfirming) return;
+
+    setUnconfirming(true);
+    try {
+      // Delete snapshot (best-effort)
+      try {
+        await supabase
+          .from('partido_team_confirmations')
+          .delete()
+          .eq('partido_id', Number(partidoId));
+      } catch (_e) {
+        // non-blocking
+      }
+
+      // Reset flag (best-effort)
+      try {
+        await supabase
+          .from('partidos')
+          .update({ teams_confirmed: false, teams_confirmed_at: null })
+          .eq('id', Number(partidoId));
+      } catch (_e) {
+        // non-blocking
+      }
+
+      setTeamsConfirmed(false);
+      toast.info('Equipos desconfirmados');
+    } catch (e) {
+      console.error('[TEAMS_CONFIRM] unconfirmTeams error', e);
+      toast.error('No se pudo desconfirmar');
+    } finally {
+      setUnconfirming(false);
     }
   };
 
@@ -346,6 +509,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                   <h3
                     className="font-bebas text-xl text-white m-0 tracking-wide uppercase cursor-pointer px-0 py-2 rounded-lg transition-all bg-transparent break-words text-center block w-full hover:bg-white/5 mb-2 flex justify-center items-center"
                     onClick={isAdmin ? () => {
+                      if (teamsConfirmed) return;
                       setEditingTeamId(team.id);
                       setEditingTeamName(team.name);
                     } : undefined}
@@ -500,8 +664,17 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                   <button
                     className="flex-1 font-bebas text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide bg-[#128BE9] hover:brightness-110 active:scale-95 disabled:opacity-50"
                     onClick={randomizeTeams}
+                    disabled={teamsConfirmed}
                   >
                     RANDOMIZAR
+                  </button>
+
+                  <button
+                    className="flex-1 font-bebas text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide bg-primary hover:brightness-110 active:scale-95 disabled:opacity-50"
+                    onClick={teamsConfirmed ? unconfirmTeams : confirmTeams}
+                    disabled={confirming || unconfirming}
+                  >
+                    {teamsConfirmed ? (unconfirming ? 'DESCONFIRMANDO…' : 'EDITAR EQUIPOS') : (confirming ? 'CONFIRMANDO…' : 'CONFIRMAR EQUIPOS')}
                   </button>
 
                   {/* Secondary outlined */}
@@ -514,6 +687,9 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                 </div>
                 <div className="flex gap-2 w-full">
                   <div className="flex-1 text-white/50 text-xs font-oswald text-center leading-tight px-1">Recalcula los equipos para dejarlos lo más parejos posible.</div>
+                  <div className="flex-1 text-white/50 text-xs font-oswald text-center leading-tight px-1">
+                    {teamsConfirmed ? 'Los equipos están confirmados.' : 'Guarda los equipos de este partido y bloquea cambios.'}
+                  </div>
                   <div className="flex-1 text-white/50 text-xs font-oswald text-center leading-tight px-1">Mirá los promedios y métricas usadas para armar los equipos.</div>
                 </div>
               </div>

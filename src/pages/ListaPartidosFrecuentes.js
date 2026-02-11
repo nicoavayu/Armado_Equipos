@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { crearPartido } from '../supabase';
+import { crearPartido, supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import PageTitle from '../components/PageTitle';
 import LoadingSpinner from '../components/LoadingSpinner';
 import HistoryTemplateCard from '../components/historial/HistoryTemplateCard';
+import TemplateStatsModal from '../components/historial/TemplateStatsModal';
 import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchDateDebug';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -69,6 +69,12 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
   const [selectedTime, setSelectedTime] = useState('');
   const [creating, setCreating] = useState(false);
   const [editTime, setEditTime] = useState(false);
+  const [cupo, setCupo] = useState(10);
+  const [sede, setSede] = useState('');
+  const [players, setPlayers] = useState([]);
+  const [newPlayerName, setNewPlayerName] = useState('');
+
+  const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -76,6 +82,10 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
     setSelectedDate(today);
     setSelectedTime(template?.hora || '');
     setEditTime(false);
+    setCupo(Number(template?.cupo_jugadores || template?.cupo || 10) || 10);
+    setSede(template?.sede || template?.lugar || '');
+    setPlayers(Array.isArray(template?.jugadores_frecuentes) ? template.jugadores_frecuentes.filter((p) => p && p.nombre) : []);
+    setNewPlayerName('');
 
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = 'unset'; };
@@ -106,18 +116,61 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
         nombre,
         fecha: selectedDate,
         hora: editTime ? selectedTime : (template.hora || ''),
-        sede: template.sede || template.lugar || '',
+        sede: sede || '',
         sedeMaps: '',
         modalidad: template.modalidad || 'F5',
-        cupo_jugadores: 10,
+        cupo_jugadores: Number(cupo) || 10,
         falta_jugadores: false,
         tipo_partido: template.tipo_partido || 'Masculino',
+        // New linkage (safe if column exists)
+        template_id: template.id,
+        // Legacy linkage kept for backward compatibility
+        from_frequent_match_id: template.id,
+        frequent_match_name: template.nombre,
       };
 
-      const partido = await crearPartido(payload);
+      let partido = null;
+      try {
+        partido = await crearPartido(payload);
+      } catch (e) {
+        // Backward-compatible fallback if DB doesn't have template_id yet.
+        if (/template_id/i.test(e?.message || '')) {
+          const legacyPayload = { ...payload };
+          delete legacyPayload.template_id;
+          partido = await crearPartido(legacyPayload);
+        } else {
+          throw e;
+        }
+      }
       if (!partido) throw new Error('No match returned');
 
-      toast.success('Partido creado ✅');
+      // Optional: prefill roster from template suggestions (best-effort)
+      try {
+        const partidoId = Number(partido.id);
+        if (Number.isFinite(partidoId) && Array.isArray(players) && players.length > 0) {
+          const rows = players
+            .map((p) => {
+              const usuario_id = isUuid(p?.usuario_id) ? p.usuario_id : null;
+              // Do NOT force uuid unless valid; let DB generate it (avoids runtime issues).
+              return {
+                partido_id: partidoId,
+                nombre: String(p?.nombre || '').trim(),
+                score: typeof p?.score === 'number' ? p.score : 5,
+                is_goalkeeper: Boolean(p?.is_goalkeeper),
+                ...(usuario_id ? { usuario_id } : {}),
+              };
+            })
+            .filter((r) => r.nombre);
+
+          if (rows.length > 0) {
+            await supabase.from('jugadores').insert(rows);
+          }
+        }
+      } catch (e) {
+        console.warn('[USAR PLANTILLA] roster prefill failed (non-blocking)', e);
+      }
+
+      toast.success('Partido creado');
       onUse && onUse(partido);
     } catch (err) {
       console.error('[USAR PLANTILLA] error', err);
@@ -140,8 +193,18 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
 
         <div className="grid grid-cols-1 gap-6 mb-8">
           <div>
+            <label className="text-white/50 text-[10px] uppercase font-bold tracking-widest block mb-2 font-[Oswald,sans-serif]">Nombre</label>
+            <div className="text-white text-lg font-medium font-[Oswald,sans-serif] truncate">{template.nombre || 'Partido frecuente'}</div>
+          </div>
+
+          <div>
             <label className="text-white/50 text-[10px] uppercase font-bold tracking-widest block mb-2 font-[Oswald,sans-serif]">Ubicación</label>
-            <div className="text-white text-lg font-medium font-[Oswald,sans-serif]">{formatearSede(template.sede || template.lugar || '')}</div>
+            <input
+              value={sede}
+              onChange={(e) => setSede(e.target.value)}
+              className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 font-[Oswald,sans-serif] backdrop-blur-sm"
+              placeholder="Sede"
+            />
           </div>
 
           <div className="flex items-center justify-between">
@@ -183,6 +246,60 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
               className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 font-[Oswald,sans-serif] backdrop-blur-sm"
             />
           </div>
+
+          <div>
+            <label className="text-white/50 text-[10px] uppercase font-bold tracking-widest block mb-3 font-[Oswald,sans-serif]">Cupo</label>
+            <input
+              type="number"
+              min={2}
+              max={30}
+              value={cupo}
+              onChange={(e) => setCupo(e.target.value)}
+              className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 font-[Oswald,sans-serif] backdrop-blur-sm"
+            />
+          </div>
+
+          <div className="border-t border-white/10 pt-4">
+            <label className="text-white/50 text-[10px] uppercase font-bold tracking-widest block mb-3 font-[Oswald,sans-serif]">Jugadores sugeridos (editable)</label>
+            {players.length === 0 ? (
+              <div className="text-white/50 text-sm font-[Oswald,sans-serif]">Sin sugerencias cargadas en la plantilla.</div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {players.map((p, idx) => (
+                  <button
+                    key={`${p?.nombre || 'p'}:${idx}`}
+                    type="button"
+                    className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 text-xs font-[Oswald,sans-serif] hover:bg-white/10 active:scale-95"
+                    onClick={() => setPlayers((prev) => prev.filter((_, i) => i !== idx))}
+                    title="Quitar"
+                  >
+                    {String(p?.nombre || '').trim()}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2 mt-3">
+              <input
+                value={newPlayerName}
+                onChange={(e) => setNewPlayerName(e.target.value)}
+                className="flex-1 bg-white/10 border border-white/20 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 font-[Oswald,sans-serif] backdrop-blur-sm"
+                placeholder="Agregar jugador"
+              />
+              <button
+                type="button"
+                className="px-4 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-95 disabled:opacity-50 font-[Oswald,sans-serif] text-xs tracking-widest uppercase border border-white/10"
+                onClick={() => {
+                  const n = String(newPlayerName || '').trim();
+                  if (!n) return;
+                  setPlayers((prev) => [...prev, { nombre: n }]);
+                  setNewPlayerName('');
+                }}
+              >
+                AGREGAR
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="flex gap-3 mt-4">
@@ -207,7 +324,6 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
 }
 
 export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }) {
-  const navigate = useNavigate();
   const [partidosFrecuentes, setPartidosFrecuentes] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -219,6 +335,10 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
   const [showUseModal, setShowUseModal] = useState(false);
   const [templateToUse, setTemplateToUse] = useState(null);
   const [isCreatingFromTemplate, _setIsCreatingFromTemplate] = useState(false);
+
+  // Modal state for template stats
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [templateForStats, setTemplateForStats] = useState(null);
 
   useEffect(() => {
     let channel = null;
@@ -299,12 +419,14 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
 
   const handleViewDetails = (partido) => {
     if (!partido?.id) return;
-    navigate(`/historial/${partido.id}`, { state: { template: partido } });
+    setTemplateToUse(partido);
+    setShowUseModal(true);
   };
 
   const handleHistoryView = (partido) => {
     if (!partido?.id) return;
-    navigate(`/historial/${partido.id}/historial`, { state: { template: partido } });
+    setTemplateForStats(partido);
+    setShowStatsModal(true);
   };
 
   const handleEditTemplate = (partido) => {
@@ -413,6 +535,12 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
             // Intentionally ignored.
           }
         }}
+      />
+
+      <TemplateStatsModal
+        isOpen={showStatsModal}
+        template={templateForStats}
+        onClose={() => { setShowStatsModal(false); setTemplateForStats(null); }}
       />
     </div>
   );

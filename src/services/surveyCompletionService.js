@@ -339,29 +339,46 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     ...results,
     results_ready: true,
   };
-  let upsertRes = await supabase.from('survey_results').upsert(basePayload, { onConflict: 'partido_id' });
+  const safeUpsert = async (payload) => {
+    let res = await supabase.from('survey_results').upsert(payload, { onConflict: 'partido_id' });
+    if (res.error && /winner_team|scoreline/i.test(res.error.message || '')) {
+      const legacyPayload = { ...payload };
+      delete legacyPayload.winner_team;
+      delete legacyPayload.scoreline;
+      res = await supabase.from('survey_results').upsert(legacyPayload, { onConflict: 'partido_id' });
+    }
+    return res;
+  };
+
+  let upsertRes = await safeUpsert(basePayload);
   if (upsertRes.error) {
-    upsertRes = await supabase.from('survey_results').upsert({
+    upsertRes = await safeUpsert({
       partido_id: partidoId,
       mvp: results?.mvp ?? null,
       golden_glove: results?.golden_glove ?? null,
       red_cards: Array.isArray(results?.red_cards) ? results.red_cards : [],
+      winner_team: results?.winner_team ?? null,
+      scoreline: results?.scoreline ?? null,
       results_ready: true,
-    }, { onConflict: 'partido_id' });
+    });
   }
   if (upsertRes.error) {
-    upsertRes = await supabase.from('survey_results').upsert({
+    upsertRes = await safeUpsert({
       partido_id: partidoId,
       mvp: results?.mvp ?? null,
       golden_glove: results?.golden_glove ?? null,
+      winner_team: results?.winner_team ?? null,
+      scoreline: results?.scoreline ?? null,
       results_ready: true,
-    }, { onConflict: 'partido_id' });
+    });
   }
   if (upsertRes.error) {
-    upsertRes = await supabase.from('survey_results').upsert({
+    upsertRes = await safeUpsert({
       partido_id: partidoId,
+      winner_team: results?.winner_team ?? null,
+      scoreline: results?.scoreline ?? null,
       results_ready: true,
-    }, { onConflict: 'partido_id' });
+    });
   }
   if (upsertRes.error) throw upsertRes.error;
 
@@ -371,11 +388,23 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 // Mantener / completar esta función con tu lógica real
 export async function computeResultsAverages(partidoId) {
   // 1) encuestas
-  const { data: surveys, error: sErr } = await supabase
-    .from('post_match_surveys')
-    .select('votante_id, mejor_jugador_eq_a, mejor_jugador_eq_b, jugadores_violentos')
-    .eq('partido_id', partidoId);
-  if (sErr) throw sErr;
+  let surveys = null;
+  try {
+    const { data, error } = await supabase
+      .from('post_match_surveys')
+      .select('votante_id, mejor_jugador_eq_a, mejor_jugador_eq_b, jugadores_violentos, ganador, resultado')
+      .eq('partido_id', partidoId);
+    if (error) throw error;
+    surveys = data || [];
+  } catch (e) {
+    // Backward-compatible fallback if ganador/resultado columns don't exist yet
+    const { data, error } = await supabase
+      .from('post_match_surveys')
+      .select('votante_id, mejor_jugador_eq_a, mejor_jugador_eq_b, jugadores_violentos')
+      .eq('partido_id', partidoId);
+    if (error) throw error;
+    surveys = data || [];
+  }
   const totalVotantes = new Set((surveys || []).map((s) => s.votante_id)).size || 0;
 
   // 2) recolectar UUIDs para mapear
@@ -467,9 +496,31 @@ export async function computeResultsAverages(partidoId) {
     });
   }
 
+  // 8) ganador + resultado por mayoría (cuando exista)
+  const ganadorCount = new Map();
+  const resultadoCount = new Map();
+  (surveys || []).forEach((s) => {
+    const g = typeof s?.ganador === 'string' ? s.ganador.trim() : '';
+    if (g) ganadorCount.set(g, (ganadorCount.get(g) || 0) + 1);
+    const r = typeof s?.resultado === 'string' ? s.resultado.trim() : '';
+    if (r) resultadoCount.set(r, (resultadoCount.get(r) || 0) + 1);
+  });
+  const pickStringWinner = (map) => {
+    let winner = null;
+    let best = -1;
+    Array.from(map.entries()).forEach(([k, cnt]) => {
+      if (cnt > best) { best = cnt; winner = k; }
+    });
+    return winner;
+  };
+  const winner_team = pickStringWinner(ganadorCount);
+  const scoreline = pickStringWinner(resultadoCount);
+
   return {
     mvp: mvpIdNum ? idToPlayerRef.get(mvpIdNum) || String(mvpIdNum) : null,
     golden_glove: gkIdNum ? idToPlayerRef.get(gkIdNum) || String(gkIdNum) : null,
     red_cards: redIdsNum.map((id) => idToPlayerRef.get(id) || String(id)).filter(Boolean),
+    winner_team: winner_team || null,
+    scoreline: scoreline || null,
   };
 }

@@ -210,7 +210,7 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
     }));
 
     console.log('Adding players to new match:', jugadoresLimpios);
-    await updateJugadoresPartido(partido.match_ref, jugadoresLimpios);
+    await updateJugadoresPartido(partido.id, jugadoresLimpios);
     partido.jugadores = jugadoresLimpios;
   } else {
     partido.jugadores = [];
@@ -370,7 +370,7 @@ export const subscribeToPartidosChanges = (callback) => {
  */
 export const insertPartidoFrecuenteFromPartido = async (match_ref) => {
   if (!match_ref) throw new Error('match_ref required');
-  // Fetch the partido row
+  // Fetch the partido row (includes jugadores array)
   const { data: partido, error: fetchError } = await supabase
     .from('partidos_view')
     .select('*')
@@ -380,26 +380,98 @@ export const insertPartidoFrecuenteFromPartido = async (match_ref) => {
   if (fetchError) throw new Error(`Error fetching partido ${match_ref}: ${fetchError.message}`);
   if (!partido) throw new Error(`Partido ${match_ref} not found`);
 
-  // Map partido fields into the frequent-match expected shape
-  const jugadores_frecuentes = Array.isArray(partido.jugadores) ? partido.jugadores.map((j) => ({
-    nombre: j?.nombre || j?.displayName || null,
-    avatar_url: j?.avatar_url || j?.foto_url || null,
-    uuid: j?.uuid || j?.id || null,
-  })) : [];
+  // Get current authenticated user (templates are per-user)
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user?.id) throw new Error('User must be authenticated to save templates');
 
-  const insertPayload = {
-    nombre: partido.nombre || partido.lugar || 'Partido frecuente',
-    sede: partido.sede || partido.lugar || null,
-    hora: partido.hora || null,
-    jugadores_frecuentes,
-    dia_semana: partido.fecha ? weekdayFromYMD(partido.fecha) : null,
-    habilitado: true,
-    imagen_url: partido.imagen_url || null,
-    tipo_partido: partido.tipo_partido || 'Masculino',
+  // Build "jugadores sugeridos" (optional): keep only minimal fields
+  const jugadores_frecuentes = Array.isArray(partido.jugadores)
+    ? partido.jugadores.map((j) => ({
+      nombre: j?.nombre || j?.displayName || null,
+      avatar_url: j?.avatar_url || j?.foto_url || null,
+      uuid: j?.uuid || j?.id || null,
+    })).filter((j) => j.nombre)
+    : [];
+
+  const templateKey = {
+    creado_por: user.id,
+    nombre: String(partido.nombre || partido.lugar || 'Partido frecuente').trim(),
+    sede: String(partido.sede || partido.lugar || '').trim(),
+    modalidad: String(partido.modalidad || 'F5').trim(),
+    tipo_partido: String(partido.tipo_partido || 'Masculino').trim(),
   };
 
-  // Use existing helper which performs validation and inserts the record
-  return crearPartidoFrecuente(insertPayload);
+  // Best-effort "upsert": find most recent matching template for the user and update it; otherwise insert.
+  const { data: existing, error: findErr } = await supabase
+    .from('partidos_frecuentes')
+    .select('id')
+    .eq('creado_por', templateKey.creado_por)
+    .ilike('nombre', templateKey.nombre)
+    .ilike('sede', templateKey.sede)
+    .eq('modalidad', templateKey.modalidad)
+    .eq('tipo_partido', templateKey.tipo_partido)
+    .order('creado_en', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (findErr) {
+    console.warn('[TEMPLATE_UPSERT] lookup failed, will insert new template', findErr);
+  }
+
+  let templateRow = null;
+
+  if (existing?.id) {
+    const updates = {
+      hora: partido.hora || null,
+      habilitado: true,
+      dia_semana: partido.fecha ? weekdayFromYMD(partido.fecha) : null,
+      imagen_url: partido.imagen_url || null,
+      cupo_jugadores: partido.cupo_jugadores ?? null,
+      jugadores_frecuentes,
+    };
+    try {
+      templateRow = await updatePartidoFrecuente(existing.id, updates);
+    } catch (e) {
+      console.warn('[TEMPLATE_UPSERT] update failed, will insert new template', e?.message || e);
+      templateRow = null;
+    }
+  }
+
+  if (!templateRow) {
+    const insertPayload = {
+      nombre: templateKey.nombre,
+      sede: templateKey.sede,
+      hora: partido.hora || null,
+      jugadores_frecuentes,
+      dia_semana: partido.fecha ? weekdayFromYMD(partido.fecha) : null,
+      habilitado: true,
+      imagen_url: partido.imagen_url || null,
+      tipo_partido: templateKey.tipo_partido,
+      // Optional fields when present
+      ...(partido.modalidad ? { modalidad: partido.modalidad } : {}),
+      ...(partido.cupo_jugadores ? { cupo_jugadores: partido.cupo_jugadores } : {}),
+    };
+    templateRow = await crearPartidoFrecuente(insertPayload);
+  }
+
+  // Link the partido to the template (template_id + legacy from_frequent_match_id).
+  // Best effort: failure to link shouldn't invalidate the template creation.
+  try {
+    if (partido?.id && templateRow?.id) {
+      await supabase
+        .from('partidos')
+        .update({
+          template_id: templateRow.id,
+          from_frequent_match_id: templateRow.id,
+          frequent_match_name: templateRow.nombre,
+        })
+        .eq('id', Number(partido.id));
+    }
+  } catch (linkErr) {
+    console.warn('[TEMPLATE_UPSERT] could not link partido -> template', linkErr);
+  }
+
+  return templateRow;
 };
 
 /**

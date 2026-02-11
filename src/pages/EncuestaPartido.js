@@ -30,6 +30,7 @@ const EncuestaPartido = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [partido, setPartido] = useState(null);
+  const [teamsConfirmed, setTeamsConfirmed] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
@@ -91,7 +92,21 @@ const EncuestaPartido = () => {
           throw new AppError('Partido no encontrado', ERROR_CODES.NOT_FOUND);
         }
 
-        setPartido(partidoData);
+        // teams_confirmed is stored on public.partidos (not always present in partidos_view)
+        let teamsConfirmedValue = false;
+        try {
+          const { data: pRow, error: pErr } = await supabase
+            .from('partidos')
+            .select('teams_confirmed')
+            .eq('id', Number(id))
+            .maybeSingle();
+          if (!pErr) teamsConfirmedValue = Boolean(pRow?.teams_confirmed);
+        } catch (_e) {
+          // non-blocking
+        }
+
+        setTeamsConfirmed(teamsConfirmedValue);
+        setPartido({ ...partidoData, teams_confirmed: teamsConfirmedValue });
 
         if (partidoData.jugadores && Array.isArray(partidoData.jugadores)) {
           setJugadores(partidoData.jugadores);
@@ -209,12 +224,24 @@ const EncuestaPartido = () => {
         jugadores_violentos: violentosIds,
         mejor_jugador_eq_a: mvpPlayer?.id || null,
         mejor_jugador_eq_b: arqueroPlayer?.id || null, // Usamos este campo para el arquero
+        // Winner A/B/(draw) only makes sense when teams are confirmed.
+        ganador: teamsConfirmed ? (formData.ganador || null) : null,
+        resultado: teamsConfirmed ? (formData.resultado || null) : null,
         created_at: new Date().toISOString(),
       };
 
-      const { error: insertError } = await supabase
+      let { error: insertError } = await supabase
         .from('post_match_surveys')
         .insert([surveyData]);
+
+      // Backward-compatible fallback if DB doesn't have the new columns yet.
+      if (insertError && /ganador|resultado/i.test(insertError.message || '')) {
+        const legacySurveyData = { ...surveyData };
+        delete legacySurveyData.ganador;
+        delete legacySurveyData.resultado;
+        const legacyRes = await supabase.from('post_match_surveys').insert([legacySurveyData]);
+        insertError = legacyRes.error || null;
+      }
 
       if (insertError) {
         console.error('[ENCUESTA] post_match_surveys insert error full:', insertError);
@@ -255,6 +282,11 @@ const EncuestaPartido = () => {
 
     if (alreadySubmitted) {
       toast.info('Ya completaste esta encuesta');
+      return;
+    }
+
+    if (teamsConfirmed && currentStep === 5 && !formData.ganador) {
+      toast.error('Elegí el ganador');
       return;
     }
 
@@ -511,7 +543,7 @@ const EncuestaPartido = () => {
                   className={`${optionBtnClass} ${formData.partido_limpio ? optionBtnSelectedClass : ''}`}
                   onClick={() => {
                     handleInputChange('partido_limpio', true);
-                    setCurrentStep(5);
+                    setCurrentStep(6);
                   }}
                   type="button"
                 >
@@ -532,7 +564,7 @@ const EncuestaPartido = () => {
           )}
 
           {/* STEP 5: ¿QUIÉN GANÓ? */}
-          {currentStep === 5 && (
+          {currentStep === 5 && teamsConfirmed && (
             <div className="w-full animate-[slideIn_0.4s_ease-out_forwards]">
               <div className={titleClass}>
                 ¿QUIÉN GANÓ?
@@ -551,6 +583,15 @@ const EncuestaPartido = () => {
                   type="button"
                 >
                   EQUIPO B
+                </button>
+              </div>
+              <div className="flex justify-center w-full mb-5">
+                <button
+                  className={`${optionBtnClass} ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''} w-[90%] mx-auto`}
+                  onClick={() => handleInputChange('ganador', 'empate')}
+                  type="button"
+                >
+                  EMPATE
                 </button>
               </div>
               <div className="flex justify-center w-full mb-5">
@@ -608,9 +649,17 @@ const EncuestaPartido = () => {
               </div>
               <button
                 className={btnClass}
-                onClick={() => setCurrentStep(5)}
+                onClick={() => {
+                  if (teamsConfirmed) {
+                    setCurrentStep(5);
+                    return;
+                  }
+                  if (submitting || encuestaFinalizada) return;
+                  setSubmitting(true);
+                  continueSubmitFlow();
+                }}
               >
-                SIGUIENTE
+                {teamsConfirmed ? 'SIGUIENTE' : 'FINALIZAR ENCUESTA'}
               </button>
             </div>
           )}

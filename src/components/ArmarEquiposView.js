@@ -400,10 +400,20 @@ export default function ArmarEquiposView({
       }
 
       // Actualizar estado del partido
-      await supabase
-        .from('partidos')
-        .update({ estado: 'equipos_formados', equipos: teams })
-        .eq('id', partidoActual.id);
+      try {
+        // Prefer equipos_json (canonical). Keep legacy "equipos" too for older clients.
+        const { error: upErr } = await supabase
+          .from('partidos')
+          .update({ estado: 'equipos_formados', equipos_json: teams, equipos: teams })
+          .eq('id', partidoActual.id);
+        if (upErr) throw upErr;
+      } catch (e) {
+        // Fallback if equipos_json/equipos column doesn't exist in some deployments
+        await supabase
+          .from('partidos')
+          .update({ estado: 'equipos_formados' })
+          .eq('id', partidoActual.id);
+      }
 
       // Programar notificaciones post-partido
       try {

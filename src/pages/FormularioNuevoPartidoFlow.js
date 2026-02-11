@@ -140,7 +140,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     } catch (e) {
       console.error('Error preloading partido frecuente into form', e);
     } finally {
-      toast.success('Plantilla aplicada ✅');
+      toast.success('Plantilla aplicada');
       setShowFrecuentes(false);
       setStep(STEPS.NAME);
     }
@@ -271,7 +271,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
         console.log('[NuevoPartido] will insert frequent template for partido match_ref:', partido?.match_ref);
         try {
           await insertPartidoFrecuenteFromPartido(partido?.match_ref);
-          toast.success('Plantilla guardada ✅');
+          toast.success('Plantilla guardada');
         } catch (err) {
           console.error('[Guardar frecuente] error inserting frequent template:', err);
           toast.warning('Partido creado, pero no se pudo guardar como frecuente');
