@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabaseClient';
 import { weekdayFromYMD } from '../../utils/dateLocal';
+import { findDuplicateTemplateMatch } from './matchScheduling';
 
 /**
  * Creates a new frequent match template
@@ -157,63 +158,191 @@ export const deletePartidoFrecuente = async (id) => {
  * @param {number} cupo - Player capacity
  * @returns {Promise<Object>} Created match
  */
-export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad = 'F5', cupo = 10) => {
+const inferCupoFromModalidad = (modalidad = '') => {
+  const m = String(modalidad || '').toUpperCase().trim();
+  if (m === 'F5') return 10;
+  if (m === 'F6') return 12;
+  if (m === 'F7') return 14;
+  if (m === 'F8') return 16;
+  if (m === 'F9') return 18;
+  if (m === 'F11') return 22;
+  return 10;
+};
+
+export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad = 'F5', cupo = null) => {
   console.log('Creating/finding match from frequent match:', partidoFrecuente, 'for date:', fecha);
 
-  // Ensure date is in YYYY-MM-DD format without timezone conversion
   const normalizedDate = typeof fecha === 'string' ? fecha.split('T')[0] : fecha;
+  const { data: { user } } = await supabase.auth.getUser();
 
-  // Get current user to make search more specific
-  await supabase.auth.getUser();
+  const duplicate = await findDuplicateTemplateMatch({
+    templateId: partidoFrecuente?.id,
+    fecha: normalizedDate,
+    hora: partidoFrecuente?.hora,
+    sede: partidoFrecuente?.sede,
+  });
+  if (duplicate) {
+    const dupError = new Error('Ya existe un partido creado con las mismas características.');
+    dupError.code = 'DUPLICATE_TEMPLATE_MATCH';
+    dupError.duplicateMatch = duplicate;
+    throw dupError;
+  }
 
-  // ALWAYS create a new match - no reuse of existing matches
-  console.log('Creating fresh match - no reuse policy');
-
-  console.log('Creating new match');
   const { crearPartido, updateJugadoresPartido } = await import('./matches');
 
-  // Use modalidad from template if available, otherwise use parameter default
   const finalModalidad = partidoFrecuente.modalidad || modalidad;
+  const finalCupo = Number(cupo) || Number(partidoFrecuente?.cupo_jugadores || partidoFrecuente?.cupo || 0) || inferCupoFromModalidad(finalModalidad);
+  const precioRaw = partidoFrecuente?.precio_cancha ?? partidoFrecuente?.precio_cancha_por_persona ?? partidoFrecuente?.precio;
+  const precioNum = precioRaw === undefined || precioRaw === null || String(precioRaw).trim() === ''
+    ? null
+    : Number(String(precioRaw).replace(/[^0-9.,-]/g, '').replace(',', '.'));
   const { v4: uuidv4 } = await import('uuid');
-  const match_ref = uuidv4();
 
-  const partido = await crearPartido({
-    match_ref,
-    nombre: partidoFrecuente.nombre, // Usar el nombre del partido frecuente
+  const basePayload = {
+    match_ref: uuidv4(),
+    nombre: partidoFrecuente.nombre,
     fecha: normalizedDate,
     hora: partidoFrecuente.hora,
     sede: partidoFrecuente.sede,
-    sedeMaps: '',
+    sedeMaps: { place_id: '' },
     modalidad: finalModalidad,
-    cupo_jugadores: cupo,
+    cupo_jugadores: finalCupo,
     falta_jugadores: false,
     tipo_partido: partidoFrecuente.tipo_partido || 'Masculino',
+    creado_por: user?.id || null,
+    ...(Number.isFinite(precioNum) ? { precio_cancha_por_persona: precioNum } : {}),
+  };
+
+  let partido = null;
+  const payloadVariants = [
+    { ...basePayload },
+    (() => { const p = { ...basePayload }; delete p.precio_cancha_por_persona; return p; })(),
+    (() => { const p = { ...basePayload }; delete p.precio_cancha_por_persona; delete p.sedeMaps; return p; })(),
+    (() => { const p = { ...basePayload }; delete p.precio_cancha_por_persona; delete p.sedeMaps; delete p.falta_jugadores; return p; })(),
+    (() => { const p = { ...basePayload }; delete p.precio_cancha_por_persona; delete p.sedeMaps; delete p.falta_jugadores; delete p.creado_por; return p; })(),
+  ];
+
+  const seen = new Set();
+  const uniqueVariants = payloadVariants.filter((v) => {
+    const key = JSON.stringify(v, Object.keys(v).sort());
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 
-  console.log('New match created with match_ref:', partido.match_ref);
+  let lastCreateError = null;
+  for (let i = 0; i < uniqueVariants.length; i++) {
+    const payload = uniqueVariants[i];
+    try {
+      partido = await crearPartido(payload);
+      break;
+    } catch (err) {
+      lastCreateError = err;
+      console.warn('[crearPartidoDesdeFrec] create attempt failed', {
+        variant: i + 1,
+        message: err?.message,
+        details: err?.details,
+        hint: err?.hint,
+        code: err?.code,
+      });
+    }
+  }
 
-  // Add frequent match type and reference
+  if (!partido) throw lastCreateError || new Error('No se pudo crear el partido desde plantilla');
+
+  // Best effort: link template columns if the schema has them.
+  try {
+    const partidoId = Number(partido.id);
+    if (Number.isFinite(partidoId)) {
+      let res = await supabase
+        .from('partidos')
+        .update({
+          template_id: partidoFrecuente?.id || null,
+          frequent_match_name: partidoFrecuente?.nombre || null,
+        })
+        .eq('id', partidoId);
+
+      if (res?.error && /template_id/i.test(String(res.error.message || ''))) {
+        res = await supabase
+          .from('partidos')
+          .update({
+            from_frequent_match_id: partidoFrecuente?.id || null,
+            frequent_match_name: partidoFrecuente?.nombre || null,
+          })
+          .eq('id', partidoId);
+      }
+
+      if (res?.error && /from_frequent_match_id/i.test(String(res.error.message || ''))) {
+        res = await supabase
+          .from('partidos')
+          .update({ frequent_match_name: partidoFrecuente?.nombre || null })
+          .eq('id', partidoId);
+      }
+
+      if (res?.error) {
+        console.warn('[crearPartidoDesdeFrec] could not link template columns (non-fatal)', res.error);
+      }
+    }
+  } catch (linkErr) {
+    console.warn('[crearPartidoDesdeFrec] could not link template columns (non-fatal)', linkErr);
+  }
+
   partido.frequent_match_name = partidoFrecuente.nombre;
-  partido.from_frequent_match_id = partidoFrecuente.id;
+  partido.template_id = partidoFrecuente.id;
   partido.tipo_partido = partidoFrecuente.tipo_partido || 'Masculino';
 
-  // Always copy the players from the frequent match, even if empty
   const jugadoresFrecuentes = partidoFrecuente.jugadores_frecuentes || [];
-
   if (jugadoresFrecuentes.length > 0) {
-    // Clean player data - keep only nombre and foto_url
     const jugadoresLimpios = jugadoresFrecuentes.map((j) => ({
       nombre: j.nombre,
-      avatar_url: j.avatar_url || null, // Use only avatar_url
+      avatar_url: j.avatar_url || null,
       uuid: j.uuid || `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      score: j.score || 5, // Default score
+      score: j.score || 5,
     }));
-
-    console.log('Adding players to new match:', jugadoresLimpios);
     await updateJugadoresPartido(partido.id, jugadoresLimpios);
     partido.jugadores = jugadoresLimpios;
   } else {
     partido.jugadores = [];
+  }
+
+  try {
+    if (user?.id && partido?.id) {
+      const { data: existingCreator } = await supabase
+        .from('jugadores')
+        .select('id')
+        .eq('partido_id', partido.id)
+        .eq('usuario_id', user.id)
+        .maybeSingle();
+
+      if (!existingCreator) {
+        const { data: usuarioData } = await supabase
+          .from('usuarios')
+          .select('nombre, avatar_url')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        const creatorNombre = usuarioData?.nombre || user?.email?.split('@')[0] || 'Creador';
+        const creatorAvatar = usuarioData?.avatar_url || null;
+
+        const { error: creatorInsertError } = await supabase
+          .from('jugadores')
+          .insert([{
+            partido_id: partido.id,
+            match_ref: partido.match_ref,
+            usuario_id: user.id,
+            nombre: creatorNombre,
+            avatar_url: creatorAvatar,
+            is_goalkeeper: false,
+            score: 5,
+          }]);
+
+        if (creatorInsertError) {
+          console.warn('[crearPartidoDesdeFrec] could not auto-add creator', creatorInsertError);
+        }
+      }
+    }
+  } catch (creatorErr) {
+    console.warn('[crearPartidoDesdeFrec] creator auto-add failed (non-fatal)', creatorErr);
   }
 
   return partido;
@@ -424,6 +553,7 @@ export const insertPartidoFrecuenteFromPartido = async (match_ref) => {
     const updates = {
       hora: partido.hora || null,
       habilitado: true,
+      fecha: partido.fecha || null,
       dia_semana: partido.fecha ? weekdayFromYMD(partido.fecha) : null,
       imagen_url: partido.imagen_url || null,
       cupo_jugadores: partido.cupo_jugadores ?? null,
@@ -443,6 +573,7 @@ export const insertPartidoFrecuenteFromPartido = async (match_ref) => {
       sede: templateKey.sede,
       hora: partido.hora || null,
       jugadores_frecuentes,
+      fecha: partido.fecha || null,
       dia_semana: partido.fecha ? weekdayFromYMD(partido.fecha) : null,
       habilitado: true,
       imagen_url: partido.imagen_url || null,
@@ -458,14 +589,35 @@ export const insertPartidoFrecuenteFromPartido = async (match_ref) => {
   // Best effort: failure to link shouldn't invalidate the template creation.
   try {
     if (partido?.id && templateRow?.id) {
-      await supabase
+      const partidoId = Number(partido.id);
+      let res = await supabase
         .from('partidos')
         .update({
           template_id: templateRow.id,
-          from_frequent_match_id: templateRow.id,
           frequent_match_name: templateRow.nombre,
         })
-        .eq('id', Number(partido.id));
+        .eq('id', partidoId);
+
+      if (res?.error && /template_id/i.test(String(res.error.message || ''))) {
+        res = await supabase
+          .from('partidos')
+          .update({
+            from_frequent_match_id: templateRow.id,
+            frequent_match_name: templateRow.nombre,
+          })
+          .eq('id', partidoId);
+      }
+
+      if (res?.error && /from_frequent_match_id/i.test(String(res.error.message || ''))) {
+        res = await supabase
+          .from('partidos')
+          .update({ frequent_match_name: templateRow.nombre })
+          .eq('id', partidoId);
+      }
+
+      if (res?.error) {
+        console.warn('[TEMPLATE_UPSERT] could not link partido -> template (non-fatal)', res.error);
+      }
     }
   } catch (linkErr) {
     console.warn('[TEMPLATE_UPSERT] could not link partido -> template', linkErr);
