@@ -63,6 +63,11 @@ export const checkAndNotifyMatchFinish = async (partido) => {
       return recipients > 0;
     }
 
+    if (rpcError?.code === '23505' || String(rpcError?.message || '').toLowerCase().includes('duplicate key')) {
+      console.warn('[MATCH_FINISH] survey_start notification already exists, skipping fallback', rpcError);
+      return false;
+    }
+
     console.warn('[MATCH_FINISH] enqueue_partido_notification failed, using direct insert fallback:', rpcError);
 
     // Get all players in the match
@@ -74,9 +79,24 @@ export const checkAndNotifyMatchFinish = async (partido) => {
       
     if (playersError) throw playersError;
     if (!jugadores || jugadores.length === 0) return false;
+
+    // Filter users that actually exist in public.usuarios to avoid FK failures.
+    const userIds = Array.from(new Set(jugadores.map((j) => j.usuario_id).filter(Boolean)));
+    if (userIds.length === 0) return false;
+
+    const { data: existingUsers, error: usersError } = await supabase
+      .from('usuarios')
+      .select('id')
+      .in('id', userIds);
+
+    if (usersError) throw usersError;
+
+    const validUserIds = new Set((existingUsers || []).map((u) => u.id));
+    const jugadoresValidos = jugadores.filter((j) => validUserIds.has(j.usuario_id));
+    if (jugadoresValidos.length === 0) return false;
     
     // Create survey notifications for each player
-    const notifications = jugadores.map((jugador) => ({
+    const notifications = jugadoresValidos.map((jugador) => ({
       user_id: jugador.usuario_id,
       type: 'survey_start',
       title,

@@ -114,6 +114,14 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
     });
 
     if (rpcError) {
+      // Duplicate notification for same user/match/type should not block the flow.
+      if (rpcError.code === '23505' || String(rpcError.message || '').toLowerCase().includes('duplicate key')) {
+        console.warn('[Notifications] call_to_vote already exists (duplicate), treating as started', {
+          partidoId,
+          error: rpcError,
+        });
+        return { inserted: 0, alreadyExists: true };
+      }
       console.error('[Notifications] RPC error', rpcError);
       throw rpcError;
     }

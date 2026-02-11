@@ -146,6 +146,14 @@ export default function ArmarEquiposView({
         return;
       }
 
+      // Duplicate notification means voting was already started before; allow entering voting anyway.
+      if (res?.alreadyExists) {
+        setVotingStarted(true);
+        toast.info('La votación ya estaba iniciada. Entrando...');
+        navigate(`/?partidoId=${partidoActual.id}`);
+        return;
+      }
+
       if (res?.skippedDueToSurveyScheduled || res?.skippedDueToSurvey) {
         toast.info('No se envió la notificación porque ya hay una encuesta/programación asociada al partido.');
         return;
@@ -210,11 +218,13 @@ export default function ArmarEquiposView({
 
       // Volver a estado pre-votación: borrar notificaciones de call_to_vote y refrescar bandera local
       try {
+        const pid = Number(partidoActual.id);
+        const orExpr = `partido_id.eq.${pid},match_ref.eq.${pid},data->>match_id.eq.${pid},data->>matchId.eq.${pid}`;
         await supabase
           .from('notifications')
           .delete()
           .eq('type', 'call_to_vote')
-          .eq('partido_id', Number(partidoActual.id));
+          .or(orExpr);
       } catch (notifError) {
         console.warn('[Teams] reset voting: failed to delete call_to_vote notifications', notifError);
       }
