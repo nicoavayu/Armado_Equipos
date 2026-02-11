@@ -82,6 +82,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const [hasAccess, setHasAccess] = useState(null); // null = loading, true/false = resolved
   const [authzError, setAuthzError] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [useAuthenticatedSubmit, setUseAuthenticatedSubmit] = useState(false);
 
   // -- GUARDS FOR DOUBLE-FETCH PREVENTION --
   // Prevent React Strict Mode double-init
@@ -155,6 +156,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         if (userId && (matchPlayer || isCreator)) {
           setHasAccess(true);
           setIsAdmin(isCreator);
+          setUseAuthenticatedSubmit(true);
 
           if (matchPlayer) {
             setNombre(matchPlayer.nombre);
@@ -164,6 +166,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           // Fallback to guest logic
           setHasAccess(true);
           setIsAdmin(false);
+          setUseAuthenticatedSubmit(false);
           // If logged in but not in match, treat as guest (or should we use their auth ID for guest voting? 
           // Requirements imply guests select name from list. Let's keep guest ID logic unless they are in roster)
 
@@ -753,7 +756,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               setConfirmando(true);
 
               try {
-                if (isPublicVoting) {
+                if (isPublicVoting && !useAuthenticatedSubmit) {
                   const partidoIdParam = urlParams.get('partidoId');
                   const codigoParam = urlParams.get('codigo');
                   const partidoId = partidoIdParam ? parseInt(partidoIdParam, 10) : (resolvedMatchIdRef.current || partidoActual?.id);
