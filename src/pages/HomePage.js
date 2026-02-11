@@ -92,8 +92,8 @@ const HomePage = () => {
 
   return (
     <>
-      <div className="w-screen max-w-[100vw] flex flex-col items-center pt-5 overflow-x-hidden">
-        <div className="flex flex-col items-center pt-0 max-w-[800px]" >
+      <div className="w-full overflow-x-hidden">
+        <div className="w-full max-w-[800px] mx-auto px-4 pt-5 box-border">
           <FifaHome onModoSeleccionado={(modo) => {
             if (modo === 'admin-historial') {
               // Navegar directamente a la lista de partidos frecuentes

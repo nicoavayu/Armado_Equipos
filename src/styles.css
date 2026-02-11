@@ -38,6 +38,10 @@ body,
   min-height: 100dvh;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 /* DARK MODE VARIABLES */
 [data-theme='dark'] {
   --bg: #191a22;
@@ -67,6 +71,7 @@ body {
   color: #f8f9fa;
   min-height: 100vh;
   overflow-x: hidden;
+  overflow-y: scroll;
 }
 
 /* Ensure Suspense fallbacks use the same background as the rest of the app */
