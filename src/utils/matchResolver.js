@@ -141,10 +141,35 @@ export async function fetchMatchById(partidoId) {
             return { partido: null, error: 'No se pudo cargar el partido' };
         }
 
-        if (IS_DEV) {
-            console.log('[VOTING] Match loaded:', partido.id);
+        // Ensure voting flow always has numeric player IDs (required by public vote RPCs)
+        const { data: jugadoresData, error: jugadoresError } = await supabase
+            .from('jugadores')
+            .select('id, uuid, nombre, avatar_url, foto_url, usuario_id, score, is_goalkeeper, is_substitute')
+            .eq('partido_id', partidoId);
+
+        if (jugadoresError) {
+            console.warn('[VOTING] Could not fetch jugadores table for match:', {
+                partidoId,
+                error: jugadoresError,
+            });
         }
-        return { partido, error: null };
+
+        const mergedPartido = {
+            ...partido,
+            // Prefer canonical rows from jugadores table when available
+            jugadores: Array.isArray(jugadoresData) && jugadoresData.length > 0
+                ? jugadoresData
+                : (Array.isArray(partido.jugadores) ? partido.jugadores : []),
+        };
+
+        if (IS_DEV) {
+            console.log('[VOTING] Match loaded:', {
+                id: partido.id,
+                jugadoresFromTable: jugadoresData?.length || 0,
+                jugadoresFinal: mergedPartido.jugadores?.length || 0,
+            });
+        }
+        return { partido: mergedPartido, error: null };
     } catch (err) {
         console.error('[VOTING] Exception fetching match:', err);
         return { partido: null, error: 'Error al cargar el partido' };
