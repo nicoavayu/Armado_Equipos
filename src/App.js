@@ -1,7 +1,7 @@
 // import './HomeStyleKit.css'; // Removed in Tailwind migration
 import React, { lazy, Suspense } from 'react';
 import { ToastContainer } from 'react-toastify';
-import { BrowserRouter as Router, Routes, Route, useLocation, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams, Outlet } from 'react-router-dom';
 
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
@@ -24,6 +24,9 @@ const EncuestaPartido = lazy(() => import('./pages/EncuestaPartido'));
 const ResultadosEncuestaView = lazy(() => import('./pages/ResultadosEncuestaView'));
 const HealthCheck = lazy(() => import('./pages/HealthCheck'));
 const VotarEquiposPage = lazy(() => import('./pages/VotarEquiposPage'));
+const EmailMagicLinkLogin = lazy(() => import('./components/EmailMagicLinkLogin'));
+const AuthCallback = lazy(() => import('./components/AuthCallback'));
+const InviteLanding = lazy(() => import('./components/InviteLanding'));
 
 const HomePage = lazy(() => import('./pages/HomePage'));
 const NuevoPartidoPage = lazy(() => import('./pages/NuevoPartidoPage'));
@@ -32,7 +35,7 @@ const AmigosPage = lazy(() => import('./pages/AmigosPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
 const StatsPage = lazy(() => import('./pages/StatsPage'));
-const HistorialPage = lazy(() => import('./pages/HistorialPage'));
+const FrecuentesPage = lazy(() => import('./pages/FrecuentesPage'));
 const TemplateDetailsPage = lazy(() => import('./pages/TemplateDetailsPage'));
 const TemplateHistoryPage = lazy(() => import('./pages/TemplateHistoryPage'));
 const AdminPanelPage = lazy(() => import('./pages/AdminPanelPage'));
@@ -82,6 +85,21 @@ export default function App() {
                       </Suspense>
                     } />
                     <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/login/email" element={
+                      <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <EmailMagicLinkLogin />
+                      </Suspense>
+                    } />
+                    <Route path="/auth/callback" element={
+                      <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <AuthCallback />
+                      </Suspense>
+                    } />
+                    <Route path="/i/:token" element={
+                      <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <InviteLanding />
+                      </Suspense>
+                    } />
                     
                     {/* Ruta pública: invitación a partido (sin auth requerido) */}
                     <Route path="/partido/:partidoId/invitacion" element={
@@ -104,6 +122,7 @@ export default function App() {
                             <HomePage />
                           </Suspense>
                         } />
+                        <Route path="home" element={<Navigate to="/" replace />} />
                         <Route path="nuevo-partido" element={
                           <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
                             <NuevoPartidoPage />
@@ -134,21 +153,25 @@ export default function App() {
                             <StatsPage />
                           </Suspense>
                         } />
-                        <Route path="historial" element={
+                        <Route path="frecuentes" element={
                           <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
-                            <HistorialPage />
+                            <FrecuentesPage />
                           </Suspense>
                         } />
-                        <Route path="historial/:templateId" element={
+                        <Route path="frecuentes/:templateId" element={
                           <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
                             <TemplateDetailsPage />
                           </Suspense>
                         } />
-                        <Route path="historial/:templateId/historial" element={
+                        <Route path="frecuentes/:templateId/historial" element={
                           <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
                             <TemplateHistoryPage />
                           </Suspense>
                         } />
+                        {/* Backward compatible aliases */}
+                        <Route path="historial" element={<Navigate to="/frecuentes" replace />} />
+                        <Route path="historial/:templateId" element={<LegacyTemplateRedirect />} />
+                        <Route path="historial/:templateId/historial" element={<LegacyTemplateHistoryRedirect />} />
                         <Route path="admin/:partidoId" element={
                           <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
                             <AdminPanelPage />
@@ -199,4 +222,14 @@ function AppAuthWrapper() {
   }
 
   return <Outlet />;
+}
+
+function LegacyTemplateRedirect() {
+  const { templateId } = useParams();
+  return <Navigate to={`/frecuentes/${templateId}`} replace />;
+}
+
+function LegacyTemplateHistoryRedirect() {
+  const { templateId } = useParams();
+  return <Navigate to={`/frecuentes/${templateId}/historial`} replace />;
 }

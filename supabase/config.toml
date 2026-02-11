@@ -1,2 +1,5 @@
 [functions.join-match-guest]
 verify_jwt = false
+
+[functions.accept-invite]
+verify_jwt = true
