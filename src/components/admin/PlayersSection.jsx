@@ -201,13 +201,9 @@ const PlayersSection = ({
             <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
               {substitutePlayers.map(renderPlayerCard)}
             </div>
-          ) : (
-            <div className="text-center text-[12px] text-amber-100/80 font-oswald py-2">
-              Todavía no hay suplentes. Quedan {remainingSubstituteSlots} cupo{remainingSubstituteSlots === 1 ? '' : 's'}.
-            </div>
-          )}
-          <div className="mt-2 text-center text-[11px] text-amber-100/85 font-oswald uppercase tracking-wide">
-            Los suplentes suben automáticamente si se libera un cupo titular.
+          ) : null}
+          <div className="mt-2 text-center text-[11px] text-amber-100/85 font-oswald tracking-wide leading-snug">
+            Si se libera un cupo titular, los suplentes pasan automáticamente a la nómina.
           </div>
         </div>
       )}
