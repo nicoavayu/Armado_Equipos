@@ -131,7 +131,7 @@ export default function ConfirmModal({
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
-          <div id="confirm-modal-title" className="text-[44px] leading-[1] font-oswald font-semibold tracking-[0.01em] mb-2 text-white">
+          <div id="confirm-modal-title" className="text-2xl leading-none font-oswald font-semibold tracking-[0.01em] mb-2 text-white">
             {title}
           </div>
         )}
