@@ -237,11 +237,11 @@ const ProfileCardComponent = ({
             .profile-card-wrapper .pc-awards-wrap {
               padding-left: 1.25rem;
               padding-right: 1.25rem;
-              padding-bottom: 1rem;
+              padding-bottom: 2.1rem;
             }
             .profile-card-wrapper .pc-awards-row {
               gap: 0.9rem;
-              margin-bottom: 0.1rem;
+              margin-bottom: 0.25rem;
             }
             .profile-card-wrapper .pc-awards-item {
               gap: 0.35rem;
@@ -263,7 +263,8 @@ const ProfileCardComponent = ({
               height: 20px !important;
             }
             .profile-card-wrapper .pc-right-stats {
-              right: 28px;
+              right: 26px;
+              top: -10px;
             }
           }
 
@@ -271,12 +272,16 @@ const ProfileCardComponent = ({
             .profile-card-wrapper .pc-awards-row {
               gap: 0.7rem;
             }
+            .profile-card-wrapper .pc-awards-wrap {
+              padding-bottom: 2rem;
+            }
             .profile-card-wrapper .pc-awards-count {
               font-size: 1.35rem;
             }
             .profile-card-wrapper .pc-right-stats {
               right: 22px;
-              transform: scale(0.92);
+              top: -8px;
+              transform: scale(0.9);
               transform-origin: top right;
             }
           }

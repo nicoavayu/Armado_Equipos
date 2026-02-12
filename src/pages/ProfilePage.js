@@ -62,7 +62,7 @@ const ProfilePage = () => {
   return (
     <PageTransition>
       <div
-        className="h-screen w-full relative text-white selection:bg-primary/30"
+        className="h-screen w-full relative text-white selection:bg-primary/30 overflow-x-hidden"
         style={{
           backgroundImage: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)',
           backgroundAttachment: 'fixed',
@@ -78,7 +78,7 @@ const ProfilePage = () => {
 
         {/* 2. MAIN SCROLLABLE BODY (Z-10) */}
         <main
-          className="absolute left-0 right-0 bottom-0 overflow-y-auto custom-scrollbar"
+          className="absolute left-0 right-0 bottom-0 overflow-y-auto overflow-x-hidden custom-scrollbar"
           style={{ top: 0, paddingTop: headerHeight }}
         >
           <ProfileEditor
