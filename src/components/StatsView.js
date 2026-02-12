@@ -798,7 +798,7 @@ const StatsView = ({ onVolver }) => {
 
         <div className="grid grid-cols-1 gap-3 mb-6">
           <motion.button
-            className="flex items-center justify-center gap-2 px-5 py-4 border-none rounded-xl font-oswald text-sm font-semibold uppercase cursor-pointer transition-all backdrop-blur-md border border-white/20 bg-primary/80 text-white hover:bg-primary hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(129,120,229,0.3)] md:px-4 md:py-3 md:text-xs sm:py-3.5"
+            className="flex items-center justify-center gap-2 px-5 py-4 border-none rounded-xl font-oswald text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-all backdrop-blur-md border border-white/20 bg-primary/80 text-white hover:bg-primary hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(129,120,229,0.3)] md:px-4 md:py-3 sm:py-3.5"
             onClick={() => setShowManualMatchModal(true)}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -807,7 +807,7 @@ const StatsView = ({ onVolver }) => {
             whileTap={{ scale: 0.99 }}
           >
             <ClipboardPlus size={24} />
-            <span className="text-xs leading-none">Sumar partido manual</span>
+            <span className="text-[18px] leading-none">Sumar partido manual</span>
           </motion.button>
         </div>
 

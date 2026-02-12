@@ -28,7 +28,7 @@ const AdminActions = ({
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 w-[90vw] max-w-[90vw] mx-auto box-border mb-0 mt-0">
           <div className="flex flex-col gap-3 w-full max-w-full box-border m-0 p-0">
             <button
-              className="w-full h-12 min-h-[48px] text-[16px] rounded-[12px] bg-[#128BE9] text-white font-bebas font-bold tracking-widest cursor-pointer transition-all flex items-center justify-center px-4 hover:brightness-110 shadow-[0_4px_14px_rgba(18,139,233,0.3)] active:scale-95 disabled:opacity-40"
+              className="w-full h-12 min-h-[48px] text-[18px] rounded-[12px] bg-[#128BE9] text-white font-oswald font-semibold tracking-[0.01em] cursor-pointer transition-all flex items-center justify-center px-4 hover:brightness-110 shadow-[0_4px_14px_rgba(18,139,233,0.3)] active:scale-95 disabled:opacity-40"
               type="button"
               onClick={() => {
                 setShowInviteModal(true);
@@ -36,7 +36,7 @@ const AdminActions = ({
               disabled={!partidoActual?.id || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
               aria-label="Invitar amigos al partido"
             >
-              INVITAR AMIGOS
+              Invitar amigos
             </button>
 
             {/* Inline manual addition row */}
@@ -60,12 +60,12 @@ const AdminActions = ({
                 }}
               />
               <button
-                className="shrink-0 h-11 min-h-[44px] px-4 text-[14px] rounded-[10px] border border-[#128BE9]/30 bg-[#128BE9]/10 text-[#128BE9] font-bebas font-bold tracking-wider cursor-pointer transition-all flex items-center justify-center hover:bg-[#128BE9]/20 hover:border-[#128BE9]/50 active:scale-95 disabled:opacity-30"
+                className="shrink-0 h-11 min-h-[44px] px-4 text-[16px] rounded-[10px] border border-[#128BE9]/30 bg-[#128BE9]/10 text-[#128BE9] font-oswald font-semibold tracking-[0.01em] cursor-pointer transition-all flex items-center justify-center hover:bg-[#128BE9]/20 hover:border-[#128BE9]/50 active:scale-95 disabled:opacity-30"
                 type="button"
                 onClick={agregarJugador}
                 disabled={!nuevoNombre?.trim() || loading || isClosing || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
               >
-                {loading ? <LoadingSpinner size="small" /> : 'AGREGAR'}
+                {loading ? <LoadingSpinner size="small" /> : 'Agregar'}
               </button>
             </div>
 

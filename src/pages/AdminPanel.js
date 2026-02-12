@@ -352,12 +352,12 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                     {isAdmin && !adminState.pendingInvitation && activeTab === 'jugadores' && (
                       <div className="w-[90vw] max-w-[90vw] mx-auto mt-3 text-center">
                         <button
-                          className="w-full bg-primary text-white font-bebas text-[15px] px-4 py-3 rounded-xl hover:brightness-110 transition-all disabled:opacity-35 disabled:cursor-not-allowed shadow-[0_8px_32px_rgba(129,120,229,0.3)] border border-white/20 active:scale-95 uppercase tracking-wider font-bold"
+                          className="w-full bg-primary text-white font-oswald text-[18px] px-4 py-3 rounded-xl hover:brightness-110 transition-all disabled:opacity-35 disabled:cursor-not-allowed shadow-[0_8px_32px_rgba(129,120,229,0.3)] border border-white/20 active:scale-95 tracking-[0.01em] font-semibold"
                           onClick={handleArmarEquipos}
                           disabled={jugadores.length < 8}
                           title={jugadores.length < 8 ? 'Necesitás al menos 8 jugadores para armar los equipos.' : ''}
                         >
-                          ARMAR EQUIPOS PAREJOS
+                          Armar equipos parejos
                         </button>
                         {jugadores.length < 8 && (
                           <div className="text-[11px] text-white/50 mt-2 leading-snug">

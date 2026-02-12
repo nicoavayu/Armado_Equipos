@@ -248,29 +248,29 @@ const PlayersSection = ({
             <div className="flex flex-col items-center justify-center py-8 gap-4 w-full">
               {isAdmin && !isPlayerInMatch && (
                 <button
-                  className="w-full max-w-xs h-14 rounded-xl bg-emerald-600 text-white font-bebas text-xl tracking-widest shadow-[0_4px_14px_rgba(16,185,129,0.3)] hover:brightness-110 active:scale-95 transition-all mb-2"
+                  className="w-full max-w-xs h-14 rounded-xl bg-emerald-600 text-white font-oswald text-[18px] font-semibold tracking-[0.01em] shadow-[0_4px_14px_rgba(16,185,129,0.3)] hover:brightness-110 active:scale-95 transition-all mb-2"
                   type="button"
                   onClick={() => unirseAlPartido && unirseAlPartido()}
                 >
-                  ¡ME SUMO! (JUGAR)
+                  Me sumo (jugar)
                 </button>
               )}
               <button
-                className="w-full max-w-xs h-14 rounded-xl bg-[#128BE9] text-white font-bebas text-xl tracking-widest shadow-[0_4px_14px_rgba(18,139,233,0.3)] hover:brightness-110 active:scale-95 transition-all"
+                className="w-full max-w-xs h-14 rounded-xl bg-[#128BE9] text-white font-oswald text-[18px] font-semibold tracking-[0.01em] shadow-[0_4px_14px_rgba(18,139,233,0.3)] hover:brightness-110 active:scale-95 transition-all"
                 type="button"
                 onClick={() => setShowInviteModal(true)}
               >
-                INVITAR AMIGOS
+                Invitar amigos
               </button>
               <button
-                className="w-full max-w-xs h-14 rounded-xl bg-slate-800 text-white font-bebas text-xl tracking-widest border border-white/20 hover:bg-slate-700 active:scale-95 transition-all"
+                className="w-full max-w-xs h-14 rounded-xl bg-slate-800 text-white font-oswald text-[18px] font-semibold tracking-[0.01em] border border-white/20 hover:bg-slate-700 active:scale-95 transition-all"
                 type="button"
                 onClick={() => {
                   // Focus the manual input field
                   document.querySelector('input[placeholder="Agregar jugador manualmente"]')?.focus();
                 }}
               >
-                AGREGAR MANUALMENTE
+                Agregar manualmente
               </button>
               {/* Botón compartir link solo si existe handler */}
               {canShareInviteLink && (
@@ -325,18 +325,18 @@ const PlayersSection = ({
                   // Valid Pending Invitation
                   <>
                     <button
-                      className="flex-[1.5] font-bebas text-lg h-12 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:bg-[#0f7acc] hover:shadow-[0_0_20px_rgba(18,139,233,0.4)] active:scale-95 shadow-[0_4px_10px_rgba(0,0,0,0.3)]"
+                      className="flex-[1.5] font-oswald text-[18px] h-12 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:bg-[#0f7acc] hover:shadow-[0_0_20px_rgba(18,139,233,0.4)] active:scale-95 shadow-[0_4px_10px_rgba(0,0,0,0.3)]"
                       onClick={aceptarInvitacion}
                       disabled={invitationLoading || isMatchFull}
                     >
-                      {invitationLoading ? <LoadingSpinner size="small" /> : 'ACEPTAR'}
+                      {invitationLoading ? <LoadingSpinner size="small" /> : 'Aceptar'}
                     </button>
                     <button
-                      className="flex-1 font-bebas text-lg h-12 rounded-xl cursor-pointer transition-all text-white/70 flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-transparent border border-white/20 hover:bg-white/10 hover:text-white active:scale-95"
+                      className="flex-1 font-oswald text-[18px] h-12 rounded-xl cursor-pointer transition-all text-white/70 flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed bg-transparent border border-white/20 hover:bg-white/10 hover:text-white active:scale-95"
                       onClick={rechazarInvitacion}
                       disabled={invitationLoading}
                     >
-                      RECHAZAR
+                      Rechazar
                     </button>
                   </>
                 )
@@ -344,7 +344,7 @@ const PlayersSection = ({
                 // Botones para jugador ya en el partido (guest view) - SOLO INVITAR
                 <div className="flex flex-col w-full">
                   <button
-                    className={`w-full font-bebas text-[18px] h-14 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-bold tracking-wide bg-[#128BE9] shadow-[0_4px_14px_rgba(18,139,233,0.3)]
+                    className={`w-full font-oswald text-[18px] h-14 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-semibold tracking-[0.01em] bg-[#128BE9] shadow-[0_4px_14px_rgba(18,139,233,0.3)]
                       ${isMatchFull
                         ? 'opacity-40 grayscale cursor-not-allowed shadow-none'
                         : 'hover:brightness-110 active:scale-95'
@@ -355,7 +355,7 @@ const PlayersSection = ({
                     }}
                     disabled={isMatchFull}
                   >
-                    INVITAR AMIGOS
+                    Invitar amigos
                   </button>
                   {isMatchFull && (
                     <div className="text-center text-white/40 font-oswald text-[12px] mt-1.5 uppercase tracking-wide">

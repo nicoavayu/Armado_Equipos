@@ -24,7 +24,7 @@ const getPosColor = (p) => POS_COLOR_MAP[p] || '#8178e5';
 const getFriendButtonConfig = (status, isSubmitting) => {
   if (isSubmitting) {
     return {
-      label: 'ENVIANDO...',
+      label: 'Enviando...',
       icon: <Clock3 size={16} />,
       disabled: true,
       className: 'bg-white/5 border border-white/10 text-white/60 cursor-not-allowed',
@@ -33,7 +33,7 @@ const getFriendButtonConfig = (status, isSubmitting) => {
 
   if (status === 'accepted') {
     return {
-      label: 'YA SON AMIGOS',
+      label: 'Ya son amigos',
       icon: <CheckCircle2 size={14} />,
       disabled: true,
       className: 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 cursor-not-allowed',
@@ -42,7 +42,7 @@ const getFriendButtonConfig = (status, isSubmitting) => {
 
   if (status === 'pending') {
     return {
-      label: 'SOLICITUD PENDIENTE',
+      label: 'Solicitud pendiente',
       icon: <Clock3 size={16} />,
       disabled: true,
       className: 'bg-[#8178e5]/15 border border-[#8178e5]/40 text-[#b9b2ff] cursor-not-allowed',
@@ -50,7 +50,7 @@ const getFriendButtonConfig = (status, isSubmitting) => {
   }
 
   return {
-    label: 'AGREGAR',
+    label: 'Agregar',
     icon: <UserPlus size={16} />,
     disabled: false,
     className: 'bg-white/5 border border-white/10 text-white hover:bg-white/10 active:scale-95',
@@ -154,11 +154,11 @@ const PlayerActionModal = ({
               onInvite?.(player);
               onClose();
             }}
-            className="w-full bg-[#128BE9] text-white py-4 rounded-xl font-bold uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg"
+            className="w-full bg-[#128BE9] text-white py-4 rounded-xl font-oswald text-[18px] font-semibold tracking-[0.01em] hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg"
             type="button"
           >
             <Trophy size={18} />
-            INVITAR A UN PARTIDO
+            Invitar a un partido
           </button>
 
           <div className="grid grid-cols-2 gap-3 mt-1">
@@ -167,17 +167,17 @@ const PlayerActionModal = ({
                 onViewProfile?.(player);
                 onClose();
               }}
-              className="bg-white/5 border border-white/10 text-white py-3 rounded-xl font-bold uppercase tracking-wide hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center gap-2"
+              className="bg-white/5 border border-white/10 text-white py-3 rounded-xl font-oswald text-[16px] font-semibold tracking-[0.01em] hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center gap-2"
               type="button"
             >
               <User size={16} />
-              VER PERFIL
+              Ver perfil
             </button>
             <button
               onClick={() => {
                 if (!friendBtn.disabled) onAddFriend?.(player);
               }}
-              className={`py-3 px-2 rounded-xl font-bold text-[11px] uppercase tracking-normal leading-none transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-center ${friendBtn.className}`}
+              className={`py-3 px-2 rounded-xl font-oswald font-semibold text-[16px] tracking-[0.01em] leading-none transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-center ${friendBtn.className}`}
               type="button"
               disabled={friendBtn.disabled}
             >

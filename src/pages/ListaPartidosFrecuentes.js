@@ -247,7 +247,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
               />
               <button
                 type="button"
-                className="px-4 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold transition-all active:scale-95 disabled:opacity-50 font-[Oswald,sans-serif] text-xs tracking-widest uppercase border border-white/10"
+                className="px-4 rounded-xl bg-white/5 hover:bg-white/10 text-white font-semibold transition-all active:scale-95 disabled:opacity-50 font-[Oswald,sans-serif] text-[16px] tracking-[0.01em] border border-white/10"
                 onClick={() => {
                   const n = String(newPlayerName || '').trim();
                   if (!n) return;
@@ -255,7 +255,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
                   setNewPlayerName('');
                 }}
               >
-                AGREGAR
+                Agregar
               </button>
             </div>
           </div>
@@ -263,18 +263,18 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
 
         <div className="flex gap-3 mt-4">
           <button
-            className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 font-[Oswald,sans-serif] text-xs tracking-widest uppercase border border-white/10"
+            className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/85 font-semibold rounded-xl transition-all active:scale-95 disabled:opacity-50 font-[Oswald,sans-serif] text-[16px] tracking-[0.01em] border border-white/10"
             onClick={onCancel}
             disabled={creating}
           >
-            CANCELAR
+            Cancelar
           </button>
           <button
-            className="flex-1 py-4 bg-primary hover:brightness-110 text-white font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 font-[Oswald,sans-serif] text-xs tracking-widest uppercase border border-white/10 shadow-[0_8px_32px_rgba(129,120,229,0.3)]"
+            className="flex-1 py-4 bg-primary hover:brightness-110 text-white font-semibold rounded-xl transition-all active:scale-95 disabled:opacity-50 font-[Oswald,sans-serif] text-[18px] tracking-[0.01em] border border-white/10 shadow-[0_8px_32px_rgba(129,120,229,0.3)]"
             onClick={handleCreate}
             disabled={creating}
           >
-            {creating ? 'CREANDO…' : 'CONFIRMAR PARTIDO'}
+            {creating ? 'Creando…' : 'Confirmar partido'}
           </button>
         </div>
       </div>

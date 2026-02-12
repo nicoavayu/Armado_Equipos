@@ -215,7 +215,7 @@ const ProfileEditorForm = ({
         <div className="grid grid-cols-2 gap-4 mt-8 pt-10 border-t border-white/10 w-full min-w-0 pb-16">
           <button
             className={`
-              col-span-2 w-full h-[54px] rounded-2xl text-base font-bold uppercase tracking-[2px] cursor-pointer transition-all flex items-center justify-center
+              col-span-2 w-full h-[54px] rounded-2xl text-[18px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all flex items-center justify-center
               ${hasChanges ? 'bg-primary text-white shadow-[0_10px_30px_rgba(129,120,229,0.4)] hover:-translate-y-1 active:translate-y-0 active:scale-[0.98]' : 'bg-white/5 text-white/20 border border-white/5 cursor-not-allowed'}
             `}
             onClick={handleSave}
@@ -225,7 +225,7 @@ const ProfileEditorForm = ({
           </button>
 
           <button
-            className="h-[48px] bg-white/5 border border-white/10 text-white/60 rounded-2xl text-[12px] font-bold uppercase tracking-wider cursor-pointer transition-all hover:bg-white/10 hover:text-white active:scale-95 flex items-center justify-center"
+            className="h-[48px] bg-white/5 border border-white/10 text-white/70 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all hover:bg-white/10 hover:text-white active:scale-95 flex items-center justify-center"
             onClick={() => {
               onClose();
               replayTutorial();
@@ -236,7 +236,7 @@ const ProfileEditorForm = ({
           </button>
 
           <button
-            className="h-[48px] bg-red-500/5 border border-red-500/10 text-red-400 rounded-2xl text-[12px] font-bold uppercase tracking-wider cursor-pointer transition-all hover:bg-red-500/10 hover:text-red-300 active:scale-95 flex items-center justify-center"
+            className="h-[48px] bg-red-500/5 border border-red-500/10 text-red-400 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all hover:bg-red-500/10 hover:text-red-300 active:scale-95 flex items-center justify-center"
             onClick={handleLogout}
             disabled={loading}
           >
@@ -831,7 +831,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
             <div className="grid grid-cols-2 gap-3 mt-5 pt-5 border-t border-white/20 w-full relative pb-5 md:pb-0">
               <button
                 className={`
-                      col-span-2 w-full h-[50px] bg-white/10 border border-white/20 text-white rounded-xl text-base font-bold font-oswald uppercase tracking-[1px] cursor-pointer transition-all backdrop-blur-md flex items-center justify-center
+                      col-span-2 w-full h-[50px] bg-white/10 border border-white/20 text-white rounded-xl text-[18px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all backdrop-blur-md flex items-center justify-center
                       ${hasChanges ? 'bg-primary !border-primary shadow-[0_5px_15px_rgba(129,120,229,0.3)] -translate-y-[2px]' : ''}
                       disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none
                     `}
@@ -842,7 +842,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               </button>
 
               <button
-                className="h-[44px] bg-white/5 border border-white/10 text-white/70 rounded-lg text-xs font-semibold font-oswald uppercase tracking-wider cursor-pointer transition-all hover:bg-white/10 flex items-center justify-center disabled:opacity-50"
+                className="h-[44px] bg-white/5 border border-white/10 text-white/70 rounded-lg text-[16px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all hover:bg-white/10 flex items-center justify-center disabled:opacity-50"
                 onClick={() => {
                   onClose();
                   replayTutorial();
@@ -853,7 +853,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               </button>
 
               <button
-                className="h-[44px] bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-xs font-semibold font-oswald uppercase tracking-wider cursor-pointer transition-all hover:bg-red-500/20 flex items-center justify-center disabled:opacity-50"
+                className="h-[44px] bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-[16px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all hover:bg-red-500/20 flex items-center justify-center disabled:opacity-50"
                 onClick={handleLogout}
                 disabled={loading}
               >

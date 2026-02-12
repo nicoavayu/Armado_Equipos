@@ -449,7 +449,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
           onClick={guardarCambios}
           disabled={loading}
         >
-          {loading ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
+          {loading ? 'Guardando...' : 'Guardar cambios'}
         </button>
       </div>
     </div>

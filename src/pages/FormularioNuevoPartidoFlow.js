@@ -760,7 +760,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
 
             <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
               <button className={CONFIRM_BTN_CLASS} onClick={handleSubmit} disabled={loading} style={{ opacity: loading ? 0.6 : 1 }}>
-                {loading ? 'CREANDO…' : 'CREAR PARTIDO'}
+                {loading ? 'Creando…' : 'Crear partido'}
               </button>
             </div>
           </div>

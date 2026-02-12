@@ -180,17 +180,17 @@ const HistoryTemplateCard = ({
       {/* Buttons */}
       <div className="flex gap-2 mt-2 items-stretch">
         <button
-          className="flex-[1.6] font-bebas text-base px-4 py-2.5 border-2 border-transparent rounded-xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-primary shadow-lg hover:brightness-110 hover:-translate-y-px"
+          className="flex-[1.6] font-oswald font-semibold text-[18px] tracking-[0.01em] px-4 py-2.5 border-2 border-transparent rounded-xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-primary shadow-lg hover:brightness-110 hover:-translate-y-px"
           onClick={() => onViewDetails && onViewDetails(template)}
         >
-          CREAR PARTIDO
+          Crear partido
         </button>
         {onHistory && (
           <button
-            className="flex-[1] font-oswald font-semibold text-sm tracking-wide px-4 py-2.5 border border-white/20 rounded-xl cursor-pointer transition-all text-white/85 min-h-[44px] flex items-center justify-center text-center bg-transparent hover:bg-white/10 hover:border-white/35 hover:text-white"
+            className="flex-[1] font-oswald font-semibold text-[18px] tracking-[0.01em] px-4 py-2.5 border border-white/20 rounded-xl cursor-pointer transition-all text-white/85 min-h-[44px] flex items-center justify-center text-center bg-transparent hover:bg-white/10 hover:border-white/35 hover:text-white"
             onClick={() => onHistory && onHistory(template)}
           >
-            HISTORIAL
+            Historial
           </button>
         )}
       </div>
