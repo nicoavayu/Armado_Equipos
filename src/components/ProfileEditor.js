@@ -609,7 +609,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
   if (isEmbedded) {
     return (
-      <div className="w-full relative bg-transparent overflow-x-hidden">
+      <div className="w-full relative bg-transparent overflow-x-hidden" style={{ overflowX: 'clip' }}>
         <ProfileEditorForm
           liveProfile={liveProfile}
           setLiveProfile={setLiveProfile}

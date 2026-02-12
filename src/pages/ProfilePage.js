@@ -66,6 +66,7 @@ const ProfilePage = () => {
         style={{
           backgroundImage: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)',
           backgroundAttachment: 'fixed',
+          overflowX: 'clip',
         }}
       >
         {/* 1. FIXED HEADER (Z-50) */}
@@ -79,7 +80,7 @@ const ProfilePage = () => {
         {/* 2. MAIN SCROLLABLE BODY (Z-10) */}
         <main
           className="absolute left-0 right-0 bottom-0 overflow-y-auto overflow-x-hidden custom-scrollbar"
-          style={{ top: 0, paddingTop: headerHeight }}
+          style={{ top: 0, paddingTop: headerHeight, overflowX: 'clip' }}
         >
           <ProfileEditor
             isOpen={true}

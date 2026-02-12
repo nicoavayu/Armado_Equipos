@@ -231,56 +231,62 @@ const ProfileCardComponent = ({
           }
 
           @media (max-width: 390px) {
+            .profile-card-wrapper {
+              overflow-x: clip !important;
+            }
             .profile-card-wrapper .pc-card-shell {
               width: min(340px, calc(100vw - 2.75rem)) !important;
             }
             .profile-card-wrapper .pc-awards-wrap {
               padding-left: 1.25rem;
               padding-right: 1.25rem;
-              padding-bottom: 2.1rem;
+              padding-bottom: 2.65rem;
             }
             .profile-card-wrapper .pc-awards-row {
-              gap: 0.9rem;
-              margin-bottom: 0.25rem;
+              gap: 1.1rem;
+              margin-bottom: 0.4rem;
             }
             .profile-card-wrapper .pc-awards-item {
-              gap: 0.35rem;
+              gap: 0.5rem;
               min-width: 0;
             }
             .profile-card-wrapper .pc-awards-divider {
               height: 0.8rem;
             }
             .profile-card-wrapper .pc-awards-count {
-              font-size: 1.5rem;
+              font-size: 1.18rem;
+              line-height: 1;
             }
             .profile-card-wrapper .pc-awards-icon--mvp,
             .profile-card-wrapper .pc-awards-icon--glove {
-              width: 20px !important;
-              height: 20px !important;
+              width: 22px !important;
+              height: 22px !important;
             }
             .profile-card-wrapper .pc-awards-icon--red {
-              width: 14px !important;
-              height: 20px !important;
+              width: 15px !important;
+              height: 21px !important;
             }
             .profile-card-wrapper .pc-right-stats {
-              right: 26px;
-              top: -10px;
+              right: 40px;
+              top: -16px;
+              transform: scale(0.96);
+              transform-origin: top right;
             }
           }
 
           @media (max-width: 360px) {
             .profile-card-wrapper .pc-awards-row {
-              gap: 0.7rem;
+              gap: 0.95rem;
             }
             .profile-card-wrapper .pc-awards-wrap {
-              padding-bottom: 2rem;
+              padding-bottom: 2.45rem;
             }
             .profile-card-wrapper .pc-awards-count {
-              font-size: 1.35rem;
+              font-size: 1.05rem;
             }
             .profile-card-wrapper .pc-right-stats {
-              right: 22px;
-              top: -8px;
+              right: 34px;
+              top: -14px;
               transform: scale(0.9);
               transform-origin: top right;
             }
