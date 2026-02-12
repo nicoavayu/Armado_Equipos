@@ -1043,7 +1043,7 @@ const StatsView = ({ onVolver }) => {
               </div>
             )}
             {recapRecientes.length > 0 && (
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 mt-3">
                 {recapRecientes.map((partido) => {
                   const resultMeta = resultPillMeta[partido.resultKey] || resultPillMeta.sin_dato;
                   const fechaLabel = partido?.fecha
