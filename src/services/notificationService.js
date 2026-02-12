@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { handleError } from '../lib/errorHandler';
+import logger from '../utils/logger';
 
 /**
  * Get match invite notification for a user and match
@@ -10,11 +11,11 @@ import { handleError } from '../lib/errorHandler';
 export async function getMatchInviteNotification(userId, partidoId) {
   // Validate inputs to prevent 400 errors
   if (!userId || !partidoId || partidoId === 'undefined' || partidoId === 'null') {
-    console.warn('[NOTIFICATION_SERVICE] Invalid userId or partidoId', { userId, partidoId });
+    logger.warn('[NOTIFICATION_SERVICE] Invalid userId or partidoId', { userId, partidoId });
     return { data: null, error: { message: 'Invalid parameters' } };
   }
 
-  console.log('[NOTIFICATION_SERVICE] Querying match invite', { userId, partidoId });
+  logger.log('[NOTIFICATION_SERVICE] Querying match invite', { userId, partidoId });
 
   return supabase
     .from('notifications_ext')
@@ -35,7 +36,7 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
   const message = meta.message ?? 'Entrá a la app y calificá a los jugadores para armar los equipos.';
   const type = meta.type ?? 'call_to_vote';
 
-  console.log('[CallToVote] start', { partidoId, type });
+  logger.log('[CallToVote] start', { partidoId, type });
 
   try {
     // Fetch partido metadata early to decide whether to proceed
@@ -59,7 +60,7 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
       // If the error is due to missing column (e.g. 42703), fallback to minimal query
       const isMissingColumn = String(partidoMetaError.code || partidoMetaError.message || '').includes('42703') || String(partidoMetaError.message || '').toLowerCase().includes('does not exist');
       if (isMissingColumn) {
-        console.warn('[Notifications] partido survey column missing, falling back to minimal metadata query', { partidoId, error: partidoMetaError });
+        logger.warn('[Notifications] partido survey column missing, falling back to minimal metadata query', { partidoId, error: partidoMetaError });
         try {
           const fallback = await supabase
             .from('partidos')
@@ -80,7 +81,7 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
 
     // If the partido already has a scheduled survey, skip sending call_to_vote
     if (partidoMeta?.survey_scheduled) {
-      console.log('[Notifications] partido already has survey_scheduled=true, skipping call_to_vote', { partidoId });
+      logger.log('[Notifications] partido already has survey_scheduled=true, skipping call_to_vote', { partidoId });
       return { inserted: 0, skippedDueToSurveyScheduled: true };
     }
 
@@ -99,12 +100,12 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
     }
 
     if (existingSurvey && existingSurvey.length > 0) {
-      console.log('[Notifications] Survey notification exists for partido, skipping call_to_vote', { partidoId });
+      logger.log('[Notifications] Survey notification exists for partido, skipping call_to_vote', { partidoId });
       return { inserted: 0, skippedDueToSurvey: true };
     }
     // --- END NEW ---
 
-    console.log('[Notifications] query result', { matchCode: partidoMeta?.codigo });
+    logger.log('[Notifications] query result', { matchCode: partidoMeta?.codigo });
 
     // --- USE RPC FOR SECURE NOTIFICATION SENDING ---
     const { data: rpcResult, error: rpcError } = await supabase.rpc('send_call_to_vote', {
@@ -116,7 +117,7 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
     if (rpcError) {
       // Duplicate notification for same user/match/type should not block the flow.
       if (rpcError.code === '23505' || String(rpcError.message || '').toLowerCase().includes('duplicate key')) {
-        console.warn('[Notifications] call_to_vote already exists (duplicate), treating as started', {
+        logger.warn('[Notifications] call_to_vote already exists (duplicate), treating as started', {
           partidoId,
           error: rpcError,
         });
@@ -126,14 +127,14 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
       throw rpcError;
     }
 
-    console.log('[CallToVote] success', rpcResult);
+    logger.log('[CallToVote] success', rpcResult);
 
     // Normalize RPC result to expected format
     if (rpcResult && rpcResult.success) {
       return { inserted: rpcResult.inserted };
     } else {
       // Handle cases where RPC returns success: false (e.g. survey already exists)
-      console.log('[CallToVote] RPC skipped insertion:', rpcResult?.reason);
+      logger.log('[CallToVote] RPC skipped insertion:', rpcResult?.reason);
       return { inserted: 0, reason: rpcResult?.reason };
     }
   } catch (err) {
@@ -152,7 +153,7 @@ export async function schedulePostMatchNotification(matchId) {
     // Canonical guard: if DB is canonical, do not schedule from JS
     const SURVEY_FANOUT_MODE = process.env.NEXT_PUBLIC_SURVEY_FANOUT_MODE || 'db';
     if (SURVEY_FANOUT_MODE === 'db') {
-      console.log('[Notify] schedulePostMatchNotification skipped because SURVEY_FANOUT_MODE=db');
+      logger.log('[Notify] schedulePostMatchNotification skipped because SURVEY_FANOUT_MODE=db');
       return null;
     }
 

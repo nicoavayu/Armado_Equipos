@@ -34,8 +34,15 @@ const CheckCard = ({ title, status, latency, error }) => (
       </div>
     )}
     {error && (
-      <div style={{ color: '#ff6b6b', fontSize: '13px', marginTop: '8px', fontFamily: 'Oswald, Arial, sans-serif' }}>
-        Error: {error}
+      <div
+        style={{
+          color: status === 'FAIL' ? '#ff6b6b' : 'rgba(255,255,255,0.8)',
+          fontSize: '13px',
+          marginTop: '8px',
+          fontFamily: 'Oswald, Arial, sans-serif',
+        }}
+      >
+        {status === 'FAIL' ? 'Error: ' : ''}{error}
       </div>
     )}
   </div>
@@ -48,6 +55,7 @@ export default function HealthCheck() {
     supabase: { status: 'CHECKING', latency: null, error: null },
     auth: { status: 'CHECKING', latency: null, error: null },
     notifications: { status: 'CHECKING', latency: null, error: null },
+    scheduler: { status: 'CHECKING', latency: null, error: null },
   });
   const [running, setRunning] = useState(false);
 
@@ -228,6 +236,84 @@ export default function HealthCheck() {
       }));
     }
 
+    // Scheduler health check (backend cron + pending survey fanout)
+    const schedulerStart = performance.now();
+    try {
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('TIMEOUT')), 3500),
+      );
+
+      const healthPromise = supabase.rpc('get_survey_scheduler_health', {
+        p_window_minutes: 60,
+      });
+
+      const { data, error, status } = await Promise.race([healthPromise, timeoutPromise]);
+      const ms = Math.round(performance.now() - schedulerStart);
+
+      if (error) {
+        const reason = status === 401
+          ? 'Requiere sesión autenticada'
+          : status === 403
+            ? 'Sin permisos para leer salud del scheduler'
+            : (error.message || 'Error consultando scheduler');
+
+        setChecks((prev) => ({
+          ...prev,
+          scheduler: {
+            status: status === 401 || status === 403 ? 'WARN' : 'FAIL',
+            latency: ms,
+            error: reason,
+          },
+        }));
+      } else {
+        const health = Array.isArray(data) ? data[0] : data;
+        const pendingMatches = Number(health?.pending_matches || 0);
+        const recentNotifications = Number(health?.recent_notifications || 0);
+        const cronEnabled = Boolean(health?.cron_enabled);
+        const cronActive = Boolean(health?.cron_active);
+        const windowMinutes = Number(health?.window_minutes || 60);
+
+        const checkStatus = String(health?.status || '').toLowerCase() === 'ok'
+          ? 'OK'
+          : 'WARN';
+
+        const lastSuccess = health?.last_success_at
+          ? new Date(health.last_success_at).toLocaleString('es-AR')
+          : 'sin registro';
+
+        const details = [
+          health?.message || null,
+          `Pendientes: ${pendingMatches}`,
+          `Envíos ${windowMinutes}m: ${recentNotifications}`,
+          `Cron: ${cronEnabled ? (cronActive ? 'activo' : 'inactivo') : 'no disponible'}`,
+          `Último éxito: ${lastSuccess}`,
+        ].filter(Boolean).join(' · ');
+
+        setChecks((prev) => ({
+          ...prev,
+          scheduler: {
+            status: checkStatus,
+            latency: ms,
+            error: details,
+          },
+        }));
+      }
+    } catch (err) {
+      const ms = Math.round(performance.now() - schedulerStart);
+      const reason = err.message === 'TIMEOUT'
+        ? 'Timeout consultando scheduler'
+        : (err.message || 'Error consultando scheduler');
+
+      setChecks((prev) => ({
+        ...prev,
+        scheduler: {
+          status: 'FAIL',
+          latency: ms,
+          error: reason,
+        },
+      }));
+    }
+
     setRunning(false);
   };
 
@@ -259,6 +345,13 @@ export default function HealthCheck() {
           status={checks.notifications.status}
           latency={checks.notifications.latency}
           error={checks.notifications.error}
+        />
+
+        <CheckCard
+          title="Survey Scheduler"
+          status={checks.scheduler.status}
+          latency={checks.scheduler.latency}
+          error={checks.scheduler.error}
         />
 
         <button

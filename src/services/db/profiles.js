@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
+import logger from '../../utils/logger';
 
 /**
  * Compress image to reduce file size
@@ -55,9 +56,9 @@ export const uploadFoto = async (file, jugador) => {
   // Compress image if it's larger than 1.5MB
   let fileToUpload = file;
   if (file.size > 1.5 * 1024 * 1024) {
-    console.log('Compressing image:', file.size, 'bytes');
+    logger.log('Compressing image:', file.size, 'bytes');
     fileToUpload = await compressImage(file);
-    console.log('Compressed to:', fileToUpload.size, 'bytes');
+    logger.log('Compressed to:', fileToUpload.size, 'bytes');
   }
 
   const fileExt = file.name.split('.').pop() || 'jpg';
@@ -73,7 +74,7 @@ export const uploadFoto = async (file, jugador) => {
 
   const fotoUrl = data?.publicUrl;
   if (!fotoUrl) throw new Error('No se pudo obtener la URL pública de la foto.');
-  console.log('uploadFoto updating:', { jugador: jugador.uuid, fotoUrl: encodeURIComponent(fotoUrl || '') });
+  logger.log('uploadFoto updating:', { jugador: jugador.uuid, fotoUrl: encodeURIComponent(fotoUrl || '') });
 
   // Add cache buster so clients always receive the newest image
   const cacheBusted = `${fotoUrl}${fotoUrl.includes('?') ? '&' : '?'}cb=${Date.now()}`;
@@ -102,9 +103,9 @@ export const uploadFoto = async (file, jugador) => {
 
   // NOTE: Do NOT update auth user metadata from here to avoid duplicate updates.
   // auth metadata update is handled by the client (ProfileMenu) which calls supabase.auth.updateUser after upload.
-  console.log('Skipping auth metadata update in uploadFoto; handled by client ProfileMenu');
+  logger.log('Skipping auth metadata update in uploadFoto; handled by client ProfileMenu');
 
-  console.log('uploadFoto success:', encodeURIComponent(cacheBusted || ''));
+  logger.log('uploadFoto success:', encodeURIComponent(cacheBusted || ''));
   return cacheBusted;
 };
 
@@ -114,7 +115,7 @@ export const uploadFoto = async (file, jugador) => {
  * @returns {Promise<Object>} User profile
  */
 export const getProfile = async (userId) => {
-  console.log('getProfile called for userId:', userId);
+  logger.log('getProfile called for userId:', userId);
   // Use a simple, safe select of all columns from usuarios filtered by id.
   // Do NOT mix explicit columns with '*' and do NOT request non-existent columns.
   const { data, error } = await supabase
@@ -153,7 +154,7 @@ export const getProfile = async (userId) => {
         data.guantes_dorados = badgeCounts.guantes_dorados;
         data.tarjetas_rojas = badgeCounts.tarjetas_rojas;
 
-        console.log('[GET_PROFILE] Badge counts added:', badgeCounts);
+        logger.log('[GET_PROFILE] Badge counts added:', badgeCounts);
       }
     } catch (badgeError) {
       console.error('[GET_PROFILE] Error fetching badges:', badgeError);
@@ -199,7 +200,7 @@ export const getProfile = async (userId) => {
       }
 
       data.partidos_jugados = realMatchesCount + manualMatchesCount;
-      console.log('[GET_PROFILE] partidos_jugados recalculated:', {
+      logger.log('[GET_PROFILE] partidos_jugados recalculated:', {
         realMatchesCount,
         manualMatchesCount,
         total: data.partidos_jugados,
@@ -236,13 +237,13 @@ export const getProfile = async (userId) => {
     // Update the actual data field
     data.fecha_nacimiento = dateValue;
 
-    console.log('[GET_PROFILE] Date conversion:', {
+    logger.log('[GET_PROFILE] Date conversion:', {
       original: data.fecha_nacimiento,
       converted: dateValue,
     });
   }
 
-  console.log('getProfile result:', {
+  logger.log('getProfile result:', {
     data: data,
     avatar_url: data?.avatar_url,
     foto_url: data?.foto_url,
@@ -288,8 +289,8 @@ export const calculateProfileCompletion = (profile) => {
  * @returns {Promise<Object>} Updated profile
  */
 export const updateProfile = async (userId, profileData) => {
-  console.log('[UPDATE_PROFILE] Input fields:', Object.keys(profileData));
-  console.log('[UPDATE_PROFILE] Input data:', profileData);
+  logger.log('[UPDATE_PROFILE] Input fields:', Object.keys(profileData));
+  logger.log('[UPDATE_PROFILE] Input data:', profileData);
 
   const completion = calculateProfileCompletion(profileData);
 
@@ -338,7 +339,7 @@ export const updateProfile = async (userId, profileData) => {
           }
           // Ensure it's a valid date format (YYYY-MM-DD)
           if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) {
-            console.warn('[UPDATE_PROFILE] Invalid date format:', value);
+            logger.warn('[UPDATE_PROFILE] Invalid date format:', value);
             value = null;
           }
         } else if (value instanceof Date) {
@@ -356,8 +357,8 @@ export const updateProfile = async (userId, profileData) => {
 
   const finalData = { ...cleanProfileData, profile_completion: completion, updated_at: new Date().toISOString() };
 
-  console.log('[UPDATE_PROFILE] Mapped fields:', Object.keys(finalData));
-  console.log('[UPDATE_PROFILE] Final data:', finalData);
+  logger.log('[UPDATE_PROFILE] Mapped fields:', Object.keys(finalData));
+  logger.log('[UPDATE_PROFILE] Final data:', finalData);
 
   const { data, error } = await supabase
     .from('usuarios')
@@ -375,7 +376,7 @@ export const updateProfile = async (userId, profileData) => {
         .from('jugadores')
         .update({ nombre: cleanProfileData.nombre })
         .eq('usuario_id', userId);
-      console.log('[UPDATE_PROFILE] Updated player name in all matches');
+      logger.log('[UPDATE_PROFILE] Updated player name in all matches');
     } catch (updateError) {
       console.error('[UPDATE_PROFILE] Error updating player names:', updateError);
       // No lanzar error, solo loguearlo
@@ -391,7 +392,7 @@ export const updateProfile = async (userId, profileData) => {
  * @returns {Promise<Object>} Created/updated profile
  */
 export const createOrUpdateProfile = async (user) => {
-  console.log('[PROFILE_BOOTSTRAP] Starting profile creation/update for user:', user.id);
+  logger.log('[PROFILE_BOOTSTRAP] Starting profile creation/update for user:', user.id);
 
   // Avatar from social provider (if any)
   const avatarUrl =
@@ -421,7 +422,7 @@ export const createOrUpdateProfile = async (user) => {
   // Default nationality from environment or fallback
   const defaultNationality = process.env.REACT_APP_DEFAULT_NATIONALITY || 'argentina';
   if (!process.env.REACT_APP_DEFAULT_NATIONALITY && process.env.NODE_ENV === 'development') {
-    console.warn('⚠️ Missing REACT_APP_DEFAULT_NATIONALITY in environment variables, using default: argentina');
+    logger.warn('⚠️ Missing REACT_APP_DEFAULT_NATIONALITY in environment variables, using default: argentina');
   }
 
   // Determine nombre for profile
@@ -471,7 +472,7 @@ export const createOrUpdateProfile = async (user) => {
     throw error;
   }
 
-  console.log('[PROFILE_BOOTSTRAP] Successfully upserted to usuarios table:', {
+  logger.log('[PROFILE_BOOTSTRAP] Successfully upserted to usuarios table:', {
     id: data.id,
     nombre: data.nombre,
     avatar_url: data.avatar_url
@@ -504,7 +505,7 @@ export const createOrUpdateProfile = async (user) => {
       // Don't throw - profiles table might not exist or have different schema
       // The main usuarios upsert already succeeded
     } else {
-      console.log('[PROFILE_BOOTSTRAP] Successfully upserted to profiles table:', {
+      logger.log('[PROFILE_BOOTSTRAP] Successfully upserted to profiles table:', {
         id: user.id,
         nombre
       });
@@ -514,7 +515,7 @@ export const createOrUpdateProfile = async (user) => {
     // Don't throw - continue with usuarios data
   }
 
-  console.log('[PROFILE_BOOTSTRAP] Profile bootstrap completed for user:', user.id);
+  logger.log('[PROFILE_BOOTSTRAP] Profile bootstrap completed for user:', user.id);
   return data;
 };
 
@@ -530,14 +531,14 @@ export const addFreePlayer = async () => {
       throw new Error('User must be authenticated');
     }
 
-    console.log('Adding free player for user:', user.id);
+    logger.log('Adding free player for user:', user.id);
 
     // Get user profile
     const profile = await getProfile(user.id);
-    console.log('User profile:', profile);
+    logger.log('User profile:', profile);
 
     if (!profile) {
-      console.warn('Profile not found, creating minimal profile');
+      logger.warn('Profile not found, creating minimal profile');
       // Create a minimal profile if none exists
       const minimalProfile = {
         nombre: user.email?.split('@')[0] || 'Usuario',
@@ -557,12 +558,12 @@ export const addFreePlayer = async () => {
       }
 
       if (existing && existing.length > 0) {
-        console.log('User already registered as free player');
+        logger.log('User already registered as free player');
         throw new Error('Ya estás anotado como disponible');
       }
 
       // Add to free players with minimal profile
-      console.log('Inserting free player with minimal profile:', minimalProfile);
+      logger.log('Inserting free player with minimal profile:', minimalProfile);
       const { error: insertError } = await supabase
         .from('jugadores_sin_partido')
         .insert([{
@@ -592,12 +593,12 @@ export const addFreePlayer = async () => {
     }
 
     if (existing && existing.length > 0) {
-      console.log('User already registered as free player');
+      logger.log('User already registered as free player');
       throw new Error('Ya estás anotado como disponible');
     }
 
     // Add to free players
-    console.log('Inserting free player with profile:', {
+    logger.log('Inserting free player with profile:', {
       nombre: profile.nombre,
       localidad: profile.localidad,
     });
