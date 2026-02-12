@@ -82,12 +82,6 @@ const AdminActions = ({
               </div>
             )}
 
-            {isRosterFull && (
-              <div className="rounded-lg border border-rose-400/35 bg-rose-500/10 px-3 py-2 text-[12px] text-rose-200 font-oswald">
-                Cupo completo: titulares + suplentes.
-              </div>
-            )}
-
           </div>
         </div>
       )}

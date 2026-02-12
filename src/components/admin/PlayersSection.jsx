@@ -97,6 +97,11 @@ const PlayersSection = ({
   const remainingSubstituteSlots = Math.max(0, 2 - substitutePlayers.length);
   const isMatchFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
   const canShareInviteLink = isAdmin && typeof onShareClick === 'function' && !isMatchFull;
+  const completeBadge = isMatchFull ? (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-emerald-300/35 bg-emerald-500/15 text-emerald-200 text-[10px] font-oswald font-semibold tracking-wide uppercase ml-2">
+      Completo
+    </span>
+  ) : null;
 
   const handleConfirmRemovePlayer = async () => {
     if (!playerToRemove?.id) return;
@@ -218,8 +223,9 @@ const PlayersSection = ({
         {/* Lista de jugadores para no-admin */}
         <div className="w-full max-w-full mx-auto mt-2 bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px] min-w-0">
           <div className="flex items-start justify-between gap-3 mb-3 mt-1 px-1">
-            <div className="font-bebas text-xl text-white tracking-wide uppercase">
-              JUGADORES ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+            <div className="font-bebas text-xl text-white tracking-wide">
+              Jugadores ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+              {completeBadge}
             </div>
             {isPlayerInMatch && (
               <div className="relative">
@@ -386,11 +392,6 @@ const PlayersSection = ({
                   >
                     Invitar amigos
                   </button>
-                  {isMatchFull && (
-                    <div className="text-center text-white/40 font-oswald text-[12px] mt-1.5 uppercase tracking-wide">
-                      Cupo completo ({jugadores.length}/{maxRosterSlots})
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -421,8 +422,9 @@ const PlayersSection = ({
     <>
       <div className="bg-white/10 border-2 border-white/20 rounded-xl p-3 min-h-[120px] w-full max-w-full mx-auto mt-0 box-border min-w-0">
       <div className="flex items-start justify-between gap-3 mb-3 mt-2">
-        <div className="font-bebas text-xl text-white tracking-wide uppercase">
-          JUGADORES ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+        <div className="font-bebas text-xl text-white tracking-wide">
+          Jugadores ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+          {completeBadge}
           {duplicatesDetected > 0 && isAdmin && (
             <span style={{
               color: '#ff6b35',
