@@ -49,7 +49,7 @@ const AdminActions = ({
             {/* Inline manual addition row */}
             <div className="flex gap-2 items-center w-full">
               <input
-                className="flex-1 h-11 min-h-[44px] max-h-[44px] text-[15px] rounded-[10px] m-0 bg-slate-800 border border-slate-700 text-white px-3 box-border font-oswald font-medium focus:border-[#128BE9] focus:ring-1 focus:ring-[#128BE9]/20 focus:outline-none placeholder:text-white/30 placeholder:text-sm"
+                className="flex-1 h-11 min-h-[44px] max-h-[44px] text-[16px] rounded-[10px] m-0 bg-slate-800 border border-slate-700 text-white px-3 box-border font-oswald font-medium focus:border-[#128BE9] focus:ring-1 focus:ring-[#128BE9]/20 focus:outline-none placeholder:text-white/30 placeholder:text-sm"
                 type="text"
                 value={nuevoNombre}
                 onChange={(e) => setNuevoNombre(e.target.value)}
