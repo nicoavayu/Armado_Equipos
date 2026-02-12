@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.notification_delivery_log (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at timestamptz NOT NULL DEFAULT now(),
   partido_id bigint REFERENCES public.partidos(id) ON DELETE SET NULL,
-  user_id uuid REFERENCES public.usuarios(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
   notification_type text NOT NULL,
   payload_json jsonb DEFAULT '{}'::jsonb,
   channel text NOT NULL CHECK (channel IN ('in_app', 'push')),
@@ -121,47 +121,100 @@ BEGIN
   -- Insert notifications for each recipient
   FOREACH v_recipient_id IN ARRAY v_recipients
   LOOP
-    -- Insert in-app notification
-    INSERT INTO public.notifications (
-      user_id,
-      partido_id,
-      type,
-      title,
-      message,
-      data,
-      read
-    ) VALUES (
-      v_recipient_id,
-      p_partido_id,
-      p_type,
-      COALESCE(p_title, 'Notificación de partido'),
-      COALESCE(p_message, 'Tienes una nueva notificación'),
-      p_payload,
-      false
-    )
-    ON CONFLICT DO NOTHING; -- Prevent duplicates if constraint exists
+    IF EXISTS (
+      SELECT 1
+      FROM auth.users au
+      WHERE au.id = v_recipient_id
+    ) THEN
+      BEGIN
+        -- Insert in-app notification
+        INSERT INTO public.notifications (
+          user_id,
+          partido_id,
+          type,
+          title,
+          message,
+          data,
+          read
+        ) VALUES (
+          v_recipient_id,
+          p_partido_id,
+          p_type,
+          COALESCE(p_title, 'Notificación de partido'),
+          COALESCE(p_message, 'Tienes una nueva notificación'),
+          p_payload,
+          false
+        )
+        ON CONFLICT DO NOTHING; -- Prevent duplicates if constraint exists
+      EXCEPTION
+        WHEN foreign_key_violation THEN
+          INSERT INTO public.notification_delivery_log (
+            partido_id,
+            user_id,
+            notification_type,
+            payload_json,
+            correlation_id,
+            channel,
+            status,
+            error_text
+          ) VALUES (
+            p_partido_id,
+            NULL,
+            p_type,
+            COALESCE(p_payload, '{}'::jsonb) || jsonb_build_object('skipped_user_id', v_recipient_id::text),
+            v_correlation_id,
+            'in_app',
+            'skipped',
+            COALESCE(SQLERRM, format('Skipped recipient %s due FK violation on notifications', v_recipient_id))
+          )
+          ON CONFLICT DO NOTHING;
+          CONTINUE;
+      END;
 
-    -- Log delivery (in_app channel)
-    INSERT INTO public.notification_delivery_log (
-      partido_id,
-      user_id,
-      notification_type,
-      payload_json,
-      correlation_id,
-      channel,
-      status
-    ) VALUES (
-      p_partido_id,
-      v_recipient_id,
-      p_type,
-      p_payload,
-      v_correlation_id,
-      'in_app',
-      'queued'
-    )
-    ON CONFLICT DO NOTHING;
+      -- Log delivery (in_app channel)
+      INSERT INTO public.notification_delivery_log (
+        partido_id,
+        user_id,
+        notification_type,
+        payload_json,
+        correlation_id,
+        channel,
+        status
+      ) VALUES (
+        p_partido_id,
+        v_recipient_id,
+        p_type,
+        p_payload,
+        v_correlation_id,
+        'in_app',
+        'queued'
+      )
+      ON CONFLICT DO NOTHING;
 
-    v_count := v_count + 1;
+      v_count := v_count + 1;
+    ELSE
+      -- Guard against stale jugador.usuario_id values that no longer exist in auth.users.
+      INSERT INTO public.notification_delivery_log (
+        partido_id,
+        user_id,
+        notification_type,
+        payload_json,
+        correlation_id,
+        channel,
+        status,
+        error_text
+      ) VALUES (
+        p_partido_id,
+        NULL,
+        p_type,
+        COALESCE(p_payload, '{}'::jsonb) || jsonb_build_object('skipped_user_id', v_recipient_id::text),
+        v_correlation_id,
+        'in_app',
+        'skipped',
+        format('Skipped recipient %s because user does not exist in auth.users', v_recipient_id)
+      )
+      ON CONFLICT DO NOTHING;
+    END IF;
   END LOOP;
 
   RETURN jsonb_build_object(

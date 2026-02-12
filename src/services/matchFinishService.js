@@ -3,6 +3,12 @@ import { toBigIntId } from '../utils';
 import { parseLocalDateTime } from '../utils/dateLocal';
 import { SURVEY_START_DELAY_MS } from '../config/surveyConfig';
 
+const isForeignKeyError = (error) => {
+  if (!error) return false;
+  const raw = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+  return error?.code === '23503' || raw.includes('foreign key');
+};
+
 /**
  * Checks if a match has finished and sends survey notifications
  * @param {Object} partido - The match object
@@ -80,21 +86,16 @@ export const checkAndNotifyMatchFinish = async (partido) => {
     if (playersError) throw playersError;
     if (!jugadores || jugadores.length === 0) return false;
 
-    // Filter users that actually exist in public.usuarios to avoid FK failures.
-    const userIds = Array.from(new Set(jugadores.map((j) => j.usuario_id).filter(Boolean)));
-    if (userIds.length === 0) return false;
-
-    const { data: existingUsers, error: usersError } = await supabase
-      .from('usuarios')
-      .select('id')
-      .in('id', userIds);
-
-    if (usersError) throw usersError;
-
-    const validUserIds = new Set((existingUsers || []).map((u) => u.id));
-    const jugadoresValidos = jugadores.filter((j) => validUserIds.has(j.usuario_id));
+    const jugadoresValidos = [];
+    const seenUserIds = new Set();
+    for (const jugador of jugadores) {
+      const uid = jugador?.usuario_id;
+      if (!uid || seenUserIds.has(uid)) continue;
+      seenUserIds.add(uid);
+      jugadoresValidos.push(jugador);
+    }
     if (jugadoresValidos.length === 0) return false;
-    
+
     // Create survey notifications for each player
     const notifications = jugadoresValidos.map((jugador) => ({
       user_id: jugador.usuario_id,
@@ -116,16 +117,51 @@ export const checkAndNotifyMatchFinish = async (partido) => {
       },
       read: false,
     }));
-    
-    // Insert notifications
+
+    // Insert notifications in bulk first; if one FK fails, retry by user to avoid blocking valid recipients.
     const { error: insertError } = await supabase
       .from('notifications')
       .insert(notifications);
-      
-    if (insertError) throw insertError;
-    
-    console.log(`Sent ${notifications.length} survey notifications for finished match ${partidoId}`);
-    return true;
+
+    if (!insertError) {
+      console.log(`Sent ${notifications.length} survey notifications for finished match ${partidoId}`);
+      return true;
+    }
+
+    if (!isForeignKeyError(insertError)) throw insertError;
+
+    console.warn('[MATCH_FINISH] Bulk notification insert failed due FK, retrying one by one:', insertError);
+
+    let sentCount = 0;
+    let skippedCount = 0;
+    for (const notification of notifications) {
+      const { error: singleError } = await supabase
+        .from('notifications')
+        .insert([notification]);
+
+      if (!singleError) {
+        sentCount += 1;
+        continue;
+      }
+
+      if (isForeignKeyError(singleError)) {
+        skippedCount += 1;
+        continue;
+      }
+
+      throw singleError;
+    }
+
+    if (skippedCount > 0) {
+      console.warn(`[MATCH_FINISH] Skipped ${skippedCount} recipients due missing auth user/profile linkage`);
+    }
+
+    if (sentCount > 0) {
+      console.log(`Sent ${sentCount} survey notifications for finished match ${partidoId}`);
+      return true;
+    }
+
+    return false;
     
   } catch (error) {
     console.error('Error checking and notifying match finish:', error);
