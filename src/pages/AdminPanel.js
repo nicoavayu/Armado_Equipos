@@ -96,9 +96,12 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const handleArmarEquipos = () => {
     handleArmarEquiposUtil(jugadores, adminState.setShowArmarEquiposView);
   };
+  const displayedJugadores = Array.isArray(adminState.jugadoresActuales)
+    ? adminState.jugadoresActuales
+    : (Array.isArray(jugadores) ? jugadores : []);
   const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
   const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0;
-  const isRosterFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
+  const isRosterFull = maxRosterSlots > 0 && displayedJugadores.length >= maxRosterSlots;
   const canOpenChatFromHeader = Boolean(isAdmin || adminState.isPlayerInMatch);
 
   const handleHeaderChatClick = () => {
@@ -222,7 +225,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                 <TeamsPanel
                   showTeams={showTeams}
                   teams={adminState.teams}
-                  jugadores={jugadores}
+                  jugadores={displayedJugadores}
                   handleTeamsChange={handleTeamsChange}
                   onBackToHome={onBackToHome}
                   isAdmin={isAdmin}
@@ -252,7 +255,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                         loading={adminState.loading}
                         isClosing={adminState.isClosing}
                         partidoActual={partidoActual}
-                        jugadores={jugadores}
+                        jugadores={displayedJugadores}
                         agregarJugador={adminState.agregarJugador}
                         setShowInviteModal={adminState.setShowInviteModal}
                         user={user}
@@ -264,7 +267,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                     {activeTab === 'jugadores' ? (
                       <PlayersSection
                         isAdmin={isAdmin}
-                        jugadores={jugadores}
+                        jugadores={displayedJugadores}
                         partidoActual={partidoActual}
                         duplicatesDetected={adminState.duplicatesDetected}
                         votantesConNombres={adminState.votantesConNombres}

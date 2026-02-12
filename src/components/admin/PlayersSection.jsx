@@ -143,12 +143,6 @@ const PlayersSection = ({
             {j.nombre}
           </span>
 
-          {j?.is_substitute && (
-            <span className="px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-400/35 text-amber-300 text-[10px] font-bold uppercase tracking-wider shrink-0">
-              SUP
-            </span>
-          )}
-
           {/* Corona para admin */}
           {partidoActual?.creado_por === j.usuario_id && (
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="#FFD700" style={{ flexShrink: 0 }}>

@@ -282,7 +282,7 @@ export const useAdminPanelState = ({
     }
 
     if (isRosterFull) {
-      toast.error('El partido está completo (titulares y suplentes)');
+      toast.info('Cupo completo: titulares + suplentes.');
       return;
     }
 
@@ -297,8 +297,6 @@ export const useAdminPanelState = ({
 
     setLoading(true);
     try {
-      const uuid = crypto.randomUUID();
-
       const { error } = await supabase
         .from('jugadores')
         .insert([{
@@ -340,6 +338,27 @@ export const useAdminPanelState = ({
         }
       }, 50);
     } catch (error) {
+      const errorMessage = String(error?.message || '');
+      const errorHint = String(error?.hint || '');
+      const normalized = `${errorMessage} ${errorHint}`.toLowerCase();
+      const isCapacityError = error?.code === 'P0001' && (
+        normalized.includes('cupo')
+        || normalized.includes('suplente')
+        || normalized.includes('completo')
+      );
+
+      if (isCapacityError) {
+        try {
+          const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
+          setJugadoresLocal(jugadoresPartido || []);
+          onJugadoresChange(jugadoresPartido || []);
+        } catch (_refreshError) {
+          // Best-effort refresh only.
+        }
+        toast.info('Cupo completo: titulares + suplentes.');
+        return;
+      }
+
       toast.error('Error agregando jugador: ' + error.message);
     } finally {
       setLoading(false);
