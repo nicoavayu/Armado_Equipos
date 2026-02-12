@@ -47,6 +47,15 @@ const StatsView = ({ onVolver }) => {
     recordPersonal: null,
     logros: { annual: [], historical: [] },
     partidosManuales: 0,
+    manualGanados: 0,
+    manualEmpates: 0,
+    manualPerdidos: 0,
+    manualRecientes: [],
+    encuestaGanados: 0,
+    encuestaEmpates: 0,
+    encuestaPerdidos: 0,
+    encuestaPendientes: 0,
+    encuestaSinEquipoDetectado: 0,
     amistosos: 0,
     torneos: 0,
     lesionesPeriodo: 0,
@@ -140,6 +149,15 @@ const StatsView = ({ onVolver }) => {
         recordPersonal: partidosData.record,
         logros: partidosData.logros,
         partidosManuales: partidosManualesData.total,
+        manualGanados: partidosManualesData.ganados,
+        manualEmpates: partidosManualesData.empatados,
+        manualPerdidos: partidosManualesData.perdidos,
+        manualRecientes: partidosManualesData.recientes,
+        encuestaGanados: partidosData.surveyOutcomes.ganados,
+        encuestaEmpates: partidosData.surveyOutcomes.empatados,
+        encuestaPerdidos: partidosData.surveyOutcomes.perdidos,
+        encuestaPendientes: partidosData.surveyOutcomes.pendientes,
+        encuestaSinEquipoDetectado: partidosData.surveyOutcomes.sinEquipoDetectado,
         amistosos: partidosData.total + partidosManualesData.amistosos,
         torneos: partidosManualesData.torneos,
         lesionesPeriodo: lesionesData.enPeriodoCount,
@@ -201,6 +219,7 @@ const StatsView = ({ onVolver }) => {
 
     const chartData = generateChartData(userPartidos, period);
     const logros = await calculateLogros(partidos);
+    const surveyOutcomes = await getSurveyOutcomeStats(userPartidos);
 
     return {
       total: userPartidos.length,
@@ -208,7 +227,154 @@ const StatsView = ({ onVolver }) => {
       chartData,
       record: userPartidos.length,
       logros,
+      surveyOutcomes,
     };
+  };
+
+  const normalizeTeamEntry = (entry) => {
+    if (entry && typeof entry === 'object') {
+      return normalizeIdentity(entry.ref || entry.uuid || entry.usuario_id || entry.id || '');
+    }
+    return normalizeIdentity(entry);
+  };
+
+  const resolveUserTeam = ({ participants, teamA, teamB }) => {
+    const teamARefs = new Set((Array.isArray(teamA) ? teamA : []).map(normalizeTeamEntry).filter(Boolean));
+    const teamBRefs = new Set((Array.isArray(teamB) ? teamB : []).map(normalizeTeamEntry).filter(Boolean));
+    if (teamARefs.size === 0 && teamBRefs.size === 0) return null;
+
+    const userRefs = getUserIdentitySet();
+    const candidateRefs = new Set([...userRefs]);
+
+    (Array.isArray(participants) ? participants : []).forEach((p) => {
+      const refs = [
+        p?.ref,
+        p?.uuid,
+        p?.usuario_id,
+        p?.id,
+        p?.email,
+        p?.nombre,
+      ]
+        .map(normalizeIdentity)
+        .filter(Boolean);
+
+      if (refs.some((ref) => userRefs.has(ref))) {
+        refs.forEach((ref) => candidateRefs.add(ref));
+      }
+    });
+
+    const isInTeamA = [...candidateRefs].some((ref) => teamARefs.has(ref));
+    if (isInTeamA) return 'equipo_a';
+    const isInTeamB = [...candidateRefs].some((ref) => teamBRefs.has(ref));
+    if (isInTeamB) return 'equipo_b';
+    return null;
+  };
+
+  const getSurveyOutcomeStats = async (userPartidos = []) => {
+    const matchIds = userPartidos
+      .map((p) => Number(p?.id))
+      .filter((id) => Number.isFinite(id));
+
+    const empty = {
+      ganados: 0,
+      empatados: 0,
+      perdidos: 0,
+      pendientes: 0,
+      sinEquipoDetectado: 0,
+    };
+
+    if (matchIds.length === 0) return empty;
+
+    let surveyRows = [];
+    try {
+      let query = await supabase
+        .from('survey_results')
+        .select('partido_id, winner_team, snapshot_equipos, snapshot_participantes')
+        .in('partido_id', matchIds);
+
+      if (query.error) {
+        // Backward-compatible fallback for environments without snapshot columns.
+        query = await supabase
+          .from('survey_results')
+          .select('partido_id, winner_team')
+          .in('partido_id', matchIds);
+      }
+
+      if (query.error) throw query.error;
+      surveyRows = query.data || [];
+    } catch (error) {
+      console.warn('[STATS] No se pudieron cargar resultados de encuesta para recap', error);
+      return empty;
+    }
+
+    let teamRows = [];
+    try {
+      const teamsRes = await supabase
+        .from('partido_team_confirmations')
+        .select('partido_id, participants, team_a, team_b')
+        .in('partido_id', matchIds);
+      if (!teamsRes.error) {
+        teamRows = teamsRes.data || [];
+      }
+    } catch (_error) {
+      // Non-blocking fallback.
+    }
+
+    const bySurvey = new Map((surveyRows || []).map((row) => [Number(row.partido_id), row]));
+    const byTeams = new Map((teamRows || []).map((row) => [Number(row.partido_id), row]));
+    const byMatch = new Map((userPartidos || []).map((p) => [Number(p.id), p]));
+
+    let ganados = 0;
+    let empatados = 0;
+    let perdidos = 0;
+    let pendientes = 0;
+    let sinEquipoDetectado = 0;
+
+    matchIds.forEach((matchId) => {
+      const survey = bySurvey.get(matchId);
+      const teamConfirm = byTeams.get(matchId);
+      const match = byMatch.get(matchId);
+
+      const winner = normalizeIdentity(survey?.winner_team);
+      const hasWinner = winner === 'equipo_a' || winner === 'equipo_b' || winner === 'empate';
+
+      const snapshotTeams = survey?.snapshot_equipos || null;
+      const participants = Array.isArray(survey?.snapshot_participantes)
+        ? survey.snapshot_participantes
+        : (Array.isArray(teamConfirm?.participants) ? teamConfirm.participants : []);
+      const teamA = Array.isArray(snapshotTeams?.team_a)
+        ? snapshotTeams.team_a
+        : (Array.isArray(teamConfirm?.team_a) ? teamConfirm.team_a : []);
+      const teamB = Array.isArray(snapshotTeams?.team_b)
+        ? snapshotTeams.team_b
+        : (Array.isArray(teamConfirm?.team_b) ? teamConfirm.team_b : []);
+
+      if (!hasWinner) {
+        if (survey || teamConfirm || match?.teams_confirmed === true) {
+          pendientes += 1;
+        }
+        return;
+      }
+
+      if (winner === 'empate') {
+        empatados += 1;
+        return;
+      }
+
+      const userTeam = resolveUserTeam({ participants, teamA, teamB });
+      if (!userTeam) {
+        sinEquipoDetectado += 1;
+        return;
+      }
+
+      if (winner === userTeam) {
+        ganados += 1;
+      } else {
+        perdidos += 1;
+      }
+    });
+
+    return { ganados, empatados, perdidos, pendientes, sinEquipoDetectado };
   };
 
   const getAmigosStats = async (dateRange) => {
@@ -416,12 +582,22 @@ const StatsView = ({ onVolver }) => {
 
     const amistosos = partidosManuales?.filter((p) => p.tipo_partido === 'amistoso').length || 0;
     const torneos = partidosManuales?.filter((p) => p.tipo_partido === 'torneo').length || 0;
+    const ganados = partidosManuales?.filter((p) => p.resultado === 'ganaste').length || 0;
+    const empatados = partidosManuales?.filter((p) => p.resultado === 'empate').length || 0;
+    const perdidos = partidosManuales?.filter((p) => p.resultado === 'perdiste').length || 0;
+    const recientes = [...(partidosManuales || [])]
+      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+      .slice(0, 5);
     const chartData = generateChartData(partidosManuales || [], period, true);
 
     return {
       total: partidosManuales?.length || 0,
       amistosos,
       torneos,
+      ganados,
+      empatados,
+      perdidos,
+      recientes,
       chartData,
     };
   };
@@ -561,6 +737,15 @@ const StatsView = ({ onVolver }) => {
   };
 
   const injuryStatus = formatInjuryStatus();
+  const manualResultMeta = {
+    ganaste: { label: 'Ganaste', className: 'text-emerald-300 border-emerald-300/30 bg-emerald-400/10' },
+    empate: { label: 'Empate', className: 'text-amber-200 border-amber-200/30 bg-amber-400/10' },
+    perdiste: { label: 'Perdiste', className: 'text-rose-300 border-rose-300/30 bg-rose-400/10' },
+  };
+  const recapGanados = stats.manualGanados + stats.encuestaGanados;
+  const recapEmpatados = stats.manualEmpates + stats.encuestaEmpates;
+  const recapPerdidos = stats.manualPerdidos + stats.encuestaPerdidos;
+  const showResultsRecap = (recapGanados + recapEmpatados + recapPerdidos + stats.encuestaPendientes) > 0;
 
   const handleManualMatchSaved = () => {
     loadStats();
@@ -771,6 +956,86 @@ const StatsView = ({ onVolver }) => {
             );
           })}
         </div>
+
+        {showResultsRecap && (
+          <motion.div
+            className="bg-white/10 rounded-2xl p-4 mb-6 backdrop-blur-md border border-white/20"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.26 }}
+          >
+            <div className="font-oswald text-base font-semibold text-white mb-1">Recap de resultados</div>
+            <div className="font-oswald text-[11px] text-white/65 mb-3">
+              Incluye partidos manuales y resultados de encuestas cuando ya están procesados.
+            </div>
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-2">
+              <div className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
+                <div className="font-oswald text-[11px] text-emerald-200/90">Ganados</div>
+                <div className="font-oswald text-xl font-bold text-emerald-100">{recapGanados}</div>
+              </div>
+              <div className="rounded-lg border border-amber-300/25 bg-amber-400/10 px-3 py-2">
+                <div className="font-oswald text-[11px] text-amber-100/90">Empatados</div>
+                <div className="font-oswald text-xl font-bold text-amber-50">{recapEmpatados}</div>
+              </div>
+              <div className="rounded-lg border border-rose-300/25 bg-rose-400/10 px-3 py-2">
+                <div className="font-oswald text-[11px] text-rose-100/90">Perdidos</div>
+                <div className="font-oswald text-xl font-bold text-rose-100">{recapPerdidos}</div>
+              </div>
+              <div className="rounded-lg border border-sky-300/25 bg-sky-400/10 px-3 py-2">
+                <div className="font-oswald text-[11px] text-sky-100/90">Pendientes</div>
+                <div className="font-oswald text-xl font-bold text-sky-100">{stats.encuestaPendientes}</div>
+              </div>
+            </div>
+            {stats.encuestaSinEquipoDetectado > 0 && (
+              <div className="font-oswald text-[11px] text-white/55 mt-2">
+                {stats.encuestaSinEquipoDetectado} partido(s) con resultado pero sin equipo detectable.
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {stats.partidosManuales > 0 && (
+          <motion.div
+            className="bg-white/10 rounded-2xl p-4 mb-6 backdrop-blur-md border border-white/20"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.32 }}
+          >
+            <div className="font-oswald text-base font-semibold text-white mb-3">Detalle de partidos manuales</div>
+            <div className="grid grid-cols-3 gap-2 mb-3 sm:grid-cols-1">
+              <div className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
+                <div className="font-oswald text-[11px] text-emerald-200/90">Ganados</div>
+                <div className="font-oswald text-xl font-bold text-emerald-100">{stats.manualGanados}</div>
+              </div>
+              <div className="rounded-lg border border-amber-300/25 bg-amber-400/10 px-3 py-2">
+                <div className="font-oswald text-[11px] text-amber-100/90">Empatados</div>
+                <div className="font-oswald text-xl font-bold text-amber-50">{stats.manualEmpates}</div>
+              </div>
+              <div className="rounded-lg border border-rose-300/25 bg-rose-400/10 px-3 py-2">
+                <div className="font-oswald text-[11px] text-rose-100/90">Perdidos</div>
+                <div className="font-oswald text-xl font-bold text-rose-100">{stats.manualPerdidos}</div>
+              </div>
+            </div>
+
+            {stats.manualRecientes.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {stats.manualRecientes.map((partido) => {
+                  const resultMeta = manualResultMeta[partido.resultado] || { label: partido.resultado || 'Sin dato', className: 'text-white/80 border-white/20 bg-white/10' };
+                  return (
+                    <div key={partido.id} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                      <div className="font-oswald text-sm text-white/90">
+                        {new Date(partido.fecha).toLocaleDateString('es-ES')} · {partido.tipo_partido === 'torneo' ? 'Torneo' : 'Amistoso'}
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-full border text-xs font-oswald ${resultMeta.className}`}>
+                        {resultMeta.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        )}
 
         {showLesionesDetalle && (
           <motion.div

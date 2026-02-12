@@ -576,30 +576,21 @@ const EncuestaPartido = () => {
               <div className={titleClass}>
                 ¿QUIÉN GANÓ?
               </div>
-              <div className={gridClass}>
-                <button
-                  className={`${optionBtnClass} ${formData.ganador === 'equipo_a' ? optionBtnSelectedClass : ''}`}
-                  onClick={() => handleInputChange('ganador', 'equipo_a')}
-                  type="button"
-                >
-                  EQUIPO A
-                </button>
-                <button
-                  className={`${optionBtnClass} ${formData.ganador === 'equipo_b' ? optionBtnSelectedClass : ''}`}
-                  onClick={() => handleInputChange('ganador', 'equipo_b')}
-                  type="button"
-                >
-                  EQUIPO B
-                </button>
-              </div>
-              <div className="flex justify-center w-full mb-5">
-                <button
-                  className={`${optionBtnClass} ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''} w-[90%] mx-auto`}
-                  onClick={() => handleInputChange('ganador', 'empate')}
-                  type="button"
-                >
-                  EMPATE
-                </button>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-[520px] mx-auto mb-5">
+                {[
+                  { value: 'equipo_a', label: 'Equipo A' },
+                  { value: 'equipo_b', label: 'Equipo B' },
+                  { value: 'empate', label: 'Empate' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    className={`${optionBtnClass} ${formData.ganador === option.value ? optionBtnSelectedClass : ''}`}
+                    onClick={() => handleInputChange('ganador', option.value)}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
               <div className="flex justify-center w-full mb-5">
                 <input
