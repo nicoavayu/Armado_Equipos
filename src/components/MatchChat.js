@@ -18,8 +18,27 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isCompactLayout, setIsCompactLayout] = useState(false);
+  const [viewportStyle, setViewportStyle] = useState({});
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
   const scrollLockRef = useRef({ scrollY: 0, locked: false });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const mediaQuery = window.matchMedia('(max-width: 640px)');
+    const syncLayout = () => setIsCompactLayout(mediaQuery.matches);
+    syncLayout();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', syncLayout);
+      return () => mediaQuery.removeEventListener('change', syncLayout);
+    }
+
+    mediaQuery.addListener(syncLayout);
+    return () => mediaQuery.removeListener(syncLayout);
+  }, []);
 
   useEffect(() => {
     if (isOpen && partidoId) {
@@ -45,10 +64,11 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   useEffect(() => {
     if (!isOpen) return undefined;
 
+    const isMobile = isCompactLayout;
     const body = document.body;
     const html = document.documentElement;
     const scrollY = window.scrollY || window.pageYOffset || 0;
-    scrollLockRef.current = { scrollY, locked: true };
+    scrollLockRef.current = { scrollY, locked: !isMobile };
 
     const prevBodyOverflow = body.style.overflow;
     const prevBodyPosition = body.style.position;
@@ -58,9 +78,12 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
     body.style.overflow = 'hidden';
     html.style.overflow = 'hidden';
-    body.style.position = 'fixed';
-    body.style.top = `-${scrollY}px`;
-    body.style.width = '100%';
+
+    if (!isMobile) {
+      body.style.position = 'fixed';
+      body.style.top = `-${scrollY}px`;
+      body.style.width = '100%';
+    }
 
     return () => {
       body.style.overflow = prevBodyOverflow;
@@ -74,10 +97,10 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
         scrollLockRef.current.locked = false;
       }
     };
-  }, [isOpen]);
+  }, [isOpen, isCompactLayout]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || isCompactLayout) return undefined;
     const t = setTimeout(() => {
       try {
         inputRef.current?.focus({ preventScroll: true });
@@ -86,6 +109,44 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       }
     }, 40);
     return () => clearTimeout(t);
+  }, [isOpen, isCompactLayout]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    if (typeof window === 'undefined') return undefined;
+
+    const syncViewport = () => {
+      const vv = window.visualViewport;
+      if (!vv) {
+        setViewportStyle({
+          top: '0px',
+          height: `${window.innerHeight}px`,
+        });
+        return;
+      }
+
+      const top = Math.max(0, vv.offsetTop || 0);
+      const height = Math.max(280, vv.height || window.innerHeight);
+      setViewportStyle({
+        top: `${top}px`,
+        height: `${height}px`,
+      });
+    };
+
+    syncViewport();
+
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', syncViewport);
+    vv?.addEventListener('scroll', syncViewport);
+    window.addEventListener('resize', syncViewport);
+    window.addEventListener('orientationchange', syncViewport);
+
+    return () => {
+      vv?.removeEventListener('resize', syncViewport);
+      vv?.removeEventListener('scroll', syncViewport);
+      window.removeEventListener('resize', syncViewport);
+      window.removeEventListener('orientationchange', syncViewport);
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -126,8 +187,10 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     return null;
   };
 
-  // Referencia al input para poder enfocar después de enviar
-  const inputRef = useRef(null);
+  const handleClose = () => {
+    inputRef.current?.blur();
+    onClose();
+  };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -222,19 +285,20 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000] p-5 sm:p-[15px]"
-      onClick={onClose}
+      className="fixed inset-x-0 top-0 h-[100dvh] bg-black/70 flex items-end sm:items-center justify-center z-[1000] p-0 sm:p-[15px]"
+      style={viewportStyle}
+      onClick={handleClose}
     >
       <div
-        className="bg-slate-900 border-2 border-white/20 w-full max-w-[500px] h-[75vh] max-h-[600px] rounded-xl flex flex-col shadow-[0_30px_120px_rgba(0,0,0,0.55)] mb-5 min-h-[300px] sm:mt-4 sm:h-auto sm:max-h-[calc(100vh-30px)] sm:mb-0 sm:overflow-hidden"
+        className="bg-slate-900 border-x border-t border-white/20 w-full h-full max-h-full rounded-t-2xl flex flex-col shadow-[0_30px_120px_rgba(0,0,0,0.55)] overflow-hidden sm:border-2 sm:max-w-[500px] sm:h-[75vh] sm:max-h-[600px] sm:rounded-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex flex-col px-5 py-3 border-b border-white/10 bg-slate-800 rounded-t-xl sm:px-4 sm:py-2.5 sm:shrink-0">
+        <div className="flex flex-col px-5 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-3 border-b border-white/10 bg-slate-800 sm:px-4 sm:pt-2.5 sm:pb-2.5 sm:shrink-0">
           <div className="flex justify-between items-center">
             <h3 className="m-0 font-bebas text-xl font-bold text-white tracking-wide uppercase">Chat del Partido</h3>
             <button
               className="bg-transparent border-none text-white/70 text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-white"
-              onClick={onClose}
+              onClick={handleClose}
               aria-label="Cerrar chat"
             >
               ×
@@ -258,7 +322,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="flex py-3 px-4 border-t border-white/10 gap-2 bg-slate-800 min-h-[64px] rounded-b-xl items-center sm:p-3 sm:relative sm:z-10 sm:shrink-0">
+        <div className="flex pt-3 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] border-t border-white/10 gap-2 bg-slate-800 min-h-[64px] items-center sm:p-3 sm:relative sm:z-10 sm:shrink-0">
           <input
             type="text"
             value={newMessage}
