@@ -14,6 +14,7 @@ import ProfileCardModal from '../components/ProfileCardModal';
 import PlayerMiniCard from '../components/PlayerMiniCard';
 import EmptyStateCard from '../components/EmptyStateCard';
 import { handleError } from '../lib/errorHandler';
+import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
 import { User, CheckCircle2, Calendar, Clock, MapPin, Star, Trophy, ListOrdered, Users, CalendarX2 } from 'lucide-react';
 
 const containerClass = 'flex flex-col items-center min-h-[100dvh] pb-28 px-4 box-border font-oswald';
@@ -360,9 +361,11 @@ const QuieroJugar = () => {
             return filteredPartidos.length === 0 ? (
               <EmptyStateCard
                 icon={CalendarX2}
-                title="SIN PARTIDOS ABIERTOS"
+                title="Sin partidos abiertos"
+                titleClassName="font-oswald text-[30px] font-semibold leading-tight text-white"
                 description="Cuando se publique un partido con cupos disponibles, te va a aparecer acá."
-                actionLabel="CREAR PARTIDO"
+                actionLabel="Crear partido"
+                actionClassName={`${PRIMARY_CTA_BUTTON_CLASS} mt-6 max-w-[340px] mx-auto`}
                 onAction={() => navigate('/nuevo-partido')}
               />
             ) : (

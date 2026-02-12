@@ -455,7 +455,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               style={{ opacity: nombrePartido.trim() ? 1 : 0.4, marginBottom: 12 }}
               onClick={editMode ? saveAndReturn : nextStep}
             >
-              {editMode ? 'GUARDAR' : 'CONTINUAR'}
+              {editMode ? 'Guardar' : 'Continuar'}
             </button>
             {editMode && (
               <button
@@ -463,7 +463,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 style={{ background: 'rgba(255,255,255,0.1)', borderColor: '#fff', color: '#fff' }}
                 onClick={saveAndReturn}
               >
-                CANCELAR
+                Cancelar
               </button>
             )}
           </div>
@@ -557,14 +557,14 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 editMode ? saveAndReturn() : nextStep();
               }}
             >
-              {editMode ? 'GUARDAR' : 'CONTINUAR'}
+              {editMode ? 'Guardar' : 'Continuar'}
             </button>
             <button
               className={CONFIRM_BTN_CLASS}
               style={{ background: 'rgba(255,255,255,0.1)', borderColor: '#fff', color: '#fff' }}
               onClick={editMode ? saveAndReturn : prevStep}
             >
-              {editMode ? 'CANCELAR' : 'VOLVER ATRÁS'}
+              {editMode ? 'Cancelar' : 'Volver atrás'}
             </button>
           </div>
         </div>
@@ -651,14 +651,14 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 style={{ opacity: sede ? 1 : 0.4, marginBottom: 12 }}
                 onClick={editMode ? saveAndReturn : nextStep}
               >
-                {editMode ? 'GUARDAR' : 'CONTINUAR'}
+                {editMode ? 'Guardar' : 'Continuar'}
               </button>
               <button
                 className={CONFIRM_BTN_CLASS}
                 style={{ background: 'rgba(255,255,255,0.1)', borderColor: '#fff', color: '#fff', marginBottom: 0 }}
                 onClick={editMode ? saveAndReturn : prevStep}
               >
-                {editMode ? 'CANCELAR' : 'VOLVER ATRÁS'}
+                {editMode ? 'Cancelar' : 'Volver atrás'}
               </button>
             </div>
           </div>
@@ -694,44 +694,44 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Nombre:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{nombrePartido}</span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.NAME)}>EDITAR</button>
+                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.NAME)}>Editar</button>
               </li>
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Valor cancha:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{(valorCancha !== undefined && valorCancha !== null && String(valorCancha).trim() !== '') ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(Number(String(valorCancha).replace(/[^0-9.,-]/g, '').replace(/,/g, '.'))) : 'Sin precio'}</span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHERE)}>EDITAR</button>
+                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHERE)}>Editar</button>
               </li>
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Modalidad:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{modalidad.replace('F', 'Fútbol ')} ({cupo} jugadores)</span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.NAME)}>EDITAR</button>
+                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.NAME)}>Editar</button>
               </li>
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Tipo:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{tipoPartido}</span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.NAME)}>EDITAR</button>
+                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.NAME)}>Editar</button>
               </li>
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Fecha:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{formatLocalDateShort(fecha)}</span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHEN)}>EDITAR</button>
+                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHEN)}>Editar</button>
               </li>
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Hora:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{hora}</span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHEN)}>EDITAR</button>
+                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHEN)}>Editar</button>
               </li>
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Sede:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3" style={{ fontSize: 16, textAlign: 'right' }}>
                   {sede.length > 30 ? sede.substring(0, 30) + '...' : sede}
                 </span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-sans hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHERE)}>EDITAR</button>
+                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-sans hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHERE)}>Editar</button>
               </li>
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Te sumás:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{willPlay ? 'Sí, como jugador' : 'No, solo administro'}</span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHERE)}>EDITAR</button>
+                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHERE)}>Editar</button>
               </li>
             </ul>
 
