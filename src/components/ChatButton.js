@@ -38,22 +38,6 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
 
         console.log('[CHAT_BUTTON] Checking chat access for match:', partidoId);
 
-        // [TEAM_BALANCER_INVITE_EDIT] Verificar si hay invitación pendiente
-        const { data: invitation } = await supabase
-          .from('notifications_ext')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('type', 'match_invite')
-          .eq('read', false)
-          .eq('match_id_text', String(partidoId))
-          .single();
-
-        // Si hay invitación pendiente, no permitir acceso al chat
-        if (invitation) {
-          setCanAccessChat(false);
-          return;
-        }
-
         // Verificar si el usuario está en la nómina del partido
         const { data: jugadoresPartido } = await supabase
           .from('jugadores')
@@ -71,7 +55,37 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
 
         const esAdmin = partidoData?.creado_por === user.id;
 
-        setCanAccessChat(jugadorEnPartido || esAdmin);
+        // Si ya es jugador o admin, siempre habilitar chat
+        if (jugadorEnPartido || esAdmin) {
+          setCanAccessChat(true);
+          return;
+        }
+
+        // Invitación pendiente sin aceptar: aún no habilitar chat
+        const { data: invitation, error: invitationError } = await supabase
+          .from('notifications_ext')
+          .select('id,data')
+          .eq('user_id', user.id)
+          .eq('type', 'match_invite')
+          .eq('read', false)
+          .eq('match_id_text', String(partidoId))
+          .maybeSingle();
+
+        if (invitationError) {
+          console.warn('[CHAT_BUTTON] invitation lookup failed, denying chat', invitationError);
+          setCanAccessChat(false);
+          return;
+        }
+
+        if (invitation) {
+          const inviteStatus = invitation?.data?.status || 'pending';
+          if (inviteStatus === 'pending') {
+            setCanAccessChat(false);
+            return;
+          }
+        }
+
+        setCanAccessChat(false);
       } catch (error) {
         console.error('Error checking chat access:', error);
         setCanAccessChat(false);

@@ -13,7 +13,7 @@ const StarRating = ({ value, onChange, onRate, hovered, setHovered }) => {
   };
 
   return (
-    <div className="flex flex-wrap gap-1 justify-center my-2.5">
+    <div className="w-[min(90vw,520px)] max-w-full mx-auto px-4 sm:px-6 md:px-8 flex flex-nowrap justify-between my-2.5">
       {RATING_BUTTONS.map((rating) => {
         const isActive = value === rating;
         const isHovered = hovered === rating;
@@ -22,9 +22,9 @@ const StarRating = ({ value, onChange, onRate, hovered, setHovered }) => {
           <button
             key={rating}
             className={`
-              w-8 h-8 rounded-full border-none font-bold text-sm cursor-pointer transition-all duration-150 ease-out active:scale-95
-              ${isActive ? 'bg-primary text-white ring-2 ring-white/70 transform scale-110 shadow-[0_0_8px_rgba(18,139,233,0.45)]' : 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white'}
-              ${isHovered && !isActive ? 'transform scale-105 bg-white/25 text-white' : ''}
+              w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full border border-white/10 font-bold text-[18px] sm:text-[20px] md:text-[24px] leading-none font-bebas text-center cursor-pointer transition-all duration-150 ease-out active:scale-95
+              ${isActive ? 'bg-primary text-white ring-2 ring-white/70 scale-110 shadow-[0_0_10px_rgba(18,139,233,0.55)] border-white/40' : 'bg-white/12 text-white/75 hover:bg-white/24 hover:text-white'}
+              ${isHovered && !isActive ? 'scale-105 bg-white/25 text-white border-white/30' : ''}
             `}
             onClick={() => handleRating(rating)}
             onMouseEnter={() => setHovered && setHovered(rating)}

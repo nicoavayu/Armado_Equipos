@@ -6,6 +6,8 @@ import { useAuth } from '../components/AuthProvider';
 import { isUserMemberOfMatch } from '../utils/membershipCheck';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { toast } from 'react-toastify';
+import ConfirmModal from '../components/ConfirmModal';
+import { findUserScheduleConflicts } from '../services/db/matchScheduling';
 
 export default function PartidoPublicoDetails() {
   const { partidoId } = useParams();
@@ -16,6 +18,8 @@ export default function PartidoPublicoDetails() {
   const [jugadores, setJugadores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [joinStatus, setJoinStatus] = useState('checking'); // 'checking', 'none', 'pending', 'joined', 'full', 'closed'
+  const [scheduleWarningOpen, setScheduleWarningOpen] = useState(false);
+  const [scheduleWarningMessage, setScheduleWarningMessage] = useState('');
 
   useEffect(() => {
     fetchPartido();
@@ -134,8 +138,32 @@ export default function PartidoPublicoDetails() {
     setJoinStatus('none');
   }
 
-  async function handleSolicitarUnirme() {
+  async function handleSolicitarUnirme(skipScheduleWarning = false) {
     if (!user) { toast.error('Inicia sesión para solicitar unirte'); return; }
+
+    if (!skipScheduleWarning && partido?.fecha && partido?.hora) {
+      try {
+        const conflicts = await findUserScheduleConflicts({
+          userId: user.id,
+          excludeMatchId: matchId,
+          targetMatch: {
+            fecha: partido.fecha,
+            hora: partido.hora,
+            sede: partido.sede,
+            nombre: partido.nombre,
+          },
+        });
+        if (conflicts.length > 0) {
+          const c = conflicts[0];
+          setScheduleWarningMessage(`Ya tenés un partido en ese horario (${c.nombre || 'Partido'} · ${c.fecha} ${c.hora}).`);
+          setScheduleWarningOpen(true);
+          return;
+        }
+      } catch (err) {
+        console.error('[PartidoPublicoDetails] schedule conflict check failed:', err);
+      }
+    }
+
     setLoading(true);
 
     // Evitar duplicados: buscar la última request activa
@@ -262,6 +290,18 @@ export default function PartidoPublicoDetails() {
           )}
         </div>
       </div>
+      <ConfirmModal
+        isOpen={scheduleWarningOpen}
+        title="CONFLICTO DE HORARIO"
+        message={scheduleWarningMessage}
+        confirmText="CONTINUAR IGUAL"
+        cancelText="CANCELAR"
+        onCancel={() => setScheduleWarningOpen(false)}
+        onConfirm={async () => {
+          setScheduleWarningOpen(false);
+          await handleSolicitarUnirme(true);
+        }}
+      />
     </div>
   );
 }

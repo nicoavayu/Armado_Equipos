@@ -2,7 +2,7 @@
 import React from 'react';
 import usePlacesAutocomplete, { getGeocode, getLatLng } from 'use-places-autocomplete';
 
-export default function AutocompleteSede({ value, onSelect }) {
+export default function AutocompleteSede({ value, onSelect, dense = false }) {
   const {
     ready,
     value: inputValue,
@@ -17,10 +17,13 @@ export default function AutocompleteSede({ value, onSelect }) {
     },
   });
 
+  const containerMarginBottom = dense ? 8 : 24;
+  const inputMarginBottomClass = dense ? 'mb-1' : 'mb-2';
+
   return (
-    <div style={{ position: 'relative', marginBottom: 24, width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ position: 'relative', marginBottom: containerMarginBottom, width: '100%', boxSizing: 'border-box' }}>
       <input
-        className="appearance-none bg-white/10 border-2 border-white/30 text-white font-oswald text-lg px-4 py-3 rounded-lg w-full h-12 transition-all focus:outline-none focus:border-[#0ea9c6cc] focus:shadow-[0_0_0_2px_rgba(14,169,198,0.2)] placeholder:text-white/60 focus:bg-white/10 mb-2 box-border shadow-none"
+        className={`appearance-none bg-white/10 border-2 border-white/30 text-white font-oswald text-lg px-4 py-3 rounded-lg w-full h-12 transition-all focus:outline-none focus:border-[#0ea9c6cc] focus:shadow-[0_0_0_2px_rgba(14,169,198,0.2)] placeholder:text-white/60 focus:bg-white/10 box-border shadow-none ${inputMarginBottomClass}`}
         type="text"
         placeholder="Sede, club o dirección"
         value={inputValue}

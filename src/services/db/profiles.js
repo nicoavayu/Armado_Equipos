@@ -161,6 +161,55 @@ export const getProfile = async (userId) => {
     }
   }
 
+  // Recalculate partidos_jugados from real activity:
+  // - Traditional matches: user is in jugadores + partido estado=finalizado
+  // - Manual matches: partidos_manuales for this user
+  if (data) {
+    try {
+      let realMatchesCount = 0;
+      let manualMatchesCount = 0;
+
+      const { data: jugadorRows, error: jugadorRowsError } = await supabase
+        .from('jugadores')
+        .select('partido_id')
+        .eq('usuario_id', userId);
+      if (jugadorRowsError) throw jugadorRowsError;
+
+      const partidoIds = [...new Set((jugadorRows || []).map((r) => r?.partido_id).filter(Boolean))];
+      if (partidoIds.length > 0) {
+        const { data: finishedMatches, error: finishedError } = await supabase
+          .from('partidos')
+          .select('id')
+          .in('id', partidoIds)
+          .eq('estado', 'finalizado');
+        if (finishedError) throw finishedError;
+        realMatchesCount = (finishedMatches || []).length;
+      }
+
+      const { count: manualCount, error: manualCountError } = await supabase
+        .from('partidos_manuales')
+        .select('id', { count: 'exact', head: true })
+        .eq('usuario_id', userId);
+      if (manualCountError) {
+        // keep compatibility with environments where table might not be available
+        const tableMissing = String(manualCountError?.message || '').toLowerCase().includes('partidos_manuales');
+        if (!tableMissing) throw manualCountError;
+      } else {
+        manualMatchesCount = Number(manualCount || 0);
+      }
+
+      data.partidos_jugados = realMatchesCount + manualMatchesCount;
+      console.log('[GET_PROFILE] partidos_jugados recalculated:', {
+        realMatchesCount,
+        manualMatchesCount,
+        total: data.partidos_jugados,
+      });
+    } catch (matchesError) {
+      console.error('[GET_PROFILE] Error recalculating partidos_jugados:', matchesError);
+      // keep existing field value if recalculation fails
+    }
+  }
+
   // Convert date format for frontend - FORCE conversion
   if (data && data.fecha_nacimiento) {
     let dateValue = data.fecha_nacimiento;

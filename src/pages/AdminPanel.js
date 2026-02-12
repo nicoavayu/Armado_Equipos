@@ -99,6 +99,21 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
   const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0;
   const isRosterFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
+  const canOpenChatFromHeader = Boolean(isAdmin || adminState.isPlayerInMatch);
+
+  const handleHeaderChatClick = () => {
+    if (canOpenChatFromHeader) {
+      setIsChatOpen(true);
+      return;
+    }
+
+    if (adminState.pendingInvitation && !adminState.isPlayerInMatch) {
+      toast.info('Aceptá la invitación para habilitar el chat del partido.');
+      return;
+    }
+
+    toast.info('Sumate al partido para usar el chat.');
+  };
 
   const handleAbandon = async () => {
     if (!adminState.currentPlayerInMatch && !user?.id) return;
@@ -174,7 +189,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
           onJugadoresChange={onJugadoresChange}
           partidoActual={partidoActual}
           onTeamsFormed={handleTeamsFormed}
-          onChatClick={() => setIsChatOpen(true)}
+          onChatClick={handleHeaderChatClick}
           chatUnreadCount={chatUnreadCount}
         />
       ) : (
@@ -183,7 +198,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             title={isAdmin ? 'CONVOCA JUGADORES' : 'TE INVITARON A JUGAR'}
             onBack={onBackToHome}
             showChatButton={true}
-            onChatClick={() => setIsChatOpen(true)}
+            onChatClick={handleHeaderChatClick}
             unreadCount={chatUnreadCount}
           />
 

@@ -5,10 +5,12 @@ import { db } from '../api/supabaseWrapper';
 import { toast } from 'react-toastify';
 import { useAuth } from '../components/AuthProvider';
 import LoadingSpinner from '../components/LoadingSpinner';
+import PageLoadingState from '../components/PageLoadingState';
 import ProfileCard from '../components/ProfileCard';
 import StoryLikeCarousel from '../components/StoryLikeCarousel';
 import { ensureAwards } from '../services/awardsService';
 import { subscribeToMatchUpdates } from '../services/realtimeService';
+import EmptyStateCard from '../components/EmptyStateCard';
 import Logo from '../Logo.png';
 
 const ensurePlayersList = (players) => {
@@ -1265,7 +1267,11 @@ const ResultadosEncuestaView = () => {
   if (loading) {
     return (
       <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
-        <LoadingSpinner size="large" />
+        <PageLoadingState
+          title="CARGANDO RESULTADOS"
+          description="Calculando estadísticas y premios del partido."
+          className="px-4"
+        />
       </div>
     );
   }
@@ -1376,7 +1382,7 @@ const ResultadosEncuestaView = () => {
       {/* Main Card Container */}
       <div className="w-[90vw] max-w-[1100px] mt-[70px] mx-auto py-6 px-4 pb-11 bg-card dark:bg-[#1a1a1a] shadow-fifa-card rounded-[20px] min-h-[82vh] md:w-full md:mt-12 md:shadow-none md:rounded-none relative mb-20">
 
-        <h1 className="text-3xl md:text-4xl text-white  text-center mb-8 uppercase tracking-wider">Resultados de la Encuesta</h1>
+        <h1 className="text-[30px] md:text-4xl leading-[1.05] text-white text-center mb-8 uppercase tracking-wider">Resultados de la Encuesta</h1>
 
         {/* Partido Info */}
         <div className="bg-white/5 rounded-xl p-5 mb-6 border border-white/10 text-center">
@@ -1432,14 +1438,20 @@ const ResultadosEncuestaView = () => {
 
         {/* No Results Message */}
         {(!results || (results && results.estado !== 'finalizado')) && (
-          <div className="text-center py-10 px-5 bg-white/5 rounded-xl mb-6">
-            {results ? (
-              <p className="text-gray-300 text-lg">Los resultados aún no están disponibles. Volvé a intentarlo más tarde.</p>
-            ) : (
-              <p className="text-gray-300 text-lg">No se encontraron resultados para este partido.</p>
-            )}
+          <div className="flex flex-col items-center mb-6">
+            <EmptyStateCard
+              title={results ? 'RESULTADOS EN PROCESO' : 'SIN RESULTADOS DISPONIBLES'}
+              description={
+                results
+                  ? 'Los resultados todavía se están calculando. Volvé a intentar en unos minutos.'
+                  : 'No encontramos resultados para este partido por ahora.'
+              }
+              className="my-0 max-w-[620px]"
+            />
             {awardsStatus === 'insufficient' && (
-              <p className="text-orange-400 mt-2 font-bold">No hay suficientes votos para determinar los resultados.</p>
+              <p className="text-orange-400 mt-3 font-bold text-center">
+                No hay suficientes votos para determinar los resultados.
+              </p>
             )}
           </div>
         )}
@@ -1448,7 +1460,7 @@ const ResultadosEncuestaView = () => {
         <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10">
           <button
             onClick={handleBack}
-            className="px-6 py-3 rounded-lg  text-xl uppercase tracking-wide text-white bg-gray-600 hover:bg-gray-500 transition-colors shadow-lg"
+            className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-white bg-white/15 border border-white/25 hover:bg-white/25 transition-all shadow-lg"
           >
             Volver
           </button>
@@ -1456,7 +1468,7 @@ const ResultadosEncuestaView = () => {
           {results && results.estado !== 'finalizado' && (
             <button
               onClick={handleRetry}
-              className="px-6 py-3 rounded-lg  text-xl uppercase tracking-wide text-white bg-[#0EA9C6] hover:bg-[#0c90a8] transition-colors shadow-lg"
+              className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-white bg-[#0EA9C6] border border-[#38c7df] hover:bg-[#0c90a8] transition-all shadow-lg"
             >
               Reintentar
             </button>
@@ -1465,7 +1477,7 @@ const ResultadosEncuestaView = () => {
           {results && (
             <button
               onClick={handleAnimateBadges}
-              className="px-6 py-3 rounded-lg  text-xl uppercase tracking-wide text-black bg-[#FFD700] hover:bg-[#ffc800] transition-transform hover:scale-105 shadow-[0_0_15px_rgba(255,215,0,0.4)] flex items-center justify-center gap-2"
+              className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-black bg-[#FFD700] border border-[#ffe066] hover:bg-[#ffc800] transition-transform hover:scale-[1.03] shadow-[0_0_15px_rgba(255,215,0,0.4)] flex items-center justify-center gap-2"
             >
               <span>✨</span> Ver Premiación
             </button>
@@ -1493,7 +1505,7 @@ const ResultadosEncuestaView = () => {
                 setLoading(false);
               }
               }}
-              className="px-6 py-3 rounded-lg text-xl uppercase tracking-wide text-black bg-[#FFD700] hover:bg-[#ffc800] transition-transform hover:scale-105 shadow-[0_0_15px_rgba(255,215,0,0.4)] flex items-center justify-center gap-2"
+              className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-black bg-[#FFD700] border border-[#ffe066] hover:bg-[#ffc800] transition-transform hover:scale-[1.03] shadow-[0_0_15px_rgba(255,215,0,0.4)] flex items-center justify-center gap-2"
             >
               <span>✨</span> Ver Premiación
             </button>

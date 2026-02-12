@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../supabase';
 import LoadingSpinner from '../LoadingSpinner';
 import { CalendarClock, Users, Trophy, X, ChevronRight } from 'lucide-react';
-
-const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+import { ensureParticipantsSnapshot } from '../../services/historySnapshotService';
 
 const fmtDateShort = (ymd) => {
   if (!ymd) return '—';
@@ -20,7 +19,18 @@ const fmtTime = (hhmm) => {
   return String(hhmm).slice(0, 5);
 };
 
-function ResultPill({ winnerTeam, scoreline }) {
+function ResultPill({ winnerTeam, scoreline, resultsReady = false }) {
+  if (!resultsReady) {
+    return (
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-300/30">
+        <Trophy size={16} className="text-amber-300" />
+        <div className="font-oswald text-xs text-amber-100 uppercase tracking-wide">
+          Resultados pendientes
+        </div>
+      </div>
+    );
+  }
+
   let label = 'Sin resultado';
   if (winnerTeam === 'equipo_a') label = 'Ganó A';
   if (winnerTeam === 'equipo_b') label = 'Ganó B';
@@ -42,14 +52,17 @@ function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
   const teamA = Array.isArray(snapshot?.team_a) ? snapshot.team_a : [];
   const teamB = Array.isArray(snapshot?.team_b) ? snapshot.team_b : [];
 
-  const nameByUuid = useMemo(() => {
+  const nameByRef = useMemo(() => {
     const m = new Map();
     participants.forEach((p) => {
-      const u = p?.uuid || p?.usuario_id;
-      if (isUuid(u)) m.set(u, p?.nombre || 'Jugador');
+      const keys = [p?.ref, p?.uuid, p?.usuario_id, p?.id].filter(Boolean).map((v) => String(v));
+      keys.forEach((k) => m.set(k, p?.nombre || 'Jugador'));
     });
     return m;
   }, [participants]);
+  const resolveName = (ref) => nameByRef.get(String(ref)) || 'Jugador';
+  const surveySnapshot = resultRow?.snapshot_resultados_encuesta || null;
+  const resultsReady = Boolean(resultRow?.resultados_encuesta_listos);
 
   if (!open) return null;
 
@@ -84,7 +97,7 @@ function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
                 {participants.length ? `${participants.length} jugadores` : 'Participantes no disponibles'}
               </div>
             </div>
-            <ResultPill winnerTeam={resultRow?.winner_team} scoreline={resultRow?.scoreline} />
+            <ResultPill winnerTeam={resultRow?.winner_team} scoreline={resultRow?.scoreline} resultsReady={resultsReady} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -96,7 +109,7 @@ function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
                 <div className="flex flex-col gap-1">
                   {teamA.map((u) => (
                     <div key={u} className="text-white/80 text-sm font-oswald truncate">
-                      {nameByUuid.get(u) || 'Jugador'}
+                      {resolveName(u)}
                     </div>
                   ))}
                 </div>
@@ -110,7 +123,7 @@ function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
                 <div className="flex flex-col gap-1">
                   {teamB.map((u) => (
                     <div key={u} className="text-white/80 text-sm font-oswald truncate">
-                      {nameByUuid.get(u) || 'Jugador'}
+                      {resolveName(u)}
                     </div>
                   ))}
                 </div>
@@ -130,6 +143,21 @@ function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
               </div>
             </div>
           )}
+
+          <div className="bg-black/20 border border-white/10 rounded-2xl p-4">
+            <div className="font-bebas text-lg text-white uppercase tracking-wider mb-2">Resultados de Encuesta</div>
+            {!resultsReady ? (
+              <div className="text-white/60 text-sm font-oswald">
+                Resultados pendientes. La encuesta todavía no cerró.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-1 text-sm font-oswald text-white/80">
+                <div>MVP: {surveySnapshot?.mvp ? resolveName(surveySnapshot.mvp?.player_id || surveySnapshot.mvp) : 'Sin dato'}</div>
+                <div>Más sucio: {surveySnapshot?.mas_sucio?.player_id ? resolveName(surveySnapshot.mas_sucio.player_id) : (surveySnapshot?.mas_sucio ? resolveName(surveySnapshot.mas_sucio) : 'Sin dato')}</div>
+                <div>Ausentes: {Array.isArray(surveySnapshot?.ausentes) ? surveySnapshot.ausentes.length : 0}</div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -155,7 +183,7 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
 
         // 1) Fetch matches for this template (new column preferred, legacy fallback)
         let partidos = [];
-        const baseSelect = 'id, nombre, fecha, hora, sede, estado, template_id, from_frequent_match_id';
+        const baseSelect = 'id, nombre, fecha, hora, sede, estado, template_id';
 
         const { data: byTemplate, error: byTemplateErr } = await supabase
           .from('partidos')
@@ -168,27 +196,41 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
           // Most likely "column template_id does not exist" on old DBs.
           const { data: byLegacy, error: byLegacyErr } = await supabase
             .from('partidos')
-            .select(baseSelect)
+            .select('id, nombre, fecha, hora, sede, estado')
             .eq('from_frequent_match_id', templateId)
             .order('fecha', { ascending: false })
             .limit(80);
-          if (byLegacyErr) throw byLegacyErr;
-          partidos = byLegacy || [];
+          if (byLegacyErr) {
+            const fallbackMsg = String(byLegacyErr?.message || '').toLowerCase();
+            const missingLegacy = fallbackMsg.includes('from_frequent_match_id') && fallbackMsg.includes('does not exist');
+            if (!missingLegacy) throw byLegacyErr;
+            partidos = [];
+          } else {
+            partidos = byLegacy || [];
+          }
         } else {
           partidos = byTemplate || [];
           // Add legacy matches too (if any) without duplicates
-          const { data: byLegacy } = await supabase
+          const { data: byLegacy, error: byLegacyErr } = await supabase
             .from('partidos')
-            .select(baseSelect)
+            .select('id, nombre, fecha, hora, sede, estado')
             .eq('from_frequent_match_id', templateId)
             .order('fecha', { ascending: false })
             .limit(80);
+          if (byLegacyErr) {
+            const fallbackMsg = String(byLegacyErr?.message || '').toLowerCase();
+            const missingLegacy = fallbackMsg.includes('from_frequent_match_id') && fallbackMsg.includes('does not exist');
+            if (!missingLegacy) throw byLegacyErr;
+          }
           const seen = new Set(partidos.map((p) => p.id));
-          (byLegacy || []).forEach((p) => { if (!seen.has(p.id)) partidos.push(p); });
+          ((byLegacyErr ? [] : byLegacy) || []).forEach((p) => { if (!seen.has(p.id)) partidos.push(p); });
           partidos.sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')) || String(b.hora || '').localeCompare(String(a.hora || '')));
         }
 
         const matchIds = (partidos || []).map((p) => Number(p.id)).filter((n) => Number.isFinite(n));
+
+        // Best-effort backfill for phase 1 snapshots (non-blocking for UI).
+        await Promise.all(matchIds.map((id) => ensureParticipantsSnapshot(id)));
 
         // 2) Fetch snapshots (optional)
         const snapMap = new Map();
@@ -206,12 +248,12 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
           // non-blocking
         }
 
-        // 3) Fetch survey_results
+        // 3) Fetch survey_results (includes historical snapshot flags)
         const resMap = new Map();
         if (matchIds.length > 0) {
           const { data: resRows } = await supabase
             .from('survey_results')
-            .select('partido_id, winner_team, scoreline, results_ready')
+            .select('partido_id, winner_team, scoreline, results_ready, resultados_encuesta_listos, snapshot_participantes, snapshot_equipos, snapshot_resultados_encuesta')
             .in('partido_id', matchIds);
           (resRows || []).forEach((r) => resMap.set(Number(r.partido_id), r));
         }
@@ -229,9 +271,25 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
           });
         }
 
+        const mergedSnapshots = new Map();
+        matchIds.forEach((id) => {
+          const teamSnap = snapMap.get(Number(id));
+          const resultRow = resMap.get(Number(id));
+          const surveyParticipants = Array.isArray(resultRow?.snapshot_participantes) ? resultRow.snapshot_participantes : null;
+          const surveyTeams = resultRow?.snapshot_equipos || null;
+
+          mergedSnapshots.set(Number(id), {
+            partido_id: Number(id),
+            participants: surveyParticipants || teamSnap?.participants || [],
+            team_a: Array.isArray(surveyTeams?.team_a) ? surveyTeams.team_a : (teamSnap?.team_a || []),
+            team_b: Array.isArray(surveyTeams?.team_b) ? surveyTeams.team_b : (teamSnap?.team_b || []),
+            teams_json: surveyTeams?.teams_json || teamSnap?.teams_json || null,
+          });
+        });
+
         if (!alive) return;
         setMatches(partidos || []);
-        setSnapshots(snapMap);
+        setSnapshots(mergedSnapshots);
         setResults(resMap);
         setCounts(cntMap);
       } catch (e) {
@@ -297,6 +355,7 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
                   const snap = snapshots.get(mid);
                   const res = results.get(mid);
                   const participantsCount = Array.isArray(snap?.participants) ? snap.participants.length : (counts.get(mid) || 0);
+                  const resultsReady = Boolean(res?.resultados_encuesta_listos);
 
                   return (
                     <button
@@ -326,7 +385,7 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
                             {participantsCount ? `${participantsCount} jugadores` : 'Sin jugadores'}
                           </div>
                         </div>
-                        <ResultPill winnerTeam={res?.winner_team} scoreline={res?.scoreline} />
+                        <ResultPill winnerTeam={res?.winner_team} scoreline={res?.scoreline} resultsReady={resultsReady} />
                       </div>
                     </button>
                   );
@@ -347,4 +406,3 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
     </>
   );
 }
-

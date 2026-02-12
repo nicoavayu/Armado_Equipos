@@ -183,6 +183,22 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
         return;
       }
 
+      const { data: recipientUser, error: recipientError } = await supabase
+        .from('usuarios')
+        .select('acepta_invitaciones')
+        .eq('id', amigo.id)
+        .maybeSingle();
+
+      if (recipientError) {
+        console.error('[MODAL_AMIGOS] Error fetching recipient availability:', recipientError);
+        throw new Error(`Error validando disponibilidad del destinatario: ${recipientError.message}`);
+      }
+
+      if (recipientUser?.acepta_invitaciones === false) {
+        toast.info(`${amigo.nombre} está en no disponible y no recibe invitaciones.`);
+        return;
+      }
+
       const { data: currentUser, error: userError } = await supabase
         .from('usuarios')
         .select('nombre')
@@ -298,6 +314,10 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
       console.error('[MODAL_AMIGOS] Error sending invitation:', error);
       if (error.message.includes('ya fue invitado')) {
         // No mostrar error si ya fue invitado
+        return;
+      }
+      if (error.message.includes('no recibe invitaciones')) {
+        toast.info('Este jugador está en no disponible y no recibe invitaciones.');
         return;
       }
       toast.error('Error al enviar la invitación');

@@ -6,14 +6,15 @@ import { useAuth } from '../components/AuthProvider';
 import { useInterval } from '../hooks/useInterval';
 import { useAmigos } from '../hooks/useAmigos';
 import PageTitle from '../components/PageTitle';
-import LoadingSpinner from '../components/LoadingSpinner';
+import PageLoadingState from '../components/PageLoadingState';
 import InviteAmigosModal from '../components/InviteAmigosModal';
 import InviteToMatchModal from '../components/InviteToMatchModal';
 import PlayerActionModal from '../components/PlayerActionModal';
 import ProfileCardModal from '../components/ProfileCardModal';
 import PlayerMiniCard from '../components/PlayerMiniCard';
+import EmptyStateCard from '../components/EmptyStateCard';
 import { handleError } from '../lib/errorHandler';
-import { User, CheckCircle2, Calendar, Clock, MapPin, Star, Trophy, ListOrdered } from 'lucide-react';
+import { User, CheckCircle2, Calendar, Clock, MapPin, Star, Trophy, ListOrdered, Users, CalendarX2 } from 'lucide-react';
 
 const containerClass = 'flex flex-col items-center min-h-[100dvh] pb-28 px-4 box-border font-oswald';
 
@@ -253,8 +254,12 @@ const QuieroJugar = () => {
 
   if (loading) {
     return (
-      <div className="min-h-[100dvh] w-screen flex items-center justify-center p-0">
-        <LoadingSpinner size="large" />
+      <div className="min-h-[100dvh] w-screen flex items-center justify-center px-4">
+        <PageLoadingState
+          title="CARGANDO PARTIDOS"
+          description="Estamos buscando partidos y jugadores disponibles cerca tuyo."
+          skeletonCards={2}
+        />
       </div>
     );
   }
@@ -353,9 +358,13 @@ const QuieroJugar = () => {
             });
 
             return filteredPartidos.length === 0 ? (
-              <div className="text-white/50 text-sm text-center my-8 bg-white/5 p-8 rounded-2xl w-full max-w-[500px] border border-white/5 border-dashed font-light">
-                No hay partidos buscando jugadores en este momento
-              </div>
+              <EmptyStateCard
+                icon={CalendarX2}
+                title="SIN PARTIDOS ABIERTOS"
+                description="Cuando se publique un partido con cupos disponibles, te va a aparecer acá."
+                actionLabel="CREAR PARTIDO"
+                onAction={() => navigate('/nuevo-partido')}
+              />
             ) : (
               <>
                 {sortedPartidos.map((partido) => {
@@ -416,9 +425,11 @@ const QuieroJugar = () => {
 
 
             {freePlayers.length === 0 ? (
-              <div className="text-white/50 text-sm text-center my-8 bg-white/5 p-8 rounded-2xl w-full max-w-[500px] border border-white/5 border-dashed font-light">
-                No hay otros jugadores disponibles
-              </div>
+              <EmptyStateCard
+                icon={Users}
+                title="SIN JUGADORES DISPONIBLES"
+                description="Todavía no hay jugadores marcados como disponibles cerca tuyo."
+              />
             ) : (
               <>
                 <div className="flex gap-2 mb-4 w-full max-w-[500px]">

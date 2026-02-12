@@ -3,17 +3,23 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import { useAuth } from './AuthProvider';
-import { useKeyboard } from '../hooks/useKeyboard';
 import { subscribeToMatchChat } from '../services/realtimeService';
 // import './MatchChat.css'; // REMOVED
+
+const AUTHOR_COLORS = [
+  '#38bdf8', '#22c55e', '#f59e0b', '#ef4444', '#a78bfa', '#14b8a6',
+  '#f97316', '#60a5fa', '#84cc16', '#e879f9', '#f43f5e', '#10b981',
+  '#facc15', '#c084fc', '#06b6d4', '#fb7185', '#34d399', '#818cf8',
+  '#2dd4bf', '#4ade80', '#fda4af', '#93c5fd',
+];
 
 export default function MatchChat({ partidoId, isOpen, onClose }) {
   const { user, profile } = useAuth();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const { keyboardHeight, isKeyboardOpen } = useKeyboard();
   const messagesEndRef = useRef(null);
+  const scrollLockRef = useRef({ scrollY: 0, locked: false });
 
   useEffect(() => {
     if (isOpen && partidoId) {
@@ -37,13 +43,50 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   }, [isOpen, partidoId]);
 
   useEffect(() => {
-    if (isKeyboardOpen) {
-      // Scroll to bottom when keyboard appears
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
-    }
-  }, [isKeyboardOpen]);
+    if (!isOpen) return undefined;
+
+    const body = document.body;
+    const html = document.documentElement;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    scrollLockRef.current = { scrollY, locked: true };
+
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyPosition = body.style.position;
+    const prevBodyTop = body.style.top;
+    const prevBodyWidth = body.style.width;
+    const prevHtmlOverflow = html.style.overflow;
+
+    body.style.overflow = 'hidden';
+    html.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+
+    return () => {
+      body.style.overflow = prevBodyOverflow;
+      html.style.overflow = prevHtmlOverflow;
+      body.style.position = prevBodyPosition;
+      body.style.top = prevBodyTop;
+      body.style.width = prevBodyWidth;
+
+      if (scrollLockRef.current.locked) {
+        window.scrollTo(0, scrollLockRef.current.scrollY);
+        scrollLockRef.current.locked = false;
+      }
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const t = setTimeout(() => {
+      try {
+        inputRef.current?.focus({ preventScroll: true });
+      } catch (_) {
+        inputRef.current?.focus();
+      }
+    }, 40);
+    return () => clearTimeout(t);
+  }, [isOpen]);
 
   useEffect(() => {
     scrollToBottom();
@@ -97,15 +140,46 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('mensajes_partido')
-        .insert([{
+      const trimmedMessage = newMessage.trim();
+      const { error: rpcError } = await supabase.rpc('send_match_chat_message', {
+        p_partido_id: Number(partidoId),
+        p_autor: userInfo.name,
+        p_mensaje: trimmedMessage,
+      });
+
+      if (rpcError) {
+        const missingFn = rpcError.code === '42883' || String(rpcError.message || '').toLowerCase().includes('send_match_chat_message');
+        if (!missingFn) throw rpcError;
+
+        // Backward compatibility while the RPC migration is being applied.
+        const insertPayload = {
           partido_id: partidoId,
           autor: userInfo.name,
-          mensaje: newMessage.trim(),
-        }]);
+          mensaje: trimmedMessage,
+          user_id: user?.id || null,
+        };
 
-      if (error) throw error;
+        const { error: insertWithUserIdError } = await supabase
+          .from('mensajes_partido')
+          .insert([insertPayload]);
+
+        if (insertWithUserIdError) {
+          const missingUserIdColumn = insertWithUserIdError.code === '42703'
+            || String(insertWithUserIdError.message || '').toLowerCase().includes('user_id');
+
+          if (!missingUserIdColumn) throw insertWithUserIdError;
+
+          const { error: insertFallbackError } = await supabase
+            .from('mensajes_partido')
+            .insert([{
+              partido_id: partidoId,
+              autor: userInfo.name,
+              mensaje: trimmedMessage,
+            }]);
+
+          if (insertFallbackError) throw insertFallbackError;
+        }
+      }
 
       setNewMessage('');
       fetchMessages();
@@ -115,7 +189,12 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
         inputRef.current?.focus();
       }, 10);
     } catch (error) {
-      toast.error('Error enviando mensaje: ' + error.message);
+      const msg = String(error?.message || '');
+      if (msg.toLowerCase().includes('row-level security')) {
+        toast.error('No tenés permiso para escribir en este chat todavía.');
+      } else {
+        toast.error('Error enviando mensaje: ' + msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -128,24 +207,26 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     });
   };
 
+  const getAuthorColor = (author) => {
+    const key = String(author || '').trim().toLowerCase();
+    if (!key) return AUTHOR_COLORS[0];
+    let hash = 0;
+    for (let i = 0; i < key.length; i += 1) {
+      hash = ((hash << 5) - hash) + key.charCodeAt(i);
+      hash |= 0;
+    }
+    return AUTHOR_COLORS[Math.abs(hash) % AUTHOR_COLORS.length];
+  };
+
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000] p-5 pb-24 sm:p-[15px] sm:pt-[max(15px,env(safe-area-inset-top,15px))] sm:items-start sm:h-[100dvh]"
-      style={{
-        paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined,
-      }}
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000] p-5 sm:p-[15px]"
       onClick={onClose}
     >
       <div
         className="bg-slate-900 border-2 border-white/20 w-full max-w-[500px] h-[75vh] max-h-[600px] rounded-xl flex flex-col shadow-[0_30px_120px_rgba(0,0,0,0.55)] mb-5 min-h-[300px] sm:mt-4 sm:h-auto sm:max-h-[calc(100vh-30px)] sm:mb-0 sm:overflow-hidden"
-        style={{
-          marginBottom: keyboardHeight > 0 ? 0 : undefined,
-          maxHeight: keyboardHeight > 0
-            ? `calc(100vh - ${keyboardHeight + 40}px)`
-            : undefined,
-        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col px-5 py-3 border-b border-white/10 bg-slate-800 rounded-t-xl sm:px-4 sm:py-2.5 sm:shrink-0">
@@ -162,15 +243,18 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-[200px] touch-pan-y sm:p-3 bg-slate-900">
-          {messages.map((msg) => (
-            <div key={msg.id} className="bg-slate-800 rounded-lg p-3 border-l-[3px] border-[#0EA9C6]">
-              <div className="flex justify-between items-center mb-1.5">
-                <span className="font-semibold text-[#0EA9C6] font-oswald text-sm">{msg.autor}</span>
-                <span className="text-xs text-white/50">{formatTime(msg.timestamp)}</span>
+          {messages.map((msg) => {
+            const authorColor = getAuthorColor(msg.autor);
+            return (
+              <div key={msg.id} className="bg-slate-800 rounded-lg p-3 border-l-[3px]" style={{ borderLeftColor: authorColor }}>
+                <div className="flex justify-between items-center mb-1.5">
+                  <span className="font-semibold font-oswald text-sm" style={{ color: authorColor }}>{msg.autor}</span>
+                  <span className="text-xs text-white/50">{formatTime(msg.timestamp)}</span>
+                </div>
+                <div className="text-white/90 leading-[1.4] break-words text-sm">{msg.mensaje}</div>
               </div>
-              <div className="text-white/90 leading-[1.4] break-words text-sm">{msg.mensaje}</div>
-            </div>
-          ))}
+            );
+          })}
           <div ref={messagesEndRef} />
         </div>
 
@@ -184,7 +268,6 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
             onKeyPress={(e) => e.key === 'Enter' && !loading && newMessage.trim() && handleSendMessage()}
             disabled={loading}
             ref={inputRef}
-            autoFocus
           />
           <button
             onClick={handleSendMessage}

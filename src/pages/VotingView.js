@@ -13,12 +13,13 @@ import DOMPurify from 'dompurify';
 import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
 import { db } from '../api/supabaseWrapper';
 import { resolveMatchIdFromQueryParams } from '../utils/matchResolver';
-import LoadingSpinner from '../components/LoadingSpinner';
 import PageTitle from '../components/PageTitle';
 import MatchInfoSection from '../components/MatchInfoSection';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import StarRating from '../components/StarRating';
 import { AvatarFallback } from '../components/ProfileComponents';
+import EmptyStateCard from '../components/EmptyStateCard';
+import PageLoadingState from '../components/PageLoadingState';
 
 // Styles are now handled via Tailwind CSS
 // Legacy styles: src/pages/LegacyVoting.css (for other components)
@@ -266,9 +267,9 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const wrapperClass = 'min-h-[100dvh] w-screen p-0 flex flex-col';
   const cardClass = 'w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-5';
   // Updated title class to match Legacy 'voting-title-modern' but with Tailwind
-  const titleClass = 'font-bebas text-[46px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-lg';
+  const titleClass = 'font-bebas text-[40px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-lg';
   const btnClass = 'font-bebas text-[27px] md:text-[28px] text-white bg-primary border-2 border-white/20 rounded-2xl tracking-wide py-4 mt-4 w-full cursor-pointer font-bold transition-all duration-300 hover:brightness-110 hover:shadow-[0_4px_20px_rgba(129,120,229,0.5)] disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden flex items-center justify-center';
-  const textClass = 'text-white text-[26px] font-oswald text-center mb-[30px] tracking-wide';
+  const textClass = 'text-white text-[21px] md:text-[26px] font-oswald text-center mb-[30px] tracking-wide';
 
   // Guard: Check if should show final screen (happy path or already voted)
   const shouldShowFinal = publicAlreadyVoted || usuarioYaVoto || finalizado;
@@ -294,14 +295,13 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <div className={titleClass}>
             {publicAlreadyVoted ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
           </div>
-          <div className={`${textClass} text-[27px] mb-[27px] tracking-[1.1px]`}>
+          <div className={`${textClass} text-[22px] md:text-[25px] leading-[1.25] mb-[27px] tracking-[0.8px]`}>
             {publicAlreadyVoted
               ? 'Tus votos ya fueron registrados ✅'
-              : 'Tus votos fueron registrados.\nPodés cerrar esta ventana.'}
+              : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
           </div>
           <button
-            className={btnClass}
-            style={{ marginTop: 16 }}
+            className={`${btnClass} mt-4`}
             onClick={handleFinalAction}
           >VOLVER</button>
         </div>
@@ -320,14 +320,13 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <div className={titleClass}>
             {publicAlreadyVoted || usuarioYaVoto ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
           </div>
-          <div className={`${textClass} text-[27px] mb-[27px] tracking-[1.1px]`}>
+          <div className={`${textClass} text-[22px] md:text-[25px] leading-[1.25] mb-[27px] tracking-[0.8px]`}>
             {publicAlreadyVoted || usuarioYaVoto
               ? 'Tus votos ya fueron registrados ✅'
-              : 'Tus votos fueron registrados.\nPodés cerrar esta ventana.'}
+              : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
           </div>
           <button
-            className={btnClass}
-            style={{ marginTop: 16 }}
+            className={`${btnClass} mt-4`}
             onClick={onReset}
           >VOLVER</button>
         </div>
@@ -424,7 +423,10 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     return (
       <div className={wrapperClass}>
         <div className={cardClass}>
-          <LoadingSpinner size="large" />
+          <PageLoadingState
+            title="VALIDANDO VOTACIÓN"
+            description="Chequeando tu acceso al partido."
+          />
         </div>
       </div>
     );
@@ -484,31 +486,38 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         <div className={cardClass}>
           <div className={titleClass}>¿QUIÉN SOS?</div>
-          <div className="grid grid-cols-2 gap-4 w-full max-w-[400px] mb-[18px]">
-            {jugadoresIdentificacion.map((j) => (
+          {jugadoresIdentificacion.length === 0 ? (
+            <EmptyStateCard
+              title="SIN JUGADORES PARA IDENTIFICAR"
+              description="Este link no tiene invitados válidos para votar en este partido."
+              actionLabel="VOLVER AL INICIO"
+              onAction={onReset}
+              className="max-w-[400px] my-2"
+            />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4 w-full max-w-[400px] mb-[18px]">
+                {jugadoresIdentificacion.map((j) => (
+                  <button
+                    key={j.uuid || j.id || j.nombre}
+                    className={`w-full bg-white/5 border border-white/20 text-white font-bebas text-2xl md:text-[2rem] py-3 text-center cursor-pointer transition-all hover:bg-white/15 min-h-[48px] flex items-center justify-center rounded-xl ${nombre === j.nombre ? 'bg-primary/40 border-primary' : ''}`}
+                    onClick={() => setNombre(j.nombre)}
+                    type="button"
+                  >
+                    <span className="relative z-10">{clean(j.nombre)}</span>
+                  </button>
+                ))}
+              </div>
               <button
-                key={j.uuid || j.id || j.nombre}
-                className={`w-full bg-white/5 border border-white/20 text-white font-bebas text-2xl md:text-[2rem] py-3 text-center cursor-pointer transition-all hover:bg-white/15 min-h-[48px] flex items-center justify-center rounded-xl ${nombre === j.nombre ? 'bg-primary/40 border-primary' : ''}`}
-                onClick={() => setNombre(j.nombre)}
-                type="button"
+                className={btnClass}
+                disabled={!nombre}
+                style={{ opacity: nombre ? 1 : 0.4, pointerEvents: nombre ? 'auto' : 'none' }}
+                onClick={handleConfirmNombre}
               >
-                <span className="relative z-10">{clean(j.nombre)}</span>
+                {checkingPublicVoter ? 'VERIFICANDO...' : 'CONFIRMAR'}
               </button>
-            ))}
-          </div>
-          {jugadoresIdentificacion.length === 0 && (
-            <div className="text-white/70 text-sm font-oswald text-center mb-2">
-              No hay jugadores invitados para identificarse en esta votación.
-            </div>
+            </>
           )}
-          <button
-            className={btnClass}
-            disabled={!nombre || jugadoresIdentificacion.length === 0}
-            style={{ opacity: nombre && jugadoresIdentificacion.length > 0 ? 1 : 0.4, pointerEvents: nombre && jugadoresIdentificacion.length > 0 ? 'auto' : 'none' }}
-            onClick={handleConfirmNombre}
-          >
-            {checkingPublicVoter ? 'VERIFICANDO...' : 'CONFIRMAR'}
-          </button>
         </div>
       </div>
     );
@@ -675,7 +684,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             </div>
 
             <button
-              className={`${btnClass} mt-[35px] mb-0 font-normal hover:shadow-none hover:brightness-105`}
+              className={`${btnClass} !w-auto !min-w-[230px] !px-8 !py-2.5 !text-[16px] md:!text-[18px] mt-6 mb-0 mx-auto font-normal tracking-[1px] hover:shadow-none hover:brightness-105`}
               onClick={() => {
                 if (animating) return;
                 setAnimating(true);
@@ -736,8 +745,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             </div>
           )}
           <button
-            className={btnClass}
-            style={{ fontWeight: 700, letterSpacing: '1.2px', marginTop: 'auto', minHeight: '44px' }}
+            className="w-full font-bebas text-[20px] md:text-[22px] text-white bg-primary border border-white/20 rounded-xl tracking-wider py-3.5 mt-4 font-bold transition-all duration-300 hover:brightness-110 hover:shadow-[0_6px_20px_rgba(129,120,229,0.45)] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ marginTop: 'auto', minHeight: '44px' }}
             disabled={isSubmitting || hasAccess === false || hasAccess === null}
             onClick={async () => {
               // Anti-double submit guard
@@ -1034,7 +1043,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               }
             }}
           >
-            {isSubmitting ? 'GUARDANDO...' : 'CONFIRMAR MIS VOTOS'}
+            {isSubmitting ? 'GUARDANDO...' : 'CONFIRMAR'}
           </button>
         </div>
       </div>
@@ -1051,14 +1060,13 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <div className={titleClass}>
             {publicAlreadyVoted ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
           </div>
-          <div className={`${textClass} text-[27px] mb-[27px] tracking-[1.1px]`}>
+          <div className={`${textClass} text-[22px] md:text-[25px] leading-[1.25] mb-[27px] tracking-[0.8px]`}>
             {publicAlreadyVoted
               ? 'Tus votos ya fueron registrados ✅'
-              : 'Tus votos fueron registrados.\nPodés cerrar esta ventana.'}
+              : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
           </div>
           <button
-            className={btnClass}
-            style={{ marginTop: 16 }}
+            className={`${btnClass} mt-4`}
             onClick={handleFinalAction}
           >VOLVER</button>
         </div>

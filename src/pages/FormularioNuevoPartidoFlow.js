@@ -270,7 +270,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
       if (shouldSaveFrequent === true) {
         console.log('[NuevoPartido] will insert frequent template for partido match_ref:', partido?.match_ref);
         try {
-          await insertPartidoFrecuenteFromPartido(partido?.match_ref);
+          await insertPartidoFrecuenteFromPartido(partido?.match_ref ?? partido?.id);
           toast.success('Plantilla guardada');
         } catch (err) {
           console.error('[Guardar frecuente] error inserting frequent template:', err);

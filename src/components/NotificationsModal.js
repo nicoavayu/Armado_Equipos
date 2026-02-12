@@ -9,6 +9,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { openNotification } from '../utils/notificationRouter';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import LoadingSpinner from './LoadingSpinner';
+import EmptyStateCard from './EmptyStateCard';
 
 const NotificationsModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
@@ -292,12 +293,13 @@ const NotificationsModal = ({ isOpen, onClose }) => {
               <LoadingSpinner size="medium" />
             </div>
           ) : notifications.length === 0 ? (
-            <div className="text-center text-[#999] py-20 px-5 text-base leading-relaxed">
-              <div className="mb-4 opacity-50 flex justify-center">
-                <Bell size={48} />
-              </div>
-              <p className="my-2 text-lg font-medium text-[#ccc]">No tienes notificaciones</p>
-              <span className="text-sm text-[#666]">Te avisaremos cuando tengas algo nuevo</span>
+            <div className="px-4">
+              <EmptyStateCard
+                icon={Bell}
+                title="SIN NOTIFICACIONES"
+                description="Te avisaremos cuando tengas novedades de partidos, encuestas o invitaciones."
+                className="my-10"
+              />
             </div>
           ) : (
             <div className="p-0">

@@ -129,6 +129,18 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
 
         setInviting(true);
         try {
+            const { data: targetUserRow, error: targetUserError } = await supabase
+                .from('usuarios')
+                .select('acepta_invitaciones')
+                .eq('id', targetUserId)
+                .maybeSingle();
+
+            if (targetUserError) throw targetUserError;
+            if (targetUserRow?.acepta_invitaciones === false) {
+                toast.info(`${targetName} está en no disponible y no recibe invitaciones.`);
+                return;
+            }
+
             const { data: currentUser } = await supabase
                 .from('usuarios')
                 .select('nombre')

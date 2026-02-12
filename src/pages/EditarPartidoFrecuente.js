@@ -226,6 +226,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
       if (sede !== undefined) updatesFrecuente.sede = sede;
       if (hora !== undefined) updatesFrecuente.hora = time24;
       if (fecha !== undefined) updatesFrecuente.dia_semana = weekdayFromYMD(fecha);
+      if (fecha !== undefined) updatesFrecuente.fecha = fecha;
       if (tipoPartido !== undefined) updatesFrecuente.tipo_partido = tipoPartido;
       if (modalidad !== undefined) updatesFrecuente.modalidad = modalidad;
       if (precioVal !== undefined) {
@@ -237,7 +238,19 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
       // Update frequent template only (no partido updates here)
       if (Object.keys(updatesFrecuente).length > 0) {
         console.log('[EditarPartidoFrecuente] Actualizando partidos_frecuentes', updatesFrecuente);
-        const resFrecuente = await updatePartidoFrecuente(partido.id, updatesFrecuente);
+        let resFrecuente;
+        try {
+          resFrecuente = await updatePartidoFrecuente(partido.id, updatesFrecuente);
+        } catch (err) {
+          // Backward-compat: some DBs may not have `fecha` column on partidos_frecuentes.
+          const msg = String(err?.message || '').toLowerCase();
+          const isFechaColumnError = msg.includes('fecha') && msg.includes('column') && (msg.includes('does not exist') || msg.includes('no existe'));
+          if (!isFechaColumnError) throw err;
+          const fallbackUpdates = { ...updatesFrecuente };
+          delete fallbackUpdates.fecha;
+          console.warn('[EditarPartidoFrecuente] retry without fecha column', { message: err?.message });
+          resFrecuente = await updatePartidoFrecuente(partido.id, fallbackUpdates);
+        }
         if (resFrecuente && typeof resFrecuente === 'object' && 'error' in resFrecuente && resFrecuente.error) {
           throw resFrecuente.error;
         }
@@ -292,7 +305,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
   };
 
   return (
-    <div className="min-h-[100dvh] bg-transparent w-full px-5 flex flex-col items-center justify-start font-oswald box-border pb-28 pt-24">
+    <div className="bg-transparent w-full px-5 flex flex-col items-center justify-start font-oswald box-border pb-24 pt-24">
       <PageTitle title="EDITAR" onBack={onVolver}>EDITAR</PageTitle>
       <div className="w-full max-w-[520px] flex flex-col gap-5 mt-6">
 
@@ -362,6 +375,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
               Sede
             </label>
             <AutocompleteSede
+              dense
               value={sede}
               onSelect={(info) => {
                 setSede(info.description);
@@ -413,7 +427,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
               Modalidad
             </label>
             <div className="grid grid-cols-3 gap-3 w-full">
-              {['F5', 'F7', 'F11'].map((mod) => (
+              {['F5', 'F6', 'F7', 'F8', 'F9', 'F11'].map((mod) => (
                 <button
                   key={mod}
                   type="button"

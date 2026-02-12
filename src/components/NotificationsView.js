@@ -6,6 +6,7 @@ import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import { useNotifications } from '../context/NotificationContext';
 import { useAmigos } from '../hooks/useAmigos';
 import { useAuth } from './AuthProvider';
+import EmptyStateCard from './EmptyStateCard';
 
 import { toast } from 'react-toastify';
 
@@ -327,12 +328,14 @@ const NotificationsView = () => {
     >
       <div className="w-full max-w-[600px] mx-auto">
         {notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-[60px] px-5 text-center">
-            <div className="mb-4 opacity-60">
-              <Bell size={48} />
-            </div>
-            <p className="text-white font-oswald text-lg font-semibold m-0 mb-2">No tienes notificaciones</p>
-            <span className="text-white/70 text-sm m-0">Aquí aparecerán tus notificaciones cuando las recibas</span>
+          <div className="flex justify-center">
+            <EmptyStateCard
+              icon={Bell}
+              title="SIN NOTIFICACIONES"
+              description="Cuando pase algo importante en tus partidos, te lo mostramos acá."
+              actionLabel="VER PARTIDOS"
+              onAction={() => navigate('/quiero-jugar')}
+            />
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3">

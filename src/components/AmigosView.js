@@ -208,9 +208,9 @@ const AmigosView = () => {
   }
 
   return (
-    <div className="p-5 w-full m-0 pt-[10px] box-border sm:p-[10px] md:max-w-7xl md:mx-auto">
+    <div className="w-full m-0 pt-[10px] box-border">
       {/* Search section */}
-      <div className="flex justify-center w-full my-[10px] mb-[12px] relative box-border z-10 max-w-[98vw] sm:max-w-[99vw]">
+      <div className="flex justify-center w-full my-[10px] mb-[12px] relative box-border z-10">
         <input
           type="text"
           placeholder="Buscar usuarios por nombre o email..."
@@ -223,7 +223,7 @@ const AmigosView = () => {
               setSearchResults([]);
             }
           }}
-          className="w-[95%] max-w-none p-[16px_20px] text-[15px] border border-white/20 rounded-2xl bg-white/5 text-white font-oswald box-border placeholder-white/30 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md sm:text-[14px] sm:p-[14px_10px]"
+          className="w-full p-[16px_20px] text-[15px] border border-white/20 rounded-2xl bg-white/5 text-white font-oswald box-border placeholder-white/30 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md sm:text-[14px] sm:p-[14px_10px]"
         />
 
         {/* Search results */}
@@ -257,7 +257,7 @@ const AmigosView = () => {
 
       {/* Pending requests section */}
       {pendingRequests.length > 0 && (
-        <div className="flex flex-col items-center mb-5 md:mb-8 w-full max-w-4xl mx-auto">
+        <div className="flex flex-col items-center mb-5 md:mb-8 w-full max-w-[500px] mx-auto">
           <h3 className="text-xl font-semibold my-[20px] mb-[15px] text-white">Solicitudes Pendientes</h3>
           <div className="flex flex-col gap-2.5 w-full">
             {pendingRequests.map((request) => (
@@ -303,7 +303,7 @@ const AmigosView = () => {
         const hasAmigos = Array.isArray(amigos) && amigos.length > 0;
 
         return hasAmigos ? (
-          <div className="flex flex-col items-center mb-[350px] w-full max-w-4xl mx-auto relative z-0">
+          <div className="flex flex-col items-center mb-[350px] w-full max-w-[500px] mx-auto relative z-0">
             <h3 className="text-xl font-semibold my-[20px] mb-[15px] text-white">Mis Amigos ({amigos.length})</h3>
             <div className="flex flex-col gap-2 mt-[15px] w-full max-w-none overflow-visible sm:gap-1.5">
               {amigos.map((amigo) => (

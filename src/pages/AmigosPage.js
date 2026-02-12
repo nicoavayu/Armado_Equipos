@@ -9,9 +9,11 @@ const AmigosPage = () => {
   return (
     <PageTransition>
       <div className="min-h-[100dvh] pb-24 pt-[80px]">
-        <div className="w-full max-w-7xl mx-auto px-4">
-          <PageTitle title="AMIGOS" onBack={() => navigateWithAnimation('/', 'back')}>AMIGOS</PageTitle>
-          <AmigosView />
+        <PageTitle title="AMIGOS" onBack={() => navigateWithAnimation('/', 'back')}>AMIGOS</PageTitle>
+        <div className="w-full flex flex-col items-center px-4">
+          <div className="w-full max-w-[500px]">
+            <AmigosView />
+          </div>
         </div>
       </div>
     </PageTransition>

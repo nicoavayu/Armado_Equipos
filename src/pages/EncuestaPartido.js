@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
 import { useAuth } from '../components/AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
-import LoadingSpinner from '../components/LoadingSpinner';
+import PageLoadingState from '../components/PageLoadingState';
 import PageTransition from '../components/PageTransition';
 import { finalizeIfComplete } from '../services/surveyCompletionService';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
@@ -317,12 +317,12 @@ const EncuestaPartido = () => {
   // Helper classes for consistency
   const _wrapperClass = 'min-h-[100dvh] bg-fifa-gradient w-full p-0 flex flex-col overflow-x-hidden';
   const cardClass = 'w-[90%] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-5 relative';
-  const titleClass = 'font-bebas text-[38px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-md break-words w-full';
+  const titleClass = 'font-bebas text-[34px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-md break-words w-full';
   const btnClass = 'font-bebas text-[22px] md:text-[24px] text-white bg-primary border border-white/40 rounded-xl tracking-wide py-3.5 px-4 mt-4 w-full cursor-pointer font-bold transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden flex items-center justify-center min-h-[64px] shadow-[0_10px_30px_rgba(129,120,229,0.35)]';
   const optionBtnClass = 'w-full bg-white/10 border border-white/30 text-white font-bebas text-[22px] md:text-[24px] py-3 text-center cursor-pointer transition-all hover:bg-white/16 active:scale-[0.98] flex items-center justify-center min-h-[64px] rounded-xl shadow-[0_6px_18px_rgba(0,0,0,0.25)] tracking-wide';
   const optionBtnSelectedClass = 'bg-primary border-white/80 shadow-[0_8px_24px_rgba(129,120,229,0.45)]';
   const gridClass = 'grid grid-cols-2 gap-4 w-full max-w-[400px] mx-auto mb-[18px]';
-  const textClass = 'text-white text-[20px] font-oswald text-center mb-[30px] font-normal tracking-wide';
+  const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center mb-[30px] font-normal tracking-wide';
 
   // Animation style
   const animationStyle = `
@@ -337,7 +337,10 @@ const EncuestaPartido = () => {
       <PageTransition>
         <div className="min-h-[100dvh] w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className={cardClass}>
-            <LoadingSpinner size="large" />
+            <PageLoadingState
+              title="CARGANDO ENCUESTA"
+              description="Estamos preparando los datos del partido."
+            />
           </div>
         </div>
       </PageTransition>
@@ -601,7 +604,7 @@ const EncuestaPartido = () => {
               <div className="flex justify-center w-full mb-5">
                 <input
                   type="text"
-                  className="w-[90%] p-4 text-center font-oswald text-[19px] bg-white/90 border-[1.5px] border-[#eceaf1] rounded-none text-[#333] outline-none transition-all placeholder:text-gray-500 focus:border-[#0EA9C6] focus:bg-white"
+                  className="w-full max-w-[420px] h-14 px-4 text-center font-oswald text-[20px] bg-white/90 border-[1.5px] border-[#eceaf1] rounded-xl text-[#333] outline-none transition-all placeholder:text-gray-500 focus:border-[#0EA9C6] focus:bg-white"
                   value={formData.resultado || ''}
                   onChange={(e) => handleInputChange('resultado', e.target.value)}
                   placeholder="¿Te acordás cómo salió?"
@@ -674,33 +677,28 @@ const EncuestaPartido = () => {
               <div className={titleClass}>
                 ¿POR QUÉ NO SE JUGÓ?
               </div>
-              <div className="flex justify-center w-full mb-5">
+              <div className="flex justify-center w-full">
                 <textarea
-                  className="w-[90%] h-20 p-4 text-center font-oswald text-[19px] bg-white/90 border-[1.5px] border-[#eceaf1] rounded-lg text-[#333] outline-none transition-all placeholder:text-gray-500 focus:bg-white focus:border-[#0EA9C6] resize-none"
+                  className="w-full h-32 md:h-36 p-5 text-left font-oswald text-[20px] md:text-[22px] bg-white/90 border-[1.5px] border-[#eceaf1] rounded-xl text-[#333] outline-none transition-all placeholder:text-gray-500 focus:bg-white focus:border-[#0EA9C6] resize-none"
                   value={formData.motivo_no_jugado || ''}
                   onChange={(e) => handleInputChange('motivo_no_jugado', e.target.value)}
                   placeholder="Explica por qué no se pudo jugar..."
                 />
               </div>
+              <div className="w-full mt-10 flex flex-col gap-4">
               <button
-                className={btnClass}
+                className={`${btnClass} !mt-0 !bg-[#DE1C49] !border-[#DE1C49]`}
                 onClick={() => setCurrentStep(11)}
-                style={{
-                  backgroundColor: '#DE1C49',
-                  borderColor: '#DE1C49',
-                  marginBottom: 15,
-                  marginTop: 0,
-                }}
               >
                 AUSENCIA SIN AVISO
               </button>
               <button
-                className={btnClass}
+                className={`${btnClass} !mt-0`}
                 onClick={continueSubmitFlow}
-                style={{ marginTop: 0 }}
               >
                 FINALIZAR
               </button>
+              </div>
             </div>
           )}
 

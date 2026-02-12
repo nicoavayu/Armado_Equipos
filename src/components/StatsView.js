@@ -56,6 +56,40 @@ const StatsView = ({ onVolver }) => {
   });
   const [loading, setLoading] = useState(true);
 
+  const normalizeIdentity = (value) => String(value || '').trim().toLowerCase();
+  const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+  const getUserIdentitySet = () => {
+    const refs = [
+      user?.id,
+      user?.email,
+      user?.user_metadata?.email,
+      user?.user_metadata?.name,
+      user?.user_metadata?.full_name,
+    ]
+      .map(normalizeIdentity)
+      .filter(Boolean);
+    return new Set(refs);
+  };
+  const getPlayerIdentityCandidates = (jugador) => {
+    if (!jugador) return [];
+    return [
+      jugador.usuario_id,
+      jugador.user_id,
+      jugador.uuid,
+      jugador.id,
+      jugador.auth_id,
+      jugador.email,
+      jugador.nombre,
+    ]
+      .map(normalizeIdentity)
+      .filter(Boolean);
+  };
+  const isCurrentUserPlayer = (jugador) => {
+    const userRefs = getUserIdentitySet();
+    const candidates = getPlayerIdentityCandidates(jugador);
+    return candidates.some((c) => userRefs.has(c));
+  };
+
   useEffect(() => {
     if (user) {
       loadStats();
@@ -156,11 +190,11 @@ const StatsView = ({ onVolver }) => {
     if (error) throw error;
 
     const userPartidos = partidos.filter((partido) =>
-      partido.jugadores?.some((j) => j.uuid === user.id || j.nombre === user.email),
+      partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
     );
 
     const ratings = userPartidos.map((p) => {
-      const userPlayer = p.jugadores?.find((j) => j.uuid === user.id || j.nombre === user.email);
+      const userPlayer = p.jugadores?.find((j) => isCurrentUserPlayer(j));
       return userPlayer?.score || 5;
     });
     const promedioRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
@@ -188,7 +222,7 @@ const StatsView = ({ onVolver }) => {
     if (error) throw error;
 
     const userPartidos = partidos.filter((partido) =>
-      partido.jugadores?.some((j) => j.uuid === user.id || j.nombre === user.email),
+      partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
     );
 
     const amigosCount = {};
@@ -196,21 +230,21 @@ const StatsView = ({ onVolver }) => {
 
     userPartidos.forEach((partido) => {
       partido.jugadores?.forEach((jugador) => {
-        if (jugador.uuid !== user.id && jugador.nombre !== user.email) {
-          const key = jugador.uuid || jugador.nombre;
+        if (!isCurrentUserPlayer(jugador)) {
+          const key = jugador.usuario_id || jugador.uuid || jugador.id || jugador.nombre;
           amigosCount[key] = (amigosCount[key] || 0) + 1;
           if (!amigosInfo[key]) {
             amigosInfo[key] = {
               nombre: jugador.nombre || key,
               avatar: jugador.foto_url || '/profile.svg',
-              uuid: jugador.uuid,
+              userId: jugador.usuario_id || jugador.uuid || null,
             };
           }
         }
       });
     });
 
-    const userIds = Object.keys(amigosInfo).filter((key) => amigosInfo[key].uuid);
+    const userIds = [...new Set(Object.values(amigosInfo).map((a) => a.userId).filter((id) => isUuid(id)))];
     if (userIds.length > 0) {
       const { data: profiles } = await supabase
         .from('usuarios')
@@ -218,11 +252,13 @@ const StatsView = ({ onVolver }) => {
         .in('id', userIds);
 
       profiles?.forEach((profile) => {
-        if (amigosInfo[profile.id]) {
-          amigosInfo[profile.id].nombre = profile.nombre;
-          amigosInfo[profile.id].avatar = profile.avatar_url || '/profile.svg';
-          amigosInfo[profile.id].lesion_activa = profile.lesion_activa;
-        }
+        Object.keys(amigosInfo).forEach((key) => {
+          if (amigosInfo[key]?.userId === profile.id) {
+            amigosInfo[key].nombre = profile.nombre;
+            amigosInfo[key].avatar = profile.avatar_url || '/profile.svg';
+            amigosInfo[key].lesion_activa = profile.lesion_activa;
+          }
+        });
       });
     }
 
@@ -243,7 +279,7 @@ const StatsView = ({ onVolver }) => {
 
   const calculateLogros = async (allPartidos) => {
     const userPartidos = allPartidos.filter((partido) =>
-      partido.jugadores?.some((j) => j.uuid === user.id || j.nombre === user.email),
+      partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
     );
 
     const annualLogros = [];
@@ -251,12 +287,12 @@ const StatsView = ({ onVolver }) => {
 
     // Obtener total histórico de todos los partidos
     const [{ data: todosPartidos }, { data: partidosManualesHistoricos }] = await Promise.all([
-      supabase.from('partidos').select('*').eq('estado', 'finalizado'),
+      supabase.from('partidos_view').select('id, jugadores').eq('estado', 'finalizado'),
       supabase.from('partidos_manuales').select('*').eq('usuario_id', user.id),
     ]);
 
     const totalPartidosNormales = todosPartidos?.filter((partido) =>
-      partido.jugadores?.some((j) => j.uuid === user.id || j.nombre === user.email),
+      partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
     ).length || 0;
 
     const totalPartidosManuales = partidosManualesHistoricos?.length || 0;
@@ -306,7 +342,7 @@ const StatsView = ({ onVolver }) => {
     let mejorRating = 0;
     if (userPartidos.length > 0) {
       const ratings = userPartidos.map((p) => {
-        const userPlayer = p.jugadores?.find((j) => j.uuid === user.id || j.nombre === user.email);
+        const userPlayer = p.jugadores?.find((j) => isCurrentUserPlayer(j));
         return userPlayer?.score || 5;
       });
       mejorRating = Math.max(...ratings);
