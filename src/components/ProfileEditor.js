@@ -232,7 +232,7 @@ const ProfileEditorForm = ({
             }}
             disabled={loading}
           >
-            Tutorial
+            Ver tutorial
           </button>
 
           <button
@@ -240,7 +240,7 @@ const ProfileEditorForm = ({
             onClick={handleLogout}
             disabled={loading}
           >
-            Salir
+            Cerrar sesión
           </button>
         </div>
       </div>
@@ -849,7 +849,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 }}
                 disabled={loading}
               >
-                Tutorial
+                Ver tutorial
               </button>
 
               <button
@@ -857,7 +857,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 onClick={handleLogout}
                 disabled={loading}
               >
-                Salir
+                Cerrar sesión
               </button>
             </div>
           </div>
