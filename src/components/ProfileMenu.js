@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, uploadFoto, supabase } from '../supabase';
@@ -8,6 +9,7 @@ import PartidosPendientesNotification from './PartidosPendientesNotification';
 import { addFreePlayer, removeFreePlayer } from '../services';
 
 export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
+  const navigate = useNavigate();
   const { user, profile, refreshProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -146,6 +148,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     onClose();
+    navigate('/login', { replace: true });
   };
 
   const positions = [

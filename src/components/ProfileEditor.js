@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, supabase } from '../supabase';
@@ -248,6 +249,7 @@ const ProfileEditorForm = ({
 };
 
 function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
+  const navigate = useNavigate();
   const { user, profile, refreshProfile } = useAuth();
   const { replayTutorial } = useTutorial();
   const [loading, setLoading] = useState(false);
@@ -435,7 +437,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
     onClose();
-  }, [onClose]);
+    navigate('/login', { replace: true });
+  }, [onClose, navigate]);
 
   const handleGeolocation = useCallback(() => {
     if (!navigator.geolocation) {

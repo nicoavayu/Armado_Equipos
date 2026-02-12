@@ -11,6 +11,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 
 import MainLayout from './components/MainLayout';
 import AuthPage from './components/AuthPage';
+import { setAuthReturnTo } from './utils/authReturnTo';
 import ResetPassword from './components/ResetPassword'; // Import corrected
 
 
@@ -24,6 +25,7 @@ const EncuestaPartido = lazy(() => import('./pages/EncuestaPartido'));
 const ResultadosEncuestaView = lazy(() => import('./pages/ResultadosEncuestaView'));
 const HealthCheck = lazy(() => import('./pages/HealthCheck'));
 const VotarEquiposPage = lazy(() => import('./pages/VotarEquiposPage'));
+const AuthHome = lazy(() => import('./components/AuthHome'));
 const EmailMagicLinkLogin = lazy(() => import('./components/EmailMagicLinkLogin'));
 const AuthCallback = lazy(() => import('./components/AuthCallback'));
 const InviteLanding = lazy(() => import('./components/InviteLanding'));
@@ -85,6 +87,12 @@ export default function App() {
                       </Suspense>
                     } />
                     <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/login" element={
+                      <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                        <AuthHome />
+                      </Suspense>
+                    } />
+                    <Route path="/login/password" element={<PasswordLoginRoute />} />
                     <Route path="/login/email" element={
                       <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
                         <EmailMagicLinkLogin />
@@ -218,7 +226,9 @@ function AppAuthWrapper() {
   }
 
   if (!user) {
-    return <AuthPage />;
+    const returnTo = `${location.pathname}${location.search}${location.hash}`;
+    setAuthReturnTo(returnTo);
+    return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />;
   }
 
   return <Outlet />;
@@ -232,4 +242,13 @@ function LegacyTemplateRedirect() {
 function LegacyTemplateHistoryRedirect() {
   const { templateId } = useParams();
   return <Navigate to={`/frecuentes/${templateId}/historial`} replace />;
+}
+
+function PasswordLoginRoute() {
+  const hostname = window.location.hostname;
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+  if (isLocalhost) {
+    return <Navigate to="/login" replace />;
+  }
+  return <AuthPage />;
 }

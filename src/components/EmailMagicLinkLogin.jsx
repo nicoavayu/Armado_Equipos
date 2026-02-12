@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { setAuthReturnTo } from '../utils/authReturnTo';
+import logo from '../Logo.png';
 
 function parseReturnTo(search) {
   const sp = new URLSearchParams(search || '');
@@ -50,8 +51,13 @@ export default function EmailMagicLinkLogin() {
 
   return (
     <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-white/20 bg-[#1a1f46]/90 p-6">
-        <h1 className="font-bebas-neue text-4xl text-white tracking-wide">Continuar con email</h1>
+      <div className="w-full max-w-md">
+        <div className="mb-[20px] text-center">
+          <img src={logo} alt="ARMA2" className="max-w-full h-[112px] w-auto object-contain mx-auto" />
+        </div>
+
+        <div className="rounded-2xl border border-white/20 bg-[#1a1f46]/90 p-6">
+        <h1 className="font-bebas-neue text-4xl max-[480px]:text-[36px] text-white tracking-wide whitespace-nowrap">Continuar con email</h1>
         <p className="text-white/70 mt-2 text-sm">Ingresá tu email y te mandamos un link para entrar.</p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-3">
@@ -74,7 +80,7 @@ export default function EmailMagicLinkLogin() {
 
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/login')}
             className="w-full h-11 rounded-xl border border-white/25 bg-transparent text-white/85 font-oswald text-lg"
           >
             Volver
@@ -83,6 +89,7 @@ export default function EmailMagicLinkLogin() {
 
         {sent && <p className="mt-4 text-[#6fe28d]">Te enviamos un link a tu mail</p>}
         {error && <p className="mt-4 text-[#ff7b7b]">{error}</p>}
+        </div>
       </div>
     </div>
   );
