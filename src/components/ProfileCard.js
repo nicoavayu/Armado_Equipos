@@ -238,24 +238,30 @@ const ProfileCardComponent = ({
               width: min(340px, calc(100vw - 2.75rem)) !important;
             }
             .profile-card-wrapper .pc-awards-wrap {
-              padding-left: 1.25rem;
-              padding-right: 1.25rem;
+              padding-left: 0.9rem;
+              padding-right: 0.9rem;
               padding-bottom: 2.65rem;
             }
             .profile-card-wrapper .pc-awards-row {
-              gap: 1.1rem;
+              width: 100%;
+              justify-content: space-between !important;
+              gap: 0.45rem;
               margin-bottom: 0.4rem;
             }
             .profile-card-wrapper .pc-awards-item {
-              gap: 0.5rem;
-              min-width: 0;
+              gap: 0.45rem;
+              min-width: 58px;
+              justify-content: center;
             }
             .profile-card-wrapper .pc-awards-divider {
               height: 0.8rem;
             }
             .profile-card-wrapper .pc-awards-count {
-              font-size: 1.18rem;
+              font-size: 1.02rem;
               line-height: 1;
+              min-width: 2.8ch;
+              text-align: left;
+              font-variant-numeric: tabular-nums;
             }
             .profile-card-wrapper .pc-awards-icon--mvp,
             .profile-card-wrapper .pc-awards-icon--glove {
@@ -276,13 +282,16 @@ const ProfileCardComponent = ({
 
           @media (max-width: 360px) {
             .profile-card-wrapper .pc-awards-row {
-              gap: 0.95rem;
+              gap: 0.3rem;
             }
             .profile-card-wrapper .pc-awards-wrap {
+              padding-left: 0.75rem;
+              padding-right: 0.75rem;
               padding-bottom: 2.45rem;
             }
             .profile-card-wrapper .pc-awards-count {
-              font-size: 1.05rem;
+              font-size: 0.92rem;
+              min-width: 2.6ch;
             }
             .profile-card-wrapper .pc-right-stats {
               right: 34px;
