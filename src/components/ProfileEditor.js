@@ -5,8 +5,6 @@ import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, supabase } from '../supabase';
 import ProfileCard from './ProfileCard';
 
-import { useTutorial } from '../context/TutorialContext';
-
 // Form Component
 const ProfileEditorForm = ({
   liveProfile,
@@ -28,8 +26,6 @@ const ProfileEditorForm = ({
   hasChanges,
   handleSave,
   handleLogout,
-  replayTutorial,
-  onClose,
 }) => {
   return (
     <div className="mx-auto w-full max-w-[720px] px-4 pb-32 pt-6 flex flex-col gap-5 min-w-0">
@@ -225,18 +221,7 @@ const ProfileEditorForm = ({
           </button>
 
           <button
-            className="h-[48px] bg-white/5 border border-white/10 text-white/70 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all hover:bg-white/10 hover:text-white active:scale-95 flex items-center justify-center"
-            onClick={() => {
-              onClose();
-              replayTutorial();
-            }}
-            disabled={loading}
-          >
-            Cómo funciona
-          </button>
-
-          <button
-            className="h-[48px] bg-red-500/5 border border-red-500/10 text-red-400 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all hover:bg-red-500/10 hover:text-red-300 active:scale-95 flex items-center justify-center"
+            className="col-span-2 h-[48px] bg-red-500/5 border border-red-500/10 text-red-400 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all hover:bg-red-500/10 hover:text-red-300 active:scale-95 flex items-center justify-center"
             onClick={handleLogout}
             disabled={loading}
           >
@@ -251,7 +236,6 @@ const ProfileEditorForm = ({
 function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const navigate = useNavigate();
   const { user, profile, refreshProfile } = useAuth();
-  const { replayTutorial } = useTutorial();
   const [loading, setLoading] = useState(false);
   const [liveProfile, setLiveProfile] = useState(profile);
   const [hasChanges, setHasChanges] = useState(false);
@@ -630,8 +614,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           hasChanges={hasChanges}
           handleSave={handleSave}
           handleLogout={handleLogout}
-          replayTutorial={replayTutorial}
-          onClose={onClose}
         />
       </div>
     );
@@ -842,18 +824,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               </button>
 
               <button
-                className="h-[44px] bg-white/5 border border-white/10 text-white/70 rounded-lg text-[16px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all hover:bg-white/10 flex items-center justify-center disabled:opacity-50"
-                onClick={() => {
-                  onClose();
-                  replayTutorial();
-                }}
-                disabled={loading}
-              >
-                Cómo funciona
-              </button>
-
-              <button
-                className="h-[44px] bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-[16px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all hover:bg-red-500/20 flex items-center justify-center disabled:opacity-50"
+                className="col-span-2 h-[44px] bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-[16px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all hover:bg-red-500/20 flex items-center justify-center disabled:opacity-50"
                 onClick={handleLogout}
                 disabled={loading}
               >
