@@ -3,6 +3,23 @@ import { supabase } from '../../supabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../LoadingSpinner';
 
+const EmptyRequestsMailboxIcon = () => (
+    <svg
+        className="w-14 h-14 text-white/45"
+        viewBox="0 0 64 64"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+    >
+        <path d="M18 56V29.5C18 21.5 24.5 15 32.5 15H36.5C44.5 15 51 21.5 51 29.5V56H18Z" fill="currentColor" />
+        <path d="M18 56V29.5C18 21.5 24.5 15 32.5 15H36.5C44.5 15 51 21.5 51 29.5V56H18Z" stroke="white" strokeOpacity="0.28" strokeWidth="2.5" />
+        <path d="M18 56H51L46.5 60H22.5L18 56Z" fill="currentColor" fillOpacity="0.65" />
+        <path d="M26 56H34V63H26V56Z" fill="currentColor" fillOpacity="0.7" />
+        <path d="M35 18H44.5V31C44.5 33.2 42.7 35 40.5 35H39C36.8 35 35 33.2 35 31V18Z" fill="#EF4444" />
+        <path d="M24 32H45" stroke="white" strokeOpacity="0.24" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+);
+
 /**
  * Join requests section component
  * @param {Object} props - Component props
@@ -200,7 +217,9 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted }) => {
         return (
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 w-full max-w-full mx-auto">
                 <div className="flex flex-col items-center justify-center text-center">
-                    <div className="text-5xl mb-4 opacity-40">📬</div>
+                    <div className="mb-4">
+                        <EmptyRequestsMailboxIcon />
+                    </div>
                     <p className="text-white font-oswald text-base font-semibold mb-2">
                         No hay solicitudes pendientes
                     </p>
