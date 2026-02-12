@@ -18,7 +18,6 @@ import ResetPassword from './components/ResetPassword'; // Import corrected
 import { NotificationProvider } from './context/NotificationContext';
 import { TutorialProvider } from './context/TutorialContext';
 import { BadgeProvider } from './context/BadgeContext';
-import { useSurveyScheduler } from './hooks/useSurveyScheduler';
 
 // Lazy load pages
 const EncuestaPartido = lazy(() => import('./pages/EncuestaPartido'));
@@ -214,7 +213,6 @@ export default function App() {
 function AppAuthWrapper() {
   const { user } = useAuth();
   const location = useLocation();
-  useSurveyScheduler(!!user);
 
   // Permitir acceso sin login si hay un código de partido (para votación)
   const search = new URLSearchParams(location.search);

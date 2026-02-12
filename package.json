@@ -47,7 +47,10 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "lint": "eslint src/ --ext .js,.jsx",
-    "lint:fix": "eslint src/ --ext .js,.jsx --fix"
+    "lint:fix": "eslint src/ --ext .js,.jsx --fix",
+    "migrations:guard": "node scripts/guard_migration_source.mjs",
+    "db:list": "npm run migrations:guard && npx supabase migration list --linked",
+    "db:push": "npm run migrations:guard && npx supabase db push"
   },
   "eslintConfig": {
     "extends": [

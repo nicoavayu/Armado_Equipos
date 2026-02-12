@@ -1,35 +1,24 @@
-# Database Migrations
+# Legacy Migration Archive
 
-This directory contains SQL migration files for the Team Balancer application.
+`migrations/` is now a legacy archive.
 
-## How to Run Migrations
+## Canonical Location
 
-To run the migrations, you can use the Supabase CLI or execute the SQL directly in the Supabase dashboard.
+All new SQL migrations must be created in:
 
-### Using Supabase CLI
+`supabase/migrations/`
 
-1. Install the Supabase CLI if you haven't already:
-   ```bash
-   npm install -g supabase
-   ```
+## Deployment Commands
 
-2. Login to your Supabase account:
-   ```bash
-   supabase login
-   ```
+Run migrations using:
 
-3. Run the migration:
-   ```bash
-   supabase db push --db-url=YOUR_SUPABASE_URL
-   ```
+```bash
+npm run db:list
+npm run db:push
+```
 
-### Using Supabase Dashboard
+Both commands include a guard (`npm run migrations:guard`) that blocks accidental new SQL files in this legacy folder.
 
-1. Log in to your Supabase dashboard
-2. Go to the SQL Editor
-3. Copy the contents of the migration file
-4. Paste into the SQL Editor and run the query
+## Why this folder still exists
 
-## Migration Files
-
-- `add_surveys_sent_to_partidos.sql`: Adds a `surveys_sent` boolean field to the `partidos` table to track whether post-match survey notifications have been sent for a match. Also adds a `hora_fin` timestamp field to track when a match ends.
+Older migrations are kept here for historical reference and manual forensic checks only.
