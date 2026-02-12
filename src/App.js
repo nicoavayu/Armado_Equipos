@@ -18,6 +18,8 @@ import ResetPassword from './components/ResetPassword'; // Import corrected
 import { NotificationProvider } from './context/NotificationContext';
 import { TutorialProvider } from './context/TutorialContext';
 import { BadgeProvider } from './context/BadgeContext';
+import Tutorial from './components/Tutorial';
+import WelcomeModal from './components/WelcomeModal';
 
 // Lazy load pages
 const EncuestaPartido = lazy(() => import('./pages/EncuestaPartido'));
@@ -199,6 +201,8 @@ export default function App() {
                   </Routes>
                   <ToastContainer position="top-right" autoClose={5000} />
                 </Router>
+                <Tutorial />
+                <WelcomeModal />
                 {/* Debug panel removed */}
               </TutorialProvider>
             </NotificationProvider>

@@ -232,7 +232,7 @@ const ProfileEditorForm = ({
             }}
             disabled={loading}
           >
-            Ver tutorial
+            Cómo funciona
           </button>
 
           <button
@@ -849,7 +849,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 }}
                 disabled={loading}
               >
-                Ver tutorial
+                Cómo funciona
               </button>
 
               <button

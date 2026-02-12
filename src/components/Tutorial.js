@@ -5,72 +5,76 @@ import { useTutorial } from '../context/TutorialContext';
 const Tutorial = () => {
   const { run, setRun, completeTutorial } = useTutorial();
 
-  // Define the tutorial steps
-  // @ts-ignore
   const steps = [
-    // TabBar navigation
-    {
-      target: '.tab-bar',
-      content: 'Esta es la barra de navegación principal. Aquí puedes acceder a todas las secciones de la app.',
-      placement: 'top',
-      disableBeacon: true,
-    },
-    // Armar Equipos
-    {
-      target: '.tab-bar .tab-item:nth-child(1)',
-      content: 'Aquí puedes crear nuevos partidos y armar equipos equilibrados.',
-      placement: 'top',
-    },
-    // Quiero Jugar
-    {
-      target: '.tab-bar .tab-item:nth-child(2)',
-      content: 'En esta sección puedes unirte a partidos existentes usando un código.',
-      placement: 'top',
-    },
-    // Amigos
-    {
-      target: '.tab-bar .tab-item:nth-child(3)',
-      content: 'Aquí puedes gestionar tus amigos, enviar solicitudes y ver solicitudes pendientes.',
-      placement: 'top',
-    },
-    // Notificaciones
-    {
-      target: '.tab-bar .tab-item:nth-child(4)',
-      content: 'Aquí verás todas tus notificaciones, invitaciones a partidos y solicitudes de amistad.',
-      placement: 'top',
-    },
-    // Perfil
-    {
-      target: '.tab-bar .tab-item:nth-child(5)',
-      content: 'En tu perfil puedes editar tus datos personales y preferencias.',
-      placement: 'top',
-    },
-    // Crear partido nuevo
-    {
-      target: '.voting-confirm-btn:nth-child(2)',
-      content: 'Haz clic aquí para crear un nuevo partido y añadir jugadores.',
-      placement: 'bottom',
-      spotlightClicks: true,
-    },
-    // Historial
-    {
-      target: '.voting-confirm-btn:nth-child(3)',
-      content: 'Aquí puedes ver tu historial de partidos frecuentes.',
-      placement: 'bottom',
-    },
-    // Modo Rápido
-    {
-      target: '.voting-confirm-btn:nth-child(4)',
-      content: 'El modo rápido te permite crear equipos al instante sin guardar el partido.',
-      placement: 'bottom',
-    },
-    // Final step
     {
       target: 'body',
       content: (
         <div>
-          <h3>¡Listo para jugar!</h3>
-          <p>Ya conoces las funciones principales de Team Balancer. Puedes volver a ver este tutorial desde la sección de Perfil.</p>
+          <h3 className="font-oswald text-[22px] text-[#5d54c0] m-0 mb-2">Armá o sumate rápido</h3>
+          <p className="m-0 leading-relaxed">
+            Podés crear tu partido en minutos o sumarte a un partido abierto desde "Quiero jugar" si no tenés cancha o grupo.
+          </p>
+        </div>
+      ),
+      placement: 'center',
+      disableBeacon: true,
+    },
+    {
+      target: 'body',
+      content: (
+        <div>
+          <h3 className="font-oswald text-[22px] text-[#5d54c0] m-0 mb-2">Equipos parejos con votación</h3>
+          <p className="m-0 leading-relaxed">
+            Invitás al grupo, cada jugador vota y la app balancea los equipos para que el partido sea competitivo y justo.
+          </p>
+        </div>
+      ),
+      placement: 'center',
+    },
+    {
+      target: 'body',
+      content: (
+        <div>
+          <h3 className="font-oswald text-[22px] text-[#5d54c0] m-0 mb-2">Invitá amigos o abrí a la comunidad</h3>
+          <p className="m-0 leading-relaxed">
+            Si te falta gente, abrís cupos públicos y otros jugadores se pueden unir. Si preferís, dejás el partido solo para tu grupo.
+          </p>
+        </div>
+      ),
+      placement: 'center',
+    },
+    {
+      target: 'body',
+      content: (
+        <div>
+          <h3 className="font-oswald text-[22px] text-[#5d54c0] m-0 mb-2">Encuesta post partido y reputación</h3>
+          <p className="m-0 leading-relaxed">
+            Al terminar, la encuesta define resultado (Equipo A, Equipo B o Empate), suma premios y mejora tu reputación dentro de la app.
+          </p>
+        </div>
+      ),
+      placement: 'center',
+    },
+    {
+      target: 'body',
+      content: (
+        <div>
+          <h3 className="font-oswald text-[22px] text-[#5d54c0] m-0 mb-2">Recap automático del año</h3>
+          <p className="m-0 leading-relaxed">
+            Se guarda tu historial para ver partidos jugados, ganados, empatados y perdidos durante todo el período.
+          </p>
+        </div>
+      ),
+      placement: 'center',
+    },
+    {
+      target: 'body',
+      content: (
+        <div>
+          <h3 className="font-oswald text-[22px] text-[#5d54c0] m-0 mb-2">Listo para jugar</h3>
+          <p className="m-0 leading-relaxed">
+            Consejo: ajustá tu visibilidad y completá tu perfil para recibir mejores invitaciones y conseguir partidos más rápido.
+          </p>
         </div>
       ),
       placement: 'center',
@@ -144,17 +148,15 @@ const Tutorial = () => {
         `}
       </style>
       <Joyride
-        // @ts-ignore
         steps={steps}
         run={run}
         continuous
         showSkipButton
         showProgress
-        disableScrolling={false}
+        disableScrolling
         disableOverlayClose
-        spotlightClicks
+        spotlightClicks={false}
         callback={handleJoyrideCallback}
-        // @ts-ignore
         styles={joyrideStyles}
         locale={{
           back: 'Anterior',
