@@ -1022,10 +1022,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         />
         <ConfirmModal
           isOpen={scheduleWarning.isOpen}
-          title="CONFLICTO DE HORARIO"
+          title="Conflicto de horario"
           message={scheduleWarning.message}
-          confirmText="CONTINUAR IGUAL"
-          cancelText="CANCELAR"
+          confirmText="Continuar igual"
+          cancelText="Cancelar"
           singleButton={false}
           onCancel={closeScheduleWarning}
           onConfirm={async () => {

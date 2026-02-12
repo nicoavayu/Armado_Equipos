@@ -292,10 +292,10 @@ export default function PartidoPublicoDetails() {
       </div>
       <ConfirmModal
         isOpen={scheduleWarningOpen}
-        title="CONFLICTO DE HORARIO"
+        title="Conflicto de horario"
         message={scheduleWarningMessage}
-        confirmText="CONTINUAR IGUAL"
-        cancelText="CANCELAR"
+        confirmText="Continuar igual"
+        cancelText="Cancelar"
         onCancel={() => setScheduleWarningOpen(false)}
         onConfirm={async () => {
           setScheduleWarningOpen(false);

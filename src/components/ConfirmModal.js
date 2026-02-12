@@ -7,8 +7,8 @@ export default function ConfirmModal({
   message,
   onConfirm,
   onCancel,
-  confirmText = 'CONFIRMAR',
-  cancelText = 'CANCELAR',
+  confirmText = 'Confirmar',
+  cancelText = 'Cancelar',
   isDeleting = false,
   singleButton = false,
   danger = false,
@@ -131,18 +131,18 @@ export default function ConfirmModal({
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
-          <div id="confirm-modal-title" className="text-lg font-bold mb-2 font-['Oswald'] text-white">
+          <div id="confirm-modal-title" className="text-[44px] leading-[1] font-oswald font-semibold tracking-[0.01em] mb-2 text-white">
             {title}
           </div>
         )}
-        <div id="confirm-modal-message" className="text-sm text-white/85 mb-4">
+        <div id="confirm-modal-message" className="text-base leading-relaxed text-white/85 mb-6 font-oswald">
           {message}
         </div>
-        <div className="flex gap-2 justify-end">
+        <div className="flex gap-3 justify-end">
           {!singleButton && (
             <button
               ref={cancelRef}
-              className="px-4 py-2.5 rounded-xl font-bold cursor-pointer border border-slate-600 font-['Oswald'] bg-white/[0.06] text-white hover:bg-white/10 hover:border-slate-500 disabled:opacity-50 disabled:cursor-default transition-all"
+              className="min-h-[52px] px-6 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer border border-slate-600 bg-white/[0.06] text-white hover:bg-white/10 hover:border-slate-500 active:scale-[0.98] disabled:opacity-50 disabled:cursor-default transition-all"
               onMouseDown={handleCancelClick}
               onClick={handleCancelClick}
               disabled={false}
@@ -153,13 +153,13 @@ export default function ConfirmModal({
           )}
           <button
             ref={confirmRef}
-            className={`px-4 py-2.5 rounded-xl font-bold cursor-pointer border-0 font-['Oswald'] text-white hover:shadow-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-default transition-all ${danger ? 'bg-[#f44336]' : 'bg-[#8178e5]'}`}
+            className={`min-h-[52px] px-6 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer border-0 text-white hover:shadow-lg hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-default transition-all ${danger ? 'bg-[#f44336]' : 'bg-[#8178e5]'}`}
             onMouseDown={handleConfirmClick}
             onClick={handleConfirmClick}
             disabled={isDeleting}
             aria-disabled={isDeleting}
           >
-            {isDeleting ? 'PROCESANDO…' : confirmText}
+            {isDeleting ? 'Procesando…' : confirmText}
           </button>
         </div>
       </div>

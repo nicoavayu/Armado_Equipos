@@ -86,8 +86,8 @@ const FrecuentesPage = () => {
       isOpen: true,
       title,
       message,
-      confirmText: 'CONTINUAR IGUAL',
-      cancelText: 'CANCELAR',
+      confirmText: 'Continuar igual',
+      cancelText: 'Cancelar',
       singleButton: false,
     });
   };
@@ -135,7 +135,7 @@ const FrecuentesPage = () => {
       if (conflicts.length > 0) {
         const c = conflicts[0];
         openConflictWarning(
-          'CONFLICTO DE HORARIO',
+          'Conflicto de horario',
           `Ya tenés un partido en ese horario (${c.nombre || 'Partido'} · ${c.fecha} ${c.hora}).`,
           async () => {
             closeWarningModal();
