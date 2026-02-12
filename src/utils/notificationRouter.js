@@ -1,6 +1,7 @@
 import { supabase } from '../supabase';
 import { logger } from '../lib/logger';
 import { getResultsUrl } from './routes';
+import { resolveMatchInviteRoute } from './matchInviteRoute';
 
 // const encuestaUrl = (matchId) => `/encuesta/${matchId}`;
 
@@ -78,7 +79,12 @@ export async function openNotification(n, navigate) {
     }
 
     if (type === 'match_invite') {
-      navigate(`/admin/${matchId}`);
+      const inviteRoute = resolveMatchInviteRoute(n);
+      if (inviteRoute) {
+        navigate(inviteRoute);
+      } else {
+        navigate(`/partido-publico/${matchId}`);
+      }
       return;
     }
 

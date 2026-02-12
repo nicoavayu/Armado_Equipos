@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CalendarClock, CheckCircle, ClipboardList, Trophy, UserPlus, Users, Vote, XCircle } from 'lucide-react';
 import { toBigIntId } from '../utils';
+import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import { useNotifications } from '../context/NotificationContext';
 import { useAmigos } from '../hooks/useAmigos';
 import { useAuth } from './AuthProvider';
@@ -138,11 +139,14 @@ const NotificationsView = () => {
         navigate('/amigos');
         break;
       case 'match_invite':
-        if (matchId) {
-          navigate(`/admin/${toBigIntId(matchId)}`);
+      {
+        const inviteRoute = resolveMatchInviteRoute(notification);
+        if (inviteRoute) {
+          navigate(inviteRoute);
         } else {
-          console.error('[NOTIFICATION_CLICK] match_invite missing matchId', notification);
+          console.error('[NOTIFICATION_CLICK] match_invite missing route', notification);
         }
+      }
         break;
       case 'call_to_vote': {
         const { matchCode, matchId } = data;

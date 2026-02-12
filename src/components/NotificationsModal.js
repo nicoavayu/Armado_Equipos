@@ -7,6 +7,7 @@ import supabase from '../supabase';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import { openNotification } from '../utils/notificationRouter';
+import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import LoadingSpinner from './LoadingSpinner';
 
 const NotificationsModal = ({ isOpen, onClose }) => {
@@ -131,9 +132,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     }
 
     if (notification.type === 'match_invite') {
-      if (notification.data?.matchId) {
-        navigate(`/admin/${notification.data.matchId}`);
-      }
+      const inviteRoute = resolveMatchInviteRoute(notification);
+      if (inviteRoute) navigate(inviteRoute);
       return;
     }
 

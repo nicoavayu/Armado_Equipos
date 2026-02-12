@@ -10,8 +10,10 @@ import PageTitle from '../components/PageTitle';
 import MatchInfoSection from '../components/MatchInfoSection';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import { PlayerCardTrigger } from '../components/ProfileComponents';
+import ConfirmModal from '../components/ConfirmModal';
 import { Camera, UserRound, CircleAlert, Zap, LockKeyhole, CheckCircle2, Calendar, Clock, MapPin } from 'lucide-react';
 import Logo from '../Logo.png';
+import { findUserScheduleConflicts } from '../services/db/matchScheduling';
 
 /**
  * Pantalla pública de invitación a un partido
@@ -247,6 +249,23 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const [alreadyJoined, setAlreadyJoined] = useState(false);
   const [joinStatus, setJoinStatus] = useState('checking'); // 'checking', 'none', 'pending', 'approved', 'approved_pending_sync'
   const [joinSubmitting, setJoinSubmitting] = useState(false);
+  const [scheduleWarning, setScheduleWarning] = useState({
+    isOpen: false,
+    message: '',
+  });
+  const pendingContinueRef = useRef(null);
+
+  const closeScheduleWarning = () => {
+    pendingContinueRef.current = null;
+    setScheduleWarning({ isOpen: false, message: '' });
+  };
+
+  const showScheduleWarning = (message) => {
+    setScheduleWarning({
+      isOpen: true,
+      message,
+    });
+  };
 
   const toCompressedDataUrl = async (file) => {
     const readAsDataUrl = () => new Promise((resolve, reject) => {
@@ -650,7 +669,34 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     }
   };
 
-  const handleSolicitarUnirme = async () => {
+  const checkScheduleConflictAndMaybeWarn = async ({ skipWarning = false } = {}) => {
+    if (!user?.id || !partido?.fecha || !partido?.hora) {
+      return true;
+    }
+
+    const conflicts = await findUserScheduleConflicts({
+      userId: user.id,
+      excludeMatchId: Number(partidoId),
+      targetMatch: {
+        fecha: partido.fecha,
+        hora: partido.hora,
+        sede: partido.sede,
+        nombre: partido.nombre,
+      },
+    });
+
+    if (!skipWarning && conflicts.length > 0) {
+      const first = conflicts[0];
+      showScheduleWarning(
+        `Ya tenés un partido en ese horario (${first.nombre || 'Partido'} · ${first.fecha} ${first.hora}).`,
+      );
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSolicitarUnirme = async (skipScheduleWarning = false) => {
     if (isMatchClosed(partido)) {
       toast.error('Este partido fue cancelado o cerrado.');
       return;
@@ -664,11 +710,26 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
     if (!user) {
       const currentUrl = window.location.pathname + window.location.search;
-      navigate(`/auth?redirect=${encodeURIComponent(currentUrl)}`);
+      navigate(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
       return;
     }
 
     if (joinStatus !== 'none' || joinSubmitting) return;
+
+    try {
+      const canContinue = await checkScheduleConflictAndMaybeWarn({ skipWarning: skipScheduleWarning });
+      if (!canContinue) {
+        pendingContinueRef.current = async () => {
+          closeScheduleWarning();
+          await handleSolicitarUnirme(true);
+        };
+        return;
+      }
+    } catch (err) {
+      console.error('[SOLICITAR_UNIRME] schedule check error', err);
+      toast.error('No se pudo validar el conflicto de horario');
+      return;
+    }
 
     setJoinSubmitting(true);
     try {
@@ -725,11 +786,11 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     }
   };
 
-  const handleSumarseConCuenta = async () => {
+  const handleSumarseConCuenta = async (skipScheduleWarning = false) => {
     if (!user) {
       // Redirigir a login y volver a esta URL después
       const currentUrl = window.location.pathname + window.location.search;
-      navigate(`/auth?redirect=${encodeURIComponent(currentUrl)}`);
+      navigate(`/login?returnTo=${encodeURIComponent(currentUrl)}`);
       return;
     }
 
@@ -742,6 +803,21 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     const maxRoster = getMaxRosterSlots(partido);
     if (maxRoster > 0 && jugadores.length >= maxRoster) {
       toast.error('El partido ya está completo (incluye suplentes)');
+      return;
+    }
+
+    try {
+      const canContinue = await checkScheduleConflictAndMaybeWarn({ skipWarning: skipScheduleWarning });
+      if (!canContinue) {
+        pendingContinueRef.current = async () => {
+          closeScheduleWarning();
+          await handleSumarseConCuenta(true);
+        };
+        return;
+      }
+    } catch (err) {
+      console.error('[SUMARSE_CON_CUENTA] schedule check error', err);
+      toast.error('No se pudo validar el conflicto de horario');
       return;
     }
 
@@ -928,21 +1004,40 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   if (step === 'invitation') {
     const isPublic = mode === 'public';
     return (
-      <SharedInviteLayout
-        partido={partido}
-        jugadores={jugadores}
-        title={isPublic ? 'PARTIDO ABIERTO' : 'TE INVITARON A JUGAR'}
-        showChatIcon={isPublic ? joinStatus === 'approved' : true}
-        ctaVariant={isPublic ? 'public' : 'invite'}
-        submitting={submitting || joinSubmitting}
-        onSumarse={handleSumarse}
-        onNavigateHome={() => navigate('/')}
-        onNavigateBack={() => navigate(-1)}
-        codigoValido={codigoValido}
-        mode={mode}
-        joinStatus={joinStatus}
-        isMatchFull={isMatchFull}
-      />
+      <>
+        <SharedInviteLayout
+          partido={partido}
+          jugadores={jugadores}
+          title={isPublic ? 'PARTIDO ABIERTO' : 'TE INVITARON A JUGAR'}
+          showChatIcon={isPublic ? joinStatus === 'approved' : true}
+          ctaVariant={isPublic ? 'public' : 'invite'}
+          submitting={submitting || joinSubmitting}
+          onSumarse={handleSumarse}
+          onNavigateHome={() => navigate('/')}
+          onNavigateBack={() => navigate(-1)}
+          codigoValido={codigoValido}
+          mode={mode}
+          joinStatus={joinStatus}
+          isMatchFull={isMatchFull}
+        />
+        <ConfirmModal
+          isOpen={scheduleWarning.isOpen}
+          title="CONFLICTO DE HORARIO"
+          message={scheduleWarning.message}
+          confirmText="CONTINUAR IGUAL"
+          cancelText="CANCELAR"
+          singleButton={false}
+          onCancel={closeScheduleWarning}
+          onConfirm={async () => {
+            const fn = pendingContinueRef.current;
+            if (typeof fn === 'function') {
+              await fn();
+              return;
+            }
+            closeScheduleWarning();
+          }}
+        />
+      </>
     );
   }
 

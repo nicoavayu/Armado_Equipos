@@ -1,4 +1,5 @@
 import { parseLocalDateTime } from './dateLocal';
+import { resolveMatchInviteRoute } from './matchInviteRoute';
 
 const ACTIVITY_MAX_ITEMS = 5;
 const MATCH_META_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -259,12 +260,13 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     };
   }
   if (type === 'match_invite') {
+    const inviteRoute = resolveMatchInviteRoute(notification);
     return {
       ...base,
       icon: 'CalendarClock',
       title: `Recibiste una invitación a ${matchName}`,
       subtitle: dateLabel || 'Entrá para aceptar o rechazar la invitación',
-      route: partidoId ? `/admin/${partidoId}` : '/notifications',
+      route: inviteRoute || '/notifications',
     };
   }
   if (type === 'match_player_update') {
