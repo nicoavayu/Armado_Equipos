@@ -9,7 +9,6 @@ import Button from '../components/Button';
 import AdminPanel from './AdminPanel';
 import {
   getPartidoPorId,
-  updateJugadoresPartido,
   updateJugadoresFrecuentes,
   getJugadoresDelPartido,
   refreshJugadoresPartido,
@@ -67,32 +66,29 @@ const AdminPanelPage = () => {
 
   const handleJugadoresChange = async (nuevosJugadores) => {
     if (!partidoActual) return;
-    try {
-      await updateJugadoresPartido(partidoActual.id, nuevosJugadores);
-      setPartidoActual({ ...partidoActual, jugadores: nuevosJugadores });
-      if (partidoActual.from_frequent_match_id) {
-        try {
-          await updateJugadoresFrecuentes(partidoActual.from_frequent_match_id, nuevosJugadores);
-        } catch (error) {
-          toast.error('Error actualizando partido frecuente');
-        }
+    const safeJugadores = Array.isArray(nuevosJugadores) ? nuevosJugadores : [];
+
+    // Persist changes are already handled by the child flow (insert/delete/rpc).
+    // Here we only sync parent state to avoid double-write collisions when roster is full.
+    setJugadoresDelPartido(safeJugadores);
+    setPartidoActual((prev) => {
+      if (!prev) return prev;
+      return { ...prev, jugadores: safeJugadores };
+    });
+
+    if (partidoActual.from_frequent_match_id) {
+      try {
+        await updateJugadoresFrecuentes(partidoActual.from_frequent_match_id, safeJugadores);
+      } catch (error) {
+        toast.error('Error actualizando partido frecuente');
       }
-    } catch (error) {
-      console.error('Error updating players:', error);
-      if (error?.code === '23505') {
-        console.warn('Duplicate key error, refreshing players...');
-        // Silent recovery or mild warning
-        try {
-          const refreshedPlayers = await refreshJugadoresPartido(partidoActual.id);
-          setJugadoresDelPartido(refreshedPlayers);
-          // Optional: toast.success('Lista de jugadores sincronizada');
-        } catch (refreshError) {
-          console.error('Error refreshing after duplicate error:', refreshError);
-        }
-      } else if (error?.message?.includes('row-level security policy')) {
-        console.warn('Suppressing RLS error during sync (expected for non-admins):', error);
-      } else {
-        toast.error('Error al actualizar jugadores: ' + (error.message || 'Error desconocido'));
+    } else if (safeJugadores.length === 0 && partidoActual.id) {
+      // Defensive refresh if an unexpected empty payload arrives.
+      try {
+        const refreshedPlayers = await refreshJugadoresPartido(partidoActual.id);
+        setJugadoresDelPartido(refreshedPlayers);
+      } catch (_refreshError) {
+        // non-blocking
       }
     }
   };
@@ -124,9 +120,8 @@ const AdminPanelPage = () => {
             partidoActual={partidoActual}
             jugadores={jugadoresDelPartido}
             onJugadoresChange={(nuevosJugadores) => {
-              console.log('Players changed:', nuevosJugadores.length);
+              console.log('Players changed:', Array.isArray(nuevosJugadores) ? nuevosJugadores.length : 0);
               handleJugadoresChange(nuevosJugadores);
-              setJugadoresDelPartido(nuevosJugadores);
             }}
             onBackToHome={() => navigateWithAnimation('/', 'back')}
           />
