@@ -13,6 +13,37 @@ const formatearSede = (sede = '') => {
   return sede;
 };
 
+const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+const formatDiaSemana = (diaRaw) => {
+  if (diaRaw === undefined || diaRaw === null || diaRaw === '') return '';
+  if (typeof diaRaw === 'string' && Number.isNaN(Number(diaRaw))) return diaRaw.toLowerCase();
+  const idx = Number(diaRaw);
+  if (Number.isFinite(idx) && idx >= 0 && idx <= 6) return DIAS_SEMANA[idx];
+  return '';
+};
+
+const formatFechaCorta = (fechaRaw) => {
+  if (!fechaRaw) return '';
+  const raw = String(fechaRaw).trim().slice(0, 10);
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return '';
+  const day = String(Number(m[3]));
+  const month = String(Number(m[2]));
+  return `${day}/${month}`;
+};
+
+const inferCupoFromModalidad = (modalidad = '') => {
+  const m = String(modalidad || '').toUpperCase().trim();
+  if (m === 'F5') return 10;
+  if (m === 'F6') return 12;
+  if (m === 'F7') return 14;
+  if (m === 'F8') return 16;
+  if (m === 'F9') return 18;
+  if (m === 'F11') return 22;
+  return 10;
+};
+
 const HistoryTemplateCard = ({
   template,
   onViewDetails,
@@ -26,25 +57,38 @@ const HistoryTemplateCard = ({
   const modalidad = template.modalidad || 'F5';
   const tipo = template.tipo_partido || 'Masculino';
   const priceLabel = formatPrice(template.precio_cancha_por_persona ?? template.precio ?? template.valor_cancha);
-  const jugadoresCount = template.jugadores?.[0]?.count || template.jugadores_count || 0;
-  const cupoMaximo = template.cupo_jugadores || 20;
+  const jugadoresCount = Number(
+    template.jugadores?.[0]?.count
+    || template.jugadores_count
+    || (Array.isArray(template.jugadores_frecuentes) ? template.jugadores_frecuentes.length : 0)
+    || 0
+  );
+  const cupoMaximo = Number(template.cupo_jugadores || template.cupo || template.cantidad_jugadores || 0) || inferCupoFromModalidad(modalidad);
   const isComplete = jugadoresCount >= cupoMaximo;
   const isAdmin = template.soy_admin || template.es_admin || template.is_admin;
+  const diaSemanaLabel = formatDiaSemana(template.dia_semana);
+  const fechaCortaLabel = formatFechaCorta(template.fecha);
+  const horaLabel = template.hora || '';
+  const diaHoraLabel = (diaSemanaLabel && fechaCortaLabel && horaLabel)
+    ? `${diaSemanaLabel} ${fechaCortaLabel} • ${horaLabel}`
+    : ((diaSemanaLabel && horaLabel)
+      ? `${diaSemanaLabel} • ${horaLabel}`
+      : (diaSemanaLabel || fechaCortaLabel || horaLabel || ''));
 
   return (
     <div className="relative bg-slate-900 rounded-2xl p-5 min-h-[150px] border border-slate-800 transition-all duration-300 shadow-xl hover:-translate-y-[2px] hover:shadow-2xl hover:border-slate-700">
       {/* Header */}
       <div className="flex justify-between items-start mb-4">
-        <div className="flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="currentColor">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="currentColor" className="text-white/90 shrink-0">
             <path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z" />
           </svg>
-          <div className="flex flex-col">
+          <div className="flex flex-col min-w-0">
             <div className="font-bebas text-[20px] leading-5 text-white uppercase tracking-wide truncate drop-shadow-sm">
               {template.nombre || 'Partido frecuente'}
             </div>
-            <div className="text-white/80 text-sm font-oswald mt-[2px] uppercase">
-              {(template.dia_semana != null ? template.dia_semana : '') ? `${template.dia_semana} • ${template.hora || ''}` : (template.hora || '')}
+            <div className="text-white/80 text-sm font-oswald mt-[2px] capitalize">
+              {diaHoraLabel}
             </div>
           </div>
         </div>
@@ -91,7 +135,7 @@ const HistoryTemplateCard = ({
                           onDelete(template);
                         }}
                       >
-                        <span>Borrar del historial</span>
+                        <span>Borrar plantilla</span>
                       </button>
                     )}
                   </div>
@@ -143,10 +187,10 @@ const HistoryTemplateCard = ({
         </button>
         {onHistory && (
           <button
-            className="flex-[1] font-bebas text-base px-4 py-2.5 border border-slate-700 rounded-xl cursor-pointer transition-all text-slate-200 min-h-[44px] flex items-center justify-center text-center bg-slate-900 hover:bg-slate-800 hover:text-white"
+            className="flex-[1] font-oswald font-semibold text-sm tracking-wide px-4 py-2.5 border border-white/20 rounded-xl cursor-pointer transition-all text-white/85 min-h-[44px] flex items-center justify-center text-center bg-transparent hover:bg-white/10 hover:border-white/35 hover:text-white"
             onClick={() => onHistory && onHistory(template)}
           >
-            ESTADÍSTICAS
+            HISTORIAL
           </button>
         )}
       </div>

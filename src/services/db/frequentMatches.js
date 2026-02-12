@@ -497,30 +497,74 @@ export const subscribeToPartidosChanges = (callback) => {
  * @param {string} partidoId
  * @returns {Promise<Object>} Created frequent match
  */
-export const insertPartidoFrecuenteFromPartido = async (match_ref) => {
-  if (!match_ref) throw new Error('match_ref required');
-  // Fetch the partido row (includes jugadores array)
-  const { data: partido, error: fetchError } = await supabase
-    .from('partidos_view')
-    .select('*')
-    .eq('match_ref', match_ref)
-    .single();
+export const insertPartidoFrecuenteFromPartido = async (partidoRef) => {
+  if (!partidoRef) throw new Error('partidoRef required');
 
-  if (fetchError) throw new Error(`Error fetching partido ${match_ref}: ${fetchError.message}`);
-  if (!partido) throw new Error(`Partido ${match_ref} not found`);
+  const baseSelect = '*';
+  const refAsString = String(partidoRef);
+  const refAsNumber = Number(partidoRef);
+  const isUuidRef = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(refAsString);
+
+  let partido = null;
+
+  // 1) If reference is numeric, lookup by id first.
+  if (Number.isFinite(refAsNumber)) {
+    const { data, error } = await supabase
+      .from('partidos')
+      .select(baseSelect)
+      .eq('id', refAsNumber)
+      .maybeSingle();
+
+    if (error) throw new Error(`Error fetching partido by id ${refAsNumber}: ${error.message}`);
+    if (data) partido = data;
+  }
+
+  // 2) Lookup by match_ref only for UUID-like refs (avoid invalid uuid errors)
+  if (!partido && isUuidRef) {
+    const { data, error } = await supabase
+      .from('partidos')
+      .select(baseSelect)
+      .eq('match_ref', refAsString)
+      .maybeSingle();
+
+    if (!error && data) {
+      partido = data;
+    } else if (error) {
+      const msg = String(error.message || '').toLowerCase();
+      const missingMatchRef = msg.includes('match_ref') && msg.includes('does not exist');
+      if (!missingMatchRef) {
+        throw new Error(`Error fetching partido by match_ref ${refAsString}: ${error.message}`);
+      }
+    }
+  }
+
+  if (!partido) throw new Error(`Partido ${partidoRef} not found`);
 
   // Get current authenticated user (templates are per-user)
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user?.id) throw new Error('User must be authenticated to save templates');
 
-  // Build "jugadores sugeridos" (optional): keep only minimal fields
-  const jugadores_frecuentes = Array.isArray(partido.jugadores)
-    ? partido.jugadores.map((j) => ({
-      nombre: j?.nombre || j?.displayName || null,
-      avatar_url: j?.avatar_url || j?.foto_url || null,
-      uuid: j?.uuid || j?.id || null,
-    })).filter((j) => j.nombre)
-    : [];
+  // Build "jugadores sugeridos" from jugadores table (more robust across schema variants)
+  let jugadores_frecuentes = [];
+  try {
+    const { data: jugadoresRows, error: jugadoresError } = await supabase
+      .from('jugadores')
+      .select('*')
+      .eq('partido_id', partido.id);
+    if (jugadoresError) {
+      console.warn('[TEMPLATE_UPSERT] Could not load jugadores for template suggestion (non-fatal)', jugadoresError);
+    } else {
+      jugadores_frecuentes = (jugadoresRows || [])
+        .map((j) => ({
+          nombre: j?.nombre || j?.displayName || null,
+          avatar_url: j?.avatar_url || j?.foto_url || null,
+          uuid: j?.usuario_id || j?.uuid || j?.id || null,
+        }))
+        .filter((j) => j.nombre);
+    }
+  } catch (playersErr) {
+    console.warn('[TEMPLATE_UPSERT] Unexpected error loading jugadores (non-fatal)', playersErr);
+  }
 
   const templateKey = {
     creado_por: user.id,

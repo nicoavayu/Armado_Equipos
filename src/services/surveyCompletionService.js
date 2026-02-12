@@ -3,6 +3,7 @@ import { db } from '../api/supabaseWrapper';
 import { grantAwardsForMatch } from './db/awards';
 import { applyNoShowPenalties, applyNoShowRecoveries } from './db/penalties';
 import { handleError } from '../lib/errorHandler';
+import { ensureParticipantsSnapshot, ensureSurveyResultsSnapshot } from './historySnapshotService';
 
 import {
   SURVEY_FINALIZE_DELAY_MS,
@@ -149,6 +150,13 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   // Use created_at as the anchor for the deadline
   const surveyOpenedAt = existingSurvey?.created_at || nowIso;
   const computedDeadline = new Date(new Date(surveyOpenedAt).getTime() + SURVEY_FINALIZE_DELAY_MS).toISOString();
+
+  // Phase 1 snapshot (best-effort): keep historical participants/equipos frozen as early as possible.
+  try {
+    await ensureParticipantsSnapshot(partidoId);
+  } catch (_snapshotError) {
+    // non-blocking
+  }
 
   // We no longer rely on 'meta' column which seems to be missing in DB
   try {
@@ -317,6 +325,14 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 
   if (!hasEnoughVotesForAwards) {
     console.log('[FINALIZE] awards skipped: not enough votes', { partidoId, surveysCount });
+    try {
+      await ensureSurveyResultsSnapshot(partidoId, {
+        encuestaCerradaAt: nowIso,
+        closedReason: allVoted ? 'all_voted' : (deadlineReached ? 'deadline' : 'min_votes_reached'),
+      });
+    } catch (_snapshotError) {
+      // non-blocking
+    }
     return { done: true, playersCount, surveysCount, awardsSkipped: true };
   }
 
@@ -381,6 +397,15 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     });
   }
   if (upsertRes.error) throw upsertRes.error;
+
+  try {
+    await ensureSurveyResultsSnapshot(partidoId, {
+      encuestaCerradaAt: nowIso,
+      closedReason: allVoted ? 'all_voted' : (deadlineReached ? 'deadline' : 'min_votes_reached'),
+    });
+  } catch (_snapshotError) {
+    // non-blocking
+  }
 
   return { done: true, playersCount, surveysCount };
 }

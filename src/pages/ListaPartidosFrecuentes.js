@@ -1,60 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { crearPartido, supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import PageTitle from '../components/PageTitle';
-import LoadingSpinner from '../components/LoadingSpinner';
+import PageLoadingState from '../components/PageLoadingState';
 import HistoryTemplateCard from '../components/historial/HistoryTemplateCard';
-import TemplateStatsModal from '../components/historial/TemplateStatsModal';
+import ConfirmModal from '../components/ConfirmModal';
+import EmptyStateCard from '../components/EmptyStateCard';
 import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchDateDebug';
+import { CalendarDays } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 function formatearSede(sede) {
   if (sede === 'La Terraza Fútbol 5, 8') return 'La Terraza Fútbol 5 y 8';
   return sede;
-}
-
-/* Inline enhanced ConfirmModal
-   - focus management and trap
-   - escape to close (unless isDeleting)
-   - disable buttons while deleting
-   - animation with respect to prefers-reduced-motion
-*/
-function ConfirmModal({ isOpen, title, message, onConfirm, onCancel, confirmText = 'ELIMINAR', cancelText = 'CANCELAR', isDeleting = false }) {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div
-        className="w-full max-w-md bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 shadow-[0_32px_64px_rgba(0,0,0,0.5)] transform animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {title && (
-          <h3 className="text-xl font-bold font-[Oswald,sans-serif] text-white mb-2 uppercase tracking-wide">
-            {title}
-          </h3>
-        )}
-        <p className="text-white/70 text-sm mb-6 leading-relaxed font-[Oswald,sans-serif]">
-          {message}
-        </p>
-        <div className="flex justify-end gap-3">
-          <button
-            className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 font-[Oswald,sans-serif] text-xs tracking-widest uppercase border border-white/10"
-            onClick={onCancel}
-            disabled={isDeleting}
-          >
-            {cancelText}
-          </button>
-          <button
-            className="px-4 py-2 bg-red-500/80 hover:bg-red-500 text-white font-bold rounded-xl transition-all active:scale-95 disabled:opacity-50 font-[Oswald,sans-serif] text-xs tracking-widest uppercase border border-red-400/30"
-            onClick={onConfirm}
-            disabled={isDeleting}
-          >
-            {isDeleting ? 'ELIMINANDO…' : confirmText}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 /* UseTemplateModal
@@ -324,6 +283,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
 }
 
 export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }) {
+  const navigate = useNavigate();
   const [partidosFrecuentes, setPartidosFrecuentes] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -335,10 +295,6 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
   const [showUseModal, setShowUseModal] = useState(false);
   const [templateToUse, setTemplateToUse] = useState(null);
   const [isCreatingFromTemplate, _setIsCreatingFromTemplate] = useState(false);
-
-  // Modal state for template stats
-  const [showStatsModal, setShowStatsModal] = useState(false);
-  const [templateForStats, setTemplateForStats] = useState(null);
 
   useEffect(() => {
     let channel = null;
@@ -419,14 +375,18 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
 
   const handleViewDetails = (partido) => {
     if (!partido?.id) return;
+    if (typeof onEntrar === 'function') {
+      onEntrar(partido);
+      return;
+    }
+    // Backward fallback only if parent didn't pass onEntrar.
     setTemplateToUse(partido);
     setShowUseModal(true);
   };
 
   const handleHistoryView = (partido) => {
     if (!partido?.id) return;
-    setTemplateForStats(partido);
-    setShowStatsModal(true);
+    navigate(`/frecuentes/${partido.id}/historial`, { state: { template: partido } });
   };
 
   const handleEditTemplate = (partido) => {
@@ -472,20 +432,30 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
           justifyContent: 'center',
         }}
       >
-        <LoadingSpinner size="large" />
+        <PageLoadingState
+          title="CARGANDO FRECUENTES"
+          description="Estamos preparando tus plantillas guardadas."
+          skeletonCards={2}
+          className="px-4"
+        />
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-[550px] mx-auto flex flex-col items-center pt-24 pb-32 px-4 box-border">
-      <PageTitle title="HISTORIAL" onBack={onVolver}>HISTORIAL</PageTitle>
+    <div className="w-full max-w-[550px] mx-auto flex flex-col items-center pt-[96px] pb-32 px-4 box-border">
+      <PageTitle title="FRECUENTES" onBack={onVolver}>FRECUENTES</PageTitle>
 
-      <div className="w-full mt-8">
+      <div className="w-full mt-0">
         {partidosFrecuentes.length === 0 ? (
-          <div className="text-white text-center py-20 font-oswald opacity-50">
-            <p className="text-lg">No hay partidos frecuentes configurados</p>
-          </div>
+          <EmptyStateCard
+            icon={CalendarDays}
+            title="SIN PARTIDOS FRECUENTES"
+            description="Todavía no tenés plantillas guardadas. Creá tu próximo partido y después guardalo como frecuente."
+            actionLabel="NUEVO PARTIDO"
+            onAction={() => navigate('/nuevo-partido')}
+            className="my-12"
+          />
         ) : (
           <div className="flex flex-col gap-3 w-full">
             {partidosFrecuentes.map((partido) => (
@@ -505,12 +475,13 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
       <ConfirmModal
         isOpen={showConfirmModal}
         title="CONFIRMAR ELIMINACIÓN"
-        message={partidoToDelete ? `¿Eliminar el partido «${partidoToDelete.nombre}»? Esta acción no se puede deshacer.` : '¿Eliminar este partido? Esta acción no se puede deshacer.'}
+        message={partidoToDelete ? `¿Eliminar la plantilla «${partidoToDelete.nombre}»? Esta acción no se puede deshacer.` : '¿Eliminar esta plantilla? Esta acción no se puede deshacer.'}
         onConfirm={confirmarEliminacion}
         onCancel={cancelarEliminacion}
         confirmText={isDeleting ? 'ELIMINANDO…' : 'ELIMINAR'}
         cancelText="CANCELAR"
         isDeleting={isDeleting}
+        danger
       />
 
       <UseTemplateModal
@@ -535,12 +506,6 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
             // Intentionally ignored.
           }
         }}
-      />
-
-      <TemplateStatsModal
-        isOpen={showStatsModal}
-        template={templateForStats}
-        onClose={() => { setShowStatsModal(false); setTemplateForStats(null); }}
       />
     </div>
   );
