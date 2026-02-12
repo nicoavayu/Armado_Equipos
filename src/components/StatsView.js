@@ -50,7 +50,7 @@ const StatsView = ({ onVolver }) => {
     manualGanados: 0,
     manualEmpates: 0,
     manualPerdidos: 0,
-    manualRecientes: [],
+    recapRecientes: [],
     encuestaGanados: 0,
     encuestaEmpates: 0,
     encuestaPerdidos: 0,
@@ -137,7 +137,12 @@ const StatsView = ({ onVolver }) => {
         getLesionesStats(),
       ]);
 
-
+      const recapRecientes = [
+        ...(partidosData.surveyOutcomes.recientes || []),
+        ...(partidosManualesData.recientes || []),
+      ]
+        .sort((a, b) => Number(b?.ts || 0) - Number(a?.ts || 0))
+        .slice(0, 5);
 
       setStats({
         partidosJugados: partidosData.total + partidosManualesData.total,
@@ -152,7 +157,7 @@ const StatsView = ({ onVolver }) => {
         manualGanados: partidosManualesData.ganados,
         manualEmpates: partidosManualesData.empatados,
         manualPerdidos: partidosManualesData.perdidos,
-        manualRecientes: partidosManualesData.recientes,
+        recapRecientes,
         encuestaGanados: partidosData.surveyOutcomes.ganados,
         encuestaEmpates: partidosData.surveyOutcomes.empatados,
         encuestaPerdidos: partidosData.surveyOutcomes.perdidos,
@@ -281,6 +286,7 @@ const StatsView = ({ onVolver }) => {
       perdidos: 0,
       pendientes: 0,
       sinEquipoDetectado: 0,
+      recientes: [],
     };
 
     if (matchIds.length === 0) return empty;
@@ -329,11 +335,23 @@ const StatsView = ({ onVolver }) => {
     let perdidos = 0;
     let pendientes = 0;
     let sinEquipoDetectado = 0;
+    const recientes = [];
 
     matchIds.forEach((matchId) => {
       const survey = bySurvey.get(matchId);
       const teamConfirm = byTeams.get(matchId);
       const match = byMatch.get(matchId);
+      const ts = match?.fecha
+        ? new Date(`${match.fecha}T${String(match?.hora || '00:00').slice(0, 5)}`).getTime()
+        : 0;
+      const baseRecap = {
+        id: `survey-${matchId}`,
+        ts: Number.isFinite(ts) ? ts : 0,
+        fecha: match?.fecha || null,
+        tipoLabel: match?.tipo_partido || match?.modalidad || 'Partido',
+        nombre: match?.nombre || 'Partido',
+        source: 'encuesta',
+      };
 
       const winner = normalizeIdentity(survey?.winner_team);
       const hasWinner = winner === 'equipo_a' || winner === 'equipo_b' || winner === 'empate';
@@ -350,31 +368,34 @@ const StatsView = ({ onVolver }) => {
         : (Array.isArray(teamConfirm?.team_b) ? teamConfirm.team_b : []);
 
       if (!hasWinner) {
-        if (survey || teamConfirm || match?.teams_confirmed === true) {
-          pendientes += 1;
-        }
+        pendientes += 1;
+        recientes.push({ ...baseRecap, resultKey: 'pendiente', label: 'Pendiente' });
         return;
       }
 
       if (winner === 'empate') {
         empatados += 1;
+        recientes.push({ ...baseRecap, resultKey: 'empate', label: 'Empate' });
         return;
       }
 
       const userTeam = resolveUserTeam({ participants, teamA, teamB });
       if (!userTeam) {
         sinEquipoDetectado += 1;
+        recientes.push({ ...baseRecap, resultKey: 'sin_equipo', label: 'Sin equipo detectado' });
         return;
       }
 
       if (winner === userTeam) {
         ganados += 1;
+        recientes.push({ ...baseRecap, resultKey: 'ganaste', label: 'Ganaste' });
       } else {
         perdidos += 1;
+        recientes.push({ ...baseRecap, resultKey: 'perdiste', label: 'Perdiste' });
       }
     });
 
-    return { ganados, empatados, perdidos, pendientes, sinEquipoDetectado };
+    return { ganados, empatados, perdidos, pendientes, sinEquipoDetectado, recientes };
   };
 
   const getAmigosStats = async (dateRange) => {
@@ -587,7 +608,27 @@ const StatsView = ({ onVolver }) => {
     const perdidos = partidosManuales?.filter((p) => p.resultado === 'perdiste').length || 0;
     const recientes = [...(partidosManuales || [])]
       .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
-      .slice(0, 5);
+      .slice(0, 5)
+      .map((p) => {
+        const ts = p?.fecha ? new Date(`${p.fecha}T00:00:00`).getTime() : 0;
+        const tipoLabel = p?.tipo_partido === 'torneo' ? 'Torneo' : 'Amistoso';
+        const resultKey = p?.resultado || 'sin_dato';
+        let label = 'Sin dato';
+        if (resultKey === 'ganaste') label = 'Ganaste';
+        if (resultKey === 'empate') label = 'Empate';
+        if (resultKey === 'perdiste') label = 'Perdiste';
+
+        return {
+          id: `manual-${p.id}`,
+          ts: Number.isFinite(ts) ? ts : 0,
+          fecha: p?.fecha || null,
+          tipoLabel,
+          nombre: 'Partido manual',
+          source: 'manual',
+          resultKey,
+          label,
+        };
+      });
     const chartData = generateChartData(partidosManuales || [], period, true);
 
     return {
@@ -737,15 +778,25 @@ const StatsView = ({ onVolver }) => {
   };
 
   const injuryStatus = formatInjuryStatus();
-  const manualResultMeta = {
+  const resultPillMeta = {
     ganaste: { label: 'Ganaste', className: 'text-emerald-300 border-emerald-300/30 bg-emerald-400/10' },
     empate: { label: 'Empate', className: 'text-amber-200 border-amber-200/30 bg-amber-400/10' },
     perdiste: { label: 'Perdiste', className: 'text-rose-300 border-rose-300/30 bg-rose-400/10' },
+    pendiente: { label: 'Pendiente', className: 'text-sky-200 border-sky-300/30 bg-sky-400/10' },
+    sin_equipo: { label: 'Sin equipo', className: 'text-white/80 border-white/20 bg-white/10' },
+    sin_dato: { label: 'Sin dato', className: 'text-white/80 border-white/20 bg-white/10' },
   };
   const recapGanados = stats.manualGanados + stats.encuestaGanados;
   const recapEmpatados = stats.manualEmpates + stats.encuestaEmpates;
   const recapPerdidos = stats.manualPerdidos + stats.encuestaPerdidos;
-  const showResultsRecap = (recapGanados + recapEmpatados + recapPerdidos + stats.encuestaPendientes) > 0;
+  const recapRecientes = Array.isArray(stats.recapRecientes) ? stats.recapRecientes : [];
+  const showResultsRecap = (
+    recapGanados
+    + recapEmpatados
+    + recapPerdidos
+    + stats.encuestaPendientes
+    + stats.encuestaSinEquipoDetectado
+  ) > 0 || recapRecientes.length > 0;
 
   const handleManualMatchSaved = () => {
     loadStats();
@@ -966,7 +1017,7 @@ const StatsView = ({ onVolver }) => {
           >
             <div className="font-oswald text-base font-semibold text-white mb-1">Recap de resultados</div>
             <div className="font-oswald text-[11px] text-white/65 mb-3">
-              Incluye partidos manuales y resultados de encuestas cuando ya están procesados.
+              Todos tus partidos del período: manuales y partidos reales (con encuesta).
             </div>
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-2">
               <div className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
@@ -991,43 +1042,23 @@ const StatsView = ({ onVolver }) => {
                 {stats.encuestaSinEquipoDetectado} partido(s) con resultado pero sin equipo detectable.
               </div>
             )}
-          </motion.div>
-        )}
-
-        {stats.partidosManuales > 0 && (
-          <motion.div
-            className="bg-white/10 rounded-2xl p-4 mb-6 backdrop-blur-md border border-white/20"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.32 }}
-          >
-            <div className="font-oswald text-base font-semibold text-white mb-3">Detalle de partidos manuales</div>
-            <div className="grid grid-cols-3 gap-2 mb-3 sm:grid-cols-1">
-              <div className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
-                <div className="font-oswald text-[11px] text-emerald-200/90">Ganados</div>
-                <div className="font-oswald text-xl font-bold text-emerald-100">{stats.manualGanados}</div>
-              </div>
-              <div className="rounded-lg border border-amber-300/25 bg-amber-400/10 px-3 py-2">
-                <div className="font-oswald text-[11px] text-amber-100/90">Empatados</div>
-                <div className="font-oswald text-xl font-bold text-amber-50">{stats.manualEmpates}</div>
-              </div>
-              <div className="rounded-lg border border-rose-300/25 bg-rose-400/10 px-3 py-2">
-                <div className="font-oswald text-[11px] text-rose-100/90">Perdidos</div>
-                <div className="font-oswald text-xl font-bold text-rose-100">{stats.manualPerdidos}</div>
-              </div>
-            </div>
-
-            {stats.manualRecientes.length > 0 && (
+            {recapRecientes.length > 0 && (
               <div className="flex flex-col gap-2">
-                {stats.manualRecientes.map((partido) => {
-                  const resultMeta = manualResultMeta[partido.resultado] || { label: partido.resultado || 'Sin dato', className: 'text-white/80 border-white/20 bg-white/10' };
+                {recapRecientes.map((partido) => {
+                  const resultMeta = resultPillMeta[partido.resultKey] || resultPillMeta.sin_dato;
+                  const fechaLabel = partido?.fecha
+                    ? new Date(`${partido.fecha}T00:00:00`).toLocaleDateString('es-ES')
+                    : 'Sin fecha';
+                  const titleLabel = partido?.source === 'manual'
+                    ? `${fechaLabel} · ${partido.tipoLabel}`
+                    : `${fechaLabel} · ${partido.nombre || 'Partido'} · ${partido.tipoLabel}`;
                   return (
                     <div key={partido.id} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
                       <div className="font-oswald text-sm text-white/90">
-                        {new Date(partido.fecha).toLocaleDateString('es-ES')} · {partido.tipo_partido === 'torneo' ? 'Torneo' : 'Amistoso'}
+                        {titleLabel}
                       </div>
                       <span className={`px-2.5 py-1 rounded-full border text-xs font-oswald ${resultMeta.className}`}>
-                        {resultMeta.label}
+                        {partido?.label || resultMeta.label}
                       </span>
                     </div>
                   );
