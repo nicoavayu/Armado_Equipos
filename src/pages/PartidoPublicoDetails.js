@@ -217,7 +217,7 @@ export default function PartidoPublicoDetails() {
     setLoading(false);
   }
 
-  if (loading || !partido) return <div className="min-h-[60vh] flex items-center justify-center"><LoadingSpinner /></div>;
+  if (loading || !partido) return <LoadingSpinner size="large" fullScreen />;
 
   return (
     <div className="w-full flex justify-center pt-8 pb-12 px-4 bg-transparent">

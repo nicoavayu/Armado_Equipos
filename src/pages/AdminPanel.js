@@ -177,7 +177,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     adminState.teams.find((t) => t.id === 'equipoB');
 
   if (!partidoActual || !adminState.invitationChecked) {
-    return <LoadingSpinner size="large" />;
+    return <LoadingSpinner size="large" fullScreen />;
   }
 
   return (

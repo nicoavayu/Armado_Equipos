@@ -172,7 +172,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     !realtimeTeams.find((t) => t.id === 'equipoA') ||
     !realtimeTeams.find((t) => t.id === 'equipoB')
   ) {
-    return <SafeLoadingSpinner size="large" />;
+    return (
+      <div className="min-h-[60dvh] w-full flex items-center justify-center">
+        <SafeLoadingSpinner size="large" />
+      </div>
+    );
   }
 
   // Función para obtener color basado en el puntaje (1-10)

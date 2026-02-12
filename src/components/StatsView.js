@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
+import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import ManualMatchModal from './ManualMatchModal';
 import InjuryModal from './InjuryModal';
@@ -883,14 +884,7 @@ const StatsView = ({ onVolver }) => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-[100dvh] pb-[100px]">
-        <PageTitle onBack={onVolver}>ESTADÍSTICAS</PageTitle>
-        <div className="flex justify-center items-center h-[50vh]">
-          <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner size="large" fullScreen />;
   }
 
   return (
