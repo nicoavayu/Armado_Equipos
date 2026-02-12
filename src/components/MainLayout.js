@@ -1,7 +1,6 @@
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import TabBar from './TabBar';
-import DirectFix from './DirectFix';
 
 const MainLayout = () => {
   const location = useLocation();
@@ -24,8 +23,6 @@ const MainLayout = () => {
 
   return (
     <div className="flex flex-col min-h-[100dvh]">
-      <DirectFix />
-
       {/* App Shell / Main Content Container */}
       <main className="flex-1 flex flex-col pt-[var(--safe-top,0px)] pb-[calc(var(--safe-bottom,0px)+70px)] md:pb-[calc(var(--safe-bottom,0px)+80px)] overflow-x-hidden">
         <Outlet />
