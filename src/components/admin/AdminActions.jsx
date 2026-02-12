@@ -21,6 +21,13 @@ const AdminActions = ({
 }) => {
   if (!isAdmin) return null;
 
+  const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
+  const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0;
+  const playersCount = Array.isArray(jugadores) ? jugadores.length : 0;
+  const isTitularFull = starterCapacity > 0 && playersCount >= starterCapacity;
+  const isRosterFull = maxRosterSlots > 0 && playersCount >= maxRosterSlots;
+  const remainingSubSlots = starterCapacity > 0 ? Math.max(0, maxRosterSlots - playersCount) : 0;
+
   return (
     <>
       {/* Add player section */}
@@ -33,7 +40,7 @@ const AdminActions = ({
               onClick={() => {
                 setShowInviteModal(true);
               }}
-              disabled={!partidoActual?.id || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
+              disabled={!partidoActual?.id || isRosterFull}
               aria-label="Invitar amigos al partido"
             >
               Invitar amigos
@@ -47,7 +54,7 @@ const AdminActions = ({
                 value={nuevoNombre}
                 onChange={(e) => setNuevoNombre(e.target.value)}
                 placeholder="Agregar jugador manualmente"
-                disabled={loading || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
+                disabled={loading || isRosterFull}
                 ref={inputRef}
                 maxLength={40}
                 required
@@ -63,11 +70,23 @@ const AdminActions = ({
                 className="shrink-0 h-11 min-h-[44px] px-4 text-[16px] rounded-[10px] border border-[#128BE9]/30 bg-[#128BE9]/10 text-[#128BE9] font-oswald font-semibold tracking-[0.01em] cursor-pointer transition-all flex items-center justify-center hover:bg-[#128BE9]/20 hover:border-[#128BE9]/50 active:scale-95 disabled:opacity-30"
                 type="button"
                 onClick={agregarJugador}
-                disabled={!nuevoNombre?.trim() || loading || isClosing || (partidoActual.cupo_jugadores && jugadores.length >= partidoActual.cupo_jugadores)}
+                disabled={!nuevoNombre?.trim() || loading || isClosing || isRosterFull}
               >
                 {loading ? <LoadingSpinner size="small" /> : 'Agregar'}
               </button>
             </div>
+
+            {isTitularFull && !isRosterFull && (
+              <div className="rounded-lg border border-amber-400/35 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-200 font-oswald">
+                Ya completaste el plantel titular. Ahora podés sumar {remainingSubSlots} suplente{remainingSubSlots === 1 ? '' : 's'}.
+              </div>
+            )}
+
+            {isRosterFull && (
+              <div className="rounded-lg border border-rose-400/35 bg-rose-500/10 px-3 py-2 text-[12px] text-rose-200 font-oswald">
+                Cupo completo: titulares + suplentes.
+              </div>
+            )}
 
           </div>
         </div>

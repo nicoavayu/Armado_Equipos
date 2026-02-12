@@ -43,7 +43,7 @@ export const useAdminPanelState = ({
   const currentPlayerInMatch = jugadoresActuales.find((j) => j.usuario_id === user?.id);
   const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
   const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0; // titulares + 2 suplentes
-  const isRosterFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
+  const isRosterFull = maxRosterSlots > 0 && jugadoresActuales.length >= maxRosterSlots;
 
   // New state to track if user has an approved request but isn't in players table yet
   const [hasApprovedRequest, setHasApprovedRequest] = useState(false);
@@ -289,7 +289,7 @@ export const useAdminPanelState = ({
     const nombre = nuevoNombre.trim();
     if (!nombre) return;
 
-    const nombreExiste = jugadores.some((j) => j.nombre.toLowerCase() === nombre.toLowerCase());
+    const nombreExiste = jugadoresActuales.some((j) => j.nombre.toLowerCase() === nombre.toLowerCase());
     if (nombreExiste) {
       toast.warn('Ya existe un jugador con ese nombre.');
       return;

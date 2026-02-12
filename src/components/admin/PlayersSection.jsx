@@ -93,8 +93,8 @@ const PlayersSection = ({
   const maxRosterSlots = capacity > 0 ? capacity + 2 : 0;
   const titularPlayers = jugadores.filter((j) => !j?.is_substitute);
   const substitutePlayers = jugadores.filter((j) => !!j?.is_substitute);
-  const sortedPlayers = [...titularPlayers, ...substitutePlayers];
   const remainingTitularSlots = capacity > 0 ? Math.max(0, capacity - titularPlayers.length) : null;
+  const remainingSubstituteSlots = Math.max(0, 2 - substitutePlayers.length);
   const isMatchFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
   const canShareInviteLink = isAdmin && typeof onShareClick === 'function' && !isMatchFull;
 
@@ -119,7 +119,7 @@ const PlayersSection = ({
 
     return (
       <PlayerCardTrigger
-        key={j.uuid}
+        key={j.uuid || j.id || `${j.nombre}-${j.usuario_id || 'manual'}`}
         profile={j}
         partidoActual={partidoActual}
         onMakeAdmin={transferirAdmin}
@@ -176,6 +176,49 @@ const PlayersSection = ({
       </PlayerCardTrigger >
     );
   };
+
+  const showSubstituteSection = substitutePlayers.length > 0 || (capacity > 0 && titularPlayers.length >= capacity);
+
+  const renderRosterSections = () => (
+    <div className="flex flex-col gap-3">
+      <div className="rounded-lg border border-white/15 bg-black/15 p-2.5">
+        <div className="flex items-center justify-between px-1 mb-2">
+          <span className="font-bebas text-sm tracking-wide text-white/90 uppercase">Titulares</span>
+          <span className="text-[11px] font-oswald text-white/65">
+            {titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'}
+          </span>
+        </div>
+        {titularPlayers.length > 0 ? (
+          <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
+            {titularPlayers.map(renderPlayerCard)}
+          </div>
+        ) : (
+          <div className="text-center text-[12px] text-white/55 font-oswald py-2">Todavía no hay titulares.</div>
+        )}
+      </div>
+
+      {showSubstituteSection && (
+        <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-2.5">
+          <div className="flex items-center justify-between px-1 mb-2">
+            <span className="font-bebas text-sm tracking-wide text-amber-100 uppercase">Suplentes</span>
+            <span className="text-[11px] font-oswald text-amber-200/85">{substitutePlayers.length}/2</span>
+          </div>
+          {substitutePlayers.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
+              {substitutePlayers.map(renderPlayerCard)}
+            </div>
+          ) : (
+            <div className="text-center text-[12px] text-amber-100/80 font-oswald py-2">
+              Todavía no hay suplentes. Quedan {remainingSubstituteSlots} cupo{remainingSubstituteSlots === 1 ? '' : 's'}.
+            </div>
+          )}
+          <div className="mt-2 text-center text-[11px] text-amber-100/85 font-oswald uppercase tracking-wide">
+            Los suplentes suben automáticamente si se libera un cupo titular.
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   // Guest view (non-admin) OR user with pending invitation
   if (!isAdmin || (!isPlayerInMatch && jugadores.length > 0)) {
@@ -284,16 +327,7 @@ const PlayersSection = ({
               )}
             </div>
           ) : (
-            <>
-              <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
-                {sortedPlayers.map(renderPlayerCard)}
-              </div>
-              {substitutePlayers.length > 0 && (
-                <div className="mt-2 text-center text-[11px] text-amber-300/90 font-oswald uppercase tracking-wide">
-                  Suplentes: {substitutePlayers.length}/2 (suben automáticamente si se libera un cupo)
-                </div>
-              )}
-            </>
+            renderRosterSections()
           )}
         </div>
 
@@ -305,6 +339,11 @@ const PlayersSection = ({
               {capacity
                 ? `Falta${remainingTitularSlots > 1 ? 'n' : ''} ${remainingTitularSlots} titular${remainingTitularSlots > 1 ? 'es' : ''}`
                 : 'Cupos disponibles'}
+            </div>
+          )}
+          {capacity > 0 && remainingTitularSlots === 0 && !isMatchFull && (
+            <div className="mb-4 text-amber-200/90 font-oswald text-sm">
+              Plantel titular completo. Quedan {remainingSubstituteSlots} suplente{remainingSubstituteSlots === 1 ? '' : 's'}.
             </div>
           )}
 
@@ -470,16 +509,7 @@ const PlayersSection = ({
       {jugadores.length === 0 ? (
         <EmptyPlayersState view={isAdmin ? 'admin' : 'guest'} onShareClick={onShareClick} />
       ) : (
-        <>
-          <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
-            {sortedPlayers.map(renderPlayerCard)}
-          </div>
-          {substitutePlayers.length > 0 && (
-            <div className="mt-2 text-center text-[11px] text-amber-300/90 font-oswald uppercase tracking-wide">
-              Suplentes: {substitutePlayers.length}/2 (suben automáticamente si se libera un cupo)
-            </div>
-          )}
-        </>
+        renderRosterSections()
       )}
       </div>
       {isAdmin && canShareInviteLink && (
