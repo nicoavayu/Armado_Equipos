@@ -198,7 +198,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted }) => {
 
     if (requests.length === 0) {
         return (
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 w-[90vw] max-w-[90vw] mx-auto">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 w-full max-w-full mx-auto">
                 <div className="flex flex-col items-center justify-center text-center">
                     <div className="text-5xl mb-4 opacity-40">📬</div>
                     <p className="text-white font-oswald text-base font-semibold mb-2">
@@ -213,7 +213,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted }) => {
     }
 
     return (
-        <div className="w-[90vw] max-w-[90vw] mx-auto">
+        <div className="w-full max-w-full mx-auto">
             <div className="flex flex-col gap-3">
                 {requests.map((request) => {
                     const userName = request.profile?.nombre || request.usuario?.nombre || 'Un jugador';

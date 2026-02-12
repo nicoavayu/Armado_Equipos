@@ -25,7 +25,7 @@ const AdminActions = ({
     <>
       {/* Add player section */}
       {!pendingInvitation && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 w-[90vw] max-w-[90vw] mx-auto box-border mb-0 mt-0">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 w-full max-w-full mx-auto box-border mb-0 mt-0">
           <div className="flex flex-col gap-3 w-full max-w-full box-border m-0 p-0">
             <button
               className="w-full h-12 min-h-[48px] text-[18px] rounded-[12px] bg-[#128BE9] text-white font-oswald font-semibold tracking-[0.01em] cursor-pointer transition-all flex items-center justify-center px-4 hover:brightness-110 shadow-[0_4px_14px_rgba(18,139,233,0.3)] active:scale-95 disabled:opacity-40"

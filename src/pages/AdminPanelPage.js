@@ -99,7 +99,7 @@ const AdminPanelPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-[100dvh] w-screen max-w-[100vw] flex items-center justify-center content-with-tabbar">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-clip flex items-center justify-center content-with-tabbar">
         <LoadingSpinner size="large" />
       </div>
     );
@@ -107,7 +107,7 @@ const AdminPanelPage = () => {
 
   if (!partidoActual) {
     return (
-      <div className="min-h-[100dvh] w-screen max-w-[100vw] pb-24 flex flex-col items-center pt-20">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-clip pb-24 flex flex-col items-center pt-20">
         <div className="bg-white/10 p-8 rounded-2xl shadow-fifa-card backdrop-blur-md flex flex-col items-center gap-4">
           <div className="text-white text-3xl font-bebas tracking-wide">PARTIDO NO ENCONTRADO</div>
           <Button onClick={() => navigate('/')} ariaLabel="Volver al inicio">VOLVER AL INICIO</Button>
@@ -118,8 +118,8 @@ const AdminPanelPage = () => {
 
   return (
     <PageTransition>
-      <div className="min-h-[100dvh] w-screen max-w-[100vw] pb-24 overflow-x-hidden">
-        <div className="mx-auto w-[90vw] max-w-[650px] pt-5">
+      <div className="min-h-[100dvh] w-full max-w-full pb-24 overflow-x-clip">
+        <div className="mx-auto w-[90vw] max-w-[650px] pt-5 min-w-0 overflow-x-clip">
           <AdminPanel
             partidoActual={partidoActual}
             jugadores={jugadoresDelPartido}

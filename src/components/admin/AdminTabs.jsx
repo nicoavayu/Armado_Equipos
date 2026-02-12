@@ -6,7 +6,7 @@ import React from 'react';
  */
 const AdminTabs = ({ activeTab, onTabChange, pendingCount = 0 }) => {
     return (
-        <div className="w-[90vw] max-w-[90vw] mx-auto mb-3">
+        <div className="w-full max-w-full mx-auto mb-3">
             <div className="flex gap-2 bg-slate-900/50 border border-slate-800 rounded-xl p-1">
                 <button
                     className={`flex-1 py-2.5 px-4 rounded-lg font-bebas text-sm tracking-wider transition-all ${activeTab === 'jugadores'

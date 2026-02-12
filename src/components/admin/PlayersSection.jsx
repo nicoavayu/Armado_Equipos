@@ -183,7 +183,7 @@ const PlayersSection = ({
       <>
         <div className="w-full flex flex-col pb-32">
         {/* Lista de jugadores para no-admin */}
-        <div className="w-[90vw] max-w-[90vw] mx-auto mt-2 bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px]">
+        <div className="w-full max-w-full mx-auto mt-2 bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px] min-w-0">
           <div className="flex items-start justify-between gap-3 mb-3 mt-1 px-1">
             <div className="font-bebas text-xl text-white tracking-wide uppercase">
               JUGADORES ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
@@ -390,7 +390,7 @@ const PlayersSection = ({
   // Admin view
   return (
     <>
-      <div className="bg-white/10 border-2 border-white/20 rounded-xl p-3 min-h-[120px] w-[90vw] max-w-[90vw] mx-auto mt-0 box-border">
+      <div className="bg-white/10 border-2 border-white/20 rounded-xl p-3 min-h-[120px] w-full max-w-full mx-auto mt-0 box-border min-w-0">
       <div className="flex items-start justify-between gap-3 mb-3 mt-2">
         <div className="font-bebas text-xl text-white tracking-wide uppercase">
           JUGADORES ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
@@ -483,7 +483,7 @@ const PlayersSection = ({
       )}
       </div>
       {isAdmin && canShareInviteLink && (
-        <div className="w-[90vw] max-w-[90vw] mx-auto mt-2 text-center">
+        <div className="w-full max-w-full mx-auto mt-2 text-center">
           <p className="text-[11px] text-white/60 font-oswald leading-relaxed">
             Ingresá jugadores manualmente o compartí el link del partido.
           </p>

@@ -203,18 +203,20 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
           />
 
           {!showTeams && (
-            <MatchInfoSection
-              partido={normalizePartidoForHeader(partidoActual)}
-              fecha={partidoActual?.fecha}
-              hora={partidoActual?.hora}
-              sede={partidoActual?.sede}
-              modalidad={partidoActual?.modalidad}
-              tipo={partidoActual?.tipo_partido}
-              precio={partidoActual?.valor_cancha || partidoActual?.valorCancha || partidoActual?.valor || partidoActual?.precio}
-            />
+            <div className="w-full overflow-x-clip">
+              <MatchInfoSection
+                partido={normalizePartidoForHeader(partidoActual)}
+                fecha={partidoActual?.fecha}
+                hora={partidoActual?.hora}
+                sede={partidoActual?.sede}
+                modalidad={partidoActual?.modalidad}
+                tipo={partidoActual?.tipo_partido}
+                precio={partidoActual?.valor_cancha || partidoActual?.valorCancha || partidoActual?.valor || partidoActual?.precio}
+              />
+            </div>
           )}
 
-          <main className="pb-20 pt-0">
+          <main className="pb-20 pt-0 overflow-x-clip">
             <div className="main-content">
               {showTeams && (
                 <TeamsPanel
@@ -227,7 +229,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                   partidoActual={partidoActual}
                 />
               )}
-              <div className={`w-[90vw] max-w-[90vw] mx-auto pb-[70px] flex flex-col gap-3 overflow-x-hidden ${isAdmin ? 'pt-3' : 'pt-0'}`}>
+              <div className={`w-full max-w-full mx-auto pb-[70px] flex flex-col gap-3 overflow-x-hidden min-w-0 ${isAdmin ? 'pt-3' : 'pt-0'}`}>
 
                 {!showTeams && (
                   <>
@@ -350,7 +352,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
                     {/* Botón ARMAR EQUIPOS PAREJOS - only on Jugadores tab */}
                     {isAdmin && !adminState.pendingInvitation && activeTab === 'jugadores' && (
-                      <div className="w-[90vw] max-w-[90vw] mx-auto mt-3 text-center">
+                      <div className="w-full max-w-full mx-auto mt-3 text-center">
                         <button
                           className="w-full bg-primary text-white font-oswald text-[18px] px-4 py-3 rounded-xl hover:brightness-110 transition-all disabled:opacity-35 disabled:cursor-not-allowed shadow-[0_8px_32px_rgba(129,120,229,0.3)] border border-white/20 active:scale-95 tracking-[0.01em] font-semibold"
                           onClick={handleArmarEquipos}
