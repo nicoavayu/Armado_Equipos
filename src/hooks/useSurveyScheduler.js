@@ -1,22 +1,14 @@
 import { useEffect } from 'react';
-import { checkMatchesForSurveys } from '../services/surveyScheduler';
 
 /**
- * Hook to periodically check for matches that need post-match survey notifications
+ * Client scheduler disabled.
+ * Survey fanout now runs from backend cron.
  */
 export const useSurveyScheduler = (enabled = true) => {
   useEffect(() => {
     if (!enabled) return;
-
-    // Check immediately on mount
-    checkMatchesForSurveys();
-    
-    // Then check every minute for debug feedback
-    const interval = setInterval(() => {
-      checkMatchesForSurveys();
-    }, 60 * 1000);
-    
-    // Clean up on unmount
-    return () => clearInterval(interval);
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[SURVEY_SCHEDULER] Client polling disabled. Backend cron is responsible for survey fanout.');
+    }
   }, [enabled]);
 };

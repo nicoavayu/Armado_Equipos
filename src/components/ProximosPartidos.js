@@ -4,7 +4,6 @@ import { useAuth } from './AuthProvider';
 import { useInterval } from '../hooks/useInterval';
 import { supabase } from '../supabase';
 import { clearMatchFromList } from '../services/matchFinishService';
-import { checkAndNotifyMatchFinish } from '../services/matchFinishService';
 import { cancelPartidoWithNotification } from '../services/db/matches';
 import { parseLocalDateTime, formatLocalDateShort } from '../utils/dateLocal';
 import LoadingSpinner from './LoadingSpinner';
@@ -22,7 +21,6 @@ const ProximosPartidos = ({ onClose }) => {
   // Always sort by temporal proximity (soonest first)
   const [_clearedMatches, setClearedMatches] = useState(new Set());
   const [completedSurveys, setCompletedSurveys] = useState(new Set());
-  const [notifiedMatches, setNotifiedMatches] = useState(new Set());
   const [userJugadorIds, setUserJugadorIds] = useState([]);
   const [userJugadorIdByMatch, setUserJugadorIdByMatch] = useState({});
 
@@ -229,20 +227,6 @@ const ProximosPartidos = ({ onClose }) => {
         userJoined: partidosComoJugador.includes(partido.id),
         hasCompletedSurvey: localCompletedSurveys.has(String(partido.id)),
       }));
-
-      // Check for finished matches and send notifications
-      for (const partido of partidosEnriquecidos) {
-        if (isMatchFinished(partido) && !notifiedMatches.has(partido.id)) {
-          try {
-            const sent = await checkAndNotifyMatchFinish(partido);
-            if (sent) {
-              setNotifiedMatches((prev) => { const s = new Set(prev); s.add(partido.id); return s; });
-            }
-          } catch (error) {
-            console.error('Error sending match finish notification:', error);
-          }
-        }
-      }
 
       setPartidos(partidosEnriquecidos);
 
