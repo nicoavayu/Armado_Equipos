@@ -62,6 +62,7 @@ export default function App() {
           <BadgeProvider>
             <NotificationProvider>
               <Router>
+                <ScrollToTop />
                 <Routes>
                   <Route path="/health" element={
                     <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
@@ -246,4 +247,20 @@ function PasswordLoginRoute() {
     return <Navigate to="/login" replace />;
   }
   return <AuthPage />;
+}
+
+function ScrollToTop() {
+  const location = useLocation();
+
+  React.useEffect(() => {
+    const reset = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+
+    requestAnimationFrame(reset);
+  }, [location.pathname, location.search]);
+
+  return null;
 }
