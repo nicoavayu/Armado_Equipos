@@ -560,6 +560,8 @@ const StatsView = ({ onVolver }) => {
     return null;
   };
 
+  const injuryStatus = formatInjuryStatus();
+
   const handleManualMatchSaved = () => {
     loadStats();
   };
@@ -817,17 +819,21 @@ const StatsView = ({ onVolver }) => {
           transition={{ delay: 0.5 }}
         >
           <div className="flex items-start gap-2.5">
-            <div className={`mt-0.5 shrink-0 ${formatInjuryStatus()?.type === 'active' ? 'text-[#ff8a8a]' : 'text-[#8ddf9a]'}`}>
-              {formatInjuryStatus()?.type === 'active' ? <CircleAlert size={24} /> : <AlertCircle size={24} />}
+            <div className={`mt-0.5 shrink-0 ${injuryStatus?.type === 'active' ? 'text-[#ff8a8a]' : 'text-[#8ddf9a]'}`}>
+              {injuryStatus?.type === 'active' ? <CircleAlert size={24} /> : <AlertCircle size={24} />}
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-oswald text-xs text-white/70 uppercase tracking-wide mb-1">Estado físico</div>
-              {formatInjuryStatus() ? (
+              {injuryStatus ? (
                 <>
                   <div className="font-oswald text-[18px] leading-tight font-semibold text-white mb-0.5">
-                    {formatInjuryStatus().type === 'active' ? 'En recuperación' : 'Sin lesión activa'}
+                    {injuryStatus.type === 'active' ? 'En recuperación' : 'Sin lesión activa'}
                   </div>
-                  <div className="font-oswald text-xs text-white/70 truncate">{formatInjuryStatus().subtext || formatInjuryStatus().text}</div>
+                  <div className="font-oswald text-xs text-white/70 truncate">
+                    {injuryStatus.type === 'active'
+                      ? (injuryStatus.subtext || injuryStatus.text)
+                      : injuryStatus.text}
+                  </div>
                 </>
               ) : (
                 <>
@@ -843,7 +849,7 @@ const StatsView = ({ onVolver }) => {
           >
             Registrar nueva lesión
           </button>
-          {formatInjuryStatus()?.type === 'active' && (
+          {injuryStatus?.type === 'active' && (
             <button
               className="mt-2 w-full px-3 py-2 rounded-lg border border-primary/40 bg-primary/20 text-white text-xs uppercase tracking-wide hover:bg-primary/30 transition-colors"
               onClick={markActiveLesionAsRecovered}
