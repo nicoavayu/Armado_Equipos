@@ -64,11 +64,10 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   useEffect(() => {
     if (!isOpen) return undefined;
 
-    const isMobile = isCompactLayout;
     const body = document.body;
     const html = document.documentElement;
     const scrollY = window.scrollY || window.pageYOffset || 0;
-    scrollLockRef.current = { scrollY, locked: !isMobile };
+    scrollLockRef.current = { scrollY, locked: true };
 
     const prevBodyOverflow = body.style.overflow;
     const prevBodyPosition = body.style.position;
@@ -78,12 +77,9 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
     body.style.overflow = 'hidden';
     html.style.overflow = 'hidden';
-
-    if (!isMobile) {
-      body.style.position = 'fixed';
-      body.style.top = `-${scrollY}px`;
-      body.style.width = '100%';
-    }
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
 
     return () => {
       body.style.overflow = prevBodyOverflow;
@@ -290,10 +286,10 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       onClick={handleClose}
     >
       <div
-        className="bg-slate-900 border-x border-t border-white/20 w-full h-full max-h-full rounded-t-2xl flex flex-col shadow-[0_30px_120px_rgba(0,0,0,0.55)] overflow-hidden sm:border-2 sm:max-w-[500px] sm:h-[75vh] sm:max-h-[600px] sm:rounded-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex flex-col px-5 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-3 border-b border-white/10 bg-slate-800 sm:px-4 sm:pt-2.5 sm:pb-2.5 sm:shrink-0">
+      className="bg-slate-900 border-x border-t border-white/20 w-full h-[52%] min-h-[260px] max-h-[420px] rounded-t-2xl flex flex-col shadow-[0_30px_120px_rgba(0,0,0,0.55)] overflow-hidden sm:border-2 sm:max-w-[500px] sm:h-[75vh] sm:max-h-[600px] sm:rounded-xl"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex flex-col px-5 py-3 border-b border-white/10 bg-slate-800 sm:px-4 sm:py-2.5 sm:shrink-0">
           <div className="flex justify-between items-center">
             <h3 className="m-0 font-bebas text-xl font-bold text-white tracking-wide uppercase">Chat del Partido</h3>
             <button
