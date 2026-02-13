@@ -1128,16 +1128,37 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 w-full">
           <div className="text-center mb-6">
             <h2 className="text-white text-2xl font-bold mb-2">Sumarte rápido</h2>
-            <p className="text-white/70 text-sm">Ingresá tu nombre (foto opcional)</p>
+            <p className="text-white/70 text-sm">Ingresá tu nombre y tu selfie</p>
             {partido?.nombre && (
               <p className="text-white/55 text-xs mt-2">
                 Partido: <span className="text-white/80 font-semibold">{partido.nombre}</span>
               </p>
             )}
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-white/70 text-xs">
+              {partido?.fecha && (
+                <span className="inline-flex items-center gap-1">
+                  <Calendar size={12} />
+                  {formatLocalDateShort(partido.fecha)}
+                </span>
+              )}
+              {partido?.hora && (
+                <span className="inline-flex items-center gap-1">
+                  <Clock size={12} />
+                  {partido.hora}
+                </span>
+              )}
+              {partido?.sede && (
+                <span className="inline-flex items-center gap-1">
+                  <MapPin size={12} />
+                  {String(partido.sede).split(/[,(]/)[0].trim()}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="mb-4">
             <label className="block text-white font-semibold mb-2">Tu foto (opcional)</label>
+            <p className="text-white/60 text-xs mb-2">Poné tu selfie así la gente sabe quién sos.</p>
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 rounded-full overflow-hidden border border-white/30 bg-white/5 flex items-center justify-center shrink-0">
                 {guestPhotoDataUrl ? (
