@@ -31,7 +31,7 @@ const EncuestaPartido = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [partido, setPartido] = useState(null);
-  const [teamsConfirmed, setTeamsConfirmed] = useState(false);
+  const [, setTeamsConfirmed] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
@@ -228,9 +228,8 @@ const EncuestaPartido = () => {
         jugadores_violentos: violentosIds,
         mejor_jugador_eq_a: mvpPlayer?.id || null,
         mejor_jugador_eq_b: arqueroPlayer?.id || null, // Usamos este campo para el arquero
-        // Winner A/B/(draw) only makes sense when teams are confirmed.
-        ganador: teamsConfirmed ? (formData.ganador || null) : null,
-        resultado: teamsConfirmed ? (formData.resultado || null) : null,
+        ganador: formData.ganador || null,
+        resultado: formData.resultado || null,
         created_at: new Date().toISOString(),
       };
 
@@ -289,7 +288,7 @@ const EncuestaPartido = () => {
       return;
     }
 
-    if (teamsConfirmed && currentStep === 5 && !formData.ganador) {
+    if (currentStep === 5 && !formData.ganador) {
       toast.error('Elegí el ganador');
       return;
     }
@@ -708,7 +707,7 @@ const EncuestaPartido = () => {
           )}
 
           {/* STEP 5: ¿QUIÉN GANÓ? */}
-          {currentStep === 5 && teamsConfirmed && (
+          {currentStep === 5 && (
             <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className={titleClass}>
@@ -782,17 +781,11 @@ const EncuestaPartido = () => {
                   <button
                     className={btnClass}
                     onClick={() => {
-                      if (teamsConfirmed) {
-                        setCurrentStep(5);
-                        return;
-                      }
-                      if (submitting || encuestaFinalizada) return;
-                      setSubmitting(true);
-                      continueSubmitFlow();
+                      setCurrentStep(5);
                     }}
                     disabled={formData.jugadores_violentos.length === 0}
                   >
-                    {teamsConfirmed ? 'SIGUIENTE' : 'FINALIZAR ENCUESTA'}
+                    SIGUIENTE
                   </button>
                 </div>
               </div>
