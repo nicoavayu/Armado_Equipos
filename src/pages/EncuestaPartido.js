@@ -318,11 +318,11 @@ const EncuestaPartido = () => {
   // Helper classes for consistency
   const _wrapperClass = 'min-h-[100dvh] bg-fifa-gradient w-full p-0 flex flex-col overflow-x-hidden';
   const cardClass = 'w-[92%] max-w-[720px] mx-auto min-h-[100dvh] px-3 md:px-4 flex flex-col';
-  const stepClass = 'w-full flex-1 min-h-0 grid grid-rows-[auto_minmax(160px,1fr)_auto] gap-5 md:gap-6 content-center py-5 md:py-6';
-  const questionRowClass = 'flex items-center justify-center pt-1';
-  const contentRowClass = 'flex items-center justify-center min-h-[160px] overflow-hidden';
-  const actionRowClass = 'flex items-start justify-center mt-1';
-  const logoRowClass = 'hidden';
+  const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-5 md:gap-6 py-5 md:py-6';
+  const questionRowClass = 'w-full flex items-center justify-center';
+  const contentRowClass = 'w-full min-h-[170px] flex items-center justify-center overflow-hidden';
+  const actionRowClass = 'w-full flex items-center justify-center';
+  const logoRowClass = 'w-full flex justify-center pt-5 md:pt-6';
   const titleClass = 'font-bebas text-[30px] md:text-[56px] text-white tracking-[0.08em] font-bold text-center leading-[1.06] uppercase drop-shadow-md break-words w-full px-1';
   const surveyBtnBaseClass = 'w-full border border-white/40 bg-white/[0.12] text-white font-bebas text-[22px] md:text-[24px] py-3 text-center cursor-pointer transition-all hover:bg-white/[0.17] active:scale-[0.98] flex items-center justify-center min-h-[64px] rounded-[22px] tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_10px_24px_rgba(17,14,72,0.32)] disabled:opacity-60 disabled:cursor-not-allowed';
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase`;
@@ -431,7 +431,7 @@ const EncuestaPartido = () => {
               title="CARGANDO ENCUESTA"
               description="Estamos preparando los datos del partido."
             />
-            <div className="mt-auto pb-[10px] flex justify-center">
+            <div className="mt-6 flex justify-center">
               <SurveyFooterLogo />
             </div>
           </div>
@@ -466,9 +466,6 @@ const EncuestaPartido = () => {
               <div className={logoRowClass}>
                 <SurveyFooterLogo />
               </div>
-            </div>
-            <div className="pb-[10px] flex justify-center">
-              <SurveyFooterLogo />
             </div>
           </div>
         </div>
@@ -908,9 +905,6 @@ const EncuestaPartido = () => {
               </div>
             </div>
           )}
-          <div className="pb-[10px] flex justify-center">
-            <SurveyFooterLogo />
-          </div>
         </div>
       </div>
     </PageTransition>
