@@ -128,41 +128,52 @@ export default function MatchInfoSection(props) {
     <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen max-w-none px-0 mx-0 overflow-hidden box-border">
       <div className="relative w-full flex justify-center items-start m-0 p-0">
         <div className={`${topOffset} mb-0 p-3 relative w-full max-w-none box-border bg-white/[0.04] rounded-none flex justify-center sm:max-w-full sm:p-[8px_10px] border-t border-b border-white/[0.08]`}>
-          {/* Use CSS grid with explicit weighted columns and minmax(0, fr) as requested */}
-          <div className="flex items-center w-full overflow-hidden flex-nowrap" style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1.35fr) minmax(0, 0.9fr) minmax(0, 0.65fr) minmax(0, 1.25fr) minmax(0, 0.7fr) minmax(0, 1.15fr)',
-            gap: 'clamp(6px, 2vw, 16px)',
-          }}>
-            <div className="flex flex-col items-center gap-1.5 text-white flex-1 min-w-0 sm:gap-1">
+          <div
+            className="flex items-center w-full overflow-hidden flex-nowrap"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+              gap: '0px',
+            }}
+          >
+            <div className="flex items-center justify-center min-w-0 px-[clamp(4px,1.2vw,10px)] border-r border-white/[0.1]">
+              <div className="flex flex-col items-center gap-1.5 text-white min-w-0 w-full sm:gap-1">
               <svg className="w-[clamp(12px,2.2vw,20px)] h-[clamp(12px,2.2vw,20px)] shrink-0 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                 <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z" />
               </svg>
               <FitText className="text-[clamp(10px,1.6vw,14px)] font-['Oswald'] font-medium text-white whitespace-nowrap overflow-hidden text-ellipsis w-full text-center sm:text-[11px]">{fechaDisplay}</FitText>
             </div>
+            </div>
 
-            <div className="flex flex-col items-center gap-1.5 text-white flex-1 min-w-0 sm:gap-1">
+            <div className="flex items-center justify-center min-w-0 px-[clamp(4px,1.2vw,10px)] border-r border-white/[0.1]">
+              <div className="flex flex-col items-center gap-1.5 text-white min-w-0 w-full sm:gap-1">
               <svg className="w-[clamp(12px,2.2vw,20px)] h-[clamp(12px,2.2vw,20px)] shrink-0 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                 <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm4.2 14.2L11 13V7h1.5v5.2l4.5 2.7-.8 1.3z" />
               </svg>
               <FitText className="text-[clamp(10px,1.6vw,14px)] font-['Oswald'] font-medium text-white whitespace-nowrap overflow-hidden text-ellipsis w-full text-center sm:text-[11px]">{horaDisplay}</FitText>
             </div>
+            </div>
 
-            <div className="flex flex-col items-center gap-1.5 text-white flex-1 min-w-0 sm:gap-1">
+            <div className="flex items-center justify-center min-w-0 px-[clamp(4px,1.2vw,10px)] border-r border-white/[0.1]">
+              <div className="flex flex-col items-center gap-1.5 text-white min-w-0 w-full sm:gap-1">
               <svg className="w-[clamp(12px,2.2vw,20px)] h-[clamp(12px,2.2vw,20px)] shrink-0 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
               </svg>
               <FitText className="text-[clamp(10px,1.6vw,14px)] font-['Oswald'] font-medium text-white whitespace-nowrap overflow-hidden text-ellipsis w-full text-center sm:text-[11px]">{modalidadDisplay}</FitText>
             </div>
+            </div>
 
-            <div className="flex flex-col items-center gap-1.5 text-white flex-1 min-w-0 sm:gap-1">
+            <div className="flex items-center justify-center min-w-0 px-[clamp(4px,1.2vw,10px)] border-r border-white/[0.1]">
+              <div className="flex flex-col items-center gap-1.5 text-white min-w-0 w-full sm:gap-1">
               <svg className="w-[clamp(12px,2.2vw,20px)] h-[clamp(12px,2.2vw,20px)] shrink-0 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                 <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
               </svg>
               <FitText className="text-[clamp(10px,1.6vw,14px)] font-['Oswald'] font-medium text-white whitespace-nowrap overflow-hidden text-ellipsis w-full text-center sm:text-[11px]">{tipoDisplay}</FitText>
             </div>
+            </div>
 
-            <div className="flex flex-col items-center gap-1.5 text-white flex-1 min-w-0 sm:gap-1">
+            <div className="flex items-center justify-center min-w-0 px-[clamp(4px,1.2vw,10px)] border-r border-white/[0.1]">
+              <div className="flex flex-col items-center gap-1.5 text-white min-w-0 w-full sm:gap-1">
               <svg className="w-[clamp(12px,2.2vw,20px)] h-[clamp(12px,2.2vw,20px)] shrink-0 sm:w-3.5 sm:h-3.5" viewBox="0 0 384 512" fill="currentColor" aria-hidden>
                 <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z" />
               </svg>
@@ -170,12 +181,15 @@ export default function MatchInfoSection(props) {
                 <div className="text-[clamp(10px,1.6vw,14px)] font-['Oswald'] font-medium text-white whitespace-nowrap overflow-hidden text-ellipsis w-full text-center sm:text-[11px] hover:text-[#4CAF50]">{sedeOne}</div>
               </a>
             </div>
+            </div>
 
-            <div className="flex flex-col items-center gap-1.5 text-white flex-1 min-w-0 sm:gap-1" aria-live="polite">
+            <div className="flex items-center justify-center min-w-0 px-[clamp(4px,1.2vw,10px)]">
+              <div className="flex flex-col items-center gap-1.5 text-white min-w-0 w-full sm:gap-1" aria-live="polite">
               <svg className="w-[clamp(12px,2.2vw,20px)] h-[clamp(12px,2.2vw,20px)] shrink-0 sm:w-3.5 sm:h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                 <text x="12" y="17" textAnchor="middle" fontFamily="Arial, sans-serif" fontSize="20" fontWeight="bold" fill="currentColor">$</text>
               </svg>
               <FitText className="text-[clamp(10px,1.6vw,14px)] font-['Oswald'] font-medium text-white whitespace-nowrap overflow-hidden text-ellipsis w-full text-center sm:text-[11px]">{priceDisplay}</FitText>
+            </div>
             </div>
           </div>
 

@@ -83,6 +83,8 @@ const PlayersSection = ({
   const [localMenuOpen, setLocalMenuOpen] = useState(false);
   const [playerToRemove, setPlayerToRemove] = useState(null);
   const [isRemovingPlayer, setIsRemovingPlayer] = useState(false);
+  const [isTitularesOpen, setIsTitularesOpen] = useState(true);
+  const [isSuplentesOpen, setIsSuplentesOpen] = useState(true);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef(null);
   const adminMenuButtonRef = useRef(null);
@@ -181,32 +183,104 @@ const PlayersSection = ({
   const renderRosterSections = () => (
     <div className="flex flex-col gap-3">
       <div className="rounded-lg border border-white/15 bg-black/15 p-2.5">
-        <div className="flex items-center justify-between px-1 mb-2">
+        <div
+          className="flex items-center justify-between px-1 mb-2"
+          onClick={() => setIsTitularesOpen((prev) => !prev)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsTitularesOpen((prev) => !prev);
+            }
+          }}
+          aria-expanded={isTitularesOpen}
+          aria-label="Toggle titulares"
+        >
           <span className="font-bebas text-sm tracking-wide text-white/90 uppercase">Titulares</span>
-          <span className="text-[11px] font-oswald text-white/65">
-            {titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'}
-          </span>
-        </div>
-        {titularPlayers.length > 0 ? (
-          <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
-            {titularPlayers.map(renderPlayerCard)}
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-oswald text-white/65">
+              {titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'}
+            </span>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="text-white/65 transition-transform duration-300"
+              style={{ transform: isTitularesOpen ? 'rotate(0deg)' : 'rotate(180deg)' }}
+              aria-hidden="true"
+            >
+              <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </div>
-        ) : (
-          <div className="text-center text-[12px] text-white/55 font-oswald py-2">Todavía no hay titulares.</div>
-        )}
+        </div>
+        <div
+          className="overflow-hidden transition-all duration-300"
+          style={{
+            maxHeight: isTitularesOpen ? '1200px' : '0px',
+            opacity: isTitularesOpen ? 1 : 0,
+            transition: 'max-height 300ms ease, opacity 300ms ease',
+          }}
+        >
+          {titularPlayers.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
+              {titularPlayers.map(renderPlayerCard)}
+            </div>
+          ) : (
+            <div className="text-center text-[12px] text-white/55 font-oswald py-2">Todavía no hay titulares.</div>
+          )}
+        </div>
       </div>
 
       {showSubstituteSection && (
         <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-2.5">
-          <div className="flex items-center justify-between px-1 mb-2">
+          <div
+            className="flex items-center justify-between px-1 mb-2"
+            onClick={() => setIsSuplentesOpen((prev) => !prev)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsSuplentesOpen((prev) => !prev);
+              }
+            }}
+            aria-expanded={isSuplentesOpen}
+            aria-label="Toggle suplentes"
+          >
             <span className="font-bebas text-sm tracking-wide text-amber-100 uppercase">Suplentes</span>
-            <span className="text-[11px] font-oswald text-amber-200/85">{substitutePlayers.length}/2</span>
-          </div>
-          {substitutePlayers.length > 0 ? (
-            <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
-              {substitutePlayers.map(renderPlayerCard)}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-oswald text-amber-200/85">{substitutePlayers.length}/2</span>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="text-amber-200/85 transition-transform duration-300"
+                style={{ transform: isSuplentesOpen ? 'rotate(0deg)' : 'rotate(180deg)' }}
+                aria-hidden="true"
+              >
+                <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </div>
-          ) : null}
+          </div>
+          <div
+            className="overflow-hidden transition-all duration-300"
+            style={{
+              maxHeight: isSuplentesOpen ? '1200px' : '0px',
+              opacity: isSuplentesOpen ? 1 : 0,
+              transition: 'max-height 300ms ease, opacity 300ms ease',
+            }}
+          >
+            {substitutePlayers.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
+                {substitutePlayers.map(renderPlayerCard)}
+              </div>
+            ) : null}
+          </div>
           <div className="mt-2 text-center text-[11px] text-amber-100/85 font-oswald tracking-wide leading-snug">
             Si se libera un cupo titular, los suplentes pasan automáticamente a la nómina.
           </div>
