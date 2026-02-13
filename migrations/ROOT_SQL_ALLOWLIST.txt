@@ -29,3 +29,4 @@
 20260211_match_history_snapshots.sql
 20260212_backend_survey_scheduler.sql
 20260212_fix_notification_delivery_log_user_fk.sql
+20260213_guest_phone_unique_guard.sql

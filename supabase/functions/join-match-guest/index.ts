@@ -58,9 +58,9 @@ serve(async (req) => {
       );
     }
 
-    const { partido_id, nombre, codigo, invite, guest_uuid, avatar_data_url } = body;
+    const { partido_id, nombre, codigo, invite, guest_uuid, avatar_data_url, telefono } = body;
 
-    if (!partido_id || !nombre?.trim() || !codigo?.trim() || !String(invite ?? "").trim()) {
+    if (!partido_id || !nombre?.trim() || !codigo?.trim() || !String(invite ?? "").trim() || !String(telefono ?? "").trim()) {
       return new Response(
         JSON.stringify({ ok: false, reason: "missing_fields" }),
         { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
@@ -71,6 +71,18 @@ serve(async (req) => {
     if (Number.isNaN(partidoIdNum)) {
       return new Response(
         JSON.stringify({ ok: false, reason: "invalid_partido_id" }),
+        { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
+      );
+    }
+
+    const normalizedPhone = String(telefono ?? "")
+      .replace(/[^\d+]/g, "")
+      .trim()
+      .slice(0, 20);
+
+    if (!normalizedPhone || normalizedPhone.length < 8) {
+      return new Response(
+        JSON.stringify({ ok: false, reason: "invalid_phone" }),
         { status: 400, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
@@ -172,6 +184,30 @@ serve(async (req) => {
       );
     }
 
+    // Prevent duplicate join by phone in the same match.
+    // If the player is removed from roster later, this check naturally allows re-join.
+    const { data: phoneExisting, error: phoneCheckErr } = await supabase
+      .from("jugadores")
+      .select("id,uuid")
+      .eq("partido_id", partidoIdNum)
+      .eq("telefono", normalizedPhone)
+      .limit(1)
+      .maybeSingle();
+
+    if (phoneCheckErr) {
+      return new Response(
+        JSON.stringify({ ok: false, reason: "phone_check_error", details: phoneCheckErr.message }),
+        { status: 500, headers: { ...cors, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (phoneExisting && String(phoneExisting.uuid || "") !== String(guest_uuid || "")) {
+      return new Response(
+        JSON.stringify({ ok: false, reason: "phone_already_joined" }),
+        { status: 409, headers: { ...cors, "Content-Type": "application/json" } }
+      );
+    }
+
     const avatarDataUrl = typeof avatar_data_url === "string" ? avatar_data_url.trim() : "";
     const hasAvatar = avatarDataUrl.startsWith("data:image/") && avatarDataUrl.length <= 900_000;
 
@@ -189,6 +225,7 @@ serve(async (req) => {
           usuario_id: null,
           nombre: nombre.trim().slice(0, 50),
           uuid: guestUuid,
+          telefono: normalizedPhone,
           avatar_url: hasAvatar ? avatarDataUrl : null,
         },
       ])
