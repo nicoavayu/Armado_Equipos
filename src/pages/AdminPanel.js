@@ -20,6 +20,7 @@ import MatchInfoSection from '../components/MatchInfoSection';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import ConfirmModal from '../components/ConfirmModal';
 import { getPublicBaseUrl } from '../utils/publicBaseUrl';
+import { parseLocalDate } from '../utils/dateLocal';
 
 import AdminActions from '../components/admin/AdminActions';
 import PlayersSection from '../components/admin/PlayersSection';
@@ -104,6 +105,25 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const isRosterFull = maxRosterSlots > 0 && displayedJugadores.length >= maxRosterSlots;
   const canOpenChatFromHeader = Boolean(isAdmin || adminState.isPlayerInMatch);
 
+  const formatInviteDateTime = (fechaRaw, horaRaw) => {
+    const fecha = String(fechaRaw || '').trim().slice(0, 10);
+    const hora = String(horaRaw || '').trim().slice(0, 5);
+
+    if (!fecha && !hora) return '';
+    if (!fecha) return hora ? `${hora} hs` : '';
+
+    try {
+      const dt = parseLocalDate(fecha);
+      const day = dt.getDate();
+      const month = dt.getMonth() + 1;
+      const yearShort = String(dt.getFullYear()).slice(-2);
+      const datePart = `${day}/${month}/${yearShort}`;
+      return hora ? `${datePart} ${hora} hs` : datePart;
+    } catch (_e) {
+      return hora ? `${fecha} ${hora} hs` : fecha;
+    }
+  };
+
   const handleHeaderChatClick = () => {
     if (canOpenChatFromHeader) {
       setIsChatOpen(true);
@@ -159,7 +179,10 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     const inviteToken = String(inviteRows[0].token || '').trim();
     const baseUrl = getPublicBaseUrl() || window.location.origin;
     const url = `${baseUrl}/partido/${matchId}/invitacion?codigo=${encodeURIComponent(matchCode)}&invite=${encodeURIComponent(inviteToken)}`;
-    const text = `Sumate al partido "${partidoActual.nombre || 'Partido'}"\n${url}`;
+    const dateTimeLabel = formatInviteDateTime(partidoActual?.fecha, partidoActual?.hora);
+    const text = dateTimeLabel
+      ? `Sumate al partido "${partidoActual.nombre || 'Partido'}"\n${dateTimeLabel}\n${url}`
+      : `Sumate al partido "${partidoActual.nombre || 'Partido'}"\n${url}`;
     try {
       const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
       const opened = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
