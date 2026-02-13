@@ -716,7 +716,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     return (
       <div className={wrapperClass}>
         <PageTitle title="CONFIRMÁ TUS CALIFICACIONES" onBack={onReset}>CONFIRMÁ TUS CALIFICACIONES</PageTitle>
-        <div className="w-[90vw] max-w-[520px] mx-auto mt-32 flex flex-col items-center p-3 pb-20">
+        <div className="w-[90vw] max-w-[520px] mx-auto mt-20 flex flex-col items-center p-3 pb-4">
           <div className="w-full max-w-full mx-auto mb-4 p-0 list-none">
             {jugadoresParaVotar.map((j, idx) => (
               <div key={j.uuid} className="flex items-center gap-2.5 mb-2 bg-white/10 rounded-lg p-2.5 border border-white/10 hover:bg-white/15 hover:border-white/20 transition-all">
@@ -745,8 +745,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             </div>
           )}
           <button
-            className="w-full font-bebas text-[20px] md:text-[22px] text-white bg-primary border border-white/20 rounded-xl tracking-wider py-3.5 mt-4 font-bold transition-all duration-300 hover:brightness-110 hover:shadow-[0_6px_20px_rgba(129,120,229,0.45)] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ marginTop: 'auto', minHeight: '44px' }}
+            className="w-full font-oswald text-[20px] md:text-[22px] text-white bg-primary border border-white/20 rounded-xl tracking-[0.01em] py-3.5 mt-4 font-semibold transition-all duration-300 hover:brightness-110 hover:shadow-[0_6px_20px_rgba(129,120,229,0.45)] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ minHeight: '44px' }}
             disabled={isSubmitting || hasAccess === false || hasAccess === null}
             onClick={async () => {
               // Anti-double submit guard
@@ -1043,7 +1043,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               }
             }}
           >
-            {isSubmitting ? 'GUARDANDO...' : 'CONFIRMAR'}
+            {isSubmitting ? 'Guardando…' : 'Confirmar'}
           </button>
         </div>
       </div>
