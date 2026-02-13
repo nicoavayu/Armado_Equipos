@@ -125,9 +125,9 @@ export default function MatchInfoSection(props) {
   const topOffset = topOffsetClassName || 'mt-[76px] sm:mt-[70px]';
 
   return (
-    <div className="w-screen max-w-none px-0 mx-0 overflow-hidden box-border -ml-[calc((100vw-100%)/2)]">
+    <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen max-w-none px-0 mx-0 overflow-hidden box-border">
       <div className="relative w-full flex justify-center items-start m-0 p-0">
-        <div className={`${topOffset} mb-0 p-3 relative w-full max-w-none box-border bg-white/[0.04] rounded-none md:rounded-xl flex justify-center sm:max-w-full sm:p-[8px_10px] border-t border-b border-white/[0.08]`}>
+        <div className={`${topOffset} mb-0 p-3 relative w-full max-w-none box-border bg-white/[0.04] rounded-none flex justify-center sm:max-w-full sm:p-[8px_10px] border-t border-b border-white/[0.08]`}>
           {/* Use CSS grid with explicit weighted columns and minmax(0, fr) as requested */}
           <div className="flex items-center w-full overflow-hidden flex-nowrap" style={{
             display: 'grid',

@@ -296,8 +296,9 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     <div className="w-full bg-transparent shadow-none">
       {/* Header elements - Avatar and Notifications */}
       {user && (
-        <div className="flex items-center justify-between mb-5 px-4 py-3 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-[20px] shadow-lg">
-          <div className="flex flex-row items-center justify-center cursor-pointer relative z-[10000]" ref={statusDropdownRef}>
+        <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen mb-5 px-4 py-3 bg-white/5 border-y border-white/10 rounded-none backdrop-blur-[20px] shadow-lg">
+          <div className="w-full max-w-[920px] mx-auto flex items-center justify-between">
+            <div className="flex flex-row items-center justify-center cursor-pointer relative z-[10000]" ref={statusDropdownRef}>
             <div className="relative mr-4" onClick={handleAvatarClick}>
               {/* "Historias" ring: pending = violet->blue gradient, viewed = muted gray. */}
               <div
@@ -378,13 +379,14 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                 to { opacity: 1; transform: translateY(0) scale(1); }
               }
             `}</style>
-          </div>
+            </div>
 
-          <div className="flex items-center justify-end">
-            <NotificationsBell
-              unreadCount={unreadCount}
-              onClick={handleNotificationsClick}
-            />
+            <div className="flex items-center justify-end">
+              <NotificationsBell
+                unreadCount={unreadCount}
+                onClick={handleNotificationsClick}
+              />
+            </div>
           </div>
         </div>
       )}
