@@ -114,8 +114,8 @@ const AdminPanelPage = () => {
 
   return (
     <PageTransition>
-      <div className="min-h-[100dvh] w-full max-w-full overflow-x-clip">
-        <div className="mx-auto w-[90vw] max-w-[650px] pt-5 min-w-0 overflow-x-clip">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-visible">
+        <div className="mx-auto w-[90vw] max-w-[650px] pt-5 min-w-0 overflow-visible">
           <AdminPanel
             partidoActual={partidoActual}
             jugadores={jugadoresDelPartido}
