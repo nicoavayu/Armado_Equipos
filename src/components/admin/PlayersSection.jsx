@@ -174,6 +174,11 @@ const PlayersSection = ({
 
   const showSubstituteSection = substitutePlayers.length > 0 || (capacity > 0 && titularPlayers.length >= capacity);
   const isTitularesComplete = capacity > 0 && titularPlayers.length >= capacity;
+  const jugadoresCompleteBadge = isTitularesComplete ? (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-emerald-300/35 bg-emerald-500/15 text-emerald-200 text-[10px] font-oswald font-semibold tracking-wide uppercase ml-2">
+      Completo
+    </span>
+  ) : null;
 
   const renderRosterSections = () => (
     <div className="flex flex-col gap-3">
@@ -194,11 +199,6 @@ const PlayersSection = ({
         >
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-bebas text-sm tracking-wide text-white/90 uppercase">Titulares</span>
-            {isTitularesComplete ? (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-emerald-300/35 bg-emerald-500/15 text-emerald-200 text-[9px] font-oswald font-semibold tracking-wide uppercase">
-                Completo
-              </span>
-            ) : null}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-oswald text-white/65">
@@ -301,6 +301,7 @@ const PlayersSection = ({
           <div className="flex items-start justify-between gap-3 mb-3 mt-1 px-1">
             <div className="font-bebas text-xl text-white tracking-wide">
               Jugadores ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+              {jugadoresCompleteBadge}
             </div>
             {isPlayerInMatch && (
               <div className="relative">
@@ -493,6 +494,7 @@ const PlayersSection = ({
       <div className="flex items-start justify-between gap-3 mb-3 mt-2">
         <div className="font-bebas text-xl text-white tracking-wide">
           Jugadores ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+          {jugadoresCompleteBadge}
           {duplicatesDetected > 0 && isAdmin && (
             <span style={{
               color: '#ff6b35',

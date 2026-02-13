@@ -206,7 +206,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
           />
 
           {!showTeams && (
-            <div className="w-full overflow-x-clip">
+            <div className="w-full overflow-visible">
               <MatchInfoSection
                 partido={normalizePartidoForHeader(partidoActual)}
                 fecha={partidoActual?.fecha}
