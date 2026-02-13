@@ -317,21 +317,21 @@ const EncuestaPartido = () => {
 
   // Helper classes for consistency
   const _wrapperClass = 'min-h-[100dvh] bg-fifa-gradient w-full p-0 flex flex-col overflow-x-hidden';
-  const cardClass = 'w-[92%] max-w-[720px] mx-auto min-h-[100dvh] px-3 md:px-4';
-  const stepClass = 'w-full min-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] grid grid-rows-4';
-  const questionRowClass = 'row-start-1 flex items-center justify-center';
-  const contentRowClass = 'row-start-2 flex items-center justify-center overflow-hidden';
-  const actionRowClass = 'row-start-3 flex items-center justify-center';
-  const logoRowClass = 'row-start-4 flex items-start justify-center pt-7 md:pt-8';
+  const cardClass = 'w-[92%] max-w-[720px] mx-auto min-h-[100dvh] px-3 md:px-4 flex flex-col';
+  const stepClass = 'w-full flex-1 min-h-0 grid grid-rows-[auto_minmax(160px,1fr)_auto] gap-5 md:gap-6 content-center py-5 md:py-6';
+  const questionRowClass = 'flex items-center justify-center pt-1';
+  const contentRowClass = 'flex items-center justify-center min-h-[160px] overflow-hidden';
+  const actionRowClass = 'flex items-start justify-center mt-1';
+  const logoRowClass = 'hidden';
   const titleClass = 'font-bebas text-[30px] md:text-[56px] text-white tracking-[0.08em] font-bold text-center leading-[1.06] uppercase drop-shadow-md break-words w-full px-1';
   const surveyBtnBaseClass = 'w-full border border-white/40 bg-white/[0.12] text-white font-bebas text-[22px] md:text-[24px] py-3 text-center cursor-pointer transition-all hover:bg-white/[0.17] active:scale-[0.98] flex items-center justify-center min-h-[64px] rounded-[22px] tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_10px_24px_rgba(17,14,72,0.32)] disabled:opacity-60 disabled:cursor-not-allowed';
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
   const optionBtnSelectedClass = 'bg-white/[0.24] border-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_12px_26px_rgba(17,14,72,0.38)]';
   const gridClass = 'grid grid-cols-2 gap-4 w-full max-w-[520px] mx-auto';
-  const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center mb-6 font-normal tracking-wide';
+  const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center font-normal tracking-wide';
   const actionDockClass = 'w-full max-w-[520px] mx-auto flex flex-col gap-3';
-  const miniCardsStageClass = 'w-full h-full overflow-y-auto py-2';
+  const miniCardsStageClass = 'w-full h-full max-h-[250px] overflow-y-auto py-1';
   const miniGridClass = 'grid grid-cols-3 sm:grid-cols-4 gap-2 md:gap-2.5 w-full max-w-[560px] mx-auto place-items-center min-h-full content-center';
   const miniCardBaseClass = 'w-[104px] sm:w-[112px] md:w-[124px] flex flex-col items-center justify-start px-2.5 py-2.5 rounded-[18px] cursor-pointer transition-all min-h-[104px] border backdrop-blur-sm shadow-[0_8px_20px_rgba(9,12,55,0.28)] hover:-translate-y-[2px]';
 
@@ -431,7 +431,7 @@ const EncuestaPartido = () => {
               title="CARGANDO ENCUESTA"
               description="Estamos preparando los datos del partido."
             />
-            <div className="mt-6 flex justify-center">
+            <div className="mt-auto pb-[10px] flex justify-center">
               <SurveyFooterLogo />
             </div>
           </div>
@@ -466,6 +466,9 @@ const EncuestaPartido = () => {
               <div className={logoRowClass}>
                 <SurveyFooterLogo />
               </div>
+            </div>
+            <div className="pb-[10px] flex justify-center">
+              <SurveyFooterLogo />
             </div>
           </div>
         </div>
@@ -905,6 +908,9 @@ const EncuestaPartido = () => {
               </div>
             </div>
           )}
+          <div className="pb-[10px] flex justify-center">
+            <SurveyFooterLogo />
+          </div>
         </div>
       </div>
     </PageTransition>
