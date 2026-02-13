@@ -96,7 +96,6 @@ const PlayersSection = ({
   const titularPlayers = jugadores.filter((j) => !j?.is_substitute);
   const substitutePlayers = jugadores.filter((j) => !!j?.is_substitute);
   const remainingTitularSlots = capacity > 0 ? Math.max(0, capacity - titularPlayers.length) : null;
-  const remainingSubstituteSlots = Math.max(0, 2 - substitutePlayers.length);
   const isMatchFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
   const canShareInviteLink = isAdmin && typeof onShareClick === 'function' && !isMatchFull;
   const completeBadge = isMatchFull ? (
@@ -179,6 +178,7 @@ const PlayersSection = ({
   };
 
   const showSubstituteSection = substitutePlayers.length > 0 || (capacity > 0 && titularPlayers.length >= capacity);
+  const isTitularesComplete = capacity > 0 && titularPlayers.length >= capacity;
 
   const renderRosterSections = () => (
     <div className="flex flex-col gap-3">
@@ -197,7 +197,14 @@ const PlayersSection = ({
           aria-expanded={isTitularesOpen}
           aria-label="Toggle titulares"
         >
-          <span className="font-bebas text-sm tracking-wide text-white/90 uppercase">Titulares</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-bebas text-sm tracking-wide text-white/90 uppercase">Titulares</span>
+            {isTitularesComplete ? (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded border border-emerald-300/35 bg-emerald-500/15 text-emerald-200 text-[9px] font-oswald font-semibold tracking-wide uppercase">
+                Completo
+              </span>
+            ) : null}
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-oswald text-white/65">
               {titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'}
@@ -411,12 +418,6 @@ const PlayersSection = ({
                 : 'Cupos disponibles'}
             </div>
           )}
-          {capacity > 0 && remainingTitularSlots === 0 && !isMatchFull && (
-            <div className="mb-4 text-amber-200/90 font-oswald text-sm">
-              Plantel titular completo. Quedan {remainingSubstituteSlots} suplente{remainingSubstituteSlots === 1 ? '' : 's'}.
-            </div>
-          )}
-
           <div className="w-full max-w-[500px] mx-auto bg-[#0f172a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
             <div className="flex gap-3">
               {!isPlayerInMatch ? (

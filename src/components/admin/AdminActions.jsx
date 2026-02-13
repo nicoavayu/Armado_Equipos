@@ -24,9 +24,7 @@ const AdminActions = ({
   const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
   const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0;
   const playersCount = Array.isArray(jugadores) ? jugadores.length : 0;
-  const isTitularFull = starterCapacity > 0 && playersCount >= starterCapacity;
   const isRosterFull = maxRosterSlots > 0 && playersCount >= maxRosterSlots;
-  const remainingSubSlots = starterCapacity > 0 ? Math.max(0, maxRosterSlots - playersCount) : 0;
 
   return (
     <>
@@ -75,12 +73,6 @@ const AdminActions = ({
                 {loading ? <LoadingSpinner size="small" /> : 'Agregar'}
               </button>
             </div>
-
-            {isTitularFull && !isRosterFull && (
-              <div className="rounded-lg border border-amber-400/35 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-200 font-oswald">
-                Ya completaste el plantel titular. Ahora podés sumar {remainingSubSlots} suplente{remainingSubSlots === 1 ? '' : 's'}.
-              </div>
-            )}
 
           </div>
         </div>
