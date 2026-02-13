@@ -17,7 +17,7 @@ import { handleError } from '../lib/errorHandler';
 import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
 import { User, CheckCircle2, Calendar, Clock, MapPin, Star, Trophy, ListOrdered, Users, CalendarX2 } from 'lucide-react';
 
-const containerClass = 'flex flex-col items-center min-h-[100dvh] pb-28 px-4 box-border font-oswald';
+const containerClass = 'flex flex-col items-center min-h-[100dvh] pb-6 px-4 box-border font-oswald';
 
 const QuieroJugar = () => {
   const navigate = useNavigate();

@@ -459,7 +459,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         />
       </div>
 
-      <div data-debug="TEAMDISPLAY_ACTIVE" className="w-[90vw] max-w-[90vw] mx-auto pb-[70px] flex flex-col gap-3 overflow-x-hidden mt-4">
+      <div data-debug="TEAMDISPLAY_ACTIVE" className="w-[90vw] max-w-[90vw] mx-auto flex flex-col gap-3 overflow-x-hidden mt-4">
         {/* Team cards */}
         <div className="flex flex-row gap-3 w-full mb-0 box-border">
           {realtimeTeams.map((team) => {

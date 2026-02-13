@@ -888,7 +888,7 @@ const StatsView = ({ onVolver }) => {
   }
 
   return (
-    <div className="min-h-[100dvh] pb-[100px]">
+    <div className="min-h-[100dvh]">
       <PageTitle onBack={onVolver}>ESTADÍSTICAS</PageTitle>
 
       <div className="pt-[100px] px-5 pb-5 max-w-[100vw] m-0 box-border md:pt-[90px] md:px-4 sm:pt-[90px]">

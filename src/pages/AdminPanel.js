@@ -219,7 +219,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             </div>
           )}
 
-          <main className="pb-20 pt-0 overflow-x-clip">
+          <main className="pt-0 overflow-x-clip">
             <div className="main-content">
               {showTeams && (
                 <TeamsPanel
@@ -232,7 +232,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                   partidoActual={partidoActual}
                 />
               )}
-              <div className={`w-full max-w-full mx-auto pb-[70px] flex flex-col gap-3 overflow-x-hidden min-w-0 ${isAdmin ? 'pt-3' : 'pt-0'}`}>
+              <div className={`w-full max-w-full mx-auto flex flex-col gap-3 overflow-x-hidden min-w-0 ${isAdmin ? 'pt-3' : 'pt-0'}`}>
 
                 {!showTeams && (
                   <>

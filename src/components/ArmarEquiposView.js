@@ -562,7 +562,7 @@ export default function ArmarEquiposView({
         precio={partidoActual?.valor_cancha || partidoActual?.valorCancha || partidoActual?.valor || partidoActual?.precio}
         rightActions={null}
       />
-      <div className="w-[90vw] md:w-full max-w-[90vw] md:max-w-4xl mx-auto pb-20 flex flex-col gap-3 overflow-x-hidden mt-6 pt-0">
+      <div className="w-[90vw] md:w-full max-w-[90vw] md:max-w-4xl mx-auto flex flex-col gap-3 overflow-x-hidden mt-6 pt-0">
         {/* Lista de jugadores */}
         <div ref={playersSectionRef} className="bg-white/10 border-2 border-white/20 rounded-xl p-3 min-h-[120px] w-full mx-auto mt-0 box-border">
           <div className="flex items-start justify-between gap-3 mb-3 mt-2">

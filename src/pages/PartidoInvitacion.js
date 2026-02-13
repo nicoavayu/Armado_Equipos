@@ -116,7 +116,7 @@ function SharedInviteLayout({
   const remainingTitulares = starterCapacity > 0 ? Math.max(0, starterCapacity - titularesCount) : null;
 
   return (
-    <div className="min-h-[100dvh] w-screen max-w-[100vw] pb-24 overflow-x-hidden bg-fifa-gradient">
+    <div className="min-h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient">
       <div className="mx-auto w-[90vw] max-w-[650px] pt-5 shadow-none">
         <PageTitle
           title={title}
@@ -135,9 +135,9 @@ function SharedInviteLayout({
           precio={partido?.precio || partido?.valor_cancha || partido?.valor}
         />
 
-        <main className="pb-20 pt-0">
+        <main className="pt-0">
           <div className="main-content">
-            <div className="w-full flex flex-col gap-3 overflow-x-hidden pt-10 pb-[70px]">
+            <div className="w-full flex flex-col gap-3 overflow-x-hidden pt-10">
               <PlayersReadOnly jugadores={jugadores} partido={partido} mode={mode} />
 
               {/* Texto de estado si faltan jugadores */}
