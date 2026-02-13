@@ -20,6 +20,7 @@ import StarRating from '../components/StarRating';
 import { AvatarFallback } from '../components/ProfileComponents';
 import EmptyStateCard from '../components/EmptyStateCard';
 import PageLoadingState from '../components/PageLoadingState';
+import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
 
 // Styles are now handled via Tailwind CSS
 // Legacy styles: src/pages/LegacyVoting.css (for other components)
@@ -301,9 +302,9 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
           </div>
           <button
-            className={`${btnClass} mt-4`}
+            className={`${PRIMARY_CTA_BUTTON_CLASS} mt-4`}
             onClick={handleFinalAction}
-          >VOLVER</button>
+          >Volver</button>
         </div>
       </div>
     );
@@ -326,9 +327,9 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
           </div>
           <button
-            className={`${btnClass} mt-4`}
+            className={`${PRIMARY_CTA_BUTTON_CLASS} mt-4`}
             onClick={onReset}
-          >VOLVER</button>
+          >Volver</button>
         </div>
       </div>
     );
@@ -1066,9 +1067,9 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
           </div>
           <button
-            className={`${btnClass} mt-4`}
+            className={`${PRIMARY_CTA_BUTTON_CLASS} mt-4`}
             onClick={handleFinalAction}
-          >VOLVER</button>
+          >Volver</button>
         </div>
       </div>
     );
