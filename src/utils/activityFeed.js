@@ -225,7 +225,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     return {
       ...base,
       icon: 'Vote',
-      title: `Votación disponible para ${matchName}`,
+      title: `Votá y armá equipos parejos para ${matchName}`,
       subtitle: dateLabel || 'Entrá para votar jugadores',
       route: notification?.data?.matchCode
         ? `/votar-equipos?codigo=${encodeURIComponent(notification.data.matchCode)}`
