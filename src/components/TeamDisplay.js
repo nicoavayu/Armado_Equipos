@@ -676,17 +676,17 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                 {/* Row 1: Randomizar + Promedios */}
                 <div className="grid grid-cols-2 gap-2 w-full">
                   <button
-                    className="w-full font-bebas text-[15px] px-3 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide whitespace-nowrap bg-[#128BE9] hover:brightness-110 active:scale-95 disabled:opacity-50"
+                    className="w-full font-oswald text-[15px] px-3 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] whitespace-nowrap bg-[#128BE9] hover:brightness-110 active:scale-95 disabled:opacity-50"
                     onClick={randomizeTeams}
                     disabled={teamsConfirmed}
                   >
-                    RANDOMIZAR
+                    Randomizar
                   </button>
                   <button
-                    className="w-full font-bebas text-[15px] px-3 border border-slate-600 rounded-xl cursor-pointer transition-all text-white/80 h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide whitespace-nowrap hover:border-slate-500 hover:text-white/90 bg-transparent active:scale-95 disabled:opacity-50"
+                    className="w-full font-oswald text-[15px] px-3 border border-slate-600 rounded-xl cursor-pointer transition-all text-white/80 h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] whitespace-nowrap hover:border-slate-500 hover:text-white/90 bg-transparent active:scale-95 disabled:opacity-50"
                     onClick={() => setShowAverages(!showAverages)}
                   >
-                    {showAverages ? 'OCULTAR' : 'PROMEDIOS'}
+                    {showAverages ? 'Ocultar' : 'Promedios'}
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2 w-full">
@@ -701,11 +701,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                 {/* Row 2: Confirmar/Editar full width */}
                 <div className="w-full flex flex-col gap-1">
                   <button
-                    className="w-full font-bebas text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide whitespace-nowrap bg-primary hover:brightness-110 active:scale-95 disabled:opacity-50"
+                    className="w-full font-oswald text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] whitespace-nowrap bg-primary hover:brightness-110 active:scale-95 disabled:opacity-50"
                     onClick={teamsConfirmed ? unconfirmTeams : confirmTeams}
                     disabled={confirming || unconfirming}
                   >
-                    {teamsConfirmed ? (unconfirming ? 'DESCONFIRMANDO…' : 'EDITAR EQUIPOS') : (confirming ? 'CONFIRMANDO…' : 'CONFIRMAR EQUIPOS')}
+                    {teamsConfirmed ? (unconfirming ? 'Desconfirmando…' : 'Editar equipos') : (confirming ? 'Confirmando…' : 'Confirmar equipos')}
                   </button>
                   <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1 min-h-[18px]">
                     {teamsConfirmed ? 'Los equipos están confirmados.' : 'Guarda los equipos de este partido y bloquea cambios.'}
@@ -718,11 +718,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           {/* Share button with helper */}
           <div className="flex flex-col gap-2">
             <button
-              className="w-full font-bebas text-[15px] px-4 border border-slate-700/50 rounded-xl cursor-pointer transition-all text-white/70 h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide hover:border-slate-600 hover:text-white/80 bg-transparent active:scale-95 disabled:opacity-50"
+              className="w-full font-oswald text-[15px] px-4 border border-slate-700/50 rounded-xl cursor-pointer transition-all text-white/70 h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] hover:border-slate-600 hover:text-white/80 bg-transparent active:scale-95 disabled:opacity-50"
               onClick={handleWhatsAppShare}
             >
               <SafeWhatsappIcon size={16} style={{ marginRight: 8 }} />
-              COMPARTIR
+              Compartir
             </button>
             <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1">Comparte los equipos armados al grupo de WhatsApp.</div>
           </div>
