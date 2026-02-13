@@ -318,8 +318,8 @@ const EncuestaPartido = () => {
   // Helper classes for consistency
   const _wrapperClass = 'min-h-[100dvh] bg-fifa-gradient w-full p-0 flex flex-col overflow-x-hidden';
   const cardClass = 'w-[92%] max-w-[620px] mx-auto flex flex-col items-center min-h-[100dvh] pt-3 md:pt-5 pb-[calc(env(safe-area-inset-bottom)+110px)] px-3';
-  const stepClass = 'w-full max-w-[620px] mx-auto flex flex-col min-h-[calc(100dvh-160px)]';
-  const titleClass = 'font-bebas text-[30px] md:text-[56px] text-white tracking-[0.08em] font-bold mb-5 md:mb-7 text-center leading-[1.06] uppercase drop-shadow-md break-words w-full';
+  const stepClass = 'w-full max-w-[620px] mx-auto flex flex-col min-h-[calc(100dvh-160px)] pt-6 md:pt-8';
+  const titleClass = 'font-bebas text-[30px] md:text-[56px] text-white tracking-[0.08em] font-bold mb-4 md:mb-6 text-center leading-[1.06] uppercase drop-shadow-md break-words w-full px-1';
   const surveyBtnBaseClass = 'w-full border border-white/40 bg-white/[0.12] text-white font-bebas text-[22px] md:text-[24px] py-3 text-center cursor-pointer transition-all hover:bg-white/[0.17] active:scale-[0.98] flex items-center justify-center min-h-[64px] rounded-[22px] tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_10px_24px_rgba(17,14,72,0.32)] disabled:opacity-60 disabled:cursor-not-allowed';
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
@@ -327,11 +327,12 @@ const EncuestaPartido = () => {
   const gridClass = 'grid grid-cols-2 gap-4 w-full max-w-[420px] mx-auto mb-[18px]';
   const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center mb-6 font-normal tracking-wide';
   const actionDockClass = 'w-full mt-auto pt-5 pb-[calc(env(safe-area-inset-bottom)+78px)]';
-  const miniGridClass = 'grid grid-cols-3 sm:grid-cols-4 gap-2.5 md:gap-3 w-full max-w-[560px] mx-auto';
-  const miniCardBaseClass = 'flex flex-col items-center justify-start p-2.5 rounded-xl cursor-pointer transition-all min-h-[112px] border backdrop-blur-sm hover:-translate-y-[2px]';
+  const miniCardsStageClass = 'w-full flex-1 flex flex-col items-center justify-center';
+  const miniGridClass = 'grid grid-cols-3 sm:grid-cols-4 gap-2 md:gap-2.5 w-full max-w-[500px] mx-auto place-items-center';
+  const miniCardBaseClass = 'w-[104px] sm:w-[112px] md:w-[124px] flex flex-col items-center justify-start px-2 py-2 rounded-[18px] cursor-pointer transition-all min-h-[102px] border backdrop-blur-sm hover:-translate-y-[2px]';
 
   const SurveyFooterLogo = () => (
-    <div className="fixed left-1/2 -translate-x-1/2 bottom-[calc(env(safe-area-inset-bottom)+10px)] opacity-55 pointer-events-none z-20">
+    <div className="fixed left-1/2 -translate-x-1/2 bottom-[calc(env(safe-area-inset-bottom)+34px)] opacity-55 pointer-events-none z-20">
       <img
         src={Logo}
         alt="Logo Arma2"
@@ -375,7 +376,7 @@ const EncuestaPartido = () => {
               animationDelay: `${index * 36}ms`,
             }}
           >
-            <div className={`w-[60px] h-[60px] rounded-lg border overflow-hidden mb-2 bg-black/20 shrink-0 ${selected ? 'border-black/10' : 'border-black/20'}`}>
+            <div className={`w-[54px] h-[54px] rounded-lg border overflow-hidden mb-1.5 bg-black/20 shrink-0 ${selected ? 'border-black/10' : 'border-black/20'}`}>
               {jugador.avatar_url || jugador.foto_url ? (
                 <img
                   src={jugador.avatar_url || jugador.foto_url}
@@ -536,11 +537,13 @@ const EncuestaPartido = () => {
               <div className={titleClass}>
                 ¿QUIÉN FUE EL MEJOR JUGADOR?
               </div>
-              {renderMiniPlayerCards({
-                isSelected: (uuid) => formData.mvp_id === uuid,
-                onSelect: (uuid) => handleInputChange('mvp_id', uuid),
-                variant: 'mvp',
-              })}
+              <div className={miniCardsStageClass}>
+                {renderMiniPlayerCards({
+                  isSelected: (uuid) => formData.mvp_id === uuid,
+                  onSelect: (uuid) => handleInputChange('mvp_id', uuid),
+                  variant: 'mvp',
+                })}
+              </div>
               <div className={actionDockClass}>
                 <button
                   className={btnClass}
@@ -558,21 +561,24 @@ const EncuestaPartido = () => {
               <div className={titleClass}>
                 ¿QUIÉN FUE EL MEJOR ARQUERO?
               </div>
-              {renderMiniPlayerCards({
-                isSelected: (uuid) => formData.arquero_id === uuid,
-                onSelect: (uuid) => handleInputChange('arquero_id', uuid),
-                variant: 'gk',
-              })}
-              <div className="flex justify-center mt-3">
-                <button
-                  className={`${optionBtnClass} ${!formData.arquero_id ? optionBtnSelectedClass : ''} w-[90%] mx-auto`}
-                  onClick={() => {
-                    handleInputChange('arquero_id', '');
-                    setCurrentStep(4);
-                  }}
-                >
-                  NO HUBO ARQUEROS FIJOS
-                </button>
+              <div className={miniCardsStageClass}>
+                {renderMiniPlayerCards({
+                  isSelected: (uuid) => formData.arquero_id === uuid,
+                  onSelect: (uuid) => handleInputChange('arquero_id', uuid),
+                  variant: 'gk',
+                })}
+                <div className="flex justify-center mt-3 w-full">
+                  <button
+                    type="button"
+                    className={`${optionBtnClass} ${!formData.arquero_id ? optionBtnSelectedClass : ''} w-full max-w-[420px]`}
+                    onClick={() => {
+                      handleInputChange('arquero_id', '');
+                      setCurrentStep(4);
+                    }}
+                  >
+                    NO HUBO ARQUEROS FIJOS
+                  </button>
+                </div>
               </div>
               <div className={actionDockClass}>
                 <button
@@ -664,11 +670,13 @@ const EncuestaPartido = () => {
               <div className={titleClass}>
                 ¿QUIÉN JUGÓ SUCIO?
               </div>
-              {renderMiniPlayerCards({
-                isSelected: (uuid) => formData.jugadores_violentos.includes(uuid),
-                onSelect: (uuid) => toggleJugadorViolento(uuid),
-                variant: 'danger',
-              })}
+              <div className={miniCardsStageClass}>
+                {renderMiniPlayerCards({
+                  isSelected: (uuid) => formData.jugadores_violentos.includes(uuid),
+                  onSelect: (uuid) => toggleJugadorViolento(uuid),
+                  variant: 'danger',
+                })}
+              </div>
               <div className={actionDockClass}>
                 <button
                   className={btnClass}
@@ -725,11 +733,13 @@ const EncuestaPartido = () => {
               <div className={titleClass}>
                 ¿QUIÉNES FALTARON?
               </div>
-              {renderMiniPlayerCards({
-                isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
-                onSelect: (uuid) => toggleJugadorAusente(uuid),
-                variant: 'danger',
-              })}
+              <div className={miniCardsStageClass}>
+                {renderMiniPlayerCards({
+                  isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
+                  onSelect: (uuid) => toggleJugadorAusente(uuid),
+                  variant: 'danger',
+                })}
+              </div>
               <div className={actionDockClass}>
                 <button
                   className={btnClass}
@@ -747,11 +757,13 @@ const EncuestaPartido = () => {
               <div className={titleClass}>
                 ¿QUIÉNES FALTARON?
               </div>
-              {renderMiniPlayerCards({
-                isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
-                onSelect: (uuid) => toggleJugadorAusente(uuid),
-                variant: 'danger',
-              })}
+              <div className={miniCardsStageClass}>
+                {renderMiniPlayerCards({
+                  isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
+                  onSelect: (uuid) => toggleJugadorAusente(uuid),
+                  variant: 'danger',
+                })}
+              </div>
               <div className={actionDockClass}>
                 <button
                   className={btnClass}
