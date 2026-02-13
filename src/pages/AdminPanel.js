@@ -242,7 +242,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             </div>
           )}
 
-          <main className="pt-0 overflow-x-clip">
+          <main className={`pt-0 ${showTeams ? 'overflow-visible' : 'overflow-x-clip'}`}>
             <div className="main-content">
               {showTeams && (
                 <TeamsPanel

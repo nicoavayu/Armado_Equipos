@@ -446,7 +446,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       {/* Chat button para todos los usuarios - Hide floating trigger as it is in the header */}
       <SafeChatButton partidoId={partidoId} hideTrigger={true} />
       <SafePageTitle onBack={onBackToHome}>EQUIPOS ARMADOS</SafePageTitle>
-      <div className="relative left-1/2 right-1/2 w-screen -ml-[50vw] -mr-[50vw] px-3 md:px-4">
+      <div className="relative left-1/2 w-screen -translate-x-1/2">
         <SafeMatchInfoSection
           partido={normalizePartidoForHeader(typeof partidoId === 'object' ? partidoId : undefined)}
           fecha={fecha}
@@ -567,7 +567,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                   ${!isAdmin ? 'cursor-default pointer-events-none' : 'cursor-pointer'}
                                 `}
                       >
-                        <div className="flex items-center gap-1.5 w-full h-full">
+                        <div className="flex items-center gap-1.5 w-full h-full min-w-0">
                           {/* Avatar: Photo or Initials Badge */}
                           {player.avatar_url ? (
                             <img
@@ -578,7 +578,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                           ) : (
                             <AvatarFallback name={player.nombre} size="w-8 h-8" />
                           )}
-                          <span className="font-oswald text-sm font-semibold text-white flex-1 tracking-wide overflow-hidden text-ellipsis whitespace-nowrap min-w-0 leading-tight">
+                          <span
+                            className={`font-oswald text-sm font-semibold text-white flex-1 tracking-wide min-w-0 leading-tight pr-1 ${
+                              showAverages && isAdmin ? 'whitespace-normal break-words' : 'overflow-hidden text-ellipsis whitespace-nowrap'
+                            }`}
+                          >
                             {player.nombre}
                           </span>
 
