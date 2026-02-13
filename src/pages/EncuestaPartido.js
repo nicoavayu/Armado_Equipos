@@ -43,6 +43,7 @@ const EncuestaPartido = () => {
     jugadores_violentos: [],
     mvp_id: '',
     arquero_id: '',
+    sin_arquero_fijo: false,
     motivo_no_jugado: '',
     ganador: '',
     resultado: '',
@@ -332,8 +333,7 @@ const EncuestaPartido = () => {
   const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center font-normal tracking-wide';
   const actionDockClass = 'w-full max-w-[520px] mx-auto flex flex-col gap-3';
   const miniCardsStageClass = 'w-full h-full max-h-[250px] overflow-y-auto py-1';
-  const miniGridClass = 'grid grid-cols-3 sm:grid-cols-4 gap-2 md:gap-2.5 w-full max-w-[560px] mx-auto place-items-center min-h-full content-center';
-  const miniCardBaseClass = 'w-[104px] sm:w-[112px] md:w-[124px] flex flex-col items-center justify-start px-2.5 py-2.5 rounded-[18px] cursor-pointer transition-all min-h-[104px] border backdrop-blur-sm shadow-[0_8px_20px_rgba(9,12,55,0.28)] hover:-translate-y-[2px]';
+  const miniCardBaseClass = 'flex flex-col items-center justify-start px-1.5 py-2 rounded-[16px] cursor-pointer transition-all border backdrop-blur-sm shadow-[0_8px_20px_rgba(9,12,55,0.28)] hover:-translate-y-[2px]';
 
   const SurveyFooterLogo = () => (
     <div className="opacity-55 pointer-events-none">
@@ -362,53 +362,77 @@ const EncuestaPartido = () => {
     isSelected,
     onSelect,
     variant = 'mvp',
-  }) => (
-    <div className={miniGridClass}>
-      {jugadores.map((jugador, index) => {
-        const selected = isSelected(jugador.uuid);
-        return (
-          <button
-            key={jugador.uuid}
-            type="button"
-            onClick={() => onSelect(jugador.uuid)}
-            className={`${miniCardBaseClass} ${selected
-              ? getSelectedMiniCardClass(variant)
-              : 'bg-white/[0.08] border-white/20 hover:bg-white/[0.14] hover:border-white/30'
-              }`}
-            style={{
-              animation: 'cardIn 460ms cubic-bezier(0.22,1,0.36,1) both',
-              animationDelay: `${index * 36}ms`,
-            }}
-          >
-            <div className={`w-[56px] h-[56px] rounded-lg border overflow-hidden mb-2 bg-black/20 shrink-0 ${selected ? 'border-black/10' : 'border-black/20'}`}>
-              {jugador.avatar_url || jugador.foto_url ? (
-                <img
-                  src={jugador.avatar_url || jugador.foto_url}
-                  alt={jugador.nombre}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className={`w-full h-full flex items-center justify-center text-base font-semibold ${selected ? 'text-black/70' : 'text-white/60'}`}>
-                  {jugador.nombre.charAt(0)}
-                </div>
-              )}
-            </div>
-            <span
-              className={`text-[12px] font-semibold text-center leading-tight w-full px-0.5 ${selected ? 'text-slate-900' : 'text-white'}`}
+  }) => {
+    const playerCount = jugadores.length;
+    const isDense = playerCount > 12;
+    const isUltraDense = playerCount > 18;
+
+    const gridClass = isUltraDense
+      ? 'grid grid-cols-4 sm:grid-cols-6 gap-1.5 md:gap-2 w-full max-w-[620px] mx-auto place-items-center min-h-full content-center'
+      : isDense
+        ? 'grid grid-cols-4 sm:grid-cols-5 gap-1.5 md:gap-2 w-full max-w-[600px] mx-auto place-items-center min-h-full content-center'
+        : 'grid grid-cols-3 sm:grid-cols-4 gap-2 md:gap-2.5 w-full max-w-[560px] mx-auto place-items-center min-h-full content-center';
+
+    const cardSizeClass = isUltraDense
+      ? 'w-[78px] sm:w-[86px] min-h-[92px]'
+      : isDense
+        ? 'w-[86px] sm:w-[94px] min-h-[98px]'
+        : 'w-[96px] sm:w-[108px] min-h-[104px]';
+
+    const imageSizeClass = isUltraDense
+      ? 'w-[50px] h-[50px]'
+      : isDense
+        ? 'w-[54px] h-[54px]'
+        : 'w-[60px] h-[60px]';
+
+    return (
+      <div className={gridClass}>
+        {jugadores.map((jugador, index) => {
+          const selected = isSelected(jugador.uuid);
+          return (
+            <button
+              key={jugador.uuid}
+              type="button"
+              onClick={() => onSelect(jugador.uuid)}
+              className={`${miniCardBaseClass} ${cardSizeClass} ${selected
+                ? getSelectedMiniCardClass(variant)
+                : 'bg-white/[0.08] border-white/20 hover:bg-white/[0.14] hover:border-white/30'
+                }`}
               style={{
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
+                animation: 'cardIn 460ms cubic-bezier(0.22,1,0.36,1) both',
+                animationDelay: `${index * 24}ms`,
               }}
             >
-              {jugador.nombre}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
+              <div className={`${imageSizeClass} rounded-lg border overflow-hidden mb-1.5 bg-black/20 shrink-0 ${selected ? 'border-black/10' : 'border-black/20'}`}>
+                {jugador.avatar_url || jugador.foto_url ? (
+                  <img
+                    src={jugador.avatar_url || jugador.foto_url}
+                    alt={jugador.nombre}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className={`w-full h-full flex items-center justify-center text-base font-semibold ${selected ? 'text-black/70' : 'text-white/60'}`}>
+                    {jugador.nombre.charAt(0)}
+                  </div>
+                )}
+              </div>
+              <span
+                className={`text-[11px] sm:text-[12px] font-semibold text-center leading-tight w-full px-0.5 ${selected ? 'text-slate-900' : 'text-white'}`}
+                style={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {jugador.nombre}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
 
   // Animation style
   const animationStyle = `
@@ -584,6 +608,7 @@ const EncuestaPartido = () => {
                   <button
                     className={btnClass}
                     onClick={() => setCurrentStep(3)}
+                    disabled={!formData.mvp_id}
                   >
                     SIGUIENTE
                   </button>
@@ -607,7 +632,10 @@ const EncuestaPartido = () => {
                 <div className={miniCardsStageClass}>
                   {renderMiniPlayerCards({
                     isSelected: (uuid) => formData.arquero_id === uuid,
-                    onSelect: (uuid) => handleInputChange('arquero_id', uuid),
+                    onSelect: (uuid) => {
+                      handleInputChange('arquero_id', uuid);
+                      handleInputChange('sin_arquero_fijo', false);
+                    },
                     variant: 'gk',
                   })}
                 </div>
@@ -616,9 +644,10 @@ const EncuestaPartido = () => {
                 <div className={actionDockClass}>
                   <button
                     type="button"
-                    className={`${optionBtnClass} ${!formData.arquero_id ? optionBtnSelectedClass : ''}`}
+                    className={`${optionBtnClass} ${formData.sin_arquero_fijo && !formData.arquero_id ? optionBtnSelectedClass : ''}`}
                     onClick={() => {
                       handleInputChange('arquero_id', '');
+                      handleInputChange('sin_arquero_fijo', true);
                       setCurrentStep(4);
                     }}
                   >
@@ -627,6 +656,7 @@ const EncuestaPartido = () => {
                   <button
                     className={btnClass}
                     onClick={() => setCurrentStep(4)}
+                    disabled={!formData.arquero_id && !formData.sin_arquero_fijo}
                   >
                     SIGUIENTE
                   </button>
@@ -760,6 +790,7 @@ const EncuestaPartido = () => {
                       setSubmitting(true);
                       continueSubmitFlow();
                     }}
+                    disabled={formData.jugadores_violentos.length === 0}
                   >
                     {teamsConfirmed ? 'SIGUIENTE' : 'FINALIZAR ENCUESTA'}
                   </button>
@@ -833,6 +864,7 @@ const EncuestaPartido = () => {
                   <button
                     className={btnClass}
                     onClick={handleSubmit}
+                    disabled={formData.jugadores_ausentes.length === 0}
                   >
                     FINALIZAR
                   </button>
@@ -866,6 +898,7 @@ const EncuestaPartido = () => {
                   <button
                     className={btnClass}
                     onClick={() => setCurrentStep(2)}
+                    disabled={formData.jugadores_ausentes.length === 0}
                   >
                     SIGUIENTE
                   </button>
