@@ -715,7 +715,7 @@ const EncuestaPartido = () => {
                 </div>
               </div>
               <div className={contentRowClass}>
-                <div className="w-full max-w-[520px] mx-auto flex flex-col gap-3">
+                <div className="w-full max-w-[520px] mx-auto">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
                     {[
                       { value: 'equipo_a', label: 'Equipo A' },
@@ -731,15 +731,6 @@ const EncuestaPartido = () => {
                         {option.label}
                       </button>
                     ))}
-                  </div>
-                  <div className="flex justify-center w-full">
-                    <input
-                      type="text"
-                      className="w-full max-w-[420px] h-14 px-4 text-center font-oswald text-[20px] bg-white/90 border-[1.5px] border-[#eceaf1] rounded-xl text-[#333] outline-none transition-all placeholder:text-gray-500 focus:border-[#0EA9C6] focus:bg-white"
-                      value={formData.resultado || ''}
-                      onChange={(e) => handleInputChange('resultado', e.target.value)}
-                      placeholder="¿Te acordás cómo salió?"
-                    />
                   </div>
                 </div>
               </div>
