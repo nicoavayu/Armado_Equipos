@@ -243,7 +243,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const [error, setError] = useState(null);
   const [step, setStep] = useState('invitation'); // 'invitation', 'choose-method', 'guest-form', 'success', 'already-joined'
   const [guestName, setGuestName] = useState('');
-  const [guestPhone, setGuestPhone] = useState('');
   const [guestPhotoDataUrl, setGuestPhotoDataUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [codigoValido, setCodigoValido] = useState(true); // Flag de validación de código
@@ -895,11 +894,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       toast.error('Ingresá tu nombre');
       return;
     }
-    const normalizedPhone = String(guestPhone || '').replace(/[^\d+]/g, '').trim();
-    if (!normalizedPhone || normalizedPhone.length < 8) {
-      toast.error('Ingresá tu celular para continuar');
-      return;
-    }
 
     const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
     const anonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
@@ -914,6 +908,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
     setSubmitting(true);
     try {
+      const storageKey = `guest_joined_${partidoId}`;
+      const existingGuestUuid = localStorage.getItem(storageKey);
+
       const response = await fetch(`${supabaseUrl}/functions/v1/join-match-guest`, {
         method: 'POST',
         headers: {
@@ -926,7 +923,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           codigo: codigoParam,
           invite: inviteTokenParam,
           nombre: guestName.trim(),
-          telefono: normalizedPhone,
+          guest_uuid: existingGuestUuid || null,
           avatar_data_url: guestPhotoDataUrl || null,
         }),
       });
@@ -954,15 +951,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           toast.error('El partido ya está completo');
           return;
         }
-        if (reason === 'phone_already_joined') {
-          toast.error('Ese celular ya está anotado en este partido.');
-          return;
-        }
         throw new Error(result.error || 'Error al sumarse');
       }
 
       // Guardar en localStorage para idempotencia
-      const storageKey = `guest_joined_${partidoId}`;
       localStorage.setItem(storageKey, result.guest_uuid);
 
       setStep('success');
@@ -1208,25 +1200,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             </p>
           </div>
 
-          <div className="mb-6">
-            <label className="block text-white font-semibold mb-2">Tu celular</label>
-            <input
-              type="tel"
-              value={guestPhone}
-              onChange={(e) => setGuestPhone(e.target.value)}
-              placeholder="Ej: 11 1234 5678"
-              className="w-full bg-white/10 border border-white/20 text-white font-sans text-lg px-4 py-3 rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 placeholder:text-white/40"
-              inputMode="tel"
-              maxLength={20}
-            />
-            <p className="text-white/50 text-xs mt-2">
-              Solo podés sumarte una vez por partido con este número.
-            </p>
-          </div>
-
           <button
             onClick={handleSumarseComoInvitado}
-            disabled={!guestName.trim() || !guestPhone.trim() || submitting}
+            disabled={!guestName.trim() || submitting}
             className="w-full bg-primary text-white px-6 py-4 rounded-xl font-bold text-lg hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-3"
           >
             {submitting ? 'Sumándote...' : 'Entrar al partido'}
