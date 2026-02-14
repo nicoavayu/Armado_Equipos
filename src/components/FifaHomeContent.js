@@ -414,7 +414,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
             </svg>
           </div>
           {activeMatches && activeMatches.length > 0 && (
-            <div className="absolute top-3 right-3 bg-[#ff3366] text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-[11px] shadow-[0_2px_6px_rgba(0,0,0,0.18)] sm:w-[18px] sm:h-[18px] sm:text-[10px] sm:top-2.5 sm:right-2.5">{activeMatches.length}</div>
+            <div className="absolute top-3 right-3 bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-[11px] shadow-[0_2px_6px_rgba(0,0,0,0.18)] sm:w-[18px] sm:h-[18px] sm:text-[10px] sm:top-2.5 sm:right-2.5">{activeMatches.length}</div>
           )}
         </div>
 

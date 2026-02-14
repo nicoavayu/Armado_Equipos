@@ -46,7 +46,7 @@ const PageTitle = ({ children, title, onBack, showChatButton, onChatClick, unrea
 
             {/* Badge de mensajes sin leer */}
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 shadow-lg">
+              <span className="absolute -top-1 -right-1 bg-primary text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 shadow-lg">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}

@@ -166,7 +166,7 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
         >
           <MessageCircle size={20} strokeWidth={2} />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-[#dc3545] text-white rounded-full min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold font-oswald border-2 border-slate-900 box-border max-[600px]:min-w-[16px] max-[600px]:h-[16px] max-[600px]:text-[9px]">
+            <span className="absolute -top-1 -right-1 bg-primary text-white rounded-full min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold font-oswald box-border max-[600px]:min-w-[16px] max-[600px]:h-[16px] max-[600px]:text-[9px]">
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
