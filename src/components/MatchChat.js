@@ -14,15 +14,12 @@ const AUTHOR_COLORS = [
 ];
 
 export default function MatchChat({ partidoId, isOpen, onClose }) {
-  const MOBILE_TABBAR_OFFSET_PX = 74;
   const { user, profile } = useAuth();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [isCompactLayout, setIsCompactLayout] = useState(false);
   const [viewportStyle, setViewportStyle] = useState({});
-  const [panelBottomOffset, setPanelBottomOffset] = useState('0px');
-  const [isInputFocused, setIsInputFocused] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const scrollLockRef = useRef({ scrollY: 0, locked: false });
@@ -120,37 +117,21 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       const fallbackHeight = window.innerHeight || document.documentElement.clientHeight || 0;
       const vv = window.visualViewport;
 
-      const setBottomOffsetForKeyboard = (keyboardOpen) => {
-        if (!isCompactLayout) {
-          setPanelBottomOffset('0px');
-          return;
-        }
-        if (keyboardOpen || isInputFocused) {
-          setPanelBottomOffset('0px');
-          return;
-        }
-        setPanelBottomOffset(`calc(var(--safe-bottom,0px) + ${MOBILE_TABBAR_OFFSET_PX}px)`);
-      };
-
       if (!vv) {
         setViewportStyle({
           top: '0px',
           height: `${fallbackHeight}px`,
         });
-        setBottomOffsetForKeyboard(false);
         return;
       }
 
       const top = Math.max(0, vv.offsetTop || 0);
       const height = Math.max(280, vv.height || fallbackHeight);
-      const keyboardHeight = Math.max(0, fallbackHeight - ((vv.height || fallbackHeight) + (vv.offsetTop || 0)));
-      const keyboardOpen = keyboardHeight > 80;
 
       setViewportStyle({
         top: `${top}px`,
         height: `${height}px`,
       });
-      setBottomOffsetForKeyboard(keyboardOpen);
     };
 
     syncViewport();
@@ -167,7 +148,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       window.removeEventListener('resize', syncViewport);
       window.removeEventListener('orientationchange', syncViewport);
     };
-  }, [isOpen, isCompactLayout, isInputFocused]);
+  }, [isOpen]);
 
   useEffect(() => {
     scrollToBottom();
@@ -208,7 +189,6 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   };
 
   const handleClose = () => {
-    setIsInputFocused(false);
     inputRef.current?.blur();
     onClose();
   };
@@ -311,8 +291,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       onClick={handleClose}
     >
       <div
-      className="bg-slate-900 border-x border-t border-white/20 w-full h-[52%] min-h-[260px] max-h-[420px] rounded-t-2xl flex flex-col shadow-[0_30px_120px_rgba(0,0,0,0.55)] overflow-hidden transition-[margin] duration-200 sm:border-2 sm:max-w-[500px] sm:h-[75vh] sm:max-h-[600px] sm:rounded-xl"
-      style={isCompactLayout ? { marginBottom: panelBottomOffset } : undefined}
+      className="bg-slate-900 border-x border-t border-white/20 w-full h-full min-h-0 max-h-none rounded-none flex flex-col shadow-[0_30px_120px_rgba(0,0,0,0.55)] overflow-hidden sm:border-2 sm:max-w-[500px] sm:h-[75vh] sm:max-h-[600px] sm:rounded-xl"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex flex-col px-5 py-3 border-b border-white/10 bg-slate-800 sm:px-4 sm:py-2.5 sm:shrink-0">
@@ -352,8 +331,6 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
             placeholder="Escribí un mensaje…"
             className="flex-1 py-3 px-4 border border-slate-700 rounded-xl outline-none font-oswald text-base transition-all focus:border-[#0EA9C6] focus:ring-2 focus:ring-[#0EA9C6]/20 sm:text-base sm:relative sm:z-20 bg-slate-900 text-white placeholder:text-white/40"
             onKeyPress={(e) => e.key === 'Enter' && !loading && newMessage.trim() && handleSendMessage()}
-            onFocus={() => setIsInputFocused(true)}
-            onBlur={() => setIsInputFocused(false)}
             disabled={loading}
             ref={inputRef}
           />
