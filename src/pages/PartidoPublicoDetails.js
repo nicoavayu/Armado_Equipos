@@ -252,40 +252,40 @@ export default function PartidoPublicoDetails() {
         {/* Bloque CTA */}
         <div className="px-6 py-5 flex flex-col items-center">
           {joinStatus === 'checking' && (
-            <div className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-white/10 text-white/60 uppercase tracking-wider shadow-lg text-center flex items-center justify-center gap-2">
+            <div className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-white/10 text-white/60 tracking-wider shadow-lg text-center flex items-center justify-center gap-2">
               <LoadingSpinner size="small" />
               <span>Verificando...</span>
             </div>
           )}
           {joinStatus === 'none' && (
             <button
-              className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-[#128BE9] hover:brightness-110 text-white uppercase tracking-wider shadow-lg active:scale-[0.98] transition-all"
+              className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-[#128BE9] hover:brightness-110 text-white tracking-wider shadow-lg active:scale-[0.98] transition-all"
               onClick={handleSolicitarUnirme}
             >
-              SOLICITAR UNIRME
+              Solicitar unirme
             </button>
           )}
           {(joinStatus === 'pending' || joinStatus === 'approved') && (
             <button
-              className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-gray-400/80 text-white uppercase tracking-wider shadow-lg cursor-not-allowed"
+              className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-gray-400/80 text-white tracking-wider shadow-lg cursor-not-allowed"
               disabled={joinStatus === 'pending' || joinStatus === 'approved'}
             >
-              {joinStatus === 'approved' ? 'YA FORMÁS PARTE' : 'SOLICITUD ENVIADA'}
+              {joinStatus === 'approved' ? 'Ya formás parte' : 'Solicitud enviada'}
             </button>
           )}
           {joinStatus === 'joined' && (
-            <div className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-green-600/90 text-white uppercase tracking-wider shadow-lg text-center">
-              YA FORMÁS PARTE DEL PARTIDO
+            <div className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-green-600/90 text-white tracking-wider shadow-lg text-center">
+              Ya formás parte del partido
             </div>
           )}
           {joinStatus === 'full' && (
-            <div className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-yellow-600/90 text-white uppercase tracking-wider shadow-lg text-center">
-              PARTIDO COMPLETO
+            <div className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-yellow-600/90 text-white tracking-wider shadow-lg text-center">
+              Partido completo
             </div>
           )}
           {joinStatus === 'closed' && (
-            <div className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-red-600/90 text-white uppercase tracking-wider shadow-lg text-center">
-              PARTIDO CERRADO
+            <div className="w-full max-w-[260px] py-3 rounded-xl text-xs font-bold bg-red-600/90 text-white tracking-wider shadow-lg text-center">
+              Partido cerrado
             </div>
           )}
         </div>

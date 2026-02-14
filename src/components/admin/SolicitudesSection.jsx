@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../LoadingSpinner';
+import { Check, Loader2, X } from 'lucide-react';
 
 const EmptyRequestsMailboxIcon = () => (
     <svg
@@ -28,6 +29,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(new Set());
+    const [processingAction, setProcessingAction] = useState({});
 
     useEffect(() => {
         fetchRequests();
@@ -98,6 +100,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
         if (processing.has(request.id)) return;
 
         setProcessing(prev => new Set(prev).add(request.id));
+        setProcessingAction(prev => ({ ...prev, [request.id]: 'accept' }));
 
         try {
             const userName = request.profile?.nombre || request.usuario?.nombre || 'Jugador';
@@ -174,6 +177,11 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                 newSet.delete(request.id);
                 return newSet;
             });
+            setProcessingAction(prev => {
+                const next = { ...prev };
+                delete next[request.id];
+                return next;
+            });
         }
     };
 
@@ -181,6 +189,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
         if (processing.has(request.id)) return;
 
         setProcessing(prev => new Set(prev).add(request.id));
+        setProcessingAction(prev => ({ ...prev, [request.id]: 'reject' }));
 
         try {
             const { error } = await supabase
@@ -208,6 +217,11 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                 const newSet = new Set(prev);
                 newSet.delete(request.id);
                 return newSet;
+            });
+            setProcessingAction(prev => {
+                const next = { ...prev };
+                delete next[request.id];
+                return next;
             });
         }
     };
@@ -251,6 +265,8 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                     const pj = estadisticas.pj || request.usuario?.partidos_jugados || null;
 
                     const isProcessing = processing.has(request.id);
+                    const isAccepting = isProcessing && processingAction[request.id] === 'accept';
+                    const isRejecting = isProcessing && processingAction[request.id] === 'reject';
 
                     return (
                         <div
@@ -294,20 +310,32 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                             </div>
 
                             {/* Actions */}
-                            <div className="flex flex-col gap-2 flex-shrink-0">
+                            <div className="flex items-center gap-2 flex-shrink-0">
                                 <button
-                                    className="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bebas tracking-wider rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed min-w-[80px]"
+                                    className="h-11 w-11 rounded-xl border border-emerald-300/35 bg-gradient-to-b from-emerald-400/95 to-emerald-500/80 text-white shadow-[0_8px_20px_rgba(16,185,129,0.35)] transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                                     onClick={() => handleAccept(request)}
                                     disabled={isProcessing}
+                                    aria-label={isAccepting ? 'Aceptando solicitud' : 'Aceptar solicitud'}
+                                    title={isAccepting ? 'Aceptando solicitud...' : 'Aceptar solicitud'}
                                 >
-                                    {isProcessing ? 'ACEPTANDO...' : 'ACEPTAR'}
+                                    {isAccepting ? (
+                                        <Loader2 size={18} className="animate-spin" />
+                                    ) : (
+                                        <Check size={19} strokeWidth={3} />
+                                    )}
                                 </button>
                                 <button
-                                    className="px-4 py-1.5 bg-slate-700 hover:bg-slate-600 text-white/80 text-xs font-bebas tracking-wider rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed min-w-[80px]"
+                                    className="h-11 w-11 rounded-xl border border-white/20 bg-white/10 text-white/70 shadow-[0_8px_20px_rgba(2,6,23,0.35)] transition-all hover:bg-rose-500/20 hover:border-rose-300/45 hover:text-rose-100 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                                     onClick={() => handleReject(request)}
                                     disabled={isProcessing}
+                                    aria-label={isRejecting ? 'Rechazando solicitud' : 'Rechazar solicitud'}
+                                    title={isRejecting ? 'Rechazando solicitud...' : 'Rechazar solicitud'}
                                 >
-                                    {isProcessing ? 'RECHAZANDO...' : 'RECHAZAR'}
+                                    {isRejecting ? (
+                                        <Loader2 size={18} className="animate-spin" />
+                                    ) : (
+                                        <X size={19} strokeWidth={3} />
+                                    )}
                                 </button>
                             </div>
                         </div>

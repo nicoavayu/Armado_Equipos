@@ -161,7 +161,7 @@ function SharedInviteLayout({
                     <button
                       onClick={onSumarse}
                       disabled={submitting || isSent || isApproved || isPendingSync || joinStatus === 'checking' || isMatchFull}
-                      className={`w-full py-3 rounded-xl font-bebas text-lg tracking-widest transition-all uppercase font-bold border-2 border-white/10 ${joinStatus === 'checking'
+                      className={`w-full py-3 rounded-xl font-bebas text-lg tracking-widest transition-all font-bold border-2 border-white/10 ${joinStatus === 'checking'
                         ? 'bg-white/10 text-white/60 cursor-wait shadow-none'
                         : isMatchFull
                           ? 'bg-white/10 text-white/55 cursor-not-allowed shadow-none'
@@ -175,18 +175,18 @@ function SharedInviteLayout({
                       {joinStatus === 'checking' ? (
                         <span className="flex items-center justify-center gap-2">
                           <LoadingSpinner size="small" />
-                          VERIFICANDO...
+                          Verificando...
                         </span>
                       ) : isPendingSync ? (
                         <span className="flex items-center justify-center gap-2">
                           <LoadingSpinner size="small" />
-                          APROBADO — SINCRONIZANDO...
+                          Aprobado - sincronizando...
                         </span>
-                      ) : isMatchFull ? 'PARTIDO COMPLETO' :
-                        isSending ? 'ENVIANDO...' :
-                          isSent ? 'SOLICITUD ENVIADA' :
-                            isApproved ? 'YA FORMÁS PARTE' :
-                              'SOLICITAR UNIRME'}
+                      ) : isMatchFull ? 'Partido completo' :
+                        isSending ? 'Enviando...' :
+                          isSent ? 'Solicitud enviada' :
+                            isApproved ? 'Ya formás parte' :
+                              'Solicitar unirme'}
                     </button>
 
                     {isSent && (
