@@ -378,7 +378,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
                     {/* Botón ARMAR EQUIPOS PAREJOS - only on Jugadores tab */}
                     {isAdmin && !adminState.pendingInvitation && activeTab === 'jugadores' && (
-                      <div className="w-full max-w-full mx-auto mt-3 mb-6 text-center">
+                      <div className="w-full max-w-full mx-auto mt-3 mb-8 text-center">
                         <button
                           className="w-full bg-primary text-white font-oswald text-[18px] px-4 py-3 rounded-xl hover:brightness-110 transition-all disabled:opacity-35 disabled:cursor-not-allowed shadow-[0_8px_32px_rgba(129,120,229,0.3)] border border-white/20 active:scale-95 tracking-[0.01em] font-semibold"
                           onClick={handleArmarEquipos}
