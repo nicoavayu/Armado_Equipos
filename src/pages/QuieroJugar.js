@@ -461,7 +461,7 @@ const QuieroJugar = () => {
                           className="flex-1 py-3 rounded-xl text-xs font-bold bg-[#128BE9] hover:brightness-110 text-white uppercase tracking-wider shadow-lg active:scale-[0.98] transition-all"
                           onClick={() => navigate(`/partido-publico/${partido.id}`)}
                         >
-                          VER PARTIDO
+                          Ver partido
                         </button>
                       </div>
                     </div>

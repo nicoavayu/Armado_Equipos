@@ -1,5 +1,13 @@
 import { HiMiniChatBubbleOvalLeft } from 'react-icons/hi2';
 
+const normalizeHeaderTitle = (value) => {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  const lowerCased = trimmed.toLocaleLowerCase('es-AR');
+  return lowerCased.charAt(0).toLocaleUpperCase('es-AR') + lowerCased.slice(1);
+};
+
 /**
  * @param {Object} props
  * @param {React.ReactNode} [props.children]
@@ -10,7 +18,8 @@ import { HiMiniChatBubbleOvalLeft } from 'react-icons/hi2';
  * @param {number} [props.unreadCount] - Contador de mensajes sin leer
  */
 const PageTitle = ({ children, title, onBack, showChatButton, onChatClick, unreadCount = 0 }) => {
-  const titleText = children || title;
+  const titleText = children ?? title;
+  const normalizedTitle = normalizeHeaderTitle(titleText);
 
   return (
     <div className="fixed top-0 left-0 right-0 z-[1000] p-[18px_16px] box-border shrink-0 bg-black/40 backdrop-blur-xl border-b border-white/10 md:p-[14px_12px]">
@@ -28,8 +37,8 @@ const PageTitle = ({ children, title, onBack, showChatButton, onChatClick, unrea
             </svg>
           </button>
         )}
-        <h2 className="m-0 font-bebas-real font-bold text-center text-white absolute top-1/2 left-0 -translate-y-1/2 w-full uppercase drop-shadow-lg px-[52px] text-[26px] tracking-[1px] whitespace-normal break-words md:text-[22px] xs:text-[20px]">
-          {titleText}
+        <h2 className="m-0 font-oswald font-semibold text-center text-white absolute top-1/2 left-0 -translate-y-1/2 w-full drop-shadow-lg px-[52px] text-[26px] whitespace-normal break-words md:text-[22px] xs:text-[20px]">
+          {normalizedTitle}
         </h2>
 
         {/* Botón de chat en header */}
