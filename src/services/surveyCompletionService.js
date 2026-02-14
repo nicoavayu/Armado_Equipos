@@ -181,11 +181,12 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   // If we just created it (existingSurvey is null), use current calculated deadline.
   const deadlineReached = new Date() >= new Date(computedDeadline);
 
-  // 1) jugadores del partido
+  // 1) jugadores logueados del partido (solo ellos pueden votar encuesta)
   const { count: playersCount, error: playersErr } = await supabase
     .from('jugadores')
     .select('id', { count: 'exact', head: true })
-    .eq('partido_id', partidoId);
+    .eq('partido_id', partidoId)
+    .not('usuario_id', 'is', null);
   if (playersErr) {
     console.error('[FINALIZE] error fetching playersCount', { partidoId, playersErr });
     throw playersErr;
@@ -201,9 +202,9 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     throw surveysErr;
   }
   const distinctVoters = new Set(
-    (surveysRows || []).map((r, idx) => (
-      r.votante_id == null ? `row:${idx}` : `voter:${r.votante_id}`
-    )),
+    (surveysRows || [])
+      .map((r) => r.votante_id)
+      .filter((id) => id != null),
   );
   const surveysCount = distinctVoters.size;
 
