@@ -528,13 +528,27 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               onChange={(e) => setFecha(e.target.value)}
               style={{ marginBottom: 22, width: '100%' }}
             />
-            <input
-              className={INPUT_MODERN_CLASS}
-              type="time"
-              value={hora}
-              onChange={(e) => setHora(e.target.value)}
-              style={{ marginBottom: 22, width: '100%', height: 55 }}
-            />
+            <div className="relative w-full" style={{ marginBottom: 22 }}>
+              <input
+                className={INPUT_MODERN_CLASS}
+                type="time"
+                value={hora}
+                onChange={(e) => setHora(e.target.value)}
+                placeholder="hh:mm"
+                style={{
+                  marginBottom: 0,
+                  width: '100%',
+                  height: 55,
+                  color: hora ? undefined : 'transparent',
+                  WebkitTextFillColor: hora ? undefined : 'transparent',
+                }}
+              />
+              {!hora && (
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/40 font-sans text-lg">
+                  Hora (hh:mm)
+                </span>
+              )}
+            </div>
             <button
               className={CONFIRM_BTN_CLASS}
               disabled={!fecha || !hora}
