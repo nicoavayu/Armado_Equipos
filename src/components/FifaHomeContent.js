@@ -306,7 +306,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                   'rounded-full',
                   hasAwardsStoryPending || hasAwardsStoryViewed ? 'p-[2px]' : 'p-0',
                   hasAwardsStoryPending
-                    ? 'bg-gradient-to-r from-[#8178e5] to-[#128BE9] shadow-[0_0_0_2px_rgba(255,255,255,0.10),0_0_16px_rgba(18,139,233,0.25)]'
+                    ? 'bg-gradient-to-r from-[#ff2f5b] via-[#ff5f3a] to-[#ff9800] shadow-[0_0_0_2px_rgba(255,255,255,0.10),0_0_16px_rgba(255,111,53,0.30)]'
                     : hasAwardsStoryViewed
                       ? 'bg-white/25'
                       : 'bg-transparent',
