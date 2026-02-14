@@ -27,23 +27,31 @@ const areSameText = (a, b) => normalizeLocationToken(a).toLowerCase() === normal
 
 const isPostalCodeToken = (token) => /^[A-Z]?\d{4,}[A-Z0-9-]*$/i.test(token);
 
+const stripPostalAndCountry = (value) => normalizeLocationToken(value)
+  .replace(/\bCP\s*[A-Z]?\d{4,}[A-Z0-9-]*\b/gi, '')
+  .replace(/\b[A-Z]?\d{4,}[A-Z0-9-]*\b/g, '')
+  .replace(/\bargentina\b/gi, '')
+  .replace(/\s{2,}/g, ' ')
+  .replace(/(^[\s,.-]+|[\s,.-]+$)/g, '')
+  .trim();
+
 const buildMatchLocationLabel = (partido) => {
   const rawSede = partido?.sede || '';
   const sedeTokens = String(rawSede)
     .split(',')
-    .map(normalizeLocationToken)
+    .map(stripPostalAndCountry)
     .filter(Boolean)
     .filter((token) => !isPostalCodeToken(token))
     .filter((token) => token.toLowerCase() !== 'argentina');
 
-  const place = sedeTokens[0] || 'Dirección no disponible';
-  const cityFromData = partido?.ciudad || partido?.localidad || partido?.city || null;
+  const place = stripPostalAndCountry(sedeTokens[0]) || 'Dirección no disponible';
+  const cityFromData = stripPostalAndCountry(partido?.ciudad || partido?.localidad || partido?.city || null);
   const cityFallback = sedeTokens.length >= 2 ? sedeTokens[sedeTokens.length - 1] : null;
-  const city = cityFromData || cityFallback;
+  const city = cityFromData || stripPostalAndCountry(cityFallback);
 
-  const neighborhoodFromData = partido?.barrio || partido?.zona || partido?.neighborhood || null;
+  const neighborhoodFromData = stripPostalAndCountry(partido?.barrio || partido?.zona || partido?.neighborhood || null);
   const neighborhoodFallback = sedeTokens.length >= 3 ? sedeTokens[sedeTokens.length - 2] : null;
-  const neighborhood = neighborhoodFromData || neighborhoodFallback;
+  const neighborhood = neighborhoodFromData || stripPostalAndCountry(neighborhoodFallback);
 
   const parts = [place];
 
