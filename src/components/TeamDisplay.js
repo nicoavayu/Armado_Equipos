@@ -10,6 +10,7 @@ import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import WhatsappIcon from './WhatsappIcon';
 import LoadingSpinner from './LoadingSpinner';
 import { AvatarFallback } from './ProfileComponents';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 // Safe wrappers to prevent runtime crashes if any import resolves undefined
 const safeComp = (Comp, name) => {
@@ -43,6 +44,9 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   const [confirming, setConfirming] = useState(false);
   const [unconfirming, setUnconfirming] = useState(false);
   const [templateId, setTemplateId] = useState(null);
+  const [dragTarget, setDragTarget] = useState(null);
+  const [activeDragId, setActiveDragId] = useState(null);
+  const lastDragEndAtRef = useRef(0);
 
   // [TEAM_BALANCER_EDIT] Para jugadores no-admin, ocultar promedios por defecto
   useEffect(() => {
@@ -166,6 +170,34 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     return Array.isArray(team?.players) ? team.players : [];
   };
 
+  const getNormalizedTeamPlayers = (team) =>
+    getPlayersArrayFromTeam(team)
+      .map(normalizeKey)
+      .filter(Boolean);
+
+  const calculateTeamScore = (teamPlayers) =>
+    teamPlayers.reduce((acc, playerId) => acc + (getPlayerDetails(playerId).score || 0), 0);
+
+  const persistTeams = async (newTeams) => {
+    setRealtimeTeams(newTeams);
+    onTeamsChange(newTeams);
+
+    if (isAdmin && partidoId) {
+      try {
+        await saveTeamsToDatabase(partidoId, newTeams);
+      } catch (error) {
+        console.error('[TEAMS_SAVE] Error saving teams:', error);
+      }
+    }
+  };
+
+  const makeDraggableId = (teamId, playerKey) => `${teamId}::${normalizeKey(playerKey)}`;
+
+  const parseDraggableId = (draggableId) => {
+    const [teamId, ...rest] = String(draggableId || '').split('::');
+    return { teamId, playerKey: rest.join('::') };
+  };
+
   if (
     !Array.isArray(realtimeTeams) ||
     realtimeTeams.length < 2 ||
@@ -200,6 +232,9 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     }
   };
 
+  const isPlayerLocked = (playerId) =>
+    lockedPlayers.includes(playerId) ||
+    lockedPlayers.includes(Number(playerId));
 
 
   const togglePlayerLock = (playerId) => {
@@ -228,19 +263,19 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     }
 
     // Don't include locked players in randomization
-    let allPlayers = realtimeTeams.flatMap((t) => t.players);
+    let allPlayers = realtimeTeams.flatMap((t) => getNormalizedTeamPlayers(t));
     const lockedPlayersMap = {};
 
     // Create a map of locked players with their current team
     lockedPlayers.forEach((playerId) => {
-      const teamIndex = realtimeTeams.findIndex((team) => team.players.includes(playerId));
+      const teamIndex = realtimeTeams.findIndex((team) => getNormalizedTeamPlayers(team).includes(normalizeKey(playerId)));
       if (teamIndex !== -1) {
-        lockedPlayersMap[playerId] = realtimeTeams[teamIndex].id;
+        lockedPlayersMap[normalizeKey(playerId)] = realtimeTeams[teamIndex].id;
       }
     });
 
     // Filter out locked players for randomization
-    const playersToRandomize = allPlayers.filter((playerId) => !lockedPlayers.includes(playerId));
+    const playersToRandomize = allPlayers.filter((playerId) => !isPlayerLocked(playerId));
     playersToRandomize.sort(() => Math.random() - 0.5);
 
     // Create new teams with locked players in their original positions
@@ -249,10 +284,13 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
     // First, place locked players in their teams
     lockedPlayers.forEach((playerId) => {
-      if (lockedPlayersMap[playerId] === 'equipoA') {
-        newTeamA.players.push(playerId);
-      } else if (lockedPlayersMap[playerId] === 'equipoB') {
-        newTeamB.players.push(playerId);
+      const normalizedPlayerId = normalizeKey(playerId);
+      if (!normalizedPlayerId) return;
+
+      if (lockedPlayersMap[normalizedPlayerId] === 'equipoA') {
+        newTeamA.players.push(normalizedPlayerId);
+      } else if (lockedPlayersMap[normalizedPlayerId] === 'equipoB') {
+        newTeamB.players.push(normalizedPlayerId);
       }
     });
 
@@ -263,8 +301,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     newTeamB.players = [...newTeamB.players, ...playersToRandomize.slice(teamANeeds)];
 
     // Calculate scores
-    newTeamA.score = newTeamA.players.reduce((acc, playerId) => acc + (getPlayerDetails(playerId).score || 0), 0);
-    newTeamB.score = newTeamB.players.reduce((acc, playerId) => acc + (getPlayerDetails(playerId).score || 0), 0);
+    newTeamA.score = calculateTeamScore(newTeamA.players);
+    newTeamB.score = calculateTeamScore(newTeamB.players);
 
     const newTeams = realtimeTeams.map((team) => {
       if (team.id === 'equipoA') {
@@ -275,17 +313,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       return team;
     });
 
-    setRealtimeTeams(newTeams);
-    onTeamsChange(newTeams);
-
-    // Save changes to database
-    if (isAdmin && partidoId) {
-      try {
-        await saveTeamsToDatabase(partidoId, newTeams);
-      } catch (error) {
-        console.error('[TEAMS_SAVE] Error saving teams:', error);
-      }
-    }
+    await persistTeams(newTeams);
   };
 
   const buildConfirmationSnapshot = () => {
@@ -419,6 +447,144 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     }
   };
 
+  const handleDragStart = (start) => {
+    if (!isAdmin || teamsConfirmed) return;
+    setActiveDragId(start?.draggableId || null);
+    setDragTarget(null);
+  };
+
+  const handleDragUpdate = (update) => {
+    if (!isAdmin || teamsConfirmed) return;
+
+    const { source, destination, combine } = update || {};
+    if (!source) {
+      setDragTarget(null);
+      return;
+    }
+
+    if (combine?.draggableId) {
+      const parsedCombine = parseDraggableId(combine.draggableId);
+      const combineTeam = realtimeTeams.find((team) => team.id === parsedCombine.teamId);
+      const combinePlayers = getNormalizedTeamPlayers(combineTeam);
+      const combineIndex = combinePlayers.findIndex((key) => key === parsedCombine.playerKey);
+
+      if (combineIndex !== -1) {
+        setDragTarget({
+          teamId: parsedCombine.teamId,
+          index: combineIndex,
+          sourceTeamId: source.droppableId,
+          sourceIndex: source.index,
+        });
+        return;
+      }
+    }
+
+    if (destination) {
+      setDragTarget({
+        teamId: destination.droppableId,
+        index: destination.index,
+        sourceTeamId: source.droppableId,
+        sourceIndex: source.index,
+      });
+      return;
+    }
+
+    setDragTarget(null);
+  };
+
+  const handleDragEnd = async (result) => {
+    setActiveDragId(null);
+    setDragTarget(null);
+    lastDragEndAtRef.current = Date.now();
+
+    if (!isAdmin || teamsConfirmed) return;
+
+    const { source, destination, combine } = result || {};
+    if (!source) return;
+    if (!destination && !combine) return;
+
+    const sourceTeam = realtimeTeams.find((team) => team.id === source.droppableId);
+    if (!sourceTeam) return;
+
+    const sourcePlayers = getNormalizedTeamPlayers(sourceTeam);
+    const sourcePlayer = sourcePlayers[source.index];
+    if (!sourcePlayer) return;
+
+    let targetTeamId = destination?.droppableId || null;
+    let targetIndex = destination?.index ?? null;
+
+    if (combine?.draggableId) {
+      const parsedCombine = parseDraggableId(combine.draggableId);
+      targetTeamId = parsedCombine.teamId;
+
+      const combineTeam = realtimeTeams.find((team) => team.id === targetTeamId);
+      const combinePlayers = getNormalizedTeamPlayers(combineTeam);
+      targetIndex = combinePlayers.findIndex((key) => key === parsedCombine.playerKey);
+    }
+
+    if (!targetTeamId || targetIndex === null || targetIndex < 0) return;
+
+    const targetTeam = realtimeTeams.find((team) => team.id === targetTeamId);
+    if (!targetTeam) return;
+
+    const targetPlayers = getNormalizedTeamPlayers(targetTeam);
+    const targetPlayer = targetPlayers[targetIndex];
+    if (!targetPlayer) return;
+
+    if (sourcePlayer === targetPlayer && source.droppableId === targetTeamId) return;
+
+    if (isPlayerLocked(sourcePlayer) || isPlayerLocked(targetPlayer)) {
+      toast.info('No se pueden mover jugadores bloqueados.');
+      return;
+    }
+
+    const nextTeams = realtimeTeams.map((team) => ({
+      ...team,
+      players: getNormalizedTeamPlayers(team),
+    }));
+
+    if (source.droppableId === targetTeamId) {
+      const reordered = [...sourcePlayers];
+      const [moved] = reordered.splice(source.index, 1);
+      reordered.splice(targetIndex, 0, moved);
+
+      for (let i = 0; i < nextTeams.length; i += 1) {
+        if (nextTeams[i].id !== source.droppableId) continue;
+        nextTeams[i] = {
+          ...nextTeams[i],
+          players: reordered,
+          score: calculateTeamScore(reordered),
+        };
+      }
+    } else {
+      const nextSourcePlayers = [...sourcePlayers];
+      const nextTargetPlayers = [...targetPlayers];
+
+      [nextSourcePlayers[source.index], nextTargetPlayers[targetIndex]] = [
+        nextTargetPlayers[targetIndex],
+        nextSourcePlayers[source.index],
+      ];
+
+      for (let i = 0; i < nextTeams.length; i += 1) {
+        if (nextTeams[i].id === source.droppableId) {
+          nextTeams[i] = {
+            ...nextTeams[i],
+            players: nextSourcePlayers,
+            score: calculateTeamScore(nextSourcePlayers),
+          };
+        } else if (nextTeams[i].id === targetTeamId) {
+          nextTeams[i] = {
+            ...nextTeams[i],
+            players: nextTargetPlayers,
+            score: calculateTeamScore(nextTargetPlayers),
+          };
+        }
+      }
+    }
+
+    await persistTeams(nextTeams);
+  };
+
   const handleWhatsAppShare = () => {
     const teamA = realtimeTeams.find((t) => t.id === 'equipoA');
     const teamB = realtimeTeams.find((t) => t.id === 'equipoB');
@@ -461,177 +627,212 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
       <div data-debug="TEAMDISPLAY_ACTIVE" className="w-[90vw] max-w-[90vw] mx-auto flex flex-col gap-3 overflow-x-hidden mt-4 pb-6">
         {/* Team cards */}
-        <div className="flex flex-row gap-3 w-full mb-0 box-border">
-          {realtimeTeams.map((team) => {
-            // Create normalized player keys once before JSX
-            const rawPlayers = getPlayersArrayFromTeam(team);
-            const teamPlayerKeys = rawPlayers.map(normalizeKey).filter(Boolean);
+        <DragDropContext
+          onDragStart={handleDragStart}
+          onDragUpdate={handleDragUpdate}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex flex-row gap-3 w-full mb-0 box-border">
+            {realtimeTeams.map((team) => {
+              const teamPlayerKeys = getNormalizedTeamPlayers(team);
 
-            return (
-              <div key={team.id} className="relative bg-white/10 border border-white/20 rounded-xl p-2.5 w-[calc(50%-6px)] box-border transition-all shadow-xl flex flex-col min-h-0 hover:bg-white/[0.12] hover:border-white/25">
-                {editingTeamId === team.id && isAdmin ? (
-                  <input
-                    type="text"
-                    className="font-bebas text-lg text-[#333] bg-white/95 border-2 border-[#0EA9C6] rounded-lg px-3 py-2 text-center tracking-widest uppercase w-full box-border shadow-sm md:text-xl lg:text-2xl"
-                    value={editingTeamName}
-                    onChange={(e) => setEditingTeamName(e.target.value)}
-                    onBlur={async () => {
-                      if (editingTeamName.trim()) {
-                        const newTeams = realtimeTeams.map((t) =>
-                          t.id === team.id ? { ...t, name: editingTeamName.trim() } : t,
-                        );
-                        setRealtimeTeams(newTeams);
-                        onTeamsChange(newTeams);
+              return (
+                <Droppable
+                  key={team.id}
+                  droppableId={team.id}
+                  isDropDisabled={!isAdmin || teamsConfirmed}
+                  isCombineEnabled={isAdmin && !teamsConfirmed}
+                >
+                  {(dropProvided) => (
+                    <div
+                      ref={dropProvided.innerRef}
+                      {...dropProvided.droppableProps}
+                      className="relative bg-white/10 border border-white/20 rounded-xl p-2.5 w-[calc(50%-6px)] box-border transition-all shadow-xl flex flex-col min-h-0 hover:bg-white/[0.12] hover:border-white/25"
+                    >
+                      {editingTeamId === team.id && isAdmin ? (
+                        <input
+                          type="text"
+                          className="font-bebas text-lg text-[#333] bg-white/95 border-2 border-[#0EA9C6] rounded-lg px-3 py-2 text-center tracking-widest uppercase w-full box-border shadow-sm md:text-xl lg:text-2xl"
+                          value={editingTeamName}
+                          onChange={(e) => setEditingTeamName(e.target.value)}
+                          onBlur={async () => {
+                            if (editingTeamName.trim()) {
+                              const newTeams = realtimeTeams.map((t) =>
+                                t.id === team.id ? { ...t, name: editingTeamName.trim() } : t,
+                              );
+                              setRealtimeTeams(newTeams);
+                              onTeamsChange(newTeams);
 
-                        // Save changes to database
-                        if (isAdmin && partidoId) {
-                          try {
-                            await saveTeamsToDatabase(partidoId, newTeams);
-                          } catch (error) {
-                            console.error('[TEAMS_SAVE] Error saving teams:', error);
-                          }
-                        }
-                      }
-                      setEditingTeamId(null);
-                    }}
-                    onKeyDown={async (e) => {
-                      if (e.key === 'Enter') {
-                        if (editingTeamName.trim()) {
-                          const newTeams = realtimeTeams.map((t) =>
-                            t.id === team.id ? { ...t, name: editingTeamName.trim() } : t,
-                          );
-                          setRealtimeTeams(newTeams);
-                          onTeamsChange(newTeams);
-
-                          // Save changes to database
-                          if (isAdmin && partidoId) {
-                            try {
-                              await saveTeamsToDatabase(partidoId, newTeams);
-                            } catch (error) {
-                              console.error('[TEAMS_SAVE] Error saving teams:', error);
+                              // Save changes to database
+                              if (isAdmin && partidoId) {
+                                try {
+                                  await saveTeamsToDatabase(partidoId, newTeams);
+                                } catch (error) {
+                                  console.error('[TEAMS_SAVE] Error saving teams:', error);
+                                }
+                              }
                             }
-                          }
-                        }
-                        setEditingTeamId(null);
-                      } else if (e.key === 'Escape') {
-                        setEditingTeamId(null);
-                      }
-                    }}
-                    autoFocus
-                  />
-                ) : (
-                  <h3
-                    className="font-bebas text-xl text-white m-0 tracking-wide uppercase cursor-pointer px-0 py-2 rounded-lg transition-all bg-transparent break-words text-center block w-full hover:bg-white/5 mb-2 flex justify-center items-center"
-                    onClick={isAdmin ? () => {
-                      if (teamsConfirmed) return;
-                      setEditingTeamId(team.id);
-                      setEditingTeamName(team.name);
-                    } : undefined}
-                    style={{ cursor: isAdmin ? 'pointer' : 'default' }}
-                  >
-                    {team.name}
-                  </h3>
-                )}
+                            setEditingTeamId(null);
+                          }}
+                          onKeyDown={async (e) => {
+                            if (e.key === 'Enter') {
+                              if (editingTeamName.trim()) {
+                                const newTeams = realtimeTeams.map((t) =>
+                                  t.id === team.id ? { ...t, name: editingTeamName.trim() } : t,
+                                );
+                                setRealtimeTeams(newTeams);
+                                onTeamsChange(newTeams);
 
-                {/* Lista de jugadores sin DnD */}
-                <div className="flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto max-h-[52vh] md:max-h-[60vh] pr-1">
-                  {teamPlayerKeys.length === 0 && (
-                    <div className="text-white/60 text-sm p-3 border border-white/10 rounded bg-black/20">
-                      No hay jugadores cargados en este equipo (players vacío).
+                                // Save changes to database
+                                if (isAdmin && partidoId) {
+                                  try {
+                                    await saveTeamsToDatabase(partidoId, newTeams);
+                                  } catch (error) {
+                                    console.error('[TEAMS_SAVE] Error saving teams:', error);
+                                  }
+                                }
+                              }
+                              setEditingTeamId(null);
+                            } else if (e.key === 'Escape') {
+                              setEditingTeamId(null);
+                            }
+                          }}
+                          autoFocus
+                        />
+                      ) : (
+                        <h3
+                          className="font-bebas text-xl text-white m-0 tracking-wide uppercase cursor-pointer px-0 py-2 rounded-lg transition-all bg-transparent break-words text-center block w-full hover:bg-white/5 mb-2 flex justify-center items-center"
+                          onClick={isAdmin ? () => {
+                            if (teamsConfirmed) return;
+                            setEditingTeamId(team.id);
+                            setEditingTeamName(team.name);
+                          } : undefined}
+                          style={{ cursor: isAdmin ? 'pointer' : 'default' }}
+                        >
+                          {team.name}
+                        </h3>
+                      )}
+
+                      <div className="flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto max-h-[52vh] md:max-h-[60vh] pr-1">
+                        {teamPlayerKeys.length === 0 && (
+                          <div className="text-white/60 text-sm p-3 border border-white/10 rounded bg-black/20">
+                            No hay jugadores cargados en este equipo (players vacío).
+                          </div>
+                        )}
+                        {teamPlayerKeys.map((playerKey, _index) => {
+                          const player = getPlayerDetails(playerKey);
+                          const isLocked = isPlayerLocked(playerKey);
+                          const draggableId = makeDraggableId(team.id, playerKey);
+                          const isReplacementTarget = Boolean(dragTarget) &&
+                            dragTarget.sourceTeamId !== team.id &&
+                            dragTarget.teamId === team.id &&
+                            dragTarget.index === _index;
+                          const isActiveDraggedPlayer = activeDragId === draggableId;
+
+                          if (!player?.nombre) {
+                            return (
+                              <div
+                                key={`missing-${team.id}-${playerKey}-${_index}`}
+                                className="bg-slate-900 border border-slate-800 rounded-lg p-2 text-white/70"
+                              >
+                                Jugador desconocido ({playerKey})
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <Draggable
+                              key={draggableId}
+                              draggableId={draggableId}
+                              index={_index}
+                              isDragDisabled={!isAdmin || teamsConfirmed || isLocked}
+                            >
+                              {(dragProvided, dragSnapshot) => (
+                                <div
+                                  ref={dragProvided.innerRef}
+                                  {...dragProvided.draggableProps}
+                                  {...dragProvided.dragHandleProps}
+                                  onClick={isAdmin ? () => {
+                                    if (Date.now() - lastDragEndAtRef.current < 180) return;
+                                    togglePlayerLock(playerKey);
+                                  } : undefined}
+                                  className={`bg-slate-900 border border-slate-800 rounded-lg p-2 flex items-center gap-1.5 text-white transition-all min-h-[36px] relative w-full box-border overflow-hidden select-none hover:bg-slate-800 hover:border-slate-700
+                                    ${isLocked ? 'bg-[#FFC107]/20 border-[#FFC107]/60 shadow-[0_0_8px_rgba(255,193,7,0.3)]' : ''}
+                                    ${!isAdmin ? 'cursor-default pointer-events-none' : (teamsConfirmed || isLocked ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing')}
+                                    ${dragSnapshot.isDragging ? 'ring-2 ring-[#128BE9] border-[#128BE9]/60 z-20' : ''}
+                                    ${isReplacementTarget ? 'ring-2 ring-[#0EA9C6] border-[#0EA9C6]/70 bg-slate-700/70' : ''}
+                                    ${isActiveDraggedPlayer ? 'shadow-[0_0_0_1px_rgba(14,169,198,0.45)]' : ''}
+                                  `}
+                                >
+                                  <div className="flex items-center gap-1.5 w-full h-full min-w-0">
+                                    {player.avatar_url ? (
+                                      <img
+                                        src={player.avatar_url}
+                                        alt={player.nombre}
+                                        className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+                                      />
+                                    ) : (
+                                      <AvatarFallback name={player.nombre} size="w-8 h-8" />
+                                    )}
+                                    <span
+                                      className={`font-oswald text-sm font-semibold text-white flex-1 tracking-wide min-w-0 leading-tight pr-1 ${
+                                        showAverages && isAdmin ? 'whitespace-normal break-words' : 'overflow-hidden text-ellipsis whitespace-nowrap'
+                                      }`}
+                                    >
+                                      {player.nombre}
+                                    </span>
+
+                                    {showAverages && isAdmin && (
+                                      <span
+                                        className="font-bebas text-xs font-bold text-white bg-slate-800 px-2 py-1 rounded-md border border-slate-700 shrink-0 whitespace-nowrap"
+                                        style={{
+                                          background: getScoreColor(player.score),
+                                          borderColor: getScoreColor(player.score).replace('0.9', '0.5'),
+                                        }}
+                                      >
+                                        {(player.score || 0).toFixed(2)}
+                                      </span>
+                                    )}
+
+                                    {isLocked && isAdmin && (
+                                      <span className="text-base text-[#FFC107] shrink-0 p-1 rounded bg-[#FFC107]/20 border border-[#FFC107]/40 animate-pulse">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                                          <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
+                                        </svg>
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </Draggable>
+                          );
+                        })}
+                        {dropProvided.placeholder}
+                      </div>
+
+                      <div className="bg-slate-900 rounded-lg text-center px-3 py-2 w-full box-border mt-2" style={{
+                        borderWidth: '2px',
+                        borderStyle: 'solid',
+                        borderColor: (() => {
+                          const teamA = realtimeTeams.find((t) => t.id === 'equipoA');
+                          const teamB = realtimeTeams.find((t) => t.id === 'equipoB');
+                          const diff = Math.abs((teamA?.score ?? 0) - (teamB?.score ?? 0));
+                          if (diff === 0 || diff <= 2) return '#10B981';
+                          if (diff <= 5) return '#84CC16';
+                          if (diff <= 8) return '#F59E0B';
+                          return '#EF4444';
+                        })(),
+                      }}>
+                        <div className="text-white/70 text-xs font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
+                        <div className="text-white font-bebas text-xl font-bold">{(team.score ?? 0).toFixed(1)}</div>
+                      </div>
                     </div>
                   )}
-                  {teamPlayerKeys.map((playerKey, _index) => {
-                    const player = getPlayerDetails(playerKey);
-
-                    const isLocked =
-                      lockedPlayers.includes(playerKey) ||
-                      lockedPlayers.includes(Number(playerKey));
-
-                    if (!player?.nombre) {
-                      return (
-                        <div
-                          key={`missing-${playerKey}`}
-                          className="bg-slate-900 border border-slate-800 rounded-lg p-2 text-white/70"
-                        >
-                          Jugador desconocido ({playerKey})
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div
-                        key={playerKey}
-                        onClick={isAdmin ? () => togglePlayerLock(playerKey) : undefined}
-                        className={`bg-slate-900 border border-slate-800 rounded-lg p-2 flex items-center gap-1.5 text-white transition-all min-h-[36px] relative w-full box-border overflow-hidden select-none hover:bg-slate-800 hover:border-slate-700
-                                  ${isLocked ? 'bg-[#FFC107]/20 border-[#FFC107]/60 shadow-[0_0_8px_rgba(255,193,7,0.3)]' : ''}
-                                  ${!isAdmin ? 'cursor-default pointer-events-none' : 'cursor-pointer'}
-                                `}
-                      >
-                        <div className="flex items-center gap-1.5 w-full h-full min-w-0">
-                          {/* Avatar: Photo or Initials Badge */}
-                          {player.avatar_url ? (
-                            <img
-                              src={player.avatar_url}
-                              alt={player.nombre}
-                              className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
-                            />
-                          ) : (
-                            <AvatarFallback name={player.nombre} size="w-8 h-8" />
-                          )}
-                          <span
-                            className={`font-oswald text-sm font-semibold text-white flex-1 tracking-wide min-w-0 leading-tight pr-1 ${
-                              showAverages && isAdmin ? 'whitespace-normal break-words' : 'overflow-hidden text-ellipsis whitespace-nowrap'
-                            }`}
-                          >
-                            {player.nombre}
-                          </span>
-
-                          {showAverages && isAdmin && (
-                            <span
-                              className="font-bebas text-xs font-bold text-white bg-slate-800 px-2 py-1 rounded-md border border-slate-700 shrink-0 whitespace-nowrap"
-                              style={{
-                                background: getScoreColor(player.score),
-                                borderColor: getScoreColor(player.score).replace('0.9', '0.5'),
-                              }}
-                            >
-                              {(player.score || 0).toFixed(2)}
-                            </span>
-                          )}
-
-                          {isLocked && isAdmin && (
-                            <span className="text-base text-[#FFC107] shrink-0 p-1 rounded bg-[#FFC107]/20 border border-[#FFC107]/40 animate-pulse">
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-                                <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
-                              </svg>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Prominent score capsule with balance color */}
-                <div className="bg-slate-900 rounded-lg text-center px-3 py-2 w-full box-border mt-2" style={{
-                  borderWidth: '2px',
-                  borderStyle: 'solid',
-                  borderColor: (() => {
-                    const teamA = realtimeTeams.find((t) => t.id === 'equipoA');
-                    const teamB = realtimeTeams.find((t) => t.id === 'equipoB');
-                    const diff = Math.abs((teamA?.score ?? 0) - (teamB?.score ?? 0));
-                    if (diff === 0 || diff <= 2) return '#10B981';
-                    if (diff <= 5) return '#84CC16';
-                    if (diff <= 8) return '#F59E0B';
-                    return '#EF4444';
-                  })(),
-                }}>
-                  <div className="text-white/70 text-xs font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
-                  <div className="text-white font-bebas text-xl font-bold">{(team.score ?? 0).toFixed(1)}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                </Droppable>
+              );
+            })}
+          </div>
+        </DragDropContext>
 
         {/* Balance summary block - placed after team cards */}
         {(() => {
