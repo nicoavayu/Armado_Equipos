@@ -263,9 +263,9 @@ export default function ArmarEquiposView({
 
   const primaryLabel = (() => {
     const estado = estadoOverride || partidoActual?.estado;
-    if (estado === 'equipos_formados') return 'VER EQUIPOS';
-    if (votingStarted) return 'IR A VOTACIÓN';
-    return 'LLAMAR A VOTAR';
+    if (estado === 'equipos_formados') return 'Ver equipos';
+    if (votingStarted) return 'Ir a votación';
+    return 'Llamar a votar';
   })();
 
   const handlePrimaryClick = () => {
@@ -676,7 +676,7 @@ export default function ArmarEquiposView({
             <div className="flex-1 flex flex-col gap-1">
               <button
                 type="button"
-                className="relative z-10 w-full font-bebas text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:brightness-110 active:scale-95"
+                className="relative z-10 w-full font-oswald text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:brightness-110 active:scale-95"
                 onClick={handlePrimaryClick}
                 disabled={calling}
               >
@@ -689,11 +689,11 @@ export default function ArmarEquiposView({
 
             <div className="flex-1 flex flex-col gap-1">
               <button
-                className="w-full font-bebas text-[15px] px-4 border border-slate-600 rounded-xl cursor-pointer transition-all text-white/80 h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed hover:border-slate-500 hover:text-white/90 bg-transparent"
+                className="w-full font-oswald text-[15px] px-4 border border-slate-600 rounded-xl cursor-pointer transition-all text-white/80 h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed hover:border-slate-500 hover:text-white/90 bg-transparent"
                 onClick={handleWhatsApp}
               >
                 <WhatsappIcon size={UI_SIZES.WHATSAPP_ICON_SIZE} style={{ marginRight: 6 }} />
-                COMPARTIR
+                Compartir
               </button>
               <div className="text-[11px] text-white/50 leading-snug text-center px-1">
                 Enviá el link a quienes no tienen la app
@@ -705,11 +705,11 @@ export default function ArmarEquiposView({
           <div className="w-full flex flex-col gap-1 mt-3 pt-2 border-t border-slate-700/50">
             <button
               type="button"
-              className="w-full font-bebas text-[15px] px-4 border border-slate-600 rounded-xl cursor-pointer transition-all text-white/80 h-[44px] min-h-[44px] flex items-center justify-center font-bold tracking-wide disabled:opacity-50 disabled:cursor-not-allowed hover:border-slate-500 hover:text-white/90 bg-transparent"
+              className="w-full font-oswald text-[15px] px-4 border border-white/20 rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed bg-primary hover:brightness-110 active:scale-95 shadow-[0_8px_24px_rgba(129,120,229,0.25)]"
               onClick={() => setConfirmConfig({ open: true, action: 'close' })}
               disabled={isClosing}
             >
-              {isClosing ? <LoadingSpinner size="small" /> : 'CERRAR VOTACIÓN'}
+              {isClosing ? <LoadingSpinner size="small" /> : 'Cerrar votación'}
             </button>
             <div className="text-[11px] text-white/50 leading-snug text-center px-1">
               Avanza al armado de equipos y bloquea nuevas votaciones
