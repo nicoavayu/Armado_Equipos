@@ -22,6 +22,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   const [isCompactLayout, setIsCompactLayout] = useState(false);
   const [viewportStyle, setViewportStyle] = useState({});
   const [panelBottomOffset, setPanelBottomOffset] = useState('0px');
+  const [isInputFocused, setIsInputFocused] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const scrollLockRef = useRef({ scrollY: 0, locked: false });
@@ -124,7 +125,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
           setPanelBottomOffset('0px');
           return;
         }
-        if (keyboardOpen) {
+        if (keyboardOpen || isInputFocused) {
           setPanelBottomOffset('0px');
           return;
         }
@@ -143,7 +144,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       const top = Math.max(0, vv.offsetTop || 0);
       const height = Math.max(280, vv.height || fallbackHeight);
       const keyboardHeight = Math.max(0, fallbackHeight - ((vv.height || fallbackHeight) + (vv.offsetTop || 0)));
-      const keyboardOpen = keyboardHeight > 120;
+      const keyboardOpen = keyboardHeight > 80;
 
       setViewportStyle({
         top: `${top}px`,
@@ -166,7 +167,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       window.removeEventListener('resize', syncViewport);
       window.removeEventListener('orientationchange', syncViewport);
     };
-  }, [isOpen, isCompactLayout]);
+  }, [isOpen, isCompactLayout, isInputFocused]);
 
   useEffect(() => {
     scrollToBottom();
@@ -207,6 +208,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   };
 
   const handleClose = () => {
+    setIsInputFocused(false);
     inputRef.current?.blur();
     onClose();
   };
@@ -326,7 +328,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-[200px] touch-pan-y sm:p-3 bg-slate-900">
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0 touch-pan-y sm:p-3 bg-slate-900">
           {messages.map((msg) => {
             const authorColor = getAuthorColor(msg.autor);
             return (
@@ -350,6 +352,8 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
             placeholder="Escribí un mensaje…"
             className="flex-1 py-3 px-4 border border-slate-700 rounded-xl outline-none font-oswald text-base transition-all focus:border-[#0EA9C6] focus:ring-2 focus:ring-[#0EA9C6]/20 sm:text-base sm:relative sm:z-20 bg-slate-900 text-white placeholder:text-white/40"
             onKeyPress={(e) => e.key === 'Enter' && !loading && newMessage.trim() && handleSendMessage()}
+            onFocus={() => setIsInputFocused(true)}
+            onBlur={() => setIsInputFocused(false)}
             disabled={loading}
             ref={inputRef}
           />
