@@ -717,7 +717,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     return (
       <div className={wrapperClass}>
         <PageTitle title="CONFIRMÁ TUS CALIFICACIONES" onBack={onReset}>CONFIRMÁ TUS CALIFICACIONES</PageTitle>
-        <div className="w-[90vw] max-w-[520px] mx-auto mt-8 flex flex-col items-center p-3 pb-1">
+        <div className="w-[90vw] max-w-[520px] mx-auto mt-16 flex flex-col items-center p-3 pb-4">
           <div className="w-full max-w-full mx-auto mb-4 p-0 list-none">
             {jugadoresParaVotar.map((j, idx) => (
               <div key={j.uuid} className="flex items-center gap-2.5 mb-2 bg-white/10 rounded-lg p-2.5 border border-white/10 hover:bg-white/15 hover:border-white/20 transition-all">
