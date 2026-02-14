@@ -353,7 +353,7 @@ const NotificationsView = () => {
                 key={notification.id}
                 role="button"
                 tabIndex={0}
-                className={`flex p-3 bg-white/10 rounded-lg cursor-pointer transition-all duration-200 relative border border-white/10 hover:bg-white/15 ${!notification.read ? 'bg-primary/15 border-primary/35' : ''
+                className={`flex p-3 bg-white/10 rounded-lg cursor-pointer transition-all duration-200 relative border border-white/10 hover:bg-white/15 ${!notification.read ? 'bg-[#128BE9]/15 border-[#128BE9]/35' : ''
                   } ${notification.type === 'friend_request' ? 'cursor-default' : ''}`}
                 onClick={(e) => {
                   console.log('[NOTIFICATION_CLICK] Notification clicked, type:', notification.type);
@@ -402,7 +402,7 @@ const NotificationsView = () => {
                   )}
                 </div>
                 {!notification.read && (
-                  <div className="absolute top-3 right-3 w-2 h-2 bg-primary rounded-full"></div>
+                  <div className="absolute top-3 right-3 w-2 h-2 bg-[#128BE9] rounded-full"></div>
                 )}
               </div>
               );
