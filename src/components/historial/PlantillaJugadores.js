@@ -15,8 +15,8 @@ const PlantillaJugadores = ({ jugadores = [] }) => {
 
   return (
     <div className="mt-5">
-      <h3 className="text-xl text-white border-l-4 border-fifa-cyan pl-3 mb-4 font-bebas uppercase tracking-wider">
-        Plantilla de Jugadores
+      <h3 className="text-xl text-white border-l-4 border-fifa-cyan pl-3 mb-4 font-oswald font-semibold tracking-[0.01em]">
+        Plantilla de jugadores
       </h3>
       <div className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(150px,1fr))] max-[768px]:grid-cols-[repeat(auto-fill,minmax(120px,1fr))]">
         {jugadores.map((jugador, index) => (

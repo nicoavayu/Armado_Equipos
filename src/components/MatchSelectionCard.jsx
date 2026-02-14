@@ -58,13 +58,13 @@ const MatchSelectionCard = ({
             {/* Header: Título y Status de jugadores */}
             <div className="flex justify-between items-start gap-3">
                 <div className="flex-1 min-w-0">
-                    <h4 className={`font-oswald text-[20px] font-semibold uppercase truncate leading-tight tracking-wide transition-colors
+                    <h4 className={`font-oswald text-[20px] font-semibold truncate leading-tight tracking-[0.01em] transition-colors
                         ${isComplete ? 'text-white/35' : 'text-white'}
                     `}>
                         {title}
                     </h4>
                     {!showDateTimeInTitle && (
-                        <p className={`text-[11px] font-medium mt-1 uppercase tracking-wide transition-colors inline-flex items-center gap-1.5
+                        <p className={`text-[11px] font-medium mt-1 tracking-[0.01em] transition-colors inline-flex items-center gap-1.5
                             ${isComplete ? 'text-white/25' : 'text-[#9bb5de]'}
                         `}>
                             <Clock3 size={11} />

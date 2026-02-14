@@ -296,7 +296,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     >
       <div className="flex flex-col px-5 py-3 border-b border-white/10 bg-slate-800 sm:px-4 sm:py-2.5 sm:shrink-0">
           <div className="flex justify-between items-center">
-            <h3 className="m-0 font-bebas text-xl font-bold text-white tracking-wide uppercase">Chat del Partido</h3>
+            <h3 className="m-0 font-oswald text-xl font-semibold text-white tracking-[0.01em]">Chat del partido</h3>
             <button
               className="bg-transparent border-none text-white/70 text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-white"
               onClick={handleClose}

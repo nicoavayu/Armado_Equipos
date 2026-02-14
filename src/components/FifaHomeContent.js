@@ -332,14 +332,14 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
             <div className="flex flex-col" onClick={toggleStatusDropdown}>
               <div className="flex items-baseline">
                 <div className="text-white font-oswald text-sm mr-[5px] opacity-90 drop-shadow-[0_1px_2px_rgba(255,255,255,0.2)]">Hola,</div>
-                <div className="text-white font-bebas-real text-lg font-bold drop-shadow-[0_1px_2px_rgba(255,255,255,0.2)]">{truncatedName}</div>
+                <div className="text-white font-oswald text-lg font-semibold drop-shadow-[0_1px_2px_rgba(255,255,255,0.2)]">{truncatedName}</div>
               </div>
               <div className={`font-oswald text-xs mt-[2px] ${isAvailable ? 'text-[#4CAF50]' : 'text-[#F44336]'}`}>{statusText}</div>
             </div>
 
             {showStatusDropdown && createPortal(
               <div className="fixed top-20 left-4 bg-[#1f2252]/95 rounded-2xl w-[290px] z-[2147483647] overflow-hidden shadow-[0_12px_36px_rgba(8,12,38,0.55)] border border-white/15 backdrop-blur-xl origin-top-left transition-all duration-200 animate-[dropdownSlideIn_0.2s_ease-out]">
-                <div className="px-4 py-3 font-semibold text-white/90 border-b border-white/10 font-oswald uppercase tracking-wide text-xs">
+                <div className="px-4 py-3 font-semibold text-white/90 border-b border-white/10 font-oswald tracking-wide text-xs">
                   Estado de disponibilidad
                 </div>
                 <div className="p-2.5 space-y-2">
@@ -394,7 +394,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       <div className="grid grid-cols-2 gap-3 mb-5 bg-transparent shadow-none">
         {/* Create New Match */}
         <Link to="/nuevo-partido" className={cardClass}>
-          <div className="text-white font-bebas text-[18px] md:text-[20px] font-bold uppercase leading-none drop-shadow-[0_2px_10px_rgba(129,120,229,0.5)] sm:text-[16px]">PARTIDO<br />NUEVO</div>
+          <div className="text-white font-oswald text-[18px] md:text-[20px] font-semibold leading-none drop-shadow-[0_2px_10px_rgba(129,120,229,0.5)] sm:text-[16px]">Partido<br />nuevo</div>
           <div className="absolute bottom-5 right-5 text-primary text-[28px] w-[52px] h-[52px] flex items-center justify-center sm:w-11 sm:h-11 sm:bottom-4 sm:right-4 sm:text-2xl">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={60} height={60}>
               <path d="M320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320C64 461.4 178.6 576 320 576zM296 408L296 344L232 344C218.7 344 208 333.3 208 320C208 306.7 218.7 296 232 296L296 296L296 232C296 218.7 306.7 208 320 208C333.3 208 344 218.7 344 232L344 296L408 296C421.3 296 432 306.7 432 320C432 333.3 421.3 344 408 344L344 344L344 408C344 421.3 333.3 432 320 432C306.7 432 296 421.3 296 408z" />
@@ -407,7 +407,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           className={cardClass}
           onClick={() => user && setShowProximosPartidos(true)}
         >
-          <div className="text-white font-bebas text-[18px] md:text-[20px] font-bold uppercase leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.11)] sm:text-[16px]">MIS<br />PARTIDOS</div>
+          <div className="text-white font-oswald text-[18px] md:text-[20px] font-semibold leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.11)] sm:text-[16px]">Mis<br />partidos</div>
           <div className="absolute bottom-5 right-5 text-white/95 text-[28px] w-[52px] h-[52px] flex items-center justify-center sm:w-11 sm:h-11 sm:bottom-4 sm:right-4 sm:text-2xl">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={48} height={48}>
               <path d="M64 320C64 461.4 178.6 576 320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C178.6 64 64 178.6 64 320zM305 441C295.6 450.4 280.4 450.4 271.1 441C261.8 431.6 261.7 416.4 271.1 407.1L358.1 320.1L271.1 233.1C261.7 223.7 261.7 208.5 271.1 199.2C280.5 189.9 295.7 189.8 305 199.2L409 303C418.4 312.4 418.4 327.6 409 336.9L305 441z" />
@@ -420,7 +420,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
         {/* Frecuentes */}
         <Link to="/frecuentes" className={cardClass}>
-          <div className="text-white font-bebas text-[18px] md:text-[20px] font-bold uppercase leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.11)] sm:text-[16px]">FRECUENTES</div>
+          <div className="text-white font-oswald text-[18px] md:text-[20px] font-semibold leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.11)] sm:text-[16px]">Frecuentes</div>
           <div className="absolute bottom-5 right-5 text-white/95 text-[28px] w-[52px] h-[52px] flex items-center justify-center sm:w-11 sm:h-11 sm:bottom-4 sm:right-4 sm:text-2xl">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={48} height={48}>
               <path d="M320 128C426 128 512 214 512 320C512 426 426 512 320 512C254.8 512 197.1 479.5 162.4 429.7C152.3 415.2 132.3 411.7 117.8 421.8C103.3 431.9 99.8 451.9 109.9 466.4C156.1 532.6 233 576 320 576C461.4 576 576 461.4 576 320C576 178.6 461.4 64 320 64C234.3 64 158.5 106.1 112 170.7L112 144C112 126.3 97.7 112 80 112C62.3 112 48 126.3 48 144L48 256C48 273.7 62.3 288 80 288L104.6 288C105.1 288 105.6 288 106.1 288L192.1 288C209.8 288 224.1 273.7 224.1 256C224.1 238.3 209.8 224 192.1 224L153.8 224C186.9 166.6 249 128 320 128zM344 216C344 202.7 333.3 192 320 192C306.7 192 296 202.7 296 216L296 320C296 326.4 298.5 332.5 303 337L375 409C384.4 418.4 399.6 418.4 408.9 409C418.2 399.6 418.3 384.4 408.9 375.1L343.9 310.1L343.9 216z" />
@@ -430,7 +430,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
         {/* Estadísticas */}
         <Link to="/stats" className={cardClass}>
-          <div className="text-white font-bebas text-[18px] md:text-[20px] font-bold uppercase leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.11)] sm:text-[16px]">ESTADÍSTICAS</div>
+          <div className="text-white font-oswald text-[18px] md:text-[20px] font-semibold leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.11)] sm:text-[16px]">Estadísticas</div>
           <div className="absolute bottom-5 right-5 text-white/95 text-[28px] w-[52px] h-[52px] flex items-center justify-center sm:w-11 sm:h-11 sm:bottom-4 sm:right-4 sm:text-2xl">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" fill="currentColor" width={48} height={48}>
               <path d="M256 144C256 117.5 277.5 96 304 96L336 96C362.5 96 384 117.5 384 144L384 496C384 522.5 362.5 544 336 544L304 544C277.5 544 256 522.5 256 496L256 144zM64 336C64 309.5 85.5 288 112 288L144 288C170.5 288 192 309.5 192 336L192 496C192 522.5 170.5 544 144 544L112 544C85.5 544 64 522.5 64 496L64 336zM496 160L528 160C554.5 160 576 181.5 576 208L576 496C576 522.5 554.5 544 528 544L496 544C469.5 544 448 522.5 448 496L448 208C448 181.5 469.5 160 496 160z" />
@@ -443,7 +443,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
       {/* Recent Activity */}
       <div className="bg-white/5 border border-white/10 backdrop-blur-[15px] rounded-2xl p-6 mt-5 mb-10 shadow-xl">
-        <h3 className="font-bebas-real text-[28px] m-0 mb-4 text-white/90 uppercase font-bold tracking-tight">ACTIVIDAD RECIENTE</h3>
+        <h3 className="font-oswald text-[28px] m-0 mb-4 text-white/90 font-semibold tracking-[0.01em]">Actividad reciente</h3>
         <div className="min-h-[320px]">
           {activityLoading ? (
             <div className="h-[320px] flex flex-col gap-3 pr-1">
@@ -489,8 +489,8 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
               <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.25)] mb-4">
                 <Bell size={30} className="text-white/80" />
               </div>
-              <div className="font-bebas-real text-[30px] leading-none tracking-tight text-white/90 uppercase">
-                SIN NOTIFICACIONES
+              <div className="font-oswald text-[30px] leading-none tracking-[0.01em] text-white/90 font-semibold">
+                Sin notificaciones
               </div>
               <div className="font-oswald text-[16px] text-white/60 mt-2 max-w-[340px]">
                 Cuando haya actividad nueva en tus partidos, te va a aparecer acá.

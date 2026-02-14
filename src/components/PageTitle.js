@@ -1,12 +1,5 @@
 import { HiMiniChatBubbleOvalLeft } from 'react-icons/hi2';
-
-const normalizeHeaderTitle = (value) => {
-  if (typeof value !== 'string') return value;
-  const trimmed = value.trim();
-  if (!trimmed) return value;
-  const lowerCased = trimmed.toLocaleLowerCase('es-AR');
-  return lowerCased.charAt(0).toLocaleUpperCase('es-AR') + lowerCased.slice(1);
-};
+import { toSentenceCase } from '../utils/textCase';
 
 /**
  * @param {Object} props
@@ -19,7 +12,7 @@ const normalizeHeaderTitle = (value) => {
  */
 const PageTitle = ({ children, title, onBack, showChatButton, onChatClick, unreadCount = 0 }) => {
   const titleText = children ?? title;
-  const normalizedTitle = normalizeHeaderTitle(titleText);
+  const normalizedTitle = toSentenceCase(titleText);
 
   return (
     <div className="fixed top-0 left-0 right-0 z-[1000] p-[18px_16px] box-border shrink-0 bg-black/40 backdrop-blur-xl border-b border-white/10 md:p-[14px_12px]">

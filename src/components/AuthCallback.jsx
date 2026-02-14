@@ -55,7 +55,7 @@ export default function AuthCallback() {
   return (
     <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center px-4">
       <div className="w-full max-w-md rounded-2xl border border-white/20 bg-[#1a1f46]/90 p-6 text-center">
-        <h1 className="font-bebas-neue text-4xl text-white tracking-wide">Ingresando...</h1>
+        <h1 className="font-oswald text-4xl text-white font-semibold tracking-[0.01em]">Ingresando...</h1>
         {!error && <p className="text-white/70 mt-3">Estamos validando tu sesión.</p>}
         {error && <p className="text-[#ff7b7b] mt-4">{error}</p>}
       </div>

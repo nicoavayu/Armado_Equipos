@@ -21,7 +21,7 @@ const PanelInfo = () => {
   return (
     <div className="bg-white/15 border border-white/20 rounded-xl my-5 p-4 w-full box-border">
       <div className="mb-3">
-        <h4 className="text-white font-bebas text-xl m-0 uppercase">Resumen</h4>
+        <h4 className="text-white font-oswald font-semibold text-xl m-0">Resumen</h4>
       </div>
       <div className="flex flex-col gap-2">
         {notifications.map((notification) => (

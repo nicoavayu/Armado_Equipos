@@ -132,7 +132,7 @@ const PlayerActionModal = ({
             )}
           </div>
           <div>
-            <h3 className="text-white font-bebas text-3xl tracking-wide leading-none mb-1">{player.nombre}</h3>
+            <h3 className="text-white font-oswald font-semibold text-3xl tracking-[0.01em] leading-none mb-1">{player.nombre}</h3>
             <div className="flex items-center justify-center gap-2 text-white/60 text-sm font-oswald uppercase tracking-wider">
               <span
                 className="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-bold text-white"

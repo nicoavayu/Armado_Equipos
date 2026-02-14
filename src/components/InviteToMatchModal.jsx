@@ -254,11 +254,11 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             <div className="mb-3 px-1">
                 <div className="flex items-center gap-2 mb-1">
                     <CalendarDays size={16} className="text-[#1fa0ff]" />
-                    <h3 className="font-oswald text-[24px] leading-none tracking-wide text-white m-0 uppercase whitespace-nowrap">
+                    <h3 className="font-oswald text-[24px] leading-none tracking-[0.01em] text-white m-0 whitespace-nowrap">
                         Invitar a jugador
                     </h3>
                 </div>
-                <p className="text-white/60 text-[11px] font-oswald uppercase tracking-wider truncate">
+                <p className="text-white/60 text-[11px] font-oswald tracking-[0.01em] truncate">
                     Elegí uno de tus partidos para invitar a {targetName}
                 </p>
             </div>
@@ -266,7 +266,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-4 bg-white/5 rounded-2xl border border-white/10">
                     <LoadingSpinner size="lg" />
-                    <p className="text-white/40 text-[11px] font-oswald uppercase tracking-widest animate-pulse">
+                    <p className="text-white/40 text-[11px] font-oswald tracking-[0.01em] animate-pulse">
                         Buscando tus partidos...
                     </p>
                 </div>

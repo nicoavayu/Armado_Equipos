@@ -566,8 +566,8 @@ export default function ArmarEquiposView({
         {/* Lista de jugadores */}
         <div ref={playersSectionRef} className="bg-white/10 border-2 border-white/20 rounded-xl p-3 min-h-[120px] w-full mx-auto mt-0 box-border">
           <div className="flex items-start justify-between gap-3 mb-3 mt-2">
-            <div className="font-bebas text-xl text-white tracking-wide uppercase">
-              JUGADORES ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+            <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
+              Jugadores ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
               <div className="text-[12px] text-white/60 font-oswald font-normal tracking-normal mt-1">
                 Votaron: {votantesConNombres.length}/{jugadores.length}
               </div>

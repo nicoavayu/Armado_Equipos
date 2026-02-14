@@ -50,8 +50,8 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   return (
     <div className="w-full bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px]">
       <div className="flex items-start justify-between gap-3 mb-3 mt-1 px-1">
-        <div className="font-bebas text-xl text-white tracking-wide uppercase">
-          JUGADORES ({displayCount}/{cupoMaximo})
+        <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
+          Jugadores ({displayCount}/{cupoMaximo})
         </div>
       </div>
 

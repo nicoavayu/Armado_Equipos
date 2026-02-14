@@ -1156,7 +1156,7 @@ const StatsView = ({ onVolver }) => {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.8 }}
           >
-            <h3 className="font-oswald text-lg font-semibold text-white mb-4 text-center uppercase">Partidos por {periodLabels[period]}</h3>
+            <h3 className="font-oswald text-lg font-semibold text-white mb-4 text-center">Partidos por {periodLabels[period]}</h3>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={stats.chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.08)" />
@@ -1194,7 +1194,7 @@ const StatsView = ({ onVolver }) => {
             <div className="flex items-center gap-4 sm:gap-3">
               <img src={stats.topFriend.avatar} alt={stats.topFriend.nombre} className="w-[60px] h-[60px] rounded-full border-[3px] border-[#ffd700]/50 object-cover sm:w-[50px] sm:h-[50px]" />
               <div>
-                <div className="font-oswald text-2xl font-bold text-white uppercase mb-1 sm:text-lg">{stats.topFriend.nombre}</div>
+                <div className="font-oswald text-2xl font-bold text-white mb-1 sm:text-lg">{stats.topFriend.nombre}</div>
                 <div className="font-oswald text-base font-medium text-white/70">{stats.topFriend.partidos} partidos juntos</div>
               </div>
             </div>
@@ -1207,7 +1207,7 @@ const StatsView = ({ onVolver }) => {
           animate={{ opacity: 1 }}
           transition={{ delay: 1.0 }}
         >
-          <h3 className="font-oswald text-xl font-semibold text-white mb-4 text-center uppercase">Logros</h3>
+          <h3 className="font-oswald text-xl font-semibold text-white mb-4 text-center">Logros</h3>
 
           <div className="mb-3 text-white/70 font-oswald text-xs uppercase tracking-wide">Anuales</div>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3 mt-2 md:grid-cols-2 sm:grid-cols-1">
@@ -1263,7 +1263,7 @@ const StatsView = ({ onVolver }) => {
             animate={{ opacity: 1 }}
             transition={{ delay: 1.2 }}
           >
-            <h3 className="font-oswald text-xl font-semibold text-white mb-4 text-center uppercase">Amigos con los que más jugaste</h3>
+            <h3 className="font-oswald text-xl font-semibold text-white mb-4 text-center">Amigos con los que más jugaste</h3>
             <AnimatePresence>
               {stats.topAmigos.map((amigo, index) => (
                 <motion.div

@@ -129,7 +129,7 @@ export default function InviteLanding() {
   return (
     <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center px-4">
       <div className="w-full max-w-md rounded-2xl border border-white/20 bg-[#1a1f46]/90 p-6">
-        <h1 className="font-bebas-neue text-4xl text-white tracking-wide">Invitación a partido</h1>
+        <h1 className="font-oswald text-4xl text-white font-semibold tracking-[0.01em]">Invitación a partido</h1>
 
         {loadingInvite && <p className="mt-3 text-white/75">Validando invitación...</p>}
         {!loadingInvite && inviteError && <p className="mt-4 text-[#ff8b8b]">Invitación inválida o expirada</p>}

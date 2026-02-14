@@ -372,7 +372,7 @@ const ProfileCardComponent = ({
                 <div className="relative w-full px-6 mb-2">
                   {/* Name (Centered) */}
                   <div className="flex justify-center items-center h-12">
-                    <h3 className="font-bebas-real font-black text-[2.6rem] leading-none text-white tracking-[0.05em] uppercase m-0 truncate max-w-[80%]" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3)' }}>
+                    <h3 className="font-oswald font-black text-[2.6rem] leading-none text-white tracking-[0.01em] m-0 truncate max-w-[80%]" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3)' }}>
                       {vm.name.slice(0, 12)}
                     </h3>
                   </div>

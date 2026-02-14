@@ -146,7 +146,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
         className="w-full max-w-lg bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 shadow-[0_32px_64px_rgba(0,0,0,0.5)] overflow-y-auto max-h-[90vh] animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-2xl font-bold font-[Bebas_Neue,sans-serif] text-white mb-6 uppercase tracking-wider border-b border-white/10 pb-4">
+        <h3 className="text-2xl font-semibold font-[Oswald,sans-serif] text-white mb-6 tracking-[0.01em] border-b border-white/10 pb-4">
           Crear partido desde plantilla
         </h3>
 

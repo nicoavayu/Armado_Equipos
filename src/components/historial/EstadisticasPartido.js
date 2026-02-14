@@ -37,8 +37,8 @@ const EstadisticasPartido = ({ encuestas = [] }) => {
 
   return (
     <div className="mt-5">
-      <h3 className="text-xl text-white border-l-4 border-fifa-cyan pl-3 mb-4 font-bebas uppercase tracking-wider">
-        Estadísticas del Partido
+      <h3 className="text-xl text-white border-l-4 border-fifa-cyan pl-3 mb-4 font-oswald font-semibold tracking-[0.01em]">
+        Estadísticas del partido
       </h3>
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-4 max-[768px]:grid-cols-[repeat(auto-fill,minmax(120px,1fr))]">

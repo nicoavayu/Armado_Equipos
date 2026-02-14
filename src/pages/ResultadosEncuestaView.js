@@ -1382,17 +1382,17 @@ const ResultadosEncuestaView = () => {
       {/* Main Card Container */}
       <div className="w-[90vw] max-w-[1100px] mt-[70px] mx-auto py-6 px-4 pb-11 bg-card dark:bg-[#1a1a1a] shadow-fifa-card rounded-[20px] min-h-[82vh] md:w-full md:mt-12 md:shadow-none md:rounded-none relative mb-20">
 
-        <h1 className="text-[30px] md:text-4xl leading-[1.05] text-white text-center mb-8 uppercase tracking-wider">Resultados de la Encuesta</h1>
+        <h1 className="text-[30px] md:text-4xl leading-[1.05] text-white text-center mb-8 tracking-[0.01em] font-oswald font-semibold">Resultados de la encuesta</h1>
 
         {/* Partido Info */}
         <div className="bg-white/5 rounded-xl p-5 mb-6 border border-white/10 text-center">
-          <h2 className="text-xl md:text-2xl text-[#0EA9C6]  mb-3 uppercase tracking-wide">
+          <h2 className="text-xl md:text-2xl text-[#0EA9C6] mb-3 tracking-[0.01em] font-oswald font-semibold">
             {partido.nombre || partido.titulo || fallbackMatchName}
           </h2>
           <p className="text-gray-300  text-lg mb-1">
             {new Date(partido.fecha).toLocaleString('es-ES', { dateStyle: 'full', timeStyle: 'short' })}
           </p>
-          <p className="text-sm  uppercase tracking-wider mt-3">
+          <p className="text-sm tracking-[0.01em] mt-3">
             <span className="text-gray-400">Estado de los Premios: </span>
             <span className={`${awardsStatus === 'ready' ? 'text-green-400' : 'text-yellow-400'} font-bold`}>
               {awardsStatus === 'ready' ? 'Listos para ver' : awardsStatus === 'insufficient' ? 'No suficientes votos' : 'En progreso'}
@@ -1409,7 +1409,7 @@ const ResultadosEncuestaView = () => {
                 <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
                   <span className="text-2xl">🏆</span>
                   <div className="flex flex-col">
-                    <span className="font-bebas-real text-lg text-gray-400 uppercase tracking-wider">MVP</span>
+                    <span className="font-oswald text-lg text-gray-400 tracking-[0.01em] font-semibold">Mvp</span>
                     <span className="text-lg text-white  text-shadow-sm">{results.mvp_nombre || '—'}</span>
                   </div>
                 </div>
@@ -1418,7 +1418,7 @@ const ResultadosEncuestaView = () => {
                 <div className="flex items-center gap-3 bg-black/20 p-3 rounded-lg">
                   <span className="text-2xl">🥇</span>
                   <div className="flex flex-col">
-                    <span className="font-bebas-real text-lg text-gray-400 uppercase tracking-wider">MEJOR ARQUERO</span>
+                    <span className="font-oswald text-lg text-gray-400 tracking-[0.01em] font-semibold">Mejor arquero</span>
                     <span className="text-lg text-white  text-shadow-sm">{results.golden_glove_nombre || '—'}</span>
                   </div>
                 </div>

@@ -57,7 +57,7 @@ export default function EmailMagicLinkLogin() {
         </div>
 
         <div className="rounded-2xl border border-white/20 bg-[#1a1f46]/90 p-6">
-        <h1 className="font-bebas-neue text-4xl max-[480px]:text-[36px] text-white tracking-wide whitespace-nowrap">Continuar con email</h1>
+        <h1 className="font-oswald text-4xl max-[480px]:text-[36px] text-white font-semibold tracking-[0.01em] whitespace-nowrap">Continuar con email</h1>
         <p className="text-white/70 mt-2 text-sm">Ingresá tu email y te mandamos un link para entrar.</p>
 
         <form onSubmit={onSubmit} className="mt-6 space-y-3">
