@@ -211,7 +211,7 @@ export default function PartidoPublicoDetails() {
       toast.error('Error al solicitar');
     } else {
       setJoinStatus('pending');
-      toast.success('Solicitud enviada');
+      toast.info('Solicitud enviada');
     }
 
     setLoading(false);

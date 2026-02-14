@@ -26,6 +26,11 @@ const resolveProfileUserId = (profile) => (
   || null
 );
 
+const resolveRegisteredUserId = (profile) => {
+  const candidates = [profile?.usuario_id, profile?.user_id, profile?.uuid, profile?.id];
+  return candidates.find((value) => isValidUUID(value)) || null;
+};
+
 /**
  * Reusable modal component for displaying a player's ProfileCard
  * @param {Object} props - Component props
@@ -37,6 +42,8 @@ const resolveProfileUserId = (profile) => (
  */
 const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin }) => {
   const profileUserId = resolveProfileUserId(profile);
+  const registeredUserId = resolveRegisteredUserId(profile);
+  const hasRegisteredAccount = Boolean(registeredUserId);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [relationshipStatus, setRelationshipStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -78,14 +85,14 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     const checkRelationship = async () => {
       console.log('[PROFILE_MODAL] Checking relationship status', { currentUserId, profileUserId, profileId: profile?.id });
 
-      if (!currentUserId || !profileUserId || currentUserId === profileUserId) {
+      if (!currentUserId || !registeredUserId || currentUserId === registeredUserId) {
         console.log('[PROFILE_MODAL] Skipping check - missing or same user');
         return;
       }
 
-      console.log('[PROFILE_MODAL] Getting relationship status between', { from: currentUserId, to: profileUserId });
+      console.log('[PROFILE_MODAL] Getting relationship status between', { from: currentUserId, to: registeredUserId });
       setIsLoading(true);
-      const status = await getRelationshipStatus(profileUserId);
+      const status = await getRelationshipStatus(registeredUserId);
       console.log('[PROFILE_MODAL] Relationship status result:', status);
       setRelationshipStatus(status);
       setIsLoading(false);
@@ -94,18 +101,18 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     if (isOpen && profile && currentUserId) {
       checkRelationship();
     }
-  }, [isOpen, currentUserId, profileUserId]);
+  }, [isOpen, currentUserId, registeredUserId]);
 
   // Handle friend request actions
   const handleAddFriend = async () => {
-    if (!currentUserId || !profileUserId || isLoading) {
-      console.log('[PROFILE_MODAL] Cannot send friend request - missing data', { currentUserId, profileUserId, isLoading });
+    if (!currentUserId || !registeredUserId || isLoading) {
+      console.log('[PROFILE_MODAL] Cannot send friend request - missing data', { currentUserId, registeredUserId, isLoading });
       return;
     }
 
-    console.log('[PROFILE_MODAL] Sending friend request from', currentUserId, 'to', profileUserId);
+    console.log('[PROFILE_MODAL] Sending friend request from', currentUserId, 'to', registeredUserId);
     setIsLoading(true);
-    const result = await sendFriendRequest(profileUserId);
+    const result = await sendFriendRequest(registeredUserId);
 
     if (result.success) {
       setRelationshipStatus({ id: result.data.id, status: 'pending' });
@@ -130,24 +137,26 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
   // Handle make admin action
   const handleMakeAdmin = async () => {
-    console.log('[MAKE_ADMIN] Opening confirmation modal', { playerId: profile?.id, playerName: profile?.nombre });
+    const adminTargetId = profile?.id || profile?.usuario_id || registeredUserId;
+    console.log('[MAKE_ADMIN] Opening confirmation modal', { playerId: adminTargetId, playerName: profile?.nombre });
     setShowAdminConfirm(true);
   };
 
   // Handle admin confirmation
   const handleConfirmAdmin = async () => {
-    if (!profile?.id || !partidoActual?.id || !onMakeAdmin) {
-      console.error('[MAKE_ADMIN] Missing required data', { profileId: profile?.id, partidoId: partidoActual?.id, hasOnMakeAdmin: !!onMakeAdmin });
+    const adminTargetId = profile?.id || profile?.usuario_id || registeredUserId;
+    if (!adminTargetId || !partidoActual?.id || !onMakeAdmin) {
+      console.error('[MAKE_ADMIN] Missing required data', { profileId: adminTargetId, partidoId: partidoActual?.id, hasOnMakeAdmin: !!onMakeAdmin });
       toast.error('Error: datos incompletos');
       setShowAdminConfirm(false);
       return;
     }
 
-    console.log('[MAKE_ADMIN] Confirming admin transfer for', { playerId: profile?.id, playerName: profile?.nombre });
+    console.log('[MAKE_ADMIN] Confirming admin transfer for', { playerId: adminTargetId, playerName: profile?.nombre });
     setIsAdminLoading(true);
 
     try {
-      await onMakeAdmin(profile.id);
+      await onMakeAdmin(adminTargetId);
       console.log('[MAKE_ADMIN] Admin transfer completed successfully');
       toast.success('Admin asignado correctamente');
       setShowAdminConfirm(false);
@@ -162,9 +171,9 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
   // Handle contact player action
   const handleContactPlayer = async () => {
-    console.log('[CONTACT] Starting contact player action', { profileId: profile?.id, currentUserId });
+    console.log('[CONTACT] Starting contact player action', { profileId: registeredUserId, currentUserId });
 
-    if (!profile?.id || !currentUserId) {
+    if (!registeredUserId || !currentUserId) {
       console.log('[CONTACT] Missing profile ID or current user ID');
       return;
     }
@@ -184,9 +193,8 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     }
 
     try {
-      // Use usuario_id if available, fallback to id
-      const userId = profile.usuario_id || profile.id;
-      console.log('[CONTACT] Fetching phone for user:', { userId, profileId: profile.id, usuarioId: profile.usuario_id });
+      const userId = registeredUserId;
+      console.log('[CONTACT] Fetching phone for user:', { userId, profileId: profile?.id, usuarioId: profile?.usuario_id });
 
       const { data: userData, error } = await supabase
         .from('usuarios')
@@ -212,7 +220,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
   // Render make admin button
   const renderMakeAdminButton = () => {
     // Don't show if no partido or viewing own profile
-    if (!partidoActual || currentUserId === profile?.id) {
+    if (!partidoActual || !onMakeAdmin || !hasRegisteredAccount || currentUserId === registeredUserId) {
       return null;
     }
 
@@ -228,9 +236,9 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     }
 
     // Check if profile user is already admin
-    const isProfileUserAdmin = profile?.id && (
-      partidoActual?.creado_por === profile.id ||
-      (partidoActual?.admins && partidoActual.admins.includes(profile.id))
+    const isProfileUserAdmin = registeredUserId && (
+      partidoActual?.creado_por === registeredUserId ||
+      (partidoActual?.admins && partidoActual.admins.includes(registeredUserId))
     );
 
     // Don't show if profile user is already admin
@@ -239,13 +247,9 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     }
 
     // Don't show if profile user doesn't have an account
-    if (!profile?.id) {
-      return null;
-    }
-
     return (
       <button
-        className={`border border-[#DE1C49]/40 bg-transparent rounded-xl py-2 px-3 text-[11px] font-semibold text-[#DE1C49] cursor-pointer transition-all flex items-center justify-center gap-0.5 min-w-fit whitespace-nowrap hover:bg-[#DE1C49]/5 hover:border-[#DE1C49]/60 md:py-2.5 md:px-4 md:text-xs sm:py-2 sm:px-3 ${isAdminLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+        className={`w-full min-w-0 border border-[#DE1C49]/40 bg-transparent rounded-xl py-2 px-2.5 text-[11px] leading-tight font-semibold text-[#DE1C49] cursor-pointer transition-all flex items-center justify-center text-center hover:bg-[#DE1C49]/5 hover:border-[#DE1C49]/60 md:py-2.5 md:px-3 md:text-xs sm:py-2 sm:px-2 ${isAdminLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
         onClick={handleMakeAdmin}
         disabled={isAdminLoading}
       >
@@ -257,7 +261,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
   // Render contact player button
   const renderContactButton = () => {
     // Don't show if viewing own profile or no profile ID
-    if (currentUserId === profile?.id || !profile?.id) {
+    if (!hasRegisteredAccount || currentUserId === registeredUserId) {
       return null;
     }
 
@@ -274,7 +278,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
     return (
       <button
-        className="bg-[#2196F3] border-none rounded-xl py-2 px-3 text-[11px] font-semibold text-white cursor-pointer transition-all flex items-center justify-center gap-0.5 min-w-fit whitespace-nowrap hover:bg-[#2196F3]/90 hover:shadow-lg md:py-2.5 md:px-4 md:text-xs sm:py-2 sm:px-3"
+        className="w-full min-w-0 bg-[#2196F3] border-none rounded-xl py-2 px-2.5 text-[11px] leading-tight font-semibold text-white cursor-pointer transition-all flex items-center justify-center text-center hover:bg-[#2196F3]/90 hover:shadow-lg md:py-2.5 md:px-3 md:text-xs sm:py-2 sm:px-2"
         onClick={handleContactPlayer}
       >
         <span>Contactar Jugador</span>
@@ -284,30 +288,21 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
   // Render friend action button based on relationship status
   const renderFriendActionButton = () => {
-    console.log('[PROFILE_MODAL] renderFriendActionButton - profileUserId:', profileUserId, 'currentUserId:', currentUserId);
+    console.log('[PROFILE_MODAL] renderFriendActionButton - registeredUserId:', registeredUserId, 'currentUserId:', currentUserId);
 
     // Check if it's the current user
-    if (currentUserId === profileUserId) {
+    if (currentUserId === registeredUserId) {
       console.log('[PROFILE_MODAL] Not rendering friend button - same user');
       return null;
     }
 
-    // Check if profile has a valid UUID (not registered in app = no UUID)
-    if (!isValidUUID(profileUserId)) {
-      // Player may not have UUID if manually added - this is OK for deletion
-      return (
-        <button
-          className="bg-slate-700/40 border border-slate-600/50 rounded-xl py-2 px-4 text-[11px] font-semibold text-slate-400 cursor-default flex items-center justify-center gap-0.5 min-w-fit whitespace-nowrap md:py-2.5 md:px-5 md:text-xs sm:py-2 sm:px-4"
-          disabled
-          title="Este jugador no está registrado en la aplicación"
-        >
-          <span>No registrado</span>
-        </button>
-      );
+    // Unregistered players can open the card, but have no social/admin/contact actions
+    if (!hasRegisteredAccount) {
+      return null;
     }
 
     // If we don't have a profileUserId, don't render
-    if (!profileUserId) {
+    if (!registeredUserId) {
       console.log('[PROFILE_MODAL] Not rendering friend button - missing ID');
       return null;
     }
@@ -317,7 +312,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     if (!relationshipStatus) {
       return (
         <button
-          className={`bg-[#8178e5] border-none rounded-xl py-2 px-4 text-[11px] font-semibold text-white cursor-pointer transition-all flex items-center justify-center gap-0.5 min-w-fit whitespace-nowrap hover:bg-[#8178e5]/90 hover:shadow-lg md:py-2.5 md:px-5 md:text-xs sm:py-2 sm:px-4 ${isLoading ? 'opacity-60 cursor-not-allowed hover:shadow-none' : ''}`}
+          className={`w-full min-w-0 bg-[#8178e5] border-none rounded-xl py-2 px-2.5 text-[11px] leading-tight font-semibold text-white cursor-pointer transition-all flex items-center justify-center text-center hover:bg-[#8178e5]/90 hover:shadow-lg md:py-2.5 md:px-3 md:text-xs sm:py-2 sm:px-2 ${isLoading ? 'opacity-60 cursor-not-allowed hover:shadow-none' : ''}`}
           onClick={handleAddFriend}
           disabled={isLoading}
         >
@@ -328,7 +323,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
     if (relationshipStatus.status === 'pending') {
       return (
-        <button className="bg-[#8178e5]/20 border border-[#8178e5]/50 rounded-xl py-2 px-4 text-[11px] font-semibold text-[#8178e5] cursor-default flex items-center justify-center gap-0.5 min-w-fit whitespace-nowrap md:py-2.5 md:px-5 md:text-xs sm:py-2 sm:px-4" disabled>
+        <button className="w-full min-w-0 bg-[#8178e5]/20 border border-[#8178e5]/50 rounded-xl py-2 px-2.5 text-[11px] leading-tight font-semibold text-[#8178e5] cursor-default flex items-center justify-center text-center md:py-2.5 md:px-3 md:text-xs sm:py-2 sm:px-2" disabled>
           <span>Solicitud Pendiente</span>
         </button>
       );
@@ -336,7 +331,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
     if (relationshipStatus.status === 'accepted') {
       return (
-        <button className="bg-[#8178e5]/20 border border-[#8178e5]/50 rounded-xl py-2 px-4 text-[11px] font-semibold text-[#8178e5] cursor-default flex items-center justify-center gap-0.5 min-w-fit whitespace-nowrap md:py-2.5 md:px-5 md:text-xs sm:py-2 sm:px-4" disabled>
+        <button className="w-full min-w-0 bg-[#8178e5]/20 border border-[#8178e5]/50 rounded-xl py-2 px-2.5 text-[11px] leading-tight font-semibold text-[#8178e5] cursor-default flex items-center justify-center text-center md:py-2.5 md:px-3 md:text-xs sm:py-2 sm:px-2" disabled>
           <span>✓ Amigos</span>
         </button>
       );
@@ -345,7 +340,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     if (relationshipStatus.status === 'rejected') {
       return (
         <button
-          className={`bg-[#8178e5] border-none rounded-xl py-2 px-4 text-[11px] font-semibold text-white cursor-pointer transition-all flex items-center justify-center gap-0.5 min-w-fit whitespace-nowrap hover:bg-[#8178e5]/90 hover:shadow-lg md:py-2.5 md:px-5 md:text-xs sm:py-2 sm:px-4 ${isLoading ? 'opacity-60 cursor-not-allowed hover:shadow-none' : ''}`}
+          className={`w-full min-w-0 bg-[#8178e5] border-none rounded-xl py-2 px-2.5 text-[11px] leading-tight font-semibold text-white cursor-pointer transition-all flex items-center justify-center text-center hover:bg-[#8178e5]/90 hover:shadow-lg md:py-2.5 md:px-3 md:text-xs sm:py-2 sm:px-2 ${isLoading ? 'opacity-60 cursor-not-allowed hover:shadow-none' : ''}`}
           onClick={handleAddFriend}
           disabled={isLoading}
         >
@@ -368,6 +363,15 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     }
   }, [isOpen, profile?.id]);
 
+  const actionButtons = hasRegisteredAccount
+    ? [renderFriendActionButton(), renderContactButton(), renderMakeAdminButton()].filter(Boolean)
+    : [];
+  const actionColsClass = actionButtons.length === 1
+    ? 'grid-cols-1'
+    : actionButtons.length === 2
+      ? 'grid-cols-2'
+      : 'grid-cols-3';
+
   return (
     <Modal
       isOpen={isOpen}
@@ -387,11 +391,13 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
             currentUserId={currentUserId}
           />
         </div>
-        <div className="flex justify-center gap-2 w-full max-w-[350px]">
-          {renderFriendActionButton()}
-          {renderContactButton()}
-          {renderMakeAdminButton()}
-        </div>
+        {actionButtons.length > 0 && (
+          <div className={`grid ${actionColsClass} gap-2 w-full max-w-[380px]`}>
+            {actionButtons.map((button, index) => (
+              <React.Fragment key={`profile-action-${index}`}>{button}</React.Fragment>
+            ))}
+          </div>
+        )}
 
         {/* Contact Info Modal */}
         {showContactInfo && (

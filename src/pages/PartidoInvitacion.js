@@ -772,7 +772,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
       console.log('[SOLICITAR_UNIRME] Request created successfully:', newRequest.id);
       setJoinStatus('pending');
-      toast.success('Solicitud enviada. Esperando aprobación del admin.');
+      toast.info('Solicitud enviada. Esperando aprobación del admin.');
     } catch (err) {
       console.error('[SOLICITAR_UNIRME] Error creating request:', {
         code: err.code,

@@ -3,6 +3,7 @@ import { supabase } from '../../supabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from '../LoadingSpinner';
 import { Check, Loader2, X } from 'lucide-react';
+import { PlayerCardTrigger } from '../ProfileComponents';
 
 const EmptyRequestsMailboxIcon = () => (
     <svg
@@ -258,6 +259,16 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                 {requests.map((request) => {
                     const userName = request.profile?.nombre || request.usuario?.nombre || 'Un jugador';
                     const avatarUrl = request.profile?.avatar_url;
+                    const hasLinkedAccount = Boolean(request.user_id);
+                    const profileForCard = {
+                        ...request.usuario,
+                        ...request.profile,
+                        id: request.user_id || request.profile?.id || request.usuario?.id || null,
+                        user_id: request.user_id || request.profile?.id || request.usuario?.id || null,
+                        usuario_id: request.user_id || request.profile?.id || request.usuario?.id || null,
+                        nombre: userName,
+                        avatar_url: avatarUrl || null,
+                    };
 
                     // Extract rating and PJ from estadisticas (JSONB)
                     const estadisticas = request.profile?.estadisticas || {};
@@ -268,10 +279,9 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                     const isAccepting = isProcessing && processingAction[request.id] === 'accept';
                     const isRejecting = isProcessing && processingAction[request.id] === 'reject';
 
-                    return (
+                    const cardContent = (
                         <div
-                            key={request.id}
-                            className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3"
+                            className={`bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3 ${hasLinkedAccount ? 'hover:bg-slate-800/80 hover:border-slate-700 transition-all' : ''}`}
                         >
                             {/* Avatar */}
                             <div className="flex-shrink-0">
@@ -307,13 +317,21 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                                         )}
                                     </div>
                                 )}
+                                {hasLinkedAccount && (
+                                    <div className="text-[10px] text-[#7bc6ff] font-oswald mt-0.5">
+                                        Tocar para ver perfil
+                                    </div>
+                                )}
                             </div>
 
                             {/* Actions */}
                             <div className="flex items-center gap-2 flex-shrink-0">
                                 <button
-                                    className="h-11 w-11 rounded-xl border border-emerald-300/35 bg-gradient-to-b from-emerald-400/95 to-emerald-500/80 text-white shadow-[0_8px_20px_rgba(16,185,129,0.35)] transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                                    onClick={() => handleAccept(request)}
+                                    className="h-11 w-11 rounded-xl border border-white/20 bg-[var(--btn-success)] text-white shadow-[0_8px_20px_rgba(39,174,96,0.35)] transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAccept(request);
+                                    }}
                                     disabled={isProcessing}
                                     aria-label={isAccepting ? 'Aceptando solicitud' : 'Aceptar solicitud'}
                                     title={isAccepting ? 'Aceptando solicitud...' : 'Aceptar solicitud'}
@@ -325,8 +343,11 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                                     )}
                                 </button>
                                 <button
-                                    className="h-11 w-11 rounded-xl border border-white/20 bg-white/10 text-white/70 shadow-[0_8px_20px_rgba(2,6,23,0.35)] transition-all hover:bg-rose-500/20 hover:border-rose-300/45 hover:text-rose-100 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                                    onClick={() => handleReject(request)}
+                                    className="h-11 w-11 rounded-xl border border-white/20 bg-[var(--btn-danger)] text-white shadow-[0_8px_20px_rgba(231,76,60,0.3)] transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleReject(request);
+                                    }}
                                     disabled={isProcessing}
                                     aria-label={isRejecting ? 'Rechazando solicitud' : 'Rechazar solicitud'}
                                     title={isRejecting ? 'Rechazando solicitud...' : 'Rechazar solicitud'}
@@ -339,6 +360,24 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                                 </button>
                             </div>
                         </div>
+                    );
+
+                    if (!hasLinkedAccount) {
+                        return (
+                            <div key={request.id}>
+                                {cardContent}
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <PlayerCardTrigger
+                            key={request.id}
+                            profile={profileForCard}
+                            partidoActual={partidoActual}
+                        >
+                            {cardContent}
+                        </PlayerCardTrigger>
                     );
                 })}
             </div>
