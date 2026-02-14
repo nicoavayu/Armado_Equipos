@@ -5,6 +5,7 @@ import { handleError } from '../lib/errorHandler';
 import { useInterval } from '../hooks/useInterval';
 import { logger } from '../lib/logger';
 import { subscribeToNotifications } from '../services/realtimeService';
+import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 
 const NotificationContext = createContext();
 
@@ -454,9 +455,12 @@ export const NotificationProvider = ({ children }) => {
         toast.info(`${notification.title}: ${notification.message}`, toastOptions);
         break;
       case 'survey_start':
-      case 'post_match_survey':
-        toast.info(`${notification.title}: ${notification.message}`, toastOptions);
+      case 'post_match_survey': {
+        const matchName = notification?.data?.partido_nombre || notification?.data?.match_name || 'este partido';
+        const surveyMessage = getSurveyStartMessage({ source: notification, matchName });
+        toast.info(`${notification.title || '¡Encuesta lista!'}: ${surveyMessage}`, toastOptions);
         break;
+      }
       case 'survey_results_ready':
         toast.success(`${notification.title}: ${notification.message}`, toastOptions);
         break;

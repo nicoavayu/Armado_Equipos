@@ -10,6 +10,7 @@ import { openNotification } from '../utils/notificationRouter';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyStateCard from './EmptyStateCard';
+import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 
 const NotificationsModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
@@ -306,6 +307,12 @@ const NotificationsModal = ({ isOpen, onClose }) => {
               {notifications.map((notification) => {
                 const clickable = ['match_invite', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished'].includes(notification.type);
                 const Icon = getNotificationIcon(notification.type) || User;
+                const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
+                const matchName = notification?.data?.partido_nombre || notification?.data?.match_name || 'este partido';
+                const displayTitle = isSurveyStartLike ? '¡Encuesta lista!' : (notification.title || 'Notificación');
+                const displayMessage = isSurveyStartLike
+                  ? getSurveyStartMessage({ source: notification, matchName })
+                  : (notification.message || '');
 
                 const notificationContent = (
                   <>
@@ -313,8 +320,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                       <Icon size={16} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-white text-base font-semibold mb-1 leading-tight md:text-[15px]">{notification.title}</div>
-                      <div className="text-[#ccc] text-sm leading-snug mb-1.5 overflow-hidden line-clamp-2 md:text-[13px]">{notification.message}</div>
+                      <div className="text-white text-base font-semibold mb-1 leading-tight md:text-[15px]">{displayTitle}</div>
+                      <div className="text-[#ccc] text-sm leading-snug mb-1.5 overflow-hidden line-clamp-2 md:text-[13px]">{displayMessage}</div>
                       <div className="text-[#666] text-xs font-medium">{formatDate(notification.created_at)}</div>
                     </div>
                     {!notification.read && <div className="w-2 h-2 bg-[#2196F3] rounded-full shrink-0 mt-1.5"></div>}

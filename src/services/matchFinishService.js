@@ -1,7 +1,8 @@
 import { supabase } from '../supabase';
 import { toBigIntId } from '../utils';
 import { parseLocalDateTime } from '../utils/dateLocal';
-import { SURVEY_START_DELAY_MS } from '../config/surveyConfig';
+import { SURVEY_FINALIZE_DELAY_MS, SURVEY_START_DELAY_MS } from '../config/surveyConfig';
+import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 
 const isForeignKeyError = (error) => {
   if (!error) return false;
@@ -43,8 +44,13 @@ export const checkAndNotifyMatchFinish = async (partido) => {
       return false;
     }
 
+    const nowIso = new Date().toISOString();
+    const surveyDeadlineAt = new Date(new Date(nowIso).getTime() + SURVEY_FINALIZE_DELAY_MS).toISOString();
     const title = '¡Encuesta lista!';
-    const message = `La encuesta ya está lista para completar sobre el partido ${partido.nombre || formatMatchDate(partido.fecha)}.`;
+    const message = getSurveyStartMessage({
+      source: { created_at: nowIso, data: { survey_deadline_at: surveyDeadlineAt } },
+      matchName: partido.nombre || formatMatchDate(partido.fecha) || 'este partido',
+    });
     const payload = {
       match_id: partidoId,
       matchCode: partido.codigo || null,
@@ -53,6 +59,7 @@ export const checkAndNotifyMatchFinish = async (partido) => {
       partido_fecha: partido.fecha || null,
       partido_hora: partido.hora || null,
       partido_sede: partido.sede || null,
+      survey_deadline_at: surveyDeadlineAt,
     };
 
     // Intentar camino canónico (RPC fanout para todos los logueados del partido).
@@ -114,8 +121,10 @@ export const checkAndNotifyMatchFinish = async (partido) => {
         partido_hora: partido.hora,
         partido_sede: partido.sede,
         link: `/encuesta/${partidoId}`,
+        survey_deadline_at: surveyDeadlineAt,
       },
       read: false,
+      created_at: nowIso,
     }));
 
     // Insert notifications in bulk first; if one FK fails, retry by user to avoid blocking valid recipients.

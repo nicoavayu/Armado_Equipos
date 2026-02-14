@@ -8,13 +8,7 @@ import { ensureParticipantsSnapshot, ensureSurveyResultsSnapshot } from './histo
 import {
   SURVEY_FINALIZE_DELAY_MS,
   SURVEY_MIN_VOTERS_FOR_AWARDS,
-  SURVEY_MIN_VOTERS_IMMEDIATE_FINALIZE,
 } from '../config/surveyConfig';
-
-// Read env var if available on globalThis (e.g. injected at build/runtime). Default to 2 minutes for debug.
-// Removed local definition in favor of config file
-
-
 // Calcula y persiste premios (MVP, Mejor Arquero y Tarjeta Roja) en survey_results.awards
 export async function computeAndPersistAwards(partidoId) {
   const idNum = Number(partidoId);
@@ -222,27 +216,16 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   // deadlineReached was calculated earlier (line 169)
 
 
-  const FAST = options.fastResults === true || options.fastResults === '1';
-
-  // now and nowIso were defined earlier and used for survey timing
-
-  // existing readyAt for results (kept for compatibility)
-  const readyAt = FAST
-    ? new Date(now.getTime() + 30 * 1000).toISOString()
-    : new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString();
-  console.log('[FINALIZE] Notification scheduled for:', readyAt, FAST ? '(30 seconds)' : '(6 hours)');
-  const minVotesImmediateReached = surveysCount >= SURVEY_MIN_VOTERS_IMMEDIATE_FINALIZE;
-  if (!allVoted && !deadlineReached && !minVotesImmediateReached) {
+  if (!allVoted && !deadlineReached) {
     const msLeft = new Date(computedDeadline).getTime() - Date.now();
     console.log('[FINALIZE] waiting', { partidoId, playersCount, surveysCount, deadlineAt: computedDeadline, msLeft });
     return { done: false, playersCount, surveysCount, deadlineAt: computedDeadline };
   }
 
-  console.log('[FINALIZE] proceeding to compute results and schedule notifications (allVoted || deadlineReached || minVotesImmediateReached)', {
+  console.log('[FINALIZE] proceeding to compute results and schedule notifications (allVoted || deadlineReached)', {
     partidoId,
     allVoted,
     deadlineReached,
-    minVotesImmediateReached,
   });
   // Always attempt to apply no-show penalties when finalizing (idempotent implementation should guard double application)
   if (!SKIP_SIDE_EFFECTS) {
@@ -328,7 +311,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     try {
       await ensureSurveyResultsSnapshot(partidoId, {
         encuestaCerradaAt: nowIso,
-        closedReason: allVoted ? 'all_voted' : (deadlineReached ? 'deadline' : 'min_votes_reached'),
+        closedReason: allVoted ? 'all_voted' : 'deadline',
       });
     } catch (_snapshotError) {
       // non-blocking
@@ -401,7 +384,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   try {
     await ensureSurveyResultsSnapshot(partidoId, {
       encuestaCerradaAt: nowIso,
-      closedReason: allVoted ? 'all_voted' : (deadlineReached ? 'deadline' : 'min_votes_reached'),
+      closedReason: allVoted ? 'all_voted' : 'deadline',
     });
   } catch (_snapshotError) {
     // non-blocking

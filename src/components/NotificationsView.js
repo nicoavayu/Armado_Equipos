@@ -7,6 +7,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { useAmigos } from '../hooks/useAmigos';
 import { useAuth } from './AuthProvider';
 import EmptyStateCard from './EmptyStateCard';
+import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 
 import { toast } from 'react-toastify';
 
@@ -341,6 +342,12 @@ const NotificationsView = () => {
           <div className="grid grid-cols-1 gap-3">
             {notifications.map((notification) => {
               const Icon = getNotificationIcon(notification.type);
+              const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
+              const matchName = notification?.data?.partido_nombre || notification?.data?.match_name || 'este partido';
+              const displayTitle = isSurveyStartLike ? '¡Encuesta lista!' : (notification.title || 'Notificación');
+              const displayMessage = isSurveyStartLike
+                ? getSurveyStartMessage({ source: notification, matchName })
+                : (notification.message || '');
               return (
                 <div
                 key={notification.id}
@@ -364,8 +371,8 @@ const NotificationsView = () => {
                   <Icon size={18} />
                 </div>
                 <div className="flex-1">
-                  <div className="font-bold text-white mb-1">{notification.title}</div>
-                  <div className="text-white/80 text-sm mb-2">{notification.message}</div>
+                  <div className="font-bold text-white mb-1">{displayTitle}</div>
+                  <div className="text-white/80 text-sm mb-2">{displayMessage}</div>
                   <div className="text-xs text-white/60">{formatDate(notification.created_at)}</div>
 
                   {/* Friend request action buttons */}

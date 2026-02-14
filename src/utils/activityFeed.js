@@ -1,5 +1,6 @@
 import { parseLocalDateTime } from './dateLocal';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
+import { getSurveyRemainingLabel, resolveSurveyDeadlineAt } from './surveyNotificationCopy';
 
 const ACTIVITY_MAX_ITEMS = 5;
 const MATCH_META_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -213,11 +214,12 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   };
 
   if (type === 'survey_start') {
+    const surveySubtitle = getSurveyRemainingLabel(resolveSurveyDeadlineAt(notification));
     return {
       ...base,
       icon: 'ClipboardList',
       title: `Completá la encuesta para ${matchName}`,
-      subtitle: dateLabel || 'Completá tu encuesta del partido',
+      subtitle: surveySubtitle || dateLabel || 'Completá tu encuesta del partido',
       route: partidoId ? `/encuesta/${partidoId}` : '/notifications',
     };
   }

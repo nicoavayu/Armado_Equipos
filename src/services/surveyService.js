@@ -1,6 +1,8 @@
 import { supabase } from '../supabase';
 import { getResultsUrl } from '../utils/routes';
 import { toBigIntId } from '../utils';
+import { SURVEY_FINALIZE_DELAY_MS } from '../config/surveyConfig';
+import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 
 /**
  * Creates post-match survey notifications for all players in a match
@@ -32,11 +34,16 @@ export const createPostMatchSurveyNotifications = async (partido) => {
     if (userIds.length === 0) return [];
 
     // Create notifications for all players
+    const nowIso = new Date().toISOString();
+    const surveyDeadlineAt = new Date(new Date(nowIso).getTime() + SURVEY_FINALIZE_DELAY_MS).toISOString();
     const notifications = userIds.map((userId) => ({
       user_id: userId,
       type: 'survey_start',
-      title: '¡Completá la encuesta!',
-      message: `Ayudanos calificando la experiencia del partido ${partido.nombre || 'reciente'}.`,
+      title: '¡Encuesta lista!',
+      message: getSurveyStartMessage({
+        source: { created_at: nowIso, data: { survey_deadline_at: surveyDeadlineAt } },
+        matchName: partido.nombre || 'reciente',
+      }),
       partido_id: Number(partido.id),
       match_ref: Number(partido.id),
       data: {
@@ -47,9 +54,10 @@ export const createPostMatchSurveyNotifications = async (partido) => {
         matchDate: partido.fecha,
         matchTime: partido.hora,
         matchVenue: partido.sede,
+        survey_deadline_at: surveyDeadlineAt,
       },
       read: false,
-      created_at: new Date().toISOString(),
+      created_at: nowIso,
     }));
 
     // Insert notifications into the database

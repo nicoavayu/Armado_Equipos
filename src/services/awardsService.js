@@ -10,9 +10,7 @@ export async function computeAwardsForMatch(partidoId) {
   }
 }
 
-// Ensure awards are computed for the match. This is a light client-side wrapper
-// that calls the DB RPC. Notifications to users are handled server-side by the
-// cron/job (process_awards_for_matches) and by the compute_awards_for_match RPC itself.
+// Ensure awards are computed for the match while respecting survey close rules.
 export async function ensureAwards(partidoId) {
   try {
     const id = Number(partidoId);
@@ -33,6 +31,51 @@ export async function ensureAwards(partidoId) {
       ]);
     };
 
+    const fetchSurveyResultsRow = async () => {
+      const res = await supabase
+        .from('survey_results')
+        .select('*')
+        .eq('partido_id', id)
+        .single();
+      return { row: res.data || null, error: res.error || null };
+    };
+
+    // Gate: never force awards while the survey window is still open.
+    let finalizeGate = null;
+    try {
+      finalizeGate = await finalizeIfComplete(id, { skipSideEffects: true });
+    } catch (_) {
+      finalizeGate = null;
+    }
+
+    let { row: after, error: afterErr } = await fetchSurveyResultsRow();
+    if (afterErr && afterErr.code !== 'PGRST116') {
+      return { ok: false, error: afterErr };
+    }
+
+    if (finalizeGate?.done === false) {
+      return {
+        ok: true,
+        row: after || null,
+        applied: false,
+        waiting: true,
+        deadlineAt: finalizeGate?.deadlineAt || null,
+      };
+    }
+
+    if (finalizeGate?.awardsSkipped) {
+      return {
+        ok: true,
+        row: after || null,
+        applied: false,
+        awardsSkipped: true,
+      };
+    }
+
+    if (after?.results_ready && hasAnyAwardData(after)) {
+      return { ok: true, row: after, applied: true };
+    }
+
     // Call server RPC if available (some environments don't have this function deployed).
     let rpcErr = null;
     try {
@@ -49,36 +92,11 @@ export async function ensureAwards(partidoId) {
       rpcErr = e;
     }
 
-    // Re-select persisted survey_results for the UI
-    let { data: after, error: afterErr } = await supabase
-      .from('survey_results')
-      .select('*')
-      .eq('partido_id', id)
-      .single();
-
+    const refetch = await fetchSurveyResultsRow();
+    after = refetch.row;
+    afterErr = refetch.error;
     if (afterErr && afterErr.code !== 'PGRST116') {
       return { ok: false, error: afterErr };
-    }
-
-    // If RPC didn't produce ready results yet, trigger client finalization path
-    // (idempotent, and in debug closes as soon as min votes threshold is reached).
-    if (!after || !after.results_ready || !hasAnyAwardData(after)) {
-      try {
-        await finalizeIfComplete(id, { fastResults: true, skipSideEffects: true });
-      } catch (_) {
-        // non-blocking fallback
-      }
-
-      const refetch = await supabase
-        .from('survey_results')
-        .select('*')
-        .eq('partido_id', id)
-        .single();
-      after = refetch.data || null;
-      afterErr = refetch.error || null;
-      if (afterErr && afterErr.code !== 'PGRST116') {
-        return { ok: false, error: afterErr };
-      }
     }
 
     // Last-resort local recompute path for stale/inconsistent rows.
@@ -105,12 +123,8 @@ export async function ensureAwards(partidoId) {
               }, { onConflict: 'partido_id' });
           }
 
-          const refetch2 = await supabase
-            .from('survey_results')
-            .select('*')
-            .eq('partido_id', id)
-            .single();
-          after = refetch2.data || after;
+          const refetch2 = await fetchSurveyResultsRow();
+          after = refetch2.row || after;
         }
       } catch (_) {
         // non-blocking
