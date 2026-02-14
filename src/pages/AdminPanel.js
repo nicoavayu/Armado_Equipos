@@ -56,7 +56,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const [activeTab, setActiveTab] = useState('jugadores');
 
   // Get pending requests count with realtime updates
-  const pendingRequestsCount = usePendingRequestsCount(partidoActual?.id);
+  const { count: pendingRequestsCount, refreshCount: refreshPendingRequestsCount } = usePendingRequestsCount(partidoActual?.id);
   const { shareContent } = useNativeFeatures();
 
   // Handle tab from URL
@@ -79,6 +79,11 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const handleRequestAccepted = async () => {
     // Refresh players list from server
     await adminState.fetchJugadores();
+    await refreshPendingRequestsCount();
+  };
+
+  const handleRequestResolved = async () => {
+    await refreshPendingRequestsCount();
   };
 
   const { safeSetTeams, handleArmarEquipos: handleArmarEquiposUtil } = useTeamFormation();
@@ -321,6 +326,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                       <SolicitudesSection
                         partidoActual={partidoActual}
                         onRequestAccepted={handleRequestAccepted}
+                        onRequestResolved={handleRequestResolved}
                       />
                     )}
 

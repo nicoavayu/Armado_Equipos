@@ -1,31 +1,39 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase';
 
 /**
  * Hook to fetch and track pending join requests count
  * @param {string} matchId - Match ID to fetch requests for
- * @returns {number} Count of pending requests
+ * @returns {{count: number, refreshCount: Function}} Count of pending requests + manual refresh
  */
 export const usePendingRequestsCount = (matchId) => {
     const [count, setCount] = useState(0);
 
+    const fetchCount = useCallback(async () => {
+        if (!matchId) {
+            setCount(0);
+            return;
+        }
+
+        try {
+            const { count: requestCount, error } = await supabase
+                .from('match_join_requests')
+                .select('*', { count: 'exact', head: true })
+                .eq('match_id', matchId)
+                .eq('status', 'pending');
+
+            if (error) throw error;
+            setCount(requestCount || 0);
+        } catch (error) {
+            console.error('Error fetching requests count:', error);
+        }
+    }, [matchId]);
+
     useEffect(() => {
-        if (!matchId) return;
-
-        const fetchCount = async () => {
-            try {
-                const { count: requestCount, error } = await supabase
-                    .from('match_join_requests')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('match_id', matchId)
-                    .eq('status', 'pending');
-
-                if (error) throw error;
-                setCount(requestCount || 0);
-            } catch (error) {
-                console.error('Error fetching requests count:', error);
-            }
-        };
+        if (!matchId) {
+            setCount(0);
+            return;
+        }
 
         fetchCount();
 
@@ -49,9 +57,9 @@ export const usePendingRequestsCount = (matchId) => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [matchId]);
+    }, [matchId, fetchCount]);
 
-    return count;
+    return { count, refreshCount: fetchCount };
 };
 
 export default usePendingRequestsCount;

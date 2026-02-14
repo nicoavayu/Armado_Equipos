@@ -24,7 +24,7 @@ const EmptyRequestsMailboxIcon = () => (
  * Join requests section component
  * @param {Object} props - Component props
  */
-const SolicitudesSection = ({ partidoActual, onRequestAccepted }) => {
+const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolved }) => {
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(new Set());
@@ -156,6 +156,9 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted }) => {
             if (onRequestAccepted) {
                 onRequestAccepted();
             }
+            if (onRequestResolved) {
+                onRequestResolved();
+            }
         } catch (error) {
             console.error('[ACCEPT_REQUEST_RPC_ERROR]', {
                 code: error.code,
@@ -193,6 +196,10 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted }) => {
 
             // Remove from list
             setRequests(prev => prev.filter(r => r.id !== request.id));
+
+            if (onRequestResolved) {
+                onRequestResolved();
+            }
         } catch (error) {
             console.error('Error rejecting request:', error);
             toast.error('Error al rechazar solicitud');

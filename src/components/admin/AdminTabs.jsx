@@ -26,7 +26,7 @@ const AdminTabs = ({ activeTab, onTabChange, pendingCount = 0 }) => {
                 >
                     SOLICITUDES
                     {pendingCount > 0 && (
-                        <span className="ml-1.5 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full">
+                        <span className="ml-1.5 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-primary text-white text-[10px] font-bold rounded-full">
                             {pendingCount}
                         </span>
                     )}
