@@ -73,7 +73,7 @@ const VotarEquiposPage = () => {
   }
 
   return (
-    <div className="pb-24">
+    <div className="pb-0">
       <NetworkStatus />
       <VotingView
         jugadores={partidoActual ? partidoActual.jugadores : []}
