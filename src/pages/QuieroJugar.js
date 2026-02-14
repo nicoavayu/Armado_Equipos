@@ -19,6 +19,45 @@ import { User, CheckCircle2, Calendar, Clock, MapPin, Star, Trophy, ListOrdered,
 
 const containerClass = 'flex flex-col items-center w-full pb-6 px-4 box-border font-oswald';
 
+const hasText = (value) => typeof value === 'string' && value.trim().length > 0;
+
+const normalizeLocationToken = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+
+const areSameText = (a, b) => normalizeLocationToken(a).toLowerCase() === normalizeLocationToken(b).toLowerCase();
+
+const isPostalCodeToken = (token) => /^[A-Z]?\d{4,}[A-Z0-9-]*$/i.test(token);
+
+const buildMatchLocationLabel = (partido) => {
+  const rawSede = partido?.sede || '';
+  const sedeTokens = String(rawSede)
+    .split(',')
+    .map(normalizeLocationToken)
+    .filter(Boolean)
+    .filter((token) => !isPostalCodeToken(token))
+    .filter((token) => token.toLowerCase() !== 'argentina');
+
+  const place = sedeTokens[0] || 'Dirección no disponible';
+  const cityFromData = partido?.ciudad || partido?.localidad || partido?.city || null;
+  const cityFallback = sedeTokens.length >= 2 ? sedeTokens[sedeTokens.length - 1] : null;
+  const city = cityFromData || cityFallback;
+
+  const neighborhoodFromData = partido?.barrio || partido?.zona || partido?.neighborhood || null;
+  const neighborhoodFallback = sedeTokens.length >= 3 ? sedeTokens[sedeTokens.length - 2] : null;
+  const neighborhood = neighborhoodFromData || neighborhoodFallback;
+
+  const parts = [place];
+
+  if (hasText(neighborhood) && !areSameText(neighborhood, place) && !areSameText(neighborhood, city || '')) {
+    parts.push(neighborhood);
+  }
+
+  if (hasText(city) && !areSameText(city, place) && !areSameText(city, neighborhood || '')) {
+    parts.push(city);
+  }
+
+  return parts.join(', ');
+};
+
 const QuieroJugar = () => {
   const navigate = useNavigate();
   const onVolver = () => navigate(-1);
@@ -374,8 +413,7 @@ const QuieroJugar = () => {
                   const jugadoresCount = partido.jugadores?.length || 0;
                   const cupoMaximo = partido.cupo_jugadores || 20;
                   const isComplete = jugadoresCount >= cupoMaximo;
-
-                  const barrio = partido.barrio || partido.zona || partido.neighborhood;
+                  const locationLabel = buildMatchLocationLabel(partido);
                   const formattedDate = new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
 
                   return (
@@ -403,8 +441,8 @@ const QuieroJugar = () => {
                         <span className="text-[10px] font-bold text-white/40 border border-white/5 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider">{partido.tipo_partido || 'Mixto'}</span>
                       </div>
 
-                      <div className="text-[13px] text-white/50 font-oswald leading-snug truncate">
-                        {partido.sede || 'Dirección no disponible'}{barrio ? ` · ${barrio}` : ''}
+                      <div className="text-[13px] text-white/60 font-oswald leading-snug break-words">
+                        {locationLabel}
                       </div>
 
 
