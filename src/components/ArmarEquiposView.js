@@ -263,9 +263,9 @@ export default function ArmarEquiposView({
 
   const primaryLabel = (() => {
     const estado = estadoOverride || partidoActual?.estado;
-    if (estado === 'equipos_formados') return 'ver equipos';
-    if (votingStarted) return 'ir a votación';
-    return 'llamar a votar';
+    if (estado === 'equipos_formados') return 'Ver equipos';
+    if (votingStarted) return 'Ir a votación';
+    return 'Llamar a votar';
   })();
 
   const handlePrimaryClick = () => {
@@ -693,7 +693,7 @@ export default function ArmarEquiposView({
                 onClick={handleWhatsApp}
               >
                 <WhatsappIcon size={UI_SIZES.WHATSAPP_ICON_SIZE} style={{ marginRight: 6 }} />
-                compartir
+                Compartir
               </button>
               <div className="text-[11px] text-white/50 leading-snug text-center px-1">
                 Enviá el link a quienes no tienen la app
@@ -709,7 +709,7 @@ export default function ArmarEquiposView({
               onClick={() => setConfirmConfig({ open: true, action: 'close' })}
               disabled={isClosing}
             >
-              {isClosing ? <LoadingSpinner size="small" /> : 'cerrar votación'}
+              {isClosing ? <LoadingSpinner size="small" /> : 'Cerrar votación'}
             </button>
             <div className="text-[11px] text-white/50 leading-snug text-center px-1">
               Avanza al armado de equipos y bloquea nuevas votaciones
