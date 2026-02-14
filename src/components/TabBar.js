@@ -14,7 +14,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 flex min-h-[70px] h-auto md:min-h-[80px] z-[1000] bg-white/10 backdrop-blur-[20px] border-t border-white/20 pb-[var(--safe-bottom,0px)] shadow-[0_-8px_32px_rgba(0,0,0,0.3)]">
+    <div className="app-tabbar fixed bottom-0 left-0 right-0 flex min-h-[70px] h-auto md:min-h-[80px] z-[1000] bg-white/10 backdrop-blur-[20px] border-t border-white/20 pb-[var(--safe-bottom,0px)] shadow-[0_-8px_32px_rgba(0,0,0,0.3)] transition-[transform,opacity] duration-200">
       {/* Home */}
       <button
         className={`flex-1 flex flex-col items-center justify-center text-white bg-transparent border-r border-white/20 py-2 cursor-pointer transition-all duration-300 font-oswald text-sm md:py-3 md:pb-2 ${activeTab === 'home' ? 'bg-white/30' : ''}`}

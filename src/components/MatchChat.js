@@ -82,6 +82,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     body.style.position = 'fixed';
     body.style.top = `-${scrollY}px`;
     body.style.width = '100%';
+    body.classList.add('chat-open');
 
     return () => {
       body.style.overflow = prevBodyOverflow;
@@ -89,6 +90,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       body.style.position = prevBodyPosition;
       body.style.top = prevBodyTop;
       body.style.width = prevBodyWidth;
+      body.classList.remove('chat-open');
 
       if (scrollLockRef.current.locked) {
         window.scrollTo(0, scrollLockRef.current.scrollY);

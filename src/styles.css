@@ -85,6 +85,14 @@ body {
   overflow-x: clip;
 }
 
+@media (max-width: 640px) {
+  body.chat-open .app-tabbar {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(calc(100% + var(--safe-bottom, 0px)));
+  }
+}
+
 /* Ensure Suspense fallbacks use the same background as the rest of the app */
 .bg-fifa-gradient {
   background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
