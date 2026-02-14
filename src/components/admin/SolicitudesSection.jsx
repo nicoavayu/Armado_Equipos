@@ -71,7 +71,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
             // Fetch usuarios data as fallback
             const { data: usuariosData, error: usuariosError } = await supabase
                 .from('usuarios')
-                .select('id, nombre, partidos_jugados')
+                .select('id, nombre, avatar_url, posicion, ranking, partidos_jugados, pais_codigo, numero')
                 .in('id', userIds);
 
             if (usuariosError) throw usuariosError;
@@ -258,7 +258,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
             <div className="flex flex-col gap-3">
                 {requests.map((request) => {
                     const userName = request.profile?.nombre || request.usuario?.nombre || 'Un jugador';
-                    const avatarUrl = request.profile?.avatar_url;
+                    const avatarUrl = request.profile?.avatar_url || request.usuario?.avatar_url || null;
                     const hasLinkedAccount = Boolean(request.user_id);
                     const profileForCard = {
                         ...request.usuario,
@@ -315,11 +315,6 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                                                 {pj} PJ
                                             </span>
                                         )}
-                                    </div>
-                                )}
-                                {hasLinkedAccount && (
-                                    <div className="text-[10px] text-[#7bc6ff] font-oswald mt-0.5">
-                                        Tocar para ver perfil
                                     </div>
                                 )}
                             </div>
