@@ -242,12 +242,97 @@ const ProfileEditorForm = ({
   );
 };
 
+const DeleteAccountModal = ({
+  isOpen,
+  loading,
+  confirmationText,
+  onConfirmationTextChange,
+  onClose,
+  onConfirm,
+}) => {
+  if (!isOpen) return null;
+
+  const canConfirm = confirmationText.trim().toUpperCase() === 'ELIMINAR' && !loading;
+
+  return (
+    <div className="fixed inset-0 z-[1300] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="w-full max-w-[560px] bg-[#0f172a]/95 border border-red-500/30 rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.6)] overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/10 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-xl md:text-2xl font-oswald tracking-wide text-red-300">Eliminar cuenta</h3>
+            <p className="text-white/75 text-sm mt-1">
+              Esta acción es permanente y no se puede deshacer.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="w-9 h-9 rounded-full border border-white/20 text-white/80 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={onClose}
+            disabled={loading}
+            aria-label="Cerrar modal"
+          >
+            ×
+          </button>
+        </div>
+
+        <form
+          className="px-5 py-5 space-y-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (canConfirm) onConfirm();
+          }}
+        >
+          <p className="text-white/85 leading-relaxed">
+            Se eliminará tu perfil, tus datos asociados y se cerrará tu sesión automáticamente.
+          </p>
+
+          <div className="space-y-2">
+            <label className="block text-white/85 text-sm font-semibold tracking-wide">
+              Escribí <span className="text-red-300">ELIMINAR</span> para confirmar
+            </label>
+            <input
+              className="w-full bg-white/10 border border-white/20 text-white px-4 py-3 rounded-xl text-base transition-all focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/30 placeholder:text-white/40"
+              type="text"
+              value={confirmationText}
+              onChange={(e) => onConfirmationTextChange(e.target.value)}
+              placeholder="ELIMINAR"
+              autoComplete="off"
+              autoFocus
+              disabled={loading}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              className="h-[46px] rounded-xl border border-white/25 text-white/90 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={onClose}
+              disabled={loading}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="h-[46px] rounded-xl border border-red-500/40 bg-red-600/25 text-red-200 hover:bg-red-600/35 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!canConfirm}
+            >
+              {loading ? 'Eliminando...' : 'Eliminar cuenta'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const navigate = useNavigate();
   const { user, profile, refreshProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [liveProfile, setLiveProfile] = useState(profile);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [deleteAccountConfirmation, setDeleteAccountConfirmation] = useState('');
   const fileInputRef = useRef(null);
 
   const cleanDate = (dateString) => dateString ? dateString.split('T')[0] : null;
@@ -433,20 +518,25 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     navigate('/login', { replace: true });
   }, [onClose, navigate]);
 
-  const handleDeleteAccount = useCallback(async () => {
+  const handleDeleteAccount = useCallback(() => {
     if (!user?.id) {
       toast.error('No se pudo identificar la cuenta actual.');
       return;
     }
 
-    const shouldProceed = window.confirm(
-      'Esta acción elimina tu cuenta y no se puede deshacer. ¿Querés continuar?',
-    );
-    if (!shouldProceed) return;
+    setDeleteAccountConfirmation('');
+    setShowDeleteAccountModal(true);
+  }, [user?.id]);
 
-    const confirmationText = window.prompt('Escribí ELIMINAR para confirmar:');
-    if (confirmationText !== 'ELIMINAR') {
-      toast.info('Eliminación cancelada.');
+  const closeDeleteAccountModal = useCallback(() => {
+    if (loading) return;
+    setShowDeleteAccountModal(false);
+    setDeleteAccountConfirmation('');
+  }, [loading]);
+
+  const confirmDeleteAccount = useCallback(async () => {
+    if (deleteAccountConfirmation.trim().toUpperCase() !== 'ELIMINAR') {
+      toast.error('Para confirmar, escribí ELIMINAR.');
       return;
     }
 
@@ -464,6 +554,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         throw new Error(data?.message || 'No se pudo eliminar la cuenta.');
       }
 
+      setShowDeleteAccountModal(false);
+      setDeleteAccountConfirmation('');
       toast.success('Cuenta eliminada correctamente.');
       await supabase.auth.signOut();
       onClose();
@@ -473,7 +565,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     } finally {
       setLoading(false);
     }
-  }, [navigate, onClose, user?.id]);
+  }, [deleteAccountConfirmation, navigate, onClose]);
 
   const handleGeolocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -666,6 +758,14 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           handleSave={handleSave}
           handleLogout={handleLogout}
           handleDeleteAccount={handleDeleteAccount}
+        />
+        <DeleteAccountModal
+          isOpen={showDeleteAccountModal}
+          loading={loading}
+          confirmationText={deleteAccountConfirmation}
+          onConfirmationTextChange={setDeleteAccountConfirmation}
+          onClose={closeDeleteAccountModal}
+          onConfirm={confirmDeleteAccount}
         />
       </div>
     );
@@ -893,6 +993,14 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
             </div>
           </div>
         </div>
+        <DeleteAccountModal
+          isOpen={showDeleteAccountModal}
+          loading={loading}
+          confirmationText={deleteAccountConfirmation}
+          onConfirmationTextChange={setDeleteAccountConfirmation}
+          onClose={closeDeleteAccountModal}
+          onConfirm={confirmDeleteAccount}
+        />
       </div>
     </div>
   );
