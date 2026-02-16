@@ -21,6 +21,19 @@ const getCountry = (c) => {
   return map[c] || c?.toUpperCase() || 'ARG';
 };
 
+const getFootAbbr = (foot) => {
+  const map = { right: 'DER', left: 'IZQ', both: 'AMB' };
+  if (!foot) return null;
+  return map[String(foot).toLowerCase()] || null;
+};
+
+const getLevelValue = (nivel) => {
+  if (nivel === null || nivel === undefined || nivel === '') return null;
+  const parsed = Number.parseInt(nivel, 10);
+  if (Number.isNaN(parsed)) return null;
+  return Math.min(5, Math.max(1, parsed));
+};
+
 const getAvatar = (p) => {
   const src = p?.avatar_url || p?.foto_url || p?.user?.user_metadata?.avatar_url || p?.user?.user_metadata?.picture || p?.user_metadata?.avatar_url || p?.user_metadata?.picture;
   if (!src) return null;
@@ -63,6 +76,8 @@ const ProfileCardComponent = ({
       cc: (profile.pais_codigo || 'AR').toLowerCase(),
       abbr: getCountry(profile.pais_codigo),
       posColor: getPosColor(getPos(profile.posicion || profile.rol_favorito)),
+      foot: getFootAbbr(profile.pierna_habil),
+      level: getLevelValue(profile.nivel),
       mvp: profile.mvp_badges ?? profile.mvps ?? 0,
       gk: profile.gk_badges ?? profile.guantes_dorados ?? 0,
       red: profile.red_badges ?? profile.tarjetas_rojas ?? 0,
@@ -434,6 +449,23 @@ const ProfileCardComponent = ({
                           </span>
                         </div>
                       </div>
+
+                      {(vm.foot || vm.level !== null) && (
+                        <div className="flex items-center justify-center gap-1.5 mb-0.5 text-[11px] leading-none text-white/70 tracking-[0.08em] uppercase">
+                          {vm.foot && <span>{vm.foot}</span>}
+                          {vm.foot && vm.level !== null && <span className="text-white/45">•</span>}
+                          {vm.level !== null && (
+                            <span className="inline-flex items-center gap-1" aria-label={`Nivel ${vm.level} de 5`}>
+                              {[1, 2, 3, 4, 5].map((dot) => (
+                                <span
+                                  key={dot}
+                                  className={`w-1.5 h-1.5 rounded-full ${dot <= vm.level ? 'bg-white/70' : 'bg-white/25'}`}
+                                />
+                              ))}
+                            </span>
+                          )}
+                        </div>
+                      )}
 
                       {/* Rating Block - PERFECT CENTERED NUMBER with close star accessory (+12px Lower, Larger) */}
                       <div className="flex items-center justify-center w-full max-w-[150px] h-14 mt-3">
