@@ -455,7 +455,7 @@ export const useAmigos = (currentUserId) => {
           .in('id', requesterIds),
         supabase
           .from('usuarios')
-          .select('id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero')
+          .select('id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero, pierna_habil, nivel')
           .in('id', requesterIds),
       ]);
 

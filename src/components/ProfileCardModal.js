@@ -44,6 +44,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
   const profileUserId = resolveProfileUserId(profile);
   const registeredUserId = resolveRegisteredUserId(profile);
   const hasRegisteredAccount = Boolean(registeredUserId);
+  const [resolvedProfile, setResolvedProfile] = useState(profile);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [relationshipStatus, setRelationshipStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -57,6 +58,51 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     sendFriendRequest,
     removeFriend,
   } = useAmigos(currentUserId);
+
+  useEffect(() => {
+    setResolvedProfile(profile);
+  }, [profile]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const fetchLatestProfile = async () => {
+      if (!isOpen || !registeredUserId) return;
+
+      const { data: latestProfile, error } = await supabase
+        .from('usuarios')
+        .select('*')
+        .eq('id', registeredUserId)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[PROFILE_MODAL] Could not refresh latest profile from usuarios:', error);
+        return;
+      }
+
+      if (!latestProfile || isCancelled) return;
+
+      setResolvedProfile((prev) => {
+        const baseProfile = prev || profile || {};
+        return {
+          ...baseProfile,
+          ...latestProfile,
+          id: latestProfile.id || baseProfile.id,
+          usuario_id: baseProfile.usuario_id || latestProfile.id,
+          user_id: baseProfile.user_id || latestProfile.id,
+          uuid: baseProfile.uuid || latestProfile.id,
+        };
+      });
+    };
+
+    fetchLatestProfile();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, registeredUserId, profile]);
+
+  const modalProfile = resolvedProfile || profile;
 
   // Get current user ID on mount
   useEffect(() => {
@@ -357,11 +403,11 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
   // Log modal open/close events
   useEffect(() => {
     if (isOpen) {
-      console.log('[PROFILE_MODAL] Modal opened for profile:', profile?.id);
+      console.log('[PROFILE_MODAL] Modal opened for profile:', modalProfile?.id);
     } else {
       console.log('[PROFILE_MODAL] Modal closed');
     }
-  }, [isOpen, profile?.id]);
+  }, [isOpen, modalProfile?.id]);
 
   const actionButtons = hasRegisteredAccount
     ? [renderFriendActionButton(), renderContactButton(), renderMakeAdminButton()].filter(Boolean)
@@ -385,7 +431,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
       <div className="flex flex-col items-center gap-6">
         <div className="flex justify-center items-center">
           <ProfileCard
-            profile={profile}
+            profile={modalProfile}
             isVisible={true}
             enableTilt={true}
             currentUserId={currentUserId}
@@ -404,7 +450,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000]" onClick={() => setShowContactInfo(false)}>
             <div className="bg-[#1a1a1a] rounded-xl p-6 max-w-[400px] w-[90%] border-2 border-[#333] shadow-[0_8px_32px_rgba(0,0,0,0.5)] sm:p-5 sm:w-[95%]" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-5">
-                <h3 className="text-white m-0 text-lg font-semibold sm:text-base">Contactar a {profile?.nombre}</h3>
+                <h3 className="text-white m-0 text-lg font-semibold sm:text-base">Contactar a {modalProfile?.nombre}</h3>
                 <button
                   className="bg-transparent border-none text-white text-2xl cursor-pointer p-0 w-[30px] h-[30px] flex items-center justify-center rounded-full transition-colors hover:bg-white/10"
                   onClick={() => setShowContactInfo(false)}

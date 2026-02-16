@@ -56,7 +56,7 @@ export const getAmigos = async (userId) => {
     const friendIds = uniqueFriendMappings.map((m) => m.friendId);
     const { data: users, error: usersError } = await supabase
       .from('usuarios')
-      .select('id, nombre, avatar_url, localidad, ranking, partidos_jugados, posicion, email')
+      .select('id, nombre, avatar_url, localidad, ranking, partidos_jugados, posicion, email, pierna_habil, nivel')
       .in('id', friendIds);
 
     if (usersError) throw usersError;
