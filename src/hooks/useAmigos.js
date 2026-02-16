@@ -429,38 +429,72 @@ export const useAmigos = (currentUserId) => {
       // Ensure we're working with UUID
       const userIdUuid = typeof currentUserId === 'string' ? currentUserId : String(currentUserId);
 
-      const { data, error } = await supabase
+      const { data: requestsData, error: requestsError } = await supabase
         .from('amigos')
-        .select(`
-          id, 
-          status, 
-          created_at,
-          user_id,
-          usuarios!user_id(id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero)
-        `)
+        .select('id, status, created_at, user_id')
         .eq('friend_id', userIdUuid)
         .eq('status', 'pending');
 
-      if (error) {
-        console.error('[AMIGOS] Error fetching pending requests:', error);
-        throw error;
+      if (requestsError) {
+        console.error('[AMIGOS] Error fetching pending requests:', requestsError);
+        throw requestsError;
       }
 
-      console.log('[AMIGOS] Pending requests fetched:', data?.length || 0, 'results');
+      console.log('[AMIGOS] Pending requests fetched:', requestsData?.length || 0, 'results');
+
+      if (!requestsData || requestsData.length === 0) return [];
+
+      const requesterIds = requestsData
+        .map((item) => item.user_id)
+        .filter(Boolean);
+
+      const [{ data: profilesData, error: profilesError }, { data: usuariosData, error: usuariosError }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, nombre, avatar_url')
+          .in('id', requesterIds),
+        supabase
+          .from('usuarios')
+          .select('id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero')
+          .in('id', requesterIds),
+      ]);
+
+      if (profilesError) {
+        console.warn('[AMIGOS] Error fetching profiles fallback for pending requests:', profilesError);
+      }
+      if (usuariosError) {
+        console.error('[AMIGOS] Error fetching usuarios for pending requests:', usuariosError);
+        throw usuariosError;
+      }
 
       // Log the raw data for debugging
-      if (data && data.length > 0) {
-        console.log('[AMIGOS] Sample pending request data:', data[0]);
+      if (requestsData && requestsData.length > 0) {
+        console.log('[AMIGOS] Sample pending request data:', requestsData[0]);
       }
 
-      const formattedRequests = data.map((item) => ({
-        id: item.id,
-        status: item.status,
-        created_at: item.created_at,
-        profile: item.usuarios,
-      }));
+      const formattedRequests = requestsData.map((item) => {
+        const profileRow = profilesData?.find((p) => p.id === item.user_id);
+        const usuarioRow = usuariosData?.find((u) => u.id === item.user_id);
+        const mergedProfile = {
+          ...usuarioRow,
+          ...profileRow,
+          id: item.user_id,
+          nombre: profileRow?.nombre || usuarioRow?.nombre || 'Usuario',
+          avatar_url: profileRow?.avatar_url || usuarioRow?.avatar_url || null,
+        };
 
-      console.log('[AMIGOS] Formatted pending requests:', formattedRequests.length);
+        return {
+          id: item.id,
+          status: item.status,
+          created_at: item.created_at,
+          user_id: item.user_id,
+          profile: mergedProfile,
+        };
+      });
+
+      const withAvatar = formattedRequests.filter((r) => Boolean(r.profile?.avatar_url)).length;
+      console.log('[AMIGOS] Formatted pending requests:', formattedRequests.length, 'with avatar:', withAvatar);
+
       return formattedRequests;
     } catch (err) {
       console.error('[AMIGOS] Error fetching pending requests:', err);
