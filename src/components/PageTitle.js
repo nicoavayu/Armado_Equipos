@@ -30,7 +30,7 @@ const PageTitle = ({ children, title, onBack, showChatButton, onChatClick, unrea
             </svg>
           </button>
         )}
-        <h2 className="m-0 font-oswald font-semibold text-center text-white absolute top-1/2 left-0 -translate-y-1/2 w-full drop-shadow-lg px-[52px] text-[26px] whitespace-normal break-words md:text-[22px] xs:text-[20px]">
+        <h2 className="m-0 font-oswald font-semibold text-center text-white absolute top-1/2 left-0 -translate-y-1/2 w-full drop-shadow-lg px-[52px] text-[22px] whitespace-normal break-words md:text-[20px] xs:text-[18px]">
           {normalizedTitle}
         </h2>
 
