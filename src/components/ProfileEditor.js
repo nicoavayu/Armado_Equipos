@@ -14,7 +14,6 @@ const ProfileEditorForm = ({
   handleInputChange,
   fileInputRef,
   handlePhotoChange,
-  handleSocialChange,
   handleGeolocation,
   inputClass,
   labelClass,
@@ -159,19 +158,6 @@ const ProfileEditorForm = ({
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Instagram Field */}
-        <div className={formGroupClass}>
-          <label className={labelClass}>Instagram</label>
-          <input
-            className={inputClass}
-            type="text"
-            value={formData.social}
-            onChange={(e) => handleSocialChange(e.target.value)}
-            placeholder="@usuario"
-            maxLength={14}
-          />
         </div>
 
         {/* Localidad Field */}
@@ -345,7 +331,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     pais_codigo: 'AR',
     posicion: 'DEF',
     fecha_nacimiento: null,
-    social: '',
     localidad: '',
     latitud: null,
     longitud: null,
@@ -376,7 +361,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         pais_codigo: profile.pais_codigo || 'AR',
         posicion: profile.posicion || profile.rol_favorito || 'DEF',
         fecha_nacimiento: cleanDate(profile.fecha_nacimiento),
-        social: normalizeInstagram(profile.red_social || profile.social || ''),
         localidad: profile.localidad || '',
         latitud: profile.latitud || null,
         longitud: profile.longitud || null,
@@ -397,9 +381,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       setHasChanges(false);
     }
   }, [profile, user, refreshProfile]);
-
-  const socialDisplay = String(liveProfile?.social ?? formData.social ?? '');
-  const socialDisplayTrunc = socialDisplay.length > 20 ? socialDisplay.slice(0, 20) + '…' : socialDisplay;
 
   const MAX_NOMBRE = 12;
 
@@ -708,25 +689,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     { key: 'VN', label: 'Vietnam' },
   ], []);
 
-  const normalizeInstagram = (raw) => {
-    if (!raw) return '';
-    let v = String(raw).trim();
-    const urlMatch = v.match(/(?:instagram\.com\/(?:p\/)?|instagr\.am\/)(?:u\/)?@?([^/?#\s]+)/i);
-    if (urlMatch && urlMatch[1]) {
-      v = urlMatch[1];
-    }
-    v = v.split(/[/?#]/)[0];
-    if (v.startsWith('@')) v = v.slice(1);
-    const allowed = (v.match(/[A-Za-z0-9._]+/g) || []).join('');
-    v = allowed.slice(0, 14);
-    return v;
-  };
-
-  const handleSocialChange = useCallback((rawValue) => {
-    const cleaned = normalizeInstagram(rawValue);
-    handleInputChange('social', cleaned);
-  }, [handleInputChange]);
-
   if (!isOpen) return null;
 
   // Shared classes
@@ -745,7 +707,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           handleInputChange={handleInputChange}
           fileInputRef={fileInputRef}
           handlePhotoChange={handlePhotoChange}
-          handleSocialChange={handleSocialChange}
           handleGeolocation={handleGeolocation}
           inputClass={inputClass}
           labelClass={labelClass}
@@ -782,7 +743,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
             <ProfileCard
               profile={{
                 ...liveProfile,
-                social: socialDisplayTrunc,
                 avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
               }}
               isVisible={true}
@@ -918,18 +878,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 ))}
               </div>
             </div>
-            <div className={formGroupClass}>
-              <label className={labelClass}>Instagram</label>
-              <input
-                className={inputClass}
-                type="text"
-                value={formData.social}
-                onChange={(e) => handleSocialChange(e.target.value)}
-                placeholder="@usuario"
-                maxLength={14}
-              />
-            </div>
-
             <div className={formGroupClass}>
               <label className={labelClass}>Localidad</label>
               <div className="flex gap-2 items-center">
