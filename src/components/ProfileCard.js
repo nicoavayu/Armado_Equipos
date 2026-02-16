@@ -27,6 +27,40 @@ const getFootAbbr = (foot) => {
   return map[String(foot).toLowerCase()] || null;
 };
 
+const getFootBadgeStyle = (foot) => {
+  const value = String(foot || '').toLowerCase();
+  if (value === 'right') {
+    return {
+      borderColor: '#22D3EE',
+      color: '#67E8F9',
+      background: 'rgba(34, 211, 238, 0.14)',
+      textShadow: '0 0 4px rgba(34, 211, 238, 0.55)',
+    };
+  }
+  if (value === 'left') {
+    return {
+      borderColor: '#A78BFA',
+      color: '#C4B5FD',
+      background: 'rgba(167, 139, 250, 0.14)',
+      textShadow: '0 0 4px rgba(167, 139, 250, 0.55)',
+    };
+  }
+  if (value === 'both') {
+    return {
+      borderColor: '#94A3B8',
+      color: '#E2E8F0',
+      background: 'rgba(148, 163, 184, 0.14)',
+      textShadow: '0 0 4px rgba(148, 163, 184, 0.55)',
+    };
+  }
+  return {
+    borderColor: 'rgba(255,255,255,0.3)',
+    color: 'rgba(255,255,255,0.85)',
+    background: 'rgba(255,255,255,0.08)',
+    textShadow: 'none',
+  };
+};
+
 const getLevelValue = (nivel) => {
   if (nivel === null || nivel === undefined || nivel === '') return null;
   const parsed = Number.parseInt(nivel, 10);
@@ -77,6 +111,7 @@ const ProfileCardComponent = ({
       abbr: getCountry(profile.pais_codigo),
       posColor: getPosColor(getPos(profile.posicion || profile.rol_favorito)),
       foot: getFootAbbr(profile.pierna_habil),
+      footStyle: getFootBadgeStyle(profile.pierna_habil),
       level: getLevelValue(profile.nivel),
       mvp: profile.mvp_badges ?? profile.mvps ?? 0,
       gk: profile.gk_badges ?? profile.guantes_dorados ?? 0,
@@ -440,15 +475,21 @@ const ProfileCardComponent = ({
                     {(vm.foot || vm.level !== null) && (
                       <div className="absolute left-[43px] -top-[16px] flex flex-col items-center gap-1 max-w-[44px] pc-left-meta">
                         {vm.foot && (
-                          <div className="rounded-md w-9 h-6 flex items-center justify-center shrink-0 border-[1.5px] border-white/30 bg-white/5">
-                            <span className="font-oswald text-[11px] tracking-wider font-black leading-none text-white/80">
+                          <div
+                            className="rounded-md w-9 h-6 flex items-center justify-center shrink-0 border-[1.5px]"
+                            style={{ borderColor: vm.footStyle.borderColor, background: vm.footStyle.background }}
+                          >
+                            <span
+                              className="font-oswald text-[11px] tracking-wider font-black leading-none"
+                              style={{ color: vm.footStyle.color, textShadow: vm.footStyle.textShadow }}
+                            >
                               {vm.foot}
                             </span>
                           </div>
                         )}
 
                         {vm.level !== null && (
-                          <div className="flex flex-col items-center">
+                          <div className={`flex flex-col items-center ${vm.foot ? 'mt-1.5' : ''}`}>
                             <span className="inline-flex flex-col items-center gap-1" aria-label={`Nivel autopercibido ${vm.level} de 5`}>
                               {[5, 4, 3, 2, 1].map((dot) => (
                                 <span
