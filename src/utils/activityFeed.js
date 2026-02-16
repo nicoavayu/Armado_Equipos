@@ -91,6 +91,11 @@ const getMatchDisplayName = (match, fallback = 'Partido') => (
   || fallback
 );
 
+const quoteMatchName = (value, fallback = 'Partido') => {
+  const raw = String(value || fallback).trim().replace(/^"+|"+$/g, '');
+  return `"${raw || fallback}"`;
+};
+
 const routeForMatch = ({ matchId, matchCode, currentUserId, match }) => {
   if (!matchId) return null;
   if (matchCode) return `/votar-equipos?codigo=${encodeURIComponent(matchCode)}`;
@@ -195,6 +200,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   const dateLabel = formatMatchDate(match);
   const notificationMatchName = notification?.data?.match_name || notification?.data?.partido_nombre || null;
   const matchName = getMatchDisplayName(match, notificationMatchName || 'este partido');
+  const quotedMatchName = quoteMatchName(matchName, 'este partido');
   const createdAt = notification?.created_at || new Date().toISOString();
   const fallbackSubtitle = dateLabel || 'Actividad reciente';
   const matchRoute = routeForMatch({ matchId: partidoId, currentUserId, match });
@@ -218,7 +224,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     return {
       ...base,
       icon: 'ClipboardList',
-      title: `Completá la encuesta para ${matchName}`,
+      title: `Completá la encuesta para ${quotedMatchName}`,
       subtitle: surveySubtitle || dateLabel || 'Completá tu encuesta del partido',
       route: partidoId ? `/encuesta/${partidoId}` : '/notifications',
     };
@@ -227,7 +233,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     return {
       ...base,
       icon: 'Vote',
-      title: `Votá y armá equipos parejos para ${matchName}`,
+      title: `Votá y armá equipos parejos para ${quotedMatchName}`,
       subtitle: dateLabel || 'Entrá para votar jugadores',
       route: notification?.data?.matchCode
         ? `/votar-equipos?codigo=${encodeURIComponent(notification.data.matchCode)}`
@@ -238,7 +244,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     return {
       ...base,
       icon: 'Trophy',
-      title: `Premiación lista en ${matchName}`,
+      title: `Premiación lista en ${quotedMatchName}`,
       subtitle: dateLabel || 'Ya podés ver los premios',
       route: partidoId ? `/resultados-encuesta/${partidoId}?showAwards=1` : '/notifications',
     };
@@ -247,7 +253,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     return {
       ...base,
       icon: 'UserPlus',
-      title: `Solicitud pendiente en ${matchName}`,
+      title: `Solicitud pendiente en ${quotedMatchName}`,
       subtitle: dateLabel || 'Tenés un jugador esperando aprobación',
       route: partidoId ? `/admin/${partidoId}?tab=solicitudes` : '/notifications',
     };
@@ -256,7 +262,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     return {
       ...base,
       icon: 'CheckCircle',
-      title: `Solicitud aprobada en ${matchName}`,
+      title: `Solicitud aprobada en ${quotedMatchName}`,
       subtitle: dateLabel || 'Ya podés entrar al partido',
       route: matchRoute || '/notifications',
     };
@@ -266,7 +272,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     return {
       ...base,
       icon: 'CalendarClock',
-      title: `Recibiste una invitación a ${matchName}`,
+      title: `Recibiste una invitación a ${quotedMatchName}`,
       subtitle: dateLabel || 'Entrá para aceptar o rechazar la invitación',
       route: inviteRoute || '/notifications',
     };
@@ -276,7 +282,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     return {
       ...base,
       icon: 'Users',
-      title: playerFirstMessage || `Cambio de jugadores en ${matchName}`,
+      title: playerFirstMessage || `Cambio de jugadores en ${quotedMatchName}`,
       subtitle: dateLabel || 'Revisá el estado del partido',
       route: matchRoute || '/notifications',
     };
@@ -318,6 +324,7 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
     if (!isToday && !isTomorrow) return acc;
 
     const name = getMatchDisplayName(match, 'tu partido');
+    const quotedName = quoteMatchName(name, 'tu partido');
     const dateLabel = formatMatchDate(match);
     const route = routeForMatch({ matchId: match.id, currentUserId, match });
     const playerCount = Number(match?.jugadores?.[0]?.count || 0);
@@ -328,7 +335,7 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
       id: `activity-${isToday ? 'match_today' : 'match_tomorrow'}-${match.id}`,
       type: isToday ? 'match_today' : 'match_tomorrow',
       partidoId: Number(match.id),
-      title: `${isToday ? 'Hoy' : 'Mañana'} jugás ${name}`,
+      title: `${isToday ? 'Hoy' : 'Mañana'} jugás ${quotedName}`,
       subtitle: dateLabel || 'Revisá los detalles del partido',
       createdAt: matchDate.toISOString(),
       icon: 'CalendarClock',
@@ -343,7 +350,7 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
         id: `activity-falta_jugadores-${match.id}`,
         type: 'falta_jugadores',
         partidoId: Number(match.id),
-        title: `Faltan ${missing} jugador${missing > 1 ? 'es' : ''} para ${name}`,
+        title: `Faltan ${missing} jugador${missing > 1 ? 'es' : ''} para ${quotedName}`,
         subtitle: `${playerCount}/${capacity} confirmados`,
         createdAt: matchDate.toISOString(),
         icon: 'AlertTriangle',
@@ -357,7 +364,7 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
         id: `activity-match_complete-${match.id}`,
         type: 'match_complete',
         partidoId: Number(match.id),
-        title: `${name}: partido completo`,
+        title: `${quotedName}: partido completo`,
         subtitle: `${playerCount}/${capacity} confirmados`,
         createdAt: matchDate.toISOString(),
         icon: 'Users',

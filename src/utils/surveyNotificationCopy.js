@@ -1,4 +1,5 @@
 import { SURVEY_FINALIZE_DELAY_MS } from '../config/surveyConfig';
+import { quoteMatchName } from './notificationText';
 
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
@@ -67,5 +68,5 @@ export const getSurveyRemainingLabel = (deadlineAt, now = new Date()) => {
 
 export const getSurveyStartMessage = ({ source = {}, matchName = 'este partido', now = new Date() } = {}) => {
   const remaining = getSurveyRemainingLabel(resolveSurveyDeadlineAt(source), now);
-  return `La encuesta del partido ${matchName} está lista. ${remaining}`;
+  return `La encuesta del partido ${quoteMatchName(matchName, 'este partido')} está lista. ${remaining}`;
 };

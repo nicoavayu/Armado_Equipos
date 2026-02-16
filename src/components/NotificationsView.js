@@ -8,6 +8,7 @@ import { useAmigos } from '../hooks/useAmigos';
 import { useAuth } from './AuthProvider';
 import EmptyStateCard from './EmptyStateCard';
 import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
+import { applyMatchNameQuotes, quoteMatchName, resolveNotificationMatchName } from '../utils/notificationText';
 
 import { toast } from 'react-toastify';
 
@@ -343,11 +344,14 @@ const NotificationsView = () => {
             {notifications.map((notification) => {
               const Icon = getNotificationIcon(notification.type);
               const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
-              const matchName = notification?.data?.partido_nombre || notification?.data?.match_name || 'este partido';
-              const displayTitle = isSurveyStartLike ? '¡Encuesta lista!' : (notification.title || 'Notificación');
+              const matchName = resolveNotificationMatchName(notification, 'este partido');
+              const quotedMatchName = quoteMatchName(matchName, 'este partido');
+              const displayTitle = isSurveyStartLike
+                ? '¡Encuesta lista!'
+                : applyMatchNameQuotes(notification.title || 'Notificación', matchName);
               const displayMessage = isSurveyStartLike
-                ? getSurveyStartMessage({ source: notification, matchName })
-                : (notification.message || '');
+                ? getSurveyStartMessage({ source: notification, matchName: quotedMatchName })
+                : applyMatchNameQuotes(notification.message || '', matchName);
               return (
                 <div
                 key={notification.id}

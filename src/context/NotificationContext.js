@@ -6,6 +6,7 @@ import { useInterval } from '../hooks/useInterval';
 import { logger } from '../lib/logger';
 import { subscribeToNotifications } from '../services/realtimeService';
 import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
+import { applyMatchNameQuotes, quoteMatchName, resolveNotificationMatchName } from '../utils/notificationText';
 
 const NotificationContext = createContext();
 
@@ -427,6 +428,9 @@ export const NotificationProvider = ({ children }) => {
   // Show toast notification based on type
   const showNotificationToast = (notification) => {
     logger.log('[NOTIFICATIONS] Showing toast for:', notification.type);
+    const matchName = resolveNotificationMatchName(notification, '');
+    const toastTitle = applyMatchNameQuotes(notification?.title || 'Notificación', matchName);
+    const toastMessage = applyMatchNameQuotes(notification?.message || '', matchName);
 
     /** @type {any} */
     const toastOptions = ({
@@ -443,35 +447,37 @@ export const NotificationProvider = ({ children }) => {
         toast.info(`Nueva solicitud de amistad de ${notification.data?.senderName || 'alguien'}`, toastOptions);
         break;
       case 'friend_accepted':
-        toast.success(`${notification.title}: ${notification.message}`, toastOptions);
+        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
       case 'friend_rejected':
-        toast.warning(`${notification.title}: ${notification.message}`, toastOptions);
+        toast.warning(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
       case 'match_invite':
-        toast.info(`${notification.title}: ${notification.message}`, toastOptions);
+        toast.info(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
       case 'call_to_vote':
-        toast.info(`${notification.title}: ${notification.message}`, toastOptions);
+        toast.info(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
       case 'survey_start':
       case 'post_match_survey': {
-        const matchName = notification?.data?.partido_nombre || notification?.data?.match_name || 'este partido';
-        const surveyMessage = getSurveyStartMessage({ source: notification, matchName });
+        const surveyMessage = getSurveyStartMessage({
+          source: notification,
+          matchName: quoteMatchName(resolveNotificationMatchName(notification, 'este partido'), 'este partido'),
+        });
         toast.info(`${notification.title || '¡Encuesta lista!'}: ${surveyMessage}`, toastOptions);
         break;
       }
       case 'survey_results_ready':
-        toast.success(`${notification.title}: ${notification.message}`, toastOptions);
+        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
       case 'awards_ready':
-        toast.success(`${notification.title}: ${notification.message}`, toastOptions);
+        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
       case 'survey_finished':
-        toast.success(`${notification.title}: ${notification.message}`, toastOptions);
+        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
       case 'admin_transfer':
-        toast.success(`${notification.title}: ${notification.message}`, toastOptions);
+        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
         // Auto-refresh if forceRefresh is true
         if (notification.data?.forceRefresh) {
           setTimeout(() => {
@@ -480,7 +486,7 @@ export const NotificationProvider = ({ children }) => {
         }
         break;
       default:
-        toast.info(`${notification.title}: ${notification.message}`, toastOptions);
+        toast.info(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
     }
   };

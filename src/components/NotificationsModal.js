@@ -11,6 +11,7 @@ import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyStateCard from './EmptyStateCard';
 import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
+import { applyMatchNameQuotes, quoteMatchName, resolveNotificationMatchName } from '../utils/notificationText';
 
 const NotificationsModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
@@ -308,11 +309,14 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                 const clickable = ['match_invite', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished'].includes(notification.type);
                 const Icon = getNotificationIcon(notification.type) || User;
                 const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
-                const matchName = notification?.data?.partido_nombre || notification?.data?.match_name || 'este partido';
-                const displayTitle = isSurveyStartLike ? '¡Encuesta lista!' : (notification.title || 'Notificación');
+                const matchName = resolveNotificationMatchName(notification, 'este partido');
+                const quotedMatchName = quoteMatchName(matchName, 'este partido');
+                const displayTitle = isSurveyStartLike
+                  ? '¡Encuesta lista!'
+                  : applyMatchNameQuotes(notification.title || 'Notificación', matchName);
                 const displayMessage = isSurveyStartLike
-                  ? getSurveyStartMessage({ source: notification, matchName })
-                  : (notification.message || '');
+                  ? getSurveyStartMessage({ source: notification, matchName: quotedMatchName })
+                  : applyMatchNameQuotes(notification.message || '', matchName);
 
                 const notificationContent = (
                   <>

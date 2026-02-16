@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
+import { applyMatchNameQuotes, resolveNotificationMatchName } from '../utils/notificationText';
 import './NotificationBell.css';
 
 const NotificationBell = () => {
@@ -50,19 +51,24 @@ const NotificationBell = () => {
             {(!notifications || notifications.length === 0) ? (
               <div className="p-4 text-gray-500 text-center">No hay notificaciones</div>
             ) : (
-              notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  className={`p-3 border-b cursor-pointer hover:bg-gray-50 ${!notification.read ? 'bg-blue-50' : ''}`}
-                >
-                  <div className="font-medium">{notification.title}</div>
-                  <div className="text-sm text-gray-600">{notification.message}</div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {new Date(notification.created_at).toLocaleString()}
+              notifications.map((notification) => {
+                const matchName = resolveNotificationMatchName(notification, '');
+                const title = applyMatchNameQuotes(notification.title || '', matchName);
+                const message = applyMatchNameQuotes(notification.message || '', matchName);
+                return (
+                  <div
+                    key={notification.id}
+                    onClick={() => handleNotificationClick(notification)}
+                    className={`p-3 border-b cursor-pointer hover:bg-gray-50 ${!notification.read ? 'bg-blue-50' : ''}`}
+                  >
+                    <div className="font-medium">{title}</div>
+                    <div className="text-sm text-gray-600">{message}</div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      {new Date(notification.created_at).toLocaleString()}
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
