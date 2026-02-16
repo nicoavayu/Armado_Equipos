@@ -22,6 +22,7 @@ const ProfileEditorForm = ({
   countries,
   positions,
   footOptions,
+  levelOptions,
   loading,
   hasChanges,
   handleSave,
@@ -163,33 +164,50 @@ const ProfileEditorForm = ({
 
         <div className={formGroupClass}>
           <label className={labelClass}>Pierna hábil</label>
-          <select
-            className={inputClass}
-            value={formData.pierna_habil || ''}
-            onChange={(e) => handleInputChange('pierna_habil', e.target.value)}
-          >
-            {footOptions.map((option) => (
-              <option key={option.key || 'empty'} value={option.key} className="bg-[#2a2a40] text-white">
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <div className="grid grid-cols-2 gap-2 mt-1">
+            {footOptions.map((option) => {
+              const isActive = (formData.pierna_habil || '') === option.key;
+              return (
+                <button
+                  key={option.key || 'empty'}
+                  type="button"
+                  className={`
+                    h-[40px] px-2 rounded-xl text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
+                    ${isActive
+                      ? 'bg-primary border-primary text-white shadow-[0_6px_16px_rgba(129,120,229,0.35)]'
+                      : 'bg-white/5 border-white/20 text-white/85 hover:bg-white/10 hover:border-white/30'}
+                  `}
+                  onClick={() => handleInputChange('pierna_habil', option.key)}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className={formGroupClass}>
           <label className={labelClass}>Nivel autopercibido</label>
-          <select
-            className={inputClass}
-            value={formData.nivel ?? ''}
-            onChange={(e) => handleInputChange('nivel', e.target.value === '' ? null : Number(e.target.value))}
-          >
-            <option value="" className="bg-[#2a2a40] text-white">Sin definir</option>
-            <option value="1" className="bg-[#2a2a40] text-white">Recreativo</option>
-            <option value="2" className="bg-[#2a2a40] text-white">Amateur</option>
-            <option value="3" className="bg-[#2a2a40] text-white">Intermedio</option>
-            <option value="4" className="bg-[#2a2a40] text-white">Competitivo</option>
-            <option value="5" className="bg-[#2a2a40] text-white">Avanzado</option>
-          </select>
+          <div className="grid grid-cols-2 gap-2 mt-1">
+            {levelOptions.map((option) => {
+              const isActive = (formData.nivel ?? null) === option.value;
+              return (
+                <button
+                  key={option.label}
+                  type="button"
+                  className={`
+                    h-[40px] px-2 rounded-xl text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
+                    ${isActive
+                      ? 'bg-primary border-primary text-white shadow-[0_6px_16px_rgba(129,120,229,0.35)]'
+                      : 'bg-white/5 border-white/20 text-white/85 hover:bg-white/10 hover:border-white/30'}
+                  `}
+                  onClick={() => handleInputChange('nivel', option.value)}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Localidad Field */}
@@ -639,6 +657,15 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     { key: 'both', label: 'Ambas (AMB)' },
   ], []);
 
+  const levelOptions = useMemo(() => [
+    { value: null, label: 'Sin definir' },
+    { value: 1, label: 'Recreativo' },
+    { value: 2, label: 'Amateur' },
+    { value: 3, label: 'Intermedio' },
+    { value: 4, label: 'Competitivo' },
+    { value: 5, label: 'Avanzado' },
+  ], []);
+
   const countries = useMemo(() => [
     { key: 'AF', label: 'Afganistán' },
     { key: 'AL', label: 'Albania' },
@@ -764,6 +791,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           countries={countries}
           positions={positions}
           footOptions={footOptions}
+          levelOptions={levelOptions}
           loading={loading}
           hasChanges={hasChanges}
           handleSave={handleSave}
@@ -931,33 +959,50 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
             <div className={formGroupClass}>
               <label className={labelClass}>Pierna hábil</label>
-              <select
-                className={inputClass}
-                value={formData.pierna_habil || ''}
-                onChange={(e) => handleInputChange('pierna_habil', e.target.value)}
-              >
-                {footOptions.map((option) => (
-                  <option key={option.key || 'empty'} value={option.key} className="bg-[#2a2a40] text-white">
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                {footOptions.map((option) => {
+                  const isActive = (formData.pierna_habil || '') === option.key;
+                  return (
+                    <button
+                      key={option.key || 'empty'}
+                      type="button"
+                      className={`
+                        h-[40px] px-2 rounded-xl text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
+                        ${isActive
+                          ? 'bg-primary border-primary text-white shadow-[0_6px_16px_rgba(129,120,229,0.35)]'
+                          : 'bg-white/5 border-white/20 text-white/85 hover:bg-white/10 hover:border-white/30'}
+                      `}
+                      onClick={() => handleInputChange('pierna_habil', option.key)}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className={formGroupClass}>
               <label className={labelClass}>Nivel autopercibido</label>
-              <select
-                className={inputClass}
-                value={formData.nivel ?? ''}
-                onChange={(e) => handleInputChange('nivel', e.target.value === '' ? null : Number(e.target.value))}
-              >
-                <option value="" className="bg-[#2a2a40] text-white">Sin definir</option>
-                <option value="1" className="bg-[#2a2a40] text-white">Recreativo</option>
-                <option value="2" className="bg-[#2a2a40] text-white">Amateur</option>
-                <option value="3" className="bg-[#2a2a40] text-white">Intermedio</option>
-                <option value="4" className="bg-[#2a2a40] text-white">Competitivo</option>
-                <option value="5" className="bg-[#2a2a40] text-white">Avanzado</option>
-              </select>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                {levelOptions.map((option) => {
+                  const isActive = (formData.nivel ?? null) === option.value;
+                  return (
+                    <button
+                      key={option.label}
+                      type="button"
+                      className={`
+                        h-[40px] px-2 rounded-xl text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
+                        ${isActive
+                          ? 'bg-primary border-primary text-white shadow-[0_6px_16px_rgba(129,120,229,0.35)]'
+                          : 'bg-white/5 border-white/20 text-white/85 hover:bg-white/10 hover:border-white/30'}
+                      `}
+                      onClick={() => handleInputChange('nivel', option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className={formGroupClass}>

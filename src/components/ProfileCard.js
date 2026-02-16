@@ -294,7 +294,7 @@ const ProfileCardComponent = ({
             }
             .profile-card-wrapper .pc-left-meta {
               left: 43px;
-              top: -16px;
+              top: -12px;
               transform: scale(0.96);
               transform-origin: top left;
             }
@@ -321,7 +321,7 @@ const ProfileCardComponent = ({
             }
             .profile-card-wrapper .pc-left-meta {
               left: 43px;
-              top: -14px;
+              top: -10px;
               transform: scale(0.9);
               transform-origin: top left;
             }
@@ -399,7 +399,13 @@ const ProfileCardComponent = ({
                 <div className="relative w-full px-6 mb-2">
                   {/* Name (Centered) */}
                   <div className="flex justify-center items-center h-12">
-                    <h3 className="font-oswald font-black text-[2.6rem] leading-none text-white tracking-[0.01em] m-0 truncate max-w-[80%]" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3)' }}>
+                    <h3
+                      className="font-black text-[2.6rem] leading-none text-white tracking-[0.01em] m-0 truncate max-w-[80%]"
+                      style={{
+                        fontFamily: "'Bebas Neue', 'Bebas', 'Oswald', sans-serif",
+                        textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3)',
+                      }}
+                    >
                       {vm.name.slice(0, 12)}
                     </h3>
                   </div>
@@ -432,10 +438,10 @@ const ProfileCardComponent = ({
                     </div>
 
                     {(vm.foot || vm.level !== null) && (
-                      <div className="absolute left-[43px] -top-[20px] flex flex-col items-center gap-1 max-w-[44px] pc-left-meta">
+                      <div className="absolute left-[43px] -top-[16px] flex flex-col items-center gap-1 max-w-[44px] pc-left-meta">
                         {vm.foot && (
                           <div className="rounded-md w-9 h-6 flex items-center justify-center shrink-0 border-[1.5px] border-white/30 bg-white/5">
-                            <span className="font-bebas text-[11px] tracking-wider font-black leading-none text-white/80">
+                            <span className="font-oswald text-[11px] tracking-wider font-black leading-none text-white/80">
                               {vm.foot}
                             </span>
                           </div>
@@ -476,7 +482,7 @@ const ProfileCardComponent = ({
                           }}
                         >
                           <span
-                            className="font-bebas text-[11px] tracking-wider font-black leading-none"
+                            className="font-oswald text-[11px] tracking-wider font-black leading-none"
                             style={{
                               color: vm.posColor,
                               textShadow: `0 0 4px ${vm.posColor}AA`,
