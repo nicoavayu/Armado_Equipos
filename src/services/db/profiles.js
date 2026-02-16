@@ -348,6 +348,27 @@ export const updateProfile = async (userId, profileData) => {
         }
       }
 
+      if (dbKey === 'pierna_habil') {
+        if (value === '') value = null;
+        if (value !== null && !['right', 'left', 'both'].includes(value)) {
+          logger.warn('[UPDATE_PROFILE] Invalid pierna_habil value:', value);
+          value = null;
+        }
+      }
+
+      if (dbKey === 'nivel') {
+        if (value === '' || value === undefined) value = null;
+        if (value !== null) {
+          const parsedLevel = Number.parseInt(value, 10);
+          if (!Number.isFinite(parsedLevel) || parsedLevel < 1 || parsedLevel > 5) {
+            logger.warn('[UPDATE_PROFILE] Invalid nivel value:', value);
+            value = null;
+          } else {
+            value = parsedLevel;
+          }
+        }
+      }
+
       if (value === null || value === undefined ||
         typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
         cleanProfileData[dbKey] = value;
@@ -360,14 +381,54 @@ export const updateProfile = async (userId, profileData) => {
   logger.log('[UPDATE_PROFILE] Mapped fields:', Object.keys(finalData));
   logger.log('[UPDATE_PROFILE] Final data:', finalData);
 
-  const { data, error } = await supabase
-    .from('usuarios')
-    .update(finalData)
-    .eq('id', userId)
-    .select()
-    .single();
+  const getMissingSchemaColumn = (error) => {
+    const rawMessage = `${error?.message || ''} ${error?.details || ''}`;
+    const patterns = [
+      /Could not find the ['"]([^'"]+)['"] column of ['"]usuarios['"] in the schema cache/i,
+      /column ['"]?usuarios\.([^'"\s]+)['"]? does not exist/i,
+      /column ['"]([^'"]+)['"] does not exist/i,
+    ];
 
-  if (error) throw error;
+    for (const pattern of patterns) {
+      const match = rawMessage.match(pattern);
+      if (match?.[1]) return match[1];
+    }
+
+    return null;
+  };
+
+  let payloadToUpdate = { ...finalData };
+  let data = null;
+  let lastError = null;
+
+  const maxAttempts = Math.max(3, Object.keys(payloadToUpdate).length + 1);
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const { data: updatedData, error } = await supabase
+      .from('usuarios')
+      .update(payloadToUpdate)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (!error) {
+      data = updatedData;
+      break;
+    }
+
+    lastError = error;
+    const missingColumn = getMissingSchemaColumn(error);
+    if (!missingColumn || !Object.prototype.hasOwnProperty.call(payloadToUpdate, missingColumn)) {
+      break;
+    }
+
+    logger.warn(
+      `[UPDATE_PROFILE] Column "${missingColumn}" missing in schema cache. Retrying without it.`,
+    );
+    delete payloadToUpdate[missingColumn];
+  }
+
+  if (lastError && !data) throw lastError;
 
   // Actualizar el nombre en todos los partidos donde el usuario es jugador
   if (cleanProfileData && cleanProfileData.nombre) {
