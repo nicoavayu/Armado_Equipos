@@ -177,18 +177,18 @@ const ProfileEditorForm = ({
         </div>
 
         <div className={formGroupClass}>
-          <label className={labelClass}>Nivel</label>
+          <label className={labelClass}>Nivel autopercibido</label>
           <select
             className={inputClass}
             value={formData.nivel ?? ''}
             onChange={(e) => handleInputChange('nivel', e.target.value === '' ? null : Number(e.target.value))}
           >
             <option value="" className="bg-[#2a2a40] text-white">Sin definir</option>
-            <option value="1" className="bg-[#2a2a40] text-white">1</option>
-            <option value="2" className="bg-[#2a2a40] text-white">2</option>
-            <option value="3" className="bg-[#2a2a40] text-white">3</option>
-            <option value="4" className="bg-[#2a2a40] text-white">4</option>
-            <option value="5" className="bg-[#2a2a40] text-white">5</option>
+            <option value="1" className="bg-[#2a2a40] text-white">Recreativo</option>
+            <option value="2" className="bg-[#2a2a40] text-white">Amateur</option>
+            <option value="3" className="bg-[#2a2a40] text-white">Intermedio</option>
+            <option value="4" className="bg-[#2a2a40] text-white">Competitivo</option>
+            <option value="5" className="bg-[#2a2a40] text-white">Avanzado</option>
           </select>
         </div>
 
@@ -945,18 +945,18 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
             </div>
 
             <div className={formGroupClass}>
-              <label className={labelClass}>Nivel</label>
+              <label className={labelClass}>Nivel autopercibido</label>
               <select
                 className={inputClass}
                 value={formData.nivel ?? ''}
                 onChange={(e) => handleInputChange('nivel', e.target.value === '' ? null : Number(e.target.value))}
               >
                 <option value="" className="bg-[#2a2a40] text-white">Sin definir</option>
-                <option value="1" className="bg-[#2a2a40] text-white">1</option>
-                <option value="2" className="bg-[#2a2a40] text-white">2</option>
-                <option value="3" className="bg-[#2a2a40] text-white">3</option>
-                <option value="4" className="bg-[#2a2a40] text-white">4</option>
-                <option value="5" className="bg-[#2a2a40] text-white">5</option>
+                <option value="1" className="bg-[#2a2a40] text-white">Recreativo</option>
+                <option value="2" className="bg-[#2a2a40] text-white">Amateur</option>
+                <option value="3" className="bg-[#2a2a40] text-white">Intermedio</option>
+                <option value="4" className="bg-[#2a2a40] text-white">Competitivo</option>
+                <option value="5" className="bg-[#2a2a40] text-white">Avanzado</option>
               </select>
             </div>
 
