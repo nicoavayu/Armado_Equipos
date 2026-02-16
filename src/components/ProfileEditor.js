@@ -26,6 +26,7 @@ const ProfileEditorForm = ({
   hasChanges,
   handleSave,
   handleLogout,
+  handleDeleteAccount,
 }) => {
   return (
     <div className="mx-auto w-full max-w-[720px] px-4 pb-32 pt-6 flex flex-col gap-5 min-w-0">
@@ -227,6 +228,14 @@ const ProfileEditorForm = ({
           >
             Cerrar sesión
           </button>
+
+          <button
+            className="col-span-2 h-[48px] bg-red-600/15 border border-red-500/30 text-red-300 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all hover:bg-red-600/25 hover:text-red-200 active:scale-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+            onClick={handleDeleteAccount}
+            disabled={loading}
+          >
+            Eliminar cuenta
+          </button>
         </div>
       </div>
     </div>
@@ -424,6 +433,48 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     navigate('/login', { replace: true });
   }, [onClose, navigate]);
 
+  const handleDeleteAccount = useCallback(async () => {
+    if (!user?.id) {
+      toast.error('No se pudo identificar la cuenta actual.');
+      return;
+    }
+
+    const shouldProceed = window.confirm(
+      'Esta acción elimina tu cuenta y no se puede deshacer. ¿Querés continuar?',
+    );
+    if (!shouldProceed) return;
+
+    const confirmationText = window.prompt('Escribí ELIMINAR para confirmar:');
+    if (confirmationText !== 'ELIMINAR') {
+      toast.info('Eliminación cancelada.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-account', {
+        body: { confirm: true },
+      });
+
+      if (error) {
+        throw new Error(error.message || 'No se pudo eliminar la cuenta.');
+      }
+
+      if (!data?.ok) {
+        throw new Error(data?.message || 'No se pudo eliminar la cuenta.');
+      }
+
+      toast.success('Cuenta eliminada correctamente.');
+      await supabase.auth.signOut();
+      onClose();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      toast.error(`Error eliminando cuenta: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [navigate, onClose, user?.id]);
+
   const handleGeolocation = useCallback(() => {
     if (!navigator.geolocation) {
       toast.error('Geolocalización no disponible en este dispositivo');
@@ -614,6 +665,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           hasChanges={hasChanges}
           handleSave={handleSave}
           handleLogout={handleLogout}
+          handleDeleteAccount={handleDeleteAccount}
         />
       </div>
     );
@@ -829,6 +881,14 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 disabled={loading}
               >
                 Cerrar sesión
+              </button>
+
+              <button
+                className="col-span-2 h-[44px] bg-red-600/20 border border-red-500/30 text-red-300 rounded-lg text-[16px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all hover:bg-red-600/30 flex items-center justify-center disabled:opacity-50"
+                onClick={handleDeleteAccount}
+                disabled={loading}
+              >
+                Eliminar cuenta
               </button>
             </div>
           </div>

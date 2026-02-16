@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.accept-invite]
 verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
