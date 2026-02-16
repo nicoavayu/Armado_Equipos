@@ -293,7 +293,7 @@ const ProfileCardComponent = ({
               transform-origin: top right;
             }
             .profile-card-wrapper .pc-left-meta {
-              left: 26px;
+              left: 43px;
               top: -16px;
               transform: scale(0.96);
               transform-origin: top left;
@@ -320,7 +320,7 @@ const ProfileCardComponent = ({
               transform-origin: top right;
             }
             .profile-card-wrapper .pc-left-meta {
-              left: 22px;
+              left: 43px;
               top: -14px;
               transform: scale(0.9);
               transform-origin: top left;
@@ -432,7 +432,7 @@ const ProfileCardComponent = ({
                     </div>
 
                     {(vm.foot || vm.level !== null) && (
-                      <div className="absolute left-[24px] -top-[20px] flex flex-col items-center gap-1 max-w-[44px] pc-left-meta">
+                      <div className="absolute left-[43px] -top-[20px] flex flex-col items-center gap-1 max-w-[44px] pc-left-meta">
                         {vm.foot && (
                           <div className="rounded-md w-9 h-6 flex items-center justify-center shrink-0 border-[1.5px] border-white/30 bg-white/5">
                             <span className="font-bebas text-[11px] tracking-wider font-black leading-none text-white/80">
