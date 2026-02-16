@@ -7,6 +7,7 @@ import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
 import { useNotifications } from '../context/NotificationContext';
+import { Check, Loader2, X } from 'lucide-react';
 
 const AmigosView = () => {
   console.log('[AMIGOS_VIEW] === RENDER START ===');
@@ -16,6 +17,8 @@ const AmigosView = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [processingRequests, setProcessingRequests] = useState(new Set());
+  const [processingRequestAction, setProcessingRequestAction] = useState({});
   const { markTypeAsRead } = useNotifications();
 
   // Estado centralizado para el modal de confirmación de eliminación
@@ -92,40 +95,74 @@ const AmigosView = () => {
 
   // Handle accepting a friend request
   const handleAcceptRequest = async (requestId) => {
+    if (processingRequests.has(requestId)) return;
+    setProcessingRequests((prev) => new Set(prev).add(requestId));
+    setProcessingRequestAction((prev) => ({ ...prev, [requestId]: 'accept' }));
+
     console.log('[AMIGOS] Accepting friend request:', requestId);
-    const result = await acceptFriendRequest(requestId);
-    console.log('[AMIGOS] Accept friend request result:', result);
+    try {
+      const result = await acceptFriendRequest(requestId);
+      console.log('[AMIGOS] Accept friend request result:', result);
 
-    if (result.success) {
-      toast.success('Solicitud de amistad aceptada');
-      // Refresh pending requests and friends list
-      console.log('[AMIGOS] Refreshing pending requests after accept');
-      const requests = await getPendingRequests();
-      setPendingRequests(requests);
+      if (result.success) {
+        toast.success('Solicitud de amistad aceptada');
+        // Refresh pending requests and friends list
+        console.log('[AMIGOS] Refreshing pending requests after accept');
+        const requests = await getPendingRequests();
+        setPendingRequests(requests);
 
-      console.log('[AMIGOS] Refreshing friends list after accept');
-      await getAmigos();
-    } else {
-      console.error('[AMIGOS] Error accepting friend request:', result.message);
-      toast.error(result.message || 'Error al aceptar solicitud');
+        console.log('[AMIGOS] Refreshing friends list after accept');
+        await getAmigos();
+      } else {
+        console.error('[AMIGOS] Error accepting friend request:', result.message);
+        toast.error(result.message || 'Error al aceptar solicitud');
+      }
+    } finally {
+      setProcessingRequests((prev) => {
+        const next = new Set(prev);
+        next.delete(requestId);
+        return next;
+      });
+      setProcessingRequestAction((prev) => {
+        const next = { ...prev };
+        delete next[requestId];
+        return next;
+      });
     }
   };
 
   // Handle rejecting a friend request
   const handleRejectRequest = async (requestId) => {
-    console.log('[AMIGOS] Rejecting friend request:', requestId);
-    const result = await rejectFriendRequest(requestId);
-    console.log('[AMIGOS] Reject friend request result:', result);
+    if (processingRequests.has(requestId)) return;
+    setProcessingRequests((prev) => new Set(prev).add(requestId));
+    setProcessingRequestAction((prev) => ({ ...prev, [requestId]: 'reject' }));
 
-    if (result.success) {
-      toast.success('Solicitud de amistad rechazada');
-      // Refresh pending requests
-      console.log('[AMIGOS] Refreshing pending requests after reject');
-      const requests = await getPendingRequests();
-      setPendingRequests(requests);
-    } else {
-      console.error('[AMIGOS] Error rejecting friend request:', result.message);
-      toast.error(result.message || 'Error al rechazar solicitud');
+    console.log('[AMIGOS] Rejecting friend request:', requestId);
+    try {
+      const result = await rejectFriendRequest(requestId);
+      console.log('[AMIGOS] Reject friend request result:', result);
+
+      if (result.success) {
+        toast.success('Solicitud de amistad rechazada');
+        // Refresh pending requests
+        console.log('[AMIGOS] Refreshing pending requests after reject');
+        const requests = await getPendingRequests();
+        setPendingRequests(requests);
+      } else {
+        console.error('[AMIGOS] Error rejecting friend request:', result.message);
+        toast.error(result.message || 'Error al rechazar solicitud');
+      }
+    } finally {
+      setProcessingRequests((prev) => {
+        const next = new Set(prev);
+        next.delete(requestId);
+        return next;
+      });
+      setProcessingRequestAction((prev) => {
+        const next = { ...prev };
+        delete next[requestId];
+        return next;
+      });
     }
   };
 
@@ -280,16 +317,30 @@ const AmigosView = () => {
                 </PlayerCardTrigger>
                 <div className="flex gap-2 shrink-0">
                   <button
-                    className="px-4 py-2 border-none rounded-md font-semibold cursor-pointer transition-all duration-200 font-bebas uppercase tracking-wider text-sm min-w-[70px] bg-[#4CAF50] text-white hover:bg-[#3d8b40] hover:-translate-y-[1px] sm:px-3 sm:py-1.5 sm:text-[13px] sm:min-w-[60px]"
+                    className="h-11 w-11 rounded-xl border border-white/20 bg-[var(--btn-success)] text-white shadow-[0_8px_20px_rgba(39,174,96,0.35)] transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     onClick={() => handleAcceptRequest(request.id)}
+                    disabled={processingRequests.has(request.id)}
+                    aria-label={processingRequests.has(request.id) && processingRequestAction[request.id] === 'accept' ? 'Aceptando solicitud' : 'Aceptar solicitud'}
+                    title={processingRequests.has(request.id) && processingRequestAction[request.id] === 'accept' ? 'Aceptando solicitud...' : 'Aceptar solicitud'}
                   >
-                    Aceptar
+                    {processingRequests.has(request.id) && processingRequestAction[request.id] === 'accept' ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Check size={19} strokeWidth={3} />
+                    )}
                   </button>
                   <button
-                    className="px-4 py-2 border-none rounded-md font-semibold cursor-pointer transition-all duration-200 font-bebas uppercase tracking-wider text-sm min-w-[70px] bg-[#DE1C49] text-white hover:bg-[#c41841] hover:-translate-y-[1px] sm:px-3 sm:py-1.5 sm:text-[13px] sm:min-w-[60px]"
+                    className="h-11 w-11 rounded-xl border border-white/20 bg-[var(--btn-danger)] text-white shadow-[0_8px_20px_rgba(231,76,60,0.3)] transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     onClick={() => handleRejectRequest(request.id)}
+                    disabled={processingRequests.has(request.id)}
+                    aria-label={processingRequests.has(request.id) && processingRequestAction[request.id] === 'reject' ? 'Rechazando solicitud' : 'Rechazar solicitud'}
+                    title={processingRequests.has(request.id) && processingRequestAction[request.id] === 'reject' ? 'Rechazando solicitud...' : 'Rechazar solicitud'}
                   >
-                    Rechazar
+                    {processingRequests.has(request.id) && processingRequestAction[request.id] === 'reject' ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <X size={19} strokeWidth={3} />
+                    )}
                   </button>
                 </div>
               </div>
