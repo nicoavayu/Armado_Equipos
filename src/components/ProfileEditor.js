@@ -21,6 +21,7 @@ const ProfileEditorForm = ({
   MAX_NOMBRE,
   countries,
   positions,
+  footOptions,
   loading,
   hasChanges,
   handleSave,
@@ -158,6 +159,37 @@ const ProfileEditorForm = ({
               </button>
             ))}
           </div>
+        </div>
+
+        <div className={formGroupClass}>
+          <label className={labelClass}>Pierna hábil</label>
+          <select
+            className={inputClass}
+            value={formData.pierna_habil || ''}
+            onChange={(e) => handleInputChange('pierna_habil', e.target.value)}
+          >
+            {footOptions.map((option) => (
+              <option key={option.key || 'empty'} value={option.key} className="bg-[#2a2a40] text-white">
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className={formGroupClass}>
+          <label className={labelClass}>Nivel</label>
+          <select
+            className={inputClass}
+            value={formData.nivel ?? ''}
+            onChange={(e) => handleInputChange('nivel', e.target.value === '' ? null : Number(e.target.value))}
+          >
+            <option value="" className="bg-[#2a2a40] text-white">Sin definir</option>
+            <option value="1" className="bg-[#2a2a40] text-white">1</option>
+            <option value="2" className="bg-[#2a2a40] text-white">2</option>
+            <option value="3" className="bg-[#2a2a40] text-white">3</option>
+            <option value="4" className="bg-[#2a2a40] text-white">4</option>
+            <option value="5" className="bg-[#2a2a40] text-white">5</option>
+          </select>
         </div>
 
         {/* Localidad Field */}
@@ -330,6 +362,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     nacionalidad: 'Argentina',
     pais_codigo: 'AR',
     posicion: 'DEF',
+    pierna_habil: '',
+    nivel: null,
     fecha_nacimiento: null,
     localidad: '',
     latitud: null,
@@ -353,6 +387,12 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           .catch((err) => console.error('Error updating profile with avatar:', err));
       }
 
+      const parseLevel = (value) => {
+        const parsed = Number.parseInt(value, 10);
+        if (!Number.isInteger(parsed) || parsed < 1 || parsed > 5) return null;
+        return parsed;
+      };
+
       const newFormData = {
         nombre: profile.nombre || '',
         email: profile.email || user?.email || '',
@@ -360,6 +400,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         nacionalidad: profile.nacionalidad || 'Argentina',
         pais_codigo: profile.pais_codigo || 'AR',
         posicion: profile.posicion || profile.rol_favorito || 'DEF',
+        pierna_habil: ['right', 'left', 'both'].includes(profile.pierna_habil) ? profile.pierna_habil : '',
+        nivel: parseLevel(profile.nivel),
         fecha_nacimiento: cleanDate(profile.fecha_nacimiento),
         localidad: profile.localidad || '',
         latitud: profile.latitud || null,
@@ -590,6 +632,13 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     { key: 'DEL', label: 'DEL' },
   ], []);
 
+  const footOptions = useMemo(() => [
+    { key: '', label: 'Sin definir' },
+    { key: 'right', label: 'Derecha (DER)' },
+    { key: 'left', label: 'Izquierda (IZQ)' },
+    { key: 'both', label: 'Ambas (AMB)' },
+  ], []);
+
   const countries = useMemo(() => [
     { key: 'AF', label: 'Afganistán' },
     { key: 'AL', label: 'Albania' },
@@ -714,6 +763,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           MAX_NOMBRE={MAX_NOMBRE}
           countries={countries}
           positions={positions}
+          footOptions={footOptions}
           loading={loading}
           hasChanges={hasChanges}
           handleSave={handleSave}
@@ -878,6 +928,38 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 ))}
               </div>
             </div>
+
+            <div className={formGroupClass}>
+              <label className={labelClass}>Pierna hábil</label>
+              <select
+                className={inputClass}
+                value={formData.pierna_habil || ''}
+                onChange={(e) => handleInputChange('pierna_habil', e.target.value)}
+              >
+                {footOptions.map((option) => (
+                  <option key={option.key || 'empty'} value={option.key} className="bg-[#2a2a40] text-white">
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={formGroupClass}>
+              <label className={labelClass}>Nivel</label>
+              <select
+                className={inputClass}
+                value={formData.nivel ?? ''}
+                onChange={(e) => handleInputChange('nivel', e.target.value === '' ? null : Number(e.target.value))}
+              >
+                <option value="" className="bg-[#2a2a40] text-white">Sin definir</option>
+                <option value="1" className="bg-[#2a2a40] text-white">1</option>
+                <option value="2" className="bg-[#2a2a40] text-white">2</option>
+                <option value="3" className="bg-[#2a2a40] text-white">3</option>
+                <option value="4" className="bg-[#2a2a40] text-white">4</option>
+                <option value="5" className="bg-[#2a2a40] text-white">5</option>
+              </select>
+            </div>
+
             <div className={formGroupClass}>
               <label className={labelClass}>Localidad</label>
               <div className="flex gap-2 items-center">

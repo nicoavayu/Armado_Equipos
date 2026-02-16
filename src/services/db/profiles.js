@@ -301,7 +301,7 @@ export const updateProfile = async (userId, profileData) => {
     'perfil_completo', 'profile_completion', 'pais_codigo', 'nacionalidad',
     'latitud', 'longitud', 'fecha_nacimiento', 'partidos_abandonados',
     'numero', 'telefono', 'mvps', 'tarjetas_rojas', 'rating', 'updated_at',
-    'lesion_activa', 'card_frame_color',
+    'lesion_activa', 'card_frame_color', 'pierna_habil', 'nivel',
   ];
 
   // Field mapping for frontend to database
