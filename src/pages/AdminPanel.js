@@ -67,12 +67,29 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    const viewParam = searchParams.get('view');
+    if (viewParam === 'armar-equipos') {
+      adminState.setShowArmarEquiposView(true);
+    }
+  }, [searchParams, adminState.setShowArmarEquiposView]);
+
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     if (tab === 'solicitudes') {
       setSearchParams({ tab: 'solicitudes' });
     } else {
       setSearchParams({});
+    }
+  };
+
+  const handleBackToAdminFromArmar = () => {
+    adminState.setShowArmarEquiposView(false);
+
+    if (searchParams.has('view')) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('view');
+      setSearchParams(nextParams, { replace: true });
     }
   };
 
@@ -215,7 +232,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     <>
       {adminState.showArmarEquiposView ? (
         <ArmarEquiposView
-          onBackToAdmin={() => adminState.setShowArmarEquiposView(false)}
+          onBackToAdmin={handleBackToAdminFromArmar}
           jugadores={jugadores}
           onJugadoresChange={onJugadoresChange}
           partidoActual={partidoActual}

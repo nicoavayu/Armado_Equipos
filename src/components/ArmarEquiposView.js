@@ -116,6 +116,25 @@ export default function ArmarEquiposView({
     fetchVotingState();
   }, [partidoActual?.id]);
 
+  const buildVotingRoute = ({ partidoId, codigo } = {}) => {
+    const resolvedPartidoId = Number(partidoId || partidoActual?.id);
+    const params = new URLSearchParams();
+
+    if (Number.isFinite(resolvedPartidoId) && resolvedPartidoId > 0) {
+      const idAsString = String(resolvedPartidoId);
+      params.set('partidoId', idAsString);
+      params.set('adminPartidoId', idAsString);
+    }
+
+    const safeCode = String(codigo || '').trim();
+    if (safeCode) {
+      params.set('codigo', safeCode);
+    }
+
+    params.set('returnTo', 'armar-equipos');
+    return `/?${params.toString()}`;
+  };
+
   async function handleCallToVote() {
     if (calling) {
       console.debug('[Teams] call-to-vote blocked: already running');
@@ -150,7 +169,7 @@ export default function ArmarEquiposView({
       if (res?.alreadyExists) {
         setVotingStarted(true);
         toast.info('La votación ya estaba iniciada. Entrando...');
-        navigate(`/?partidoId=${partidoActual.id}`);
+        navigate(buildVotingRoute({ partidoId: partidoActual.id }));
         return;
       }
 
@@ -179,9 +198,9 @@ export default function ArmarEquiposView({
         setTimeout(() => {
           const codigo = normalizeMatchCode(partidoActual?.codigo);
           if (codigo) {
-            navigate(`/?codigo=${codigo}`);
+            navigate(buildVotingRoute({ partidoId: partidoActual.id, codigo }));
           } else {
-            navigate(`/?partidoId=${partidoActual.id}`);
+            navigate(buildVotingRoute({ partidoId: partidoActual.id }));
           }
         }, 500);
       } else {
@@ -287,7 +306,7 @@ export default function ArmarEquiposView({
 
       // Navigate to voting using partidoId (codigo may not be loaded)
       console.log('[Teams] Navigating to voting for match:', partidoActual.id);
-      navigate(`/?partidoId=${partidoActual.id}`);
+      navigate(buildVotingRoute({ partidoId: partidoActual.id }));
       return;
     }
     // Open confirm modal to start voting

@@ -278,7 +278,12 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   // Si es admin, volver a ArmarEquiposView (via onReset al AdminPanel)
   // Si no es admin, volver al inicio
   const handleFinalAction = () => {
+    const returnTo = urlParams.get('returnTo');
     if (isAdmin) {
+      if (returnTo === 'armar-equipos') {
+        onReset();
+        return;
+      }
       window.history.back();
     } else {
       onReset();
@@ -328,7 +333,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           </div>
           <button
             className={`${PRIMARY_CTA_BUTTON_CLASS} mt-4`}
-            onClick={onReset}
+            onClick={handleFinalAction}
           >Volver</button>
         </div>
       </div>

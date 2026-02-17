@@ -14,6 +14,18 @@ const VotarEquiposPage = () => {
   // Prevent double-fetch with ref to track last processed search
   const lastSearchRef = useRef('');
 
+  const resolveVotingExitRoute = () => {
+    const params = new URLSearchParams(location.search);
+    const returnTo = params.get('returnTo');
+    const adminPartidoId = params.get('adminPartidoId') || params.get('partidoId');
+
+    if (returnTo === 'armar-equipos' && adminPartidoId) {
+      return `/admin/${adminPartidoId}?view=armar-equipos`;
+    }
+
+    return '/';
+  };
+
   useEffect(() => {
     const currentSearch = location.search;
 
@@ -83,7 +95,7 @@ const VotarEquiposPage = () => {
           setShowVotingView(false);
           setPartidoActual(null);
           lastSearchRef.current = '';
-          navigate('/');
+          navigate(resolveVotingExitRoute(), { replace: true });
         }}
       />
     </div>
