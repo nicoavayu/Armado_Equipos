@@ -5,6 +5,51 @@ import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, supabase } from '../supabase';
 import ProfileCard from './ProfileCard';
 
+const GEO_LOG_PREFIX = '[PROFILE_GEO]';
+
+const extractCityFromGeocodeResults = (results = []) => {
+  if (!Array.isArray(results) || results.length === 0) return null;
+
+  const priorityTypes = [
+    'locality',
+    'administrative_area_level_2',
+    'administrative_area_level_1',
+    'sublocality',
+    'neighborhood',
+  ];
+
+  for (const geocodeResult of results) {
+    const components = Array.isArray(geocodeResult?.address_components) ? geocodeResult.address_components : [];
+    for (const type of priorityTypes) {
+      const match = components.find((component) => Array.isArray(component?.types) && component.types.includes(type));
+      if (match?.long_name) return match.long_name;
+    }
+  }
+
+  return null;
+};
+
+const reverseGeocodeCity = async (latitude, longitude) => {
+  if (typeof window === 'undefined' || !window.google?.maps?.Geocoder) {
+    return null;
+  }
+
+  const geocoder = new window.google.maps.Geocoder();
+
+  const results = await new Promise((resolve, reject) => {
+    geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (geocodeResults, status) => {
+      if (status === 'OK') {
+        resolve(geocodeResults || []);
+        return;
+      }
+
+      reject(new Error(`Google Geocoder status: ${status}`));
+    });
+  });
+
+  return extractCityFromGeocodeResults(results);
+};
+
 // Form Component
 const ProfileEditorForm = ({
   liveProfile,
@@ -445,11 +490,10 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const MAX_NOMBRE = 12;
 
   const handleInputChange = useCallback((field, value) => {
-    const newData = { ...formData, [field]: value };
-    setFormData(newData);
+    setFormData((prev) => ({ ...prev, [field]: value }));
     setHasChanges(true);
-    setLiveProfile({ ...liveProfile, ...newData });
-  }, [formData, liveProfile, setFormData, setHasChanges, setLiveProfile]);
+    setLiveProfile((prev) => ({ ...(prev || {}), [field]: value }));
+  }, [setFormData, setHasChanges, setLiveProfile]);
 
   const handlePhotoChange = useCallback(async (e) => {
     const file = e.target.files[0];
@@ -614,16 +658,37 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       return;
     }
 
+    console.debug(`${GEO_LOG_PREFIX} requesting current position`);
     toast.info('Obteniendo ubicación...');
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        handleInputChange('latitud', position.coords.latitude);
-        handleInputChange('longitud', position.coords.longitude);
+      async (position) => {
+        const latitude = Number(position.coords.latitude);
+        const longitude = Number(position.coords.longitude);
+
+        console.debug(`${GEO_LOG_PREFIX} coordinates resolved`, { latitude, longitude });
+
+        handleInputChange('latitud', latitude);
+        handleInputChange('longitud', longitude);
+
+        try {
+          const city = await reverseGeocodeCity(latitude, longitude);
+          if (city) {
+            handleInputChange('localidad', city);
+            console.debug(`${GEO_LOG_PREFIX} city resolved`, { city });
+            toast.success('Ubicación obtenida correctamente');
+            return;
+          }
+          console.warn(`${GEO_LOG_PREFIX} city could not be resolved from coordinates`);
+        } catch (reverseError) {
+          console.warn(`${GEO_LOG_PREFIX} reverse geocode failed`, reverseError);
+        }
+
         toast.success('Ubicación obtenida correctamente');
       },
       (error) => {
         let errorMessage = 'Error obteniendo ubicación';
+        console.warn(`${GEO_LOG_PREFIX} geolocation error`, error);
         switch (error.code) {
           case error.PERMISSION_DENIED:
             errorMessage = 'Permiso denegado. Habilita la ubicación en tu dispositivo.';

@@ -145,6 +145,10 @@ const QuieroJugar = () => {
     return R * c;
   };
 
+  const hasValidCoordinates = (lat, lng) => (
+    Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))
+  );
+
   const { setIntervalSafe, clearIntervalSafe } = useInterval();
 
   useEffect(() => {
@@ -255,14 +259,18 @@ const QuieroJugar = () => {
       return priorityA - priorityB;
     } else {
       if (!userLocation) return 0;
-      const latA = a.latitud || -34.6037;
-      const lngA = a.longitud || -58.3816;
-      const latB = b.latitud || -34.6037;
-      const lngB = b.longitud || -58.3816;
+      const hasCoordsA = hasValidCoordinates(a.latitud, a.longitud);
+      const hasCoordsB = hasValidCoordinates(b.latitud, b.longitud);
 
-      const distanceA = calculateDistance(userLocation.lat, userLocation.lng, latA, lngA);
-      const distanceB = calculateDistance(userLocation.lat, userLocation.lng, latB, lngB);
-      return distanceA - distanceB;
+      if (hasCoordsA && hasCoordsB) {
+        const distanceA = calculateDistance(userLocation.lat, userLocation.lng, Number(a.latitud), Number(a.longitud));
+        const distanceB = calculateDistance(userLocation.lat, userLocation.lng, Number(b.latitud), Number(b.longitud));
+        return distanceA - distanceB;
+      }
+
+      if (hasCoordsA && !hasCoordsB) return -1;
+      if (!hasCoordsA && hasCoordsB) return 1;
+      return 0;
     }
   });
 
@@ -519,11 +527,11 @@ const QuieroJugar = () => {
                       key={player.uuid || player.id}
                       profile={player}
                       variant="searching"
-                      distanceKm={userLocation ? calculateDistance(
+                      distanceKm={userLocation && hasValidCoordinates(player.latitud, player.longitud) ? calculateDistance(
                         userLocation.lat,
                         userLocation.lng,
-                        player.latitud || -34.6037,
-                        player.longitud || -58.3816,
+                        Number(player.latitud),
+                        Number(player.longitud),
                       ) : null}
                       onClick={(e) => {
                         const rect = e?.currentTarget?.getBoundingClientRect?.();
