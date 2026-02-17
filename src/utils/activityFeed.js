@@ -393,6 +393,13 @@ const shouldIncludeNotification = (notification, normalizedType) => {
     return ageMs <= 24 * 60 * 60 * 1000;
   }
 
+  if (normalizedType === 'match_join_request') {
+    // Join requests are operationally important for admins.
+    // Keep unread requests visible for longer so they don't disappear from "Actividad reciente".
+    if (!notification.read) return ageMs <= 7 * 24 * 60 * 60 * 1000;
+    return ageMs <= 72 * 60 * 60 * 1000;
+  }
+
   // For other activity types, allow read rows too but only for a short window
   // so the card doesn't stay empty and still stays current.
   return ageMs <= 48 * 60 * 60 * 1000;

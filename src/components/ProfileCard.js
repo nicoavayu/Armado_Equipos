@@ -492,8 +492,8 @@ const ProfileCardComponent = ({
                         )}
 
                         {vm.level !== null && (
-                          <div className="flex flex-col items-center mt-1.5">
-                            <span className="inline-flex flex-col items-center gap-1" aria-label={`Nivel autopercibido ${vm.level} de 5`}>
+                          <div className="flex flex-col items-center mt-2.5">
+                            <span className="inline-flex flex-col items-center gap-1.5" aria-label={`Nivel autopercibido ${vm.level} de 5`}>
                               {[5, 4, 3, 2, 1].map((dot) => (
                                 <span
                                   key={dot}

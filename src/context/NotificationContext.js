@@ -496,6 +496,8 @@ export const NotificationProvider = ({ children }) => {
     const unread = notifs.filter((n) => !n.read);
     const friendRequests = unread.filter((n) => n.type === 'friend_request').length;
     const matchInvites = unread.filter((n) => n.type === 'match_invite').length;
+    const matchJoinRequests = unread.filter((n) => n.type === 'match_join_request').length;
+    const matchJoinApproved = unread.filter((n) => n.type === 'match_join_approved').length;
     const callToVote = unread.filter((n) => n.type === 'call_to_vote').length;
     const surveyStarts = unread.filter((n) => n.type === 'survey_start').length;
     const postMatchSurveys = unread.filter((n) => n.type === 'post_match_survey').length;
@@ -505,7 +507,7 @@ export const NotificationProvider = ({ children }) => {
 
     setUnreadCount({
       friends: friendRequests,
-      matches: matchInvites + callToVote + surveyStarts + postMatchSurveys + surveyResults + awardsReady + surveyFinished,
+      matches: matchInvites + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyResults + awardsReady + surveyFinished,
       total: unread.length,
     });
   };

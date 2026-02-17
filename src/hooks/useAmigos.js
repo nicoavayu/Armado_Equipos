@@ -12,6 +12,27 @@ const isValidUUID = (value) => {
   return uuidRegex.test(value);
 };
 
+const pickBestAvatarUrl = (...candidates) => {
+  const valid = candidates
+    .filter((value) => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => value.trim());
+
+  if (valid.length === 0) return null;
+
+  const scored = valid
+    .map((url) => {
+      const lower = url.toLowerCase();
+      let score = 0;
+      if (lower.includes('/storage/v1/object/public/')) score += 4;
+      if (lower.includes('googleusercontent.com') || lower.includes('fbcdn.net')) score += 3;
+      if (lower.includes('ui-avatars.com') || lower.endsWith('/profile.svg') || lower.includes('/profile.svg?')) score -= 2;
+      return { url, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  return scored[0]?.url || null;
+};
+
 /**
  * Hook for managing friend relationships
  * @returns {Object} Friend management functions and state
@@ -448,7 +469,11 @@ export const useAmigos = (currentUserId) => {
         .map((item) => item.user_id)
         .filter(Boolean);
 
-      const [{ data: profilesData, error: profilesError }, { data: usuariosData, error: usuariosError }] = await Promise.all([
+      const [
+        { data: profilesData, error: profilesError },
+        { data: usuariosData, error: usuariosError },
+        { data: jugadoresData, error: jugadoresError },
+      ] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, nombre, avatar_url')
@@ -457,6 +482,12 @@ export const useAmigos = (currentUserId) => {
           .from('usuarios')
           .select('id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero, pierna_habil, nivel')
           .in('id', requesterIds),
+        supabase
+          .from('jugadores')
+          .select('id, usuario_id, avatar_url')
+          .in('usuario_id', requesterIds)
+          .not('avatar_url', 'is', null)
+          .order('id', { ascending: false }),
       ]);
 
       if (profilesError) {
@@ -466,6 +497,17 @@ export const useAmigos = (currentUserId) => {
         console.error('[AMIGOS] Error fetching usuarios for pending requests:', usuariosError);
         throw usuariosError;
       }
+      if (jugadoresError) {
+        console.warn('[AMIGOS] Error fetching jugadores avatar fallback for pending requests:', jugadoresError);
+      }
+
+      const latestJugadorAvatarMap = new Map();
+      (jugadoresData || []).forEach((row) => {
+        if (!row?.usuario_id || latestJugadorAvatarMap.has(row.usuario_id)) return;
+        if (typeof row.avatar_url === 'string' && row.avatar_url.trim()) {
+          latestJugadorAvatarMap.set(row.usuario_id, row.avatar_url.trim());
+        }
+      });
 
       // Log the raw data for debugging
       if (requestsData && requestsData.length > 0) {
@@ -479,8 +521,12 @@ export const useAmigos = (currentUserId) => {
           ...usuarioRow,
           ...profileRow,
           id: item.user_id,
-          nombre: profileRow?.nombre || usuarioRow?.nombre || 'Usuario',
-          avatar_url: profileRow?.avatar_url || usuarioRow?.avatar_url || null,
+          nombre: usuarioRow?.nombre || profileRow?.nombre || 'Usuario',
+          avatar_url: pickBestAvatarUrl(
+            usuarioRow?.avatar_url,
+            profileRow?.avatar_url,
+            latestJugadorAvatarMap.get(item.user_id),
+          ),
         };
 
         return {
