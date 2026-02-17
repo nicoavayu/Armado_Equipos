@@ -334,11 +334,8 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
   // Render friend action button based on relationship status
   const renderFriendActionButton = () => {
-    console.log('[PROFILE_MODAL] renderFriendActionButton - registeredUserId:', registeredUserId, 'currentUserId:', currentUserId);
-
     // Check if it's the current user
     if (currentUserId === registeredUserId) {
-      console.log('[PROFILE_MODAL] Not rendering friend button - same user');
       return null;
     }
 
@@ -349,11 +346,8 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
     // If we don't have a profileUserId, don't render
     if (!registeredUserId) {
-      console.log('[PROFILE_MODAL] Not rendering friend button - missing ID');
       return null;
     }
-
-    console.log('[PROFILE_MODAL] Rendering friend button with status:', relationshipStatus);
 
     if (!relationshipStatus) {
       return (
@@ -409,7 +403,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     }
   }, [isOpen, modalProfile?.id]);
 
-  const actionButtons = hasRegisteredAccount
+  const actionButtons = isOpen && hasRegisteredAccount
     ? [renderFriendActionButton(), renderContactButton(), renderMakeAdminButton()].filter(Boolean)
     : [];
   const actionColsClass = actionButtons.length === 1

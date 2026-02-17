@@ -1,4 +1,5 @@
 import React from 'react';
+import { isChunkLoadError, recoverFromChunkLoadError } from '../utils/chunkLoadRecovery';
 
 class GlobalErrorBoundary extends React.Component {
   constructor(props) {
@@ -12,6 +13,10 @@ class GlobalErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('GlobalErrorBoundary caught error:', error, errorInfo.componentStack);
+
+    if (isChunkLoadError(error)) {
+      recoverFromChunkLoadError();
+    }
   }
 
   handleRetry = () => {
@@ -20,6 +25,7 @@ class GlobalErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      const chunkError = isChunkLoadError(this.state.error);
       return (
         <div style={{
           display: 'flex',
@@ -37,7 +43,9 @@ class GlobalErrorBoundary extends React.Component {
             Uy, algo falló
           </h1>
           <p style={{ fontSize: '18px', marginBottom: '32px', opacity: 0.9 }}>
-            Intentá recargar la página. Si persiste, avisanos.
+            {chunkError
+              ? 'La app se actualizó y faltó un archivo en caché. Recargá para sincronizar.'
+              : 'Intentá recargar la página. Si persiste, avisanos.'}
           </p>
           <button
             onClick={this.handleRetry}

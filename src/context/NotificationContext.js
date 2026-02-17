@@ -9,6 +9,7 @@ import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 import { applyMatchNameQuotes, quoteMatchName, resolveNotificationMatchName } from '../utils/notificationText';
 
 const NotificationContext = createContext();
+const DEBUG_NOTIFICATIONS = process.env.NODE_ENV !== 'production';
 
 /**
  * Hook to access notification context
@@ -43,8 +44,11 @@ export const NotificationProvider = ({ children }) => {
   // Umbral para ignorar eventos realtime con created_at <= al último clear
   const ignoreBeforeRef = useRef(null);
 
-  // Very visible mount log for debugging notification connectivity
-  console.log('[NOTIFICATIONS] NotificationProvider mounted');
+  useEffect(() => {
+    if (DEBUG_NOTIFICATIONS) {
+      console.log('[NOTIFICATIONS] NotificationProvider mounted');
+    }
+  }, []);
 
   // Get current user on mount
   useEffect(() => {
@@ -70,7 +74,9 @@ export const NotificationProvider = ({ children }) => {
   // Listen for auth state changes and keep currentUserId in sync
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('[NOTIFICATIONS] onAuthStateChange', _event, session?.user?.id || null);
+      if (DEBUG_NOTIFICATIONS) {
+        console.log('[NOTIFICATIONS] onAuthStateChange', _event, session?.user?.id || null);
+      }
       setCurrentUserId(session?.user?.id || null);
     });
     return () => sub?.subscription?.unsubscribe?.();
@@ -153,12 +159,16 @@ export const NotificationProvider = ({ children }) => {
     }
 
     logger.log('[NOTIFICATIONS] Fetching notifications for user:', currentUserId);
-    console.log('[NOTIFICATIONS] fetchNotifications START for user:', currentUserId);
+    if (DEBUG_NOTIFICATIONS) {
+      console.log('[NOTIFICATIONS] fetchNotifications START for user:', currentUserId);
+    }
     try {
       // Only fetch notifications from the last 5 days to keep the UI light
       const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
       const cutoffISO = fiveDaysAgo.toISOString();
-      console.log('[NOTIFICATIONS] fetch cutoffISO:', cutoffISO);
+      if (DEBUG_NOTIFICATIONS) {
+        console.log('[NOTIFICATIONS] fetch cutoffISO:', cutoffISO);
+      }
 
       let data;
       try {
@@ -170,19 +180,27 @@ export const NotificationProvider = ({ children }) => {
           .order('send_at', { ascending: false });
         data = res.data;
         if (res.error) {
-          console.log('[NOTIFICATIONS] fetch error from supabase:', res.error?.message, res.error?.details || null);
+          if (DEBUG_NOTIFICATIONS) {
+            console.log('[NOTIFICATIONS] fetch error from supabase:', res.error?.message, res.error?.details || null);
+          }
           throw res.error;
         }
       } catch (selectErr) {
-        console.log('[NOTIFICATIONS] Exception during supabase select:', selectErr);
+        if (DEBUG_NOTIFICATIONS) {
+          console.log('[NOTIFICATIONS] Exception during supabase select:', selectErr);
+        }
         throw selectErr;
       }
 
       setLastFetchAt(new Date().toISOString());
       setLastFetchCount((data && data.length) || 0);
-      console.log('[NOTIFICATIONS] fetchNotifications RESULT count:', (data && data.length) || 0);
+      if (DEBUG_NOTIFICATIONS) {
+        console.log('[NOTIFICATIONS] fetchNotifications RESULT count:', (data && data.length) || 0);
+      }
       if (!data || data.length === 0) {
-        console.log('[NOTIFICATIONS] fetchNotifications empty result for user:', currentUserId, 'cutoffISO:', cutoffISO);
+        if (DEBUG_NOTIFICATIONS) {
+          console.log('[NOTIFICATIONS] fetchNotifications empty result for user:', currentUserId, 'cutoffISO:', cutoffISO);
+        }
       }
 
       logger.log('[NOTIFICATIONS] Fetched notifications (total):', data?.length || 0);
@@ -211,7 +229,9 @@ export const NotificationProvider = ({ children }) => {
       setScheduledNotifications(scheduledRaw);
       updateUnreadCount(dedupedVisible);
     } catch (error) {
-      console.log('[NOTIFICATIONS] fetchNotifications CATCH error:', error);
+      if (DEBUG_NOTIFICATIONS) {
+        console.log('[NOTIFICATIONS] fetchNotifications CATCH error:', error);
+      }
       handleError(error, { showToast: false, onError: () => { } });
     }
   }, [currentUserId]);

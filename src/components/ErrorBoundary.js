@@ -1,4 +1,5 @@
 import React from 'react';
+import { isChunkLoadError, recoverFromChunkLoadError } from '../utils/chunkLoadRecovery';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -12,20 +13,32 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+
+    if (isChunkLoadError(error)) {
+      recoverFromChunkLoadError();
+    }
   }
 
   render() {
     if (this.state.hasError) {
+      const chunkError = isChunkLoadError(this.state.error);
       return (
         <div style={{ padding: '20px', textAlign: 'center', color: 'white' }}>
           <h2>Algo salió mal</h2>
-          <p>Error: {this.state.error?.message || 'Error desconocido'}</p>
+          <p>
+            {chunkError
+              ? 'La app se actualizó y este navegador quedó con archivos viejos en caché.'
+              : `Error: ${this.state.error?.message || 'Error desconocido'}`}
+          </p>
           <button onClick={() => {
             try {
-              // Soft navigation back to home
+              if (chunkError) {
+                window.location.reload();
+                return;
+              }
+
               if (typeof window !== 'undefined' && window.history) {
                 window.history.pushState({}, '', '/');
-                // Trigger a popstate so routers can update if needed
                 window.dispatchEvent(new PopStateEvent('popstate'));
               } else {
                 window.location.href = '/';
@@ -34,7 +47,7 @@ class ErrorBoundary extends React.Component {
               window.location.href = '/';
             }
           }}>
-            Volver al inicio
+            {chunkError ? 'Recargar app' : 'Volver al inicio'}
           </button>
         </div>
       );
