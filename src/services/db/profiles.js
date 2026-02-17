@@ -500,7 +500,7 @@ export const createOrUpdateProfile = async (user) => {
     avatar_url: avatarForProfile,
     red_social: null,                 // or map if you have it
     localidad: null,                  // editable later
-    ranking: 0,
+    ranking: 5,
     partidos_jugados: 0,
     posicion: null,                   // editable later
     acepta_invitaciones: true,

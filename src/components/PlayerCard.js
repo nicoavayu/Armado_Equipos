@@ -23,7 +23,7 @@ const PlayerCard = ({ profile, user, isVisible }) => {
   const email = profile?.email || user?.email;
   const countryCode = profile?.pais_codigo || 'AR';
   console.log('[AMIGOS] Processing ranking field in PlayerCard:', { ranking: profile?.ranking, calificacion: profile?.calificacion });
-  const rating = profile?.ranking || profile?.calificacion || 4.5; // Support both ranking and calificacion for backward compatibility
+  const rating = profile?.ranking || profile?.calificacion || 5; // Support both ranking and calificacion for backward compatibility
   const matchesPlayed = profile?.partidos_jugados || 28;
   const ageRange = profile?.rango_edad || '31-45';
   const social = profile?.social || '@leomessi';

@@ -433,7 +433,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     longitud: null,
     partidos_jugados: 0,
     partidos_abandonados: 0,
-    ranking: 4.5,
+    ranking: 5,
     bio: '',
     acepta_invitaciones: true,
   });
@@ -471,7 +471,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         longitud: profile.longitud || null,
         partidos_jugados: profile.partidos_jugados || 0,
         partidos_abandonados: profile.partidos_abandonados || 0,
-        ranking: profile.ranking || profile.calificacion || 4.5,
+        ranking: profile.ranking || profile.calificacion || 5,
         bio: profile.bio || '',
         acepta_invitaciones: profile.acepta_invitaciones !== false,
       };

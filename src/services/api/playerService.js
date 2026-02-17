@@ -262,7 +262,7 @@ export const createOrUpdateProfile = async (user) => {
     avatar_url: avatarUrl || existingUser?.avatar_url || null,
     red_social: null,                 // o traelo si lo tenés
     localidad: null,                  // editable luego
-    ranking: 0,
+    ranking: 5,
     partidos_jugados: 0,
     posicion: null,                   // editable luego
     acepta_invitaciones: true,

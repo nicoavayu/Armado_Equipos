@@ -45,10 +45,10 @@ const PlayerMiniCard = ({
     ? profile.rating
     : (typeof profile?.ranking === 'number'
       ? profile.ranking
-      : (typeof profile?.calificacion === 'number' ? profile.calificacion : 4.5));
+      : (typeof profile?.calificacion === 'number' ? profile.calificacion : 5));
   const normalizedRating = Number.isFinite(rawRatingCandidate) && rawRatingCandidate > 0
     ? rawRatingCandidate
-    : 4.5;
+    : 5;
   const ratingStr = normalizedRating.toFixed(1);
   const posicion = getPos(profile?.posicion || profile?.rol_favorito || 'DEF');
   const posColor = getPosColor(posicion);
