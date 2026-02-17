@@ -29,12 +29,33 @@ const AuthProvider = ({ children }) => {
         profileData = await getProfile(currentUser.id);
         console.log('Existing profile found:', profileData);
 
-        // NOTE: Do NOT update avatar_url during auth/login flow.
-        // The app must only change avatar when user explicitly uploads a new one.
-        const metadataAvatar = currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture;
+        const metadataAvatar = (currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture || '').trim();
         if (metadataAvatar && !profileData?.avatar_url) {
-          console.log('[AUTH] Social provider avatar available but will NOT update usuarios.avatar_url on login:', metadataAvatar);
-          // Intentionally do NOT call updateProfile or createOrUpdateProfile here.
+          console.log('[AUTH] Hydrating missing avatar_url from social metadata');
+
+          const [{ error: updateUsuarioError }, { error: updateProfileError }] = await Promise.all([
+            supabase
+              .from('usuarios')
+              .update({
+                avatar_url: metadataAvatar,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', currentUser.id),
+            supabase
+              .from('profiles')
+              .update({ avatar_url: metadataAvatar })
+              .eq('id', currentUser.id),
+          ]);
+
+          if (updateUsuarioError) {
+            console.warn('[AUTH] Could not hydrate usuarios.avatar_url from metadata:', updateUsuarioError);
+          } else {
+            profileData = { ...profileData, avatar_url: metadataAvatar };
+          }
+
+          if (updateProfileError) {
+            console.warn('[AUTH] Could not hydrate profiles.avatar_url from metadata:', updateProfileError);
+          }
         }
       } catch (error) {
         // Only create profile when PostgREST returned "no rows" (PGRST116).

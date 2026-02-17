@@ -41,12 +41,15 @@ const PlayerMiniCard = ({
 }) => {
   const name = profile?.nombre || 'Usuario';
   const avatarUrl = profile?.avatar_url || profile?.foto_url;
-  const rawRating = typeof profile?.rating === 'number'
+  const rawRatingCandidate = typeof profile?.rating === 'number'
     ? profile.rating
     : (typeof profile?.ranking === 'number'
       ? profile.ranking
       : (typeof profile?.calificacion === 'number' ? profile.calificacion : 4.5));
-  const ratingStr = rawRating.toFixed(1);
+  const normalizedRating = Number.isFinite(rawRatingCandidate) && rawRatingCandidate > 0
+    ? rawRatingCandidate
+    : 4.5;
+  const ratingStr = normalizedRating.toFixed(1);
   const posicion = getPos(profile?.posicion || profile?.rol_favorito || 'DEF');
   const posColor = getPosColor(posicion);
   const showDistance = variant === 'searching' && typeof distanceKm === 'number' && Number.isFinite(distanceKm);

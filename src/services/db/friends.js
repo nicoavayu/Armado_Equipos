@@ -1,5 +1,26 @@
 import { supabase } from '../../lib/supabaseClient';
 
+const pickBestAvatarUrl = (...candidates) => {
+  const valid = candidates
+    .filter((value) => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => value.trim());
+
+  if (valid.length === 0) return null;
+
+  const scored = valid
+    .map((url) => {
+      const lower = url.toLowerCase();
+      let score = 0;
+      if (lower.includes('/storage/v1/object/public/')) score += 4;
+      if (lower.includes('googleusercontent.com') || lower.includes('fbcdn.net')) score += 3;
+      if (lower.includes('ui-avatars.com') || lower.endsWith('/profile.svg') || lower.includes('/profile.svg?')) score -= 2;
+      return { url, score };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  return scored[0]?.url || null;
+};
+
 /**
  * Get all friends for a user with status 'accepted'
  * @param {string} userId - Current user ID (UUID)
@@ -54,24 +75,70 @@ export const getAmigos = async (userId) => {
 
     // 4. Hacer SELECT FROM usuarios WHERE id IN (friendIds) - usar campos que sabemos que existen
     const friendIds = uniqueFriendMappings.map((m) => m.friendId);
-    const { data: users, error: usersError } = await supabase
-      .from('usuarios')
-      .select('id, nombre, avatar_url, localidad, ranking, partidos_jugados, posicion, email, pierna_habil, nivel')
-      .in('id', friendIds);
+    const [
+      { data: users, error: usersError },
+      { data: profilesData, error: profilesError },
+      { data: jugadoresData, error: jugadoresError },
+    ] = await Promise.all([
+      supabase
+        .from('usuarios')
+        .select('id, nombre, avatar_url, localidad, ranking, partidos_jugados, posicion, email, pierna_habil, nivel')
+        .in('id', friendIds),
+      supabase
+        .from('profiles')
+        .select('id, avatar_url')
+        .in('id', friendIds),
+      supabase
+        .from('jugadores')
+        .select('id, usuario_id, avatar_url')
+        .in('usuario_id', friendIds)
+        .not('avatar_url', 'is', null)
+        .order('id', { ascending: false }),
+    ]);
 
     if (usersError) throw usersError;
+    if (profilesError) {
+      console.warn('[GET_AMIGOS] Error fetching profiles avatar fallback:', profilesError);
+    }
+    if (jugadoresError) {
+      console.warn('[GET_AMIGOS] Error fetching jugadores avatar fallback:', jugadoresError);
+    }
+
+    const userById = new Map((users || []).map((u) => [u.id, u]));
+    const profileAvatarById = new Map(
+      (profilesData || [])
+        .filter((row) => row?.id && typeof row.avatar_url === 'string' && row.avatar_url.trim())
+        .map((row) => [row.id, row.avatar_url.trim()]),
+    );
+
+    const latestJugadorAvatarByUserId = new Map();
+    (jugadoresData || []).forEach((row) => {
+      if (!row?.usuario_id || latestJugadorAvatarByUserId.has(row.usuario_id)) return;
+      if (typeof row.avatar_url === 'string' && row.avatar_url.trim()) {
+        latestJugadorAvatarByUserId.set(row.usuario_id, row.avatar_url.trim());
+      }
+    });
 
     // 5. Combinar datos de usuarios con IDs de relaciones
     const friendsWithRelationships = uniqueFriendMappings.map((mapping) => {
-      const user = users?.find((u) => u.id === mapping.friendId);
+      const user = userById.get(mapping.friendId);
       if (!user) return null; // Skip if user data not found
+
+      const bestAvatar = pickBestAvatarUrl(
+        user.avatar_url,
+        profileAvatarById.get(mapping.friendId),
+        latestJugadorAvatarByUserId.get(mapping.friendId),
+      );
+
       return {
         relationshipId: mapping.relationshipId,
         ...user,
+        avatar_url: bestAvatar,
       };
     }).filter(f => f !== null && f.id);
 
-    console.log('[GET_AMIGOS] Returning friends with relationship IDs:', friendsWithRelationships.length);
+    const withAvatar = friendsWithRelationships.filter((friend) => Boolean(friend.avatar_url)).length;
+    console.log('[GET_AMIGOS] Returning friends with relationship IDs:', friendsWithRelationships.length, 'with avatar:', withAvatar);
 
     return friendsWithRelationships || [];
 
