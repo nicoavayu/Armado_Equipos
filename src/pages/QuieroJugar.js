@@ -90,6 +90,8 @@ const hasValidCoordinates = (lat, lng) => {
 };
 
 const QuieroJugar = () => {
+  const MAX_SUBSTITUTE_SLOTS = 2;
+
   const navigate = useNavigate();
   const onVolver = () => navigate(-1);
   const { user } = useAuth();
@@ -477,9 +479,15 @@ const QuieroJugar = () => {
             ) : (
               <>
                 {sortedPartidos.map((partido) => {
-                  const jugadoresCount = partido.jugadores?.length || 0;
-                  const cupoMaximo = partido.cupo_jugadores || 20;
-                  const isComplete = jugadoresCount >= cupoMaximo;
+                  const cupoMaximo = Number(partido.cupo_jugadores || 20);
+                  const jugadores = Array.isArray(partido.jugadores) ? partido.jugadores : [];
+                  const jugadoresCount = jugadores.length;
+                  const flaggedSubstitutes = jugadores.filter((j) => Boolean(j?.is_substitute)).length;
+                  const overflowSubstitutes = Math.max(0, jugadoresCount - cupoMaximo);
+                  const substitutesCount = Math.min(MAX_SUBSTITUTE_SLOTS, Math.max(flaggedSubstitutes, overflowSubstitutes));
+                  const titularesCount = Math.max(0, jugadoresCount - substitutesCount);
+                  const titularesDisplayCount = Math.min(titularesCount, cupoMaximo);
+                  const isComplete = titularesDisplayCount >= cupoMaximo;
                   const locationLabel = buildMatchLocationLabel(partido);
                   const formattedDate = new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
 
@@ -492,14 +500,19 @@ const QuieroJugar = () => {
                             <span className="bg-white/10 px-2 py-1 rounded-lg flex items-center gap-1.5 border border-white/5"><Clock size={12} className="text-[#128BE9]" /> {partido.hora} hs</span>
                           </span>
                         </div>
-                        <div className="shrink-0">
+                        <div className="shrink-0 flex items-center gap-1.5">
                           {isComplete ? (
                             <span className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded border border-emerald-400/20 tracking-wider">
-                              {jugadoresCount}/{cupoMaximo}
+                              {titularesDisplayCount}/{cupoMaximo}
                             </span>
                           ) : (
                             <span className="text-[10px] font-bold text-white/90 bg-white/10 px-2 py-1 rounded border border-white/20 tracking-wider">
-                              {jugadoresCount}/{cupoMaximo}
+                              {titularesDisplayCount}/{cupoMaximo}
+                            </span>
+                          )}
+                          {substitutesCount > 0 && (
+                            <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-1 rounded border border-amber-400/30 tracking-wider">
+                              {substitutesCount}/{MAX_SUBSTITUTE_SLOTS}
                             </span>
                           )}
                         </div>
