@@ -66,6 +66,29 @@ const buildMatchLocationLabel = (partido) => {
   return parts.join(', ');
 };
 
+const toCoordinateNumber = (value) => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string') {
+    const normalized = value.trim().replace(',', '.');
+    if (!normalized) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const hasValidCoordinates = (lat, lng) => {
+  const parsedLat = toCoordinateNumber(lat);
+  const parsedLng = toCoordinateNumber(lng);
+
+  if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) return false;
+  if (parsedLat < -90 || parsedLat > 90 || parsedLng < -180 || parsedLng > 180) return false;
+
+  // Descarta "Null Island" (0,0), común cuando la ubicación quedó mal guardada.
+  if (Math.abs(parsedLat) < 0.0001 && Math.abs(parsedLng) < 0.0001) return false;
+  return true;
+};
+
 const QuieroJugar = () => {
   const navigate = useNavigate();
   const onVolver = () => navigate(-1);
@@ -116,21 +139,53 @@ const QuieroJugar = () => {
   }, [actionPlayer, user?.id, getRelationshipStatus]);
 
   const getUserLocation = () => {
+    const setLocationFromProfileFallback = async () => {
+      try {
+        if (!user?.id) return setUserLocation(null);
+
+        const { data, error } = await supabase
+          .from('usuarios')
+          .select('latitud, longitud')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+
+        if (hasValidCoordinates(data?.latitud, data?.longitud)) {
+          setUserLocation({
+            lat: toCoordinateNumber(data.latitud),
+            lng: toCoordinateNumber(data.longitud),
+          });
+          return;
+        }
+
+        setUserLocation(null);
+      } catch (error) {
+        console.log('Could not resolve location from profile:', error);
+        setUserLocation(null);
+      }
+    };
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
+          const lat = toCoordinateNumber(position.coords.latitude);
+          const lng = toCoordinateNumber(position.coords.longitude);
+
+          if (hasValidCoordinates(lat, lng)) {
+            setUserLocation({ lat, lng });
+            return;
+          }
+
+          setLocationFromProfileFallback();
         },
         (error) => {
-          console.log('Geolocation error, using default location:', error);
-          setUserLocation({ lat: -34.6037, lng: -58.3816 });
+          console.log('Geolocation error, trying profile location:', error);
+          setLocationFromProfileFallback();
         },
       );
     } else {
-      setUserLocation({ lat: -34.6037, lng: -58.3816 });
+      setLocationFromProfileFallback();
     }
   };
 
@@ -144,10 +199,6 @@ const QuieroJugar = () => {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
-
-  const hasValidCoordinates = (lat, lng) => (
-    Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))
-  );
 
   const { setIntervalSafe, clearIntervalSafe } = useInterval();
 
@@ -263,8 +314,8 @@ const QuieroJugar = () => {
       const hasCoordsB = hasValidCoordinates(b.latitud, b.longitud);
 
       if (hasCoordsA && hasCoordsB) {
-        const distanceA = calculateDistance(userLocation.lat, userLocation.lng, Number(a.latitud), Number(a.longitud));
-        const distanceB = calculateDistance(userLocation.lat, userLocation.lng, Number(b.latitud), Number(b.longitud));
+        const distanceA = calculateDistance(userLocation.lat, userLocation.lng, toCoordinateNumber(a.latitud), toCoordinateNumber(a.longitud));
+        const distanceB = calculateDistance(userLocation.lat, userLocation.lng, toCoordinateNumber(b.latitud), toCoordinateNumber(b.longitud));
         return distanceA - distanceB;
       }
 
@@ -530,8 +581,8 @@ const QuieroJugar = () => {
                       distanceKm={userLocation && hasValidCoordinates(player.latitud, player.longitud) ? calculateDistance(
                         userLocation.lat,
                         userLocation.lng,
-                        Number(player.latitud),
-                        Number(player.longitud),
+                        toCoordinateNumber(player.latitud),
+                        toCoordinateNumber(player.longitud),
                       ) : null}
                       onClick={(e) => {
                         const rect = e?.currentTarget?.getBoundingClientRect?.();
