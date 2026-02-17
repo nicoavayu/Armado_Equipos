@@ -68,6 +68,17 @@ const getLevelValue = (nivel) => {
   return Math.min(5, Math.max(1, parsed));
 };
 
+const getLevelDotColor = (level) => {
+  const map = {
+    1: '#EF4444', // Recreativo
+    2: '#F97316', // Amateur
+    3: '#FACC15', // Intermedio
+    4: '#84CC16', // Competitivo
+    5: '#22C55E', // Avanzado
+  };
+  return map[level] || '#FFFFFF';
+};
+
 const getAvatar = (p) => {
   const src = p?.avatar_url || p?.foto_url || p?.user?.user_metadata?.avatar_url || p?.user?.user_metadata?.picture || p?.user_metadata?.avatar_url || p?.user_metadata?.picture;
   if (!src) return null;
@@ -195,6 +206,7 @@ const ProfileCardComponent = ({
   }, [vm?.mvp, vm?.gk, vm?.red]);
 
   if (!isVisible || !vm) return null;
+  const levelDotColor = vm.level !== null ? getLevelDotColor(vm.level) : null;
 
   return (
     <>
@@ -453,7 +465,6 @@ const ProfileCardComponent = ({
 
                   {/* Layout Wrapper */}
                   <div className="relative w-full px-6 flex flex-col items-center">
-
                     {/* RIGHT SIDE STATS (Vertical Stack in Smaller Glass Container - Raised) */}
                     <div className="absolute right-[40px] -top-[20px] flex flex-col items-center p-1.5 rounded-lg bg-white/5 border border-white/10 backdrop-blur-md pc-right-stats">
                       {/* PJ Stack */}
@@ -497,7 +508,11 @@ const ProfileCardComponent = ({
                               {[5, 4, 3, 2, 1].map((dot) => (
                                 <span
                                   key={dot}
-                                  className={`w-1.5 h-1.5 rounded-full ${dot <= vm.level ? 'bg-white/70' : 'bg-white/25'}`}
+                                  className={`w-1.5 h-1.5 rounded-full ${dot <= vm.level ? '' : 'bg-white/25'}`}
+                                  style={dot <= vm.level ? {
+                                    backgroundColor: levelDotColor,
+                                    boxShadow: `0 0 6px ${levelDotColor}80`,
+                                  } : undefined}
                                 />
                               ))}
                             </span>
