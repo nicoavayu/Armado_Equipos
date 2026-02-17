@@ -34,6 +34,7 @@ const PlayerMiniCard = ({
   profile,
   variant = 'friend',
   distanceKm = null,
+  showDistanceUnavailable = false,
   onClick,
   rightSlot = null,
   metaBadge = null,
@@ -53,6 +54,7 @@ const PlayerMiniCard = ({
   const posicion = getPos(profile?.posicion || profile?.rol_favorito || 'DEF');
   const posColor = getPosColor(posicion);
   const showDistance = variant === 'searching' && typeof distanceKm === 'number' && Number.isFinite(distanceKm);
+  const showMissingDistance = variant === 'searching' && showDistanceUnavailable && !showDistance;
   const ratingContainerClass = variant === 'friend'
     ? 'bg-[#233f78]/88 border-[#e6bf4f]/35 text-[#ffe08a]'
     : 'bg-[#FFD700]/10 border-[#FFD700]/30 text-[#FFD700]';
@@ -100,6 +102,13 @@ const PlayerMiniCard = ({
             <span className="inline-flex items-center gap-1 normal-case">
               <MapPin size={12} />
               {Math.round(distanceKm)} km
+            </span>
+          )}
+
+          {showMissingDistance && (
+            <span className="inline-flex items-center gap-1 normal-case text-white/40">
+              <MapPin size={12} />
+              Sin ubicacion
             </span>
           )}
         </div>

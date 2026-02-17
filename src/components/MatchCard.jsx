@@ -35,6 +35,7 @@ const MatchCard = ({
     isSelected = false,
     onSelect = () => { },
 }) => {
+    const MAX_SUBSTITUTE_SLOTS = 2;
     const showMenu = (userJoined || userRole === 'admin' || isFinished) && (onAbandon || onCancel || onClear);
 
     const precioRaw = (partido?.precio_cancha_por_persona ?? partido?.precio_cancha ?? partido?.precio ?? partido?.valor_cancha);
@@ -47,9 +48,15 @@ const MatchCard = ({
         ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(precioNumber)
         : 'Sin precio';
 
-    const jugadoresCount = partido.jugadores?.[0]?.count || partido.jugadores?.length || 0;
-    const cupoMaximo = partido.cupo_jugadores || 20;
-    const isComplete = jugadoresCount >= cupoMaximo;
+    const cupoMaximo = Number(partido.cupo_jugadores || 20);
+    const jugadores = Array.isArray(partido.jugadores) ? partido.jugadores : [];
+    const jugadoresCount = typeof jugadores?.[0]?.count === 'number' ? jugadores[0].count : jugadores.length;
+    const flaggedSubstitutes = jugadores.filter((j) => Boolean(j?.is_substitute)).length;
+    const overflowSubstitutes = Math.max(0, jugadoresCount - cupoMaximo);
+    const substitutesCount = Math.min(MAX_SUBSTITUTE_SLOTS, Math.max(flaggedSubstitutes, overflowSubstitutes));
+    const titularesCount = Math.max(0, jugadoresCount - substitutesCount);
+    const titularesDisplayCount = Math.min(titularesCount, cupoMaximo);
+    const isComplete = titularesDisplayCount >= cupoMaximo;
 
     return (
         <div
@@ -147,15 +154,17 @@ const MatchCard = ({
                 <div className={`font-oswald text-[11px] font-semibold text-slate-200 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 shrink-0 whitespace-nowrap ${isFinished ? 'opacity-70' : ''}`}>
                     {precioLabel}
                 </div>
-                <div className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 whitespace-nowrap ${isComplete
+                <div className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 whitespace-nowrap ${isComplete
                     ? 'bg-[#165a2e] text-[#22c55e] border border-[#22c55e]'
                     : 'bg-slate-900 text-slate-300 border border-slate-700'
                     } ${isFinished ? 'opacity-70' : ''}`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="currentColor">
-                        <path d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z" />
-                    </svg>
-                    {jugadoresCount}/{cupoMaximo} jugadores
+                    {titularesDisplayCount}/{cupoMaximo}
                 </div>
+                {substitutesCount > 0 && (
+                    <div className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 whitespace-nowrap border border-amber-400/30 bg-amber-500/10 text-amber-300 ${isFinished ? 'opacity-70' : ''}`}>
+                        {substitutesCount}/{MAX_SUBSTITUTE_SLOTS}
+                    </div>
+                )}
             </div>
 
             {/* Ubicación */}

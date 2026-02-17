@@ -178,7 +178,7 @@ const ProximosPartidos = ({ onClose }) => {
         .from('partidos')
         .select(`
           *,
-          jugadores(count)
+          jugadores(is_substitute)
         `)
         .in('id', todosLosPartidosIds)
         .order('fecha', { ascending: true })

@@ -311,7 +311,13 @@ const QuieroJugar = () => {
       const priorityB = posPriority[b.posicion] || 99;
       return priorityA - priorityB;
     } else {
-      if (!userLocation) return 0;
+      // Si no hay contexto real para distancia, evitar un orden "aleatorio":
+      // hacemos fallback a rating para mantener consistencia.
+      if (!userLocation) {
+        const ratingA = a.ranking || a.calificacion || 0;
+        const ratingB = b.ranking || b.calificacion || 0;
+        return ratingB - ratingA;
+      }
       const hasCoordsA = hasValidCoordinates(a.latitud, a.longitud);
       const hasCoordsB = hasValidCoordinates(b.latitud, b.longitud);
 
@@ -591,6 +597,7 @@ const QuieroJugar = () => {
                       key={player.uuid || player.id}
                       profile={player}
                       variant="searching"
+                      showDistanceUnavailable={sortBy === 'distance'}
                       distanceKm={userLocation && hasValidCoordinates(player.latitud, player.longitud) ? calculateDistance(
                         userLocation.lat,
                         userLocation.lng,
