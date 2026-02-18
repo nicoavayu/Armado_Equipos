@@ -291,11 +291,11 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                 </button>
 
                 <button
-                    className="text-[10px] font-semibold text-white/45 hover:text-white/70 transition-colors uppercase tracking-widest inline-flex items-center gap-1"
+                    className="w-full h-10 px-6 rounded-xl font-oswald text-xs font-bold uppercase tracking-wide transition-all duration-200 inline-flex items-center justify-center gap-1.5 border border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:border-white/25 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={onClose}
                     disabled={inviting}
                 >
-                    <X size={12} />
+                    <X size={13} />
                     Cancelar
                 </button>
             </div>

@@ -47,8 +47,6 @@ const MatchCard = ({
     const precioLabel = (precioNumber !== null && precioNumber > 0)
         ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(precioNumber)
         : 'Sin precio';
-    const matchName = typeof partido?.nombre === 'string' ? partido.nombre.trim() : '';
-
     const cupoMaximo = Number(partido.cupo_jugadores || 20);
     const jugadores = Array.isArray(partido.jugadores) ? partido.jugadores : [];
     const jugadoresCount = typeof jugadores?.[0]?.count === 'number' ? jugadores[0].count : jugadores.length;
@@ -70,20 +68,13 @@ const MatchCard = ({
         >
             {/* Header: Fecha/Hora a la izquierda, Admin Badge a la derecha */}
             <div className="flex justify-between items-start mb-3">
-                <div className={`flex flex-col ${isFinished ? 'opacity-70' : ''}`}>
-                    <div className="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="currentColor">
-                            <path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z" />
-                        </svg>
-                        <div className="font-oswald text-[18px] font-bold text-white capitalize">
-                            {partido.fecha_display || partido.fecha} • {partido.hora}
-                        </div>
+                <div className={`flex items-center gap-2 ${isFinished ? 'opacity-70' : ''}`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="currentColor">
+                        <path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z" />
+                    </svg>
+                    <div className="font-oswald text-[18px] font-bold text-white capitalize">
+                        {partido.fecha_display || partido.fecha} • {partido.hora}
                     </div>
-                    {matchName && (
-                        <p className="font-oswald text-[13px] font-medium text-white/70 tracking-wide truncate mt-1 pl-7">
-                            {matchName}
-                        </p>
-                    )}
                 </div>
                 <div className="flex items-center gap-2">
                     {isFinished ? (
