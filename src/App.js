@@ -22,6 +22,9 @@ import { BadgeProvider } from './context/BadgeContext';
 const EncuestaPartido = lazy(() => import('./pages/EncuestaPartido'));
 const ResultadosEncuestaView = lazy(() => import('./pages/ResultadosEncuestaView'));
 const HealthCheck = lazy(() => import('./pages/HealthCheck'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const AccountDeletionInfoPage = lazy(() => import('./pages/AccountDeletionInfoPage'));
 const VotarEquiposPage = lazy(() => import('./pages/VotarEquiposPage'));
 const AuthHome = lazy(() => import('./components/AuthHome'));
 const EmailMagicLinkLogin = lazy(() => import('./components/EmailMagicLinkLogin'));
@@ -64,9 +67,20 @@ export default function App() {
               <Router>
                 <ScrollToTop />
                 <Routes>
-                  <Route path="/health" element={
+                  <Route path="/health" element={<HealthRoute />} />
+                  <Route path="/terms" element={
                     <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
-                      <HealthCheck />
+                      <TermsPage />
+                    </Suspense>
+                  } />
+                  <Route path="/privacy" element={
+                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                      <PrivacyPage />
+                    </Suspense>
+                  } />
+                  <Route path="/account-deletion" element={
+                    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                      <AccountDeletionInfoPage />
                     </Suspense>
                   } />
                   <Route path="/encuesta/:partidoId" element={
@@ -196,7 +210,12 @@ export default function App() {
                     </Route>
                   </Route>
                 </Routes>
-                <ToastContainer position="top-right" autoClose={5000} />
+                <ToastContainer
+                  position="top-right"
+                  autoClose={5000}
+                  newestOnTop
+                  limit={3}
+                />
               </Router>
               {/* Debug panel removed */}
             </NotificationProvider>
@@ -247,6 +266,18 @@ function PasswordLoginRoute() {
     return <Navigate to="/login" replace />;
   }
   return <AuthPage />;
+}
+
+function HealthRoute() {
+  if (process.env.NODE_ENV !== 'development') {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+      <HealthCheck />
+    </Suspense>
+  );
 }
 
 function ScrollToTop() {

@@ -86,6 +86,9 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [useAuthenticatedSubmit, setUseAuthenticatedSubmit] = useState(false);
 
+  const notifyAlreadyVoted = () => toast.info('Tus votos ya fueron registrados');
+  const notifyPublicValidationError = () => toast.error('No se pudo validar tu votación');
+
   // -- GUARDS FOR DOUBLE-FETCH PREVENTION --
   // Prevent React Strict Mode double-init
   const didInitRef = useRef(false);
@@ -390,7 +393,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       const codigo = codigoParam ? codigoParam.trim().toUpperCase() : null;
 
       if (!partidoId || Number.isNaN(partidoId) || !codigo || !nombre) {
-        toast.error('No se pudo validar tu votación');
+        notifyPublicValidationError();
         return;
       }
 
@@ -403,7 +406,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         });
 
         if (error) {
-          toast.error('No se pudo validar tu votación');
+          notifyPublicValidationError();
         } else if (data === true) {
           lockedRef.current = true;
           setPublicAlreadyVoted(true);
@@ -411,7 +414,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           return;
         }
       } catch (err) {
-        toast.error('No se pudo validar tu votación');
+        notifyPublicValidationError();
       } finally {
         setCheckingPublicVoter(false);
       }
@@ -870,13 +873,13 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                       if (result === 'already_voted_session') {
                         lockedRef.current = true;
                         setPublicAlreadyVoted(true);
-                        toast.info('Tus votos ya fueron registrados');
+                        notifyAlreadyVoted();
                         return;
                       }
                       if (result === 'already_voted_for_match') {
                         lockedRef.current = true;
                         setPublicAlreadyVoted(true);
-                        toast.info('Tus votos ya fueron registrados');
+                        notifyAlreadyVoted();
                         if (DEBUG) console.debug('[Guard] First RPC detected duplicate - locked');
                         return;
                       }
@@ -928,13 +931,13 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                     if (result === 'already_voted_session') {
                       lockedRef.current = true;
                       setPublicAlreadyVoted(true);
-                      toast.info('Tus votos ya fueron registrados');
+                      notifyAlreadyVoted();
                       return;
                     }
                     if (result === 'already_voted_for_match') {
                       lockedRef.current = true;
                       setPublicAlreadyVoted(true);
-                      toast.info('Tus votos ya fueron registrados');
+                      notifyAlreadyVoted();
                       if (DEBUG) console.debug('[Guard] Second RPC detected duplicate - locked');
                       return;
                     }
@@ -972,7 +975,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                     if (r === 'already_completed') {
                       lockedRef.current = true;
                       setPublicAlreadyVoted(true);
-                      toast.info('Tus votos ya fueron registrados');
+                      notifyAlreadyVoted();
                       if (DEBUG) console.debug('[Guard] Mark completed detected duplicate - locked');
                       return;
                     }
@@ -981,7 +984,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   if (resultados.invalid > 0 && resultados.ok > 0) {
                     toast.warn('Se guardaron votos, pero algunos jugadores no se pudieron procesar.');
                   } else if (alreadySubmitted && resultados.ok === 0 && resultados.invalid === 0) {
-                    toast.info('Tus votos ya fueron registrados');
+                    notifyAlreadyVoted();
                   } else {
                     toast.success('Votos enviados');
                   }
