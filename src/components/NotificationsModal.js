@@ -9,7 +9,7 @@ import { openNotification } from '../utils/notificationRouter';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyStateCard from './EmptyStateCard';
-import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
+import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 import { applyMatchNameQuotes, quoteMatchName, resolveNotificationMatchName } from '../utils/notificationText';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
@@ -309,14 +309,24 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                 const clickable = ['match_invite', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished'].includes(notification.type);
                 const Icon = getNotificationIcon(notification.type) || User;
                 const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
+                const isSurveyReminder = notification.type === 'survey_reminder';
+                const isSurveyResults = notification.type === 'survey_results_ready';
                 const matchName = resolveNotificationMatchName(notification, 'este partido');
                 const quotedMatchName = quoteMatchName(matchName, 'este partido');
                 const displayTitle = isSurveyStartLike
                   ? '¡Encuesta lista!'
-                  : applyMatchNameQuotes(notification.title || 'Notificación', matchName);
+                  : isSurveyReminder
+                    ? 'Recordatorio de encuesta'
+                    : isSurveyResults
+                      ? 'Resultados de encuesta listos'
+                      : applyMatchNameQuotes(notification.title || 'Notificación', matchName);
                 const displayMessage = isSurveyStartLike
                   ? getSurveyStartMessage({ source: notification, matchName: quotedMatchName })
-                  : applyMatchNameQuotes(notification.message || '', matchName);
+                  : isSurveyReminder
+                    ? getSurveyReminderMessage({ source: notification, matchName: quotedMatchName })
+                    : isSurveyResults
+                      ? getSurveyResultsReadyMessage({ matchName: quotedMatchName })
+                      : applyMatchNameQuotes(notification.message || '', matchName);
 
                 const notificationContent = (
                   <>

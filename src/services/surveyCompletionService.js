@@ -9,6 +9,7 @@ import {
   SURVEY_FINALIZE_DELAY_MS,
   SURVEY_MIN_VOTERS_FOR_AWARDS,
 } from '../config/surveyConfig';
+import { getSurveyResultsReadyMessage } from '../utils/surveyNotificationCopy';
 // Calcula y persiste premios (MVP, Mejor Arquero y Tarjeta Roja) en survey_results.awards
 export async function computeAndPersistAwards(partidoId) {
   const idNum = Number(partidoId);
@@ -125,6 +126,20 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   // ensure we have an anchored now for survey timing
   const now = new Date();
   const nowIso = now.toISOString();
+  let partidoNombre = `partido ${partidoId}`;
+
+  try {
+    const { data: partidoMeta } = await supabase
+      .from('partidos')
+      .select('nombre')
+      .eq('id', partidoId)
+      .maybeSingle();
+    if (partidoMeta?.nombre) {
+      partidoNombre = partidoMeta.nombre;
+    }
+  } catch (_partidoMetaError) {
+    // Non-blocking: fallback to generic label if metadata fetch fails.
+  }
 
   // Upsert minimal survey_results to record existence (anchors created_at)
   let existingSurvey = null;
@@ -269,12 +284,14 @@ export async function finalizeIfComplete(partidoId, options = {}) {
         user_id: j.usuario_id,
         type: 'survey_finished',
         title: 'Encuesta finalizada',
-        message: 'Ya podés ver los premios del partido.',
+        message: getSurveyResultsReadyMessage({ matchName: partidoNombre }),
         // match_ref: Number(partidoId), // Generated column, cannot insert manually
         partido_id: Number(partidoId),
         // Canonical data format
         data: {
           match_id: String(partidoId),
+          match_name: partidoNombre,
+          partido_nombre: partidoNombre,
           link: `/resultados-encuesta/${partidoId}`,
           resultsUrl: `/resultados-encuesta/${partidoId}?showAwards=1`,
         },

@@ -51,7 +51,7 @@ export const getSurveyRemainingLabel = (deadlineAt, now = new Date()) => {
   const msLeft = deadlineDate.getTime() - nowDate.getTime();
 
   if (msLeft <= 0) {
-    return 'La encuesta está en cierre.';
+    return 'La encuesta ya finalizó.';
   }
 
   if (msLeft >= HOUR_MS) {
@@ -66,7 +66,30 @@ export const getSurveyRemainingLabel = (deadlineAt, now = new Date()) => {
   return `Quedan ${minutesLeft} minutos para completar la encuesta.`;
 };
 
-export const getSurveyStartMessage = ({ source = {}, matchName = 'este partido', now = new Date() } = {}) => {
-  const remaining = getSurveyRemainingLabel(resolveSurveyDeadlineAt(source), now);
-  return `La encuesta del partido ${quoteMatchName(matchName, 'este partido')} está lista. ${remaining}`;
+export const getSurveyStartMessage = ({ matchName = 'este partido' } = {}) => {
+  return `Ya está disponible la encuesta del partido ${quoteMatchName(matchName, 'este partido')}.`;
 };
+
+export const getSurveyReminderMessage = ({ source = {}, matchName = 'este partido', now = new Date() } = {}) => {
+  const deadlineAt = resolveSurveyDeadlineAt(source);
+  const deadlineDate = toDate(deadlineAt);
+  if (!deadlineDate) {
+    return `Recordatorio: no te olvides de completar la encuesta del partido ${quoteMatchName(matchName, 'este partido')}.`;
+  }
+
+  const nowDate = toDate(now) || new Date();
+  const msLeft = deadlineDate.getTime() - nowDate.getTime();
+  if (msLeft <= 0) {
+    return `La encuesta del partido ${quoteMatchName(matchName, 'este partido')} ya finalizó.`;
+  }
+
+  const hoursLeft = Math.ceil(msLeft / HOUR_MS);
+  if (hoursLeft <= 1) {
+    return `Recordatorio: falta 1 hora para que cierre la encuesta del partido ${quoteMatchName(matchName, 'este partido')}.`;
+  }
+
+  return `Recordatorio: la encuesta del partido ${quoteMatchName(matchName, 'este partido')} sigue abierta por tiempo limitado.`;
+};
+
+export const getSurveyResultsReadyMessage = ({ matchName = 'este partido' } = {}) =>
+  `Ya están listos los resultados de la encuesta del partido ${quoteMatchName(matchName, 'este partido')}.`;

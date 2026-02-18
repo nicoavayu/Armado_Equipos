@@ -2,7 +2,7 @@ import { supabase } from '../supabase';
 import { getResultsUrl } from '../utils/routes';
 import { toBigIntId } from '../utils';
 import { SURVEY_FINALIZE_DELAY_MS } from '../config/surveyConfig';
-import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
+import { getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 
 /**
  * Creates post-match survey notifications for all players in a match
@@ -286,6 +286,13 @@ export const processSurveyResults = async (partidoId) => {
       .not('usuario_id', 'is', null);
     if (jugadoresErr) throw jugadoresErr;
 
+    const { data: partidoMeta } = await supabase
+      .from('partidos')
+      .select('nombre')
+      .eq('id', partidoId)
+      .maybeSingle();
+    const partidoNombre = partidoMeta?.nombre || `partido ${partidoId}`;
+
     // Evitar duplicados: borrar pendientes previas de este partido
     // IMPORTANT: Cannot DELETE from notifications_ext (it's a VIEW)
     // Use base notifications table with JSONB query instead
@@ -301,9 +308,16 @@ export const processSurveyResults = async (partidoId) => {
       user_id: j.usuario_id,
       type: 'survey_results_ready',
       title: 'Resultados listos',
-      message: 'Ya podés ver los premios del partido.',
+      message: getSurveyResultsReadyMessage({ matchName: partidoNombre }),
       partido_id: partidoId,
-      data: { match_id: String(partidoId), matchId: idNum, resultsUrl: getResultsUrl(idNum), scheduled_for: scheduledFor },
+      data: {
+        match_id: String(partidoId),
+        matchId: idNum,
+        match_name: partidoNombre,
+        partido_nombre: partidoNombre,
+        resultsUrl: getResultsUrl(idNum),
+        scheduled_for: scheduledFor,
+      },
       read: false,
     }));
 

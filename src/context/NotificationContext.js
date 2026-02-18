@@ -4,7 +4,7 @@ import { handleError } from '../lib/errorHandler';
 import { useInterval } from '../hooks/useInterval';
 import { logger } from '../lib/logger';
 import { subscribeToNotifications } from '../services/realtimeService';
-import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
+import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 import { applyMatchNameQuotes, quoteMatchName, resolveNotificationMatchName } from '../utils/notificationText';
 
 const NotificationContext = createContext();
@@ -40,6 +40,28 @@ export const NotificationProvider = ({ children }) => {
   const [lastRealtimeAt, setLastRealtimeAt] = useState(null);
   const [lastRealtimePayloadType, setLastRealtimePayloadType] = useState(null);
   const { setIntervalSafe } = useInterval();
+  const resolveNotificationMatchId = useCallback((notification) => {
+    if (!notification) return null;
+    const data = notification.data || {};
+    const candidate = (
+      notification.partido_id
+      ?? notification.match_ref
+      ?? data.partido_id
+      ?? data.partidoId
+      ?? data.match_id
+      ?? data.matchId
+      ?? data.match_ref
+      ?? null
+    );
+
+    if (candidate !== null && candidate !== undefined && String(candidate).trim() !== '') {
+      return String(candidate);
+    }
+
+    const link = data.link || data.resultsUrl || '';
+    const match = String(link).match(/\/(?:encuesta|resultados-encuesta)\/(\d+)/);
+    return match?.[1] || null;
+  }, []);
   // Umbral para ignorar eventos realtime con created_at <= al último clear
   const ignoreBeforeRef = useRef(null);
 
@@ -148,7 +170,7 @@ export const NotificationProvider = ({ children }) => {
 
       unsubscribe();
     };
-  }, [currentUserId]);
+  }, [currentUserId, resolveNotificationMatchId]);
 
   // Fetch all notifications for the current user
   const fetchNotifications = useCallback(async () => {
@@ -251,7 +273,7 @@ export const NotificationProvider = ({ children }) => {
     const othersMap = new Map(); // key -> notification for non-partido notifications (group by type+title+message)
 
     for (const n of notifs) {
-      const pid = n.partido_id ?? (n.data?.match_id ?? n.data?.matchId ?? null);
+      const pid = resolveNotificationMatchId(n);
       if (pid === null || pid === undefined) {
         // group generic notifications by type+title+message to avoid duplicate cards
         const compKey = `${n.type}::${(n.title || '').trim()}::${(n.message || '').trim()}`;
@@ -267,7 +289,14 @@ export const NotificationProvider = ({ children }) => {
         continue;
       }
 
-      const key = `${n.user_id}::${String(pid)}`;
+      const surveyGroup = (
+        n.type === 'survey_start' || n.type === 'post_match_survey'
+          ? 'survey_open'
+          : n.type === 'survey_reminder'
+            ? 'survey_reminder'
+            : 'default'
+      );
+      const key = `${n.user_id}::${String(pid)}::${surveyGroup}`;
       const existing = keepMap.get(key);
       if (!existing) {
         keepMap.set(key, n);
@@ -307,14 +336,14 @@ export const NotificationProvider = ({ children }) => {
     const surveyPartidoIds = new Set();
     for (const n of Array.from(keepMap.values())) {
       if (surveyTypes.has(n.type)) {
-        const pid = n.partido_id ?? (n.data?.match_id ?? n.data?.matchId ?? null);
-        if (pid !== null && pid !== undefined) surveyPartidoIds.add(String(pid));
+      const pid = resolveNotificationMatchId(n);
+      if (pid !== null && pid !== undefined) surveyPartidoIds.add(String(pid));
       }
     }
     for (const n of Array.from(othersMap.values())) {
       if (surveyTypes.has(n.type)) {
-        const pid = n.partido_id ?? (n.data?.match_id ?? n.data?.matchId ?? null);
-        if (pid !== null && pid !== undefined) surveyPartidoIds.add(String(pid));
+      const pid = resolveNotificationMatchId(n);
+      if (pid !== null && pid !== undefined) surveyPartidoIds.add(String(pid));
       }
     }
 
@@ -323,7 +352,7 @@ export const NotificationProvider = ({ children }) => {
       .filter((n) => {
         // If this non-partido notification references a partido that already has a survey,
         // and this notification is a lower-priority type (call_to_vote), suppress it.
-        const pid = n.partido_id ?? (n.data?.match_id ?? n.data?.matchId ?? null);
+        const pid = resolveNotificationMatchId(n);
         if (pid !== null && pid !== undefined && surveyPartidoIds.has(String(pid)) && n.type === 'call_to_vote') {
           return false;
         }
@@ -480,8 +509,16 @@ export const NotificationProvider = ({ children }) => {
         console.info(`${notification.title || '¡Encuesta lista!'}: ${surveyMessage}`, toastOptions);
         break;
       }
+      case 'survey_reminder': {
+        const reminderMessage = getSurveyReminderMessage({
+          source: notification,
+          matchName: quoteMatchName(resolveNotificationMatchName(notification, 'este partido'), 'este partido'),
+        });
+        console.info(`Recordatorio de encuesta: ${reminderMessage}`, toastOptions);
+        break;
+      }
       case 'survey_results_ready':
-        console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
+        console.info(`Resultados de encuesta listos: ${getSurveyResultsReadyMessage({ matchName: quoteMatchName(resolveNotificationMatchName(notification, 'este partido'), 'este partido') })}`, toastOptions);
         break;
       case 'admin_transfer':
         console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
