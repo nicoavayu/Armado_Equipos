@@ -103,7 +103,7 @@ body {
 .auth-premium-bg {
   position: relative;
   padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, #161530 0%, #131233 52%, #0c0b1e 100%);
+  background: linear-gradient(180deg, #1a1940 0%, #151438 38%, #131233 58%, #0c0b1e 100%);
   isolation: isolate;
 }
 
@@ -156,7 +156,7 @@ body {
 }
 
 .auth-premium-card {
-  background: rgb(255 255 255 / 14%);
+  background: rgb(255 255 255 / 12%);
   border: 1px solid rgb(255 255 255 / 22%);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -169,6 +169,11 @@ body {
 .auth-logo-block {
   position: relative;
   animation: authLogoIn 220ms ease-out both;
+}
+
+.auth-logo-mark {
+  transform: scale(1.12);
+  transform-origin: center center;
 }
 
 .auth-logo-block::before {
@@ -203,10 +208,12 @@ body {
   overflow: hidden;
   color: #f3f6ff;
   border: 1px solid rgb(152 168 255 / 72%);
-  background: linear-gradient(180deg, #95a1ff 0%, #6676e0 100%);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 18%) 0%, rgb(255 255 255 / 0%) 28%),
+    linear-gradient(180deg, #99a4f7 0%, #6b78d7 100%);
   box-shadow:
-    0 10px 20px rgb(24 34 88 / 34%),
-    inset 0 1px 0 rgb(255 255 255 / 22%);
+    0 8px 16px rgb(24 34 88 / 28%),
+    inset 0 1.5px 0 rgb(255 255 255 / 34%);
 }
 
 .auth-btn-primary::after {
