@@ -251,32 +251,16 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
     };
 
     const selectedMatch = matches.find(m => m.id === selectedMatchId);
-    const inviteStatus = selectedMatch ? (
-        selectedMatch.isParticipating ? 'member' : (
-            selectedMatch.hasInvitation ? 'invited_pending' : 'available'
-        )
-    ) : 'none';
-
-    const canSubmit = inviteStatus === 'available' && !inviting;
+    const canSubmit = Boolean(selectedMatchId) && !inviting;
 
 
     const getButtonLabel = () => {
         if (inviting) return <><LoadingSpinner size="sm" /> ENVIANDO...</>;
-        if (inviteStatus === 'member') return 'YA FORMA PARTE';
-        if (inviteStatus === 'invited_pending') return 'YA INVITADO';
         return 'INVITAR AL PARTIDO';
     };
 
     const footerContent = (
         <div className="h-[106px] flex flex-col justify-center items-center">
-            {/* Status Message: Always present in DOM, visibility-controlled */}
-            <div className={`min-h-[20px] mb-2 px-2 transition-opacity duration-300 ${inviteStatus === 'member' || inviteStatus === 'invited_pending' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                <p className={`text-[11px] font-medium text-center leading-tight ${inviteStatus === 'member' ? 'text-emerald-500/80' : 'text-blue-400/80'
-                    }`}>
-                    {inviteStatus === 'member' ? 'Ya forma parte de este partido.' : 'Invitación enviada. Esperando confirmación.'}
-                </p>
-            </div>
-
             <div className="w-full flex flex-col items-center gap-2">
                 <button
                     className={`w-full h-11 px-6 rounded-xl font-oswald text-sm font-bold uppercase tracking-wide transition-all duration-200 flex items-center justify-center gap-2 ${canSubmit
@@ -347,7 +331,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                                 match={match}
                                 isSelected={isSelected}
                                 onSelect={() => !inviting && setSelectedMatchId(match.id)}
-                                inviteStatus={match.isParticipating ? 'member' : (match.hasInvitation ? 'invited_pending' : 'available')}
+                                inviteStatus="available"
                             />
                         );
                     })}

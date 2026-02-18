@@ -678,11 +678,9 @@ const QuieroJugar = () => {
           setActionFriendStatus(currentStatus?.status || null);
 
           if (currentStatus?.status === 'accepted') {
-            toast.info('Ya son amigos');
             return;
           }
           if (currentStatus?.status === 'pending') {
-            toast.info('Ya existe una solicitud pendiente');
             return;
           }
 
