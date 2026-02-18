@@ -43,6 +43,21 @@ const getMaxRosterSlots = (match) => {
   return baseCapacity > 0 ? baseCapacity + MAX_SUBSTITUTES : 0;
 };
 
+function InlineNotice({ notice }) {
+  if (!notice) return null;
+  const toneClass = notice.type === 'success'
+    ? 'bg-emerald-500/15 border-emerald-400/40 text-emerald-100'
+    : notice.type === 'warning'
+      ? 'bg-amber-500/15 border-amber-400/40 text-amber-100'
+      : 'bg-sky-500/15 border-sky-400/40 text-sky-100';
+
+  return (
+    <div className={`w-full rounded-xl border px-4 py-3 text-sm font-oswald ${toneClass}`}>
+      {notice.message}
+    </div>
+  );
+}
+
 function PlayersReadOnly({ jugadores, partido, mode }) {
   const cupoMaximo = partido.cupo_jugadores || partido.cupo || 'Sin límite';
   const displayCount = jugadores?.length ?? 0;
@@ -106,6 +121,7 @@ function SharedInviteLayout({
   mode,
   joinStatus,
   isMatchFull,
+  inlineNotice,
 }) {
   const isSent = joinStatus === 'pending';
   const isApproved = joinStatus === 'approved';
@@ -138,6 +154,7 @@ function SharedInviteLayout({
         <main className="pt-0">
           <div className="main-content">
             <div className="w-full flex flex-col gap-3 overflow-x-hidden pt-10">
+              <InlineNotice notice={inlineNotice} />
               <PlayersReadOnly jugadores={jugadores} partido={partido} mode={mode} />
 
               {/* Texto de estado si faltan jugadores */}
@@ -253,7 +270,18 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     isOpen: false,
     message: '',
   });
+  const [inlineNotice, setInlineNotice] = useState(null);
   const pendingContinueRef = useRef(null);
+
+  const showInlineNotice = (type, message) => {
+    setInlineNotice({ type, message, ts: Date.now() });
+  };
+
+  useEffect(() => {
+    if (!inlineNotice) return undefined;
+    const timer = setTimeout(() => setInlineNotice(null), 5000);
+    return () => clearTimeout(timer);
+  }, [inlineNotice]);
 
   const closeScheduleWarning = () => {
     pendingContinueRef.current = null;
@@ -301,7 +329,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     const file = event.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      toast.error('Elegí una imagen válida');
+      showInlineNotice('warning', 'Elegí una imagen válida.');
       return;
     }
     try {
@@ -309,7 +337,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       setGuestPhotoDataUrl(dataUrl);
     } catch (err) {
       console.error('[INVITE] photo parse error:', err);
-      toast.error('No se pudo procesar la foto');
+      showInlineNotice('warning', 'No se pudo procesar la foto.');
     } finally {
       event.target.value = '';
     }
@@ -564,8 +592,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       }, (payload) => {
         const removedUserId = payload?.old?.usuario_id;
         if (String(removedUserId) !== String(user.id)) return;
-        toast.info('Fuiste removido del partido por el admin');
-        navigate('/');
+        showInlineNotice('warning', 'Fuiste removido del partido por el admin.');
+        setTimeout(() => navigate('/'), 900);
       })
       .subscribe();
 
@@ -591,7 +619,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           reqId: originalReqId
         });
         setJoinStatus('none');
-        toast.error('Tu aprobación aún no se reflejó, reintentá más tarde');
+        showInlineNotice('warning', 'Tu aprobación aún no se reflejó. Reintentá más tarde.');
       }
       return;
     }
@@ -622,7 +650,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           reqId: originalReqId
         });
         setJoinStatus('approved');
-        toast.success('Ya formás parte del partido');
+        showInlineNotice('success', 'Ya formás parte del partido.');
       } else {
         console.log('[RECHECK] Not yet synced, retrying...', { attempt, matchId, userUuid, originalReqId });
         recheckMembership(userUuid, matchId, originalReqId, attempt + 1);
@@ -639,13 +667,13 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
   const handleSumarse = () => {
     if (isMatchClosed(partido)) {
-      toast.error('Este partido fue cancelado o cerrado.');
+      showInlineNotice('warning', 'Este partido fue cancelado o cerrado.');
       return;
     }
 
     const maxRoster = getMaxRosterSlots(partido);
     if (maxRoster > 0 && jugadores.length >= maxRoster) {
-      toast.error('El partido ya está completo (incluye suplentes)');
+      showInlineNotice('warning', 'El partido ya está completo (incluye suplentes).');
       return;
     }
 
@@ -656,7 +684,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
     // Validar código antes de permitir suma
     if (!codigoValido) {
-      toast.error('Link inválido o vencido');
+      showInlineNotice('warning', 'Link inválido o vencido.');
       return;
     }
 
@@ -698,13 +726,13 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
   const handleSolicitarUnirme = async (skipScheduleWarning = false) => {
     if (isMatchClosed(partido)) {
-      toast.error('Este partido fue cancelado o cerrado.');
+      showInlineNotice('warning', 'Este partido fue cancelado o cerrado.');
       return;
     }
 
     const maxRoster = getMaxRosterSlots(partido);
     if (maxRoster > 0 && jugadores.length >= maxRoster) {
-      toast.error('El partido ya está completo (incluye suplentes)');
+      showInlineNotice('warning', 'El partido ya está completo (incluye suplentes).');
       return;
     }
 
@@ -727,7 +755,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       }
     } catch (err) {
       console.error('[SOLICITAR_UNIRME] schedule check error', err);
-      toast.error('No se pudo validar el conflicto de horario');
+      showInlineNotice('warning', 'No se pudo validar el conflicto de horario.');
       return;
     }
 
@@ -768,7 +796,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
       console.log('[SOLICITAR_UNIRME] Request created successfully:', newRequest.id);
       setJoinStatus('pending');
-      toast.info('Solicitud enviada. Esperando aprobación del admin.');
+      showInlineNotice('success', 'Solicitud enviada. Esperando aprobación del admin.');
     } catch (err) {
       console.error('[SOLICITAR_UNIRME] Error creating request:', {
         code: err.code,
@@ -792,13 +820,13 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
     // Validar código
     if (partido?.codigo && (!codigoParam || codigoParam !== partido.codigo)) {
-      toast.error('Código inválido');
+      showInlineNotice('warning', 'Código inválido.');
       return;
     }
 
     const maxRoster = getMaxRosterSlots(partido);
     if (maxRoster > 0 && jugadores.length >= maxRoster) {
-      toast.error('El partido ya está completo (incluye suplentes)');
+      showInlineNotice('warning', 'El partido ya está completo (incluye suplentes).');
       return;
     }
 
@@ -813,7 +841,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       }
     } catch (err) {
       console.error('[SUMARSE_CON_CUENTA] schedule check error', err);
-      toast.error('No se pudo validar el conflicto de horario');
+      showInlineNotice('warning', 'No se pudo validar el conflicto de horario.');
       return;
     }
 
@@ -858,7 +886,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         throw insertError;
       }
 
-      toast.success('Te sumaste al partido');
+      showInlineNotice('success', 'Te sumaste al partido.');
       if (mode === 'invite') {
         navigate(`/partido/${partidoId}?codigo=${codigoParam}`);
       } else {
@@ -874,7 +902,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
   const handleSumarseComoInvitado = async () => {
     if (!GUEST_SELF_JOIN_ENABLED) {
-      toast.info('Ingreso como invitado deshabilitado por ahora. El admin debe agregarte manualmente.');
+      showInlineNotice('info', 'Ingreso como invitado deshabilitado por ahora. El admin debe agregarte manualmente.');
       return;
     }
 
@@ -882,11 +910,11 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     if (submitting) return;
     const maxRoster = getMaxRosterSlots(partido);
     if (maxRoster > 0 && jugadores.length >= maxRoster) {
-      toast.error('El partido ya está completo (incluye suplentes)');
+      showInlineNotice('warning', 'El partido ya está completo (incluye suplentes).');
       return;
     }
     if (!guestName.trim()) {
-      toast.error('Ingresá tu nombre');
+      showInlineNotice('warning', 'Ingresá tu nombre.');
       return;
     }
 
@@ -896,7 +924,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       if (process.env.NODE_ENV === 'development') {
         console.error('[INVITE] Missing env', { supabaseUrl: !!supabaseUrl, anonKey: !!anonKey });
       }
-      toast.error('No se pudo validar la invitación. Reintentá en unos minutos.');
+      showInlineNotice('warning', 'No se pudo validar la invitación. Reintentá en unos minutos.');
       return;
     }
 
@@ -930,20 +958,20 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         console.error('[INVITE] join-match-guest error', { status: response.status, result });
         const reason = String(result?.reason || result?.code || '').toLowerCase();
         if (reason === 'invalid_code' || reason === 'invalidcode') {
-          toast.error('Código inválido o vencido');
+          showInlineNotice('warning', 'Código inválido o vencido.');
           setCodigoValido(false);
           return;
         }
         if (reason === 'invalid_invite') {
-          toast.error('Link vencido o inválido. Pedile al admin un link nuevo.');
+          showInlineNotice('warning', 'Link vencido o inválido. Pedile al admin un link nuevo.');
           return;
         }
         if (reason === 'invite_consume_error') {
-          toast.error('No se pudo validar el link. Reintentá en un momento.');
+          showInlineNotice('warning', 'No se pudo validar el link. Reintentá en un momento.');
           return;
         }
         if (reason === 'full') {
-          toast.error('El partido ya está completo');
+          showInlineNotice('warning', 'El partido ya está completo.');
           return;
         }
         throw new Error(result.error || 'Error al sumarse');
@@ -953,7 +981,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       localStorage.setItem(storageKey, result.guest_uuid);
 
       setStep('success');
-      toast.success(`${guestName}, te sumaste al partido`);
+      showInlineNotice('success', `${guestName}, te sumaste al partido.`);
 
       // Redirigir después de 2 segundos a vista read-only (guest sin auth)
       setTimeout(() => {
@@ -1053,6 +1081,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           </div>
 
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 w-full">
+          <InlineNotice notice={inlineNotice} />
           <div className="text-center mb-6">
             <h2 className="text-white text-2xl font-bold mb-2">¿Cómo querés sumarte?</h2>
             <p className="text-white/70 text-sm">Elegí la opción que prefieras</p>
@@ -1124,6 +1153,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             />
           </div>
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 w-full">
+          <InlineNotice notice={inlineNotice} />
           <div className="text-center mb-6">
             <h2 className="text-white text-2xl font-bold mb-2">Sumarte rápido</h2>
             <p className="text-white/70 text-sm">Ingresá tu nombre y tu selfie</p>

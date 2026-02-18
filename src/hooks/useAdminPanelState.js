@@ -37,7 +37,11 @@ export const useAdminPanelState = ({
   const [invitationLoading, setInvitationLoading] = useState(false);
   const [invitationChecked, setInvitationChecked] = useState(false);
   const [faltanJugadoresState, setFaltanJugadoresState] = useState(partidoActual?.falta_jugadores || false);
+  const [actionNotice, setActionNotice] = useState(null);
   const inputRef = useRef();
+  const setInlineNotice = (type, message) => {
+    setActionNotice({ type, message, ts: Date.now() });
+  };
 
   const jugadoresActuales = jugadoresLocal || [];
   const currentPlayerInMatch = jugadoresActuales.find((j) => j.usuario_id === user?.id);
@@ -277,12 +281,12 @@ export const useAdminPanelState = ({
     e.preventDefault();
 
     if (!isAdmin) {
-      toast.error('Solo el admin puede agregar jugadores');
+      setInlineNotice('warning', 'Solo el admin puede agregar jugadores');
       return;
     }
 
     if (isRosterFull) {
-      toast.info('Cupo completo: titulares + suplentes.');
+      setInlineNotice('warning', 'Cupo completo: titulares + suplentes');
       return;
     }
 
@@ -291,7 +295,7 @@ export const useAdminPanelState = ({
 
     const nombreExiste = jugadoresActuales.some((j) => j.nombre.toLowerCase() === nombre.toLowerCase());
     if (nombreExiste) {
-      toast.warn('Ya existe un jugador con ese nombre.');
+      setInlineNotice('warning', 'Ya existe un jugador con ese nombre');
       return;
     }
 
@@ -368,14 +372,14 @@ export const useAdminPanelState = ({
     const jugadorAEliminar = jugadores.find((j) => j.id === jugadorId);
 
     if (!isAdmin && jugadorAEliminar?.usuario_id !== user?.id) {
-      toast.error('Solo puedes eliminarte a ti mismo o ser admin');
+      setInlineNotice('warning', 'Solo podés eliminarte a vos mismo o ser admin');
       return;
     }
 
     if (isAdmin && jugadorAEliminar?.usuario_id === user?.id) {
       const otrosJugadoresConCuenta = jugadores.filter((j) => j.usuario_id && j.usuario_id !== user?.id);
       if (otrosJugadoresConCuenta.length === 0) {
-        toast.error('No puedes eliminarte siendo admin. Primero transfiere el rol de admin a otro jugador con cuenta.');
+        setInlineNotice('warning', 'Para salir, primero transferí admin a otro jugador con cuenta');
         return;
       }
     }
@@ -424,7 +428,7 @@ export const useAdminPanelState = ({
       }
 
       if (esAutoEliminacion) {
-        toast.success('Te has eliminado del partido');
+        setInlineNotice('success', 'Te eliminaste del partido');
         setTimeout(() => onBackToHome(), 1000);
       }
 
@@ -538,7 +542,7 @@ export const useAdminPanelState = ({
       onJugadoresChange([...jugadores]);
 
       console.log('[TRANSFER_ADMIN] Transfer completed successfully');
-      toast.success(`${jugador.nombre || 'El jugador'} es ahora el admin del partido`);
+      setInlineNotice('success', `${jugador.nombre || 'El jugador'} ahora es admin del partido`);
 
       // Don't reload page, let the modal stay open to show changes
       setTimeout(() => {
@@ -556,13 +560,13 @@ export const useAdminPanelState = ({
 
     const yaEstaEnPartido = jugadores.some((j) => j.usuario_id === user.id);
     if (yaEstaEnPartido) {
-      toast.error('Ya estás en este partido');
+      setInlineNotice('warning', 'Ya estás en este partido');
       setPendingInvitation(false);
       return;
     }
 
     if (isRosterFull) {
-      toast.error('El partido está completo (titulares y suplentes)');
+      setInlineNotice('warning', 'El partido está completo (titulares y suplentes)');
       return;
     }
 
@@ -631,7 +635,7 @@ export const useAdminPanelState = ({
       onJugadoresChange(jugadoresActualizados);
       setPendingInvitation(false);
 
-      toast.success('Te has unido al partido', { autoClose: 3000 });
+      setInlineNotice('success', 'Te uniste al partido');
 
       // Force refresh to show guest view
       setTimeout(() => {
@@ -653,7 +657,7 @@ export const useAdminPanelState = ({
     if (!user?.id || !partidoActual?.id) return;
 
     if (isRosterFull) {
-      toast.error('El partido está completo (titulares y suplentes)');
+      setInlineNotice('warning', 'El partido está completo (titulares y suplentes)');
       return;
     }
 
@@ -684,7 +688,7 @@ export const useAdminPanelState = ({
       setJugadoresLocal(jugadoresActualizados);
       onJugadoresChange(jugadoresActualizados);
 
-      toast.success('¡Te sumaste al partido!');
+      setInlineNotice('success', 'Te sumaste al partido');
     } catch (error) {
       console.error("Error uniéndose:", error);
       toast.error("No se pudo unir: " + error.message);
@@ -785,14 +789,14 @@ export const useAdminPanelState = ({
 
   const handleFaltanJugadores = async () => {
     if (!isAdmin) {
-      toast.error('Solo el admin puede cambiar este estado');
+      setInlineNotice('warning', 'Solo el admin puede cambiar este estado');
       return;
     }
 
     const isAtCapacity = isRosterFull;
 
     if (isAtCapacity && !faltanJugadoresState) {
-      toast.error('No se puede abrir el partido cuando está lleno');
+      setInlineNotice('warning', 'No se puede abrir el partido cuando está lleno');
       return;
     }
 
@@ -811,8 +815,8 @@ export const useAdminPanelState = ({
       partidoActual.falta_jugadores = nuevoEstado;
       if (nuevoEstado) partidoActual.estado = 'active';
 
-      toast.success(nuevoEstado ?
-        '¡Partido abierto a la comunidad!' :
+      setInlineNotice('success', nuevoEstado ?
+        'Partido abierto a la comunidad' :
         'Partido cerrado a nuevos jugadores',
       );
     } catch (error) {
@@ -858,5 +862,7 @@ export const useAdminPanelState = ({
     unirseAlPartido,
     fetchJugadores,
     hasApprovedRequest, // Export new state
+    actionNotice,
+    setActionNotice,
   };
 };

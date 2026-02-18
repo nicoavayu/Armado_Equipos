@@ -44,11 +44,22 @@ export default function ArmarEquiposView({
   const [votingStarted, setVotingStarted] = useState(false);
   const [estadoOverride, setEstadoOverride] = useState(null); // Override local para estado después de reset
   const [playerToRemove, setPlayerToRemove] = useState(null); // Para modal de eliminación
+  const [inlineNotice, setInlineNotice] = useState(null);
   const playersSectionRef = React.useRef(null);
   const navigate = useNavigate();
 
   // Control de permisos: verificar si el usuario es admin del partido
   const isAdmin = user?.id && partidoActual?.creado_por === user.id;
+
+  const showInlineNotice = (type, message) => {
+    setInlineNotice({ type, message, ts: Date.now() });
+  };
+
+  useEffect(() => {
+    if (!inlineNotice) return undefined;
+    const timer = setTimeout(() => setInlineNotice(null), 4200);
+    return () => clearTimeout(timer);
+  }, [inlineNotice]);
 
   // Cargar votantes y suscripción en tiempo real
   useEffect(() => {
@@ -142,7 +153,7 @@ export default function ArmarEquiposView({
     }
 
     if (!partidoActual?.id) {
-      toast.error('No hay partido activo');
+      showInlineNotice('warning', 'No hay partido activo.');
       return;
     }
 
@@ -168,17 +179,18 @@ export default function ArmarEquiposView({
       // Duplicate notification means voting was already started before; allow entering voting anyway.
       if (res?.alreadyExists) {
         setVotingStarted(true);
+        showInlineNotice('info', 'La votación ya estaba iniciada. Entrando a votación.');
         navigate(buildVotingRoute({ partidoId: partidoActual.id }));
         return;
       }
 
       if (res?.skippedDueToSurveyScheduled || res?.skippedDueToSurvey) {
-        toast.warn('La votación ya está programada para este partido.');
+        showInlineNotice('warning', 'La votación ya está programada para este partido.');
         return;
       }
 
       if ((res.inserted || 0) > 0) {
-        toast.success(`Notificación enviada a ${res.inserted} jugadores. Entrando a votación.`);
+        showInlineNotice('success', `Notificación enviada a ${res.inserted} jugadores. Entrando a votación.`);
 
         // Refrescar estado de votación
         try {
@@ -203,7 +215,7 @@ export default function ArmarEquiposView({
           }
         }, 500);
       } else {
-        toast.warn('No se enviaron notificaciones porque no hay jugadores con cuenta.');
+        showInlineNotice('warning', 'No se enviaron notificaciones porque no hay jugadores con cuenta.');
       }
 
     } catch (error) {
@@ -221,7 +233,7 @@ export default function ArmarEquiposView({
     }
 
     if (!partidoActual?.id) {
-      toast.error('No hay partido activo');
+      showInlineNotice('warning', 'No hay partido activo.');
       return;
     }
 
@@ -232,7 +244,7 @@ export default function ArmarEquiposView({
       const result = await resetVotacion(partidoActual.id);
       console.debug('[Teams] reset result', result);
 
-      toast.success('Votación reseteada - Ahora podés votar de nuevo');
+      showInlineNotice('success', 'Votación reseteada. Ahora podés votar de nuevo.');
 
       // Volver a estado pre-votación: borrar notificaciones de call_to_vote y refrescar bandera local
       try {
@@ -343,7 +355,7 @@ export default function ArmarEquiposView({
   async function handleWhatsApp() {
     const matchCode = await resolveMatchCode();
     if (!matchCode) {
-      toast.error('No se pudo obtener el código del partido para compartir.');
+      showInlineNotice('warning', 'No se pudo obtener el código del partido para compartir.');
       return;
     }
     const baseUrl = getPublicBaseUrl() || window.location.origin;
@@ -372,34 +384,34 @@ export default function ArmarEquiposView({
 
   async function handleCerrarVotacion() {
     if (isClosing) {
-      toast.warn('Operación en progreso, espera un momento');
+      showInlineNotice('info', 'Operación en progreso, esperá un momento.');
       return;
     }
 
     // Validaciones
     if (!partidoActual) {
-      toast.error('Error: No hay partido activo');
+      showInlineNotice('warning', 'No hay partido activo.');
       return;
     }
 
     if (!jugadores || jugadores.length === 0) {
-      toast.error('Error: No hay jugadores en el partido');
+      showInlineNotice('warning', 'No hay jugadores en el partido.');
       return;
     }
 
     if (jugadores.length < 2) {
-      toast.error('Se necesitan al menos 2 jugadores');
+      showInlineNotice('warning', 'Se necesitan al menos 2 jugadores.');
       return;
     }
 
     if (jugadores.length % 2 !== 0) {
-      toast.error('NECESITAS UN NÚMERO PAR DE JUGADORES PARA FORMAR EQUIPOS');
+      showInlineNotice('warning', 'Se necesita un número par de jugadores para formar equipos.');
       return;
     }
 
     const invalidPlayers = jugadores.filter((j) => !j.uuid);
     if (invalidPlayers.length > 0) {
-      toast.error('Error: Algunos jugadores no tienen ID válido');
+      showInlineNotice('warning', 'Hay jugadores sin ID válido.');
       return;
     }
 
@@ -451,7 +463,7 @@ export default function ArmarEquiposView({
         // No crítico
       }
 
-      toast.success('Votación cerrada. Equipos armados.');
+      showInlineNotice('success', 'Votación cerrada. Equipos armados.');
 
       // Redirigir a vista de equipos
       onTeamsFormed(teams, matchPlayers);
@@ -581,6 +593,19 @@ export default function ArmarEquiposView({
         rightActions={null}
       />
       <div className="w-[90vw] md:w-full max-w-[90vw] md:max-w-4xl mx-auto flex flex-col gap-3 overflow-x-hidden mt-6 pt-0">
+        {inlineNotice && (
+          <div
+            className={`rounded-xl px-4 py-3 border text-sm font-oswald ${
+              inlineNotice.type === 'success'
+                ? 'bg-emerald-500/15 border-emerald-400/40 text-emerald-200'
+                : inlineNotice.type === 'warning'
+                  ? 'bg-amber-500/15 border-amber-400/40 text-amber-100'
+                  : 'bg-sky-500/15 border-sky-400/40 text-sky-100'
+            }`}
+          >
+            {inlineNotice.message}
+          </div>
+        )}
         {/* Lista de jugadores */}
         <div ref={playersSectionRef} className="bg-white/10 border-2 border-white/20 rounded-xl p-3 min-h-[120px] w-full mx-auto mt-0 box-border">
           <div className="flex items-start justify-between gap-3 mb-3 mt-2">
