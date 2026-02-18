@@ -761,8 +761,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             setJoinStatus(existingRequest.status);
             if (existingRequest.status === 'pending') {
               toast.info('Ya enviaste una solicitud para este partido');
-            } else if (existingRequest.status === 'approved') {
-              toast.info('Tu solicitud ya fue aprobada');
             }
           }
           return;
@@ -832,7 +830,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         .maybeSingle();
 
       if (existing) {
-        toast.info('Ya estás en este partido');
         if (mode === 'invite') {
           navigate(`/partido/${partidoId}?codigo=${codigoParam}`);
         } else {

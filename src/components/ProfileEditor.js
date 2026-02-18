@@ -582,7 +582,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
       const completion = calculateProfileCompletion(updatedProfile);
       if (completion === 100 && (profile?.profile_completion || 0) < 100) {
-        toast.success('¡Perfil completado al 100%! 🎉');
+        toast.success('Perfil completado al 100%');
       } else {
         toast.success('Perfil guardado correctamente');
       }

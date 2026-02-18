@@ -827,6 +827,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   };
 
                   const resultados = { ok: 0, already: 0, invalid: 0 };
+                  let alreadySubmitted = false;
                   const ratedPlayerIds = Object.keys(votos).filter(k => votos[k] !== undefined && votos[k] !== null);
 
                   if (ratedPlayerIds.length === 0) {
@@ -862,7 +863,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
                       if (error) {
                         resultados.invalid += 1;
-                        toast.error('No se pudo enviar un voto');
                         continue;
                       }
 
@@ -870,13 +870,13 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                       if (result === 'already_voted_session') {
                         lockedRef.current = true;
                         setPublicAlreadyVoted(true);
-                        toast.info('Tus votos ya fueron registrados ✅');
+                        toast.info('Tus votos ya fueron registrados');
                         return;
                       }
                       if (result === 'already_voted_for_match') {
                         lockedRef.current = true;
                         setPublicAlreadyVoted(true);
-                        toast.info('Tus votos ya fueron registrados ✅');
+                        toast.info('Tus votos ya fueron registrados');
                         if (DEBUG) console.debug('[Guard] First RPC detected duplicate - locked');
                         return;
                       }
@@ -886,7 +886,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                       }
                       if (result === 'invalid' || result === 'invalid_player') {
                         resultados.invalid += 1;
-                        toast.error('Jugador inválido');
                         continue;
                       }
                       resultados.ok += 1;
@@ -896,7 +895,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                     const puntaje = mapScore(rawVote);
                     if (!puntaje) {
                       resultados.invalid += 1;
-                      toast.error('Puntaje inválido');
                       continue;
                     }
 
@@ -923,7 +921,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                         puntaje
                       });
                       resultados.invalid += 1;
-                      toast.error(`No se pudo enviar el voto para ${j.nombre}`);
                       continue;
                     }
 
@@ -931,23 +928,23 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                     if (result === 'already_voted_session') {
                       lockedRef.current = true;
                       setPublicAlreadyVoted(true);
-                      toast.info('Tus votos ya fueron registrados ✅');
+                      toast.info('Tus votos ya fueron registrados');
                       return;
                     }
                     if (result === 'already_voted_for_match') {
                       lockedRef.current = true;
                       setPublicAlreadyVoted(true);
-                      toast.info('Tus votos ya fueron registrados ✅');
+                      toast.info('Tus votos ya fueron registrados');
                       if (DEBUG) console.debug('[Guard] Second RPC detected duplicate - locked');
                       return;
                     }
                     if (result === 'already_voted_for_player') {
                       resultados.already += 1;
+                      alreadySubmitted = true;
                       continue;
                     }
                     if (result === 'invalid' || result === 'invalid_player') {
                       resultados.invalid += 1;
-                      toast.error('Jugador inválido');
                       continue;
                     }
                     resultados.ok += 1;
@@ -975,14 +972,16 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                     if (r === 'already_completed') {
                       lockedRef.current = true;
                       setPublicAlreadyVoted(true);
-                      toast.info('Tus votos ya fueron registrados ✅');
+                      toast.info('Tus votos ya fueron registrados');
                       if (DEBUG) console.debug('[Guard] Mark completed detected duplicate - locked');
                       return;
                     }
                   }
 
-                  if (resultados.invalid > 0) {
+                  if (resultados.invalid > 0 && resultados.ok > 0) {
                     toast.warn('Se guardaron votos, pero algunos jugadores no se pudieron procesar.');
+                  } else if (alreadySubmitted && resultados.ok === 0 && resultados.invalid === 0) {
+                    toast.info('Tus votos ya fueron registrados');
                   } else {
                     toast.success('Votos enviados');
                   }
