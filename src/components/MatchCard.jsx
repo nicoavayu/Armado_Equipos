@@ -47,6 +47,7 @@ const MatchCard = ({
     const precioLabel = (precioNumber !== null && precioNumber > 0)
         ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(precioNumber)
         : 'Sin precio';
+    const matchName = typeof partido?.nombre === 'string' ? partido.nombre.trim() : '';
 
     const cupoMaximo = Number(partido.cupo_jugadores || 20);
     const jugadores = Array.isArray(partido.jugadores) ? partido.jugadores : [];
@@ -142,6 +143,14 @@ const MatchCard = ({
                     )}
                 </div>
             </div>
+
+            {matchName && (
+                <div className={`mb-3 px-0.5 ${isFinished ? 'opacity-70' : ''}`}>
+                    <p className="font-oswald text-[13px] font-medium text-white/70 tracking-wide truncate">
+                        {matchName}
+                    </p>
+                </div>
+            )}
 
             {/* Modalidad, Tipo, Precio y Jugadores */}
             <div className="flex flex-wrap items-center gap-2 mb-4">
