@@ -466,12 +466,6 @@ export const NotificationProvider = ({ children }) => {
       case 'friend_request':
         toast.info(`Nueva solicitud de amistad de ${notification.data?.senderName || 'alguien'}`, toastOptions);
         break;
-      case 'friend_accepted':
-        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
-        break;
-      case 'friend_rejected':
-        toast.warning(`${toastTitle}: ${toastMessage}`, toastOptions);
-        break;
       case 'match_invite':
         toast.info(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
@@ -490,12 +484,6 @@ export const NotificationProvider = ({ children }) => {
       case 'survey_results_ready':
         toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
-      case 'awards_ready':
-        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
-        break;
-      case 'survey_finished':
-        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
-        break;
       case 'admin_transfer':
         toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
         // Auto-refresh if forceRefresh is true
@@ -506,7 +494,7 @@ export const NotificationProvider = ({ children }) => {
         }
         break;
       default:
-        toast.info(`${toastTitle}: ${toastMessage}`, toastOptions);
+        // Keep less intrusive defaults; notification center remains source of truth.
         break;
     }
   };

@@ -32,8 +32,6 @@ const EmailAuth = ({ user }) => {
           toast.error(`Error al iniciar sesión: ${error.message}`);
         }
         console.error('Error de login:', error);
-      } else {
-        toast.success('¡Inicio de sesión exitoso!');
       }
     } catch (error) {
       toast.error(`Error inesperado: ${error.message}`);
@@ -60,7 +58,6 @@ const EmailAuth = ({ user }) => {
         toast.error(`Error al registrarse: ${error.message}`);
         console.error('Error de registro:', error);
       } else {
-        toast.success('Te enviamos un correo de confirmación. Revisá tu mail para activar tu cuenta.');
         // Cambiar a la pestaña de login después del registro exitoso
         setActiveTab('login');
       }
@@ -85,7 +82,6 @@ const EmailAuth = ({ user }) => {
         toast.error(`Error al solicitar cambio de contraseña: ${error.message}`);
         console.error('Error de reset:', error);
       } else {
-        toast.success('Te enviamos un correo para restablecer tu contraseña. Revisá tu mail.');
         setResetPassword(false);
       }
     } catch (error) {

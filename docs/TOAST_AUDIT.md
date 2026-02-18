@@ -1,10 +1,10 @@
 # Toast Audit
 
-Generated: 2026-02-18 17:37:21 -0300
+Generated: 2026-02-18 17:39:58 -0300
 
 ## Summary
 
-- Total toast calls: 286
+- Total toast calls: 278
 - Files with toasts: 41
 
 ## By File
@@ -14,8 +14,6 @@ Generated: 2026-02-18 17:37:21 -0300
 - src/components/ArmarEquiposView.js: 19
 - src/components/ProfileEditor.js: 16
 - src/pages/VotingView.js: 15
-- src/context/NotificationContext.js: 11
-- src/components/EmailAuth.js: 11
 - src/components/AmigosView.js: 11
 - src/components/TeamDisplay.js: 10
 - src/pages/QuieroJugar.js: 9
@@ -23,11 +21,13 @@ Generated: 2026-02-18 17:37:21 -0300
 - src/pages/ListaPartidosFrecuentes.js: 8
 - src/pages/EditarPartidoFrecuente.js: 8
 - src/components/InviteToMatchModal.jsx: 8
+- src/components/EmailAuth.js: 8
 - src/pages/FormularioNuevoPartidoFlow.js: 7
 - src/components/admin/SolicitudesSection.jsx: 7
 - src/components/ProfileCardModal.js: 7
 - src/components/NotificationsView.js: 7
 - src/components/InviteAmigosModal.js: 7
+- src/context/NotificationContext.js: 6
 - src/components/ProximosPartidos.js: 6
 - src/pages/AdminPanel.js: 5
 - src/components/ResetPassword.js: 5
@@ -140,14 +140,6 @@ Generated: 2026-02-18 17:37:21 -0300
 - src/pages/ResultadosEncuestaView.js:915:          toast.error('Partido no encontrado');
 - src/pages/ResultadosEncuestaView.js:992:        toast.error('Error al cargar los resultados');
 - src/pages/ResultadosEncuestaView.js:1257:      toast.error('Error al cargar los resultados');
-- src/components/InviteToMatchModal.jsx:157:            toast.error('Error al cargar los partidos');
-- src/components/InviteToMatchModal.jsx:167:            toast.error('No se pudo identificar al jugador para invitar');
-- src/components/InviteToMatchModal.jsx:171:            toast.info('Ese partido ya no tiene cupos disponibles.');
-- src/components/InviteToMatchModal.jsx:186:                    toast.info('El partido ya está completo (titulares y suplentes).');
-- src/components/InviteToMatchModal.jsx:200:                toast.info(`${targetName} está en no disponible y no recibe invitaciones.`);
-- src/components/InviteToMatchModal.jsx:237:                    toast.info('La invitación ya había sido enviada');
-- src/components/InviteToMatchModal.jsx:243:            toast.success(`Invitación enviada a ${targetName}`);
-- src/components/InviteToMatchModal.jsx:247:            toast.error('Error al enviar la invitación');
 - src/pages/QuieroJugar.js:237:      toast.error('Error cargando partidos: ' + error.message);
 - src/pages/QuieroJugar.js:344:      toast.success('¡Te anotaste como disponible!');
 - src/pages/QuieroJugar.js:346:      toast.error(error.message);
@@ -157,6 +149,20 @@ Generated: 2026-02-18 17:37:21 -0300
 - src/pages/QuieroJugar.js:651:            toast.error('No se pudo identificar al jugador para invitar');
 - src/pages/QuieroJugar.js:673:            toast.success('Solicitud de amistad enviada');
 - src/pages/QuieroJugar.js:687:          toast.error(result.message || 'No se pudo enviar la solicitud');
+- src/components/InviteToMatchModal.jsx:157:            toast.error('Error al cargar los partidos');
+- src/components/InviteToMatchModal.jsx:167:            toast.error('No se pudo identificar al jugador para invitar');
+- src/components/InviteToMatchModal.jsx:171:            toast.info('Ese partido ya no tiene cupos disponibles.');
+- src/components/InviteToMatchModal.jsx:186:                    toast.info('El partido ya está completo (titulares y suplentes).');
+- src/components/InviteToMatchModal.jsx:200:                toast.info(`${targetName} está en no disponible y no recibe invitaciones.`);
+- src/components/InviteToMatchModal.jsx:237:                    toast.info('La invitación ya había sido enviada');
+- src/components/InviteToMatchModal.jsx:243:            toast.success(`Invitación enviada a ${targetName}`);
+- src/components/InviteToMatchModal.jsx:247:            toast.error('Error al enviar la invitación');
+- src/context/NotificationContext.js:467:        toast.info(`Nueva solicitud de amistad de ${notification.data?.senderName || 'alguien'}`, toastOptions);
+- src/context/NotificationContext.js:470:        toast.info(`${toastTitle}: ${toastMessage}`, toastOptions);
+- src/context/NotificationContext.js:473:        toast.info(`${toastTitle}: ${toastMessage}`, toastOptions);
+- src/context/NotificationContext.js:481:        toast.info(`${notification.title || '¡Encuesta lista!'}: ${surveyMessage}`, toastOptions);
+- src/context/NotificationContext.js:485:        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
+- src/context/NotificationContext.js:488:        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
 - src/components/admin/SolicitudesSection.jsx:94:            toast.error('Error al cargar solicitudes');
 - src/components/admin/SolicitudesSection.jsx:126:                    toast.success('El jugador ya forma parte del partido');
 - src/components/admin/SolicitudesSection.jsx:129:                    toast.error(`Error al aceptar: ${rpcError.message}`);
@@ -164,11 +170,69 @@ Generated: 2026-02-18 17:37:21 -0300
 - src/components/admin/SolicitudesSection.jsx:174:            toast.error('Error al aceptar la solicitud');
 - src/components/admin/SolicitudesSection.jsx:205:            toast.success(`Solicitud de ${userName} rechazada`);
 - src/components/admin/SolicitudesSection.jsx:215:            toast.error('Error al rechazar solicitud');
+- src/components/StatsView.js:692:      toast.success('Lesión marcada como recuperada');
+- src/components/StatsView.js:696:      toast.error('No se pudo marcar la lesión como recuperada');
+- src/components/InviteAmigosModal.js:108:      toast.error('No hay partido seleccionado');
+- src/components/InviteAmigosModal.js:116:      toast.error('El partido ya está completo (titulares y suplentes), no se pueden enviar más invitaciones.');
+- src/components/InviteAmigosModal.js:182:        toast.info(`${amigo.nombre} ya fue invitado a este partido`);
+- src/components/InviteAmigosModal.js:198:        toast.info(`${amigo.nombre} está en no disponible y no recibe invitaciones.`);
+- src/components/InviteAmigosModal.js:312:      toast.success(`Invitación enviada a ${amigo.nombre}`);
+- src/components/InviteAmigosModal.js:320:        toast.info('Este jugador está en no disponible y no recibe invitaciones.');
+- src/components/InviteAmigosModal.js:323:      toast.error('Error al enviar la invitación');
+- src/components/EmailAuth.js:28:          toast.error('Tu correo no está confirmado. Revisá tu mail y hacé clic en el enlace para activar tu cuenta.');
+- src/components/EmailAuth.js:30:          toast.error('Credenciales inválidas. Verificá tu email y contraseña.');
+- src/components/EmailAuth.js:32:          toast.error(`Error al iniciar sesión: ${error.message}`);
+- src/components/EmailAuth.js:37:      toast.error(`Error inesperado: ${error.message}`);
+- src/components/EmailAuth.js:58:        toast.error(`Error al registrarse: ${error.message}`);
+- src/components/EmailAuth.js:65:      toast.error(`Error inesperado: ${error.message}`);
+- src/components/EmailAuth.js:82:        toast.error(`Error al solicitar cambio de contraseña: ${error.message}`);
+- src/components/EmailAuth.js:88:      toast.error(`Error inesperado: ${error.message}`);
+- src/utils/matchResolver.js:186:    toast.error(error || 'No se pudo cargar el partido');
 - src/components/MatchChat.js:201:      toast.error('Error: Usuario no identificado');
 - src/components/MatchChat.js:258:        toast.error('No tenés permiso para escribir en este chat todavía.');
 - src/components/MatchChat.js:260:        toast.error('Error enviando mensaje: ' + msg);
+- src/components/ManualMatchModal.js:38:      toast.success('Partido agregado exitosamente');
+- src/components/ManualMatchModal.js:50:      toast.error('Error al guardar el partido');
+- src/utils/errorHandler.js:38:  toast.error(message, {
+- src/utils/errorHandler.js:50:  toast.success(message, {
+- src/utils/errorHandler.js:61:  toast.warn(message, {
+- src/hooks/useTeamFormation.js:64:      toast.warn('Necesitás al menos 8 jugadores para armar los equipos.');
+- src/components/admin/PlayersSection.jsx:107:      toast.success(`${playerToRemove.nombre || 'Jugador'} fue expulsado del partido`);
+- src/components/admin/PlayersSection.jsx:110:      toast.error(error?.message || 'No se pudo expulsar al jugador');
+- src/components/UserSearch.js:46:      toast.error('Error al buscar usuarios');
+- src/components/UserSearch.js:65:        toast.success('Solicitud de amistad enviada');
+- src/components/UserSearch.js:72:        toast.error(result.message || 'Error al enviar solicitud');
+- src/components/UserSearch.js:75:      toast.error('Error al enviar solicitud');
+- src/components/NotificationsView.js:166:          toast.error('Falta código del partido');
+- src/components/NotificationsView.js:251:        toast.success('Solicitud de amistad aceptada');
+- src/components/NotificationsView.js:255:        toast.error(result.message || 'Error al aceptar solicitud');
+- src/components/NotificationsView.js:258:      toast.error('Error al aceptar solicitud');
+- src/components/NotificationsView.js:281:        toast.success('Solicitud de amistad rechazada');
+- src/components/NotificationsView.js:285:        toast.error(result.message || 'Error al rechazar solicitud');
+- src/components/NotificationsView.js:288:      toast.error('Error al rechazar solicitud');
+- src/components/ProfileCardModal.js:165:      toast.success('Solicitud de amistad enviada');
+- src/components/ProfileCardModal.js:167:      toast.error(result.message || 'Error al enviar solicitud');
+- src/components/ProfileCardModal.js:196:      toast.error('Error: datos incompletos');
+- src/components/ProfileCardModal.js:207:      toast.success('Admin asignado correctamente');
+- src/components/ProfileCardModal.js:212:      toast.error('Error al asignar admin: ' + (error.message || 'intenta de nuevo'));
+- src/components/ProfileCardModal.js:237:      toast.error('Solo los admins pueden ver información de contacto');
+- src/components/ProfileCardModal.js:262:      toast.error('Error al obtener información de contacto');
+- src/components/AbsenceNotification.js:18:      toast.error('Por favor indica el motivo de tu ausencia');
+- src/components/AbsenceNotification.js:23:      toast.error('Por favor indica el nombre del reemplazo');
+- src/components/AbsenceNotification.js:50:        toast.success(`Ausencia registrada. ${timeMessage}${penaltyMessage}`);
+- src/components/AbsenceNotification.js:57:      toast.error('Error al registrar la ausencia: ' + error.message);
+- src/components/ProfileMenu.js:66:      toast.error('La imagen debe ser menor a 5MB');
+- src/components/ProfileMenu.js:90:      toast.success('Foto actualizada correctamente');
+- src/components/ProfileMenu.js:94:      toast.error('Error subiendo foto: ' + error.message);
+- src/components/ProfileMenu.js:112:      toast.success(value ? 'Ahora estás disponible' : 'Ahora estás no disponible');
+- src/components/ProfileMenu.js:115:      toast.error('Error actualizando estado');
+- src/components/ProfileMenu.js:121:      toast.error('El nombre es obligatorio');
+- src/components/ProfileMenu.js:132:        toast.success('Perfil completado al 100%');
+- src/components/ProfileMenu.js:134:        toast.success('Perfil actualizado');
+- src/components/ProfileMenu.js:139:      toast.error('Error actualizando perfil: ' + error.message);
 - src/components/GoogleAuth.js:16:        toast.error(`Error al iniciar sesión con Google: ${error.message}`);
 - src/components/GoogleAuth.js:20:      toast.error(`Error inesperado: ${error.message}`);
+- src/components/MatchPlayerActions.js:16:      toast.error('Debes iniciar sesión para notificar tu ausencia');
 - src/components/AmigosView.js:108:        toast.success('Solicitud de amistad aceptada');
 - src/components/AmigosView.js:118:        toast.error(result.message || 'Error al aceptar solicitud');
 - src/components/AmigosView.js:146:        toast.success('Solicitud de amistad rechazada');
@@ -180,67 +244,15 @@ Generated: 2026-02-18 17:37:21 -0300
 - src/components/AmigosView.js:420:        toast.success('Solicitud enviada');
 - src/components/AmigosView.js:423:        toast.error(result.message || 'Error al enviar solicitud');
 - src/components/AmigosView.js:426:      toast.error('Error al enviar solicitud');
-- src/hooks/useTeamFormation.js:64:      toast.warn('Necesitás al menos 8 jugadores para armar los equipos.');
-- src/context/NotificationContext.js:467:        toast.info(`Nueva solicitud de amistad de ${notification.data?.senderName || 'alguien'}`, toastOptions);
-- src/context/NotificationContext.js:470:        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
-- src/context/NotificationContext.js:473:        toast.warning(`${toastTitle}: ${toastMessage}`, toastOptions);
-- src/context/NotificationContext.js:476:        toast.info(`${toastTitle}: ${toastMessage}`, toastOptions);
-- src/context/NotificationContext.js:479:        toast.info(`${toastTitle}: ${toastMessage}`, toastOptions);
-- src/context/NotificationContext.js:487:        toast.info(`${notification.title || '¡Encuesta lista!'}: ${surveyMessage}`, toastOptions);
-- src/context/NotificationContext.js:491:        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
-- src/context/NotificationContext.js:494:        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
-- src/context/NotificationContext.js:497:        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
-- src/context/NotificationContext.js:500:        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
-- src/context/NotificationContext.js:509:        toast.info(`${toastTitle}: ${toastMessage}`, toastOptions);
-- src/utils/matchResolver.js:186:    toast.error(error || 'No se pudo cargar el partido');
-- src/utils/errorHandler.js:38:  toast.error(message, {
-- src/utils/errorHandler.js:50:  toast.success(message, {
-- src/utils/errorHandler.js:61:  toast.warn(message, {
-- src/components/InviteAmigosModal.js:108:      toast.error('No hay partido seleccionado');
-- src/components/InviteAmigosModal.js:116:      toast.error('El partido ya está completo (titulares y suplentes), no se pueden enviar más invitaciones.');
-- src/components/InviteAmigosModal.js:182:        toast.info(`${amigo.nombre} ya fue invitado a este partido`);
-- src/components/InviteAmigosModal.js:198:        toast.info(`${amigo.nombre} está en no disponible y no recibe invitaciones.`);
-- src/components/InviteAmigosModal.js:312:      toast.success(`Invitación enviada a ${amigo.nombre}`);
-- src/components/InviteAmigosModal.js:320:        toast.info('Este jugador está en no disponible y no recibe invitaciones.');
-- src/components/InviteAmigosModal.js:323:      toast.error('Error al enviar la invitación');
-- src/components/EmailAuth.js:28:          toast.error('Tu correo no está confirmado. Revisá tu mail y hacé clic en el enlace para activar tu cuenta.');
-- src/components/EmailAuth.js:30:          toast.error('Credenciales inválidas. Verificá tu email y contraseña.');
-- src/components/EmailAuth.js:32:          toast.error(`Error al iniciar sesión: ${error.message}`);
-- src/components/EmailAuth.js:36:        toast.success('¡Inicio de sesión exitoso!');
-- src/components/EmailAuth.js:39:      toast.error(`Error inesperado: ${error.message}`);
-- src/components/EmailAuth.js:60:        toast.error(`Error al registrarse: ${error.message}`);
-- src/components/EmailAuth.js:63:        toast.success('Te enviamos un correo de confirmación. Revisá tu mail para activar tu cuenta.');
-- src/components/EmailAuth.js:68:      toast.error(`Error inesperado: ${error.message}`);
-- src/components/EmailAuth.js:85:        toast.error(`Error al solicitar cambio de contraseña: ${error.message}`);
-- src/components/EmailAuth.js:88:        toast.success('Te enviamos un correo para restablecer tu contraseña. Revisá tu mail.');
-- src/components/EmailAuth.js:92:      toast.error(`Error inesperado: ${error.message}`);
 - src/components/ResetPassword.js:34:      toast.error('Las contraseñas no coinciden');
 - src/components/ResetPassword.js:39:      toast.error('La contraseña debe tener al menos 6 caracteres');
 - src/components/ResetPassword.js:51:        toast.error(`Error al cambiar la contraseña: ${error.message}`);
 - src/components/ResetPassword.js:53:        toast.success('Contraseña actualizada correctamente');
 - src/components/ResetPassword.js:60:      toast.error(`Error inesperado: ${error.message}`);
-- src/components/admin/PlayersSection.jsx:107:      toast.success(`${playerToRemove.nombre || 'Jugador'} fue expulsado del partido`);
-- src/components/admin/PlayersSection.jsx:110:      toast.error(error?.message || 'No se pudo expulsar al jugador');
-- src/components/NotificationsView.js:166:          toast.error('Falta código del partido');
-- src/components/NotificationsView.js:251:        toast.success('Solicitud de amistad aceptada');
-- src/components/NotificationsView.js:255:        toast.error(result.message || 'Error al aceptar solicitud');
-- src/components/NotificationsView.js:258:      toast.error('Error al aceptar solicitud');
-- src/components/NotificationsView.js:281:        toast.success('Solicitud de amistad rechazada');
-- src/components/NotificationsView.js:285:        toast.error(result.message || 'Error al rechazar solicitud');
-- src/components/NotificationsView.js:288:      toast.error('Error al rechazar solicitud');
-- src/components/StatsView.js:692:      toast.success('Lesión marcada como recuperada');
-- src/components/StatsView.js:696:      toast.error('No se pudo marcar la lesión como recuperada');
-- src/components/ManualMatchModal.js:38:      toast.success('Partido agregado exitosamente');
-- src/components/ManualMatchModal.js:50:      toast.error('Error al guardar el partido');
-- src/components/UserSearch.js:46:      toast.error('Error al buscar usuarios');
-- src/components/UserSearch.js:65:        toast.success('Solicitud de amistad enviada');
-- src/components/UserSearch.js:72:        toast.error(result.message || 'Error al enviar solicitud');
-- src/components/UserSearch.js:75:      toast.error('Error al enviar solicitud');
-- src/components/AbsenceNotification.js:18:      toast.error('Por favor indica el motivo de tu ausencia');
-- src/components/AbsenceNotification.js:23:      toast.error('Por favor indica el nombre del reemplazo');
-- src/components/AbsenceNotification.js:50:        toast.success(`Ausencia registrada. ${timeMessage}${penaltyMessage}`);
-- src/components/AbsenceNotification.js:57:      toast.error('Error al registrar la ausencia: ' + error.message);
-- src/components/MatchPlayerActions.js:16:      toast.error('Debes iniciar sesión para notificar tu ausencia');
+- src/components/InjuryModal.js:76:      toast.success('Lesión marcada como recuperada');
+- src/components/InjuryModal.js:82:      toast.error(`Error al marcar como recuperado: ${error.message}`);
+- src/components/InjuryModal.js:133:      toast.success('Lesión registrada exitosamente');
+- src/components/InjuryModal.js:145:      toast.error('Error al registrar la lesión');
 - src/hooks/useAdminPanelState.js:280:      toast.error('Solo el admin puede agregar jugadores');
 - src/hooks/useAdminPanelState.js:285:      toast.info('Cupo completo: titulares + suplentes.');
 - src/hooks/useAdminPanelState.js:294:      toast.warn('Ya existe un jugador con ese nombre.');
@@ -262,42 +274,6 @@ Generated: 2026-02-18 17:37:21 -0300
 - src/hooks/useAdminPanelState.js:795:      toast.error('No se puede abrir el partido cuando está lleno');
 - src/hooks/useAdminPanelState.js:814:      toast.success(nuevoEstado ?
 - src/hooks/useAdminPanelState.js:819:      toast.error('Error al actualizar el partido: ' + error.message);
-- src/components/ProfileCardModal.js:165:      toast.success('Solicitud de amistad enviada');
-- src/components/ProfileCardModal.js:167:      toast.error(result.message || 'Error al enviar solicitud');
-- src/components/ProfileCardModal.js:196:      toast.error('Error: datos incompletos');
-- src/components/ProfileCardModal.js:207:      toast.success('Admin asignado correctamente');
-- src/components/ProfileCardModal.js:212:      toast.error('Error al asignar admin: ' + (error.message || 'intenta de nuevo'));
-- src/components/ProfileCardModal.js:237:      toast.error('Solo los admins pueden ver información de contacto');
-- src/components/ProfileCardModal.js:262:      toast.error('Error al obtener información de contacto');
-- src/components/InjuryModal.js:76:      toast.success('Lesión marcada como recuperada');
-- src/components/InjuryModal.js:82:      toast.error(`Error al marcar como recuperado: ${error.message}`);
-- src/components/InjuryModal.js:133:      toast.success('Lesión registrada exitosamente');
-- src/components/InjuryModal.js:145:      toast.error('Error al registrar la lesión');
-- src/components/ProfileEditor.js:503:      toast.error('La imagen debe ser menor a 5MB');
-- src/components/ProfileEditor.js:544:      toast.success('Foto actualizada correctamente');
-- src/components/ProfileEditor.js:548:      toast.error('Error subiendo foto: ' + error.message);
-- src/components/ProfileEditor.js:561:      toast.error('El nombre es obligatorio');
-- src/components/ProfileEditor.js:565:      toast.error('El email es obligatorio');
-- src/components/ProfileEditor.js:579:        toast.error('Error guardando perfil: ' + updatedProfile.error.message);
-- src/components/ProfileEditor.js:585:        toast.success('Perfil completado al 100%');
-- src/components/ProfileEditor.js:587:        toast.success('Perfil guardado correctamente');
-- src/components/ProfileEditor.js:594:      toast.error('Error guardando perfil: ' + error.message);
-- src/components/ProfileEditor.js:608:      toast.error('No se pudo identificar la cuenta actual.');
-- src/components/ProfileEditor.js:624:      toast.error('Para confirmar, escribí ELIMINAR.');
-- src/components/ProfileEditor.js:644:      toast.success('Cuenta eliminada correctamente.');
-- src/components/ProfileEditor.js:649:      toast.error(`Error eliminando cuenta: ${error.message}`);
-- src/components/ProfileEditor.js:657:      toast.error('Geolocalización no disponible en este dispositivo');
-- src/components/ProfileEditor.js:685:        toast.success('Ubicación obtenida correctamente');
-- src/components/ProfileEditor.js:703:        toast.error(errorMessage);
-- src/components/ProfileMenu.js:66:      toast.error('La imagen debe ser menor a 5MB');
-- src/components/ProfileMenu.js:90:      toast.success('Foto actualizada correctamente');
-- src/components/ProfileMenu.js:94:      toast.error('Error subiendo foto: ' + error.message);
-- src/components/ProfileMenu.js:112:      toast.success(value ? 'Ahora estás disponible' : 'Ahora estás no disponible');
-- src/components/ProfileMenu.js:115:      toast.error('Error actualizando estado');
-- src/components/ProfileMenu.js:121:      toast.error('El nombre es obligatorio');
-- src/components/ProfileMenu.js:132:        toast.success('Perfil completado al 100%');
-- src/components/ProfileMenu.js:134:        toast.success('Perfil actualizado');
-- src/components/ProfileMenu.js:139:      toast.error('Error actualizando perfil: ' + error.message);
 - src/components/NotificationsModal.js:133:      toast.error('Falta información del partido');
 - src/components/NotificationsModal.js:158:      toast.info('Fuiste removido del partido');
 - src/components/ProximosPartidos.js:254:      toast.info('Antes de abandonar, asigná el rol de admin a otro jugador.');
@@ -306,6 +282,10 @@ Generated: 2026-02-18 17:37:21 -0300
 - src/components/ProximosPartidos.js:328:          toast.success('Partido limpiado');
 - src/components/ProximosPartidos.js:330:          toast.error('No se pudo limpiar el partido');
 - src/components/ProximosPartidos.js:336:      toast.error('Ocurrió un error al procesar la acción');
+- src/components/AuthPage.js:27:      toast.success('Sesión cerrada correctamente');
+- src/components/AuthPage.js:103:      toast.success('¡Inicio de sesión exitoso!');
+- src/components/AuthPage.js:137:      toast.success('Te enviamos un correo de confirmación. Revisá tu mail para activar tu cuenta.');
+- src/components/AuthPage.js:170:      toast.success('Te enviamos un correo para restablecer tu contraseña. Revisá tu mail.');
 - src/components/ArmarEquiposView.js:145:      toast.error('No hay partido activo');
 - src/components/ArmarEquiposView.js:164:        toast.error('No se pudo iniciar la votación: ' + (res.error.message || 'Error desconocido'));
 - src/components/ArmarEquiposView.js:176:        toast.warn('La votación ya está programada para este partido.');
@@ -325,10 +305,6 @@ Generated: 2026-02-18 17:37:21 -0300
 - src/components/ArmarEquiposView.js:454:      toast.success('Votación cerrada. Equipos armados.');
 - src/components/ArmarEquiposView.js:471:      toast.error(errorMessage);
 - src/components/ArmarEquiposView.js:539:      toast.error('Error eliminando jugador: ' + error.message);
-- src/components/AuthPage.js:27:      toast.success('Sesión cerrada correctamente');
-- src/components/AuthPage.js:103:      toast.success('¡Inicio de sesión exitoso!');
-- src/components/AuthPage.js:137:      toast.success('Te enviamos un correo de confirmación. Revisá tu mail para activar tu cuenta.');
-- src/components/AuthPage.js:170:      toast.success('Te enviamos un correo para restablecer tu contraseña. Revisá tu mail.');
 - src/components/TeamDisplay.js:257:      toast.error('Solo el admin puede randomizar los equipos');
 - src/components/TeamDisplay.js:261:      toast.info('Los equipos ya están confirmados.');
 - src/components/TeamDisplay.js:368:        toast.error('No se pudieron resolver los jugadores de los equipos.');
@@ -339,3 +315,19 @@ Generated: 2026-02-18 17:37:21 -0300
 - src/components/TeamDisplay.js:444:      toast.error('No se pudo desconfirmar');
 - src/components/TeamDisplay.js:537:      toast.info('No se pueden mover jugadores bloqueados.');
 - src/components/TeamDisplay.js:592:      toast.error('No se pudieron preparar los equipos para compartir');
+- src/components/ProfileEditor.js:503:      toast.error('La imagen debe ser menor a 5MB');
+- src/components/ProfileEditor.js:544:      toast.success('Foto actualizada correctamente');
+- src/components/ProfileEditor.js:548:      toast.error('Error subiendo foto: ' + error.message);
+- src/components/ProfileEditor.js:561:      toast.error('El nombre es obligatorio');
+- src/components/ProfileEditor.js:565:      toast.error('El email es obligatorio');
+- src/components/ProfileEditor.js:579:        toast.error('Error guardando perfil: ' + updatedProfile.error.message);
+- src/components/ProfileEditor.js:585:        toast.success('Perfil completado al 100%');
+- src/components/ProfileEditor.js:587:        toast.success('Perfil guardado correctamente');
+- src/components/ProfileEditor.js:594:      toast.error('Error guardando perfil: ' + error.message);
+- src/components/ProfileEditor.js:608:      toast.error('No se pudo identificar la cuenta actual.');
+- src/components/ProfileEditor.js:624:      toast.error('Para confirmar, escribí ELIMINAR.');
+- src/components/ProfileEditor.js:644:      toast.success('Cuenta eliminada correctamente.');
+- src/components/ProfileEditor.js:649:      toast.error(`Error eliminando cuenta: ${error.message}`);
+- src/components/ProfileEditor.js:657:      toast.error('Geolocalización no disponible en este dispositivo');
+- src/components/ProfileEditor.js:685:        toast.success('Ubicación obtenida correctamente');
+- src/components/ProfileEditor.js:703:        toast.error(errorMessage);
