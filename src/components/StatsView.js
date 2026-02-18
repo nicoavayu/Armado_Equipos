@@ -511,18 +511,36 @@ const StatsView = ({ onVolver }) => {
       survey.tarjeta_roja === user.id || survey.tarjeta_roja === user.email,
     ).length || 0;
 
-    // Mejor mes (siempre mostrar)
-    const partidosPorMes = {};
+    // Mejor mes (siempre mostrar un mes, incluso con 0 partidos)
+    const now = new Date();
+    const preferredMonthIndex = selectedYear === now.getFullYear() ? now.getMonth() : 0;
+    const monthBuckets = Array.from({ length: 12 }, (_, monthIndex) => ({
+      monthIndex,
+      label: new Date(selectedYear, monthIndex, 1).toLocaleDateString('es-ES', { year: 'numeric', month: 'long' }),
+      count: 0,
+    }));
+
     userPartidos.forEach((partido) => {
-      const key = new Date(partido.fecha).toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
-      partidosPorMes[key] = (partidosPorMes[key] || 0) + 1;
+      const date = new Date(partido.fecha);
+      if (Number.isNaN(date.getTime())) return;
+      if (date.getFullYear() !== selectedYear) return;
+      const monthIndex = date.getMonth();
+      if (monthIndex >= 0 && monthIndex <= 11) {
+        monthBuckets[monthIndex].count += 1;
+      }
     });
 
-    const mejorMes = Object.entries(partidosPorMes).sort((a, b) => b[1] - a[1])[0];
+    let mejorMes = monthBuckets[preferredMonthIndex];
+    monthBuckets.forEach((bucket) => {
+      if (bucket.count > mejorMes.count) {
+        mejorMes = bucket;
+      }
+    });
+
     annualLogros.push({
       titulo: 'Mejor Mes',
-      valor: mejorMes ? `${mejorMes[1]} partidos` : '0 partidos',
-      detalle: mejorMes ? mejorMes[0] : 'Sin partidos aún',
+      valor: `${mejorMes.count} partidos`,
+      detalle: mejorMes.label,
       icono: 'Trophy',
     });
 
