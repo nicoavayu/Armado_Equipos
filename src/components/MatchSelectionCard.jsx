@@ -9,7 +9,6 @@ const MatchSelectionCard = ({
 }) => {
     const jugadoresCount = match.jugadores_count || 0;
     const cupoMaximo = match.cupo_jugadores || 20;
-    const faltan = cupoMaximo - jugadoresCount;
     const isComplete = jugadoresCount >= cupoMaximo;
 
     // Título: Nombre del partido o Fecha + Hora
@@ -47,10 +46,10 @@ const MatchSelectionCard = ({
     return (
         <div
             onClick={onSelect}
-            className={`relative rounded-2xl p-4 transition-all duration-300 cursor-pointer flex flex-col gap-2.5 border
+            className={`relative rounded-2xl p-4 transition-all duration-300 cursor-pointer flex flex-col gap-3 border
                 ${isSelected
-                    ? 'bg-[#1d2f66]/85 border-[#2ea7ff]/70 shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-1 ring-[#2ea7ff]/35'
-                    : (isComplete ? 'bg-white/10 border-white/10' : 'bg-[#162347]/80 border-white/15') + ' shadow-[0_8px_24px_rgba(0,0,0,0.35)] hover:border-white/30 hover:bg-[#1b2b57]/90'
+                    ? 'bg-slate-900 border-blue-500/70 shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-1 ring-blue-500/40'
+                    : (isComplete ? 'bg-slate-900/60 border-slate-800/70' : 'bg-slate-900 border-slate-800') + ' shadow-[0_8px_24px_rgba(0,0,0,0.35)] hover:border-slate-700'
                 }
                 ${inviteStatus !== 'available' && !isSelected ? 'active:scale-100' : 'active:scale-[0.99]'}
             `}
@@ -58,14 +57,14 @@ const MatchSelectionCard = ({
             {/* Header: Título y Status de jugadores */}
             <div className="flex justify-between items-start gap-3">
                 <div className="flex-1 min-w-0">
-                    <h4 className={`font-oswald text-[20px] font-semibold truncate leading-tight tracking-[0.01em] transition-colors
-                        ${isComplete ? 'text-white/35' : 'text-white'}
+                    <h4 className={`font-oswald text-[20px] font-semibold truncate leading-tight tracking-[0.01em]
+                        ${isComplete ? 'text-white/55' : 'text-white'}
                     `}>
                         {title}
                     </h4>
                     {!showDateTimeInTitle && (
-                        <p className={`text-[11px] font-medium mt-1 tracking-[0.01em] transition-colors inline-flex items-center gap-1.5
-                            ${isComplete ? 'text-white/25' : 'text-[#9bb5de]'}
+                        <p className={`text-[11px] font-medium mt-1 tracking-[0.01em] inline-flex items-center gap-1.5
+                            ${isComplete ? 'text-white/35' : 'text-white/60'}
                         `}>
                             <Clock3 size={11} />
                             {match.fecha_display || match.fecha} • {match.hora}
@@ -73,22 +72,31 @@ const MatchSelectionCard = ({
                     )}
                 </div>
 
-                <div className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all
+                <div className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold tracking-wider transition-all
                     ${isComplete
-                        ? 'bg-white/5 text-white/35 border border-white/10'
-                        : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-[0_4px_12px_rgba(16,185,129,0.14)]'
+                        ? 'bg-slate-900 text-slate-300 border border-slate-700'
+                        : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                     }
                 `}>
-                    <Users size={12} className={isComplete ? 'opacity-20' : 'opacity-70'} />
-                    {isComplete ? 'Completo' : `Faltan ${faltan}`}
+                    <Users size={12} className={isComplete ? 'opacity-45' : 'opacity-75'} />
+                    {jugadoresCount}/{cupoMaximo}
                 </div>
             </div>
 
+            <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-white/40 border border-white/10 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider">
+                    {match.modalidad || 'F5'}
+                </span>
+                <span className="text-[10px] font-bold text-white/40 border border-white/10 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider">
+                    {match.tipo_partido || 'Mixto'}
+                </span>
+            </div>
+
             {/* Ubicación Simplificada */}
-            <div className={`flex items-center gap-1.5 border-t border-white/10 pt-2 transition-colors
-                ${isComplete ? 'text-white/25' : 'text-[#90a4c7]'}
+            <div className={`flex items-center gap-1.5 border-t border-white/10 pt-2
+                ${isComplete ? 'text-white/35' : 'text-white/60'}
             `}>
-                <MapPin size={12} className={`shrink-0 ${isComplete ? 'opacity-25' : 'opacity-60'}`} />
+                <MapPin size={12} className={`shrink-0 ${isComplete ? 'opacity-35' : 'opacity-70'}`} />
                 <p className="text-[12px] font-medium truncate tracking-wide">
                     {simplifiedAddress}
                 </p>

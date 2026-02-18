@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { toBigIntId } from '../utils';
-import { formatLocalDateShort } from '../utils/dateLocal';
+import { formatLocalDateShort, parseLocalDateTime } from '../utils/dateLocal';
 import { toast } from 'react-toastify';
 import Modal from './Modal';
 import LoadingSpinner from './LoadingSpinner';
@@ -28,70 +28,123 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
         setLoading(true);
         setSelectedMatchId(null);
         try {
-            // Fetch upcoming matches where the user is a participant or creator
+            const { data: myPlayerRows, error: myPlayerRowsError } = await supabase
+                .from('jugadores')
+                .select('partido_id')
+                .eq('usuario_id', currentUserId);
+
+            if (myPlayerRowsError) throw myPlayerRowsError;
+
+            const { data: myAdminRows, error: myAdminRowsError } = await supabase
+                .from('partidos')
+                .select('id')
+                .eq('creado_por', currentUserId);
+
+            if (myAdminRowsError) throw myAdminRowsError;
+
+            const myMatchIds = Array.from(new Set([
+                ...(myPlayerRows || []).map((r) => r.partido_id),
+                ...(myAdminRows || []).map((r) => r.id),
+            ].filter(Boolean)));
+
+            if (myMatchIds.length === 0) {
+                setMatches([]);
+                return;
+            }
+
+            const { data: clearedRows } = await supabase
+                .from('cleared_matches')
+                .select('partido_id')
+                .eq('user_id', currentUserId);
+            const clearedIds = new Set((clearedRows || []).map((r) => String(r.partido_id)));
+
             const { data: partidosData, error: partidosError } = await supabase
-                .from('partidos_view')
-                .select(`
-          id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, 
-          tipo_partido, creado_por, precio_cancha_por_persona
-        `)
-                .gte('fecha', new Date().toISOString().split('T')[0])
+                .from('partidos')
+                .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido, creado_por, precio_cancha_por_persona, estado, deleted_at')
+                .in('id', myMatchIds)
                 .order('fecha', { ascending: true })
                 .order('hora', { ascending: true });
 
             if (partidosError) throw partidosError;
 
-            if (partidosData.length === 0) {
+            const dedupedMatchesMap = new Map();
+            (partidosData || []).forEach((match) => {
+                if (match?.id != null && !dedupedMatchesMap.has(String(match.id))) {
+                    dedupedMatchesMap.set(String(match.id), match);
+                }
+            });
+            const dedupedMatches = Array.from(dedupedMatchesMap.values());
+
+            if (dedupedMatches.length === 0) {
                 setMatches([]);
                 return;
             }
 
-            const partidoIds = partidosData.map((p) => p.id);
+            const dedupedMatchIds = dedupedMatches.map((m) => m.id);
             const { data: jugadoresData, error: jugadoresError } = await supabase
                 .from('jugadores')
                 .select('id, partido_id, usuario_id')
-                .in('partido_id', partidoIds);
+                .in('partido_id', dedupedMatchIds);
 
             if (jugadoresError) throw jugadoresError;
 
-            const userMatches = partidosData.filter((partido) => {
-                const isCreator = partido.creado_por === currentUserId;
-                const isPlayer = jugadoresData.some(
-                    (j) => j.partido_id === partido.id && j.usuario_id === currentUserId
-                );
-                return isCreator || isPlayer;
-            });
+            const { data: pendingInviteRows, error: pendingInviteRowsError } = await supabase
+                .from('notifications')
+                .select('match_ref, data')
+                .eq('user_id', targetUserId)
+                .eq('type', 'match_invite')
+                .eq('read', false);
 
-            const matchesWithStatus = await Promise.all(
-                userMatches.map(async (match) => {
-                    const playersInMatch = jugadoresData.filter((j) => j.partido_id === match.id);
-                    const isParticipating = playersInMatch.some(
-                        (j) => j.usuario_id === targetUserId
-                    );
+            if (pendingInviteRowsError) throw pendingInviteRowsError;
 
-                    let hasInvitation = false;
-                    if (match.id) {
-                        const pid = Number(match.id);
-                        const { data: notifications } = await supabase
-                            .from('notifications')
-                            .select('id')
-                            .eq('user_id', targetUserId)
-                            .eq('type', 'match_invite')
-                            .or(`match_ref.eq.${pid},data->>matchId.eq.${pid}`);
+            const pendingInviteMatchIds = new Set(
+                (pendingInviteRows || [])
+                    .map((row) => {
+                        const fromRef = row?.match_ref;
+                        const fromData = row?.data?.matchId;
+                        return String(fromRef ?? fromData ?? '').trim();
+                    })
+                    .filter(Boolean)
+            );
 
-                        hasInvitation = notifications && notifications.length > 0;
+            const now = new Date();
+            const matchesWithStatus = dedupedMatches
+                .filter((match) => {
+                    if (!match?.id) return false;
+                    if (clearedIds.has(String(match.id))) return false;
+
+                    const estado = String(match.estado || '').toLowerCase();
+                    if (['cancelado', 'cancelled', 'deleted'].includes(estado) || match.deleted_at) {
+                        return false;
                     }
+
+                    if (!match.fecha || !match.hora) return true;
+
+                    const matchDateTime = parseLocalDateTime(match.fecha, match.hora);
+                    if (!matchDateTime) return true;
+
+                    const oneHourAfter = new Date(matchDateTime.getTime() + 60 * 60 * 1000);
+                    return now <= oneHourAfter;
+                })
+                .map((match) => {
+                    const playersInMatch = (jugadoresData || []).filter((j) => j.partido_id === match.id);
+                    const isParticipating = playersInMatch.some((j) => j.usuario_id === targetUserId);
+                    const hasInvitation = pendingInviteMatchIds.has(String(match.id));
+                    const starterCapacity = Number(match.cupo_jugadores || 0);
+                    const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0;
+                    const isRosterFull = maxRosterSlots > 0 && playersInMatch.length >= maxRosterSlots;
 
                     return {
                         ...match,
                         jugadores_count: playersInMatch.length,
                         isParticipating,
                         hasInvitation,
-                        canInvite: !isParticipating && !hasInvitation,
-                        fecha_display: formatLocalDateShort(match.fecha)
+                        isRosterFull,
+                        canInvite: !isParticipating && !hasInvitation && !isRosterFull,
+                        fecha_display: formatLocalDateShort(match.fecha),
                     };
                 })
-            );
+                .filter((match) => match.canInvite);
 
             setMatches(matchesWithStatus);
 
@@ -114,16 +167,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             toast.error('No se pudo identificar al jugador para invitar');
             return;
         }
-
-        // Logging before post
-        console.log('[INVITE_DEBUG] Attempting invite:', {
-            inviteStatus,
-            selectedMatchId: match.id,
-            friendId: friend.profile?.id
-        });
-
-        if (inviteStatus !== 'available') {
-            console.warn('[INVITE_DEBUG] Invite not allowed, status is not available:', inviteStatus);
+        if (!match.canInvite) {
             return;
         }
 
@@ -273,9 +317,9 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             ) : matches.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 px-6 text-center bg-white/5 rounded-2xl border border-white/10 border-dashed">
                     <p className="text-white/50 text-sm leading-relaxed mb-1">
-                        No tenés partidos próximos creados o donde seas admin.
+                        No tenés partidos activos disponibles para invitar.
                     </p>
-                    <p className="text-white/35 text-xs">Creá uno nuevo y volvé a intentar.</p>
+                    <p className="text-white/35 text-xs">Solo se muestran tus partidos vigentes donde se puede invitar.</p>
                 </div>
             ) : (
                 <div className="flex flex-col gap-2.5">
