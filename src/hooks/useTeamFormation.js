@@ -1,4 +1,3 @@
-import { toast } from 'react-toastify';
 
 /**
  * Custom hook for team formation logic
@@ -61,7 +60,7 @@ export const useTeamFormation = () => {
 
   const handleArmarEquipos = (jugadores, setShowArmarEquiposView) => {
     if (jugadores.length < 8) {
-      toast.warn('Necesitás al menos 8 jugadores para armar los equipos.');
+      console.warn('Necesitás al menos 8 jugadores para armar los equipos.');
       return;
     }
     setShowArmarEquiposView(true);

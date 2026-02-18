@@ -1,7 +1,7 @@
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/components/MatchChat.js
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
-import { toast } from 'react-toastify';
 import { useAuth } from './AuthProvider';
 import { subscribeToMatchChat } from '../services/realtimeService';
 // import './MatchChat.css'; // REMOVED
@@ -198,7 +198,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
     const userInfo = getUserInfo();
     if (!userInfo) {
-      toast.error('Error: Usuario no identificado');
+      notifyBlockingError('Error: Usuario no identificado');
       return;
     }
 
@@ -255,9 +255,9 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     } catch (error) {
       const msg = String(error?.message || '');
       if (msg.toLowerCase().includes('row-level security')) {
-        toast.error('No tenés permiso para escribir en este chat todavía.');
+        notifyBlockingError('No tenés permiso para escribir en este chat todavía.');
       } else {
-        toast.error('Error enviando mensaje: ' + msg);
+        notifyBlockingError('Error enviando mensaje: ' + msg);
       }
     } finally {
       setLoading(false);

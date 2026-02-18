@@ -2,7 +2,6 @@
 import React, { lazy, Suspense } from 'react';
 import { ToastContainer } from 'react-toastify';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams, Outlet } from 'react-router-dom';
-import { installGlobalToastPolicy } from './lib/toastPolicy';
 
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
@@ -11,9 +10,8 @@ import LoadingSpinner from './components/LoadingSpinner';
 // NotificationsDebugPanel removed
 
 import MainLayout from './components/MainLayout';
-import AuthPage from './components/AuthPage';
 import { setAuthReturnTo } from './utils/authReturnTo';
-import ResetPassword from './components/ResetPassword'; // Import corrected
+import { track } from './utils/monitoring/analytics';
 
 
 import { NotificationProvider } from './context/NotificationContext';
@@ -28,7 +26,6 @@ const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const AccountDeletionInfoPage = lazy(() => import('./pages/AccountDeletionInfoPage'));
 const VotarEquiposPage = lazy(() => import('./pages/VotarEquiposPage'));
 const AuthHome = lazy(() => import('./components/AuthHome'));
-const EmailMagicLinkLogin = lazy(() => import('./components/EmailMagicLinkLogin'));
 const AuthCallback = lazy(() => import('./components/AuthCallback'));
 const InviteLanding = lazy(() => import('./components/InviteLanding'));
 
@@ -58,8 +55,6 @@ if (process.env.NODE_ENV === 'development') {
   }
 }
 
-installGlobalToastPolicy();
-
 export default function App() {
   return (
     <GlobalErrorBoundary>
@@ -69,6 +64,7 @@ export default function App() {
             <NotificationProvider>
               <Router>
                 <ScrollToTop />
+                <RouteAnalyticsTracker />
                 <Routes>
                   <Route path="/health" element={<HealthRoute />} />
                   <Route path="/terms" element={
@@ -101,16 +97,14 @@ export default function App() {
                       <ResultadosEncuestaView />
                     </Suspense>
                   } />
-                  <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/login" element={
                     <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
                       <AuthHome />
                     </Suspense>
                   } />
-                  <Route path="/login/password" element={<PasswordLoginRoute />} />
                   <Route path="/login/email" element={
                     <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
-                      <EmailMagicLinkLogin />
+                      <AuthHome />
                     </Suspense>
                   } />
                   <Route path="/auth/callback" element={
@@ -262,15 +256,6 @@ function LegacyTemplateHistoryRedirect() {
   return <Navigate to={`/frecuentes/${templateId}/historial`} replace />;
 }
 
-function PasswordLoginRoute() {
-  const hostname = window.location.hostname;
-  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
-  if (isLocalhost) {
-    return <Navigate to="/login" replace />;
-  }
-  return <AuthPage />;
-}
-
 function HealthRoute() {
   if (process.env.NODE_ENV !== 'development') {
     return <Navigate to="/" replace />;
@@ -294,6 +279,30 @@ function ScrollToTop() {
     };
 
     requestAnimationFrame(reset);
+  }, [location.pathname, location.search]);
+
+  return null;
+}
+
+function RouteAnalyticsTracker() {
+  const location = useLocation();
+  const lastTrackedRef = React.useRef('');
+
+  React.useEffect(() => {
+    const routeKey = `${location.pathname}${location.search}`;
+    if (lastTrackedRef.current === routeKey) return;
+
+    const match = location.pathname.match(
+      /^\/(?:admin|partido|partido-publico|encuesta|resultados(?:-encuesta)?)\/(\d+)(?:\/invitacion)?$/,
+    );
+    if (!match) return;
+
+    lastTrackedRef.current = routeKey;
+    const matchId = Number(match[1]);
+    track('view_match', {
+      match_id: Number.isNaN(matchId) ? match[1] : matchId,
+      path: location.pathname,
+    });
   }, [location.pathname, location.search]);
 
   return null;

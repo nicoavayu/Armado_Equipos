@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, supabase } from '../supabase';
 import ProfileCard from './ProfileCard';
 import InlineNotice from './ui/InlineNotice';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const GEO_LOG_PREFIX = '[PROFILE_GEO]';
 
@@ -568,7 +568,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
     } catch (error) {
       console.error('Error uploading photo:', error);
-      toast.error('Error subiendo foto: ' + error.message);
+      notifyBlockingError('Error subiendo foto: ' + error.message);
 
       setLiveProfile((prev) => ({
         ...prev,
@@ -599,7 +599,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       const updatedProfile = await updateProfile(user.id, profileDataToSave);
 
       if (updatedProfile?.error) {
-        toast.error('Error guardando perfil: ' + updatedProfile.error.message);
+        notifyBlockingError('Error guardando perfil: ' + updatedProfile.error.message);
         return;
       }
 
@@ -614,7 +614,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       setHasChanges(false);
       onClose();
     } catch (error) {
-      toast.error('Error guardando perfil: ' + error.message);
+      notifyBlockingError('Error guardando perfil: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -669,7 +669,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       onClose();
       navigate('/login', { replace: true });
     } catch (error) {
-      toast.error(`Error eliminando cuenta: ${error.message}`);
+      notifyBlockingError(`Error eliminando cuenta: ${error.message}`);
     } finally {
       setLoading(false);
     }

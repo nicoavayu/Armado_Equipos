@@ -7,10 +7,10 @@ import { formatLocalDateShort } from '../utils/dateLocal';
 import { useTimeout } from '../hooks/useTimeout';
 import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchDateDebug';
 import { v4 as uuidv4 } from 'uuid';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 import PageTitle from '../components/PageTitle';
 import ListaPartidosFrecuentes from './ListaPartidosFrecuentes';
-import { toast } from 'react-toastify';
 import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
 import InlineNotice from '../components/ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
@@ -143,14 +143,14 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     } catch (e) {
       console.error('Error preloading partido frecuente into form', e);
     } finally {
-      toast.success('Plantilla aplicada');
+      console.info('Plantilla aplicada');
       setShowFrecuentes(false);
       setStep(STEPS.NAME);
     }
   };
 
   const handleEditarFrecuenteFromList = (_p) => {
-    toast.info('Editar desde la lista no disponible aquí');
+    console.info('Editar desde la lista no disponible aquí');
   };
 
   const handleSubmit = async () => {
@@ -259,7 +259,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
 
             if (insertError) {
               console.error('[CREAR_PARTIDO] Error insert jugador creador:', insertError);
-              toast.error('No pude agregarte como jugador: ' + insertError.message);
+              notifyBlockingError('No pude agregarte como jugador: ' + insertError.message);
             } else {
               console.log('[CREAR_PARTIDO] Creador agregado como jugador ✅', jugadorRow);
             }
@@ -274,10 +274,10 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
         console.log('[NuevoPartido] will insert frequent template for partido match_ref:', partido?.match_ref);
         try {
           await insertPartidoFrecuenteFromPartido(partido?.match_ref ?? partido?.id);
-          toast.success('Plantilla guardada');
+          console.info('Plantilla guardada');
         } catch (err) {
           console.error('[Guardar frecuente] error inserting frequent template:', err);
-          toast.warning('Partido creado, pero no se pudo guardar como frecuente');
+          console.warn('Partido creado, pero no se pudo guardar como frecuente');
         }
       }
 

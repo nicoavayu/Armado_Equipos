@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { getAmigos, supabase } from '../supabase';
-import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
 import { formatLocalDateShort } from '../utils/dateLocal';
 import InlineNotice from './ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 
 const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, jugadores = [] }) => {
@@ -190,7 +190,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
       }
 
       if (existingInvitation) {
-        toast.info(`${amigo.nombre} ya fue invitado a este partido`);
+        console.info(`${amigo.nombre} ya fue invitado a este partido`);
         return;
       }
 
@@ -206,7 +206,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
       }
 
       if (recipientUser?.acepta_invitaciones === false) {
-        toast.info(`${amigo.nombre} está en no disponible y no recibe invitaciones.`);
+        console.info(`${amigo.nombre} está en no disponible y no recibe invitaciones.`);
         return;
       }
 
@@ -320,7 +320,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
       // Agregar al set de amigos invitados
       setInvitedFriends((prev) => new Set(Array.from(prev).concat(amigo.id)));
 
-      toast.success(`Invitación enviada a ${amigo.nombre}`);
+      console.info(`Invitación enviada a ${amigo.nombre}`);
     } catch (error) {
       console.error('[MODAL_AMIGOS] Error sending invitation:', error);
       if (error.message.includes('ya fue invitado')) {
@@ -328,10 +328,10 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
         return;
       }
       if (error.message.includes('no recibe invitaciones')) {
-        toast.info('Este jugador está en no disponible y no recibe invitaciones.');
+        console.info('Este jugador está en no disponible y no recibe invitaciones.');
         return;
       }
-      toast.error('Error al enviar la invitación');
+      notifyBlockingError('Error al enviar la invitación');
     } finally {
       setInviting(false);
     }

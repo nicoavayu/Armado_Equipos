@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import { getPublicBaseUrl } from '../utils/publicBaseUrl';
 import { UI_SIZES } from '../appConstants';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 import {
   closeVotingAndCalculateScores,
   getVotantesIds,
@@ -172,7 +172,7 @@ export default function ArmarEquiposView({
 
       if (res?.error) {
         console.error('[Teams] sendVotingNotifications error result', res.error);
-        toast.error('No se pudo iniciar la votación: ' + (res.error.message || 'Error desconocido'));
+        notifyBlockingError('No se pudo iniciar la votación: ' + (res.error.message || 'Error desconocido'));
         return;
       }
 
@@ -220,7 +220,7 @@ export default function ArmarEquiposView({
 
     } catch (error) {
       console.error('[Teams] call-to-vote failed', error);
-      toast.error('No se pudo iniciar la votación: ' + (error.message || 'Error desconocido'));
+      notifyBlockingError('No se pudo iniciar la votación: ' + (error.message || 'Error desconocido'));
     } finally {
       setCalling(false);
     }
@@ -285,7 +285,7 @@ export default function ArmarEquiposView({
 
     } catch (error) {
       console.error('[Teams] reset-voting failed', error);
-      toast.error('No se pudo resetear la votación: ' + (error.message || 'Error desconocido'));
+      notifyBlockingError('No se pudo resetear la votación: ' + (error.message || 'Error desconocido'));
     } finally {
       setResetting(false);
     }
@@ -480,7 +480,7 @@ export default function ArmarEquiposView({
         errorMessage = error.message;
       }
 
-      toast.error(errorMessage);
+      notifyBlockingError(errorMessage);
     } finally {
       setIsClosing(false);
     }
@@ -548,7 +548,7 @@ export default function ArmarEquiposView({
       onJugadoresChange(jugadoresPartido);
 
     } catch (error) {
-      toast.error('Error eliminando jugador: ' + error.message);
+      notifyBlockingError('Error eliminando jugador: ' + error.message);
     } finally {
       setLoading(false);
     }

@@ -5,7 +5,6 @@ import { useAuth } from '../components/AuthProvider';
 import { isUserMemberOfMatch, clearGuestMembership } from '../utils/membershipCheck';
 import { formatLocalDateShort } from '../utils/dateLocal';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { toast } from 'react-toastify';
 import PageTitle from '../components/PageTitle';
 import MatchInfoSection from '../components/MatchInfoSection';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
@@ -15,6 +14,7 @@ import InlineNotice from '../components/ui/InlineNotice';
 import { Camera, UserRound, CircleAlert, Zap, LockKeyhole, CheckCircle2, Calendar, Clock, MapPin } from 'lucide-react';
 import Logo from '../Logo.png';
 import { findUserScheduleConflicts } from '../services/db/matchScheduling';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 /**
  * Pantalla pública de invitación a un partido
@@ -790,7 +790,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         details: err.details,
         hint: err.hint
       });
-      toast.error('No se pudo enviar la solicitud');
+      notifyBlockingError('No se pudo enviar la solicitud');
     } finally {
       setJoinSubmitting(false);
     }
@@ -880,7 +880,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       }
     } catch (err) {
       console.error('[PartidoInvitacion] Error sumando con cuenta:', err);
-      toast.error('No se pudo sumar al partido');
+      notifyBlockingError('No se pudo sumar al partido');
     } finally {
       setSubmitting(false);
     }
@@ -975,7 +975,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       }, 2000);
     } catch (err) {
       console.error('[PartidoInvitacion] Error sumando como invitado:', err);
-      toast.error(err.message || 'No se pudo sumar al partido');
+      notifyBlockingError(err.message || 'No se pudo sumar al partido');
     } finally {
       setSubmitting(false);
     }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import AbsenceNotification from './AbsenceNotification';
 import { useAuth } from './AuthProvider';
-import { toast } from 'react-toastify';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 /**
  * Component that shows action buttons for players in a match
@@ -13,7 +13,7 @@ const MatchPlayerActions = ({ partidoId, onPlayerRemoved }) => {
 
   const handleNotifyAbsence = () => {
     if (!user) {
-      toast.error('Debes iniciar sesión para notificar tu ausencia');
+      notifyBlockingError('Debes iniciar sesión para notificar tu ausencia');
       return;
     }
     setShowAbsenceModal(true);

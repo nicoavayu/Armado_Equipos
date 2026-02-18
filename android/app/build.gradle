@@ -1,5 +1,11 @@
 apply plugin: 'com.android.application'
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("../.secrets/android/keystore.env")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace "com.teambalancer.app"
     compileSdk rootProject.ext.compileSdkVersion
@@ -16,8 +22,17 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            storeFile rootProject.file("../.secrets/android/release-keystore.jks")
+            storePassword keystoreProperties['ANDROID_KEYSTORE_PASSWORD']
+            keyAlias keystoreProperties['ANDROID_KEY_ALIAS']
+            keyPassword keystoreProperties['ANDROID_KEY_PASSWORD']
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

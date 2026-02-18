@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { useAuth } from '../components/AuthProvider';
 import PageTransition from '../components/PageTransition';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Button from '../components/Button';
 import AdminPanel from './AdminPanel';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 import {
   getPartidoPorId,
   updateJugadoresFrecuentes,
@@ -47,12 +47,12 @@ const AdminPanelPage = () => {
             }
           }
         } else {
-          toast.error('Partido no encontrado');
+          notifyBlockingError('Partido no encontrado');
           navigate('/');
         }
       } catch (error) {
         console.error('Error loading match:', error);
-        toast.error('Error al cargar el partido');
+        notifyBlockingError('Error al cargar el partido');
         navigate('/');
       } finally {
         setLoading(false);
@@ -80,7 +80,7 @@ const AdminPanelPage = () => {
       try {
         await updateJugadoresFrecuentes(partidoActual.from_frequent_match_id, safeJugadores);
       } catch (error) {
-        toast.error('Error actualizando partido frecuente');
+        notifyBlockingError('Error actualizando partido frecuente');
       }
     } else if (safeJugadores.length === 0 && partidoActual.id) {
       // Defensive refresh if an unexpected empty payload arrives.

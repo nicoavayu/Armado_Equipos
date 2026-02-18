@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, uploadFoto, supabase } from '../supabase';
 import AvatarWithProgress from './AvatarWithProgress';
@@ -9,6 +8,7 @@ import PartidosPendientesNotification from './PartidosPendientesNotification';
 import { addFreePlayer, removeFreePlayer } from '../services';
 import InlineNotice from './ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
   const navigate = useNavigate();
@@ -94,11 +94,11 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
       setHasChanges(true);
       // Refresh global profile so other components reflect the change
       await refreshProfile();
-      toast.success('Foto actualizada correctamente');
+      console.info('Foto actualizada correctamente');
 
     } catch (error) {
       console.error('Error uploading photo:', error);
-      toast.error('Error subiendo foto: ' + error.message);
+      notifyBlockingError('Error subiendo foto: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -116,10 +116,10 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
         await removeFreePlayer();
       }
       await refreshProfile();
-      toast.success(value ? 'Ahora estás disponible' : 'Ahora estás no disponible');
+      console.info(value ? 'Ahora estás disponible' : 'Ahora estás no disponible');
     } catch (err) {
       console.error('Error updating availability from ProfileMenu:', err);
-      toast.error('Error actualizando estado');
+      notifyBlockingError('Error actualizando estado');
     }
   };
 
@@ -140,14 +140,14 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
 
       const completion = calculateProfileCompletion(updatedProfile);
       if (completion === 100 && (profile?.profile_completion || 0) < 100) {
-        toast.success('Perfil completado al 100%');
+        console.info('Perfil completado al 100%');
       } else {
-        toast.success('Perfil actualizado');
+        console.info('Perfil actualizado');
       }
 
       await refreshProfile();
     } catch (error) {
-      toast.error('Error actualizando perfil: ' + error.message);
+      notifyBlockingError('Error actualizando perfil: ' + error.message);
     } finally {
       setLoading(false);
     }

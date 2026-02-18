@@ -1,3 +1,4 @@
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/VotingView.js
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -8,7 +9,6 @@ import {
   getGuestSessionId,
 } from '../supabase';
 import { subscribeToMatchUpdates } from '../services/realtimeService';
-import { toast } from 'react-toastify';
 import DOMPurify from 'dompurify';
 import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
 import { db } from '../api/supabaseWrapper';
@@ -578,7 +578,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         setFile(null);
         showInlineNotice('success', 'Foto cargada.');
       } catch (error) {
-        toast.error('Error al subir la foto: ' + error.message);
+        notifyBlockingError('Error al subir la foto: ' + error.message);
       } finally {
         setSubiendoFoto(false);
       }
@@ -811,7 +811,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   const partidoId = partidoIdParam ? parseInt(partidoIdParam, 10) : (resolvedMatchIdRef.current || partidoActual?.id);
 
                   if (!partidoId || Number.isNaN(partidoId)) {
-                    toast.error('No se pudo resolver el partido para votar');
+                    notifyBlockingError('No se pudo resolver el partido para votar');
                     return;
                   }
 
@@ -1072,7 +1072,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                 console.error('[Vote] error', { message: error?.message, code: error?.code });
                 console.debug('[Vote] submit result', { ok: false });
                 if (isPublicVoting) {
-                  toast.error('No se pudo enviar tus votos');
+                  notifyBlockingError('No se pudo enviar tus votos');
                 } else {
                   handleError(error, { showToast: true, onError: () => { } });
                 }

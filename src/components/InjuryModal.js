@@ -1,3 +1,4 @@
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/components/InjuryModal.js
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
@@ -5,7 +6,6 @@ import { motion } from 'framer-motion';
 import { CalendarDays, CircleAlert, CircleCheck, Plus, X } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
-import { toast } from 'react-toastify';
 // import './InjuryModal.css'; // REMOVED
 
 const InjuryModal = ({ isOpen, onClose, onSaved }) => {
@@ -73,13 +73,13 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
         console.warn('Failed to update lesion_activa field, but lesion was marked as recovered');
       }
 
-      toast.success('Lesión marcada como recuperada');
+      console.info('Lesión marcada como recuperada');
       onSaved();
       onClose();
       setActiveLesion(null);
     } catch (error) {
       console.error('Error marking as recovered:', error);
-      toast.error(`Error al marcar como recuperado: ${error.message}`);
+      notifyBlockingError(`Error al marcar como recuperado: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -130,7 +130,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
         console.warn('Failed to update lesion_activa field, but injury was registered');
       }
 
-      toast.success('Lesión registrada exitosamente');
+      console.info('Lesión registrada exitosamente');
       onSaved();
       onClose();
 
@@ -142,7 +142,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
       });
     } catch (error) {
       console.error('Error saving injury:', error);
-      toast.error('Error al registrar la lesión');
+      notifyBlockingError('Error al registrar la lesión');
     } finally {
       setLoading(false);
     }

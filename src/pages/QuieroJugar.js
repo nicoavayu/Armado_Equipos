@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, addFreePlayer, removeFreePlayer, getFreePlayerStatus } from '../supabase';
-import { toast } from 'react-toastify';
 import { useAuth } from '../components/AuthProvider';
 import { useInterval } from '../hooks/useInterval';
 import { useAmigos } from '../hooks/useAmigos';
@@ -16,6 +15,7 @@ import EmptyStateCard from '../components/EmptyStateCard';
 import { handleError } from '../lib/errorHandler';
 import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
 import { User, CheckCircle2, Calendar, Clock, MapPin, Star, Trophy, ListOrdered, Users, CalendarX2 } from 'lucide-react';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const containerClass = 'flex flex-col items-center w-full pb-6 px-4 box-border font-oswald';
 
@@ -234,7 +234,7 @@ const QuieroJugar = () => {
       if (error) throw error;
       setPartidosAbiertos(data || []);
     } catch (error) {
-      toast.error('Error cargando partidos: ' + error.message);
+      notifyBlockingError('Error cargando partidos: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -341,9 +341,9 @@ const QuieroJugar = () => {
       await addFreePlayer();
       setIsRegisteredAsFree(true);
       fetchFreePlayers();
-      toast.success('¡Te anotaste como disponible!');
+      console.info('¡Te anotaste como disponible!');
     } catch (error) {
-      toast.error(error.message);
+      notifyBlockingError(error.message);
     }
   };
 
@@ -352,15 +352,15 @@ const QuieroJugar = () => {
       await removeFreePlayer();
       setIsRegisteredAsFree(false);
       fetchFreePlayers();
-      toast.success('Ya no estás disponible');
+      console.info('Ya no estás disponible');
     } catch (error) {
-      toast.error('Error: ' + error.message);
+      notifyBlockingError('Error: ' + error.message);
     }
   };
 
   const handleInviteFriends = (partido) => {
     if (!user) {
-      toast.error('Debes iniciar sesión para invitar amigos');
+      notifyBlockingError('Debes iniciar sesión para invitar amigos');
       return;
     }
     setSelectedMatch(partido);
@@ -648,7 +648,7 @@ const QuieroJugar = () => {
         onInvite={(p) => {
           const targetId = p?.user_id || p?.uuid || p?.id || null;
           if (!targetId) {
-            toast.error('No se pudo identificar al jugador para invitar');
+            notifyBlockingError('No se pudo identificar al jugador para invitar');
             return;
           }
           setInviteTargetPlayer({
@@ -670,7 +670,7 @@ const QuieroJugar = () => {
 
           if (result.success) {
             setActionFriendStatus('pending');
-            toast.success('Solicitud de amistad enviada');
+            console.info('Solicitud de amistad enviada');
             return;
           }
 
@@ -684,7 +684,7 @@ const QuieroJugar = () => {
             return;
           }
 
-          toast.error(result.message || 'No se pudo enviar la solicitud');
+          notifyBlockingError(result.message || 'No se pudo enviar la solicitud');
         }}
       />
 

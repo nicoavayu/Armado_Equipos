@@ -1,5 +1,4 @@
 import React, { useRef, useState } from 'react';
-import { toast } from 'react-toastify';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import PageTransition from '../components/PageTransition';
 import EditarPartidoFrecuente from './EditarPartidoFrecuente';
@@ -8,6 +7,7 @@ import { crearPartidoDesdeFrec } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
 import ConfirmModal from '../components/ConfirmModal';
 import { findDuplicateTemplateMatch, findUserScheduleConflicts } from '../services/db/matchScheduling';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const inferCupoFromModalidad = (modalidad = '') => {
   const m = String(modalidad || '').toUpperCase().trim();
@@ -184,7 +184,7 @@ const FrecuentesPage = () => {
                 );
                 return;
               }
-              toast.error(error?.message || 'Error al crear el partido');
+              notifyBlockingError(error?.message || 'Error al crear el partido');
             }
           }}
           onEditar={(partido) => {

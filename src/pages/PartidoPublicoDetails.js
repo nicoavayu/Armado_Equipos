@@ -1,3 +1,4 @@
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 // ARCHIVO ELIMINADO: Todo el flujo está unificado en PartidoInvitacion.js
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -5,7 +6,6 @@ import { supabase } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
 import { isUserMemberOfMatch } from '../utils/membershipCheck';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { toast } from 'react-toastify';
 import ConfirmModal from '../components/ConfirmModal';
 import { findUserScheduleConflicts } from '../services/db/matchScheduling';
 
@@ -139,7 +139,7 @@ export default function PartidoPublicoDetails() {
   }
 
   async function handleSolicitarUnirme(skipScheduleWarning = false) {
-    if (!user) { toast.error('Inicia sesión para solicitar unirte'); return; }
+    if (!user) { notifyBlockingError('Inicia sesión para solicitar unirte'); return; }
 
     if (!skipScheduleWarning && partido?.fecha && partido?.hora) {
       try {
@@ -188,7 +188,7 @@ export default function PartidoPublicoDetails() {
 
     if (existing) {
       if (existing.status === 'pending') {
-        toast.info('Solicitud enviada');
+        console.info('Solicitud enviada');
         setJoinStatus('pending');
       } else if (existing.status === 'approved') {
         setJoinStatus('approved');
@@ -208,10 +208,10 @@ export default function PartidoPublicoDetails() {
         details: error.details,
         hint: error.hint,
       });
-      toast.error('Error al solicitar');
+      notifyBlockingError('Error al solicitar');
     } else {
       setJoinStatus('pending');
-      toast.info('Solicitud enviada');
+      console.info('Solicitud enviada');
     }
 
     setLoading(false);

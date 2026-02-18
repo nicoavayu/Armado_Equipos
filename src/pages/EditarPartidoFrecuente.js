@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { updatePartidoFrecuente, supabase } from '../supabase';
-import { toast } from 'react-toastify';
 import AutocompleteSede from '../components/AutocompleteSede';
 import PageTitle from '../components/PageTitle';
 import { parseLocalDateTime, weekdayFromYMD } from '../utils/dateLocal';
 import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
 import InlineNotice from '../components/ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const SECTION_LABEL_CLASS = 'text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1 mb-2';
 const INPUT_CLASS = 'appearance-none bg-white/5 border border-white/20 text-white font-oswald text-lg px-4 py-3 rounded-xl w-full box-border h-[54px] transition-all duration-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md placeholder:text-white/30';
@@ -281,7 +281,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
         console.log('[EditarPartidoFrecuente] Sin cambios para actualizar');
       }
 
-      toast.success('Plantilla guardada');
+      console.info('Plantilla guardada');
       onGuardado && onGuardado();
     } catch (error) {
       console.error('[EditarPartidoFrecuente] guardarCambios error', error);
@@ -315,12 +315,12 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
       if (lower.includes('precio_cancha') && (lower.includes('does not exist') || lower.includes('no existe') || lower.includes('column'))) {
         const sql = 'ALTER TABLE public.partidos_frecuentes ADD COLUMN precio_cancha numeric;';
         console.error('SQL to add column precio_cancha (recommended type numeric):\n' + sql);
-        toast.error('Falta correr el SQL: ' + sql);
+        notifyBlockingError('Falta correr el SQL: ' + sql);
       } else {
         // Log helpful SQL for debugging (kept for other errors)
         console.error('SQL to add column precio_cancha (recommended type numeric):\nALTER TABLE partidos_frecuentes ADD COLUMN precio_cancha numeric;\n-- or, if you use the main partidos table: ALTER TABLE partidos ADD COLUMN precio_cancha numeric;');
 
-        toast.error('Error al guardar la plantilla: ' + (mensajeCorto || 'Error desconocido'));
+        notifyBlockingError('Error al guardar la plantilla: ' + (mensajeCorto || 'Error desconocido'));
       }
     } finally {
       setLoading(false);

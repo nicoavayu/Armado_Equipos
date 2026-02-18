@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { recordAbsenceNotification } from '../services/absenceService';
-import { toast } from 'react-toastify';
 import InlineNotice from './ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 /**
  * Component for players to notify their absence from a match
@@ -58,14 +58,14 @@ const AbsenceNotification = ({ userId, partidoId, onClose, onSuccess }) => {
           ? ' No se aplicará penalización a tu rating.'
           : ' Se aplicará una penalización de -0.5 puntos a tu rating.';
 
-        toast.success(`Ausencia registrada. ${timeMessage}${penaltyMessage}`);
+        console.info(`Ausencia registrada. ${timeMessage}${penaltyMessage}`);
 
         if (onSuccess) onSuccess(result);
         if (onClose) onClose();
       }
     } catch (error) {
       console.error('Error recording absence:', error);
-      toast.error('Error al registrar la ausencia: ' + error.message);
+      notifyBlockingError('Error al registrar la ausencia: ' + error.message);
     } finally {
       setSubmitting(false);
     }

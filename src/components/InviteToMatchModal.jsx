@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { toBigIntId } from '../utils';
 import { formatLocalDateShort, parseLocalDateTime } from '../utils/dateLocal';
-import { toast } from 'react-toastify';
 import Modal from './Modal';
 import LoadingSpinner from './LoadingSpinner';
 import MatchSelectionCard from './MatchSelectionCard';
 import { CalendarDays, UserPlus, X } from 'lucide-react';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
     const [matches, setMatches] = useState([]);
@@ -154,7 +154,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             }
         } catch (error) {
             console.error('[INVITE_MODAL] Error fetching matches:', error);
-            toast.error('Error al cargar los partidos');
+            notifyBlockingError('Error al cargar los partidos');
         } finally {
             setLoading(false);
         }
@@ -164,11 +164,11 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
         const match = matches.find((m) => m.id === selectedMatchId);
         if (!match) return;
         if (!targetUserId) {
-            toast.error('No se pudo identificar al jugador para invitar');
+            notifyBlockingError('No se pudo identificar al jugador para invitar');
             return;
         }
         if (!match.canInvite) {
-            toast.info('Ese partido ya no tiene cupos disponibles.');
+            console.info('Ese partido ya no tiene cupos disponibles.');
             return;
         }
 
@@ -183,7 +183,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                     .eq('partido_id', match.id);
                 if (countError) throw countError;
                 if ((currentPlayersCount || 0) >= maxRosterSlots) {
-                    toast.info('El partido ya está completo (titulares y suplentes).');
+                    console.info('El partido ya está completo (titulares y suplentes).');
                     await fetchUserMatches();
                     return;
                 }
@@ -197,7 +197,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
 
             if (targetUserError) throw targetUserError;
             if (targetUserRow?.acepta_invitaciones === false) {
-                toast.info(`${targetName} está en no disponible y no recibe invitaciones.`);
+                console.info(`${targetName} está en no disponible y no recibe invitaciones.`);
                 return;
             }
 
@@ -234,17 +234,17 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                     setMatches(prev => prev.map(m =>
                         m.id === selectedMatchId ? { ...m, hasInvitation: true, canInvite: false } : m
                     ));
-                    toast.info('La invitación ya había sido enviada');
+                    console.info('La invitación ya había sido enviada');
                     return;
                 }
                 throw error;
             }
 
-            toast.success(`Invitación enviada a ${targetName}`);
+            console.info(`Invitación enviada a ${targetName}`);
             onClose();
         } catch (error) {
             console.error('[INVITE_MODAL] Error sending invitation:', error);
-            toast.error('Error al enviar la invitación');
+            notifyBlockingError('Error al enviar la invitación');
         } finally {
             setInviting(false);
         }

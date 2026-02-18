@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useAmigos } from '../hooks/useAmigos';
 import { useAuth } from './AuthProvider';
-import { toast } from 'react-toastify';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const UserSearch = ({ onClose }) => {
   const { user } = useAuth();
@@ -43,7 +43,7 @@ const UserSearch = ({ onClose }) => {
       }
     } catch (error) {
       console.error('Error searching users:', error);
-      toast.error('Error al buscar usuarios');
+      notifyBlockingError('Error al buscar usuarios');
     } finally {
       setLoading(false);
     }
@@ -62,17 +62,17 @@ const UserSearch = ({ onClose }) => {
     try {
       const result = await sendFriendRequest(targetUserId);
       if (result.success) {
-        toast.success('Solicitud de amistad enviada');
+        console.info('Solicitud de amistad enviada');
         // Update relationship status
         setRelationshipStatuses((prev) => ({
           ...prev,
           [targetUserId]: { id: result.data.id, status: 'pending' },
         }));
       } else {
-        toast.error(result.message || 'Error al enviar solicitud');
+        notifyBlockingError(result.message || 'Error al enviar solicitud');
       }
     } catch (error) {
-      toast.error('Error al enviar solicitud');
+      notifyBlockingError('Error al enviar solicitud');
     }
   };
 

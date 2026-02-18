@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { crearPartido, supabase } from '../supabase';
-import { toast } from 'react-toastify';
 import PageTitle from '../components/PageTitle';
 import PageLoadingState from '../components/PageLoadingState';
 import HistoryTemplateCard from '../components/historial/HistoryTemplateCard';
@@ -12,6 +11,7 @@ import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchD
 import { CalendarDays } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import useInlineNotice from '../hooks/useInlineNotice';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 function formatearSede(sede) {
   if (sede === 'La Terraza Fútbol 5, 8') return 'La Terraza Fútbol 5 y 8';
@@ -149,11 +149,11 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
         console.warn('[USAR PLANTILLA] roster prefill failed (non-blocking)', e);
       }
 
-      toast.success('Partido creado');
+      console.info('Partido creado');
       onUse && onUse(partido);
     } catch (err) {
       console.error('[USAR PLANTILLA] error', err);
-      toast.error('No se pudo crear el partido');
+      notifyBlockingError('No se pudo crear el partido');
       setCreating(false);
     }
   };
@@ -350,7 +350,7 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
         });
 
       } catch (error) {
-        toast.error('Error al cargar plantillas frecuentes: ' + (error?.message || error));
+        notifyBlockingError('Error al cargar plantillas frecuentes: ' + (error?.message || error));
       } finally {
         setLoading(false);
       }
@@ -435,10 +435,10 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
       await deleteTemplate(partidoToDelete.id);
 
       setPartidosFrecuentes((prev) => prev.filter((p) => p.id !== partidoToDelete.id));
-      toast.success('Plantilla eliminada correctamente');
+      console.info('Plantilla eliminada correctamente');
     } catch (err) {
       console.error('[ELIMINAR HISTORIAL] unexpected error', err);
-      toast.error('Error al eliminar la plantilla: ' + (err?.message || String(err)));
+      notifyBlockingError('Error al eliminar la plantilla: ' + (err?.message || String(err)));
     } finally {
       setIsDeleting(false);
       setShowConfirmModal(false);

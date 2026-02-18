@@ -3,9 +3,9 @@ import ReactDOM from 'react-dom';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
-import { toast } from 'react-toastify';
 import { MoreVertical, LogOut } from 'lucide-react';
 import { supabase } from '../../supabase';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 // Helper function to get initials from name
 function getInitials(name) {
@@ -104,10 +104,10 @@ const PlayersSection = ({
     setIsRemovingPlayer(true);
     try {
       await eliminarJugador(playerToRemove.id, true);
-      toast.success(`${playerToRemove.nombre || 'Jugador'} fue expulsado del partido`);
+      console.info(`${playerToRemove.nombre || 'Jugador'} fue expulsado del partido`);
       setPlayerToRemove(null);
     } catch (error) {
-      toast.error(error?.message || 'No se pudo expulsar al jugador');
+      notifyBlockingError(error?.message || 'No se pudo expulsar al jugador');
     } finally {
       setIsRemovingPlayer(false);
     }

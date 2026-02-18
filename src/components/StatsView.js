@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CountUp from 'react-countup';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 import {
   Activity,
   AlertCircle,
@@ -23,7 +24,6 @@ import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import ManualMatchModal from './ManualMatchModal';
 import InjuryModal from './InjuryModal';
-import { toast } from 'react-toastify';
 
 const StatsView = ({ onVolver }) => {
   const { user } = useAuth();
@@ -689,11 +689,11 @@ const StatsView = ({ onVolver }) => {
         .eq('id', user.id);
       if (userError) throw userError;
 
-      toast.success('Lesión marcada como recuperada');
+      console.info('Lesión marcada como recuperada');
       await loadStats();
     } catch (error) {
       console.error('Error marking lesion as recovered:', error);
-      toast.error('No se pudo marcar la lesión como recuperada');
+      notifyBlockingError('No se pudo marcar la lesión como recuperada');
     }
   };
 

@@ -4,11 +4,11 @@ import { PlayerCardTrigger } from './ProfileComponents';
 import MiniFriendCard from './MiniFriendCard';
 import ConfirmModal from './ConfirmModal';
 import { supabase } from '../supabase';
-import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
 import { useNotifications } from '../context/NotificationContext';
 import { Check, Loader2, X } from 'lucide-react';
 import InlineNotice from './ui/InlineNotice';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const AmigosView = () => {
   console.log('[AMIGOS_VIEW] === RENDER START ===');
@@ -172,7 +172,7 @@ const AmigosView = () => {
         await getAmigos();
       } else {
         console.error('[AMIGOS] Error accepting friend request:', result.message);
-        toast.error(result.message || 'Error al aceptar solicitud');
+        notifyBlockingError(result.message || 'Error al aceptar solicitud');
       }
     } finally {
       setProcessingRequests((prev) => {
@@ -211,7 +211,7 @@ const AmigosView = () => {
         setPendingRequests(requests);
       } else {
         console.error('[AMIGOS] Error rejecting friend request:', result.message);
-        toast.error(result.message || 'Error al rechazar solicitud');
+        notifyBlockingError(result.message || 'Error al rechazar solicitud');
       }
     } finally {
       setProcessingRequests((prev) => {
@@ -265,11 +265,11 @@ const AmigosView = () => {
         await getAmigos();
       } else {
         console.error('[AMIGOS] Error removing friend:', result.message);
-        toast.error(result.message || 'Error al eliminar amigo');
+        notifyBlockingError(result.message || 'Error al eliminar amigo');
       }
     } catch (error) {
       console.error('[AMIGOS] Exception in handleRemoveFriend:', error);
-      toast.error('Error al eliminar amigo');
+      notifyBlockingError('Error al eliminar amigo');
     } finally {
       // Cerrar el modal SIEMPRE después de intentar eliminar
       setFriendToDelete(null);
@@ -505,10 +505,10 @@ const SearchUserItem = ({ user, currentUserId, onRequestSent, onInlineNotice }) 
         }
         onRequestSent();
       } else {
-        toast.error(result.message || 'Error al enviar solicitud');
+        notifyBlockingError(result.message || 'Error al enviar solicitud');
       }
     } catch (error) {
-      toast.error('Error al enviar solicitud');
+      notifyBlockingError('Error al enviar solicitud');
     } finally {
       setLoading(false);
     }

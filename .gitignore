@@ -34,6 +34,7 @@ Thumbs.db
 .env
 .env.*
 *.local
+.secrets/
 
 # Test / Reports
 *.lcov

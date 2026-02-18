@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CalendarClock, CheckCircle, ClipboardList, ShieldAlert, Trophy, User, UserPlus, Users, Vote, XCircle } from 'lucide-react';
-import { toast } from 'react-toastify';
 import supabase from '../supabase';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
@@ -12,6 +11,7 @@ import LoadingSpinner from './LoadingSpinner';
 import EmptyStateCard from './EmptyStateCard';
 import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 import { applyMatchNameQuotes, quoteMatchName, resolveNotificationMatchName } from '../utils/notificationText';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const NotificationsModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
@@ -130,7 +130,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         window.location.assign(url);
         return;
       }
-      toast.error('Falta información del partido');
+      notifyBlockingError('Falta información del partido');
       return;
     }
 
@@ -155,7 +155,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     }
 
     if (notification.type === 'match_kicked') {
-      toast.info('Fuiste removido del partido');
+      console.info('Fuiste removido del partido');
       navigate('/');
       return;
     }

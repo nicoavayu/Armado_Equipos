@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { toast } from 'react-toastify';
 import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
 import { useAuth } from '../components/AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
@@ -13,6 +12,7 @@ import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { clearMatchFromList } from '../services/matchFinishService';
 import useInlineNotice from '../hooks/useInlineNotice';
 import Logo from '../Logo.png';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 // Styles are now directly in Tailwind
 // import './LegacyVoting.css'; // Removed
@@ -204,7 +204,7 @@ const EncuestaPartido = () => {
   const continueSubmitFlow = async () => {
     try {
       if (alreadySubmitted) {
-        toast.info('Ya completaste esta encuesta');
+        console.info('Ya completaste esta encuesta');
         return;
       }
 
@@ -282,12 +282,12 @@ const EncuestaPartido = () => {
     e.preventDefault();
 
     if (!user || !id) {
-      toast.error('Debes iniciar sesión para calificar un partido');
+      notifyBlockingError('Debes iniciar sesión para calificar un partido');
       return;
     }
 
     if (alreadySubmitted) {
-      toast.info('Ya completaste esta encuesta');
+      console.info('Ya completaste esta encuesta');
       return;
     }
 

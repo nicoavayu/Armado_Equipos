@@ -3,7 +3,7 @@ import { getVotantesIds, getVotantesConNombres, getJugadoresDelPartido, supabase
 import { toBigIntId } from '../utils';
 import { incrementMatchesAbandoned, canAbandonWithoutPenalty } from '../utils/matchStatsManager';
 import { autoCleanupDuplicates } from '../utils/duplicateCleanup';
-import { toast } from 'react-toastify';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 /**
  * Custom hook for AdminPanel state management and handlers
@@ -362,7 +362,7 @@ export const useAdminPanelState = ({
         return;
       }
 
-      toast.error('Error agregando jugador: ' + error.message);
+      notifyBlockingError('Error agregando jugador: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -471,7 +471,7 @@ export const useAdminPanelState = ({
       }
     } catch (error) {
       console.error('[LEAVE_MATCH] Unexpected error:', error);
-      toast.error('Error eliminando jugador: ' + error.message);
+      notifyBlockingError('Error eliminando jugador: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -646,7 +646,7 @@ export const useAdminPanelState = ({
       if (error.message && error.message.includes('row-level security policy')) {
         console.warn('Suppressing RLS error during join sync (expected for non-admins):', error);
       } else {
-        toast.error('Error al unirse al partido: ' + error.message);
+        notifyBlockingError('Error al unirse al partido: ' + error.message);
       }
     } finally {
       setInvitationLoading(false);
@@ -691,7 +691,7 @@ export const useAdminPanelState = ({
       setInlineNotice('success', 'Te sumaste al partido');
     } catch (error) {
       console.error("Error uniéndose:", error);
-      toast.error("No se pudo unir: " + error.message);
+      notifyBlockingError("No se pudo unir: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -731,7 +731,7 @@ export const useAdminPanelState = ({
       onBackToHome();
 
     } catch (error) {
-      toast.error('Error al rechazar invitación: ' + error.message);
+      notifyBlockingError('Error al rechazar invitación: ' + error.message);
     } finally {
       setInvitationLoading(false);
     }
@@ -820,7 +820,7 @@ export const useAdminPanelState = ({
         'Partido cerrado a nuevos jugadores',
       );
     } catch (error) {
-      toast.error('Error al actualizar el partido: ' + error.message);
+      notifyBlockingError('Error al actualizar el partido: ' + error.message);
     }
   };
 

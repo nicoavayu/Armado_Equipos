@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../supabase';
-import { toast } from 'react-toastify';
 import { handleError } from '../lib/errorHandler';
 import { useInterval } from '../hooks/useInterval';
 import { logger } from '../lib/logger';
@@ -464,13 +463,13 @@ export const NotificationProvider = ({ children }) => {
 
     switch (notification.type) {
       case 'friend_request':
-        toast.info(`Nueva solicitud de amistad de ${notification.data?.senderName || 'alguien'}`, toastOptions);
+        console.info(`Nueva solicitud de amistad de ${notification.data?.senderName || 'alguien'}`, toastOptions);
         break;
       case 'match_invite':
-        toast.info(`${toastTitle}: ${toastMessage}`, toastOptions);
+        console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
       case 'call_to_vote':
-        toast.info(`${toastTitle}: ${toastMessage}`, toastOptions);
+        console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
       case 'survey_start':
       case 'post_match_survey': {
@@ -478,14 +477,14 @@ export const NotificationProvider = ({ children }) => {
           source: notification,
           matchName: quoteMatchName(resolveNotificationMatchName(notification, 'este partido'), 'este partido'),
         });
-        toast.info(`${notification.title || '¡Encuesta lista!'}: ${surveyMessage}`, toastOptions);
+        console.info(`${notification.title || '¡Encuesta lista!'}: ${surveyMessage}`, toastOptions);
         break;
       }
       case 'survey_results_ready':
-        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
+        console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
       case 'admin_transfer':
-        toast.success(`${toastTitle}: ${toastMessage}`, toastOptions);
+        console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
         // Auto-refresh if forceRefresh is true
         if (notification.data?.forceRefresh) {
           setTimeout(() => {

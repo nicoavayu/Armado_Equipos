@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, createContext, useContext } from 'r
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { db } from '../api/supabaseWrapper';
-import { toast } from 'react-toastify';
 import { useAuth } from '../components/AuthProvider';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PageLoadingState from '../components/PageLoadingState';
@@ -12,6 +11,7 @@ import { ensureAwards } from '../services/awardsService';
 import { subscribeToMatchUpdates } from '../services/realtimeService';
 import EmptyStateCard from '../components/EmptyStateCard';
 import Logo from '../Logo.png';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const ensurePlayersList = (players) => {
   if (players && players.length > 0) return players;
@@ -906,13 +906,13 @@ const ResultadosEncuestaView = () => {
         try {
           partidoData = await db.fetchOne('partidos', { id: Number(partidoId) });
         } catch (error) {
-          toast.error('Partido no encontrado');
+          notifyBlockingError('Partido no encontrado');
           navigate('/');
           return;
         }
 
         if (!partidoData) {
-          toast.error('Partido no encontrado');
+          notifyBlockingError('Partido no encontrado');
           setLoading(false);
           return;
         }
@@ -989,7 +989,7 @@ const ResultadosEncuestaView = () => {
         setBadgeAnimations(animations);
       } catch (error) {
         console.error('Error fetching results data:', error);
-        toast.error('Error al cargar los resultados');
+        notifyBlockingError('Error al cargar los resultados');
       } finally {
         setLoading(false);
       }
@@ -1254,7 +1254,7 @@ const ResultadosEncuestaView = () => {
       setBadgeAnimations(animations);
     } catch (error) {
       console.error('Error fetching results data:', error);
-      toast.error('Error al cargar los resultados');
+      notifyBlockingError('Error al cargar los resultados');
     } finally {
       setLoading(false);
     }

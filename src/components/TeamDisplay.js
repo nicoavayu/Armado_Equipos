@@ -1,6 +1,6 @@
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/components/TeamDisplay.js
 import React, { useEffect, useRef, useState } from 'react';
-import { toast } from 'react-toastify';
 import { TeamDisplayContext } from './PlayerCardTrigger';
 import { saveTeamsToDatabase, getTeamsFromDatabase, subscribeToTeamsChanges, unsubscribeFromTeamsChanges, supabase } from '../supabase';
 import ChatButton from './ChatButton';
@@ -426,7 +426,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       });
     } catch (e) {
       console.error('[TEAMS_CONFIRM] confirmTeams error', e);
-      toast.error('No se pudieron confirmar los equipos');
+      notifyBlockingError('No se pudieron confirmar los equipos');
     } finally {
       setConfirming(false);
     }
@@ -468,7 +468,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       });
     } catch (e) {
       console.error('[TEAMS_CONFIRM] unconfirmTeams error', e);
-      toast.error('No se pudo desconfirmar');
+      notifyBlockingError('No se pudo desconfirmar');
     } finally {
       setUnconfirming(false);
     }

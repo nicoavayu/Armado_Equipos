@@ -1,10 +1,10 @@
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/components/ProfileCardModal.js
 import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
 import ProfileCard from './ProfileCard';
 import { useAmigos } from '../hooks/useAmigos';
 import { supabase } from '../supabase';
-import { toast } from 'react-toastify';
 import { Phone, PhoneOff } from 'lucide-react';
 // import './ProfileCardModal.css'; // REMOVED
 
@@ -162,9 +162,9 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
     if (result.success) {
       setRelationshipStatus({ id: result.data.id, status: 'pending' });
-      toast.success('Solicitud de amistad enviada');
+      console.info('Solicitud de amistad enviada');
     } else {
-      toast.error(result.message || 'Error al enviar solicitud');
+      notifyBlockingError(result.message || 'Error al enviar solicitud');
     }
     setIsLoading(false);
   };
@@ -193,7 +193,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     const adminTargetId = profile?.id || profile?.usuario_id || registeredUserId;
     if (!adminTargetId || !partidoActual?.id || !onMakeAdmin) {
       console.error('[MAKE_ADMIN] Missing required data', { profileId: adminTargetId, partidoId: partidoActual?.id, hasOnMakeAdmin: !!onMakeAdmin });
-      toast.error('Error: datos incompletos');
+      notifyBlockingError('Error: datos incompletos');
       setShowAdminConfirm(false);
       return;
     }
@@ -204,12 +204,12 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     try {
       await onMakeAdmin(adminTargetId);
       console.log('[MAKE_ADMIN] Admin transfer completed successfully');
-      toast.success('Admin asignado correctamente');
+      console.info('Admin asignado correctamente');
       setShowAdminConfirm(false);
       // NO cerrar el modal, mantenerlo abierto para que vea los cambios
     } catch (error) {
       console.error('[MAKE_ADMIN] Error during admin transfer:', error);
-      toast.error('Error al asignar admin: ' + (error.message || 'intenta de nuevo'));
+      notifyBlockingError('Error al asignar admin: ' + (error.message || 'intenta de nuevo'));
     } finally {
       setIsAdminLoading(false);
     }
@@ -234,7 +234,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
     if (!isCurrentUserAdmin) {
       console.log('[CONTACT] User is not admin');
-      toast.error('Solo los admins pueden ver información de contacto');
+      notifyBlockingError('Solo los admins pueden ver información de contacto');
       return;
     }
 
@@ -259,7 +259,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
       setShowContactInfo(true);
     } catch (error) {
       console.error('[CONTACT] Error fetching contact info:', error);
-      toast.error('Error al obtener información de contacto');
+      notifyBlockingError('Error al obtener información de contacto');
     }
   };
 

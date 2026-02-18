@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
-import { toast } from 'react-toastify';
 import LoadingSpinner from '../LoadingSpinner';
 import { Check, Loader2, X } from 'lucide-react';
 import { PlayerCardTrigger } from '../ProfileComponents';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const EmptyRequestsMailboxIcon = () => (
     <svg
@@ -91,7 +91,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
             setRequests(enrichedRequests);
         } catch (error) {
             console.error('Error fetching requests:', error);
-            toast.error('Error al cargar solicitudes');
+            notifyBlockingError('Error al cargar solicitudes');
         } finally {
             setLoading(false);
         }
@@ -123,10 +123,10 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                 // Handle case where player is already in the match (Duplicate key)
                 if (rpcError.code === '23505' || rpcError.message?.includes('unique constraint')) {
                     console.log('[ACCEPT] User already in match, treating as success');
-                    toast.success('El jugador ya forma parte del partido');
+                    console.info('El jugador ya forma parte del partido');
                     // Continue to success UI logic
                 } else {
-                    toast.error(`Error al aceptar: ${rpcError.message}`);
+                    notifyBlockingError(`Error al aceptar: ${rpcError.message}`);
                     throw rpcError;
                 }
             }
@@ -154,7 +154,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
             // Refetch requests list immediately
             await fetchRequests();
 
-            toast.success(`${userName} fue aceptado en el partido`);
+            console.info(`${userName} fue aceptado en el partido`);
 
             // Notify parent to refresh players and other data
             if (onRequestAccepted) {
@@ -171,7 +171,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
                 hint: error.hint,
             });
 
-            toast.error('Error al aceptar la solicitud');
+            notifyBlockingError('Error al aceptar la solicitud');
         } finally {
             setProcessing(prev => {
                 const newSet = new Set(prev);
@@ -202,7 +202,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
 
             const userName = request.profile?.nombre || request.usuario?.nombre || 'Jugador';
 
-            toast.success(`Solicitud de ${userName} rechazada`);
+            console.info(`Solicitud de ${userName} rechazada`);
 
             // Remove from list
             setRequests(prev => prev.filter(r => r.id !== request.id));
@@ -212,7 +212,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
             }
         } catch (error) {
             console.error('Error rejecting request:', error);
-            toast.error('Error al rechazar solicitud');
+            notifyBlockingError('Error al rechazar solicitud');
         } finally {
             setProcessing(prev => {
                 const newSet = new Set(prev);

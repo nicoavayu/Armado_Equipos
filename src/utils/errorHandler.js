@@ -1,5 +1,5 @@
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 // eslint-disable-next-line global-require
-const { toast } = require('react-toastify');
 
 const normalizeToError = (err, fallbackMessage = 'Ha ocurrido un error') => {
   if (err instanceof Error) return err;
@@ -35,7 +35,7 @@ export const handleError = (error, userMessage = 'Ha ocurrido un error') => {
   const normalized = normalizeToError(error, userMessage);
   console.error('Error:', normalized);
   const message = normalized?.message || userMessage;
-  toast.error(message, {
+  notifyBlockingError(message, {
     position: 'top-right',
     autoClose: 5000,
     hideProgressBar: false,
@@ -47,7 +47,7 @@ export const handleError = (error, userMessage = 'Ha ocurrido un error') => {
 };
 
 export const handleSuccess = (message) => {
-  toast.success(message, {
+  console.info(message, {
     position: 'top-right',
     autoClose: 3000,
     hideProgressBar: false,
@@ -58,7 +58,7 @@ export const handleSuccess = (message) => {
 };
 
 export const handleWarning = (message) => {
-  toast.warn(message, {
+  console.warn(message, {
     position: 'top-right',
     autoClose: 4000,
     hideProgressBar: false,

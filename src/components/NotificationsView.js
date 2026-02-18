@@ -9,8 +9,8 @@ import { useAuth } from './AuthProvider';
 import EmptyStateCard from './EmptyStateCard';
 import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 import { applyMatchNameQuotes, quoteMatchName, resolveNotificationMatchName } from '../utils/notificationText';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
-import { toast } from 'react-toastify';
 
 const NotificationsView = () => {
   const { user } = useAuth();
@@ -163,7 +163,7 @@ const NotificationsView = () => {
           navigate(url, { replace: true });
         } else {
           console.error('[NOTIFICATION_CLICK] Missing matchCode/ID in call_to_vote');
-          toast.error('Falta código del partido');
+          notifyBlockingError('Falta código del partido');
         }
         break;
       }
@@ -248,14 +248,14 @@ const NotificationsView = () => {
     try {
       const result = await acceptFriendRequest(requestId);
       if (result.success) {
-        toast.success('Solicitud de amistad aceptada');
+        console.info('Solicitud de amistad aceptada');
         markAsRead(notification.id);
         fetchNotifications();
       } else {
-        toast.error(result.message || 'Error al aceptar solicitud');
+        notifyBlockingError(result.message || 'Error al aceptar solicitud');
       }
     } catch (error) {
-      toast.error('Error al aceptar solicitud');
+      notifyBlockingError('Error al aceptar solicitud');
     } finally {
       setProcessingRequests((prev) => {
         const newSet = new Set(prev);
@@ -278,14 +278,14 @@ const NotificationsView = () => {
     try {
       const result = await rejectFriendRequest(requestId);
       if (result.success) {
-        toast.success('Solicitud de amistad rechazada');
+        console.info('Solicitud de amistad rechazada');
         markAsRead(notification.id);
         fetchNotifications();
       } else {
-        toast.error(result.message || 'Error al rechazar solicitud');
+        notifyBlockingError(result.message || 'Error al rechazar solicitud');
       }
     } catch (error) {
-      toast.error('Error al rechazar solicitud');
+      notifyBlockingError('Error al rechazar solicitud');
     } finally {
       setProcessingRequests((prev) => {
         const newSet = new Set(prev);

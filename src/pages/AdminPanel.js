@@ -5,8 +5,8 @@ import { useTeamFormation } from '../hooks/useTeamFormation';
 import { useSearchParams } from 'react-router-dom';
 import { usePendingRequestsCount } from '../hooks/usePendingRequestsCount';
 import { useNativeFeatures } from '../hooks/useNativeFeatures';
-import { toast } from 'react-toastify';
 import { supabase } from '../supabase';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 import 'react-lazy-load-image-component/src/effects/blur.css';
 // import '../HomeStyleKit.css'; // Removed in Tailwind migration
@@ -153,11 +153,11 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
 
     if (adminState.pendingInvitation && !adminState.isPlayerInMatch) {
-      toast.info('Aceptá la invitación para habilitar el chat del partido.');
+      console.info('Aceptá la invitación para habilitar el chat del partido.');
       return;
     }
 
-    toast.info('Sumate al partido para usar el chat.');
+    console.info('Sumate al partido para usar el chat.');
   };
 
   const handleAbandon = async () => {
@@ -182,7 +182,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     const matchId = partidoActual?.id;
     const matchCode = String(partidoActual?.codigo || '').trim();
     if (!matchId || !matchCode) {
-      toast.error('No se pudo generar el link de invitación');
+      notifyBlockingError('No se pudo generar el link de invitación');
       return;
     }
 
@@ -194,7 +194,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
     if (inviteErr || !inviteRows?.[0]?.token) {
       console.error('[SHARE_INVITE] create_guest_match_invite failed', inviteErr);
-      toast.error('No se pudo generar el link (token inválido)');
+      notifyBlockingError('No se pudo generar el link (token inválido)');
       return;
     }
 
@@ -213,7 +213,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       }
     } catch (err) {
       console.error('Error sharing:', err);
-      toast.error('No se pudo abrir WhatsApp');
+      notifyBlockingError('No se pudo abrir WhatsApp');
     }
   };
 

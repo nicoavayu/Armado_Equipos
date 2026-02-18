@@ -9,7 +9,7 @@ import { parseLocalDateTime, formatLocalDateShort } from '../utils/dateLocal';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import ConfirmModal from './ConfirmModal';
-import { toast } from 'react-toastify';
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 import MatchCard from './MatchCard';
 
@@ -251,7 +251,7 @@ const ProximosPartidos = ({ onClose }) => {
 
   const handleAbandonMatch = (partido) => {
     if (partido?.userRole === 'admin') {
-      toast.info('Antes de abandonar, asigná el rol de admin a otro jugador.');
+      console.info('Antes de abandonar, asigná el rol de admin a otro jugador.');
       return;
     }
     setMenuOpenId(null);
@@ -286,7 +286,7 @@ const ProximosPartidos = ({ onClose }) => {
 
         await cancelPartidoWithNotification(partidoTarget.id, 'Partido cancelado por el administrador');
 
-        toast.success('Partido cancelado');
+        console.info('Partido cancelado');
 
         setPartidos((prev) => prev.filter((p) => p.id !== partidoTarget.id));
         setProcessingDeleteId(null);
@@ -317,7 +317,7 @@ const ProximosPartidos = ({ onClose }) => {
 
         // Remove from local state
         setPartidos((prev) => prev.filter((p) => p.id !== partidoTarget.id));
-        toast.success('Abandonaste el partido');
+        console.info('Abandonaste el partido');
         setProcessingDeleteId(null);
       } else if (actionType === 'clean') {
         setProcessingClearId(partidoTarget.id);
@@ -325,15 +325,15 @@ const ProximosPartidos = ({ onClose }) => {
         if (success) {
           setPartidos((prev) => prev.filter((p) => p.id !== partidoTarget.id));
           setClearedMatches((prev) => { const s = new Set(prev); s.add(partidoTarget.id); return s; });
-          toast.success('Partido limpiado');
+          console.info('Partido limpiado');
         } else {
-          toast.error('No se pudo limpiar el partido');
+          notifyBlockingError('No se pudo limpiar el partido');
         }
         setProcessingClearId(null);
       }
     } catch (error) {
       console.error('[PROXIMOS] confirm action error', error);
-      toast.error('Ocurrió un error al procesar la acción');
+      notifyBlockingError('Ocurrió un error al procesar la acción');
     } finally {
       setIsProcessing(false);
       setShowConfirm(false);

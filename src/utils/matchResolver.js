@@ -1,6 +1,6 @@
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/utils/matchResolver.js
 import { supabase } from '../supabase';
-import { toast } from 'react-toastify';
 
 const IS_DEV = process.env.NODE_ENV === 'development';
 
@@ -183,7 +183,7 @@ export async function fetchMatchById(partidoId) {
  */
 export function handleMatchResolutionError(error, navigate = null) {
     console.error('[VOTING] Match resolution error:', error);
-    toast.error(error || 'No se pudo cargar el partido');
+    notifyBlockingError(error || 'No se pudo cargar el partido');
 
     if (navigate) {
         setTimeout(() => {

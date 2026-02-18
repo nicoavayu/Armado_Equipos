@@ -1,3 +1,4 @@
+import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/components/ManualMatchModal.js
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
@@ -5,7 +6,6 @@ import { motion } from 'framer-motion';
 import { CalendarDays, Handshake, Trophy, CircleX, X } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
-import { toast } from 'react-toastify';
 // import './ManualMatchModal.css'; // REMOVED
 
 const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
@@ -35,7 +35,7 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
 
       if (error) throw error;
 
-      toast.success('Partido agregado exitosamente');
+      console.info('Partido agregado exitosamente');
       onSaved();
       onClose();
 
@@ -47,7 +47,7 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
       });
     } catch (error) {
       console.error('Error saving manual match:', error);
-      toast.error('Error al guardar el partido');
+      notifyBlockingError('Error al guardar el partido');
     } finally {
       setLoading(false);
     }
