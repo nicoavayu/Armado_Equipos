@@ -11,6 +11,7 @@ import MatchInfoSection from '../components/MatchInfoSection';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import { PlayerCardTrigger } from '../components/ProfileComponents';
 import ConfirmModal from '../components/ConfirmModal';
+import InlineNotice from '../components/ui/InlineNotice';
 import { Camera, UserRound, CircleAlert, Zap, LockKeyhole, CheckCircle2, Calendar, Clock, MapPin } from 'lucide-react';
 import Logo from '../Logo.png';
 import { findUserScheduleConflicts } from '../services/db/matchScheduling';
@@ -42,21 +43,6 @@ const getMaxRosterSlots = (match) => {
   const baseCapacity = getMatchCapacity(match);
   return baseCapacity > 0 ? baseCapacity + MAX_SUBSTITUTES : 0;
 };
-
-function InlineNotice({ notice }) {
-  if (!notice) return null;
-  const toneClass = notice.type === 'success'
-    ? 'bg-emerald-500/15 border-emerald-400/40 text-emerald-100'
-    : notice.type === 'warning'
-      ? 'bg-amber-500/15 border-amber-400/40 text-amber-100'
-      : 'bg-sky-500/15 border-sky-400/40 text-sky-100';
-
-  return (
-    <div className={`w-full rounded-xl border px-4 py-3 text-sm font-oswald ${toneClass}`}>
-      {notice.message}
-    </div>
-  );
-}
 
 function PlayersReadOnly({ jugadores, partido, mode }) {
   const cupoMaximo = partido.cupo_jugadores || partido.cupo || 'Sin límite';
@@ -122,6 +108,7 @@ function SharedInviteLayout({
   joinStatus,
   isMatchFull,
   inlineNotice,
+  onClearInlineNotice,
 }) {
   const isSent = joinStatus === 'pending';
   const isApproved = joinStatus === 'approved';
@@ -154,7 +141,12 @@ function SharedInviteLayout({
         <main className="pt-0">
           <div className="main-content">
             <div className="w-full flex flex-col gap-3 overflow-x-hidden pt-10">
-              <InlineNotice notice={inlineNotice} />
+              <InlineNotice
+                type={inlineNotice?.type}
+                message={inlineNotice?.message}
+                autoHideMs={4500}
+                onClose={onClearInlineNotice}
+              />
               <PlayersReadOnly jugadores={jugadores} partido={partido} mode={mode} />
 
               {/* Texto de estado si faltan jugadores */}
@@ -276,12 +268,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const showInlineNotice = (type, message) => {
     setInlineNotice({ type, message, ts: Date.now() });
   };
-
-  useEffect(() => {
-    if (!inlineNotice) return undefined;
-    const timer = setTimeout(() => setInlineNotice(null), 5000);
-    return () => clearTimeout(timer);
-  }, [inlineNotice]);
 
   const closeScheduleWarning = () => {
     pendingContinueRef.current = null;
@@ -1045,6 +1031,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           mode={mode}
           joinStatus={joinStatus}
           isMatchFull={isMatchFull}
+          inlineNotice={inlineNotice}
+          onClearInlineNotice={() => setInlineNotice(null)}
         />
         <ConfirmModal
           isOpen={scheduleWarning.isOpen}
@@ -1081,7 +1069,12 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           </div>
 
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 w-full">
-          <InlineNotice notice={inlineNotice} />
+          <InlineNotice
+            type={inlineNotice?.type}
+            message={inlineNotice?.message}
+            autoHideMs={4500}
+            onClose={() => setInlineNotice(null)}
+          />
           <div className="text-center mb-6">
             <h2 className="text-white text-2xl font-bold mb-2">¿Cómo querés sumarte?</h2>
             <p className="text-white/70 text-sm">Elegí la opción que prefieras</p>
@@ -1153,7 +1146,12 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             />
           </div>
           <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 w-full">
-          <InlineNotice notice={inlineNotice} />
+          <InlineNotice
+            type={inlineNotice?.type}
+            message={inlineNotice?.message}
+            autoHideMs={4500}
+            onClose={() => setInlineNotice(null)}
+          />
           <div className="text-center mb-6">
             <h2 className="text-white text-2xl font-bold mb-2">Sumarte rápido</h2>
             <p className="text-white/70 text-sm">Ingresá tu nombre y tu selfie</p>

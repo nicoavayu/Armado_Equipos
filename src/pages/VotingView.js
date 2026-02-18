@@ -1,5 +1,5 @@
 // src/VotingView.js
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   checkIfAlreadyVoted,
   uploadFoto,
@@ -21,6 +21,7 @@ import { AvatarFallback } from '../components/ProfileComponents';
 import EmptyStateCard from '../components/EmptyStateCard';
 import PageLoadingState from '../components/PageLoadingState';
 import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
+import InlineNotice from '../components/ui/InlineNotice';
 
 // Styles are now handled via Tailwind CSS
 // Legacy styles: src/pages/LegacyVoting.css (for other components)
@@ -85,9 +86,23 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const [authzError, setAuthzError] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [useAuthenticatedSubmit, setUseAuthenticatedSubmit] = useState(false);
+  const [inlineNotice, setInlineNotice] = useState(null);
+  const inlineNoticeRef = useRef({ type: '', message: '', ts: 0 });
 
-  const notifyAlreadyVoted = () => toast.info('Tus votos ya fueron registrados');
-  const notifyPublicValidationError = () => toast.error('No se pudo validar tu votación');
+  const showInlineNotice = useCallback((type, message) => {
+    const now = Date.now();
+    const previous = inlineNoticeRef.current;
+    if (previous.type === type && previous.message === message && now - previous.ts < 2000) {
+      return;
+    }
+    inlineNoticeRef.current = { type, message, ts: now };
+    setInlineNotice({ type, message });
+  }, []);
+
+  const clearInlineNotice = useCallback(() => setInlineNotice(null), []);
+
+  const notifyAlreadyVoted = () => showInlineNotice('info', 'Tus votos ya fueron registrados.');
+  const notifyPublicValidationError = () => showInlineNotice('warning', 'No se pudo validar tu votación.');
 
   // -- GUARDS FOR DOUBLE-FETCH PREVENTION --
   // Prevent React Strict Mode double-init
@@ -274,6 +289,16 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const titleClass = 'font-bebas text-[40px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-lg';
   const btnClass = 'font-bebas text-[27px] md:text-[28px] text-white bg-primary border-2 border-white/20 rounded-2xl tracking-wide py-4 mt-4 w-full cursor-pointer font-bold transition-all duration-300 hover:brightness-110 hover:shadow-[0_4px_20px_rgba(129,120,229,0.5)] disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden flex items-center justify-center';
   const textClass = 'text-white text-[21px] md:text-[26px] font-oswald text-center mb-[30px] tracking-wide';
+  const noticeSlot = (
+    <div className="w-[90vw] max-w-[520px] mx-auto mt-3">
+      <InlineNotice
+        type={inlineNotice?.type}
+        message={inlineNotice?.message}
+        autoHideMs={3200}
+        onClose={clearInlineNotice}
+      />
+    </div>
+  );
 
   // Guard: Check if should show final screen (happy path or already voted)
   const shouldShowFinal = publicAlreadyVoted || usuarioYaVoto || finalizado;
@@ -300,6 +325,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       <div className={wrapperClass}>
         <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
+        {noticeSlot}
         <div className={cardClass}>
           <div className={titleClass}>
             {publicAlreadyVoted ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
@@ -325,6 +351,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       <div className={wrapperClass}>
         <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
+        {noticeSlot}
         <div className={cardClass}>
           <div className={titleClass}>
             {publicAlreadyVoted || usuarioYaVoto ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
@@ -364,7 +391,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       window.location.href = `/?codigo=${codigo}`;
     } else {
       console.error('[VOTING] No partidoId or codigo available');
-      toast.error('No se pudo abrir la votación');
+      showInlineNotice('warning', 'No se pudo abrir la votación.');
     }
   };
 
@@ -378,7 +405,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     if (isPublicRoute) {
       const allowedNames = new Set(jugadoresIdentificacion.map((j) => j.nombre));
       if (!allowedNames.has(nombre)) {
-        toast.error('Seleccioná un jugador invitado (sin cuenta)');
+        showInlineNotice('warning', 'Seleccioná un jugador invitado (sin cuenta).');
         return;
       }
 
@@ -447,6 +474,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       <div className={wrapperClass}>
         <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
+        {noticeSlot}
         <div className={cardClass}>
           <div className={titleClass}>
             ACCESO DENEGADO
@@ -548,7 +576,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         const fotoUrl = await uploadFoto(file, jugador);
         setFotoPreview(fotoUrl);
         setFile(null);
-        toast.success('Foto cargada');
+        showInlineNotice('success', 'Foto cargada.');
       } catch (error) {
         toast.error('Error al subir la foto: ' + error.message);
       } finally {
@@ -560,6 +588,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       <div className={wrapperClass}>
         <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
+        {noticeSlot}
         <div className={cardClass}>
           <div className={titleClass}>¡HOLA, {clean(nombre)}!</div>
           <div className="flex flex-col items-center mb-6">
@@ -627,6 +656,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         <div className={wrapperClass}>
           <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
           <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
+          {noticeSlot}
           <div className="w-[90vw] max-w-[520px] mx-auto mt-12 mb-12 flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-0">
             <div className="text-white/85 font-oswald text-lg">Votación completada</div>
           </div>
@@ -640,6 +670,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       <div className={wrapperClass}>
         <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
+        {noticeSlot}
         <div className="w-[90vw] max-w-[520px] mx-auto mt-12 mb-12 flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-0">
           <div className={`w-full transition-transform duration-200 ease-out ${animating ? '-translate-x-full opacity-0' : 'translate-x-0 opacity-100'}`}>
             <div className="w-[80vw] md:w-[320px] mx-auto bg-white/15 border-2 border-white/25 rounded-t-xl text-white font-bebas font-normal text-center uppercase text-[1.3rem] md:text-[2.1rem] tracking-wider py-2 mt-3 mb-0 shadow-sm">
@@ -813,11 +844,11 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                       partidoActualKeys: partidoActual ? Object.keys(partidoActual) : [],
                       partidoActualFull: partidoActual
                     });
-                    toast.error('Código de votación inválido');
+                    showInlineNotice('warning', 'Código de votación inválido.');
                     return;
                   }
                   if (!nombre) {
-                    toast.error('Seleccioná tu nombre para votar');
+                    showInlineNotice('warning', 'Seleccioná tu nombre para votar.');
                     return;
                   }
 
@@ -835,7 +866,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
                   if (ratedPlayerIds.length === 0) {
                     console.debug('[VOTING] No players rated, aborting public submit');
-                    toast.error('Debes calificar al menos a un jugador');
+                    showInlineNotice('warning', 'Debes calificar al menos a un jugador.');
                     setIsSubmitting(false);
                     setConfirmando(false);
                     return;
@@ -957,7 +988,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
                   // Evita falso positivo: no marcar "votó" si no hubo ningún voto válido persistido.
                   if (resultados.ok <= 0) {
-                    toast.error('No se registró ningún voto válido. Probá de nuevo.');
+                    showInlineNotice('warning', 'No se registró ningún voto válido. Probá de nuevo.');
                     return;
                   }
 
@@ -982,11 +1013,11 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   }
 
                   if (resultados.invalid > 0 && resultados.ok > 0) {
-                    toast.warn('Se guardaron votos, pero algunos jugadores no se pudieron procesar.');
+                    showInlineNotice('warning', 'Se guardaron votos, pero algunos jugadores no se pudieron procesar.');
                   } else if (alreadySubmitted && resultados.ok === 0 && resultados.invalid === 0) {
                     notifyAlreadyVoted();
                   } else {
-                    toast.success('Votos enviados');
+                    showInlineNotice('success', 'Votos enviados.');
                   }
                   console.debug('[Vote] public submit result (final)', resultados);
                   lockedRef.current = true;
@@ -996,7 +1027,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   const voteCount = Object.keys(votos).filter((k) => votos[k]).length;
                   if (voteCount === 0) {
                     console.debug('[Vote] invalid payload, abort');
-                    toast.error('Debes calificar al menos a un jugador');
+                    showInlineNotice('warning', 'Debes calificar al menos a un jugador.');
                     return;
                   }
 

@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, supabase } from '../supabase';
 import ProfileCard from './ProfileCard';
+import InlineNotice from './ui/InlineNotice';
 
 const GEO_LOG_PREFIX = '[PROFILE_GEO]';
 
@@ -73,9 +74,17 @@ const ProfileEditorForm = ({
   handleSave,
   handleLogout,
   handleDeleteAccount,
+  inlineNotice,
+  onClearInlineNotice,
 }) => {
   return (
     <div className="mx-auto w-full max-w-[720px] px-4 pb-32 pt-6 flex flex-col gap-5 min-w-0">
+      <InlineNotice
+        type={inlineNotice?.type}
+        message={inlineNotice?.message}
+        autoHideMs={3200}
+        onClose={onClearInlineNotice}
+      />
       {/* ProfileCard fixed within form flow */}
       <div className="w-full flex justify-center mb-6">
         <ProfileCard
@@ -414,7 +423,9 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const [hasChanges, setHasChanges] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [deleteAccountConfirmation, setDeleteAccountConfirmation] = useState('');
+  const [inlineNotice, setInlineNotice] = useState(null);
   const fileInputRef = useRef(null);
+  const noticeRef = useRef({ type: '', message: '', ts: 0 });
 
   const cleanDate = (dateString) => dateString ? dateString.split('T')[0] : null;
 
@@ -489,6 +500,18 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
   const MAX_NOMBRE = 12;
 
+  const showInlineNotice = useCallback((type, message) => {
+    const now = Date.now();
+    const previous = noticeRef.current;
+    if (previous.type === type && previous.message === message && now - previous.ts < 2000) {
+      return;
+    }
+    noticeRef.current = { type, message, ts: now };
+    setInlineNotice({ type, message });
+  }, []);
+
+  const clearInlineNotice = useCallback(() => setInlineNotice(null), []);
+
   const handleInputChange = useCallback((field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setHasChanges(true);
@@ -500,7 +523,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('La imagen debe ser menor a 5MB');
+      showInlineNotice('warning', 'La imagen debe ser menor a 5MB.');
       return;
     }
 
@@ -541,7 +564,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       }));
 
       setHasChanges(true);
-      toast.success('Foto actualizada correctamente');
+      showInlineNotice('success', 'Foto actualizada correctamente.');
 
     } catch (error) {
       console.error('Error uploading photo:', error);
@@ -554,15 +577,15 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     } finally {
       setLoading(false);
     }
-  }, [user, profile, setLiveProfile, setLoading, setHasChanges]);
+  }, [user, profile, setLiveProfile, setLoading, setHasChanges, showInlineNotice]);
 
   const handleSave = useCallback(async () => {
     if (!formData.nombre.trim()) {
-      toast.error('El nombre es obligatorio');
+      showInlineNotice('warning', 'El nombre es obligatorio.');
       return;
     }
     if (!formData.email.trim()) {
-      toast.error('El email es obligatorio');
+      showInlineNotice('warning', 'El email es obligatorio.');
       return;
     }
 
@@ -582,9 +605,9 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
       const completion = calculateProfileCompletion(updatedProfile);
       if (completion === 100 && (profile?.profile_completion || 0) < 100) {
-        toast.success('Perfil completado al 100%');
+        showInlineNotice('success', 'Perfil completado al 100%.');
       } else {
-        toast.success('Perfil guardado correctamente');
+        showInlineNotice('success', 'Perfil guardado correctamente.');
       }
 
       await refreshProfile();
@@ -595,7 +618,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     } finally {
       setLoading(false);
     }
-  }, [formData, user, refreshProfile, onClose, setLoading, setHasChanges]);
+  }, [formData, user, refreshProfile, onClose, setLoading, setHasChanges, profile?.profile_completion, showInlineNotice]);
 
   const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
@@ -605,13 +628,13 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
   const handleDeleteAccount = useCallback(() => {
     if (!user?.id) {
-      toast.error('No se pudo identificar la cuenta actual.');
+      showInlineNotice('warning', 'No se pudo identificar la cuenta actual.');
       return;
     }
 
     setDeleteAccountConfirmation('');
     setShowDeleteAccountModal(true);
-  }, [user?.id]);
+  }, [showInlineNotice, user?.id]);
 
   const closeDeleteAccountModal = useCallback(() => {
     if (loading) return;
@@ -621,7 +644,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
   const confirmDeleteAccount = useCallback(async () => {
     if (deleteAccountConfirmation.trim().toUpperCase() !== 'ELIMINAR') {
-      toast.error('Para confirmar, escribí ELIMINAR.');
+      showInlineNotice('warning', 'Para confirmar, escribí ELIMINAR.');
       return;
     }
 
@@ -641,7 +664,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
       setShowDeleteAccountModal(false);
       setDeleteAccountConfirmation('');
-      toast.success('Cuenta eliminada correctamente.');
+      showInlineNotice('success', 'Cuenta eliminada correctamente.');
       await supabase.auth.signOut();
       onClose();
       navigate('/login', { replace: true });
@@ -650,11 +673,11 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     } finally {
       setLoading(false);
     }
-  }, [deleteAccountConfirmation, navigate, onClose]);
+  }, [deleteAccountConfirmation, navigate, onClose, showInlineNotice]);
 
   const handleGeolocation = useCallback(() => {
     if (!navigator.geolocation) {
-      toast.error('Geolocalización no disponible en este dispositivo');
+      showInlineNotice('warning', 'Geolocalización no disponible en este dispositivo.');
       return;
     }
 
@@ -682,7 +705,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           console.warn(`${GEO_LOG_PREFIX} reverse geocode failed`, reverseError);
         }
 
-        toast.success('Ubicación obtenida correctamente');
+        showInlineNotice('success', 'Ubicación obtenida correctamente.');
       },
       (error) => {
         let errorMessage = 'Error obteniendo ubicación';
@@ -700,11 +723,11 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           default:
             break;
         }
-        toast.error(errorMessage);
+        showInlineNotice('warning', errorMessage);
       },
       { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 },
     );
-  }, [handleInputChange]);
+  }, [handleInputChange, showInlineNotice]);
 
   const positions = useMemo(() => [
     { key: 'ARQ', label: 'ARQ' },
@@ -860,6 +883,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           handleSave={handleSave}
           handleLogout={handleLogout}
           handleDeleteAccount={handleDeleteAccount}
+          inlineNotice={inlineNotice}
+          onClearInlineNotice={clearInlineNotice}
         />
         <DeleteAccountModal
           isOpen={showDeleteAccountModal}
@@ -905,6 +930,12 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
           <div className="flex-1 overflow-y-auto p-[12px_16px] md:p-[20px_30px] flex flex-col gap-4 pb-20 items-center">
             <div className="w-full max-w-[520px] flex flex-col gap-4">
+              <InlineNotice
+                type={inlineNotice?.type}
+                message={inlineNotice?.message}
+                autoHideMs={3200}
+                onClose={clearInlineNotice}
+              />
               {/* Avatar and Name (COMPACT ROW OVERLAY) */}
               <div className="flex items-end gap-3 w-full mt-4 mb-2">
                 <div className="flex flex-col items-center shrink-0">
