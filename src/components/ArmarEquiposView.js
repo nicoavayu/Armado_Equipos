@@ -168,18 +168,17 @@ export default function ArmarEquiposView({
       // Duplicate notification means voting was already started before; allow entering voting anyway.
       if (res?.alreadyExists) {
         setVotingStarted(true);
-        toast.info('La votación ya estaba iniciada. Entrando...');
         navigate(buildVotingRoute({ partidoId: partidoActual.id }));
         return;
       }
 
       if (res?.skippedDueToSurveyScheduled || res?.skippedDueToSurvey) {
-        toast.info('No se envió la notificación porque ya hay una encuesta/programación asociada al partido.');
+        toast.warn('La votación ya está programada para este partido.');
         return;
       }
 
       if ((res.inserted || 0) > 0) {
-        toast.success(`Notificación enviada a ${res.inserted} jugadores. Entrando a votación...`);
+        toast.success(`Notificación enviada a ${res.inserted} jugadores. Entrando a votación.`);
 
         // Refrescar estado de votación
         try {
@@ -204,7 +203,7 @@ export default function ArmarEquiposView({
           }
         }, 500);
       } else {
-        toast.info('No se pudieron enviar notificaciones. Asegurate que los jugadores tengan cuenta.');
+        toast.warn('No se enviaron notificaciones porque no hay jugadores con cuenta.');
       }
 
     } catch (error) {
@@ -452,7 +451,7 @@ export default function ArmarEquiposView({
         // No crítico
       }
 
-      toast.success('¡Votación cerrada! Equipos armados.');
+      toast.success('Votación cerrada. Equipos armados.');
 
       // Redirigir a vista de equipos
       onTeamsFormed(teams, matchPlayers);

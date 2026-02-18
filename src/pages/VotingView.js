@@ -548,7 +548,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         const fotoUrl = await uploadFoto(file, jugador);
         setFotoPreview(fotoUrl);
         setFile(null);
-        toast.success('¡Foto cargada!');
+        toast.success('Foto cargada');
       } catch (error) {
         toast.error('Error al subir la foto: ' + error.message);
       } finally {

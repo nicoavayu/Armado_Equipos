@@ -122,7 +122,7 @@ function SharedInviteLayout({
           title={title}
           onBack={onNavigateBack}
           showChatButton={showChatIcon}
-          onChatClick={() => toast.info('Iniciá sesión para chatear')}
+          onChatClick={() => {}}
         />
 
         <MatchInfoSection
@@ -622,7 +622,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           reqId: originalReqId
         });
         setJoinStatus('approved');
-        toast.success('¡Listo! Ya formás parte del partido');
+        toast.success('Ya formás parte del partido');
       } else {
         console.log('[RECHECK] Not yet synced, retrying...', { attempt, matchId, userUuid, originalReqId });
         recheckMembership(userUuid, matchId, originalReqId, attempt + 1);
@@ -759,9 +759,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
           if (existingRequest) {
             setJoinStatus(existingRequest.status);
-            if (existingRequest.status === 'pending') {
-              toast.info('Ya enviaste una solicitud para este partido');
-            }
+            // No toast here: status is reflected in UI.
           }
           return;
         }
@@ -860,7 +858,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         throw insertError;
       }
 
-      toast.success('¡Te sumaste al partido!');
+      toast.success('Te sumaste al partido');
       if (mode === 'invite') {
         navigate(`/partido/${partidoId}?codigo=${codigoParam}`);
       } else {
@@ -898,7 +896,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       if (process.env.NODE_ENV === 'development') {
         console.error('[INVITE] Missing env', { supabaseUrl: !!supabaseUrl, anonKey: !!anonKey });
       }
-      toast.error('Faltan variables de entorno de Supabase');
+      toast.error('No se pudo validar la invitación. Reintentá en unos minutos.');
       return;
     }
 
@@ -955,7 +953,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       localStorage.setItem(storageKey, result.guest_uuid);
 
       setStep('success');
-      toast.success(`¡Listo, ${guestName}! Te sumaste al partido`);
+      toast.success(`${guestName}, te sumaste al partido`);
 
       // Redirigir después de 2 segundos a vista read-only (guest sin auth)
       setTimeout(() => {

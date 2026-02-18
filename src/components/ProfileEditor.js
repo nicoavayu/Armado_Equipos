@@ -659,7 +659,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     }
 
     console.debug(`${GEO_LOG_PREFIX} requesting current position`);
-    toast.info('Obteniendo ubicación...');
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -676,10 +675,9 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           if (city) {
             handleInputChange('localidad', city);
             console.debug(`${GEO_LOG_PREFIX} city resolved`, { city });
-            toast.success('Ubicación obtenida correctamente');
-            return;
+          } else {
+            console.warn(`${GEO_LOG_PREFIX} city could not be resolved from coordinates`);
           }
-          console.warn(`${GEO_LOG_PREFIX} city could not be resolved from coordinates`);
         } catch (reverseError) {
           console.warn(`${GEO_LOG_PREFIX} reverse geocode failed`, reverseError);
         }

@@ -355,7 +355,6 @@ export const useAdminPanelState = ({
         } catch (_refreshError) {
           // Best-effort refresh only.
         }
-        toast.info('Cupo completo: titulares + suplentes.');
         return;
       }
 
@@ -577,7 +576,6 @@ export const useAdminPanelState = ({
         .single();
 
       if (existingPlayer) {
-        toast.error('Ya estás en este partido');
         return;
       }
 
@@ -602,7 +600,6 @@ export const useAdminPanelState = ({
 
       if (insertError) {
         if (insertError.code === '23505') {
-          toast.error('Ya estás en este partido');
           setPendingInvitation(false);
           return;
         }
