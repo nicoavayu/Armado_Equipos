@@ -335,7 +335,7 @@ const NotificationsView = () => {
               icon={Bell}
               title="SIN NOTIFICACIONES"
               description="Cuando pase algo importante en tus partidos, te lo mostramos acá."
-              actionLabel="VER PARTIDOS"
+              actionLabel="Ver partidos"
               onAction={() => navigate('/quiero-jugar')}
             />
           </div>
