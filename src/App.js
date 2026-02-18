@@ -2,6 +2,7 @@
 import React, { lazy, Suspense } from 'react';
 import { ToastContainer } from 'react-toastify';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams, Outlet } from 'react-router-dom';
+import { installGlobalToastPolicy } from './lib/toastPolicy';
 
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
@@ -56,6 +57,8 @@ if (process.env.NODE_ENV === 'development') {
     // Silently fail if file not available
   }
 }
+
+installGlobalToastPolicy();
 
 export default function App() {
   return (
