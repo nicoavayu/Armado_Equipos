@@ -4,6 +4,8 @@ import { getAmigos, supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
 import { formatLocalDateShort } from '../utils/dateLocal';
+import InlineNotice from './ui/InlineNotice';
+import useInlineNotice from '../hooks/useInlineNotice';
 
 
 const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, jugadores = [] }) => {
@@ -12,6 +14,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
   const [loading, setLoading] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [invitedFriends, setInvitedFriends] = useState(new Set());
+  const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
 
   // Bloquear scroll del body cuando el modal está abierto
   useEffect(() => {
@@ -105,7 +108,11 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
 
   const handleInvitar = async (amigo) => {
     if (!partidoActual?.id) {
-      toast.error('No hay partido seleccionado');
+      showInlineNotice({
+        key: 'invite_friends_missing_match',
+        type: 'warning',
+        message: 'No hay partido seleccionado.',
+      });
       return;
     }
 
@@ -113,7 +120,11 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
     const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
     const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0;
     if (maxRosterSlots > 0 && jugadores.length >= maxRosterSlots) {
-      toast.error('El partido ya está completo (titulares y suplentes), no se pueden enviar más invitaciones.');
+      showInlineNotice({
+        key: 'invite_friends_match_full',
+        type: 'warning',
+        message: 'El partido ya está completo. No se pueden enviar más invitaciones.',
+      });
       return;
     }
 
@@ -346,6 +357,14 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
         </div>
 
         <div className="px-5 py-4 max-h-[60vh] overflow-y-auto">
+          <div className="min-h-[52px] mb-2">
+            <InlineNotice
+              type={notice?.type}
+              message={notice?.message}
+              autoHideMs={notice?.type === 'warning' ? null : 3000}
+              onClose={clearInlineNotice}
+            />
+          </div>
           {loading ? (
             <div className="flex justify-center py-10">
               <LoadingSpinner size="medium" />

@@ -7,9 +7,11 @@ import { useAuth } from '../components/AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import PageLoadingState from '../components/PageLoadingState';
 import PageTransition from '../components/PageTransition';
+import InlineNotice from '../components/ui/InlineNotice';
 import { finalizeIfComplete } from '../services/surveyCompletionService';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { clearMatchFromList } from '../services/matchFinishService';
+import useInlineNotice from '../hooks/useInlineNotice';
 import Logo from '../Logo.png';
 
 // Styles are now directly in Tailwind
@@ -51,6 +53,7 @@ const EncuestaPartido = () => {
   const [jugadores, setJugadores] = useState([]);
   const [yaCalificado, _setYaCalificado] = useState(false);
   const [encuestaFinalizada, setEncuestaFinalizada] = useState(false);
+  const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
 
   useEffect(() => {
     const fetchPartidoData = async () => {
@@ -289,7 +292,11 @@ const EncuestaPartido = () => {
     }
 
     if (currentStep === 5 && !formData.ganador) {
-      toast.error('Elegí el ganador');
+      showInlineNotice({
+        key: 'survey_missing_winner',
+        type: 'warning',
+        message: 'Elegí el ganador.',
+      });
       return;
     }
 
@@ -501,6 +508,14 @@ const EncuestaPartido = () => {
       <div className="min-h-[100dvh] w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <style>{animationStyle}</style>
         <div className={cardClass}>
+          <div className="w-full min-h-[52px] pt-2">
+            <InlineNotice
+              type={notice?.type}
+              message={notice?.message}
+              autoHideMs={notice?.type === 'warning' ? null : 3000}
+              onClose={clearInlineNotice}
+            />
+          </div>
           {/* STEP 0: ¿SE JUGÓ? */}
           {currentStep === 0 && (
             <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>

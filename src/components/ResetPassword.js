@@ -3,6 +3,8 @@ import { supabase } from '../supabase';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from './LoadingSpinner';
+import InlineNotice from './ui/InlineNotice';
+import useInlineNotice from '../hooks/useInlineNotice';
 
 
 const ResetPassword = () => {
@@ -10,6 +12,7 @@ const ResetPassword = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [hash, setHash] = useState('');
+  const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
   const navigate = useNavigate();
 
   // Extraer el hash de la URL
@@ -31,12 +34,20 @@ const ResetPassword = () => {
     e.preventDefault();
 
     if (password !== confirmPassword) {
-      toast.error('Las contraseñas no coinciden');
+      showInlineNotice({
+        key: 'reset_password_mismatch',
+        type: 'warning',
+        message: 'Las contraseñas no coinciden.',
+      });
       return;
     }
 
     if (password.length < 6) {
-      toast.error('La contraseña debe tener al menos 6 caracteres');
+      showInlineNotice({
+        key: 'reset_password_too_short',
+        type: 'warning',
+        message: 'La contraseña debe tener al menos 6 caracteres.',
+      });
       return;
     }
 
@@ -83,6 +94,14 @@ const ResetPassword = () => {
     <div className="w-full mx-auto max-[480px]:max-w-[98%]">
       <h2>Restablecer Contraseña</h2>
       <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
+        <div className="min-h-[52px]">
+          <InlineNotice
+            type={notice?.type}
+            message={notice?.message}
+            autoHideMs={notice?.type === 'warning' ? null : 3000}
+            onClose={clearInlineNotice}
+          />
+        </div>
         <div className="flex flex-col gap-1.5 mb-2.5">
           <label htmlFor="new-password" className="text-white text-sm font-medium">Nueva Contraseña</label>
           <input

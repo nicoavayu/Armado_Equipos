@@ -7,6 +7,8 @@ import AvatarWithProgress from './AvatarWithProgress';
 import ModernToggle from './ModernToggle';
 import PartidosPendientesNotification from './PartidosPendientesNotification';
 import { addFreePlayer, removeFreePlayer } from '../services';
+import InlineNotice from './ui/InlineNotice';
+import useInlineNotice from '../hooks/useInlineNotice';
 
 export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
   const navigate = useNavigate();
@@ -23,6 +25,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
     bio: '',
   });
   const [hasChanges, setHasChanges] = useState(false);
+  const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -63,7 +66,11 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('La imagen debe ser menor a 5MB');
+      showInlineNotice({
+        key: 'profile_menu_image_too_large',
+        type: 'warning',
+        message: 'La imagen debe ser menor a 5MB.',
+      });
       return;
     }
 
@@ -118,7 +125,11 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
 
   const handleSave = async () => {
     if (!formData.nombre.trim()) {
-      toast.error('El nombre es obligatorio');
+      showInlineNotice({
+        key: 'profile_menu_name_required',
+        type: 'warning',
+        message: 'El nombre es obligatorio.',
+      });
       return;
     }
 
@@ -221,6 +232,14 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
 
         {/* Form Fields */}
         <div className="flex-1 overflow-y-auto px-5 py-0 flex flex-col gap-4 max-[600px]:px-4">
+          <div className="min-h-[52px]">
+            <InlineNotice
+              type={notice?.type}
+              message={notice?.message}
+              autoHideMs={notice?.type === 'warning' ? null : 3000}
+              onClose={clearInlineNotice}
+            />
+          </div>
           <div className="flex flex-col">
             <label className="text-white text-[13px] font-medium mb-1.5 font-[Oswald,Arial,sans-serif]">Nombre *</label>
             <input

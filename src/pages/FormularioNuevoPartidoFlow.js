@@ -12,6 +12,8 @@ import PageTitle from '../components/PageTitle';
 import ListaPartidosFrecuentes from './ListaPartidosFrecuentes';
 import { toast } from 'react-toastify';
 import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
+import InlineNotice from '../components/ui/InlineNotice';
+import useInlineNotice from '../hooks/useInlineNotice';
 
 const STEPS = {
   NAME: 1,
@@ -52,6 +54,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const [editMode, setEditMode] = useState(false);
 
   const [showFrecuentes, setShowFrecuentes] = useState(false);
+  const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
   // New: toggle to save created party as frequent
   const [saveAsFrequent, setSaveAsFrequent] = useState(false);
   const [willPlay, setWillPlay] = useState(true);
@@ -556,7 +559,11 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               onClick={() => {
                 // Validate time format
                 if (!normalizeTimeHHmm(hora)) {
-                  toast.error('Se requiere una hora válida');
+                  showInlineNotice({
+                    key: 'new_match_invalid_time',
+                    type: 'warning',
+                    message: 'Se requiere una hora válida.',
+                  });
                   return;
                 }
 
@@ -565,7 +572,11 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 console.log('[DEBUG] Match validation:', debugInfo);
 
                 if (isBlockedInDebug(fecha, hora)) {
-                  toast.error('No podés crear un partido en el pasado.');
+                  showInlineNotice({
+                    key: 'new_match_past_datetime',
+                    type: 'warning',
+                    message: 'No podés crear un partido en el pasado.',
+                  });
                   return;
                 }
                 editMode ? saveAndReturn() : nextStep();
@@ -573,6 +584,14 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             >
               {editMode ? 'Guardar' : 'Continuar'}
             </button>
+            <div className="min-h-[52px] mt-2">
+              <InlineNotice
+                type={notice?.type}
+                message={notice?.message}
+                autoHideMs={notice?.type === 'warning' ? null : 3000}
+                onClose={clearInlineNotice}
+              />
+            </div>
             <button
               className={CONFIRM_BTN_CLASS}
               style={{ background: 'rgba(255,255,255,0.1)', borderColor: '#fff', color: '#fff' }}

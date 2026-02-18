@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { recordAbsenceNotification } from '../services/absenceService';
 import { toast } from 'react-toastify';
+import InlineNotice from './ui/InlineNotice';
+import useInlineNotice from '../hooks/useInlineNotice';
 
 /**
  * Component for players to notify their absence from a match
@@ -10,17 +12,26 @@ const AbsenceNotification = ({ userId, partidoId, onClose, onSuccess }) => {
   const [foundReplacement, setFoundReplacement] = useState(false);
   const [replacementName, setReplacementName] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!reason.trim()) {
-      toast.error('Por favor indica el motivo de tu ausencia');
+      showInlineNotice({
+        key: 'absence_missing_reason',
+        type: 'warning',
+        message: 'Por favor indica el motivo de tu ausencia.',
+      });
       return;
     }
 
     if (foundReplacement && !replacementName.trim()) {
-      toast.error('Por favor indica el nombre del reemplazo');
+      showInlineNotice({
+        key: 'absence_missing_replacement_name',
+        type: 'warning',
+        message: 'Por favor indica el nombre del reemplazo.',
+      });
       return;
     }
 
@@ -124,6 +135,14 @@ const AbsenceNotification = ({ userId, partidoId, onClose, onSuccess }) => {
           </div>
 
           <div className="flex gap-3 justify-end max-[768px]:flex-col">
+            <div className="w-full min-h-[52px] max-[768px]:order-first">
+              <InlineNotice
+                type={notice?.type}
+                message={notice?.message}
+                autoHideMs={notice?.type === 'warning' ? null : 3000}
+                onClose={clearInlineNotice}
+              />
+            </div>
             <button
               type="button"
               onClick={onClose}

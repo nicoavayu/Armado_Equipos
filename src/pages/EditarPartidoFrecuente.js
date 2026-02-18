@@ -5,6 +5,8 @@ import AutocompleteSede from '../components/AutocompleteSede';
 import PageTitle from '../components/PageTitle';
 import { parseLocalDateTime, weekdayFromYMD } from '../utils/dateLocal';
 import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
+import InlineNotice from '../components/ui/InlineNotice';
+import useInlineNotice from '../hooks/useInlineNotice';
 
 const SECTION_LABEL_CLASS = 'text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1 mb-2';
 const INPUT_CLASS = 'appearance-none bg-white/5 border border-white/20 text-white font-oswald text-lg px-4 py-3 rounded-xl w-full box-border h-[54px] transition-all duration-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md placeholder:text-white/30';
@@ -23,6 +25,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
   const [fotoPreview, setFotoPreview] = useState(partido.imagen_url);
   const [tipoPartido, setTipoPartido] = useState(partido.tipo_partido || 'Masculino');
   const [modalidad, setModalidad] = useState(partido.modalidad || 'F5');
+  const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
 
   const handleFile = (e) => {
     if (e.target && e.target.files && e.target.files[0]) {
@@ -163,7 +166,11 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
       console.log('[EditarPartidoFrecuente] Editando plantilla frecuente');
       if (!partido?.id) {
         console.warn('[EditarPartidoFrecuente] plantillaFrecuente sin id, se aborta update');
-        toast.warn('No se encontró la plantilla para guardar');
+        showInlineNotice({
+          key: 'edit_frequent_missing_template',
+          type: 'warning',
+          message: 'No se encontró la plantilla para guardar.',
+        });
         return;
       }
 
@@ -175,11 +182,19 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
         const normalized = raw.replace(',', '.');
         precioVal = parseFloat(normalized);
         if (Number.isNaN(precioVal)) {
-          toast.error('Precio inválido');
+          showInlineNotice({
+            key: 'edit_frequent_invalid_price',
+            type: 'warning',
+            message: 'Precio inválido.',
+          });
           return;
         }
         if (precioVal < 0) {
-          toast.error('El precio no puede ser negativo');
+          showInlineNotice({
+            key: 'edit_frequent_negative_price',
+            type: 'warning',
+            message: 'El precio no puede ser negativo.',
+          });
           return;
         }
       } else {
@@ -188,13 +203,21 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
 
       // Validar que fecha y hora formen una fecha/hora válida usando parseLocalDateTime
       if (!fecha || !hora) {
-        toast.error('Fecha/hora inválida');
+        showInlineNotice({
+          key: 'edit_frequent_invalid_datetime_missing',
+          type: 'warning',
+          message: 'Fecha u hora inválida.',
+        });
         return;
       }
       const time24 = normalizeTimeTo24(hora);
       const fechaHoraEditada = parseLocalDateTime(fecha, time24);
       if (!fechaHoraEditada || Number.isNaN(fechaHoraEditada.getTime())) {
-        toast.error('Fecha/hora inválida');
+        showInlineNotice({
+          key: 'edit_frequent_invalid_datetime_parse',
+          type: 'warning',
+          message: 'Fecha u hora inválida.',
+        });
         return;
       }
 
@@ -451,6 +474,14 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
         >
           {loading ? 'Guardando...' : 'Guardar cambios'}
         </button>
+        <div className="min-h-[52px]">
+          <InlineNotice
+            type={notice?.type}
+            message={notice?.message}
+            autoHideMs={notice?.type === 'warning' ? null : 3000}
+            onClose={clearInlineNotice}
+          />
+        </div>
       </div>
     </div>
   );

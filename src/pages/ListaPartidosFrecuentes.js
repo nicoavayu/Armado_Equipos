@@ -7,9 +7,11 @@ import PageLoadingState from '../components/PageLoadingState';
 import HistoryTemplateCard from '../components/historial/HistoryTemplateCard';
 import ConfirmModal from '../components/ConfirmModal';
 import EmptyStateCard from '../components/EmptyStateCard';
+import InlineNotice from '../components/ui/InlineNotice';
 import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchDateDebug';
 import { CalendarDays } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import useInlineNotice from '../hooks/useInlineNotice';
 
 function formatearSede(sede) {
   if (sede === 'La Terraza Fútbol 5, 8') return 'La Terraza Fútbol 5 y 8';
@@ -32,6 +34,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
   const [sede, setSede] = useState('');
   const [players, setPlayers] = useState([]);
   const [newPlayerName, setNewPlayerName] = useState('');
+  const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
 
   const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 
@@ -51,12 +54,24 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
   }, [isOpen, template]);
 
   const handleCreate = async () => {
-    if (!selectedDate) return toast.error('Seleccioná una fecha');
+    if (!selectedDate) {
+      showInlineNotice({
+        key: 'use_template_missing_date',
+        type: 'warning',
+        message: 'Seleccioná una fecha.',
+      });
+      return;
+    }
     const timeToUse = editTime ? selectedTime : (template.hora || '');
     
     // Validate time format
     if (!normalizeTimeHHmm(timeToUse)) {
-      return toast.error('Se requiere una hora válida');
+      showInlineNotice({
+        key: 'use_template_invalid_time',
+        type: 'warning',
+        message: 'Se requiere una hora válida.',
+      });
+      return;
     }
     
     // DEBUG: Log validation info
@@ -64,7 +79,12 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
     console.log('[DEBUG] Template match validation:', debugInfo);
     
     if (isBlockedInDebug(selectedDate, timeToUse)) {
-      return toast.error('No podés crear un partido en el pasado.');
+      showInlineNotice({
+        key: 'use_template_past_date',
+        type: 'warning',
+        message: 'No podés crear un partido en el pasado.',
+      });
+      return;
     }
     setCreating(true);
     try {
@@ -262,6 +282,17 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
         </div>
 
         <div className="flex gap-3 mt-4">
+          <div className="w-full min-h-[52px]">
+            <InlineNotice
+              type={notice?.type}
+              message={notice?.message}
+              autoHideMs={notice?.type === 'warning' ? null : 3000}
+              onClose={clearInlineNotice}
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-1">
           <button
             className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/85 font-semibold rounded-xl transition-all active:scale-95 disabled:opacity-50 font-[Oswald,sans-serif] text-[16px] tracking-[0.01em] border border-white/10"
             onClick={onCancel}

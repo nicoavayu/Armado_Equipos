@@ -1,5 +1,5 @@
 // src/components/TeamDisplay.js
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { TeamDisplayContext } from './PlayerCardTrigger';
 import { saveTeamsToDatabase, getTeamsFromDatabase, subscribeToTeamsChanges, unsubscribeFromTeamsChanges, supabase } from '../supabase';
@@ -12,6 +12,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { AvatarFallback } from './ProfileComponents';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import InlineNotice from './ui/InlineNotice';
+import useInlineNotice from '../hooks/useInlineNotice';
 
 // Safe wrappers to prevent runtime crashes if any import resolves undefined
 const safeComp = (Comp, name) => {
@@ -48,58 +49,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   const [dragTarget, setDragTarget] = useState(null);
   const [activeDragId, setActiveDragId] = useState(null);
   const lastDragEndAtRef = useRef(0);
-  const [notice, setNotice] = useState(null);
-  const noticeMetaRef = useRef({ key: null, ts: 0 });
-  const noticeTimerRef = useRef(null);
-  const isMountedRef = useRef(true);
-
-  const clearInlineNotice = useCallback(() => {
-    if (noticeTimerRef.current) {
-      clearTimeout(noticeTimerRef.current);
-      noticeTimerRef.current = null;
-    }
-    if (isMountedRef.current) {
-      setNotice(null);
-    }
-  }, []);
-
-  const showInlineNotice = useCallback(({ key, type, message, autoHideMs } = {}) => {
-    const stableKey = String(key || message || '').trim();
-    if (!stableKey || !message) return;
-
-    const now = Date.now();
-    const { key: lastKey, ts: lastTs } = noticeMetaRef.current;
-    if (lastKey === stableKey && now - lastTs < 2000) return;
-    noticeMetaRef.current = { key: stableKey, ts: now };
-
-    if (noticeTimerRef.current) {
-      clearTimeout(noticeTimerRef.current);
-      noticeTimerRef.current = null;
-    }
-
-    if (!isMountedRef.current) return;
-    setNotice({ type, message, key: stableKey });
-
-    const resolvedAutoHide = Number.isFinite(autoHideMs)
-      ? autoHideMs
-      : ((type === 'success' || type === 'info') ? 3000 : null);
-
-    if (resolvedAutoHide && resolvedAutoHide > 0) {
-      noticeTimerRef.current = setTimeout(() => {
-        if (!isMountedRef.current) return;
-        setNotice(null);
-        noticeTimerRef.current = null;
-      }, resolvedAutoHide);
-    }
-  }, []);
-
-  useEffect(() => () => {
-    isMountedRef.current = false;
-    if (noticeTimerRef.current) {
-      clearTimeout(noticeTimerRef.current);
-      noticeTimerRef.current = null;
-    }
-  }, []);
+  const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
 
   // [TEAM_BALANCER_EDIT] Para jugadores no-admin, ocultar promedios por defecto
   useEffect(() => {
@@ -307,7 +257,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   const randomizeTeams = async () => {
     // [TEAM_BALANCER_EDIT] Solo admin puede randomizar equipos
     if (!isAdmin) {
-      toast.error('Solo el admin puede randomizar los equipos');
+      showInlineNotice({
+        key: 'teams_randomize_not_admin',
+        type: 'warning',
+        message: 'Solo el admin puede randomizar los equipos.',
+      });
       return;
     }
     if (teamsConfirmed) {
@@ -422,11 +376,19 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       const snapshot = buildConfirmationSnapshot();
 
       if (snapshot.teamAUuid.length === 0 || snapshot.teamBUuid.length === 0) {
-        toast.error('No se pudieron resolver los jugadores de los equipos.');
+        showInlineNotice({
+          key: 'teams_confirm_missing_players',
+          type: 'warning',
+          message: 'No se pudieron resolver los jugadores de los equipos.',
+        });
         return;
       }
       if (snapshot.teamAUuid.length !== snapshot.teamBUuid.length) {
-        toast.error('Los equipos no tienen la misma cantidad de jugadores.');
+        showInlineNotice({
+          key: 'teams_confirm_unbalanced_count',
+          type: 'warning',
+          message: 'Los equipos no tienen la misma cantidad de jugadores.',
+        });
         return;
       }
 
@@ -658,7 +620,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     const teamA = realtimeTeams.find((t) => t.id === 'equipoA');
     const teamB = realtimeTeams.find((t) => t.id === 'equipoB');
     if (!teamA || !teamB) {
-      toast.error('No se pudieron preparar los equipos para compartir');
+      showInlineNotice({
+        key: 'teams_share_missing_data',
+        type: 'warning',
+        message: 'No se pudieron preparar los equipos para compartir.',
+      });
       return;
     }
 
