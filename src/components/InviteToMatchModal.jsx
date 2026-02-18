@@ -130,7 +130,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                     const playersInMatch = (jugadoresData || []).filter((j) => j.partido_id === match.id);
                     const isParticipating = playersInMatch.some((j) => j.usuario_id === targetUserId);
                     const hasInvitation = pendingInviteMatchIds.has(String(match.id));
-                    const starterCapacity = Number(match.cupo_jugadores || 0);
+                    const starterCapacity = Number(match.cupo_jugadores || 20);
                     const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0;
                     const isRosterFull = maxRosterSlots > 0 && playersInMatch.length >= maxRosterSlots;
 
@@ -168,11 +168,27 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             return;
         }
         if (!match.canInvite) {
+            toast.info('Ese partido ya no tiene cupos disponibles.');
             return;
         }
 
         setInviting(true);
         try {
+            const starterCapacity = Number(match.cupo_jugadores || 20);
+            const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0;
+            if (maxRosterSlots > 0) {
+                const { count: currentPlayersCount, error: countError } = await supabase
+                    .from('jugadores')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('partido_id', match.id);
+                if (countError) throw countError;
+                if ((currentPlayersCount || 0) >= maxRosterSlots) {
+                    toast.info('El partido ya está completo (titulares y suplentes).');
+                    await fetchUserMatches();
+                    return;
+                }
+            }
+
             const { data: targetUserRow, error: targetUserError } = await supabase
                 .from('usuarios')
                 .select('acepta_invitaciones')
