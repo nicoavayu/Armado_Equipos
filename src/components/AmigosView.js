@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAmigos } from '../hooks/useAmigos';
 import { PlayerCardTrigger } from './ProfileComponents';
 import MiniFriendCard from './MiniFriendCard';
@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
 import { useNotifications } from '../context/NotificationContext';
 import { Check, Loader2, X } from 'lucide-react';
+import InlineNotice from './ui/InlineNotice';
 
 const AmigosView = () => {
   console.log('[AMIGOS_VIEW] === RENDER START ===');
@@ -19,11 +20,63 @@ const AmigosView = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [processingRequests, setProcessingRequests] = useState(new Set());
   const [processingRequestAction, setProcessingRequestAction] = useState({});
+  const [notice, setNotice] = useState(null);
+  const noticeMetaRef = useRef({ key: null, ts: 0 });
+  const noticeTimerRef = useRef(null);
+  const isMountedRef = useRef(true);
   const { markTypeAsRead } = useNotifications();
 
   // Estado centralizado para el modal de confirmación de eliminación
   const [friendToDelete, setFriendToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const clearInlineNotice = useCallback(() => {
+    if (noticeTimerRef.current) {
+      clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = null;
+    }
+    if (isMountedRef.current) {
+      setNotice(null);
+    }
+  }, []);
+
+  const showInlineNotice = useCallback(({ key, type, message, autoHideMs } = {}) => {
+    const stableKey = String(key || message || '').trim();
+    if (!stableKey || !message) return;
+
+    const now = Date.now();
+    const { key: lastKey, ts: lastTs } = noticeMetaRef.current;
+    if (lastKey === stableKey && now - lastTs < 2000) return;
+    noticeMetaRef.current = { key: stableKey, ts: now };
+
+    if (noticeTimerRef.current) {
+      clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = null;
+    }
+
+    if (!isMountedRef.current) return;
+    setNotice({ type, message, key: stableKey });
+
+    const resolvedAutoHide = Number.isFinite(autoHideMs)
+      ? autoHideMs
+      : ((type === 'success' || type === 'info') ? 3000 : null);
+
+    if (resolvedAutoHide && resolvedAutoHide > 0) {
+      noticeTimerRef.current = setTimeout(() => {
+        if (!isMountedRef.current) return;
+        setNotice(null);
+        noticeTimerRef.current = null;
+      }, resolvedAutoHide);
+    }
+  }, []);
+
+  useEffect(() => () => {
+    isMountedRef.current = false;
+    if (noticeTimerRef.current) {
+      clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = null;
+    }
+  }, []);
 
   const {
     amigos,
@@ -105,7 +158,11 @@ const AmigosView = () => {
       console.log('[AMIGOS] Accept friend request result:', result);
 
       if (result.success) {
-        toast.success('Solicitud de amistad aceptada');
+        showInlineNotice({
+          key: `friend_accept_success_${requestId}`,
+          type: 'success',
+          message: 'Solicitud de amistad aceptada.',
+        });
         // Refresh pending requests and friends list
         console.log('[AMIGOS] Refreshing pending requests after accept');
         const requests = await getPendingRequests();
@@ -143,7 +200,11 @@ const AmigosView = () => {
       console.log('[AMIGOS] Reject friend request result:', result);
 
       if (result.success) {
-        toast.success('Solicitud de amistad rechazada');
+        showInlineNotice({
+          key: `friend_reject_success_${requestId}`,
+          type: 'info',
+          message: 'Solicitud de amistad rechazada.',
+        });
         // Refresh pending requests
         console.log('[AMIGOS] Refreshing pending requests after reject');
         const requests = await getPendingRequests();
@@ -178,7 +239,11 @@ const AmigosView = () => {
 
     if (!friend.id) {
       console.error('[AMIGOS] No relationship ID found:', friend);
-      toast.error('Error: No se pudo identificar la relación');
+      showInlineNotice({
+        key: 'friend_remove_missing_relationship',
+        type: 'warning',
+        message: 'No se pudo identificar la relación para eliminar.',
+      });
       setFriendToDelete(null); // Cerrar modal
       return;
     }
@@ -189,7 +254,11 @@ const AmigosView = () => {
       const result = await removeFriend(friend.id);
 
       if (result.success) {
-        toast.success('Amigo eliminado');
+        showInlineNotice({
+          key: `friend_remove_success_${friend.id}`,
+          type: 'success',
+          message: 'Amigo eliminado.',
+        });
         // Pequeño delay para asegurar que la DB se actualice antes de refrescar
         await new Promise((resolve) => setTimeout(resolve, 300));
         console.log('[AMIGOS] Refreshing friends list after deletion');
@@ -277,6 +346,7 @@ const AmigosView = () => {
                   key={user.id}
                   user={user}
                   currentUserId={currentUserId}
+                  onInlineNotice={showInlineNotice}
                   onRequestSent={() => {
                     setSearchQuery('');
                     setSearchResults([]);
@@ -293,6 +363,15 @@ const AmigosView = () => {
       </div>
 
       {/* Pending requests section */}
+      <div className="w-full max-w-[700px] mx-auto min-h-[52px] mb-2">
+        <InlineNotice
+          type={notice?.type}
+          message={notice?.message}
+          autoHideMs={notice?.type === 'warning' ? null : 3000}
+          onClose={clearInlineNotice}
+        />
+      </div>
+
       {pendingRequests.length > 0 && (
         <div className="flex flex-col items-center mb-5 md:mb-8 w-full max-w-[500px] mx-auto">
           <h3 className="text-xl font-semibold my-[20px] mb-[15px] text-white">Solicitudes Pendientes</h3>
@@ -396,7 +475,7 @@ const AmigosView = () => {
 };
 
 // Component for search result items
-const SearchUserItem = ({ user, currentUserId, onRequestSent }) => {
+const SearchUserItem = ({ user, currentUserId, onRequestSent, onInlineNotice }) => {
   const [loading, setLoading] = useState(false);
   const [relationshipStatus, setRelationshipStatus] = useState(null);
   const { sendFriendRequest, getRelationshipStatus } = useAmigos(currentUserId);
@@ -417,7 +496,13 @@ const SearchUserItem = ({ user, currentUserId, onRequestSent }) => {
     try {
       const result = await sendFriendRequest(user.id);
       if (result.success) {
-        toast.success('Solicitud enviada');
+        if (typeof onInlineNotice === 'function') {
+          onInlineNotice({
+            key: `friend_request_sent_${user.id}`,
+            type: 'success',
+            message: 'Solicitud enviada.',
+          });
+        }
         onRequestSent();
       } else {
         toast.error(result.message || 'Error al enviar solicitud');

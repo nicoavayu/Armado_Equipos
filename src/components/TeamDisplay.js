@@ -1,5 +1,5 @@
 // src/components/TeamDisplay.js
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { TeamDisplayContext } from './PlayerCardTrigger';
 import { saveTeamsToDatabase, getTeamsFromDatabase, subscribeToTeamsChanges, unsubscribeFromTeamsChanges, supabase } from '../supabase';
@@ -11,6 +11,7 @@ import WhatsappIcon from './WhatsappIcon';
 import LoadingSpinner from './LoadingSpinner';
 import { AvatarFallback } from './ProfileComponents';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import InlineNotice from './ui/InlineNotice';
 
 // Safe wrappers to prevent runtime crashes if any import resolves undefined
 const safeComp = (Comp, name) => {
@@ -47,6 +48,58 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   const [dragTarget, setDragTarget] = useState(null);
   const [activeDragId, setActiveDragId] = useState(null);
   const lastDragEndAtRef = useRef(0);
+  const [notice, setNotice] = useState(null);
+  const noticeMetaRef = useRef({ key: null, ts: 0 });
+  const noticeTimerRef = useRef(null);
+  const isMountedRef = useRef(true);
+
+  const clearInlineNotice = useCallback(() => {
+    if (noticeTimerRef.current) {
+      clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = null;
+    }
+    if (isMountedRef.current) {
+      setNotice(null);
+    }
+  }, []);
+
+  const showInlineNotice = useCallback(({ key, type, message, autoHideMs } = {}) => {
+    const stableKey = String(key || message || '').trim();
+    if (!stableKey || !message) return;
+
+    const now = Date.now();
+    const { key: lastKey, ts: lastTs } = noticeMetaRef.current;
+    if (lastKey === stableKey && now - lastTs < 2000) return;
+    noticeMetaRef.current = { key: stableKey, ts: now };
+
+    if (noticeTimerRef.current) {
+      clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = null;
+    }
+
+    if (!isMountedRef.current) return;
+    setNotice({ type, message, key: stableKey });
+
+    const resolvedAutoHide = Number.isFinite(autoHideMs)
+      ? autoHideMs
+      : ((type === 'success' || type === 'info') ? 3000 : null);
+
+    if (resolvedAutoHide && resolvedAutoHide > 0) {
+      noticeTimerRef.current = setTimeout(() => {
+        if (!isMountedRef.current) return;
+        setNotice(null);
+        noticeTimerRef.current = null;
+      }, resolvedAutoHide);
+    }
+  }, []);
+
+  useEffect(() => () => {
+    isMountedRef.current = false;
+    if (noticeTimerRef.current) {
+      clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = null;
+    }
+  }, []);
 
   // [TEAM_BALANCER_EDIT] Para jugadores no-admin, ocultar promedios por defecto
   useEffect(() => {
@@ -258,7 +311,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       return;
     }
     if (teamsConfirmed) {
-      toast.info('Los equipos ya están confirmados.');
+      showInlineNotice({
+        key: 'teams_randomize_already_confirmed',
+        type: 'info',
+        message: 'Los equipos ya están confirmados.',
+      });
       return;
     }
 
@@ -400,7 +457,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       }
 
       setTeamsConfirmed(true);
-      toast.success('Equipos confirmados');
+      showInlineNotice({
+        key: 'teams_confirmed_success',
+        type: 'success',
+        message: 'Equipos confirmados.',
+      });
     } catch (e) {
       console.error('[TEAMS_CONFIRM] confirmTeams error', e);
       toast.error('No se pudieron confirmar los equipos');
@@ -438,7 +499,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       }
 
       setTeamsConfirmed(false);
-      toast.info('Equipos desconfirmados');
+      showInlineNotice({
+        key: 'teams_unconfirmed_info',
+        type: 'info',
+        message: 'Equipos desconfirmados.',
+      });
     } catch (e) {
       console.error('[TEAMS_CONFIRM] unconfirmTeams error', e);
       toast.error('No se pudo desconfirmar');
@@ -534,7 +599,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     if (sourcePlayer === targetPlayer && source.droppableId === targetTeamId) return;
 
     if (isPlayerLocked(sourcePlayer) || isPlayerLocked(targetPlayer)) {
-      toast.info('No se pueden mover jugadores bloqueados.');
+      showInlineNotice({
+        key: 'teams_locked_players_move_blocked',
+        type: 'warning',
+        message: 'No se pueden mover jugadores bloqueados.',
+      });
       return;
     }
 
@@ -875,6 +944,14 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
         {/* Botones de acción con helper copy (mobile-first) */}
         <div className="w-full mt-2 box-border flex flex-col gap-4">
+          <div className="w-full min-h-[52px]">
+            <InlineNotice
+              type={notice?.type}
+              message={notice?.message}
+              autoHideMs={notice?.type === 'warning' ? null : 3000}
+              onClose={clearInlineNotice}
+            />
+          </div>
           {isAdmin && (
             <>
               <div className="flex flex-col gap-3">
