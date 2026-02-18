@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 import { User, UserPlus, CheckCircle2, Clock3, Trophy, X, Star } from 'lucide-react';
 
 const POS_MAP = {
@@ -92,7 +93,7 @@ const PlayerActionModal = ({
     )
     : null;
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-[9999] pointer-events-auto p-4 animate-fade-in">
       <div
         className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
@@ -189,6 +190,8 @@ const PlayerActionModal = ({
       </div>
     </div>
   );
+
+  return ReactDOM.createPortal(modalContent, document.body);
 };
 
 export default PlayerActionModal;
