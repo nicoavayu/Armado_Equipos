@@ -327,8 +327,22 @@ const StatsView = ({ onVolver }) => {
       // Non-blocking fallback.
     }
 
+    let finalTeamsRows = [];
+    try {
+      const finalTeamsRes = await supabase
+        .from('partidos')
+        .select('id, final_team_a, final_team_b')
+        .in('id', matchIds);
+      if (!finalTeamsRes.error) {
+        finalTeamsRows = finalTeamsRes.data || [];
+      }
+    } catch (_error) {
+      // Non-blocking fallback.
+    }
+
     const bySurvey = new Map((surveyRows || []).map((row) => [Number(row.partido_id), row]));
     const byTeams = new Map((teamRows || []).map((row) => [Number(row.partido_id), row]));
+    const byFinalTeams = new Map((finalTeamsRows || []).map((row) => [Number(row.id), row]));
     const byMatch = new Map((userPartidos || []).map((p) => [Number(p.id), p]));
 
     let ganados = 0;
@@ -341,6 +355,7 @@ const StatsView = ({ onVolver }) => {
     matchIds.forEach((matchId) => {
       const survey = bySurvey.get(matchId);
       const teamConfirm = byTeams.get(matchId);
+      const finalTeams = byFinalTeams.get(matchId);
       const match = byMatch.get(matchId);
       const ts = match?.fecha
         ? new Date(`${match.fecha}T${String(match?.hora || '00:00').slice(0, 5)}`).getTime()
@@ -363,10 +378,10 @@ const StatsView = ({ onVolver }) => {
         : (Array.isArray(teamConfirm?.participants) ? teamConfirm.participants : []);
       const teamA = Array.isArray(snapshotTeams?.team_a)
         ? snapshotTeams.team_a
-        : (Array.isArray(teamConfirm?.team_a) ? teamConfirm.team_a : []);
+        : (Array.isArray(finalTeams?.final_team_a) ? finalTeams.final_team_a : (Array.isArray(teamConfirm?.team_a) ? teamConfirm.team_a : []));
       const teamB = Array.isArray(snapshotTeams?.team_b)
         ? snapshotTeams.team_b
-        : (Array.isArray(teamConfirm?.team_b) ? teamConfirm.team_b : []);
+        : (Array.isArray(finalTeams?.final_team_b) ? finalTeams.final_team_b : (Array.isArray(teamConfirm?.team_b) ? teamConfirm.team_b : []));
 
       if (!hasWinner) {
         pendientes += 1;

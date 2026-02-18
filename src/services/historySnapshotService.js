@@ -95,6 +95,7 @@ export async function ensureParticipantsSnapshot(partidoId) {
 
     let participantsSnapshot = buildParticipantsSnapshot(players || []);
     let equiposSnapshot = null;
+    let finalTeamsSnapshot = null;
 
     // Prefer confirmed snapshot if available.
     try {
@@ -120,6 +121,36 @@ export async function ensureParticipantsSnapshot(partidoId) {
       }
     } catch (_error) {
       // Optional table/columns on older environments.
+    }
+
+    // Prefer persisted final teams when available.
+    try {
+      const { data: finalTeamsRow, error: finalTeamsError } = await supabase
+        .from('partidos')
+        .select('final_team_a, final_team_b, final_teams_updated_at, final_teams_updated_by')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!finalTeamsError && finalTeamsRow) {
+        const finalA = isArray(finalTeamsRow.final_team_a) ? finalTeamsRow.final_team_a : [];
+        const finalB = isArray(finalTeamsRow.final_team_b) ? finalTeamsRow.final_team_b : [];
+        if (finalA.length > 0 && finalB.length > 0) {
+          finalTeamsSnapshot = {
+            team_a: finalA,
+            team_b: finalB,
+            teams_json: null,
+            confirmed_at: finalTeamsRow.final_teams_updated_at || null,
+            source: 'partidos.final_teams',
+            updated_by: finalTeamsRow.final_teams_updated_by || null,
+          };
+        }
+      }
+    } catch (_error) {
+      // Optional columns on older environments.
+    }
+
+    if (finalTeamsSnapshot) {
+      equiposSnapshot = finalTeamsSnapshot;
     }
 
     const payload = {
