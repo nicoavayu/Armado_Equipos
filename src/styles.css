@@ -103,7 +103,7 @@ body {
 .auth-premium-bg {
   position: relative;
   padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, #121126 0%, #090815 100%);
+  background: linear-gradient(180deg, #161530 0%, #131233 52%, #0c0b1e 100%);
   isolation: isolate;
 }
 
@@ -117,7 +117,7 @@ body {
   filter: blur(140px);
   will-change: transform;
   pointer-events: none;
-  opacity: 0.12;
+  opacity: 0.16;
   z-index: -2;
 }
 
@@ -132,7 +132,7 @@ body {
   right: -250px;
   bottom: -240px;
   background: radial-gradient(circle, rgb(142 112 255 / 38%) 0%, rgb(112 89 214 / 0%) 70%);
-  opacity: 0.1;
+  opacity: 0.13;
   animation: authGlowDriftB 34s ease-in-out infinite;
 }
 
@@ -167,7 +167,23 @@ body {
 }
 
 .auth-logo-block {
+  position: relative;
   animation: authLogoIn 220ms ease-out both;
+}
+
+.auth-logo-block::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 36%;
+  width: 320px;
+  height: 190px;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgb(126 141 255 / 18%) 0%, rgb(126 141 255 / 0%) 68%);
+  filter: blur(42px);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .auth-btn {

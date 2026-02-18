@@ -87,7 +87,7 @@ export default function AuthHome() {
       <div className="auth-premium-noise" aria-hidden="true" />
       <div className="w-full max-w-[380px]">
         <div className="auth-logo-block mb-7 text-center">
-          <img src={logo} alt="ARMA2" className="mx-auto h-[94px] w-auto max-w-full object-contain" />
+          <img src={logo} alt="ARMA2" className="mx-auto h-[112px] w-auto max-w-full object-contain" />
           <p className="mt-[6px] text-sm font-medium tracking-[0.3px] text-[rgba(255,255,255,0.9)]">Tu red de fútbol amateur</p>
         </div>
 
