@@ -84,10 +84,12 @@ export default function AuthHome() {
 
   return (
     <div className="auth-premium-bg fixed inset-0 z-[9999] flex min-h-[100dvh] w-screen items-center justify-center overflow-hidden px-5">
+      <div className="auth-premium-noise" aria-hidden="true" />
       <div className="w-full max-w-[380px]">
         <div className="mb-5 text-center">
-          <img src={logo} alt="ARMA2" className="mx-auto h-[112px] w-auto max-w-full object-contain" />
-          <p className="mt-2 text-sm tracking-[0.02em] text-white/70">Tu red de fútbol amateur</p>
+          <img src={logo} alt="ARMA2" className="mx-auto h-[86px] w-auto max-w-full object-contain" />
+          <h1 className="mt-[10px] text-[34px] font-semibold tracking-[0.02em] text-white">ARMA2</h1>
+          <p className="mt-[5px] text-sm font-medium tracking-[0.3px] text-[rgba(255,255,255,0.88)]">Tu red de fútbol amateur</p>
         </div>
 
         <div className="auth-premium-card rounded-2xl px-5 py-6 max-[480px]:px-4 max-[480px]:py-5">
@@ -162,7 +164,7 @@ export default function AuthHome() {
           </div>
         </div>
 
-        <p className="mx-auto mt-4 max-w-[340px] text-center text-[12px] leading-relaxed text-white/65">
+        <p className="mx-auto mt-4 max-w-[340px] text-center text-[12px] leading-relaxed text-[rgba(255,255,255,0.72)]">
           Al continuar aceptás nuestros{' '}
           <Link to="/terms" className="auth-legal-link">
             Términos

@@ -101,67 +101,110 @@ body {
 
 /* Premium auth surface */
 .auth-premium-bg {
-  background: linear-gradient(130deg, #0b1328 0%, #1a2340 42%, #241f4d 72%, #101933 100%);
-  background-size: 180% 180%;
-  animation: authGradientShift 16s ease-in-out infinite;
+  position: relative;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, #161530 0%, #0c0b1e 100%);
+  isolation: isolate;
 }
 
+.auth-premium-bg::before,
 .auth-premium-bg::after {
   content: '';
   position: absolute;
-  inset: 0;
+  width: 680px;
+  height: 680px;
+  border-radius: 9999px;
+  filter: blur(140px);
+  will-change: transform;
   pointer-events: none;
+  opacity: 0.16;
+  z-index: -2;
+}
+
+.auth-premium-bg::before {
+  left: -240px;
+  top: -220px;
+  background: radial-gradient(circle, rgb(113 122 255 / 44%) 0%, rgb(91 97 210 / 0%) 68%);
+  animation: authGlowDriftA 30s ease-in-out infinite;
+}
+
+.auth-premium-bg::after {
+  right: -250px;
+  bottom: -240px;
+  background: radial-gradient(circle, rgb(142 112 255 / 38%) 0%, rgb(112 89 214 / 0%) 70%);
+  opacity: 0.13;
+  animation: authGlowDriftB 34s ease-in-out infinite;
+}
+
+.auth-premium-noise {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.05;
   background:
-    radial-gradient(circle at 20% 18%, rgb(255 255 255 / 5%), transparent 45%),
-    radial-gradient(circle at 82% 78%, rgb(150 160 255 / 7%), transparent 50%);
+    repeating-linear-gradient(
+      45deg,
+      rgb(255 255 255 / 8%) 0 1px,
+      transparent 1px 3px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgb(255 255 255 / 6%) 0 1px,
+      transparent 1px 4px
+    );
 }
 
 .auth-premium-card {
-  background: rgb(255 255 255 / 10%);
-  border: 1px solid rgb(255 255 255 / 20%);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgb(255 255 255 / 12%);
+  border: 1px solid rgb(255 255 255 / 18%);
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
   box-shadow:
-    0 22px 42px rgb(2 8 22 / 50%),
-    inset 0 1px 0 rgb(255 255 255 / 14%);
+    0 18px 40px rgb(0 0 0 / 45%),
+    inset 0 1px 0 rgb(255 255 255 / 8%);
   animation: authCardIn 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .auth-btn {
   transition:
-    filter 180ms ease,
-    transform 180ms ease,
-    border-color 180ms ease,
-    background-color 180ms ease,
-    box-shadow 180ms ease;
+    filter 160ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 160ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 160ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
 }
 
 .auth-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.985);
 }
 
 .auth-btn-primary {
-  color: #eef3ff;
-  border: 1px solid rgb(150 168 255 / 68%);
-  background: linear-gradient(180deg, #7d89f6 0%, #6a75df 100%);
+  color: #f3f6ff;
+  border: 1px solid rgb(152 168 255 / 72%);
+  background: linear-gradient(180deg, #8a97ff 0%, #6977e2 100%);
   box-shadow:
-    0 8px 22px rgb(28 40 98 / 38%),
-    inset 0 1px 0 rgb(255 255 255 / 16%);
+    0 10px 22px rgb(24 34 88 / 38%),
+    inset 0 1px 0 rgb(255 255 255 / 22%);
 }
 
-.auth-btn-primary:hover:not(:disabled) {
-  filter: brightness(1.04);
+@media (hover: hover) and (pointer: fine) {
+  .auth-btn-primary:hover:not(:disabled) {
+    filter: brightness(1.04);
+  }
+
+  .auth-btn-secondary:hover:not(:disabled) {
+    border-color: rgb(255 255 255 / 38%);
+    background: rgb(255 255 255 / 10%);
+    filter: brightness(1.04);
+  }
 }
 
 .auth-btn-secondary {
-  color: rgb(241 245 255 / 96%);
+  color: rgb(241 245 255 / 95%);
   border: 1px solid rgb(255 255 255 / 28%);
-  background: rgb(255 255 255 / 8%);
-}
-
-.auth-btn-secondary:hover:not(:disabled) {
-  border-color: rgb(255 255 255 / 42%);
-  background: rgb(255 255 255 / 13%);
+  background: rgb(255 255 255 / 6%);
 }
 
 .auth-email-input {
@@ -176,18 +219,25 @@ body {
 }
 
 .auth-legal-link {
-  color: rgb(235 241 255 / 86%);
+  color: rgb(255 255 255 / 90%);
   text-decoration: none;
+  padding: 0 2px;
 }
 
 .auth-legal-link:hover {
   text-decoration: underline;
 }
 
-@keyframes authGradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+@keyframes authGlowDriftA {
+  0% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(24px, 20px, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+@keyframes authGlowDriftB {
+  0% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(-22px, -18px, 0); }
+  100% { transform: translate3d(0, 0, 0); }
 }
 
 @keyframes authCardIn {
@@ -203,11 +253,13 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-premium-bg,
   .auth-premium-card,
-  .auth-btn {
+  .auth-btn,
+  .auth-premium-bg::before,
+  .auth-premium-bg::after {
     animation: none !important;
     transition: none !important;
+    transform: none !important;
   }
 
   .auth-btn:active {
