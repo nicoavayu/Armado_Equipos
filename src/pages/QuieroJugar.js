@@ -90,7 +90,7 @@ const hasValidCoordinates = (lat, lng) => {
 };
 
 const QuieroJugar = () => {
-  const MAX_SUBSTITUTE_SLOTS = 2;
+  const MAX_SUBSTITUTE_SLOTS = 4;
 
   const navigate = useNavigate();
   const onVolver = () => navigate(-1);

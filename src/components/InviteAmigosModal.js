@@ -118,7 +118,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
 
     // Validar cupo lleno antes de enviar
     const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
-    const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0;
+    const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 4 : 0;
     if (maxRosterSlots > 0 && jugadores.length >= maxRosterSlots) {
       showInlineNotice({
         key: 'invite_friends_match_full',

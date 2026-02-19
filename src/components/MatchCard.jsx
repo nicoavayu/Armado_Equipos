@@ -35,7 +35,7 @@ const MatchCard = ({
     isSelected = false,
     onSelect = () => { },
 }) => {
-    const MAX_SUBSTITUTE_SLOTS = 2;
+    const MAX_SUBSTITUTE_SLOTS = 4;
     const showMenu = (userJoined || userRole === 'admin' || isFinished) && (onAbandon || onCancel || onClear);
 
     const precioRaw = (partido?.precio_cancha_por_persona ?? partido?.precio_cancha ?? partido?.precio ?? partido?.valor_cancha);

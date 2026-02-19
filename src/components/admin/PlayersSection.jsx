@@ -17,6 +17,8 @@ function getInitials(name) {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
+const MAX_SUBSTITUTE_SLOTS = 4;
+
 /**
  * Empty state component for players list
  * @param {Object} props - Component props
@@ -84,8 +86,7 @@ const PlayersSection = ({
   const [localMenuOpen, setLocalMenuOpen] = useState(false);
   const [playerToRemove, setPlayerToRemove] = useState(null);
   const [isRemovingPlayer, setIsRemovingPlayer] = useState(false);
-  const [isTitularesOpen, setIsTitularesOpen] = useState(true);
-  const [isSuplentesOpen, setIsSuplentesOpen] = useState(true);
+  const [activeRosterTab, setActiveRosterTab] = useState('titulares');
   const [isSharingUpdate, setIsSharingUpdate] = useState(false);
   const [shareUpdateHint, setShareUpdateHint] = useState('');
   const [animateCompletionTick, setAnimateCompletionTick] = useState(false);
@@ -97,11 +98,11 @@ const PlayersSection = ({
   const menuOpen = isAdmin ? (actionsMenuOpen !== undefined ? actionsMenuOpen : localMenuOpen) : false;
   const setMenuOpen = isAdmin && setActionsMenuOpen ? setActionsMenuOpen : setLocalMenuOpen;
   const capacity = Number(partidoActual?.cupo_jugadores || 0);
-  const maxRosterSlots = capacity > 0 ? capacity + 2 : 0;
+  const maxRosterSlots = capacity > 0 ? capacity + MAX_SUBSTITUTE_SLOTS : 0;
   const titularPlayers = jugadores.filter((j) => !j?.is_substitute);
   const substitutePlayers = jugadores.filter((j) => !!j?.is_substitute);
   const isTitularesComplete = capacity > 0 && titularPlayers.length >= capacity;
-  const showSubstituteSection = substitutePlayers.length > 0 || isTitularesComplete;
+  const canUseSubstituteSlots = substitutePlayers.length > 0 || isTitularesComplete;
   const remainingTitularSlots = capacity > 0 ? Math.max(0, capacity - titularPlayers.length) : null;
   const isMatchFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
   const canShareInviteLink = isAdmin && typeof onShareClick === 'function' && !isMatchFull;
@@ -208,7 +209,7 @@ const PlayersSection = ({
         onMakeAdmin={transferirAdmin}
       >
         <div
-          className={`flex items-center gap-1.5 bg-slate-900 border rounded-lg p-2 transition-all min-h-[36px] w-full max-w-[660px] mx-auto hover:bg-slate-800 ${hasVoted ? 'border-emerald-500 hover:border-emerald-400 border-[1.5px]' : 'border-slate-800 hover:border-slate-700'}`}
+          className={`flex items-center gap-1.5 bg-slate-900 border rounded-lg p-2 transition-all min-h-[36px] w-full hover:bg-slate-800 ${hasVoted ? 'border-emerald-500 hover:border-emerald-400 border-[1.5px]' : 'border-slate-800 hover:border-slate-700'}`}
         >
           {j.foto_url || j.avatar_url ? (
             <img
@@ -274,116 +275,70 @@ const PlayersSection = ({
     </span>
   ) : null;
 
-  const renderRosterSections = () => (
-    <div className="flex flex-col gap-3">
-      <div className="rounded-lg border border-white/15 bg-black/15 p-2.5">
-        <div
-          className="flex items-center justify-between px-1 mb-2"
-          onClick={() => setIsTitularesOpen((prev) => !prev)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setIsTitularesOpen((prev) => !prev);
-            }
-          }}
-          aria-expanded={isTitularesOpen}
-          aria-label="Toggle titulares"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="font-bebas text-sm tracking-wide text-white/90 uppercase">Titulares</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-oswald text-white/65">
-              {titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'}
-            </span>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="text-white/65 transition-transform duration-300"
-              style={{ transform: isTitularesOpen ? 'rotate(0deg)' : 'rotate(180deg)' }}
-              aria-hidden="true"
-            >
-              <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-        </div>
-        <div
-          className="overflow-hidden transition-all duration-300"
-          style={{
-            maxHeight: isTitularesOpen ? '1200px' : '0px',
-            opacity: isTitularesOpen ? 1 : 0,
-            transition: 'max-height 300ms ease, opacity 300ms ease',
-          }}
-        >
-          {titularPlayers.length > 0 ? (
-            <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
-              {titularPlayers.map(renderPlayerCard)}
-            </div>
-          ) : (
-            <div className="text-center text-[12px] text-white/55 font-oswald py-2">Todavía no hay titulares.</div>
-          )}
-        </div>
-      </div>
+  const renderRosterSections = () => {
+    const isTitularesTab = activeRosterTab === 'titulares';
+    const activePlayers = isTitularesTab ? titularPlayers : substitutePlayers;
 
-      {showSubstituteSection && (
-        <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-2.5">
-          <div
-            className="flex items-center justify-between px-1 mb-2"
-            onClick={() => setIsSuplentesOpen((prev) => !prev)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setIsSuplentesOpen((prev) => !prev);
-              }
-            }}
-            aria-expanded={isSuplentesOpen}
-            aria-label="Toggle suplentes"
+    return (
+      <div className="flex flex-col gap-2.5">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveRosterTab('titulares')}
+            className={`flex-1 h-9 rounded-lg border text-left px-3 transition-all ${isTitularesTab
+              ? 'bg-white/12 border-white/30 text-white'
+              : 'bg-black/15 border-white/10 text-white/70 hover:bg-white/10 hover:text-white/90'}`}
+            aria-pressed={isTitularesTab}
           >
-            <span className="font-bebas text-sm tracking-wide text-amber-100 uppercase">Suplentes</span>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-oswald text-amber-200/85">{substitutePlayers.length}/2</span>
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="text-amber-200/85 transition-transform duration-300"
-                style={{ transform: isSuplentesOpen ? 'rotate(0deg)' : 'rotate(180deg)' }}
-                aria-hidden="true"
-              >
-                <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-          </div>
-          <div
-            className="overflow-hidden transition-all duration-300"
-            style={{
-              maxHeight: isSuplentesOpen ? '1200px' : '0px',
-              opacity: isSuplentesOpen ? 1 : 0,
-              transition: 'max-height 300ms ease, opacity 300ms ease',
-            }}
+            <span className="inline-flex items-center justify-between w-full gap-2">
+              <span className="font-bebas text-sm tracking-wide uppercase">Titulares</span>
+              <span className="text-[11px] font-oswald text-white/70">
+                {titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'}
+              </span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveRosterTab('suplentes')}
+            className={`flex-1 h-9 rounded-lg border text-left px-3 transition-all ${!isTitularesTab
+              ? 'bg-amber-500/15 border-amber-300/40 text-amber-100'
+              : 'bg-black/15 border-white/10 text-white/70 hover:bg-amber-500/10 hover:text-amber-100/90 hover:border-amber-300/30'}`}
+            aria-pressed={!isTitularesTab}
           >
-            {substitutePlayers.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
-                {substitutePlayers.map(renderPlayerCard)}
-              </div>
-            ) : null}
-          </div>
-          <div className="mt-2 text-center text-[11px] text-amber-100/85 font-oswald tracking-wide leading-snug">
-            Si se libera un cupo titular, los suplentes pasan automáticamente a la nómina.
-          </div>
+            <span className="inline-flex items-center justify-between w-full gap-2">
+              <span className="font-bebas text-sm tracking-wide uppercase">Suplentes</span>
+              <span className="text-[11px] font-oswald text-amber-200/90">
+                {substitutePlayers.length}/{MAX_SUBSTITUTE_SLOTS}
+              </span>
+            </span>
+          </button>
         </div>
-      )}
-    </div>
-  );
+
+        {!isTitularesTab && (
+          <div className="text-center text-[11px] text-amber-100/85 font-oswald tracking-wide leading-snug py-1">
+            {canUseSubstituteSlots
+              ? 'Si se libera un cupo titular, los suplentes pasan automáticamente a la nómina.'
+              : 'Los suplentes se habilitan cuando se completa el cupo de titulares.'}
+          </div>
+        )}
+
+        {activePlayers.length > 0 ? (
+          <div className="grid grid-cols-2 gap-2.5 w-full">
+            {activePlayers.map(renderPlayerCard)}
+          </div>
+        ) : (
+          <div className="text-center text-[12px] text-white/55 font-oswald py-2">
+            {isTitularesTab
+              ? 'Todavía no hay titulares.'
+              : canUseSubstituteSlots
+                ? 'Todavía no hay suplentes.'
+                : 'Completá titulares para habilitar suplentes.'}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Guest view (non-admin) OR user with pending invitation
   if (!isAdmin || (!isPlayerInMatch && jugadores.length > 0)) {

@@ -32,7 +32,7 @@ function getInitials(name) {
 
 const CLOSED_MATCH_STATUSES = new Set(['cancelado', 'deleted', 'finalizado']);
 const GUEST_SELF_JOIN_ENABLED = true;
-const MAX_SUBSTITUTES = 2;
+const MAX_SUBSTITUTES = 4;
 const isMatchClosed = (match) => {
   const estado = String(match?.estado || '').toLowerCase();
   return CLOSED_MATCH_STATUSES.has(estado);

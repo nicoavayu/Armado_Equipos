@@ -131,7 +131,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                     const isParticipating = playersInMatch.some((j) => j.usuario_id === targetUserId);
                     const hasInvitation = pendingInviteMatchIds.has(String(match.id));
                     const starterCapacity = Number(match.cupo_jugadores || 20);
-                    const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0;
+                    const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 4 : 0;
                     const isRosterFull = maxRosterSlots > 0 && playersInMatch.length >= maxRosterSlots;
 
                     return {
@@ -175,7 +175,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
         setInviting(true);
         try {
             const starterCapacity = Number(match.cupo_jugadores || 20);
-            const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0;
+            const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 4 : 0;
             if (maxRosterSlots > 0) {
                 const { count: currentPlayersCount, error: countError } = await supabase
                     .from('jugadores')

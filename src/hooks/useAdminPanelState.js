@@ -46,7 +46,7 @@ export const useAdminPanelState = ({
   const jugadoresActuales = jugadoresLocal || [];
   const currentPlayerInMatch = jugadoresActuales.find((j) => j.usuario_id === user?.id);
   const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
-  const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0; // titulares + 2 suplentes
+  const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 4 : 0; // titulares + 4 suplentes
   const isRosterFull = maxRosterSlots > 0 && jugadoresActuales.length >= maxRosterSlots;
 
   // New state to track if user has an approved request but isn't in players table yet

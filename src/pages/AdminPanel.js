@@ -124,7 +124,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     ? adminState.jugadoresActuales
     : (Array.isArray(jugadores) ? jugadores : []);
   const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
-  const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 2 : 0;
+  const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 4 : 0;
   const isRosterFull = maxRosterSlots > 0 && displayedJugadores.length >= maxRosterSlots;
   const canOpenChatFromHeader = Boolean(isAdmin || adminState.isPlayerInMatch);
 
