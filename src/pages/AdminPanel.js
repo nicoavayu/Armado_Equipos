@@ -21,6 +21,7 @@ import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import ConfirmModal from '../components/ConfirmModal';
 import { getPublicBaseUrl } from '../utils/publicBaseUrl';
 import { parseLocalDate } from '../utils/dateLocal';
+import { buildWhatsAppRosterMessage } from '../utils/buildWhatsAppRosterMessage';
 
 import AdminActions from '../components/admin/AdminActions';
 import PlayersSection from '../components/admin/PlayersSection';
@@ -57,7 +58,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
   // Get pending requests count with realtime updates
   const { count: pendingRequestsCount, refreshCount: refreshPendingRequestsCount } = usePendingRequestsCount(partidoActual?.id);
-  const { shareContent } = useNativeFeatures();
+  const { shareContent, isNative } = useNativeFeatures();
 
   // Handle tab from URL
   useEffect(() => {
@@ -178,12 +179,12 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     }
   };
 
-  const handleShare = async () => {
+  const resolveMatchJoinLink = async () => {
     const matchId = partidoActual?.id;
     const matchCode = String(partidoActual?.codigo || '').trim();
     if (!matchId || !matchCode) {
       notifyBlockingError('No se pudo generar el link de invitación');
-      return;
+      return null;
     }
 
     // Guest self-join needs a short-lived token (6h / 14 uses).
@@ -195,12 +196,18 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     if (inviteErr || !inviteRows?.[0]?.token) {
       console.error('[SHARE_INVITE] create_guest_match_invite failed', inviteErr);
       notifyBlockingError('No se pudo generar el link (token inválido)');
-      return;
+      return null;
     }
 
     const inviteToken = String(inviteRows[0].token || '').trim();
     const baseUrl = getPublicBaseUrl() || window.location.origin;
-    const url = `${baseUrl}/partido/${matchId}/invitacion?codigo=${encodeURIComponent(matchCode)}&invite=${encodeURIComponent(inviteToken)}`;
+    return `${baseUrl}/partido/${matchId}/invitacion?codigo=${encodeURIComponent(matchCode)}&invite=${encodeURIComponent(inviteToken)}`;
+  };
+
+  const handleShare = async () => {
+    const url = await resolveMatchJoinLink();
+    if (!url) return;
+
     const dateTimeLabel = formatInviteDateTime(partidoActual?.fecha, partidoActual?.hora);
     const text = dateTimeLabel
       ? `Sumate al partido "${partidoActual.nombre || 'Partido'}"\n${dateTimeLabel}\n${url}`
@@ -214,6 +221,57 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     } catch (err) {
       console.error('Error sharing:', err);
       notifyBlockingError('No se pudo abrir WhatsApp');
+    }
+  };
+
+  const handleShareRosterUpdate = async () => {
+    const matchId = partidoActual?.id;
+    const capacity = Number(partidoActual?.cupo_jugadores || 0);
+    if (!matchId || capacity <= 0) return false;
+
+    let latestPlayers = displayedJugadores;
+    try {
+      const refreshedPlayers = await adminState.fetchJugadores();
+      if (Array.isArray(refreshedPlayers)) {
+        latestPlayers = refreshedPlayers;
+      }
+    } catch (error) {
+      console.warn('[SHARE_ROSTER] Using local players after refresh error', error);
+    }
+
+    const joinLink = await resolveMatchJoinLink();
+    if (!joinLink) return false;
+
+    const message = buildWhatsAppRosterMessage({
+      ...partidoActual,
+      capacity,
+      players: latestPlayers,
+      locationName: partidoActual?.locationName || partidoActual?.sede || partidoActual?.cancha || partidoActual?.nombre_cancha || partidoActual?.lugar,
+      address: partidoActual?.address || partidoActual?.direccion,
+      startAt: partidoActual?.startAt,
+    }, joinLink);
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+
+    try {
+      if (isNative) {
+        try {
+          await shareContent('Update del partido', message, joinLink);
+          return true;
+        } catch (nativeShareError) {
+          console.warn('[SHARE_ROSTER] Native share failed, fallback to WhatsApp URL', nativeShareError);
+        }
+      }
+
+      const opened = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+      if (!opened) {
+        await shareContent('Update del partido', message, joinLink);
+      }
+      return true;
+    } catch (error) {
+      console.error('[SHARE_ROSTER] Error sharing update', error);
+      notifyBlockingError('No se pudo compartir el update por WhatsApp');
+      return false;
     }
   };
 
@@ -337,6 +395,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                         onInviteFriends={() => adminState.setShowInviteModal(true)}
                         onAddManual={adminState.agregarJugador}
                         onShareClick={handleShare}
+                        onShareRosterUpdate={handleShareRosterUpdate}
                         unirseAlPartido={adminState.unirseAlPartido}
                       />
                     ) : (

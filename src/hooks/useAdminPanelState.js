@@ -155,7 +155,7 @@ export const useAdminPanelState = ({
   }, [user?.id, partidoActual?.id, jugadores]);
 
   const fetchJugadores = async () => {
-    if (!partidoActual?.id) return;
+    if (!partidoActual?.id) return [];
     try {
       const jugadoresPartido = await getJugadoresDelPartido(partidoActual.id);
       const votantesIds = await getVotantesIds(partidoActual.id);
@@ -166,8 +166,10 @@ export const useAdminPanelState = ({
       // Update local state instead of calling parent onJugadoresChange 
       // which triggers a destructive updateJugadoresPartido.
       setJugadoresLocal(jugadoresPartido || []);
+      return jugadoresPartido || [];
     } catch (error) {
       console.error('Error loading initial data:', error);
+      return [];
     }
   };
 
