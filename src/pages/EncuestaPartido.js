@@ -854,7 +854,7 @@ const EncuestaPartido = () => {
                     className={`${optionBtnClass} ${formData.partido_limpio ? optionBtnSelectedClass : ''}`}
                     onClick={() => {
                       handleInputChange('partido_limpio', true);
-                      setCurrentStep(6);
+                      setCurrentStep(5);
                     }}
                     type="button"
                   >
@@ -891,7 +891,7 @@ const EncuestaPartido = () => {
                   </div>
                 </div>
               </div>
-              <div className="w-full flex-1 min-h-0 flex items-start justify-center">
+              <div className="w-full flex items-start justify-center">
                 <div className="w-full max-w-[560px] mx-auto">
                   {hasConfirmedTeams ? (
                     <div className="w-full space-y-3">
