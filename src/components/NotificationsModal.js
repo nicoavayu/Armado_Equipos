@@ -11,6 +11,8 @@ import LoadingSpinner from './LoadingSpinner';
 import EmptyStateCard from './EmptyStateCard';
 import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 import { applyMatchNameQuotes, quoteMatchName, resolveNotificationMatchName } from '../utils/notificationText';
+import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OPTIONS } from '../utils/notificationFilters';
+import { buildNotificationFallbackRoute, extractNotificationMatchId } from '../utils/notificationRoutes';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const NotificationsModal = ({ isOpen, onClose }) => {
@@ -18,6 +20,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   const { notifications, fetchNotifications: refreshNotifications, clearAllNotifications: clearNotificationsLocal } = useNotifications();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('all');
 
   useEffect(() => {
     if (isOpen) {
@@ -105,15 +108,15 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
     if (notification.type === 'survey_start') {
       const link = notification?.data?.link;
-      const matchId = notification?.data?.match_id || notification?.match_ref;
+      const matchId = extractNotificationMatchId(notification);
 
       if (link) {
-        navigate(link);
+        safeNavigate(notification, link);
       } else if (matchId) {
         const url = `/encuesta/${matchId}`;
-        navigate(url);
+        safeNavigate(notification, url);
       } else {
-        console.error('survey_start sin link ni matchId', notification);
+        fallbackToNotificationRoute(notification, 'No encontramos la encuesta de esta notificación.');
       }
       return;
     }
@@ -122,46 +125,58 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       const { matchCode, matchId } = notification.data || {};
       if (matchCode) {
         const url = `/votar-equipos?codigo=${matchCode}`;
-        window.location.assign(url);
+        safeNavigate(notification, url);
         return;
       }
       if (matchId) {
         const url = `/votar-equipos?partidoId=${matchId}`;
-        window.location.assign(url);
+        safeNavigate(notification, url);
         return;
       }
-      notifyBlockingError('Falta información del partido');
+      fallbackToNotificationRoute(notification, 'No encontramos el partido para votar equipos.');
       return;
     }
 
     if (notification.type === 'match_invite') {
       const inviteRoute = resolveMatchInviteRoute(notification);
-      if (inviteRoute) navigate(inviteRoute);
+      if (inviteRoute) {
+        safeNavigate(notification, inviteRoute);
+      } else {
+        fallbackToNotificationRoute(notification, 'No pudimos abrir la invitación.');
+      }
       return;
     }
 
     if (notification.type === 'match_join_request') {
       const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId;
       const link = notification?.data?.link || (matchId ? `/admin/${matchId}?tab=solicitudes` : null);
-      if (link) navigate(link);
+      safeNavigate(notification, link, {}, 'No encontramos la solicitud de ingreso de este partido.');
       return;
     }
 
     if (notification.type === 'match_join_approved') {
       const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId;
       const link = notification?.data?.link || (matchId ? `/partido-publico/${matchId}` : null);
-      if (link) navigate(link);
+      safeNavigate(notification, link, {}, 'No encontramos el partido de esta aprobación.');
       return;
     }
 
     if (notification.type === 'match_kicked') {
       console.info('Fuiste removido del partido');
-      navigate('/');
+      safeNavigate(notification, '/');
       return;
     }
 
     if (notification.type === 'survey_reminder') {
-      await openNotification(notification, navigate);
+      try {
+        await openNotification(notification, navigate);
+      } catch (error) {
+        console.error('[NOTIFICATION_CLICK] survey_reminder openNotification error', error);
+      }
+      const reminderMatchId = extractNotificationMatchId(notification);
+      if (!reminderMatchId) {
+        fallbackToNotificationRoute(notification, 'No encontramos la encuesta que te queríamos recordar.');
+      }
       return;
     }
 
@@ -169,19 +184,20 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       try {
         const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId ?? null;
         if (!matchId) {
-          console.error('[NOTIFICATION_CLICK] missing matchId for results/awards', notification);
+          fallbackToNotificationRoute(notification, 'No encontramos los resultados de esta notificación.');
           return;
         }
         const link = notification?.data?.resultsUrl || notification?.data?.link || `/resultados-encuesta/${matchId}?showAwards=1`;
-        navigate(link, {
+        safeNavigate(notification, link, {
           state: {
             forceAwards: true,
             fromNotification: true,
             matchName: notification?.data?.match_name || notification?.data?.partido_nombre || null,
           },
-        });
+        }, 'No encontramos la vista de resultados de este partido.');
       } catch (err) {
         console.error('[NOTIFICATION_CLICK] results/awards unexpected error:', err);
+        fallbackToNotificationRoute(notification, 'No pudimos abrir los resultados de esta notificación.');
       }
       return;
     }
@@ -190,10 +206,14 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId ?? notification?.match_ref ?? null;
       if (matchId) {
         const link = notification?.data?.resultsUrl || `/resultados-encuesta/${matchId}`;
-        navigate(link);
+        safeNavigate(notification, link);
+      } else {
+        fallbackToNotificationRoute(notification, 'No encontramos el resultado final de este partido.');
       }
       return;
     }
+
+    fallbackToNotificationRoute(notification);
   };
 
   const getNotificationIcon = (type) => {
@@ -232,6 +252,31 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     if (diffDays < 7) return `${diffDays}d`;
     return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
   };
+
+  const fallbackToNotificationRoute = (notification, message = 'No encontramos ese destino. Te llevamos a tus partidos.') => {
+    notifyBlockingError(message);
+    const fallbackRoute = buildNotificationFallbackRoute(notification);
+    navigate(fallbackRoute);
+  };
+
+  const safeNavigate = (notification, route, options = {}, message) => {
+    if (!route) {
+      fallbackToNotificationRoute(notification, message);
+      return false;
+    }
+    try {
+      navigate(route, options);
+      return true;
+    } catch (error) {
+      console.error('[NOTIFICATIONS_MODAL] navigation error', { route, error });
+      fallbackToNotificationRoute(notification, message);
+      return false;
+    }
+  };
+
+  const filteredNotifications = filterNotificationsByCategory(notifications, activeFilter);
+  const hasAnyNotifications = notifications.length > 0;
+  const hasVisibleNotifications = filteredNotifications.length > 0;
 
   if (!isOpen) {
     return null;
@@ -293,11 +338,34 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         </div>
 
         <div className="p-0 overflow-y-auto flex-1 touch-pan-y">
+          {!loading && hasAnyNotifications && (
+            <div className="px-4 py-3 border-b border-[#2a2a2a] flex gap-2 overflow-x-auto">
+              {NOTIFICATION_FILTER_OPTIONS.map((option) => {
+                const isActive = activeFilter === option.key;
+                const count = getCategoryCount(notifications, option.key);
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => setActiveFilter(option.key)}
+                    className={`shrink-0 px-3 py-1.5 rounded-full border text-xs font-oswald transition-colors ${
+                      isActive
+                        ? 'bg-primary/80 border-primary text-white'
+                        : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    {option.label} {count > 0 ? `(${count})` : ''}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {loading ? (
             <div className="text-center text-[#999] py-[60px] px-5 text-base">
               <LoadingSpinner size="medium" />
             </div>
-          ) : notifications.length === 0 ? (
+          ) : !hasAnyNotifications ? (
             <div className="px-4">
               <EmptyStateCard
                 icon={Bell}
@@ -307,9 +375,19 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                 className="my-10"
               />
             </div>
+          ) : !hasVisibleNotifications ? (
+            <div className="px-4">
+              <EmptyStateCard
+                icon={Bell}
+                title="SIN RESULTADOS EN ESTE FILTRO"
+                titleClassName="font-oswald font-semibold text-[24px] leading-none tracking-[0.01em] text-white sm:text-[22px]"
+                description="Probá con otro filtro para ver el resto de tus notificaciones."
+                className="my-10"
+              />
+            </div>
           ) : (
             <div className="p-0">
-              {notifications.map((notification) => {
+              {filteredNotifications.map((notification) => {
                 const clickable = ['match_invite', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished', 'award_won'].includes(notification.type);
                 const Icon = getNotificationIcon(notification.type) || User;
                 const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';

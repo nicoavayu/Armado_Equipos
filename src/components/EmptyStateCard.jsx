@@ -12,7 +12,7 @@ const EmptyStateCard = ({
   titleClassName = '',
   actionClassName = '',
 }) => {
-  const defaultTitleClassName = 'font-oswald font-semibold text-[28px] leading-none tracking-[0.01em] text-white';
+  const defaultTitleClassName = 'font-oswald font-semibold text-[24px] leading-none tracking-[0.01em] text-white sm:text-[22px]';
   const defaultActionClassName = 'mt-6 h-11 min-w-[180px] px-5 rounded-xl bg-primary border border-white/25 text-white font-bebas text-[20px] tracking-wide transition-all hover:brightness-110 active:scale-[0.98]';
   const normalizedTitle = toSentenceCase(title);
 

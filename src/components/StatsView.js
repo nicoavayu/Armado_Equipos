@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import CountUp from 'react-countup';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from 'recharts';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { getPointsEfficiencySummary } from 'utils/statsSummary';
 import {
   Activity,
   AlertCircle,
@@ -1348,6 +1349,11 @@ const StatsView = ({ onVolver }) => {
       ? { icon: TrendingDown, className: 'text-rose-300', label: 'En baja' }
       : { icon: Minus, className: 'text-white/70', label: 'Sin cambios' };
   const TendenciaIcon = tendenciaMeta.icon;
+  const pointsEfficiencySummary = getPointsEfficiencySummary({
+    cerrados: resultadosEfectivos.cerrados,
+    puntos: resultadosEfectivos.puntos,
+    puntosPct: resultadosEfectivos.puntosPct,
+  });
   const maxDistribucionMensual = Math.max(
     ...(Array.isArray(consistencia.distribucionMensual)
       ? consistencia.distribucionMensual.map((item) => Number(item?.total || 0))
@@ -1712,13 +1718,31 @@ const StatsView = ({ onVolver }) => {
               <div className="font-oswald text-[11px] text-white/65">Eficiencia de puntos</div>
               <div className="flex items-center justify-between">
                 <div className="font-oswald text-base text-white">
-                  {resultadosEfectivos.puntos || 0} / {(resultadosEfectivos.cerrados || 0) * 3}
+                  {pointsEfficiencySummary.scoreText}
                 </div>
                 <div className="font-oswald text-base font-semibold text-white">
-                  {Number(resultadosEfectivos.puntosPct || 0).toFixed(1)}%
+                  {pointsEfficiencySummary.percentText}
                 </div>
               </div>
             </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="bg-white/10 rounded-xl p-3 mb-6 backdrop-blur-md border border-white/20"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.32 }}
+        >
+          <div className="font-oswald text-xs text-white/75 uppercase tracking-wide mb-1">Cómo se calcula</div>
+          <div className="font-oswald text-[12px] text-white/65 leading-relaxed">
+            Asistencia: asistencias confirmadas / partidos con encuesta jugada.
+          </div>
+          <div className="font-oswald text-[12px] text-white/65 leading-relaxed">
+            % Victorias: ganados / partidos cerrados por encuesta.
+          </div>
+          <div className="font-oswald text-[12px] text-white/65 leading-relaxed">
+            Deuda de ranking: sanciones acumuladas menos recuperaciones acumuladas.
           </div>
         </motion.div>
 

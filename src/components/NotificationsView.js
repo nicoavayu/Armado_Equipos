@@ -9,6 +9,8 @@ import { useAuth } from './AuthProvider';
 import EmptyStateCard from './EmptyStateCard';
 import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 import { applyMatchNameQuotes, quoteMatchName, resolveNotificationMatchName } from '../utils/notificationText';
+import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OPTIONS } from '../utils/notificationFilters';
+import { buildNotificationFallbackRoute, extractNotificationMatchId } from '../utils/notificationRoutes';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 
@@ -25,6 +27,7 @@ const NotificationsView = () => {
   const { acceptFriendRequest, rejectFriendRequest } = useAmigos(user?.id);
 
   const [processingRequests, setProcessingRequests] = useState(new Set());
+  const [activeFilter, setActiveFilter] = useState('all');
 
   useEffect(() => {
     console.log('[NOTIFICATIONS_VIEW] Component mounted, fetching notifications');
@@ -53,29 +56,50 @@ const NotificationsView = () => {
     return date.toLocaleString();
   };
 
+  const fallbackToNotificationRoute = (notification, message = 'No encontramos ese destino. Te llevamos a tus partidos.') => {
+    notifyBlockingError(message);
+    const fallbackRoute = buildNotificationFallbackRoute(notification, toBigIntId);
+    navigate(fallbackRoute);
+  };
+
+  const safeNavigate = (notification, route, options = {}, message) => {
+    if (!route) {
+      fallbackToNotificationRoute(notification, message);
+      return false;
+    }
+    try {
+      navigate(route, options);
+      return true;
+    } catch (error) {
+      console.error('[NOTIFICATION_CLICK] navigation error', { route, error });
+      fallbackToNotificationRoute(notification, message);
+      return false;
+    }
+  };
+
   const handleNotificationClick = async (notification, e) => {
     if (e) { e.preventDefault?.(); e.stopPropagation?.(); }
 
     const link = notification?.data?.link;
-    const matchId = notification?.data?.match_id ?? notification?.data?.matchId ?? notification?.data?.partidoId ?? notification?.match_id;
+    const matchId = extractNotificationMatchId(notification);
 
     console.debug('[NOTIFICATION_CLICK]', { id: notification?.id, type: notification?.type, link, matchId });
 
     // Priority 1: Use link if available (for join requests and other notifications with direct links)
     if (link && notification?.type === 'match_join_request') {
       try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
-      navigate(link, { replace: false });
+      safeNavigate(notification, link, { replace: false });
       return;
     }
 
     if (notification?.type === 'survey_start') {
       try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
       if (link) {
-        navigate(link, { replace: false });
+        safeNavigate(notification, link, { replace: false });
       } else if (matchId) {
-        navigate(`/encuesta/${matchId}`, { replace: false });
+        safeNavigate(notification, `/encuesta/${toBigIntId(matchId)}`, { replace: false });
       } else {
-        console.error('[NOTIFICATION_CLICK] survey_start sin link ni matchId', notification);
+        fallbackToNotificationRoute(notification, 'No encontramos la encuesta para esta notificación.');
       }
       return;
     }
@@ -89,19 +113,19 @@ const NotificationsView = () => {
     const id = data.target_params?.partido_id;
 
     if (route === 'voting_view' && id && data.matchCode) {
-      navigate(`/?codigo=${data.matchCode}`);
+      safeNavigate(notification, `/?codigo=${data.matchCode}`);
       return;
     }
 
     if (data.matchUrl) {
-      navigate(data.matchUrl);
+      safeNavigate(notification, data.matchUrl);
       return;
     }
 
     if (data.resultsUrl) {
       const isAwardsNotif = ['survey_results', 'survey_results_ready', 'awards_ready', 'award_won'].includes(notification?.type);
       if (isAwardsNotif) {
-        navigate(data.resultsUrl, {
+        safeNavigate(notification, data.resultsUrl, {
           state: {
             forceAwards: true,
             fromNotification: true,
@@ -109,7 +133,7 @@ const NotificationsView = () => {
           },
         });
       } else {
-        navigate(data.resultsUrl);
+        safeNavigate(notification, data.resultsUrl);
       }
       return;
     }
@@ -119,19 +143,19 @@ const NotificationsView = () => {
       if (matchCode) {
         const url = `/votar-equipos?codigo=${matchCode}`;
         console.log('[NOTIFICATION_CLICK] call_to_vote - navigating to:', url);
-        navigate(url, { replace: true });
+        safeNavigate(notification, url, { replace: true });
         return;
       }
       if (matchId) {
         const url = `/votar-equipos?partidoId=${matchId}`;
         console.log('[NOTIFICATION_CLICK] call_to_vote - navigating to:', url);
-        navigate(url, { replace: true });
+        safeNavigate(notification, url, { replace: true });
         return;
       }
     }
 
     if (data.matchId && notification?.type !== 'match_invite') {
-      navigate(`/partido/${toBigIntId(data.matchId)}`);
+      safeNavigate(notification, `/partido/${toBigIntId(data.matchId)}`);
       return;
     }
 
@@ -139,15 +163,15 @@ const NotificationsView = () => {
       case 'friend_request':
         break;
       case 'friend_accepted':
-        navigate('/amigos');
+        safeNavigate(notification, '/amigos');
         break;
       case 'match_invite':
       {
         const inviteRoute = resolveMatchInviteRoute(notification);
         if (inviteRoute) {
-          navigate(inviteRoute);
+          safeNavigate(notification, inviteRoute);
         } else {
-          console.error('[NOTIFICATION_CLICK] match_invite missing route', notification);
+          fallbackToNotificationRoute(notification, 'No pudimos abrir la invitación. Te mostramos tus partidos.');
         }
       }
         break;
@@ -156,29 +180,32 @@ const NotificationsView = () => {
         if (matchCode) {
           const url = `/votar-equipos?codigo=${matchCode}`;
           console.log('[NOTIFICATION_CLICK] About to navigate to:', url);
-          navigate(url, { replace: true });
+          safeNavigate(notification, url, { replace: true });
         } else if (matchId) {
           const url = `/votar-equipos?partidoId=${matchId}`;
           console.log('[NOTIFICATION_CLICK] About to navigate to:', url);
-          navigate(url, { replace: true });
+          safeNavigate(notification, url, { replace: true });
         } else {
-          console.error('[NOTIFICATION_CLICK] Missing matchCode/ID in call_to_vote');
-          notifyBlockingError('Falta código del partido');
+          fallbackToNotificationRoute(notification, 'No encontramos el partido para votar equipos.');
         }
         break;
       }
       case 'pre_match_vote': {
         const preMatchId = notification?.target_params?.partido_id;
         if (preMatchId) {
-          navigate(`/voting/${preMatchId}`);
+          safeNavigate(notification, `/voting/${toBigIntId(preMatchId)}`);
         } else if (data.matchCode) {
-          navigate(`/?codigo=${data.matchCode}`);
+          safeNavigate(notification, `/?codigo=${data.matchCode}`);
+        } else {
+          fallbackToNotificationRoute(notification, 'No encontramos la votación previa de este partido.');
         }
         break;
       }
       case 'post_match_survey':
         if (data.partido_id) {
-          navigate(`/encuesta/${toBigIntId(data.partido_id)}`);
+          safeNavigate(notification, `/encuesta/${toBigIntId(data.partido_id)}`);
+        } else {
+          fallbackToNotificationRoute(notification, 'No encontramos la encuesta de este partido.');
         }
         break;
       case 'survey_reminder':
@@ -186,9 +213,9 @@ const NotificationsView = () => {
         if (data.matchId) {
           const url = `/encuesta/${toBigIntId(data.matchId)}`;
           console.log('[NOTIFICATION_CLICK] Navigating to:', url);
-          navigate(url);
+          safeNavigate(notification, url);
         } else {
-          console.log('[NOTIFICATION_CLICK] No matchId found in survey_reminder notification');
+          fallbackToNotificationRoute(notification, 'No encontramos la encuesta que te queríamos recordar.');
         }
         break;
       case 'survey_results':
@@ -196,7 +223,7 @@ const NotificationsView = () => {
       case 'awards_ready':
       case 'award_won':
         if (data.resultsUrl) {
-          navigate(data.resultsUrl, {
+          safeNavigate(notification, data.resultsUrl, {
             state: {
               forceAwards: true,
               fromNotification: true,
@@ -206,32 +233,39 @@ const NotificationsView = () => {
         } else {
           const resultsMatchId = notification.partido_id || data.partido_id || data.match_id || data.matchId;
           if (resultsMatchId) {
-            navigate(`/resultados-encuesta/${toBigIntId(resultsMatchId)}?showAwards=1`, {
+            safeNavigate(notification, `/resultados-encuesta/${toBigIntId(resultsMatchId)}?showAwards=1`, {
               state: {
                 forceAwards: true,
                 fromNotification: true,
                 matchName: data?.match_name || data?.partido_nombre || null,
               },
             });
+          } else {
+            fallbackToNotificationRoute(notification, 'No encontramos los resultados de esta notificación.');
           }
         }
         break;
       case 'match_join_request':
         // Fallback if link is not available
         if (data.matchId) {
-          navigate(`/admin/${toBigIntId(data.matchId)}?tab=solicitudes`);
+          safeNavigate(notification, `/admin/${toBigIntId(data.matchId)}?tab=solicitudes`);
+        } else {
+          fallbackToNotificationRoute(notification, 'No encontramos la solicitud de ingreso de este partido.');
         }
         break;
       case 'survey_finished': {
         // Robust matchId resolution
         const finalMatchId = notification.match_ref || notification.partido_id || data.match_id || data.matchId || data.partidoId;
         if (finalMatchId) {
-          navigate(`/resultados-encuesta/${toBigIntId(finalMatchId)}`);
+          safeNavigate(notification, `/resultados-encuesta/${toBigIntId(finalMatchId)}`);
+        } else {
+          fallbackToNotificationRoute(notification, 'No encontramos el resultado final de este partido.');
         }
         break;
       }
       default:
         console.log('[NOTIFICATION_CLICK] Unknown notification type:', notification.type);
+        fallbackToNotificationRoute(notification);
         break;
     }
   };
@@ -327,6 +361,10 @@ const NotificationsView = () => {
     }
   };
 
+  const filteredNotifications = filterNotificationsByCategory(notifications, activeFilter);
+  const hasAnyNotifications = notifications.length > 0;
+  const hasVisibleNotifications = filteredNotifications.length > 0;
+
   return (
     <div
       className="w-full h-full px-4"
@@ -336,7 +374,30 @@ const NotificationsView = () => {
       }}
     >
       <div className="w-full max-w-[600px] mx-auto">
-        {notifications.length === 0 ? (
+        {hasAnyNotifications && (
+          <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+            {NOTIFICATION_FILTER_OPTIONS.map((option) => {
+              const isActive = activeFilter === option.key;
+              const count = getCategoryCount(notifications, option.key);
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setActiveFilter(option.key)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full border text-xs font-oswald transition-colors ${
+                    isActive
+                      ? 'bg-primary/80 border-primary text-white'
+                      : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {option.label} {count > 0 ? `(${count})` : ''}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {!hasAnyNotifications ? (
           <div className="flex justify-center">
             <EmptyStateCard
               icon={Bell}
@@ -347,9 +408,18 @@ const NotificationsView = () => {
               onAction={() => navigate('/quiero-jugar')}
             />
           </div>
+        ) : !hasVisibleNotifications ? (
+          <div className="flex justify-center">
+            <EmptyStateCard
+              icon={Bell}
+              title="SIN RESULTADOS EN ESTE FILTRO"
+              titleClassName="font-oswald font-semibold text-[24px] leading-none tracking-[0.01em] text-white sm:text-[22px]"
+              description="Probá con otro filtro para ver el resto de tus notificaciones."
+            />
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-3">
-            {notifications.map((notification) => {
+            {filteredNotifications.map((notification) => {
               const Icon = getNotificationIcon(notification.type);
               const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
               const isSurveyReminder = notification.type === 'survey_reminder';

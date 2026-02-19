@@ -1,0 +1,27 @@
+name: Smoke Stats + Notifications
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run smoke tests (stats + notifications)
+        run: CI=true npm test -- --watchAll=false --runInBand --runTestsByPath src/__tests__/statsSummary.test.js src/__tests__/notificationFilters.test.js src/__tests__/notificationRoutes.test.js
+
