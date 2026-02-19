@@ -37,7 +37,17 @@ export default function AuthCallback() {
         if (sessionError) throw sessionError;
         if (!data?.session) throw new Error('No se pudo restaurar la sesión.');
 
-        const target = consumeAuthReturnTo('/home');
+        const requestedTarget = consumeAuthReturnTo('/home');
+        const target = requestedTarget.startsWith('/auth/callback')
+          ? '/home'
+          : requestedTarget;
+
+        // Force full reload after auth callback so runtime/chunks are always in sync.
+        if (typeof window !== 'undefined') {
+          window.location.replace(target);
+          return;
+        }
+
         navigate(target, { replace: true });
       } catch (err) {
         if (!mounted) return;
