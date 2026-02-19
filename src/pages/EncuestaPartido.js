@@ -340,10 +340,8 @@ const EncuestaPartido = () => {
           showInlineNotice({
             key: 'survey_final_teams_save_error',
             type: 'warning',
-            message: persistResult.message,
+            message: `${persistResult.message} Vamos a guardar la encuesta igual.`,
           });
-          setSubmitting(false);
-          return;
         }
       }
 
@@ -941,7 +939,7 @@ const EncuestaPartido = () => {
                   <button
                     className={btnClass}
                     onClick={handleSubmit}
-                    disabled={!hasConfirmedTeams || !finalTeamsValidation.ok}
+                    disabled={submitting || encuestaFinalizada}
                   >
                     FINALIZAR ENCUESTA
                   </button>
