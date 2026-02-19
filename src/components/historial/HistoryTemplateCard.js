@@ -76,7 +76,7 @@ const HistoryTemplateCard = ({
       : (diaSemanaLabel || fechaCortaLabel || horaLabel || ''));
 
   return (
-    <div className="relative bg-slate-900 rounded-2xl p-5 min-h-[150px] border border-slate-800 transition-all duration-300 shadow-xl hover:-translate-y-[2px] hover:shadow-2xl hover:border-slate-700">
+    <div className="relative bg-[#1e293b]/70 backdrop-blur-sm rounded-2xl p-5 min-h-[150px] border border-slate-800 transition-all duration-300 shadow-xl hover:-translate-y-[2px] hover:shadow-2xl hover:border-slate-700">
       {/* Header */}
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-2.5 min-w-0">

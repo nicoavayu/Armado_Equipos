@@ -60,8 +60,8 @@ const MatchCard = ({
     return (
         <div
             onClick={onSelect}
-            className={`relative bg-slate-900 rounded-2xl p-5 mb-3 min-h-[150px] border transition-all duration-300 shadow-xl sm:p-4 cursor-pointer
-      ${isFinished ? '!bg-slate-950 !border-slate-800' : 'border-slate-800'}
+            className={`relative bg-[#1e293b]/70 backdrop-blur-sm rounded-2xl p-5 mb-3 min-h-[150px] border transition-all duration-300 shadow-xl sm:p-4 cursor-pointer
+      ${isFinished ? 'border-slate-800' : 'border-slate-800'}
       ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/50 scale-[1.02]' : 'hover:-translate-y-[1px] hover:shadow-2xl hover:border-slate-700'}
       ${primaryAction ? '' : 'active:scale-95'}
     `}
