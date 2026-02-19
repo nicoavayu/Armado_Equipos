@@ -88,6 +88,7 @@ const PlayersSection = ({
   const [isSuplentesOpen, setIsSuplentesOpen] = useState(true);
   const [isSharingUpdate, setIsSharingUpdate] = useState(false);
   const [shareUpdateHint, setShareUpdateHint] = useState('');
+  const [animateCompletionTick, setAnimateCompletionTick] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef(null);
   const adminMenuButtonRef = useRef(null);
@@ -99,10 +100,14 @@ const PlayersSection = ({
   const maxRosterSlots = capacity > 0 ? capacity + 2 : 0;
   const titularPlayers = jugadores.filter((j) => !j?.is_substitute);
   const substitutePlayers = jugadores.filter((j) => !!j?.is_substitute);
+  const isTitularesComplete = capacity > 0 && titularPlayers.length >= capacity;
+  const showSubstituteSection = substitutePlayers.length > 0 || isTitularesComplete;
   const remainingTitularSlots = capacity > 0 ? Math.max(0, capacity - titularPlayers.length) : null;
   const isMatchFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
   const canShareInviteLink = isAdmin && typeof onShareClick === 'function' && !isMatchFull;
   const hasJoinCode = Boolean(String(partidoActual?.codigo || '').trim());
+  const completionAnimTimeoutRef = useRef(null);
+  const previousCompleteRef = useRef(isTitularesComplete);
   const canShareRosterUpdate =
     isAdmin &&
     typeof onShareRosterUpdate === 'function' &&
@@ -114,7 +119,30 @@ const PlayersSection = ({
     if (shareHintTimeoutRef.current) {
       window.clearTimeout(shareHintTimeoutRef.current);
     }
+    if (completionAnimTimeoutRef.current) {
+      window.clearTimeout(completionAnimTimeoutRef.current);
+    }
   }, []);
+
+  useEffect(() => {
+    const wasComplete = previousCompleteRef.current;
+    previousCompleteRef.current = isTitularesComplete;
+
+    if (!isTitularesComplete) {
+      setAnimateCompletionTick(false);
+      return;
+    }
+
+    if (!wasComplete && isTitularesComplete) {
+      setAnimateCompletionTick(true);
+      if (completionAnimTimeoutRef.current) {
+        window.clearTimeout(completionAnimTimeoutRef.current);
+      }
+      completionAnimTimeoutRef.current = window.setTimeout(() => {
+        setAnimateCompletionTick(false);
+      }, 850);
+    }
+  }, [isTitularesComplete]);
 
   const getSafeMenuPosition = (rect) => {
     const menuWidth = 192; // w-48
@@ -226,11 +254,23 @@ const PlayersSection = ({
     );
   };
 
-  const showSubstituteSection = substitutePlayers.length > 0 || (capacity > 0 && titularPlayers.length >= capacity);
-  const isTitularesComplete = capacity > 0 && titularPlayers.length >= capacity;
   const jugadoresCompleteBadge = isTitularesComplete ? (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-emerald-300/35 bg-emerald-500/15 text-emerald-200 text-[10px] font-oswald font-semibold tracking-wide uppercase ml-2">
-      Completo
+    <span className="ml-2 inline-flex items-center" title="Titulares completos" aria-label="Titulares completos">
+      <span className={`relative inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300/70 bg-emerald-500/20 ${animateCompletionTick ? 'shadow-[0_0_0_6px_rgba(74,222,128,0.15)]' : ''}`}>
+        {animateCompletionTick && (
+          <span className="absolute inset-0 rounded-full bg-emerald-300/35 animate-ping" />
+        )}
+        <svg
+          viewBox="0 0 20 20"
+          className={`relative z-[1] h-3.5 w-3.5 text-emerald-100 ${animateCompletionTick ? 'scale-110' : ''}`}
+          style={{ transition: 'transform 220ms ease-out' }}
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path d="M4.8 10.1L8.2 13.4L15.2 6.8" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
     </span>
   ) : null;
 
@@ -542,34 +582,38 @@ const PlayersSection = ({
   return (
     <>
       <div className="bg-white/10 border-2 border-white/20 rounded-xl p-3 min-h-[120px] w-full max-w-full mx-auto mt-0 box-border min-w-0">
-      <div className="flex flex-wrap items-start justify-between gap-2 mb-2 mt-2">
-        <div className="font-bebas text-xl text-white tracking-wide">
-          Jugadores ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
-          {jugadoresCompleteBadge}
-          {duplicatesDetected > 0 && isAdmin && (
-            <span style={{
-              color: '#ff6b35',
-              fontSize: '12px',
-              marginLeft: '10px',
-              background: 'rgba(255, 107, 53, 0.1)',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              border: '1px solid rgba(255, 107, 53, 0.3)',
-            }}>
-              ⚠️ {duplicatesDetected} duplicado{duplicatesDetected > 1 ? 's' : ''}
-            </span>
-          )}
+      <div className="flex items-center justify-between gap-2 mb-2 mt-2 flex-nowrap">
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="font-bebas text-xl text-white tracking-wide inline-flex items-center whitespace-nowrap">
+            Jugadores ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+            {jugadoresCompleteBadge}
+            {duplicatesDetected > 0 && isAdmin && (
+              <span style={{
+                color: '#ff6b35',
+                fontSize: '12px',
+                marginLeft: '10px',
+                background: 'rgba(255, 107, 53, 0.1)',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                border: '1px solid rgba(255, 107, 53, 0.3)',
+              }}>
+                ⚠️ {duplicatesDetected} duplicado{duplicatesDetected > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0 pl-1">
           <button
             type="button"
-            className="h-8 inline-flex items-center gap-1.5 rounded-full border border-[#4caf50]/45 bg-[#4caf50]/15 px-2.5 text-[11px] font-oswald tracking-wide text-[#d9ffe0] transition-colors hover:bg-[#4caf50]/25 disabled:opacity-45 disabled:cursor-not-allowed"
+            className="h-8 inline-flex items-center gap-1.5 rounded-full border border-[#3fd778]/60 bg-[#1a3f31]/95 px-2.5 text-[11px] font-oswald font-semibold tracking-wide text-[#e8fff2] shadow-[0_6px_14px_rgba(26,63,49,0.35)] transition-all duration-200 hover:border-[#58e38c] hover:bg-[#1f4c3a] disabled:opacity-45 disabled:cursor-not-allowed"
             onClick={handleShareRosterUpdateClick}
             disabled={!canShareRosterUpdate || isSharingUpdate}
             title={canShareRosterUpdate ? 'Compartir update por WhatsApp' : 'No disponible'}
             aria-label="Compartir update por WhatsApp"
           >
-            <WhatsappIcon size={12} style={{ opacity: 0.95 }} />
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#25D366] shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_0_12px_rgba(37,211,102,0.25)]">
+              <WhatsappIcon size={11} style={{ opacity: 0.98 }} />
+            </span>
             <span>{isSharingUpdate ? 'Compartiendo...' : 'Compartir update'}</span>
           </button>
 
