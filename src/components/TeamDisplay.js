@@ -13,6 +13,7 @@ import { AvatarFallback } from './ProfileComponents';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import InlineNotice from './ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
+import ConfirmModal from './ConfirmModal';
 
 // Safe wrappers to prevent runtime crashes if any import resolves undefined
 const safeComp = (Comp, name) => {
@@ -48,6 +49,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   const [templateId, setTemplateId] = useState(null);
   const [dragTarget, setDragTarget] = useState(null);
   const [activeDragId, setActiveDragId] = useState(null);
+  const [showShareRequiresConfirmModal, setShowShareRequiresConfirmModal] = useState(false);
   const lastDragEndAtRef = useRef(0);
   const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
 
@@ -618,11 +620,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
   const handleWhatsAppShare = () => {
     if (!teamsConfirmed) {
-      showInlineNotice({
-        key: 'teams_share_requires_confirmation',
-        type: 'warning',
-        message: 'Antes de compartir, confirmá los equipos.',
-      });
+      setShowShareRequiresConfirmModal(true);
       return;
     }
 
@@ -985,6 +983,15 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           </div>
         </div>
       </div>
+      <ConfirmModal
+        isOpen={showShareRequiresConfirmModal}
+        title="Confirmá los equipos"
+        message="Antes de compartir por WhatsApp, tenés que confirmar los equipos."
+        singleButton
+        confirmText="Entendido"
+        onConfirm={() => setShowShareRequiresConfirmModal(false)}
+        onCancel={() => setShowShareRequiresConfirmModal(false)}
+      />
     </SafeTeamDisplayContext.Provider>
   );
 };
