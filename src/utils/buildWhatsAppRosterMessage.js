@@ -63,6 +63,13 @@ const resolvePlayerDisplayName = (player, index) => {
 };
 
 const resolveLocation = (match) => {
+  const compactOneLine = (value) => {
+    const text = safeText(value);
+    if (!text) return '';
+    const firstChunk = text.split(',')[0];
+    return safeText(firstChunk || text);
+  };
+
   const locationName = safeText(
     match?.locationName ||
     match?.sede ||
@@ -71,9 +78,8 @@ const resolveLocation = (match) => {
     match?.lugar,
   );
   const address = safeText(match?.address || match?.direccion || match?.locationAddress);
-  if (locationName && address) return `${locationName} - ${address}`;
-  if (locationName) return locationName;
-  if (address) return address;
+  if (address) return compactOneLine(address);
+  if (locationName) return compactOneLine(locationName);
   return '(sin definir)';
 };
 
@@ -92,8 +98,8 @@ export const buildWhatsAppRosterMessage = (match, joinLink) => {
   const missing = Math.max(0, capacity - players.length);
   const { fecha, hora } = formatDateAndTime(match);
   const location = resolveLocation(match);
-  const matchTitle = safeText(match?.nombre || match?.title) || 'Partido';
   const safeJoinLink = safeText(joinLink);
+  const dateLine = hora !== '(sin definir)' ? `${fecha} ${hora}hs` : fecha;
 
   const rosterLines = [];
   for (let i = 0; i < totalSlots; i += 1) {
@@ -106,17 +112,11 @@ export const buildWhatsAppRosterMessage = (match, joinLink) => {
   }
 
   return [
-    `Partido: ${matchTitle}`,
-    `Fecha: ${fecha}`,
-    `Hora: ${hora}${hora !== '(sin definir)' ? ' hs' : ''}`,
-    `Lugar: ${location}`,
-    '',
-    `${players.length}/${capacity || totalSlots} jugadores`,
-    `Faltan ${missing}`,
-    '',
+    dateLine,
+    `📍 ${location}`,
+    `${players.length}/${capacity || totalSlots} · faltan ${missing}`,
     ...rosterLines,
-    '',
-    `Sumate acá: ${safeJoinLink}`,
+    safeJoinLink,
   ].join('\n');
 };
 

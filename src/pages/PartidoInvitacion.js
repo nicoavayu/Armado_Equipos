@@ -44,6 +44,19 @@ const getMaxRosterSlots = (match) => {
   return baseCapacity > 0 ? baseCapacity + MAX_SUBSTITUTES : 0;
 };
 
+const normalizeGuestNameKey = (name) => String(name || '')
+  .trim()
+  .toLowerCase()
+  .replace(/\s+/g, ' ')
+  .slice(0, 40);
+
+const getGuestStorageKey = (matchId, guestName = '') => {
+  const baseKey = `guest_joined_${matchId}`;
+  const normalizedName = normalizeGuestNameKey(guestName);
+  if (!normalizedName) return baseKey;
+  return `${baseKey}_${encodeURIComponent(normalizedName)}`;
+};
+
 function PlayersReadOnly({ jugadores, partido, mode }) {
   const cupoMaximo = partido.cupo_jugadores || partido.cupo || 'Sin límite';
   const displayCount = jugadores?.length ?? 0;
@@ -332,9 +345,9 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   // Anti-race condition: track request ID
   const reqIdRef = useRef(0);
 
-  // Obtener código del query param
-  const codigoParam = searchParams.get('codigo');
-  const inviteTokenParam = searchParams.get('invite');
+  // Query params (soportamos versión corta para links más compactos)
+  const codigoParam = searchParams.get('codigo') || searchParams.get('c');
+  const inviteTokenParam = searchParams.get('invite') || searchParams.get('i');
 
   // Clear guest localStorage when authenticated user accesses match
   useEffect(() => {
@@ -342,17 +355,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       clearGuestMembership(partidoId);
     }
   }, [user, partidoId]);
-
-  // Verificar idempotencia: si ya se sumó como guest
-  useEffect(() => {
-    if (!partidoId) return;
-    const storageKey = `guest_joined_${partidoId}`;
-    const existingGuestUuid = localStorage.getItem(storageKey);
-    if (existingGuestUuid) {
-      setAlreadyJoined(true);
-      setStep('already-joined');
-    }
-  }, [partidoId]);
 
   // Cargar datos del partido según modo
   useEffect(() => {
@@ -917,7 +919,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
     setSubmitting(true);
     try {
-      const storageKey = `guest_joined_${partidoId}`;
+      const storageKey = getGuestStorageKey(partidoId, guestName);
       const existingGuestUuid = localStorage.getItem(storageKey);
 
       const response = await fetch(`${supabaseUrl}/functions/v1/join-match-guest`, {
@@ -961,6 +963,13 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           return;
         }
         throw new Error(result.error || 'Error al sumarse');
+      }
+
+      if (result?.already_joined) {
+        setAlreadyJoined(true);
+        setStep('already-joined');
+        showInlineNotice('info', `${guestName}, ya estabas anotado.`);
+        return;
       }
 
       // Guardar en localStorage para idempotencia

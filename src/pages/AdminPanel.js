@@ -201,7 +201,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
     const inviteToken = String(inviteRows[0].token || '').trim();
     const baseUrl = getPublicBaseUrl() || window.location.origin;
-    return `${baseUrl}/partido/${matchId}/invitacion?codigo=${encodeURIComponent(matchCode)}&invite=${encodeURIComponent(inviteToken)}`;
+    return `${baseUrl}/partido/${matchId}/invitacion?c=${encodeURIComponent(matchCode)}&i=${encodeURIComponent(inviteToken)}`;
   };
 
   const openWhatsAppShare = async ({ title, text, url }) => {
