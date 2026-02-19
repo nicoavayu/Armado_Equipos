@@ -35,6 +35,8 @@ Thumbs.db
 .env.*
 *.local
 .secrets/
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist
 
 # Test / Reports
 *.lcov
