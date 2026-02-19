@@ -6,6 +6,7 @@ import { supabase } from '../supabase';
 import { clearMatchFromList } from '../services/matchFinishService';
 import { cancelPartidoWithNotification } from '../services/db/matches';
 import { parseLocalDateTime, formatLocalDateShort } from '../utils/dateLocal';
+import { canAbandonWithoutPenalty, incrementMatchesAbandoned } from '../utils/matchStatsManager';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import ConfirmModal from './ConfirmModal';
@@ -314,6 +315,18 @@ const ProximosPartidos = ({ onClose }) => {
         }
 
         console.log('[LEAVE_MATCH] Deleted successfully');
+
+        try {
+          const canAbandonSafely = canAbandonWithoutPenalty(
+            partidoTarget?.fecha,
+            partidoTarget?.hora,
+          );
+          if (!canAbandonSafely && user?.id) {
+            await incrementMatchesAbandoned(user.id);
+          }
+        } catch (abandonError) {
+          console.error('[LEAVE_MATCH] Error incrementing abandonment counter:', abandonError);
+        }
 
         // Remove from local state
         setPartidos((prev) => prev.filter((p) => p.id !== partidoTarget.id));
