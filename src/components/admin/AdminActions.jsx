@@ -41,7 +41,7 @@ const AdminActions = ({
           <div className="flex flex-col gap-2.5 w-full max-w-full box-border m-0 p-0">
             <div className="flex items-center gap-2 w-full">
               <button
-                className="flex-[1.15] h-11 min-h-[44px] text-[16px] rounded-[10px] bg-[#128BE9] text-white font-oswald font-semibold tracking-[0.01em] cursor-pointer transition-all flex items-center justify-center px-3 hover:brightness-110 shadow-[0_4px_14px_rgba(18,139,233,0.3)] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-[1.15] h-11 min-h-[44px] text-[16px] rounded-[10px] bg-[#128BE9] text-white font-oswald font-semibold tracking-[0.01em] cursor-pointer transition-all flex items-center justify-center px-3 whitespace-nowrap hover:brightness-110 shadow-[0_4px_14px_rgba(18,139,233,0.3)] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                 type="button"
                 onClick={() => {
                   setShowInviteModal(true);
@@ -53,7 +53,7 @@ const AdminActions = ({
               </button>
 
               <button
-                className="flex-1 h-11 min-h-[44px] text-[16px] rounded-[10px] border border-[#128BE9]/35 bg-[#128BE9]/12 text-[#9fd7ff] font-oswald font-semibold tracking-[0.01em] cursor-pointer transition-all flex items-center justify-center px-3 hover:bg-[#128BE9]/22 hover:border-[#128BE9]/55 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex-1 h-11 min-h-[44px] text-[15px] rounded-[10px] border border-[#128BE9]/35 bg-[#128BE9]/12 text-[#9fd7ff] font-oswald font-semibold tracking-[0.005em] cursor-pointer transition-all flex items-center justify-center px-2.5 whitespace-nowrap hover:bg-[#128BE9]/22 hover:border-[#128BE9]/55 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
                 type="button"
                 onClick={() => {
                   setIsManualOpen((prev) => {
