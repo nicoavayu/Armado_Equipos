@@ -370,10 +370,10 @@ const ProximosPartidos = ({ onClose }) => {
         return { label: 'Completar encuesta', kind: 'survey', disabled: false, onClick: (e) => _handleSurveyClick(e, partido) };
       }
       if (joined && completed) return { label: 'Encuesta completada', kind: 'survey_done', disabled: true };
-      return { label: 'Ver detalles', kind: 'details', disabled: false, onClick: () => _handleMatchClick(partido) };
+      return { label: 'Ver partido', kind: 'details', disabled: false, onClick: () => _handleMatchClick(partido) };
     }
 
-    if (joined) return { label: 'Ver detalles', kind: 'details', disabled: false, onClick: () => _handleMatchClick(partido) };
+    if (joined) return { label: 'Ver partido', kind: 'details', disabled: false, onClick: () => _handleMatchClick(partido) };
     return { label: 'Ingresar', kind: 'join', disabled: false, onClick: () => _handleMatchClick(partido) };
   };
 
@@ -385,7 +385,7 @@ const ProximosPartidos = ({ onClose }) => {
       case 'survey_done':
         return 'bg-slate-700 text-white/50 cursor-not-allowed border border-slate-600';
       default:
-        return 'bg-primary shadow-lg hover:brightness-110 hover:-translate-y-px';
+        return 'bg-[#128BE9] shadow-lg hover:brightness-110 hover:-translate-y-px';
     }
   };
 

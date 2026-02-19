@@ -536,7 +536,7 @@ const QuieroJugar = () => {
 
                       <div className="flex gap-2 mt-4">
                         <button
-                          className="flex-1 py-3 rounded-xl text-xs font-bold bg-[#128BE9] hover:brightness-110 text-white uppercase tracking-wider shadow-lg active:scale-[0.98] transition-all"
+                          className="flex-1 py-3 rounded-xl text-xs font-bold bg-[#128BE9] hover:brightness-110 text-white normal-case shadow-lg active:scale-[0.98] transition-all"
                           onClick={() => navigate(`/partido-publico/${partido.id}`)}
                         >
                           Ver partido
