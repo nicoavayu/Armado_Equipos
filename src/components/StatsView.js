@@ -1570,19 +1570,19 @@ const StatsView = ({ onVolver }) => {
               Todos tus partidos del período: manuales y partidos reales (con encuesta).
             </div>
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-2">
-              <div className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
+              <div className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
                 <div className="font-oswald text-[11px] text-emerald-200/90">Ganados</div>
                 <div className="font-oswald text-xl font-bold text-emerald-100">{recapGanados}</div>
               </div>
-              <div className="rounded-lg border border-amber-300/25 bg-amber-400/10 px-3 py-2">
+              <div className="rounded-lg border border-amber-300/25 bg-amber-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
                 <div className="font-oswald text-[11px] text-amber-100/90">Empatados</div>
                 <div className="font-oswald text-xl font-bold text-amber-50">{recapEmpatados}</div>
               </div>
-              <div className="rounded-lg border border-rose-300/25 bg-rose-400/10 px-3 py-2">
+              <div className="rounded-lg border border-rose-300/25 bg-rose-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
                 <div className="font-oswald text-[11px] text-rose-100/90">Perdidos</div>
                 <div className="font-oswald text-xl font-bold text-rose-100">{recapPerdidos}</div>
               </div>
-              <div className="rounded-lg border border-sky-300/25 bg-sky-400/10 px-3 py-2">
+              <div className="rounded-lg border border-sky-300/25 bg-sky-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
                 <div className="font-oswald text-[11px] text-sky-100/90">Pendientes</div>
                 <div className="font-oswald text-xl font-bold text-sky-100">{stats.encuestaPendientes}</div>
               </div>
