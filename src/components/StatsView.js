@@ -1348,6 +1348,12 @@ const StatsView = ({ onVolver }) => {
       ? { icon: TrendingDown, className: 'text-rose-300', label: 'En baja' }
       : { icon: Minus, className: 'text-white/70', label: 'Sin cambios' };
   const TendenciaIcon = tendenciaMeta.icon;
+  const maxDistribucionMensual = Math.max(
+    ...(Array.isArray(consistencia.distribucionMensual)
+      ? consistencia.distribucionMensual.map((item) => Number(item?.total || 0))
+      : [0]),
+    1,
+  );
 
   const handleManualMatchSaved = () => {
     loadStats();
@@ -1763,16 +1769,17 @@ const StatsView = ({ onVolver }) => {
             </div>
           </div>
           <div className="mt-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2">
-            <div className="font-oswald text-[11px] text-white/60 mb-2">
+            <div className="font-oswald text-[11px] text-white/60 mb-3">
               Racha máxima de meses activos: {consistencia.rachaMeses || 0}
             </div>
-            <div className="flex items-end gap-1 h-14">
+            <div className="flex items-end gap-1 h-[84px] pt-2">
               {(consistencia.distribucionMensual || []).map((item) => {
-                const maxValue = Math.max(...(consistencia.distribucionMensual || []).map((x) => x.total), 1);
-                const height = Math.max(8, Math.round((item.total / maxValue) * 44));
+                const height = Number(item.total || 0) > 0
+                  ? Math.max(8, Math.round((Number(item.total || 0) / maxDistribucionMensual) * 36))
+                  : 8;
                 return (
-                  <div key={item.name} className="flex-1 flex flex-col items-center justify-end gap-1">
-                    <div className="font-oswald text-[10px] text-white/60 leading-none">{item.total}</div>
+                  <div key={item.name} className="flex-1 min-w-0 flex flex-col items-center justify-end gap-1">
+                    <div className="font-oswald text-[10px] text-white/60 leading-none min-h-[10px]">{item.total}</div>
                     <div
                       className="w-full rounded-[3px] bg-primary/70"
                       style={{ height: `${height}px` }}
