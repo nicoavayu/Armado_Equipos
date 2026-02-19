@@ -99,6 +99,18 @@ const PlayersSection = ({
   const isMatchFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
   const canShareInviteLink = isAdmin && typeof onShareClick === 'function' && !isMatchFull;
 
+  const getSafeMenuPosition = (rect) => {
+    const menuWidth = 192; // w-48
+    const margin = 12;
+    const rawLeft = rect.right - menuWidth;
+    const safeLeft = Math.min(
+      Math.max(margin, rawLeft),
+      Math.max(margin, window.innerWidth - menuWidth - margin),
+    );
+    const safeTop = Math.min(rect.bottom + 8, Math.max(margin, window.innerHeight - 160));
+    return { top: safeTop, left: safeLeft };
+  };
+
   const handleConfirmRemovePlayer = async () => {
     if (!playerToRemove?.id) return;
     setIsRemovingPlayer(true);
@@ -311,10 +323,7 @@ const PlayersSection = ({
                   onClick={() => {
                     if (menuButtonRef.current) {
                       const rect = menuButtonRef.current.getBoundingClientRect();
-                      setMenuPosition({
-                        top: rect.bottom + 8,
-                        left: rect.left - 140 + rect.width,
-                      });
+                      setMenuPosition(getSafeMenuPosition(rect));
                     }
                     setLocalMenuOpen(!localMenuOpen);
                   }}
@@ -332,7 +341,7 @@ const PlayersSection = ({
                     />
                     {/* Menú después (z-index mayor) con animación */}
                     <div
-                      className="fixed w-48 rounded-lg border border-slate-700 bg-slate-900 shadow-xl z-[9999] overflow-hidden transition-all duration-200 ease-out"
+                      className="fixed w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out"
                       style={{
                         top: `${menuPosition.top}px`,
                         left: `${menuPosition.left}px`,
@@ -342,7 +351,7 @@ const PlayersSection = ({
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button
-                        className="w-full px-4 py-3 flex items-center gap-3 text-left text-[#DE1C49] hover:bg-white/5 transition-colors font-medium text-[15px]"
+                        className="w-full px-3 py-2 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
                         onClick={() => {
                           setLocalMenuOpen(false);
                           setConfirmConfig({ open: true, type: 'abandon' });
@@ -517,10 +526,7 @@ const PlayersSection = ({
               onClick={() => {
                 if (adminMenuButtonRef.current) {
                   const rect = adminMenuButtonRef.current.getBoundingClientRect();
-                  setMenuPosition({
-                    top: rect.bottom + 8,
-                    left: rect.left - 140 + rect.width,
-                  });
+                  setMenuPosition(getSafeMenuPosition(rect));
                 }
                 setMenuOpen(!menuOpen);
               }}
@@ -539,7 +545,7 @@ const PlayersSection = ({
                 />
                 {/* Menú después (z-index mayor) con animación */}
                 <div
-                  className="fixed w-48 rounded-lg border border-slate-700 bg-slate-900 shadow-lg z-[9999] transition-all duration-200 ease-out"
+                  className="fixed w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-lg z-[9999] transition-all duration-200 ease-out"
                   style={{
                     top: `${menuPosition.top}px`,
                     left: `${menuPosition.left}px`,
@@ -550,7 +556,7 @@ const PlayersSection = ({
                 >
                   <div className="py-1">
                     <button
-                      className="w-full px-3 py-2 flex items-center gap-2 text-left text-[#DE1C49] hover:bg-slate-800 transition-colors text-sm font-medium"
+                      className="w-full px-3 py-2 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
                       onClick={() => {
                         setMenuOpen(false);
                         setConfirmConfig({ open: true, type: 'abandon' });
