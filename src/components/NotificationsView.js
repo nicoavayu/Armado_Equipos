@@ -341,6 +341,7 @@ const NotificationsView = () => {
             <EmptyStateCard
               icon={Bell}
               title="SIN NOTIFICACIONES"
+              titleClassName="font-oswald font-semibold text-[24px] leading-none tracking-[0.01em] text-white sm:text-[22px]"
               description="Cuando pase algo importante en tus partidos, te lo mostramos acá."
               actionLabel="Ver partidos"
               onAction={() => navigate('/quiero-jugar')}

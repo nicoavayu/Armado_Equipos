@@ -302,6 +302,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
               <EmptyStateCard
                 icon={Bell}
                 title="SIN NOTIFICACIONES"
+                titleClassName="font-oswald font-semibold text-[24px] leading-none tracking-[0.01em] text-white sm:text-[22px]"
                 description="Te avisaremos cuando tengas novedades de partidos, encuestas o invitaciones."
                 className="my-10"
               />
