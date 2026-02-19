@@ -482,8 +482,9 @@ export default function ListaPartidosFrecuentes({ onEditar, onEntrar, onVolver }
           <EmptyStateCard
             icon={CalendarDays}
             title="SIN PARTIDOS FRECUENTES"
+            titleClassName="font-oswald font-semibold text-[24px] leading-none tracking-[0.01em] text-white sm:text-[22px]"
             description="Todavía no tenés plantillas guardadas. Creá tu próximo partido y después guardalo como frecuente."
-            actionLabel="NUEVO PARTIDO"
+            actionLabel="Nuevo partido"
             onAction={() => navigate('/nuevo-partido')}
             className="my-12"
           />
