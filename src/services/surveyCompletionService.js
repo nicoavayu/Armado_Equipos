@@ -247,14 +247,20 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   if (!SKIP_SIDE_EFFECTS) {
     try {
       console.log('[FINALIZE] applying no-show penalties', { partidoId });
-      await applyNoShowPenalties(partidoId);
+      const penaltiesResult = await applyNoShowPenalties(partidoId);
+      if (penaltiesResult?.error) {
+        throw penaltiesResult.error;
+      }
     } catch (penErr) {
       console.error('[FINALIZE] applyNoShowPenalties error', { partidoId, penErr });
     }
     // Always attempt to run no-show recovery processing as well (non-blocking)
     try {
       console.log('[FINALIZE] running no-show recoveries', { partidoId });
-      await applyNoShowRecoveries(partidoId);
+      const recoveriesResult = await applyNoShowRecoveries(partidoId);
+      if (recoveriesResult?.error) {
+        throw recoveriesResult.error;
+      }
     } catch (recErr) {
       console.error('[NO_SHOW_RECOVERY] error', recErr);
     }

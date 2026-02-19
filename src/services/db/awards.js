@@ -1,5 +1,35 @@
 import { supabase } from '../../lib/supabaseClient';
 
+const incrementUsuarioCounter = async (userId, column) => {
+  try {
+    await supabase.rpc('inc_numeric', {
+      p_table: 'usuarios',
+      p_column: column,
+      p_id: userId,
+      p_amount: 1,
+    });
+    return;
+  } catch (_rpcError) {
+    // Fallback for environments without helper RPC.
+  }
+
+  const { data: row, error: readErr } = await supabase
+    .from('usuarios')
+    .select(column)
+    .eq('id', userId)
+    .single();
+
+  if (readErr) throw readErr;
+
+  const nextValue = Number(row?.[column] || 0) + 1;
+  const { error: updateErr } = await supabase
+    .from('usuarios')
+    .update({ [column]: nextValue })
+    .eq('id', userId);
+
+  if (updateErr) throw updateErr;
+};
+
 /**
  * Get match players with user registration info
  * @param {number} matchId - Match ID
@@ -83,30 +113,17 @@ export async function grantAwardsForMatch(matchId, awards) {
         continue;
       }
 
-      // Increment counter based on award type
-      const counterField = awardType === 'mvp' ? 'mvp_badges'
-        : awardType === 'best_gk' ? 'gk_badges'
-          : awardType === 'red_card' ? 'red_badges'
+      // Increment canonical counters on usuarios.
+      const counterField = awardType === 'mvp' ? 'mvps'
+        : awardType === 'best_gk' ? 'guantes_dorados'
+          : awardType === 'red_card' ? 'tarjetas_rojas'
             : null;
 
       if (counterField && playerInfo.user_id) {
-        // Try updating in profiles table first (if it exists)
-        const { error: profileUpdateError } = await supabase
-          .from('profiles')
-          .update({ [counterField]: supabase.raw(`COALESCE(${counterField}, 0) + 1`) })
-          .eq('id', playerInfo.user_id);
-
-        if (profileUpdateError) {
-          console.warn(`Could not update ${counterField} in profiles:`, profileUpdateError);
-          // Fallback to players table if profiles update fails
-          const { error: playerUpdateError } = await supabase
-            .from('players')
-            .update({ [counterField]: supabase.raw(`COALESCE(${counterField}, 0) + 1`) })
-            .eq('id', playerId);
-
-          if (playerUpdateError) {
-            console.error(`Error updating ${counterField} in players:`, playerUpdateError);
-          }
+        try {
+          await incrementUsuarioCounter(playerInfo.user_id, counterField);
+        } catch (counterError) {
+          console.error(`Error updating ${counterField} in usuarios:`, counterError);
         }
       }
 

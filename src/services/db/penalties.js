@@ -45,7 +45,10 @@ export async function applyNoShowPenalties(matchId) {
   }
 
   // 3) select players that reached threshold (>=2)
-  const toPenalizePlayerIds = Array.from(confirmMap.entries()).filter(([, votersSet]) => votersSet.size >= 2).map(([playerId]) => Number(playerId));
+  const toPenalizePlayerIds = Array.from(confirmMap.entries())
+    .filter(([, votersSet]) => votersSet.size >= 2)
+    .map(([playerId]) => Number(playerId))
+    .filter((playerId) => Number.isFinite(playerId));
   if (!toPenalizePlayerIds.length) return { data: [], error: null };
 
   // 4) fetch jugadores to map player_id -> usuario_id
@@ -66,7 +69,7 @@ export async function applyNoShowPenalties(matchId) {
       partido_id: id,
       type: 'no_show_penalty',
       amount: -1,
-      meta: { reason: 'absence_without_notice', confirmations: Array.from(confirmMap.get(String(pid)) || []) },
+      meta: { reason: 'absence_without_notice', confirmations: Array.from(confirmMap.get(pid) || confirmMap.get(String(pid)) || []) },
       created_at: new Date().toISOString(),
     } : null;
   }).filter(Boolean);
@@ -99,7 +102,7 @@ export async function applyNoShowPenalties(matchId) {
   }
 
   // 7) apply ranking decrement only for newly applied adjustments
-  const table = 'profiles';
+  const table = 'usuarios';
   await Promise.allSettled((appliedUserIds || []).map(async (uid) => {
     try {
       await supabase.rpc('dec_numeric', { p_table: table, p_column: 'ranking', p_id: uid, p_amount: 1 });
@@ -269,7 +272,7 @@ export async function applyNoShowRecoveries(matchId) {
     }
 
     // apply +0.2 to user's ranking
-    const table = 'profiles';
+    const table = 'usuarios';
     try {
       await supabase.rpc('inc_numeric', { p_table: table, p_column: 'ranking', p_id: userId, p_amount: 0.2 });
     } catch (rpcError) {
