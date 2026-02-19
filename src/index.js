@@ -5,6 +5,7 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 import './utils/updateExistingMatches'; // Importar script para actualizar partidos existentes
 import { initSentry } from 'utils/monitoring/sentry';
+import { cleanupLegacyServiceWorkers } from './utils/legacyServiceWorkerCleanup';
 
 // Global mobile guard: prevent accidental horizontal drag/side-scroll.
 if (typeof window !== 'undefined' && 'ontouchstart' in window) {
@@ -55,6 +56,10 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 initSentry();
+
+if (process.env.NODE_ENV === 'production') {
+  cleanupLegacyServiceWorkers();
+}
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
