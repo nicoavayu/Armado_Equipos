@@ -17,8 +17,6 @@ function getInitials(name) {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-const MAX_SUBSTITUTE_SLOTS = 4;
-
 /**
  * Empty state component for players list
  * @param {Object} props - Component props
@@ -86,7 +84,8 @@ const PlayersSection = ({
   const [localMenuOpen, setLocalMenuOpen] = useState(false);
   const [playerToRemove, setPlayerToRemove] = useState(null);
   const [isRemovingPlayer, setIsRemovingPlayer] = useState(false);
-  const [activeRosterTab, setActiveRosterTab] = useState('jugadores');
+  const [isTitularesOpen, setIsTitularesOpen] = useState(true);
+  const [isSuplentesOpen, setIsSuplentesOpen] = useState(true);
   const [isSharingUpdate, setIsSharingUpdate] = useState(false);
   const [shareUpdateHint, setShareUpdateHint] = useState('');
   const [animateCompletionTick, setAnimateCompletionTick] = useState(false);
@@ -98,11 +97,11 @@ const PlayersSection = ({
   const menuOpen = isAdmin ? (actionsMenuOpen !== undefined ? actionsMenuOpen : localMenuOpen) : false;
   const setMenuOpen = isAdmin && setActionsMenuOpen ? setActionsMenuOpen : setLocalMenuOpen;
   const capacity = Number(partidoActual?.cupo_jugadores || 0);
-  const maxRosterSlots = capacity > 0 ? capacity + MAX_SUBSTITUTE_SLOTS : 0;
+  const maxRosterSlots = capacity > 0 ? capacity + 4 : 0;
   const titularPlayers = jugadores.filter((j) => !j?.is_substitute);
   const substitutePlayers = jugadores.filter((j) => !!j?.is_substitute);
   const isTitularesComplete = capacity > 0 && titularPlayers.length >= capacity;
-  const canUseSubstituteSlots = substitutePlayers.length > 0 || isTitularesComplete;
+  const showSubstituteSection = substitutePlayers.length > 0 || isTitularesComplete;
   const remainingTitularSlots = capacity > 0 ? Math.max(0, capacity - titularPlayers.length) : null;
   const isMatchFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
   const canShareInviteLink = isAdmin && typeof onShareClick === 'function' && !isMatchFull;
@@ -209,7 +208,7 @@ const PlayersSection = ({
         onMakeAdmin={transferirAdmin}
       >
         <div
-          className={`flex items-center gap-1.5 bg-slate-900 border rounded-lg p-2 transition-all min-h-[36px] w-full hover:bg-slate-800 ${hasVoted ? 'border-emerald-500 hover:border-emerald-400 border-[1.5px]' : 'border-slate-800 hover:border-slate-700'}`}
+          className={`flex items-center gap-1.5 bg-slate-900 border rounded-lg p-2 transition-all min-h-[36px] w-full max-w-[660px] mx-auto hover:bg-slate-800 ${hasVoted ? 'border-emerald-500 hover:border-emerald-400 border-[1.5px]' : 'border-slate-800 hover:border-slate-700'}`}
         >
           {j.foto_url || j.avatar_url ? (
             <img
@@ -256,7 +255,7 @@ const PlayersSection = ({
   };
 
   const jugadoresCompleteBadge = isTitularesComplete ? (
-    <span className="ml-2 inline-flex items-center" title="Jugadores completos" aria-label="Jugadores completos">
+    <span className="ml-2 inline-flex items-center" title="Titulares completos" aria-label="Titulares completos">
       <span className={`relative inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300/70 bg-emerald-500/20 ${animateCompletionTick ? 'shadow-[0_0_0_6px_rgba(74,222,128,0.15)]' : ''}`}>
         {animateCompletionTick && (
           <span className="absolute inset-0 rounded-full bg-emerald-300/35 animate-ping" />
@@ -275,83 +274,116 @@ const PlayersSection = ({
     </span>
   ) : null;
 
-  const renderRosterTabs = ({ integrated = false } = {}) => {
-    const isJugadoresTab = activeRosterTab === 'jugadores';
-    const tabWrapperClass = integrated
-      ? 'w-full rounded-xl border border-white/18 bg-black/12 p-1'
-      : 'w-full rounded-xl border border-white/15 bg-black/15 p-1 mb-2';
-
-    return (
-      <div className={tabWrapperClass} role="tablist" aria-label="Secciones de jugadores">
-        <div className="flex gap-1">
-          <button
-            type="button"
-            role="tab"
-            onClick={() => setActiveRosterTab('jugadores')}
-            aria-selected={isJugadoresTab}
-            className={`flex-1 h-10 rounded-lg px-3 transition-all text-left ${isJugadoresTab
-              ? 'bg-white/16 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]'
-              : 'text-white/70 hover:bg-white/10 hover:text-white/90'}`}
-          >
-            <span className="inline-flex items-center justify-between w-full gap-2">
-              <span className="font-bebas text-[15px] tracking-wide uppercase">Jugadores</span>
-              <span className="text-[12px] font-oswald text-white/75 whitespace-nowrap">
-                {titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'}
-              </span>
+  const renderRosterSections = () => (
+    <div className="flex flex-col gap-3">
+      <div className="rounded-lg border border-white/15 bg-black/15 p-2.5">
+        <div
+          className="flex items-center justify-between px-1 mb-2"
+          onClick={() => setIsTitularesOpen((prev) => !prev)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsTitularesOpen((prev) => !prev);
+            }
+          }}
+          aria-expanded={isTitularesOpen}
+          aria-label="Toggle titulares"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-bebas text-sm tracking-wide text-white/90 uppercase">Titulares</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-oswald text-white/65">
+              {titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'}
             </span>
-          </button>
-
-          <button
-            type="button"
-            role="tab"
-            onClick={() => setActiveRosterTab('suplentes')}
-            aria-selected={!isJugadoresTab}
-            className={`flex-1 h-10 rounded-lg px-3 transition-all text-left ${!isJugadoresTab
-              ? 'bg-amber-500/14 text-amber-100 shadow-[inset_0_0_0_1px_rgba(252,211,77,0.32)]'
-              : 'text-white/70 hover:bg-amber-500/10 hover:text-amber-100/95'}`}
-          >
-            <span className="inline-flex items-center justify-between w-full gap-2">
-              <span className="font-bebas text-[15px] tracking-wide uppercase">Suplentes</span>
-              <span className="text-[12px] font-oswald text-amber-200/90 whitespace-nowrap">
-                {substitutePlayers.length}/{MAX_SUBSTITUTE_SLOTS}
-              </span>
-            </span>
-          </button>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="text-white/65 transition-transform duration-300"
+              style={{ transform: isTitularesOpen ? 'rotate(0deg)' : 'rotate(180deg)' }}
+              aria-hidden="true"
+            >
+              <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+        </div>
+        <div
+          className="overflow-hidden transition-all duration-300"
+          style={{
+            maxHeight: isTitularesOpen ? '1200px' : '0px',
+            opacity: isTitularesOpen ? 1 : 0,
+            transition: 'max-height 300ms ease, opacity 300ms ease',
+          }}
+        >
+          {titularPlayers.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
+              {titularPlayers.map(renderPlayerCard)}
+            </div>
+          ) : (
+            <div className="text-center text-[12px] text-white/55 font-oswald py-2">Todavía no hay titulares.</div>
+          )}
         </div>
       </div>
-    );
-  };
 
-  const renderRosterSections = () => {
-    const isJugadoresTab = activeRosterTab === 'jugadores';
-    const activePlayers = isJugadoresTab ? titularPlayers : substitutePlayers;
-
-    return (
-      <div className="flex flex-col gap-2.5">
-        {!isJugadoresTab && (
-          <div className="text-center text-[11px] text-amber-100/85 font-oswald tracking-wide leading-snug py-1">
-            {canUseSubstituteSlots
-              ? 'Si se libera un cupo titular, los suplentes pasan automáticamente a la nómina.'
-              : 'Los suplentes se habilitan cuando se completa el cupo de jugadores.'}
+      {showSubstituteSection && (
+        <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-2.5">
+          <div
+            className="flex items-center justify-between px-1 mb-2"
+            onClick={() => setIsSuplentesOpen((prev) => !prev)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsSuplentesOpen((prev) => !prev);
+              }
+            }}
+            aria-expanded={isSuplentesOpen}
+            aria-label="Toggle suplentes"
+          >
+            <span className="font-bebas text-sm tracking-wide text-amber-100 uppercase">Suplentes</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-oswald text-amber-200/85">{substitutePlayers.length}/4</span>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="text-amber-200/85 transition-transform duration-300"
+                style={{ transform: isSuplentesOpen ? 'rotate(0deg)' : 'rotate(180deg)' }}
+                aria-hidden="true"
+              >
+                <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
           </div>
-        )}
-
-        {activePlayers.length > 0 ? (
-          <div className="grid grid-cols-2 gap-2.5 w-full">
-            {activePlayers.map(renderPlayerCard)}
+          <div
+            className="overflow-hidden transition-all duration-300"
+            style={{
+              maxHeight: isSuplentesOpen ? '1200px' : '0px',
+              opacity: isSuplentesOpen ? 1 : 0,
+              transition: 'max-height 300ms ease, opacity 300ms ease',
+            }}
+          >
+            {substitutePlayers.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
+                {substitutePlayers.map(renderPlayerCard)}
+              </div>
+            ) : null}
           </div>
-        ) : (
-          <div className="text-center text-[12px] text-white/55 font-oswald py-2">
-            {isJugadoresTab
-              ? 'Todavía no hay jugadores.'
-              : canUseSubstituteSlots
-                ? 'Todavía no hay suplentes.'
-                : 'Completá el cupo de jugadores para habilitar suplentes.'}
+          <div className="mt-2 text-center text-[11px] text-amber-100/85 font-oswald tracking-wide leading-snug">
+            Si se libera un cupo titular, los suplentes pasan automáticamente a la nómina.
           </div>
-        )}
-      </div>
-    );
-  };
+        </div>
+      )}
+    </div>
+  );
 
   // Guest view (non-admin) OR user with pending invitation
   if (!isAdmin || (!isPlayerInMatch && jugadores.length > 0)) {
@@ -458,10 +490,7 @@ const PlayersSection = ({
               )}
             </div>
           ) : (
-            <>
-              {renderRosterTabs()}
-              {renderRosterSections()}
-            </>
+            renderRosterSections()
           )}
         </div>
 
@@ -553,11 +582,27 @@ const PlayersSection = ({
   return (
     <>
       <div className="bg-white/10 border-2 border-white/20 rounded-xl p-3 min-h-[120px] w-full max-w-full mx-auto mt-0 box-border min-w-0">
-      <div className="flex items-start justify-between gap-2 mb-2 mt-2">
+      <div className="flex items-center justify-between gap-2 mb-2 mt-2 flex-nowrap">
         <div className="min-w-0 flex-1 overflow-hidden">
-          {renderRosterTabs({ integrated: true })}
+          <div className="font-bebas text-xl text-white tracking-wide inline-flex items-center whitespace-nowrap">
+            Jugadores ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+            {jugadoresCompleteBadge}
+            {duplicatesDetected > 0 && isAdmin && (
+              <span style={{
+                color: '#ff6b35',
+                fontSize: '12px',
+                marginLeft: '10px',
+                background: 'rgba(255, 107, 53, 0.1)',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                border: '1px solid rgba(255, 107, 53, 0.3)',
+              }}>
+                ⚠️ {duplicatesDetected} duplicado{duplicatesDetected > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0 pl-1 pt-1">
+        <div className="flex items-center gap-2 shrink-0 pl-1">
           <button
             type="button"
             className="h-8 inline-flex items-center gap-1.5 rounded-full border border-[#3fd778]/60 bg-[#1a3f31]/95 px-2.5 text-[11px] font-oswald font-semibold tracking-wide text-[#e8fff2] shadow-[0_6px_14px_rgba(26,63,49,0.35)] transition-all duration-200 hover:border-[#58e38c] hover:bg-[#1f4c3a] disabled:opacity-45 disabled:cursor-not-allowed"
@@ -629,14 +674,6 @@ const PlayersSection = ({
           )}
         </div>
       </div>
-      {duplicatesDetected > 0 && isAdmin && (
-        <div
-          className="mb-2 px-1 inline-flex items-center rounded-md border border-[rgba(255,107,53,0.3)] bg-[rgba(255,107,53,0.1)] text-[12px]"
-          style={{ color: '#ff6b35' }}
-        >
-          ⚠️ {duplicatesDetected} duplicado{duplicatesDetected > 1 ? 's' : ''}
-        </div>
-      )}
       {shareUpdateHint && (
         <div className="mb-2 px-1 text-[11px] text-[#d9ffe0] font-oswald tracking-wide">
           {shareUpdateHint}
