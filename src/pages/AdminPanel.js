@@ -53,6 +53,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const [processingAction, setProcessingAction] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [cachedJoinLink, setCachedJoinLink] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('jugadores');
 
@@ -74,6 +75,10 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       adminState.setShowArmarEquiposView(true);
     }
   }, [searchParams, adminState.setShowArmarEquiposView]);
+
+  useEffect(() => {
+    setCachedJoinLink('');
+  }, [partidoActual?.id, partidoActual?.codigo]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -180,6 +185,10 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   };
 
   const resolveMatchJoinLink = async () => {
+    if (cachedJoinLink) {
+      return cachedJoinLink;
+    }
+
     const matchId = partidoActual?.id;
     const matchCode = String(partidoActual?.codigo || '').trim();
     if (!matchId || !matchCode) {
@@ -201,7 +210,28 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
     const inviteToken = String(inviteRows[0].token || '').trim();
     const baseUrl = getPublicBaseUrl() || window.location.origin;
-    return `${baseUrl}/partido/${matchId}/invitacion?codigo=${encodeURIComponent(matchCode)}&invite=${encodeURIComponent(inviteToken)}`;
+    const joinLink = `${baseUrl}/partido/${matchId}/invitacion?codigo=${encodeURIComponent(matchCode)}&invite=${encodeURIComponent(inviteToken)}`;
+    setCachedJoinLink(joinLink);
+    return joinLink;
+  };
+
+  const openWhatsAppShare = async ({ title, text, url }) => {
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+
+    if (isNative) {
+      try {
+        await shareContent(title, text, url);
+        return true;
+      } catch (nativeShareError) {
+        console.warn('[WHATSAPP_SHARE] Native share failed, fallback to wa.me', nativeShareError);
+      }
+    }
+
+    const opened = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    if (opened) return true;
+
+    window.location.href = whatsappUrl;
+    return true;
   };
 
   const handleShare = async () => {
@@ -212,12 +242,13 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
     const text = dateTimeLabel
       ? `Sumate al partido "${partidoActual.nombre || 'Partido'}"\n${dateTimeLabel}\n${url}`
       : `Sumate al partido "${partidoActual.nombre || 'Partido'}"\n${url}`;
+
     try {
-      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-      const opened = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-      if (!opened) {
-        await shareContent('Invitar al partido', text, url);
-      }
+      await openWhatsAppShare({
+        title: 'Invitar al partido',
+        text,
+        url,
+      });
     } catch (err) {
       console.error('Error sharing:', err);
       notifyBlockingError('No se pudo abrir WhatsApp');
@@ -251,22 +282,12 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       startAt: partidoActual?.startAt,
     }, joinLink);
 
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-
     try {
-      if (isNative) {
-        try {
-          await shareContent('Update del partido', message, joinLink);
-          return true;
-        } catch (nativeShareError) {
-          console.warn('[SHARE_ROSTER] Native share failed, fallback to WhatsApp URL', nativeShareError);
-        }
-      }
-
-      const opened = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-      if (!opened) {
-        await shareContent('Update del partido', message, joinLink);
-      }
+      await openWhatsAppShare({
+        title: 'Update del partido',
+        text: message,
+        url: joinLink,
+      });
       return true;
     } catch (error) {
       console.error('[SHARE_ROSTER] Error sharing update', error);

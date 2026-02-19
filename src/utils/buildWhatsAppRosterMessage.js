@@ -1,6 +1,5 @@
 import { parseLocalDate } from './dateLocal';
 
-const EMPTY_SLOT_LABEL = '________';
 const BA_TIMEZONE = 'America/Argentina/Buenos_Aires';
 
 const safeText = (value) => String(value || '').trim();
@@ -102,7 +101,7 @@ export const buildWhatsAppRosterMessage = (match, joinLink) => {
     if (player) {
       rosterLines.push(`${i + 1}. ${resolvePlayerDisplayName(player, i)}`);
     } else {
-      rosterLines.push(`${i + 1}. ${EMPTY_SLOT_LABEL}`);
+      rosterLines.push(`${i + 1}.`);
     }
   }
 
