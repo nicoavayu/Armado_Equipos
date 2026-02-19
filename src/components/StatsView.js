@@ -12,11 +12,16 @@ import {
   Dribbble,
   Hand,
   Handshake,
+  History,
   Medal,
+  Minus,
   ShieldAlert,
   Sparkles,
   Star,
+  TrendingDown,
+  TrendingUp,
   Trophy,
+  UserCheck,
 } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
@@ -63,8 +68,85 @@ const StatsView = ({ onVolver }) => {
     lesionesDetallePeriodo: [],
     lesionActiva: null,
     ultimaLesion: null,
+    asistencia: {
+      partidosConEncuesta: 0,
+      partidosSinEncuesta: 0,
+      asistenciasConfirmadas: 0,
+      faltasConfirmadas: 0,
+      asistenciaPct: 0,
+      sancionesPeriodo: 0,
+      recuperacionesPeriodo: 0,
+      deudaPendiente: 0,
+      streakRecuperacion: 0,
+    },
+    resultadosEfectivos: {
+      cerrados: 0,
+      pendientes: 0,
+      winRate: 0,
+      winDrawRate: 0,
+      puntos: 0,
+      puntosPct: 0,
+    },
+    rankingTimeline: {
+      rankingActual: null,
+      balancePeriodo: 0,
+      movimientos: [],
+    },
+    consistencia: {
+      totalPeriodo: 0,
+      totalPeriodoAnterior: 0,
+      variacion: 0,
+      variacionPct: 0,
+      tendencia: 'igual',
+      mesesActivos: 0,
+      promedioMensual: 0,
+      mejorMesLabel: '-',
+      mejorMesTotal: 0,
+      rachaMeses: 0,
+      distribucionMensual: [],
+    },
   });
   const [loading, setLoading] = useState(true);
+
+  const getDefaultExtendedStats = () => ({
+    asistencia: {
+      partidosConEncuesta: 0,
+      partidosSinEncuesta: 0,
+      asistenciasConfirmadas: 0,
+      faltasConfirmadas: 0,
+      asistenciaPct: 0,
+      sancionesPeriodo: 0,
+      recuperacionesPeriodo: 0,
+      deudaPendiente: 0,
+      streakRecuperacion: 0,
+    },
+    resultadosEfectivos: {
+      cerrados: 0,
+      pendientes: 0,
+      winRate: 0,
+      winDrawRate: 0,
+      puntos: 0,
+      puntosPct: 0,
+    },
+    rankingTimeline: {
+      rankingActual: null,
+      balancePeriodo: 0,
+      movimientos: [],
+    },
+    consistencia: {
+      totalPeriodo: 0,
+      totalPeriodoAnterior: 0,
+      variacion: 0,
+      variacionPct: 0,
+      tendencia: 'igual',
+      mesesActivos: 0,
+      promedioMensual: 0,
+      mejorMesLabel: '-',
+      mejorMesTotal: 0,
+      rachaMeses: 0,
+      distribucionMensual: [],
+    },
+  });
 
   const normalizeIdentity = (value) => String(value || '').trim().toLowerCase();
   const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
@@ -137,6 +219,16 @@ const StatsView = ({ onVolver }) => {
         getPartidosManualesStats(dateRange),
         getLesionesStats(),
       ]);
+      let extendedStats = getDefaultExtendedStats();
+      try {
+        extendedStats = await getExtendedStats({
+          dateRange,
+          partidosData,
+          partidosManualesData,
+        });
+      } catch (extendedError) {
+        console.warn('[STATS] No se pudieron cargar métricas extendidas, usando fallback.', extendedError);
+      }
 
       const recapRecientes = [
         ...(partidosData.surveyOutcomes.recientes || []),
@@ -170,6 +262,10 @@ const StatsView = ({ onVolver }) => {
         lesionesDetallePeriodo: lesionesData.enPeriodoDetalle,
         lesionActiva: lesionesData.activa,
         ultimaLesion: lesionesData.ultima,
+        asistencia: extendedStats.asistencia,
+        resultadosEfectivos: extendedStats.resultadosEfectivos,
+        rankingTimeline: extendedStats.rankingTimeline,
+        consistencia: extendedStats.consistencia,
       });
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -234,6 +330,7 @@ const StatsView = ({ onVolver }) => {
       record: userPartidos.length,
       logros,
       surveyOutcomes,
+      partidos: userPartidos,
     };
   };
 
@@ -674,6 +771,7 @@ const StatsView = ({ onVolver }) => {
       perdidos,
       recientes,
       chartData,
+      partidos: partidosManuales || [],
     };
   };
 
@@ -703,6 +801,408 @@ const StatsView = ({ onVolver }) => {
         fecha_inicio: l.fecha_inicio,
         fecha_fin: l.fecha_fin,
       })),
+    };
+  };
+
+  const toDateOnly = (isoOrDate) => String(isoOrDate || '').split('T')[0];
+
+  const toPlayerIdNumber = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const isMatchPlayedFromSurveys = (surveys = []) => {
+    if (!Array.isArray(surveys) || surveys.length === 0) return false;
+    const playedVotes = surveys.filter((survey) => survey?.se_jugo === true).length;
+    const notPlayedVotes = surveys.filter((survey) => survey?.se_jugo === false).length;
+    if (playedVotes === 0 && notPlayedVotes > 0) return false;
+    return true;
+  };
+
+  const buildAbsentConfirmMap = (surveys = []) => {
+    const confirmMap = new Map();
+
+    (surveys || []).forEach((survey) => {
+      if (survey?.se_jugo === false) return;
+      const voterId = survey?.votante_id;
+      const absents = Array.isArray(survey?.jugadores_ausentes) ? survey.jugadores_ausentes : [];
+      if (!voterId || absents.length === 0) return;
+
+      absents.forEach((absentRaw) => {
+        const absentId = toPlayerIdNumber(absentRaw);
+        if (!absentId) return;
+        if (String(voterId) === String(absentRaw) || String(voterId) === String(absentId)) return;
+
+        const votersSet = confirmMap.get(absentId) || new Set();
+        votersSet.add(String(voterId));
+        confirmMap.set(absentId, votersSet);
+      });
+    });
+
+    return confirmMap;
+  };
+
+  const getPreviousDateRange = (dateRange) => {
+    const start = new Date(dateRange.start);
+
+    if (period === 'year') {
+      const prevYear = selectedYear - 1;
+      return {
+        start: `${prevYear}-01-01`,
+        end: `${prevYear}-12-31`,
+      };
+    }
+
+    if (period === 'month') {
+      const prevMonthDate = new Date(selectedYear, selectedMonth - 1, 1);
+      const y = prevMonthDate.getFullYear();
+      const m = prevMonthDate.getMonth();
+      const monthStart = new Date(y, m, 1);
+      const monthEnd = new Date(y, m + 1, 0);
+      return {
+        start: monthStart.toISOString().split('T')[0],
+        end: monthEnd.toISOString().split('T')[0],
+      };
+    }
+
+    // week: ventana de 7 días anterior
+    const prevEnd = new Date(start);
+    prevEnd.setDate(prevEnd.getDate() - 1);
+    const prevStart = new Date(prevEnd);
+    prevStart.setDate(prevStart.getDate() - 6);
+    return {
+      start: prevStart.toISOString().split('T')[0],
+      end: prevEnd.toISOString().split('T')[0],
+    };
+  };
+
+  const getUserMatchesForRange = async ({ start, end }) => {
+    const [realRes, manualRes] = await Promise.all([
+      supabase
+        .from('partidos_view')
+        .select('*')
+        .gte('fecha', start)
+        .lte('fecha', end)
+        .eq('estado', 'finalizado'),
+      supabase
+        .from('partidos_manuales')
+        .select('*')
+        .eq('usuario_id', user.id)
+        .gte('fecha', start)
+        .lte('fecha', end),
+    ]);
+
+    if (realRes.error) throw realRes.error;
+    if (manualRes.error) throw manualRes.error;
+
+    const userRealMatches = (realRes.data || []).filter((partido) =>
+      partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
+    );
+
+    return {
+      real: userRealMatches,
+      manual: manualRes.data || [],
+      total: userRealMatches.length + (manualRes.data?.length || 0),
+    };
+  };
+
+  const getAttendanceStats = async (userPartidos = []) => {
+    const matchIds = (userPartidos || []).map((p) => Number(p?.id)).filter((id) => Number.isFinite(id));
+    if (matchIds.length === 0) {
+      return {
+        partidosConEncuesta: 0,
+        partidosSinEncuesta: 0,
+        asistenciasConfirmadas: 0,
+        faltasConfirmadas: 0,
+        asistenciaPct: 0,
+      };
+    }
+
+    const { data: surveysRows, error: surveysErr } = await supabase
+      .from('post_match_surveys')
+      .select('partido_id, votante_id, se_jugo, jugadores_ausentes')
+      .in('partido_id', matchIds);
+
+    if (surveysErr) throw surveysErr;
+
+    const surveysByMatch = new Map();
+    (surveysRows || []).forEach((row) => {
+      const id = Number(row?.partido_id);
+      if (!Number.isFinite(id)) return;
+      const list = surveysByMatch.get(id) || [];
+      list.push(row);
+      surveysByMatch.set(id, list);
+    });
+
+    const userPlayerByMatch = new Map();
+    (userPartidos || []).forEach((match) => {
+      const player = (match?.jugadores || []).find((j) => isCurrentUserPlayer(j));
+      const playerId = Number(player?.id);
+      if (Number.isFinite(playerId)) {
+        userPlayerByMatch.set(Number(match.id), playerId);
+      }
+    });
+
+    let partidosConEncuesta = 0;
+    let faltasConfirmadas = 0;
+    let partidosSinEncuesta = 0;
+
+    matchIds.forEach((matchId) => {
+      const rows = surveysByMatch.get(matchId) || [];
+      if (rows.length === 0) {
+        partidosSinEncuesta += 1;
+        return;
+      }
+
+      if (!isMatchPlayedFromSurveys(rows)) return;
+      partidosConEncuesta += 1;
+
+      const userPlayerId = userPlayerByMatch.get(matchId);
+      if (!Number.isFinite(userPlayerId)) return;
+
+      const confirmMap = buildAbsentConfirmMap(rows);
+      const confirmations = (confirmMap.get(userPlayerId) || new Set()).size;
+      if (confirmations >= 2) {
+        faltasConfirmadas += 1;
+      }
+    });
+
+    const asistenciasConfirmadas = Math.max(0, partidosConEncuesta - faltasConfirmadas);
+    const asistenciaPct = partidosConEncuesta > 0
+      ? Number(((asistenciasConfirmadas / partidosConEncuesta) * 100).toFixed(1))
+      : 0;
+
+    return {
+      partidosConEncuesta,
+      partidosSinEncuesta,
+      asistenciasConfirmadas,
+      faltasConfirmadas,
+      asistenciaPct,
+    };
+  };
+
+  const getResultadosEfectivos = (surveyOutcomes = {}) => {
+    const ganados = Number(surveyOutcomes?.ganados || 0);
+    const empatados = Number(surveyOutcomes?.empatados || 0);
+    const perdidos = Number(surveyOutcomes?.perdidos || 0);
+    const pendientes = Number(surveyOutcomes?.pendientes || 0);
+    const cerrados = ganados + empatados + perdidos;
+    const puntos = (ganados * 3) + empatados;
+    const winRate = cerrados > 0 ? Number(((ganados / cerrados) * 100).toFixed(1)) : 0;
+    const winDrawRate = cerrados > 0 ? Number((((ganados + empatados) / cerrados) * 100).toFixed(1)) : 0;
+    const puntosPct = cerrados > 0 ? Number(((puntos / (cerrados * 3)) * 100).toFixed(1)) : 0;
+
+    return {
+      cerrados,
+      pendientes,
+      winRate,
+      winDrawRate,
+      puntos,
+      puntosPct,
+    };
+  };
+
+  const getRankingTimelineStats = async ({ dateRange, userPartidos = [] }) => {
+    const [adjustmentsRes, rankingRes, streakRes] = await Promise.all([
+      supabase
+        .from('rating_adjustments')
+        .select('id, partido_id, type, amount, meta, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('usuarios')
+        .select('ranking')
+        .eq('id', user.id)
+        .maybeSingle(),
+      supabase
+        .from('no_show_recovery_state')
+        .select('current_streak')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+    ]);
+
+    if (adjustmentsRes.error) throw adjustmentsRes.error;
+    if (rankingRes.error) throw rankingRes.error;
+    if (streakRes.error) throw streakRes.error;
+
+    const adjustments = adjustmentsRes.data || [];
+    const startDay = toDateOnly(dateRange.start);
+    const endDay = toDateOnly(dateRange.end);
+
+    const adjustmentsInPeriod = adjustments.filter((row) => {
+      const day = toDateOnly(row?.created_at);
+      return day >= startDay && day <= endDay;
+    });
+
+    const allPenalties = adjustments
+      .filter((row) => row?.type === 'no_show_penalty')
+      .reduce((sum, row) => sum + Math.abs(Number(row?.amount || 0)), 0);
+    const allRecoveries = adjustments
+      .filter((row) => row?.type === 'no_show_recovery')
+      .reduce((sum, row) => sum + Math.max(0, Number(row?.amount || 0)), 0);
+
+    const sancionesPeriodo = adjustmentsInPeriod.filter((row) => row?.type === 'no_show_penalty').length;
+    const recuperacionesPeriodo = adjustmentsInPeriod.filter((row) => row?.type === 'no_show_recovery').length;
+    const deudaPendiente = Number(Math.max(0, allPenalties - allRecoveries).toFixed(2));
+    const balancePeriodo = Number(
+      adjustmentsInPeriod.reduce((sum, row) => sum + Number(row?.amount || 0), 0).toFixed(2),
+    );
+
+    const matchNameMap = new Map();
+    (userPartidos || []).forEach((match) => {
+      if (Number.isFinite(Number(match?.id))) {
+        matchNameMap.set(Number(match.id), String(match?.nombre || `Partido ${match.id}`));
+      }
+    });
+
+    const missingMatchIds = [...new Set(
+      adjustmentsInPeriod
+        .map((row) => Number(row?.partido_id))
+        .filter((id) => Number.isFinite(id) && !matchNameMap.has(id)),
+    )];
+
+    if (missingMatchIds.length > 0) {
+      const { data: matchesMeta, error: matchesMetaErr } = await supabase
+        .from('partidos')
+        .select('id, nombre')
+        .in('id', missingMatchIds);
+      if (!matchesMetaErr) {
+        (matchesMeta || []).forEach((match) => {
+          matchNameMap.set(Number(match.id), String(match?.nombre || `Partido ${match.id}`));
+        });
+      }
+    }
+
+    const movimientos = adjustmentsInPeriod
+      .map((row) => {
+        const delta = Number(row?.amount || 0);
+        const partidoId = Number(row?.partido_id);
+        return {
+          id: `ranking-${row.id}`,
+          createdAt: row?.created_at,
+          delta,
+          type: row?.type,
+          partidoId,
+          matchName: matchNameMap.get(partidoId) || `Partido ${partidoId}`,
+          motivo: row?.type === 'no_show_penalty'
+            ? 'Sanción por falta confirmada'
+            : row?.type === 'no_show_recovery'
+              ? 'Recuperación por racha sin faltas'
+              : 'Ajuste de ranking',
+        };
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return {
+      rankingActual: Number(rankingRes.data?.ranking ?? 0),
+      balancePeriodo,
+      sancionesPeriodo,
+      recuperacionesPeriodo,
+      deudaPendiente,
+      streakRecuperacion: Number(streakRes.data?.current_streak || 0),
+      movimientos,
+    };
+  };
+
+  const getLongestActiveMonthStreak = (monthTotals = []) => {
+    let best = 0;
+    let current = 0;
+    monthTotals.forEach((value) => {
+      if (Number(value || 0) > 0) {
+        current += 1;
+        best = Math.max(best, current);
+      } else {
+        current = 0;
+      }
+    });
+    return best;
+  };
+
+  const getConsistencyStats = async ({ dateRange, totalPeriodoActual }) => {
+    const previousRange = getPreviousDateRange(dateRange);
+    const selectedYearRange = {
+      start: `${selectedYear}-01-01`,
+      end: `${selectedYear}-12-31`,
+    };
+    const monthLabelsShort = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+    const [previousMatches, selectedYearMatches] = await Promise.all([
+      getUserMatchesForRange(previousRange),
+      getUserMatchesForRange(selectedYearRange),
+    ]);
+
+    const totalPeriodoAnterior = previousMatches.total;
+    const variacion = Number(totalPeriodoActual) - Number(totalPeriodoAnterior);
+    const variacionPct = totalPeriodoAnterior > 0
+      ? Number(((variacion / totalPeriodoAnterior) * 100).toFixed(1))
+      : (totalPeriodoActual > 0 ? 100 : 0);
+    const tendencia = variacion > 0 ? 'sube' : variacion < 0 ? 'baja' : 'igual';
+
+    const monthlyTotals = Array.from({ length: 12 }, () => 0);
+    [...(selectedYearMatches.real || []), ...(selectedYearMatches.manual || [])].forEach((match) => {
+      const date = new Date(`${String(match?.fecha || '')}T00:00:00`);
+      if (Number.isNaN(date.getTime())) return;
+      const m = date.getMonth();
+      if (m >= 0 && m <= 11) {
+        monthlyTotals[m] += 1;
+      }
+    });
+
+    const mesesActivos = monthlyTotals.filter((value) => value > 0).length;
+    const divisor = selectedYear === new Date().getFullYear()
+      ? (new Date().getMonth() + 1)
+      : 12;
+    const promedioMensual = divisor > 0
+      ? Number(((selectedYearMatches.total || 0) / divisor).toFixed(2))
+      : 0;
+
+    const bestMonthTotal = Math.max(...monthlyTotals);
+    const bestMonthIndex = monthlyTotals.findIndex((value) => value === bestMonthTotal);
+    const rachaMeses = getLongestActiveMonthStreak(monthlyTotals);
+
+    return {
+      totalPeriodo: Number(totalPeriodoActual || 0),
+      totalPeriodoAnterior,
+      variacion,
+      variacionPct,
+      tendencia,
+      mesesActivos,
+      promedioMensual,
+      mejorMesLabel: bestMonthIndex >= 0 ? monthLabelsShort[bestMonthIndex] : '-',
+      mejorMesTotal: bestMonthTotal > 0 ? bestMonthTotal : 0,
+      rachaMeses,
+      distribucionMensual: monthlyTotals.map((total, idx) => ({
+        name: monthLabelsShort[idx],
+        total,
+      })),
+    };
+  };
+
+  const getExtendedStats = async ({ dateRange, partidosData, partidosManualesData }) => {
+    const userPartidos = partidosData?.partidos || [];
+    const totalPeriodoActual = (partidosData?.total || 0) + (partidosManualesData?.total || 0);
+
+    const [attendanceStats, rankingStats, consistencyStats] = await Promise.all([
+      getAttendanceStats(userPartidos),
+      getRankingTimelineStats({ dateRange, userPartidos }),
+      getConsistencyStats({ dateRange, totalPeriodoActual }),
+    ]);
+
+    return {
+      asistencia: {
+        ...attendanceStats,
+        sancionesPeriodo: rankingStats.sancionesPeriodo,
+        recuperacionesPeriodo: rankingStats.recuperacionesPeriodo,
+        deudaPendiente: rankingStats.deudaPendiente,
+        streakRecuperacion: rankingStats.streakRecuperacion,
+      },
+      resultadosEfectivos: getResultadosEfectivos(partidosData?.surveyOutcomes || {}),
+      rankingTimeline: {
+        rankingActual: rankingStats.rankingActual,
+        balancePeriodo: rankingStats.balancePeriodo,
+        movimientos: rankingStats.movimientos,
+      },
+      consistencia: consistencyStats,
     };
   };
 
@@ -831,6 +1331,23 @@ const StatsView = ({ onVolver }) => {
     + stats.encuestaPendientes
     + stats.encuestaSinEquipoDetectado
   ) > 0 || recapRecientes.length > 0;
+  const asistencia = stats.asistencia || {};
+  const resultadosEfectivos = stats.resultadosEfectivos || {};
+  const rankingTimeline = stats.rankingTimeline || {};
+  const consistencia = stats.consistencia || {};
+
+  const formatSignedDelta = (value) => {
+    const num = Number(value || 0);
+    if (!Number.isFinite(num) || num === 0) return '0';
+    return `${num > 0 ? '+' : ''}${num.toFixed(1)}`;
+  };
+
+  const tendenciaMeta = consistencia.tendencia === 'sube'
+    ? { icon: TrendingUp, className: 'text-emerald-300', label: 'En alza' }
+    : consistencia.tendencia === 'baja'
+      ? { icon: TrendingDown, className: 'text-rose-300', label: 'En baja' }
+      : { icon: Minus, className: 'text-white/70', label: 'Sin cambios' };
+  const TendenciaIcon = tendenciaMeta.icon;
 
   const handleManualMatchSaved = () => {
     loadStats();
@@ -1094,6 +1611,231 @@ const StatsView = ({ onVolver }) => {
             )}
           </motion.div>
         )}
+
+        <motion.div
+          className="grid grid-cols-1 gap-3 mb-6 lg:grid-cols-2"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className="bg-white/10 rounded-2xl p-4 backdrop-blur-md border border-white/20">
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-oswald text-base font-semibold text-white flex items-center gap-2">
+                <UserCheck size={18} />
+                Asistencia y disciplina
+              </div>
+              <div className="font-oswald text-2xl font-bold text-emerald-200">
+                {Number(asistencia.asistenciaPct || 0).toFixed(1)}%
+              </div>
+            </div>
+            <div className="font-oswald text-[11px] text-white/65 mb-3">
+              Basado en partidos con encuesta jugada dentro del período.
+            </div>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+                <div className="font-oswald text-[11px] text-white/60">Con encuesta</div>
+                <div className="font-oswald text-lg text-white font-semibold">{asistencia.partidosConEncuesta || 0}</div>
+              </div>
+              <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+                <div className="font-oswald text-[11px] text-white/60">Sin encuesta</div>
+                <div className="font-oswald text-lg text-white font-semibold">{asistencia.partidosSinEncuesta || 0}</div>
+              </div>
+              <div className="rounded-lg border border-rose-300/25 bg-rose-400/10 px-3 py-2">
+                <div className="font-oswald text-[11px] text-rose-100/85">Faltas confirmadas</div>
+                <div className="font-oswald text-lg text-rose-100 font-semibold">{asistencia.faltasConfirmadas || 0}</div>
+              </div>
+              <div className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
+                <div className="font-oswald text-[11px] text-emerald-100/85">Asistencias</div>
+                <div className="font-oswald text-lg text-emerald-100 font-semibold">{asistencia.asistenciasConfirmadas || 0}</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-lg border border-rose-300/20 bg-rose-400/5 px-2.5 py-2 text-center">
+                <div className="font-oswald text-[10px] text-rose-100/80">Sanciones</div>
+                <div className="font-oswald text-base font-semibold text-rose-100">{asistencia.sancionesPeriodo || 0}</div>
+              </div>
+              <div className="rounded-lg border border-sky-300/20 bg-sky-400/5 px-2.5 py-2 text-center">
+                <div className="font-oswald text-[10px] text-sky-100/80">Recuperaciones</div>
+                <div className="font-oswald text-base font-semibold text-sky-100">{asistencia.recuperacionesPeriodo || 0}</div>
+              </div>
+              <div className="rounded-lg border border-amber-300/20 bg-amber-400/5 px-2.5 py-2 text-center">
+                <div className="font-oswald text-[10px] text-amber-100/80">Deuda pend.</div>
+                <div className="font-oswald text-base font-semibold text-amber-100">
+                  {Number(asistencia.deudaPendiente || 0).toFixed(1)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/10 rounded-2xl p-4 backdrop-blur-md border border-white/20">
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-oswald text-base font-semibold text-white flex items-center gap-2">
+                <Trophy size={18} />
+                Resultados efectivos
+              </div>
+              <div className="font-oswald text-2xl font-bold text-white">
+                {Number(resultadosEfectivos.winRate || 0).toFixed(1)}%
+              </div>
+            </div>
+            <div className="font-oswald text-[11px] text-white/65 mb-3">
+              Solo partidos con resultado cerrado de encuesta (sin pendientes).
+            </div>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+                <div className="font-oswald text-[11px] text-white/60">Cerrados</div>
+                <div className="font-oswald text-lg text-white font-semibold">{resultadosEfectivos.cerrados || 0}</div>
+              </div>
+              <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+                <div className="font-oswald text-[11px] text-white/60">Pendientes</div>
+                <div className="font-oswald text-lg text-white font-semibold">{resultadosEfectivos.pendientes || 0}</div>
+              </div>
+              <div className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
+                <div className="font-oswald text-[11px] text-emerald-100/85">% Victorias</div>
+                <div className="font-oswald text-lg text-emerald-100 font-semibold">
+                  {Number(resultadosEfectivos.winRate || 0).toFixed(1)}%
+                </div>
+              </div>
+              <div className="rounded-lg border border-sky-300/25 bg-sky-400/10 px-3 py-2">
+                <div className="font-oswald text-[11px] text-sky-100/85">% No perder</div>
+                <div className="font-oswald text-lg text-sky-100 font-semibold">
+                  {Number(resultadosEfectivos.winDrawRate || 0).toFixed(1)}%
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+              <div className="font-oswald text-[11px] text-white/65">Eficiencia de puntos</div>
+              <div className="flex items-center justify-between">
+                <div className="font-oswald text-base text-white">
+                  {resultadosEfectivos.puntos || 0} / {(resultadosEfectivos.cerrados || 0) * 3}
+                </div>
+                <div className="font-oswald text-base font-semibold text-white">
+                  {Number(resultadosEfectivos.puntosPct || 0).toFixed(1)}%
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="bg-white/10 rounded-2xl p-4 mb-6 backdrop-blur-md border border-white/20"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.34 }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="font-oswald text-base font-semibold text-white flex items-center gap-2">
+              <Activity size={18} />
+              Consistencia
+            </div>
+            <div className={`font-oswald text-sm flex items-center gap-1 ${tendenciaMeta.className}`}>
+              <TendenciaIcon size={16} />
+              {tendenciaMeta.label}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
+            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+              <div className="font-oswald text-[11px] text-white/60">Período actual</div>
+              <div className="font-oswald text-lg text-white font-semibold">{consistencia.totalPeriodo || 0}</div>
+            </div>
+            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+              <div className="font-oswald text-[11px] text-white/60">Período anterior</div>
+              <div className="font-oswald text-lg text-white font-semibold">{consistencia.totalPeriodoAnterior || 0}</div>
+            </div>
+            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+              <div className="font-oswald text-[11px] text-white/60">Variación</div>
+              <div className={`font-oswald text-lg font-semibold ${consistencia.variacion > 0 ? 'text-emerald-200' : consistencia.variacion < 0 ? 'text-rose-200' : 'text-white'}`}>
+                {consistencia.variacion > 0 ? '+' : ''}{consistencia.variacion || 0} ({consistencia.variacionPct || 0}%)
+              </div>
+            </div>
+            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+              <div className="font-oswald text-[11px] text-white/60">Promedio mensual ({selectedYear})</div>
+              <div className="font-oswald text-lg text-white font-semibold">{Number(consistencia.promedioMensual || 0).toFixed(2)}</div>
+            </div>
+            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+              <div className="font-oswald text-[11px] text-white/60">Meses activos</div>
+              <div className="font-oswald text-lg text-white font-semibold">{consistencia.mesesActivos || 0}</div>
+            </div>
+            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+              <div className="font-oswald text-[11px] text-white/60">Mejor mes</div>
+              <div className="font-oswald text-lg text-white font-semibold">
+                {consistencia.mejorMesLabel || '-'} ({consistencia.mejorMesTotal || 0})
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+            <div className="font-oswald text-[11px] text-white/60 mb-2">
+              Racha máxima de meses activos: {consistencia.rachaMeses || 0}
+            </div>
+            <div className="flex items-end gap-1 h-14">
+              {(consistencia.distribucionMensual || []).map((item) => {
+                const maxValue = Math.max(...(consistencia.distribucionMensual || []).map((x) => x.total), 1);
+                const height = Math.max(8, Math.round((item.total / maxValue) * 44));
+                return (
+                  <div key={item.name} className="flex-1 flex flex-col items-center justify-end gap-1">
+                    <div className="font-oswald text-[10px] text-white/60 leading-none">{item.total}</div>
+                    <div
+                      className="w-full rounded-[3px] bg-primary/70"
+                      style={{ height: `${height}px` }}
+                    />
+                    <div className="font-oswald text-[10px] text-white/45 leading-none">{item.name}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="bg-white/10 rounded-2xl p-4 mb-6 backdrop-blur-md border border-white/20"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.38 }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="font-oswald text-base font-semibold text-white flex items-center gap-2">
+              <History size={18} />
+              Movimientos de ranking
+            </div>
+            <div className="font-oswald text-sm text-white/80">
+              Actual: {Number(rankingTimeline.rankingActual || 0).toFixed(1)}
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 mb-3 sm:grid-cols-1">
+            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+              <div className="font-oswald text-[11px] text-white/60">Balance período</div>
+              <div className={`font-oswald text-lg font-semibold ${Number(rankingTimeline.balancePeriodo || 0) > 0 ? 'text-emerald-200' : Number(rankingTimeline.balancePeriodo || 0) < 0 ? 'text-rose-200' : 'text-white'}`}>
+                {formatSignedDelta(rankingTimeline.balancePeriodo)}
+              </div>
+            </div>
+            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+              <div className="font-oswald text-[11px] text-white/60">Racha recuperación</div>
+              <div className="font-oswald text-lg text-white font-semibold">{asistencia.streakRecuperacion || 0}</div>
+            </div>
+            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+              <div className="font-oswald text-[11px] text-white/60">Deuda pendiente</div>
+              <div className="font-oswald text-lg text-amber-100 font-semibold">{Number(asistencia.deudaPendiente || 0).toFixed(1)}</div>
+            </div>
+          </div>
+          {Array.isArray(rankingTimeline.movimientos) && rankingTimeline.movimientos.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              {rankingTimeline.movimientos.slice(0, 6).map((mov) => (
+                <div key={mov.id} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="font-oswald text-sm text-white truncate">{mov.matchName}</div>
+                    <div className="font-oswald text-[11px] text-white/60">
+                      {new Date(mov.createdAt).toLocaleDateString('es-ES')} · {mov.motivo}
+                    </div>
+                  </div>
+                  <div className={`font-oswald text-sm font-semibold whitespace-nowrap ${mov.delta > 0 ? 'text-emerald-200' : 'text-rose-200'}`}>
+                    {formatSignedDelta(mov.delta)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="font-oswald text-sm text-white/70">Sin movimientos de ranking en este período.</div>
+          )}
+        </motion.div>
 
         {showLesionesDetalle && (
           <motion.div
