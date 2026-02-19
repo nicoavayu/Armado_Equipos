@@ -107,9 +107,14 @@ const PlayerAwards = ({ playerId }) => {
       };
 
       data.forEach((award) => {
-        if (award.award_type === 'mvp') counts.mvp++;
-        if (award.award_type === 'guante_dorado') counts.guante_dorado++;
-        if (award.award_type === 'tarjeta_roja') counts.tarjeta_roja++;
+        const type = String(award.award_type || '').toLowerCase();
+        if (type === 'mvp') counts.mvp++;
+        if (type === 'guante_dorado' || type === 'best_gk' || type === 'goalkeeper') {
+          counts.guante_dorado++;
+        }
+        if (type === 'tarjeta_roja' || type === 'red_card' || type === 'negative_fair_play') {
+          counts.tarjeta_roja++;
+        }
       });
 
       console.log('[PLAYER_AWARDS] Counts:', counts);
