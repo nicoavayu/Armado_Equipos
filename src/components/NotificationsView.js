@@ -99,7 +99,7 @@ const NotificationsView = () => {
     }
 
     if (data.resultsUrl) {
-      const isAwardsNotif = ['survey_results', 'survey_results_ready', 'awards_ready'].includes(notification?.type);
+      const isAwardsNotif = ['survey_results', 'survey_results_ready', 'awards_ready', 'award_won'].includes(notification?.type);
       if (isAwardsNotif) {
         navigate(data.resultsUrl, {
           state: {
@@ -194,6 +194,7 @@ const NotificationsView = () => {
       case 'survey_results':
       case 'survey_results_ready':
       case 'awards_ready':
+      case 'award_won':
         if (data.resultsUrl) {
           navigate(data.resultsUrl, {
             state: {
@@ -315,6 +316,12 @@ const NotificationsView = () => {
         return Vote;
       case 'survey_results_ready':
         return Trophy;
+      case 'award_won':
+        return Trophy;
+      case 'no_show_penalty_applied':
+        return XCircle;
+      case 'no_show_recovery_applied':
+        return CheckCircle;
       default:
         return Bell;
     }

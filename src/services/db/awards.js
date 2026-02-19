@@ -1,13 +1,89 @@
 import { supabase } from '../../lib/supabaseClient';
 
+const AWARD_WON_NOTIFICATION_TYPE = 'award_won';
+
+const resolveMatchName = async (matchId) => {
+  try {
+    const { data, error } = await supabase
+      .from('partidos')
+      .select('nombre')
+      .eq('id', matchId)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    const parsed = String(data?.nombre || '').trim();
+    if (parsed) return parsed;
+  } catch (_error) {
+    // Fallback to generic label when metadata fetch fails.
+  }
+
+  return `partido ${matchId}`;
+};
+
+const awardLabelByType = (awardType) => {
+  if (awardType === 'mvp') return 'MVP';
+  if (awardType === 'best_gk') return 'Mejor Arquero';
+  if (awardType === 'red_card') return 'Jugador más sucio';
+  return 'Premio';
+};
+
+const insertAwardWonNotification = async ({
+  userId,
+  matchId,
+  matchName,
+  awardType,
+}) => {
+  if (!userId || !matchId || !awardType) return;
+
+  // Avoid duplicates per user + partido + award_type
+  const { data: existingRows, error: existingErr } = await supabase
+    .from('notifications')
+    .select('id, data')
+    .eq('user_id', userId)
+    .eq('partido_id', Number(matchId))
+    .eq('type', AWARD_WON_NOTIFICATION_TYPE);
+
+  if (existingErr) throw existingErr;
+
+  const alreadyExists = (existingRows || []).some((row) => row?.data?.award_type === awardType);
+  if (alreadyExists) return;
+
+  const awardLabel = awardLabelByType(awardType);
+  const resultsUrl = `/resultados-encuesta/${matchId}?showAwards=1`;
+
+  const { error } = await supabase
+    .from('notifications')
+    .insert([{
+      user_id: userId,
+      partido_id: Number(matchId),
+      type: AWARD_WON_NOTIFICATION_TYPE,
+      title: `Ganaste un premio: ${awardLabel}`,
+      message: `Ganaste "${awardLabel}" en el partido "${matchName}".`,
+      data: {
+        match_id: String(matchId),
+        match_name: matchName,
+        award_type: awardType,
+        award_label: awardLabel,
+        link: resultsUrl,
+        resultsUrl,
+      },
+      read: false,
+      created_at: new Date().toISOString(),
+    }]);
+
+  if (error) throw error;
+};
+
 const incrementUsuarioCounter = async (userId, column) => {
   try {
-    await supabase.rpc('inc_numeric', {
+    const { error: rpcError } = await supabase.rpc('inc_numeric', {
       p_table: 'usuarios',
       p_column: column,
       p_id: userId,
       p_amount: 1,
     });
+    if (rpcError) throw rpcError;
     return;
   } catch (_rpcError) {
     // Fallback for environments without helper RPC.
@@ -67,6 +143,8 @@ export async function grantAwardsForMatch(matchId, awards) {
   }
 
   try {
+    const idNum = Number(matchId);
+    const matchName = await resolveMatchName(idNum);
     const playersMap = await getMatchPlayersMap(matchId);
     const granted = [];
     const skipped = [];
@@ -124,6 +202,19 @@ export async function grantAwardsForMatch(matchId, awards) {
           await incrementUsuarioCounter(playerInfo.user_id, counterField);
         } catch (counterError) {
           console.error(`Error updating ${counterField} in usuarios:`, counterError);
+        }
+      }
+
+      if (playerInfo.user_id) {
+        try {
+          await insertAwardWonNotification({
+            userId: playerInfo.user_id,
+            matchId: idNum,
+            matchName,
+            awardType,
+          });
+        } catch (notificationError) {
+          console.error(`[AWARDS] Error creating private award notification for ${awardType}:`, notificationError);
         }
       }
 

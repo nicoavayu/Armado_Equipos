@@ -2,12 +2,13 @@ import { supabase } from '../supabase';
 
 const incrementNumericColumn = async (table, column, userId, amount = 1) => {
   try {
-    await supabase.rpc('inc_numeric', {
+    const { error: rpcError } = await supabase.rpc('inc_numeric', {
       p_table: table,
       p_column: column,
       p_id: userId,
       p_amount: amount,
     });
+    if (rpcError) throw rpcError;
     return;
   } catch {
     const { data: row, error: readErr } = await supabase

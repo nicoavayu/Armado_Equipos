@@ -3,6 +3,70 @@ import { supabase } from '../../lib/supabaseClient';
 const ABSENCE_CONFIRMATION_THRESHOLD = 2;
 const NO_SHOW_PENALTY_AMOUNT = -0.5;
 const NO_SHOW_RECOVERY_STEP = 0.2;
+const NO_SHOW_PENALTY_NOTIFICATION_TYPE = 'no_show_penalty_applied';
+const NO_SHOW_RECOVERY_NOTIFICATION_TYPE = 'no_show_recovery_applied';
+
+const runRpcOrThrow = async (fnName, params) => {
+  const { error } = await supabase.rpc(fnName, params);
+  if (error) throw error;
+};
+
+const formatRankingAmount = (value) => {
+  const num = Math.abs(Number(value || 0));
+  if (!Number.isFinite(num)) return '0';
+  return num.toLocaleString('es-AR', {
+    minimumFractionDigits: Number.isInteger(num) ? 0 : 1,
+    maximumFractionDigits: 2,
+  });
+};
+
+const resolveMatchName = async (matchId) => {
+  try {
+    const { data, error } = await supabase
+      .from('partidos')
+      .select('nombre')
+      .eq('id', matchId)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    const parsed = String(data?.nombre || '').trim();
+    if (parsed) return parsed;
+  } catch (_error) {
+    // Fallback to generic label when metadata fetch fails.
+  }
+
+  return `partido ${matchId}`;
+};
+
+const insertPrivateRankingNotification = async ({
+  userId,
+  type,
+  title,
+  message,
+  matchName,
+  amount,
+}) => {
+  if (!userId) return;
+
+  const payload = {
+    user_id: userId,
+    type,
+    title,
+    message,
+    data: {
+      match_name: matchName,
+      ranking_delta: amount,
+    },
+    read: false,
+    created_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase.from('notifications').insert([payload]);
+  if (error) {
+    throw error;
+  }
+};
 
 const toPlayerIdNumber = (value) => {
   const parsed = Number(value);
@@ -75,6 +139,7 @@ const _getMatchPlayers = async (partidoId) => {
  */
 export async function applyNoShowPenalties(matchId) {
   const id = Number(matchId);
+  const matchName = await resolveMatchName(id);
   // 1) read surveys for this match
   const { data: surveys, error: surveysErr } = await supabase
     .from('post_match_surveys')
@@ -153,7 +218,12 @@ export async function applyNoShowPenalties(matchId) {
   const rankingDelta = Math.abs(NO_SHOW_PENALTY_AMOUNT);
   await Promise.allSettled((appliedUserIds || []).map(async (uid) => {
     try {
-      await supabase.rpc('dec_numeric', { p_table: table, p_column: 'ranking', p_id: uid, p_amount: rankingDelta });
+      await runRpcOrThrow('dec_numeric', {
+        p_table: table,
+        p_column: 'ranking',
+        p_id: uid,
+        p_amount: rankingDelta,
+      });
       console.log('[NO_SHOW_PENALTY] applied', { partidoId: id, userId: uid });
     } catch (rpcError) {
       try {
@@ -168,7 +238,12 @@ export async function applyNoShowPenalties(matchId) {
     // Also increment partidos_abandonados on usuarios for this user (only when penalty was newly applied)
     try {
       // Try RPC to increment numeric column on usuarios
-      await supabase.rpc('inc_numeric', { p_table: 'usuarios', p_column: 'partidos_abandonados', p_id: uid, p_amount: 1 });
+      await runRpcOrThrow('inc_numeric', {
+        p_table: 'usuarios',
+        p_column: 'partidos_abandonados',
+        p_id: uid,
+        p_amount: 1,
+      });
       console.log('[NO_SHOW_PENALTY] incremented partidos_abandonados', { partidoId: id, userId: uid });
     } catch (incRpcErr) {
       try {
@@ -180,6 +255,19 @@ export async function applyNoShowPenalties(matchId) {
       } catch (incErr) {
         console.error('[NO_SHOW_PENALTY] failed to increment partidos_abandonados for', uid, incErr);
       }
+    }
+
+    try {
+      await insertPrivateRankingNotification({
+        userId: uid,
+        type: NO_SHOW_PENALTY_NOTIFICATION_TYPE,
+        title: 'Perdiste ranking por inasistencia',
+        message: `Perdiste ${formatRankingAmount(rankingDelta)} puntos de ranking por faltar al partido "${matchName}".`,
+        matchName,
+        amount: -rankingDelta,
+      });
+    } catch (notificationErr) {
+      console.error('[NO_SHOW_PENALTY] failed to insert private notification for', uid, notificationErr);
     }
   }));
 
@@ -200,6 +288,7 @@ export async function applyNoShowPenalties(matchId) {
  */
 export async function applyNoShowRecoveries(matchId) {
   const id = Number(matchId);
+  const matchName = await resolveMatchName(id);
 
   // 1) get all survey rows to derive played flag and confirmed absences
   const { data: surveyRows, error: surveyErr } = await supabase
@@ -333,7 +422,12 @@ export async function applyNoShowRecoveries(matchId) {
     // apply recovery increment to user's ranking
     const table = 'usuarios';
     try {
-      await supabase.rpc('inc_numeric', { p_table: table, p_column: 'ranking', p_id: userId, p_amount: recoverAmount });
+      await runRpcOrThrow('inc_numeric', {
+        p_table: table,
+        p_column: 'ranking',
+        p_id: userId,
+        p_amount: recoverAmount,
+      });
     } catch (rpcError) {
       try {
         const { data: curr } = await supabase.from(table).select('ranking').eq('id', userId).single();
@@ -342,6 +436,19 @@ export async function applyNoShowRecoveries(matchId) {
       } catch (updateErr) {
         console.error('[NO_SHOW_RECOVERY] failed to apply rating increment for', userId, updateErr);
       }
+    }
+
+    try {
+      await insertPrivateRankingNotification({
+        userId,
+        type: NO_SHOW_RECOVERY_NOTIFICATION_TYPE,
+        title: 'Recuperaste ranking',
+        message: `Recuperaste ${formatRankingAmount(recoverAmount)} puntos de ranking por cumplir 3 partidos sin faltar. Último partido contabilizado: "${matchName}".`,
+        matchName,
+        amount: recoverAmount,
+      });
+    } catch (notificationErr) {
+      console.error('[NO_SHOW_RECOVERY] failed to insert private notification for', userId, notificationErr);
     }
 
     console.log('[NO_SHOW_RECOVERY] applied', { userId, cycle_index: cycleIndex });

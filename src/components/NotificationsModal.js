@@ -165,7 +165,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (notification.type === 'survey_results_ready' || notification.type === 'awards_ready') {
+    if (notification.type === 'survey_results_ready' || notification.type === 'awards_ready' || notification.type === 'award_won') {
       try {
         const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId ?? null;
         if (!matchId) {
@@ -205,6 +205,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       case 'survey_results_ready': return Trophy;
       case 'awards_ready': return Trophy;
       case 'survey_finished': return ClipboardList;
+      case 'award_won': return Trophy;
       case 'friend_request': return UserPlus;
       case 'friend_accepted': return CheckCircle;
       case 'match_update': return Users;
@@ -212,6 +213,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       case 'match_join_request': return UserPlus;
       case 'match_join_approved': return CheckCircle;
       case 'match_kicked': return ShieldAlert;
+      case 'no_show_penalty_applied': return ShieldAlert;
+      case 'no_show_recovery_applied': return CheckCircle;
       default: return Bell;
     }
   };
@@ -306,7 +309,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           ) : (
             <div className="p-0">
               {notifications.map((notification) => {
-                const clickable = ['match_invite', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished'].includes(notification.type);
+                const clickable = ['match_invite', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished', 'award_won'].includes(notification.type);
                 const Icon = getNotificationIcon(notification.type) || User;
                 const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
                 const isSurveyReminder = notification.type === 'survey_reminder';

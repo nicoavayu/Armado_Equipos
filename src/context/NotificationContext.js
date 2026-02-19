@@ -547,11 +547,14 @@ export const NotificationProvider = ({ children }) => {
     const postMatchSurveys = unread.filter((n) => n.type === 'post_match_survey').length;
     const surveyResults = unread.filter((n) => n.type === 'survey_results_ready').length;
     const awardsReady = unread.filter((n) => n.type === 'awards_ready').length;
+    const awardWon = unread.filter((n) => n.type === 'award_won').length;
     const surveyFinished = unread.filter((n) => n.type === 'survey_finished').length;
+    const noShowPenalty = unread.filter((n) => n.type === 'no_show_penalty_applied').length;
+    const noShowRecovery = unread.filter((n) => n.type === 'no_show_recovery_applied').length;
 
     setUnreadCount({
       friends: friendRequests,
-      matches: matchInvites + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyResults + awardsReady + surveyFinished,
+      matches: matchInvites + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyResults + awardsReady + awardWon + surveyFinished + noShowPenalty + noShowRecovery,
       total: unread.length,
     });
   };
