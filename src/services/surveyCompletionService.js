@@ -144,13 +144,24 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   // Upsert minimal survey_results to record existence (anchors created_at)
   let existingSurvey = null;
   try {
-    const { data, error } = await supabase
+    let res = await supabase
       .from('survey_results')
-      .select('created_at')
+      .select('created_at, encuesta_cerrada_at')
       .eq('partido_id', partidoId)
       .maybeSingle();
-    if (error) throw error;
-    existingSurvey = data || null;
+    if (res.error) {
+      const msg = String(res.error?.message || '').toLowerCase();
+      const missingClosedAt = msg.includes('encuesta_cerrada_at') && msg.includes('does not exist');
+      if (!missingClosedAt) throw res.error;
+
+      res = await supabase
+        .from('survey_results')
+        .select('created_at')
+        .eq('partido_id', partidoId)
+        .maybeSingle();
+      if (res.error) throw res.error;
+    }
+    existingSurvey = res.data || null;
   } catch (e) {
     console.error('[FINALIZE] error fetching survey_results', { partidoId, e });
     existingSurvey = null;
@@ -229,7 +240,13 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 
   // determine completion by votes OR by deadline
   const allVoted = Boolean(playersCount) && surveysCount >= playersCount;
+  const alreadyClosedAt = existingSurvey?.encuesta_cerrada_at || null;
   // deadlineReached was calculated earlier (line 169)
+
+  if (alreadyClosedAt) {
+    console.log('[FINALIZE] already closed, skipping side effects', { partidoId, alreadyClosedAt });
+    return { done: true, playersCount, surveysCount, alreadyClosed: true, closedAt: alreadyClosedAt };
+  }
 
 
   if (!allVoted && !deadlineReached) {
