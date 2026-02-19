@@ -37,7 +37,6 @@ const EncuestaPartido = () => {
   const [teamsConfirmed, setTeamsConfirmed] = useState(false);
   const [confirmedTeams, setConfirmedTeams] = useState({ teamA: [], teamB: [] });
   const [finalTeams, setFinalTeams] = useState({ teamA: [], teamB: [] });
-  const [showFinalTeamsEditor, setShowFinalTeamsEditor] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
@@ -435,7 +434,7 @@ const EncuestaPartido = () => {
       showInlineNotice({
         key: 'survey_missing_winner',
         type: 'warning',
-        message: 'Elegí el ganador.',
+        message: 'Elegí el resultado: Equipo A, Equipo B o Empate.',
       });
       return;
     }
@@ -887,79 +886,29 @@ const EncuestaPartido = () => {
                   <div className={titleClass}>
                     ¿QUIÉN GANÓ?
                   </div>
-                  {hasConfirmedTeams ? (
-                    <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
-                      Si hubo algún cambio de último momento en la cancha, podés ajustar los equipos acá.
-                    </div>
-                  ) : null}
+                  <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
+                    Si hubo algún cambio de último momento en la cancha, podés ajustar los equipos acá.
+                  </div>
                 </div>
               </div>
-              <div className={contentRowClass}>
-                <div className="w-full max-w-[520px] mx-auto">
+              <div className="w-full flex-1 min-h-0 flex items-start justify-center">
+                <div className="w-full max-w-[560px] mx-auto">
                   {hasConfirmedTeams ? (
                     <div className="w-full space-y-3">
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className="rounded-2xl border border-white/15 bg-white/[0.06] p-3 backdrop-blur-md">
-                          <div className="mb-1 font-bebas text-[18px] tracking-wide text-white/90">Equipo A</div>
-                          <div className="text-xs font-oswald text-white/70">{finalTeams.teamA.length} jugadores</div>
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {finalTeams.teamA.slice(0, 6).map((key) => (
-                              <span key={`teamA-${key}`} className="rounded-full border border-white/20 bg-white/[0.08] px-2 py-0.5 text-[11px] font-oswald text-white/85">
-                                {playersByKey[key]?.nombre || 'Jugador'}
-                              </span>
-                            ))}
-                            {finalTeams.teamA.length > 6 ? (
-                              <span className="rounded-full border border-white/20 bg-white/[0.08] px-2 py-0.5 text-[11px] font-oswald text-white/70">
-                                +{finalTeams.teamA.length - 6}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                        <div className="rounded-2xl border border-white/15 bg-white/[0.06] p-3 backdrop-blur-md">
-                          <div className="mb-1 font-bebas text-[18px] tracking-wide text-white/90">Equipo B</div>
-                          <div className="text-xs font-oswald text-white/70">{finalTeams.teamB.length} jugadores</div>
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {finalTeams.teamB.slice(0, 6).map((key) => (
-                              <span key={`teamB-${key}`} className="rounded-full border border-white/20 bg-white/[0.08] px-2 py-0.5 text-[11px] font-oswald text-white/85">
-                                {playersByKey[key]?.nombre || 'Jugador'}
-                              </span>
-                            ))}
-                            {finalTeams.teamB.length > 6 ? (
-                              <span className="rounded-full border border-white/20 bg-white/[0.08] px-2 py-0.5 text-[11px] font-oswald text-white/70">
-                                +{finalTeams.teamB.length - 6}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-white/15 bg-white/[0.06] backdrop-blur-md">
-                        <button
-                          type="button"
-                          onClick={() => setShowFinalTeamsEditor((prev) => !prev)}
-                          className="flex w-full items-center justify-between px-4 py-3 text-left font-oswald text-[15px] text-white/90 transition-colors hover:text-white"
-                        >
-                          <span>Ajustar equipos finales</span>
-                          <span className="text-white/70">{showFinalTeamsEditor ? 'Ocultar' : 'Abrir'}</span>
-                        </button>
-                        <div
-                          className={`overflow-hidden transition-[max-height,opacity] duration-200 ease-out ${
-                            showFinalTeamsEditor ? 'max-h-[680px] opacity-100' : 'max-h-0 opacity-0'
-                          }`}
-                        >
-                          <div className="px-3 pb-3">
-                            <TeamsDnDEditor
-                              teamA={finalTeams.teamA}
-                              teamB={finalTeams.teamB}
-                              playersByKey={playersByKey}
-                              onChange={(next) => {
-                                setFinalTeams(next);
-                                clearInlineNotice();
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
+                      <TeamsDnDEditor
+                        teamA={finalTeams.teamA}
+                        teamB={finalTeams.teamB}
+                        playersByKey={playersByKey}
+                        selectedWinner={formData.ganador}
+                        onWinnerChange={(winner) => {
+                          handleInputChange('ganador', winner);
+                          clearInlineNotice();
+                        }}
+                        onChange={(next) => {
+                          setFinalTeams(next);
+                          clearInlineNotice();
+                        }}
+                      />
 
                       {!finalTeamsValidation.ok ? (
                         <div className="rounded-xl border border-rose-300/35 bg-rose-400/10 px-3 py-2 text-sm font-oswald text-rose-100">
@@ -967,22 +916,16 @@ const EncuestaPartido = () => {
                         </div>
                       ) : null}
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
-                        {[
-                          { value: 'equipo_a', label: 'Equipo A' },
-                          { value: 'equipo_b', label: 'Equipo B' },
-                          { value: 'empate', label: 'Empate' },
-                        ].map((option) => (
-                          <button
-                            key={option.value}
-                            className={`${optionBtnClass} ${formData.ganador === option.value ? optionBtnSelectedClass : ''}`}
-                            onClick={() => handleInputChange('ganador', option.value)}
-                            type="button"
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
+                      <button
+                        type="button"
+                        className={`${optionBtnClass} normal-case ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
+                        onClick={() => {
+                          handleInputChange('ganador', 'empate');
+                          clearInlineNotice();
+                        }}
+                      >
+                        Empate
+                      </button>
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-amber-300/35 bg-amber-400/10 p-4 text-center text-white/90">
@@ -998,7 +941,7 @@ const EncuestaPartido = () => {
                   <button
                     className={btnClass}
                     onClick={handleSubmit}
-                    disabled={!hasConfirmedTeams || !finalTeamsValidation.ok || !formData.ganador}
+                    disabled={!hasConfirmedTeams || !finalTeamsValidation.ok}
                   >
                     FINALIZAR ENCUESTA
                   </button>
