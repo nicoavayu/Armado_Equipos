@@ -415,6 +415,12 @@ const EncuestaPartido = () => {
     }
   };
 
+  const submitSurveyFromCurrentStep = async () => {
+    if (submitting || encuestaFinalizada || alreadySubmitted) return;
+    setSubmitting(true);
+    await continueSubmitFlow();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -850,8 +856,12 @@ const EncuestaPartido = () => {
                 <div className={gridClass}>
                   <button
                     className={`${optionBtnClass} ${formData.partido_limpio ? optionBtnSelectedClass : ''}`}
-                    onClick={() => {
+                    onClick={async () => {
                       handleInputChange('partido_limpio', true);
+                      if (!hasConfirmedTeams) {
+                        await submitSurveyFromCurrentStep();
+                        return;
+                      }
                       setCurrentStep(5);
                     }}
                     type="button"
@@ -972,7 +982,11 @@ const EncuestaPartido = () => {
                 <div className={actionDockClass}>
                   <button
                     className={btnClass}
-                    onClick={() => {
+                    onClick={async () => {
+                      if (!hasConfirmedTeams) {
+                        await submitSurveyFromCurrentStep();
+                        return;
+                      }
                       setCurrentStep(5);
                     }}
                     disabled={formData.jugadores_violentos.length === 0}
