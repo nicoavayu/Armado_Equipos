@@ -614,7 +614,7 @@ const PlayersSection = ({
             <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#25D366] shadow-[0_0_0_1px_rgba(255,255,255,0.2),0_0_12px_rgba(37,211,102,0.25)]">
               <WhatsappIcon size={11} style={{ opacity: 0.98 }} />
             </span>
-            <span>{isSharingUpdate ? 'Compartiendo...' : 'Compartir update'}</span>
+            <span>{isSharingUpdate ? 'Enviando...' : 'Update'}</span>
           </button>
 
           {isAdmin && isPlayerInMatch && (

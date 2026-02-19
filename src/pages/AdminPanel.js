@@ -53,7 +53,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const [processingAction, setProcessingAction] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
-  const [cachedJoinLink, setCachedJoinLink] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('jugadores');
 
@@ -75,10 +74,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       adminState.setShowArmarEquiposView(true);
     }
   }, [searchParams, adminState.setShowArmarEquiposView]);
-
-  useEffect(() => {
-    setCachedJoinLink('');
-  }, [partidoActual?.id, partidoActual?.codigo]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -185,10 +180,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   };
 
   const resolveMatchJoinLink = async () => {
-    if (cachedJoinLink) {
-      return cachedJoinLink;
-    }
-
     const matchId = partidoActual?.id;
     const matchCode = String(partidoActual?.codigo || '').trim();
     if (!matchId || !matchCode) {
@@ -210,9 +201,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
     const inviteToken = String(inviteRows[0].token || '').trim();
     const baseUrl = getPublicBaseUrl() || window.location.origin;
-    const joinLink = `${baseUrl}/partido/${matchId}/invitacion?codigo=${encodeURIComponent(matchCode)}&invite=${encodeURIComponent(inviteToken)}`;
-    setCachedJoinLink(joinLink);
-    return joinLink;
+    return `${baseUrl}/partido/${matchId}/invitacion?codigo=${encodeURIComponent(matchCode)}&invite=${encodeURIComponent(inviteToken)}`;
   };
 
   const openWhatsAppShare = async ({ title, text, url }) => {
