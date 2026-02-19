@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAmigos } from '../hooks/useAmigos';
 import { PlayerCardTrigger } from './ProfileComponents';
 import MiniFriendCard from './MiniFriendCard';
@@ -10,23 +10,103 @@ import { Check, Loader2, X } from 'lucide-react';
 import InlineNotice from './ui/InlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
+const toCoordinateNumber = (value) => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string') {
+    const normalized = value.trim().replace(',', '.');
+    if (!normalized) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const hasValidCoordinates = (lat, lng) => {
+  const parsedLat = toCoordinateNumber(lat);
+  const parsedLng = toCoordinateNumber(lng);
+
+  if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) return false;
+  if (parsedLat < -90 || parsedLat > 90 || parsedLng < -180 || parsedLng > 180) return false;
+  if (Math.abs(parsedLat) < 0.0001 && Math.abs(parsedLng) < 0.0001) return false;
+
+  return true;
+};
+
+const calculateDistanceKm = (lat1, lng1, lat2, lng2) => {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+    + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180)
+    * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+const sortByDistanceThenName = (items = []) => {
+  return [...items].sort((a, b) => {
+    const da = a.distanceKm;
+    const db = b.distanceKm;
+
+    if (Number.isFinite(da) && Number.isFinite(db)) {
+      return da - db;
+    }
+    if (Number.isFinite(da)) return -1;
+    if (Number.isFinite(db)) return 1;
+
+    return String(a.profile?.nombre || '')
+      .localeCompare(String(b.profile?.nombre || ''), 'es', { sensitivity: 'base' });
+  });
+};
+
+const sortFriendsByDistance = (friends = [], userLocation = null) => {
+  const hasReferenceLocation = hasValidCoordinates(userLocation?.lat, userLocation?.lng);
+
+  const friendsWithDistance = friends.map((friend) => {
+    const lat = toCoordinateNumber(friend?.profile?.latitud);
+    const lng = toCoordinateNumber(friend?.profile?.longitud);
+
+    let distanceKm = null;
+    if (hasReferenceLocation && hasValidCoordinates(lat, lng)) {
+      distanceKm = calculateDistanceKm(userLocation.lat, userLocation.lng, lat, lng);
+    }
+
+    return {
+      ...friend,
+      distanceKm,
+    };
+  });
+
+  return sortByDistanceThenName(friendsWithDistance);
+};
+
 const AmigosView = () => {
-  console.log('[AMIGOS_VIEW] === RENDER START ===');
   const [currentUserId, setCurrentUserId] = useState(null);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const [activeTab, setActiveTab] = useState('discover');
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  const [friendSearchQuery, setFriendSearchQuery] = useState('');
+  const [userLocation, setUserLocation] = useState(null);
+
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+
   const [processingRequests, setProcessingRequests] = useState(new Set());
   const [processingRequestAction, setProcessingRequestAction] = useState({});
+
   const [notice, setNotice] = useState(null);
   const noticeMetaRef = useRef({ key: null, ts: 0 });
   const noticeTimerRef = useRef(null);
   const isMountedRef = useRef(true);
+
   const { markTypeAsRead } = useNotifications();
 
-  // Estado centralizado para el modal de confirmación de eliminación
   const [friendToDelete, setFriendToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -83,38 +163,189 @@ const AmigosView = () => {
     loading: loadingAmigos,
     error,
     getAmigos,
+    getRelationshipStatus,
+    sendFriendRequest,
     getPendingRequests,
     acceptFriendRequest,
     rejectFriendRequest,
     removeFriend,
   } = useAmigos(currentUserId);
 
-  // LOG ESTADO ACTUAL
-  console.log('[AMIGOS_VIEW] Current state:', {
-    currentUserId,
-    amigosCount: amigos?.length || 0,
-    amigosArray: amigos,
-    loadingAmigos,
-    error,
-    pendingRequestsCount: pendingRequests?.length || 0,
-  });
+  const friendIds = useMemo(
+    () => new Set((amigos || []).map((friend) => friend?.profile?.id).filter(Boolean)),
+    [amigos],
+  );
+
+  const incomingPendingIds = useMemo(
+    () => new Set((pendingRequests || []).map((request) => request?.user_id || request?.profile?.id).filter(Boolean)),
+    [pendingRequests],
+  );
+
+  const refreshPendingRequests = useCallback(async () => {
+    const requests = await getPendingRequests();
+    setPendingRequests(requests || []);
+  }, [getPendingRequests]);
+
+  const loadUserLocationFromProfile = useCallback(async (userId) => {
+    if (!userId) {
+      setUserLocation(null);
+      return;
+    }
+
+    try {
+      const { data, error: profileError } = await supabase
+        .from('usuarios')
+        .select('latitud, longitud')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+
+      const lat = toCoordinateNumber(data?.latitud);
+      const lng = toCoordinateNumber(data?.longitud);
+
+      if (hasValidCoordinates(lat, lng)) {
+        setUserLocation({ lat, lng });
+      } else {
+        setUserLocation(null);
+      }
+    } catch (locationError) {
+      console.error('[AMIGOS] Error loading user location:', locationError);
+      setUserLocation(null);
+    }
+  }, []);
+
+  const loadFriendSuggestions = useCallback(async () => {
+    if (!currentUserId) {
+      setSuggestions([]);
+      return;
+    }
+
+    setSuggestionsLoading(true);
+    try {
+      const { data: myRows, error: myRowsError } = await supabase
+        .from('jugadores')
+        .select('partido_id')
+        .eq('usuario_id', currentUserId)
+        .not('partido_id', 'is', null);
+
+      if (myRowsError) throw myRowsError;
+
+      const myMatchIds = [...new Set((myRows || []).map((row) => row.partido_id).filter(Boolean))];
+      if (myMatchIds.length === 0) {
+        setSuggestions([]);
+        return;
+      }
+
+      const { data: sharedRows, error: sharedRowsError } = await supabase
+        .from('jugadores')
+        .select('usuario_id, partido_id')
+        .in('partido_id', myMatchIds)
+        .neq('usuario_id', currentUserId)
+        .not('usuario_id', 'is', null);
+
+      if (sharedRowsError) throw sharedRowsError;
+
+      const sharedCounts = new Map();
+      (sharedRows || []).forEach((row) => {
+        const candidateId = row?.usuario_id;
+        if (!candidateId) return;
+        sharedCounts.set(candidateId, (sharedCounts.get(candidateId) || 0) + 1);
+      });
+
+      let candidateIds = Array.from(sharedCounts.keys());
+      if (candidateIds.length === 0) {
+        setSuggestions([]);
+        return;
+      }
+
+      const excludedIds = new Set([currentUserId, ...friendIds, ...incomingPendingIds]);
+      candidateIds = candidateIds.filter((candidateId) => !excludedIds.has(candidateId));
+
+      if (candidateIds.length === 0) {
+        setSuggestions([]);
+        return;
+      }
+
+      const [{ data: outgoingRelations, error: outgoingError }, { data: incomingRelations, error: incomingError }] = await Promise.all([
+        supabase
+          .from('amigos')
+          .select('friend_id, status')
+          .eq('user_id', currentUserId)
+          .in('friend_id', candidateIds),
+        supabase
+          .from('amigos')
+          .select('user_id, status')
+          .eq('friend_id', currentUserId)
+          .in('user_id', candidateIds),
+      ]);
+
+      if (outgoingError) throw outgoingError;
+      if (incomingError) throw incomingError;
+
+      const blockedIds = new Set();
+      (outgoingRelations || []).forEach((relation) => {
+        if (relation?.status === 'accepted' || relation?.status === 'pending') {
+          blockedIds.add(relation.friend_id);
+        }
+      });
+      (incomingRelations || []).forEach((relation) => {
+        if (relation?.status === 'accepted' || relation?.status === 'pending') {
+          blockedIds.add(relation.user_id);
+        }
+      });
+
+      const suggestionIds = candidateIds.filter((candidateId) => !blockedIds.has(candidateId));
+      if (suggestionIds.length === 0) {
+        setSuggestions([]);
+        return;
+      }
+
+      const { data: users, error: usersError } = await supabase
+        .from('usuarios')
+        .select('id, nombre, email, avatar_url, localidad, ranking, partidos_jugados, posicion, latitud, longitud')
+        .in('id', suggestionIds)
+        .limit(30);
+
+      if (usersError) throw usersError;
+
+      const mappedSuggestions = (users || [])
+        .map((user) => ({
+          ...user,
+          sharedMatches: sharedCounts.get(user.id) || 0,
+        }))
+        .sort((a, b) => {
+          const byShared = Number(b.sharedMatches || 0) - Number(a.sharedMatches || 0);
+          if (byShared !== 0) return byShared;
+
+          const byRanking = Number(b.ranking || 0) - Number(a.ranking || 0);
+          if (byRanking !== 0) return byRanking;
+
+          return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es', { sensitivity: 'base' });
+        })
+        .slice(0, 12);
+
+      setSuggestions(mappedSuggestions);
+    } catch (suggestionsError) {
+      console.error('[AMIGOS] Error loading friend suggestions:', suggestionsError);
+      setSuggestions([]);
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  }, [currentUserId, friendIds, incomingPendingIds]);
 
   // Get current user ID on mount
   useEffect(() => {
     const getCurrentUser = async () => {
-      console.log('[AMIGOS] Getting current user');
-      const { data: { user }, error } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-      if (error) {
-        console.error('[AMIGOS] Error getting current user:', error);
+      if (authError) {
+        console.error('[AMIGOS] Error getting current user:', authError);
         return;
       }
 
-      if (user) {
-        console.log('[AMIGOS] Current user found:', encodeURIComponent(user.id || ''));
+      if (user?.id) {
         setCurrentUserId(user.id);
-      } else {
-        console.log('[AMIGOS] No authenticated user found');
       }
     };
 
@@ -123,39 +354,48 @@ const AmigosView = () => {
 
   // Load friends and pending requests when currentUserId changes
   useEffect(() => {
-    if (currentUserId) {
-      const loadData = async () => {
-        console.log('[AMIGOS] Loading friends and pending requests for user:', currentUserId);
-        setLoading(true);
+    if (!currentUserId) return;
 
-        console.log('[AMIGOS] Fetching friends');
-        await getAmigos();
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([
+        getAmigos(),
+        refreshPendingRequests(),
+        markTypeAsRead('friend_request'),
+        loadUserLocationFromProfile(currentUserId),
+      ]);
+      setLoading(false);
+    };
 
-        console.log('[AMIGOS] Fetching pending requests');
-        const requests = await getPendingRequests();
-        console.log('[AMIGOS] Pending requests received:', requests?.length || 0);
-        setPendingRequests(requests);
-
-        // Mark friend request notifications as read when viewing this screen
-        await markTypeAsRead('friend_request');
-
-        setLoading(false);
-      };
-
-      loadData();
-    }
+    loadData();
   }, [currentUserId]);
+
+  // Load suggestions whenever friendship graph changes
+  useEffect(() => {
+    if (!currentUserId) {
+      setSuggestions([]);
+      return;
+    }
+
+    loadFriendSuggestions();
+  }, [currentUserId, loadFriendSuggestions]);
+
+  useEffect(() => {
+    if (activeTab !== 'discover') {
+      setSearchQuery('');
+      setSearchResults([]);
+    }
+  }, [activeTab]);
 
   // Handle accepting a friend request
   const handleAcceptRequest = async (requestId) => {
     if (processingRequests.has(requestId)) return;
+
     setProcessingRequests((prev) => new Set(prev).add(requestId));
     setProcessingRequestAction((prev) => ({ ...prev, [requestId]: 'accept' }));
 
-    console.log('[AMIGOS] Accepting friend request:', requestId);
     try {
       const result = await acceptFriendRequest(requestId);
-      console.log('[AMIGOS] Accept friend request result:', result);
 
       if (result.success) {
         showInlineNotice({
@@ -163,15 +403,12 @@ const AmigosView = () => {
           type: 'success',
           message: 'Solicitud de amistad aceptada.',
         });
-        // Refresh pending requests and friends list
-        console.log('[AMIGOS] Refreshing pending requests after accept');
-        const requests = await getPendingRequests();
-        setPendingRequests(requests);
 
-        console.log('[AMIGOS] Refreshing friends list after accept');
-        await getAmigos();
+        await Promise.all([
+          refreshPendingRequests(),
+          getAmigos(),
+        ]);
       } else {
-        console.error('[AMIGOS] Error accepting friend request:', result.message);
         notifyBlockingError(result.message || 'Error al aceptar solicitud');
       }
     } finally {
@@ -191,13 +428,12 @@ const AmigosView = () => {
   // Handle rejecting a friend request
   const handleRejectRequest = async (requestId) => {
     if (processingRequests.has(requestId)) return;
+
     setProcessingRequests((prev) => new Set(prev).add(requestId));
     setProcessingRequestAction((prev) => ({ ...prev, [requestId]: 'reject' }));
 
-    console.log('[AMIGOS] Rejecting friend request:', requestId);
     try {
       const result = await rejectFriendRequest(requestId);
-      console.log('[AMIGOS] Reject friend request result:', result);
 
       if (result.success) {
         showInlineNotice({
@@ -205,12 +441,9 @@ const AmigosView = () => {
           type: 'info',
           message: 'Solicitud de amistad rechazada.',
         });
-        // Refresh pending requests
-        console.log('[AMIGOS] Refreshing pending requests after reject');
-        const requests = await getPendingRequests();
-        setPendingRequests(requests);
+
+        await refreshPendingRequests();
       } else {
-        console.error('[AMIGOS] Error rejecting friend request:', result.message);
         notifyBlockingError(result.message || 'Error al rechazar solicitud');
       }
     } finally {
@@ -229,28 +462,18 @@ const AmigosView = () => {
 
   // Handle removing a friend
   const handleRemoveFriend = async (friend) => {
-    // friend.id es el relationship ID (de tabla amigos)
-    // friend.profile es el objeto usuario con todos los datos
-    console.log('[AMIGOS] Removing friend:', {
-      relationshipId: friend.id,
-      friendName: friend.profile?.nombre,
-      friendUserId: friend.profile?.id,
-    });
-
-    if (!friend.id) {
-      console.error('[AMIGOS] No relationship ID found:', friend);
+    if (!friend?.id) {
       showInlineNotice({
         key: 'friend_remove_missing_relationship',
         type: 'warning',
         message: 'No se pudo identificar la relación para eliminar.',
       });
-      setFriendToDelete(null); // Cerrar modal
+      setFriendToDelete(null);
       return;
     }
 
     try {
       setIsDeleting(true);
-      console.log('[AMIGOS] Calling removeFriend with relationship ID:', friend.id);
       const result = await removeFriend(friend.id);
 
       if (result.success) {
@@ -259,25 +482,19 @@ const AmigosView = () => {
           type: 'success',
           message: 'Amigo eliminado.',
         });
-        // Pequeño delay para asegurar que la DB se actualice antes de refrescar
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        console.log('[AMIGOS] Refreshing friends list after deletion');
+
         await getAmigos();
       } else {
-        console.error('[AMIGOS] Error removing friend:', result.message);
         notifyBlockingError(result.message || 'Error al eliminar amigo');
       }
-    } catch (error) {
-      console.error('[AMIGOS] Exception in handleRemoveFriend:', error);
+    } catch (_error) {
       notifyBlockingError('Error al eliminar amigo');
     } finally {
-      // Cerrar el modal SIEMPRE después de intentar eliminar
       setFriendToDelete(null);
       setIsDeleting(false);
     }
   };
 
-  // Search users function
   const searchUsers = async (query) => {
     if (!query || query.length < 2) {
       setSearchResults([]);
@@ -286,26 +503,48 @@ const AmigosView = () => {
 
     setSearchLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error: searchError } = await supabase
         .from('usuarios')
-        .select('id, nombre, email, avatar_url')
+        .select('id, nombre, email, avatar_url, localidad, ranking, posicion, partidos_jugados, latitud, longitud')
         .or(`nombre.ilike.%${query}%,email.ilike.%${query}%`)
         .neq('id', currentUserId)
         .limit(10);
 
-      if (error) throw error;
+      if (searchError) throw searchError;
       setSearchResults(data || []);
-    } catch (error) {
-      console.error('Error searching users:', error);
+    } catch (searchError) {
+      console.error('Error searching users:', searchError);
       setSearchResults([]);
     } finally {
       setSearchLoading(false);
     }
   };
 
-  // Solo mostrar loading en la carga inicial
+  const filteredFriends = useMemo(() => {
+    const term = String(friendSearchQuery || '').trim().toLowerCase();
+    if (!term) return amigos || [];
+
+    return (amigos || []).filter((friend) => {
+      const profile = friend?.profile || {};
+      const haystack = [
+        profile?.nombre,
+        profile?.email,
+        profile?.localidad,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(term);
+    });
+  }, [amigos, friendSearchQuery]);
+
+  const sortedFriends = useMemo(
+    () => sortFriendsByDistance(filteredFriends, userLocation),
+    [filteredFriends, userLocation],
+  );
+
   if (loading || loadingAmigos) {
-    console.log('[AMIGOS_VIEW] Showing loading spinner - initial load');
     return <LoadingSpinner size="large" fullScreen />;
   }
 
@@ -315,54 +554,6 @@ const AmigosView = () => {
 
   return (
     <div className="w-full m-0 pt-[10px] box-border">
-      {/* Search section */}
-      <div className="flex justify-center w-full my-[10px] mb-[12px] relative box-border z-10">
-        <input
-          type="text"
-          placeholder="Buscar usuarios por nombre o email..."
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            if (e.target.value.trim()) {
-              searchUsers(e.target.value.trim());
-            } else {
-              setSearchResults([]);
-            }
-          }}
-          className="w-full p-[16px_20px] text-[15px] border border-white/20 rounded-2xl bg-white/5 text-white font-oswald box-border placeholder-white/30 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md sm:text-[14px] sm:p-[14px_10px]"
-        />
-
-        {/* Search results */}
-        {searchQuery && (
-          <div className="w-full max-w-[700px] mx-auto rounded-xl absolute left-1/2 -translate-x-1/2 top-full bg-black/90 border border-white/20 max-h-[300px] overflow-y-auto z-[1000] mt-1 sm:max-w-[98vw]">
-            {searchLoading ? (
-              <div className="flex items-center gap-2 p-4 text-white/70 text-sm">
-                <LoadingSpinner size="small" />
-                <span>Buscando...</span>
-              </div>
-            ) : searchResults.length > 0 ? (
-              searchResults.map((user) => (
-                <SearchUserItem
-                  key={user.id}
-                  user={user}
-                  currentUserId={currentUserId}
-                  onInlineNotice={showInlineNotice}
-                  onRequestSent={() => {
-                    setSearchQuery('');
-                    setSearchResults([]);
-                  }}
-                />
-              ))
-            ) : (
-              <div className="p-4 text-center text-white/60 text-sm">
-                No se encontraron usuarios
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Pending requests section */}
       <div className="w-full max-w-[700px] mx-auto min-h-[52px] mb-2">
         <InlineNotice
           type={notice?.type}
@@ -372,90 +563,219 @@ const AmigosView = () => {
         />
       </div>
 
-      {pendingRequests.length > 0 && (
-        <div className="flex flex-col items-center mb-5 md:mb-8 w-full max-w-[500px] mx-auto">
-          <h3 className="text-xl font-semibold my-[20px] mb-[15px] text-white">Solicitudes Pendientes</h3>
-          <div className="flex flex-col gap-2.5 w-full">
-            {pendingRequests.map((request) => (
-              <div key={request.profile?.uuid || request.profile?.id || request.id} className="flex items-center gap-3 p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 mb-3 w-full box-border min-h-[64px] transition-all duration-300 shadow-xl hover:shadow-2xl hover:border-white/20 hover:bg-white/15 sm:p-3">
-                <PlayerCardTrigger profile={request.profile}>
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <img
-                      src={request.profile?.avatar_url || '/profile.svg'}
-                      alt={request.profile?.nombre || 'Usuario'}
-                      className="w-11 h-11 rounded-full object-cover bg-white/20 border-2 border-white/30 shrink-0 sm:w-10 sm:h-10"
-                      onError={(e) => {
-                        console.log('[AMIGOS] Error loading avatar image, using fallback');
-                        e.target.src = '/profile.svg';
+      <div className="w-full max-w-[500px] mx-auto mb-4 bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab('discover')}
+          className={`flex-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase transition-all ${
+            activeTab === 'discover'
+              ? 'bg-primary text-white shadow-lg'
+              : 'text-white/60 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          Descubrir
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('friends')}
+          className={`flex-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase transition-all ${
+            activeTab === 'friends'
+              ? 'bg-primary text-white shadow-lg'
+              : 'text-white/60 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          Mis amigos
+        </button>
+      </div>
+
+      {activeTab === 'discover' ? (
+        <>
+          {/* Search users */}
+          <div className="flex justify-center w-full my-[10px] mb-[12px] relative box-border z-10">
+            <input
+              type="text"
+              placeholder="Buscar usuarios por nombre o email..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (e.target.value.trim()) {
+                  searchUsers(e.target.value.trim());
+                } else {
+                  setSearchResults([]);
+                }
+              }}
+              className="w-full p-[16px_20px] text-[15px] border border-white/20 rounded-2xl bg-white/5 text-white font-oswald box-border placeholder-white/30 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md sm:text-[14px] sm:p-[14px_10px]"
+            />
+
+            {searchQuery && (
+              <div className="w-full max-w-[700px] mx-auto rounded-xl absolute left-1/2 -translate-x-1/2 top-full bg-black/90 border border-white/20 max-h-[300px] overflow-y-auto z-[1000] mt-1 sm:max-w-[98vw]">
+                {searchLoading ? (
+                  <div className="flex items-center gap-2 p-4 text-white/70 text-sm">
+                    <LoadingSpinner size="small" />
+                    <span>Buscando...</span>
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  searchResults.map((user) => (
+                    <SearchUserItem
+                      key={user.id}
+                      user={user}
+                      currentUserId={currentUserId}
+                      getRelationshipStatus={getRelationshipStatus}
+                      sendFriendRequest={sendFriendRequest}
+                      onInlineNotice={showInlineNotice}
+                      onRequestSent={() => {
+                        setSearchQuery('');
+                        setSearchResults([]);
+                        loadFriendSuggestions();
                       }}
                     />
-                    <span className="text-lg font-bold text-white font-oswald uppercase whitespace-nowrap overflow-hidden text-ellipsis mb-1 sm:text-base">
-                      {request.profile?.nombre || 'Usuario'}
-                    </span>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-white/60 text-sm">
+                    No se encontraron usuarios
                   </div>
-                </PlayerCardTrigger>
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    className="h-11 w-11 rounded-xl border border-white/20 bg-[var(--btn-success)] text-white shadow-[0_8px_20px_rgba(39,174,96,0.35)] transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                    onClick={() => handleAcceptRequest(request.id)}
-                    disabled={processingRequests.has(request.id)}
-                    aria-label={processingRequests.has(request.id) && processingRequestAction[request.id] === 'accept' ? 'Aceptando solicitud' : 'Aceptar solicitud'}
-                    title={processingRequests.has(request.id) && processingRequestAction[request.id] === 'accept' ? 'Aceptando solicitud...' : 'Aceptar solicitud'}
-                  >
-                    {processingRequests.has(request.id) && processingRequestAction[request.id] === 'accept' ? (
-                      <Loader2 size={18} className="animate-spin" />
-                    ) : (
-                      <Check size={19} strokeWidth={3} />
-                    )}
-                  </button>
-                  <button
-                    className="h-11 w-11 rounded-xl border border-white/20 bg-[var(--btn-danger)] text-white shadow-[0_8px_20px_rgba(231,76,60,0.3)] transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                    onClick={() => handleRejectRequest(request.id)}
-                    disabled={processingRequests.has(request.id)}
-                    aria-label={processingRequests.has(request.id) && processingRequestAction[request.id] === 'reject' ? 'Rechazando solicitud' : 'Rechazar solicitud'}
-                    title={processingRequests.has(request.id) && processingRequestAction[request.id] === 'reject' ? 'Rechazando solicitud...' : 'Rechazar solicitud'}
-                  >
-                    {processingRequests.has(request.id) && processingRequestAction[request.id] === 'reject' ? (
-                      <Loader2 size={18} className="animate-spin" />
-                    ) : (
-                      <X size={19} strokeWidth={3} />
-                    )}
-                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Pending requests */}
+          {pendingRequests.length > 0 && (
+            <div className="flex flex-col items-center mb-5 md:mb-8 w-full max-w-[500px] mx-auto">
+              <h3 className="text-xl font-semibold my-[20px] mb-[15px] text-white">Solicitudes pendientes</h3>
+              <div className="flex flex-col gap-2.5 w-full">
+                {pendingRequests.map((request) => (
+                  <div key={request.profile?.uuid || request.profile?.id || request.id} className="flex items-center gap-3 p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 mb-3 w-full box-border min-h-[64px] transition-all duration-300 shadow-xl hover:shadow-2xl hover:border-white/20 hover:bg-white/15 sm:p-3">
+                    <PlayerCardTrigger profile={request.profile}>
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <img
+                          src={request.profile?.avatar_url || '/profile.svg'}
+                          alt={request.profile?.nombre || 'Usuario'}
+                          className="w-11 h-11 rounded-full object-cover bg-white/20 border-2 border-white/30 shrink-0 sm:w-10 sm:h-10"
+                          onError={(e) => {
+                            e.target.src = '/profile.svg';
+                          }}
+                        />
+                        <span className="text-lg font-bold text-white font-oswald uppercase whitespace-nowrap overflow-hidden text-ellipsis mb-1 sm:text-base">
+                          {request.profile?.nombre || 'Usuario'}
+                        </span>
+                      </div>
+                    </PlayerCardTrigger>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        className="h-11 w-11 rounded-xl border border-white/20 bg-[var(--btn-success)] text-white shadow-[0_8px_20px_rgba(39,174,96,0.35)] transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                        onClick={() => handleAcceptRequest(request.id)}
+                        disabled={processingRequests.has(request.id)}
+                        aria-label={processingRequests.has(request.id) && processingRequestAction[request.id] === 'accept' ? 'Aceptando solicitud' : 'Aceptar solicitud'}
+                        title={processingRequests.has(request.id) && processingRequestAction[request.id] === 'accept' ? 'Aceptando solicitud...' : 'Aceptar solicitud'}
+                      >
+                        {processingRequests.has(request.id) && processingRequestAction[request.id] === 'accept' ? (
+                          <Loader2 size={18} className="animate-spin" />
+                        ) : (
+                          <Check size={19} strokeWidth={3} />
+                        )}
+                      </button>
+                      <button
+                        className="h-11 w-11 rounded-xl border border-white/20 bg-[var(--btn-danger)] text-white shadow-[0_8px_20px_rgba(231,76,60,0.3)] transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                        onClick={() => handleRejectRequest(request.id)}
+                        disabled={processingRequests.has(request.id)}
+                        aria-label={processingRequests.has(request.id) && processingRequestAction[request.id] === 'reject' ? 'Rechazando solicitud' : 'Rechazar solicitud'}
+                        title={processingRequests.has(request.id) && processingRequestAction[request.id] === 'reject' ? 'Rechazando solicitud...' : 'Rechazar solicitud'}
+                      >
+                        {processingRequests.has(request.id) && processingRequestAction[request.id] === 'reject' ? (
+                          <Loader2 size={18} className="animate-spin" />
+                        ) : (
+                          <X size={19} strokeWidth={3} />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Suggestions */}
+          <div className="flex flex-col items-center mb-10 w-full max-w-[500px] mx-auto">
+            <h3 className="text-xl font-semibold my-[20px] mb-[15px] text-white">Sugerencias de amistad</h3>
+
+            {suggestionsLoading ? (
+              <div className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center gap-2 text-white/70">
+                <LoadingSpinner size="small" />
+                <span className="text-sm">Buscando jugadores con los que compartiste partidos...</span>
+              </div>
+            ) : suggestions.length > 0 ? (
+              <div className="w-full flex flex-col gap-2">
+                {suggestions.map((suggestedUser) => (
+                  <SearchUserItem
+                    key={`suggested-${suggestedUser.id}`}
+                    user={suggestedUser}
+                    currentUserId={currentUserId}
+                    getRelationshipStatus={getRelationshipStatus}
+                    sendFriendRequest={sendFriendRequest}
+                    subtitle={`${suggestedUser.sharedMatches} partido${suggestedUser.sharedMatches === 1 ? '' : 's'} juntos`}
+                    onInlineNotice={showInlineNotice}
+                    onRequestSent={() => {
+                      setSuggestions((prev) => prev.filter((item) => item.id !== suggestedUser.id));
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="w-full text-center p-6 bg-white/5 border border-white/10 rounded-2xl">
+                <p className="text-white/85 font-oswald text-base">Todavia no tenemos sugerencias.</p>
+                <p className="text-white/55 font-oswald text-sm mt-1">
+                  Cuando compartas mas partidos con jugadores nuevos, te los recomendamos aca.
+                </p>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Search friends */}
+          <div className="w-full max-w-[500px] mx-auto mb-4">
+            <input
+              type="text"
+              placeholder="Buscar amigo..."
+              value={friendSearchQuery}
+              onChange={(e) => setFriendSearchQuery(e.target.value)}
+              className="w-full p-[14px_16px] text-[14px] border border-white/20 rounded-2xl bg-white/5 text-white font-oswald box-border placeholder-white/35 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md"
+            />
+          </div>
+
+          {Array.isArray(amigos) && amigos.length > 0 ? (
+            sortedFriends.length > 0 ? (
+              <div className="flex flex-col items-center mb-[350px] w-full max-w-[500px] mx-auto relative z-0">
+                <p className="w-full mb-2 px-1 text-[11px] uppercase tracking-wider text-white/55">
+                  Ordenados por cercania
+                </p>
+                <div className="flex flex-col gap-2 w-full max-w-none overflow-visible sm:gap-1.5">
+                  {sortedFriends.map((amigo) => (
+                    <MiniFriendCard
+                      key={amigo.profile?.uuid || amigo.profile?.id || amigo.id}
+                      friend={amigo}
+                      onRequestRemoveClick={(friend) => setFriendToDelete(friend)}
+                      currentUserId={currentUserId}
+                    />
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+            ) : (
+              <div className="text-center p-10 bg-black/5 rounded-lg mt-5">
+                <p className="m-2.5 text-base text-white">No encontramos amigos para ese criterio.</p>
+                <p className="m-2.5 text-base text-white/65">Proba con otro nombre o email.</p>
+              </div>
+            )
+          ) : (
+            <div className="text-center p-10 bg-black/5 rounded-lg mt-5">
+              <p className="m-2.5 text-base text-white">No tenes amigos agregados todavia.</p>
+              <p className="m-2.5 text-base text-white">Usa la solapa Descubrir para enviar solicitudes.</p>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Friends list section */}
-      {(() => {
-        const hasAmigos = Array.isArray(amigos) && amigos.length > 0;
-
-        return hasAmigos ? (
-          <div className="flex flex-col items-center mb-[350px] w-full max-w-[500px] mx-auto relative z-0">
-            <h3 className="text-xl font-semibold my-[20px] mb-[15px] text-white">Mis Amigos ({amigos.length})</h3>
-            <div className="flex flex-col gap-2 mt-[15px] w-full max-w-none overflow-visible sm:gap-1.5">
-              {amigos.map((amigo) => (
-                <MiniFriendCard
-                  key={amigo.profile?.uuid || amigo.profile?.id || amigo.id}
-                  friend={amigo}
-                  onRemove={handleRemoveFriend}
-                  onRequestRemoveClick={(friend) => setFriendToDelete(friend)}
-                  currentUserId={currentUserId}
-                />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="text-center p-10 bg-black/5 rounded-lg mt-5">
-            <p className="m-2.5 text-base text-white">No tienes amigos agregados todavía.</p>
-            <p className="m-2.5 text-base text-white">Busca jugadores y envíales solicitudes de amistad.</p>
-          </div>
-        );
-      })()}
-
-      {/* Modal centralizado de confirmación de eliminación */}
       <ConfirmModal
         isOpen={!!friendToDelete}
         onCancel={() => setFriendToDelete(null)}
@@ -465,7 +785,7 @@ const AmigosView = () => {
           }
         }}
         title="Eliminar amigo"
-        message={`¿Estás seguro que deseas eliminar a ${friendToDelete?.profile?.nombre || 'este jugador'} de tu lista de amigos?`}
+        message={`¿Estas seguro que deseas eliminar a ${friendToDelete?.profile?.nombre || 'este jugador'} de tu lista de amigos?`}
         confirmText="Eliminar"
         cancelText="Cancelar"
         isDeleting={isDeleting}
@@ -474,11 +794,17 @@ const AmigosView = () => {
   );
 };
 
-// Component for search result items
-const SearchUserItem = ({ user, currentUserId, onRequestSent, onInlineNotice }) => {
+const SearchUserItem = ({
+  user,
+  currentUserId,
+  getRelationshipStatus,
+  sendFriendRequest,
+  subtitle = null,
+  onRequestSent,
+  onInlineNotice,
+}) => {
   const [loading, setLoading] = useState(false);
   const [relationshipStatus, setRelationshipStatus] = useState(null);
-  const { sendFriendRequest, getRelationshipStatus } = useAmigos(currentUserId);
 
   useEffect(() => {
     const checkRelationship = async () => {
@@ -486,12 +812,13 @@ const SearchUserItem = ({ user, currentUserId, onRequestSent, onInlineNotice }) 
       setRelationshipStatus(status);
     };
 
-    if (user.id && currentUserId) {
+    if (user.id && currentUserId && typeof getRelationshipStatus === 'function') {
       checkRelationship();
     }
   }, [user.id, currentUserId, getRelationshipStatus]);
 
   const handleSendRequest = async () => {
+    if (typeof sendFriendRequest !== 'function') return;
     setLoading(true);
     try {
       const result = await sendFriendRequest(user.id);
@@ -503,11 +830,13 @@ const SearchUserItem = ({ user, currentUserId, onRequestSent, onInlineNotice }) 
             message: 'Solicitud enviada.',
           });
         }
-        onRequestSent();
+        if (typeof onRequestSent === 'function') {
+          onRequestSent();
+        }
       } else {
         notifyBlockingError(result.message || 'Error al enviar solicitud');
       }
-    } catch (error) {
+    } catch (_error) {
       notifyBlockingError('Error al enviar solicitud');
     } finally {
       setLoading(false);
@@ -528,18 +857,18 @@ const SearchUserItem = ({ user, currentUserId, onRequestSent, onInlineNotice }) 
   };
 
   return (
-    <div className="flex items-center justify-between p-3 border-b border-white/10 transition-colors hover:bg-white/5 last:border-b-0">
+    <div className="flex items-center justify-between p-3 border border-white/10 rounded-xl bg-white/5 transition-colors hover:bg-white/10">
       <PlayerCardTrigger profile={user}>
-        <div className="flex items-center gap-3 flex-1 cursor-pointer">
+        <div className="flex items-center gap-3 flex-1 cursor-pointer min-w-0">
           <img
             src={user.avatar_url || '/profile.svg'}
             alt={user.nombre}
             className="w-10 h-10 rounded-full object-cover"
             onError={(e) => { e.target.src = '/profile.svg'; }}
           />
-          <div className="flex-1">
-            <div className="font-semibold text-white text-sm">{user.nombre}</div>
-            <div className="text-xs text-white/60 mt-0.5">{user.email}</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-white text-sm truncate">{user.nombre}</div>
+            <div className="text-xs text-white/60 mt-0.5 truncate">{subtitle || user.email || 'Usuario'}</div>
           </div>
         </div>
       </PlayerCardTrigger>

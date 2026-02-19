@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CalendarClock, CheckCircle, ClipboardList, Trophy, UserPlus, Users, Vote, XCircle } from 'lucide-react';
 import { toBigIntId } from '../utils';
@@ -11,6 +11,7 @@ import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartM
 import { applyMatchNameQuotes, quoteMatchName, resolveNotificationMatchName } from '../utils/notificationText';
 import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OPTIONS } from '../utils/notificationFilters';
 import { buildNotificationFallbackRoute, extractNotificationMatchId } from '../utils/notificationRoutes';
+import { groupNotificationsByMatch } from '../utils/notificationGrouping';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 
@@ -20,7 +21,9 @@ const NotificationsView = () => {
   const {
     notifications,
     markAsRead,
+    markAllAsRead,
     fetchNotifications,
+    unreadCount,
   } = useNotifications();
 
 
@@ -28,6 +31,7 @@ const NotificationsView = () => {
 
   const [processingRequests, setProcessingRequests] = useState(new Set());
   const [activeFilter, setActiveFilter] = useState('all');
+  const [markingAllAsRead, setMarkingAllAsRead] = useState(false);
 
   useEffect(() => {
     console.log('[NOTIFICATIONS_VIEW] Component mounted, fetching notifications');
@@ -362,8 +366,36 @@ const NotificationsView = () => {
   };
 
   const filteredNotifications = filterNotificationsByCategory(notifications, activeFilter);
+  const groupedNotifications = useMemo(
+    () => groupNotificationsByMatch(filteredNotifications),
+    [filteredNotifications],
+  );
   const hasAnyNotifications = notifications.length > 0;
-  const hasVisibleNotifications = filteredNotifications.length > 0;
+  const hasVisibleNotifications = groupedNotifications.length > 0;
+  const hasUnreadNotifications = (unreadCount?.total || 0) > 0;
+
+  const handleMarkAllAsRead = async () => {
+    if (markingAllAsRead || !hasUnreadNotifications) return;
+    setMarkingAllAsRead(true);
+    try {
+      await markAllAsRead();
+    } finally {
+      setMarkingAllAsRead(false);
+    }
+  };
+
+  const markGroupAsRead = async (group) => {
+    const unreadItems = (group?.items || []).filter((item) => !item.read);
+    if (unreadItems.length === 0) return;
+    await Promise.all(unreadItems.map((item) => markAsRead(item.id)));
+  };
+
+  const handleGroupedNotificationClick = async (group, e) => {
+    const notification = group?.latest;
+    if (!notification || notification.type === 'friend_request') return;
+    await markGroupAsRead(group);
+    await handleNotificationClick(notification, e);
+  };
 
   return (
     <div
@@ -374,6 +406,22 @@ const NotificationsView = () => {
       }}
     >
       <div className="w-full max-w-[600px] mx-auto">
+        {hasAnyNotifications && (
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <span className="text-xs font-oswald text-white/65">
+              No leídas: {unreadCount?.total || 0}
+            </span>
+            <button
+              type="button"
+              onClick={handleMarkAllAsRead}
+              disabled={!hasUnreadNotifications || markingAllAsRead}
+              className="shrink-0 px-3 py-1.5 rounded-full border text-xs font-oswald transition-colors bg-white/5 border-white/20 text-white/75 hover:bg-white/10 hover:text-white disabled:opacity-45 disabled:cursor-not-allowed"
+            >
+              {markingAllAsRead ? 'Marcando...' : 'Marcar todas como leídas'}
+            </button>
+          </div>
+        )}
+
         {hasAnyNotifications && (
           <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
             {NOTIFICATION_FILTER_OPTIONS.map((option) => {
@@ -419,7 +467,8 @@ const NotificationsView = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3">
-            {filteredNotifications.map((notification) => {
+            {groupedNotifications.map((group) => {
+              const notification = group.latest;
               const Icon = getNotificationIcon(notification.type);
               const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
               const isSurveyReminder = notification.type === 'survey_reminder';
@@ -440,22 +489,22 @@ const NotificationsView = () => {
                   : isSurveyResults
                     ? getSurveyResultsReadyMessage({ matchName: quotedMatchName })
                     : applyMatchNameQuotes(notification.message || '', matchName);
+              const groupedMatchInfo = group.matchId && group.count > 1
+                ? `+${group.count - 1} más de este partido`
+                : null;
               return (
                 <div
-                key={notification.id}
+                key={group.key}
                 role="button"
                 tabIndex={0}
-                className={`flex p-3 bg-white/10 rounded-lg cursor-pointer transition-all duration-200 relative border border-white/10 hover:bg-white/15 ${!notification.read ? 'bg-[#128BE9]/15 border-[#128BE9]/35' : ''
+                className={`flex p-3 bg-white/10 rounded-lg cursor-pointer transition-all duration-200 relative border border-white/10 hover:bg-white/15 ${group.unreadCount > 0 ? 'bg-[#128BE9]/15 border-[#128BE9]/35' : ''
                   } ${notification.type === 'friend_request' ? 'cursor-default' : ''}`}
                 onClick={(e) => {
-                  console.log('[NOTIFICATION_CLICK] Notification clicked, type:', notification.type);
-                  if (notification.type !== 'friend_request') {
-                    handleNotificationClick(notification, e);
-                  }
+                  if (notification.type !== 'friend_request') handleGroupedNotificationClick(group, e);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && notification.type !== 'friend_request') {
-                    handleNotificationClick(notification, e);
+                    handleGroupedNotificationClick(group, e);
                   }
                 }}
               >
@@ -465,6 +514,9 @@ const NotificationsView = () => {
                 <div className="flex-1">
                   <div className="font-bold text-white mb-1">{displayTitle}</div>
                   <div className="text-white/80 text-sm mb-2">{displayMessage}</div>
+                  {groupedMatchInfo && (
+                    <div className="text-[11px] text-white/55 mb-1">{groupedMatchInfo}</div>
+                  )}
                   <div className="text-xs text-white/60">{formatDate(notification.created_at)}</div>
 
                   {/* Friend request action buttons */}
@@ -493,7 +545,7 @@ const NotificationsView = () => {
                     </div>
                   )}
                 </div>
-                {!notification.read && (
+                {group.unreadCount > 0 && (
                   <div className="absolute top-3 right-3 w-2 h-2 bg-[#128BE9] rounded-full"></div>
                 )}
               </div>

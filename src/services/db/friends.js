@@ -82,7 +82,7 @@ export const getAmigos = async (userId) => {
     ] = await Promise.all([
       supabase
         .from('usuarios')
-        .select('id, nombre, avatar_url, localidad, ranking, partidos_jugados, posicion, email, pierna_habil, nivel')
+        .select('id, nombre, avatar_url, localidad, ranking, partidos_jugados, posicion, email, pierna_habil, nivel, latitud, longitud')
         .in('id', friendIds),
       supabase
         .from('profiles')

@@ -89,6 +89,48 @@ const hasValidCoordinates = (lat, lng) => {
   return true;
 };
 
+const MATCH_DISTANCE_OPTIONS_KM = [5, 10, 15, 20, 25, 30];
+
+const resolveMatchCoordinates = (partido) => {
+  const directPairs = [
+    [partido?.latitud, partido?.longitud],
+    [partido?.latitude, partido?.longitude],
+    [partido?.sede_latitud, partido?.sede_longitud],
+    [partido?.sede_lat, partido?.sede_lng],
+    [partido?.cancha_latitud, partido?.cancha_longitud],
+    [partido?.cancha_lat, partido?.cancha_lng],
+    [partido?.location_lat, partido?.location_lng],
+    [partido?.geo_lat, partido?.geo_lng],
+  ];
+
+  for (const [rawLat, rawLng] of directPairs) {
+    const lat = toCoordinateNumber(rawLat);
+    const lng = toCoordinateNumber(rawLng);
+    if (hasValidCoordinates(lat, lng)) {
+      return { lat, lng };
+    }
+  }
+
+  const mapsData = partido?.sedeMaps || partido?.sede_maps || null;
+  if (mapsData && typeof mapsData === 'object') {
+    const mapsPairs = [
+      [mapsData?.lat, mapsData?.lng],
+      [mapsData?.latitude, mapsData?.longitude],
+      [mapsData?.location?.lat, mapsData?.location?.lng],
+    ];
+
+    for (const [rawLat, rawLng] of mapsPairs) {
+      const lat = toCoordinateNumber(rawLat);
+      const lng = toCoordinateNumber(rawLng);
+      if (hasValidCoordinates(lat, lng)) {
+        return { lat, lng };
+      }
+    }
+  }
+
+  return null;
+};
+
 const QuieroJugar = () => {
   const MAX_SUBSTITUTE_SLOTS = 4;
 
@@ -102,6 +144,10 @@ const QuieroJugar = () => {
   const [sortBy, setSortBy] = useState('distance');
   const [userLocation, setUserLocation] = useState(null);
   const [matchSortBy, setMatchSortBy] = useState('proximidad');
+  const [maxMatchDistanceKm, setMaxMatchDistanceKm] = useState(() => {
+    const saved = Number(sessionStorage.getItem('quiero-jugar-match-distance-km'));
+    return MATCH_DISTANCE_OPTIONS_KM.includes(saved) ? saved : 30;
+  });
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = sessionStorage.getItem('quiero-jugar-tab');
     return savedTab === 'players' || savedTab === 'matches' ? savedTab : 'matches';
@@ -124,6 +170,10 @@ const QuieroJugar = () => {
       getUserLocation();
     }
   }, [user]);
+
+  useEffect(() => {
+    sessionStorage.setItem('quiero-jugar-match-distance-km', String(maxMatchDistanceKm));
+  }, [maxMatchDistanceKm]);
 
   useEffect(() => {
     const resolveActionPlayerRelationship = async () => {
@@ -455,96 +505,223 @@ const QuieroJugar = () => {
         {activeTab === 'matches' ? (
           // Matches Tab
           (() => {
-            const filteredPartidos = partidosAbiertos.filter((partido) => {
-              const matchDateTime = new Date(`${partido.fecha}T${partido.hora}`);
-              const now = new Date();
-              const oneHourAfter = new Date(matchDateTime.getTime() + 60 * 60 * 1000);
-              return now <= oneHourAfter;
+            const now = new Date();
+            const activePartidos = partidosAbiertos
+              .map((partido) => {
+                const matchDateTime = new Date(`${partido.fecha}T${partido.hora}`);
+                const oneHourAfter = new Date(matchDateTime.getTime() + 60 * 60 * 1000);
+                if (now > oneHourAfter) return null;
+
+                const matchCoordinates = resolveMatchCoordinates(partido);
+                const distanceKm = userLocation && matchCoordinates
+                  ? calculateDistance(
+                    userLocation.lat,
+                    userLocation.lng,
+                    matchCoordinates.lat,
+                    matchCoordinates.lng,
+                  )
+                  : null;
+
+                return {
+                  ...partido,
+                  distanceKm,
+                };
+              })
+              .filter(Boolean);
+
+            const filteredPartidos = activePartidos.filter((partido) => {
+              if (!Number.isFinite(partido.distanceKm)) return true;
+              return partido.distanceKm <= maxMatchDistanceKm;
             });
 
             const sortedPartidos = [...filteredPartidos].sort((a, b) => {
               if (matchSortBy === 'proximidad') {
-                const dateA = new Date(`${a.fecha}T${a.hora}`);
-                const dateB = new Date(`${b.fecha}T${b.hora}`);
-                return dateA.getTime() - dateB.getTime();
-              } else {
-                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                const hasDistanceA = Number.isFinite(a.distanceKm);
+                const hasDistanceB = Number.isFinite(b.distanceKm);
+
+                if (hasDistanceA && hasDistanceB) {
+                  const byDistance = a.distanceKm - b.distanceKm;
+                  if (byDistance !== 0) return byDistance;
+                }
+
+                if (hasDistanceA && !hasDistanceB) return -1;
+                if (!hasDistanceA && hasDistanceB) return 1;
+
+                const dateA = new Date(`${a.fecha}T${a.hora}`).getTime();
+                const dateB = new Date(`${b.fecha}T${b.hora}`).getTime();
+                return dateA - dateB;
               }
+
+              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
             });
 
-            return filteredPartidos.length === 0 ? (
-              <EmptyStateCard
-                icon={CalendarX2}
-                title="Sin partidos abiertos"
-                titleClassName="font-oswald text-[30px] font-semibold leading-tight text-white"
-                description="Cuando se publique un partido con cupos disponibles, te va a aparecer acá."
-                actionLabel="Crear partido"
-                actionClassName={`${PRIMARY_CTA_BUTTON_CLASS} mt-6 max-w-[340px] mx-auto`}
-                onAction={() => navigate('/nuevo-partido')}
-              />
-            ) : (
+            if (activePartidos.length === 0) {
+              return (
+                <EmptyStateCard
+                  icon={CalendarX2}
+                  title="Sin partidos abiertos"
+                  titleClassName="font-oswald text-[30px] font-semibold leading-tight text-white"
+                  description="Cuando se publique un partido con cupos disponibles, te va a aparecer acá."
+                  actionLabel="Crear partido"
+                  actionClassName={`${PRIMARY_CTA_BUTTON_CLASS} mt-6 max-w-[340px] mx-auto`}
+                  onAction={() => navigate('/nuevo-partido')}
+                />
+              );
+            }
+
+            return (
               <>
-                {sortedPartidos.map((partido) => {
-                  const cupoMaximo = Number(partido.cupo_jugadores || 20);
-                  const jugadores = Array.isArray(partido.jugadores) ? partido.jugadores : [];
-                  const jugadoresCount = jugadores.length;
-                  const flaggedSubstitutes = jugadores.filter((j) => Boolean(j?.is_substitute)).length;
-                  const overflowSubstitutes = Math.max(0, jugadoresCount - cupoMaximo);
-                  const substitutesCount = Math.min(MAX_SUBSTITUTE_SLOTS, Math.max(flaggedSubstitutes, overflowSubstitutes));
-                  const titularesCount = Math.max(0, jugadoresCount - substitutesCount);
-                  const titularesDisplayCount = Math.min(titularesCount, cupoMaximo);
-                  const isComplete = titularesDisplayCount >= cupoMaximo;
-                  const locationLabel = buildMatchLocationLabel(partido);
-                  const formattedDate = new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+                <div className="w-full max-w-[500px] mb-4 p-3 rounded-xl border border-white/10 bg-white/5">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-white/80">
+                      Distancia maxima de partidos
+                    </span>
+                    <span className="text-xs font-bold text-[#9ed3ff]">
+                      {maxMatchDistanceKm} km
+                    </span>
+                  </div>
 
-                  return (
-                    <div key={partido.id} className="w-full max-w-[500px] bg-[#1e293b]/70 backdrop-blur-sm rounded-2xl p-5 mb-3 border border-white/10 shadow-lg hover:border-white/20 transition-all duration-300">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex flex-col flex-1 min-w-0 pr-3">
-                          <span className="text-xs text-white/60 font-oswald flex items-center gap-1.5 font-light tracking-wide uppercase">
-                            <span className="bg-white/10 px-2 py-1 rounded-lg flex items-center gap-1.5 border border-white/5"><Calendar size={12} className="text-[#128BE9]" /> {formattedDate}</span>
-                            <span className="bg-white/10 px-2 py-1 rounded-lg flex items-center gap-1.5 border border-white/5"><Clock size={12} className="text-[#128BE9]" /> {partido.hora} hs</span>
-                          </span>
-                        </div>
-                        <div className="shrink-0 flex items-center gap-1.5">
-                          {isComplete ? (
-                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded border border-emerald-400/20 tracking-wider">
-                              {titularesDisplayCount}/{cupoMaximo}
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold text-white/90 bg-white/10 px-2 py-1 rounded border border-white/20 tracking-wider">
-                              {titularesDisplayCount}/{cupoMaximo}
-                            </span>
+                  <input
+                    type="range"
+                    min={5}
+                    max={30}
+                    step={5}
+                    value={maxMatchDistanceKm}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      if (MATCH_DISTANCE_OPTIONS_KM.includes(value)) {
+                        setMaxMatchDistanceKm(value);
+                      }
+                    }}
+                    className="w-full accent-[#128BE9]"
+                  />
+
+                  <div className="mt-2 grid grid-cols-6 gap-1.5">
+                    {MATCH_DISTANCE_OPTIONS_KM.map((distanceOption) => (
+                      <button
+                        key={distanceOption}
+                        type="button"
+                        onClick={() => setMaxMatchDistanceKm(distanceOption)}
+                        className={`rounded-md py-1 text-[11px] font-bold transition-all border ${maxMatchDistanceKm === distanceOption
+                          ? 'bg-white/15 text-white border-white/30'
+                          : 'bg-transparent text-white/45 border-white/10 hover:bg-white/10 hover:text-white/80'
+                          }`}
+                      >
+                        {distanceOption}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setMatchSortBy('proximidad')}
+                      className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide uppercase border transition-all ${matchSortBy === 'proximidad'
+                        ? 'bg-white/10 text-white border-white/30'
+                        : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
+                        }`}
+                    >
+                      Proximidad
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMatchSortBy('recientes')}
+                      className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide uppercase border transition-all ${matchSortBy === 'recientes'
+                        ? 'bg-white/10 text-white border-white/30'
+                        : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
+                        }`}
+                    >
+                      Recientes
+                    </button>
+                  </div>
+
+                  <p className="mt-2 text-[11px] text-white/55">
+                    {userLocation
+                      ? 'Filtramos por distancia solo los partidos con coordenadas.'
+                      : 'Activa ubicacion o cargala en tu perfil para filtrar por distancia.'}
+                  </p>
+                </div>
+
+                {sortedPartidos.length === 0 ? (
+                  <div className="w-full max-w-[500px] rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
+                    <p className="text-white font-oswald text-base">
+                      No hay partidos dentro de {maxMatchDistanceKm} km.
+                    </p>
+                    <p className="text-white/60 font-oswald text-sm mt-1">
+                      Proba aumentar la distancia maxima para ver mas opciones.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {sortedPartidos.map((partido) => {
+                      const cupoMaximo = Number(partido.cupo_jugadores || 20);
+                      const jugadores = Array.isArray(partido.jugadores) ? partido.jugadores : [];
+                      const jugadoresCount = jugadores.length;
+                      const flaggedSubstitutes = jugadores.filter((j) => Boolean(j?.is_substitute)).length;
+                      const overflowSubstitutes = Math.max(0, jugadoresCount - cupoMaximo);
+                      const substitutesCount = Math.min(MAX_SUBSTITUTE_SLOTS, Math.max(flaggedSubstitutes, overflowSubstitutes));
+                      const titularesCount = Math.max(0, jugadoresCount - substitutesCount);
+                      const titularesDisplayCount = Math.min(titularesCount, cupoMaximo);
+                      const isComplete = titularesDisplayCount >= cupoMaximo;
+                      const locationLabel = buildMatchLocationLabel(partido);
+                      const formattedDate = new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+                      const roundedDistanceKm = Number.isFinite(partido.distanceKm) ? Math.round(partido.distanceKm) : null;
+
+                      return (
+                        <div key={partido.id} className="w-full max-w-[500px] bg-[#1e293b]/70 backdrop-blur-sm rounded-2xl p-5 mb-3 border border-white/10 shadow-lg hover:border-white/20 transition-all duration-300">
+                          <div className="flex justify-between items-start mb-4">
+                            <div className="flex flex-col flex-1 min-w-0 pr-3">
+                              <span className="text-xs text-white/60 font-oswald flex items-center gap-1.5 font-light tracking-wide uppercase">
+                                <span className="bg-white/10 px-2 py-1 rounded-lg flex items-center gap-1.5 border border-white/5"><Calendar size={12} className="text-[#128BE9]" /> {formattedDate}</span>
+                                <span className="bg-white/10 px-2 py-1 rounded-lg flex items-center gap-1.5 border border-white/5"><Clock size={12} className="text-[#128BE9]" /> {partido.hora} hs</span>
+                              </span>
+                            </div>
+                            <div className="shrink-0 flex items-center gap-1.5">
+                              {isComplete ? (
+                                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded border border-emerald-400/20 tracking-wider">
+                                  {titularesDisplayCount}/{cupoMaximo}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold text-white/90 bg-white/10 px-2 py-1 rounded border border-white/20 tracking-wider">
+                                  {titularesDisplayCount}/{cupoMaximo}
+                                </span>
+                              )}
+                              {substitutesCount > 0 && (
+                                <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-1 rounded border border-amber-400/30 tracking-wider">
+                                  {substitutesCount}/{MAX_SUBSTITUTE_SLOTS}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-[10px] font-bold text-white/40 border border-white/5 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider">{partido.modalidad || 'F5'}</span>
+                            <span className="text-[10px] font-bold text-white/40 border border-white/5 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider">{partido.tipo_partido || 'Mixto'}</span>
+                          </div>
+
+                          <div className="text-[13px] text-white/60 font-oswald leading-snug break-words">
+                            {locationLabel}
+                          </div>
+                          {userLocation && (
+                            <div className={`mt-1 text-[11px] font-oswald flex items-center gap-1.5 ${Number.isFinite(roundedDistanceKm) ? 'text-[#9ed3ff]' : 'text-white/35'}`}>
+                              <MapPin size={12} />
+                              {Number.isFinite(roundedDistanceKm) ? `A ${roundedDistanceKm} km` : 'Distancia sin datos'}
+                            </div>
                           )}
-                          {substitutesCount > 0 && (
-                            <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-1 rounded border border-amber-400/30 tracking-wider">
-                              {substitutesCount}/{MAX_SUBSTITUTE_SLOTS}
-                            </span>
-                          )}
+
+                          <div className="flex gap-2 mt-4">
+                            <button
+                              className="flex-1 py-3 rounded-xl text-xs font-bold bg-[#128BE9] hover:brightness-110 text-white normal-case shadow-lg active:scale-[0.98] transition-all"
+                              onClick={() => navigate(`/partido-publico/${partido.id}`)}
+                            >
+                              Ver partido
+                            </button>
+                          </div>
                         </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-[10px] font-bold text-white/40 border border-white/5 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider">{partido.modalidad || 'F5'}</span>
-                        <span className="text-[10px] font-bold text-white/40 border border-white/5 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider">{partido.tipo_partido || 'Mixto'}</span>
-                      </div>
-
-                      <div className="text-[13px] text-white/60 font-oswald leading-snug break-words">
-                        {locationLabel}
-                      </div>
-
-
-                      <div className="flex gap-2 mt-4">
-                        <button
-                          className="flex-1 py-3 rounded-xl text-xs font-bold bg-[#128BE9] hover:brightness-110 text-white normal-case shadow-lg active:scale-[0.98] transition-all"
-                          onClick={() => navigate(`/partido-publico/${partido.id}`)}
-                        >
-                          Ver partido
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                      );
+                    })}
+                  </>
+                )}
               </>
             );
           })()
