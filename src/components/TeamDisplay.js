@@ -617,6 +617,15 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   };
 
   const handleWhatsAppShare = () => {
+    if (!teamsConfirmed) {
+      showInlineNotice({
+        key: 'teams_share_requires_confirmation',
+        type: 'warning',
+        message: 'Antes de compartir, confirmá los equipos.',
+      });
+      return;
+    }
+
     const teamA = realtimeTeams.find((t) => t.id === 'equipoA');
     const teamB = realtimeTeams.find((t) => t.id === 'equipoB');
     if (!teamA || !teamB) {
@@ -909,8 +918,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         })()}
 
         {/* Botones de acción con helper copy (mobile-first) */}
-        <div className="w-full mt-2 box-border flex flex-col gap-4">
-          <div className="w-full min-h-[52px]">
+        <div className="w-full mt-0.5 box-border flex flex-col gap-2">
+          <div className={`w-full ${notice?.message ? 'min-h-[52px]' : 'min-h-0'}`}>
             <InlineNotice
               type={notice?.type}
               message={notice?.message}
