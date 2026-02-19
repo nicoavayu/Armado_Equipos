@@ -485,14 +485,14 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
               })}
             </div>
           ) : (
-            <div className="h-[320px] flex flex-col items-center justify-center text-center px-4">
-              <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.25)] mb-4">
+            <div className="h-[320px] flex flex-col items-center justify-center text-center px-4 -translate-y-2 md:-translate-y-1">
+              <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.25)] mb-3.5">
                 <Bell size={30} className="text-white/80" />
               </div>
-              <div className="font-oswald text-[30px] leading-none tracking-[0.01em] text-white/90 font-semibold">
+              <div className="font-oswald text-[24px] sm:text-[22px] leading-tight tracking-[0.01em] text-white/90 font-semibold">
                 Sin notificaciones
               </div>
-              <div className="font-oswald text-[16px] text-white/60 mt-2 max-w-[340px]">
+              <div className="font-oswald text-[16px] text-white/60 mt-1.5 max-w-[340px]">
                 Cuando haya actividad nueva en tus partidos, te va a aparecer acá.
               </div>
             </div>
