@@ -225,6 +225,8 @@ const ProfileCardComponent = ({
   const levelDotColor = vm.level !== null ? getLevelDotColor(vm.level) : null;
   const normalizedCardMaxWidth = Number(cardMaxWidth) > 0 ? Number(cardMaxWidth) : 430;
   const forceSideAwards = awardsLayout === 'side';
+  const reserveLeftAwardsSpace = awardsLayout === 'space-left';
+  const showAwardsRail = awardsLayout !== 'none' && !reserveLeftAwardsSpace;
 
   return (
     <>
@@ -268,23 +270,14 @@ const ProfileCardComponent = ({
         }
         .profile-card-wrapper.pc-awards-force-side {
           touch-action: auto;
-          --pc-award-scale: 0.1;
-          --pc-award-ratio: 0.92;
-          --pc-side-total-factor: calc(
-            1 + (var(--pc-award-ratio) * var(--pc-award-scale) / var(--pc-card-ratio))
-          );
-          --pc-layout-gap: clamp(0.25rem, 1.3vw, 0.5rem);
+        }
+        .profile-card-wrapper.pc-awards-space-left {
+          --pc-layout-gap: clamp(0.35rem, 1.4vw, 0.6rem);
+          --pc-left-slot-width: clamp(42px, 11vw, 56px);
           --pc-card-width: min(
-            260px,
-            calc((100% - var(--pc-layout-gap)) / var(--pc-side-total-factor))
+            min(92vw, 430px),
+            calc(100% - var(--pc-left-slot-width) - var(--pc-layout-gap))
           );
-          --pc-award-height: clamp(
-            calc(var(--pc-card-height) * 0.09),
-            calc(var(--pc-card-height) * 0.1),
-            calc(var(--pc-card-height) * 0.11)
-          );
-          --pc-awards-gap: calc(var(--pc-award-height) * 0.06);
-          box-sizing: border-box;
         }
         .pc-layout {
           width: min(100%, 62rem);
@@ -293,6 +286,10 @@ const ProfileCardComponent = ({
           align-items: center;
           justify-content: center;
           gap: var(--pc-layout-gap);
+        }
+        .pc-layout--single {
+          grid-template-columns: max-content;
+          width: fit-content;
         }
         .pc-layout-scroll {
           width: 100%;
@@ -304,10 +301,19 @@ const ProfileCardComponent = ({
           overflow-x: visible;
           overflow-y: visible;
         }
+        .profile-card-wrapper.pc-awards-space-left .pc-layout {
+          grid-template-columns: var(--pc-left-slot-width) max-content;
+          width: fit-content;
+          max-width: 100%;
+        }
         .profile-card-wrapper.pc-awards-force-side .pc-layout {
           grid-template-columns: max-content max-content;
           width: fit-content;
           max-width: 100%;
+        }
+        .pc-awards-slot {
+          width: var(--pc-left-slot-width);
+          height: 100%;
         }
         .pc-awards-rail {
           width: max-content;
@@ -674,15 +680,18 @@ const ProfileCardComponent = ({
           .profile-card-wrapper.pc-awards-force-side .pc-layout {
             grid-template-columns: max-content max-content;
           }
-          .profile-card-wrapper:not(.pc-awards-force-side) .pc-layout {
+          .profile-card-wrapper.pc-awards-space-left .pc-layout {
+            grid-template-columns: var(--pc-left-slot-width) max-content;
+          }
+          .profile-card-wrapper:not(.pc-awards-force-side):not(.pc-awards-space-left) .pc-layout {
             width: 100%;
             grid-template-columns: minmax(0, 1fr);
             justify-items: center;
           }
-          .profile-card-wrapper:not(.pc-awards-force-side) .pc-main-column {
+          .profile-card-wrapper:not(.pc-awards-force-side):not(.pc-awards-space-left) .pc-main-column {
             order: 1;
           }
-          .profile-card-wrapper:not(.pc-awards-force-side) .pc-awards-rail {
+          .profile-card-wrapper:not(.pc-awards-force-side):not(.pc-awards-space-left) .pc-awards-rail {
             order: 2;
             width: min(100%, var(--pc-card-width));
             grid-auto-flow: column;
@@ -694,7 +703,7 @@ const ProfileCardComponent = ({
             -webkit-overflow-scrolling: touch;
             scrollbar-width: thin;
           }
-          .profile-card-wrapper:not(.pc-awards-force-side) .pc-award-tile {
+          .profile-card-wrapper:not(.pc-awards-force-side):not(.pc-awards-space-left) .pc-award-tile {
             flex: 0 0 auto;
           }
         }
@@ -702,28 +711,32 @@ const ProfileCardComponent = ({
 
       <div
         ref={wrapRef}
-        className={`profile-card-wrapper${screenMode ? ' profile-card-screen' : ''}${forceSideAwards ? ' pc-awards-force-side' : ''}`}
+        className={`profile-card-wrapper${screenMode ? ' profile-card-screen' : ''}${forceSideAwards ? ' pc-awards-force-side' : ''}${reserveLeftAwardsSpace ? ' pc-awards-space-left' : ''}`}
         style={{
           '--pc-card-ratio': String(frameRatio),
           '--pc-card-width': `min(92vw, ${normalizedCardMaxWidth}px)`,
         }}
       >
         <div className="pc-layout-scroll">
-          <div className="pc-layout">
-            <aside className="pc-awards-rail" aria-label="Premios del jugador">
-              <div className="pc-award-tile">
-                <img className="pc-award-image" src="/mvp_award.png" alt="Premio MVP" loading="lazy" decoding="async" />
-                <span ref={mvpRef} className="pc-badge-count pc-award-count">{vm.mvp}</span>
-              </div>
-              <div className="pc-award-tile">
-                <img className="pc-award-image" src="/goalkeeper_award.png" alt="Premio arquero" loading="lazy" decoding="async" />
-                <span ref={gkRef} className="pc-badge-count pc-award-count">{vm.gk}</span>
-              </div>
-              <div className="pc-award-tile">
-                <img className="pc-award-image" src="/redcard_award.png" alt="Premio tarjeta roja" loading="lazy" decoding="async" />
-                <span ref={redRef} className="pc-badge-count pc-award-count">{vm.red}</span>
-              </div>
-            </aside>
+          <div className={`pc-layout${!showAwardsRail && !reserveLeftAwardsSpace ? ' pc-layout--single' : ''}`}>
+            {showAwardsRail ? (
+              <aside className="pc-awards-rail" aria-label="Premios del jugador">
+                <div className="pc-award-tile">
+                  <img className="pc-award-image" src="/mvp_award.png" alt="Premio MVP" loading="lazy" decoding="async" />
+                  <span ref={mvpRef} className="pc-badge-count pc-award-count">{vm.mvp}</span>
+                </div>
+                <div className="pc-award-tile">
+                  <img className="pc-award-image" src="/goalkeeper_award.png" alt="Premio arquero" loading="lazy" decoding="async" />
+                  <span ref={gkRef} className="pc-badge-count pc-award-count">{vm.gk}</span>
+                </div>
+                <div className="pc-award-tile">
+                  <img className="pc-award-image" src="/redcard_award.png" alt="Premio tarjeta roja" loading="lazy" decoding="async" />
+                  <span ref={redRef} className="pc-badge-count pc-award-count">{vm.red}</span>
+                </div>
+              </aside>
+            ) : reserveLeftAwardsSpace ? (
+              <div className="pc-awards-slot" aria-hidden="true" />
+            ) : null}
 
             <div className="pc-main-column">
               <div className="pc-stage">

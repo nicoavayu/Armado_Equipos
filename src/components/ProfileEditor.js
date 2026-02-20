@@ -94,7 +94,7 @@ const ProfileEditorForm = ({
           }}
           isVisible={true}
           performanceMode={false}
-          awardsLayout="side"
+          awardsLayout="space-left"
           enableTilt={false}
         />
       </div>
@@ -914,7 +914,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
               }}
               isVisible={true}
-              awardsLayout="side"
+              awardsLayout="space-left"
               enableTilt={false}
             />
           </div>
