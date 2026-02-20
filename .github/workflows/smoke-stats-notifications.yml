@@ -19,9 +19,16 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Use npm 11
+        run: npm install -g npm@11
+
+      - name: Print runtime versions
+        run: |
+          node -v
+          npm -v
+
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --fund=false --loglevel verbose
 
       - name: Run smoke tests (stats + notifications)
         run: CI=true npm test -- --watchAll=false --runInBand --runTestsByPath src/__tests__/statsSummary.test.js src/__tests__/notificationFilters.test.js src/__tests__/notificationRoutes.test.js
-
