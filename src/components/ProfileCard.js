@@ -229,7 +229,7 @@ const ProfileCardComponent = ({
   const reserveLeftAwardsSpace = awardsLayout === 'space-left';
   const showAwardsRail = awardsLayout !== 'none' && !reserveLeftAwardsSpace;
   const resolvedCardWidth = reserveLeftAwardsSpace
-    ? `min(57.6vw, ${Math.round(normalizedCardMaxWidth * 0.8)}px)`
+    ? `min(64.8vw, ${Math.round(normalizedCardMaxWidth * 0.9)}px)`
     : `min(92vw, ${normalizedCardMaxWidth}px)`;
 
   return (
@@ -277,7 +277,7 @@ const ProfileCardComponent = ({
         }
         .profile-card-wrapper.pc-awards-space-left {
           --pc-layout-gap: 0px;
-          --pc-card-target-width: 57.6vw;
+          --pc-card-target-width: 64.8vw;
           --pc-card-width: min(
             var(--pc-card-target-width),
             100%
