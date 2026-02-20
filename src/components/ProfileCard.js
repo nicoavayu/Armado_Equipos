@@ -88,10 +88,6 @@ const getAvatar = (p) => {
 
 const ANIM = { SMOOTH: 600, INIT: 1500, OX: 70, OY: 60 };
 
-// Photo mask positioning constants (adjust for perfect alignment)
-const HOLE_SIZE = 176; // px - diameter of circular mask (increased ~10%)
-const HOLE_TOP = 80; // px - distance from card top
-
 const ProfileCardComponent = ({
   profile,
   isVisible = true,
@@ -99,6 +95,9 @@ const ProfileCardComponent = ({
   ratingOverride = null,
   disableInternalMotion = false,
   performanceMode = false,
+  cardRatio = 0.72,
+  cardMaxWidth = 430,
+  screenMode = false,
 }) => {
   const wrapRef = useRef(null);
   const cardRef = useRef(null);
@@ -207,28 +206,245 @@ const ProfileCardComponent = ({
 
   if (!isVisible || !vm) return null;
   const levelDotColor = vm.level !== null ? getLevelDotColor(vm.level) : null;
+  const normalizedCardRatio = Number(cardRatio) > 0 ? Number(cardRatio) : 0.72;
+  const normalizedCardMaxWidth = Number(cardMaxWidth) > 0 ? Number(cardMaxWidth) : 430;
 
   return (
     <>
       <style>{`
-        .profile-card-wrapper { 
-          --card-radius: 1.5rem; 
-          --glow-blue: rgba(0, 200, 255, 1); 
+        .profile-card-screen {
+          min-height: 100%;
+          padding-top: max(0px, env(safe-area-inset-top));
+          padding-right: max(0px, env(safe-area-inset-right));
+          padding-bottom: max(0px, env(safe-area-inset-bottom));
+          padding-left: max(0px, env(safe-area-inset-left));
+          box-sizing: border-box;
+        }
+        .profile-card-wrapper {
+          --card-radius: 1.5rem;
+          --glow-blue: rgba(0, 200, 255, 1);
           --rating-border: rgba(0, 200, 255, 1);
           --rating-glow1: rgba(0, 200, 255, 0.8);
           --rating-glow2: rgba(0, 200, 255, 0.4);
+          --pc-card-width: min(92vw, 430px);
+          --pc-card-ratio: 0.72;
+          --pc-photo-size: 51.8%;
+          --pc-photo-top: 16.9%;
+          --pc-side-top: 39.5%;
+          --pc-center-top: 56.8%;
+          --pc-awards-bottom: 7.6%;
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          overflow: visible;
+          perspective: 1000px;
+          touch-action: none;
           -webkit-text-size-adjust: 100%;
           text-size-adjust: 100%;
         }
-        .profile-card-main { 
+        .pc-stage {
+          position: relative;
+          width: var(--pc-card-width);
+          overflow: visible;
+        }
+        .pc-glow-layer {
+          position: absolute;
+          top: -12%;
+          left: -12%;
+          right: -12%;
+          bottom: -12%;
+          pointer-events: none;
+          background: radial-gradient(ellipse at center, rgba(0, 180, 255, 0.5) 0%, rgba(0, 160, 255, 0.3) 30%, transparent 65%);
+          filter: blur(35px);
+          z-index: 0;
+        }
+        .pc-card-shell {
+          position: relative;
+          width: 100%;
+          z-index: 1;
+        }
+        .profile-card-main,
+        .pc-card-main {
           background: transparent;
+          position: relative;
+          width: 100%;
+          aspect-ratio: var(--pc-card-ratio);
+          border-radius: var(--card-radius);
+          overflow: hidden;
+          transform-origin: center;
         }
-        .photo-glow-outer { 
-          /* No glow on photo circle - glow is behind entire card */
+        .pc-card-main--motion {
+          transition: transform 700ms ease-out;
         }
-        .badge-glass { 
-          background: rgba(0, 0, 0, 0.5); 
-          backdrop-filter: blur(8px); 
+        .pc-photo-hole {
+          position: absolute;
+          width: var(--pc-photo-size);
+          aspect-ratio: 1 / 1;
+          border-radius: 50%;
+          overflow: hidden;
+          top: var(--pc-photo-top);
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 5;
+        }
+        .pc-photo-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center;
+        }
+        .pc-photo-fallback {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: clamp(34px, 10vw, 56px);
+          background: #05060f;
+        }
+        .pc-card-frame {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          pointer-events: none;
+          z-index: 20;
+        }
+        .pc-content-layer {
+          position: absolute;
+          inset: 0;
+          z-index: 30;
+        }
+        .pc-name-wrap {
+          position: absolute;
+          top: 7.8%;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 82%;
+          display: flex;
+          justify-content: center;
+        }
+        .pc-name {
+          margin: 0;
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-family: 'Bebas Neue', 'Bebas', 'Oswald', sans-serif;
+          font-size: clamp(28px, 9.6vw, 46px);
+          line-height: 0.95;
+          font-weight: 900;
+          letter-spacing: 0.01em;
+          color: #fff;
+          text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3);
+        }
+        .pc-right-stats {
+          position: absolute;
+          right: 11.8%;
+          top: var(--pc-side-top);
+          transform: translateY(-8%);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: clamp(4px, 1.4vw, 8px);
+          border-radius: 0.6rem;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(8px);
+        }
+        .pc-stat-stack {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          transform: scale(0.92);
+        }
+        .pc-stat-label {
+          color: rgba(0, 200, 255, 0.8);
+          font-size: clamp(9px, 2.4vw, 11px);
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.2em;
+          margin-bottom: 2px;
+          line-height: 1;
+        }
+        .pc-stat-value {
+          color: #fff;
+          font-size: clamp(18px, 5.8vw, 24px);
+          font-weight: 900;
+          line-height: 1;
+          text-shadow: 0 0 10px rgba(0, 200, 255, 0.6);
+        }
+        .pc-stats-divider {
+          width: clamp(18px, 5.6vw, 24px);
+          height: 1px;
+          background: rgba(255, 255, 255, 0.1);
+          margin: clamp(5px, 1.4vw, 8px) 0;
+        }
+        .pc-left-meta {
+          position: absolute;
+          left: 12.6%;
+          top: var(--pc-side-top);
+          transform: translateY(-8%);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: clamp(4px, 1vw, 6px);
+          width: 13%;
+        }
+        .pc-mini-badge {
+          width: clamp(30px, 9.2vw, 38px);
+          height: clamp(20px, 6.1vw, 26px);
+          border-radius: 0.4rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          box-sizing: border-box;
+        }
+        .pc-mini-badge--placeholder {
+          opacity: 0;
+          pointer-events: none;
+        }
+        .pc-mini-badge-label {
+          font-family: 'Oswald', sans-serif;
+          font-size: clamp(10px, 2.8vw, 12px);
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: 0.04em;
+        }
+        .pc-level-wrap {
+          margin-top: clamp(8px, 2.3vw, 12px);
+          display: flex;
+          justify-content: center;
+        }
+        .pc-level-stack {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: center;
+          gap: clamp(4px, 1.2vw, 6px);
+        }
+        .pc-level-dot {
+          width: clamp(5px, 1.5vw, 7px);
+          height: clamp(5px, 1.5vw, 7px);
+          border-radius: 50%;
+        }
+        .pc-level-dot--empty {
+          background: rgba(255, 255, 255, 0.25);
+        }
+        .pc-center-cluster {
+          position: absolute;
+          left: 50%;
+          top: var(--pc-center-top);
+          transform: translateX(-50%);
+          width: 54%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+        .badge-glass {
+          background: rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(8px);
           border: 1px solid rgba(255, 255, 255, 0.4);
         }
         .badge-glass--perf {
@@ -236,380 +452,322 @@ const ProfileCardComponent = ({
           border: 1px solid rgba(255, 255, 255, 0.25);
           backdrop-filter: none;
         }
-        .rating-star-badge{
-          width: 32px;
-          height: 32px;
+        .pc-center-badge-row {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: clamp(9px, 2.8vw, 14px);
+        }
+        .pc-center-badge {
+          overflow: hidden;
+        }
+        .pc-flag-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .pc-center-divider {
+          width: 1px;
+          height: clamp(10px, 2.8vw, 14px);
+          background: rgba(255, 255, 255, 0.2);
+        }
+        .pc-position-badge {
+          border: 1.5px solid;
+          background: rgba(255, 255, 255, 0.05);
+        }
+        .pc-rating-wrap {
+          margin-top: clamp(10px, 3.1vw, 15px);
+          display: flex;
+          justify-content: center;
+          width: 100%;
+        }
+        .pc-rating-inner {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .pc-rating-star-anchor {
+          position: absolute;
+          right: 100%;
+          margin-right: clamp(8px, 2.2vw, 12px);
+          top: 50%;
+          transform: translateY(-50%);
+          display: flex;
+          align-items: center;
+        }
+        .rating-star-badge {
           border-radius: 999px;
-          display:flex;
-          align-items:center;
-          justify-content:center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           background: rgba(255, 215, 0, 0.15);
           border: 2px solid rgba(255, 215, 0, 0.4);
           box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
         }
-        .rating-star{
+        .pc-rating-star-badge {
+          width: clamp(20px, 6vw, 26px);
+          height: clamp(20px, 6vw, 26px);
+        }
+        .rating-star {
           color:#FFD700;
-          font-size: 20px;
+          font-size: clamp(12px, 3.8vw, 16px);
           line-height: 0;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.8));
         }
-        .rating-star--perf{
+        .rating-star--perf {
           color:#FFD700;
-          font-size: 20px;
+          font-size: clamp(12px, 3.8vw, 16px);
           line-height: 0;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           filter: none;
         }
-        .rating-value{
+        .rating-value {
           font-family: 'Bebas Neue', 'Arial Black', sans-serif;
           color:#00C8FF;
           font-weight: 900;
-          font-size: 64px;
-          line-height: 1;
+          font-size: clamp(62px, 18vw, 82px);
+          line-height: 0.88;
           letter-spacing: 0.02em;
           filter: drop-shadow(0 0 12px rgba(0, 200, 255, 0.8));
         }
-        .rating-value--perf{
+        .rating-value--perf {
           font-family: 'Bebas Neue', 'Arial Black', sans-serif;
           color:#00C8FF;
           font-weight: 900;
-          font-size: 64px;
-          line-height: 1;
+          font-size: clamp(62px, 18vw, 82px);
+          line-height: 0.88;
           letter-spacing: 0.02em;
           filter: none;
         }
-          .pc-awards-item {
-            position: relative;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-          }
-          .pc-awards-icon-slot {
-            display: block;
-            pointer-events: none;
-            user-select: none;
-          }
-          .pc-awards-count {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 2ch;
-            padding: 0 1px;
-            margin-top: 4px;
-            color: #EAFBFF;
-            text-shadow: 0 0 4px rgba(120, 230, 255, 0.35);
-            font-variant-numeric: tabular-nums;
-          }
-          .pc-badge-count.pc-pop {
-            animation: pcBadgePop 520ms cubic-bezier(.2,.85,.2,1);
-          }
-          @keyframes pcBadgePop {
-            0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
-            40% { transform: scale(1.35); filter: drop-shadow(0 0 8px rgba(255,255,255,0.6)); }
-            100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
-          }
-
-          @media (max-width: 390px) {
-            .profile-card-wrapper {
-              overflow-x: clip !important;
-            }
-            .profile-card-wrapper .pc-card-shell {
-              width: min(340px, calc(100vw - 2.75rem)) !important;
-            }
-            .profile-card-wrapper .pc-awards-wrap {
-              padding-left: 1.1rem;
-              padding-right: 1.1rem;
-              padding-bottom: 2.65rem;
-            }
-            .profile-card-wrapper .pc-awards-row {
-              justify-content: center !important;
-              gap: 0.78rem;
-              margin-bottom: 0.4rem;
-            }
-            .profile-card-wrapper .pc-awards-item {
-              min-width: 52px;
-            }
-            .profile-card-wrapper .pc-awards-divider {
-              height: 0.8rem;
-            }
-            .profile-card-wrapper .pc-awards-count {
-              font-size: 0.98rem;
-              line-height: 1;
-              text-align: center;
-            }
-            .profile-card-wrapper .pc-right-stats {
-              right: 40px;
-              top: -16px;
-              transform: scale(0.96);
-              transform-origin: top right;
-            }
-            .profile-card-wrapper .pc-left-meta {
-              left: 43px;
-              top: -12px;
-              transform: scale(0.96);
-              transform-origin: top left;
-            }
-          }
-
-          @media (max-width: 360px) {
-            .profile-card-wrapper .pc-awards-row {
-              gap: 0.58rem;
-            }
-            .profile-card-wrapper .pc-awards-wrap {
-              padding-left: 0.95rem;
-              padding-right: 0.95rem;
-              padding-bottom: 2.45rem;
-            }
-            .profile-card-wrapper .pc-awards-count {
-              font-size: 0.88rem;
-            }
-            .profile-card-wrapper .pc-right-stats {
-              right: 34px;
-              top: -14px;
-              transform: scale(0.9);
-              transform-origin: top right;
-            }
-            .profile-card-wrapper .pc-left-meta {
-              left: 43px;
-              top: -10px;
-              transform: scale(0.9);
-              transform-origin: top left;
-            }
-          }
+        .pc-awards-wrap {
+          position: absolute;
+          left: 50%;
+          bottom: var(--pc-awards-bottom);
+          transform: translateX(-50%);
+          width: 76%;
+          display: flex;
+          justify-content: center;
+        }
+        .pc-awards-row {
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+          gap: clamp(18px, 5vw, 28px);
+        }
+        .pc-awards-item {
+          position: relative;
+          min-width: clamp(34px, 9.8vw, 44px);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: flex-start;
+        }
+        .pc-awards-icon-slot {
+          display: block;
+          pointer-events: none;
+          user-select: none;
+        }
+        .pc-awards-icon-slot--regular {
+          width: clamp(18px, 5.7vw, 22px);
+          height: clamp(18px, 5.7vw, 22px);
+        }
+        .pc-awards-icon-slot--red {
+          width: clamp(13px, 4.5vw, 16px);
+          height: clamp(18px, 5.7vw, 22px);
+        }
+        .pc-awards-divider {
+          width: 1px;
+          height: clamp(12px, 3.6vw, 16px);
+          opacity: 0;
+        }
+        .pc-awards-count {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 2ch;
+          padding: 0 1px;
+          margin-top: clamp(2px, 0.8vw, 4px);
+          color: #EAFBFF;
+          font-size: clamp(13px, 3.9vw, 16px);
+          line-height: 1;
+          text-shadow: 0 0 4px rgba(120, 230, 255, 0.35);
+          font-variant-numeric: tabular-nums;
+          text-align: center;
+        }
+        .pc-badge-count.pc-pop {
+          animation: pcBadgePop 520ms cubic-bezier(.2,.85,.2,1);
+        }
+        @keyframes pcBadgePop {
+          0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+          40% { transform: scale(1.35); filter: drop-shadow(0 0 8px rgba(255,255,255,0.6)); }
+          100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+        }
       `}</style>
 
-      <div ref={wrapRef} className="w-full flex justify-center overflow-visible perspective-[1000px] touch-none group profile-card-wrapper">
-        <div className="relative inline-block overflow-visible px-0">
-          {/* Glow layer behind the card - disabled during scroll for performance */}
+      <div
+        ref={wrapRef}
+        className={`profile-card-wrapper${screenMode ? ' profile-card-screen' : ''}`}
+        style={{
+          '--pc-card-ratio': String(normalizedCardRatio),
+          '--pc-card-width': `min(92vw, ${normalizedCardMaxWidth}px)`,
+        }}
+      >
+        <div className="pc-stage">
           {!performanceMode && (
-            <div
-              className="absolute pointer-events-none"
-              style={{
-                top: '-40px',
-                left: '-40px',
-                right: '-40px',
-                bottom: '-40px',
-                background: 'radial-gradient(ellipse at center, rgba(0, 180, 255, 0.5) 0%, rgba(0, 160, 255, 0.3) 30%, transparent 65%)',
-                filter: 'blur(35px)',
-                zIndex: 0,
-              }}
-            />
+            <div className="pc-glow-layer" />
           )}
 
-          {/* Card container */}
-          <div className="relative pc-card-shell" style={{ width: 'min(340px, calc(100vw - 6rem))', zIndex: 1 }}>
+          <div className="pc-card-shell">
             <section
               ref={cardRef}
-              className={`profile-card-main mx-auto w-full aspect-[0.72] md:aspect-[0.7] rounded-[var(--card-radius)] overflow-hidden flex flex-col relative origin-center ${!disableInternalMotion ? 'transition-transform duration-700 ease-out' : ''}`}
+              className={`profile-card-main pc-card-main ${!disableInternalMotion ? 'pc-card-main--motion' : ''}`}
               style={{
                 willChange: 'transform',
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
-                transformStyle: 'preserve-3d'
+                transformStyle: 'preserve-3d',
               }}
             >
-              {/* Layer 0: Player Photo Background (centered hole) */}
-              <div
-                className="absolute rounded-full overflow-hidden z-0 photo-glow-outer"
-                style={{
-                  width: `${HOLE_SIZE}px`,
-                  height: `${HOLE_SIZE}px`,
-                  top: `${HOLE_TOP}px`,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                }}
-              >
-                <div className="w-full h-full rounded-full overflow-hidden">
-                  {vm.avatarUrl ? (
-                    <img
-                      className="w-full h-full object-cover"
-                      style={{ objectPosition: 'center' }}
-                      src={vm.avatarUrl}
-                      alt={vm.name}
-                      loading="eager"
-                      crossOrigin="anonymous"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-5xl bg-[#05060f]">👤</div>
-                  )}
-                </div>
+              <div className="pc-photo-hole">
+                {vm.avatarUrl ? (
+                  <img
+                    className="pc-photo-img"
+                    src={vm.avatarUrl}
+                    alt={vm.name}
+                    loading="eager"
+                    crossOrigin="anonymous"
+                  />
+                ) : (
+                  <div className="pc-photo-fallback">👤</div>
+                )}
               </div>
 
-              {/* Layer 1: Card Mockup Overlay */}
               <img
                 src="/card_mockup.png"
                 alt=""
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none z-10"
+                className="pc-card-frame"
               />
 
-              {/* Inner Content - Flex Col for vertical zones */}
-              <div className="h-full w-full flex flex-col pt-5 pb-4 relative z-20">
+              <div className="pc-content-layer">
+                <div className="pc-name-wrap">
+                  <h3 className="pc-name" title={vm.name}>
+                    {vm.name.slice(0, 12)}
+                  </h3>
+                </div>
 
-                {/* --- 1. TOP ZONE: Header --- */}
-                <div className="relative w-full px-6 mb-2">
-                  {/* Name (Centered) */}
-                  <div className="flex justify-center items-center h-12">
-                    <h3
-                      className="font-black text-[2.6rem] leading-none text-white tracking-[0.01em] m-0 truncate max-w-[80%]"
-                      style={{
-                        fontFamily: "'Bebas Neue', 'Bebas', 'Oswald', sans-serif",
-                        textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3)',
-                      }}
-                    >
-                      {vm.name.slice(0, 12)}
-                    </h3>
+                <div className="pc-right-stats">
+                  <div className="pc-stat-stack">
+                    <span className="pc-stat-label">PJ</span>
+                    <span className="pc-stat-value">{vm.pj}</span>
+                  </div>
+                  <div className="pc-stats-divider" />
+                  <div className="pc-stat-stack">
+                    <span className="pc-stat-label">PA</span>
+                    <span className="pc-stat-value">{vm.pa}</span>
                   </div>
                 </div>
 
-                {/* --- 2. MIDDLE ZONE: Content Area --- */}
-                <div className="flex-1 flex flex-col items-center relative w-full pt-4">
-                  {/* Photo Placeholder (Layer 0 occupies this space) */}
-                  <div className="w-[176px] h-[176px] mb-2" />
-
-                  {/* Layout Wrapper */}
-                  <div className="relative w-full px-6 flex flex-col items-center">
-                    {/* RIGHT SIDE STATS (Vertical Stack in Smaller Glass Container - Raised) */}
-                    <div className="absolute right-[40px] -top-[20px] flex flex-col items-center p-1.5 rounded-lg bg-white/5 border border-white/10 backdrop-blur-md pc-right-stats">
-                      {/* PJ Stack */}
-                      <div className="flex flex-col items-center scale-90">
-                        <span className="text-[#00C8FF]/80 text-[10px] font-black uppercase tracking-[0.2em] mb-0.5">PJ</span>
-                        <span className="text-white font-black text-xl leading-none" style={{ textShadow: '0 0 10px rgba(0, 200, 255, 0.6)' }}>{vm.pj}</span>
-                      </div>
-
-                      {/* Inner Horizontal Divider */}
-                      <div className="w-6 h-[1px] bg-white/10 my-1.5" />
-
-                      {/* PA Stack */}
-                      <div className="flex flex-col items-center scale-90">
-                        <span className="text-[#00C8FF]/80 text-[10px] font-black uppercase tracking-[0.2em] mb-0.5">PA</span>
-                        <span className="text-white font-black text-xl leading-none" style={{ textShadow: '0 0 10px rgba(0, 200, 255, 0.6)' }}>{vm.pa}</span>
-                      </div>
-                    </div>
-
-                    {(vm.foot || vm.level !== null) && (
-                      <div className="absolute left-[43px] -top-[16px] flex flex-col items-center gap-1 max-w-[44px] pc-left-meta">
-                        {vm.foot && (
-                          <div
-                            className="rounded-md w-9 h-6 flex items-center justify-center shrink-0 border-[1.5px]"
-                            style={{ borderColor: vm.footStyle.borderColor, background: vm.footStyle.background }}
-                          >
-                            <span
-                              className="font-oswald text-[11px] tracking-wider font-black leading-none"
-                              style={{ color: vm.footStyle.color, textShadow: vm.footStyle.textShadow }}
-                            >
-                              {vm.foot}
-                            </span>
-                          </div>
-                        )}
-                        {!vm.foot && vm.level !== null && (
-                          <div className="w-9 h-6 shrink-0 opacity-0 pointer-events-none" aria-hidden="true" />
-                        )}
-
-                        {vm.level !== null && (
-                          <div className="flex flex-col items-center mt-2.5">
-                            <span className="inline-flex flex-col items-center gap-1.5" aria-label={`Nivel autopercibido ${vm.level} de 5`}>
-                              {[5, 4, 3, 2, 1].map((dot) => (
-                                <span
-                                  key={dot}
-                                  className={`w-1.5 h-1.5 rounded-full ${dot <= vm.level ? '' : 'bg-white/25'}`}
-                                  style={dot <= vm.level ? {
-                                    backgroundColor: levelDotColor,
-                                    boxShadow: `0 0 6px ${levelDotColor}80`,
-                                  } : undefined}
-                                />
-                              ))}
-                            </span>
-                          </div>
-                        )}
+                {(vm.foot || vm.level !== null) && (
+                  <div className="pc-left-meta">
+                    {vm.foot && (
+                      <div
+                        className="pc-mini-badge"
+                        style={{ border: '1.5px solid', borderColor: vm.footStyle.borderColor, background: vm.footStyle.background }}
+                      >
+                        <span className="pc-mini-badge-label" style={{ color: vm.footStyle.color, textShadow: vm.footStyle.textShadow }}>
+                          {vm.foot}
+                        </span>
                       </div>
                     )}
+                    {!vm.foot && vm.level !== null && (
+                      <div className="pc-mini-badge pc-mini-badge--placeholder" aria-hidden="true" />
+                    )}
 
-                    {/* CENTER COLUMN: Badges Row + Rating (Tilted 2px lower) */}
-                    <div className="flex flex-col items-center -mt-[8px]">
-                      {/* Unified Badges Row (Horizontal + Divider - No Shadows) */}
-                      <div className="flex items-center justify-center gap-3 mb-1.5">
-                        {/* Flag Badge (No shadow, white border) */}
-                        <div className={`${performanceMode ? 'badge-glass--perf' : 'badge-glass'} rounded-md w-9 h-6 flex items-center justify-center overflow-hidden shrink-0`}>
-                          <img src={`https://flagcdn.com/w40/${vm.cc}.png`} alt={vm.abbr} className="w-full h-auto object-cover" />
-                        </div>
-
-                        {/* Divider Line */}
-                        <div className="w-[1px] h-3 bg-white/20" />
-
-                        {/* Position Badge (No shadow, translucent border color) */}
-                        <div
-                          className="rounded-md w-9 h-6 flex items-center justify-center shrink-0 border-[1.5px] bg-white/5"
-                          style={{
-                            borderColor: vm.posColor,
-                          }}
-                        >
-                          <span
-                            className="font-oswald text-[11px] tracking-wider font-black leading-none"
-                            style={{
-                              color: vm.posColor,
-                              textShadow: `0 0 4px ${vm.posColor}AA`,
-                            }}
-                          >
-                            {vm.pos}
-                          </span>
-                        </div>
+                    {vm.level !== null && (
+                      <div className="pc-level-wrap">
+                        <span className="pc-level-stack" aria-label={`Nivel autopercibido ${vm.level} de 5`}>
+                          {[5, 4, 3, 2, 1].map((dot) => (
+                            <span
+                              key={dot}
+                              className={`pc-level-dot ${dot <= vm.level ? '' : 'pc-level-dot--empty'}`}
+                              style={dot <= vm.level ? {
+                                backgroundColor: levelDotColor,
+                                boxShadow: `0 0 6px ${levelDotColor}80`,
+                              } : undefined}
+                            />
+                          ))}
+                        </span>
                       </div>
-
-                      {/* Rating Block - PERFECT CENTERED NUMBER with close star accessory (+12px Lower, Larger) */}
-                      <div className="flex items-center justify-center w-full max-w-[150px] h-14 mt-3">
-                        <div className="relative inline-flex items-center">
-                          {/* Star as independent accessory (approx 10px from number) */}
-                          <div className="absolute right-full mr-2.5 flex items-center">
-                            <div className="rating-star-badge" style={{ width: '22px', height: '22px' }}>
-                              <span className={`${performanceMode ? 'rating-star--perf' : 'rating-star'} text-[14px]`}>★</span>
-                            </div>
-                          </div>
-                          <span className={`${performanceMode ? 'rating-value--perf' : 'rating-value'} leading-none`} style={{ fontSize: '76px', color: '#FFD700' }}>
-                            {ratingOverride !== null ? ratingOverride.toFixed(1) : vm.rating}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
+                    )}
                   </div>
-                </div>
+                )}
 
-                <div className="flex flex-col items-center w-full px-8 pb-8 mt-auto pc-awards-wrap">
-                  {/* Footer Divider Removed as requested */}
-
-                  {/* Prizes Row (Divided into 3 sections, container removed) */}
-                  <div className="flex items-start justify-center gap-6 mb-2 pc-awards-row">
-                    {/* MVP Prize */}
-                    <div className="flex items-center min-w-[44px] pc-awards-item">
-                      <span className="w-[22px] h-[22px] pc-awards-icon-slot" aria-hidden="true" />
-                      <span ref={mvpRef} className="text-sm font-black pc-badge-count pc-awards-count leading-none">{vm.mvp}</span>
+                <div className="pc-center-cluster">
+                  <div className="pc-center-badge-row">
+                    <div className={`${performanceMode ? 'badge-glass--perf' : 'badge-glass'} pc-mini-badge pc-center-badge`}>
+                      <img src={`https://flagcdn.com/w40/${vm.cc}.png`} alt={vm.abbr} className="pc-flag-img" />
                     </div>
 
-                    {/* Divider */}
-                    <div className="w-[1px] h-4 opacity-0 pc-awards-divider" aria-hidden="true" />
+                    <div className="pc-center-divider" />
 
-                    {/* Glove Prize */}
-                    <div className="flex items-center min-w-[44px] pc-awards-item">
-                      <span className="w-[22px] h-[22px] pc-awards-icon-slot" aria-hidden="true" />
-                      <span ref={gkRef} className="text-sm font-black pc-badge-count pc-awards-count leading-none">{vm.gk}</span>
+                    <div
+                      className="pc-mini-badge pc-center-badge pc-position-badge"
+                      style={{ borderColor: vm.posColor }}
+                    >
+                      <span
+                        className="pc-mini-badge-label"
+                        style={{
+                          color: vm.posColor,
+                          textShadow: `0 0 4px ${vm.posColor}AA`,
+                        }}
+                      >
+                        {vm.pos}
+                      </span>
                     </div>
+                  </div>
 
-                    {/* Divider */}
-                    <div className="w-[1px] h-4 opacity-0 pc-awards-divider" aria-hidden="true" />
-
-                    {/* Red Card Prize (Last) */}
-                    <div className="flex items-center min-w-[38px] pc-awards-item">
-                      <span className="w-[16px] h-[22px] pc-awards-icon-slot" aria-hidden="true" />
-                      <span ref={redRef} className="text-sm font-black pc-badge-count pc-awards-count leading-none">{vm.red}</span>
+                  <div className="pc-rating-wrap">
+                    <div className="pc-rating-inner">
+                      <div className="pc-rating-star-anchor">
+                        <div className="rating-star-badge pc-rating-star-badge">
+                          <span className={performanceMode ? 'rating-star--perf' : 'rating-star'}>★</span>
+                        </div>
+                      </div>
+                      <span className={performanceMode ? 'rating-value--perf' : 'rating-value'} style={{ color: '#FFD700' }}>
+                        {ratingOverride !== null ? ratingOverride.toFixed(1) : vm.rating}
+                      </span>
                     </div>
                   </div>
                 </div>
 
+                <div className="pc-awards-wrap">
+                  <div className="pc-awards-row">
+                    <div className="pc-awards-item">
+                      <span className="pc-awards-icon-slot pc-awards-icon-slot--regular" aria-hidden="true" />
+                      <span ref={mvpRef} className="pc-badge-count pc-awards-count">{vm.mvp}</span>
+                    </div>
+
+                    <div className="pc-awards-divider" aria-hidden="true" />
+
+                    <div className="pc-awards-item">
+                      <span className="pc-awards-icon-slot pc-awards-icon-slot--regular" aria-hidden="true" />
+                      <span ref={gkRef} className="pc-badge-count pc-awards-count">{vm.gk}</span>
+                    </div>
+
+                    <div className="pc-awards-divider" aria-hidden="true" />
+
+                    <div className="pc-awards-item">
+                      <span className="pc-awards-icon-slot pc-awards-icon-slot--red" aria-hidden="true" />
+                      <span ref={redRef} className="pc-badge-count pc-awards-count">{vm.red}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
           </div>

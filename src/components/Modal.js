@@ -58,10 +58,19 @@ const Modal = ({
   if (!isOpen) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-[4px] z-[10001] flex items-center justify-center p-5 animate-[fadeIn_0.2s_ease-out]" onClick={handleBackdropClick}>
+    <div
+      className="fixed inset-0 bg-black/75 backdrop-blur-[4px] z-[10001] flex items-center justify-center animate-[fadeIn_0.2s_ease-out]"
+      style={{
+        paddingTop: 'max(1.25rem, env(safe-area-inset-top))',
+        paddingRight: 'max(1.25rem, env(safe-area-inset-right))',
+        paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))',
+        paddingLeft: 'max(1.25rem, env(safe-area-inset-left))',
+      }}
+      onClick={handleBackdropClick}
+    >
       <div
         ref={modalRef}
-        className={`bg-[#1a1a1a] rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] max-w-[95vw] max-h-[90vh] w-auto flex flex-col overflow-hidden border border-[#333] animate-[scaleIn_0.2s_ease-out] ${className}`}
+        className={`bg-[#1a1a1a] rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] max-w-[95vw] max-h-full w-auto flex flex-col overflow-hidden border border-[#333] animate-[scaleIn_0.2s_ease-out] ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (

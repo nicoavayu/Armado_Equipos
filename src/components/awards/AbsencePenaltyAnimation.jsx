@@ -36,9 +36,12 @@ const AbsencePenaltyAnimation = ({ players }) => {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: '100vh',
+      minHeight: '100%',
       width: '100%',
-      padding: '20px',
+      paddingTop: 'max(20px, env(safe-area-inset-top))',
+      paddingRight: 'max(20px, env(safe-area-inset-right))',
+      paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
+      paddingLeft: 'max(20px, env(safe-area-inset-left))',
       boxSizing: 'border-box',
     }}>
       <div className="award-container">
