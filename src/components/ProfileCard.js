@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
+import { Hand, RectangleVertical, Trophy } from 'lucide-react';
 
 // --- Pure Helper Functions (Outside Component) ---
 const clamp = (v, min = 0, max = 100) => Math.min(Math.max(v, min), max);
@@ -275,13 +276,16 @@ const ProfileCardComponent = ({
           touch-action: auto;
         }
         .profile-card-wrapper.pc-awards-space-left {
-          --pc-layout-gap: clamp(0px, 1.2vw, 6px);
-          --pc-left-slot-width: clamp(70px, 18vw, 80px);
+          --pc-layout-gap: 0px;
           --pc-card-target-width: 72vw;
           --pc-card-width: min(
             var(--pc-card-target-width),
-            calc(100% - var(--pc-left-slot-width) - var(--pc-layout-gap))
+            100%
           );
+          --pc-left-awards-gap: clamp(12px, 3.5vw, 16px);
+          --pc-left-award-width: clamp(30px, 8.8vw, 38px);
+          --pc-left-award-height: clamp(54px, 15.5vw, 68px);
+          --pc-left-awards-stack-gap: clamp(8px, 2.2vw, 12px);
         }
         .pc-layout {
           width: min(100%, 62rem);
@@ -306,7 +310,7 @@ const ProfileCardComponent = ({
           overflow-y: visible;
         }
         .profile-card-wrapper.pc-awards-space-left .pc-layout {
-          grid-template-columns: var(--pc-left-slot-width) max-content;
+          grid-template-columns: max-content;
           width: fit-content;
           max-width: 100%;
         }
@@ -315,9 +319,37 @@ const ProfileCardComponent = ({
           width: fit-content;
           max-width: 100%;
         }
-        .pc-awards-slot {
-          width: var(--pc-left-slot-width);
-          height: 100%;
+        .pc-awards-side-rail {
+          position: absolute;
+          top: 50%;
+          right: calc(100% + var(--pc-left-awards-gap));
+          transform: translateY(-50%);
+          display: grid;
+          grid-auto-rows: max-content;
+          justify-items: center;
+          gap: var(--pc-left-awards-stack-gap);
+          z-index: 2;
+          pointer-events: none;
+        }
+        .pc-awards-side-card {
+          width: var(--pc-left-award-width);
+          height: var(--pc-left-award-height);
+          border-radius: clamp(10px, 2.6vw, 14px);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(180deg, rgba(13, 48, 74, 0.64) 0%, rgba(4, 19, 35, 0.72) 100%);
+          border: 1px solid rgba(142, 236, 255, 0.4);
+          box-shadow:
+            0 0 10px rgba(0, 196, 255, 0.2),
+            inset 0 0 10px rgba(97, 218, 255, 0.12);
+        }
+        .pc-awards-side-icon {
+          width: clamp(16px, 4.8vw, 20px);
+          height: clamp(16px, 4.8vw, 20px);
+          color: #B7F2FF;
+          stroke-width: 2.1;
+          filter: drop-shadow(0 0 4px rgba(86, 219, 255, 0.34));
         }
         .pc-awards-rail {
           width: max-content;
@@ -685,7 +717,7 @@ const ProfileCardComponent = ({
             grid-template-columns: max-content max-content;
           }
           .profile-card-wrapper.pc-awards-space-left .pc-layout {
-            grid-template-columns: var(--pc-left-slot-width) max-content;
+            grid-template-columns: max-content;
           }
           .profile-card-wrapper:not(.pc-awards-force-side):not(.pc-awards-space-left) .pc-layout {
             width: 100%;
@@ -722,7 +754,7 @@ const ProfileCardComponent = ({
         }}
       >
         <div className="pc-layout-scroll">
-          <div className={`pc-layout${!showAwardsRail && !reserveLeftAwardsSpace ? ' pc-layout--single' : ''}`}>
+          <div className={`pc-layout${!showAwardsRail ? ' pc-layout--single' : ''}`}>
             {showAwardsRail ? (
               <aside className="pc-awards-rail" aria-label="Premios del jugador">
                 <div className="pc-award-tile">
@@ -738,12 +770,23 @@ const ProfileCardComponent = ({
                   <span ref={redRef} className="pc-badge-count pc-award-count">{vm.red}</span>
                 </div>
               </aside>
-            ) : reserveLeftAwardsSpace ? (
-              <div className="pc-awards-slot" aria-hidden="true" />
             ) : null}
 
             <div className="pc-main-column">
               <div className="pc-stage">
+                {reserveLeftAwardsSpace && (
+                  <aside className="pc-awards-side-rail" aria-hidden="true">
+                    <span className="pc-awards-side-card">
+                      <Trophy className="pc-awards-side-icon" />
+                    </span>
+                    <span className="pc-awards-side-card">
+                      <Hand className="pc-awards-side-icon" />
+                    </span>
+                    <span className="pc-awards-side-card">
+                      <RectangleVertical className="pc-awards-side-icon" />
+                    </span>
+                  </aside>
+                )}
                 {!performanceMode && (
                   <div className="pc-glow-layer" />
                 )}
