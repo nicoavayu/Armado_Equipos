@@ -268,13 +268,23 @@ const ProfileCardComponent = ({
         }
         .profile-card-wrapper.pc-awards-force-side {
           touch-action: auto;
-          --pc-card-width: min(74vw, 330px);
-          --pc-award-height: clamp(
-            calc(var(--pc-card-height) * 0.11),
-            calc(var(--pc-card-height) * 0.12),
-            calc(var(--pc-card-height) * 0.13)
+          --pc-award-scale: 0.1;
+          --pc-award-ratio: 0.92;
+          --pc-side-total-factor: calc(
+            1 + (var(--pc-award-ratio) * var(--pc-award-scale) / var(--pc-card-ratio))
           );
-          --pc-layout-gap: clamp(0.35rem, 1.8vw, 0.65rem);
+          --pc-layout-gap: clamp(0.25rem, 1.3vw, 0.5rem);
+          --pc-card-width: min(
+            260px,
+            calc((100% - var(--pc-layout-gap)) / var(--pc-side-total-factor))
+          );
+          --pc-award-height: clamp(
+            calc(var(--pc-card-height) * 0.09),
+            calc(var(--pc-card-height) * 0.1),
+            calc(var(--pc-card-height) * 0.11)
+          );
+          --pc-awards-gap: calc(var(--pc-award-height) * 0.06);
+          box-sizing: border-box;
         }
         .pc-layout {
           width: min(100%, 62rem);
@@ -291,12 +301,13 @@ const ProfileCardComponent = ({
           overflow: visible;
         }
         .profile-card-wrapper.pc-awards-force-side .pc-layout-scroll {
-          overflow-x: hidden;
+          overflow-x: visible;
           overflow-y: visible;
         }
         .profile-card-wrapper.pc-awards-force-side .pc-layout {
           grid-template-columns: max-content max-content;
-          width: max-content;
+          width: fit-content;
+          max-width: 100%;
         }
         .pc-awards-rail {
           width: max-content;
