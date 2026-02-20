@@ -553,15 +553,17 @@ const AmigosView = () => {
   }
 
   return (
-    <div className="w-full m-0 pt-[10px] box-border">
-      <div className="w-full max-w-[700px] mx-auto min-h-[52px] mb-2">
-        <InlineNotice
-          type={notice?.type}
-          message={notice?.message}
-          autoHideMs={notice?.type === 'warning' ? null : 3000}
-          onClose={clearInlineNotice}
-        />
-      </div>
+    <div className="w-full m-0 pt-0 box-border">
+      {notice && (
+        <div className="w-full max-w-[700px] mx-auto mb-2">
+          <InlineNotice
+            type={notice?.type}
+            message={notice?.message}
+            autoHideMs={notice?.type === 'warning' ? null : 3000}
+            onClose={clearInlineNotice}
+          />
+        </div>
+      )}
 
       <div className="w-full max-w-[500px] mx-auto mb-4 bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1">
         <button
