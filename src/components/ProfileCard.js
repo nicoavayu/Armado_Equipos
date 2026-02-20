@@ -227,6 +227,9 @@ const ProfileCardComponent = ({
   const forceSideAwards = awardsLayout === 'side';
   const reserveLeftAwardsSpace = awardsLayout === 'space-left';
   const showAwardsRail = awardsLayout !== 'none' && !reserveLeftAwardsSpace;
+  const resolvedCardWidth = reserveLeftAwardsSpace
+    ? `min(72vw, ${normalizedCardMaxWidth}px)`
+    : `min(92vw, ${normalizedCardMaxWidth}px)`;
 
   return (
     <>
@@ -272,9 +275,9 @@ const ProfileCardComponent = ({
           touch-action: auto;
         }
         .profile-card-wrapper.pc-awards-space-left {
-          --pc-layout-gap: clamp(0.4rem, 1.8vw, 0.75rem);
-          --pc-left-slot-width: clamp(60px, 18vw, 80px);
-          --pc-card-target-width: min(74vw, 344px);
+          --pc-layout-gap: clamp(0px, 1.2vw, 6px);
+          --pc-left-slot-width: clamp(70px, 18vw, 80px);
+          --pc-card-target-width: 72vw;
           --pc-card-width: min(
             var(--pc-card-target-width),
             calc(100% - var(--pc-left-slot-width) - var(--pc-layout-gap))
@@ -715,7 +718,7 @@ const ProfileCardComponent = ({
         className={`profile-card-wrapper${screenMode ? ' profile-card-screen' : ''}${forceSideAwards ? ' pc-awards-force-side' : ''}${reserveLeftAwardsSpace ? ' pc-awards-space-left' : ''}`}
         style={{
           '--pc-card-ratio': String(frameRatio),
-          '--pc-card-width': `min(92vw, ${normalizedCardMaxWidth}px)`,
+          '--pc-card-width': resolvedCardWidth,
         }}
       >
         <div className="pc-layout-scroll">
