@@ -50,6 +50,50 @@ const enqueueAdminNotification = async ({
   }
 };
 
+const enqueueParticipantNotification = async ({
+  matchId,
+  type,
+  title,
+  message,
+  payload = {},
+  excludeUserId = null,
+  includeAdmin = true,
+}) => {
+  const matchIdNumber = toMatchId(matchId);
+  if (!matchIdNumber) return { ok: false, reason: 'invalid_match_id' };
+
+  try {
+    const { error } = await supabase.rpc('enqueue_match_participant_notification', {
+      p_partido_id: matchIdNumber,
+      p_type: type,
+      p_title: title,
+      p_message: message,
+      p_payload: payload,
+      p_exclude_user_id: excludeUserId || null,
+      p_include_admin: includeAdmin,
+    });
+
+    if (error) {
+      console.warn('[JOIN_NOTIFICATIONS] enqueue_match_participant_notification failed', {
+        matchId: matchIdNumber,
+        type,
+        code: error.code,
+        message: error.message,
+      });
+      return { ok: false, reason: 'rpc_error', error };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    console.warn('[JOIN_NOTIFICATIONS] unexpected participant notification error', {
+      matchId: matchIdNumber,
+      type,
+      error: error?.message || String(error),
+    });
+    return { ok: false, reason: 'unexpected_error', error };
+  }
+};
+
 export const notifyAdminJoinRequest = async ({
   matchId,
   requestId,
@@ -86,7 +130,7 @@ export const notifyAdminPlayerJoined = async ({
   const matchIdNumber = toMatchId(matchId);
   if (!matchIdNumber) return { ok: false, reason: 'invalid_match_id' };
 
-  return enqueueAdminNotification({
+  return enqueueParticipantNotification({
     matchId: matchIdNumber,
     type: 'match_update',
     title: 'Nuevo jugador en el partido',
@@ -97,8 +141,10 @@ export const notifyAdminPlayerJoined = async ({
       player_name: name,
       player_user_id: playerUserId || null,
       joined_via: joinedVia,
-      link: `/admin/${matchIdNumber}?tab=jugadores`,
+      link: `/partido-publico/${matchIdNumber}`,
     },
+    excludeUserId: playerUserId || null,
+    includeAdmin: true,
   });
 };
 

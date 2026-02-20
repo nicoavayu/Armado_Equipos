@@ -4,6 +4,7 @@ import LoadingSpinner from '../LoadingSpinner';
 import { Check, Loader2, X } from 'lucide-react';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { notifyAdminPlayerJoined } from '../../services/matchJoinNotificationService';
 
 const EmptyRequestsMailboxIcon = () => (
     <svg
@@ -132,6 +133,13 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
             }
 
             console.log('[ACCEPT] RPC approve_join_request completed successfully for request:', request.id);
+
+            await notifyAdminPlayerJoined({
+                matchId: request.match_id,
+                playerName: userName,
+                playerUserId: request.user_id,
+                joinedVia: 'admin_approval',
+            });
 
             try {
                 await supabase.from('notifications').insert([{

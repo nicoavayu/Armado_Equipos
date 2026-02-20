@@ -202,9 +202,9 @@ serve(async (req) => {
       );
     }
 
-    // Best-effort admin notification so the host sees new joins in bell/activity.
+    // Best-effort in-app notification for all logged users in the match (+ admin).
     try {
-      await supabase.rpc("enqueue_partido_notification", {
+      await supabase.rpc("enqueue_match_participant_notification", {
         p_partido_id: partidoIdNum,
         p_type: "match_update",
         p_title: "Nuevo jugador en el partido",
@@ -215,8 +215,10 @@ serve(async (req) => {
           player_name: nombre.trim().slice(0, 50),
           player_user_id: null,
           joined_via: "guest_invite",
-          link: `/admin/${partidoIdNum}?tab=jugadores`,
+          link: `/partido-publico/${partidoIdNum}`,
         },
+        p_exclude_user_id: null,
+        p_include_admin: true,
       });
     } catch (_notifyErr) {
       // Don't block join flow if notifications fail.

@@ -1,60 +1,89 @@
--- Enable remote push for match roster updates (player joined/left notifications).
--- Keeps existing channels unchanged and adds a dedicated PLAYER_UPDATE channel.
+-- In-app fanout helper for match participant updates.
+-- Goal:
+--   - Notify all logged users in a match (and optionally admin) in-app.
+--   - Keep push policy independent (no forced push fanout here).
 
 BEGIN;
 
-CREATE OR REPLACE FUNCTION public.notification_event_channel(p_type text)
-RETURNS text
-LANGUAGE plpgsql
-IMMUTABLE
-AS $$
+CREATE OR REPLACE FUNCTION public.enqueue_match_participant_notification(
+  p_partido_id bigint,
+  p_type text,
+  p_title text DEFAULT NULL,
+  p_message text DEFAULT NULL,
+  p_payload jsonb DEFAULT '{}'::jsonb,
+  p_exclude_user_id uuid DEFAULT NULL,
+  p_include_admin boolean DEFAULT true
+) RETURNS jsonb AS $$
 DECLARE
-  v_type text := lower(trim(COALESCE(p_type, '')));
+  v_admin_id uuid;
+  v_recipient_id uuid;
+  v_recipients uuid[];
+  v_count int := 0;
 BEGIN
-  CASE v_type
-    WHEN 'match_invite' THEN RETURN 'INVITATION';
-    WHEN 'match_cancelled' THEN RETURN 'CANCELLATION';
-    WHEN 'match_deleted' THEN RETURN 'CANCELLATION';
-    WHEN 'survey_start' THEN RETURN 'SURVEY';
-    WHEN 'post_match_survey' THEN RETURN 'SURVEY';
-    WHEN 'survey_reminder' THEN RETURN 'SURVEY';
-    WHEN 'match_join_approved' THEN RETURN 'ACCEPTED';
-    WHEN 'match_join_request' THEN RETURN 'JOIN_REQUEST';
-    WHEN 'call_to_vote' THEN RETURN 'VOTE_REQUEST';
-    WHEN 'match_reminder_1h' THEN RETURN 'REMINDER';
-    WHEN 'award_won' THEN RETURN 'REMINDER';
-    WHEN 'no_show_penalty_applied' THEN RETURN 'REMINDER';
-    WHEN 'no_show_recovery_applied' THEN RETURN 'REMINDER';
-    WHEN 'match_update' THEN RETURN 'PLAYER_UPDATE';
-    WHEN 'awards_ready' THEN RETURN 'ACTIVITY';
-    WHEN 'survey_results_ready' THEN RETURN 'ACTIVITY';
-    WHEN 'survey_finished' THEN RETURN 'ACTIVITY';
-    WHEN 'friend_request' THEN RETURN 'INFO';
-    WHEN 'friend_accepted' THEN RETURN 'INFO';
-    WHEN 'friend_rejected' THEN RETURN 'INFO';
-    ELSE
-      RETURN 'INFO';
-  END CASE;
-END;
-$$;
+  SELECT creado_por
+  INTO v_admin_id
+  FROM public.partidos
+  WHERE id = p_partido_id;
 
-CREATE OR REPLACE FUNCTION public.notification_channel_allows_push(p_channel text)
-RETURNS boolean
-LANGUAGE sql
-IMMUTABLE
-AS $$
-  SELECT COALESCE(upper($1), '') = ANY (
-    ARRAY[
-      'INVITATION',
-      'CANCELLATION',
-      'SURVEY',
-      'ACCEPTED',
-      'JOIN_REQUEST',
-      'VOTE_REQUEST',
-      'REMINDER',
-      'PLAYER_UPDATE'
-    ]
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Partido % not found', p_partido_id;
+  END IF;
+
+  SELECT ARRAY_AGG(DISTINCT j.usuario_id)
+  INTO v_recipients
+  FROM public.jugadores j
+  WHERE j.partido_id = p_partido_id
+    AND j.usuario_id IS NOT NULL;
+
+  IF p_include_admin AND v_admin_id IS NOT NULL THEN
+    v_recipients := array_append(v_recipients, v_admin_id);
+  END IF;
+
+  v_recipients := ARRAY(
+    SELECT DISTINCT uid
+    FROM unnest(COALESCE(v_recipients, ARRAY[]::uuid[])) AS uid
+    WHERE uid IS NOT NULL
+      AND (p_exclude_user_id IS NULL OR uid <> p_exclude_user_id)
   );
-$$;
+
+  FOREACH v_recipient_id IN ARRAY v_recipients
+  LOOP
+    IF EXISTS (
+      SELECT 1
+      FROM auth.users au
+      WHERE au.id = v_recipient_id
+    ) THEN
+      INSERT INTO public.notifications (
+        user_id,
+        partido_id,
+        type,
+        title,
+        message,
+        data,
+        read
+      ) VALUES (
+        v_recipient_id,
+        p_partido_id,
+        p_type,
+        COALESCE(p_title, 'Notificación de partido'),
+        COALESCE(p_message, 'Tenés una nueva notificación'),
+        COALESCE(p_payload, '{}'::jsonb),
+        false
+      )
+      ON CONFLICT DO NOTHING;
+
+      v_count := v_count + 1;
+    END IF;
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'recipients_count', v_count,
+    'recipients', COALESCE(v_recipients, ARRAY[]::uuid[])
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.enqueue_match_participant_notification(bigint, text, text, text, jsonb, uuid, boolean) TO authenticated;
 
 COMMIT;
