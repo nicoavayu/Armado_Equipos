@@ -1163,7 +1163,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           />
           <div className="text-center mb-6">
             <h2 className="text-white text-2xl font-bold mb-2">Sumarte rápido</h2>
-            <p className="text-white/70 text-sm">Ingresá tu nombre y tu selfie</p>
             {partido?.nombre && (
               <p className="text-white/55 text-xs mt-2">
                 Partido: <span className="text-white/80 font-semibold">{partido.nombre}</span>
