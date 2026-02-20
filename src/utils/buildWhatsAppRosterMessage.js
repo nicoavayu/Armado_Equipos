@@ -95,7 +95,6 @@ export const buildWhatsAppRosterMessage = (match, joinLink) => {
   const players = Array.isArray(match?.players) ? match.players : [];
   const capacity = normalizeCapacity(match, players.length);
   const totalSlots = Math.max(capacity, players.length);
-  const missing = Math.max(0, capacity - players.length);
   const { fecha, hora } = formatDateAndTime(match);
   const location = resolveLocation(match);
   const safeJoinLink = safeText(joinLink);
@@ -111,13 +110,18 @@ export const buildWhatsAppRosterMessage = (match, joinLink) => {
     }
   }
 
-  return [
+  const messageLines = [
     dateLine,
     `📍 ${location}`,
-    `${players.length}/${capacity || totalSlots} · faltan ${missing}`,
+    '',
     ...rosterLines,
-    safeJoinLink,
-  ].join('\n');
+  ];
+
+  if (safeJoinLink) {
+    messageLines.push('', safeJoinLink);
+  }
+
+  return messageLines.join('\n');
 };
 
 export default buildWhatsAppRosterMessage;
