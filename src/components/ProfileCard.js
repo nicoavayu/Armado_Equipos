@@ -485,7 +485,7 @@ const ProfileCardComponent = ({
           justify-content: center;
         }
         .pc-name {
-          margin: 0;
+          margin: -15px;
           max-width: 100%;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -500,9 +500,9 @@ const ProfileCardComponent = ({
         }
         .pc-right-stats {
           position: absolute;
-          right: 11.8%;
+          right: 4%;
           top: var(--pc-side-top);
-          transform: translateY(-8%);
+          transform: translateY(74%);
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -542,9 +542,9 @@ const ProfileCardComponent = ({
         }
         .pc-left-meta {
           position: absolute;
-          left: 12.6%;
+          left: 5%;
           top: var(--pc-side-top);
-          transform: translateY(-8%);
+          transform: translateY(88%);
           display: flex;
           flex-direction: column;
           align-items: center;
