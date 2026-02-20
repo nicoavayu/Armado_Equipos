@@ -87,12 +87,10 @@ const PlayersSection = ({
   const [isTitularesOpen, setIsTitularesOpen] = useState(true);
   const [isSuplentesOpen, setIsSuplentesOpen] = useState(true);
   const [isSharingUpdate, setIsSharingUpdate] = useState(false);
-  const [shareUpdateHint, setShareUpdateHint] = useState('');
   const [animateCompletionTick, setAnimateCompletionTick] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef(null);
   const adminMenuButtonRef = useRef(null);
-  const shareHintTimeoutRef = useRef(null);
 
   const menuOpen = isAdmin ? (actionsMenuOpen !== undefined ? actionsMenuOpen : localMenuOpen) : false;
   const setMenuOpen = isAdmin && setActionsMenuOpen ? setActionsMenuOpen : setLocalMenuOpen;
@@ -116,9 +114,6 @@ const PlayersSection = ({
     capacity > 0;
 
   useEffect(() => () => {
-    if (shareHintTimeoutRef.current) {
-      window.clearTimeout(shareHintTimeoutRef.current);
-    }
     if (completionAnimTimeoutRef.current) {
       window.clearTimeout(completionAnimTimeoutRef.current);
     }
@@ -170,24 +165,11 @@ const PlayersSection = ({
     }
   };
 
-  const showShareHint = (message) => {
-    setShareUpdateHint(message);
-    if (shareHintTimeoutRef.current) {
-      window.clearTimeout(shareHintTimeoutRef.current);
-    }
-    shareHintTimeoutRef.current = window.setTimeout(() => {
-      setShareUpdateHint('');
-    }, 1500);
-  };
-
   const handleShareRosterUpdateClick = async () => {
     if (!canShareRosterUpdate || isSharingUpdate) return;
     setIsSharingUpdate(true);
     try {
-      const shared = await onShareRosterUpdate?.();
-      if (shared) {
-        showShareHint('Compartido ✓');
-      }
+      await onShareRosterUpdate?.();
     } catch (error) {
       console.error('Error sharing roster update:', error);
     } finally {
@@ -674,11 +656,6 @@ const PlayersSection = ({
           )}
         </div>
       </div>
-      {shareUpdateHint && (
-        <div className="mb-2 px-1 text-[11px] text-[#d9ffe0] font-oswald tracking-wide">
-          {shareUpdateHint}
-        </div>
-      )}
       {jugadores.length === 0 ? (
         <EmptyPlayersState view={isAdmin ? 'admin' : 'guest'} onShareClick={onShareClick} />
       ) : (

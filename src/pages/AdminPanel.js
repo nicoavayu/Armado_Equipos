@@ -207,8 +207,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const openWhatsAppShare = async ({ title, text, url }) => {
     const payloadText = text || url || '';
     const encodedText = encodeURIComponent(payloadText);
-    const whatsappWebUrl = `https://wa.me/?text=${encodedText}`;
-    const whatsappApiUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
+    const whatsappWebUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
     const whatsappAppUrl = `whatsapp://send?text=${encodedText}`;
     const isMobileWeb = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 
@@ -221,28 +220,20 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       }
     }
 
-    // On mobile web prefer native share sheet to avoid landing pages that don't open chat selector.
+    // On mobile web force WhatsApp app deep-link to open contact selector directly.
+    if (isMobileWeb) {
+      window.location.href = whatsappAppUrl;
+      return true;
+    }
+
     if (navigator.share) {
       try {
         await navigator.share({ title, text, url });
         return true;
       } catch (shareError) {
         if (shareError?.name === 'AbortError') return false;
-        console.warn('[WHATSAPP_SHARE] navigator.share failed, fallback to whatsapp link', shareError);
+        console.warn('[WHATSAPP_SHARE] navigator.share failed, fallback to web URL', shareError);
       }
-    }
-
-    // On mobile web try deep-link first; fallback to web endpoint if app scheme is unavailable.
-    if (isMobileWeb) {
-      const startedAt = Date.now();
-      window.location.href = whatsappAppUrl;
-      window.setTimeout(() => {
-        const elapsed = Date.now() - startedAt;
-        if (document.visibilityState === 'visible' && elapsed < 2500) {
-          window.location.href = whatsappApiUrl;
-        }
-      }, 1200);
-      return true;
     }
 
     const opened = window.open(whatsappWebUrl, '_blank', 'noopener,noreferrer');
