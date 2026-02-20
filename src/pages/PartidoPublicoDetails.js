@@ -8,6 +8,7 @@ import { isUserMemberOfMatch } from '../utils/membershipCheck';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ConfirmModal from '../components/ConfirmModal';
 import { findUserScheduleConflicts } from '../services/db/matchScheduling';
+import { notifyAdminJoinRequest } from '../services/matchJoinNotificationService';
 
 export default function PartidoPublicoDetails() {
   const { partidoId } = useParams();
@@ -210,6 +211,13 @@ export default function PartidoPublicoDetails() {
       });
       notifyBlockingError('Error al solicitar');
     } else {
+      const requesterName = user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Un jugador';
+      await notifyAdminJoinRequest({
+        matchId,
+        requestId: null,
+        requesterUserId: user?.id || null,
+        requesterName,
+      });
       setJoinStatus('pending');
       console.info('Solicitud enviada');
     }

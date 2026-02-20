@@ -202,6 +202,26 @@ serve(async (req) => {
       );
     }
 
+    // Best-effort admin notification so the host sees new joins in bell/activity.
+    try {
+      await supabase.rpc("enqueue_partido_notification", {
+        p_partido_id: partidoIdNum,
+        p_type: "match_update",
+        p_title: "Nuevo jugador en el partido",
+        p_message: `${nombre.trim().slice(0, 50)} se sumó al partido.`,
+        p_payload: {
+          match_id: partidoIdNum,
+          matchId: partidoIdNum,
+          player_name: nombre.trim().slice(0, 50),
+          player_user_id: null,
+          joined_via: "guest_invite",
+          link: `/admin/${partidoIdNum}?tab=jugadores`,
+        },
+      });
+    } catch (_notifyErr) {
+      // Don't block join flow if notifications fail.
+    }
+
     return new Response(
       JSON.stringify({
         ok: true,

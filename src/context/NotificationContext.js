@@ -294,7 +294,7 @@ export const NotificationProvider = ({ children }) => {
           ? 'survey_open'
           : n.type === 'survey_reminder'
             ? 'survey_reminder'
-            : 'default'
+            : String(n.type || 'default')
       );
       const key = `${n.user_id}::${String(pid)}::${surveyGroup}`;
       const existing = keepMap.get(key);

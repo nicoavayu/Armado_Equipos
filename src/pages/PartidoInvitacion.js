@@ -14,6 +14,7 @@ import InlineNotice from '../components/ui/InlineNotice';
 import { Camera, UserRound, CircleAlert, Zap, LockKeyhole, CheckCircle2, Calendar, Clock, MapPin } from 'lucide-react';
 import Logo from '../Logo.png';
 import { findUserScheduleConflicts } from '../services/db/matchScheduling';
+import { notifyAdminJoinRequest, notifyAdminPlayerJoined } from '../services/matchJoinNotificationService';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 /**
@@ -783,6 +784,13 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       }
 
       console.log('[SOLICITAR_UNIRME] Request created successfully:', newRequest.id);
+      const requesterName = user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Un jugador';
+      await notifyAdminJoinRequest({
+        matchId: Number(partidoId),
+        requestId: newRequest?.id || null,
+        requesterUserId: user?.id || null,
+        requesterName,
+      });
       setJoinStatus('pending');
       showInlineNotice('success', 'Solicitud enviada. Esperando aprobación del admin.');
     } catch (err) {
@@ -873,6 +881,14 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       if (insertError) {
         throw insertError;
       }
+
+      const resolvedName = userData?.nombre || user.email?.split('@')[0] || 'Jugador';
+      await notifyAdminPlayerJoined({
+        matchId: Number(partidoId),
+        playerName: resolvedName,
+        playerUserId: user?.id || null,
+        joinedVia: 'invite_link',
+      });
 
       showInlineNotice('success', 'Te sumaste al partido.');
       if (mode === 'invite') {
