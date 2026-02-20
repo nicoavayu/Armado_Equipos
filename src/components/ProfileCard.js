@@ -300,7 +300,7 @@ const ProfileCardComponent = ({
             justify-content: center;
             min-width: 2ch;
             padding: 0 1px;
-            margin-top: 2px;
+            margin-top: 4px;
             color: #EAFBFF;
             text-shadow: 0 0 4px rgba(120, 230, 255, 0.35);
             font-variant-numeric: tabular-nums;
