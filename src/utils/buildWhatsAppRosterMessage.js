@@ -10,7 +10,6 @@ const formatDateAndTime = (match) => {
     const startAtDate = new Date(startAtRaw);
     if (!Number.isNaN(startAtDate.getTime())) {
       const fecha = startAtDate.toLocaleDateString('es-AR', {
-        weekday: 'short',
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -35,7 +34,6 @@ const formatDateAndTime = (match) => {
       const fechaLocal = parseLocalDate(fechaRaw);
       if (fechaLocal) {
         fecha = fechaLocal.toLocaleDateString('es-AR', {
-          weekday: 'short',
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
