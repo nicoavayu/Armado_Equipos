@@ -272,10 +272,11 @@ const ProfileCardComponent = ({
           touch-action: auto;
         }
         .profile-card-wrapper.pc-awards-space-left {
-          --pc-layout-gap: clamp(0.35rem, 1.4vw, 0.6rem);
-          --pc-left-slot-width: clamp(42px, 11vw, 56px);
+          --pc-layout-gap: clamp(0.4rem, 1.8vw, 0.75rem);
+          --pc-left-slot-width: clamp(60px, 18vw, 80px);
+          --pc-card-target-width: min(74vw, 344px);
           --pc-card-width: min(
-            min(92vw, 430px),
+            var(--pc-card-target-width),
             calc(100% - var(--pc-left-slot-width) - var(--pc-layout-gap))
           );
         }
