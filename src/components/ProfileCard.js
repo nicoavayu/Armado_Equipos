@@ -283,6 +283,28 @@ const ProfileCardComponent = ({
           letter-spacing: 0.02em;
           filter: none;
         }
+          .pc-awards-item {
+            position: relative;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+          }
+          .pc-awards-icon-slot {
+            display: block;
+            pointer-events: none;
+            user-select: none;
+          }
+          .pc-awards-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 2ch;
+            padding: 0 1px;
+            margin-top: 2px;
+            color: #EAFBFF;
+            text-shadow: 0 0 4px rgba(120, 230, 255, 0.35);
+            font-variant-numeric: tabular-nums;
+          }
           .pc-badge-count.pc-pop {
             animation: pcBadgePop 520ms cubic-bezier(.2,.85,.2,1);
           }
@@ -310,9 +332,7 @@ const ProfileCardComponent = ({
               margin-bottom: 0.4rem;
             }
             .profile-card-wrapper .pc-awards-item {
-              gap: 0.42rem;
               min-width: 52px;
-              justify-content: center;
             }
             .profile-card-wrapper .pc-awards-divider {
               height: 0.8rem;
@@ -320,18 +340,7 @@ const ProfileCardComponent = ({
             .profile-card-wrapper .pc-awards-count {
               font-size: 0.98rem;
               line-height: 1;
-              min-width: 2.8ch;
               text-align: center;
-              font-variant-numeric: tabular-nums;
-            }
-            .profile-card-wrapper .pc-awards-icon--mvp,
-            .profile-card-wrapper .pc-awards-icon--glove {
-              width: 22px !important;
-              height: 22px !important;
-            }
-            .profile-card-wrapper .pc-awards-icon--red {
-              width: 15px !important;
-              height: 21px !important;
             }
             .profile-card-wrapper .pc-right-stats {
               right: 40px;
@@ -358,7 +367,6 @@ const ProfileCardComponent = ({
             }
             .profile-card-wrapper .pc-awards-count {
               font-size: 0.88rem;
-              min-width: 2.4ch;
             }
             .profile-card-wrapper .pc-right-stats {
               right: 34px;
@@ -575,29 +583,29 @@ const ProfileCardComponent = ({
                   {/* Footer Divider Removed as requested */}
 
                   {/* Prizes Row (Divided into 3 sections, container removed) */}
-                  <div className="flex items-center justify-center gap-6 mb-2 pc-awards-row">
+                  <div className="flex items-start justify-center gap-6 mb-2 pc-awards-row">
                     {/* MVP Prize */}
-                    <div className="flex items-center gap-2 min-w-[44px] pc-awards-item">
-                      <img src="/mvp.png" alt="MVP" width={22} height={22} className="shrink-0 pc-awards-icon--mvp" draggable={false} />
-                      <span ref={mvpRef} className="text-white text-sm font-black pc-badge-count pc-awards-count leading-none">{vm.mvp}</span>
+                    <div className="flex items-center min-w-[44px] pc-awards-item">
+                      <span className="w-[22px] h-[22px] pc-awards-icon-slot" aria-hidden="true" />
+                      <span ref={mvpRef} className="text-sm font-black pc-badge-count pc-awards-count leading-none">{vm.mvp}</span>
                     </div>
 
                     {/* Divider */}
-                    <div className="w-[1px] h-4 bg-white/10 pc-awards-divider" />
+                    <div className="w-[1px] h-4 opacity-0 pc-awards-divider" aria-hidden="true" />
 
                     {/* Glove Prize */}
-                    <div className="flex items-center gap-2 min-w-[44px] pc-awards-item">
-                      <img src="/glove.png" alt="Glove" width={22} height={22} className="shrink-0 pc-awards-icon--glove" draggable={false} />
-                      <span ref={gkRef} className="text-white text-sm font-black pc-badge-count pc-awards-count leading-none">{vm.gk}</span>
+                    <div className="flex items-center min-w-[44px] pc-awards-item">
+                      <span className="w-[22px] h-[22px] pc-awards-icon-slot" aria-hidden="true" />
+                      <span ref={gkRef} className="text-sm font-black pc-badge-count pc-awards-count leading-none">{vm.gk}</span>
                     </div>
 
                     {/* Divider */}
-                    <div className="w-[1px] h-4 bg-white/10 pc-awards-divider" />
+                    <div className="w-[1px] h-4 opacity-0 pc-awards-divider" aria-hidden="true" />
 
                     {/* Red Card Prize (Last) */}
-                    <div className="flex items-center gap-2 min-w-[38px] pc-awards-item">
-                      <img src="/red_card.png" alt="Card" width={16} height={22} className="shrink-0 pc-awards-icon--red" draggable={false} />
-                      <span ref={redRef} className="text-white text-sm font-black pc-badge-count pc-awards-count leading-none">{vm.red}</span>
+                    <div className="flex items-center min-w-[38px] pc-awards-item">
+                      <span className="w-[16px] h-[22px] pc-awards-icon-slot" aria-hidden="true" />
+                      <span ref={redRef} className="text-sm font-black pc-badge-count pc-awards-count leading-none">{vm.red}</span>
                     </div>
                   </div>
                 </div>
