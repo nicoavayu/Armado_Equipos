@@ -361,25 +361,39 @@ export default function ArmarEquiposView({
     const baseUrl = getPublicBaseUrl() || window.location.origin;
     const publicLink = `${baseUrl}/votar-equipos?codigo=${encodeURIComponent(matchCode)}`;
     const text = 'Votá para armar los equipos ⚽️';
+    const waText = `${text}\n${publicLink}`;
+    const encodedText = encodeURIComponent(waText);
+    const whatsappWebUrl = `https://api.whatsapp.com/send?text=${encodedText}`;
+    const whatsappAppUrl = `whatsapp://send?text=${encodedText}`;
+    const isMobileWeb = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
 
     console.debug('[Teams] share link', { partidoId: partidoActual?.id, matchCode });
 
-    // Intentar Web Share API (si disponible)
-    if (navigator.share) {
-      navigator.share({
-        title: 'Votación del partido',
-        text,
-        url: publicLink,
-      })
-        .then(() => console.debug('[Share] navigator.share success'))
-        .catch((e) => console.debug('[Share] navigator.share cancelled/error', e));
+    // En mobile web priorizamos deep-link a WhatsApp para abrir selector de contactos.
+    if (isMobileWeb) {
+      window.location.href = whatsappAppUrl;
       return;
     }
 
-    // Fallback WhatsApp
-    const waText = `${text}\n${publicLink}`;
-    const wa = `https://wa.me/?text=${encodeURIComponent(waText)}`;
-    window.open(wa, '_blank', 'noopener,noreferrer');
+    // Intentar Web Share API (si disponible) en desktop.
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Votación del partido',
+          text,
+          url: publicLink,
+        });
+        return;
+      } catch (shareError) {
+        if (shareError?.name === 'AbortError') return;
+        console.warn('[Share] navigator.share failed, fallback to WhatsApp URL', shareError);
+      }
+    }
+
+    // Fallback WhatsApp web.
+    const opened = window.open(whatsappWebUrl, '_blank', 'noopener,noreferrer');
+    if (opened) return;
+    window.location.href = whatsappWebUrl;
   }
 
   async function handleCerrarVotacion() {

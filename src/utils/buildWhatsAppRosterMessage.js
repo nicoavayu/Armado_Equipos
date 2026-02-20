@@ -116,7 +116,7 @@ export const buildWhatsAppRosterMessage = (match, joinLink) => {
   ];
 
   if (safeJoinLink) {
-    messageLines.push('', safeJoinLink);
+    messageLines.push('', 'Sumate entrando al link:', safeJoinLink);
   }
 
   return messageLines.join('\n');
