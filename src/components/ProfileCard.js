@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 
 // --- Pure Helper Functions (Outside Component) ---
 const clamp = (v, min = 0, max = 100) => Math.min(Math.max(v, min), max);
@@ -87,6 +87,9 @@ const getAvatar = (p) => {
 };
 
 const ANIM = { SMOOTH: 600, INIT: 1500, OX: 70, OY: 60 };
+const CARD_FRAME_WIDTH = 758;
+const CARD_FRAME_HEIGHT = 1246;
+const CARD_FRAME_RATIO = CARD_FRAME_WIDTH / CARD_FRAME_HEIGHT;
 
 const ProfileCardComponent = ({
   profile,
@@ -95,7 +98,7 @@ const ProfileCardComponent = ({
   ratingOverride = null,
   disableInternalMotion = false,
   performanceMode = false,
-  cardRatio = 0.72,
+  cardRatio = CARD_FRAME_RATIO,
   cardMaxWidth = 430,
   screenMode = false,
 }) => {
@@ -105,6 +108,7 @@ const ProfileCardComponent = ({
   const gkRef = useRef(null);
   const redRef = useRef(null);
   const prevCountsRef = useRef({ mvp: null, gk: null, red: null });
+  const [frameRatio, setFrameRatio] = useState(() => (Number(cardRatio) > 0 ? Number(cardRatio) : CARD_FRAME_RATIO));
 
   // 1. Single View Model for all data
   const vm = useMemo(() => {
@@ -187,6 +191,10 @@ const ProfileCardComponent = ({
     };
   }, [enableTilt, handlers, onEnter, onMove, onLeave]);
 
+  useEffect(() => {
+    setFrameRatio(Number(cardRatio) > 0 ? Number(cardRatio) : CARD_FRAME_RATIO);
+  }, [cardRatio]);
+
   // Pop animation when badge counts change
   useEffect(() => {
     const prev = prevCountsRef.current;
@@ -204,9 +212,16 @@ const ProfileCardComponent = ({
     prevCountsRef.current = { mvp: vm.mvp, gk: vm.gk, red: vm.red };
   }, [vm?.mvp, vm?.gk, vm?.red]);
 
+  const onFrameLoad = useCallback((event) => {
+    const { naturalWidth, naturalHeight } = event.currentTarget || {};
+    if (!naturalWidth || !naturalHeight) return;
+    const nextRatio = naturalWidth / naturalHeight;
+    if (!Number.isFinite(nextRatio) || nextRatio <= 0) return;
+    setFrameRatio((prevRatio) => (Math.abs(prevRatio - nextRatio) < 0.0001 ? prevRatio : nextRatio));
+  }, []);
+
   if (!isVisible || !vm) return null;
   const levelDotColor = vm.level !== null ? getLevelDotColor(vm.level) : null;
-  const normalizedCardRatio = Number(cardRatio) > 0 ? Number(cardRatio) : 0.72;
   const normalizedCardMaxWidth = Number(cardMaxWidth) > 0 ? Number(cardMaxWidth) : 430;
 
   return (
@@ -227,20 +242,85 @@ const ProfileCardComponent = ({
           --rating-glow1: rgba(0, 200, 255, 0.8);
           --rating-glow2: rgba(0, 200, 255, 0.4);
           --pc-card-width: min(92vw, 430px);
-          --pc-card-ratio: 0.72;
+          --pc-card-ratio: ${CARD_FRAME_WIDTH} / ${CARD_FRAME_HEIGHT};
+          --pc-card-height: calc(var(--pc-card-width) / var(--pc-card-ratio));
+          --pc-award-height: clamp(
+            calc(var(--pc-card-height) * 0.18),
+            calc(var(--pc-card-height) * 0.2),
+            calc(var(--pc-card-height) * 0.22)
+          );
+          --pc-layout-gap: clamp(0.5rem, 2.4vw, 1rem);
+          --pc-awards-gap: calc(var(--pc-award-height) * 0.08);
           --pc-photo-size: 51.8%;
           --pc-photo-top: 16.9%;
           --pc-side-top: 39.5%;
           --pc-center-top: 56.8%;
-          --pc-awards-bottom: 7.6%;
           width: 100%;
-          display: flex;
-          justify-content: center;
+          display: grid;
+          justify-items: center;
           overflow: visible;
           perspective: 1000px;
-          touch-action: none;
+          touch-action: pan-y;
           -webkit-text-size-adjust: 100%;
           text-size-adjust: 100%;
+        }
+        .pc-layout {
+          width: min(100%, 62rem);
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr);
+          align-items: center;
+          justify-content: center;
+          gap: var(--pc-layout-gap);
+        }
+        .pc-awards-rail {
+          width: max-content;
+          display: grid;
+          grid-auto-rows: max-content;
+          align-content: center;
+          justify-items: center;
+          gap: var(--pc-awards-gap);
+        }
+        .pc-award-tile {
+          position: relative;
+          width: max-content;
+          line-height: 0;
+        }
+        .pc-award-image {
+          height: var(--pc-award-height);
+          width: auto;
+          display: block;
+          object-fit: contain;
+          pointer-events: none;
+          user-select: none;
+        }
+        .pc-award-count {
+          position: absolute;
+          left: 50%;
+          bottom: 14%;
+          transform: translateX(-50%);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 2ch;
+          color: #EAFBFF;
+          font-size: clamp(
+            calc(var(--pc-award-height) * 0.12),
+            calc(var(--pc-award-height) * 0.13),
+            calc(var(--pc-award-height) * 0.14)
+          );
+          line-height: 1;
+          font-variant-numeric: tabular-nums;
+          text-align: center;
+          text-shadow:
+            0 0 3px rgba(0, 0, 0, 0.75),
+            0 0 8px rgba(120, 230, 255, 0.6);
+          pointer-events: none;
+          user-select: none;
+        }
+        .pc-main-column {
+          min-width: 0;
+          display: grid;
+          justify-items: center;
         }
         .pc-stage {
           position: relative;
@@ -545,68 +625,38 @@ const ProfileCardComponent = ({
           letter-spacing: 0.02em;
           filter: none;
         }
-        .pc-awards-wrap {
-          position: absolute;
-          left: 50%;
-          bottom: var(--pc-awards-bottom);
-          transform: translateX(-50%);
-          width: 76%;
-          display: flex;
-          justify-content: center;
-        }
-        .pc-awards-row {
-          display: flex;
-          align-items: flex-start;
-          justify-content: center;
-          gap: clamp(18px, 5vw, 28px);
-        }
-        .pc-awards-item {
-          position: relative;
-          min-width: clamp(34px, 9.8vw, 44px);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: flex-start;
-        }
-        .pc-awards-icon-slot {
-          display: block;
-          pointer-events: none;
-          user-select: none;
-        }
-        .pc-awards-icon-slot--regular {
-          width: clamp(18px, 5.7vw, 22px);
-          height: clamp(18px, 5.7vw, 22px);
-        }
-        .pc-awards-icon-slot--red {
-          width: clamp(13px, 4.5vw, 16px);
-          height: clamp(18px, 5.7vw, 22px);
-        }
-        .pc-awards-divider {
-          width: 1px;
-          height: clamp(12px, 3.6vw, 16px);
-          opacity: 0;
-        }
-        .pc-awards-count {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 2ch;
-          padding: 0 1px;
-          margin-top: clamp(2px, 0.8vw, 4px);
-          color: #EAFBFF;
-          font-size: clamp(13px, 3.9vw, 16px);
-          line-height: 1;
-          text-shadow: 0 0 4px rgba(120, 230, 255, 0.35);
-          font-variant-numeric: tabular-nums;
-          text-align: center;
-        }
         .pc-badge-count.pc-pop {
           animation: pcBadgePop 520ms cubic-bezier(.2,.85,.2,1);
         }
         @keyframes pcBadgePop {
-          0% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
-          40% { transform: scale(1.35); filter: drop-shadow(0 0 8px rgba(255,255,255,0.6)); }
-          100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+          0% { transform: translateX(-50%) scale(1); filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+          40% { transform: translateX(-50%) scale(1.35); filter: drop-shadow(0 0 8px rgba(255,255,255,0.6)); }
+          100% { transform: translateX(-50%) scale(1); filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
+        }
+        @media (max-width: 42rem) {
+          .pc-layout {
+            width: 100%;
+            grid-template-columns: minmax(0, 1fr);
+            justify-items: center;
+          }
+          .pc-main-column {
+            order: 1;
+          }
+          .pc-awards-rail {
+            order: 2;
+            width: min(100%, var(--pc-card-width));
+            grid-auto-flow: column;
+            grid-auto-columns: max-content;
+            justify-content: flex-start;
+            overflow-x: auto;
+            padding-bottom: calc(var(--pc-award-height) * 0.02);
+            overscroll-behavior-x: contain;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+          }
+          .pc-award-tile {
+            flex: 0 0 auto;
+          }
         }
       `}</style>
 
@@ -614,162 +664,159 @@ const ProfileCardComponent = ({
         ref={wrapRef}
         className={`profile-card-wrapper${screenMode ? ' profile-card-screen' : ''}`}
         style={{
-          '--pc-card-ratio': String(normalizedCardRatio),
+          '--pc-card-ratio': String(frameRatio),
           '--pc-card-width': `min(92vw, ${normalizedCardMaxWidth}px)`,
         }}
       >
-        <div className="pc-stage">
-          {!performanceMode && (
-            <div className="pc-glow-layer" />
-          )}
+        <div className="pc-layout">
+          <aside className="pc-awards-rail" aria-label="Premios del jugador">
+            <div className="pc-award-tile">
+              <img className="pc-award-image" src="/mvp_award.png" alt="Premio MVP" loading="lazy" decoding="async" />
+              <span ref={mvpRef} className="pc-badge-count pc-award-count">{vm.mvp}</span>
+            </div>
+            <div className="pc-award-tile">
+              <img className="pc-award-image" src="/goalkeeper_award.png" alt="Premio arquero" loading="lazy" decoding="async" />
+              <span ref={gkRef} className="pc-badge-count pc-award-count">{vm.gk}</span>
+            </div>
+            <div className="pc-award-tile">
+              <img className="pc-award-image" src="/redcard_award.png" alt="Premio tarjeta roja" loading="lazy" decoding="async" />
+              <span ref={redRef} className="pc-badge-count pc-award-count">{vm.red}</span>
+            </div>
+          </aside>
 
-          <div className="pc-card-shell">
-            <section
-              ref={cardRef}
-              className={`profile-card-main pc-card-main ${!disableInternalMotion ? 'pc-card-main--motion' : ''}`}
-              style={{
-                willChange: 'transform',
-                backfaceVisibility: 'hidden',
-                WebkitBackfaceVisibility: 'hidden',
-                transformStyle: 'preserve-3d',
-              }}
-            >
-              <div className="pc-photo-hole">
-                {vm.avatarUrl ? (
+          <div className="pc-main-column">
+            <div className="pc-stage">
+              {!performanceMode && (
+                <div className="pc-glow-layer" />
+              )}
+
+              <div className="pc-card-shell">
+                <section
+                  ref={cardRef}
+                  className={`profile-card-main pc-card-main ${!disableInternalMotion ? 'pc-card-main--motion' : ''}`}
+                  style={{
+                    willChange: 'transform',
+                    backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
+                    transformStyle: 'preserve-3d',
+                  }}
+                >
+                  <div className="pc-photo-hole">
+                    {vm.avatarUrl ? (
+                      <img
+                        className="pc-photo-img"
+                        src={vm.avatarUrl}
+                        alt={vm.name}
+                        loading="eager"
+                        crossOrigin="anonymous"
+                      />
+                    ) : (
+                      <div className="pc-photo-fallback">👤</div>
+                    )}
+                  </div>
+
                   <img
-                    className="pc-photo-img"
-                    src={vm.avatarUrl}
-                    alt={vm.name}
-                    loading="eager"
-                    crossOrigin="anonymous"
+                    src="/card_mockup.png"
+                    alt=""
+                    className="pc-card-frame"
+                    onLoad={onFrameLoad}
                   />
-                ) : (
-                  <div className="pc-photo-fallback">👤</div>
-                )}
-              </div>
 
-              <img
-                src="/card_mockup.png"
-                alt=""
-                className="pc-card-frame"
-              />
-
-              <div className="pc-content-layer">
-                <div className="pc-name-wrap">
-                  <h3 className="pc-name" title={vm.name}>
-                    {vm.name.slice(0, 12)}
-                  </h3>
-                </div>
-
-                <div className="pc-right-stats">
-                  <div className="pc-stat-stack">
-                    <span className="pc-stat-label">PJ</span>
-                    <span className="pc-stat-value">{vm.pj}</span>
-                  </div>
-                  <div className="pc-stats-divider" />
-                  <div className="pc-stat-stack">
-                    <span className="pc-stat-label">PA</span>
-                    <span className="pc-stat-value">{vm.pa}</span>
-                  </div>
-                </div>
-
-                {(vm.foot || vm.level !== null) && (
-                  <div className="pc-left-meta">
-                    {vm.foot && (
-                      <div
-                        className="pc-mini-badge"
-                        style={{ border: '1.5px solid', borderColor: vm.footStyle.borderColor, background: vm.footStyle.background }}
-                      >
-                        <span className="pc-mini-badge-label" style={{ color: vm.footStyle.color, textShadow: vm.footStyle.textShadow }}>
-                          {vm.foot}
-                        </span>
-                      </div>
-                    )}
-                    {!vm.foot && vm.level !== null && (
-                      <div className="pc-mini-badge pc-mini-badge--placeholder" aria-hidden="true" />
-                    )}
-
-                    {vm.level !== null && (
-                      <div className="pc-level-wrap">
-                        <span className="pc-level-stack" aria-label={`Nivel autopercibido ${vm.level} de 5`}>
-                          {[5, 4, 3, 2, 1].map((dot) => (
-                            <span
-                              key={dot}
-                              className={`pc-level-dot ${dot <= vm.level ? '' : 'pc-level-dot--empty'}`}
-                              style={dot <= vm.level ? {
-                                backgroundColor: levelDotColor,
-                                boxShadow: `0 0 6px ${levelDotColor}80`,
-                              } : undefined}
-                            />
-                          ))}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="pc-center-cluster">
-                  <div className="pc-center-badge-row">
-                    <div className={`${performanceMode ? 'badge-glass--perf' : 'badge-glass'} pc-mini-badge pc-center-badge`}>
-                      <img src={`https://flagcdn.com/w40/${vm.cc}.png`} alt={vm.abbr} className="pc-flag-img" />
+                  <div className="pc-content-layer">
+                    <div className="pc-name-wrap">
+                      <h3 className="pc-name" title={vm.name}>
+                        {vm.name.slice(0, 12)}
+                      </h3>
                     </div>
 
-                    <div className="pc-center-divider" />
-
-                    <div
-                      className="pc-mini-badge pc-center-badge pc-position-badge"
-                      style={{ borderColor: vm.posColor }}
-                    >
-                      <span
-                        className="pc-mini-badge-label"
-                        style={{
-                          color: vm.posColor,
-                          textShadow: `0 0 4px ${vm.posColor}AA`,
-                        }}
-                      >
-                        {vm.pos}
-                      </span>
+                    <div className="pc-right-stats">
+                      <div className="pc-stat-stack">
+                        <span className="pc-stat-label">PJ</span>
+                        <span className="pc-stat-value">{vm.pj}</span>
+                      </div>
+                      <div className="pc-stats-divider" />
+                      <div className="pc-stat-stack">
+                        <span className="pc-stat-label">PA</span>
+                        <span className="pc-stat-value">{vm.pa}</span>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="pc-rating-wrap">
-                    <div className="pc-rating-inner">
-                      <div className="pc-rating-star-anchor">
-                        <div className="rating-star-badge pc-rating-star-badge">
-                          <span className={performanceMode ? 'rating-star--perf' : 'rating-star'}>★</span>
+                    {(vm.foot || vm.level !== null) && (
+                      <div className="pc-left-meta">
+                        {vm.foot && (
+                          <div
+                            className="pc-mini-badge"
+                            style={{ border: '1.5px solid', borderColor: vm.footStyle.borderColor, background: vm.footStyle.background }}
+                          >
+                            <span className="pc-mini-badge-label" style={{ color: vm.footStyle.color, textShadow: vm.footStyle.textShadow }}>
+                              {vm.foot}
+                            </span>
+                          </div>
+                        )}
+                        {!vm.foot && vm.level !== null && (
+                          <div className="pc-mini-badge pc-mini-badge--placeholder" aria-hidden="true" />
+                        )}
+
+                        {vm.level !== null && (
+                          <div className="pc-level-wrap">
+                            <span className="pc-level-stack" aria-label={`Nivel autopercibido ${vm.level} de 5`}>
+                              {[5, 4, 3, 2, 1].map((dot) => (
+                                <span
+                                  key={dot}
+                                  className={`pc-level-dot ${dot <= vm.level ? '' : 'pc-level-dot--empty'}`}
+                                  style={dot <= vm.level ? {
+                                    backgroundColor: levelDotColor,
+                                    boxShadow: `0 0 6px ${levelDotColor}80`,
+                                  } : undefined}
+                                />
+                              ))}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="pc-center-cluster">
+                      <div className="pc-center-badge-row">
+                        <div className={`${performanceMode ? 'badge-glass--perf' : 'badge-glass'} pc-mini-badge pc-center-badge`}>
+                          <img src={`https://flagcdn.com/w40/${vm.cc}.png`} alt={vm.abbr} className="pc-flag-img" />
+                        </div>
+
+                        <div className="pc-center-divider" />
+
+                        <div
+                          className="pc-mini-badge pc-center-badge pc-position-badge"
+                          style={{ borderColor: vm.posColor }}
+                        >
+                          <span
+                            className="pc-mini-badge-label"
+                            style={{
+                              color: vm.posColor,
+                              textShadow: `0 0 4px ${vm.posColor}AA`,
+                            }}
+                          >
+                            {vm.pos}
+                          </span>
                         </div>
                       </div>
-                      <span className={performanceMode ? 'rating-value--perf' : 'rating-value'} style={{ color: '#FFD700' }}>
-                        {ratingOverride !== null ? ratingOverride.toFixed(1) : vm.rating}
-                      </span>
+
+                      <div className="pc-rating-wrap">
+                        <div className="pc-rating-inner">
+                          <div className="pc-rating-star-anchor">
+                            <div className="rating-star-badge pc-rating-star-badge">
+                              <span className={performanceMode ? 'rating-star--perf' : 'rating-star'}>★</span>
+                            </div>
+                          </div>
+                          <span className={performanceMode ? 'rating-value--perf' : 'rating-value'} style={{ color: '#FFD700' }}>
+                            {ratingOverride !== null ? ratingOverride.toFixed(1) : vm.rating}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="pc-awards-wrap">
-                  <div className="pc-awards-row">
-                    <div className="pc-awards-item">
-                      <span className="pc-awards-icon-slot pc-awards-icon-slot--regular" aria-hidden="true" />
-                      <span ref={mvpRef} className="pc-badge-count pc-awards-count">{vm.mvp}</span>
-                    </div>
-
-                    <div className="pc-awards-divider" aria-hidden="true" />
-
-                    <div className="pc-awards-item">
-                      <span className="pc-awards-icon-slot pc-awards-icon-slot--regular" aria-hidden="true" />
-                      <span ref={gkRef} className="pc-badge-count pc-awards-count">{vm.gk}</span>
-                    </div>
-
-                    <div className="pc-awards-divider" aria-hidden="true" />
-
-                    <div className="pc-awards-item">
-                      <span className="pc-awards-icon-slot pc-awards-icon-slot--red" aria-hidden="true" />
-                      <span ref={redRef} className="pc-badge-count pc-awards-count">{vm.red}</span>
-                    </div>
-                  </div>
-                </div>
+                </section>
               </div>
-            </section>
+            </div>
           </div>
         </div>
       </div>
