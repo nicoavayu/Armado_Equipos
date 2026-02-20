@@ -101,6 +101,7 @@ const ProfileCardComponent = ({
   cardRatio = CARD_FRAME_RATIO,
   cardMaxWidth = 430,
   screenMode = false,
+  awardsLayout = 'adaptive',
 }) => {
   const wrapRef = useRef(null);
   const cardRef = useRef(null);
@@ -223,6 +224,7 @@ const ProfileCardComponent = ({
   if (!isVisible || !vm) return null;
   const levelDotColor = vm.level !== null ? getLevelDotColor(vm.level) : null;
   const normalizedCardMaxWidth = Number(cardMaxWidth) > 0 ? Number(cardMaxWidth) : 430;
+  const forceSideAwards = awardsLayout === 'side';
 
   return (
     <>
@@ -264,6 +266,9 @@ const ProfileCardComponent = ({
           -webkit-text-size-adjust: 100%;
           text-size-adjust: 100%;
         }
+        .profile-card-wrapper.pc-awards-force-side {
+          touch-action: auto;
+        }
         .pc-layout {
           width: min(100%, 62rem);
           display: grid;
@@ -271,6 +276,21 @@ const ProfileCardComponent = ({
           align-items: center;
           justify-content: center;
           gap: var(--pc-layout-gap);
+        }
+        .pc-layout-scroll {
+          width: 100%;
+          display: grid;
+          justify-items: center;
+          overflow: visible;
+        }
+        .profile-card-wrapper.pc-awards-force-side .pc-layout-scroll {
+          overflow-x: auto;
+          overflow-y: visible;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin;
+        }
+        .profile-card-wrapper.pc-awards-force-side .pc-layout {
+          width: max-content;
         }
         .pc-awards-rail {
           width: max-content;
@@ -634,15 +654,18 @@ const ProfileCardComponent = ({
           100% { transform: translateX(-50%) scale(1); filter: drop-shadow(0 0 0 rgba(255,255,255,0)); }
         }
         @media (max-width: 42rem) {
-          .pc-layout {
+          .profile-card-wrapper.pc-awards-force-side .pc-layout {
+            grid-template-columns: auto minmax(0, 1fr);
+          }
+          .profile-card-wrapper:not(.pc-awards-force-side) .pc-layout {
             width: 100%;
             grid-template-columns: minmax(0, 1fr);
             justify-items: center;
           }
-          .pc-main-column {
+          .profile-card-wrapper:not(.pc-awards-force-side) .pc-main-column {
             order: 1;
           }
-          .pc-awards-rail {
+          .profile-card-wrapper:not(.pc-awards-force-side) .pc-awards-rail {
             order: 2;
             width: min(100%, var(--pc-card-width));
             grid-auto-flow: column;
@@ -654,7 +677,7 @@ const ProfileCardComponent = ({
             -webkit-overflow-scrolling: touch;
             scrollbar-width: thin;
           }
-          .pc-award-tile {
+          .profile-card-wrapper:not(.pc-awards-force-side) .pc-award-tile {
             flex: 0 0 auto;
           }
         }
@@ -662,159 +685,161 @@ const ProfileCardComponent = ({
 
       <div
         ref={wrapRef}
-        className={`profile-card-wrapper${screenMode ? ' profile-card-screen' : ''}`}
+        className={`profile-card-wrapper${screenMode ? ' profile-card-screen' : ''}${forceSideAwards ? ' pc-awards-force-side' : ''}`}
         style={{
           '--pc-card-ratio': String(frameRatio),
           '--pc-card-width': `min(92vw, ${normalizedCardMaxWidth}px)`,
         }}
       >
-        <div className="pc-layout">
-          <aside className="pc-awards-rail" aria-label="Premios del jugador">
-            <div className="pc-award-tile">
-              <img className="pc-award-image" src="/mvp_award.png" alt="Premio MVP" loading="lazy" decoding="async" />
-              <span ref={mvpRef} className="pc-badge-count pc-award-count">{vm.mvp}</span>
-            </div>
-            <div className="pc-award-tile">
-              <img className="pc-award-image" src="/goalkeeper_award.png" alt="Premio arquero" loading="lazy" decoding="async" />
-              <span ref={gkRef} className="pc-badge-count pc-award-count">{vm.gk}</span>
-            </div>
-            <div className="pc-award-tile">
-              <img className="pc-award-image" src="/redcard_award.png" alt="Premio tarjeta roja" loading="lazy" decoding="async" />
-              <span ref={redRef} className="pc-badge-count pc-award-count">{vm.red}</span>
-            </div>
-          </aside>
+        <div className="pc-layout-scroll">
+          <div className="pc-layout">
+            <aside className="pc-awards-rail" aria-label="Premios del jugador">
+              <div className="pc-award-tile">
+                <img className="pc-award-image" src="/mvp_award.png" alt="Premio MVP" loading="lazy" decoding="async" />
+                <span ref={mvpRef} className="pc-badge-count pc-award-count">{vm.mvp}</span>
+              </div>
+              <div className="pc-award-tile">
+                <img className="pc-award-image" src="/goalkeeper_award.png" alt="Premio arquero" loading="lazy" decoding="async" />
+                <span ref={gkRef} className="pc-badge-count pc-award-count">{vm.gk}</span>
+              </div>
+              <div className="pc-award-tile">
+                <img className="pc-award-image" src="/redcard_award.png" alt="Premio tarjeta roja" loading="lazy" decoding="async" />
+                <span ref={redRef} className="pc-badge-count pc-award-count">{vm.red}</span>
+              </div>
+            </aside>
 
-          <div className="pc-main-column">
-            <div className="pc-stage">
-              {!performanceMode && (
-                <div className="pc-glow-layer" />
-              )}
+            <div className="pc-main-column">
+              <div className="pc-stage">
+                {!performanceMode && (
+                  <div className="pc-glow-layer" />
+                )}
 
-              <div className="pc-card-shell">
-                <section
-                  ref={cardRef}
-                  className={`profile-card-main pc-card-main ${!disableInternalMotion ? 'pc-card-main--motion' : ''}`}
-                  style={{
-                    willChange: 'transform',
-                    backfaceVisibility: 'hidden',
-                    WebkitBackfaceVisibility: 'hidden',
-                    transformStyle: 'preserve-3d',
-                  }}
-                >
-                  <div className="pc-photo-hole">
-                    {vm.avatarUrl ? (
-                      <img
-                        className="pc-photo-img"
-                        src={vm.avatarUrl}
-                        alt={vm.name}
-                        loading="eager"
-                        crossOrigin="anonymous"
-                      />
-                    ) : (
-                      <div className="pc-photo-fallback">👤</div>
-                    )}
-                  </div>
-
-                  <img
-                    src="/card_mockup.png"
-                    alt=""
-                    className="pc-card-frame"
-                    onLoad={onFrameLoad}
-                  />
-
-                  <div className="pc-content-layer">
-                    <div className="pc-name-wrap">
-                      <h3 className="pc-name" title={vm.name}>
-                        {vm.name.slice(0, 12)}
-                      </h3>
+                <div className="pc-card-shell">
+                  <section
+                    ref={cardRef}
+                    className={`profile-card-main pc-card-main ${!disableInternalMotion ? 'pc-card-main--motion' : ''}`}
+                    style={{
+                      willChange: 'transform',
+                      backfaceVisibility: 'hidden',
+                      WebkitBackfaceVisibility: 'hidden',
+                      transformStyle: 'preserve-3d',
+                    }}
+                  >
+                    <div className="pc-photo-hole">
+                      {vm.avatarUrl ? (
+                        <img
+                          className="pc-photo-img"
+                          src={vm.avatarUrl}
+                          alt={vm.name}
+                          loading="eager"
+                          crossOrigin="anonymous"
+                        />
+                      ) : (
+                        <div className="pc-photo-fallback">👤</div>
+                      )}
                     </div>
 
-                    <div className="pc-right-stats">
-                      <div className="pc-stat-stack">
-                        <span className="pc-stat-label">PJ</span>
-                        <span className="pc-stat-value">{vm.pj}</span>
-                      </div>
-                      <div className="pc-stats-divider" />
-                      <div className="pc-stat-stack">
-                        <span className="pc-stat-label">PA</span>
-                        <span className="pc-stat-value">{vm.pa}</span>
-                      </div>
-                    </div>
+                    <img
+                      src="/card_mockup.png"
+                      alt=""
+                      className="pc-card-frame"
+                      onLoad={onFrameLoad}
+                    />
 
-                    {(vm.foot || vm.level !== null) && (
-                      <div className="pc-left-meta">
-                        {vm.foot && (
-                          <div
-                            className="pc-mini-badge"
-                            style={{ border: '1.5px solid', borderColor: vm.footStyle.borderColor, background: vm.footStyle.background }}
-                          >
-                            <span className="pc-mini-badge-label" style={{ color: vm.footStyle.color, textShadow: vm.footStyle.textShadow }}>
-                              {vm.foot}
-                            </span>
-                          </div>
-                        )}
-                        {!vm.foot && vm.level !== null && (
-                          <div className="pc-mini-badge pc-mini-badge--placeholder" aria-hidden="true" />
-                        )}
-
-                        {vm.level !== null && (
-                          <div className="pc-level-wrap">
-                            <span className="pc-level-stack" aria-label={`Nivel autopercibido ${vm.level} de 5`}>
-                              {[5, 4, 3, 2, 1].map((dot) => (
-                                <span
-                                  key={dot}
-                                  className={`pc-level-dot ${dot <= vm.level ? '' : 'pc-level-dot--empty'}`}
-                                  style={dot <= vm.level ? {
-                                    backgroundColor: levelDotColor,
-                                    boxShadow: `0 0 6px ${levelDotColor}80`,
-                                  } : undefined}
-                                />
-                              ))}
-                            </span>
-                          </div>
-                        )}
+                    <div className="pc-content-layer">
+                      <div className="pc-name-wrap">
+                        <h3 className="pc-name" title={vm.name}>
+                          {vm.name.slice(0, 12)}
+                        </h3>
                       </div>
-                    )}
 
-                    <div className="pc-center-cluster">
-                      <div className="pc-center-badge-row">
-                        <div className={`${performanceMode ? 'badge-glass--perf' : 'badge-glass'} pc-mini-badge pc-center-badge`}>
-                          <img src={`https://flagcdn.com/w40/${vm.cc}.png`} alt={vm.abbr} className="pc-flag-img" />
+                      <div className="pc-right-stats">
+                        <div className="pc-stat-stack">
+                          <span className="pc-stat-label">PJ</span>
+                          <span className="pc-stat-value">{vm.pj}</span>
                         </div>
-
-                        <div className="pc-center-divider" />
-
-                        <div
-                          className="pc-mini-badge pc-center-badge pc-position-badge"
-                          style={{ borderColor: vm.posColor }}
-                        >
-                          <span
-                            className="pc-mini-badge-label"
-                            style={{
-                              color: vm.posColor,
-                              textShadow: `0 0 4px ${vm.posColor}AA`,
-                            }}
-                          >
-                            {vm.pos}
-                          </span>
+                        <div className="pc-stats-divider" />
+                        <div className="pc-stat-stack">
+                          <span className="pc-stat-label">PA</span>
+                          <span className="pc-stat-value">{vm.pa}</span>
                         </div>
                       </div>
 
-                      <div className="pc-rating-wrap">
-                        <div className="pc-rating-inner">
-                          <div className="pc-rating-star-anchor">
-                            <div className="rating-star-badge pc-rating-star-badge">
-                              <span className={performanceMode ? 'rating-star--perf' : 'rating-star'}>★</span>
+                      {(vm.foot || vm.level !== null) && (
+                        <div className="pc-left-meta">
+                          {vm.foot && (
+                            <div
+                              className="pc-mini-badge"
+                              style={{ border: '1.5px solid', borderColor: vm.footStyle.borderColor, background: vm.footStyle.background }}
+                            >
+                              <span className="pc-mini-badge-label" style={{ color: vm.footStyle.color, textShadow: vm.footStyle.textShadow }}>
+                                {vm.foot}
+                              </span>
                             </div>
+                          )}
+                          {!vm.foot && vm.level !== null && (
+                            <div className="pc-mini-badge pc-mini-badge--placeholder" aria-hidden="true" />
+                          )}
+
+                          {vm.level !== null && (
+                            <div className="pc-level-wrap">
+                              <span className="pc-level-stack" aria-label={`Nivel autopercibido ${vm.level} de 5`}>
+                                {[5, 4, 3, 2, 1].map((dot) => (
+                                  <span
+                                    key={dot}
+                                    className={`pc-level-dot ${dot <= vm.level ? '' : 'pc-level-dot--empty'}`}
+                                    style={dot <= vm.level ? {
+                                      backgroundColor: levelDotColor,
+                                      boxShadow: `0 0 6px ${levelDotColor}80`,
+                                    } : undefined}
+                                  />
+                                ))}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="pc-center-cluster">
+                        <div className="pc-center-badge-row">
+                          <div className={`${performanceMode ? 'badge-glass--perf' : 'badge-glass'} pc-mini-badge pc-center-badge`}>
+                            <img src={`https://flagcdn.com/w40/${vm.cc}.png`} alt={vm.abbr} className="pc-flag-img" />
                           </div>
-                          <span className={performanceMode ? 'rating-value--perf' : 'rating-value'} style={{ color: '#FFD700' }}>
-                            {ratingOverride !== null ? ratingOverride.toFixed(1) : vm.rating}
-                          </span>
+
+                          <div className="pc-center-divider" />
+
+                          <div
+                            className="pc-mini-badge pc-center-badge pc-position-badge"
+                            style={{ borderColor: vm.posColor }}
+                          >
+                            <span
+                              className="pc-mini-badge-label"
+                              style={{
+                                color: vm.posColor,
+                                textShadow: `0 0 4px ${vm.posColor}AA`,
+                              }}
+                            >
+                              {vm.pos}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="pc-rating-wrap">
+                          <div className="pc-rating-inner">
+                            <div className="pc-rating-star-anchor">
+                              <div className="rating-star-badge pc-rating-star-badge">
+                                <span className={performanceMode ? 'rating-star--perf' : 'rating-star'}>★</span>
+                              </div>
+                            </div>
+                            <span className={performanceMode ? 'rating-value--perf' : 'rating-value'} style={{ color: '#FFD700' }}>
+                              {ratingOverride !== null ? ratingOverride.toFixed(1) : vm.rating}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </section>
+                  </section>
+                </div>
               </div>
             </div>
           </div>
