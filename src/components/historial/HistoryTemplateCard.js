@@ -8,10 +8,7 @@ const formatPrice = (precioRaw) => {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(parsed);
 };
 
-const formatearSede = (sede = '') => {
-  if (sede === 'La Terraza Fútbol 5, 8') return 'La Terraza Fútbol 5 y 8';
-  return sede;
-};
+const formatearSede = (sede = '') => String(sede || '').split(',')[0].trim();
 
 const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
