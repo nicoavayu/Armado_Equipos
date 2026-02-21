@@ -31,6 +31,17 @@ function getInitials(name) {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
+function getShortVenueName(venue) {
+  if (!venue) return '';
+  return String(venue).split(/[,(]/)[0].trim();
+}
+
+function getGoogleMapsUrl(venue) {
+  const venueFull = String(venue || '').trim();
+  if (!venueFull) return '';
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venueFull)}`;
+}
+
 const CLOSED_MATCH_STATUSES = new Set(['cancelado', 'deleted', 'finalizado']);
 const GUEST_SELF_JOIN_ENABLED = true;
 const MAX_SUBSTITUTES = 4;
@@ -1299,6 +1310,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
   // Pantalla 5: Ya estás anotado (idempotencia)
   if (step === 'already-joined') {
+    const venueFull = partido?.sede || '';
+    const venueShort = getShortVenueName(venueFull);
+    const venueMapsUrl = getGoogleMapsUrl(venueFull);
+
     return (
       <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-4">
         <div className="w-full max-w-md">
@@ -1344,7 +1359,18 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
               <MapPin className="w-6 h-6 text-white/80" />
               <div>
                 <div className="text-sm text-white/60">Sede</div>
-                <div className="font-semibold text-sm">{partido?.sede || '-'}</div>
+                {venueMapsUrl ? (
+                  <a
+                    href={venueMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-sm text-white underline decoration-white/50 underline-offset-2 hover:text-cyan-200 transition-colors"
+                  >
+                    {venueShort || '-'}
+                  </a>
+                ) : (
+                  <div className="font-semibold text-sm">-</div>
+                )}
               </div>
             </div>
           </div>
