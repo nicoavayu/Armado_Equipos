@@ -265,6 +265,7 @@ const ProfileCardComponent = ({
           --pc-awards-gap: calc(var(--pc-award-height) * 0.08);
           --pc-photo-size: 58.2%;
           --pc-photo-top: 15.9%;
+          --pc-photo-offset-y: 15px;
           --pc-side-top: 39.5%;
           --pc-center-top: 56.8%;
           width: 100%;
@@ -458,7 +459,7 @@ const ProfileCardComponent = ({
           aspect-ratio: 1 / 1;
           border-radius: 50%;
           overflow: hidden;
-          top: var(--pc-photo-top);
+          top: calc(var(--pc-photo-top) + var(--pc-photo-offset-y));
           left: 50%;
           transform: translateX(-50%);
           z-index: 5;
