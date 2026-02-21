@@ -260,6 +260,7 @@ const ProfileCardComponent = ({
           --pc-photo-offset-y: 8px;
           --pc-side-top: 39.5%;
           --pc-center-top: 56.8%;
+          --pc-frame-scale: 1;
           width: 100%;
           display: grid;
           justify-items: center;
@@ -279,6 +280,7 @@ const ProfileCardComponent = ({
             var(--pc-card-target-width),
             100%
           );
+          --pc-frame-scale: 1.16;
           --pc-left-awards-gap: clamp(12px, 3.5vw, 16px);
           --pc-left-award-width: clamp(33px, 9.8vw, 42px);
           --pc-left-award-height: clamp(60px, 17.2vw, 76px);
@@ -445,6 +447,9 @@ const ProfileCardComponent = ({
         .pc-card-main--motion {
           transition: transform 700ms ease-out;
         }
+        .profile-card-wrapper.pc-awards-space-left .pc-card-main {
+          overflow: visible;
+        }
         .pc-photo-hole {
           position: absolute;
           width: var(--pc-photo-size);
@@ -477,6 +482,8 @@ const ProfileCardComponent = ({
           width: 100%;
           height: 100%;
           object-fit: contain;
+          transform: scale(var(--pc-frame-scale));
+          transform-origin: center;
           pointer-events: none;
           z-index: 20;
         }
