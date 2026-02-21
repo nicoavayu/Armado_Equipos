@@ -406,11 +406,11 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
   const actionButtons = isOpen && hasRegisteredAccount
     ? [renderFriendActionButton(), renderContactButton(), renderMakeAdminButton()].filter(Boolean)
     : [];
-  const awardBadges = [
-    { key: 'mvp', label: 'MVP', count: Number(modalProfile?.mvp_badges ?? modalProfile?.mvps ?? 0), image: '/mvp_award.png' },
-    { key: 'gk', label: 'Arquero', count: Number(modalProfile?.gk_badges ?? modalProfile?.guantes_dorados ?? 0), image: '/goalkeeper_award.png' },
-    { key: 'red', label: 'Rojas', count: Number(modalProfile?.red_badges ?? modalProfile?.tarjetas_rojas ?? 0), image: '/redcard_award.png' },
-  ].filter((award) => award.count > 0);
+  const hasAwards = [
+    Number(modalProfile?.mvp_badges ?? modalProfile?.mvps ?? 0),
+    Number(modalProfile?.gk_badges ?? modalProfile?.guantes_dorados ?? 0),
+    Number(modalProfile?.red_badges ?? modalProfile?.tarjetas_rojas ?? 0),
+  ].some((count) => count > 0);
   const actionColsClass = actionButtons.length === 1
     ? 'grid-cols-1'
     : actionButtons.length === 2
@@ -435,28 +435,10 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
             isVisible={true}
             enableTilt={true}
             currentUserId={currentUserId}
-            awardsLayout="none"
-            cardMaxWidth={290}
+            awardsLayout={hasAwards ? 'space-left' : 'none'}
+            cardMaxWidth={300}
           />
         </div>
-        {awardBadges.length > 0 && (
-          <div className="w-full max-w-[320px]">
-            <div className="flex flex-wrap items-end justify-center gap-3">
-              {awardBadges.map((award) => (
-                <div key={award.key} className="flex min-w-[54px] flex-col items-center">
-                  <img
-                    src={award.image}
-                    alt={`Premio ${award.label}`}
-                    className="h-12 w-12 object-contain sm:h-14 sm:w-14"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <span className="mt-0.5 font-bebas text-2xl leading-none text-white">{award.count}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
         {actionButtons.length > 0 && (
           <div className={`grid ${actionColsClass} gap-2 w-full max-w-[380px]`}>
             {actionButtons.map((button, index) => (

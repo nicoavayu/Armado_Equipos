@@ -112,11 +112,11 @@ const CARD_LAYOUT_TUNING = {
     leftMetaTranslateX: '0px',
     leftMetaTranslateY: '88%',
     // Center cluster
-    centerTop: '5.8%',
+    centerTop: '56.8%',
     centerLeft: '50%',
     centerTranslateX: '-50%',
     centerWidth: '54%',
-    centerBadgeRowOffsetY: '-5px',
+    centerBadgeRowOffsetY: '0px',
     ratingMarginTop: 'clamp(10px, 3.1vw, 15px)',
     // Frame
     frameScale: '1',
