@@ -230,6 +230,11 @@ const ProfileCardComponent = ({
   const resolvedCardWidth = reserveLeftAwardsSpace
     ? `min(64.8vw, ${Math.round(normalizedCardMaxWidth * 0.9)}px)`
     : `min(92vw, ${normalizedCardMaxWidth}px)`;
+  const sideAwards = [
+    { key: 'mvp', count: Number(vm.mvp) || 0, image: '/mvp_award.png', ref: mvpRef },
+    { key: 'gk', count: Number(vm.gk) || 0, image: '/goalkeeper_award.png', ref: gkRef },
+    { key: 'red', count: Number(vm.red) || 0, image: '/redcard_award.png', ref: redRef },
+  ].filter((award) => award.count > 0);
 
   return (
     <>
@@ -786,20 +791,14 @@ const ProfileCardComponent = ({
 
             <div className="pc-main-column">
               <div className="pc-stage">
-                {reserveLeftAwardsSpace && (
+                {reserveLeftAwardsSpace && sideAwards.length > 0 && (
                   <aside className="pc-awards-side-rail" aria-hidden="true">
-                    <span className="pc-awards-side-card">
-                      <img className="pc-awards-side-image" src="/mvp_award.png" alt="" loading="lazy" decoding="async" />
-                      <span ref={mvpRef} className="pc-awards-side-count">{vm.mvp}</span>
-                    </span>
-                    <span className="pc-awards-side-card">
-                      <img className="pc-awards-side-image" src="/goalkeeper_award.png" alt="" loading="lazy" decoding="async" />
-                      <span ref={gkRef} className="pc-awards-side-count">{vm.gk}</span>
-                    </span>
-                    <span className="pc-awards-side-card">
-                      <img className="pc-awards-side-image" src="/redcard_award.png" alt="" loading="lazy" decoding="async" />
-                      <span ref={redRef} className="pc-awards-side-count">{vm.red}</span>
-                    </span>
+                    {sideAwards.map((award) => (
+                      <span key={award.key} className="pc-awards-side-card">
+                        <img className="pc-awards-side-image" src={award.image} alt="" loading="lazy" decoding="async" />
+                        <span ref={award.ref} className="pc-awards-side-count">{award.count}</span>
+                      </span>
+                    ))}
                   </aside>
                 )}
                 {!performanceMode && (
