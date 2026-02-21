@@ -408,14 +408,25 @@ const NotificationsView = () => {
       <div className="w-full max-w-[600px] mx-auto">
         {hasAnyNotifications && (
           <div className="mb-3 flex items-center justify-between gap-3">
-            <span className="text-xs font-oswald text-white/65">
-              No leídas: {unreadCount?.total || 0}
-            </span>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1.5">
+              <span className="text-[10px] leading-none uppercase tracking-[0.08em] font-oswald text-white/60">
+                No leídas
+              </span>
+              <span
+                className={`inline-flex min-w-[22px] h-[22px] px-1.5 items-center justify-center rounded-full border text-[12px] font-oswald font-semibold leading-none ${
+                  hasUnreadNotifications
+                    ? 'border-primary/65 bg-primary/25 text-white'
+                    : 'border-white/20 bg-white/5 text-white/70'
+                }`}
+              >
+                {unreadCount?.total || 0}
+              </span>
+            </div>
             <button
               type="button"
               onClick={handleMarkAllAsRead}
               disabled={!hasUnreadNotifications || markingAllAsRead}
-              className="shrink-0 px-3 py-1.5 rounded-full border text-xs font-oswald transition-colors bg-white/5 border-white/20 text-white/75 hover:bg-white/10 hover:text-white disabled:opacity-45 disabled:cursor-not-allowed"
+              className="shrink-0 px-3 py-1.5 rounded-full border text-[11px] font-oswald font-medium transition-colors bg-white/5 border-white/20 text-white/75 hover:bg-white/10 hover:text-white disabled:opacity-45 disabled:cursor-not-allowed"
             >
               {markingAllAsRead ? 'Marcando...' : 'Marcar todas como leídas'}
             </button>
