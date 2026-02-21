@@ -187,7 +187,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       return null;
     }
 
-    // Guest self-join token now lasts through match date/time and supports larger rosters (min 26 uses).
+    // Guest self-join token expires exactly at kickoff and supports larger rosters (min 26 uses).
     // Admin-only RPC enforces permissions server-side.
     const { data: inviteRows, error: inviteErr } = await supabase.rpc('create_guest_match_invite', {
       p_partido_id: Number(matchId),
@@ -195,7 +195,14 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
     if (inviteErr || !inviteRows?.[0]?.token) {
       console.error('[SHARE_INVITE] create_guest_match_invite failed', inviteErr);
-      notifyBlockingError('No se pudo generar el link (token inválido)');
+      const rawMessage = String(inviteErr?.message || '').toLowerCase();
+      if (rawMessage.includes('match_already_started')) {
+        notifyBlockingError('El partido ya empezó. El link de invitación venció.');
+      } else if (rawMessage.includes('match_without_start_datetime')) {
+        notifyBlockingError('El partido no tiene fecha/hora válida para generar el link.');
+      } else {
+        notifyBlockingError('No se pudo generar el link (token inválido)');
+      }
       return null;
     }
 
