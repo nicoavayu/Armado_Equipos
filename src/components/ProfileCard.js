@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
-import { Hand, RectangleVertical, Trophy } from 'lucide-react';
 
 // --- Pure Helper Functions (Outside Component) ---
 const clamp = (v, min = 0, max = 100) => Math.min(Math.max(v, min), max);
@@ -331,6 +330,12 @@ const ProfileCardComponent = ({
           z-index: 2;
           pointer-events: none;
         }
+        .pc-awards-side-item {
+          width: var(--pc-left-award-width);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
         .pc-awards-side-card {
           width: var(--pc-left-award-width);
           height: var(--pc-left-award-height);
@@ -344,12 +349,26 @@ const ProfileCardComponent = ({
             0 0 10px rgba(0, 196, 255, 0.2),
             inset 0 0 10px rgba(97, 218, 255, 0.12);
         }
-        .pc-awards-side-icon {
-          width: clamp(16px, 4.8vw, 20px);
-          height: clamp(16px, 4.8vw, 20px);
-          color: #B7F2FF;
-          stroke-width: 2.1;
-          filter: drop-shadow(0 0 4px rgba(86, 219, 255, 0.34));
+        .pc-awards-side-image {
+          width: 88%;
+          height: 88%;
+          object-fit: contain;
+          display: block;
+          pointer-events: none;
+          user-select: none;
+        }
+        .pc-awards-side-count {
+          margin-top: clamp(6px, 1.8vw, 10px);
+          width: 100%;
+          text-align: center;
+          font-size: clamp(12px, 3.2vw, 14px);
+          line-height: 1;
+          font-weight: 600;
+          font-variant-numeric: tabular-nums;
+          color: #EAFBFF;
+          text-shadow: 0 0 4px rgba(120, 230, 255, 0.35);
+          pointer-events: none;
+          user-select: none;
         }
         .pc-awards-rail {
           width: max-content;
@@ -450,7 +469,7 @@ const ProfileCardComponent = ({
           width: 100%;
           height: 100%;
           object-fit: cover;
-          object-position: center;
+          object-position: center 46%;
         }
         .pc-photo-fallback {
           width: 100%;
@@ -776,14 +795,23 @@ const ProfileCardComponent = ({
               <div className="pc-stage">
                 {reserveLeftAwardsSpace && (
                   <aside className="pc-awards-side-rail" aria-hidden="true">
-                    <span className="pc-awards-side-card">
-                      <Trophy className="pc-awards-side-icon" />
+                    <span className="pc-awards-side-item">
+                      <span className="pc-awards-side-card">
+                        <img className="pc-awards-side-image" src="/mvp_award.png" alt="" loading="lazy" decoding="async" />
+                      </span>
+                      <span ref={mvpRef} className="pc-awards-side-count">{vm.mvp}</span>
                     </span>
-                    <span className="pc-awards-side-card">
-                      <Hand className="pc-awards-side-icon" />
+                    <span className="pc-awards-side-item">
+                      <span className="pc-awards-side-card">
+                        <img className="pc-awards-side-image" src="/goalkeeper_award.png" alt="" loading="lazy" decoding="async" />
+                      </span>
+                      <span ref={gkRef} className="pc-awards-side-count">{vm.gk}</span>
                     </span>
-                    <span className="pc-awards-side-card">
-                      <RectangleVertical className="pc-awards-side-icon" />
+                    <span className="pc-awards-side-item">
+                      <span className="pc-awards-side-card">
+                        <img className="pc-awards-side-image" src="/redcard_award.png" alt="" loading="lazy" decoding="async" />
+                      </span>
+                      <span ref={redRef} className="pc-awards-side-count">{vm.red}</span>
                     </span>
                   </aside>
                 )}
