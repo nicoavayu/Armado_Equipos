@@ -423,7 +423,7 @@ const NotificationsView = () => {
         )}
 
         {hasAnyNotifications && (
-          <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+          <div className="mb-3 grid grid-cols-2 gap-2 pb-1 sm:flex sm:flex-wrap">
             {NOTIFICATION_FILTER_OPTIONS.map((option) => {
               const isActive = activeFilter === option.key;
               const count = getCategoryCount(notifications, option.key);
@@ -432,7 +432,7 @@ const NotificationsView = () => {
                   key={option.key}
                   type="button"
                   onClick={() => setActiveFilter(option.key)}
-                  className={`shrink-0 px-3 py-1.5 rounded-full border text-xs font-oswald transition-colors ${
+                  className={`w-full min-w-0 px-2.5 py-1.5 rounded-full border text-[11px] sm:w-auto sm:text-xs font-oswald transition-colors ${
                     isActive
                       ? 'bg-primary/80 border-primary text-white'
                       : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10 hover:text-white'

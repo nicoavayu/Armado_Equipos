@@ -339,7 +339,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
         <div className="p-0 overflow-y-auto flex-1 touch-pan-y">
           {!loading && hasAnyNotifications && (
-            <div className="px-4 py-3 border-b border-[#2a2a2a] flex gap-2 overflow-x-auto">
+            <div className="px-4 py-3 border-b border-[#2a2a2a] grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               {NOTIFICATION_FILTER_OPTIONS.map((option) => {
                 const isActive = activeFilter === option.key;
                 const count = getCategoryCount(notifications, option.key);
@@ -348,7 +348,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                     key={option.key}
                     type="button"
                     onClick={() => setActiveFilter(option.key)}
-                    className={`shrink-0 px-3 py-1.5 rounded-full border text-xs font-oswald transition-colors ${
+                    className={`w-full min-w-0 px-2.5 py-1.5 rounded-full border text-[11px] sm:w-auto sm:text-xs font-oswald transition-colors ${
                       isActive
                         ? 'bg-primary/80 border-primary text-white'
                         : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10 hover:text-white'
