@@ -411,6 +411,9 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     Number(modalProfile?.gk_badges ?? modalProfile?.guantes_dorados ?? 0),
     Number(modalProfile?.red_badges ?? modalProfile?.tarjetas_rojas ?? 0),
   ].some((count) => count > 0);
+  const modalCardLayoutOverrides = hasAwards
+    ? { leftAwardsShiftRight: '42px' }
+    : null;
   const actionColsClass = actionButtons.length === 1
     ? 'grid-cols-1'
     : actionButtons.length === 2
@@ -437,6 +440,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
             currentUserId={currentUserId}
             awardsLayout={hasAwards ? 'space-left' : 'none'}
             cardMaxWidth={300}
+            layoutOverrides={modalCardLayoutOverrides}
           />
         </div>
         {actionButtons.length > 0 && (

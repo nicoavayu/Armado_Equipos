@@ -7,22 +7,6 @@ import InlineNotice from './ui/InlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const GEO_LOG_PREFIX = '[PROFILE_GEO]';
-const AWARDS_PREVIEW_INCREMENT = 1; // TEMP test: remove when no longer needed.
-
-const withAwardsPreview = (profile, avatarUrl) => {
-  const safeProfile = profile || {};
-  const currentMvp = Number(safeProfile.mvp_badges ?? safeProfile.mvps ?? 0) || 0;
-  const currentGk = Number(safeProfile.gk_badges ?? safeProfile.guantes_dorados ?? 0) || 0;
-  const currentRed = Number(safeProfile.red_badges ?? safeProfile.tarjetas_rojas ?? 0) || 0;
-
-  return {
-    ...safeProfile,
-    avatar_url: avatarUrl,
-    mvp_badges: currentMvp + AWARDS_PREVIEW_INCREMENT,
-    gk_badges: currentGk + AWARDS_PREVIEW_INCREMENT,
-    red_badges: currentRed + AWARDS_PREVIEW_INCREMENT,
-  };
-};
 
 const extractCityFromGeocodeResults = (results = []) => {
   if (!Array.isArray(results) || results.length === 0) return null;
@@ -104,10 +88,10 @@ const ProfileEditorForm = ({
       {/* ProfileCard fixed within form flow */}
       <div className="w-full flex justify-center -mt-5 -mb-12">
         <ProfileCard
-          profile={withAwardsPreview(
-            liveProfile,
-            liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
-          )}
+          profile={{
+            ...liveProfile,
+            avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
+          }}
           isVisible={true}
           performanceMode={false}
           awardsLayout="space-left"
@@ -954,10 +938,10 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         <div className="flex-none w-full md:w-[400px] flex items-center justify-center p-5 md:p-10 bg-white/5 md:bg-white/10 border-b md:border-b-0 md:border-r border-white/20 relative">
           <div className="w-full flex justify-center overflow-visible">
             <ProfileCard
-              profile={withAwardsPreview(
-                liveProfile,
-                liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
-              )}
+              profile={{
+                ...liveProfile,
+                avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
+              }}
               isVisible={true}
               awardsLayout="space-left"
               enableTilt={false}

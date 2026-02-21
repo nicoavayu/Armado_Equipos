@@ -151,6 +151,7 @@ const ProfileCardComponent = ({
   cardMaxWidth = 430,
   screenMode = false,
   awardsLayout = 'adaptive',
+  layoutOverrides = null,
 }) => {
   const wrapRef = useRef(null);
   const cardRef = useRef(null);
@@ -271,9 +272,12 @@ const ProfileCardComponent = ({
   const resolvedCardWidth = reserveLeftAwardsSpace
     ? `min(82vw, ${Math.round(normalizedCardMaxWidth * 1.2)}px)`
     : `min(92vw, ${normalizedCardMaxWidth}px)`;
-  const layoutConfig = reserveLeftAwardsSpace
+  const baseLayoutConfig = reserveLeftAwardsSpace
     ? { ...CARD_LAYOUT_TUNING.base, ...CARD_LAYOUT_TUNING.spaceLeft }
     : CARD_LAYOUT_TUNING.base;
+  const layoutConfig = layoutOverrides && typeof layoutOverrides === 'object'
+    ? { ...baseLayoutConfig, ...layoutOverrides }
+    : baseLayoutConfig;
   const layoutVars = {
     '--pc-name-top': layoutConfig.nameTop,
     '--pc-name-left': layoutConfig.nameLeft,
