@@ -350,7 +350,7 @@ const ProfileCardComponent = ({
           user-select: none;
         }
         .pc-awards-side-count {
-          margin-top: clamp(6px, 1.8vw, 10px);
+          margin-top: clamp(3px, 1vw, 6px);
           width: 100%;
           min-width: 2ch;
           text-align: center;
