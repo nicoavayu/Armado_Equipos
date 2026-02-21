@@ -28,6 +28,73 @@ function buildCorsHeaders(req: Request) {
   };
 }
 
+function normalizePlayerName(value: unknown) {
+  const raw = String(value ?? "").trim().slice(0, 50);
+  return raw || "Un jugador";
+}
+
+async function notifyMatchJoin({
+  supabase,
+  partidoId,
+  playerName,
+}: {
+  supabase: ReturnType<typeof createClient>;
+  partidoId: number;
+  playerName: string;
+}) {
+  const payload = {
+    match_id: partidoId,
+    matchId: partidoId,
+    player_name: playerName,
+    player_user_id: null,
+    joined_via: "guest_invite",
+    link: `/partido-publico/${partidoId}`,
+  };
+
+  const { error: participantErr } = await supabase.rpc("enqueue_match_participant_notification", {
+    p_partido_id: partidoId,
+    p_type: "match_update",
+    p_title: "Nuevo jugador en el partido",
+    p_message: `${playerName} se sumó al partido.`,
+    p_payload: payload,
+    p_exclude_user_id: null,
+    p_include_admin: true,
+  });
+
+  if (!participantErr) {
+    return { ok: true, mode: "participant_fanout" };
+  }
+
+  console.warn("[INVITE] participant notification fanout failed", {
+    partidoId,
+    code: participantErr.code,
+    message: participantErr.message,
+  });
+
+  const { error: adminErr } = await supabase.rpc("enqueue_partido_notification", {
+    p_partido_id: partidoId,
+    p_type: "match_update",
+    p_title: "Nuevo jugador en el partido",
+    p_message: `${playerName} se sumó al partido.`,
+    p_payload: {
+      ...payload,
+      participant_fanout_fallback: true,
+      participant_fanout_reason: participantErr.message ?? "rpc_error",
+    },
+  });
+
+  if (!adminErr) {
+    return { ok: true, mode: "admin_fallback" };
+  }
+
+  console.warn("[INVITE] admin notification fallback failed", {
+    partidoId,
+    code: adminErr.code,
+    message: adminErr.message,
+  });
+  return { ok: false, mode: "failed" };
+}
+
 serve(async (req) => {
   const cors = buildCorsHeaders(req);
 
@@ -172,6 +239,7 @@ serve(async (req) => {
       );
     }
 
+    const safePlayerName = normalizePlayerName(nombre);
     const avatarDataUrl = typeof avatar_data_url === "string" ? avatar_data_url.trim() : "";
     const hasAvatar = avatarDataUrl.startsWith("data:image/") && avatarDataUrl.length <= 900_000;
 
@@ -187,7 +255,7 @@ serve(async (req) => {
         {
           partido_id: partidoIdNum,
           usuario_id: null,
-          nombre: nombre.trim().slice(0, 50),
+          nombre: safePlayerName,
           uuid: guestUuid,
           avatar_url: hasAvatar ? avatarDataUrl : null,
         },
@@ -203,26 +271,12 @@ serve(async (req) => {
     }
 
     // Best-effort in-app notification for all logged users in the match (+ admin).
-    try {
-      await supabase.rpc("enqueue_match_participant_notification", {
-        p_partido_id: partidoIdNum,
-        p_type: "match_update",
-        p_title: "Nuevo jugador en el partido",
-        p_message: `${nombre.trim().slice(0, 50)} se sumó al partido.`,
-        p_payload: {
-          match_id: partidoIdNum,
-          matchId: partidoIdNum,
-          player_name: nombre.trim().slice(0, 50),
-          player_user_id: null,
-          joined_via: "guest_invite",
-          link: `/partido-publico/${partidoIdNum}`,
-        },
-        p_exclude_user_id: null,
-        p_include_admin: true,
-      });
-    } catch (_notifyErr) {
-      // Don't block join flow if notifications fail.
-    }
+    // If participant fanout RPC is unavailable, fallback to admin-only notification.
+    await notifyMatchJoin({
+      supabase,
+      partidoId: partidoIdNum,
+      playerName: safePlayerName,
+    });
 
     return new Response(
       JSON.stringify({

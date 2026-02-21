@@ -24,6 +24,71 @@ function corsHeaders(req: Request) {
   };
 }
 
+function normalizePlayerName(value: unknown, fallback = "Un jugador") {
+  const raw = String(value ?? "").trim().slice(0, 50);
+  return raw || fallback;
+}
+
+async function notifyMatchJoin({
+  supabase,
+  partidoId,
+  playerName,
+  playerUserId,
+}: {
+  supabase: ReturnType<typeof createClient>;
+  partidoId: number;
+  playerName: string;
+  playerUserId: string;
+}) {
+  const payload = {
+    match_id: partidoId,
+    matchId: partidoId,
+    player_name: playerName,
+    player_user_id: playerUserId,
+    joined_via: "magic_link",
+    link: `/partido-publico/${partidoId}`,
+  };
+
+  const { error: participantErr } = await supabase.rpc("enqueue_match_participant_notification", {
+    p_partido_id: partidoId,
+    p_type: "match_update",
+    p_title: "Nuevo jugador en el partido",
+    p_message: `${playerName} se sumó al partido.`,
+    p_payload: payload,
+    p_exclude_user_id: playerUserId,
+    p_include_admin: true,
+  });
+
+  if (!participantErr) return { ok: true, mode: "participant_fanout" };
+
+  console.warn("[ACCEPT_INVITE] participant notification fanout failed", {
+    partidoId,
+    code: participantErr.code,
+    message: participantErr.message,
+  });
+
+  const { error: adminErr } = await supabase.rpc("enqueue_partido_notification", {
+    p_partido_id: partidoId,
+    p_type: "match_update",
+    p_title: "Nuevo jugador en el partido",
+    p_message: `${playerName} se sumó al partido.`,
+    p_payload: {
+      ...payload,
+      participant_fanout_fallback: true,
+      participant_fanout_reason: participantErr.message ?? "rpc_error",
+    },
+  });
+
+  if (!adminErr) return { ok: true, mode: "admin_fallback" };
+
+  console.warn("[ACCEPT_INVITE] admin notification fallback failed", {
+    partidoId,
+    code: adminErr.code,
+    message: adminErr.message,
+  });
+  return { ok: false, mode: "failed" };
+}
+
 serve(async (req) => {
   const cors = corsHeaders(req);
 
@@ -105,6 +170,21 @@ serve(async (req) => {
     const row = Array.isArray(data) ? data[0] : data;
     const status = row?.status || "invalid";
     const partidoId = row?.partido_id ?? null;
+
+    if (status === "accepted" && partidoId) {
+      const metadataName = user?.user_metadata?.nombre
+        || user?.user_metadata?.name
+        || user?.user_metadata?.full_name
+        || user?.email?.split("@")[0];
+      const safePlayerName = normalizePlayerName(metadataName, "Un jugador");
+
+      await notifyMatchJoin({
+        supabase: adminClient,
+        partidoId: Number(partidoId),
+        playerName: safePlayerName,
+        playerUserId: user.id,
+      });
+    }
 
     if (status === "accepted" || status === "already_accepted") {
       return new Response(

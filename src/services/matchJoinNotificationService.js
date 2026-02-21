@@ -62,6 +62,33 @@ const enqueueParticipantNotification = async ({
   const matchIdNumber = toMatchId(matchId);
   if (!matchIdNumber) return { ok: false, reason: 'invalid_match_id' };
 
+  const fallbackToAdminNotification = async (fallbackReason, sourceError = null) => {
+    const fallbackPayload = {
+      ...payload,
+      participant_fanout_fallback: true,
+      participant_fanout_reason: fallbackReason,
+    };
+
+    const fallbackResult = await enqueueAdminNotification({
+      matchId: matchIdNumber,
+      type,
+      title,
+      message,
+      payload: fallbackPayload,
+    });
+
+    if (fallbackResult.ok) {
+      return { ok: true, reason: 'admin_fallback' };
+    }
+
+    return {
+      ok: false,
+      reason: fallbackReason,
+      error: sourceError || fallbackResult.error || null,
+      fallback: fallbackResult,
+    };
+  };
+
   try {
     const { error } = await supabase.rpc('enqueue_match_participant_notification', {
       p_partido_id: matchIdNumber,
@@ -80,7 +107,7 @@ const enqueueParticipantNotification = async ({
         code: error.code,
         message: error.message,
       });
-      return { ok: false, reason: 'rpc_error', error };
+      return await fallbackToAdminNotification('rpc_error', error);
     }
 
     return { ok: true };
@@ -90,7 +117,7 @@ const enqueueParticipantNotification = async ({
       type,
       error: error?.message || String(error),
     });
-    return { ok: false, reason: 'unexpected_error', error };
+    return await fallbackToAdminNotification('unexpected_error', error);
   }
 };
 
