@@ -261,6 +261,7 @@ const ProfileCardComponent = ({
           --pc-side-top: 39.5%;
           --pc-center-top: 56.8%;
           --pc-frame-scale: 1;
+          --pc-frame-offset-y: 0%;
           width: 100%;
           display: grid;
           justify-items: center;
@@ -281,6 +282,7 @@ const ProfileCardComponent = ({
             100%
           );
           --pc-frame-scale: 1.16;
+          --pc-frame-offset-y: -5.2%;
           --pc-left-awards-gap: clamp(12px, 3.5vw, 16px);
           --pc-left-award-width: clamp(33px, 9.8vw, 42px);
           --pc-left-award-height: clamp(60px, 17.2vw, 76px);
@@ -482,7 +484,7 @@ const ProfileCardComponent = ({
           width: 100%;
           height: 100%;
           object-fit: contain;
-          transform: scale(var(--pc-frame-scale));
+          transform: translateY(var(--pc-frame-offset-y)) scale(var(--pc-frame-scale));
           transform-origin: center;
           pointer-events: none;
           z-index: 20;
@@ -515,6 +517,12 @@ const ProfileCardComponent = ({
           color: #fff;
           text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3);
         }
+        .profile-card-wrapper.pc-awards-space-left .pc-name-wrap {
+          top: 10.7%;
+        }
+        .profile-card-wrapper.pc-awards-space-left .pc-name {
+          margin: 0;
+        }
         .pc-right-stats {
           position: absolute;
           right: 4%;
@@ -528,6 +536,10 @@ const ProfileCardComponent = ({
           background: rgba(255, 255, 255, 0.05);
           border: 1px solid rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(8px);
+        }
+        .profile-card-wrapper.pc-awards-space-left .pc-right-stats {
+          right: 8.6%;
+          transform: translateY(66%);
         }
         .pc-stat-stack {
           display: flex;
@@ -567,6 +579,10 @@ const ProfileCardComponent = ({
           align-items: center;
           gap: clamp(4px, 1vw, 6px);
           width: 13%;
+        }
+        .profile-card-wrapper.pc-awards-space-left .pc-left-meta {
+          left: 8.6%;
+          transform: translateY(79%);
         }
         .pc-mini-badge {
           width: clamp(30px, 9.2vw, 38px);
@@ -618,6 +634,9 @@ const ProfileCardComponent = ({
           flex-direction: column;
           align-items: center;
         }
+        .profile-card-wrapper.pc-awards-space-left .pc-center-cluster {
+          top: 54.7%;
+        }
         .badge-glass {
           background: rgba(0, 0, 0, 0.5);
           backdrop-filter: blur(8px);
@@ -656,6 +675,9 @@ const ProfileCardComponent = ({
           display: flex;
           justify-content: center;
           width: 100%;
+        }
+        .profile-card-wrapper.pc-awards-space-left .pc-rating-wrap {
+          margin-top: clamp(8px, 2.4vw, 12px);
         }
         .pc-rating-inner {
           position: relative;
@@ -711,6 +733,9 @@ const ProfileCardComponent = ({
           line-height: 0.88;
           letter-spacing: 0.02em;
           filter: drop-shadow(0 0 12px rgba(0, 200, 255, 0.8));
+        }
+        .profile-card-wrapper.pc-awards-space-left .rating-value {
+          font-size: clamp(70px, 20.5vw, 96px);
         }
         .rating-value--perf {
           font-family: 'Bebas Neue', 'Arial Black', sans-serif;
