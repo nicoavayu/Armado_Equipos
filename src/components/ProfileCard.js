@@ -263,8 +263,8 @@ const ProfileCardComponent = ({
           );
           --pc-layout-gap: clamp(0.5rem, 2.4vw, 1rem);
           --pc-awards-gap: calc(var(--pc-award-height) * 0.08);
-          --pc-photo-size: 57%;
-          --pc-photo-top: 14.3%;
+          --pc-photo-size: 58.2%;
+          --pc-photo-top: 15.4%;
           --pc-side-top: 39.5%;
           --pc-center-top: 56.8%;
           width: 100%;
