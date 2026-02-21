@@ -31,6 +31,13 @@ const fmtDateLong = (ymd) => {
   }
 };
 
+const formatSentenceCase = (value, fallback = '') => {
+  const text = String(value || '').trim();
+  if (!text) return fallback;
+  const lower = text.toLowerCase();
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+};
+
 const winnerLabel = (winnerTeam) => {
   if (!winnerTeam) return 'Sin definir';
   if (winnerTeam === 'equipo_a') return 'Ganó Equipo A';
@@ -355,8 +362,8 @@ const TemplateHistoryPage = () => {
       <div className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
         {!isDetail && (
           <>
-            <div className="font-bebas text-[28px] leading-7 text-white uppercase tracking-wide truncate">
-              {template?.nombre || 'Plantilla'}
+            <div className="font-bebas text-[28px] leading-7 text-white tracking-wide truncate">
+              {formatSentenceCase(template?.nombre, 'Plantilla')}
             </div>
           </>
         )}
