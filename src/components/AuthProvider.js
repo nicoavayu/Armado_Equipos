@@ -1,8 +1,77 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext, useCallback } from 'react';
 import { supabase, getProfile, createOrUpdateProfile } from '../supabase';
 import LoadingSpinner from './LoadingSpinner';
 
 const AuthContext = createContext();
+
+const LOCAL_EDIT_MODE = process.env.NODE_ENV === 'development' && process.env.REACT_APP_LOCAL_EDIT_MODE !== 'false';
+const LOCAL_DEV_USER_ID = '00000000-0000-4000-8000-000000000001';
+const LOCAL_DEV_PROFILE_KEY = 'local:dev:profile';
+
+function createLocalDevUser() {
+  return {
+    id: LOCAL_DEV_USER_ID,
+    email: 'local@arma2.dev',
+    user_metadata: {
+      full_name: 'Local Dev',
+      avatar_url: null,
+    },
+    app_metadata: {
+      provider: 'local-dev',
+    },
+    aud: 'authenticated',
+    role: 'authenticated',
+  };
+}
+
+function createLocalDevProfile() {
+  return {
+    id: LOCAL_DEV_USER_ID,
+    nombre: 'Local Dev',
+    email: 'local@arma2.dev',
+    avatar_url: null,
+    telefono: '',
+    localidad: 'Localhost',
+    nacionalidad: 'argentina',
+    pais_codigo: 'AR',
+    posicion: 'DEF',
+    ranking: 5,
+    partidos_jugados: 0,
+    partidos_abandonados: 0,
+    acepta_invitaciones: true,
+    profile_completion: 70,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function isLocalDevUser(user) {
+  return Boolean(
+    user &&
+      (user.id === LOCAL_DEV_USER_ID || user.app_metadata?.provider === 'local-dev'),
+  );
+}
+
+function loadLocalDevProfile() {
+  if (typeof window === 'undefined') return createLocalDevProfile();
+  try {
+    const raw = window.localStorage.getItem(LOCAL_DEV_PROFILE_KEY);
+    if (!raw) return createLocalDevProfile();
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return createLocalDevProfile();
+    return { ...createLocalDevProfile(), ...parsed };
+  } catch {
+    return createLocalDevProfile();
+  }
+}
+
+function saveLocalDevProfile(profile) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(LOCAL_DEV_PROFILE_KEY, JSON.stringify(profile));
+  } catch {
+    // no-op (private mode / quota)
+  }
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -16,12 +85,27 @@ const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const activateLocalDevSession = useCallback(() => {
+    const devUser = createLocalDevUser();
+    const devProfile = loadLocalDevProfile();
+    setUser(devUser);
+    setProfile(devProfile);
+    return devUser;
+  }, []);
+
   const fetchProfile = async (currentUser) => {
     console.log('AuthProvider fetchProfile called with:', currentUser?.id);
     if (!currentUser) {
       setProfile(null);
       return;
     }
+
+    if (isLocalDevUser(currentUser)) {
+      setProfile(loadLocalDevProfile());
+      return;
+    }
+
     try {
       let profileData;
       try {
@@ -76,10 +160,6 @@ const AuthProvider = ({ children }) => {
 
       setProfile(profileData);
       console.log('Profile set in state:', profileData);
-      // Async check to observe the actual state value after React processes the update
-      setTimeout(() => {
-        console.log('[AUTH] profile state after set (async)', profile?.avatar_url);
-      }, 0);
       console.log('Profile avatar fields debug:', {
         avatar_url: profileData?.avatar_url,
         user_metadata_avatar: currentUser.user_metadata?.avatar_url,
@@ -92,43 +172,100 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-
   const refreshProfile = async () => {
+    if (isLocalDevUser(user)) {
+      setProfile(loadLocalDevProfile());
+      return;
+    }
     if (user) {
       await fetchProfile(user);
     }
   };
 
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session:', session?.user?.id);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user);
-      }
-      setLoading(false);
+  const updateLocalProfile = useCallback((patch = {}) => {
+    if (!LOCAL_EDIT_MODE) return;
+    setProfile((prev) => {
+      const base = prev && prev.id === LOCAL_DEV_USER_ID ? prev : loadLocalDevProfile();
+      const next = { ...base, ...patch, updated_at: new Date().toISOString() };
+      saveLocalDevProfile(next);
+      return next;
     });
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const init = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
+
+        console.log('Initial session:', session?.user?.id);
+        if (session?.user) {
+          setUser(session.user);
+          await fetchProfile(session.user);
+        } else if (LOCAL_EDIT_MODE) {
+          let activated = false;
+          try {
+            const { data, error } = await supabase.auth.signInAnonymously();
+            if (!error && data?.user) {
+              setUser(data.user);
+              await fetchProfile(data.user);
+              activated = true;
+            } else if (error) {
+              console.warn('[AUTH] Anonymous sign-in unavailable:', error.message);
+            }
+          } catch (anonError) {
+            console.warn('[AUTH] Anonymous sign-in failed:', anonError);
+          }
+          if (!activated) activateLocalDevSession();
+        } else {
+          setUser(null);
+          setProfile(null);
+        }
+      } catch (error) {
+        console.error('[AUTH] Error getting initial session:', error);
+        if (LOCAL_EDIT_MODE) {
+          activateLocalDevSession();
+        } else {
+          setUser(null);
+          setProfile(null);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    init();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      if (!mounted) return;
       if (session?.user) {
+        setUser(session.user);
         fetchProfile(session.user);
+      } else if (LOCAL_EDIT_MODE) {
+        activateLocalDevSession();
       } else {
+        setUser(null);
         setProfile(null);
       }
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [activateLocalDevSession]);
 
   const value = {
     user,
     profile,
     loading,
     refreshProfile,
+    updateLocalProfile,
+    localEditMode: LOCAL_EDIT_MODE,
   };
 
   if (loading) {

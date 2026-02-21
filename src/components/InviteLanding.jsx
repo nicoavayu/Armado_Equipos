@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
 import { setAuthReturnTo } from '../utils/authReturnTo';
+import { getAuthRedirectUrl } from '../utils/authRedirectUrl';
 
 function formatDate(fecha, hora) {
   if (!fecha) return 'Fecha a confirmar';
@@ -113,11 +114,10 @@ export default function InviteLanding() {
 
   const goGoogle = async () => {
     setAuthReturnTo(returnTo);
+    const redirectTo = getAuthRedirectUrl();
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: redirectTo ? { redirectTo } : undefined,
     });
   };
 

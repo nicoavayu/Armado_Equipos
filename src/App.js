@@ -227,6 +227,12 @@ export default function App() {
 function AppAuthWrapper() {
   const { user } = useAuth();
   const location = useLocation();
+  const localEditMode = process.env.NODE_ENV === 'development' && process.env.REACT_APP_LOCAL_EDIT_MODE !== 'false';
+
+  // Local development shortcut: avoid external auth redirects while editing UI.
+  if (localEditMode) {
+    return <Outlet />;
+  }
 
   // Permitir acceso sin login si hay un código de partido (para votación)
   const search = new URLSearchParams(location.search);

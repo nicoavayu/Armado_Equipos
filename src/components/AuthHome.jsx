@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { setAuthReturnTo } from '../utils/authReturnTo';
+import { getAuthRedirectUrl } from '../utils/authRedirectUrl';
 import GoogleAuth from './GoogleAuth';
 import { supabase } from '../supabase';
 import logo from '../Logo.png';
@@ -57,10 +58,10 @@ export default function AuthHome() {
     setNotice({ type: '', message: '' });
     try {
       setAuthReturnTo(returnTo || '/home');
-      const emailRedirectTo = `${window.location.origin}/auth/callback`;
+      const emailRedirectTo = getAuthRedirectUrl();
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
-        options: { emailRedirectTo },
+        options: emailRedirectTo ? { emailRedirectTo } : undefined,
       });
       if (error) throw error;
 

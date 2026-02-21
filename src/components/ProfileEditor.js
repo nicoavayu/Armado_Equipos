@@ -7,6 +7,22 @@ import InlineNotice from './ui/InlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const GEO_LOG_PREFIX = '[PROFILE_GEO]';
+const AWARDS_PREVIEW_INCREMENT = 1; // TEMP test: remove when no longer needed.
+
+const withAwardsPreview = (profile, avatarUrl) => {
+  const safeProfile = profile || {};
+  const currentMvp = Number(safeProfile.mvp_badges ?? safeProfile.mvps ?? 0) || 0;
+  const currentGk = Number(safeProfile.gk_badges ?? safeProfile.guantes_dorados ?? 0) || 0;
+  const currentRed = Number(safeProfile.red_badges ?? safeProfile.tarjetas_rojas ?? 0) || 0;
+
+  return {
+    ...safeProfile,
+    avatar_url: avatarUrl,
+    mvp_badges: currentMvp + AWARDS_PREVIEW_INCREMENT,
+    gk_badges: currentGk + AWARDS_PREVIEW_INCREMENT,
+    red_badges: currentRed + AWARDS_PREVIEW_INCREMENT,
+  };
+};
 
 const extractCityFromGeocodeResults = (results = []) => {
   if (!Array.isArray(results) || results.length === 0) return null;
@@ -78,7 +94,7 @@ const ProfileEditorForm = ({
   onClearInlineNotice,
 }) => {
   return (
-    <div className="mx-auto w-full max-w-[720px] px-4 pb-32 pt-3 flex flex-col gap-4 min-w-0">
+    <div className="mx-auto w-full max-w-[720px] px-4 pb-32 pt-3 flex flex-col gap-2 min-w-0">
       <InlineNotice
         type={inlineNotice?.type}
         message={inlineNotice?.message}
@@ -86,12 +102,12 @@ const ProfileEditorForm = ({
         onClose={onClearInlineNotice}
       />
       {/* ProfileCard fixed within form flow */}
-      <div className="w-full flex justify-center -mt-5 mb-0">
+      <div className="w-full flex justify-center -mt-5 -mb-12">
         <ProfileCard
-          profile={{
-            ...liveProfile,
-            avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
-          }}
+          profile={withAwardsPreview(
+            liveProfile,
+            liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
+          )}
           isVisible={true}
           performanceMode={false}
           awardsLayout="space-left"
@@ -419,7 +435,8 @@ const DeleteAccountModal = ({
 
 function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const navigate = useNavigate();
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile, updateLocalProfile, localEditMode } = useAuth();
+  const isLocalDevSession = localEditMode && user?.app_metadata?.provider === 'local-dev';
   const [loading, setLoading] = useState(false);
   const [liveProfile, setLiveProfile] = useState(profile);
   const [hasChanges, setHasChanges] = useState(false);
@@ -457,7 +474,11 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       const avatarUrl = profile.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
       // Si tenemos un avatar en los metadatos pero no en el perfil, actualizar el perfil
-      if (!profile.avatar_url && (user?.user_metadata?.avatar_url || user?.user_metadata?.picture)) {
+      if (
+        !isLocalDevSession &&
+        !profile.avatar_url &&
+        (user?.user_metadata?.avatar_url || user?.user_metadata?.picture)
+      ) {
         updateProfile(user.id, { avatar_url: avatarUrl })
           .then(() => refreshProfile())
           .catch((err) => console.error('Error updating profile with avatar:', err));
@@ -498,7 +519,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       });
       setHasChanges(false);
     }
-  }, [profile, user, refreshProfile]);
+  }, [profile, user, refreshProfile, isLocalDevSession]);
 
   const MAX_NOMBRE = 12;
 
@@ -535,6 +556,13 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       ...prev,
       avatar_url: localPreviewUrl,
     }));
+
+    if (isLocalDevSession) {
+      updateLocalProfile({ avatar_url: localPreviewUrl });
+      setHasChanges(true);
+      showInlineNotice('success', 'Foto actualizada en modo local.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -579,7 +607,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     } finally {
       setLoading(false);
     }
-  }, [user, profile, setLiveProfile, setLoading, setHasChanges, showInlineNotice]);
+  }, [user, profile, setLiveProfile, setLoading, setHasChanges, showInlineNotice, isLocalDevSession, updateLocalProfile]);
 
   const handleSave = useCallback(async () => {
     if (!formData.nombre.trim()) {
@@ -597,6 +625,14 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         ...formData,
         fecha_nacimiento: cleanDate(formData.fecha_nacimiento),
       };
+
+      if (isLocalDevSession) {
+        updateLocalProfile(profileDataToSave);
+        setHasChanges(false);
+        showInlineNotice('success', 'Perfil guardado en modo local.');
+        onClose();
+        return;
+      }
 
       const updatedProfile = await updateProfile(user.id, profileDataToSave);
 
@@ -620,15 +656,24 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     } finally {
       setLoading(false);
     }
-  }, [formData, user, refreshProfile, onClose, setLoading, setHasChanges, profile?.profile_completion, showInlineNotice]);
+  }, [formData, user, refreshProfile, onClose, setLoading, setHasChanges, profile?.profile_completion, showInlineNotice, isLocalDevSession, updateLocalProfile]);
 
   const handleLogout = useCallback(async () => {
+    if (isLocalDevSession) {
+      onClose();
+      navigate('/', { replace: true });
+      return;
+    }
     await supabase.auth.signOut();
     onClose();
     navigate('/login', { replace: true });
-  }, [onClose, navigate]);
+  }, [onClose, navigate, isLocalDevSession]);
 
   const handleDeleteAccount = useCallback(() => {
+    if (isLocalDevSession) {
+      showInlineNotice('warning', 'Deshabilitado en modo local.');
+      return;
+    }
     if (!user?.id) {
       showInlineNotice('warning', 'No se pudo identificar la cuenta actual.');
       return;
@@ -636,7 +681,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
     setDeleteAccountConfirmation('');
     setShowDeleteAccountModal(true);
-  }, [showInlineNotice, user?.id]);
+  }, [showInlineNotice, user?.id, isLocalDevSession]);
 
   const closeDeleteAccountModal = useCallback(() => {
     if (loading) return;
@@ -909,10 +954,10 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         <div className="flex-none w-full md:w-[400px] flex items-center justify-center p-5 md:p-10 bg-white/5 md:bg-white/10 border-b md:border-b-0 md:border-r border-white/20 relative">
           <div className="w-full flex justify-center overflow-visible">
             <ProfileCard
-              profile={{
-                ...liveProfile,
-                avatar_url: liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
-              }}
+              profile={withAwardsPreview(
+                liveProfile,
+                liveProfile?.avatar_url || user?.user_metadata?.avatar_url || user?.user_metadata?.picture,
+              )}
               isVisible={true}
               awardsLayout="space-left"
               enableTilt={false}

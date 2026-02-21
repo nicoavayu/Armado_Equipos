@@ -1,6 +1,7 @@
 import React from 'react';
 import { supabase } from '../supabase';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { getAuthRedirectUrl } from '../utils/authRedirectUrl';
 
 const GoogleAuth = ({ user, className, disabled = false, loading = false, onStart, onEnd }) => {
   const signInWithGoogle = async () => {
@@ -8,11 +9,10 @@ const GoogleAuth = ({ user, className, disabled = false, loading = false, onStar
 
     if (typeof onStart === 'function') onStart();
     try {
+      const redirectTo = getAuthRedirectUrl();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
+        options: redirectTo ? { redirectTo } : undefined,
       });
 
       if (error) {

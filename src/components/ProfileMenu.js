@@ -12,7 +12,8 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
   const navigate = useNavigate();
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile, updateLocalProfile, localEditMode } = useAuth();
+  const isLocalDevSession = localEditMode && user?.app_metadata?.provider === 'local-dev';
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
@@ -74,6 +75,22 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
       return;
     }
 
+    if (isLocalDevSession) {
+      const localPreviewUrl = URL.createObjectURL(file);
+      updateLocalProfile({
+        avatar_url: localPreviewUrl,
+        nombre: profile?.nombre || 'Local Dev',
+      });
+      if (onProfileChange) onProfileChange({ ...profile, avatar_url: localPreviewUrl });
+      setHasChanges(true);
+      showInlineNotice({
+        key: 'profile_menu_image_local_mode',
+        type: 'success',
+        message: 'Foto actualizada en modo local.',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const fotoUrl = await uploadFoto(file, { uuid: user.id });
@@ -107,6 +124,11 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
   // Optional: expose availability toggle through profile menu as well
   const handleSetAvailability = async (value) => {
     if (!user) return;
+    if (isLocalDevSession) {
+      updateLocalProfile({ acepta_invitaciones: value });
+      if (onProfileChange) onProfileChange({ ...profile, acepta_invitaciones: value });
+      return;
+    }
     try {
       await updateProfile(user.id, { acepta_invitaciones: value });
       // keep jugadores_sin_partido in sync
@@ -136,6 +158,19 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
     setLoading(true);
     try {
       const updatedData = { ...formData };
+
+      if (isLocalDevSession) {
+        updateLocalProfile(updatedData);
+        if (onProfileChange) onProfileChange({ ...profile, ...updatedData });
+        showInlineNotice({
+          key: 'profile_menu_saved_local_mode',
+          type: 'success',
+          message: 'Perfil guardado en modo local.',
+        });
+        setHasChanges(false);
+        return;
+      }
+
       const updatedProfile = await updateProfile(user.id, updatedData);
 
       const completion = calculateProfileCompletion(updatedProfile);
@@ -157,6 +192,11 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
   const isIncomplete = completion < 100;
 
   const handleLogout = async () => {
+    if (isLocalDevSession) {
+      onClose();
+      navigate('/', { replace: true });
+      return;
+    }
     await supabase.auth.signOut();
     onClose();
     navigate('/login', { replace: true });
@@ -226,7 +266,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
         )}
 
         {/* Notificación de partidos pendientes */}
-        {user && (
+        {user && !isLocalDevSession && (
           <PartidosPendientesNotification userId={user.id} />
         )}
 

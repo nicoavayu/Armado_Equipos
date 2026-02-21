@@ -91,6 +91,55 @@ const CARD_FRAME_WIDTH = 758;
 const CARD_FRAME_HEIGHT = 1246;
 const CARD_FRAME_RATIO = CARD_FRAME_WIDTH / CARD_FRAME_HEIGHT;
 
+// Layout controls: edit only these values to move card elements.
+const CARD_LAYOUT_TUNING = {
+  base: {
+    // Name
+    nameTop: '9.8%',
+    nameLeft: '50%',
+    nameTranslateX: '-50%',
+    nameWidth: '82%',
+    nameMargin: '-8px',
+    // Photo
+    photoSize: '51.6%',
+    photoTop: '17.9%',
+    photoOffsetY: '8px',
+    // Side blocks
+    sideTop: '41.5%',
+    rightStatsRight: '4%',
+    rightStatsTranslateY: '74%',
+    leftMetaLeft: '5%',
+    leftMetaTranslateX: '0px',
+    leftMetaTranslateY: '88%',
+    // Center cluster
+    centerTop: '5.8%',
+    centerLeft: '50%',
+    centerTranslateX: '-50%',
+    centerWidth: '54%',
+    centerBadgeRowOffsetY: '-5px',
+    ratingMarginTop: 'clamp(10px, 3.1vw, 15px)',
+    // Frame
+    frameScale: '1',
+    frameOffsetY: '0%',
+    leftAwardsShiftRight: '0px',
+  },
+  spaceLeft: {
+    nameTop: '9.2%',
+    nameMargin: '0px',
+    rightStatsRight: 'calc(12.2% + 2px)',
+    rightStatsTranslateY: '60%',
+    leftMetaLeft: '10.8%',
+    leftMetaTranslateX: '3px',
+    leftMetaTranslateY: '73%',
+    centerTop: '54.8%',
+    centerBadgeRowOffsetY: '-5px',
+    ratingMarginTop: 'clamp(5px, 1.8vw, 9px)',
+    frameScale: '1.16',
+    frameOffsetY: '-1.2%',
+    leftAwardsShiftRight: '32px',
+  },
+};
+
 const ProfileCardComponent = ({
   profile,
   isVisible = true,
@@ -222,6 +271,34 @@ const ProfileCardComponent = ({
   const resolvedCardWidth = reserveLeftAwardsSpace
     ? `min(82vw, ${Math.round(normalizedCardMaxWidth * 1.2)}px)`
     : `min(92vw, ${normalizedCardMaxWidth}px)`;
+  const layoutConfig = reserveLeftAwardsSpace
+    ? { ...CARD_LAYOUT_TUNING.base, ...CARD_LAYOUT_TUNING.spaceLeft }
+    : CARD_LAYOUT_TUNING.base;
+  const layoutVars = {
+    '--pc-name-top': layoutConfig.nameTop,
+    '--pc-name-left': layoutConfig.nameLeft,
+    '--pc-name-translate-x': layoutConfig.nameTranslateX,
+    '--pc-name-width': layoutConfig.nameWidth,
+    '--pc-name-margin': layoutConfig.nameMargin,
+    '--pc-photo-size': layoutConfig.photoSize,
+    '--pc-photo-top': layoutConfig.photoTop,
+    '--pc-photo-offset-y': layoutConfig.photoOffsetY,
+    '--pc-side-top': layoutConfig.sideTop,
+    '--pc-right-stats-right': layoutConfig.rightStatsRight,
+    '--pc-right-stats-translate-y': layoutConfig.rightStatsTranslateY,
+    '--pc-left-meta-left': layoutConfig.leftMetaLeft,
+    '--pc-left-meta-translate-x': layoutConfig.leftMetaTranslateX,
+    '--pc-left-meta-translate-y': layoutConfig.leftMetaTranslateY,
+    '--pc-center-top': layoutConfig.centerTop,
+    '--pc-center-left': layoutConfig.centerLeft,
+    '--pc-center-translate-x': layoutConfig.centerTranslateX,
+    '--pc-center-width': layoutConfig.centerWidth,
+    '--pc-center-badge-row-offset-y': layoutConfig.centerBadgeRowOffsetY,
+    '--pc-rating-margin-top': layoutConfig.ratingMarginTop,
+    '--pc-frame-scale': layoutConfig.frameScale,
+    '--pc-frame-offset-y': layoutConfig.frameOffsetY,
+    '--pc-left-awards-shift-right': layoutConfig.leftAwardsShiftRight,
+  };
   const sideAwards = [
     { key: 'mvp', count: Number(vm.mvp) || 0, image: '/mvp_award.png', ref: mvpRef },
     { key: 'gk', count: Number(vm.gk) || 0, image: '/goalkeeper_award.png', ref: gkRef },
@@ -255,13 +332,29 @@ const ProfileCardComponent = ({
           );
           --pc-layout-gap: clamp(0.5rem, 2.4vw, 1rem);
           --pc-awards-gap: calc(var(--pc-award-height) * 0.08);
-          --pc-photo-size: 56.6%;
-          --pc-photo-top: 15.9%;
+          --pc-name-top: 9.8%;
+          --pc-name-left: 50%;
+          --pc-name-translate-x: -50%;
+          --pc-name-width: 82%;
+          --pc-name-margin: -8px;
+          --pc-photo-size: 53.6%;
+          --pc-photo-top: 18.9%;
           --pc-photo-offset-y: 8px;
           --pc-side-top: 39.5%;
+          --pc-right-stats-right: 4%;
+          --pc-right-stats-translate-y: 74%;
+          --pc-left-meta-left: 5%;
+          --pc-left-meta-translate-x: 0px;
+          --pc-left-meta-translate-y: 88%;
           --pc-center-top: 56.8%;
+          --pc-center-left: 50%;
+          --pc-center-translate-x: -50%;
+          --pc-center-width: 54%;
+          --pc-center-badge-row-offset-y: 0px;
+          --pc-rating-margin-top: clamp(10px, 3.1vw, 15px);
           --pc-frame-scale: 1;
           --pc-frame-offset-y: 0%;
+          --pc-left-awards-shift-right: 0px;
           width: 100%;
           display: grid;
           justify-items: center;
@@ -281,8 +374,17 @@ const ProfileCardComponent = ({
             var(--pc-card-target-width),
             100%
           );
+          --pc-name-top: 9.2%;
+          --pc-name-margin: 0px;
           --pc-frame-scale: 1.16;
           --pc-frame-offset-y: -1.2%;
+          --pc-right-stats-right: calc(12.2% + 2px);
+          --pc-right-stats-translate-y: 60%;
+          --pc-left-meta-left: 10.8%;
+          --pc-left-meta-translate-x: 3px;
+          --pc-left-meta-translate-y: 73%;
+          --pc-center-top: 54.8%;
+          --pc-rating-margin-top: clamp(5px, 1.8vw, 9px);
           --pc-left-awards-gap: clamp(12px, 3.5vw, 16px);
           --pc-left-award-width: clamp(33px, 9.8vw, 42px);
           --pc-left-award-height: clamp(60px, 17.2vw, 76px);
@@ -322,8 +424,8 @@ const ProfileCardComponent = ({
         }
         .pc-awards-side-rail {
           position: absolute;
-          top: 50%;
-          right: calc(100% + var(--pc-left-awards-gap));
+          top: 40%;
+          right: calc(100% + var(--pc-left-awards-gap) - var(--pc-left-awards-shift-right));
           transform: translateY(-50%);
           display: grid;
           grid-auto-rows: max-content;
@@ -496,38 +598,32 @@ const ProfileCardComponent = ({
         }
         .pc-name-wrap {
           position: absolute;
-          top: 7.8%;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 82%;
+          top: var(--pc-name-top);
+          left: var(--pc-name-left);
+          transform: translateX(var(--pc-name-translate-x));
+          width: var(--pc-name-width);
           display: flex;
           justify-content: center;
         }
         .pc-name {
-          margin: -15px;
+          margin: var(--pc-name-margin);
           max-width: 100%;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
           font-family: 'Bebas Neue', 'Bebas', 'Oswald', sans-serif;
           font-size: clamp(28px, 9.6vw, 46px);
-          line-height: 0.95;
+          line-height: 1.75;
           font-weight: 900;
           letter-spacing: 0.01em;
           color: #fff;
           text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3);
         }
-        .profile-card-wrapper.pc-awards-space-left .pc-name-wrap {
-          top: 9.2%;
-        }
-        .profile-card-wrapper.pc-awards-space-left .pc-name {
-          margin: 0;
-        }
         .pc-right-stats {
           position: absolute;
-          right: 4%;
+          right: var(--pc-right-stats-right);
           top: var(--pc-side-top);
-          transform: translateY(74%);
+          transform: translateY(var(--pc-right-stats-translate-y));
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -536,10 +632,6 @@ const ProfileCardComponent = ({
           background: rgba(255, 255, 255, 0.05);
           border: 1px solid rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(8px);
-        }
-        .profile-card-wrapper.pc-awards-space-left .pc-right-stats {
-          right: calc(12.2% + 2px);
-          transform: translateY(60%);
         }
         .pc-stat-stack {
           display: flex;
@@ -571,18 +663,14 @@ const ProfileCardComponent = ({
         }
         .pc-left-meta {
           position: absolute;
-          left: 5%;
+          left: var(--pc-left-meta-left);
           top: var(--pc-side-top);
-          transform: translateY(88%);
+          transform: translate(var(--pc-left-meta-translate-x), var(--pc-left-meta-translate-y));
           display: flex;
           flex-direction: column;
           align-items: center;
           gap: clamp(4px, 1vw, 6px);
           width: 13%;
-        }
-        .profile-card-wrapper.pc-awards-space-left .pc-left-meta {
-          left: 10.8%;
-          transform: translate(3px, 73%);
         }
         .pc-mini-badge {
           width: clamp(30px, 9.2vw, 38px);
@@ -626,16 +714,13 @@ const ProfileCardComponent = ({
         }
         .pc-center-cluster {
           position: absolute;
-          left: 50%;
+          left: var(--pc-center-left);
           top: var(--pc-center-top);
-          transform: translateX(-50%);
-          width: 54%;
+          transform: translateX(var(--pc-center-translate-x));
+          width: var(--pc-center-width);
           display: flex;
           flex-direction: column;
           align-items: center;
-        }
-        .profile-card-wrapper.pc-awards-space-left .pc-center-cluster {
-          top: 51.8%;
         }
         .badge-glass {
           background: rgba(0, 0, 0, 0.5);
@@ -652,6 +737,7 @@ const ProfileCardComponent = ({
           align-items: center;
           justify-content: center;
           gap: clamp(9px, 2.8vw, 14px);
+          transform: translateY(var(--pc-center-badge-row-offset-y));
         }
         .pc-center-badge {
           overflow: hidden;
@@ -671,13 +757,10 @@ const ProfileCardComponent = ({
           background: rgba(255, 255, 255, 0.05);
         }
         .pc-rating-wrap {
-          margin-top: clamp(10px, 3.1vw, 15px);
+          margin-top: var(--pc-rating-margin-top);
           display: flex;
           justify-content: center;
           width: 100%;
-        }
-        .profile-card-wrapper.pc-awards-space-left .pc-rating-wrap {
-          margin-top: clamp(5px, 1.8vw, 9px);
         }
         .pc-rating-inner {
           position: relative;
@@ -793,6 +876,7 @@ const ProfileCardComponent = ({
         style={{
           '--pc-card-ratio': String(frameRatio),
           '--pc-card-width': resolvedCardWidth,
+          ...layoutVars,
         }}
       >
         <div className="pc-layout-scroll">
