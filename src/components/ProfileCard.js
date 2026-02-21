@@ -331,15 +331,18 @@ const ProfileCardComponent = ({
           pointer-events: none;
         }
         .pc-awards-side-card {
-          position: relative;
           width: var(--pc-left-award-width);
           height: var(--pc-left-award-height);
-          line-height: 0;
-          display: block;
+          line-height: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: flex-start;
+          overflow: visible;
         }
         .pc-awards-side-image {
-          width: 100%;
-          height: 100%;
+          width: 166%;
+          height: 127%;
           object-fit: contain;
           display: block;
           filter: drop-shadow(0 0 8px rgba(80, 214, 255, 0.28));
@@ -347,10 +350,8 @@ const ProfileCardComponent = ({
           user-select: none;
         }
         .pc-awards-side-count {
-          position: absolute;
-          left: 50%;
-          bottom: clamp(3px, 1vw, 5px);
-          transform: translateX(-50%);
+          margin-top: clamp(6px, 1.8vw, 10px);
+          width: 100%;
           min-width: 2ch;
           text-align: center;
           font-size: clamp(12px, 3.2vw, 14px);
@@ -789,15 +790,15 @@ const ProfileCardComponent = ({
                   <aside className="pc-awards-side-rail" aria-hidden="true">
                     <span className="pc-awards-side-card">
                       <img className="pc-awards-side-image" src="/mvp_award.png" alt="" loading="lazy" decoding="async" />
-                      <span ref={mvpRef} className="pc-awards-side-count pc-badge-count">{vm.mvp}</span>
+                      <span ref={mvpRef} className="pc-awards-side-count">{vm.mvp}</span>
                     </span>
                     <span className="pc-awards-side-card">
                       <img className="pc-awards-side-image" src="/goalkeeper_award.png" alt="" loading="lazy" decoding="async" />
-                      <span ref={gkRef} className="pc-awards-side-count pc-badge-count">{vm.gk}</span>
+                      <span ref={gkRef} className="pc-awards-side-count">{vm.gk}</span>
                     </span>
                     <span className="pc-awards-side-card">
                       <img className="pc-awards-side-image" src="/redcard_award.png" alt="" loading="lazy" decoding="async" />
-                      <span ref={redRef} className="pc-awards-side-count pc-badge-count">{vm.red}</span>
+                      <span ref={redRef} className="pc-awards-side-count">{vm.red}</span>
                     </span>
                   </aside>
                 )}
