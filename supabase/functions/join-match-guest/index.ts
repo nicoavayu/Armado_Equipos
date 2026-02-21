@@ -144,7 +144,7 @@ serve(async (req) => {
       );
     }
 
-    // Validate + consume invite token (6h / 14 uses).
+    // Validate + consume invite token (expiry/max_uses enforced in DB policy).
     const token = String(invite ?? "").trim();
     const { data: consumeRows, error: consumeErr } = await supabase.rpc(
       "consume_guest_match_invite",

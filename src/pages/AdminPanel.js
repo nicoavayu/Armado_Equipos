@@ -187,7 +187,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
       return null;
     }
 
-    // Guest self-join needs a short-lived token (6h / 14 uses).
+    // Guest self-join token now lasts through match date/time and supports larger rosters (min 26 uses).
     // Admin-only RPC enforces permissions server-side.
     const { data: inviteRows, error: inviteErr } = await supabase.rpc('create_guest_match_invite', {
       p_partido_id: Number(matchId),
