@@ -31,26 +31,26 @@ const getFootBadgeStyle = (foot) => {
   const value = String(foot || '').toLowerCase();
   if (value === 'right') {
     return {
-      borderColor: '#22D3EE',
-      color: '#67E8F9',
-      background: 'rgba(34, 211, 238, 0.14)',
-      textShadow: '0 0 4px rgba(34, 211, 238, 0.55)',
+      borderColor: '#38BDF8',
+      color: '#BAE6FD',
+      background: 'rgba(56, 189, 248, 0.16)',
+      textShadow: '0 0 6px rgba(56, 189, 248, 0.55)',
     };
   }
   if (value === 'left') {
     return {
-      borderColor: '#A78BFA',
-      color: '#C4B5FD',
-      background: 'rgba(167, 139, 250, 0.14)',
-      textShadow: '0 0 4px rgba(167, 139, 250, 0.55)',
+      borderColor: '#8B5CF6',
+      color: '#DDD6FE',
+      background: 'rgba(139, 92, 246, 0.18)',
+      textShadow: '0 0 6px rgba(139, 92, 246, 0.6)',
     };
   }
   if (value === 'both') {
     return {
-      borderColor: '#94A3B8',
-      color: '#E2E8F0',
-      background: 'rgba(148, 163, 184, 0.14)',
-      textShadow: '0 0 4px rgba(148, 163, 184, 0.55)',
+      borderColor: '#14B8A6',
+      color: '#5EEAD4',
+      background: 'rgba(20, 184, 166, 0.18)',
+      textShadow: '0 0 6px rgba(20, 184, 166, 0.55)',
     };
   }
   return {
@@ -702,6 +702,10 @@ const ProfileCardComponent = ({
           display: flex;
           justify-content: center;
         }
+        .pc-level-wrap--placeholder {
+          visibility: hidden;
+          pointer-events: none;
+        }
         .pc-level-stack {
           display: inline-flex;
           flex-direction: column;
@@ -970,7 +974,7 @@ const ProfileCardComponent = ({
 
                       {(vm.foot || vm.level !== null) && (
                         <div className="pc-left-meta">
-                          {vm.foot && (
+                          {vm.foot ? (
                             <div
                               className="pc-mini-badge"
                               style={{ border: '1.5px solid', borderColor: vm.footStyle.borderColor, background: vm.footStyle.background }}
@@ -979,12 +983,11 @@ const ProfileCardComponent = ({
                                 {vm.foot}
                               </span>
                             </div>
-                          )}
-                          {!vm.foot && vm.level !== null && (
+                          ) : (
                             <div className="pc-mini-badge pc-mini-badge--placeholder" aria-hidden="true" />
                           )}
 
-                          {vm.level !== null && (
+                          {vm.level !== null ? (
                             <div className="pc-level-wrap">
                               <span className="pc-level-stack" aria-label={`Nivel autopercibido ${vm.level} de 5`}>
                                 {[5, 4, 3, 2, 1].map((dot) => (
@@ -996,6 +999,14 @@ const ProfileCardComponent = ({
                                       boxShadow: `0 0 6px ${levelDotColor}80`,
                                     } : undefined}
                                   />
+                                ))}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="pc-level-wrap pc-level-wrap--placeholder" aria-hidden="true">
+                              <span className="pc-level-stack">
+                                {[5, 4, 3, 2, 1].map((dot) => (
+                                  <span key={dot} className="pc-level-dot pc-level-dot--empty" />
                                 ))}
                               </span>
                             </div>
