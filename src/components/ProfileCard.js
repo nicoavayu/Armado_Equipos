@@ -255,7 +255,7 @@ const ProfileCardComponent = ({
           );
           --pc-layout-gap: clamp(0.5rem, 2.4vw, 1rem);
           --pc-awards-gap: calc(var(--pc-award-height) * 0.08);
-          --pc-photo-size: 58.2%;
+          --pc-photo-size: 56.6%;
           --pc-photo-top: 15.9%;
           --pc-photo-offset-y: 8px;
           --pc-side-top: 39.5%;
@@ -538,7 +538,7 @@ const ProfileCardComponent = ({
           backdrop-filter: blur(8px);
         }
         .profile-card-wrapper.pc-awards-space-left .pc-right-stats {
-          right: 12.2%;
+          right: calc(12.2% + 2px);
           transform: translateY(60%);
         }
         .pc-stat-stack {
@@ -582,7 +582,7 @@ const ProfileCardComponent = ({
         }
         .profile-card-wrapper.pc-awards-space-left .pc-left-meta {
           left: 10.8%;
-          transform: translateY(73%);
+          transform: translate(3px, 73%);
         }
         .pc-mini-badge {
           width: clamp(30px, 9.2vw, 38px);
@@ -635,7 +635,7 @@ const ProfileCardComponent = ({
           align-items: center;
         }
         .profile-card-wrapper.pc-awards-space-left .pc-center-cluster {
-          top: 52.4%;
+          top: 51.8%;
         }
         .badge-glass {
           background: rgba(0, 0, 0, 0.5);

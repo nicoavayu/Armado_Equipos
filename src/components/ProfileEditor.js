@@ -86,7 +86,7 @@ const ProfileEditorForm = ({
         onClose={onClearInlineNotice}
       />
       {/* ProfileCard fixed within form flow */}
-      <div className="w-full flex justify-center -mt-5 mb-2">
+      <div className="w-full flex justify-center -mt-5 mb-0">
         <ProfileCard
           profile={{
             ...liveProfile,
@@ -99,7 +99,7 @@ const ProfileEditorForm = ({
         />
       </div>
 
-      <div className="w-full flex flex-col gap-4 min-w-0">
+      <div className="w-full flex flex-col gap-3 min-w-0">
         {/* Header Info: Photo + Name (COMPACT ROW) */}
         <div className="flex flex-row items-center gap-3 w-full min-w-0">
           {/* Square Photo Avatar */}
