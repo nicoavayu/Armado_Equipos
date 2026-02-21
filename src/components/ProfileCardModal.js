@@ -438,7 +438,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
             isVisible={true}
             enableTilt={true}
             currentUserId={currentUserId}
-            awardsLayout={hasAwards ? 'space-left' : 'none'}
+            awardsLayout="space-left"
             cardMaxWidth={300}
             layoutOverrides={modalCardLayoutOverrides}
           />
