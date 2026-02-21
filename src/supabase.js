@@ -9,6 +9,7 @@ export * from './services/db/friends';
 export * from './services/db/frequentMatches';
 export * from './services/db/realtime';
 export * from './services/db/teams';
+export * from './services/db/teamChallenges';
 
 // Export default for backward compatibility
 export { default } from './lib/supabaseClient';

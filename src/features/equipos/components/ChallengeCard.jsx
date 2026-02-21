@@ -1,0 +1,138 @@
+import React from 'react';
+import { CalendarClock, Flag, MapPin, Shield } from 'lucide-react';
+import { CHALLENGE_STATUS_LABELS } from '../config';
+import { formatSkillLevelLabel, getTeamGradientStyle, getTeamPalette } from '../utils/teamColors';
+import { PRIMARY_CTA_BUTTON_CLASS } from '../../../styles/buttonClasses';
+
+const CTA_BY_STATUS = {
+  open: 'Aceptar',
+  accepted: 'Confirmar',
+  confirmed: 'Ver detalle',
+  completed: 'Finalizado',
+  canceled: 'Cancelado',
+};
+
+const CHIP_CLASS = 'font-oswald text-[10px] font-bold text-white/40 border border-white/10 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider';
+
+const compactPrimaryClass = `${PRIMARY_CTA_BUTTON_CLASS} py-2 px-3 min-h-[40px] text-xs tracking-wide`;
+
+const formatChallengeDate = (value) => {
+  if (!value) return 'A coordinar';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 'A coordinar';
+  return parsed.toLocaleString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const TeamSide = ({ team, fallbackText }) => {
+  if (!team) {
+    return (
+      <div className="flex-1 rounded-xl border border-dashed border-white/20 bg-white/5 p-3 min-h-[88px] flex items-center justify-center">
+        <p className="font-oswald text-white/60 text-xs font-semibold tracking-wide uppercase">{fallbackText}</p>
+      </div>
+    );
+  }
+
+  const style = getTeamGradientStyle(team);
+  const palette = getTeamPalette(team);
+
+  return (
+    <div className="flex-1 rounded-xl border border-white/10 p-3 bg-[#1e293b]/55 shadow-[0_8px_20px_rgba(0,0,0,0.25)]" style={style}>
+      <div className="flex items-center gap-2">
+        <div className="h-10 w-10 rounded-lg overflow-hidden border border-white/30 bg-black/15 flex items-center justify-center shrink-0">
+          {team.crest_url ? (
+            <img src={team.crest_url} alt={team.name || 'Escudo'} className="h-full w-full object-cover" />
+          ) : (
+            <Shield size={18} className="text-white/80" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <div className="text-white font-oswald text-[15px] font-semibold leading-tight truncate">{team.name || 'Equipo'}</div>
+          <div className="font-oswald text-[11px] uppercase text-white/75">F{team.format || '-'} · {formatSkillLevelLabel(team.skill_level)}</div>
+        </div>
+      </div>
+
+      {team.base_zone ? (
+        <div className={`${CHIP_CLASS} mt-2 inline-flex items-center gap-1`} style={{ borderColor: `${palette.accent}66`, color: '#F8FAFC', backgroundColor: palette.chipBg }}>
+          <MapPin size={11} /> {team.base_zone}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+const ChallengeCard = ({
+  challenge,
+  onPrimaryAction,
+  onCancel,
+  primaryLabel,
+  canCancel = false,
+  disabled = false,
+}) => {
+  const status = (challenge?.status || 'open').toLowerCase();
+  const label = CHALLENGE_STATUS_LABELS[status] || status;
+  const cta = primaryLabel || CTA_BY_STATUS[status] || 'Ver detalle';
+
+  return (
+    <div className="w-full rounded-2xl border border-white/10 bg-[#1e293b]/70 backdrop-blur-sm p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)] font-oswald">
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <span className={`${CHIP_CLASS} text-white/90 bg-white/10 border-white/20`}>
+          {label}
+        </span>
+        <span className={`${CHIP_CLASS} inline-flex items-center gap-1`}>
+          <Flag size={11} /> F{challenge?.format || '-'}
+        </span>
+        <span className={CHIP_CLASS}>
+          {formatSkillLevelLabel(challenge?.skill_level)}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+        <TeamSide team={challenge?.challenger_team} fallbackText="Equipo A" />
+        <div className="text-white/65 font-oswald text-xs tracking-[0.14em] px-1">VS</div>
+        <TeamSide team={challenge?.accepted_team} fallbackText="Busco rival" />
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/70 font-oswald">
+        <span className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2 py-1 bg-white/5">
+          <CalendarClock size={12} /> {formatChallengeDate(challenge?.scheduled_at)}
+        </span>
+        <span className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2 py-1 bg-white/5">
+          <MapPin size={12} /> {challenge?.location_name || 'A coordinar'}
+        </span>
+      </div>
+
+      {challenge?.notes ? (
+        <p className="mt-3 text-[13px] leading-snug text-white/75 break-words font-oswald">{challenge.notes}</p>
+      ) : null}
+
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onPrimaryAction}
+          className={`${compactPrimaryClass} disabled:opacity-45 disabled:cursor-not-allowed`}
+        >
+          {cta}
+        </button>
+
+        {canCancel ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onCancel}
+            className="rounded-xl border border-white/20 bg-white/5 text-white font-oswald font-semibold px-3 py-2 min-h-[40px] text-xs hover:bg-white/10 disabled:opacity-45 disabled:cursor-not-allowed"
+          >
+            Cancelar
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
+export default ChallengeCard;

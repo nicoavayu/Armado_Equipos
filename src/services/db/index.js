@@ -6,3 +6,4 @@ export * from './profiles';
 export * from './friends';
 export * from './frequentMatches';
 export * from './realtime';
+export * from './teamChallenges';
