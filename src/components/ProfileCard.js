@@ -282,7 +282,7 @@ const ProfileCardComponent = ({
             100%
           );
           --pc-frame-scale: 1.16;
-          --pc-frame-offset-y: -7.4%;
+          --pc-frame-offset-y: -1.2%;
           --pc-left-awards-gap: clamp(12px, 3.5vw, 16px);
           --pc-left-award-width: clamp(33px, 9.8vw, 42px);
           --pc-left-award-height: clamp(60px, 17.2vw, 76px);
@@ -538,7 +538,7 @@ const ProfileCardComponent = ({
           backdrop-filter: blur(8px);
         }
         .profile-card-wrapper.pc-awards-space-left .pc-right-stats {
-          right: 10.8%;
+          right: 12.2%;
           transform: translateY(60%);
         }
         .pc-stat-stack {
