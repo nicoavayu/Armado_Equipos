@@ -282,8 +282,8 @@ const ProfileCardComponent = ({
             100%
           );
           --pc-left-awards-gap: clamp(12px, 3.5vw, 16px);
-          --pc-left-award-width: clamp(30px, 8.8vw, 38px);
-          --pc-left-award-height: clamp(54px, 15.5vw, 68px);
+          --pc-left-award-width: clamp(33px, 9.8vw, 42px);
+          --pc-left-award-height: clamp(60px, 17.2vw, 76px);
           --pc-left-awards-stack-gap: clamp(8px, 2.2vw, 12px);
         }
         .pc-layout {
