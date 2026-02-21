@@ -56,18 +56,7 @@ const getMaxRosterSlots = (match) => {
   return baseCapacity > 0 ? baseCapacity + MAX_SUBSTITUTES : 0;
 };
 
-const normalizeGuestNameKey = (name) => String(name || '')
-  .trim()
-  .toLowerCase()
-  .replace(/\s+/g, ' ')
-  .slice(0, 40);
-
-const getGuestStorageKey = (matchId, guestName = '') => {
-  const baseKey = `guest_joined_${matchId}`;
-  const normalizedName = normalizeGuestNameKey(guestName);
-  if (!normalizedName) return baseKey;
-  return `${baseKey}_${encodeURIComponent(normalizedName)}`;
-};
+const getGuestStorageKey = (matchId, _guestName = '') => `guest_joined_${matchId}`;
 
 function PlayersReadOnly({ jugadores, partido, mode }) {
   const cupoMaximo = partido.cupo_jugadores || partido.cupo || 'Sin límite';
@@ -801,6 +790,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         requestId: newRequest?.id || null,
         requesterUserId: user?.id || null,
         requesterName,
+        adminUserId: partido?.creado_por || null,
       });
       setJoinStatus('pending');
       showInlineNotice('success', 'Solicitud enviada. Esperando aprobación del admin.');
@@ -899,6 +889,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         playerName: resolvedName,
         playerUserId: user?.id || null,
         joinedVia: 'invite_link',
+        adminUserId: partido?.creado_por || null,
       });
 
       showInlineNotice('success', 'Te sumaste al partido.');

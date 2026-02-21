@@ -3,6 +3,7 @@ import { getVotantesIds, getVotantesConNombres, getJugadoresDelPartido, supabase
 import { toBigIntId } from '../utils';
 import { incrementMatchesAbandoned, canAbandonWithoutPenalty } from '../utils/matchStatsManager';
 import { autoCleanupDuplicates } from '../utils/duplicateCleanup';
+import { notifyAdminPlayerJoined } from '../services/matchJoinNotificationService';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 /**
@@ -315,6 +316,15 @@ export const useAdminPanelState = ({
         .single();
 
       if (error) throw error;
+
+      await notifyAdminPlayerJoined({
+        matchId: partidoActual.id,
+        playerName: nombre,
+        playerUserId: null,
+        joinedVia: 'manual_admin',
+        adminUserId: partidoActual?.creado_por || null,
+      });
+
       setNuevoNombre('');
 
       setTimeout(() => {
@@ -630,7 +640,13 @@ export const useAdminPanelState = ({
           .eq('id', matchNotification.id);
       }
 
-      await notificarJugadoresNuevoMiembro(userProfile?.nombre || 'Un jugador');
+      await notifyAdminPlayerJoined({
+        matchId: partidoActual.id,
+        playerName: userProfile?.nombre || 'Un jugador',
+        playerUserId: user?.id || null,
+        joinedVia: 'match_invite',
+        adminUserId: partidoActual?.creado_por || null,
+      });
 
       const jugadoresActualizados = await getJugadoresDelPartido(partidoActual.id);
       setJugadoresLocal(jugadoresActualizados);
@@ -686,6 +702,14 @@ export const useAdminPanelState = ({
 
       if (insertError) throw insertError;
 
+      await notifyAdminPlayerJoined({
+        matchId: partidoActual.id,
+        playerName: userProfile?.nombre || user.email?.split('@')[0] || 'Jugador',
+        playerUserId: user?.id || null,
+        joinedVia: 'admin_panel_join',
+        adminUserId: partidoActual?.creado_por || null,
+      });
+
       const jugadoresActualizados = await getJugadoresDelPartido(partidoActual.id);
       setJugadoresLocal(jugadoresActualizados);
       onJugadoresChange(jugadoresActualizados);
@@ -736,31 +760,6 @@ export const useAdminPanelState = ({
       notifyBlockingError('Error al rechazar invitación: ' + error.message);
     } finally {
       setInvitationLoading(false);
-    }
-  };
-
-  const notificarJugadoresNuevoMiembro = async (nombreJugador) => {
-    try {
-      const jugadoresConCuenta = jugadores.filter((j) => j.usuario_id && j.usuario_id !== user.id);
-
-      const notificaciones = jugadoresConCuenta.map((jugador) => ({
-        user_id: jugador.usuario_id,
-        type: 'match_update',
-        title: 'Nuevo jugador',
-        message: `${nombreJugador} se unió al partido "${partidoActual.nombre || 'PARTIDO'}"`,
-        data: {
-          matchId: toBigIntId(partidoActual.id),
-          matchName: partidoActual.nombre,
-          playerName: nombreJugador,
-        },
-        read: false,
-      }));
-
-      if (notificaciones.length > 0) {
-        await supabase.from('notifications').insert(notificaciones);
-      }
-    } catch (error) {
-      // Error notifying players
     }
   };
 

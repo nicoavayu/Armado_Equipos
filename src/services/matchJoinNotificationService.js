@@ -10,12 +10,130 @@ const toMatchId = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const normalizeUserId = (value) => {
+  const raw = String(value || '').trim();
+  return raw || null;
+};
+
+const resolveNotificationRecipients = async ({
+  matchId,
+  includeParticipants = false,
+  includeAdmin = true,
+  excludeUserId = null,
+  adminUserId = null,
+}) => {
+  const matchIdNumber = toMatchId(matchId);
+  if (!matchIdNumber) return [];
+
+  const recipients = new Set();
+  const normalizedExclude = normalizeUserId(excludeUserId);
+  const normalizedAdminFromArgs = normalizeUserId(adminUserId);
+
+  if (includeAdmin && normalizedAdminFromArgs && normalizedAdminFromArgs !== normalizedExclude) {
+    recipients.add(normalizedAdminFromArgs);
+  }
+
+  try {
+    const [{ data: matchRow }, participantRowsResult] = await Promise.all([
+      supabase
+        .from('partidos')
+        .select('creado_por')
+        .eq('id', matchIdNumber)
+        .maybeSingle(),
+      includeParticipants
+        ? supabase
+          .from('jugadores')
+          .select('usuario_id')
+          .eq('partido_id', matchIdNumber)
+          .not('usuario_id', 'is', null)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    if (includeAdmin) {
+      const adminId = normalizeUserId(matchRow?.creado_por);
+      if (adminId && adminId !== normalizedExclude) {
+        recipients.add(adminId);
+      }
+    }
+
+    (participantRowsResult?.data || []).forEach((row) => {
+      const recipientId = normalizeUserId(row?.usuario_id);
+      if (!recipientId || recipientId === normalizedExclude) return;
+      recipients.add(recipientId);
+    });
+  } catch (error) {
+    console.warn('[JOIN_NOTIFICATIONS] resolveNotificationRecipients failed', {
+      matchId: matchIdNumber,
+      includeParticipants,
+      includeAdmin,
+      error: error?.message || String(error),
+    });
+    return [];
+  }
+
+  return Array.from(recipients);
+};
+
+const directInsertNotifications = async ({
+  matchId,
+  type,
+  title,
+  message,
+  payload = {},
+  recipients = [],
+}) => {
+  const matchIdNumber = toMatchId(matchId);
+  if (!matchIdNumber || !Array.isArray(recipients) || recipients.length === 0) {
+    return { ok: false, reason: 'no_recipients' };
+  }
+
+  const nowIso = new Date().toISOString();
+  const notifications = recipients.map((recipientId) => ({
+    user_id: recipientId,
+    partido_id: matchIdNumber,
+    type,
+    title: title || 'Notificación de partido',
+    message: message || 'Tienes una nueva notificación',
+    data: payload,
+    read: false,
+    created_at: nowIso,
+  }));
+
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .insert(notifications);
+
+    if (error) {
+      console.warn('[JOIN_NOTIFICATIONS] direct insert fallback failed', {
+        matchId: matchIdNumber,
+        type,
+        recipients: recipients.length,
+        code: error.code,
+        message: error.message,
+      });
+      return { ok: false, reason: 'direct_insert_error', error };
+    }
+
+    return { ok: true, reason: 'direct_insert' };
+  } catch (error) {
+    console.warn('[JOIN_NOTIFICATIONS] direct insert fallback exception', {
+      matchId: matchIdNumber,
+      type,
+      recipients: recipients.length,
+      error: error?.message || String(error),
+    });
+    return { ok: false, reason: 'direct_insert_exception', error };
+  }
+};
+
 const enqueueAdminNotification = async ({
   matchId,
   type,
   title,
   message,
   payload = {},
+  adminUserId = null,
 }) => {
   const matchIdNumber = toMatchId(matchId);
   if (!matchIdNumber) return { ok: false, reason: 'invalid_match_id' };
@@ -36,6 +154,27 @@ const enqueueAdminNotification = async ({
         code: error.code,
         message: error.message,
       });
+
+      const recipients = await resolveNotificationRecipients({
+        matchId: matchIdNumber,
+        includeParticipants: false,
+        includeAdmin: true,
+        adminUserId,
+      });
+      const fallbackResult = await directInsertNotifications({
+        matchId: matchIdNumber,
+        type,
+        title,
+        message,
+        payload: {
+          ...payload,
+          direct_insert_fallback: true,
+          direct_insert_reason: 'enqueue_partido_notification_rpc_error',
+        },
+        recipients,
+      });
+
+      if (fallbackResult.ok) return { ok: true, reason: fallbackResult.reason };
       return { ok: false, reason: 'rpc_error', error };
     }
 
@@ -46,6 +185,27 @@ const enqueueAdminNotification = async ({
       type,
       error: error?.message || String(error),
     });
+
+    const recipients = await resolveNotificationRecipients({
+      matchId: matchIdNumber,
+      includeParticipants: false,
+      includeAdmin: true,
+      adminUserId,
+    });
+    const fallbackResult = await directInsertNotifications({
+      matchId: matchIdNumber,
+      type,
+      title,
+      message,
+      payload: {
+        ...payload,
+        direct_insert_fallback: true,
+        direct_insert_reason: 'enqueue_partido_notification_unexpected_error',
+      },
+      recipients,
+    });
+
+    if (fallbackResult.ok) return { ok: true, reason: fallbackResult.reason };
     return { ok: false, reason: 'unexpected_error', error };
   }
 };
@@ -58,6 +218,7 @@ const enqueueParticipantNotification = async ({
   payload = {},
   excludeUserId = null,
   includeAdmin = true,
+  adminUserId = null,
 }) => {
   const matchIdNumber = toMatchId(matchId);
   if (!matchIdNumber) return { ok: false, reason: 'invalid_match_id' };
@@ -75,10 +236,34 @@ const enqueueParticipantNotification = async ({
       title,
       message,
       payload: fallbackPayload,
+      adminUserId,
     });
 
     if (fallbackResult.ok) {
       return { ok: true, reason: 'admin_fallback' };
+    }
+
+    const recipients = await resolveNotificationRecipients({
+      matchId: matchIdNumber,
+      includeParticipants: true,
+      includeAdmin,
+      excludeUserId,
+      adminUserId,
+    });
+    const directResult = await directInsertNotifications({
+      matchId: matchIdNumber,
+      type,
+      title,
+      message,
+      payload: {
+        ...fallbackPayload,
+        direct_insert_fallback: true,
+        direct_insert_reason: fallbackReason,
+      },
+      recipients,
+    });
+    if (directResult.ok) {
+      return { ok: true, reason: 'direct_insert_fallback' };
     }
 
     return {
@@ -126,6 +311,7 @@ export const notifyAdminJoinRequest = async ({
   requestId,
   requesterUserId,
   requesterName,
+  adminUserId = null,
 }) => {
   const name = normalizeName(requesterName, 'Un jugador');
   const matchIdNumber = toMatchId(matchId);
@@ -144,6 +330,7 @@ export const notifyAdminJoinRequest = async ({
       requester_name: name,
       link: `/admin/${matchIdNumber}?tab=solicitudes`,
     },
+    adminUserId,
   });
 };
 
@@ -152,6 +339,7 @@ export const notifyAdminPlayerJoined = async ({
   playerName,
   playerUserId = null,
   joinedVia = 'invite_link',
+  adminUserId = null,
 }) => {
   const name = normalizeName(playerName, 'Un jugador');
   const matchIdNumber = toMatchId(matchId);
@@ -172,6 +360,7 @@ export const notifyAdminPlayerJoined = async ({
     },
     excludeUserId: playerUserId || null,
     includeAdmin: true,
+    adminUserId,
   });
 };
 

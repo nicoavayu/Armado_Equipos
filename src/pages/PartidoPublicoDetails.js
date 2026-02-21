@@ -217,6 +217,7 @@ export default function PartidoPublicoDetails() {
         requestId: null,
         requesterUserId: user?.id || null,
         requesterName,
+        adminUserId: partido?.creado_por || null,
       });
       setJoinStatus('pending');
       console.info('Solicitud enviada');
