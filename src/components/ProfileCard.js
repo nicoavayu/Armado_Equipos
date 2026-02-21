@@ -330,36 +330,28 @@ const ProfileCardComponent = ({
           z-index: 2;
           pointer-events: none;
         }
-        .pc-awards-side-item {
-          width: var(--pc-left-award-width);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-        }
         .pc-awards-side-card {
+          position: relative;
           width: var(--pc-left-award-width);
           height: var(--pc-left-award-height);
-          border-radius: clamp(10px, 2.6vw, 14px);
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          background: linear-gradient(180deg, rgba(13, 48, 74, 0.64) 0%, rgba(4, 19, 35, 0.72) 100%);
-          border: 1px solid rgba(142, 236, 255, 0.4);
-          box-shadow:
-            0 0 10px rgba(0, 196, 255, 0.2),
-            inset 0 0 10px rgba(97, 218, 255, 0.12);
+          line-height: 0;
+          display: block;
         }
         .pc-awards-side-image {
-          width: 88%;
-          height: 88%;
+          width: 100%;
+          height: 100%;
           object-fit: contain;
           display: block;
+          filter: drop-shadow(0 0 8px rgba(80, 214, 255, 0.28));
           pointer-events: none;
           user-select: none;
         }
         .pc-awards-side-count {
-          margin-top: clamp(6px, 1.8vw, 10px);
-          width: 100%;
+          position: absolute;
+          left: 50%;
+          bottom: clamp(3px, 1vw, 5px);
+          transform: translateX(-50%);
+          min-width: 2ch;
           text-align: center;
           font-size: clamp(12px, 3.2vw, 14px);
           line-height: 1;
@@ -795,23 +787,17 @@ const ProfileCardComponent = ({
               <div className="pc-stage">
                 {reserveLeftAwardsSpace && (
                   <aside className="pc-awards-side-rail" aria-hidden="true">
-                    <span className="pc-awards-side-item">
-                      <span className="pc-awards-side-card">
-                        <img className="pc-awards-side-image" src="/mvp_award.png" alt="" loading="lazy" decoding="async" />
-                      </span>
-                      <span ref={mvpRef} className="pc-awards-side-count">{vm.mvp}</span>
+                    <span className="pc-awards-side-card">
+                      <img className="pc-awards-side-image" src="/mvp_award.png" alt="" loading="lazy" decoding="async" />
+                      <span ref={mvpRef} className="pc-awards-side-count pc-badge-count">{vm.mvp}</span>
                     </span>
-                    <span className="pc-awards-side-item">
-                      <span className="pc-awards-side-card">
-                        <img className="pc-awards-side-image" src="/goalkeeper_award.png" alt="" loading="lazy" decoding="async" />
-                      </span>
-                      <span ref={gkRef} className="pc-awards-side-count">{vm.gk}</span>
+                    <span className="pc-awards-side-card">
+                      <img className="pc-awards-side-image" src="/goalkeeper_award.png" alt="" loading="lazy" decoding="async" />
+                      <span ref={gkRef} className="pc-awards-side-count pc-badge-count">{vm.gk}</span>
                     </span>
-                    <span className="pc-awards-side-item">
-                      <span className="pc-awards-side-card">
-                        <img className="pc-awards-side-image" src="/redcard_award.png" alt="" loading="lazy" decoding="async" />
-                      </span>
-                      <span ref={redRef} className="pc-awards-side-count">{vm.red}</span>
+                    <span className="pc-awards-side-card">
+                      <img className="pc-awards-side-image" src="/redcard_award.png" alt="" loading="lazy" decoding="async" />
+                      <span ref={redRef} className="pc-awards-side-count pc-badge-count">{vm.red}</span>
                     </span>
                   </aside>
                 )}
