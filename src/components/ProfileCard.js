@@ -87,7 +87,7 @@ const getAvatar = (p) => {
 };
 
 const ANIM = { SMOOTH: 600, INIT: 1500, OX: 70, OY: 60 };
-const CARD_FRAME_WIDTH = 758;
+const CARD_FRAME_WIDTH = 1060;
 const CARD_FRAME_HEIGHT = 1246;
 const CARD_FRAME_RATIO = CARD_FRAME_WIDTH / CARD_FRAME_HEIGHT;
 
@@ -265,7 +265,7 @@ const ProfileCardComponent = ({
           --pc-awards-gap: calc(var(--pc-award-height) * 0.08);
           --pc-photo-size: 58.2%;
           --pc-photo-top: 15.9%;
-          --pc-photo-offset-y: 15px;
+          --pc-photo-offset-y: 8px;
           --pc-side-top: 39.5%;
           --pc-center-top: 56.8%;
           width: 100%;
