@@ -78,7 +78,7 @@ const ProfileEditorForm = ({
   onClearInlineNotice,
 }) => {
   return (
-    <div className="mx-auto w-full max-w-[720px] px-4 pb-32 pt-6 flex flex-col gap-5 min-w-0">
+    <div className="mx-auto w-full max-w-[720px] px-4 pb-32 pt-3 flex flex-col gap-4 min-w-0">
       <InlineNotice
         type={inlineNotice?.type}
         message={inlineNotice?.message}
@@ -86,7 +86,7 @@ const ProfileEditorForm = ({
         onClose={onClearInlineNotice}
       />
       {/* ProfileCard fixed within form flow */}
-      <div className="w-full flex justify-center mb-6">
+      <div className="w-full flex justify-center -mt-5 mb-2">
         <ProfileCard
           profile={{
             ...liveProfile,
@@ -99,7 +99,7 @@ const ProfileEditorForm = ({
         />
       </div>
 
-      <div className="w-full flex flex-col gap-5 min-w-0">
+      <div className="w-full flex flex-col gap-4 min-w-0">
         {/* Header Info: Photo + Name (COMPACT ROW) */}
         <div className="flex flex-row items-center gap-3 w-full min-w-0">
           {/* Square Photo Avatar */}

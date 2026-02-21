@@ -282,7 +282,7 @@ const ProfileCardComponent = ({
             100%
           );
           --pc-frame-scale: 1.16;
-          --pc-frame-offset-y: -5.2%;
+          --pc-frame-offset-y: -7.4%;
           --pc-left-awards-gap: clamp(12px, 3.5vw, 16px);
           --pc-left-award-width: clamp(33px, 9.8vw, 42px);
           --pc-left-award-height: clamp(60px, 17.2vw, 76px);
@@ -518,7 +518,7 @@ const ProfileCardComponent = ({
           text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 20px rgba(63, 169, 255, 0.3);
         }
         .profile-card-wrapper.pc-awards-space-left .pc-name-wrap {
-          top: 10.7%;
+          top: 9.2%;
         }
         .profile-card-wrapper.pc-awards-space-left .pc-name {
           margin: 0;
@@ -538,8 +538,8 @@ const ProfileCardComponent = ({
           backdrop-filter: blur(8px);
         }
         .profile-card-wrapper.pc-awards-space-left .pc-right-stats {
-          right: 8.6%;
-          transform: translateY(66%);
+          right: 10.8%;
+          transform: translateY(60%);
         }
         .pc-stat-stack {
           display: flex;
@@ -581,8 +581,8 @@ const ProfileCardComponent = ({
           width: 13%;
         }
         .profile-card-wrapper.pc-awards-space-left .pc-left-meta {
-          left: 8.6%;
-          transform: translateY(79%);
+          left: 10.8%;
+          transform: translateY(73%);
         }
         .pc-mini-badge {
           width: clamp(30px, 9.2vw, 38px);
@@ -635,7 +635,7 @@ const ProfileCardComponent = ({
           align-items: center;
         }
         .profile-card-wrapper.pc-awards-space-left .pc-center-cluster {
-          top: 54.7%;
+          top: 52.4%;
         }
         .badge-glass {
           background: rgba(0, 0, 0, 0.5);
@@ -677,7 +677,7 @@ const ProfileCardComponent = ({
           width: 100%;
         }
         .profile-card-wrapper.pc-awards-space-left .pc-rating-wrap {
-          margin-top: clamp(8px, 2.4vw, 12px);
+          margin-top: clamp(5px, 1.8vw, 9px);
         }
         .pc-rating-inner {
           position: relative;
