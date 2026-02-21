@@ -220,7 +220,7 @@ const ProfileCardComponent = ({
   const reserveLeftAwardsSpace = awardsLayout === 'space-left';
   const showAwardsRail = awardsLayout !== 'none' && !reserveLeftAwardsSpace;
   const resolvedCardWidth = reserveLeftAwardsSpace
-    ? `min(64.8vw, ${Math.round(normalizedCardMaxWidth * 0.9)}px)`
+    ? `min(82vw, ${Math.round(normalizedCardMaxWidth * 1.2)}px)`
     : `min(92vw, ${normalizedCardMaxWidth}px)`;
   const sideAwards = [
     { key: 'mvp', count: Number(vm.mvp) || 0, image: '/mvp_award.png', ref: mvpRef },
@@ -274,7 +274,7 @@ const ProfileCardComponent = ({
         }
         .profile-card-wrapper.pc-awards-space-left {
           --pc-layout-gap: 0px;
-          --pc-card-target-width: 64.8vw;
+          --pc-card-target-width: 82vw;
           --pc-card-width: min(
             var(--pc-card-target-width),
             100%
