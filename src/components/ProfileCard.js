@@ -87,7 +87,7 @@ const getAvatar = (p) => {
 };
 
 const ANIM = { SMOOTH: 600, INIT: 1500, OX: 70, OY: 60 };
-const CARD_FRAME_WIDTH = 1060;
+const CARD_FRAME_WIDTH = 758;
 const CARD_FRAME_HEIGHT = 1246;
 const CARD_FRAME_RATIO = CARD_FRAME_WIDTH / CARD_FRAME_HEIGHT;
 
@@ -212,14 +212,6 @@ const ProfileCardComponent = ({
     if (prev.red !== null && vm.red !== prev.red) runPop(redRef.current);
     prevCountsRef.current = { mvp: vm.mvp, gk: vm.gk, red: vm.red };
   }, [vm?.mvp, vm?.gk, vm?.red]);
-
-  const onFrameLoad = useCallback((event) => {
-    const { naturalWidth, naturalHeight } = event.currentTarget || {};
-    if (!naturalWidth || !naturalHeight) return;
-    const nextRatio = naturalWidth / naturalHeight;
-    if (!Number.isFinite(nextRatio) || nextRatio <= 0) return;
-    setFrameRatio((prevRatio) => (Math.abs(prevRatio - nextRatio) < 0.0001 ? prevRatio : nextRatio));
-  }, []);
 
   if (!isVisible || !vm) return null;
   const levelDotColor = vm.level !== null ? getLevelDotColor(vm.level) : null;
@@ -835,7 +827,6 @@ const ProfileCardComponent = ({
                       src="/card_mockup.png"
                       alt=""
                       className="pc-card-frame"
-                      onLoad={onFrameLoad}
                     />
 
                     <div className="pc-content-layer">
