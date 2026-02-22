@@ -63,6 +63,25 @@ const CHALLENGE_SELECT_WITH_PRICING = `
   accepted_team:teams!challenges_accepted_team_id_fkey(${TEAM_SELECT})
 `;
 
+const CHALLENGE_SELECT_LEGACY = `
+  id,
+  created_by_user_id,
+  challenger_team_id,
+  status,
+  accepted_team_id,
+  accepted_by_user_id,
+  scheduled_at,
+  location_name,
+  location_place_id,
+  format,
+  skill_level,
+  notes,
+  created_at,
+  updated_at,
+  challenger_team:teams!challenges_challenger_team_id_fkey(${TEAM_SELECT}),
+  accepted_team:teams!challenges_accepted_team_id_fkey(${TEAM_SELECT})
+`;
+
 const TEAM_MEMBER_SELECT_BASE = `
   id,
   team_id,
@@ -162,6 +181,27 @@ const TEAM_MATCH_SELECT = `
   )
 `;
 
+const TEAM_MATCH_SELECT_LEGACY = `
+  id,
+  challenge_id,
+  team_a_id,
+  team_b_id,
+  format,
+  played_at,
+  location_name,
+  score_a,
+  score_b,
+  status,
+  created_at,
+  team_a:teams!team_matches_team_a_id_fkey(${TEAM_SELECT}),
+  team_b:teams!team_matches_team_b_id_fkey(${TEAM_SELECT}),
+  challenge:challenges!team_matches_challenge_id_fkey(
+    id,
+    format,
+    status
+  )
+`;
+
 const SKILL_TO_LEGACY_TIER = {
   sin_definir: 'sin_definir',
   inicial: 'tranqui',
@@ -239,6 +279,92 @@ const isMissingColumnError = (error, columnName) => {
   const message = normalizeMessage(error);
   return message.includes(String(columnName).toLowerCase())
     && (message.includes('does not exist') || message.includes('could not find') || message.includes('schema cache'));
+};
+
+const isOrderedSetModeError = (error) => (
+  normalizeMessage(error).includes('within group is required for ordered-set aggregate mode')
+);
+
+const hasAnyMissingColumns = (error, columns) => (
+  columns.some((columnName) => isMissingColumnError(error, columnName))
+);
+
+const isChallengeSelectCompatibilityError = (error) => (
+  isOrderedSetModeError(error)
+  || hasAnyMissingColumns(error, ['mode', 'location', 'cancha_cost', 'price_per_team', 'field_price'])
+);
+
+const isChallengeWriteCompatibilityError = (error) => (
+  hasAnyMissingColumns(error, ['mode', 'location', 'cancha_cost', 'price_per_team', 'field_price'])
+);
+
+const isTeamMatchSelectCompatibilityError = (error) => (
+  isOrderedSetModeError(error)
+  || hasAnyMissingColumns(error, [
+    'origin_type',
+    'mode',
+    'scheduled_at',
+    'location',
+    'cancha_cost',
+    'is_format_combined',
+    'updated_at',
+  ])
+);
+
+const runChallengeSelectWithFallback = async (queryFactory, preferred = CHALLENGE_SELECT_WITH_PRICING) => {
+  const fallbackClauses = preferred === CHALLENGE_SELECT_BASE
+    ? [CHALLENGE_SELECT_BASE, CHALLENGE_SELECT_LEGACY]
+    : preferred === CHALLENGE_SELECT_LEGACY
+      ? [CHALLENGE_SELECT_LEGACY]
+      : [CHALLENGE_SELECT_WITH_PRICING, CHALLENGE_SELECT_BASE, CHALLENGE_SELECT_LEGACY];
+
+  let lastResponse = null;
+  for (const selectClause of fallbackClauses) {
+    const response = await queryFactory(selectClause);
+    if (!response.error) return response;
+    lastResponse = response;
+    if (!isChallengeSelectCompatibilityError(response.error)) return response;
+  }
+  return lastResponse;
+};
+
+const runTeamMatchSelectWithFallback = async (queryFactory, preferred = TEAM_MATCH_SELECT) => {
+  const fallbackClauses = preferred === TEAM_MATCH_SELECT_LEGACY
+    ? [TEAM_MATCH_SELECT_LEGACY]
+    : [TEAM_MATCH_SELECT, TEAM_MATCH_SELECT_LEGACY];
+
+  let lastResponse = null;
+  for (const selectClause of fallbackClauses) {
+    const response = await queryFactory(selectClause);
+    if (!response.error) return response;
+    lastResponse = response;
+    if (!isTeamMatchSelectCompatibilityError(response.error)) return response;
+  }
+  return lastResponse;
+};
+
+const challengePayloadToKey = (payload) => Object.keys(payload)
+  .sort((a, b) => a.localeCompare(b))
+  .map((key) => `${key}:${JSON.stringify(payload[key])}`)
+  .join('|');
+
+const buildChallengeInsertPayloadVariants = (payload) => {
+  const fullPayload = { ...payload };
+  const noPricingPayload = { ...fullPayload };
+  delete noPricingPayload.field_price;
+  delete noPricingPayload.price_per_team;
+
+  const legacyPayload = { ...noPricingPayload };
+  delete legacyPayload.mode;
+  delete legacyPayload.location;
+  delete legacyPayload.cancha_cost;
+
+  const uniqueVariants = new Map();
+  [fullPayload, noPricingPayload, legacyPayload].forEach((candidate) => {
+    uniqueVariants.set(challengePayloadToKey(candidate), candidate);
+  });
+
+  return Array.from(uniqueVariants.values());
 };
 
 const isSkillLevelConstraintError = (error) => {
@@ -1045,13 +1171,7 @@ export const listOpenChallenges = async ({ format, zone, skillLevel } = {}) => {
     return query;
   };
 
-  let response = await execute(CHALLENGE_SELECT_WITH_PRICING);
-  if (
-    response.error
-    && (isMissingColumnError(response.error, 'price_per_team') || isMissingColumnError(response.error, 'field_price'))
-  ) {
-    response = await execute(CHALLENGE_SELECT_BASE);
-  }
+  const response = await runChallengeSelectWithFallback(execute);
 
   if (response.error) {
     throw new Error(response.error.message || 'No se pudieron cargar desafios abiertos');
@@ -1089,14 +1209,8 @@ export const listMyChallenges = async (userId) => {
   }
 
   const responses = await Promise.all(queryBuilders.map(async (buildQuery) => {
-    let response = await buildQuery(supabase.from('challenges').select(CHALLENGE_SELECT_WITH_PRICING));
-    if (
-      response.error
-      && (isMissingColumnError(response.error, 'price_per_team') || isMissingColumnError(response.error, 'field_price'))
-    ) {
-      response = await buildQuery(supabase.from('challenges').select(CHALLENGE_SELECT_BASE));
-    }
-    return response;
+    const queryFactory = (selectClause) => buildQuery(supabase.from('challenges').select(selectClause));
+    return runChallengeSelectWithFallback(queryFactory);
   }));
 
   const successfulResponses = responses.filter((response) => !response.error);
@@ -1148,28 +1262,36 @@ export const createChallenge = async (userId, payload) => {
       notes: payload.notes || null,
     };
 
-    response = await supabase
-      .from('challenges')
-      .insert(insertPayload)
-      .select(CHALLENGE_SELECT_WITH_PRICING)
-      .single();
-
-    if (
-      response.error
-      && (isMissingColumnError(response.error, 'price_per_team') || isMissingColumnError(response.error, 'field_price'))
-    ) {
-      const legacyPayload = { ...insertPayload };
-      delete legacyPayload.field_price;
-
+    const payloadVariants = buildChallengeInsertPayloadVariants(insertPayload);
+    for (const payloadVariant of payloadVariants) {
       response = await supabase
         .from('challenges')
-        .insert(legacyPayload)
-        .select(CHALLENGE_SELECT_BASE)
+        .insert(payloadVariant)
+        .select(CHALLENGE_SELECT_WITH_PRICING)
         .single();
-    }
 
-    if (!response.error) {
-      return withChallengeCompatibility(response.data);
+      if (response.error && isChallengeSelectCompatibilityError(response.error)) {
+        response = await runChallengeSelectWithFallback(
+          (selectClause) => supabase
+            .from('challenges')
+            .insert(payloadVariant)
+            .select(selectClause)
+            .single(),
+          CHALLENGE_SELECT_BASE,
+        );
+      }
+
+      if (!response.error) {
+        return withChallengeCompatibility(response.data);
+      }
+
+      if (isSkillLevelConstraintError(response.error)) {
+        break;
+      }
+
+      if (!(isChallengeWriteCompatibilityError(response.error) || isChallengeSelectCompatibilityError(response.error))) {
+        break;
+      }
     }
 
     if (!isSkillLevelConstraintError(response.error)) break;
@@ -1179,24 +1301,14 @@ export const createChallenge = async (userId, payload) => {
 };
 
 export const cancelChallenge = async (challengeId) => {
-  let response = await supabase
-    .from('challenges')
-    .update({ status: 'canceled' })
-    .eq('id', challengeId)
-    .select(CHALLENGE_SELECT_WITH_PRICING)
-    .single();
-
-  if (
-    response.error
-    && (isMissingColumnError(response.error, 'price_per_team') || isMissingColumnError(response.error, 'field_price'))
-  ) {
-    response = await supabase
+  const response = await runChallengeSelectWithFallback(
+    (selectClause) => supabase
       .from('challenges')
       .update({ status: 'canceled' })
       .eq('id', challengeId)
-      .select(CHALLENGE_SELECT_BASE)
-      .single();
-  }
+      .select(selectClause)
+      .single(),
+  );
 
   return withChallengeCompatibility(unwrapSingle(response, 'No se pudo cancelar el desafio'));
 };
@@ -1249,22 +1361,13 @@ export const completeChallenge = async ({ challengeId, scoreA, scoreB, playedAt 
 };
 
 export const getChallengeById = async (challengeId) => {
-  let response = await supabase
-    .from('challenges')
-    .select(CHALLENGE_SELECT_WITH_PRICING)
-    .eq('id', challengeId)
-    .single();
-
-  if (
-    response.error
-    && (isMissingColumnError(response.error, 'price_per_team') || isMissingColumnError(response.error, 'field_price'))
-  ) {
-    response = await supabase
+  const response = await runChallengeSelectWithFallback(
+    (selectClause) => supabase
       .from('challenges')
-      .select(CHALLENGE_SELECT_BASE)
+      .select(selectClause)
       .eq('id', challengeId)
-      .single();
-  }
+      .single(),
+  );
 
   return withChallengeCompatibility(unwrapSingle(response, 'No se pudo cargar el desafio'));
 };
@@ -1330,11 +1433,13 @@ const resolveUserAdminTeamIds = async ({ userId, teamIds, teamRows = [] }) => {
 export const getTeamMatchById = async (matchId) => {
   if (!matchId) throw new Error('Partido invalido');
 
-  const response = await supabase
-    .from('team_matches')
-    .select(TEAM_MATCH_SELECT)
-    .eq('id', matchId)
-    .single();
+  const response = await runTeamMatchSelectWithFallback(
+    (selectClause) => supabase
+      .from('team_matches')
+      .select(selectClause)
+      .eq('id', matchId)
+      .single(),
+  );
 
   if (response.error) {
     throw new Error(response.error.message || 'No se pudo cargar el partido');
@@ -1346,11 +1451,13 @@ export const getTeamMatchById = async (matchId) => {
 export const getTeamMatchByChallengeId = async (challengeId) => {
   if (!challengeId) return null;
 
-  const response = await supabase
-    .from('team_matches')
-    .select(TEAM_MATCH_SELECT)
-    .eq('challenge_id', challengeId)
-    .maybeSingle();
+  const response = await runTeamMatchSelectWithFallback(
+    (selectClause) => supabase
+      .from('team_matches')
+      .select(selectClause)
+      .eq('challenge_id', challengeId)
+      .maybeSingle(),
+  );
 
   if (response.error) {
     throw new Error(response.error.message || 'No se pudo cargar el partido del desafio');
@@ -1424,16 +1531,30 @@ export const listMyTeamMatches = async (userId, options = {}) => {
   if (teamIds.length === 0) return [];
 
   const queryByTeamColumn = async (columnName) => {
-    let query = supabase
-      .from('team_matches')
-      .select(TEAM_MATCH_SELECT)
-      .in(columnName, teamIds);
+    const execute = (selectClause, orderColumn) => {
+      let query = supabase
+        .from('team_matches')
+        .select(selectClause)
+        .in(columnName, teamIds);
 
-    if (statuses.length > 0) {
-      query = query.in('status', statuses);
+      if (statuses.length > 0) {
+        query = query.in('status', statuses);
+      }
+
+      return query.order(orderColumn, { ascending: true, nullsFirst: false });
+    };
+
+    let response = await runTeamMatchSelectWithFallback(
+      (selectClause) => execute(selectClause, 'scheduled_at'),
+    );
+
+    if (response.error && isMissingColumnError(response.error, 'scheduled_at')) {
+      response = await runTeamMatchSelectWithFallback(
+        (selectClause) => execute(selectClause, 'played_at'),
+      );
     }
 
-    return query.order('scheduled_at', { ascending: true, nullsFirst: false });
+    return response;
   };
 
   const [asTeamA, asTeamB] = await Promise.all([
@@ -1521,7 +1642,6 @@ export const listTeamMatchHistory = async (teamId) => {
       team_a_id,
       team_b_id,
       played_at,
-      location,
       location_name,
       score_a,
       score_b,
