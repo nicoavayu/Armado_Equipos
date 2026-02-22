@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, addFreePlayer, removeFreePlayer, getFreePlayerStatus } from '../supabase';
+import { supabase } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
 import { useInterval } from '../hooks/useInterval';
 import { useAmigos } from '../hooks/useAmigos';
@@ -14,7 +14,7 @@ import PlayerMiniCard from '../components/PlayerMiniCard';
 import EmptyStateCard from '../components/EmptyStateCard';
 import { handleError } from '../lib/errorHandler';
 import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
-import { User, CheckCircle2, Calendar, Clock, MapPin, Star, Trophy, ListOrdered, Users, CalendarX2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, Star, Trophy, ListOrdered, Users, CalendarX2 } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const containerClass = 'flex flex-col items-center w-full pb-6 px-4 box-border font-oswald';
@@ -139,7 +139,6 @@ const QuieroJugar = () => {
   const { user } = useAuth();
   const [partidosAbiertos, setPartidosAbiertos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isRegisteredAsFree, setIsRegisteredAsFree] = useState(false);
   const [freePlayers, setFreePlayers] = useState([]);
   const [sortBy, setSortBy] = useState('distance');
   const [userLocation, setUserLocation] = useState(null);
@@ -165,7 +164,6 @@ const QuieroJugar = () => {
   useEffect(() => {
     fetchPartidosAbiertos();
     if (user) {
-      checkFreePlayerStatus();
       fetchFreePlayers();
       getUserLocation();
     }
@@ -290,15 +288,6 @@ const QuieroJugar = () => {
     }
   };
 
-  const checkFreePlayerStatus = async () => {
-    try {
-      const status = await getFreePlayerStatus();
-      setIsRegisteredAsFree(status);
-    } catch (error) {
-      handleError(error, { showToast: false, onError: () => console.error(error) });
-    }
-  };
-
   const fetchFreePlayers = async () => {
     try {
       const { data: freePlayersData, error: freePlayersError } = await supabase
@@ -328,22 +317,25 @@ const QuieroJugar = () => {
 
       if (usersError) throw usersError;
 
-      const players = freePlayersData.map((freePlayer) => {
-        const userProfile = userProfiles?.find((up) => up.id === freePlayer.user_id);
-        return {
-          ...freePlayer,
-          nombre: userProfile?.nombre || freePlayer.nombre || 'Jugador',
-          avatar_url: userProfile?.avatar_url || freePlayer.avatar_url,
-          localidad: userProfile?.localidad || freePlayer.localidad,
-          latitud: userProfile?.latitud || null,
-          longitud: userProfile?.longitud || null,
-          ranking: userProfile?.ranking || 5,
-          rating: userProfile?.ranking || 5,
-          mvps: userProfile?.mvps || 0,
-          nacionalidad: userProfile?.nacionalidad || 'Argentina',
-          posicion: userProfile?.posicion || 'Jugador',
-        };
-      });
+      const players = freePlayersData
+        .map((freePlayer) => {
+          const userProfile = userProfiles?.find((up) => up.id === freePlayer.user_id);
+          return {
+            ...freePlayer,
+            nombre: userProfile?.nombre || freePlayer.nombre || 'Jugador',
+            avatar_url: userProfile?.avatar_url || freePlayer.avatar_url,
+            localidad: userProfile?.localidad || freePlayer.localidad,
+            latitud: userProfile?.latitud || null,
+            longitud: userProfile?.longitud || null,
+            ranking: userProfile?.ranking || 5,
+            rating: userProfile?.ranking || 5,
+            mvps: userProfile?.mvps || 0,
+            nacionalidad: userProfile?.nacionalidad || 'Argentina',
+            posicion: userProfile?.posicion || 'Jugador',
+            acepta_invitaciones: userProfile?.acepta_invitaciones,
+          };
+        })
+        .filter((player) => player.acepta_invitaciones !== false);
       setFreePlayers(players);
     } catch (error) {
       handleError(error, { showToast: false, onError: () => console.error(error) });
@@ -386,28 +378,6 @@ const QuieroJugar = () => {
   // Filter out current user from the general list
   const otherPlayers = sortedFreePlayers.filter((p) => p.user_id !== user?.id);
 
-  const handleRegisterAsFree = async () => {
-    try {
-      await addFreePlayer();
-      setIsRegisteredAsFree(true);
-      fetchFreePlayers();
-      console.info('¡Te anotaste como disponible!');
-    } catch (error) {
-      notifyBlockingError(error.message);
-    }
-  };
-
-  const handleUnregisterAsFree = async () => {
-    try {
-      await removeFreePlayer();
-      setIsRegisteredAsFree(false);
-      fetchFreePlayers();
-      console.info('Ya no estás disponible');
-    } catch (error) {
-      notifyBlockingError('Error: ' + error.message);
-    }
-  };
-
   const handleInviteFriends = (partido) => {
     if (!user) {
       notifyBlockingError('Debes iniciar sesión para invitar amigos');
@@ -433,54 +403,10 @@ const QuieroJugar = () => {
     <>
       <PageTitle title="QUIERO JUGAR" onBack={onVolver}>QUIERO JUGAR</PageTitle>
 
-      {/* Status Strip unificado (avatar + estado + toggle) */}
-      <div className="w-full pt-[126px] pb-8 bg-transparent relative z-20">
-        {user ? (
-          <div className="w-full bg-white/5 border-y border-white/10 px-4 py-3 flex items-center justify-between">
-            {/* Left: Avatar + status text */}
-            <div className="flex items-center gap-3 min-w-0">
-              <div className={`w-10 h-10 rounded-full overflow-hidden border ${isRegisteredAsFree ? 'border-[#009dff] shadow-[0_0_10px_rgba(0,157,255,0.25)]' : 'border-white/10'} bg-slate-800 flex items-center justify-center shrink-0`}>
-                {user.user_metadata?.avatar_url ? (
-                  <img src={user.user_metadata.avatar_url} alt="Tu avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <User size={16} className="text-white/60" />
-                )}
-              </div>
-
-              <div className="flex flex-col min-w-0">
-                <span className="text-white/70 font-oswald text-[10px] uppercase tracking-widest">
-                  {isRegisteredAsFree ? 'Visible para jugadores' : 'No visible'}
-                </span>
-                <span className={`text-[11px] font-bold tracking-wider uppercase ${isRegisteredAsFree ? 'text-[#009dff]' : 'text-white/40'}`}>
-                  {isRegisteredAsFree ? 'Los demás pueden invitarte' : 'No aparecés en jugadores libres'}
-                </span>
-              </div>
-            </div>
-
-            {/* Right: Toggle */}
-            <label className="relative inline-block w-[52px] h-[28px] cursor-pointer shrink-0">
-              <input
-                type="checkbox"
-                checked={isRegisteredAsFree}
-                onChange={isRegisteredAsFree ? handleUnregisterAsFree : handleRegisterAsFree}
-                className="opacity-0 w-0 h-0"
-              />
-              <span className={`absolute cursor-pointer inset-0 transition-all duration-300 rounded-[28px] ${isRegisteredAsFree ? 'bg-[#009dffff] shadow-[0_0_15px_rgba(0,157,255,0.4)]' : 'bg-[#334155]'}`}>
-                <span className={`absolute content-[''] h-[22px] w-[22px] bottom-[3px] bg-white transition-all duration-300 rounded-full shadow-sm ${isRegisteredAsFree ? 'left-[27px]' : 'left-[3px]'}`} />
-              </span>
-            </label>
-          </div>
-        ) : (
-          <div className="text-white/60 text-xs text-center px-4 font-oswald pt-4">
-            Inicia sesión para mostrarte disponible
-          </div>
-        )}
-      </div>
-
-      <div className={containerClass} style={{ paddingTop: '0' }}>
+      <div className={containerClass} style={{ paddingTop: '126px' }}>
 
         {/* 2. Tabs with added spacing - Removed overlap */}
-        <div className="flex mb-8 rounded-xl overflow-hidden w-full max-w-[500px] bg-white/5 border border-white/10 relative z-10 mt-4">
+        <div className="flex mb-8 rounded-xl overflow-hidden w-full max-w-[500px] bg-white/5 border border-white/10 relative z-10">
           <button
             className={`flex-1 py-3 bg-transparent border-none text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-all duration-300 uppercase relative ${activeTab === 'matches' ? 'text-white bg-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]' : 'text-white/40 hover:text-white/60'}`}
             onClick={() => {

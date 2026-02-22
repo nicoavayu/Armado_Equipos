@@ -5,7 +5,7 @@ import { Activity, AlertTriangle, Bell, CalendarClock, CheckCircle, ChevronRight
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import { useInterval } from '../hooks/useInterval';
-import { supabase, updateProfile } from '../supabase';
+import { supabase, updateProfile, addFreePlayer, removeFreePlayer } from '../supabase';
 import { parseLocalDateTime } from '../utils/dateLocal';
 import { buildActivityFeed } from '../utils/activityFeed';
 import ProximosPartidos from './ProximosPartidos';
@@ -240,7 +240,26 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     if (!user) return;
 
     try {
+      if ((profile?.acepta_invitaciones !== false) === status) {
+        setShowStatusDropdown(false);
+        return;
+      }
+
       await updateProfile(user.id, { acepta_invitaciones: status });
+
+      if (status) {
+        try {
+          await addFreePlayer();
+        } catch (syncError) {
+          const message = String(syncError?.message || '');
+          if (!/ya est[aá]s anotado como disponible/i.test(message)) {
+            throw syncError;
+          }
+        }
+      } else {
+        await removeFreePlayer();
+      }
+
       await refreshProfile();
       setShowStatusDropdown(false);
     } catch (error) {
