@@ -14,7 +14,7 @@ const CTA_BY_STATUS = {
 
 const CHIP_CLASS = 'font-oswald text-[10px] font-bold text-white/40 border border-white/10 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider';
 
-const compactPrimaryClass = `${PRIMARY_CTA_BUTTON_CLASS} py-2 px-3 min-h-[40px] text-xs tracking-wide`;
+const compactPrimaryClass = `${PRIMARY_CTA_BUTTON_CLASS} !w-auto flex-1 px-4 py-2.5 min-h-[48px] text-[18px] tracking-[0.01em]`;
 
 const formatChallengeDate = (value) => {
   if (!value) return 'A coordinar';
@@ -148,7 +148,7 @@ const ChallengeCard = ({
             type="button"
             disabled={disabled}
             onClick={onCancel}
-            className="rounded-xl border border-white/20 bg-white/5 text-white font-oswald font-semibold px-3 py-2 min-h-[40px] text-xs hover:bg-white/10 disabled:opacity-45 disabled:cursor-not-allowed"
+            className="rounded-xl border border-white/20 bg-white/5 text-white font-oswald font-semibold px-4 py-2.5 min-h-[48px] text-[18px] tracking-[0.01em] hover:bg-white/10 disabled:opacity-45 disabled:cursor-not-allowed"
           >
             Cancelar
           </button>

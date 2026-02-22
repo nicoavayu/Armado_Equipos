@@ -336,6 +336,56 @@ export const listRosterCandidates = async () => {
   });
 };
 
+export const ensureRosterCandidateByName = async (rawName) => {
+  const trimmedName = String(rawName || '').trim();
+  if (!trimmedName) {
+    throw new Error('Escribi el nombre del jugador para continuar');
+  }
+
+  const existingResponse = await supabase
+    .from('jugadores')
+    .select('id, usuario_id, nombre, avatar_url, score')
+    .ilike('nombre', trimmedName)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (existingResponse.error) {
+    throw new Error(existingResponse.error.message || 'No se pudo buscar al jugador');
+  }
+
+  if (existingResponse.data?.[0]) {
+    const existing = existingResponse.data[0];
+    return {
+      jugador_id: existing.id,
+      usuario_id: existing.usuario_id || null,
+      nombre: existing.nombre || trimmedName,
+      avatar_url: existing.avatar_url || null,
+      posicion: null,
+      ranking: existing.score ?? null,
+    };
+  }
+
+  const insertResponse = await supabase
+    .from('jugadores')
+    .insert({ nombre: trimmedName })
+    .select('id, usuario_id, nombre, avatar_url, score')
+    .single();
+
+  if (insertResponse.error) {
+    throw new Error(insertResponse.error.message || 'No se pudo crear el jugador');
+  }
+
+  const created = insertResponse.data;
+  return {
+    jugador_id: created.id,
+    usuario_id: created.usuario_id || null,
+    nombre: created.nombre || trimmedName,
+    avatar_url: created.avatar_url || null,
+    posicion: null,
+    ranking: created.score ?? null,
+  };
+};
+
 export const listTeamMembers = async (teamId) => {
   let response = await supabase
     .from('team_members')
