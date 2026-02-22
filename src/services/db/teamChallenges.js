@@ -1336,7 +1336,17 @@ export const acceptChallenge = async (challengeId, acceptedTeamId, _options = {}
   });
 
   if (response.error) {
-    throw new Error(response.error.message || 'No se pudo aceptar el desafio');
+    const message = String(response.error.message || '').trim();
+    const details = String(response.error.details || '').trim();
+    const hint = String(response.error.hint || '').trim();
+    const normalized = normalizeMessage(response.error);
+
+    if (normalized.includes('formato invalido para aceptar challenge')) {
+      throw new Error('La base no permite formato combinado todavia. Ejecuta la ultima migracion y reintenta.');
+    }
+
+    const combinedMessage = [message, details, hint].filter(Boolean).join(' · ');
+    throw new Error(combinedMessage || 'No se pudo aceptar el desafio');
   }
 
   const rpcRow = Array.isArray(response.data) ? response.data[0] : response.data;

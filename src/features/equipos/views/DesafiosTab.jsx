@@ -6,6 +6,7 @@ import AcceptChallengeModal from '../components/AcceptChallengeModal';
 import CompleteChallengeModal from '../components/CompleteChallengeModal';
 import NeighborhoodAutocomplete from '../components/NeighborhoodAutocomplete';
 import Modal from '../../../components/Modal';
+import InlineNotice from '../../../components/ui/InlineNotice';
 import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS, normalizeTeamSkillLevel } from '../config';
 import {
   acceptChallenge,
@@ -94,6 +95,7 @@ const DesafiosTab = ({
   const [selectedAcceptTeamId, setSelectedAcceptTeamId] = useState('');
   const [formatMismatchConfirm, setFormatMismatchConfirm] = useState(null);
   const [completeTarget, setCompleteTarget] = useState(null);
+  const [inlineNotice, setInlineNotice] = useState({ type: '', message: '' });
 
   const loadChallenges = useCallback(async () => {
     if (!userId) return;
@@ -168,6 +170,13 @@ const DesafiosTab = ({
     setFormatMismatchConfirm(null);
   }, []);
 
+  const notifyAcceptedChallengeSuccess = useCallback(() => {
+    setInlineNotice({
+      type: 'success',
+      message: 'Desafio aceptado. Ya podes verlo en Mis partidos.',
+    });
+  }, []);
+
   const handleShare = async (challenge) => {
     try {
       const text = buildShareText(challenge);
@@ -207,6 +216,13 @@ const DesafiosTab = ({
 
   return (
     <div className="w-full max-w-[560px] flex flex-col gap-3">
+      <InlineNotice
+        type={inlineNotice.type}
+        message={inlineNotice.message}
+        autoHideMs={3200}
+        onClose={() => setInlineNotice({ type: '', message: '' })}
+      />
+
       <div className="rounded-2xl border border-white/15 bg-[linear-gradient(135deg,rgba(47,58,113,0.5),rgba(31,40,84,0.42))] p-3">
         <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
           <Button
@@ -468,7 +484,7 @@ const DesafiosTab = ({
             if (result?.matchId) {
               navigate(`/quiero-jugar/equipos/partidos/${result.matchId}`);
             }
-            console.info('Desafio aceptado');
+            notifyAcceptedChallengeSuccess();
           } catch (error) {
             notifyBlockingError(error.message || 'No se pudo aceptar el desafio');
           } finally {
@@ -522,6 +538,7 @@ const DesafiosTab = ({
                   if (result?.matchId) {
                     navigate(`/quiero-jugar/equipos/partidos/${result.matchId}`);
                   }
+                  notifyAcceptedChallengeSuccess();
                 } catch (error) {
                   notifyBlockingError(error.message || 'No se pudo aceptar el desafio');
                 } finally {
