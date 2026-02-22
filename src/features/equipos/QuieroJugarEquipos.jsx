@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import PageTitle from '../../components/PageTitle';
 import { useAuth } from '../../components/AuthProvider';
 import DesafiosTab from './views/DesafiosTab';
 import MisEquiposTab from './views/MisEquiposTab';
+import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY } from './config';
 
 const SUBTABS = [
   { key: 'desafios', label: 'Desafios' },
@@ -12,11 +13,33 @@ const SUBTABS = [
 
 const QuieroJugarEquipos = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
 
-  const [activeSubtab, setActiveSubtab] = useState('desafios');
+  const [activeSubtab, setActiveSubtab] = useState(() => {
+    const stored = sessionStorage.getItem(QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY);
+    return SUBTABS.some((tab) => tab.key === stored) ? stored : 'desafios';
+  });
 
   const [prefilledTeamId, setPrefilledTeamId] = useState(null);
+
+  useEffect(() => {
+    sessionStorage.setItem(QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, activeSubtab);
+  }, [activeSubtab]);
+
+  useEffect(() => {
+    const state = location.state || {};
+    const nextSubtab = state.equiposSubtab;
+    const nextPrefilledTeamId = state.prefilledTeamId;
+
+    if (SUBTABS.some((tab) => tab.key === nextSubtab)) {
+      setActiveSubtab(nextSubtab);
+    }
+
+    if (nextPrefilledTeamId) {
+      setPrefilledTeamId(nextPrefilledTeamId);
+    }
+  }, [location.state]);
 
   return (
     <>
@@ -50,13 +73,7 @@ const QuieroJugarEquipos = () => {
         ) : null}
 
         {activeSubtab === 'mis-equipos' ? (
-          <MisEquiposTab
-            userId={user?.id}
-            onOpenDesafiosWithTeam={(teamId) => {
-              setPrefilledTeamId(teamId);
-              setActiveSubtab('desafios');
-            }}
-          />
+          <MisEquiposTab userId={user?.id} />
         ) : null}
       </div>
     </>

@@ -1227,3 +1227,51 @@ export const listTeamHistoryByRival = async (teamId) => {
     lastPlayedAt: row.last_played_at || null,
   }));
 };
+
+export const listTeamMatchHistory = async (teamId) => {
+  if (!teamId) return [];
+
+  const response = await supabase
+    .from('team_matches')
+    .select(`
+      id,
+      team_a_id,
+      team_b_id,
+      played_at,
+      location_name,
+      score_a,
+      score_b,
+      status,
+      created_at,
+      team_a:teams!team_matches_team_a_id_fkey(${TEAM_SELECT}),
+      team_b:teams!team_matches_team_b_id_fkey(${TEAM_SELECT})
+    `)
+    .or(`team_a_id.eq.${teamId},team_b_id.eq.${teamId}`)
+    .eq('status', 'played')
+    .order('played_at', { ascending: false });
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudo cargar el historial de partidos');
+  }
+
+  const targetTeamId = String(teamId);
+
+  return (response.data || []).map((row) => {
+    const isTeamA = String(row?.team_a_id) === targetTeamId;
+    const goalsFor = Number(isTeamA ? row?.score_a : row?.score_b) || 0;
+    const goalsAgainst = Number(isTeamA ? row?.score_b : row?.score_a) || 0;
+    const result = goalsFor > goalsAgainst ? 'W' : goalsFor < goalsAgainst ? 'L' : 'D';
+
+    return {
+      id: row.id,
+      playedAt: row.played_at || null,
+      createdAt: row.created_at || null,
+      locationName: row.location_name || null,
+      scoreFor: goalsFor,
+      scoreAgainst: goalsAgainst,
+      result,
+      status: row.status || 'played',
+      opponentTeam: isTeamA ? row?.team_b || null : row?.team_a || null,
+    };
+  });
+};
