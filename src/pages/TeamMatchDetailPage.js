@@ -4,6 +4,9 @@ import { CalendarClock, Flag, Lock, MapPin, Shield } from 'lucide-react';
 import PageTitle from '../components/PageTitle';
 import PageTransition from '../components/PageTransition';
 import Button from '../components/Button';
+import InlineNotice from '../components/ui/InlineNotice';
+import LocationAutocomplete from '../features/equipos/components/LocationAutocomplete';
+import { getTeamGradientStyle } from '../features/equipos/utils/teamColors';
 import {
   canManageTeamMatch,
   cancelTeamMatch,
@@ -56,8 +59,17 @@ const statusLabelByValue = {
   cancelled: 'Cancelado',
 };
 
+const buildMapsSearchUrl = (value) => {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trimmed)}`;
+};
+
 const TeamCardLocked = ({ team, fallbackName }) => (
-  <div className="rounded-xl border border-white/15 bg-[#1e293b]/60 p-3 min-h-[92px]">
+  <div
+    className="rounded-xl border border-white/15 bg-[#1e293b]/60 p-3 min-h-[92px] min-w-0"
+    style={team ? getTeamGradientStyle(team) : undefined}
+  >
     <div className="flex items-start justify-between gap-2">
       <div className="flex items-center gap-2 min-w-0">
         <div className="h-10 w-10 rounded-lg overflow-hidden border border-white/25 bg-black/20 flex items-center justify-center shrink-0">
@@ -91,17 +103,16 @@ const TeamMatchDetailPage = () => {
   const [scheduledAtInput, setScheduledAtInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
   const [canchaCostInput, setCanchaCostInput] = useState('');
-  const [modeInput, setModeInput] = useState('');
+  const [inlineNotice, setInlineNotice] = useState({ type: '', message: '' });
 
   const syncFormWithMatch = useCallback((nextMatch) => {
     setScheduledAtInput(toDateTimeLocalValue(nextMatch?.scheduled_at));
-    setLocationInput(nextMatch?.location || '');
+    setLocationInput(nextMatch?.location || nextMatch?.location_name || '');
     setCanchaCostInput(
       nextMatch?.cancha_cost == null || Number.isNaN(Number(nextMatch?.cancha_cost))
         ? ''
         : String(nextMatch.cancha_cost),
     );
-    setModeInput(nextMatch?.mode || '');
   }, []);
 
   const loadData = useCallback(async () => {
@@ -127,9 +138,19 @@ const TeamMatchDetailPage = () => {
     loadData();
   }, [loadData]);
 
+  const matchLocation = useMemo(
+    () => (match?.location || match?.location_name || ''),
+    [match?.location, match?.location_name],
+  );
+
   const canchaCoordinar = useMemo(() => (
-    !match?.location || match?.cancha_cost == null
-  ), [match?.location, match?.cancha_cost]);
+    !matchLocation || match?.cancha_cost == null
+  ), [match?.cancha_cost, matchLocation]);
+
+  const mapsLocationUrl = useMemo(
+    () => buildMapsSearchUrl(matchLocation),
+    [matchLocation],
+  );
 
   const handleSave = async (event) => {
     event.preventDefault();
@@ -148,11 +169,25 @@ const TeamMatchDetailPage = () => {
         scheduledAt: scheduledAtInput ? new Date(scheduledAtInput).toISOString() : null,
         location: locationInput.trim() || null,
         canchaCost: parsedCanchaCost,
-        mode: modeInput.trim() || null,
+        mode: match?.mode || null,
       });
-      setMatch(updated);
-      syncFormWithMatch(updated);
-      notifyBlockingError('Partido actualizado');
+
+      let nextMatch = updated;
+      try {
+        const hydrated = await getTeamMatchById(updated?.id || match.id);
+        if (hydrated?.id) {
+          nextMatch = hydrated;
+        }
+      } catch (hydrateError) {
+        // Keep the updated payload if hydration fails.
+      }
+
+      setMatch(nextMatch);
+      syncFormWithMatch(nextMatch);
+      setInlineNotice({
+        type: 'success',
+        message: 'Partido actualizado.',
+      });
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo actualizar el partido');
     } finally {
@@ -168,8 +203,13 @@ const TeamMatchDetailPage = () => {
     try {
       setSaving(true);
       const cancelled = await cancelTeamMatch(match.id);
-      setMatch(cancelled);
-      notifyBlockingError('Partido cancelado');
+      const nextMatch = cancelled?.id ? { ...match, ...cancelled } : cancelled;
+      setMatch(nextMatch);
+      syncFormWithMatch(nextMatch);
+      setInlineNotice({
+        type: 'info',
+        message: 'Partido cancelado.',
+      });
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo cancelar el partido');
     } finally {
@@ -185,6 +225,12 @@ const TeamMatchDetailPage = () => {
 
       <div className="w-full flex justify-center px-4 pt-[108px] pb-8">
         <div className="w-full max-w-[560px] space-y-3">
+          <InlineNotice
+            type={inlineNotice.type}
+            message={inlineNotice.message}
+            onClose={() => setInlineNotice({ type: '', message: '' })}
+          />
+
           {loading ? (
             <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
               Cargando partido...
@@ -216,10 +262,17 @@ const TeamMatchDetailPage = () => {
                     </span>
                   ) : null}
                 </div>
+                {match?.is_format_combined ? (
+                  <p className="mb-3 text-[12px] leading-snug text-white/60 font-oswald">
+                    Se juega en formato F{match?.format || '-'} aunque los equipos tengan formato distinto.
+                  </p>
+                ) : null}
 
-                <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+                <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-2 sm:items-center">
                   <TeamCardLocked team={match?.team_a} fallbackName="Equipo A" />
-                  <div className="text-center text-white/60 text-xs font-oswald tracking-[0.14em]">VS</div>
+                  <div className="text-center text-white/70 text-sm sm:text-base font-oswald font-semibold tracking-[0.12em]">
+                    VS
+                  </div>
                   <TeamCardLocked team={match?.team_b} fallbackName="Equipo B" />
                 </div>
               </div>
@@ -235,7 +288,27 @@ const TeamMatchDetailPage = () => {
                 <div className="rounded-xl border border-white/15 bg-white/5 p-3">
                   <p className="text-xs text-white/60 uppercase tracking-wide font-oswald">Cancha</p>
                   <p className="mt-1 text-white font-oswald text-base inline-flex items-center gap-2">
-                    <MapPin size={16} /> {canchaCoordinar ? 'Cancha: a coordinar' : `${match.location} · ${formatMoneyAr(match.cancha_cost)}`}
+                    <MapPin size={16} />
+                    {canchaCoordinar
+                      ? 'Cancha: a coordinar'
+                      : `${matchLocation}${match?.cancha_cost != null ? ` · ${formatMoneyAr(match.cancha_cost)}` : ''}`}
+                  </p>
+                  {!canchaCoordinar && mapsLocationUrl ? (
+                    <a
+                      href={mapsLocationUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-flex text-xs text-[#9ED3FF] underline underline-offset-2 font-oswald hover:text-white transition-colors"
+                    >
+                      Ver en mapa
+                    </a>
+                  ) : null}
+                </div>
+
+                <div className="rounded-xl border border-white/15 bg-white/5 p-3">
+                  <p className="text-xs text-white/60 uppercase tracking-wide font-oswald">Modo</p>
+                  <p className="mt-1 text-white/90 font-oswald text-base">
+                    {match?.mode || 'Sin definir'}
                   </p>
                 </div>
 
@@ -259,12 +332,11 @@ const TeamMatchDetailPage = () => {
 
                     <label className="block">
                       <span className="text-xs text-white/80 uppercase tracking-wide">Ubicacion</span>
-                      <input
-                        type="text"
+                      <LocationAutocomplete
                         value={locationInput}
-                        onChange={(event) => setLocationInput(event.target.value)}
+                        onChange={setLocationInput}
                         placeholder="Cancha o direccion"
-                        className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white"
+                        inputClassName="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white"
                       />
                     </label>
 
@@ -281,18 +353,7 @@ const TeamMatchDetailPage = () => {
                       />
                     </label>
 
-                    <label className="block">
-                      <span className="text-xs text-white/80 uppercase tracking-wide">Modo</span>
-                      <input
-                        type="text"
-                        value={modeInput}
-                        onChange={(event) => setModeInput(event.target.value)}
-                        placeholder="Modo del partido"
-                        className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white"
-                      />
-                    </label>
-
-                    <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                       <Button
                         type="submit"
                         className="h-11 rounded-xl text-[16px] font-oswald font-semibold tracking-[0.01em] !normal-case"
