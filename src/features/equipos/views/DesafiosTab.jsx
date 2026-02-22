@@ -13,6 +13,7 @@ import {
   createChallenge,
   getTeamMatchByChallengeId,
   listMyChallenges,
+  listMyManageableTeams,
   listMyTeams,
   listOpenChallenges,
 } from '../../../services/db/teamChallenges';
@@ -83,6 +84,7 @@ const DesafiosTab = ({
   const [openChallenges, setOpenChallenges] = useState([]);
   const [myChallenges, setMyChallenges] = useState([]);
   const [myTeams, setMyTeams] = useState([]);
+  const [manageableTeams, setManageableTeams] = useState([]);
   const [filters, setFilters] = useState({ format: '', zone: '', skillLevel: '' });
   const [showFilters, setShowFilters] = useState(false);
   const [scope, setScope] = useState('all');
@@ -113,8 +115,12 @@ const DesafiosTab = ({
     if (!userId) return;
 
     try {
-      const teams = await listMyTeams(userId);
-      setMyTeams(teams);
+      const [ownedTeams, manageable] = await Promise.all([
+        listMyTeams(userId),
+        listMyManageableTeams(userId),
+      ]);
+      setMyTeams(ownedTeams || []);
+      setManageableTeams(manageable || []);
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudieron cargar tus equipos');
     }
@@ -149,7 +155,7 @@ const DesafiosTab = ({
       .length
   ), [filters]);
 
-  const getAvailableTeamsForChallenge = (challenge) => myTeams.filter((team) => (
+  const getAvailableTeamsForChallenge = (challenge) => manageableTeams.filter((team) => (
     team.format === challenge.format &&
     team.id !== challenge.challenger_team_id &&
     team.is_active
@@ -381,7 +387,15 @@ const DesafiosTab = ({
 
               const available = getAvailableTeamsForChallenge(challenge);
               if (available.length === 0) {
-                notifyBlockingError('No tenes equipos compatibles para aceptar este desafio');
+                const hasFormatMismatch = manageableTeams.some((team) => (
+                  team.is_active && team.id !== challenge.challenger_team_id
+                ));
+
+                if (hasFormatMismatch) {
+                  notifyBlockingError(`Tenes equipos gestionables, pero ninguno es formato F${challenge.format}`);
+                } else {
+                  notifyBlockingError('No tenes equipos gestionables (owner/admin) para aceptar este desafio');
+                }
                 return;
               }
 
@@ -428,7 +442,7 @@ const DesafiosTab = ({
 
           try {
             setIsSubmitting(true);
-            const acceptedTeam = myTeams.find((team) => team.id === selectedAcceptTeamId) || null;
+            const acceptedTeam = manageableTeams.find((team) => team.id === selectedAcceptTeamId) || null;
             const result = await acceptChallenge(acceptingChallenge.id, selectedAcceptTeamId, {
               currentUserId: userId,
               acceptedTeamName: acceptedTeam?.name || '',

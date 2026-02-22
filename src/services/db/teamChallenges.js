@@ -646,6 +646,22 @@ export const listAccessibleTeams = async (userId) => {
   ));
 };
 
+export const listMyManageableTeams = async (userId) => {
+  assertAuthenticatedUser(userId);
+
+  const teams = await listAccessibleTeams(userId);
+  const teamIds = (teams || []).map((team) => team?.id).filter(Boolean);
+  if (teamIds.length === 0) return [];
+
+  const adminTeamIds = await resolveUserAdminTeamIds({
+    userId,
+    teamIds,
+    teamRows: teams,
+  });
+
+  return teams.filter((team) => adminTeamIds.has(team?.id));
+};
+
 export const getTeamById = async (teamId) => {
   const response = await supabase
     .from('teams')
