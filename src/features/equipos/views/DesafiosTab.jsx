@@ -19,7 +19,12 @@ import { Flag, Search } from 'lucide-react';
 const publishActionClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
 const filterFieldClass = 'h-12 rounded-lg bg-slate-900/85 border border-white/20 px-3 text-base text-white outline-none focus:border-[#128BE9]';
 
-const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) => {
+const DesafiosTab = ({
+  userId,
+  prefilledTeamId = null,
+  onChallengePublished,
+  onChallengeAccepted,
+}) => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openChallenges, setOpenChallenges] = useState([]);
@@ -250,9 +255,15 @@ const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) =
 
           try {
             setIsSubmitting(true);
-            await acceptChallenge(acceptingChallenge.id, selectedAcceptTeamId);
+            const acceptedTeam = myTeams.find((team) => team.id === selectedAcceptTeamId) || null;
+            await acceptChallenge(acceptingChallenge.id, selectedAcceptTeamId, {
+              currentUserId: userId,
+              acceptedTeamName: acceptedTeam?.name || '',
+            });
             setAcceptingChallenge(null);
             await loadOpenChallenges();
+            onChallengeAccepted?.();
+            console.info('Desafio aceptado. Lo vas a encontrar en Mis desafios.');
           } catch (error) {
             notifyBlockingError(error.message || 'No se pudo aceptar el desafio');
           } finally {

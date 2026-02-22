@@ -23,6 +23,7 @@ const QuieroJugarEquipos = () => {
   });
 
   const [prefilledTeamId, setPrefilledTeamId] = useState(null);
+  const [misDesafiosInitialStatus, setMisDesafiosInitialStatus] = useState(null);
 
   useEffect(() => {
     sessionStorage.setItem(QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, activeSubtab);
@@ -56,6 +57,10 @@ const QuieroJugarEquipos = () => {
             userId={user?.id}
             prefilledTeamId={prefilledTeamId}
             onChallengePublished={() => setPrefilledTeamId(null)}
+            onChallengeAccepted={() => {
+              setMisDesafiosInitialStatus('accepted');
+              setActiveSubtab('mis-desafios');
+            }}
           />
         ) : null}
 
@@ -70,7 +75,11 @@ const QuieroJugarEquipos = () => {
         ) : null}
 
         {activeSubtab === 'mis-desafios' ? (
-          <MisDesafiosTab userId={user?.id} />
+          <MisDesafiosTab
+            userId={user?.id}
+            initialStatusTab={misDesafiosInitialStatus}
+            onInitialStatusApplied={() => setMisDesafiosInitialStatus(null)}
+          />
         ) : null}
       </div>
     </>

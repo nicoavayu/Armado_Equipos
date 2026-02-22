@@ -16,6 +16,7 @@ const STATE_TABS = [
   { key: 'accepted', label: 'Aceptados' },
   { key: 'confirmed', label: 'Confirmados' },
   { key: 'completed', label: 'Finalizados' },
+  { key: 'canceled', label: 'Cancelados' },
 ];
 
 const formatMoneyAr = (value) => {
@@ -46,7 +47,11 @@ const buildShareText = (challenge) => {
     .join(' | ');
 };
 
-const MisDesafiosTab = ({ userId }) => {
+const MisDesafiosTab = ({
+  userId,
+  initialStatusTab = null,
+  onInitialStatusApplied,
+}) => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusTab, setStatusTab] = useState('open');
@@ -72,10 +77,30 @@ const MisDesafiosTab = ({ userId }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
+  useEffect(() => {
+    if (!initialStatusTab) return;
+    if (!STATE_TABS.some((tab) => tab.key === initialStatusTab)) return;
+    setStatusTab(initialStatusTab);
+    onInitialStatusApplied?.();
+  }, [initialStatusTab, onInitialStatusApplied]);
+
   const filtered = useMemo(
     () => myChallenges.filter((challenge) => challenge.status === statusTab),
     [myChallenges, statusTab],
   );
+
+  useEffect(() => {
+    if (myChallenges.length === 0) return;
+    if (myChallenges.some((challenge) => challenge.status === statusTab)) return;
+
+    const fallbackOrder = ['accepted', 'confirmed', 'open', 'completed', 'canceled'];
+    const nextTab = fallbackOrder.find((candidateStatus) => (
+      myChallenges.some((challenge) => challenge.status === candidateStatus)
+    ));
+    if (nextTab) {
+      setStatusTab(nextTab);
+    }
+  }, [myChallenges, statusTab]);
 
   const handleShare = async (challenge) => {
     try {

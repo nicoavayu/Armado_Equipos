@@ -128,6 +128,28 @@ const ROLE_TO_COMPATIBLE_VALUE = {
   captain: 'player',
 };
 
+const CHALLENGE_STATUS_ALIASES = {
+  open: 'open',
+  abierto: 'open',
+  published: 'open',
+  pending: 'open',
+  accepted: 'accepted',
+  aceptado: 'accepted',
+  matched: 'accepted',
+  taken: 'accepted',
+  confirmed: 'confirmed',
+  confirmado: 'confirmed',
+  ready: 'confirmed',
+  active: 'confirmed',
+  completed: 'completed',
+  finalizado: 'completed',
+  finished: 'completed',
+  closed: 'completed',
+  canceled: 'canceled',
+  cancelled: 'canceled',
+  cancelado: 'canceled',
+ };
+
 const uniqueValues = (values) => Array.from(new Set(values.filter(Boolean)));
 
 const normalizeMessage = (error) => String(error?.message || error?.details || '').toLowerCase();
@@ -162,11 +184,110 @@ const getRoleCandidates = (role) => uniqueValues([
   ROLE_TO_COMPATIBLE_VALUE[role] || 'player',
 ]);
 
+const normalizeChallengeStatus = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return 'open';
+  return CHALLENGE_STATUS_ALIASES[normalized] || normalized;
+};
+
 const withChallengeCompatibility = (row) => ({
   ...row,
+  status: normalizeChallengeStatus(row?.status),
   price_per_team: row?.price_per_team ?? null,
   field_price: row?.field_price ?? null,
 });
+
+const upsertChallengeAcceptedNotifications = async ({
+  challenge,
+  currentUserId = null,
+  acceptedTeamName = '',
+}) => {
+  const challengeId = String(challenge?.id || '').trim();
+  if (!challengeId) return;
+
+  const challengerTeamName = String(challenge?.challenger_team?.name || 'tu equipo').trim();
+  const rivalTeamName = String(
+    challenge?.accepted_team?.name
+    || acceptedTeamName
+    || 'el equipo rival',
+  ).trim();
+
+  const createdByUserId = String(challenge?.created_by_user_id || '').trim();
+  const acceptedByUserId = String(
+    challenge?.accepted_by_user_id
+    || challenge?.accepted_team?.owner_user_id
+    || currentUserId
+    || '',
+  ).trim();
+
+  const nowIso = new Date().toISOString();
+  const baseData = {
+    challenge_id: challenge.id,
+    challenger_team_id: challenge.challenger_team_id,
+    accepted_team_id: challenge.accepted_team_id,
+    challenger_team_name: challengerTeamName,
+    accepted_team_name: rivalTeamName,
+    link: '/quiero-jugar',
+    source: 'team_challenge',
+  };
+
+  const notificationRows = [];
+
+  if (createdByUserId) {
+    notificationRows.push({
+      user_id: createdByUserId,
+      type: 'match_update',
+      title: 'Tu desafio fue aceptado',
+      message: `${rivalTeamName} acepto el desafio de ${challengerTeamName}.`,
+      data: {
+        ...baseData,
+        actor: 'challenger',
+      },
+      read: false,
+      created_at: nowIso,
+    });
+  }
+
+  if (acceptedByUserId) {
+    notificationRows.push({
+      user_id: acceptedByUserId,
+      type: 'match_update',
+      title: 'Desafio aceptado',
+      message: `Confirmaste ${rivalTeamName} para enfrentar a ${challengerTeamName}.`,
+      data: {
+        ...baseData,
+        actor: 'accepted_team',
+      },
+      read: false,
+      created_at: nowIso,
+    });
+  }
+
+  if (notificationRows.length === 0) return;
+
+  const uniqueByRecipient = new Map();
+  notificationRows.forEach((row) => {
+    uniqueByRecipient.set(row.user_id, row);
+  });
+
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .insert(Array.from(uniqueByRecipient.values()));
+    if (error) {
+      console.warn('[TEAM_CHALLENGES] notification insert failed', {
+        challengeId,
+        code: error.code,
+        message: error.message,
+      });
+    }
+  } catch (error) {
+    console.warn('[TEAM_CHALLENGES] notification insert exception', {
+      challengeId,
+      message: error?.message || String(error),
+    });
+  }
+};
 
 const assertAuthenticatedUser = (userId) => {
   if (!userId) {
@@ -565,13 +686,22 @@ export const listMyChallenges = async (userId) => {
     return response;
   }));
 
-  responses.forEach((response) => {
-    if (response.error) {
-      throw new Error(response.error.message || 'No se pudieron cargar tus desafios');
-    }
-  });
+  const successfulResponses = responses.filter((response) => !response.error);
 
-  const merged = responses.flatMap((response) => (response.data || []).map(withChallengeCompatibility));
+  if (successfulResponses.length === 0) {
+    const firstError = responses.find((response) => response.error)?.error;
+    throw new Error(firstError?.message || 'No se pudieron cargar tus desafios');
+  }
+
+  const failedResponses = responses.filter((response) => response.error);
+  if (failedResponses.length > 0) {
+    console.warn('[TEAM_CHALLENGES] Some listMyChallenges queries failed', failedResponses.map((response) => ({
+      code: response.error?.code,
+      message: response.error?.message,
+    })));
+  }
+
+  const merged = successfulResponses.flatMap((response) => (response.data || []).map(withChallengeCompatibility));
   const deduplicatedMap = new Map();
   merged.forEach((row) => {
     if (!row?.id) return;
@@ -657,7 +787,7 @@ export const cancelChallenge = async (challengeId) => {
   return withChallengeCompatibility(unwrapSingle(response, 'No se pudo cancelar el desafio'));
 };
 
-export const acceptChallenge = async (challengeId, acceptedTeamId) => {
+export const acceptChallenge = async (challengeId, acceptedTeamId, options = {}) => {
   const response = await supabase.rpc('rpc_accept_challenge', {
     p_challenge_id: challengeId,
     p_accepted_team_id: acceptedTeamId,
@@ -668,6 +798,11 @@ export const acceptChallenge = async (challengeId, acceptedTeamId) => {
   }
 
   const challenge = await getChallengeById(challengeId);
+  await upsertChallengeAcceptedNotifications({
+    challenge,
+    currentUserId: options?.currentUserId || null,
+    acceptedTeamName: options?.acceptedTeamName || '',
+  });
   return challenge;
 };
 

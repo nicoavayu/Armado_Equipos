@@ -279,12 +279,13 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   }
   if (type === 'match_player_update') {
     const playerFirstMessage = normalizeMatchPlayerMessage(notification?.message || 'Hubo un cambio de jugadores');
+    const notificationLink = notification?.data?.link || null;
     return {
       ...base,
       icon: 'Users',
       title: playerFirstMessage || `Cambio de jugadores en ${quotedMatchName}`,
       subtitle: dateLabel || 'Revisá el estado del partido',
-      route: matchRoute || '/notifications',
+      route: notificationLink || matchRoute || '/notifications',
     };
   }
   if (type === 'friend_request') {
