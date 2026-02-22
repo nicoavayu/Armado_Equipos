@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Check, Crown, MoreVertical, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
+import { Camera, Check, ChevronDown, Crown, MoreVertical, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
 import TeamCard from '../components/TeamCard';
 import TeamFormModal from '../components/TeamFormModal';
 import Modal from '../../../components/Modal';
@@ -22,14 +22,35 @@ import EmptyStateCard from '../../../components/EmptyStateCard';
 import Button from '../../../components/Button';
 import { formatSkillLevelLabel } from '../utils/teamColors';
 
-const createTeamButtonClass = 'w-full h-12 rounded-xl text-base font-oswald tracking-wide !normal-case';
-const modalActionButtonClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide !normal-case';
+const createTeamButtonClass = 'w-full h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
+const modalActionButtonClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
 
 const EMPTY_NEW_MEMBER = {
   jugadorId: '',
   role: 'player',
   isCaptain: false,
   shirtNumber: '',
+};
+
+const ROLE_OPTIONS = [
+  { value: 'player', label: 'Sin definir', short: 'SD' },
+  { value: 'gk', label: 'Arquero', short: 'AR' },
+  { value: 'rb', label: 'Lateral derecho', short: 'LD' },
+  { value: 'cb', label: 'Zaguero central', short: 'ZC' },
+  { value: 'lb', label: 'Lateral izquierdo', short: 'LI' },
+  { value: 'dm', label: 'Volante defensivo', short: 'VD' },
+  { value: 'cm', label: 'Mediocampista', short: 'MC' },
+  { value: 'am', label: 'Enganche', short: 'EN' },
+  { value: 'rw', label: 'Extremo derecho', short: 'ED' },
+  { value: 'lw', label: 'Extremo izquierdo', short: 'EI' },
+  { value: 'st', label: 'Delantero centro', short: 'DC' },
+];
+
+const LEGACY_ROLE_TO_FORM_ROLE = {
+  captain: 'player',
+  defender: 'cb',
+  mid: 'cm',
+  forward: 'st',
 };
 
 const ROLE_TO_POSITION = {
@@ -51,7 +72,23 @@ const ROLE_TO_POSITION = {
 };
 
 const toStringId = (value) => (value == null ? '' : String(value));
-const normalizeSearchValue = (value) => String(value || '').trim().toLowerCase();
+const normalizeSearchValue = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .trim()
+  .toLowerCase();
+
+const getRoleOption = (roleValue) => (
+  ROLE_OPTIONS.find((option) => option.value === roleValue)
+  || ROLE_OPTIONS.find((option) => option.value === LEGACY_ROLE_TO_FORM_ROLE[roleValue])
+  || ROLE_OPTIONS[0]
+);
+
+const normalizeRoleForForm = (roleValue) => {
+  if (!roleValue) return 'player';
+  if (ROLE_OPTIONS.some((option) => option.value === roleValue)) return roleValue;
+  return LEGACY_ROLE_TO_FORM_ROLE[roleValue] || 'player';
+};
 const findCandidateByName = (candidates, rawValue) => {
   const normalized = normalizeSearchValue(rawValue);
   if (!normalized) return null;
@@ -78,24 +115,7 @@ const summarizeTeamFromHistory = (historyByRival) => {
   }, { played: 0, won: 0, draw: 0, lost: 0 });
 };
 
-const roleOptions = [
-  { value: 'gk', label: 'Arquero' },
-  { value: 'rb', label: 'Lateral derecho' },
-  { value: 'cb', label: 'Zaguero central' },
-  { value: 'lb', label: 'Lateral izquierdo' },
-  { value: 'dm', label: 'Volante defensivo' },
-  { value: 'cm', label: 'Mediocampista' },
-  { value: 'am', label: 'Enganche' },
-  { value: 'rw', label: 'Extremo derecho' },
-  { value: 'lw', label: 'Extremo izquierdo' },
-  { value: 'st', label: 'Delantero centro' },
-  { value: 'defender', label: 'Defensor' },
-  { value: 'mid', label: 'Mediocampo' },
-  { value: 'forward', label: 'Delantero' },
-  { value: 'player', label: 'Jugador' },
-];
-
-const getRoleLabel = (roleValue) => roleOptions.find((option) => option.value === roleValue)?.label || 'Jugador';
+const getRoleLabel = (roleValue) => getRoleOption(roleValue).label;
 
 const getMemberAvatar = (member) => member?.photo_url || member?.jugador?.avatar_url || null;
 
@@ -116,6 +136,7 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [detailActionsMenuOpen, setDetailActionsMenuOpen] = useState(false);
   const [memberModalOpen, setMemberModalOpen] = useState(false);
+  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [memberModalMode, setMemberModalMode] = useState('create');
   const [memberEditing, setMemberEditing] = useState(null);
 
@@ -194,6 +215,14 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
     return () => window.removeEventListener('click', closeMenu);
   }, [detailActionsMenuOpen]);
 
+  useEffect(() => {
+    if (!roleMenuOpen) return undefined;
+
+    const closeRoleMenu = () => setRoleMenuOpen(false);
+    window.addEventListener('click', closeRoleMenu);
+    return () => window.removeEventListener('click', closeRoleMenu);
+  }, [roleMenuOpen]);
+
   const occupiedJugadorIds = useMemo(() => new Set(members.map((member) => toStringId(member.jugador_id))), [members]);
 
   const availableCandidates = useMemo(
@@ -202,17 +231,30 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
   );
 
   const selectedCandidate = useMemo(
-    () => findCandidateByName(availableCandidates, memberNameInput)
-      || candidates.find((candidate) => toStringId(candidate.jugador_id) === toStringId(newMember.jugadorId))
+    () => candidates.find((candidate) => toStringId(candidate.jugador_id) === toStringId(newMember.jugadorId))
+      || findCandidateByName(availableCandidates, memberNameInput)
       || null,
     [availableCandidates, candidates, memberNameInput, newMember.jugadorId],
   );
+
+  const candidateSuggestions = useMemo(() => {
+    if (memberModalMode !== 'create') return [];
+    const query = normalizeSearchValue(memberNameInput);
+    if (!query) return [];
+
+    return availableCandidates
+      .filter((candidate) => normalizeSearchValue(candidate?.nombre).includes(query))
+      .slice(0, 6);
+  }, [availableCandidates, memberModalMode, memberNameInput]);
+
+  const selectedRoleOption = useMemo(() => getRoleOption(newMember.role), [newMember.role]);
 
   const summaryStats = useMemo(() => summarizeTeamFromHistory(historyByRival), [historyByRival]);
 
   const resetMemberModalState = useCallback(() => {
     setNewMember(EMPTY_NEW_MEMBER);
     setMemberNameInput('');
+    setRoleMenuOpen(false);
     setMemberEditing(null);
     setMemberPhotoFile(null);
     setRemoveMemberPhoto(false);
@@ -338,11 +380,21 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
     }));
   }, [availableCandidates]);
 
+  const handleSelectCandidate = useCallback((candidate) => {
+    if (!candidate) return;
+    setMemberNameInput(candidate.nombre || '');
+    setNewMember((prev) => ({
+      ...prev,
+      jugadorId: toStringId(candidate.jugador_id),
+    }));
+  }, []);
+
   const openCreateMemberModal = () => {
     setMemberModalMode('create');
     setMemberEditing(null);
     setNewMember(EMPTY_NEW_MEMBER);
     setMemberNameInput('');
+    setRoleMenuOpen(false);
     setMemberPhotoFile(null);
     setRemoveMemberPhoto(false);
     setMemberPhotoPreview(null);
@@ -354,11 +406,12 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
     setMemberEditing(member);
     setNewMember({
       jugadorId: toStringId(member?.jugador_id),
-      role: member?.role === 'captain' ? 'player' : (member?.role || 'player'),
+      role: normalizeRoleForForm(member?.role),
       isCaptain: Boolean(member?.is_captain),
       shirtNumber: member?.shirt_number ?? '',
     });
     setMemberNameInput(member?.jugador?.nombre || '');
+    setRoleMenuOpen(false);
     setMemberPhotoFile(null);
     setRemoveMemberPhoto(false);
     setMemberPhotoPreview(member?.photo_url || null);
@@ -753,7 +806,7 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
               className={modalActionButtonClass}
               loading={isSaving}
               loadingText={memberModalMode === 'create' ? 'Agregando...' : 'Guardando...'}
-              disabled={isSaving || (memberModalMode === 'create' && !selectedCandidate)}
+              disabled={isSaving || (memberModalMode === 'create' && memberNameInput.trim().length === 0)}
             >
               {memberModalMode === 'create' ? 'Agregar a plantilla' : 'Guardar cambios'}
             </Button>
@@ -764,16 +817,45 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
           <label className="block">
             <span className="text-xs text-white/80 uppercase tracking-wide">Nombre</span>
             {memberModalMode === 'create' ? (
-              <>
+              <div className="mt-1 space-y-1.5">
                 <input
                   type="text"
                   autoComplete="off"
                   value={memberNameInput}
                   onChange={(event) => handleMemberNameInputChange(event.target.value)}
                   placeholder="Nombre del jugador"
-                  className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+                  className="w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
                 />
-              </>
+
+                {candidateSuggestions.length > 0 ? (
+                  <div className="max-h-40 overflow-y-auto rounded-xl border border-white/15 bg-[#0f172acc] p-1">
+                    {candidateSuggestions.map((candidate) => {
+                      const candidateId = toStringId(candidate.jugador_id);
+                      const isSelected = candidateId === toStringId(newMember.jugadorId);
+                      return (
+                        <button
+                          key={candidateId}
+                          type="button"
+                          onClick={() => handleSelectCandidate(candidate)}
+                          className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-all ${isSelected
+                            ? 'bg-[#128BE9]/25 text-white'
+                            : 'text-white/85 hover:bg-white/8'
+                            }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="truncate">{candidate.nombre || 'Jugador'}</span>
+                            {isSelected ? (
+                              <span className="text-[#9ED3FF]">
+                                <Check size={14} />
+                              </span>
+                            ) : null}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <input
                 type="text"
@@ -787,15 +869,50 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
               <span className="text-xs text-white/80 uppercase tracking-wide">Posicion</span>
-              <select
-                value={newMember.role}
-                onChange={(event) => setNewMember((prev) => ({ ...prev, role: event.target.value }))}
-                className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white"
-              >
-                {roleOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+              <div className="relative mt-1">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setRoleMenuOpen((prev) => !prev);
+                  }}
+                  className="w-full inline-flex items-center justify-between rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white transition-all hover:border-[#9ED3FF]/50"
+                  aria-label="Seleccionar posicion"
+                >
+                  <span className="font-semibold tracking-wide">{selectedRoleOption.short}</span>
+                  <ChevronDown size={15} className={`transition-transform ${roleMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {roleMenuOpen ? (
+                  <div
+                    className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto rounded-xl border border-white/15 bg-[#0f172a] p-1 shadow-[0_10px_26px_rgba(0,0,0,0.45)]"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {ROLE_OPTIONS.map((option) => {
+                      const isSelected = option.value === selectedRoleOption.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            setNewMember((prev) => ({ ...prev, role: option.value }));
+                            setRoleMenuOpen(false);
+                          }}
+                          className={`w-full rounded-lg px-3 py-2 text-left transition-all ${isSelected
+                            ? 'bg-[#128BE9]/25 text-white'
+                            : 'text-white/85 hover:bg-white/8'
+                            }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="truncate">{option.label}</span>
+                            <span className="text-xs font-semibold text-[#9ED3FF]">{option.short}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
             </label>
 
             <label className="block">

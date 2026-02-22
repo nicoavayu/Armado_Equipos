@@ -23,7 +23,7 @@ const normalizeHex = (value) => {
   return /^#[0-9A-Fa-f]{6}$/.test(withHash) ? withHash.toUpperCase() : null;
 };
 
-const actionButtonClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide !normal-case';
+const actionButtonClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
 
 const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = false }) => {
   const crestFileRef = useRef(null);
@@ -251,24 +251,21 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
         <div className="rounded-xl border border-white/15 bg-white/5 p-3">
           <span className="text-xs text-white/80 uppercase tracking-wide">Escudo (opcional)</span>
           <div className="mt-2 flex items-center gap-3">
-            <div className="h-14 w-14 rounded-xl overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                if (!crestFileRef.current) return;
+                crestFileRef.current.value = '';
+                crestFileRef.current.click();
+              }}
+              className="h-14 w-14 rounded-xl overflow-hidden border border-white/20 bg-slate-900/60 flex items-center justify-center shrink-0 transition-all hover:border-[#9ED3FF]/45"
+              title="Elegir escudo"
+              aria-label="Elegir escudo"
+            >
               {crestPreview ? (
-                <img src={crestPreview} alt="Preview escudo" className="h-full w-full object-cover" />
+                <img src={crestPreview} alt="Escudo" className="h-full w-full object-cover" />
               ) : (
-                <span className="text-[10px] text-white/60">Sin escudo</span>
-              )}
-            </div>
-            <div className="flex-1 min-w-0 rounded-xl border border-dashed border-white/20 bg-slate-900/45 px-3 py-2">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!crestFileRef.current) return;
-                  crestFileRef.current.value = '';
-                  crestFileRef.current.click();
-                }}
-                className="w-full inline-flex items-center gap-2 text-left text-sm text-white/90 hover:text-white"
-              >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#9ED3FF]/40 bg-[#128BE9]/15 text-[#9ED3FF] shrink-0">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#9ED3FF]/40 bg-[#128BE9]/15 text-[#9ED3FF]">
                   <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 8.5h18v11H3z" />
                     <path d="M8 8.5V6h8v2.5" />
@@ -276,24 +273,32 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
                     <path d="M12 2.8v2.4M10.6 4.2h2.8" />
                   </svg>
                 </span>
-                <span className="font-semibold">{crestFile ? 'Cambiar escudo' : 'Subir escudo'}</span>
-              </button>
+              )}
+            </button>
 
-              <p className="mt-1.5 text-xs text-white/60 truncate">
-                {crestPreview ? 'Escudo listo' : 'PNG, JPG, WEBP o SVG'}
-              </p>
+            <button
+              type="button"
+              onClick={() => {
+                if (!crestFileRef.current) return;
+                crestFileRef.current.value = '';
+                crestFileRef.current.click();
+              }}
+              className="flex-1 min-w-0 rounded-xl border border-dashed border-white/20 bg-slate-900/45 px-3 py-3 text-left text-white/90 font-oswald text-[16px] transition-all hover:border-[#9ED3FF]/45 hover:text-white"
+            >
+              Elegir foto
+            </button>
 
-              <input
-                ref={crestFileRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) handleCrestChange(file);
-                }}
-                className="hidden"
-              />
-            </div>
+            <input
+              ref={crestFileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) handleCrestChange(file);
+              }}
+              className="hidden"
+            />
+
             {crestPreview ? (
               <button
                 type="button"

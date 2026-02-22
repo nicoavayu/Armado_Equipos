@@ -5,7 +5,7 @@ import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS } from '../config';
 import { formatSkillLevelLabel } from '../utils/teamColors';
 import NeighborhoodAutocomplete from './NeighborhoodAutocomplete';
 
-const actionButtonClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide !normal-case';
+const actionButtonClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
 
 const FORMAT_OPTIONS_LABEL = TEAM_FORMAT_OPTIONS.map((value) => `F${value}`).join(' · ');
 const SKILL_OPTIONS_LABEL = TEAM_SKILL_OPTIONS.map((option) => option.label).join(' · ');

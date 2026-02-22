@@ -16,8 +16,8 @@ import EmptyStateCard from '../../../components/EmptyStateCard';
 import Button from '../../../components/Button';
 import { Flag, Search } from 'lucide-react';
 
-const publishActionClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide !normal-case';
-const filterFieldClass = 'h-10 rounded-lg bg-slate-900/80 border border-white/15 px-2.5 text-xs text-white outline-none focus:border-[#128BE9]';
+const publishActionClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
+const filterFieldClass = 'h-12 rounded-lg bg-slate-900/85 border border-white/20 px-3 text-base text-white outline-none focus:border-[#128BE9]';
 
 const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) => {
   const [loading, setLoading] = useState(true);
@@ -25,7 +25,7 @@ const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) =
   const [openChallenges, setOpenChallenges] = useState([]);
   const [myTeams, setMyTeams] = useState([]);
   const [filters, setFilters] = useState({ format: '', zone: '', skillLevel: '' });
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [acceptingChallenge, setAcceptingChallenge] = useState(null);
   const [selectedAcceptTeamId, setSelectedAcceptTeamId] = useState('');
@@ -103,12 +103,12 @@ const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) =
           <button
             type="button"
             onClick={() => setShowFilters((prev) => !prev)}
-            className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-[#9ED3FF]/35 bg-[#128BE9]/12 px-3 text-xs font-oswald text-[#D4EBFF] transition-all hover:bg-[#128BE9]/22"
+            className="inline-flex h-12 items-center gap-1.5 rounded-xl border border-[#9ED3FF]/35 bg-[#128BE9]/12 px-3 text-[16px] font-oswald text-[#D4EBFF] transition-all hover:bg-[#128BE9]/22"
           >
-            <Search size={15} />
+            <Search size={16} />
             <span>Buscar</span>
             {activeFiltersCount > 0 ? (
-              <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#128BE9] px-1 text-[10px] leading-none text-white">
+              <span className="inline-flex h-5 min-w-[18px] items-center justify-center rounded-full bg-[#128BE9] px-1 text-[11px] leading-none text-white">
                 {activeFiltersCount}
               </span>
             ) : null}
@@ -116,7 +116,7 @@ const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) =
         </div>
 
         {showFilters ? (
-          <div className="mt-2.5 rounded-xl border border-white/12 bg-[#0f172a8f] p-2.5">
+          <div className="mt-2.5 rounded-xl border border-white/12 bg-[#0f172a8f] p-3">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <select
                 value={filters.format}
@@ -144,11 +144,11 @@ const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) =
               />
             </div>
 
-            <div className="mt-2 flex justify-end">
+            <div className="mt-2.5 flex justify-end">
               <button
                 type="button"
                 onClick={() => setFilters({ format: '', zone: '', skillLevel: '' })}
-                className="text-[11px] font-oswald text-white/70 transition-all hover:text-white"
+                className="text-[13px] font-oswald text-white/70 transition-all hover:text-white"
                 disabled={activeFiltersCount === 0}
               >
                 Limpiar filtros

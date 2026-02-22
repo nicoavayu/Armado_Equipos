@@ -434,9 +434,9 @@ const QuieroJugar = () => {
       <PageTitle title="QUIERO JUGAR" onBack={onVolver}>QUIERO JUGAR</PageTitle>
 
       {/* Status Strip unificado (avatar + estado + toggle) */}
-      <div className="w-full flex justify-center pt-[85px] pb-5 bg-transparent relative z-20">
+      <div className="w-full pt-[126px] pb-8 bg-transparent relative z-20">
         {user ? (
-          <div className="w-full max-w-[500px] bg-white/5 border border-white/10 rounded-2xl px-4 py-3 flex items-center justify-between">
+          <div className="w-full bg-white/5 border-y border-white/10 px-4 py-3 flex items-center justify-between">
             {/* Left: Avatar + status text */}
             <div className="flex items-center gap-3 min-w-0">
               <div className={`w-10 h-10 rounded-full overflow-hidden border ${isRegisteredAsFree ? 'border-[#009dff] shadow-[0_0_10px_rgba(0,157,255,0.25)]' : 'border-white/10'} bg-slate-800 flex items-center justify-center shrink-0`}>
@@ -480,9 +480,9 @@ const QuieroJugar = () => {
       <div className={containerClass} style={{ paddingTop: '0' }}>
 
         {/* 2. Tabs with added spacing - Removed overlap */}
-        <div className="flex mb-8 rounded-xl overflow-hidden w-full max-w-[500px] bg-white/5 border border-white/10 relative z-10 mt-2">
+        <div className="flex mb-8 rounded-xl overflow-hidden w-full max-w-[500px] bg-white/5 border border-white/10 relative z-10 mt-4">
           <button
-            className={`flex-1 py-3 bg-transparent border-none text-sm font-bold tracking-wider cursor-pointer transition-all duration-300 uppercase relative ${activeTab === 'matches' ? 'text-white bg-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]' : 'text-white/40 hover:text-white/60'}`}
+            className={`flex-1 py-3 bg-transparent border-none text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-all duration-300 uppercase relative ${activeTab === 'matches' ? 'text-white bg-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]' : 'text-white/40 hover:text-white/60'}`}
             onClick={() => {
               setActiveTab('matches');
               sessionStorage.setItem('quiero-jugar-tab', 'matches');
@@ -492,7 +492,7 @@ const QuieroJugar = () => {
           </button>
           <div className="w-[1px] bg-white/10 h-full self-stretch" />
           <button
-            className={`flex-1 py-3 bg-transparent border-none text-sm font-bold tracking-wider cursor-pointer transition-all duration-300 uppercase relative ${activeTab === 'players' ? 'text-white bg-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]' : 'text-white/40 hover:text-white/60'}`}
+            className={`flex-1 py-3 bg-transparent border-none text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-all duration-300 uppercase relative ${activeTab === 'players' ? 'text-white bg-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]' : 'text-white/40 hover:text-white/60'}`}
             onClick={() => {
               setActiveTab('players');
               sessionStorage.setItem('quiero-jugar-tab', 'players');

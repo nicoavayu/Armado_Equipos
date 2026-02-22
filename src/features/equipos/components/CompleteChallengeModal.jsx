@@ -15,7 +15,7 @@ const toDateTimeLocalValue = (isoDate) => {
   return `${year}-${month}-${day}T${hour}:${minute}`;
 };
 
-const actionButtonClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide !normal-case';
+const actionButtonClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
 
 const CompleteChallengeModal = ({ isOpen, challenge, onClose, onSubmit, isSubmitting = false }) => {
   const [scoreA, setScoreA] = useState('0');
