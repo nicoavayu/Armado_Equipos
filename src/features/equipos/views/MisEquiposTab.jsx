@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Crown, MoreVertical, Pencil, Plus, Trash2, UserPlus, Users } from 'lucide-react';
+import { Camera, Check, Crown, MoreVertical, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
 import TeamCard from '../components/TeamCard';
 import TeamFormModal from '../components/TeamFormModal';
 import Modal from '../../../components/Modal';
@@ -22,7 +22,7 @@ import EmptyStateCard from '../../../components/EmptyStateCard';
 import Button from '../../../components/Button';
 import { formatSkillLevelLabel } from '../utils/teamColors';
 
-const compactActionClass = 'w-auto px-3 h-9 rounded-xl text-xs font-oswald tracking-wide !normal-case';
+const createTeamButtonClass = 'w-full h-12 rounded-xl text-base font-oswald tracking-wide !normal-case';
 const modalActionButtonClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide !normal-case';
 
 const EMPTY_NEW_MEMBER = {
@@ -52,6 +52,21 @@ const ROLE_TO_POSITION = {
 
 const toStringId = (value) => (value == null ? '' : String(value));
 const normalizeSearchValue = (value) => String(value || '').trim().toLowerCase();
+const findCandidateByName = (candidates, rawValue) => {
+  const normalized = normalizeSearchValue(rawValue);
+  if (!normalized) return null;
+
+  const exactMatches = candidates.filter((candidate) => normalizeSearchValue(candidate?.nombre) === normalized);
+  if (exactMatches.length > 0) return exactMatches[0];
+
+  const startsWithMatches = candidates.filter((candidate) => normalizeSearchValue(candidate?.nombre).startsWith(normalized));
+  if (startsWithMatches.length === 1) return startsWithMatches[0];
+
+  const includesMatches = candidates.filter((candidate) => normalizeSearchValue(candidate?.nombre).includes(normalized));
+  if (includesMatches.length === 1) return includesMatches[0];
+
+  return null;
+};
 
 const summarizeTeamFromHistory = (historyByRival) => {
   return (historyByRival || []).reduce((acc, entry) => {
@@ -99,6 +114,7 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
   const [detailLoading, setDetailLoading] = useState(false);
 
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailActionsMenuOpen, setDetailActionsMenuOpen] = useState(false);
   const [memberModalOpen, setMemberModalOpen] = useState(false);
   const [memberModalMode, setMemberModalMode] = useState('create');
   const [memberEditing, setMemberEditing] = useState(null);
@@ -170,6 +186,14 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
     return () => window.removeEventListener('click', closeMenu);
   }, [openTeamMenuId]);
 
+  useEffect(() => {
+    if (!detailActionsMenuOpen) return undefined;
+
+    const closeMenu = () => setDetailActionsMenuOpen(false);
+    window.addEventListener('click', closeMenu);
+    return () => window.removeEventListener('click', closeMenu);
+  }, [detailActionsMenuOpen]);
+
   const occupiedJugadorIds = useMemo(() => new Set(members.map((member) => toStringId(member.jugador_id))), [members]);
 
   const availableCandidates = useMemo(
@@ -178,8 +202,10 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
   );
 
   const selectedCandidate = useMemo(
-    () => candidates.find((candidate) => toStringId(candidate.jugador_id) === toStringId(newMember.jugadorId)) || null,
-    [candidates, newMember.jugadorId],
+    () => findCandidateByName(availableCandidates, memberNameInput)
+      || candidates.find((candidate) => toStringId(candidate.jugador_id) === toStringId(newMember.jugadorId))
+      || null,
+    [availableCandidates, candidates, memberNameInput, newMember.jugadorId],
   );
 
   const summaryStats = useMemo(() => summarizeTeamFromHistory(historyByRival), [historyByRival]);
@@ -285,6 +311,7 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
 
   const closeDetailModal = () => {
     setDetailModalOpen(false);
+    setDetailActionsMenuOpen(false);
     setSelectedTeam(null);
     setMembers([]);
     setCandidates([]);
@@ -295,6 +322,7 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
   const handleSelectTeam = useCallback(async (team) => {
     if (!team?.id) return;
     setOpenTeamMenuId(null);
+    setDetailActionsMenuOpen(false);
     setSelectedTeam(team);
     setDetailModalOpen(true);
     await loadTeamDetail(team);
@@ -302,11 +330,7 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
 
   const handleMemberNameInputChange = useCallback((rawValue) => {
     setMemberNameInput(rawValue);
-
-    const normalized = normalizeSearchValue(rawValue);
-    const matchingCandidate = normalized
-      ? availableCandidates.find((candidate) => normalizeSearchValue(candidate.nombre) === normalized)
-      : null;
+    const matchingCandidate = findCandidateByName(availableCandidates, rawValue);
 
     setNewMember((prev) => ({
       ...prev,
@@ -376,15 +400,14 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
 
     let selectedJugadorId = newMember.jugadorId;
     if (memberModalMode === 'create' && !selectedJugadorId) {
-      const normalizedName = normalizeSearchValue(memberNameInput);
-      const matchedByName = normalizedName
-        ? availableCandidates.find((candidate) => normalizeSearchValue(candidate.nombre) === normalizedName)
-        : null;
+      const matchedByName = selectedCandidate || findCandidateByName(availableCandidates, memberNameInput);
       selectedJugadorId = matchedByName ? toStringId(matchedByName.jugador_id) : '';
     }
 
     if (!selectedJugadorId) {
-      notifyBlockingError('Selecciona un jugador para continuar');
+      notifyBlockingError(memberNameInput.trim().length > 0
+        ? 'No encontramos un jugador unico con ese nombre'
+        : 'Escribi el nombre del jugador para continuar');
       return;
     }
 
@@ -459,17 +482,16 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
   return (
     <>
       <div className="w-full max-w-[560px] flex flex-col gap-3">
-        <div className="rounded-2xl border border-white/15 bg-white/5 p-3 flex items-center justify-between gap-2">
-          <h3 className="text-white font-oswald text-lg">Mis equipos</h3>
+        <div className="rounded-2xl border border-white/15 bg-[linear-gradient(135deg,rgba(49,57,108,0.52),rgba(34,43,88,0.46))] p-3">
           <Button
             type="button"
             onClick={() => {
               setEditingTeam(null);
               setTeamFormOpen(true);
             }}
-            className={compactActionClass}
+            className={createTeamButtonClass}
           >
-            + Crear equipo
+            Crear equipo
           </Button>
         </div>
 
@@ -544,7 +566,7 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
       >
         {selectedTeam ? (
           <div className="space-y-4">
-            <div className="rounded-2xl border border-white/15 bg-[#0f172acc] p-4">
+            <div className="relative rounded-2xl border border-white/15 bg-[#0f172acc] p-4">
               <div className="flex items-start gap-3">
                 <div className="h-14 w-14 rounded-xl overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
                   {selectedTeam.crest_url ? (
@@ -559,27 +581,47 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
                     F{selectedTeam.format} · {formatSkillLevelLabel(selectedTeam.skill_level)} · {selectedTeam.base_zone || 'sin zona'}
                   </p>
                 </div>
-              </div>
-
-              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setEditingTeam(selectedTeam);
-                    setTeamFormOpen(true);
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-[#0f172acc] text-white/80 transition-all hover:bg-white/10 hover:text-white"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setDetailActionsMenuOpen((prev) => !prev);
                   }}
-                  className="rounded-lg border border-white/20 bg-white/5 text-white text-sm font-semibold px-3 py-2 hover:bg-white/10"
+                  aria-label="Acciones del equipo"
+                  title="Acciones del equipo"
                 >
-                  Editar equipo
+                  <MoreVertical size={16} />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => onOpenDesafiosWithTeam?.(selectedTeam.id)}
-                  className="rounded-lg border border-[#128BE9]/35 bg-[#128BE9]/20 text-[#B7DEFF] text-sm font-semibold px-3 py-2 hover:bg-[#128BE9]/28"
-                >
-                  Publicar desafio
-                </button>
+                {detailActionsMenuOpen ? (
+                  <div
+                    className="absolute right-0 top-10 z-20 w-48 rounded-xl border border-white/15 bg-[#0f172a] p-1 shadow-[0_10px_26px_rgba(0,0,0,0.45)]"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailActionsMenuOpen(false);
+                        setEditingTeam(selectedTeam);
+                        setTeamFormOpen(true);
+                      }}
+                      className="w-full rounded-lg px-3 py-2 text-left text-sm text-white/90 transition-all hover:bg-white/10"
+                    >
+                      Editar equipo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDetailActionsMenuOpen(false);
+                        onOpenDesafiosWithTeam?.(selectedTeam.id);
+                      }}
+                      className="w-full rounded-lg px-3 py-2 text-left text-sm text-[#B7DEFF] transition-all hover:bg-[#128BE9]/20"
+                    >
+                      Publicar desafio
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -598,12 +640,9 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
                   <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#9ED3FF]/40 bg-[#128BE9]/20 text-[#9ED3FF] shrink-0">
                     <UserPlus size={20} />
                   </span>
-                  <div>
-                    <p className="text-white font-semibold text-sm inline-flex items-center gap-1.5">
-                      <Plus size={15} /> Agregar jugador
-                    </p>
-                    <p className="text-xs text-white/65 mt-0.5">Nombre, posicion, numero, capitan y foto opcional</p>
-                  </div>
+                  <p className="text-white font-oswald text-lg tracking-wide">
+                    Agregar jugador
+                  </p>
                 </div>
               </button>
 
@@ -714,7 +753,7 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
               className={modalActionButtonClass}
               loading={isSaving}
               loadingText={memberModalMode === 'create' ? 'Agregando...' : 'Guardando...'}
-              disabled={isSaving || (memberModalMode === 'create' && !newMember.jugadorId)}
+              disabled={isSaving || (memberModalMode === 'create' && !selectedCandidate)}
             >
               {memberModalMode === 'create' ? 'Agregar a plantilla' : 'Guardar cambios'}
             </Button>
@@ -728,30 +767,12 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
               <>
                 <input
                   type="text"
-                  list="equipo-member-candidates"
+                  autoComplete="off"
                   value={memberNameInput}
                   onChange={(event) => handleMemberNameInputChange(event.target.value)}
-                  onBlur={() => {
-                    if (newMember.jugadorId || !memberNameInput.trim()) return;
-                    const normalized = normalizeSearchValue(memberNameInput);
-                    const partialMatches = availableCandidates.filter(
-                      (candidate) => normalizeSearchValue(candidate.nombre).startsWith(normalized),
-                    );
-                    if (partialMatches.length === 1) {
-                      handleMemberNameInputChange(partialMatches[0].nombre);
-                    }
-                  }}
-                  placeholder="Escribi el nombre del jugador"
+                  placeholder="Nombre del jugador"
                   className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
                 />
-                <datalist id="equipo-member-candidates">
-                  {availableCandidates.map((candidate) => (
-                    <option key={candidate.jugador_id} value={candidate.nombre} />
-                  ))}
-                </datalist>
-                <p className="mt-1 text-[11px] text-white/60">
-                  Escribi y selecciona un jugador existente de la lista.
-                </p>
               </>
             ) : (
               <input
@@ -791,13 +812,22 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
             </label>
           </div>
 
-          <label className="inline-flex items-center gap-2 text-sm text-white/85">
+          <label className="inline-flex items-center gap-2.5 text-white/90 font-oswald text-[15px] cursor-pointer select-none">
             <input
               type="checkbox"
               checked={newMember.isCaptain}
               onChange={(event) => setNewMember((prev) => ({ ...prev, isCaptain: event.target.checked }))}
+              className="sr-only"
             />
-            Marcar como capitan
+            <span
+              className={`inline-flex h-5 w-5 items-center justify-center rounded-md border transition-all ${newMember.isCaptain
+                ? 'border-[#93C5FD] bg-[#2563EB] text-white shadow-[0_0_0_3px_rgba(37,99,235,0.22)]'
+                : 'border-white/30 bg-slate-900/70 text-transparent'
+                }`}
+            >
+              <Check size={13} strokeWidth={3} />
+            </span>
+            <span>Marcar como capitan</span>
           </label>
 
           <div className="rounded-xl border border-white/15 bg-white/5 p-3">

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trophy } from 'lucide-react';
 import PageTitle from '../../components/PageTitle';
 import { useAuth } from '../../components/AuthProvider';
 import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY } from './config';
@@ -33,28 +32,16 @@ const QuieroJugarEquipos = () => {
     <>
       <PageTitle title="QUIERO JUGAR" onBack={() => navigate(-1)}>QUIERO JUGAR</PageTitle>
 
-      <div className="w-full flex justify-center pt-[85px] pb-4 px-4">
-        <div className="w-full max-w-[560px] rounded-2xl border border-white/15 bg-white/5 px-4 py-3 flex items-center gap-2">
-          <div className="h-9 w-9 rounded-xl bg-[#128BE9]/20 border border-[#128BE9]/40 flex items-center justify-center">
-            <Trophy size={18} className="text-[#9ED3FF]" />
-          </div>
-          <div>
-            <p className="font-oswald text-[10px] uppercase tracking-widest text-white/65">Equipos & Desafios</p>
-            <p className="font-oswald text-sm text-white">Mercado entre equipos armados</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="w-full flex justify-center px-4 pb-5">
-        <div className="w-full max-w-[560px] rounded-xl border border-white/10 bg-white/5 p-1 grid grid-cols-3 gap-1">
+      <div className="w-full flex justify-center px-4 pt-[102px] pb-6">
+        <div className="w-full max-w-[560px] rounded-xl border border-white/15 bg-[linear-gradient(135deg,rgba(61,74,130,0.42),rgba(31,43,96,0.4))] p-1.5 grid grid-cols-3 gap-1.5">
           {SUBTABS.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setActiveSubtab(tab.key)}
-              className={`min-w-0 rounded-lg px-1 py-2 text-xs font-oswald font-bold normal-case tracking-normal transition-all ${activeSubtab === tab.key
-                ? 'bg-white/15 border border-white/25 text-white'
-                : 'bg-transparent border border-transparent text-white/60'
+              className={`min-w-0 rounded-lg px-1 py-2.5 text-xs font-oswald font-bold normal-case tracking-normal transition-all ${activeSubtab === tab.key
+                ? 'border border-[#A5B8FF]/45 bg-[linear-gradient(135deg,rgba(133,121,236,0.58),rgba(113,108,217,0.56))] text-white shadow-[0_8px_22px_rgba(121,111,231,0.34)]'
+                : 'border border-transparent bg-transparent text-white/60 hover:text-white/80'
                 }`}
             >
               {tab.label}
