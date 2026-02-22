@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import PageTitle from '../components/PageTitle';
 import PageTransition from '../components/PageTransition';
+import Modal from '../components/Modal';
 import { useAuth } from '../components/AuthProvider';
 import {
   canAccessTeamChat,
@@ -175,10 +175,14 @@ const TeamChatPage = () => {
 
   return (
     <PageTransition>
-      <PageTitle title="Chat del equipo" onBack={handleBack}>Chat del equipo</PageTitle>
-
-      <div className="w-full flex justify-center px-4 pt-[116px] pb-6">
-        <div className="w-full max-w-[560px] rounded-2xl border border-white/15 bg-[#0f172acc] shadow-[0_8px_24px_rgba(0,0,0,0.35)] overflow-hidden">
+      <Modal
+        isOpen={true}
+        onClose={handleBack}
+        title="Chat del equipo"
+        className="w-full max-w-[560px] border-white/15 bg-[#0f172acc]"
+        classNameContent="!p-0"
+      >
+        <div className="rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.35)] overflow-hidden">
           <div className="border-b border-white/10 px-4 py-3 bg-slate-800/70">
             <p className="text-white font-oswald text-lg leading-tight">
               {team?.name ? `Chat de ${team.name}` : 'Chat del equipo'}
@@ -254,7 +258,7 @@ const TeamChatPage = () => {
             </>
           ) : null}
         </div>
-      </div>
+      </Modal>
     </PageTransition>
   );
 };

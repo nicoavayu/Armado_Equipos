@@ -5,6 +5,7 @@ import PublishChallengeModal from '../components/PublishChallengeModal';
 import AcceptChallengeModal from '../components/AcceptChallengeModal';
 import CompleteChallengeModal from '../components/CompleteChallengeModal';
 import NeighborhoodAutocomplete from '../components/NeighborhoodAutocomplete';
+import Modal from '../../../components/Modal';
 import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS, normalizeTeamSkillLevel } from '../config';
 import {
   acceptChallenge,
@@ -91,6 +92,7 @@ const DesafiosTab = ({
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [acceptingChallenge, setAcceptingChallenge] = useState(null);
   const [selectedAcceptTeamId, setSelectedAcceptTeamId] = useState('');
+  const [formatMismatchConfirm, setFormatMismatchConfirm] = useState(null);
   const [completeTarget, setCompleteTarget] = useState(null);
 
   const loadChallenges = useCallback(async () => {
@@ -156,10 +158,15 @@ const DesafiosTab = ({
   ), [filters]);
 
   const getAvailableTeamsForChallenge = (challenge) => manageableTeams.filter((team) => (
-    team.format === challenge.format &&
     team.id !== challenge.challenger_team_id &&
     team.is_active
   ));
+
+  const closeAcceptChallengeModal = useCallback(() => {
+    setAcceptingChallenge(null);
+    setSelectedAcceptTeamId('');
+    setFormatMismatchConfirm(null);
+  }, []);
 
   const handleShare = async (challenge) => {
     try {
@@ -387,15 +394,7 @@ const DesafiosTab = ({
 
               const available = getAvailableTeamsForChallenge(challenge);
               if (available.length === 0) {
-                const hasFormatMismatch = manageableTeams.some((team) => (
-                  team.is_active && team.id !== challenge.challenger_team_id
-                ));
-
-                if (hasFormatMismatch) {
-                  notifyBlockingError(`Tenes equipos gestionables, pero ninguno es formato F${challenge.format}`);
-                } else {
-                  notifyBlockingError('No tenes equipos gestionables (owner/admin) para aceptar este desafio');
-                }
+                notifyBlockingError('No tenes equipos gestionables (owner/admin) para aceptar este desafio');
                 return;
               }
 
@@ -435,19 +434,36 @@ const DesafiosTab = ({
         availableTeams={acceptingChallenge ? getAvailableTeamsForChallenge(acceptingChallenge) : []}
         selectedTeamId={selectedAcceptTeamId}
         onChangeTeam={setSelectedAcceptTeamId}
-        onClose={() => setAcceptingChallenge(null)}
+        onClose={closeAcceptChallengeModal}
         isSubmitting={isSubmitting}
         onConfirm={async () => {
           if (!acceptingChallenge || !selectedAcceptTeamId) return;
 
+          const acceptedTeam = manageableTeams.find((team) => team.id === selectedAcceptTeamId) || null;
+          const challengeFormat = Number(acceptingChallenge?.format);
+          const acceptedTeamFormat = Number(acceptedTeam?.format);
+          const hasFormatMismatch = Number.isFinite(challengeFormat)
+            && Number.isFinite(acceptedTeamFormat)
+            && challengeFormat !== acceptedTeamFormat;
+
+          if (hasFormatMismatch) {
+            setFormatMismatchConfirm({
+              challengeId: acceptingChallenge.id,
+              challengeFormat,
+              acceptedTeamId: selectedAcceptTeamId,
+              acceptedTeamName: acceptedTeam?.name || 'Equipo rival',
+              acceptedTeamFormat,
+            });
+            return;
+          }
+
           try {
             setIsSubmitting(true);
-            const acceptedTeam = manageableTeams.find((team) => team.id === selectedAcceptTeamId) || null;
             const result = await acceptChallenge(acceptingChallenge.id, selectedAcceptTeamId, {
               currentUserId: userId,
               acceptedTeamName: acceptedTeam?.name || '',
             });
-            setAcceptingChallenge(null);
+            closeAcceptChallengeModal();
             await loadChallenges();
             if (result?.matchId) {
               navigate(`/quiero-jugar/equipos/partidos/${result.matchId}`);
@@ -460,6 +476,73 @@ const DesafiosTab = ({
           }
         }}
       />
+
+      <Modal
+        isOpen={Boolean(formatMismatchConfirm)}
+        onClose={() => setFormatMismatchConfirm(null)}
+        title="Formato combinado"
+        className="w-full max-w-[520px]"
+        classNameContent="p-4 sm:p-5"
+        footer={(
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className={publishActionClass}
+              onClick={() => setFormatMismatchConfirm(null)}
+              disabled={isSubmitting}
+            >
+              Volver
+            </Button>
+            <Button
+              type="button"
+              className={publishActionClass}
+              loading={isSubmitting}
+              loadingText="Aceptando..."
+              onClick={async () => {
+                if (!formatMismatchConfirm) return;
+                try {
+                  setIsSubmitting(true);
+                  const acceptedTeam = manageableTeams.find(
+                    (team) => team.id === formatMismatchConfirm.acceptedTeamId,
+                  ) || null;
+
+                  const result = await acceptChallenge(
+                    formatMismatchConfirm.challengeId,
+                    formatMismatchConfirm.acceptedTeamId,
+                    {
+                      currentUserId: userId,
+                      acceptedTeamName: acceptedTeam?.name || formatMismatchConfirm.acceptedTeamName,
+                    },
+                  );
+
+                  setFormatMismatchConfirm(null);
+                  closeAcceptChallengeModal();
+                  await loadChallenges();
+                  if (result?.matchId) {
+                    navigate(`/quiero-jugar/equipos/partidos/${result.matchId}`);
+                  }
+                } catch (error) {
+                  notifyBlockingError(error.message || 'No se pudo aceptar el desafio');
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
+            >
+              Si, aceptar
+            </Button>
+          </div>
+        )}
+      >
+        <p className="text-sm text-white/75">
+          Este desafio es F{formatMismatchConfirm?.challengeFormat ?? '-'} y el equipo{' '}
+          <strong>{formatMismatchConfirm?.acceptedTeamName || 'seleccionado'}</strong> es F
+          {formatMismatchConfirm?.acceptedTeamFormat ?? '-'}.
+        </p>
+        <p className="mt-2 text-sm text-white/75">
+          Si continuas, se creara un partido con <strong>formato combinado</strong>.
+        </p>
+      </Modal>
 
       <CompleteChallengeModal
         isOpen={Boolean(completeTarget)}

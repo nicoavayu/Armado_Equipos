@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, Check, ChevronDown, Crown, MoreVertical, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Modal from '../../../components/Modal';
+import TeamFormModal from '../components/TeamFormModal';
 import PlayerMiniCard from '../../../components/PlayerMiniCard';
 import Button from '../../../components/Button';
 import {
@@ -14,10 +15,11 @@ import {
   removeTeamMember,
   revokeTeamInvitation,
   sendTeamInvitation,
+  updateTeam,
   updateTeamMember,
 } from '../../../services/db/teamChallenges';
 import { getAmigos } from '../../../services/db/friends';
-import { uploadTeamMemberPhoto } from '../../../services/storage/teamCrests';
+import { uploadTeamCrest, uploadTeamMemberPhoto } from '../../../services/storage/teamCrests';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import { formatSkillLevelLabel, getTeamAccent, getTeamGradientStyle } from '../utils/teamColors';
 import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, QUIERO_JUGAR_TOP_TAB_STORAGE_KEY } from '../config';
@@ -145,6 +147,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const [teamPendingInvitations, setTeamPendingInvitations] = useState([]);
 
   const [detailActionsMenuOpen, setDetailActionsMenuOpen] = useState(false);
+  const [teamFormOpen, setTeamFormOpen] = useState(false);
   const [addMemberChoiceOpen, setAddMemberChoiceOpen] = useState(false);
   const [inviteMemberModalOpen, setInviteMemberModalOpen] = useState(false);
   const [memberModalOpen, setMemberModalOpen] = useState(false);
@@ -580,6 +583,41 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     }
   };
 
+  const handleUpdateTeamDetails = async (payload, crestFile) => {
+    if (!selectedTeam?.id) return;
+    if (!isSelectedTeamManager) {
+      notifyBlockingError('Solo owner/admin puede editar este equipo');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+
+      let persistedTeam = await updateTeam(selectedTeam.id, payload);
+
+      if (crestFile) {
+        const crestUrl = await uploadTeamCrest({
+          file: crestFile,
+          userId,
+          teamId: selectedTeam.id,
+        });
+
+        persistedTeam = await updateTeam(selectedTeam.id, {
+          ...persistedTeam,
+          ...payload,
+          crest_url: crestUrl,
+        });
+      }
+
+      setTeamFormOpen(false);
+      await loadSelectedTeam();
+    } catch (error) {
+      notifyBlockingError(error.message || 'No se pudo actualizar el equipo');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const memberPhotoDisplay = memberPhotoPreview
     || (memberModalMode === 'edit' ? memberEditing?.jugador?.avatar_url : null)
     || null;
@@ -654,8 +692,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                     type="button"
                     onClick={() => {
                       setDetailActionsMenuOpen(false);
-                      navigate(`/quiero-jugar/equipos/${selectedTeam.id}`);
-                      handleSelectDetailTab('plantilla');
+                      setTeamFormOpen(true);
                     }}
                     className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-slate-100 transition-all hover:bg-slate-800"
                   >
@@ -893,6 +930,14 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           ) : null}
         </div>
       </div>
+
+      <TeamFormModal
+        isOpen={teamFormOpen}
+        initialTeam={selectedTeam}
+        onClose={() => setTeamFormOpen(false)}
+        onSubmit={handleUpdateTeamDetails}
+        isSubmitting={isSaving}
+      />
 
       <Modal
         isOpen={addMemberChoiceOpen}

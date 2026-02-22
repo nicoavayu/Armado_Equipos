@@ -46,7 +46,7 @@ const AcceptChallengeModal = ({
       )}
     >
       <p className="text-sm text-white/70 mb-3">
-        Elegi uno de tus equipos con formato F{challenge?.format || '-'}
+        Elegi uno de tus equipos para aceptar el desafio F{challenge?.format || '-'}
       </p>
 
       <select
@@ -55,7 +55,9 @@ const AcceptChallengeModal = ({
         className="w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white"
       >
         {availableTeams.map((team) => (
-          <option key={team.id} value={team.id}>{team.name} · {team.base_zone || 'sin zona'}</option>
+          <option key={team.id} value={team.id}>
+            {team.name} · F{team.format} · {team.base_zone || 'sin zona'}
+          </option>
         ))}
       </select>
     </Modal>
