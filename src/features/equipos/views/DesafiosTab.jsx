@@ -180,8 +180,26 @@ const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) =
           <ChallengeCard
             key={challenge.id}
             challenge={challenge}
+            isOwnChallenge={isOwnChallenge}
+            primaryLabel={isOwnChallenge ? 'Cancelar desafio' : 'Aceptar'}
             onPrimaryAction={async () => {
               if (challenge.status !== 'open') return;
+
+              if (isOwnChallenge) {
+                const confirmed = window.confirm('Cancelar este desafio?');
+                if (!confirmed) return;
+
+                try {
+                  setIsSubmitting(true);
+                  await cancelChallenge(challenge.id);
+                  await loadOpenChallenges();
+                } catch (error) {
+                  notifyBlockingError(error.message || 'No se pudo cancelar el desafio');
+                } finally {
+                  setIsSubmitting(false);
+                }
+                return;
+              }
 
               const available = getAvailableTeamsForChallenge(challenge);
               if (available.length === 0) {
@@ -192,19 +210,7 @@ const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) =
               setAcceptingChallenge(challenge);
               setSelectedAcceptTeamId(available[0].id);
             }}
-            onCancel={async () => {
-              if (!isOwnChallenge) return;
-              try {
-                setIsSubmitting(true);
-                await cancelChallenge(challenge.id);
-                await loadOpenChallenges();
-              } catch (error) {
-                notifyBlockingError(error.message || 'No se pudo cancelar el desafio');
-              } finally {
-                setIsSubmitting(false);
-              }
-            }}
-            canCancel={isOwnChallenge && ['open', 'accepted', 'confirmed'].includes(challenge.status)}
+            canCancel={false}
             disabled={isSubmitting}
           />
         );

@@ -15,6 +15,7 @@ const CTA_BY_STATUS = {
 const CHIP_CLASS = 'font-oswald text-[10px] font-bold text-white/40 border border-white/10 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider';
 
 const compactPrimaryClass = `${PRIMARY_CTA_BUTTON_CLASS} !w-auto flex-1 px-4 py-2.5 min-h-[48px] text-[18px] tracking-[0.01em]`;
+const ownPrimaryClass = 'w-full !w-auto flex-1 rounded-xl border border-red-300/35 bg-red-500/12 text-red-100 font-oswald font-semibold px-4 py-2.5 min-h-[48px] text-[18px] tracking-[0.01em] transition-all hover:bg-red-500/18 disabled:opacity-45 disabled:cursor-not-allowed';
 
 const formatChallengeDate = (value) => {
   if (!value) return 'A coordinar';
@@ -83,6 +84,7 @@ const ChallengeCard = ({
   primaryLabel,
   canCancel = false,
   disabled = false,
+  isOwnChallenge = false,
 }) => {
   const status = (challenge?.status || 'open').toLowerCase();
   const label = CHALLENGE_STATUS_LABELS[status] || status;
@@ -91,8 +93,18 @@ const ChallengeCard = ({
   const fieldPriceLabel = formatMoneyAr(challenge?.field_price);
 
   return (
-    <div className="w-full rounded-2xl border border-white/10 bg-[#1e293b]/70 backdrop-blur-sm p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)] font-oswald">
+    <div
+      className={`w-full rounded-2xl border backdrop-blur-sm p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)] font-oswald ${isOwnChallenge
+        ? 'border-[#C026D3]/55 bg-[linear-gradient(135deg,rgba(192,38,211,0.12),rgba(30,41,59,0.86))] shadow-[0_8px_24px_rgba(192,38,211,0.16)]'
+        : 'border-white/10 bg-[#1e293b]/70'
+        }`}
+    >
       <div className="flex flex-wrap items-center gap-2 mb-3">
+        {isOwnChallenge ? (
+          <span className={`${CHIP_CLASS} border-[#E879F9]/45 bg-[#C026D3]/18 text-[#F5D0FE]`}>
+            Mi desafio
+          </span>
+        ) : null}
         <span className={`${CHIP_CLASS} text-white/90 bg-white/10 border-white/20`}>
           {label}
         </span>
@@ -138,7 +150,7 @@ const ChallengeCard = ({
           type="button"
           disabled={disabled}
           onClick={onPrimaryAction}
-          className={`${compactPrimaryClass} disabled:opacity-45 disabled:cursor-not-allowed`}
+          className={`${isOwnChallenge ? ownPrimaryClass : compactPrimaryClass} disabled:opacity-45 disabled:cursor-not-allowed`}
         >
           {cta}
         </button>
