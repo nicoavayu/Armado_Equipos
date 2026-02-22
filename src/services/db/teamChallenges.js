@@ -1345,6 +1345,23 @@ export const acceptChallenge = async (challengeId, acceptedTeamId, _options = {}
       throw new Error('La base no permite formato combinado todavia. Ejecuta la ultima migracion y reintenta.');
     }
 
+    // If another request accepted it first, recover by opening the existing match.
+    if (normalized.includes('estado open')) {
+      try {
+        const existingMatch = await getTeamMatchByChallengeId(challengeId);
+        if (existingMatch?.id) {
+          const challenge = await getChallengeById(challengeId);
+          return {
+            challenge,
+            matchId: existingMatch.id,
+            recovered: true,
+          };
+        }
+      } catch (_) {
+        // keep original error path
+      }
+    }
+
     const combinedMessage = [message, details, hint].filter(Boolean).join(' · ');
     throw new Error(combinedMessage || 'No se pudo aceptar el desafio');
   }
