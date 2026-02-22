@@ -54,9 +54,9 @@ describe('teamColors utils', () => {
   });
 
   test('formats skill labels', () => {
-    expect(formatSkillLevelLabel('easy')).toBe('Easy');
-    expect(formatSkillLevelLabel('hard')).toBe('Hard');
-    expect(formatSkillLevelLabel('normal')).toBe('Normal');
-    expect(formatSkillLevelLabel('whatever')).toBe('Normal');
+    expect(formatSkillLevelLabel('easy')).toBe('Inicial');
+    expect(formatSkillLevelLabel('hard')).toBe('Competitivo');
+    expect(formatSkillLevelLabel('normal')).toBe('Intermedio');
+    expect(formatSkillLevelLabel('whatever')).toBe('Sin definir');
   });
 });

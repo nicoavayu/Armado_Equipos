@@ -9,13 +9,14 @@ export async function openNotification(n, navigate) {
   try {
     const type = n?.type;
     const matchId = n?.data?.matchId || n?.data?.partido_id || n?.partido_id;
+    const teamMatchId = n?.data?.team_match_id || n?.data?.teamMatchId || null;
 
     // Prefer explicit deep_link fields if present
     const deepLink = n?.deep_link || n?.deepLink || n?.data?.deep_link || n?.data?.deepLink || (matchId ? `/partidos/${matchId}/encuesta` : null);
 
     console.debug('[openNotification] opening notification', { id: n?.id, type, matchId, deepLink });
 
-    if (!type || !matchId) return;
+    if (!type) return;
 
     // Mark as read before navigation (best-effort)
     (async () => {
@@ -25,6 +26,17 @@ export async function openNotification(n, navigate) {
         // ignore errors for best-effort marking
       }
     })();
+
+    if (type === 'challenge_accepted' || type === 'team_match_created') {
+      if (teamMatchId) {
+        navigate(`/quiero-jugar/equipos/partidos/${teamMatchId}`);
+      } else {
+        navigate('/quiero-jugar');
+      }
+      return;
+    }
+
+    if (!matchId) return;
 
     // Survey notifications should deep-link to the survey UI (not admin panel)
     if (type === 'survey' || type === 'survey_reminder') {

@@ -15,6 +15,8 @@ const RELEVANT_TYPES = new Set([
   'match_join_request',
   'match_join_approved',
   'match_invite',
+  'challenge_accepted',
+  'team_match_created',
   'match_update',
   'match_today',
   'falta_jugadores',
@@ -35,13 +37,15 @@ const PRIORITY = {
   match_player_update: 26,
   friend_request: 28,
   friend_accepted: 30,
+  challenge_accepted: 18,
+  team_match_created: 18,
   match_tomorrow: 34,
   insight_weekly_matches: 40,
 };
 
 const severityForType = (type) => {
   if (['match_today', 'falta_jugadores', 'call_to_vote', 'survey_start'].includes(type)) return 'urgent';
-  if (['match_join_request', 'match_invite', 'match_player_update', 'friend_request', 'match_tomorrow'].includes(type)) return 'warning';
+  if (['match_join_request', 'match_invite', 'match_player_update', 'friend_request', 'match_tomorrow', 'challenge_accepted', 'team_match_created'].includes(type)) return 'warning';
   if (['awards_ready', 'match_complete', 'match_join_approved', 'friend_accepted'].includes(type)) return 'success';
   return 'neutral';
 };
@@ -59,7 +63,9 @@ const normalizeType = (type, message = '') => {
 };
 
 export const resolveNotificationMatchId = (notification) => (
-  notification?.partido_id
+  notification?.data?.team_match_id
+  ?? notification?.data?.teamMatchId
+  ?? notification?.partido_id
   ?? notification?.data?.match_id
   ?? notification?.data?.matchId
   ?? notification?.data?.partido_id
@@ -98,6 +104,7 @@ const quoteMatchName = (value, fallback = 'Partido') => {
 
 const routeForMatch = ({ matchId, matchCode, currentUserId, match }) => {
   if (!matchId) return null;
+  if (match?.source_type === 'team_match') return `/quiero-jugar/equipos/partidos/${matchId}`;
   if (matchCode) return `/votar-equipos?codigo=${encodeURIComponent(matchCode)}`;
   if (match?.creado_por && currentUserId && String(match.creado_por) === String(currentUserId)) {
     return `/admin/${matchId}`;
@@ -197,18 +204,21 @@ const buildWeeklyInsightItem = async ({ currentUserId, supabaseClient }) => {
 const toActivityFromNotification = (group, match, currentUserId) => {
   const { notification, count, type } = group;
   const partidoId = resolveNotificationMatchId(notification);
+  const teamMatchId = notification?.data?.team_match_id || notification?.data?.teamMatchId || null;
+  const numericMatchId = Number(partidoId);
+  const resolvedPartidoId = Number.isFinite(numericMatchId) && numericMatchId > 0 ? numericMatchId : undefined;
   const dateLabel = formatMatchDate(match);
   const notificationMatchName = notification?.data?.match_name || notification?.data?.partido_nombre || null;
   const matchName = getMatchDisplayName(match, notificationMatchName || 'este partido');
   const quotedMatchName = quoteMatchName(matchName, 'este partido');
   const createdAt = notification?.created_at || new Date().toISOString();
   const fallbackSubtitle = dateLabel || 'Actividad reciente';
-  const matchRoute = routeForMatch({ matchId: partidoId, currentUserId, match });
+  const matchRoute = routeForMatch({ matchId: resolvedPartidoId || partidoId, currentUserId, match });
 
   const base = {
     id: `activity-${type}-${partidoId ?? notification?.id}`,
     type,
-    partidoId: partidoId ? Number(partidoId) : undefined,
+    partidoId: resolvedPartidoId,
     createdAt,
     count,
     route: null,
@@ -288,6 +298,17 @@ const toActivityFromNotification = (group, match, currentUserId) => {
       route: notificationLink || matchRoute || '/notifications',
     };
   }
+  if (type === 'challenge_accepted' || type === 'team_match_created') {
+    const teamA = notification?.data?.team_a_name || notification?.data?.challenger_team_name || 'Equipo A';
+    const teamB = notification?.data?.team_b_name || notification?.data?.accepted_team_name || 'Equipo B';
+    return {
+      ...base,
+      icon: 'CalendarClock',
+      title: `Desafio aceptado: ${quoteMatchName(`${teamA} vs ${teamB}`, 'partido')}`,
+      subtitle: stripEmojis(notification?.message || 'Ya pueden coordinar la cancha'),
+      route: teamMatchId ? `/quiero-jugar/equipos/partidos/${teamMatchId}` : '/quiero-jugar',
+    };
+  }
   if (type === 'friend_request') {
     return {
       ...base,
@@ -315,6 +336,7 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   return activeMatches.reduce((acc, match) => {
+    if (match?.source_type === 'team_match') return acc;
     const matchDate = parseLocalDateTime(match?.fecha, match?.hora);
     if (!matchDate) return acc;
 
@@ -516,7 +538,11 @@ const fetchCompletedActionsByMatch = async ({ groups, currentUserId, supabaseCli
 
 export const buildActivityFeed = async (notifications = [], options = {}) => {
   const { activeMatches = [], currentUserId = null, supabaseClient = null } = options;
-  const activeMatchMap = new Map((activeMatches || []).map((match) => [Number(match.id), match]));
+  const activeMatchMap = new Map(
+    (activeMatches || [])
+      .map((match) => [Number(match.id), match])
+      .filter(([id]) => Number.isFinite(id) && id > 0),
+  );
 
   const activeMatchItems = buildActiveMatchItems(activeMatches, currentUserId);
   const groups = groupNotifications(notifications);

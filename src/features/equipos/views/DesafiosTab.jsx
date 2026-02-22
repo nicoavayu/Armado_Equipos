@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ChallengeCard from '../components/ChallengeCard';
 import PublishChallengeModal from '../components/PublishChallengeModal';
 import AcceptChallengeModal from '../components/AcceptChallengeModal';
@@ -9,8 +10,8 @@ import {
   acceptChallenge,
   cancelChallenge,
   completeChallenge,
-  confirmChallenge,
   createChallenge,
+  getTeamMatchByChallengeId,
   listMyChallenges,
   listMyTeams,
   listOpenChallenges,
@@ -38,8 +39,8 @@ const buildShareText = (challenge) => {
   const teamA = challenge?.challenger_team?.name || 'Equipo A';
   const teamB = challenge?.accepted_team?.name || 'Busco rival';
   const when = challenge?.scheduled_at ? new Date(challenge.scheduled_at).toLocaleString('es-AR') : 'A coordinar';
-  const where = challenge?.location_name || 'A coordinar';
-  const fieldPrice = formatMoneyAr(challenge?.field_price);
+  const where = challenge?.location || challenge?.location_name || 'A coordinar';
+  const fieldPrice = formatMoneyAr(challenge?.cancha_cost ?? challenge?.field_price);
   const canchaText = fieldPrice ? `Cancha ${fieldPrice}` : 'Cancha: a coordinar';
 
   return [teamA + ' vs ' + teamB, `F${challenge?.format || '-'}`, when, where, canchaText]
@@ -62,6 +63,7 @@ const challengeMatchesFilters = (challenge, filters) => {
   const possibleZones = [
     challenge?.challenger_team?.base_zone,
     challenge?.accepted_team?.base_zone,
+    challenge?.location,
     challenge?.location_name,
   ]
     .map((value) => String(value || '').trim().toLowerCase())
@@ -75,6 +77,7 @@ const DesafiosTab = ({
   prefilledTeamId = null,
   onChallengePublished,
 }) => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openChallenges, setOpenChallenges] = useState([]);
@@ -173,6 +176,21 @@ const DesafiosTab = ({
   };
 
   const canManage = (challenge) => challenge.created_by_user_id === userId || challenge.accepted_by_user_id === userId;
+
+  const openChallengeMatch = useCallback(async (challenge) => {
+    if (!challenge?.id) return;
+
+    try {
+      const match = await getTeamMatchByChallengeId(challenge.id);
+      if (!match?.id) {
+        notifyBlockingError('Todavia no existe un partido asociado a este desafio');
+        return;
+      }
+      navigate(`/quiero-jugar/equipos/partidos/${match.id}`);
+    } catch (error) {
+      notifyBlockingError(error.message || 'No se pudo abrir el partido del desafio');
+    }
+  }, [navigate]);
 
   return (
     <div className="w-full max-w-[560px] flex flex-col gap-3">
@@ -298,20 +316,8 @@ const DesafiosTab = ({
             primaryLabel = 'Compartir';
             primaryAction = () => handleShare(challenge);
           } else if (challenge.status === 'accepted') {
-            primaryLabel = allowManage ? 'Confirmar' : 'Ver detalle';
-            primaryAction = allowManage
-              ? async () => {
-                try {
-                  setIsSubmitting(true);
-                  await confirmChallenge(challenge.id);
-                  await loadChallenges();
-                } catch (error) {
-                  notifyBlockingError(error.message || 'No se pudo confirmar el desafio');
-                } finally {
-                  setIsSubmitting(false);
-                }
-              }
-              : () => handleShare(challenge);
+            primaryLabel = 'Ver partido';
+            primaryAction = () => openChallengeMatch(challenge);
           } else if (challenge.status === 'confirmed') {
             primaryLabel = allowManage ? 'Finalizar' : 'Ver detalle';
             primaryAction = allowManage
@@ -342,7 +348,7 @@ const DesafiosTab = ({
                   setIsSubmitting(false);
                 }
               }}
-              canCancel={allowManage && ['open', 'accepted', 'confirmed'].includes(challenge.status)}
+              canCancel={allowManage && challenge.status === 'open'}
               disabled={isSubmitting}
             />
           );
@@ -423,12 +429,15 @@ const DesafiosTab = ({
           try {
             setIsSubmitting(true);
             const acceptedTeam = myTeams.find((team) => team.id === selectedAcceptTeamId) || null;
-            await acceptChallenge(acceptingChallenge.id, selectedAcceptTeamId, {
+            const result = await acceptChallenge(acceptingChallenge.id, selectedAcceptTeamId, {
               currentUserId: userId,
               acceptedTeamName: acceptedTeam?.name || '',
             });
             setAcceptingChallenge(null);
             await loadChallenges();
+            if (result?.matchId) {
+              navigate(`/quiero-jugar/equipos/partidos/${result.matchId}`);
+            }
             console.info('Desafio aceptado');
           } catch (error) {
             notifyBlockingError(error.message || 'No se pudo aceptar el desafio');

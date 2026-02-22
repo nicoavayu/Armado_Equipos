@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ChallengeCard from '../components/ChallengeCard';
 import CompleteChallengeModal from '../components/CompleteChallengeModal';
 import {
   cancelChallenge,
   completeChallenge,
-  confirmChallenge,
+  getTeamMatchByChallengeId,
   listMyChallenges,
 } from '../../../services/db/teamChallenges';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
@@ -34,8 +35,8 @@ const buildShareText = (challenge) => {
   const teamA = challenge?.challenger_team?.name || 'Equipo A';
   const teamB = challenge?.accepted_team?.name || 'Busco rival';
   const when = challenge?.scheduled_at ? new Date(challenge.scheduled_at).toLocaleString('es-AR') : 'A coordinar';
-  const where = challenge?.location_name || 'A coordinar';
-  const fieldPrice = formatMoneyAr(challenge?.field_price);
+  const where = challenge?.location || challenge?.location_name || 'A coordinar';
+  const fieldPrice = formatMoneyAr(challenge?.cancha_cost ?? challenge?.field_price);
   const canchaText = fieldPrice ? `Cancha ${fieldPrice}` : 'Cancha: a coordinar';
 
   return [teamA + ' vs ' + teamB, `F${challenge?.format || '-'}`, when, where, canchaText]
@@ -48,6 +49,7 @@ const MisDesafiosTab = ({
   initialStatusTab = null,
   onInitialStatusApplied,
 }) => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusTab, setStatusTab] = useState('open');
@@ -120,6 +122,21 @@ const MisDesafiosTab = ({
 
   const canManage = (challenge) => challenge.created_by_user_id === userId || challenge.accepted_by_user_id === userId;
 
+  const openChallengeMatch = useCallback(async (challenge) => {
+    if (!challenge?.id) return;
+
+    try {
+      const match = await getTeamMatchByChallengeId(challenge.id);
+      if (!match?.id) {
+        notifyBlockingError('Todavia no existe un partido asociado a este desafio');
+        return;
+      }
+      navigate(`/quiero-jugar/equipos/partidos/${match.id}`);
+    } catch (error) {
+      notifyBlockingError(error.message || 'No se pudo abrir el partido del desafio');
+    }
+  }, [navigate]);
+
   return (
     <div className="w-full max-w-[560px] flex flex-col gap-3">
       <div className="rounded-2xl border border-white/15 bg-white/5 p-3">
@@ -166,20 +183,8 @@ const MisDesafiosTab = ({
           primaryLabel = 'Compartir';
           primaryAction = () => handleShare(challenge);
         } else if (challenge.status === 'accepted') {
-          primaryLabel = allowManage ? 'Confirmar' : 'Ver detalle';
-          primaryAction = allowManage
-            ? async () => {
-              try {
-                setIsSubmitting(true);
-                await confirmChallenge(challenge.id);
-                await loadData();
-              } catch (error) {
-                notifyBlockingError(error.message || 'No se pudo confirmar el desafio');
-              } finally {
-                setIsSubmitting(false);
-              }
-            }
-            : () => handleShare(challenge);
+          primaryLabel = 'Ver partido';
+          primaryAction = () => openChallengeMatch(challenge);
         } else if (challenge.status === 'confirmed') {
           primaryLabel = allowManage ? 'Finalizar' : 'Ver detalle';
           primaryAction = allowManage
@@ -209,7 +214,7 @@ const MisDesafiosTab = ({
                 setIsSubmitting(false);
               }
             }}
-            canCancel={allowManage && ['open', 'accepted', 'confirmed'].includes(challenge.status)}
+            canCancel={allowManage && challenge.status === 'open'}
             disabled={isSubmitting}
           />
         );

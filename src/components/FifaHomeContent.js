@@ -6,6 +6,7 @@ import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import { useInterval } from '../hooks/useInterval';
 import { supabase, updateProfile, addFreePlayer, removeFreePlayer } from '../supabase';
+import { listMyTeamMatches } from '../services/db/teamChallenges';
 import { parseLocalDateTime } from '../utils/dateLocal';
 import { buildActivityFeed } from '../utils/activityFeed';
 import ProximosPartidos from './ProximosPartidos';
@@ -128,11 +129,6 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       const todosLosPartidosIds = Array.from(new Set([...partidosComoJugador, ...partidosAdminIds]))
         .filter((id) => id != null);
 
-      if (todosLosPartidosIds.length === 0) {
-        setActiveMatches([]);
-        return;
-      }
-
       // Obtener cleared matches
       let clearedMatchIds = new Set();
       try {
@@ -174,14 +170,18 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         console.error('Error fetching completed surveys:', error);
       }
 
-      const { data: partidosData, error: partidosError } = await supabase
-        .from('partidos')
-        .select('*, jugadores(count)')
-        .in('id', todosLosPartidosIds)
-        .order('fecha', { ascending: true })
-        .order('hora', { ascending: true });
+      let partidosData = [];
+      if (todosLosPartidosIds.length > 0) {
+        const legacyMatchesResponse = await supabase
+          .from('partidos')
+          .select('*, jugadores(count)')
+          .in('id', todosLosPartidosIds)
+          .order('fecha', { ascending: true })
+          .order('hora', { ascending: true });
 
-      if (partidosError) throw partidosError;
+        if (legacyMatchesResponse.error) throw legacyMatchesResponse.error;
+        partidosData = legacyMatchesResponse.data || [];
+      }
 
       const now = new Date();
       const partidosFiltrados = partidosData?.filter((partido) => {
@@ -208,7 +208,28 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       }) || [];
 
 
-      setActiveMatches(partidosFiltrados);
+      const teamMatches = await listMyTeamMatches(user.id, {
+        statuses: ['pending', 'confirmed'],
+      });
+
+      const teamMatchesEnriquecidos = (teamMatches || []).map((match) => {
+        const scheduledDate = match?.scheduled_at ? new Date(match.scheduled_at) : null;
+        const year = scheduledDate ? scheduledDate.getFullYear() : null;
+        const month = scheduledDate ? String(scheduledDate.getMonth() + 1).padStart(2, '0') : null;
+        const day = scheduledDate ? String(scheduledDate.getDate()).padStart(2, '0') : null;
+        const hour = scheduledDate ? String(scheduledDate.getHours()).padStart(2, '0') : null;
+        const minute = scheduledDate ? String(scheduledDate.getMinutes()).padStart(2, '0') : null;
+
+        return {
+          id: match?.id,
+          source_type: 'team_match',
+          fecha: year ? `${year}-${month}-${day}` : null,
+          hora: hour ? `${hour}:${minute}` : null,
+          scheduled_at: match?.scheduled_at || null,
+        };
+      });
+
+      setActiveMatches([...partidosFiltrados, ...teamMatchesEnriquecidos]);
     } catch (error) {
       console.error('Error fetching active matches:', error);
     } finally {

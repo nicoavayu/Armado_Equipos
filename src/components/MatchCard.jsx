@@ -36,6 +36,7 @@ const MatchCard = ({
     onSelect = () => { },
 }) => {
     const MAX_SUBSTITUTE_SLOTS = 4;
+    const isTeamMatch = partido?.source_type === 'team_match';
     const showMenu = (userJoined || userRole === 'admin' || isFinished) && (onAbandon || onCancel || onClear);
 
     const precioRaw = (partido?.precio_cancha_por_persona ?? partido?.precio_cancha ?? partido?.precio ?? partido?.valor_cancha);
@@ -46,7 +47,7 @@ const MatchCard = ({
     }
     const precioLabel = (precioNumber !== null && precioNumber > 0)
         ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(precioNumber)
-        : 'Sin precio';
+        : (isTeamMatch ? 'Cancha: a coordinar' : 'Sin precio');
     const cupoMaximo = Number(partido.cupo_jugadores || 20);
     const jugadores = Array.isArray(partido.jugadores) ? partido.jugadores : [];
     const jugadoresCount = typeof jugadores?.[0]?.count === 'number' ? jugadores[0].count : jugadores.length;
@@ -56,6 +57,14 @@ const MatchCard = ({
     const titularesCount = Math.max(0, jugadoresCount - substitutesCount);
     const titularesDisplayCount = Math.min(titularesCount, cupoMaximo);
     const isComplete = titularesDisplayCount >= cupoMaximo;
+    const dateLabel = partido?.fecha_display || partido?.fecha || 'A coordinar';
+    const timeLabel = partido?.hora || '';
+    const originBadgeLabel = partido?.origin_type === 'challenge'
+        ? 'Desafio'
+        : (partido?.origin_type === 'individual' ? 'Amistoso' : null);
+    const teamsLabel = partido?.team_a?.name && partido?.team_b?.name
+        ? `${partido.team_a.name} vs ${partido.team_b.name}`
+        : null;
 
     return (
         <div
@@ -68,12 +77,12 @@ const MatchCard = ({
         >
             {/* Header: Fecha/Hora a la izquierda, Admin Badge a la derecha */}
             <div className="flex justify-between items-start mb-3">
-                <div className={`flex items-center gap-2 ${isFinished ? 'opacity-70' : ''}`}>
+                    <div className={`flex items-center gap-2 ${isFinished ? 'opacity-70' : ''}`}>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="currentColor">
                         <path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z" />
                     </svg>
                     <div className="font-oswald text-[18px] font-bold text-white capitalize">
-                        {partido.fecha_display || partido.fecha} • {partido.hora}
+                        {dateLabel}{timeLabel ? ` • ${timeLabel}` : ''}
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -147,39 +156,58 @@ const MatchCard = ({
                 <div className={`font-oswald text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getModalidadClass(partido.modalidad)} ${isFinished ? 'opacity-70' : ''}`}>
                     {partido.modalidad || 'F5'}
                 </div>
-                <div className={`font-oswald text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getTipoClass(partido.tipo_partido)} ${isFinished ? 'opacity-70' : ''}`}>
-                    {partido.tipo_partido || 'Masculino'}
-                </div>
+                {isTeamMatch && originBadgeLabel ? (
+                    <div className={`font-oswald text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getTipoClass(partido.tipo_partido)} ${isFinished ? 'opacity-70' : ''}`}>
+                        {originBadgeLabel}
+                    </div>
+                ) : (
+                    <div className={`font-oswald text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getTipoClass(partido.tipo_partido)} ${isFinished ? 'opacity-70' : ''}`}>
+                        {partido.tipo_partido || 'Masculino'}
+                    </div>
+                )}
                 <div className={`font-oswald text-[11px] font-semibold text-slate-200 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 shrink-0 whitespace-nowrap ${isFinished ? 'opacity-70' : ''}`}>
                     {precioLabel}
                 </div>
-                <div className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 whitespace-nowrap ${isComplete
-                    ? 'bg-[#165a2e] text-[#22c55e] border border-[#22c55e]'
-                    : 'bg-slate-900 text-slate-300 border border-slate-700'
-                    } ${isFinished ? 'opacity-70' : ''}`}>
-                    <span className="inline-flex items-center gap-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="currentColor">
-                            <path d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z" />
-                        </svg>
-                        {titularesDisplayCount}/{cupoMaximo}
-                    </span>
-                </div>
-                {substitutesCount > 0 && (
+                {!isTeamMatch ? (
+                    <div className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 whitespace-nowrap ${isComplete
+                        ? 'bg-[#165a2e] text-[#22c55e] border border-[#22c55e]'
+                        : 'bg-slate-900 text-slate-300 border border-slate-700'
+                        } ${isFinished ? 'opacity-70' : ''}`}>
+                        <span className="inline-flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="currentColor">
+                                <path d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z" />
+                            </svg>
+                            {titularesDisplayCount}/{cupoMaximo}
+                        </span>
+                    </div>
+                ) : null}
+                {!isTeamMatch && substitutesCount > 0 ? (
                     <div className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 whitespace-nowrap border border-amber-400/30 bg-amber-500/10 text-amber-300 ${isFinished ? 'opacity-70' : ''}`}>
                         <span className="inline-flex items-center gap-1">
                             <UserRoundPlus size={12} />
                             {substitutesCount}/{MAX_SUBSTITUTE_SLOTS}
                         </span>
                     </div>
-                )}
+                ) : null}
+                {isTeamMatch && partido?.is_format_combined ? (
+                    <div className={`font-oswald text-[11px] font-semibold text-white/80 px-2.5 py-1.5 rounded-lg border border-white/20 bg-white/10 shrink-0 whitespace-nowrap ${isFinished ? 'opacity-70' : ''}`}>
+                        Formato combinado
+                    </div>
+                ) : null}
             </div>
+
+            {isTeamMatch && teamsLabel ? (
+                <div className={`font-oswald text-sm font-medium text-white/85 mb-3 ${isFinished ? 'opacity-70' : ''}`}>
+                    {teamsLabel}
+                </div>
+            ) : null}
 
             {/* Ubicación */}
             <div className={`font-oswald text-sm font-medium text-white/90 flex items-center gap-2 ${primaryAction ? 'mb-5' : ''} overflow-hidden text-ellipsis ${isFinished ? 'opacity-70' : ''}`}>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="16" height="16" fill="rgba(255, 255, 255, 0.9)">
                     <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z" />
                 </svg>
-                <span className="truncate">{partido.sede?.split(',')[0]}</span>
+                <span className="truncate">{isTeamMatch ? (partido.sede || 'Cancha: a coordinar') : partido.sede?.split(',')[0]}</span>
             </div>
 
             {primaryAction && (

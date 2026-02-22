@@ -158,6 +158,16 @@ const NotificationsView = () => {
       }
     }
 
+    if (notification.type === 'challenge_accepted' || notification.type === 'team_match_created') {
+      const teamMatchId = data.team_match_id || data.teamMatchId;
+      if (teamMatchId) {
+        safeNavigate(notification, `/quiero-jugar/equipos/partidos/${teamMatchId}`);
+      } else {
+        fallbackToNotificationRoute(notification, 'No encontramos el partido de equipos de esta notificacion.');
+      }
+      return;
+    }
+
     if (data.matchId && notification?.type !== 'match_invite') {
       safeNavigate(notification, `/partido/${toBigIntId(data.matchId)}`);
       return;
@@ -346,6 +356,9 @@ const NotificationsView = () => {
         return CalendarClock;
       case 'match_update':
         return Users;
+      case 'challenge_accepted':
+      case 'team_match_created':
+        return CalendarClock;
       case 'post_match_survey':
         return ClipboardList;
       case 'survey_reminder':

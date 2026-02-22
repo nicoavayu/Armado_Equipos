@@ -96,7 +96,7 @@ const ChallengeCard = ({
   const status = (challenge?.status || 'open').toLowerCase();
   const label = CHALLENGE_STATUS_LABELS[status] || status;
   const cta = primaryLabel || CTA_BY_STATUS[status] || 'Ver detalle';
-  const fieldPriceLabel = formatMoneyAr(challenge?.field_price);
+  const fieldPriceLabel = formatMoneyAr(challenge?.cancha_cost ?? challenge?.field_price);
   const statusClass = STATUS_BADGE_CLASS[status] || 'text-white/90 bg-white/10 border-white/20';
 
   return (
@@ -134,7 +134,7 @@ const ChallengeCard = ({
           <CalendarClock size={12} /> {formatChallengeDate(challenge?.scheduled_at)}
         </span>
         <span className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2 py-1 bg-white/5">
-          <MapPin size={12} /> {challenge?.location_name || 'A coordinar'}
+          <MapPin size={12} /> {challenge?.location || challenge?.location_name || 'A coordinar'}
         </span>
         <span className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2 py-1 bg-white/5">
           {fieldPriceLabel ? `Cancha ${fieldPriceLabel}` : 'Cancha: a coordinar'}

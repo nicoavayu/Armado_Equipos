@@ -25,8 +25,11 @@ const CHALLENGE_SELECT_BASE = `
   accepted_team_id,
   accepted_by_user_id,
   scheduled_at,
+  mode,
+  location,
   location_name,
   location_place_id,
+  cancha_cost,
   format,
   skill_level,
   notes,
@@ -44,8 +47,11 @@ const CHALLENGE_SELECT_WITH_PRICING = `
   accepted_team_id,
   accepted_by_user_id,
   scheduled_at,
+  mode,
+  location,
   location_name,
   location_place_id,
+  cancha_cost,
   format,
   skill_level,
   price_per_team,
@@ -128,6 +134,34 @@ const TEAM_CHAT_MESSAGE_SELECT = `
   created_at
 `;
 
+const TEAM_MATCH_SELECT = `
+  id,
+  origin_type,
+  challenge_id,
+  team_a_id,
+  team_b_id,
+  format,
+  mode,
+  scheduled_at,
+  played_at,
+  location,
+  location_name,
+  cancha_cost,
+  score_a,
+  score_b,
+  status,
+  is_format_combined,
+  created_at,
+  updated_at,
+  team_a:teams!team_matches_team_a_id_fkey(${TEAM_SELECT}),
+  team_b:teams!team_matches_team_b_id_fkey(${TEAM_SELECT}),
+  challenge:challenges!team_matches_challenge_id_fkey(
+    id,
+    format,
+    status
+  )
+`;
+
 const SKILL_TO_LEGACY_TIER = {
   sin_definir: 'sin_definir',
   inicial: 'tranqui',
@@ -186,6 +220,17 @@ const CHALLENGE_STATUS_ALIASES = {
   cancelado: 'canceled',
  };
 
+const TEAM_MATCH_STATUS_ALIASES = {
+  pending: 'pending',
+  confirmado: 'confirmed',
+  confirmed: 'confirmed',
+  played: 'played',
+  jugado: 'played',
+  canceled: 'cancelled',
+  cancelled: 'cancelled',
+  cancelado: 'cancelled',
+};
+
 const uniqueValues = (values) => Array.from(new Set(values.filter(Boolean)));
 
 const normalizeMessage = (error) => String(error?.message || error?.details || '').toLowerCase();
@@ -226,14 +271,32 @@ const normalizeChallengeStatus = (value) => {
   return CHALLENGE_STATUS_ALIASES[normalized] || normalized;
 };
 
+const normalizeTeamMatchStatus = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return 'pending';
+  return TEAM_MATCH_STATUS_ALIASES[normalized] || normalized;
+};
+
 const withChallengeCompatibility = (row) => ({
   ...row,
   status: normalizeChallengeStatus(row?.status),
+  mode: row?.mode ?? null,
+  location: row?.location ?? row?.location_name ?? null,
+  cancha_cost: row?.cancha_cost ?? row?.field_price ?? null,
   price_per_team: row?.price_per_team ?? null,
   field_price: row?.field_price ?? null,
 });
 
-const upsertChallengeAcceptedNotifications = async ({
+const withTeamMatchCompatibility = (row) => ({
+  ...row,
+  status: normalizeTeamMatchStatus(row?.status),
+  origin_type: row?.origin_type || (row?.challenge_id ? 'challenge' : 'individual'),
+  location: row?.location ?? row?.location_name ?? null,
+  cancha_cost: row?.cancha_cost ?? null,
+  is_format_combined: Boolean(row?.is_format_combined),
+});
+
+export const upsertChallengeAcceptedNotifications = async ({
   challenge,
   currentUserId = null,
   acceptedTeamName = '',
@@ -1074,10 +1137,13 @@ export const createChallenge = async (userId, payload) => {
       challenger_team_id: payload.challenger_team_id,
       status: 'open',
       scheduled_at: payload.scheduled_at || null,
+      mode: payload.mode || null,
+      location: payload.location || payload.location_name || null,
       location_name: payload.location_name || null,
       location_place_id: payload.location_place_id || null,
       format: Number(payload.format),
       skill_level: skillCandidate,
+      cancha_cost: payload.cancha_cost ?? payload.field_price ?? null,
       field_price: payload.field_price ?? null,
       notes: payload.notes || null,
     };
@@ -1135,7 +1201,7 @@ export const cancelChallenge = async (challengeId) => {
   return withChallengeCompatibility(unwrapSingle(response, 'No se pudo cancelar el desafio'));
 };
 
-export const acceptChallenge = async (challengeId, acceptedTeamId, options = {}) => {
+export const acceptChallenge = async (challengeId, acceptedTeamId, _options = {}) => {
   const response = await supabase.rpc('rpc_accept_challenge', {
     p_challenge_id: challengeId,
     p_accepted_team_id: acceptedTeamId,
@@ -1145,13 +1211,13 @@ export const acceptChallenge = async (challengeId, acceptedTeamId, options = {})
     throw new Error(response.error.message || 'No se pudo aceptar el desafio');
   }
 
+  const rpcRow = Array.isArray(response.data) ? response.data[0] : response.data;
+  const matchId = rpcRow?.match_id || rpcRow?.matchId || null;
   const challenge = await getChallengeById(challengeId);
-  await upsertChallengeAcceptedNotifications({
+  return {
     challenge,
-    currentUserId: options?.currentUserId || null,
-    acceptedTeamName: options?.acceptedTeamName || '',
-  });
-  return challenge;
+    matchId,
+  };
 };
 
 export const confirmChallenge = async (challengeId) => {
@@ -1203,6 +1269,215 @@ export const getChallengeById = async (challengeId) => {
   return withChallengeCompatibility(unwrapSingle(response, 'No se pudo cargar el desafio'));
 };
 
+const resolveUserAdminTeamIds = async ({ userId, teamIds, teamRows = [] }) => {
+  const adminTeamIds = new Set(
+    (teamRows || [])
+      .filter((team) => String(team?.owner_user_id || '') === String(userId || ''))
+      .map((team) => team.id)
+      .filter(Boolean),
+  );
+
+  if (!userId || !Array.isArray(teamIds) || teamIds.length === 0) {
+    return adminTeamIds;
+  }
+
+  let response = await supabase
+    .from('team_members')
+    .select('team_id, permissions_role')
+    .in('team_id', teamIds)
+    .eq('user_id', userId);
+
+  if (response.error && isMissingColumnError(response.error, 'user_id')) {
+    const jugadoresResponse = await supabase
+      .from('jugadores')
+      .select('id')
+      .eq('usuario_id', userId);
+
+    if (jugadoresResponse.error) {
+      throw new Error(jugadoresResponse.error.message || 'No se pudieron cargar tus jugadores');
+    }
+
+    const jugadorIds = (jugadoresResponse.data || []).map((row) => row?.id).filter(Boolean);
+    if (jugadorIds.length > 0) {
+      response = await supabase
+        .from('team_members')
+        .select('team_id, permissions_role')
+        .in('team_id', teamIds)
+        .in('jugador_id', jugadorIds);
+    } else {
+      response = { data: [], error: null };
+    }
+  }
+
+  if (response.error && isMissingColumnError(response.error, 'permissions_role')) {
+    response = { data: response.data || [], error: null };
+  }
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudieron cargar tus permisos de equipos');
+  }
+
+  (response.data || []).forEach((row) => {
+    const role = String(row?.permissions_role || '').toLowerCase();
+    if (role === 'owner' || role === 'admin') {
+      adminTeamIds.add(row.team_id);
+    }
+  });
+
+  return adminTeamIds;
+};
+
+export const getTeamMatchById = async (matchId) => {
+  if (!matchId) throw new Error('Partido invalido');
+
+  const response = await supabase
+    .from('team_matches')
+    .select(TEAM_MATCH_SELECT)
+    .eq('id', matchId)
+    .single();
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudo cargar el partido');
+  }
+
+  return withTeamMatchCompatibility(response.data);
+};
+
+export const getTeamMatchByChallengeId = async (challengeId) => {
+  if (!challengeId) return null;
+
+  const response = await supabase
+    .from('team_matches')
+    .select(TEAM_MATCH_SELECT)
+    .eq('challenge_id', challengeId)
+    .maybeSingle();
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudo cargar el partido del desafio');
+  }
+
+  if (!response.data) return null;
+  return withTeamMatchCompatibility(response.data);
+};
+
+export const canManageTeamMatch = async (matchId) => {
+  if (!matchId) return false;
+
+  const response = await supabase.rpc('rpc_can_manage_team_match', {
+    p_match_id: matchId,
+  });
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudo validar permisos del partido');
+  }
+
+  return Boolean(response.data);
+};
+
+export const updateTeamMatchDetails = async ({
+  matchId,
+  scheduledAt = null,
+  location = null,
+  canchaCost = null,
+  mode = null,
+}) => {
+  if (!matchId) throw new Error('Partido invalido');
+
+  const response = await supabase.rpc('rpc_update_team_match_details', {
+    p_match_id: matchId,
+    p_scheduled_at: scheduledAt,
+    p_location: location,
+    p_cancha_cost: canchaCost,
+    p_mode: mode,
+  });
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudo actualizar el partido');
+  }
+
+  return withTeamMatchCompatibility(response.data);
+};
+
+export const cancelTeamMatch = async (matchId) => {
+  if (!matchId) throw new Error('Partido invalido');
+
+  const response = await supabase.rpc('rpc_cancel_team_match', {
+    p_match_id: matchId,
+  });
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudo cancelar el partido');
+  }
+
+  return withTeamMatchCompatibility(response.data);
+};
+
+export const listMyTeamMatches = async (userId, options = {}) => {
+  assertAuthenticatedUser(userId);
+
+  const statuses = Array.isArray(options?.statuses)
+    ? options.statuses.map((status) => normalizeTeamMatchStatus(status))
+    : ['pending', 'confirmed'];
+
+  const teams = await listAccessibleTeams(userId);
+  const teamIds = (teams || []).map((team) => team.id).filter(Boolean);
+  if (teamIds.length === 0) return [];
+
+  const queryByTeamColumn = async (columnName) => {
+    let query = supabase
+      .from('team_matches')
+      .select(TEAM_MATCH_SELECT)
+      .in(columnName, teamIds);
+
+    if (statuses.length > 0) {
+      query = query.in('status', statuses);
+    }
+
+    return query.order('scheduled_at', { ascending: true, nullsFirst: false });
+  };
+
+  const [asTeamA, asTeamB] = await Promise.all([
+    queryByTeamColumn('team_a_id'),
+    queryByTeamColumn('team_b_id'),
+  ]);
+
+  if (asTeamA.error && asTeamB.error) {
+    throw new Error(asTeamA.error.message || asTeamB.error.message || 'No se pudieron cargar tus partidos de equipos');
+  }
+
+  const mergedRows = [...(asTeamA.data || []), ...(asTeamB.data || [])];
+  const dedup = new Map();
+  mergedRows.forEach((row) => {
+    if (!row?.id) return;
+    dedup.set(row.id, withTeamMatchCompatibility(row));
+  });
+
+  const adminTeamIds = await resolveUserAdminTeamIds({
+    userId,
+    teamIds,
+    teamRows: teams,
+  });
+
+  return Array.from(dedup.values())
+    .map((match) => {
+      const canManage = adminTeamIds.has(match?.team_a_id)
+        || adminTeamIds.has(match?.team_b_id)
+        || String(match?.team_a?.owner_user_id || '') === String(userId)
+        || String(match?.team_b?.owner_user_id || '') === String(userId);
+
+      return {
+        ...match,
+        canManage,
+      };
+    })
+    .sort((a, b) => {
+      const timeA = a?.scheduled_at ? new Date(a.scheduled_at).getTime() : Number.MAX_SAFE_INTEGER;
+      const timeB = b?.scheduled_at ? new Date(b.scheduled_at).getTime() : Number.MAX_SAFE_INTEGER;
+      if (timeA !== timeB) return timeA - timeB;
+      return new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime();
+    });
+};
+
 export const listTeamHistoryByRival = async (teamId) => {
   const response = await supabase.rpc('rpc_team_history_by_rival', {
     p_team_id: teamId,
@@ -1246,6 +1521,7 @@ export const listTeamMatchHistory = async (teamId) => {
       team_a_id,
       team_b_id,
       played_at,
+      location,
       location_name,
       score_a,
       score_b,
@@ -1274,7 +1550,7 @@ export const listTeamMatchHistory = async (teamId) => {
       id: row.id,
       playedAt: row.played_at || null,
       createdAt: row.created_at || null,
-      locationName: row.location_name || null,
+      locationName: row.location || row.location_name || null,
       scoreFor: goalsFor,
       scoreAgainst: goalsAgainst,
       result,

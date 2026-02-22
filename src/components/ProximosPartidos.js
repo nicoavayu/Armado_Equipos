@@ -5,6 +5,7 @@ import { useInterval } from '../hooks/useInterval';
 import { supabase } from '../supabase';
 import { clearMatchFromList } from '../services/matchFinishService';
 import { cancelPartidoWithNotification } from '../services/db/matches';
+import { cancelTeamMatch, listMyTeamMatches } from '../services/db/teamChallenges';
 import { parseLocalDateTime, formatLocalDateShort } from '../utils/dateLocal';
 import { canAbandonWithoutPenalty, incrementMatchesAbandoned } from '../utils/matchStatsManager';
 import LoadingSpinner from './LoadingSpinner';
@@ -14,6 +15,21 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 import MatchCard from './MatchCard';
 
+const toLocalDateParts = (isoValue) => {
+  if (!isoValue) return { fecha: null, hora: null };
+  const parsed = new Date(isoValue);
+  if (Number.isNaN(parsed.getTime())) return { fecha: null, hora: null };
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  const hour = String(parsed.getHours()).padStart(2, '0');
+  const minute = String(parsed.getMinutes()).padStart(2, '0');
+  return {
+    fecha: `${year}-${month}-${day}`,
+    hora: `${hour}:${minute}`,
+  };
+};
+
 const ProximosPartidos = ({ onClose }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -21,8 +37,8 @@ const ProximosPartidos = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   // Always sort by temporal proximity (soonest first)
   const [_clearedMatches, setClearedMatches] = useState(new Set());
-  const [completedSurveys, setCompletedSurveys] = useState(new Set());
-  const [userJugadorIds, setUserJugadorIds] = useState([]);
+  const [_completedSurveys, setCompletedSurveys] = useState(new Set());
+  const [_userJugadorIds, setUserJugadorIds] = useState([]);
   const [userJugadorIdByMatch, setUserJugadorIdByMatch] = useState({});
 
   const [menuOpenId, setMenuOpenId] = useState(null);
@@ -104,12 +120,6 @@ const ProximosPartidos = ({ onClose }) => {
       const todosLosPartidosIds = Array.from(new Set([...partidosComoJugador, ...partidosAdminIds]))
         .filter((id) => id != null);
 
-      if (todosLosPartidosIds.length === 0) {
-        setPartidos([]);
-        setLoading(false);
-        return;
-      }
-
       // Get cleared matches for this user
       let clearedMatchIds = new Set();
       try {
@@ -175,17 +185,21 @@ const ProximosPartidos = ({ onClose }) => {
         console.error('Error fetching completed surveys:', error);
       }
 
-      const { data: partidosData, error: partidosError } = await supabase
-        .from('partidos')
-        .select(`
-          *,
-          jugadores(is_substitute)
-        `)
-        .in('id', todosLosPartidosIds)
-        .order('fecha', { ascending: true })
-        .order('hora', { ascending: true });
+      let partidosData = [];
+      if (todosLosPartidosIds.length > 0) {
+        const legacyMatchesResponse = await supabase
+          .from('partidos')
+          .select(`
+            *,
+            jugadores(is_substitute)
+          `)
+          .in('id', todosLosPartidosIds)
+          .order('fecha', { ascending: true })
+          .order('hora', { ascending: true });
 
-      if (partidosError) throw partidosError;
+        if (legacyMatchesResponse.error) throw legacyMatchesResponse.error;
+        partidosData = legacyMatchesResponse.data || [];
+      }
 
       console.log('[PROXIMOS] Fetched matches IDs:', todosLosPartidosIds);
       console.log('[PROXIMOS] Returned matches from DB:', partidosData?.length);
@@ -229,7 +243,37 @@ const ProximosPartidos = ({ onClose }) => {
         hasCompletedSurvey: localCompletedSurveys.has(String(partido.id)),
       }));
 
-      setPartidos(partidosEnriquecidos);
+      const teamMatches = await listMyTeamMatches(user.id, {
+        statuses: ['pending', 'confirmed'],
+      });
+
+      const teamMatchesEnriquecidos = (teamMatches || []).map((match) => {
+        const { fecha, hora } = toLocalDateParts(match?.scheduled_at);
+        return {
+          id: match.id,
+          team_match_id: match.id,
+          source_type: 'team_match',
+          origin_type: match.origin_type || 'challenge',
+          challenge_id: match.challenge_id || null,
+          modalidad: `F${match?.format || '-'}`,
+          tipo_partido: match?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso',
+          fecha,
+          hora,
+          scheduled_at: match?.scheduled_at || null,
+          sede: match?.location || 'Cancha: a coordinar',
+          precio_cancha_por_persona: match?.cancha_cost ?? null,
+          team_a: match?.team_a || null,
+          team_b: match?.team_b || null,
+          userRole: match?.canManage ? 'admin' : 'player',
+          userJoined: true,
+          hasCompletedSurvey: false,
+          can_manage: Boolean(match?.canManage),
+          team_match_status: match?.status || 'pending',
+          is_format_combined: Boolean(match?.is_format_combined),
+        };
+      });
+
+      setPartidos([...partidosEnriquecidos, ...teamMatchesEnriquecidos]);
 
     } catch (error) {
       console.error('Error fetching matches:', error);
@@ -240,6 +284,10 @@ const ProximosPartidos = ({ onClose }) => {
 
   const _handleMatchClick = (partido) => {
     onClose();
+    if (partido?.source_type === 'team_match') {
+      navigate(`/quiero-jugar/equipos/partidos/${partido.team_match_id || partido.id}`);
+      return;
+    }
     navigate(`/admin/${partido.id}`);
   };
 
@@ -251,6 +299,7 @@ const ProximosPartidos = ({ onClose }) => {
   };
 
   const handleAbandonMatch = (partido) => {
+    if (partido?.source_type === 'team_match') return;
     if (partido?.userRole === 'admin') {
       console.info('Antes de abandonar, asigná el rol de admin a otro jugador.');
       return;
@@ -284,8 +333,11 @@ const ProximosPartidos = ({ onClose }) => {
     try {
       if (actionType === 'cancel') {
         setProcessingDeleteId(partidoTarget.id);
-
-        await cancelPartidoWithNotification(partidoTarget.id, 'Partido cancelado por el administrador');
+        if (partidoTarget?.source_type === 'team_match') {
+          await cancelTeamMatch(partidoTarget.team_match_id || partidoTarget.id);
+        } else {
+          await cancelPartidoWithNotification(partidoTarget.id, 'Partido cancelado por el administrador');
+        }
 
         console.info('Partido cancelado');
 
@@ -356,6 +408,12 @@ const ProximosPartidos = ({ onClose }) => {
   };
 
   const isMatchFinished = (partido) => {
+    if (partido?.source_type === 'team_match') {
+      const status = String(partido?.team_match_status || '').toLowerCase();
+      if (status === 'played') return true;
+      return false;
+    }
+
     if (!partido.fecha || !partido.hora) return false;
 
     try {
@@ -373,6 +431,10 @@ const ProximosPartidos = ({ onClose }) => {
   const formatDate = (dateString) => formatLocalDateShort(dateString);
 
   const getPrimaryCta = (partido) => {
+    if (partido?.source_type === 'team_match') {
+      return { label: 'Ver partido', kind: 'details', disabled: false, onClick: () => _handleMatchClick(partido) };
+    }
+
     const matchFinished = isMatchFinished(partido);
     const joined = !!partido.userJoined;
     const completed = !!partido.hasCompletedSurvey;
@@ -413,10 +475,14 @@ const ProximosPartidos = ({ onClose }) => {
     const partidosCopy = [...partidos];
     // Sort by temporal proximity (earliest upcoming first)
     return partidosCopy.sort((a, b) => {
-      const dateA = parseLocalDateTime(a.fecha, a.hora);
-      const dateB = parseLocalDateTime(b.fecha, b.hora);
-      const ta = dateA ? dateA.getTime() : 0;
-      const tb = dateB ? dateB.getTime() : 0;
+      const dateA = a?.source_type === 'team_match'
+        ? (a?.scheduled_at ? new Date(a.scheduled_at) : null)
+        : parseLocalDateTime(a.fecha, a.hora);
+      const dateB = b?.source_type === 'team_match'
+        ? (b?.scheduled_at ? new Date(b.scheduled_at) : null)
+        : parseLocalDateTime(b.fecha, b.hora);
+      const ta = dateA && !Number.isNaN(dateA.getTime()) ? dateA.getTime() : Number.MAX_SAFE_INTEGER;
+      const tb = dateB && !Number.isNaN(dateB.getTime()) ? dateB.getTime() : Number.MAX_SAFE_INTEGER;
       return ta - tb;
     });
   };
@@ -449,16 +515,16 @@ const ProximosPartidos = ({ onClose }) => {
                     key={partido.id}
                     partido={{
                       ...partido,
-                      fecha_display: formatDate(partido.fecha)
+                      fecha_display: partido?.fecha ? formatDate(partido.fecha) : 'A coordinar',
                     }}
                     isFinished={matchFinished}
                     userRole={partido.userRole}
                     userJoined={partido.userJoined}
                     onMenuToggle={(id) => setMenuOpenId((prev) => prev === id ? null : id)}
                     isMenuOpen={menuOpenId === partido.id}
-                    onAbandon={handleAbandonMatch}
-                    onCancel={handleCancelMatch}
-                    onClear={_handleClearMatch}
+                    onAbandon={partido?.source_type === 'team_match' ? null : handleAbandonMatch}
+                    onCancel={partido?.source_type === 'team_match' ? (partido?.can_manage ? handleCancelMatch : null) : handleCancelMatch}
+                    onClear={partido?.source_type === 'team_match' ? null : _handleClearMatch}
                     primaryAction={{
                       label: primaryCta.label,
                       disabled: primaryCta.disabled,
@@ -487,11 +553,13 @@ const ProximosPartidos = ({ onClose }) => {
         }
         message={
           actionType === 'cancel'
-            ? <>
-              Este partido se cancelará definitivamente.<br />
-              Todos los jugadores serán notificados de que el administrador canceló el partido.<br />
-              Esta acción no se puede deshacer.
-            </>
+            ? partidoTarget?.source_type === 'team_match'
+              ? 'Este partido de equipos se cancelará y dejará de mostrarse en Mis partidos.'
+              : <>
+                Este partido se cancelará definitivamente.<br />
+                Todos los jugadores serán notificados de que el administrador canceló el partido.<br />
+                Esta acción no se puede deshacer.
+              </>
             : actionType === 'clean'
               ? '¿Estás seguro de que deseas limpiar este partido de tu lista? Podrás volver a verlo en "Partidos finalizados".'
               : actionType === 'abandon'
