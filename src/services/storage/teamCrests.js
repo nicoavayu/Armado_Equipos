@@ -38,3 +38,32 @@ export const uploadTeamCrest = async ({ file, userId, teamId }) => {
 
   return data.publicUrl;
 };
+
+export const uploadTeamMemberPhoto = async ({ file, userId, teamId, memberId = 'draft' }) => {
+  if (!file) throw new Error('No hay archivo para subir');
+  if (!userId) throw new Error('Usuario no autenticado');
+
+  const safeName = sanitizeFileName(file.name || 'member-photo.png');
+  const path = `${userId}/${teamId || 'team'}/members/${memberId}/${Date.now()}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('team-crests')
+    .upload(path, file, {
+      upsert: true,
+      cacheControl: '3600',
+    });
+
+  if (uploadError) {
+    throw new Error(uploadError.message || 'No se pudo subir la foto del jugador');
+  }
+
+  const { data } = supabase.storage
+    .from('team-crests')
+    .getPublicUrl(path);
+
+  if (!data?.publicUrl) {
+    throw new Error('No se pudo obtener la URL publica de la foto del jugador');
+  }
+
+  return data.publicUrl;
+};

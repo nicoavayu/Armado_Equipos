@@ -192,6 +192,7 @@ export const listTeamMembers = async (teamId) => {
       role,
       is_captain,
       shirt_number,
+      photo_url,
       created_at,
       jugador:jugadores!team_members_jugador_id_fkey(
         id,
@@ -212,7 +213,7 @@ export const listTeamMembers = async (teamId) => {
   return response.data || [];
 };
 
-export const addTeamMember = async ({ teamId, jugadorId, role = 'player', isCaptain = false, shirtNumber = null }) => {
+export const addTeamMember = async ({ teamId, jugadorId, role = 'player', isCaptain = false, shirtNumber = null, photoUrl = null }) => {
   const response = await supabase
     .from('team_members')
     .insert({
@@ -221,6 +222,7 @@ export const addTeamMember = async ({ teamId, jugadorId, role = 'player', isCapt
       role,
       is_captain: Boolean(isCaptain),
       shirt_number: shirtNumber,
+      photo_url: photoUrl,
     })
     .select('id')
     .single();
@@ -229,13 +231,16 @@ export const addTeamMember = async ({ teamId, jugadorId, role = 'player', isCapt
 };
 
 export const updateTeamMember = async (memberId, updates) => {
+  const payload = {};
+
+  if ('role' in updates) payload.role = updates.role;
+  if ('is_captain' in updates) payload.is_captain = Boolean(updates.is_captain);
+  if ('shirt_number' in updates) payload.shirt_number = updates.shirt_number;
+  if ('photo_url' in updates) payload.photo_url = updates.photo_url || null;
+
   const response = await supabase
     .from('team_members')
-    .update({
-      role: updates.role,
-      is_captain: Boolean(updates.is_captain),
-      shirt_number: updates.shirt_number,
-    })
+    .update(payload)
     .eq('id', memberId)
     .select('id')
     .single();
