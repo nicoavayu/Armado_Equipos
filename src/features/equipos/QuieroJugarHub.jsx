@@ -26,7 +26,7 @@ const QuieroJugarHub = () => {
     <>
       <div
         className="fixed left-0 right-0 z-[950] px-4"
-        style={{ top: 'calc(var(--safe-top, 0px) + 132px)' }}
+        style={{ top: '86px' }}
       >
         <div className="w-full max-w-[560px] mx-auto rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl p-1 grid grid-cols-2 gap-1">
           {TOP_TABS.map((tab) => (
