@@ -4,7 +4,6 @@ import { CalendarClock, Flag, Lock, MapPin, Shield } from 'lucide-react';
 import PageTitle from '../components/PageTitle';
 import PageTransition from '../components/PageTransition';
 import Button from '../components/Button';
-import InlineNotice from '../components/ui/InlineNotice';
 import LocationAutocomplete from '../features/equipos/components/LocationAutocomplete';
 import { getTeamGradientStyle } from '../features/equipos/utils/teamColors';
 import {
@@ -103,7 +102,6 @@ const TeamMatchDetailPage = () => {
   const [scheduledAtInput, setScheduledAtInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
   const [canchaCostInput, setCanchaCostInput] = useState('');
-  const [inlineNotice, setInlineNotice] = useState({ type: '', message: '' });
 
   const syncFormWithMatch = useCallback((nextMatch) => {
     setScheduledAtInput(toDateTimeLocalValue(nextMatch?.scheduled_at));
@@ -184,10 +182,6 @@ const TeamMatchDetailPage = () => {
 
       setMatch(nextMatch);
       syncFormWithMatch(nextMatch);
-      setInlineNotice({
-        type: 'success',
-        message: 'Partido actualizado.',
-      });
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo actualizar el partido');
     } finally {
@@ -206,10 +200,6 @@ const TeamMatchDetailPage = () => {
       const nextMatch = cancelled?.id ? { ...match, ...cancelled } : cancelled;
       setMatch(nextMatch);
       syncFormWithMatch(nextMatch);
-      setInlineNotice({
-        type: 'info',
-        message: 'Partido cancelado.',
-      });
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo cancelar el partido');
     } finally {
@@ -225,12 +215,6 @@ const TeamMatchDetailPage = () => {
 
       <div className="w-full flex justify-center px-4 pt-[108px] pb-8">
         <div className="w-full max-w-[560px] space-y-3">
-          <InlineNotice
-            type={inlineNotice.type}
-            message={inlineNotice.message}
-            onClose={() => setInlineNotice({ type: '', message: '' })}
-          />
-
           {loading ? (
             <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
               Cargando partido...
@@ -256,17 +240,7 @@ const TeamMatchDetailPage = () => {
                   <span className="inline-flex items-center rounded-lg border border-[#9ED3FF]/40 bg-[#128BE9]/20 px-2 py-1 text-[11px] text-[#D4EBFF] font-oswald uppercase tracking-wide">
                     F{match?.format || '-'}
                   </span>
-                  {match?.is_format_combined ? (
-                    <span className="inline-flex items-center rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white/75 font-oswald uppercase tracking-wide">
-                      Formato combinado
-                    </span>
-                  ) : null}
                 </div>
-                {match?.is_format_combined ? (
-                  <p className="mb-3 text-[12px] leading-snug text-white/60 font-oswald">
-                    Se juega en formato F{match?.format || '-'} aunque los equipos tengan formato distinto.
-                  </p>
-                ) : null}
 
                 <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-2 sm:items-center">
                   <TeamCardLocked team={match?.team_a} fallbackName="Equipo A" />

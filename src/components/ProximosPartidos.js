@@ -249,6 +249,11 @@ const ProximosPartidos = ({ onClose }) => {
 
       const teamMatchesEnriquecidos = (teamMatches || []).map((match) => {
         const { fecha, hora } = toLocalDateParts(match?.scheduled_at);
+        const formatNumber = Number(match?.format);
+        const expectedPlayers = Number.isFinite(formatNumber) && formatNumber > 0
+          ? formatNumber * 2
+          : null;
+
         return {
           id: match.id,
           team_match_id: match.id,
@@ -256,12 +261,14 @@ const ProximosPartidos = ({ onClose }) => {
           origin_type: match.origin_type || 'challenge',
           challenge_id: match.challenge_id || null,
           modalidad: `F${match?.format || '-'}`,
-          tipo_partido: match?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso',
+          origin_badge: match?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso',
+          genero_partido: String(match?.mode || '').trim() || 'Sin genero',
           fecha,
           hora,
           scheduled_at: match?.scheduled_at || null,
-          sede: match?.location || 'Cancha: a coordinar',
+          sede: match?.location || match?.location_name || '',
           precio_cancha_por_persona: match?.cancha_cost ?? null,
+          cupo_jugadores: expectedPlayers,
           team_a: match?.team_a || null,
           team_b: match?.team_b || null,
           userRole: match?.canManage ? 'admin' : 'player',

@@ -12,13 +12,20 @@ const getModalidadClass = (modalidad) => {
     return 'bg-slate-700 border-2 border-[#4CAF50]';
 };
 
-const getTipoClass = (tipo) => {
+const getGeneroClass = (tipo) => {
     if (!tipo) return 'bg-slate-700 border-2 border-[#2196F3]';
     const tipoLower = String(tipo).toLowerCase();
     if (tipoLower.includes('masculino')) return 'bg-slate-700 border-2 border-[#2196F3]';
     if (tipoLower.includes('femenino')) return 'bg-slate-700 border-2 border-[#E91E63]';
     if (tipoLower.includes('mixto')) return 'bg-slate-700 border-2 border-[#FFC107]';
     return 'bg-slate-700 border-2 border-[#2196F3]';
+};
+
+const getOriginClass = (originLabel) => {
+    const value = String(originLabel || '').toLowerCase();
+    if (value.includes('desafio')) return 'bg-[#334155] border border-[#64748B] text-white';
+    if (value.includes('amistoso')) return 'bg-[#1f2937] border border-[#4b5563] text-white/95';
+    return 'bg-[#334155] border border-[#64748B] text-white';
 };
 
 const MatchCard = ({
@@ -38,6 +45,12 @@ const MatchCard = ({
     const MAX_SUBSTITUTE_SLOTS = 4;
     const isTeamMatch = partido?.source_type === 'team_match';
     const showMenu = (userJoined || userRole === 'admin' || isFinished) && (onAbandon || onCancel || onClear);
+    const isChallengeTeamMatch = isTeamMatch && String(partido?.origin_type || '').toLowerCase() === 'challenge';
+    const cardToneClass = isTeamMatch
+        ? (isChallengeTeamMatch
+            ? 'bg-[#222b46]/78 border-[#334155]'
+            : 'bg-[#1f2942]/72 border-slate-800')
+        : 'bg-[#1e293b]/70 border-slate-800';
 
     const precioRaw = (partido?.precio_cancha_por_persona ?? partido?.precio_cancha ?? partido?.precio ?? partido?.valor_cancha);
     let precioNumber = null;
@@ -47,7 +60,7 @@ const MatchCard = ({
     }
     const precioLabel = (precioNumber !== null && precioNumber > 0)
         ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(precioNumber)
-        : (isTeamMatch ? 'Cancha: a coordinar' : 'Sin precio');
+        : 'Sin precio';
     const cupoMaximo = Number(partido.cupo_jugadores || 20);
     const jugadores = Array.isArray(partido.jugadores) ? partido.jugadores : [];
     const jugadoresCount = typeof jugadores?.[0]?.count === 'number' ? jugadores[0].count : jugadores.length;
@@ -59,9 +72,17 @@ const MatchCard = ({
     const isComplete = titularesDisplayCount >= cupoMaximo;
     const dateLabel = partido?.fecha_display || partido?.fecha || 'A coordinar';
     const timeLabel = partido?.hora || '';
-    const originBadgeLabel = partido?.origin_type === 'challenge'
-        ? 'Desafio'
-        : (partido?.origin_type === 'individual' ? 'Amistoso' : null);
+    const originBadgeLabel = isTeamMatch
+        ? (partido?.origin_badge
+            || (partido?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso'))
+        : null;
+    const generoLabel = isTeamMatch
+        ? (partido?.genero_partido || 'Sin genero')
+        : (partido?.tipo_partido || 'Masculino');
+    const totalPlayersTarget = Number(partido?.cupo_jugadores);
+    const playersChipLabel = Number.isFinite(totalPlayersTarget) && totalPlayersTarget > 0
+        ? (isTeamMatch ? `${totalPlayersTarget} jugadores` : `${titularesDisplayCount}/${cupoMaximo}`)
+        : (isTeamMatch ? 'Sin cupo' : `${titularesDisplayCount}/${cupoMaximo}`);
     const teamsLabel = partido?.team_a?.name && partido?.team_b?.name
         ? `${partido.team_a.name} vs ${partido.team_b.name}`
         : null;
@@ -69,8 +90,8 @@ const MatchCard = ({
     return (
         <div
             onClick={onSelect}
-            className={`relative bg-[#1e293b]/70 backdrop-blur-sm rounded-2xl p-5 mb-3 min-h-[150px] border transition-all duration-300 shadow-xl sm:p-4 cursor-pointer
-      ${isFinished ? 'border-slate-800' : 'border-slate-800'}
+            className={`relative ${cardToneClass} backdrop-blur-sm rounded-2xl p-5 mb-3 min-h-[150px] border transition-all duration-300 shadow-xl sm:p-4 cursor-pointer
+      ${isFinished ? 'border-slate-800' : ''}
       ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/50 scale-[1.02]' : 'hover:-translate-y-[1px] hover:shadow-2xl hover:border-slate-700'}
       ${primaryAction ? '' : 'active:scale-95'}
     `}
@@ -156,42 +177,34 @@ const MatchCard = ({
                 <div className={`font-oswald text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getModalidadClass(partido.modalidad)} ${isFinished ? 'opacity-70' : ''}`}>
                     {partido.modalidad || 'F5'}
                 </div>
-                {isTeamMatch && originBadgeLabel ? (
-                    <div className={`font-oswald text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getTipoClass(partido.tipo_partido)} ${isFinished ? 'opacity-70' : ''}`}>
+                {originBadgeLabel ? (
+                    <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-lg shrink-0 whitespace-nowrap ${getOriginClass(originBadgeLabel)} ${isFinished ? 'opacity-70' : ''}`}>
                         {originBadgeLabel}
                     </div>
-                ) : (
-                    <div className={`font-oswald text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getTipoClass(partido.tipo_partido)} ${isFinished ? 'opacity-70' : ''}`}>
-                        {partido.tipo_partido || 'Masculino'}
-                    </div>
-                )}
+                ) : null}
+                <div className={`font-oswald text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getGeneroClass(generoLabel)} ${isFinished ? 'opacity-70' : ''}`}>
+                    {generoLabel}
+                </div>
                 <div className={`font-oswald text-[11px] font-semibold text-slate-200 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 shrink-0 whitespace-nowrap ${isFinished ? 'opacity-70' : ''}`}>
                     {precioLabel}
                 </div>
-                {!isTeamMatch ? (
-                    <div className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 whitespace-nowrap ${isComplete
+                <div className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 whitespace-nowrap ${!isTeamMatch && isComplete
                         ? 'bg-[#165a2e] text-[#22c55e] border border-[#22c55e]'
                         : 'bg-slate-900 text-slate-300 border border-slate-700'
                         } ${isFinished ? 'opacity-70' : ''}`}>
-                        <span className="inline-flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="currentColor">
-                                <path d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z" />
-                            </svg>
-                            {titularesDisplayCount}/{cupoMaximo}
-                        </span>
-                    </div>
-                ) : null}
+                    <span className="inline-flex items-center gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="12" height="12" fill="currentColor">
+                            <path d="M320 312C386.3 312 440 258.3 440 192C440 125.7 386.3 72 320 72C253.7 72 200 125.7 200 192C200 258.3 253.7 312 320 312zM290.3 368C191.8 368 112 447.8 112 546.3C112 562.7 125.3 576 141.7 576L498.3 576C514.7 576 528 562.7 528 546.3C528 447.8 448.2 368 349.7 368L290.3 368z" />
+                        </svg>
+                        {playersChipLabel}
+                    </span>
+                </div>
                 {!isTeamMatch && substitutesCount > 0 ? (
                     <div className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 whitespace-nowrap border border-amber-400/30 bg-amber-500/10 text-amber-300 ${isFinished ? 'opacity-70' : ''}`}>
                         <span className="inline-flex items-center gap-1">
                             <UserRoundPlus size={12} />
                             {substitutesCount}/{MAX_SUBSTITUTE_SLOTS}
                         </span>
-                    </div>
-                ) : null}
-                {isTeamMatch && partido?.is_format_combined ? (
-                    <div className={`font-oswald text-[11px] font-semibold text-white/80 px-2.5 py-1.5 rounded-lg border border-white/20 bg-white/10 shrink-0 whitespace-nowrap ${isFinished ? 'opacity-70' : ''}`}>
-                        Formato combinado
                     </div>
                 ) : null}
             </div>
@@ -207,7 +220,7 @@ const MatchCard = ({
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="16" height="16" fill="rgba(255, 255, 255, 0.9)">
                     <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z" />
                 </svg>
-                <span className="truncate">{isTeamMatch ? (partido.sede || 'Cancha: a coordinar') : partido.sede?.split(',')[0]}</span>
+                <span className="truncate">{isTeamMatch ? (partido.sede || 'A coordinar') : partido.sede?.split(',')[0]}</span>
             </div>
 
             {primaryAction && (
