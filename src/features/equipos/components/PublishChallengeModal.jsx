@@ -32,7 +32,6 @@ const PublishChallengeModal = ({
   const [scheduledAtLocal, setScheduledAtLocal] = useState('');
   const [locationName, setLocationName] = useState('');
   const [notes, setNotes] = useState('');
-  const [pricePerTeam, setPricePerTeam] = useState('');
   const [fieldPrice, setFieldPrice] = useState('');
 
   useEffect(() => {
@@ -47,7 +46,6 @@ const PublishChallengeModal = ({
     setScheduledAtLocal('');
     setLocationName('');
     setNotes('');
-    setPricePerTeam('');
     setFieldPrice('');
   }, [isOpen, prefilledTeamId, teams]);
 
@@ -97,7 +95,6 @@ const PublishChallengeModal = ({
             skill_level: selectedTeam.skill_level,
             scheduled_at: scheduledAtLocal ? new Date(scheduledAtLocal).toISOString() : null,
             location_name: locationName.trim() || null,
-            price_per_team: parseOptionalAmount(pricePerTeam),
             field_price: parseOptionalAmount(fieldPrice),
             notes: notes.trim() || null,
           });
@@ -163,31 +160,17 @@ const PublishChallengeModal = ({
           </div>
         </label>
 
-        <div className="grid grid-cols-2 gap-3">
-          <label className="block">
-            <span className="text-xs text-white/80 uppercase tracking-wide">Precio por equipo (opcional)</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={pricePerTeam}
-              onChange={(event) => setPricePerTeam(sanitizeAmountInput(event.target.value))}
-              className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
-              placeholder="Ej: 12000"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-xs text-white/80 uppercase tracking-wide">Precio cancha (opcional)</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={fieldPrice}
-              onChange={(event) => setFieldPrice(sanitizeAmountInput(event.target.value))}
-              className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
-              placeholder="Ej: 24000"
-            />
-          </label>
-        </div>
+        <label className="block">
+          <span className="text-xs text-white/80 uppercase tracking-wide">Precio cancha (opcional)</span>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={fieldPrice}
+            onChange={(event) => setFieldPrice(sanitizeAmountInput(event.target.value))}
+            className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+            placeholder="Ej: 24000"
+          />
+        </label>
 
         <label className="block">
           <span className="text-xs text-white/80 uppercase tracking-wide">Notas (opcional)</span>

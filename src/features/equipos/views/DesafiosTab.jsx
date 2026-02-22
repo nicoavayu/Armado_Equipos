@@ -14,9 +14,10 @@ import {
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import EmptyStateCard from '../../../components/EmptyStateCard';
 import Button from '../../../components/Button';
-import { Flag } from 'lucide-react';
+import { Flag, Search } from 'lucide-react';
 
-const compactActionClass = 'w-auto px-3 h-9 rounded-xl text-xs font-oswald tracking-wide !normal-case';
+const publishActionClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide !normal-case';
+const filterFieldClass = 'h-10 rounded-lg bg-slate-900/80 border border-white/15 px-2.5 text-xs text-white outline-none focus:border-[#128BE9]';
 
 const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) => {
   const [loading, setLoading] = useState(true);
@@ -24,6 +25,7 @@ const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) =
   const [openChallenges, setOpenChallenges] = useState([]);
   const [myTeams, setMyTeams] = useState([]);
   const [filters, setFilters] = useState({ format: '', zone: '', skillLevel: '' });
+  const [showFilters, setShowFilters] = useState(true);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [acceptingChallenge, setAcceptingChallenge] = useState(null);
   const [selectedAcceptTeamId, setSelectedAcceptTeamId] = useState('');
@@ -73,6 +75,13 @@ const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) =
     [openChallenges],
   );
 
+  const activeFiltersCount = useMemo(() => (
+    [filters.format, filters.skillLevel, filters.zone]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+      .length
+  ), [filters]);
+
   const getAvailableTeamsForChallenge = (challenge) => myTeams.filter((team) => (
     team.format === challenge.format &&
     team.id !== challenge.challenger_team_id &&
@@ -81,44 +90,72 @@ const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) =
 
   return (
     <div className="w-full max-w-[560px] flex flex-col gap-3">
-      <div className="rounded-2xl border border-white/15 bg-white/5 p-3">
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <h3 className="text-white font-oswald text-lg">Marketplace de desafios</h3>
+      <div className="rounded-2xl border border-white/15 bg-[linear-gradient(135deg,rgba(47,58,113,0.5),rgba(31,40,84,0.42))] p-3">
+        <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
           <Button
             type="button"
             onClick={() => setShowPublishModal(true)}
-            className={compactActionClass}
+            className={publishActionClass}
           >
-            + Publicar desafio
+            Publicar desafio
           </Button>
+
+          <button
+            type="button"
+            onClick={() => setShowFilters((prev) => !prev)}
+            className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-[#9ED3FF]/35 bg-[#128BE9]/12 px-3 text-xs font-oswald text-[#D4EBFF] transition-all hover:bg-[#128BE9]/22"
+          >
+            <Search size={15} />
+            <span>Buscar</span>
+            {activeFiltersCount > 0 ? (
+              <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#128BE9] px-1 text-[10px] leading-none text-white">
+                {activeFiltersCount}
+              </span>
+            ) : null}
+          </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <select
-            value={filters.format}
-            onChange={(event) => setFilters((prev) => ({ ...prev, format: event.target.value }))}
-            className="rounded-lg bg-slate-900/80 border border-white/15 px-2 py-2 text-xs text-white"
-          >
-            <option value="">Formato</option>
-            {TEAM_FORMAT_OPTIONS.map((value) => <option key={value} value={value}>F{value}</option>)}
-          </select>
+        {showFilters ? (
+          <div className="mt-2.5 rounded-xl border border-white/12 bg-[#0f172a8f] p-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <select
+                value={filters.format}
+                onChange={(event) => setFilters((prev) => ({ ...prev, format: event.target.value }))}
+                className={filterFieldClass}
+              >
+                <option value="">Formato</option>
+                {TEAM_FORMAT_OPTIONS.map((value) => <option key={value} value={value}>F{value}</option>)}
+              </select>
 
-          <select
-            value={filters.skillLevel}
-            onChange={(event) => setFilters((prev) => ({ ...prev, skillLevel: event.target.value }))}
-            className="rounded-lg bg-slate-900/80 border border-white/15 px-2 py-2 text-xs text-white"
-          >
-            <option value="">Todos</option>
-            {TEAM_SKILL_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-          </select>
+              <select
+                value={filters.skillLevel}
+                onChange={(event) => setFilters((prev) => ({ ...prev, skillLevel: event.target.value }))}
+                className={filterFieldClass}
+              >
+                <option value="">Todos los niveles</option>
+                {TEAM_SKILL_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
 
-          <NeighborhoodAutocomplete
-            value={filters.zone}
-            onChange={(nextZone) => setFilters((prev) => ({ ...prev, zone: nextZone }))}
-            placeholder="Barrio"
-            inputClassName="rounded-lg bg-slate-900/80 border border-white/15 px-2 py-2 text-xs text-white w-full outline-none focus:border-[#128BE9] disabled:opacity-60 disabled:cursor-not-allowed"
-          />
-        </div>
+              <NeighborhoodAutocomplete
+                value={filters.zone}
+                onChange={(nextZone) => setFilters((prev) => ({ ...prev, zone: nextZone }))}
+                placeholder="Barrio"
+                inputClassName={`${filterFieldClass} w-full disabled:opacity-60 disabled:cursor-not-allowed`}
+              />
+            </div>
+
+            <div className="mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setFilters({ format: '', zone: '', skillLevel: '' })}
+                className="text-[11px] font-oswald text-white/70 transition-all hover:text-white"
+                disabled={activeFiltersCount === 0}
+              >
+                Limpiar filtros
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {loading ? (
