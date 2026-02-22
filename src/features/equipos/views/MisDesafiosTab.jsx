@@ -103,13 +103,13 @@ const MisDesafiosTab = ({ userId }) => {
     <div className="w-full max-w-[560px] flex flex-col gap-3">
       <div className="rounded-2xl border border-white/15 bg-white/5 p-3">
         <h3 className="text-white font-oswald text-lg">Mis desafios</h3>
-        <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="mt-2 grid grid-cols-2 lg:grid-cols-4 gap-2">
           {STATE_TABS.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setStatusTab(tab.key)}
-              className={`w-full rounded-lg border px-2 py-2 text-[11px] sm:text-xs font-semibold normal-case tracking-normal whitespace-nowrap leading-tight ${statusTab === tab.key
+              className={`w-full rounded-lg border px-2 py-2 text-xs font-semibold normal-case tracking-normal leading-tight ${statusTab === tab.key
                 ? 'bg-white/15 border-white/30 text-white'
                 : 'bg-transparent border-white/15 text-white/60'
                 }`}

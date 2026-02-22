@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Crown, Pencil, Plus, Trash2, UserPlus, Users } from 'lucide-react';
+import { Camera, Crown, MoreVertical, Pencil, Plus, Trash2, UserPlus, Users } from 'lucide-react';
 import TeamCard from '../components/TeamCard';
 import TeamFormModal from '../components/TeamFormModal';
 import Modal from '../../../components/Modal';
@@ -33,15 +33,25 @@ const EMPTY_NEW_MEMBER = {
 };
 
 const ROLE_TO_POSITION = {
-  captain: 'DEF',
   gk: 'ARQ',
+  rb: 'DEF',
+  cb: 'DEF',
+  lb: 'DEF',
   defender: 'DEF',
+  dm: 'MED',
+  cm: 'MED',
+  am: 'MED',
   mid: 'MED',
+  rw: 'DEL',
+  lw: 'DEL',
+  st: 'DEL',
   forward: 'DEL',
   player: 'DEF',
+  captain: 'DEF',
 };
 
 const toStringId = (value) => (value == null ? '' : String(value));
+const normalizeSearchValue = (value) => String(value || '').trim().toLowerCase();
 
 const summarizeTeamFromHistory = (historyByRival) => {
   return (historyByRival || []).reduce((acc, entry) => {
@@ -54,8 +64,16 @@ const summarizeTeamFromHistory = (historyByRival) => {
 };
 
 const roleOptions = [
-  { value: 'captain', label: 'Capitan' },
   { value: 'gk', label: 'Arquero' },
+  { value: 'rb', label: 'Lateral derecho' },
+  { value: 'cb', label: 'Zaguero central' },
+  { value: 'lb', label: 'Lateral izquierdo' },
+  { value: 'dm', label: 'Volante defensivo' },
+  { value: 'cm', label: 'Mediocampista' },
+  { value: 'am', label: 'Enganche' },
+  { value: 'rw', label: 'Extremo derecho' },
+  { value: 'lw', label: 'Extremo izquierdo' },
+  { value: 'st', label: 'Delantero centro' },
   { value: 'defender', label: 'Defensor' },
   { value: 'mid', label: 'Mediocampo' },
   { value: 'forward', label: 'Delantero' },
@@ -87,11 +105,12 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
 
   const [teamFormOpen, setTeamFormOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
+  const [openTeamMenuId, setOpenTeamMenuId] = useState(null);
 
   const [newMember, setNewMember] = useState(EMPTY_NEW_MEMBER);
+  const [memberNameInput, setMemberNameInput] = useState('');
   const [memberPhotoFile, setMemberPhotoFile] = useState(null);
   const [memberPhotoPreview, setMemberPhotoPreview] = useState(null);
-  const [memberPhotoFileName, setMemberPhotoFileName] = useState('');
   const [removeMemberPhoto, setRemoveMemberPhoto] = useState(false);
 
   useEffect(() => {
@@ -109,6 +128,7 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
       setLoading(true);
       const rows = await listMyTeams(userId);
       setTeams(rows);
+      setOpenTeamMenuId((prev) => (rows.some((team) => team.id === prev) ? prev : null));
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudieron cargar tus equipos');
     } finally {
@@ -142,6 +162,14 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
+  useEffect(() => {
+    if (!openTeamMenuId) return undefined;
+
+    const closeMenu = () => setOpenTeamMenuId(null);
+    window.addEventListener('click', closeMenu);
+    return () => window.removeEventListener('click', closeMenu);
+  }, [openTeamMenuId]);
+
   const occupiedJugadorIds = useMemo(() => new Set(members.map((member) => toStringId(member.jugador_id))), [members]);
 
   const availableCandidates = useMemo(
@@ -158,9 +186,9 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
 
   const resetMemberModalState = useCallback(() => {
     setNewMember(EMPTY_NEW_MEMBER);
+    setMemberNameInput('');
     setMemberEditing(null);
     setMemberPhotoFile(null);
-    setMemberPhotoFileName('');
     setRemoveMemberPhoto(false);
 
     if (memberPhotoInputRef.current) {
@@ -227,6 +255,34 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
     await loadTeamDetail(selectedTeam);
   };
 
+  const handleDeleteTeam = async (team) => {
+    if (!team?.id) return;
+
+    const confirmed = window.confirm(`Borrar el equipo "${team.name || 'Sin nombre'}"?`);
+    if (!confirmed) return;
+
+    try {
+      setIsSaving(true);
+      await softDeleteTeam(team.id);
+      setOpenTeamMenuId(null);
+
+      if (selectedTeam?.id === team.id) {
+        setDetailModalOpen(false);
+        setSelectedTeam(null);
+        setMembers([]);
+        setCandidates([]);
+        setHistoryByRival([]);
+        closeMemberModal();
+      }
+
+      await loadTeams();
+    } catch (error) {
+      notifyBlockingError(error.message || 'No se pudo borrar el equipo');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const closeDetailModal = () => {
     setDetailModalOpen(false);
     setSelectedTeam(null);
@@ -238,17 +294,32 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
 
   const handleSelectTeam = useCallback(async (team) => {
     if (!team?.id) return;
+    setOpenTeamMenuId(null);
     setSelectedTeam(team);
     setDetailModalOpen(true);
     await loadTeamDetail(team);
   }, [loadTeamDetail]);
 
+  const handleMemberNameInputChange = useCallback((rawValue) => {
+    setMemberNameInput(rawValue);
+
+    const normalized = normalizeSearchValue(rawValue);
+    const matchingCandidate = normalized
+      ? availableCandidates.find((candidate) => normalizeSearchValue(candidate.nombre) === normalized)
+      : null;
+
+    setNewMember((prev) => ({
+      ...prev,
+      jugadorId: matchingCandidate ? toStringId(matchingCandidate.jugador_id) : '',
+    }));
+  }, [availableCandidates]);
+
   const openCreateMemberModal = () => {
     setMemberModalMode('create');
     setMemberEditing(null);
     setNewMember(EMPTY_NEW_MEMBER);
+    setMemberNameInput('');
     setMemberPhotoFile(null);
-    setMemberPhotoFileName('');
     setRemoveMemberPhoto(false);
     setMemberPhotoPreview(null);
     setMemberModalOpen(true);
@@ -259,12 +330,12 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
     setMemberEditing(member);
     setNewMember({
       jugadorId: toStringId(member?.jugador_id),
-      role: member?.role || 'player',
+      role: member?.role === 'captain' ? 'player' : (member?.role || 'player'),
       isCaptain: Boolean(member?.is_captain),
       shirtNumber: member?.shirt_number ?? '',
     });
+    setMemberNameInput(member?.jugador?.nombre || '');
     setMemberPhotoFile(null);
-    setMemberPhotoFileName('');
     setRemoveMemberPhoto(false);
     setMemberPhotoPreview(member?.photo_url || null);
     setMemberModalOpen(true);
@@ -274,7 +345,6 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
     if (!file) return;
 
     setMemberPhotoFile(file);
-    setMemberPhotoFileName(file.name || '');
     setRemoveMemberPhoto(false);
     setMemberPhotoPreview((prev) => {
       if (prev && prev.startsWith('blob:')) {
@@ -286,7 +356,6 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
 
   const handleClearMemberPhoto = () => {
     setMemberPhotoFile(null);
-    setMemberPhotoFileName('');
     setRemoveMemberPhoto(true);
 
     if (memberPhotoInputRef.current) {
@@ -305,7 +374,16 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
     event.preventDefault();
     if (!selectedTeam?.id) return;
 
-    if (!newMember.jugadorId) {
+    let selectedJugadorId = newMember.jugadorId;
+    if (memberModalMode === 'create' && !selectedJugadorId) {
+      const normalizedName = normalizeSearchValue(memberNameInput);
+      const matchedByName = normalizedName
+        ? availableCandidates.find((candidate) => normalizeSearchValue(candidate.nombre) === normalizedName)
+        : null;
+      selectedJugadorId = matchedByName ? toStringId(matchedByName.jugador_id) : '';
+    }
+
+    if (!selectedJugadorId) {
       notifyBlockingError('Selecciona un jugador para continuar');
       return;
     }
@@ -338,7 +416,7 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
       if (memberModalMode === 'create') {
         await addTeamMember({
           teamId: selectedTeam.id,
-          jugadorId: newMember.jugadorId,
+          jugadorId: selectedJugadorId,
           role: newMember.role,
           isCaptain: newMember.isCaptain,
           shirtNumber: newMember.shirtNumber === '' ? null : Number(newMember.shirtNumber),
@@ -413,11 +491,45 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
         {!loading && teams.length > 0 ? (
           <div className="grid gap-2">
             {teams.map((team) => (
-              <TeamCard
-                key={team.id}
-                team={team}
-                onClick={handleSelectTeam}
-              />
+              <div key={team.id} className="relative">
+                <TeamCard
+                  team={team}
+                  onClick={handleSelectTeam}
+                  className="pr-14"
+                />
+
+                <div className="absolute right-3 top-3 z-20" onClick={(event) => event.stopPropagation()}>
+                  <button
+                    type="button"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-[#0f172acc] text-white/80 transition-all hover:bg-[#17213acc] hover:text-white"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setOpenTeamMenuId((prev) => (prev === team.id ? null : team.id));
+                    }}
+                    aria-label="Abrir menu del equipo"
+                    title="Mas acciones"
+                  >
+                    <MoreVertical size={15} />
+                  </button>
+
+                  {openTeamMenuId === team.id ? (
+                    <div className="absolute right-0 mt-2 w-44 rounded-xl border border-white/15 bg-[#0f172a] p-1 shadow-[0_10px_26px_rgba(0,0,0,0.45)]">
+                      <button
+                        type="button"
+                        className="w-full inline-flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-200 transition-all hover:bg-red-500/15"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleDeleteTeam(team);
+                        }}
+                        disabled={isSaving}
+                      >
+                        <Trash2 size={14} />
+                        Borrar equipo
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             ))}
           </div>
         ) : null}
@@ -449,7 +561,7 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
                 </div>
               </div>
 
-              <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -467,26 +579,6 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
                   className="rounded-lg border border-[#128BE9]/35 bg-[#128BE9]/20 text-[#B7DEFF] text-sm font-semibold px-3 py-2 hover:bg-[#128BE9]/28"
                 >
                   Publicar desafio
-                </button>
-
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      setIsSaving(true);
-                      await softDeleteTeam(selectedTeam.id);
-                      setDetailModalOpen(false);
-                      setSelectedTeam(null);
-                      await loadTeams();
-                    } catch (error) {
-                      notifyBlockingError(error.message || 'No se pudo desactivar el equipo');
-                    } finally {
-                      setIsSaving(false);
-                    }
-                  }}
-                  className="rounded-lg border border-red-300/45 bg-red-500/10 text-red-200 text-sm font-semibold px-3 py-2 hover:bg-red-500/20"
-                >
-                  Desactivar
                 </button>
               </div>
             </div>
@@ -622,7 +714,7 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
               className={modalActionButtonClass}
               loading={isSaving}
               loadingText={memberModalMode === 'create' ? 'Agregando...' : 'Guardando...'}
-              disabled={isSaving || !newMember.jugadorId}
+              disabled={isSaving || (memberModalMode === 'create' && !newMember.jugadorId)}
             >
               {memberModalMode === 'create' ? 'Agregar a plantilla' : 'Guardar cambios'}
             </Button>
@@ -633,16 +725,34 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
           <label className="block">
             <span className="text-xs text-white/80 uppercase tracking-wide">Nombre</span>
             {memberModalMode === 'create' ? (
-              <select
-                value={newMember.jugadorId}
-                onChange={(event) => setNewMember((prev) => ({ ...prev, jugadorId: event.target.value }))}
-                className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white"
-              >
-                <option value="">Seleccionar jugador</option>
-                {availableCandidates.map((candidate) => (
-                  <option key={candidate.jugador_id} value={candidate.jugador_id}>{candidate.nombre}</option>
-                ))}
-              </select>
+              <>
+                <input
+                  type="text"
+                  list="equipo-member-candidates"
+                  value={memberNameInput}
+                  onChange={(event) => handleMemberNameInputChange(event.target.value)}
+                  onBlur={() => {
+                    if (newMember.jugadorId || !memberNameInput.trim()) return;
+                    const normalized = normalizeSearchValue(memberNameInput);
+                    const partialMatches = availableCandidates.filter(
+                      (candidate) => normalizeSearchValue(candidate.nombre).startsWith(normalized),
+                    );
+                    if (partialMatches.length === 1) {
+                      handleMemberNameInputChange(partialMatches[0].nombre);
+                    }
+                  }}
+                  placeholder="Escribi el nombre del jugador"
+                  className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+                />
+                <datalist id="equipo-member-candidates">
+                  {availableCandidates.map((candidate) => (
+                    <option key={candidate.jugador_id} value={candidate.nombre} />
+                  ))}
+                </datalist>
+                <p className="mt-1 text-[11px] text-white/60">
+                  Escribi y selecciona un jugador existente de la lista.
+                </p>
+              </>
             ) : (
               <input
                 type="text"
@@ -720,7 +830,7 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
                 </button>
 
                 <p className="mt-1 text-xs text-white/60 truncate">
-                  {memberPhotoFileName || (memberPhotoDisplay ? 'Foto lista' : 'PNG, JPG, WEBP o SVG')}
+                  {memberPhotoDisplay ? 'Foto lista' : 'PNG, JPG, WEBP o SVG'}
                 </p>
 
                 <input

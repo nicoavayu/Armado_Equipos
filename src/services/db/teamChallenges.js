@@ -17,7 +17,26 @@ const TEAM_SELECT = [
   'updated_at',
 ].join(',');
 
-const CHALLENGE_SELECT = `
+const CHALLENGE_SELECT_BASE = `
+  id,
+  created_by_user_id,
+  challenger_team_id,
+  status,
+  accepted_team_id,
+  accepted_by_user_id,
+  scheduled_at,
+  location_name,
+  location_place_id,
+  format,
+  skill_level,
+  notes,
+  created_at,
+  updated_at,
+  challenger_team:teams!challenges_challenger_team_id_fkey(${TEAM_SELECT}),
+  accepted_team:teams!challenges_accepted_team_id_fkey(${TEAM_SELECT})
+`;
+
+const CHALLENGE_SELECT_WITH_PRICING = `
   id,
   created_by_user_id,
   challenger_team_id,
@@ -37,6 +56,117 @@ const CHALLENGE_SELECT = `
   challenger_team:teams!challenges_challenger_team_id_fkey(${TEAM_SELECT}),
   accepted_team:teams!challenges_accepted_team_id_fkey(${TEAM_SELECT})
 `;
+
+const TEAM_MEMBER_SELECT_BASE = `
+  id,
+  team_id,
+  jugador_id,
+  role,
+  is_captain,
+  shirt_number,
+  created_at,
+  jugador:jugadores!team_members_jugador_id_fkey(
+    id,
+    usuario_id,
+    nombre,
+    avatar_url,
+    score
+  )
+`;
+
+const TEAM_MEMBER_SELECT_WITH_PHOTO = `
+  id,
+  team_id,
+  jugador_id,
+  role,
+  is_captain,
+  shirt_number,
+  photo_url,
+  created_at,
+  jugador:jugadores!team_members_jugador_id_fkey(
+    id,
+    usuario_id,
+    nombre,
+    avatar_url,
+    score
+  )
+`;
+
+const SKILL_TO_LEGACY_TIER = {
+  sin_definir: 'sin_definir',
+  inicial: 'tranqui',
+  intermedio: 'metedor',
+  competitivo: 'metedor',
+  avanzado: 'picante',
+  elite: 'bueno',
+};
+
+const SKILL_TO_LEGACY_CORE = {
+  sin_definir: 'normal',
+  inicial: 'easy',
+  intermedio: 'normal',
+  competitivo: 'normal',
+  avanzado: 'hard',
+  elite: 'hard',
+};
+
+const ROLE_TO_COMPATIBLE_VALUE = {
+  gk: 'gk',
+  rb: 'defender',
+  cb: 'defender',
+  lb: 'defender',
+  defender: 'defender',
+  dm: 'mid',
+  cm: 'mid',
+  am: 'mid',
+  mid: 'mid',
+  rw: 'forward',
+  lw: 'forward',
+  st: 'forward',
+  forward: 'forward',
+  player: 'player',
+  captain: 'player',
+};
+
+const uniqueValues = (values) => Array.from(new Set(values.filter(Boolean)));
+
+const normalizeMessage = (error) => String(error?.message || error?.details || '').toLowerCase();
+
+const isMissingColumnError = (error, columnName) => {
+  const message = normalizeMessage(error);
+  return message.includes(String(columnName).toLowerCase())
+    && (message.includes('does not exist') || message.includes('could not find') || message.includes('schema cache'));
+};
+
+const isSkillLevelConstraintError = (error) => {
+  const message = normalizeMessage(error);
+  return message.includes('skill_level') || message.includes('teams_skill_level_check') || message.includes('challenges_skill_level_check');
+};
+
+const isRoleConstraintError = (error) => {
+  const message = normalizeMessage(error);
+  return message.includes('team_members_role_check') || message.includes('role');
+};
+
+const getSkillCandidates = (rawValue) => {
+  const normalized = normalizeTeamSkillLevel(rawValue);
+  return uniqueValues([
+    normalized,
+    SKILL_TO_LEGACY_TIER[normalized],
+    SKILL_TO_LEGACY_CORE[normalized],
+  ]);
+};
+
+const getRoleCandidates = (role) => uniqueValues([
+  role || 'player',
+  ROLE_TO_COMPATIBLE_VALUE[role] || 'player',
+]);
+
+const withChallengeCompatibility = (row) => ({
+  ...row,
+  price_per_team: row?.price_per_team ?? null,
+  field_price: row?.field_price ?? null,
+});
 
 const assertAuthenticatedUser = (userId) => {
   if (!userId) {
@@ -80,43 +210,67 @@ export const getTeamById = async (teamId) => {
 export const createTeam = async (userId, payload) => {
   assertAuthenticatedUser(userId);
 
-  const response = await supabase
-    .from('teams')
-    .insert({
-      owner_user_id: userId,
-      name: payload.name,
-      format: payload.format,
-      base_zone: payload.base_zone || null,
-      skill_level: normalizeTeamSkillLevel(payload.skill_level),
-      crest_url: payload.crest_url || null,
-      color_primary: payload.color_primary || null,
-      color_secondary: payload.color_secondary || null,
-      color_accent: payload.color_accent || null,
-      is_active: payload.is_active ?? true,
-    })
-    .select(TEAM_SELECT)
-    .single();
+  const skillCandidates = getSkillCandidates(payload.skill_level);
+  let response = null;
+
+  for (const skillCandidate of skillCandidates) {
+    response = await supabase
+      .from('teams')
+      .insert({
+        owner_user_id: userId,
+        name: payload.name,
+        format: payload.format,
+        base_zone: payload.base_zone || null,
+        skill_level: skillCandidate,
+        crest_url: payload.crest_url || null,
+        color_primary: payload.color_primary || null,
+        color_secondary: payload.color_secondary || null,
+        color_accent: payload.color_accent || null,
+        is_active: payload.is_active ?? true,
+      })
+      .select(TEAM_SELECT)
+      .single();
+
+    if (!response.error) break;
+    if (!isSkillLevelConstraintError(response.error)) break;
+  }
 
   return unwrapSingle(response, 'No se pudo crear el equipo');
 };
 
 export const updateTeam = async (teamId, payload) => {
-  const response = await supabase
-    .from('teams')
-    .update({
-      name: payload.name,
-      format: payload.format,
-      base_zone: payload.base_zone || null,
-      skill_level: normalizeTeamSkillLevel(payload.skill_level),
-      crest_url: payload.crest_url || null,
-      color_primary: payload.color_primary || null,
-      color_secondary: payload.color_secondary || null,
-      color_accent: payload.color_accent || null,
-      is_active: payload.is_active ?? true,
-    })
-    .eq('id', teamId)
-    .select(TEAM_SELECT)
-    .single();
+  const updatePayloadBase = {};
+  if ('name' in payload) updatePayloadBase.name = payload.name;
+  if ('format' in payload) updatePayloadBase.format = payload.format;
+  if ('base_zone' in payload) updatePayloadBase.base_zone = payload.base_zone || null;
+  if ('crest_url' in payload) updatePayloadBase.crest_url = payload.crest_url || null;
+  if ('color_primary' in payload) updatePayloadBase.color_primary = payload.color_primary || null;
+  if ('color_secondary' in payload) updatePayloadBase.color_secondary = payload.color_secondary || null;
+  if ('color_accent' in payload) updatePayloadBase.color_accent = payload.color_accent || null;
+  if ('is_active' in payload) updatePayloadBase.is_active = payload.is_active ?? true;
+
+  const skillCandidates = 'skill_level' in payload
+    ? getSkillCandidates(payload.skill_level)
+    : [null];
+
+  let response = null;
+
+  for (const skillCandidate of skillCandidates) {
+    const updatePayload = { ...updatePayloadBase };
+    if (skillCandidate) {
+      updatePayload.skill_level = skillCandidate;
+    }
+
+    response = await supabase
+      .from('teams')
+      .update(updatePayload)
+      .eq('id', teamId)
+      .select(TEAM_SELECT)
+      .single();
+
+    if (!response.error) break;
+    if (!isSkillLevelConstraintError(response.error)) break;
+  }
 
   return unwrapSingle(response, 'No se pudo actualizar el equipo');
 };
@@ -183,67 +337,100 @@ export const listRosterCandidates = async () => {
 };
 
 export const listTeamMembers = async (teamId) => {
-  const response = await supabase
+  let response = await supabase
     .from('team_members')
-    .select(`
-      id,
-      team_id,
-      jugador_id,
-      role,
-      is_captain,
-      shirt_number,
-      photo_url,
-      created_at,
-      jugador:jugadores!team_members_jugador_id_fkey(
-        id,
-        usuario_id,
-        nombre,
-        avatar_url,
-        score
-      )
-    `)
+    .select(TEAM_MEMBER_SELECT_WITH_PHOTO)
     .eq('team_id', teamId)
     .order('is_captain', { ascending: false })
     .order('created_at', { ascending: true });
+
+  if (response.error && isMissingColumnError(response.error, 'photo_url')) {
+    response = await supabase
+      .from('team_members')
+      .select(TEAM_MEMBER_SELECT_BASE)
+      .eq('team_id', teamId)
+      .order('is_captain', { ascending: false })
+      .order('created_at', { ascending: true });
+  }
 
   if (response.error) {
     throw new Error(response.error.message || 'No se pudo cargar la plantilla');
   }
 
-  return response.data || [];
+  return (response.data || []).map((row) => ({ ...row, photo_url: row?.photo_url || null }));
 };
 
 export const addTeamMember = async ({ teamId, jugadorId, role = 'player', isCaptain = false, shirtNumber = null, photoUrl = null }) => {
-  const response = await supabase
-    .from('team_members')
-    .insert({
+  const roleCandidates = getRoleCandidates(role);
+  let response = null;
+
+  for (const roleCandidate of roleCandidates) {
+    const insertPayload = {
       team_id: teamId,
       jugador_id: jugadorId,
-      role,
+      role: roleCandidate,
       is_captain: Boolean(isCaptain),
       shirt_number: shirtNumber,
       photo_url: photoUrl,
-    })
-    .select('id')
-    .single();
+    };
+
+    response = await supabase
+      .from('team_members')
+      .insert(insertPayload)
+      .select('id')
+      .single();
+
+    if (response.error && isMissingColumnError(response.error, 'photo_url')) {
+      const legacyPayload = { ...insertPayload };
+      delete legacyPayload.photo_url;
+      response = await supabase
+        .from('team_members')
+        .insert(legacyPayload)
+        .select('id')
+        .single();
+    }
+
+    if (!response.error) break;
+    if (!isRoleConstraintError(response.error)) break;
+  }
 
   return unwrapSingle(response, 'No se pudo agregar el jugador al equipo');
 };
 
 export const updateTeamMember = async (memberId, updates) => {
-  const payload = {};
+  const payloadBase = {};
+  if ('is_captain' in updates) payloadBase.is_captain = Boolean(updates.is_captain);
+  if ('shirt_number' in updates) payloadBase.shirt_number = updates.shirt_number;
+  if ('photo_url' in updates) payloadBase.photo_url = updates.photo_url || null;
 
-  if ('role' in updates) payload.role = updates.role;
-  if ('is_captain' in updates) payload.is_captain = Boolean(updates.is_captain);
-  if ('shirt_number' in updates) payload.shirt_number = updates.shirt_number;
-  if ('photo_url' in updates) payload.photo_url = updates.photo_url || null;
+  const roleCandidates = 'role' in updates ? getRoleCandidates(updates.role) : [null];
+  let response = null;
 
-  const response = await supabase
-    .from('team_members')
-    .update(payload)
-    .eq('id', memberId)
-    .select('id')
-    .single();
+  for (const roleCandidate of roleCandidates) {
+    const payload = { ...payloadBase };
+    if (roleCandidate) payload.role = roleCandidate;
+
+    response = await supabase
+      .from('team_members')
+      .update(payload)
+      .eq('id', memberId)
+      .select('id')
+      .single();
+
+    if (response.error && isMissingColumnError(response.error, 'photo_url')) {
+      const legacyPayload = { ...payload };
+      delete legacyPayload.photo_url;
+      response = await supabase
+        .from('team_members')
+        .update(legacyPayload)
+        .eq('id', memberId)
+        .select('id')
+        .single();
+    }
+
+    if (!response.error) break;
+    if (!isRoleConstraintError(response.error)) break;
+  }
 
   return unwrapSingle(response, 'No se pudo actualizar el miembro del equipo');
 };
@@ -260,23 +447,33 @@ export const removeTeamMember = async (memberId) => {
 };
 
 export const listOpenChallenges = async ({ format, zone, skillLevel } = {}) => {
-  let query = supabase
-    .from('challenges')
-    .select(CHALLENGE_SELECT)
-    .eq('status', 'open')
-    .order('created_at', { ascending: false });
+  const execute = async (selectClause) => {
+    let query = supabase
+      .from('challenges')
+      .select(selectClause)
+      .eq('status', 'open')
+      .order('created_at', { ascending: false });
 
-  if (format) {
-    query = query.eq('format', Number(format));
+    if (format) {
+      query = query.eq('format', Number(format));
+    }
+
+    return query;
+  };
+
+  let response = await execute(CHALLENGE_SELECT_WITH_PRICING);
+  if (
+    response.error
+    && (isMissingColumnError(response.error, 'price_per_team') || isMissingColumnError(response.error, 'field_price'))
+  ) {
+    response = await execute(CHALLENGE_SELECT_BASE);
   }
-
-  const response = await query;
 
   if (response.error) {
     throw new Error(response.error.message || 'No se pudieron cargar desafios abiertos');
   }
 
-  let rows = response.data || [];
+  let rows = (response.data || []).map(withChallengeCompatibility);
 
   if (skillLevel) {
     const normalizedFilter = normalizeTeamSkillLevel(skillLevel);
@@ -297,41 +494,34 @@ export const listMyChallenges = async (userId) => {
 
   const myTeams = await listMyTeams(userId);
   const myTeamIds = myTeams.map((team) => team.id).filter(Boolean);
-  const queries = [
-    supabase
-      .from('challenges')
-      .select(CHALLENGE_SELECT)
-      .eq('created_by_user_id', userId),
-    supabase
-      .from('challenges')
-      .select(CHALLENGE_SELECT)
-      .eq('accepted_by_user_id', userId),
+  const queryBuilders = [
+    (query) => query.eq('created_by_user_id', userId),
+    (query) => query.eq('accepted_by_user_id', userId),
   ];
 
   if (myTeamIds.length > 0) {
-    queries.push(
-      supabase
-        .from('challenges')
-        .select(CHALLENGE_SELECT)
-        .in('challenger_team_id', myTeamIds),
-    );
-
-    queries.push(
-      supabase
-        .from('challenges')
-        .select(CHALLENGE_SELECT)
-        .in('accepted_team_id', myTeamIds),
-    );
+    queryBuilders.push((query) => query.in('challenger_team_id', myTeamIds));
+    queryBuilders.push((query) => query.in('accepted_team_id', myTeamIds));
   }
 
-  const responses = await Promise.all(queries);
+  const responses = await Promise.all(queryBuilders.map(async (buildQuery) => {
+    let response = await buildQuery(supabase.from('challenges').select(CHALLENGE_SELECT_WITH_PRICING));
+    if (
+      response.error
+      && (isMissingColumnError(response.error, 'price_per_team') || isMissingColumnError(response.error, 'field_price'))
+    ) {
+      response = await buildQuery(supabase.from('challenges').select(CHALLENGE_SELECT_BASE));
+    }
+    return response;
+  }));
+
   responses.forEach((response) => {
     if (response.error) {
       throw new Error(response.error.message || 'No se pudieron cargar tus desafios');
     }
   });
 
-  const merged = responses.flatMap((response) => response.data || []);
+  const merged = responses.flatMap((response) => (response.data || []).map(withChallengeCompatibility));
   const deduplicatedMap = new Map();
   merged.forEach((row) => {
     if (!row?.id) return;
@@ -345,10 +535,11 @@ export const listMyChallenges = async (userId) => {
 
 export const createChallenge = async (userId, payload) => {
   assertAuthenticatedUser(userId);
+  const skillCandidates = getSkillCandidates(payload.skill_level);
+  let response = null;
 
-  const response = await supabase
-    .from('challenges')
-    .insert({
+  for (const skillCandidate of skillCandidates) {
+    const insertPayload = {
       created_by_user_id: userId,
       challenger_team_id: payload.challenger_team_id,
       status: 'open',
@@ -356,26 +547,64 @@ export const createChallenge = async (userId, payload) => {
       location_name: payload.location_name || null,
       location_place_id: payload.location_place_id || null,
       format: Number(payload.format),
-      skill_level: normalizeTeamSkillLevel(payload.skill_level),
+      skill_level: skillCandidate,
       price_per_team: payload.price_per_team ?? null,
       field_price: payload.field_price ?? null,
       notes: payload.notes || null,
-    })
-    .select(CHALLENGE_SELECT)
-    .single();
+    };
 
-  return unwrapSingle(response, 'No se pudo publicar el desafio');
+    response = await supabase
+      .from('challenges')
+      .insert(insertPayload)
+      .select(CHALLENGE_SELECT_WITH_PRICING)
+      .single();
+
+    if (
+      response.error
+      && (isMissingColumnError(response.error, 'price_per_team') || isMissingColumnError(response.error, 'field_price'))
+    ) {
+      const legacyPayload = { ...insertPayload };
+      delete legacyPayload.price_per_team;
+      delete legacyPayload.field_price;
+
+      response = await supabase
+        .from('challenges')
+        .insert(legacyPayload)
+        .select(CHALLENGE_SELECT_BASE)
+        .single();
+    }
+
+    if (!response.error) {
+      return withChallengeCompatibility(response.data);
+    }
+
+    if (!isSkillLevelConstraintError(response.error)) break;
+  }
+
+  throw new Error(response?.error?.message || 'No se pudo publicar el desafio');
 };
 
 export const cancelChallenge = async (challengeId) => {
-  const response = await supabase
+  let response = await supabase
     .from('challenges')
     .update({ status: 'canceled' })
     .eq('id', challengeId)
-    .select(CHALLENGE_SELECT)
+    .select(CHALLENGE_SELECT_WITH_PRICING)
     .single();
 
-  return unwrapSingle(response, 'No se pudo cancelar el desafio');
+  if (
+    response.error
+    && (isMissingColumnError(response.error, 'price_per_team') || isMissingColumnError(response.error, 'field_price'))
+  ) {
+    response = await supabase
+      .from('challenges')
+      .update({ status: 'canceled' })
+      .eq('id', challengeId)
+      .select(CHALLENGE_SELECT_BASE)
+      .single();
+  }
+
+  return withChallengeCompatibility(unwrapSingle(response, 'No se pudo cancelar el desafio'));
 };
 
 export const acceptChallenge = async (challengeId, acceptedTeamId) => {
@@ -421,13 +650,24 @@ export const completeChallenge = async ({ challengeId, scoreA, scoreB, playedAt 
 };
 
 export const getChallengeById = async (challengeId) => {
-  const response = await supabase
+  let response = await supabase
     .from('challenges')
-    .select(CHALLENGE_SELECT)
+    .select(CHALLENGE_SELECT_WITH_PRICING)
     .eq('id', challengeId)
     .single();
 
-  return unwrapSingle(response, 'No se pudo cargar el desafio');
+  if (
+    response.error
+    && (isMissingColumnError(response.error, 'price_per_team') || isMissingColumnError(response.error, 'field_price'))
+  ) {
+    response = await supabase
+      .from('challenges')
+      .select(CHALLENGE_SELECT_BASE)
+      .eq('id', challengeId)
+      .single();
+  }
+
+  return withChallengeCompatibility(unwrapSingle(response, 'No se pudo cargar el desafio'));
 };
 
 export const listTeamHistoryByRival = async (teamId) => {

@@ -31,7 +31,6 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
   const [colors, setColors] = useState([]);
   const [crestFile, setCrestFile] = useState(null);
   const [crestPreview, setCrestPreview] = useState(null);
-  const [crestFileName, setCrestFileName] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -46,7 +45,6 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
     setForm(nextForm);
     setColors(toInitialColors(initialTeam));
     setCrestFile(null);
-    setCrestFileName('');
     setCrestPreview(initialTeam?.crest_url || null);
   }, [initialTeam, isOpen]);
 
@@ -60,7 +58,6 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
     if (!file) return;
 
     setCrestFile(file);
-    setCrestFileName(file.name || '');
 
     if (crestPreview && crestPreview.startsWith('blob:')) {
       URL.revokeObjectURL(crestPreview);
@@ -71,7 +68,6 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
 
   const handleClearCrest = () => {
     setCrestFile(null);
-    setCrestFileName('');
 
     if (crestPreview && crestPreview.startsWith('blob:')) {
       URL.revokeObjectURL(crestPreview);
@@ -132,6 +128,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
             ...form,
             name: form.name.trim(),
             base_zone: form.base_zone.trim() || null,
+            crest_url: crestPreview && !crestPreview.startsWith('blob:') ? crestPreview : null,
             color_primary: normalizedColors[0] || null,
             color_secondary: normalizedColors[1] || null,
             color_accent: normalizedColors[2] || null,
@@ -197,14 +194,15 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
               type="button"
               disabled={colors.length >= 3}
               onClick={() => setColors((prev) => (prev.length >= 3 ? prev : [...prev, '#128BE9']))}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#9ED3FF]/35 bg-[#128BE9]/10 px-2.5 py-1 text-xs text-[#9ED3FF] transition-all hover:bg-[#128BE9]/20 disabled:opacity-45 disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center rounded-lg border border-[#9ED3FF]/35 bg-[#128BE9]/10 p-2 text-[#9ED3FF] transition-all hover:bg-[#128BE9]/20 disabled:opacity-45 disabled:cursor-not-allowed"
+              title="Agregar color"
+              aria-label="Agregar color"
             >
               <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-[#9ED3FF]/35 bg-[#128BE9]/20">
                 <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
                   <path d="M12 5v14M5 12h14" />
                 </svg>
               </span>
-              Agregar color
             </button>
           </div>
 
@@ -282,7 +280,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
               </button>
 
               <p className="mt-1.5 text-xs text-white/60 truncate">
-                {crestFileName || (crestPreview ? 'Escudo actual cargado' : 'PNG, JPG, WEBP o SVG')}
+                {crestPreview ? 'Escudo listo' : 'PNG, JPG, WEBP o SVG'}
               </p>
 
               <input

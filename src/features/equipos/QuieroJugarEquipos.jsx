@@ -52,7 +52,7 @@ const QuieroJugarEquipos = () => {
               key={tab.key}
               type="button"
               onClick={() => setActiveSubtab(tab.key)}
-              className={`rounded-lg py-2 text-[11px] font-oswald font-bold normal-case tracking-normal transition-all ${activeSubtab === tab.key
+              className={`min-w-0 rounded-lg px-1 py-2 text-xs font-oswald font-bold normal-case tracking-normal transition-all ${activeSubtab === tab.key
                 ? 'bg-white/15 border border-white/25 text-white'
                 : 'bg-transparent border border-transparent text-white/60'
                 }`}

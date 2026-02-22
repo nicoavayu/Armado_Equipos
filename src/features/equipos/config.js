@@ -6,16 +6,21 @@ export const QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY = 'quiero-jugar-equipos-sub
 export const TEAM_FORMAT_OPTIONS = [5, 6, 7, 8, 9, 11];
 export const TEAM_SKILL_OPTIONS = [
   { value: 'sin_definir', label: 'Sin definir' },
-  { value: 'tranqui', label: 'Tranqui' },
-  { value: 'metedor', label: 'Metedor' },
-  { value: 'picante', label: 'Picante' },
-  { value: 'bueno', label: 'Bueno' },
+  { value: 'inicial', label: 'Inicial' },
+  { value: 'intermedio', label: 'Intermedio' },
+  { value: 'competitivo', label: 'Competitivo' },
+  { value: 'avanzado', label: 'Avanzado' },
+  { value: 'elite', label: 'Elite' },
 ];
 
 const LEGACY_SKILL_MAP = {
-  easy: 'tranqui',
-  normal: 'metedor',
-  hard: 'picante',
+  easy: 'inicial',
+  normal: 'intermedio',
+  hard: 'competitivo',
+  tranqui: 'inicial',
+  metedor: 'competitivo',
+  picante: 'avanzado',
+  bueno: 'elite',
 };
 
 export const normalizeTeamSkillLevel = (value) => {
