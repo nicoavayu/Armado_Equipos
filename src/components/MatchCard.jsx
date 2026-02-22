@@ -45,12 +45,6 @@ const MatchCard = ({
     const MAX_SUBSTITUTE_SLOTS = 4;
     const isTeamMatch = partido?.source_type === 'team_match';
     const showMenu = (userJoined || userRole === 'admin' || isFinished) && (onAbandon || onCancel || onClear);
-    const isChallengeTeamMatch = isTeamMatch && String(partido?.origin_type || '').toLowerCase() === 'challenge';
-    const cardToneClass = isTeamMatch
-        ? (isChallengeTeamMatch
-            ? 'bg-[#222b46]/78 border-[#334155]'
-            : 'bg-[#1f2942]/72 border-slate-800')
-        : 'bg-[#1e293b]/70 border-slate-800';
 
     const precioRaw = (partido?.precio_cancha_por_persona ?? partido?.precio_cancha ?? partido?.precio ?? partido?.valor_cancha);
     let precioNumber = null;
@@ -75,9 +69,13 @@ const MatchCard = ({
     const originBadgeLabel = isTeamMatch
         ? (partido?.origin_badge
             || (partido?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso'))
-        : null;
+        : 'Amistoso';
+    const isChallengeCard = String(originBadgeLabel || '').toLowerCase().includes('desafio');
+    const cardToneClass = isChallengeCard
+        ? 'bg-[#262e44]/94 border-[#4b5563]'
+        : 'bg-[#1e293b]/92 border-[#334155]';
     const generoLabel = isTeamMatch
-        ? (partido?.genero_partido || 'Sin genero')
+        ? (partido?.genero_partido || 'Masculino')
         : (partido?.tipo_partido || 'Masculino');
     const totalPlayersTarget = Number(partido?.cupo_jugadores);
     const playersChipLabel = Number.isFinite(totalPlayersTarget) && totalPlayersTarget > 0

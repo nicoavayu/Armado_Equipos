@@ -1,18 +1,23 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CalendarClock, Flag, Lock, MapPin, Shield } from 'lucide-react';
+import { CalendarClock, Flag, MapPin, Shield, Users } from 'lucide-react';
 import PageTitle from '../components/PageTitle';
 import PageTransition from '../components/PageTransition';
 import Button from '../components/Button';
+import Modal from '../components/Modal';
+import ProfileCardModal from '../components/ProfileCardModal';
 import LocationAutocomplete from '../features/equipos/components/LocationAutocomplete';
 import { getTeamGradientStyle } from '../features/equipos/utils/teamColors';
 import {
   canManageTeamMatch,
   cancelTeamMatch,
   getTeamMatchById,
+  listTeamMembers,
   updateTeamMatchDetails,
 } from '../services/db/teamChallenges';
 import { notifyBlockingError } from '../utils/notifyBlockingError';
+
+const AVATAR_VISIBLE_LIMIT = 6;
 
 const toDateTimeLocalValue = (isoDate) => {
   if (!isoDate) return '';
@@ -64,12 +69,50 @@ const buildMapsSearchUrl = (value) => {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trimmed)}`;
 };
 
-const TeamCardLocked = ({ team, fallbackName }) => (
-  <div
-    className="rounded-xl border border-white/15 bg-[#1e293b]/60 p-3 min-h-[92px] min-w-0"
-    style={team ? getTeamGradientStyle(team) : undefined}
-  >
-    <div className="flex items-start justify-between gap-2">
+const getPlayerName = (member) => String(member?.jugador?.nombre || 'Jugador').trim();
+
+const getPlayerAvatar = (member) => (
+  member?.photo_url
+  || member?.jugador?.avatar_url
+  || null
+);
+
+const getPlayerProfile = (member) => {
+  const userId = member?.user_id || member?.jugador?.usuario_id || null;
+  const fallbackId = member?.jugador?.id || member?.jugador_id || null;
+
+  return {
+    id: userId || fallbackId,
+    usuario_id: userId,
+    user_id: userId,
+    nombre: getPlayerName(member),
+    avatar_url: getPlayerAvatar(member),
+    ranking: member?.jugador?.score ?? null,
+  };
+};
+
+const getInitials = (value) => {
+  const words = String(value || '').trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 'J';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0] || ''}${words[1][0] || ''}`.toUpperCase();
+};
+
+const TeamCardLocked = ({
+  team,
+  fallbackName,
+  members,
+  onOpenProfile,
+  onOpenRoster,
+}) => {
+  const visibleMembers = (members || []).slice(0, AVATAR_VISIBLE_LIMIT);
+  const overflowCount = Math.max(0, (members || []).length - visibleMembers.length);
+
+  return (
+    <div
+      className="rounded-xl border border-white/15 bg-[#1e293b]/60 p-3 min-h-[116px] min-w-0"
+      style={team ? getTeamGradientStyle(team) : undefined}
+    >
       <div className="flex items-center gap-2 min-w-0">
         <div className="h-10 w-10 rounded-lg overflow-hidden border border-white/25 bg-black/20 flex items-center justify-center shrink-0">
           {team?.crest_url ? (
@@ -83,12 +126,46 @@ const TeamCardLocked = ({ team, fallbackName }) => (
           <div className="text-[11px] text-white/65 font-oswald">F{team?.format || '-'}</div>
         </div>
       </div>
-      <span className="inline-flex items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2 py-0.5 text-[11px] text-white/75 font-oswald">
-        <Lock size={11} /> Fijo
-      </span>
+
+      <div className="mt-2 flex items-center gap-1.5 min-h-[32px]">
+        {visibleMembers.length > 0 ? visibleMembers.map((member) => {
+          const name = getPlayerName(member);
+          const avatar = getPlayerAvatar(member);
+          return (
+            <button
+              key={`${member?.id || member?.jugador_id || name}`}
+              type="button"
+              onClick={() => onOpenProfile(getPlayerProfile(member))}
+              className="h-8 w-8 rounded-full border border-white/30 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[10px] font-semibold text-white/90 shrink-0"
+              title={name}
+              aria-label={`Ver perfil de ${name}`}
+            >
+              {avatar ? (
+                <img src={avatar} alt={name} className="h-full w-full object-cover" />
+              ) : (
+                <span>{getInitials(name)}</span>
+              )}
+            </button>
+          );
+        }) : (
+          <span className="text-[11px] text-white/55 font-oswald">Sin jugadores</span>
+        )}
+
+        {overflowCount > 0 ? (
+          <button
+            type="button"
+            onClick={onOpenRoster}
+            className="h-8 min-w-[32px] px-2 rounded-full border border-white/30 bg-slate-900/70 text-[11px] text-white/85 font-oswald shrink-0"
+            aria-label={`Ver ${overflowCount} jugadores mas`}
+            title="Ver plantilla completa"
+          >
+            +{overflowCount}
+          </button>
+        ) : null}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const TeamMatchDetailPage = () => {
   const navigate = useNavigate();
@@ -98,6 +175,9 @@ const TeamMatchDetailPage = () => {
   const [saving, setSaving] = useState(false);
   const [match, setMatch] = useState(null);
   const [canManage, setCanManage] = useState(false);
+  const [teamMembersByTeamId, setTeamMembersByTeamId] = useState({});
+  const [rosterTeamId, setRosterTeamId] = useState(null);
+  const [selectedPlayerProfile, setSelectedPlayerProfile] = useState(null);
 
   const [scheduledAtInput, setScheduledAtInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
@@ -113,6 +193,25 @@ const TeamMatchDetailPage = () => {
     );
   }, []);
 
+  const loadMembersForMatch = useCallback(async (matchRow) => {
+    const teamIds = [matchRow?.team_a_id, matchRow?.team_b_id].filter(Boolean);
+    if (teamIds.length === 0) {
+      setTeamMembersByTeamId({});
+      return;
+    }
+
+    const entries = await Promise.all(teamIds.map(async (teamId) => {
+      try {
+        const members = await listTeamMembers(teamId);
+        return [teamId, members || []];
+      } catch {
+        return [teamId, []];
+      }
+    }));
+
+    setTeamMembersByTeamId(Object.fromEntries(entries));
+  }, []);
+
   const loadData = useCallback(async () => {
     if (!matchId) return;
 
@@ -125,12 +224,13 @@ const TeamMatchDetailPage = () => {
       setMatch(matchRow);
       setCanManage(Boolean(canManageValue));
       syncFormWithMatch(matchRow);
+      await loadMembersForMatch(matchRow);
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo cargar el partido');
     } finally {
       setLoading(false);
     }
-  }, [matchId, syncFormWithMatch]);
+  }, [loadMembersForMatch, matchId, syncFormWithMatch]);
 
   useEffect(() => {
     loadData();
@@ -148,6 +248,18 @@ const TeamMatchDetailPage = () => {
   const mapsLocationUrl = useMemo(
     () => buildMapsSearchUrl(matchLocation),
     [matchLocation],
+  );
+
+  const rosterTeam = useMemo(() => {
+    if (!rosterTeamId || !match) return null;
+    if (match?.team_a_id === rosterTeamId) return match?.team_a || null;
+    if (match?.team_b_id === rosterTeamId) return match?.team_b || null;
+    return null;
+  }, [match, rosterTeamId]);
+
+  const rosterMembers = useMemo(
+    () => (rosterTeamId ? (teamMembersByTeamId[rosterTeamId] || []) : []),
+    [rosterTeamId, teamMembersByTeamId],
   );
 
   const handleSave = async (event) => {
@@ -176,12 +288,19 @@ const TeamMatchDetailPage = () => {
         if (hydrated?.id) {
           nextMatch = hydrated;
         }
-      } catch (hydrateError) {
-        // Keep the updated payload if hydration fails.
+      } catch {
+        // Keep updated payload when hydration fails.
       }
 
       setMatch(nextMatch);
       syncFormWithMatch(nextMatch);
+      await loadMembersForMatch(nextMatch);
+
+      navigate('/', {
+        state: {
+          openProximosPartidos: true,
+        },
+      });
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo actualizar el partido');
     } finally {
@@ -243,11 +362,23 @@ const TeamMatchDetailPage = () => {
                 </div>
 
                 <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-2 sm:items-center">
-                  <TeamCardLocked team={match?.team_a} fallbackName="Equipo A" />
+                  <TeamCardLocked
+                    team={match?.team_a}
+                    fallbackName="Equipo A"
+                    members={teamMembersByTeamId[match?.team_a_id] || []}
+                    onOpenProfile={setSelectedPlayerProfile}
+                    onOpenRoster={() => setRosterTeamId(match?.team_a_id)}
+                  />
                   <div className="text-center text-white/70 text-sm sm:text-base font-oswald font-semibold tracking-[0.12em]">
                     VS
                   </div>
-                  <TeamCardLocked team={match?.team_b} fallbackName="Equipo B" />
+                  <TeamCardLocked
+                    team={match?.team_b}
+                    fallbackName="Equipo B"
+                    members={teamMembersByTeamId[match?.team_b_id] || []}
+                    onOpenProfile={setSelectedPlayerProfile}
+                    onOpenRoster={() => setRosterTeamId(match?.team_b_id)}
+                  />
                 </div>
               </div>
 
@@ -355,6 +486,59 @@ const TeamMatchDetailPage = () => {
           ) : null}
         </div>
       </div>
+
+      <Modal
+        isOpen={Boolean(rosterTeamId)}
+        onClose={() => setRosterTeamId(null)}
+        title={`Plantilla ${rosterTeam?.name || ''}`.trim() || 'Plantilla'}
+        className="w-full max-w-[420px]"
+        classNameContent="p-4"
+      >
+        {rosterMembers.length === 0 ? (
+          <p className="text-sm text-white/65 font-oswald">Este equipo no tiene jugadores cargados.</p>
+        ) : (
+          <div className="space-y-2 max-h-[56vh] overflow-y-auto pr-1">
+            {rosterMembers.map((member) => {
+              const name = getPlayerName(member);
+              const avatar = getPlayerAvatar(member);
+              const profile = getPlayerProfile(member);
+
+              return (
+                <button
+                  key={`roster-${member?.id || member?.jugador_id || name}`}
+                  type="button"
+                  onClick={() => {
+                    setRosterTeamId(null);
+                    setSelectedPlayerProfile(profile);
+                  }}
+                  className="w-full flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-left hover:bg-white/10"
+                >
+                  <div className="h-9 w-9 rounded-full border border-white/25 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[11px] font-semibold text-white/90 shrink-0">
+                    {avatar ? (
+                      <img src={avatar} alt={name} className="h-full w-full object-cover" />
+                    ) : (
+                      <span>{getInitials(name)}</span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-white font-oswald truncate">{name}</p>
+                    {member?.is_captain ? (
+                      <p className="text-[11px] text-white/65 font-oswald">Capitan</p>
+                    ) : null}
+                  </div>
+                  <Users size={15} className="text-white/40" />
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </Modal>
+
+      <ProfileCardModal
+        isOpen={Boolean(selectedPlayerProfile)}
+        onClose={() => setSelectedPlayerProfile(null)}
+        profile={selectedPlayerProfile}
+      />
     </PageTransition>
   );
 };

@@ -9,6 +9,7 @@ const actionButtonClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold
 
 const FORMAT_OPTIONS_LABEL = TEAM_FORMAT_OPTIONS.map((value) => `F${value}`).join(' · ');
 const SKILL_OPTIONS_LABEL = TEAM_SKILL_OPTIONS.map((option) => option.label).join(' · ');
+const MODE_OPTIONS = ['Masculino', 'Femenino', 'Mixto'];
 
 const sanitizeAmountInput = (value) => String(value || '').replace(/[^\d.,]/g, '').slice(0, 16);
 
@@ -33,6 +34,7 @@ const PublishChallengeModal = ({
   const [locationName, setLocationName] = useState('');
   const [notes, setNotes] = useState('');
   const [fieldPrice, setFieldPrice] = useState('');
+  const [mode, setMode] = useState('Masculino');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -47,6 +49,7 @@ const PublishChallengeModal = ({
     setLocationName('');
     setNotes('');
     setFieldPrice('');
+    setMode('Masculino');
   }, [isOpen, prefilledTeamId, teams]);
 
   const selectedTeam = useMemo(() => teams.find((team) => team.id === challengerTeamId) || null, [challengerTeamId, teams]);
@@ -93,6 +96,7 @@ const PublishChallengeModal = ({
             challenger_team_id: selectedTeam.id,
             format: selectedTeam.format,
             skill_level: selectedTeam.skill_level,
+            mode: mode || 'Masculino',
             scheduled_at: scheduledAtLocal ? new Date(scheduledAtLocal).toISOString() : null,
             location_name: locationName.trim() || null,
             field_price: parseOptionalAmount(fieldPrice),
@@ -137,6 +141,19 @@ const PublishChallengeModal = ({
             />
           </label>
         </div>
+
+        <label className="block">
+          <span className="text-xs text-white/80 uppercase tracking-wide">Genero</span>
+          <select
+            value={mode}
+            onChange={(event) => setMode(event.target.value)}
+            className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+          >
+            {MODE_OPTIONS.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </label>
 
         <label className="block">
           <span className="text-xs text-white/80 uppercase tracking-wide">Fecha y hora (opcional)</span>

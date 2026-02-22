@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Activity, AlertTriangle, Bell, CalendarClock, CheckCircle, ChevronRight, ClipboardList, Trophy, UserPlus, Users, Vote } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
@@ -39,6 +39,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const notifications = notificationsCtx.notifications || [];
   const markAsRead = notificationsCtx.markAsRead || (async () => {});
   const navigate = useNavigate();
+  const location = useLocation();
   const { setIntervalSafe } = useInterval();
   const [activeMatches, setActiveMatches] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
@@ -101,6 +102,12 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       }, 10000);
     }
   }, [user, setIntervalSafe]);
+
+  useEffect(() => {
+    if (!location?.state?.openProximosPartidos) return;
+    setShowProximosPartidos(true);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.pathname, location.state, navigate]);
 
   const fetchActiveMatches = async () => {
     if (!user) {

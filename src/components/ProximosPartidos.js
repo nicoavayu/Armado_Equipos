@@ -262,7 +262,7 @@ const ProximosPartidos = ({ onClose }) => {
           challenge_id: match.challenge_id || null,
           modalidad: `F${match?.format || '-'}`,
           origin_badge: match?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso',
-          genero_partido: String(match?.mode || '').trim() || 'Sin genero',
+          genero_partido: String(match?.mode || '').trim() || 'Masculino',
           fecha,
           hora,
           scheduled_at: match?.scheduled_at || null,
