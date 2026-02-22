@@ -21,7 +21,7 @@ const STATE_TABS = [
 
 const formatMoneyAr = (value) => {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
   return parsed.toLocaleString('es-AR', {
     style: 'currency',
     currency: 'ARS',
@@ -35,14 +35,10 @@ const buildShareText = (challenge) => {
   const teamB = challenge?.accepted_team?.name || 'Busco rival';
   const when = challenge?.scheduled_at ? new Date(challenge.scheduled_at).toLocaleString('es-AR') : 'A coordinar';
   const where = challenge?.location_name || 'A coordinar';
-  const pricePerTeam = formatMoneyAr(challenge?.price_per_team);
   const fieldPrice = formatMoneyAr(challenge?.field_price);
-  const priceText = [
-    pricePerTeam ? `Por equipo ${pricePerTeam}` : null,
-    fieldPrice ? `Cancha ${fieldPrice}` : null,
-  ].filter(Boolean).join(' | ');
+  const canchaText = fieldPrice ? `Cancha ${fieldPrice}` : 'Cancha: a coordinar';
 
-  return [teamA + ' vs ' + teamB, `F${challenge?.format || '-'}`, when, where, priceText]
+  return [teamA + ' vs ' + teamB, `F${challenge?.format || '-'}`, when, where, canchaText]
     .filter(Boolean)
     .join(' | ');
 };

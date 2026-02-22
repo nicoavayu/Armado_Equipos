@@ -18,9 +18,21 @@ const EquipoDetallePage = () => {
     navigate('/quiero-jugar');
   };
 
+  const handleOpenTeamChat = () => {
+    if (!teamId) return;
+    navigate(`/quiero-jugar/equipos/${teamId}/chat`);
+  };
+
   return (
     <PageTransition>
-      <PageTitle title="Editar equipo" onBack={handleBack}>Editar equipo</PageTitle>
+      <PageTitle
+        title="Editar equipo"
+        onBack={handleBack}
+        showChatButton
+        onChatClick={handleOpenTeamChat}
+      >
+        Editar equipo
+      </PageTitle>
       <EquipoDetalleView teamId={teamId} userId={user?.id} />
     </PageTransition>
   );

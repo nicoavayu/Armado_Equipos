@@ -33,6 +33,7 @@ const HomePage = lazy(() => import('./pages/HomePage'));
 const NuevoPartidoPage = lazy(() => import('./pages/NuevoPartidoPage'));
 const QuieroJugarPage = lazy(() => import('./pages/QuieroJugarPage'));
 const EquipoDetallePage = lazy(() => import('./pages/EquipoDetallePage'));
+const TeamChatPage = lazy(() => import('./pages/TeamChatPage'));
 const AmigosPage = lazy(() => import('./pages/AmigosPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'));
@@ -154,6 +155,11 @@ export default function App() {
                       <Route path="quiero-jugar/equipos/:teamId" element={
                         <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
                           <EquipoDetallePage />
+                        </Suspense>
+                      } />
+                      <Route path="quiero-jugar/equipos/:teamId/chat" element={
+                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                          <TeamChatPage />
                         </Suspense>
                       } />
                       <Route path="amigos" element={

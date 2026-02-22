@@ -118,6 +118,16 @@ const TEAM_INVITATION_SELECT = `
   )
 `;
 
+const TEAM_CHAT_MESSAGE_SELECT = `
+  id,
+  team_id,
+  user_id,
+  autor,
+  mensaje,
+  timestamp,
+  created_at
+`;
+
 const SKILL_TO_LEGACY_TIER = {
   sin_definir: 'sin_definir',
   inicial: 'tranqui',
@@ -1068,7 +1078,6 @@ export const createChallenge = async (userId, payload) => {
       location_place_id: payload.location_place_id || null,
       format: Number(payload.format),
       skill_level: skillCandidate,
-      price_per_team: payload.price_per_team ?? null,
       field_price: payload.field_price ?? null,
       notes: payload.notes || null,
     };
@@ -1084,7 +1093,6 @@ export const createChallenge = async (userId, payload) => {
       && (isMissingColumnError(response.error, 'price_per_team') || isMissingColumnError(response.error, 'field_price'))
     ) {
       const legacyPayload = { ...insertPayload };
-      delete legacyPayload.price_per_team;
       delete legacyPayload.field_price;
 
       response = await supabase
@@ -1274,4 +1282,121 @@ export const listTeamMatchHistory = async (teamId) => {
       opponentTeam: isTeamA ? row?.team_b || null : row?.team_a || null,
     };
   });
+};
+
+export const canAccessTeamChat = async ({ teamId, userId }) => {
+  assertAuthenticatedUser(userId);
+  if (!teamId) return false;
+
+  const teamResponse = await supabase
+    .from('teams')
+    .select('id, owner_user_id')
+    .eq('id', teamId)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (teamResponse.error) {
+    throw new Error(teamResponse.error.message || 'No se pudo validar el equipo');
+  }
+
+  if (!teamResponse.data) return false;
+  if (String(teamResponse.data.owner_user_id || '') === String(userId)) return true;
+
+  let memberResponse = await supabase
+    .from('team_members')
+    .select('id')
+    .eq('team_id', teamId)
+    .eq('user_id', userId)
+    .limit(1);
+
+  if (memberResponse.error && isMissingColumnError(memberResponse.error, 'user_id')) {
+    memberResponse = await supabase
+      .from('team_members')
+      .select(`
+        id,
+        jugador:jugadores!team_members_jugador_id_fkey(
+          usuario_id
+        )
+      `)
+      .eq('team_id', teamId);
+
+    if (memberResponse.error) {
+      throw new Error(memberResponse.error.message || 'No se pudo validar la membresia del equipo');
+    }
+
+    return Boolean(
+      (memberResponse.data || []).some(
+        (row) => String(row?.jugador?.usuario_id || '') === String(userId),
+      ),
+    );
+  }
+
+  if (memberResponse.error) {
+    throw new Error(memberResponse.error.message || 'No se pudo validar la membresia del equipo');
+  }
+
+  return Boolean((memberResponse.data || [])[0]?.id);
+};
+
+export const listTeamChatMessages = async (teamId) => {
+  if (!teamId) return [];
+
+  let response = await supabase
+    .from('team_chat_messages')
+    .select(TEAM_CHAT_MESSAGE_SELECT)
+    .eq('team_id', teamId)
+    .order('timestamp', { ascending: true });
+
+  if (response.error && isMissingColumnError(response.error, 'timestamp')) {
+    response = await supabase
+      .from('team_chat_messages')
+      .select(TEAM_CHAT_MESSAGE_SELECT)
+      .eq('team_id', teamId)
+      .order('created_at', { ascending: true });
+  }
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudieron cargar los mensajes del equipo');
+  }
+
+  return (response.data || []).map((row) => ({
+    ...row,
+    timestamp: row?.timestamp || row?.created_at || null,
+  }));
+};
+
+export const sendTeamChatMessage = async ({ teamId, author, message }) => {
+  const trimmedMessage = String(message || '').trim();
+  if (!teamId) throw new Error('Equipo invalido');
+  if (!trimmedMessage) throw new Error('Mensaje vacio');
+
+  const response = await supabase.rpc('send_team_chat_message', {
+    p_team_id: teamId,
+    p_autor: String(author || '').trim(),
+    p_mensaje: trimmedMessage,
+  });
+
+  if (!response.error) return true;
+
+  const missingRpc = response.error.code === '42883'
+    || normalizeMessage(response.error).includes('send_team_chat_message');
+
+  if (!missingRpc) {
+    throw new Error(response.error.message || 'No se pudo enviar el mensaje');
+  }
+
+  const insertPayload = {
+    team_id: teamId,
+    autor: String(author || '').trim() || 'Usuario',
+    mensaje: trimmedMessage,
+  };
+
+  const insertResponse = await supabase
+    .from('team_chat_messages')
+    .insert(insertPayload)
+    .select('id')
+    .single();
+
+  unwrapSingle(insertResponse, 'No se pudo enviar el mensaje');
+  return true;
 };

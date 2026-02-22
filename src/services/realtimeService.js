@@ -129,6 +129,49 @@ export const subscribeToMatchChat = (matchId, onInsert) => {
 };
 
 /**
+ * Subscribe to chat messages for a team.
+ * @param {string} teamId
+ * @param {function} onInsert - Callback (payload) => void
+ * @returns {function} unsubscribe
+ */
+export const subscribeToTeamChat = (teamId, onInsert) => {
+  const key = `team-chat:${teamId}`;
+  if (!teamId) return () => { };
+
+  if (getExistingChannel(key)) {
+    console.debug(`[RT] Cleaning stale team chat channel ${key} before resubscribe`);
+    const old = channels[key];
+    supabase.removeChannel(old);
+    unregisterChannel(key);
+  }
+
+  console.debug(`[RT] Subscribing to team chat ${teamId}`);
+  const channel = supabase
+    .channel(key)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'team_chat_messages',
+        filter: `team_id=eq.${teamId}`,
+      },
+      (payload) => {
+        onInsert(payload);
+      },
+    )
+    .subscribe();
+
+  registerChannel(key, channel);
+
+  return () => {
+    console.debug(`[RT] Unsubscribing team chat ${teamId}`);
+    supabase.removeChannel(channel);
+    unregisterChannel(key);
+  };
+};
+
+/**
  * Subscribe to match updates (voting status, results).
  * @param {string|number} matchId 
  * @param {function} onUpdate - Callback (payload) => void
