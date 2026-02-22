@@ -23,8 +23,8 @@ const getGeneroClass = (tipo) => {
 
 const getOriginClass = (originLabel) => {
     const value = String(originLabel || '').toLowerCase();
-    if (value.includes('desafio')) return 'bg-[#334155] border border-[#64748B] text-white';
-    if (value.includes('amistoso')) return 'bg-[#1f2937] border border-[#4b5563] text-white/95';
+    if (value.includes('desafio')) return 'bg-[#374151] border border-[#6B7280] text-[#E5E7EB]';
+    if (value.includes('amistoso')) return 'bg-[#1E3A5F] border border-[#3B82F6] text-[#DBEAFE]';
     return 'bg-[#334155] border border-[#64748B] text-white';
 };
 

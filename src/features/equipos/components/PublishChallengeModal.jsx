@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Modal from '../../../components/Modal';
 import Button from '../../../components/Button';
-import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS } from '../config';
+import {
+  TEAM_FORMAT_OPTIONS,
+  TEAM_MODE_OPTIONS,
+  TEAM_SKILL_OPTIONS,
+  normalizeTeamMode,
+} from '../config';
 import { formatSkillLevelLabel } from '../utils/teamColors';
 import NeighborhoodAutocomplete from './NeighborhoodAutocomplete';
 
@@ -9,7 +14,6 @@ const actionButtonClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold
 
 const FORMAT_OPTIONS_LABEL = TEAM_FORMAT_OPTIONS.map((value) => `F${value}`).join(' · ');
 const SKILL_OPTIONS_LABEL = TEAM_SKILL_OPTIONS.map((option) => option.label).join(' · ');
-const MODE_OPTIONS = ['Masculino', 'Femenino', 'Mixto'];
 
 const sanitizeAmountInput = (value) => String(value || '').replace(/[^\d.,]/g, '').slice(0, 16);
 
@@ -53,6 +57,12 @@ const PublishChallengeModal = ({
   }, [isOpen, prefilledTeamId, teams]);
 
   const selectedTeam = useMemo(() => teams.find((team) => team.id === challengerTeamId) || null, [challengerTeamId, teams]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!selectedTeam) return;
+    setMode(normalizeTeamMode(selectedTeam.mode));
+  }, [isOpen, selectedTeam]);
 
   return (
     <Modal
@@ -149,8 +159,8 @@ const PublishChallengeModal = ({
             onChange={(event) => setMode(event.target.value)}
             className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
           >
-            {MODE_OPTIONS.map((option) => (
-              <option key={option} value={option}>{option}</option>
+            {TEAM_MODE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
         </label>

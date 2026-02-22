@@ -63,6 +63,13 @@ const statusLabelByValue = {
   cancelled: 'Cancelado',
 };
 
+const getOriginBadgeClass = (originType) => {
+  if (String(originType || '').toLowerCase() === 'challenge') {
+    return 'border-[#6B7280] bg-[#374151]/70 text-[#E5E7EB]';
+  }
+  return 'border-[#3B82F6] bg-[#1E3A5F]/75 text-[#DBEAFE]';
+};
+
 const buildMapsSearchUrl = (value) => {
   const trimmed = String(value || '').trim();
   if (!trimmed) return null;
@@ -350,7 +357,7 @@ const TeamMatchDetailPage = () => {
             <>
               <div className="rounded-2xl border border-white/15 bg-[#1e293b]/65 p-4">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
-                  <span className="inline-flex items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white/80 font-oswald uppercase tracking-wide">
+                  <span className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getOriginBadgeClass(match?.origin_type)}`}>
                     <Flag size={12} /> {match?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso'}
                   </span>
                   <span className="inline-flex items-center rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white/80 font-oswald uppercase tracking-wide">

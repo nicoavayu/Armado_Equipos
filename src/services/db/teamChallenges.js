@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
-import { normalizeTeamSkillLevel } from '../../features/equipos/config';
+import { normalizeTeamMode, normalizeTeamSkillLevel } from '../../features/equipos/config';
 
 const TEAM_SELECT = [
   'id',
@@ -16,6 +16,7 @@ const TEAM_SELECT = [
   'created_at',
   'updated_at',
 ].join(',');
+const TEAM_SELECT_WITH_MODE = `${TEAM_SELECT},mode`;
 
 const CHALLENGE_SELECT_BASE = `
   id,
@@ -343,6 +344,14 @@ const runTeamMatchSelectWithFallback = async (queryFactory, preferred = TEAM_MAT
   return lastResponse;
 };
 
+const runTeamSelectWithModeFallback = async (queryFactory) => {
+  let response = await queryFactory(TEAM_SELECT_WITH_MODE);
+  if (response.error && isMissingColumnError(response.error, 'mode')) {
+    response = await queryFactory(TEAM_SELECT);
+  }
+  return response;
+};
+
 const challengePayloadToKey = (payload) => Object.keys(payload)
   .sort((a, b) => a.localeCompare(b))
   .map((key) => `${key}:${JSON.stringify(payload[key])}`)
@@ -420,6 +429,11 @@ const withTeamMatchCompatibility = (row) => ({
   location: row?.location ?? row?.location_name ?? null,
   cancha_cost: row?.cancha_cost ?? null,
   is_format_combined: Boolean(row?.is_format_combined),
+});
+
+const withTeamCompatibility = (row) => ({
+  ...row,
+  mode: normalizeTeamMode(row?.mode),
 });
 
 export const upsertChallengeAcceptedNotifications = async ({
@@ -529,29 +543,33 @@ const unwrapSingle = (response, fallbackMessage) => {
 
 export const listMyTeams = async (userId) => {
   assertAuthenticatedUser(userId);
-  const response = await supabase
-    .from('teams')
-    .select(TEAM_SELECT)
-    .eq('owner_user_id', userId)
-    .eq('is_active', true)
-    .order('created_at', { ascending: false });
+  const response = await runTeamSelectWithModeFallback(
+    (selectClause) => supabase
+      .from('teams')
+      .select(selectClause)
+      .eq('owner_user_id', userId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false }),
+  );
 
   if (response.error) {
     throw new Error(response.error.message || 'No se pudieron cargar tus equipos');
   }
 
-  return response.data || [];
+  return (response.data || []).map(withTeamCompatibility);
 };
 
 export const listAccessibleTeams = async (userId) => {
   assertAuthenticatedUser(userId);
 
-  const ownTeamsResponse = await supabase
-    .from('teams')
-    .select(TEAM_SELECT)
-    .eq('owner_user_id', userId)
-    .eq('is_active', true)
-    .order('created_at', { ascending: false });
+  const ownTeamsResponse = await runTeamSelectWithModeFallback(
+    (selectClause) => supabase
+      .from('teams')
+      .select(selectClause)
+      .eq('owner_user_id', userId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false }),
+  );
 
   if (ownTeamsResponse.error) {
     throw new Error(ownTeamsResponse.error.message || 'No se pudieron cargar tus equipos');
@@ -622,11 +640,13 @@ export const listAccessibleTeams = async (userId) => {
 
   let memberTeams = [];
   if (extraTeamIds.length > 0) {
-    const memberTeamsResponse = await supabase
-      .from('teams')
-      .select(TEAM_SELECT)
-      .in('id', extraTeamIds)
-      .eq('is_active', true);
+    const memberTeamsResponse = await runTeamSelectWithModeFallback(
+      (selectClause) => supabase
+        .from('teams')
+        .select(selectClause)
+        .in('id', extraTeamIds)
+        .eq('is_active', true),
+    );
 
     if (memberTeamsResponse.error) {
       throw new Error(memberTeamsResponse.error.message || 'No se pudieron cargar equipos invitados');
@@ -643,7 +663,7 @@ export const listAccessibleTeams = async (userId) => {
 
   return Array.from(dedup.values()).sort((a, b) => (
     new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime()
-  ));
+  )).map(withTeamCompatibility);
 };
 
 export const listMyManageableTeams = async (userId) => {
@@ -663,13 +683,15 @@ export const listMyManageableTeams = async (userId) => {
 };
 
 export const getTeamById = async (teamId) => {
-  const response = await supabase
-    .from('teams')
-    .select(TEAM_SELECT)
-    .eq('id', teamId)
-    .single();
+  const response = await runTeamSelectWithModeFallback(
+    (selectClause) => supabase
+      .from('teams')
+      .select(selectClause)
+      .eq('id', teamId)
+      .single(),
+  );
 
-  return unwrapSingle(response, 'No se pudo cargar el equipo');
+  return withTeamCompatibility(unwrapSingle(response, 'No se pudo cargar el equipo'));
 };
 
 export const createTeam = async (userId, payload) => {
@@ -677,36 +699,50 @@ export const createTeam = async (userId, payload) => {
 
   const skillCandidates = getSkillCandidates(payload.skill_level);
   let response = null;
+  const teamMode = normalizeTeamMode(payload?.mode);
 
   for (const skillCandidate of skillCandidates) {
-    response = await supabase
-      .from('teams')
-      .insert({
-        owner_user_id: userId,
-        name: payload.name,
-        format: payload.format,
-        base_zone: payload.base_zone || null,
-        skill_level: skillCandidate,
-        crest_url: payload.crest_url || null,
-        color_primary: payload.color_primary || null,
-        color_secondary: payload.color_secondary || null,
-        color_accent: payload.color_accent || null,
-        is_active: payload.is_active ?? true,
-      })
-      .select(TEAM_SELECT)
-      .single();
+    const baseInsertPayload = {
+      owner_user_id: userId,
+      name: payload.name,
+      format: payload.format,
+      base_zone: payload.base_zone || null,
+      skill_level: skillCandidate,
+      crest_url: payload.crest_url || null,
+      color_primary: payload.color_primary || null,
+      color_secondary: payload.color_secondary || null,
+      color_accent: payload.color_accent || null,
+      is_active: payload.is_active ?? true,
+    };
+
+    const runInsert = (includeMode) => runTeamSelectWithModeFallback(
+      (selectClause) => supabase
+        .from('teams')
+        .insert({
+          ...baseInsertPayload,
+          ...(includeMode ? { mode: teamMode } : {}),
+        })
+        .select(selectClause)
+        .single(),
+    );
+
+    response = await runInsert(true);
+    if (response.error && isMissingColumnError(response.error, 'mode')) {
+      response = await runInsert(false);
+    }
 
     if (!response.error) break;
     if (!isSkillLevelConstraintError(response.error)) break;
   }
 
-  return unwrapSingle(response, 'No se pudo crear el equipo');
+  return withTeamCompatibility(unwrapSingle(response, 'No se pudo crear el equipo'));
 };
 
 export const updateTeam = async (teamId, payload) => {
   const updatePayloadBase = {};
   if ('name' in payload) updatePayloadBase.name = payload.name;
   if ('format' in payload) updatePayloadBase.format = payload.format;
+  if ('mode' in payload) updatePayloadBase.mode = normalizeTeamMode(payload.mode);
   if ('base_zone' in payload) updatePayloadBase.base_zone = payload.base_zone || null;
   if ('crest_url' in payload) updatePayloadBase.crest_url = payload.crest_url || null;
   if ('color_primary' in payload) updatePayloadBase.color_primary = payload.color_primary || null;
@@ -726,18 +762,27 @@ export const updateTeam = async (teamId, payload) => {
       updatePayload.skill_level = skillCandidate;
     }
 
-    response = await supabase
-      .from('teams')
-      .update(updatePayload)
-      .eq('id', teamId)
-      .select(TEAM_SELECT)
-      .single();
+    const runUpdate = (payloadForUpdate) => runTeamSelectWithModeFallback(
+      (selectClause) => supabase
+        .from('teams')
+        .update(payloadForUpdate)
+        .eq('id', teamId)
+        .select(selectClause)
+        .single(),
+    );
+
+    response = await runUpdate(updatePayload);
+    if (response.error && isMissingColumnError(response.error, 'mode') && 'mode' in updatePayload) {
+      const modeLessPayload = { ...updatePayload };
+      delete modeLessPayload.mode;
+      response = await runUpdate(modeLessPayload);
+    }
 
     if (!response.error) break;
     if (!isSkillLevelConstraintError(response.error)) break;
   }
 
-  return unwrapSingle(response, 'No se pudo actualizar el equipo');
+  return withTeamCompatibility(unwrapSingle(response, 'No se pudo actualizar el equipo'));
 };
 
 export const softDeleteTeam = async (teamId) => {

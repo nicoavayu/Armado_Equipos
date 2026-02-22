@@ -1,12 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Modal from '../../../components/Modal';
 import Button from '../../../components/Button';
-import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS, normalizeTeamSkillLevel } from '../config';
+import {
+  TEAM_FORMAT_OPTIONS,
+  TEAM_MODE_OPTIONS,
+  TEAM_SKILL_OPTIONS,
+  normalizeTeamMode,
+  normalizeTeamSkillLevel,
+} from '../config';
 import NeighborhoodAutocomplete from './NeighborhoodAutocomplete';
 
 const EMPTY_FORM = {
   name: '',
   format: 5,
+  mode: 'Masculino',
   base_zone: '',
   skill_level: 'sin_definir',
 };
@@ -38,6 +45,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
     const nextForm = {
       name: initialTeam?.name || '',
       format: Number(initialTeam?.format || 5),
+      mode: normalizeTeamMode(initialTeam?.mode),
       base_zone: initialTeam?.base_zone || '',
       skill_level: normalizeTeamSkillLevel(initialTeam?.skill_level),
     };
@@ -174,6 +182,19 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
             </select>
           </label>
         </div>
+
+        <label className="block">
+          <span className="text-xs text-white/80 uppercase tracking-wide">Genero</span>
+          <select
+            value={form.mode}
+            onChange={(event) => setForm((prev) => ({ ...prev, mode: event.target.value }))}
+            className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+          >
+            {TEAM_MODE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
 
         <label className="block">
           <span className="text-xs text-white/80 uppercase tracking-wide">Zona base</span>
