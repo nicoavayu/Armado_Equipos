@@ -61,6 +61,8 @@ const TEAM_MEMBER_SELECT_BASE = `
   id,
   team_id,
   jugador_id,
+  user_id,
+  permissions_role,
   role,
   is_captain,
   shirt_number,
@@ -78,6 +80,8 @@ const TEAM_MEMBER_SELECT_WITH_PHOTO = `
   id,
   team_id,
   jugador_id,
+  user_id,
+  permissions_role,
   role,
   is_captain,
   shirt_number,
@@ -89,6 +93,28 @@ const TEAM_MEMBER_SELECT_WITH_PHOTO = `
     nombre,
     avatar_url,
     score
+  )
+`;
+
+const TEAM_INVITATION_SELECT = `
+  id,
+  team_id,
+  invited_user_id,
+  invited_by_user_id,
+  status,
+  created_at,
+  updated_at,
+  responded_at,
+  team:teams!team_invitations_team_id_fkey(${TEAM_SELECT}),
+  invited_user:usuarios!team_invitations_invited_user_id_fkey(
+    id,
+    nombre,
+    avatar_url
+  ),
+  invited_by_user:usuarios!team_invitations_invited_by_user_id_fkey(
+    id,
+    nombre,
+    avatar_url
   )
 `;
 
@@ -318,6 +344,109 @@ export const listMyTeams = async (userId) => {
   return response.data || [];
 };
 
+export const listAccessibleTeams = async (userId) => {
+  assertAuthenticatedUser(userId);
+
+  const ownTeamsResponse = await supabase
+    .from('teams')
+    .select(TEAM_SELECT)
+    .eq('owner_user_id', userId)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false });
+
+  if (ownTeamsResponse.error) {
+    throw new Error(ownTeamsResponse.error.message || 'No se pudieron cargar tus equipos');
+  }
+
+  const memberTeamIds = new Set();
+
+  let teamMembersByUserResponse = await supabase
+    .from('team_members')
+    .select('team_id')
+    .eq('user_id', userId);
+
+  if (teamMembersByUserResponse.error && isMissingColumnError(teamMembersByUserResponse.error, 'user_id')) {
+    teamMembersByUserResponse = { data: [], error: null };
+  } else if (teamMembersByUserResponse.error) {
+    throw new Error(teamMembersByUserResponse.error.message || 'No se pudieron cargar tus membresias');
+  }
+
+  (teamMembersByUserResponse.data || []).forEach((row) => {
+    if (row?.team_id) memberTeamIds.add(row.team_id);
+  });
+
+  if (memberTeamIds.size === 0) {
+    const playerRowsResponse = await supabase
+      .from('jugadores')
+      .select('id')
+      .eq('usuario_id', userId)
+      .order('id', { ascending: false });
+
+    if (playerRowsResponse.error) {
+      throw new Error(playerRowsResponse.error.message || 'No se pudieron cargar tus jugadores');
+    }
+
+    const jugadorIds = (playerRowsResponse.data || [])
+      .map((row) => row?.id)
+      .filter(Boolean);
+
+    if (jugadorIds.length > 0) {
+      const memberRowsResponse = await supabase
+        .from('team_members')
+        .select('team_id')
+        .in('jugador_id', jugadorIds);
+
+      if (memberRowsResponse.error) {
+        throw new Error(memberRowsResponse.error.message || 'No se pudieron cargar tus membresias');
+      }
+
+      (memberRowsResponse.data || []).forEach((row) => {
+        if (row?.team_id) memberTeamIds.add(row.team_id);
+      });
+    }
+  }
+
+  const acceptedInvitationsResponse = await supabase
+    .from('team_invitations')
+    .select('team_id')
+    .eq('invited_user_id', userId)
+    .eq('status', 'accepted');
+
+  if (!acceptedInvitationsResponse.error) {
+    (acceptedInvitationsResponse.data || []).forEach((row) => {
+      if (row?.team_id) memberTeamIds.add(row.team_id);
+    });
+  }
+
+  const ownTeamIds = new Set((ownTeamsResponse.data || []).map((team) => team.id));
+  const extraTeamIds = Array.from(memberTeamIds).filter((teamId) => !ownTeamIds.has(teamId));
+
+  let memberTeams = [];
+  if (extraTeamIds.length > 0) {
+    const memberTeamsResponse = await supabase
+      .from('teams')
+      .select(TEAM_SELECT)
+      .in('id', extraTeamIds)
+      .eq('is_active', true);
+
+    if (memberTeamsResponse.error) {
+      throw new Error(memberTeamsResponse.error.message || 'No se pudieron cargar equipos invitados');
+    }
+
+    memberTeams = memberTeamsResponse.data || [];
+  }
+
+  const dedup = new Map();
+  [...(ownTeamsResponse.data || []), ...memberTeams].forEach((team) => {
+    if (!team?.id) return;
+    dedup.set(team.id, team);
+  });
+
+  return Array.from(dedup.values()).sort((a, b) => (
+    new Date(b?.created_at || 0).getTime() - new Date(a?.created_at || 0).getTime()
+  ));
+};
+
 export const getTeamById = async (teamId) => {
   const response = await supabase
     .from('teams')
@@ -507,31 +636,214 @@ export const ensureRosterCandidateByName = async (rawName) => {
   };
 };
 
-export const listTeamMembers = async (teamId) => {
-  let response = await supabase
+export const ensureLocalTeamPlayerByName = async ({ teamId, displayName }) => {
+  const trimmedName = String(displayName || '').trim();
+  if (!teamId) {
+    throw new Error('Equipo invalido para crear jugador local');
+  }
+  if (!trimmedName) {
+    throw new Error('Escribi el nombre del jugador para continuar');
+  }
+
+  const existingLocalResponse = await supabase
     .from('team_members')
-    .select(TEAM_MEMBER_SELECT_WITH_PHOTO)
+    .select(`
+      id,
+      jugador:jugadores!team_members_jugador_id_fkey(
+        id,
+        nombre,
+        usuario_id,
+        avatar_url,
+        score
+      )
+    `)
+    .eq('team_id', teamId);
+
+  if (existingLocalResponse.error) {
+    throw new Error(existingLocalResponse.error.message || 'No se pudo validar la plantilla local');
+  }
+
+  const normalizedTarget = trimmedName.toLowerCase();
+  const existingLocal = (existingLocalResponse.data || []).find((row) => {
+    const jugador = row?.jugador;
+    if (!jugador || jugador.usuario_id) return false;
+    return String(jugador.nombre || '').trim().toLowerCase() === normalizedTarget;
+  });
+
+  if (existingLocal?.jugador?.id) {
+    return {
+      jugador_id: existingLocal.jugador.id,
+      usuario_id: null,
+      nombre: existingLocal.jugador.nombre || trimmedName,
+      avatar_url: existingLocal.jugador.avatar_url || null,
+      posicion: null,
+      ranking: existingLocal.jugador.score ?? null,
+    };
+  }
+
+  const insertResponse = await supabase
+    .from('jugadores')
+    .insert({
+      nombre: trimmedName,
+      usuario_id: null,
+    })
+    .select('id, usuario_id, nombre, avatar_url, score')
+    .single();
+
+  if (insertResponse.error) {
+    throw new Error(insertResponse.error.message || 'No se pudo crear el jugador local');
+  }
+
+  const created = insertResponse.data;
+  return {
+    jugador_id: created.id,
+    usuario_id: null,
+    nombre: created.nombre || trimmedName,
+    avatar_url: created.avatar_url || null,
+    posicion: null,
+    ranking: created.score ?? null,
+  };
+};
+
+export const listTeamMembers = async (teamId) => {
+  const legacyMemberSelect = `
+    id,
+    team_id,
+    jugador_id,
+    role,
+    is_captain,
+    shirt_number,
+    created_at,
+    jugador:jugadores!team_members_jugador_id_fkey(
+      id,
+      usuario_id,
+      nombre,
+      avatar_url,
+      score
+    )
+  `;
+
+  const executeSelect = async (selectClause) => supabase
+    .from('team_members')
+    .select(selectClause)
     .eq('team_id', teamId)
     .order('is_captain', { ascending: false })
     .order('created_at', { ascending: true });
 
+  let response = await executeSelect(TEAM_MEMBER_SELECT_WITH_PHOTO);
   if (response.error && isMissingColumnError(response.error, 'photo_url')) {
-    response = await supabase
-      .from('team_members')
-      .select(TEAM_MEMBER_SELECT_BASE)
-      .eq('team_id', teamId)
-      .order('is_captain', { ascending: false })
-      .order('created_at', { ascending: true });
+    response = await executeSelect(TEAM_MEMBER_SELECT_BASE);
+  }
+  if (
+    response.error
+    && (isMissingColumnError(response.error, 'user_id') || isMissingColumnError(response.error, 'permissions_role'))
+  ) {
+    response = await executeSelect(legacyMemberSelect);
   }
 
   if (response.error) {
     throw new Error(response.error.message || 'No se pudo cargar la plantilla');
   }
 
-  return (response.data || []).map((row) => ({ ...row, photo_url: row?.photo_url || null }));
+  return (response.data || []).map((row) => ({
+    ...row,
+    user_id: row?.user_id || row?.jugador?.usuario_id || null,
+    permissions_role: row?.permissions_role || 'member',
+    photo_url: row?.photo_url || null,
+  }));
 };
 
-export const addTeamMember = async ({ teamId, jugadorId, role = 'player', isCaptain = false, shirtNumber = null, photoUrl = null }) => {
+export const listTeamPendingInvitations = async (teamId) => {
+  const response = await supabase
+    .from('team_invitations')
+    .select(TEAM_INVITATION_SELECT)
+    .eq('team_id', teamId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudieron cargar las invitaciones del equipo');
+  }
+
+  return response.data || [];
+};
+
+export const listIncomingTeamInvitations = async (userId) => {
+  assertAuthenticatedUser(userId);
+
+  const response = await supabase
+    .from('team_invitations')
+    .select(TEAM_INVITATION_SELECT)
+    .eq('invited_user_id', userId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudieron cargar las invitaciones pendientes');
+  }
+
+  return response.data || [];
+};
+
+export const sendTeamInvitation = async ({ teamId, invitedUserId }) => {
+  const response = await supabase.rpc('rpc_send_team_invitation', {
+    p_team_id: teamId,
+    p_invited_user_id: invitedUserId,
+  });
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudo enviar la invitacion');
+  }
+
+  return response.data;
+};
+
+export const acceptTeamInvitation = async (invitationId) => {
+  const response = await supabase.rpc('rpc_accept_team_invitation', {
+    p_invitation_id: invitationId,
+  });
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudo aceptar la invitacion');
+  }
+
+  return response.data;
+};
+
+export const rejectTeamInvitation = async (invitationId) => {
+  const response = await supabase.rpc('rpc_reject_team_invitation', {
+    p_invitation_id: invitationId,
+  });
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudo rechazar la invitacion');
+  }
+
+  return response.data;
+};
+
+export const revokeTeamInvitation = async (invitationId) => {
+  const response = await supabase.rpc('rpc_revoke_team_invitation', {
+    p_invitation_id: invitationId,
+  });
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudo revocar la invitacion');
+  }
+
+  return response.data;
+};
+
+export const addTeamMember = async ({
+  teamId,
+  jugadorId,
+  userId = null,
+  permissionsRole = 'member',
+  role = 'player',
+  isCaptain = false,
+  shirtNumber = null,
+  photoUrl = null,
+}) => {
   const roleCandidates = getRoleCandidates(role);
   let response = null;
 
@@ -539,6 +851,8 @@ export const addTeamMember = async ({ teamId, jugadorId, role = 'player', isCapt
     const insertPayload = {
       team_id: teamId,
       jugador_id: jugadorId,
+      user_id: userId,
+      permissions_role: permissionsRole,
       role: roleCandidate,
       is_captain: Boolean(isCaptain),
       shirt_number: shirtNumber,
@@ -561,6 +875,20 @@ export const addTeamMember = async ({ teamId, jugadorId, role = 'player', isCapt
         .single();
     }
 
+    if (
+      response.error
+      && (isMissingColumnError(response.error, 'user_id') || isMissingColumnError(response.error, 'permissions_role'))
+    ) {
+      const compatibilityPayload = { ...insertPayload };
+      delete compatibilityPayload.user_id;
+      delete compatibilityPayload.permissions_role;
+      response = await supabase
+        .from('team_members')
+        .insert(compatibilityPayload)
+        .select('id')
+        .single();
+    }
+
     if (!response.error) break;
     if (!isRoleConstraintError(response.error)) break;
   }
@@ -573,6 +901,7 @@ export const updateTeamMember = async (memberId, updates) => {
   if ('is_captain' in updates) payloadBase.is_captain = Boolean(updates.is_captain);
   if ('shirt_number' in updates) payloadBase.shirt_number = updates.shirt_number;
   if ('photo_url' in updates) payloadBase.photo_url = updates.photo_url || null;
+  if ('permissions_role' in updates) payloadBase.permissions_role = updates.permissions_role;
 
   const roleCandidates = 'role' in updates ? getRoleCandidates(updates.role) : [null];
   let response = null;
@@ -594,6 +923,17 @@ export const updateTeamMember = async (memberId, updates) => {
       response = await supabase
         .from('team_members')
         .update(legacyPayload)
+        .eq('id', memberId)
+        .select('id')
+        .single();
+    }
+
+    if (response.error && isMissingColumnError(response.error, 'permissions_role')) {
+      const compatibilityPayload = { ...payload };
+      delete compatibilityPayload.permissions_role;
+      response = await supabase
+        .from('team_members')
+        .update(compatibilityPayload)
         .eq('id', memberId)
         .select('id')
         .single();

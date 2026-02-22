@@ -1,40 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageTitle from '../../components/PageTitle';
 import { useAuth } from '../../components/AuthProvider';
-import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY } from './config';
 import DesafiosTab from './views/DesafiosTab';
 import MisEquiposTab from './views/MisEquiposTab';
-import MisDesafiosTab from './views/MisDesafiosTab';
 
 const SUBTABS = [
   { key: 'desafios', label: 'Desafios' },
   { key: 'mis-equipos', label: 'Mis equipos' },
-  { key: 'mis-desafios', label: 'Mis desafios' },
 ];
 
 const QuieroJugarEquipos = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [activeSubtab, setActiveSubtab] = useState(() => {
-    const stored = sessionStorage.getItem(QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY);
-    return SUBTABS.some((tab) => tab.key === stored) ? stored : 'desafios';
-  });
+  const [activeSubtab, setActiveSubtab] = useState('desafios');
 
   const [prefilledTeamId, setPrefilledTeamId] = useState(null);
-  const [misDesafiosInitialStatus, setMisDesafiosInitialStatus] = useState(null);
-
-  useEffect(() => {
-    sessionStorage.setItem(QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, activeSubtab);
-  }, [activeSubtab]);
 
   return (
     <>
       <PageTitle title="QUIERO JUGAR" onBack={() => navigate(-1)}>QUIERO JUGAR</PageTitle>
 
       <div className="w-full flex justify-center px-4 pt-[116px] pb-7">
-        <div className="w-full max-w-[560px] rounded-xl border border-white/15 bg-[linear-gradient(135deg,rgba(61,74,130,0.42),rgba(31,43,96,0.4))] p-1.5 grid grid-cols-3 gap-1.5">
+        <div className="w-full max-w-[560px] rounded-xl border border-white/15 bg-[linear-gradient(135deg,rgba(61,74,130,0.42),rgba(31,43,96,0.4))] p-1.5 grid grid-cols-2 gap-1.5">
           {SUBTABS.map((tab) => (
             <button
               key={tab.key}
@@ -57,10 +46,6 @@ const QuieroJugarEquipos = () => {
             userId={user?.id}
             prefilledTeamId={prefilledTeamId}
             onChallengePublished={() => setPrefilledTeamId(null)}
-            onChallengeAccepted={() => {
-              setMisDesafiosInitialStatus('accepted');
-              setActiveSubtab('mis-desafios');
-            }}
           />
         ) : null}
 
@@ -71,14 +56,6 @@ const QuieroJugarEquipos = () => {
               setPrefilledTeamId(teamId);
               setActiveSubtab('desafios');
             }}
-          />
-        ) : null}
-
-        {activeSubtab === 'mis-desafios' ? (
-          <MisDesafiosTab
-            userId={user?.id}
-            initialStatusTab={misDesafiosInitialStatus}
-            onInitialStatusApplied={() => setMisDesafiosInitialStatus(null)}
           />
         ) : null}
       </div>

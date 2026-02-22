@@ -1,0 +1,195 @@
+SECCION EQUIPOS - FUNCIONALIDADES NUEVAS (RESUMEN COMPLETO)
+Fecha: 2026-02-22
+
+1) ALCANCE GENERAL
+- Se agrego el modulo "Equipos" dentro de "Quiero jugar".
+- El modulo esta detras de feature flag:
+  REACT_APP_ENABLE_EQUIPOS_TAB=true
+- Si el flag esta en false, se mantiene la experiencia legacy sin cambios.
+
+2) NAVEGACION Y ESTRUCTURA
+- En "Quiero jugar" ahora hay tabs superiores:
+  - Individual
+  - Equipos
+- Dentro de "Equipos" hay 3 subtabs:
+  - Desafios
+  - Mis equipos
+  - Mis desafios
+- La seleccion de tab/subtab se guarda en sessionStorage para mantener contexto al volver.
+
+3) FORMATOS Y NIVELES ESTANDARIZADOS
+- Formatos disponibles: F5, F6, F7, F8, F9, F11.
+- Niveles (tiers) unificados en toda la seccion:
+  - Sin definir
+  - Inicial
+  - Intermedio
+  - Competitivo
+  - Avanzado
+  - Elite
+- Hay compatibilidad con valores legacy (easy/normal/hard/tranqui/metedor/picante/bueno).
+
+4) MIS EQUIPOS - ALTA, EDICION Y BAJA
+- Boton principal "Crear equipo" full width.
+- Formulario de equipo:
+  - Nombre (texto libre, editable)
+  - Formato
+  - Nivel
+  - Zona base (barrio)
+  - Colores opcionales (hasta 3)
+  - Escudo opcional (imagen)
+- Colores:
+  - Boton visual con icono "+"
+  - Selector por color + campo hexadecimal
+  - Boton visual con "X" para quitar
+- Escudo:
+  - Subida visual simplificada (sin "Choose file")
+  - Vista previa y boton para quitar
+- Al guardar:
+  - Se persiste equipo
+  - Se guardan colores y escudo
+  - Se cierra el modal
+- Baja de equipo:
+  - Se hace desde menu de 3 puntos de la card (accion "Borrar equipo")
+  - Se elimino el boton de desactivar directo dentro de detalle
+
+5) CARDS DE EQUIPO Y ESTETICA
+- Cards de equipo con gradiente dinamico segun colores del equipo.
+- Chips visuales de formato/nivel/zona con estilo consistente.
+- Se incorporo menu de 3 puntos en cards y en vista detalle, alineado con el resto de la app.
+- Tipografia y tamano de botones unificados (base Oswald 18px en CTAs principales).
+
+6) DETALLE DE EQUIPO / EDITAR EQUIPO
+- Modal "Editar equipo" con card compacta del equipo arriba.
+- Acciones dentro de menu (3 puntos):
+  - Editar equipo
+  - Publicar desafio
+- Se quito la botonera redundante directa para simplificar la vista.
+
+7) PLANTILLA - GESTION DE JUGADORES
+- Se rediseno el bloque "Agregar jugador" con CTA visual mas clara.
+- El alta de jugador abre modal dedicado.
+- Campos del modal:
+  - Nombre (texto libre, sin dropdown de sugerencias visual)
+  - Posicion (selector custom)
+  - Numero
+  - Marcar como capitan (checkbox custom)
+  - Foto opcional
+- Posiciones:
+  - Catalogo completo de posiciones futbol
+  - Cada opcion muestra etiqueta + abreviatura (ej: "Arquero - AR")
+  - En campo cerrado se muestra abreviatura para evitar cortes
+  - Se elimino "Capitan" como posicion (capitan es checkbox separado)
+  - Se incluye "Sin definir"
+- Guardado de jugador:
+  - Si el nombre coincide con jugador existente, se reutiliza
+  - Si no existe, se crea candidato automaticamente
+  - Se evita duplicar por nombre dentro de la misma plantilla
+- Cards de plantilla:
+  - Minicards horizontales (estilo social/app)
+  - Avatar, nombre, posicion, numero
+  - Distincion de capitan con badge visual (Crown + CAP)
+  - Acciones por jugador: editar y quitar
+
+8) HISTORIAL DEL EQUIPO
+- En detalle de equipo se muestra "Historial vs rivales".
+- Incluye resumen acumulado:
+  - PJ, PG, PE, PP
+- Lista por rival con estadisticas por enfrentamiento.
+
+9) DESAFIOS - PUBLICAR Y BUSCAR
+- Header de Desafios redisenado:
+  - Boton principal: "Publicar desafio"
+  - Boton secundario: "Buscar" (con contador de filtros activos)
+- Filtros se muestran/ocultan al tocar "Buscar" (mas mobile-friendly).
+- Filtros disponibles:
+  - Formato
+  - Nivel
+  - Barrio
+- Boton "Limpiar filtros" cuando hay filtros activos.
+
+10) MODAL PUBLICAR DESAFIO
+- Equipo desafiante (selector de tus equipos)
+- Formato y nivel se completan segun el equipo elegido (solo lectura)
+- Campos opcionales:
+  - Fecha y hora
+  - Barrio
+  - Precio cancha
+  - Notas
+- Se elimino "Precio por equipo" de la UI de publicacion.
+
+11) BARRIOS CON AUTOCOMPLETE
+- Se usa Google Places para autocompletar barrios en Argentina.
+- Se limpia la salida para dejar solo barrio (sin direccion ni CP).
+- Se priorizan tipos de geocode compatibles con barrio/sublocalidad.
+- Se valida que el texto final sea un barrio valido.
+
+12) MARKETPLACE DE DESAFIOS (TAB DESAFIOS)
+- Lista de desafios abiertos con cards unificadas.
+- Si el desafio es propio:
+  - Card con distincion visual
+  - Badge "Mi desafio"
+  - CTA principal cambia a "Cancelar desafio"
+- Si el desafio es de otro:
+  - CTA principal "Aceptar"
+  - Flujo de aceptacion pide seleccionar equipo compatible (mismo formato)
+
+13) MIS DESAFIOS - ESTADOS Y ACCIONES
+- Tabs por estado:
+  - Abiertos
+  - Aceptados
+  - Confirmados
+  - Finalizados
+  - Cancelados
+- Acciones por estado:
+  - Open: Compartir / Cancelar (si corresponde)
+  - Accepted: Confirmar / Cancelar
+  - Confirmed: Finalizar / Cancelar
+  - Completed: Compartir
+- Al aceptar un desafio desde marketplace:
+  - Se redirige de forma guiada a "Mis desafios"
+  - Se abre inicialmente tab "Aceptados"
+- Si una tab queda vacia, hay fallback automatico a otra tab con datos.
+
+14) FINALIZACION DE DESAFIO
+- Modal para finalizar con:
+  - Goles equipo A
+  - Goles equipo B
+  - Fecha jugada
+- La finalizacion crea el registro oficial del partido de equipos (team_matches).
+
+15) NOTIFICACIONES Y ACTIVIDAD
+- Al aceptar desafio se generan notificaciones para ambas partes.
+- Tipo de notificacion: match_update
+- Incluye link interno para abrir Quiero Jugar.
+- Actividad reciente reutiliza el link de notificacion cuando existe.
+
+16) BACKEND Y PERSISTENCIA (SUPABASE)
+- Nuevas tablas del modulo:
+  - teams
+  - team_members
+  - challenges
+  - team_matches
+- Nuevos RPCs de flujo:
+  - rpc_accept_challenge
+  - rpc_confirm_challenge
+  - rpc_complete_challenge
+- Endurecimiento de integridad y seguridad:
+  - Reglas de transicion de estados en DB
+  - Validaciones de ownership/capitan para acciones sensibles
+  - Restriccion de escritura directa sobre team_matches (flujo via RPC)
+  - Validaciones de formato, niveles, roles y datos obligatorios
+
+17) COMPATIBILIDAD Y TOLERANCIA A ESQUEMAS MIXTOS
+- Fallbacks para entornos donde faltan columnas nuevas (ej: pricing o photo_url).
+- Normalizacion de estados legacy de desafios.
+- Mapeo de roles legacy a roles actuales.
+
+18) ESTANDARIZACION VISUAL APLICADA
+- Se normalizo tipografia y tamano de botones en la nueva seccion.
+- Se corrigieron problemas de overflow/horizontal scrolling en tabs y CTAs.
+- Se mejoraron margenes/espaciados entre header, tabs y contenedores principales.
+
+19) COMPORTAMIENTO ACTUAL DEL FLUJO
+- El flujo completo Equipos -> Desafios -> Mis desafios ya esta operativo.
+- La gestion de plantilla y personalizacion visual del equipo queda persistida.
+- Las notificaciones de aceptacion ya se emiten y se pueden navegar desde actividad/notificaciones.

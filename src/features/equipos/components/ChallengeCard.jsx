@@ -13,6 +13,13 @@ const CTA_BY_STATUS = {
 };
 
 const CHIP_CLASS = 'font-oswald text-[10px] font-bold text-white/40 border border-white/10 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider';
+const STATUS_BADGE_CLASS = {
+  open: 'text-[#D4EBFF] border-[#9ED3FF]/45 bg-[#128BE9]/22',
+  accepted: 'text-[#D4EBFF] border-[#9ED3FF]/45 bg-[#128BE9]/22',
+  confirmed: 'text-[#D6F8E2] border-[#5AD17B]/45 bg-[#2F9E44]/24',
+  completed: 'text-[#FFD9D9] border-[#F87171]/45 bg-[#B91C1C]/24',
+  canceled: 'text-[#D1D5DB] border-white/25 bg-white/10',
+};
 
 const compactPrimaryClass = `${PRIMARY_CTA_BUTTON_CLASS} !w-auto flex-1 px-4 py-2.5 min-h-[48px] text-[18px] tracking-[0.01em]`;
 const ownPrimaryClass = 'w-full !w-auto flex-1 rounded-xl border border-red-300/35 bg-red-500/12 text-red-100 font-oswald font-semibold px-4 py-2.5 min-h-[48px] text-[18px] tracking-[0.01em] transition-all hover:bg-red-500/18 disabled:opacity-45 disabled:cursor-not-allowed';
@@ -91,6 +98,7 @@ const ChallengeCard = ({
   const cta = primaryLabel || CTA_BY_STATUS[status] || 'Ver detalle';
   const pricePerTeamLabel = formatMoneyAr(challenge?.price_per_team);
   const fieldPriceLabel = formatMoneyAr(challenge?.field_price);
+  const statusClass = STATUS_BADGE_CLASS[status] || 'text-white/90 bg-white/10 border-white/20';
 
   return (
     <div
@@ -105,7 +113,7 @@ const ChallengeCard = ({
             Mi desafio
           </span>
         ) : null}
-        <span className={`${CHIP_CLASS} text-white/90 bg-white/10 border-white/20`}>
+        <span className={`${CHIP_CLASS} ${statusClass}`}>
           {label}
         </span>
         <span className={`${CHIP_CLASS} inline-flex items-center gap-1`}>

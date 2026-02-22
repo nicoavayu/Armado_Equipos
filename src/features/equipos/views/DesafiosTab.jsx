@@ -2,12 +2,16 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ChallengeCard from '../components/ChallengeCard';
 import PublishChallengeModal from '../components/PublishChallengeModal';
 import AcceptChallengeModal from '../components/AcceptChallengeModal';
+import CompleteChallengeModal from '../components/CompleteChallengeModal';
 import NeighborhoodAutocomplete from '../components/NeighborhoodAutocomplete';
-import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS } from '../config';
+import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS, normalizeTeamSkillLevel } from '../config';
 import {
   acceptChallenge,
   cancelChallenge,
+  completeChallenge,
+  confirmChallenge,
   createChallenge,
+  listMyChallenges,
   listMyTeams,
   listOpenChallenges,
 } from '../../../services/db/teamChallenges';
@@ -19,29 +23,86 @@ import { Flag, Search } from 'lucide-react';
 const publishActionClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
 const filterFieldClass = 'h-12 rounded-lg bg-slate-900/85 border border-white/20 px-3 text-base text-white outline-none focus:border-[#128BE9]';
 
+const formatMoneyAr = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed.toLocaleString('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+};
+
+const buildShareText = (challenge) => {
+  const teamA = challenge?.challenger_team?.name || 'Equipo A';
+  const teamB = challenge?.accepted_team?.name || 'Busco rival';
+  const when = challenge?.scheduled_at ? new Date(challenge.scheduled_at).toLocaleString('es-AR') : 'A coordinar';
+  const where = challenge?.location_name || 'A coordinar';
+  const pricePerTeam = formatMoneyAr(challenge?.price_per_team);
+  const fieldPrice = formatMoneyAr(challenge?.field_price);
+  const priceText = [
+    pricePerTeam ? `Por equipo ${pricePerTeam}` : null,
+    fieldPrice ? `Cancha ${fieldPrice}` : null,
+  ].filter(Boolean).join(' | ');
+
+  return [teamA + ' vs ' + teamB, `F${challenge?.format || '-'}`, when, where, priceText]
+    .filter(Boolean)
+    .join(' | ');
+};
+
+const challengeMatchesFilters = (challenge, filters) => {
+  if (filters.format && Number(challenge?.format) !== Number(filters.format)) return false;
+
+  if (filters.skillLevel) {
+    const challengeSkill = normalizeTeamSkillLevel(challenge?.skill_level);
+    const filterSkill = normalizeTeamSkillLevel(filters.skillLevel);
+    if (challengeSkill !== filterSkill) return false;
+  }
+
+  const zoneFilter = String(filters.zone || '').trim().toLowerCase();
+  if (!zoneFilter) return true;
+
+  const possibleZones = [
+    challenge?.challenger_team?.base_zone,
+    challenge?.accepted_team?.base_zone,
+    challenge?.location_name,
+  ]
+    .map((value) => String(value || '').trim().toLowerCase())
+    .filter(Boolean);
+
+  return possibleZones.some((value) => value.includes(zoneFilter));
+};
+
 const DesafiosTab = ({
   userId,
   prefilledTeamId = null,
   onChallengePublished,
-  onChallengeAccepted,
 }) => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openChallenges, setOpenChallenges] = useState([]);
+  const [myChallenges, setMyChallenges] = useState([]);
   const [myTeams, setMyTeams] = useState([]);
   const [filters, setFilters] = useState({ format: '', zone: '', skillLevel: '' });
   const [showFilters, setShowFilters] = useState(false);
+  const [scope, setScope] = useState('all');
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [acceptingChallenge, setAcceptingChallenge] = useState(null);
   const [selectedAcceptTeamId, setSelectedAcceptTeamId] = useState('');
+  const [completeTarget, setCompleteTarget] = useState(null);
 
-  const loadOpenChallenges = useCallback(async () => {
+  const loadChallenges = useCallback(async () => {
     if (!userId) return;
 
     try {
       setLoading(true);
-      const challenges = await listOpenChallenges(filters);
-      setOpenChallenges(challenges);
+      const [openRows, myRows] = await Promise.all([
+        listOpenChallenges(filters),
+        listMyChallenges(userId),
+      ]);
+      setOpenChallenges(openRows || []);
+      setMyChallenges(myRows || []);
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudieron cargar los desafios');
     } finally {
@@ -67,8 +128,8 @@ const DesafiosTab = ({
 
   useEffect(() => {
     if (!userId) return;
-    loadOpenChallenges();
-  }, [loadOpenChallenges, userId]);
+    loadChallenges();
+  }, [loadChallenges, userId]);
 
   useEffect(() => {
     if (!prefilledTeamId) return;
@@ -76,8 +137,10 @@ const DesafiosTab = ({
   }, [prefilledTeamId]);
 
   const visibleChallenges = useMemo(
-    () => openChallenges.filter((challenge) => challenge.status === 'open'),
-    [openChallenges],
+    () => (scope === 'mine'
+      ? myChallenges.filter((challenge) => challengeMatchesFilters(challenge, filters))
+      : openChallenges.filter((challenge) => challenge.status === 'open')),
+    [filters, myChallenges, openChallenges, scope],
   );
 
   const activeFiltersCount = useMemo(() => (
@@ -92,6 +155,28 @@ const DesafiosTab = ({
     team.id !== challenge.challenger_team_id &&
     team.is_active
   ));
+
+  const handleShare = async (challenge) => {
+    try {
+      const text = buildShareText(challenge);
+
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Desafio Arma2',
+          text,
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(text);
+      notifyBlockingError('Texto del desafio copiado al portapapeles');
+    } catch (error) {
+      if (error?.name === 'AbortError') return;
+      notifyBlockingError('No se pudo compartir el desafio');
+    }
+  };
+
+  const canManage = (challenge) => challenge.created_by_user_id === userId || challenge.accepted_by_user_id === userId;
 
   return (
     <div className="w-full max-w-[560px] flex flex-col gap-3">
@@ -118,6 +203,31 @@ const DesafiosTab = ({
               </span>
             ) : null}
           </button>
+        </div>
+
+        <div className="mt-2.5">
+          <div className="inline-flex rounded-lg border border-white/15 bg-white/5 p-1">
+            <button
+              type="button"
+              onClick={() => setScope('all')}
+              className={`rounded-md px-3 py-1.5 text-[13px] font-oswald font-semibold transition-all ${scope === 'all'
+                ? 'border border-white/25 bg-white/12 text-white'
+                : 'border border-transparent text-white/65 hover:text-white/85'
+                }`}
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              onClick={() => setScope('mine')}
+              className={`rounded-md px-3 py-1.5 text-[13px] font-oswald font-semibold transition-all ${scope === 'mine'
+                ? 'border border-white/25 bg-white/12 text-white'
+                : 'border border-transparent text-white/65 hover:text-white/85'
+                }`}
+            >
+              Mios
+            </button>
+          </div>
         </div>
 
         {showFilters ? (
@@ -172,14 +282,75 @@ const DesafiosTab = ({
       {!loading && visibleChallenges.length === 0 ? (
         <EmptyStateCard
           icon={Flag}
-          title="Sin desafíos abiertos"
-          description="No encontramos desafíos abiertos con esos filtros."
+          title={scope === 'mine' ? 'Sin desafíos tuyos' : 'Sin desafíos abiertos'}
+          description={scope === 'mine'
+            ? 'No encontramos desafios tuyos con esos filtros.'
+            : 'No encontramos desafíos abiertos con esos filtros.'}
           className="my-0 p-5"
         />
       ) : null}
 
       {!loading ? visibleChallenges.map((challenge) => {
         const isOwnChallenge = challenge.created_by_user_id === userId;
+        const allowManage = canManage(challenge);
+
+        if (scope === 'mine') {
+          let primaryLabel = 'Ver detalle';
+          let primaryAction = () => handleShare(challenge);
+
+          if (challenge.status === 'open') {
+            primaryLabel = 'Compartir';
+            primaryAction = () => handleShare(challenge);
+          } else if (challenge.status === 'accepted') {
+            primaryLabel = allowManage ? 'Confirmar' : 'Ver detalle';
+            primaryAction = allowManage
+              ? async () => {
+                try {
+                  setIsSubmitting(true);
+                  await confirmChallenge(challenge.id);
+                  await loadChallenges();
+                } catch (error) {
+                  notifyBlockingError(error.message || 'No se pudo confirmar el desafio');
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }
+              : () => handleShare(challenge);
+          } else if (challenge.status === 'confirmed') {
+            primaryLabel = allowManage ? 'Finalizar' : 'Ver detalle';
+            primaryAction = allowManage
+              ? () => setCompleteTarget(challenge)
+              : () => handleShare(challenge);
+          } else if (challenge.status === 'completed') {
+            primaryLabel = 'Compartir';
+            primaryAction = () => handleShare(challenge);
+          }
+
+          return (
+            <ChallengeCard
+              key={challenge.id}
+              challenge={challenge}
+              isOwnChallenge={isOwnChallenge}
+              primaryLabel={primaryLabel}
+              onPrimaryAction={primaryAction}
+              onCancel={async () => {
+                if (!allowManage) return;
+
+                try {
+                  setIsSubmitting(true);
+                  await cancelChallenge(challenge.id);
+                  await loadChallenges();
+                } catch (error) {
+                  notifyBlockingError(error.message || 'No se pudo cancelar el desafio');
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
+              canCancel={allowManage && ['open', 'accepted', 'confirmed'].includes(challenge.status)}
+              disabled={isSubmitting}
+            />
+          );
+        }
 
         return (
           <ChallengeCard
@@ -197,7 +368,7 @@ const DesafiosTab = ({
                 try {
                   setIsSubmitting(true);
                   await cancelChallenge(challenge.id);
-                  await loadOpenChallenges();
+                  await loadChallenges();
                 } catch (error) {
                   notifyBlockingError(error.message || 'No se pudo cancelar el desafio');
                 } finally {
@@ -232,7 +403,7 @@ const DesafiosTab = ({
             setIsSubmitting(true);
             await createChallenge(userId, payload);
             setShowPublishModal(false);
-            await loadOpenChallenges();
+            await loadChallenges();
             onChallengePublished?.();
           } catch (error) {
             notifyBlockingError(error.message || 'No se pudo publicar el desafio');
@@ -261,11 +432,29 @@ const DesafiosTab = ({
               acceptedTeamName: acceptedTeam?.name || '',
             });
             setAcceptingChallenge(null);
-            await loadOpenChallenges();
-            onChallengeAccepted?.();
-            console.info('Desafio aceptado. Lo vas a encontrar en Mis desafios.');
+            await loadChallenges();
+            console.info('Desafio aceptado');
           } catch (error) {
             notifyBlockingError(error.message || 'No se pudo aceptar el desafio');
+          } finally {
+            setIsSubmitting(false);
+          }
+        }}
+      />
+
+      <CompleteChallengeModal
+        isOpen={Boolean(completeTarget)}
+        challenge={completeTarget}
+        onClose={() => setCompleteTarget(null)}
+        isSubmitting={isSubmitting}
+        onSubmit={async ({ challengeId, scoreA, scoreB, playedAt }) => {
+          try {
+            setIsSubmitting(true);
+            await completeChallenge({ challengeId, scoreA, scoreB, playedAt });
+            setCompleteTarget(null);
+            await loadChallenges();
+          } catch (error) {
+            notifyBlockingError(error.message || 'No se pudo finalizar el desafio');
           } finally {
             setIsSubmitting(false);
           }
