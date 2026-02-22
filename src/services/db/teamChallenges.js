@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
+import { normalizeTeamSkillLevel } from '../../features/equipos/config';
 
 const TEAM_SELECT = [
   'id',
@@ -28,6 +29,8 @@ const CHALLENGE_SELECT = `
   location_place_id,
   format,
   skill_level,
+  price_per_team,
+  field_price,
   notes,
   created_at,
   updated_at,
@@ -84,7 +87,7 @@ export const createTeam = async (userId, payload) => {
       name: payload.name,
       format: payload.format,
       base_zone: payload.base_zone || null,
-      skill_level: payload.skill_level || 'normal',
+      skill_level: normalizeTeamSkillLevel(payload.skill_level),
       crest_url: payload.crest_url || null,
       color_primary: payload.color_primary || null,
       color_secondary: payload.color_secondary || null,
@@ -104,7 +107,7 @@ export const updateTeam = async (teamId, payload) => {
       name: payload.name,
       format: payload.format,
       base_zone: payload.base_zone || null,
-      skill_level: payload.skill_level || 'normal',
+      skill_level: normalizeTeamSkillLevel(payload.skill_level),
       crest_url: payload.crest_url || null,
       color_primary: payload.color_primary || null,
       color_secondary: payload.color_secondary || null,
@@ -346,7 +349,9 @@ export const createChallenge = async (userId, payload) => {
       location_name: payload.location_name || null,
       location_place_id: payload.location_place_id || null,
       format: Number(payload.format),
-      skill_level: payload.skill_level || 'normal',
+      skill_level: normalizeTeamSkillLevel(payload.skill_level),
+      price_per_team: payload.price_per_team ?? null,
+      field_price: payload.field_price ?? null,
       notes: payload.notes || null,
     })
     .select(CHALLENGE_SELECT)

@@ -18,6 +18,7 @@ import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import EmptyStateCard from '../../../components/EmptyStateCard';
 import Button from '../../../components/Button';
 import { Users } from 'lucide-react';
+import { formatSkillLevelLabel } from '../utils/teamColors';
 
 const compactActionClass = 'w-auto px-3 h-9 rounded-xl text-xs font-oswald tracking-wide';
 
@@ -214,7 +215,7 @@ const MisEquiposTab = ({ userId, onOpenDesafiosWithTeam }) => {
             <div>
               <h4 className="text-white font-oswald text-xl">{selectedTeam.name}</h4>
               <p className="text-xs text-white/70 uppercase tracking-wide">
-                F{selectedTeam.format} · {selectedTeam.skill_level} · {selectedTeam.base_zone || 'sin zona'}
+                F{selectedTeam.format} · {formatSkillLevelLabel(selectedTeam.skill_level)} · {selectedTeam.base_zone || 'sin zona'}
               </p>
             </div>
             <div className="flex gap-2">

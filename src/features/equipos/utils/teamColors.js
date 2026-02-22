@@ -1,3 +1,5 @@
+import { TEAM_SKILL_LABEL_BY_VALUE, normalizeTeamSkillLevel } from '../config';
+
 const DEFAULT_PALETTE = {
   primary: '#128BE9',
   secondary: '#1E293B',
@@ -184,7 +186,6 @@ export const getTeamBadgeStyle = (team) => {
 export const getTeamAccent = (team) => getTeamPalette(team).accent;
 
 export const formatSkillLevelLabel = (skillLevel) => {
-  if (skillLevel === 'easy') return 'Easy';
-  if (skillLevel === 'hard') return 'Hard';
-  return 'Normal';
+  const normalized = normalizeTeamSkillLevel(skillLevel);
+  return TEAM_SKILL_LABEL_BY_VALUE[normalized] || TEAM_SKILL_LABEL_BY_VALUE.sin_definir;
 };

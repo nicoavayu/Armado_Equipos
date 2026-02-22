@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Modal from '../../../components/Modal';
 import Button from '../../../components/Button';
-import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS } from '../config';
+import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS, normalizeTeamSkillLevel } from '../config';
 
 const EMPTY_FORM = {
   name: '',
   format: 5,
   base_zone: '',
-  skill_level: 'normal',
+  skill_level: 'sin_definir',
 };
 
 const toInitialColors = (team) => [team?.color_primary, team?.color_secondary, team?.color_accent]
@@ -37,7 +37,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
       name: initialTeam?.name || '',
       format: Number(initialTeam?.format || 5),
       base_zone: initialTeam?.base_zone || '',
-      skill_level: initialTeam?.skill_level || 'normal',
+      skill_level: normalizeTeamSkillLevel(initialTeam?.skill_level),
     };
 
     setForm(nextForm);
@@ -139,8 +139,8 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
               onChange={(event) => setForm((prev) => ({ ...prev, skill_level: event.target.value }))}
               className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
             >
-              {TEAM_SKILL_OPTIONS.map((value) => (
-                <option key={value} value={value}>{value}</option>
+              {TEAM_SKILL_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
           </label>

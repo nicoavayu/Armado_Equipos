@@ -1,8 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Modal from '../../../components/Modal';
 import Button from '../../../components/Button';
+import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS } from '../config';
+import { formatSkillLevelLabel } from '../utils/teamColors';
 
-const actionButtonClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide';
+const actionButtonClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide !normal-case';
+
+const FORMAT_OPTIONS_LABEL = TEAM_FORMAT_OPTIONS.map((value) => `F${value}`).join(' · ');
+const SKILL_OPTIONS_LABEL = TEAM_SKILL_OPTIONS.map((option) => option.label).join(' · ');
+
+const sanitizeAmountInput = (value) => String(value || '').replace(/[^\d.,]/g, '').slice(0, 16);
+
+const parseOptionalAmount = (value) => {
+  const normalized = String(value || '').trim().replace(',', '.');
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed;
+};
 
 const PublishChallengeModal = ({
   isOpen,
@@ -16,6 +31,8 @@ const PublishChallengeModal = ({
   const [scheduledAtLocal, setScheduledAtLocal] = useState('');
   const [locationName, setLocationName] = useState('');
   const [notes, setNotes] = useState('');
+  const [pricePerTeam, setPricePerTeam] = useState('');
+  const [fieldPrice, setFieldPrice] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -29,6 +46,8 @@ const PublishChallengeModal = ({
     setScheduledAtLocal('');
     setLocationName('');
     setNotes('');
+    setPricePerTeam('');
+    setFieldPrice('');
   }, [isOpen, prefilledTeamId, teams]);
 
   const selectedTeam = useMemo(() => teams.find((team) => team.id === challengerTeamId) || null, [challengerTeamId, teams]);
@@ -49,17 +68,17 @@ const PublishChallengeModal = ({
             className={actionButtonClass}
             disabled={isSubmitting}
           >
-            CANCELAR
+            Cancelar
           </Button>
           <Button
             type="submit"
             form="publish-challenge-form"
             className={actionButtonClass}
             loading={isSubmitting}
-            loadingText="PUBLICANDO..."
+            loadingText="Publicando..."
             disabled={!selectedTeam}
           >
-            PUBLICAR
+            Publicar
           </Button>
         </div>
       )}
@@ -77,6 +96,8 @@ const PublishChallengeModal = ({
             skill_level: selectedTeam.skill_level,
             scheduled_at: scheduledAtLocal ? new Date(scheduledAtLocal).toISOString() : null,
             location_name: locationName.trim() || null,
+            price_per_team: parseOptionalAmount(pricePerTeam),
+            field_price: parseOptionalAmount(fieldPrice),
             notes: notes.trim() || null,
           });
         }}
@@ -103,7 +124,7 @@ const PublishChallengeModal = ({
             <input
               type="text"
               readOnly
-              value={selectedTeam ? `F${selectedTeam.format}` : '-'}
+              value={selectedTeam ? `F${selectedTeam.format}` : FORMAT_OPTIONS_LABEL}
               className="mt-1 w-full rounded-xl bg-slate-800/70 border border-white/15 px-3 py-2 text-white/80"
             />
           </label>
@@ -113,7 +134,7 @@ const PublishChallengeModal = ({
             <input
               type="text"
               readOnly
-              value={selectedTeam?.skill_level || '-'}
+              value={selectedTeam ? formatSkillLevelLabel(selectedTeam.skill_level) : SKILL_OPTIONS_LABEL}
               className="mt-1 w-full rounded-xl bg-slate-800/70 border border-white/15 px-3 py-2 text-white/80"
             />
           </label>
@@ -140,6 +161,32 @@ const PublishChallengeModal = ({
             placeholder="Ej: Parque Sarmiento"
           />
         </label>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
+            <span className="text-xs text-white/80 uppercase tracking-wide">Precio por equipo (opcional)</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={pricePerTeam}
+              onChange={(event) => setPricePerTeam(sanitizeAmountInput(event.target.value))}
+              className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+              placeholder="Ej: 12000"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-xs text-white/80 uppercase tracking-wide">Precio cancha (opcional)</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={fieldPrice}
+              onChange={(event) => setFieldPrice(sanitizeAmountInput(event.target.value))}
+              className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+              placeholder="Ej: 24000"
+            />
+          </label>
+        </div>
 
         <label className="block">
           <span className="text-xs text-white/80 uppercase tracking-wide">Notas (opcional)</span>

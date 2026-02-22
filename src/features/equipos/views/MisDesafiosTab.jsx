@@ -18,13 +18,32 @@ const STATE_TABS = [
   { key: 'completed', label: 'Finalizados' },
 ];
 
+const formatMoneyAr = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed.toLocaleString('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+};
+
 const buildShareText = (challenge) => {
   const teamA = challenge?.challenger_team?.name || 'Equipo A';
   const teamB = challenge?.accepted_team?.name || 'Busco rival';
   const when = challenge?.scheduled_at ? new Date(challenge.scheduled_at).toLocaleString('es-AR') : 'A coordinar';
   const where = challenge?.location_name || 'A coordinar';
+  const pricePerTeam = formatMoneyAr(challenge?.price_per_team);
+  const fieldPrice = formatMoneyAr(challenge?.field_price);
+  const priceText = [
+    pricePerTeam ? `Por equipo ${pricePerTeam}` : null,
+    fieldPrice ? `Cancha ${fieldPrice}` : null,
+  ].filter(Boolean).join(' | ');
 
-  return `${teamA} vs ${teamB} | F${challenge?.format || '-'} | ${when} | ${where}`;
+  return [teamA + ' vs ' + teamB, `F${challenge?.format || '-'}`, when, where, priceText]
+    .filter(Boolean)
+    .join(' | ');
 };
 
 const MisDesafiosTab = ({ userId }) => {

@@ -108,7 +108,7 @@ const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) =
             className="rounded-lg bg-slate-900/80 border border-white/15 px-2 py-2 text-xs text-white"
           >
             <option value="">Nivel</option>
-            {TEAM_SKILL_OPTIONS.map((value) => <option key={value} value={value}>{value}</option>)}
+            {TEAM_SKILL_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
 
           <input

@@ -28,6 +28,17 @@ const formatChallengeDate = (value) => {
   });
 };
 
+const formatMoneyAr = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed.toLocaleString('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+};
+
 const TeamSide = ({ team, fallbackText }) => {
   if (!team) {
     return (
@@ -76,6 +87,8 @@ const ChallengeCard = ({
   const status = (challenge?.status || 'open').toLowerCase();
   const label = CHALLENGE_STATUS_LABELS[status] || status;
   const cta = primaryLabel || CTA_BY_STATUS[status] || 'Ver detalle';
+  const pricePerTeamLabel = formatMoneyAr(challenge?.price_per_team);
+  const fieldPriceLabel = formatMoneyAr(challenge?.field_price);
 
   return (
     <div className="w-full rounded-2xl border border-white/10 bg-[#1e293b]/70 backdrop-blur-sm p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)] font-oswald">
@@ -104,6 +117,16 @@ const ChallengeCard = ({
         <span className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2 py-1 bg-white/5">
           <MapPin size={12} /> {challenge?.location_name || 'A coordinar'}
         </span>
+        {pricePerTeamLabel ? (
+          <span className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2 py-1 bg-white/5">
+            Por equipo {pricePerTeamLabel}
+          </span>
+        ) : null}
+        {fieldPriceLabel ? (
+          <span className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2 py-1 bg-white/5">
+            Cancha {fieldPriceLabel}
+          </span>
+        ) : null}
       </div>
 
       {challenge?.notes ? (
