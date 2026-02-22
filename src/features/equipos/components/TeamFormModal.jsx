@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Modal from '../../../components/Modal';
 import Button from '../../../components/Button';
 import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS, normalizeTeamSkillLevel } from '../config';
@@ -26,10 +26,12 @@ const normalizeHex = (value) => {
 const actionButtonClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide !normal-case';
 
 const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = false }) => {
+  const crestFileRef = useRef(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [colors, setColors] = useState([]);
   const [crestFile, setCrestFile] = useState(null);
   const [crestPreview, setCrestPreview] = useState(null);
+  const [crestFileName, setCrestFileName] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -44,6 +46,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
     setForm(nextForm);
     setColors(toInitialColors(initialTeam));
     setCrestFile(null);
+    setCrestFileName('');
     setCrestPreview(initialTeam?.crest_url || null);
   }, [initialTeam, isOpen]);
 
@@ -52,6 +55,34 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
       URL.revokeObjectURL(crestPreview);
     }
   }, [crestPreview]);
+
+  const handleCrestChange = (file) => {
+    if (!file) return;
+
+    setCrestFile(file);
+    setCrestFileName(file.name || '');
+
+    if (crestPreview && crestPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(crestPreview);
+    }
+
+    setCrestPreview(URL.createObjectURL(file));
+  };
+
+  const handleClearCrest = () => {
+    setCrestFile(null);
+    setCrestFileName('');
+
+    if (crestPreview && crestPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(crestPreview);
+    }
+
+    setCrestPreview(null);
+
+    if (crestFileRef.current) {
+      crestFileRef.current.value = '';
+    }
+  };
 
   const title = useMemo(() => (initialTeam ? 'Editar equipo' : 'Crear equipo'), [initialTeam]);
 
@@ -166,9 +197,14 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
               type="button"
               disabled={colors.length >= 3}
               onClick={() => setColors((prev) => (prev.length >= 3 ? prev : [...prev, '#128BE9']))}
-              className="text-xs text-[#9ED3FF] disabled:text-white/30"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#9ED3FF]/35 bg-[#128BE9]/10 px-2.5 py-1 text-xs text-[#9ED3FF] transition-all hover:bg-[#128BE9]/20 disabled:opacity-45 disabled:cursor-not-allowed"
             >
-              + Agregar color
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-[#9ED3FF]/35 bg-[#128BE9]/20">
+                <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </span>
+              Agregar color
             </button>
           </div>
 
@@ -177,15 +213,17 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
               <p className="text-xs text-white/55">Sin colores personalizados.</p>
             ) : colors.map((color, index) => (
               <div key={`${index}-${color}`} className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={normalizeHex(color) || '#128BE9'}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setColors((prev) => prev.map((item, itemIndex) => (itemIndex === index ? value : item)));
-                  }}
-                  className="h-8 w-10 rounded border border-white/20 bg-transparent"
-                />
+                <div className="h-10 w-12 rounded-lg border border-white/20 bg-slate-900/60 p-1.5">
+                  <input
+                    type="color"
+                    value={normalizeHex(color) || '#128BE9'}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setColors((prev) => prev.map((item, itemIndex) => (itemIndex === index ? value : item)));
+                    }}
+                    className="h-full w-full cursor-pointer rounded border-0 bg-transparent p-0"
+                  />
+                </div>
                 <input
                   type="text"
                   value={color}
@@ -194,14 +232,18 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
                     setColors((prev) => prev.map((item, itemIndex) => (itemIndex === index ? value : item)));
                   }}
                   placeholder="#128BE9"
-                  className="flex-1 rounded-lg bg-slate-900/80 border border-white/20 px-2 py-1.5 text-sm text-white"
+                  className="flex-1 rounded-lg bg-slate-900/80 border border-white/20 px-2.5 py-2 text-sm text-white"
                 />
                 <button
                   type="button"
                   onClick={() => setColors((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
-                  className="text-xs text-red-300"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-300/35 bg-red-500/10 text-red-200 transition-all hover:bg-red-500/20"
+                  aria-label="Quitar color"
+                  title="Quitar color"
                 >
-                  Quitar
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
                 </button>
               </div>
             ))}
@@ -218,25 +260,55 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
                 <span className="text-[10px] text-white/60">Sin escudo</span>
               )}
             </div>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/svg+xml"
-              onChange={(event) => {
-                const file = event.target.files?.[0] || null;
-                setCrestFile(file);
+            <div className="flex-1 min-w-0 rounded-xl border border-dashed border-white/20 bg-slate-900/45 px-3 py-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!crestFileRef.current) return;
+                  crestFileRef.current.value = '';
+                  crestFileRef.current.click();
+                }}
+                className="w-full inline-flex items-center gap-2 text-left text-sm text-white/90 hover:text-white"
+              >
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#9ED3FF]/40 bg-[#128BE9]/15 text-[#9ED3FF] shrink-0">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 8.5h18v11H3z" />
+                    <path d="M8 8.5V6h8v2.5" />
+                    <circle cx="12" cy="14" r="2.7" />
+                    <path d="M12 2.8v2.4M10.6 4.2h2.8" />
+                  </svg>
+                </span>
+                <span className="font-semibold">{crestFile ? 'Cambiar escudo' : 'Subir escudo'}</span>
+              </button>
 
-                if (crestPreview && crestPreview.startsWith('blob:')) {
-                  URL.revokeObjectURL(crestPreview);
-                }
+              <p className="mt-1.5 text-xs text-white/60 truncate">
+                {crestFileName || (crestPreview ? 'Escudo actual cargado' : 'PNG, JPG, WEBP o SVG')}
+              </p>
 
-                if (file) {
-                  setCrestPreview(URL.createObjectURL(file));
-                } else {
-                  setCrestPreview(initialTeam?.crest_url || null);
-                }
-              }}
-              className="text-xs text-white/70"
-            />
+              <input
+                ref={crestFileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) handleCrestChange(file);
+                }}
+                className="hidden"
+              />
+            </div>
+            {crestPreview ? (
+              <button
+                type="button"
+                onClick={handleClearCrest}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-red-300/35 bg-red-500/10 text-red-200 transition-all hover:bg-red-500/20"
+                title="Quitar escudo"
+                aria-label="Quitar escudo"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            ) : null}
           </div>
         </div>
       </form>
