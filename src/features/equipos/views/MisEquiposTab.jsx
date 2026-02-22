@@ -20,7 +20,7 @@ import Button from '../../../components/Button';
 import { Users } from 'lucide-react';
 import { formatSkillLevelLabel } from '../utils/teamColors';
 
-const compactActionClass = 'w-auto px-3 h-9 rounded-xl text-xs font-oswald tracking-wide';
+const compactActionClass = 'w-auto px-3 h-9 rounded-xl text-xs font-oswald tracking-wide !normal-case';
 
 const EMPTY_NEW_MEMBER = {
   jugadorId: '',

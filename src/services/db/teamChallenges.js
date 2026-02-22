@@ -265,17 +265,19 @@ export const listOpenChallenges = async ({ format, zone, skillLevel } = {}) => {
     query = query.eq('format', Number(format));
   }
 
-  if (skillLevel) {
-    query = query.eq('skill_level', skillLevel);
-  }
-
   const response = await query;
 
   if (response.error) {
     throw new Error(response.error.message || 'No se pudieron cargar desafios abiertos');
   }
 
-  const rows = response.data || [];
+  let rows = response.data || [];
+
+  if (skillLevel) {
+    const normalizedFilter = normalizeTeamSkillLevel(skillLevel);
+    rows = rows.filter((row) => normalizeTeamSkillLevel(row?.skill_level) === normalizedFilter);
+  }
+
   if (!zone) return rows;
 
   const normalizedZone = String(zone).trim().toLowerCase();

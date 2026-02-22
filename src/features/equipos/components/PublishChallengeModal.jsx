@@ -3,6 +3,7 @@ import Modal from '../../../components/Modal';
 import Button from '../../../components/Button';
 import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS } from '../config';
 import { formatSkillLevelLabel } from '../utils/teamColors';
+import NeighborhoodAutocomplete from './NeighborhoodAutocomplete';
 
 const actionButtonClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide !normal-case';
 
@@ -151,15 +152,15 @@ const PublishChallengeModal = ({
         </label>
 
         <label className="block">
-          <span className="text-xs text-white/80 uppercase tracking-wide">Cancha / Zona (opcional)</span>
-          <input
-            type="text"
-            maxLength={120}
-            value={locationName}
-            onChange={(event) => setLocationName(event.target.value)}
-            className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
-            placeholder="Ej: Parque Sarmiento"
-          />
+          <span className="text-xs text-white/80 uppercase tracking-wide">Barrio (opcional)</span>
+          <div className="mt-1">
+            <NeighborhoodAutocomplete
+              value={locationName}
+              onChange={setLocationName}
+              placeholder="Ej: Palermo"
+              inputClassName="w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9] disabled:opacity-60 disabled:cursor-not-allowed"
+            />
+          </div>
         </label>
 
         <div className="grid grid-cols-2 gap-3">

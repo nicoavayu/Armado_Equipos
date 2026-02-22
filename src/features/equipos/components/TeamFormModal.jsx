@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Modal from '../../../components/Modal';
 import Button from '../../../components/Button';
 import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS, normalizeTeamSkillLevel } from '../config';
+import NeighborhoodAutocomplete from './NeighborhoodAutocomplete';
 
 const EMPTY_FORM = {
   name: '',
@@ -22,7 +23,7 @@ const normalizeHex = (value) => {
   return /^#[0-9A-Fa-f]{6}$/.test(withHash) ? withHash.toUpperCase() : null;
 };
 
-const actionButtonClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide';
+const actionButtonClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide !normal-case';
 
 const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = false }) => {
   const [form, setForm] = useState(EMPTY_FORM);
@@ -70,17 +71,17 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
             className={actionButtonClass}
             disabled={isSubmitting}
           >
-            CANCELAR
+            Cancelar
           </Button>
           <Button
             type="submit"
             form="team-form-modal"
             className={actionButtonClass}
             loading={isSubmitting}
-            loadingText="GUARDANDO..."
+            loadingText="Guardando..."
             disabled={form.name.trim().length === 0}
           >
-            GUARDAR EQUIPO
+            Guardar equipo
           </Button>
         </div>
       )}
@@ -148,13 +149,14 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
 
         <label className="block">
           <span className="text-xs text-white/80 uppercase tracking-wide">Zona base</span>
-          <input
-            type="text"
-            maxLength={80}
-            value={form.base_zone}
-            onChange={(event) => setForm((prev) => ({ ...prev, base_zone: event.target.value }))}
-            className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
-          />
+          <div className="mt-1">
+            <NeighborhoodAutocomplete
+              value={form.base_zone}
+              onChange={(nextZone) => setForm((prev) => ({ ...prev, base_zone: nextZone }))}
+              placeholder="Ej: Palermo"
+              inputClassName="w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9] disabled:opacity-60 disabled:cursor-not-allowed"
+            />
+          </div>
         </label>
 
         <div className="rounded-xl border border-white/15 bg-white/5 p-3">

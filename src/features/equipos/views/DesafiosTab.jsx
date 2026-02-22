@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ChallengeCard from '../components/ChallengeCard';
 import PublishChallengeModal from '../components/PublishChallengeModal';
 import AcceptChallengeModal from '../components/AcceptChallengeModal';
+import NeighborhoodAutocomplete from '../components/NeighborhoodAutocomplete';
 import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS } from '../config';
 import {
   acceptChallenge,
@@ -15,7 +16,7 @@ import EmptyStateCard from '../../../components/EmptyStateCard';
 import Button from '../../../components/Button';
 import { Flag } from 'lucide-react';
 
-const compactActionClass = 'w-auto px-3 h-9 rounded-xl text-xs font-oswald tracking-wide';
+const compactActionClass = 'w-auto px-3 h-9 rounded-xl text-xs font-oswald tracking-wide !normal-case';
 
 const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) => {
   const [loading, setLoading] = useState(true);
@@ -92,7 +93,7 @@ const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) =
           </Button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <select
             value={filters.format}
             onChange={(event) => setFilters((prev) => ({ ...prev, format: event.target.value }))}
@@ -107,16 +108,15 @@ const DesafiosTab = ({ userId, prefilledTeamId = null, onChallengePublished }) =
             onChange={(event) => setFilters((prev) => ({ ...prev, skillLevel: event.target.value }))}
             className="rounded-lg bg-slate-900/80 border border-white/15 px-2 py-2 text-xs text-white"
           >
-            <option value="">Nivel</option>
+            <option value="">Todos</option>
             {TEAM_SKILL_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
 
-          <input
-            type="text"
+          <NeighborhoodAutocomplete
             value={filters.zone}
-            onChange={(event) => setFilters((prev) => ({ ...prev, zone: event.target.value }))}
-            placeholder="Zona"
-            className="rounded-lg bg-slate-900/80 border border-white/15 px-2 py-2 text-xs text-white"
+            onChange={(nextZone) => setFilters((prev) => ({ ...prev, zone: nextZone }))}
+            placeholder="Barrio"
+            inputClassName="rounded-lg bg-slate-900/80 border border-white/15 px-2 py-2 text-xs text-white w-full outline-none focus:border-[#128BE9] disabled:opacity-60 disabled:cursor-not-allowed"
           />
         </div>
       </div>

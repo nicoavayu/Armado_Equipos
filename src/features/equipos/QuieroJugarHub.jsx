@@ -34,7 +34,7 @@ const QuieroJugarHub = () => {
               key={tab.key}
               type="button"
               onClick={() => setActiveTopTab(tab.key)}
-              className={`rounded-lg py-2 text-xs font-oswald font-bold uppercase tracking-wider transition-all ${activeTopTab === tab.key
+              className={`rounded-lg py-2 text-xs font-oswald font-bold normal-case tracking-normal transition-all ${activeTopTab === tab.key
                 ? 'bg-white/15 border border-white/25 text-white'
                 : 'bg-transparent border border-transparent text-white/60'
                 }`}

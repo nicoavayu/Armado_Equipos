@@ -2,7 +2,7 @@ import React from 'react';
 import Modal from '../../../components/Modal';
 import Button from '../../../components/Button';
 
-const actionButtonClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide';
+const actionButtonClass = 'h-11 rounded-xl text-sm font-oswald tracking-wide !normal-case';
 
 const AcceptChallengeModal = ({
   isOpen,
@@ -30,17 +30,17 @@ const AcceptChallengeModal = ({
             className={actionButtonClass}
             disabled={isSubmitting}
           >
-            CANCELAR
+            Cancelar
           </Button>
           <Button
             type="button"
             onClick={onConfirm}
             className={actionButtonClass}
             loading={isSubmitting}
-            loadingText="ACEPTANDO..."
+            loadingText="Aceptando..."
             disabled={!selectedTeamId}
           >
-            ACEPTAR
+            Aceptar
           </Button>
         </div>
       )}
