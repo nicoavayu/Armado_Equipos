@@ -7,12 +7,13 @@ import Button from '../components/Button';
 import Modal from '../components/Modal';
 import ProfileCardModal from '../components/ProfileCardModal';
 import LocationAutocomplete from '../features/equipos/components/LocationAutocomplete';
+import { TEAM_MODE_OPTIONS } from '../features/equipos/config';
 import { getTeamGradientStyle } from '../features/equipos/utils/teamColors';
 import {
   canManageTeamMatch,
   cancelTeamMatch,
   getTeamMatchById,
-  listTeamMembers,
+  listTeamMatchMembers,
   updateTeamMatchDetails,
 } from '../services/db/teamChallenges';
 import { notifyBlockingError } from '../utils/notifyBlockingError';
@@ -189,6 +190,7 @@ const TeamMatchDetailPage = () => {
   const [scheduledAtInput, setScheduledAtInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
   const [canchaCostInput, setCanchaCostInput] = useState('');
+  const [modeInput, setModeInput] = useState('');
 
   const syncFormWithMatch = useCallback((nextMatch) => {
     setScheduledAtInput(toDateTimeLocalValue(nextMatch?.scheduled_at));
@@ -198,25 +200,24 @@ const TeamMatchDetailPage = () => {
         ? ''
         : String(nextMatch.cancha_cost),
     );
+    setModeInput(nextMatch?.mode || '');
   }, []);
 
   const loadMembersForMatch = useCallback(async (matchRow) => {
-    const teamIds = [matchRow?.team_a_id, matchRow?.team_b_id].filter(Boolean);
+    const teamIds = [matchRow?.team_a_id, matchRow?.team_b_id]
+      .filter(Boolean)
+      .map((value) => String(value));
     if (teamIds.length === 0) {
       setTeamMembersByTeamId({});
       return;
     }
 
-    const entries = await Promise.all(teamIds.map(async (teamId) => {
-      try {
-        const members = await listTeamMembers(teamId);
-        return [teamId, members || []];
-      } catch {
-        return [teamId, []];
-      }
-    }));
+    const membersByTeamId = await listTeamMatchMembers({
+      matchId: matchRow?.id || null,
+      teamIds,
+    });
 
-    setTeamMembersByTeamId(Object.fromEntries(entries));
+    setTeamMembersByTeamId(membersByTeamId || {});
   }, []);
 
   const loadData = useCallback(async () => {
@@ -286,7 +287,7 @@ const TeamMatchDetailPage = () => {
         scheduledAt: scheduledAtInput ? new Date(scheduledAtInput).toISOString() : null,
         location: locationInput.trim() || null,
         canchaCost: parsedCanchaCost,
-        mode: match?.mode || null,
+        mode: modeInput.trim() || null,
       });
 
       let nextMatch = updated;
@@ -418,6 +419,13 @@ const TeamMatchDetailPage = () => {
                 </div>
 
                 <div className="rounded-xl border border-white/15 bg-white/5 p-3">
+                  <p className="text-xs text-white/60 uppercase tracking-wide font-oswald">Formato</p>
+                  <p className="mt-1 text-white/90 font-oswald text-base">
+                    F{match?.format || '-'}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-white/15 bg-white/5 p-3">
                   <p className="text-xs text-white/60 uppercase tracking-wide font-oswald">Modo</p>
                   <p className="mt-1 text-white/90 font-oswald text-base">
                     {match?.mode || 'Sin definir'}
@@ -432,6 +440,16 @@ const TeamMatchDetailPage = () => {
 
                 {canManage && match?.status !== 'cancelled' && match?.status !== 'played' ? (
                   <form className="space-y-3" onSubmit={handleSave}>
+                    <label className="block">
+                      <span className="text-xs text-white/80 uppercase tracking-wide">Formato</span>
+                      <input
+                        type="text"
+                        readOnly
+                        value={`F${match?.format || '-'}`}
+                        className="mt-1 w-full rounded-xl bg-slate-800/70 border border-white/15 px-3 py-2 text-white/85"
+                      />
+                    </label>
+
                     <label className="block">
                       <span className="text-xs text-white/80 uppercase tracking-wide">Fecha y hora</span>
                       <input
@@ -463,6 +481,22 @@ const TeamMatchDetailPage = () => {
                         placeholder="Ej: 12000"
                         className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white"
                       />
+                    </label>
+
+                    <label className="block">
+                      <span className="text-xs text-white/80 uppercase tracking-wide">Modo</span>
+                      <select
+                        value={modeInput}
+                        onChange={(event) => setModeInput(event.target.value)}
+                        className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white"
+                      >
+                        <option value="">Sin definir</option>
+                        {TEAM_MODE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
                     </label>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">

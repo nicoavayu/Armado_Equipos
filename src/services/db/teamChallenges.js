@@ -282,6 +282,15 @@ const isMissingColumnError = (error, columnName) => {
     && (message.includes('does not exist') || message.includes('could not find') || message.includes('schema cache'));
 };
 
+const isMissingFunctionError = (error, functionName) => {
+  const message = normalizeMessage(error);
+  const normalizedFn = String(functionName || '').toLowerCase();
+  return (
+    message.includes('could not find the function')
+    || (normalizedFn && message.includes(normalizedFn) && message.includes('does not exist'))
+  );
+};
+
 const isOrderedSetModeError = (error) => (
   normalizeMessage(error).includes('within group is required for ordered-set aggregate mode')
 );
@@ -1011,6 +1020,63 @@ export const listTeamMembers = async (teamId) => {
     permissions_role: row?.permissions_role || 'member',
     photo_url: row?.photo_url || null,
   }));
+};
+
+export const listTeamMatchMembers = async ({ matchId, teamIds = [] }) => {
+  const normalizedTeamIds = uniqueValues((teamIds || []).filter(Boolean).map((value) => String(value)));
+  const emptyByTeamId = Object.fromEntries(normalizedTeamIds.map((teamId) => [teamId, []]));
+  if (normalizedTeamIds.length === 0) return emptyByTeamId;
+
+  if (matchId) {
+    const response = await supabase.rpc('rpc_list_team_match_members', {
+      p_match_id: matchId,
+    });
+
+    if (!response.error) {
+      const byTeamId = { ...emptyByTeamId };
+      (response.data || []).forEach((row) => {
+        const teamId = String(row?.team_id || '');
+        if (!teamId || !Object.prototype.hasOwnProperty.call(byTeamId, teamId)) return;
+
+        byTeamId[teamId].push({
+          id: row?.member_id || null,
+          team_id: row?.team_id || null,
+          jugador_id: row?.jugador_id || null,
+          user_id: row?.user_id || row?.jugador_usuario_id || null,
+          permissions_role: row?.permissions_role || 'member',
+          role: row?.role || 'player',
+          is_captain: Boolean(row?.is_captain),
+          shirt_number: row?.shirt_number ?? null,
+          photo_url: row?.photo_url || null,
+          created_at: row?.created_at || null,
+          jugador: {
+            id: row?.jugador_id || null,
+            usuario_id: row?.jugador_usuario_id || null,
+            nombre: row?.jugador_nombre || 'Jugador',
+            avatar_url: row?.jugador_avatar_url || null,
+            score: row?.jugador_score ?? null,
+          },
+        });
+      });
+
+      return byTeamId;
+    }
+
+    if (!isMissingFunctionError(response.error, 'rpc_list_team_match_members')) {
+      throw new Error(response.error.message || 'No se pudo cargar la plantilla del partido');
+    }
+  }
+
+  const entries = await Promise.all(normalizedTeamIds.map(async (teamId) => {
+    try {
+      const members = await listTeamMembers(teamId);
+      return [teamId, members || []];
+    } catch {
+      return [teamId, []];
+    }
+  }));
+
+  return Object.fromEntries(entries);
 };
 
 export const listTeamPendingInvitations = async (teamId) => {
