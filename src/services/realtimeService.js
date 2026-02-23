@@ -88,6 +88,13 @@ export const subscribeToNotifications = (userId, onEvent) => {
 export const subscribeToMatchChat = (matchId, onInsert) => {
   const key = `chat:${matchId}`;
   if (!matchId) return () => { };
+  const matchIdRaw = String(matchId || '').trim();
+  const isUuidLike = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(matchIdRaw);
+  const matchIdNumber = Number(matchIdRaw);
+  if (!isUuidLike && !Number.isFinite(matchIdNumber)) return () => { };
+  const filter = isUuidLike
+    ? `team_match_id=eq.${matchIdRaw}`
+    : `partido_id=eq.${matchIdNumber}`;
 
   // For chat, we might mount/unmount components often. 
   // If we already have a channel, we should ideally reuse it, 
@@ -111,7 +118,7 @@ export const subscribeToMatchChat = (matchId, onInsert) => {
         event: 'INSERT',
         schema: 'public',
         table: 'mensajes_partido',
-        filter: `partido_id=eq.${matchId}`,
+        filter,
       },
       (payload) => {
         onInsert(payload);

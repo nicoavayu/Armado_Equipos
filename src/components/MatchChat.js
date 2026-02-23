@@ -23,6 +23,8 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const scrollLockRef = useRef({ scrollY: 0, locked: false });
+  const normalizedMatchId = String(partidoId || '').trim();
+  const isTeamMatchChat = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalizedMatchId);
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
@@ -156,11 +158,23 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
   const fetchMessages = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('mensajes_partido')
         .select('*')
-        .eq('partido_id', partidoId)
         .order('timestamp', { ascending: true });
+
+      if (isTeamMatchChat) {
+        query = query.eq('team_match_id', normalizedMatchId);
+      } else {
+        const numericMatchId = Number(normalizedMatchId);
+        if (!Number.isFinite(numericMatchId)) {
+          setMessages([]);
+          return;
+        }
+        query = query.eq('partido_id', numericMatchId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setMessages(data || []);
@@ -205,19 +219,28 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     setLoading(true);
     try {
       const trimmedMessage = newMessage.trim();
-      const { error: rpcError } = await supabase.rpc('send_match_chat_message', {
-        p_partido_id: Number(partidoId),
-        p_autor: userInfo.name,
-        p_mensaje: trimmedMessage,
-      });
+      const { error: rpcError } = isTeamMatchChat
+        ? await supabase.rpc('send_team_match_chat_message', {
+          p_team_match_id: normalizedMatchId,
+          p_autor: userInfo.name,
+          p_mensaje: trimmedMessage,
+        })
+        : await supabase.rpc('send_match_chat_message', {
+          p_partido_id: Number(normalizedMatchId),
+          p_autor: userInfo.name,
+          p_mensaje: trimmedMessage,
+        });
 
       if (rpcError) {
-        const missingFn = rpcError.code === '42883' || String(rpcError.message || '').toLowerCase().includes('send_match_chat_message');
+        const missingFn = rpcError.code === '42883'
+          || String(rpcError.message || '').toLowerCase().includes(isTeamMatchChat ? 'send_team_match_chat_message' : 'send_match_chat_message');
         if (!missingFn) throw rpcError;
+
+        if (isTeamMatchChat) throw rpcError;
 
         // Backward compatibility while the RPC migration is being applied.
         const insertPayload = {
-          partido_id: partidoId,
+          partido_id: Number(normalizedMatchId),
           autor: userInfo.name,
           mensaje: trimmedMessage,
           user_id: user?.id || null,
@@ -236,7 +259,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
           const { error: insertFallbackError } = await supabase
             .from('mensajes_partido')
             .insert([{
-              partido_id: partidoId,
+              partido_id: Number(normalizedMatchId),
               autor: userInfo.name,
               mensaje: trimmedMessage,
             }]);

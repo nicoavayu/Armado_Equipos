@@ -177,6 +177,7 @@ const TEAM_MATCH_SELECT = `
   team_b:teams!team_matches_team_b_id_fkey(${TEAM_SELECT}),
   challenge:challenges!team_matches_challenge_id_fkey(
     id,
+    created_by_user_id,
     format,
     status
   )
@@ -198,6 +199,7 @@ const TEAM_MATCH_SELECT_LEGACY = `
   team_b:teams!team_matches_team_b_id_fkey(${TEAM_SELECT}),
   challenge:challenges!team_matches_challenge_id_fkey(
     id,
+    created_by_user_id,
     format,
     status
   )
@@ -1062,9 +1064,11 @@ export const listTeamMatchMembers = async ({ matchId, teamIds = [] }) => {
       return byTeamId;
     }
 
-    if (!isMissingFunctionError(response.error, 'rpc_list_team_match_members')) {
-      console.warn('[TEAM_MATCH_MEMBERS] RPC fallback to direct team reads:', response.error);
+    const rpcErrorMessage = response.error?.message || 'No se pudo cargar la plantilla completa del partido';
+    if (isMissingFunctionError(response.error, 'rpc_list_team_match_members')) {
+      throw new Error(`${rpcErrorMessage}. Falta aplicar migraciones de equipos.`);
     }
+    throw new Error(rpcErrorMessage);
   }
 
   const entries = await Promise.all(normalizedTeamIds.map(async (teamId) => {

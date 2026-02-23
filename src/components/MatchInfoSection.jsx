@@ -114,13 +114,18 @@ export default function MatchInfoSection(props) {
   const tipoDisplay = tipoRaw;
 
   const sedeRaw = partidoObj?.sede ?? sede;
-  const sedeFull = sedeRaw;
-  const sedeOne = sedeUnaPalabra(sedeFull);
+  const hasSede = Boolean(String(sedeRaw || '').trim());
+  const sedeFull = hasSede ? sedeRaw : 'A definir';
+  const sedeOne = hasSede ? sedeUnaPalabra(sedeFull) : 'A definir';
 
   const rawPrecio = partidoObj?.precio_cancha_por_persona ?? partidoObj?.valor_cancha ?? partidoObj?.valorCancha ?? partidoObj?.valor ?? null;
+  const rawPrecioNormalized = String(rawPrecio ?? '').trim().toLowerCase();
+  const isPrecioAdefinir = rawPrecioNormalized === 'a definir';
   const precioFieldExists = rawPrecio !== null && rawPrecio !== undefined && String(rawPrecio).trim() !== '';
   const precioNumber = precioFieldExists ? parsePriceNumber(rawPrecio) : null;
-  const priceDisplay = precioFieldExists && precioNumber !== null ? formatPriceCompact(precioNumber) : 'Sin $';
+  const priceDisplay = isPrecioAdefinir
+    ? 'A definir'
+    : (precioFieldExists && precioNumber !== null ? formatPriceCompact(precioNumber) : 'A definir');
 
   const topOffset = topOffsetClassName || 'mt-[76px] sm:mt-[70px]';
 
@@ -177,7 +182,7 @@ export default function MatchInfoSection(props) {
               <svg className="w-[clamp(12px,2.2vw,20px)] h-[clamp(12px,2.2vw,20px)] shrink-0 sm:w-3.5 sm:h-3.5" viewBox="0 0 384 512" fill="currentColor" aria-hidden>
                 <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z" />
               </svg>
-              <a className="text-white no-underline transition-colors duration-200 hover:text-[#4CAF50] hover:underline" href={sedeFull ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(sedeFull)}` : '#'} target="_blank" rel="noopener noreferrer">
+              <a className="text-white no-underline transition-colors duration-200 hover:text-[#4CAF50] hover:underline" href={hasSede ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(sedeFull)}` : '#'} target="_blank" rel="noopener noreferrer">
                 <div className="text-[clamp(10px,1.6vw,14px)] font-['Oswald'] font-medium text-white whitespace-nowrap overflow-hidden text-ellipsis w-full text-center sm:text-[11px] hover:text-[#4CAF50]">{sedeOne}</div>
               </a>
             </div>
