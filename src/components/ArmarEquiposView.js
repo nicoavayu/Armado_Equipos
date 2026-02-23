@@ -606,7 +606,7 @@ export default function ArmarEquiposView({
         precio={partidoActual?.valor_cancha || partidoActual?.valorCancha || partidoActual?.valor || partidoActual?.precio}
         rightActions={null}
       />
-      <div className="w-[90vw] md:w-full max-w-[90vw] md:max-w-4xl mx-auto flex flex-col gap-3 overflow-x-hidden mt-6 pt-0">
+      <div className="w-[90vw] md:w-full max-w-[90vw] md:max-w-4xl mx-auto flex flex-col gap-3 overflow-x-hidden mt-6 pt-0 pb-[calc(var(--safe-bottom,0px)+14px)]">
         {inlineNotice && (
           <div
             className={`rounded-xl px-4 py-3 border text-sm font-oswald ${
