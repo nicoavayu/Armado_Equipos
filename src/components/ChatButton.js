@@ -4,10 +4,14 @@ import MatchChat from './MatchChat';
 import { useAuth } from './AuthProvider';
 import { MessageCircle } from 'lucide-react';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenChange, onUnreadCountChange, hideTrigger = false }) {
   const { user } = useAuth(); // [TEAM_BALANCER_EDIT] Para verificar permisos
   const [unreadCount, setUnreadCount] = useState(0);
   const [internalIsChatOpen, setInternalIsChatOpen] = useState(false);
+  const normalizedMatchId = String(partidoId || '').trim();
+  const isTeamMatchChat = UUID_REGEX.test(normalizedMatchId);
 
   // Usar control externo si está disponible, sino usar interno
   const isChatOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsChatOpen;
@@ -19,6 +23,12 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
     async function checkChatAccess() {
       if (!partidoId) {
         setCanAccessChat(false);
+        return;
+      }
+
+      if (isTeamMatchChat) {
+        // Team matches are already protected by team-match policies.
+        setCanAccessChat(Boolean(user?.id));
         return;
       }
 
@@ -94,6 +104,10 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
 
     checkChatAccess();
 
+    if (isTeamMatchChat) {
+      return () => {};
+    }
+
     // Suscripción en tiempo real para detectar cambios en jugadores
     const subscription = supabase
       .channel(`chat_access_${partidoId}`)
@@ -110,7 +124,7 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
     return () => {
       subscription.unsubscribe();
     };
-  }, [partidoId, user?.id]);
+  }, [isTeamMatchChat, partidoId, user?.id]);
 
   useEffect(() => {
     if (partidoId && canAccessChat) {
@@ -123,11 +137,18 @@ export default function ChatButton({ partidoId, isOpen: externalIsOpen, onOpenCh
       const lastRead = localStorage.getItem(`chat_read_${partidoId}`);
       const lastReadTime = lastRead ? new Date(parseInt(lastRead)) : new Date(0);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('mensajes_partido')
         .select('id')
-        .eq('partido_id', partidoId)
         .gt('timestamp', lastReadTime.toISOString());
+
+      if (isTeamMatchChat) {
+        query = query.eq('team_match_id', normalizedMatchId);
+      } else {
+        query = query.eq('partido_id', partidoId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       const count = data?.length || 0;

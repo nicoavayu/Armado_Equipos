@@ -6,7 +6,7 @@ import PageTitle from '../components/PageTitle';
 import PageTransition from '../components/PageTransition';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
-import MatchChat from '../components/MatchChat';
+import ChatButton from '../components/ChatButton';
 import MatchInfoSection from '../components/MatchInfoSection';
 import ProfileCardModal from '../components/ProfileCardModal';
 import LocationAutocomplete from '../features/equipos/components/LocationAutocomplete';
@@ -102,61 +102,78 @@ const TeamCardLocked = ({
 }) => {
   const visibleMembers = (members || []).slice(0, AVATAR_VISIBLE_LIMIT);
   const overflowCount = Math.max(0, (members || []).length - visibleMembers.length);
+  const totalMembers = (members || []).length;
+  const statusLabel = totalMembers > 0 ? `${totalMembers} jugadores` : 'Sin jugadores';
+  const teamName = team?.name || fallbackName;
+  const teamFormat = team?.format ? `F${team.format}` : 'F-';
 
   return (
     <div
-      className="rounded-xl border border-white/15 bg-[#1e293b]/60 p-3 min-h-[116px] min-w-0"
-      style={team ? getTeamGradientStyle(team) : undefined}
+      className="relative overflow-hidden rounded-[28px] border border-white/15 bg-[#0a1133]/90 p-4 sm:p-5 min-h-[224px] min-w-0"
     >
-      <div className="flex items-center gap-2 min-w-0">
-        <div className="h-10 w-10 rounded-lg overflow-hidden border border-white/25 bg-black/20 flex items-center justify-center shrink-0">
-          {team?.crest_url ? (
-            <img src={team.crest_url} alt={team?.name || fallbackName} className="h-full w-full object-cover" />
-          ) : (
-            <Shield size={18} className="text-white/70" />
+      {team ? (
+        <div
+          className="pointer-events-none absolute inset-0 opacity-45"
+          style={getTeamGradientStyle(team)}
+        />
+      ) : null}
+
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(148,163,184,0.22),transparent_56%)]" />
+
+      <div className="relative flex h-full flex-col">
+        <div className="flex flex-col items-center text-center">
+          <div className="h-16 w-16 rounded-2xl overflow-hidden border border-white/20 bg-black/30 flex items-center justify-center shrink-0">
+            {team?.crest_url ? (
+              <img src={team.crest_url} alt={teamName} className="h-full w-full object-cover" />
+            ) : (
+              <Shield size={26} className="text-white/70" />
+            )}
+          </div>
+          <div className="mt-3 text-white font-oswald text-[26px] sm:text-[30px] leading-none font-semibold">{teamFormat}</div>
+          <div className="mt-2 text-white font-oswald text-[21px] sm:text-[24px] leading-tight font-semibold truncate max-w-full">{teamName}</div>
+          <div className="mt-3 inline-flex items-center rounded-full border border-[#3b82f6]/60 bg-[#0d223f]/80 px-3 py-1.5 text-[12px] uppercase tracking-[0.12em] text-[#8cc7ff] font-oswald">
+            {statusLabel}
+          </div>
+        </div>
+
+        <div className="mt-4 border-t border-white/10" />
+
+        <div className="mt-3 flex items-center justify-center gap-2 flex-wrap min-h-[32px]">
+          {visibleMembers.length > 0 ? visibleMembers.map((member) => {
+            const name = getPlayerName(member);
+            const avatar = getPlayerAvatar(member);
+            return (
+              <button
+                key={`${member?.id || member?.jugador_id || name}`}
+                type="button"
+                onClick={() => onOpenProfile(getPlayerProfile(member))}
+                className="h-9 w-9 rounded-full border border-white/30 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[10px] font-semibold text-white/90 shrink-0"
+                title={name}
+                aria-label={`Ver perfil de ${name}`}
+              >
+                {avatar ? (
+                  <img src={avatar} alt={name} className="h-full w-full object-cover" />
+                ) : (
+                  <span>{getInitials(name)}</span>
+                )}
+              </button>
+            );
+          }) : (
+            <span className="text-[12px] text-white/55 font-oswald">Sin jugadores</span>
           )}
-        </div>
-        <div className="min-w-0">
-          <div className="text-white font-oswald text-[15px] font-semibold truncate">{team?.name || fallbackName}</div>
-          <div className="text-[11px] text-white/65 font-oswald">F{team?.format || '-'}</div>
-        </div>
-      </div>
 
-      <div className="mt-2 flex items-center gap-1.5 min-h-[32px]">
-        {visibleMembers.length > 0 ? visibleMembers.map((member) => {
-          const name = getPlayerName(member);
-          const avatar = getPlayerAvatar(member);
-          return (
+          {overflowCount > 0 ? (
             <button
-              key={`${member?.id || member?.jugador_id || name}`}
               type="button"
-              onClick={() => onOpenProfile(getPlayerProfile(member))}
-              className="h-8 w-8 rounded-full border border-white/30 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[10px] font-semibold text-white/90 shrink-0"
-              title={name}
-              aria-label={`Ver perfil de ${name}`}
+              onClick={onOpenRoster}
+              className="h-9 min-w-[36px] px-2 rounded-full border border-white/30 bg-slate-900/70 text-[11px] text-white/85 font-oswald shrink-0"
+              aria-label={`Ver ${overflowCount} jugadores mas`}
+              title="Ver plantilla completa"
             >
-              {avatar ? (
-                <img src={avatar} alt={name} className="h-full w-full object-cover" />
-              ) : (
-                <span>{getInitials(name)}</span>
-              )}
+              +{overflowCount}
             </button>
-          );
-        }) : (
-          <span className="text-[11px] text-white/55 font-oswald">Sin jugadores</span>
-        )}
-
-        {overflowCount > 0 ? (
-          <button
-            type="button"
-            onClick={onOpenRoster}
-            className="h-8 min-w-[32px] px-2 rounded-full border border-white/30 bg-slate-900/70 text-[11px] text-white/85 font-oswald shrink-0"
-            aria-label={`Ver ${overflowCount} jugadores mas`}
-            title="Ver plantilla completa"
-          >
-            +{overflowCount}
-          </button>
-        ) : null}
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -171,6 +188,7 @@ const TeamMatchDetailPage = () => {
   const [saving, setSaving] = useState(false);
   const [match, setMatch] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [teamMembersByTeamId, setTeamMembersByTeamId] = useState({});
   const [rosterTeamId, setRosterTeamId] = useState(null);
@@ -335,6 +353,7 @@ const TeamMatchDetailPage = () => {
         onBack={() => navigate(-1)}
         showChatButton
         onChatClick={() => setIsChatOpen(true)}
+        unreadCount={chatUnreadCount}
       >
         Detalle partido
       </PageTitle>
@@ -384,7 +403,7 @@ const TeamMatchDetailPage = () => {
                   </span>
                 </div>
 
-                <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-2 sm:items-center">
+                <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-3 sm:items-center">
                   <TeamCardLocked
                     team={match?.team_a}
                     fallbackName="Equipo A"
@@ -392,8 +411,10 @@ const TeamMatchDetailPage = () => {
                     onOpenProfile={setSelectedPlayerProfile}
                     onOpenRoster={() => setRosterTeamId(match?.team_a_id)}
                   />
-                  <div className="text-center text-white/70 text-sm sm:text-base font-oswald font-semibold tracking-[0.12em]">
-                    VS
+                  <div className="flex items-center justify-center gap-2 text-white/75 text-sm sm:text-base font-oswald font-semibold tracking-[0.12em]">
+                    <span className="h-2 w-2 rounded-full bg-[#7c3aed]/80" />
+                    <span>VS</span>
+                    <span className="h-2 w-2 rounded-full bg-[#38bdf8]/80" />
                   </div>
                   <TeamCardLocked
                     team={match?.team_b}
@@ -445,7 +466,7 @@ const TeamMatchDetailPage = () => {
                   <Button
                     type="button"
                     onClick={() => setIsChatOpen(true)}
-                    className="h-11 rounded-xl text-[16px] font-oswald font-semibold tracking-[0.01em] !normal-case"
+                    className="h-11 rounded-xl text-[16px] font-oswald font-semibold tracking-[0.01em] !normal-case border-white/25"
                   >
                     Abrir chat
                   </Button>
@@ -600,10 +621,12 @@ const TeamMatchDetailPage = () => {
         )}
       </Modal>
 
-      <MatchChat
+      <ChatButton
         partidoId={match?.id || null}
         isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
+        onOpenChange={setIsChatOpen}
+        onUnreadCountChange={setChatUnreadCount}
+        hideTrigger
       />
 
       <ProfileCardModal

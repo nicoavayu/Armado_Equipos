@@ -19,7 +19,6 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [isCompactLayout, setIsCompactLayout] = useState(false);
-  const [viewportStyle, setViewportStyle] = useState({});
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const scrollLockRef = useRef({ scrollY: 0, locked: false });
@@ -110,47 +109,6 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     }, 40);
     return () => clearTimeout(t);
   }, [isOpen, isCompactLayout]);
-
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    if (typeof window === 'undefined') return undefined;
-
-    const syncViewport = () => {
-      const fallbackHeight = window.innerHeight || document.documentElement.clientHeight || 0;
-      const vv = window.visualViewport;
-
-      if (!vv) {
-        setViewportStyle({
-          top: '0px',
-          height: `${fallbackHeight}px`,
-        });
-        return;
-      }
-
-      const top = Math.max(0, vv.offsetTop || 0);
-      const height = Math.max(280, vv.height || fallbackHeight);
-
-      setViewportStyle({
-        top: `${top}px`,
-        height: `${height}px`,
-      });
-    };
-
-    syncViewport();
-
-    const vv = window.visualViewport;
-    vv?.addEventListener('resize', syncViewport);
-    vv?.addEventListener('scroll', syncViewport);
-    window.addEventListener('resize', syncViewport);
-    window.addEventListener('orientationchange', syncViewport);
-
-    return () => {
-      vv?.removeEventListener('resize', syncViewport);
-      vv?.removeEventListener('scroll', syncViewport);
-      window.removeEventListener('resize', syncViewport);
-      window.removeEventListener('orientationchange', syncViewport);
-    };
-  }, [isOpen]);
 
   useEffect(() => {
     scrollToBottom();
@@ -309,8 +267,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
   return (
     <div
-      className="fixed inset-x-0 top-0 h-[100dvh] bg-black/70 flex items-end sm:items-center justify-center z-[1000] p-0 sm:p-[15px]"
-      style={viewportStyle}
+      className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-[10000] p-0 sm:p-[15px]"
       onClick={handleClose}
     >
       <div
@@ -331,6 +288,11 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0 touch-pan-y sm:p-3 bg-slate-900">
+          {messages.length === 0 ? (
+            <div className="h-full min-h-[180px] flex items-center justify-center text-white/50 text-sm font-oswald">
+              Todavía no hay mensajes.
+            </div>
+          ) : null}
           {messages.map((msg) => {
             const authorColor = getAuthorColor(msg.autor);
             return (
