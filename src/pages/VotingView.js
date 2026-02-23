@@ -1,6 +1,6 @@
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/VotingView.js
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   checkIfAlreadyVoted,
   uploadFoto,
@@ -63,6 +63,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const [file, setFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
   const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const fotoInputRef = useRef(null);
+  const localPreviewObjectUrlRef = useRef(null);
 
   // Votación
   const [current, setCurrent] = useState(0);
@@ -100,6 +102,20 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   }, []);
 
   const clearInlineNotice = useCallback(() => setInlineNotice(null), []);
+  const clearLocalPreviewObjectUrl = useCallback(() => {
+    const activeUrl = localPreviewObjectUrlRef.current;
+    if (!activeUrl) return;
+    try {
+      URL.revokeObjectURL(activeUrl);
+    } catch (_) {
+      // Ignore revoke failures.
+    }
+    localPreviewObjectUrlRef.current = null;
+  }, []);
+
+  useEffect(() => () => {
+    clearLocalPreviewObjectUrl();
+  }, [clearLocalPreviewObjectUrl]);
 
   const notifyAlreadyVoted = () => showInlineNotice('info', 'Tus votos ya fueron registrados.');
   const notifyPublicValidationError = () => showInlineNotice('warning', 'No se pudo validar tu votación.');
@@ -243,13 +259,17 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   useEffect(() => {
     if (!nombre) {
       setJugador(null);
+      setFile(null);
+      clearLocalPreviewObjectUrl();
       setFotoPreview(null);
       return;
     }
     const j = jugadores.find((j) => j.nombre === nombre);
     setJugador(j || null);
+    setFile(null);
+    clearLocalPreviewObjectUrl();
     setFotoPreview(j?.avatar_url || null);
-  }, [nombre, jugadores]);
+  }, [clearLocalPreviewObjectUrl, nombre, jugadores]);
 
   // Modo público: precargar nombre desde localStorage si existe
   useEffect(() => {
@@ -280,10 +300,27 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     }
   }, [publicAlreadyVoted, usuarioYaVoto, finalizado]);
 
+  const jugadoresParaVotar = useMemo(
+    () => jugadores.filter((j) => j.nombre !== nombre),
+    [jugadores, nombre],
+  );
+
+  useEffect(() => {
+    if (step !== 2) return undefined;
+    if (editandoIdx !== null) return undefined;
+    if (current < jugadoresParaVotar.length) return undefined;
+
+    const timer = setTimeout(() => {
+      setStep(3);
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [current, editandoIdx, jugadoresParaVotar.length, step]);
+
   // -- FIN HOOKS --
 
   // Common wrapper styles
-  const wrapperClass = 'min-h-[100dvh] w-screen p-0 flex flex-col';
+  const wrapperClass = 'notranslate min-h-[100dvh] w-screen p-0 flex flex-col';
   const cardClass = 'w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-5';
   // Updated title class to match Legacy 'voting-title-modern' but with Tailwind
   const titleClass = 'font-bebas text-[40px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-lg';
@@ -564,8 +601,12 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (step === 1) {
     const handleFile = (e) => {
       if (e.target.files && e.target.files[0]) {
-        setFile(e.target.files[0]);
-        setFotoPreview(URL.createObjectURL(e.target.files[0]));
+        const selectedFile = e.target.files[0];
+        clearLocalPreviewObjectUrl();
+        const nextPreview = URL.createObjectURL(selectedFile);
+        localPreviewObjectUrlRef.current = nextPreview;
+        setFile(selectedFile);
+        setFotoPreview(nextPreview);
       }
     };
 
@@ -574,6 +615,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       setSubiendoFoto(true);
       try {
         const fotoUrl = await uploadFoto(file, jugador);
+        clearLocalPreviewObjectUrl();
         setFotoPreview(fotoUrl);
         setFile(null);
         showInlineNotice('success', 'Foto cargada.');
@@ -594,7 +636,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <div className="flex flex-col items-center mb-6">
             <div
               className={'w-64 h-64 md:w-[320px] md:h-[320px] bg-white/10 border-2 border-white/25 rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden mx-auto mt-4 cursor-pointer hover:border-white/40 transition-all'}
-              onClick={() => document.getElementById('foto-input').click()}
+              onClick={() => fotoInputRef.current?.click()}
               title={fotoPreview ? 'Cambiar foto' : 'Agregar foto'}
             >
               {fotoPreview ? (
@@ -611,13 +653,14 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                 type="file"
                 accept="image/*"
                 className="hidden"
+                ref={fotoInputRef}
                 onChange={handleFile}
               />
             </div>
           </div>
           {!fotoPreview && (
             <div className="text-[18px] text-white/70 text-center mb-6 font-oswald">
-              Mandale selfie <br />
+              Sacá tu foto para que te reconozcan al votar. <br />
             </div>
           )}
 
@@ -644,14 +687,10 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     );
   }
 
-  // Jugadores a votar: todos menos yo
-  const jugadoresParaVotar = jugadores.filter((j) => j.nombre !== nombre);
-
   // Paso 2: Votar a los demás jugadores
   if (step === 2 || editandoIdx !== null) {
     const index = editandoIdx !== null ? editandoIdx : current;
     if (index >= jugadoresParaVotar.length) {
-      setTimeout(() => setStep(3), 500);
       return (
         <div className={wrapperClass}>
           <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
