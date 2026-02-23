@@ -1063,7 +1063,7 @@ export const listTeamMatchMembers = async ({ matchId, teamIds = [] }) => {
     }
 
     if (!isMissingFunctionError(response.error, 'rpc_list_team_match_members')) {
-      throw new Error(response.error.message || 'No se pudo cargar la plantilla del partido');
+      console.warn('[TEAM_MATCH_MEMBERS] RPC fallback to direct team reads:', response.error);
     }
   }
 
@@ -1641,16 +1641,25 @@ export const updateTeamMatchDetails = async ({
   location = null,
   canchaCost = null,
   mode = null,
+  format = null,
 }) => {
   if (!matchId) throw new Error('Partido invalido');
 
-  const response = await supabase.rpc('rpc_update_team_match_details', {
+  const payload = {
     p_match_id: matchId,
     p_scheduled_at: scheduledAt,
     p_location: location,
     p_cancha_cost: canchaCost,
     p_mode: mode,
-  });
+    p_format: format,
+  };
+
+  let response = await supabase.rpc('rpc_update_team_match_details', payload);
+  if (response.error && isMissingFunctionError(response.error, 'rpc_update_team_match_details')) {
+    const legacyPayload = { ...payload };
+    delete legacyPayload.p_format;
+    response = await supabase.rpc('rpc_update_team_match_details', legacyPayload);
+  }
 
   if (response.error) {
     throw new Error(response.error.message || 'No se pudo actualizar el partido');

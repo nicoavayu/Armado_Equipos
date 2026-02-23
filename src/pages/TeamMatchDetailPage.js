@@ -7,7 +7,7 @@ import Button from '../components/Button';
 import Modal from '../components/Modal';
 import ProfileCardModal from '../components/ProfileCardModal';
 import LocationAutocomplete from '../features/equipos/components/LocationAutocomplete';
-import { TEAM_MODE_OPTIONS } from '../features/equipos/config';
+import { TEAM_FORMAT_OPTIONS, TEAM_MODE_OPTIONS } from '../features/equipos/config';
 import { getTeamGradientStyle } from '../features/equipos/utils/teamColors';
 import {
   canManageTeamMatch,
@@ -191,6 +191,7 @@ const TeamMatchDetailPage = () => {
   const [locationInput, setLocationInput] = useState('');
   const [canchaCostInput, setCanchaCostInput] = useState('');
   const [modeInput, setModeInput] = useState('');
+  const [formatInput, setFormatInput] = useState('');
 
   const syncFormWithMatch = useCallback((nextMatch) => {
     setScheduledAtInput(toDateTimeLocalValue(nextMatch?.scheduled_at));
@@ -201,6 +202,7 @@ const TeamMatchDetailPage = () => {
         : String(nextMatch.cancha_cost),
     );
     setModeInput(nextMatch?.mode || '');
+    setFormatInput(nextMatch?.format ? String(nextMatch.format) : '');
   }, []);
 
   const loadMembersForMatch = useCallback(async (matchRow) => {
@@ -280,6 +282,12 @@ const TeamMatchDetailPage = () => {
       return;
     }
 
+    const parsedFormat = Number(formatInput);
+    if (!Number.isFinite(parsedFormat) || !TEAM_FORMAT_OPTIONS.includes(parsedFormat)) {
+      notifyBlockingError('Selecciona un formato valido (F5, F6, F7, F8, F9 o F11)');
+      return;
+    }
+
     try {
       setSaving(true);
       const updated = await updateTeamMatchDetails({
@@ -288,6 +296,7 @@ const TeamMatchDetailPage = () => {
         location: locationInput.trim() || null,
         canchaCost: parsedCanchaCost,
         mode: modeInput.trim() || null,
+        format: parsedFormat,
       });
 
       let nextMatch = updated;
@@ -434,20 +443,26 @@ const TeamMatchDetailPage = () => {
 
                 {!canManage ? (
                   <p className="text-sm text-white/65 font-oswald">
-                    Solo owner/admin de cualquiera de los dos equipos puede editar fecha, cancha y costo.
+                    Cualquier miembro de los equipos puede editar fecha/cancha/modo/formato.
+                    Solo owner/admin puede cancelar el partido.
                   </p>
                 ) : null}
 
-                {canManage && match?.status !== 'cancelled' && match?.status !== 'played' ? (
+                {match?.status !== 'cancelled' && match?.status !== 'played' ? (
                   <form className="space-y-3" onSubmit={handleSave}>
                     <label className="block">
                       <span className="text-xs text-white/80 uppercase tracking-wide">Formato</span>
-                      <input
-                        type="text"
-                        readOnly
-                        value={`F${match?.format || '-'}`}
+                      <select
+                        value={formatInput}
+                        onChange={(event) => setFormatInput(event.target.value)}
                         className="mt-1 w-full rounded-xl bg-slate-800/70 border border-white/15 px-3 py-2 text-white/85"
-                      />
+                      >
+                        {TEAM_FORMAT_OPTIONS.map((value) => (
+                          <option key={value} value={String(value)}>
+                            F{value}
+                          </option>
+                        ))}
+                      </select>
                     </label>
 
                     <label className="block">
@@ -499,7 +514,7 @@ const TeamMatchDetailPage = () => {
                       </select>
                     </label>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <div className={`grid gap-2 pt-1 ${canManage ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
                       <Button
                         type="submit"
                         className="h-11 rounded-xl text-[16px] font-oswald font-semibold tracking-[0.01em] !normal-case"
@@ -510,15 +525,17 @@ const TeamMatchDetailPage = () => {
                         Guardar
                       </Button>
 
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={handleCancelMatch}
-                        className="h-11 rounded-xl text-[16px] font-oswald font-semibold tracking-[0.01em] !normal-case"
-                        disabled={saving}
-                      >
-                        Cancelar partido
-                      </Button>
+                      {canManage ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={handleCancelMatch}
+                          className="h-11 rounded-xl text-[16px] font-oswald font-semibold tracking-[0.01em] !normal-case"
+                          disabled={saving}
+                        >
+                          Cancelar partido
+                        </Button>
+                      ) : null}
                     </div>
                   </form>
                 ) : null}

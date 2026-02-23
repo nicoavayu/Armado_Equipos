@@ -10,14 +10,14 @@ const normalizeToken = (value) => String(value || '')
 
 const getModalidadClass = (modalidad) => {
     const raw = normalizeToken(modalidad);
-    if (!raw) return 'bg-[#123627] border-2 border-[#22c55e] text-[#dcfce7]';
+    if (!raw) return 'bg-[#0f2f23] border-2 border-[#22c55e] text-[#dcfce7]';
 
-    if (raw.includes('11')) return 'bg-[#1e2553] border-2 border-[#6366f1] text-[#e0e7ff]';
-    if (raw.includes('9')) return 'bg-[#0f3b42] border-2 border-[#06b6d4] text-[#cffafe]';
-    if (raw.includes('8')) return 'bg-[#4b1d1d] border-2 border-[#ef4444] text-[#fee2e2]';
-    if (raw.includes('7')) return 'bg-[#3b2150] border-2 border-[#a855f7] text-[#f3e8ff]';
-    if (raw.includes('6')) return 'bg-[#4a2815] border-2 border-[#f97316] text-[#ffedd5]';
-    if (raw.includes('5')) return 'bg-[#123627] border-2 border-[#22c55e] text-[#dcfce7]';
+    if (raw.includes('11')) return 'bg-[#1a2450] border-2 border-[#818cf8] text-[#e0e7ff]';
+    if (raw.includes('9')) return 'bg-[#0f3b42] border-2 border-[#22d3ee] text-[#cffafe]';
+    if (raw.includes('8')) return 'bg-[#4a1a30] border-2 border-[#f43f5e] text-[#ffe4e6]';
+    if (raw.includes('7')) return 'bg-[#321d5a] border-2 border-[#a78bfa] text-[#ede9fe]';
+    if (raw.includes('6')) return 'bg-[#1b2f55] border-2 border-[#60a5fa] text-[#dbeafe]';
+    if (raw.includes('5')) return 'bg-[#0f2f23] border-2 border-[#22c55e] text-[#dcfce7]';
 
     return 'bg-slate-700 border-2 border-slate-500 text-white';
 };
@@ -26,16 +26,16 @@ const getGeneroClass = (tipo) => {
     if (!tipo) return 'bg-[#14344a] border-2 border-[#38bdf8] text-[#dbeafe]';
     const tipoLower = normalizeToken(tipo);
     if (tipoLower.includes('masculino')) return 'bg-[#14344a] border-2 border-[#38bdf8] text-[#dbeafe]';
-    if (tipoLower.includes('femenino')) return 'bg-[#4a1530] border-2 border-[#f472b6] text-[#fce7f3]';
-    if (tipoLower.includes('mixto')) return 'bg-[#3b2f0f] border-2 border-[#facc15] text-[#fef9c3]';
+    if (tipoLower.includes('femenino')) return 'bg-[#4a1538] border-2 border-[#f472b6] text-[#fce7f3]';
+    if (tipoLower.includes('mixto')) return 'bg-[#213448] border-2 border-[#2dd4bf] text-[#ccfbf1]';
     return 'bg-slate-700 border-2 border-slate-500 text-white';
 };
 
 const getOriginClass = (originLabel) => {
     const value = normalizeToken(originLabel);
-    if (value.includes('desafio')) return 'bg-[#3b2a12] border border-[#f59e0b] text-[#fef3c7]';
-    if (value.includes('amistoso')) return 'bg-[#15344f] border border-[#38bdf8] text-[#e0f2fe]';
-    return 'bg-[#334155] border border-[#64748B] text-white';
+    if (value.includes('desafio')) return 'bg-[#2b1d52] border-2 border-[#c084fc] text-[#f3e8ff]';
+    if (value.includes('amistoso')) return 'bg-[#15344f] border-2 border-[#22d3ee] text-[#e0f2fe]';
+    return 'bg-[#334155] border-2 border-[#64748B] text-white';
 };
 
 const MatchCard = ({
@@ -182,7 +182,7 @@ const MatchCard = ({
 
             {/* Modalidad, Tipo, Precio y Jugadores */}
             <div className="flex flex-wrap items-center gap-2 mb-3">
-                <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getModalidadClass(partido.modalidad)} ${isFinished ? 'opacity-70' : ''}`}>
+                <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-lg shrink-0 whitespace-nowrap ${getModalidadClass(partido.modalidad)} ${isFinished ? 'opacity-70' : ''}`}>
                     {partido.modalidad || 'F5'}
                 </div>
                 {originBadgeLabel ? (
@@ -190,7 +190,7 @@ const MatchCard = ({
                         {originBadgeLabel}
                     </div>
                 ) : null}
-                <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getGeneroClass(generoLabel)} ${isFinished ? 'opacity-70' : ''}`}>
+                <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-lg shrink-0 whitespace-nowrap ${getGeneroClass(generoLabel)} ${isFinished ? 'opacity-70' : ''}`}>
                     {generoLabel}
                 </div>
                 <div className={`font-oswald text-[11px] font-semibold text-slate-200 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 shrink-0 whitespace-nowrap ${isFinished ? 'opacity-70' : ''}`}>
