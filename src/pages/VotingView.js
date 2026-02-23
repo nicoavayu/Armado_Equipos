@@ -360,7 +360,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     if (DEBUG) console.debug('[Guard] Rendering final screen - voter locked or already voted', { publicAlreadyVoted, usuarioYaVoto, finalizado, locked: lockedRef.current });
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         {noticeSlot}
         <div className={cardClass}>
@@ -386,7 +386,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     if (DEBUG) console.debug('[Guard] Rendering final screen', { publicAlreadyVoted, usuarioYaVoto, finalizado });
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         {noticeSlot}
         <div className={cardClass}>
@@ -509,7 +509,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (hasAccess === false && !isPublicVoting) {
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         {noticeSlot}
         <div className={cardClass}>
@@ -538,7 +538,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (usuarioYaVoto) {
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         <div className={cardClass}>
           <div className={titleClass}>
@@ -556,7 +556,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (step === 0) {
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         <div className={cardClass}>
           <div className={titleClass}>¿QUIÉN SOS?</div>
@@ -628,7 +628,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         {noticeSlot}
         <div className={cardClass}>
@@ -693,7 +693,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     if (index >= jugadoresParaVotar.length) {
       return (
         <div className={wrapperClass}>
-          <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+          <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
           <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
           {noticeSlot}
           <div className="w-[90vw] max-w-[520px] mx-auto mt-12 mb-12 flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-0">
@@ -707,7 +707,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         {noticeSlot}
         <div className="w-[90vw] max-w-[520px] mx-auto mt-12 mb-12 flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-0">
@@ -893,10 +893,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
                   const mapScore = (value) => {
                     const num = Number(value);
-                    if (!Number.isFinite(num)) return null;
-                    if (num >= 1 && num <= 5) return num;
-                    if (num >= 1 && num <= 10) return Math.min(5, Math.max(1, Math.ceil(num / 2)));
-                    return null;
+                    if (!Number.isFinite(num) || num < 1 || num > 10) return null;
+                    return Math.round(num);
                   };
 
                   const resultados = { ok: 0, already: 0, invalid: 0 };
@@ -1132,7 +1130,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (finalizado) {
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ A TUS COMPAÑEROS" onBack={onReset}>CALIFICÁ A TUS COMPAÑEROS</PageTitle>
+        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         <div className={cardClass}>
           <div className={titleClass}>
