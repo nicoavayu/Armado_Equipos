@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Flag, Shield, Users } from 'lucide-react';
+import { Flag, MoreVertical, Shield, Users } from 'lucide-react';
 import { useAuth } from '../components/AuthProvider';
 import PageTitle from '../components/PageTitle';
 import PageTransition from '../components/PageTransition';
@@ -193,6 +194,9 @@ const TeamMatchDetailPage = () => {
   const [teamMembersByTeamId, setTeamMembersByTeamId] = useState({});
   const [rosterTeamId, setRosterTeamId] = useState(null);
   const [selectedPlayerProfile, setSelectedPlayerProfile] = useState(null);
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const [actionsMenuPosition, setActionsMenuPosition] = useState({ top: 0, left: 0 });
+  const actionsMenuButtonRef = useRef(null);
 
   const [scheduledAtInput, setScheduledAtInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
@@ -268,6 +272,35 @@ const TeamMatchDetailPage = () => {
     ),
     [challengeCreatorUserId, isChallengeMatch, user?.id],
   );
+  const canShowEditAction = canEditMatchInfo && match?.status !== 'cancelled' && match?.status !== 'played';
+
+  const getSafeMenuPosition = useCallback((rect) => {
+    const menuWidth = 192; // w-48
+    const menuHeight = 56;
+    const margin = 8;
+    const rawLeft = rect.right - menuWidth;
+    const safeLeft = Math.min(
+      Math.max(margin, rawLeft),
+      Math.max(margin, window.innerWidth - menuWidth - margin),
+    );
+    const rawTop = rect.bottom + 8;
+    const safeTop = Math.min(
+      rawTop,
+      Math.max(margin, window.innerHeight - menuHeight - margin),
+    );
+    return { top: safeTop, left: safeLeft };
+  }, []);
+
+  useEffect(() => {
+    if (!actionsMenuOpen) return undefined;
+    const handleResize = () => {
+      if (!actionsMenuButtonRef.current) return;
+      const rect = actionsMenuButtonRef.current.getBoundingClientRect();
+      setActionsMenuPosition(getSafeMenuPosition(rect));
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [actionsMenuOpen, getSafeMenuPosition]);
 
   const headerInfoPartido = useMemo(() => {
     const { fecha, hora } = formatLocalDateAndTime(match?.scheduled_at);
@@ -367,18 +400,6 @@ const TeamMatchDetailPage = () => {
         </div>
 
         <div className="mx-auto mt-3 w-full max-w-[560px] space-y-3 px-4">
-          {canEditMatchInfo && match?.status !== 'cancelled' && match?.status !== 'played' ? (
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => setEditModalOpen(true)}
-                className="rounded-lg border border-white/25 bg-white/5 px-3 py-1.5 text-[12px] font-oswald uppercase tracking-wide text-white/90 hover:bg-white/10"
-              >
-                Editar datos
-              </button>
-            </div>
-          ) : null}
-
           {loading ? (
             <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
               Cargando partido...
@@ -394,13 +415,66 @@ const TeamMatchDetailPage = () => {
           {!loading && match ? (
             <>
               <div className="rounded-2xl border border-white/15 bg-[#1e293b]/65 p-4">
-                <div className="flex flex-wrap items-center gap-2 mb-3">
-                  <span className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getOriginBadgeClass(match?.origin_type)}`}>
-                    <Flag size={12} /> {match?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso'}
-                  </span>
-                  <span className="inline-flex items-center rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white/80 font-oswald uppercase tracking-wide">
-                    {statusLabelByValue[match?.status] || match?.status || 'Pendiente'}
-                  </span>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getOriginBadgeClass(match?.origin_type)}`}>
+                      <Flag size={12} /> {match?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso'}
+                    </span>
+                    <span className="inline-flex items-center rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white/80 font-oswald uppercase tracking-wide">
+                      {statusLabelByValue[match?.status] || match?.status || 'Pendiente'}
+                    </span>
+                  </div>
+
+                  {canShowEditAction ? (
+                    <div className="relative shrink-0">
+                      <button
+                        ref={actionsMenuButtonRef}
+                        type="button"
+                        aria-label="Mas acciones"
+                        title="Mas acciones"
+                        className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                        onClick={() => {
+                          if (actionsMenuButtonRef.current) {
+                            const rect = actionsMenuButtonRef.current.getBoundingClientRect();
+                            setActionsMenuPosition(getSafeMenuPosition(rect));
+                          }
+                          setActionsMenuOpen((prev) => !prev);
+                        }}
+                      >
+                        <MoreVertical size={18} />
+                      </button>
+                      {actionsMenuOpen && ReactDOM.createPortal(
+                        <>
+                          <div
+                            className="fixed inset-0 z-[9998] bg-transparent"
+                            onClick={() => setActionsMenuOpen(false)}
+                          />
+                          <div
+                            className="fixed z-[9999] w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-lg"
+                            style={{
+                              top: `${actionsMenuPosition.top}px`,
+                              left: `${actionsMenuPosition.left}px`,
+                            }}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <div className="py-1">
+                              <button
+                                type="button"
+                                className="w-full px-3 py-2 text-left text-sm font-medium text-slate-100 transition-colors hover:bg-slate-800"
+                                onClick={() => {
+                                  setActionsMenuOpen(false);
+                                  setEditModalOpen(true);
+                                }}
+                              >
+                                Editar partido
+                              </button>
+                            </div>
+                          </div>
+                        </>,
+                        document.body,
+                      )}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-3 sm:items-center">
