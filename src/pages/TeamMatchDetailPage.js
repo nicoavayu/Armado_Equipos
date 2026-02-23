@@ -11,7 +11,7 @@ import MatchInfoSection from '../components/MatchInfoSection';
 import ProfileCardModal from '../components/ProfileCardModal';
 import LocationAutocomplete from '../features/equipos/components/LocationAutocomplete';
 import { TEAM_FORMAT_OPTIONS, TEAM_MODE_OPTIONS } from '../features/equipos/config';
-import { getTeamGradientStyle } from '../features/equipos/utils/teamColors';
+import { getTeamBadgeStyle, getTeamGradientStyle } from '../features/equipos/utils/teamColors';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import {
   getTeamMatchById,
@@ -105,20 +105,14 @@ const TeamCardLocked = ({
   const totalMembers = (members || []).length;
   const statusLabel = totalMembers > 0 ? `${totalMembers} jugadores` : 'Sin jugadores';
   const teamName = team?.name || fallbackName;
-  const teamFormat = team?.format ? `F${team.format}` : 'F-';
+  const badgeStyle = getTeamBadgeStyle(team);
 
   return (
     <div
-      className="relative overflow-hidden rounded-[28px] border border-white/15 bg-[#0a1133]/90 p-4 sm:p-5 min-h-[224px] min-w-0"
+      className="relative overflow-hidden rounded-[28px] border p-4 sm:p-5 min-h-[224px] min-w-0"
+      style={team ? getTeamGradientStyle(team) : undefined}
     >
-      {team ? (
-        <div
-          className="pointer-events-none absolute inset-0 opacity-45"
-          style={getTeamGradientStyle(team)}
-        />
-      ) : null}
-
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(148,163,184,0.22),transparent_56%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.16),transparent_56%)]" />
 
       <div className="relative flex h-full flex-col">
         <div className="flex flex-col items-center text-center">
@@ -129,11 +123,17 @@ const TeamCardLocked = ({
               <Shield size={26} className="text-white/70" />
             )}
           </div>
-          <div className="mt-3 text-white font-oswald text-[26px] sm:text-[30px] leading-none font-semibold">{teamFormat}</div>
-          <div className="mt-2 text-white font-oswald text-[21px] sm:text-[24px] leading-tight font-semibold truncate max-w-full">{teamName}</div>
-          <div className="mt-3 inline-flex items-center rounded-full border border-[#3b82f6]/60 bg-[#0d223f]/80 px-3 py-1.5 text-[12px] uppercase tracking-[0.12em] text-[#8cc7ff] font-oswald">
+          <div className="mt-3 text-white font-oswald text-[21px] sm:text-[24px] leading-tight font-semibold truncate max-w-full">{teamName}</div>
+          <button
+            type="button"
+            onClick={onOpenRoster}
+            className="mt-3 inline-flex items-center rounded-full border px-3 py-1.5 text-[12px] uppercase tracking-[0.12em] font-oswald transition-colors hover:bg-white/15"
+            style={badgeStyle}
+            aria-label={`Ver plantilla de ${teamName}`}
+            title="Ver plantilla completa"
+          >
             {statusLabel}
-          </div>
+          </button>
         </div>
 
         <div className="mt-4 border-t border-white/10" />
@@ -426,52 +426,6 @@ const TeamMatchDetailPage = () => {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/15 bg-[#0f172acc] p-4">
-                <h3 className="text-lg font-oswald font-semibold text-white">Jugadores</h3>
-                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() => setRosterTeamId(match?.team_a_id)}
-                    className="w-full rounded-xl border border-white/15 bg-white/5 p-3 text-left hover:bg-white/10"
-                  >
-                    <p className="text-[11px] text-white/60 uppercase tracking-wide font-oswald">
-                      {match?.team_a?.name || 'Equipo A'}
-                    </p>
-                    <p className="mt-1 text-white font-oswald text-base">
-                      {(teamMembersByTeamId[match?.team_a_id] || []).length} jugadores
-                    </p>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setRosterTeamId(match?.team_b_id)}
-                    className="w-full rounded-xl border border-white/15 bg-white/5 p-3 text-left hover:bg-white/10"
-                  >
-                    <p className="text-[11px] text-white/60 uppercase tracking-wide font-oswald">
-                      {match?.team_b?.name || 'Equipo B'}
-                    </p>
-                    <p className="mt-1 text-white font-oswald text-base">
-                      {(teamMembersByTeamId[match?.team_b_id] || []).length} jugadores
-                    </p>
-                  </button>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/15 bg-[#0f172acc] p-4">
-                <h3 className="text-lg font-oswald font-semibold text-white">Chat del partido</h3>
-                <p className="mt-1 text-sm text-white/65 font-oswald">
-                  Conversación exclusiva de este partido.
-                </p>
-                <div className="mt-3">
-                  <Button
-                    type="button"
-                    onClick={() => setIsChatOpen(true)}
-                    className="h-11 rounded-xl text-[16px] font-oswald font-semibold tracking-[0.01em] !normal-case border-white/25"
-                  >
-                    Abrir chat
-                  </Button>
-                </div>
-              </div>
             </>
           ) : null}
         </div>
