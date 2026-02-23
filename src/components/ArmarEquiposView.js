@@ -797,7 +797,7 @@ export default function ArmarEquiposView({
             handleResetVotacion();
           }}
           onCancel={() => setConfirmConfig({ open: false, action: null })}
-          confirmText={'Resetear votación'}
+          confirmText={'Confirmar'}
           cancelText={'Cancelar'}
           isDeleting={resetting}
         />
