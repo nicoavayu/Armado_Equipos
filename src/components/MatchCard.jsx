@@ -2,29 +2,39 @@ import React from 'react';
 import { FaCrown } from 'react-icons/fa';
 import { MoreVertical, LogOut, UserRoundPlus, XCircle } from 'lucide-react';
 
+const normalizeToken = (value) => String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+
 const getModalidadClass = (modalidad) => {
-    if (!modalidad) return 'bg-slate-700 border-2 border-[#4CAF50]';
-    if (modalidad.includes('5')) return 'bg-slate-700 border-2 border-[#4CAF50]';
-    if (modalidad.includes('6')) return 'bg-slate-700 border-2 border-[#FF9800]';
-    if (modalidad.includes('7')) return 'bg-slate-700 border-2 border-[#9c27b0]';
-    if (modalidad.includes('8')) return 'bg-slate-700 border-2 border-[#f44336]';
-    if (modalidad.includes('11')) return 'bg-slate-700 border-2 border-[#3f51b5]';
-    return 'bg-slate-700 border-2 border-[#4CAF50]';
+    const raw = normalizeToken(modalidad);
+    if (!raw) return 'bg-[#123627] border-2 border-[#22c55e] text-[#dcfce7]';
+
+    if (raw.includes('11')) return 'bg-[#1e2553] border-2 border-[#6366f1] text-[#e0e7ff]';
+    if (raw.includes('9')) return 'bg-[#0f3b42] border-2 border-[#06b6d4] text-[#cffafe]';
+    if (raw.includes('8')) return 'bg-[#4b1d1d] border-2 border-[#ef4444] text-[#fee2e2]';
+    if (raw.includes('7')) return 'bg-[#3b2150] border-2 border-[#a855f7] text-[#f3e8ff]';
+    if (raw.includes('6')) return 'bg-[#4a2815] border-2 border-[#f97316] text-[#ffedd5]';
+    if (raw.includes('5')) return 'bg-[#123627] border-2 border-[#22c55e] text-[#dcfce7]';
+
+    return 'bg-slate-700 border-2 border-slate-500 text-white';
 };
 
 const getGeneroClass = (tipo) => {
-    if (!tipo) return 'bg-slate-700 border-2 border-[#2196F3]';
-    const tipoLower = String(tipo).toLowerCase();
-    if (tipoLower.includes('masculino')) return 'bg-slate-700 border-2 border-[#2196F3]';
-    if (tipoLower.includes('femenino')) return 'bg-slate-700 border-2 border-[#E91E63]';
-    if (tipoLower.includes('mixto')) return 'bg-slate-700 border-2 border-[#FFC107]';
-    return 'bg-slate-700 border-2 border-[#2196F3]';
+    if (!tipo) return 'bg-[#14344a] border-2 border-[#38bdf8] text-[#dbeafe]';
+    const tipoLower = normalizeToken(tipo);
+    if (tipoLower.includes('masculino')) return 'bg-[#14344a] border-2 border-[#38bdf8] text-[#dbeafe]';
+    if (tipoLower.includes('femenino')) return 'bg-[#4a1530] border-2 border-[#f472b6] text-[#fce7f3]';
+    if (tipoLower.includes('mixto')) return 'bg-[#3b2f0f] border-2 border-[#facc15] text-[#fef9c3]';
+    return 'bg-slate-700 border-2 border-slate-500 text-white';
 };
 
 const getOriginClass = (originLabel) => {
-    const value = String(originLabel || '').toLowerCase();
-    if (value.includes('desafio')) return 'bg-[#374151] border border-[#6B7280] text-[#E5E7EB]';
-    if (value.includes('amistoso')) return 'bg-[#1E3A5F] border border-[#3B82F6] text-[#DBEAFE]';
+    const value = normalizeToken(originLabel);
+    if (value.includes('desafio')) return 'bg-[#3b2a12] border border-[#f59e0b] text-[#fef3c7]';
+    if (value.includes('amistoso')) return 'bg-[#15344f] border border-[#38bdf8] text-[#e0f2fe]';
     return 'bg-[#334155] border border-[#64748B] text-white';
 };
 
@@ -172,7 +182,7 @@ const MatchCard = ({
 
             {/* Modalidad, Tipo, Precio y Jugadores */}
             <div className="flex flex-wrap items-center gap-2 mb-3">
-                <div className={`font-oswald text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getModalidadClass(partido.modalidad)} ${isFinished ? 'opacity-70' : ''}`}>
+                <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getModalidadClass(partido.modalidad)} ${isFinished ? 'opacity-70' : ''}`}>
                     {partido.modalidad || 'F5'}
                 </div>
                 {originBadgeLabel ? (
@@ -180,7 +190,7 @@ const MatchCard = ({
                         {originBadgeLabel}
                     </div>
                 ) : null}
-                <div className={`font-oswald text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getGeneroClass(generoLabel)} ${isFinished ? 'opacity-70' : ''}`}>
+                <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-transparent shrink-0 whitespace-nowrap ${getGeneroClass(generoLabel)} ${isFinished ? 'opacity-70' : ''}`}>
                     {generoLabel}
                 </div>
                 <div className={`font-oswald text-[11px] font-semibold text-slate-200 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 shrink-0 whitespace-nowrap ${isFinished ? 'opacity-70' : ''}`}>

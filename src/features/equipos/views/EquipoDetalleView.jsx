@@ -131,6 +131,7 @@ const summarizeTeamFromMatches = (matches = []) => matches.reduce((acc, match) =
 const EquipoDetalleView = ({ teamId, userId }) => {
   const navigate = useNavigate();
   const memberPhotoInputRef = useRef(null);
+  const roleMenuContainerRef = useRef(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const activeTab = normalizeDetailTab(searchParams.get('tab'));
@@ -181,9 +182,13 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
   useEffect(() => {
     if (!roleMenuOpen) return undefined;
-    const closeMenu = () => setRoleMenuOpen(false);
-    window.addEventListener('click', closeMenu);
-    return () => window.removeEventListener('click', closeMenu);
+    const handlePointerDownCapture = (event) => {
+      if (!roleMenuContainerRef.current) return;
+      if (roleMenuContainerRef.current.contains(event.target)) return;
+      setRoleMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDownCapture, true);
+    return () => document.removeEventListener('pointerdown', handlePointerDownCapture, true);
   }, [roleMenuOpen]);
 
   const loadTeamDetail = useCallback(async (team) => {
@@ -1086,7 +1091,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               loadingText={memberModalMode === 'create' ? 'Agregando...' : 'Guardando...'}
               disabled={isSaving || (memberModalMode === 'create' && memberNameInput.trim().length === 0)}
             >
-              {memberModalMode === 'create' ? 'Agregar' : 'Guardar cambios'}
+              {memberModalMode === 'create' ? 'Agregar' : 'Guardar'}
             </Button>
           </div>
         )}
@@ -1116,9 +1121,9 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           </label>
 
           <div className="grid grid-cols-2 gap-3">
-            <label className="block">
+            <div className="block">
               <span className="text-xs text-white/80 uppercase tracking-wide">Posicion</span>
-              <div className="relative mt-1">
+              <div ref={roleMenuContainerRef} className="relative mt-1">
                 <button
                   type="button"
                   onClick={(event) => {
@@ -1162,7 +1167,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                   </div>
                 ) : null}
               </div>
-            </label>
+            </div>
 
             <label className="block">
               <span className="text-xs text-white/80 uppercase tracking-wide">Numero</span>
