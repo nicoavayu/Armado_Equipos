@@ -955,11 +955,16 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                         resultados.already += 1;
                         continue;
                       }
-                      if (result === 'invalid' || result === 'invalid_player') {
+                      if (result === 'invalid' || result === 'invalid_player' || result === 'invalid_score') {
                         resultados.invalid += 1;
                         continue;
                       }
-                      resultados.ok += 1;
+                      if (result === 'ok') {
+                        resultados.ok += 1;
+                        continue;
+                      }
+                      console.warn('[VOTING] Unexpected public_submit_no_lo_conozco result', { result, partidoId, jugadorId: j.id });
+                      resultados.invalid += 1;
                       continue;
                     }
 
@@ -1014,18 +1019,28 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                       alreadySubmitted = true;
                       continue;
                     }
-                    if (result === 'invalid' || result === 'invalid_player') {
+                    if (result === 'invalid' || result === 'invalid_player' || result === 'invalid_score') {
                       resultados.invalid += 1;
                       continue;
                     }
-                    resultados.ok += 1;
+                    if (result === 'ok') {
+                      resultados.ok += 1;
+                      continue;
+                    }
+                    console.warn('[VOTING] Unexpected public_submit_player_rating result', {
+                      result,
+                      partidoId,
+                      jugadorId: j.id,
+                      puntaje,
+                    });
+                    resultados.invalid += 1;
                   }
 
                   console.debug('[Vote] public submit result (before completion mark)', resultados);
 
                   // Evita falso positivo: no marcar "votó" si no hubo ningún voto válido persistido.
                   if (resultados.ok <= 0) {
-                    showInlineNotice('warning', 'No se registró ningún voto válido. Probá de nuevo.');
+                    showInlineNotice('warning', 'No se registró ningún voto válido. Si sigue pasando, avisanos para revisar el backend.');
                     return;
                   }
 
