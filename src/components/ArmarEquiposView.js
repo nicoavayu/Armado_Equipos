@@ -813,7 +813,7 @@ export default function ArmarEquiposView({
             handleCerrarVotacion();
           }}
           onCancel={() => setConfirmConfig({ open: false, action: null })}
-          confirmText={'Cerrar votación'}
+          confirmText={'Confirmar'}
           cancelText={'Cancelar'}
           isDeleting={isClosing}
         />

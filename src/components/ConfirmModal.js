@@ -142,7 +142,7 @@ export default function ConfirmModal({
           {!singleButton && (
             <button
               ref={cancelRef}
-              className="min-h-[52px] px-6 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer border border-slate-600 bg-white/[0.06] text-white hover:bg-white/10 hover:border-slate-500 active:scale-[0.98] disabled:opacity-50 disabled:cursor-default transition-all"
+              className="min-h-[52px] min-w-[128px] px-6 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border border-slate-600 bg-white/[0.06] text-white hover:bg-white/10 hover:border-slate-500 active:scale-[0.98] disabled:opacity-50 disabled:cursor-default transition-all"
               onMouseDown={handleCancelClick}
               onClick={handleCancelClick}
               disabled={false}
@@ -153,7 +153,7 @@ export default function ConfirmModal({
           )}
           <button
             ref={confirmRef}
-            className={`min-h-[52px] px-6 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer border-0 text-white hover:shadow-lg hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-default transition-all ${danger ? 'bg-[#f44336]' : 'bg-[#8178e5]'}`}
+            className={`min-h-[52px] min-w-[132px] px-6 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border-0 text-white hover:shadow-lg hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-default transition-all ${danger ? 'bg-[#f44336]' : 'bg-[#8178e5]'}`}
             onMouseDown={handleConfirmClick}
             onClick={handleConfirmClick}
             disabled={isDeleting}
