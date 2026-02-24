@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, CalendarClock, CheckCircle, ClipboardList, Trophy, UserPlus, Users, Vote, XCircle } from 'lucide-react';
+import { Bell, CalendarClock, CheckCircle, ChevronDown, ChevronUp, ClipboardList, Trophy, UserPlus, Users, Vote, XCircle } from 'lucide-react';
 import { toBigIntId } from '../utils';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import { useNotifications } from '../context/NotificationContext';
@@ -32,6 +32,7 @@ const NotificationsView = () => {
   const [processingRequests, setProcessingRequests] = useState(new Set());
   const [activeFilter, setActiveFilter] = useState('all');
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState(new Set());
 
   useEffect(() => {
     console.log('[NOTIFICATIONS_VIEW] Component mounted, fetching notifications');
@@ -410,6 +411,41 @@ const NotificationsView = () => {
     await handleNotificationClick(notification, e);
   };
 
+  const toggleGroupExpanded = (groupKey, e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) next.delete(groupKey);
+      else next.add(groupKey);
+      return next;
+    });
+  };
+
+  const getDisplayCopy = (notification) => {
+    const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
+    const isSurveyReminder = notification.type === 'survey_reminder';
+    const isSurveyResults = notification.type === 'survey_results_ready';
+    const matchName = resolveNotificationMatchName(notification, 'este partido');
+    const quotedMatchName = quoteMatchName(matchName, 'este partido');
+    const title = isSurveyStartLike
+      ? '¡Encuesta lista!'
+      : isSurveyReminder
+        ? 'Recordatorio de encuesta'
+        : isSurveyResults
+          ? 'Resultados de encuesta listos'
+          : applyMatchNameQuotes(notification.title || 'Notificación', matchName);
+    const message = isSurveyStartLike
+      ? getSurveyStartMessage({ source: notification, matchName: quotedMatchName })
+      : isSurveyReminder
+        ? getSurveyReminderMessage({ source: notification, matchName: quotedMatchName })
+        : isSurveyResults
+          ? getSurveyResultsReadyMessage({ matchName: quotedMatchName })
+          : applyMatchNameQuotes(notification.message || '', matchName);
+
+    return { title, message };
+  };
+
   return (
     <div
       className="w-full h-full px-4"
@@ -494,28 +530,12 @@ const NotificationsView = () => {
             {groupedNotifications.map((group) => {
               const notification = group.latest;
               const Icon = getNotificationIcon(notification.type);
-              const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
-              const isSurveyReminder = notification.type === 'survey_reminder';
-              const isSurveyResults = notification.type === 'survey_results_ready';
-              const matchName = resolveNotificationMatchName(notification, 'este partido');
-              const quotedMatchName = quoteMatchName(matchName, 'este partido');
-              const displayTitle = isSurveyStartLike
-                ? '¡Encuesta lista!'
-                : isSurveyReminder
-                  ? 'Recordatorio de encuesta'
-                  : isSurveyResults
-                    ? 'Resultados de encuesta listos'
-                    : applyMatchNameQuotes(notification.title || 'Notificación', matchName);
-              const displayMessage = isSurveyStartLike
-                ? getSurveyStartMessage({ source: notification, matchName: quotedMatchName })
-                : isSurveyReminder
-                  ? getSurveyReminderMessage({ source: notification, matchName: quotedMatchName })
-                  : isSurveyResults
-                    ? getSurveyResultsReadyMessage({ matchName: quotedMatchName })
-                    : applyMatchNameQuotes(notification.message || '', matchName);
+              const { title: displayTitle, message: displayMessage } = getDisplayCopy(notification);
               const groupedMatchInfo = group.matchId && group.count > 1
                 ? `+${group.count - 1} más de este partido`
                 : null;
+              const groupedItems = group.items.slice(1);
+              const isExpanded = expandedGroups.has(group.key);
               return (
                 <div
                 key={group.key}
@@ -539,7 +559,42 @@ const NotificationsView = () => {
                   <div className="font-bold text-white mb-1">{displayTitle}</div>
                   <div className="text-white/80 text-sm mb-2">{displayMessage}</div>
                   {groupedMatchInfo && (
-                    <div className="text-[11px] text-white/55 mb-1">{groupedMatchInfo}</div>
+                    <button
+                      type="button"
+                      className="mb-1 inline-flex items-center gap-1 text-[11px] text-white/65 hover:text-white transition-colors"
+                      onClick={(e) => toggleGroupExpanded(group.key, e)}
+                    >
+                      {groupedMatchInfo}
+                      {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    </button>
+                  )}
+                  {isExpanded && groupedItems.length > 0 && (
+                    <div className="mb-2 rounded-md border border-white/10 bg-black/15 overflow-hidden">
+                      {groupedItems.map((item, index) => {
+                        const ItemIcon = getNotificationIcon(item.type);
+                        const { title, message } = getDisplayCopy(item);
+                        return (
+                          <button
+                            key={`${group.key}-${item.id}-${index}`}
+                            type="button"
+                            className="w-full px-2.5 py-2 text-left hover:bg-white/10 transition-colors border-b last:border-b-0 border-white/10"
+                            onClick={(e) => handleNotificationClick(item, e)}
+                          >
+                            <div className="flex items-start gap-2">
+                              <div className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-white/80 shrink-0">
+                                <ItemIcon size={11} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[12px] font-semibold text-white/90 leading-tight truncate">{title}</div>
+                                <div className="text-[11px] text-white/70 leading-snug line-clamp-2">{message}</div>
+                                <div className="text-[10px] text-white/50 mt-0.5">{formatDate(item.created_at)}</div>
+                              </div>
+                              {!item.read && <div className="mt-1.5 w-1.5 h-1.5 bg-[#128BE9] rounded-full shrink-0"></div>}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
                   <div className="text-xs text-white/60">{formatDate(notification.created_at)}</div>
 
