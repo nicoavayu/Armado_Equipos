@@ -497,21 +497,23 @@ const EncuestaPartido = () => {
   };
 
   // Helper classes for consistency
-  const screenStyle = {
+  const screenBackgroundStyle = {
     background:
       'radial-gradient(circle at 50% -12%, rgba(94,128,255,0.34) 0%, rgba(36,30,128,0) 46%), radial-gradient(circle at 50% 50%, rgba(60,112,255,0.2) 0%, rgba(11,14,54,0) 60%), linear-gradient(160deg, #1f1c77 0%, #241466 38%, #19134f 100%)',
+  };
+  const safeAreaStyle = {
     paddingTop: 'env(safe-area-inset-top)',
     paddingBottom: 'env(safe-area-inset-bottom)',
   };
-  const cardClass = 'w-full max-w-[1180px] mx-auto h-[100dvh] px-2.5 sm:px-4 flex flex-col overflow-hidden';
+  const cardClass = 'w-full max-w-[1180px] mx-auto h-[100dvh] px-2.5 sm:px-4 pb-5 sm:pb-6 flex flex-col overflow-visible';
   const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-2 sm:gap-3 pb-1.5 sm:pb-2';
   const playerStepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-between gap-0 pb-1 sm:pb-1.5';
   const questionRowClass = 'w-full shrink-0 flex items-center justify-center pt-0';
-  const progressRowClass = 'w-full shrink-0 pt-1.5 sm:pt-2';
+  const progressRowClass = 'sticky top-0 z-40 w-full shrink-0 pt-1.5 sm:pt-2';
   const progressGapClass = 'w-full shrink-0 h-7 sm:h-8';
-  const contentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden';
-  const playerContentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden pt-5 sm:pt-6 pb-1.5 sm:pb-2';
-  const actionRowClass = 'w-full shrink-0 flex items-center justify-center pt-2 sm:pt-3';
+  const contentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-visible';
+  const playerContentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-visible pt-5 sm:pt-6 pb-1.5 sm:pb-2';
+  const actionRowClass = 'w-full shrink-0 flex items-center justify-center pt-3 sm:pt-4';
   const playerActionRowClass = 'w-full shrink-0 flex items-center justify-center pt-1.5 sm:pt-2 -translate-y-5 sm:-translate-y-6';
   const logoRowClass = 'hidden';
   const titleClass = 'font-bebas text-[clamp(30px,6.2vw,74px)] text-white tracking-[0.055em] font-bold text-center leading-[0.92] uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1';
@@ -526,7 +528,7 @@ const EncuestaPartido = () => {
   const gridClass = 'grid grid-cols-2 gap-3 w-full max-w-[920px] mx-auto';
   const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center font-normal tracking-wide';
   const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-1';
-  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-hidden px-0.5 pb-0.5 flex items-center justify-center';
+  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-visible px-0.5 pb-0.5 flex items-center justify-center';
 
   const SurveyFooterLogo = () => null;
 
@@ -586,7 +588,7 @@ const EncuestaPartido = () => {
   const renderStepProgress = () => (
     <div className={progressRowClass}>
       <div className="w-full">
-        <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/18 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]">
+        <div className="h-[2px] w-full overflow-hidden rounded-full bg-white/18 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]">
           <div
             className="h-full origin-left rounded-full transition-[width] duration-[280ms] ease-out"
             style={{
@@ -768,14 +770,17 @@ const EncuestaPartido = () => {
   if (loading) {
     return (
       <PageTransition>
-        <div className="h-[100dvh] w-full overflow-hidden" style={screenStyle}>
-          <div className={cardClass}>
-            <div className="flex h-full flex-col items-center justify-center gap-5">
-              <PageLoadingState
-                title="CARGANDO ENCUESTA"
-                description="Estamos preparando los datos del partido."
-              />
-              <SurveyFooterLogo />
+        <div className="relative h-[100dvh] w-full overflow-visible">
+          <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
+          <div className="relative z-[1] h-full w-full overflow-visible" style={safeAreaStyle}>
+            <div className={cardClass}>
+              <div className="flex h-full flex-col items-center justify-center gap-5">
+                <PageLoadingState
+                  title="CARGANDO ENCUESTA"
+                  description="Estamos preparando los datos del partido."
+                />
+                <SurveyFooterLogo />
+              </div>
             </div>
           </div>
         </div>
@@ -786,28 +791,31 @@ const EncuestaPartido = () => {
   if (yaCalificado || alreadySubmitted) {
     return (
       <PageTransition>
-        <div className="h-[100dvh] w-full overflow-hidden" style={screenStyle}>
-          <div className={cardClass}>
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className={questionRowClass}>
-                <div className="font-bebas text-[30px] md:text-[44px] text-white tracking-[0.04em] font-bold text-center leading-[1.05] uppercase drop-shadow-md break-words w-full">
-                  YA COMPLETASTE<br />LA ENCUESTA
+        <div className="relative h-[100dvh] w-full overflow-visible">
+          <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
+          <div className="relative z-[1] h-full w-full overflow-visible" style={safeAreaStyle}>
+            <div className={cardClass}>
+              <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+                <div className={questionRowClass}>
+                  <div className="font-bebas text-[30px] md:text-[44px] text-white tracking-[0.04em] font-bold text-center leading-[1.05] uppercase drop-shadow-md break-words w-full">
+                    YA COMPLETASTE<br />LA ENCUESTA
+                  </div>
                 </div>
-              </div>
-              <div className={contentRowClass}>
-                <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
-                  ¡Gracias por tu participación!
+                <div className={contentRowClass}>
+                  <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
+                    ¡Gracias por tu participación!
+                  </div>
                 </div>
-              </div>
-              <div className={actionRowClass}>
-                <div className={actionDockClass}>
-                  <button className={btnClass} onClick={() => navigate('/')}>
-                    VOLVER AL INICIO
-                  </button>
+                <div className={actionRowClass}>
+                  <div className={actionDockClass}>
+                    <button className={btnClass} onClick={() => navigate('/')}>
+                      VOLVER AL INICIO
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className={logoRowClass}>
-                <SurveyFooterLogo />
+                <div className={logoRowClass}>
+                  <SurveyFooterLogo />
+                </div>
               </div>
             </div>
           </div>
@@ -818,19 +826,21 @@ const EncuestaPartido = () => {
 
   return (
     <PageTransition>
-      <div className="h-[100dvh] w-full overflow-hidden" style={screenStyle}>
-        <style>{animationStyle}</style>
-        <div className={cardClass}>
-          {renderStepProgress()}
-          <div className={progressGapClass} />
-          <div className="w-full shrink-0 pt-0.5">
-            <InlineNotice
-              type={notice?.type}
-              message={notice?.message}
-              autoHideMs={notice?.type === 'warning' ? null : 3000}
-              onClose={clearInlineNotice}
-            />
-          </div>
+      <div className="relative h-[100dvh] w-full overflow-visible">
+        <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
+        <div className="relative z-[1] h-full w-full overflow-visible" style={safeAreaStyle}>
+          <style>{animationStyle}</style>
+          <div className={cardClass}>
+            {renderStepProgress()}
+            <div className={progressGapClass} />
+            <div className="w-full shrink-0 pt-0.5">
+              <InlineNotice
+                type={notice?.type}
+                message={notice?.message}
+                autoHideMs={notice?.type === 'warning' ? null : 3000}
+                onClose={clearInlineNotice}
+              />
+            </div>
           {/* STEP 0: ¿SE JUGÓ? */}
           {currentStep === 0 && (
             <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
@@ -1275,6 +1285,7 @@ const EncuestaPartido = () => {
           )}
         </div>
       </div>
+    </div>
     </PageTransition>
   );
 };
