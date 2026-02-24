@@ -705,8 +705,6 @@ const EncuestaPartido = () => {
                   hasSelection && !selected ? 'saturate-[0.74]' : ''
                 }`}
                 style={{
-                  animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
-                  animationDelay: `${Math.min(index * 16, 160)}ms`,
                   borderColor: selected ? 'rgba(229,243,255,0.82)' : 'rgba(255,255,255,0.24)',
                   opacity: hasSelection && !selected ? 0.45 : 1,
                   boxShadow: selected
@@ -717,7 +715,13 @@ const EncuestaPartido = () => {
                 {selected ? (
                   <div className="pointer-events-none absolute -inset-1.5 rounded-[16px] bg-[radial-gradient(circle,rgba(121,241,255,0.48)_0%,rgba(121,241,255,0.16)_46%,rgba(121,241,255,0)_78%)] blur-[9px]" />
                 ) : null}
-                <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[14px]">
+                <div
+                  className="relative flex h-full w-full flex-col overflow-hidden rounded-[14px]"
+                  style={{
+                    animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
+                    animationDelay: `${Math.min(index * 16, 160)}ms`,
+                  }}
+                >
                   <div className="relative h-[75%] w-full overflow-hidden bg-[#101544]">
                     {hasPhoto ? (
                       <img
