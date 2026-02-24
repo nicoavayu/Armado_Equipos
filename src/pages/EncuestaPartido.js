@@ -506,17 +506,21 @@ const EncuestaPartido = () => {
   };
   const cardClass = 'w-full max-w-[1180px] mx-auto h-[100dvh] px-2.5 sm:px-4 flex flex-col overflow-hidden';
   const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-start gap-0.5 pb-0.5';
-  const questionRowClass = 'w-full shrink-0 flex items-center justify-center';
-  const progressRowClass = 'w-full shrink-0 flex items-center justify-center';
+  const questionRowClass = 'w-full shrink-0 flex items-center justify-center pt-1.5 sm:pt-2.5';
+  const progressRowClass = 'w-full shrink-0 flex items-center justify-center mt-2 sm:mt-2.5';
   const contentRowClass = 'w-full flex-1 min-h-0 flex items-stretch justify-center overflow-hidden';
-  const playerContentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden';
-  const actionRowClass = 'w-full shrink-0 flex items-center justify-center mt-0.5';
-  const logoRowClass = 'w-full shrink-0 flex justify-center pt-0 pb-0.5';
+  const playerContentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden pt-3 sm:pt-4';
+  const actionRowClass = 'w-full shrink-0 flex items-center justify-center mt-3 sm:mt-4';
+  const logoRowClass = 'w-full shrink-0 flex justify-center pt-1.5 pb-3 sm:pb-4';
   const titleClass = 'font-bebas text-[clamp(30px,6.2vw,74px)] text-white tracking-[0.055em] font-bold text-center leading-[0.92] uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1';
   const surveyBtnBaseClass = 'w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-[22px] sm:text-[28px] py-3 text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.16] flex items-center justify-center min-h-[58px] rounded-[18px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed';
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
   const optionBtnSelectedClass = 'bg-white/[0.26] border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_16px_30px_rgba(22,29,98,0.42)]';
+  const compactPrimaryBtnClass = `${btnClass} !w-auto !min-w-[160px] sm:!min-w-[196px] !px-6 sm:!px-8`;
+  const compactSecondaryBtnClass = `${optionBtnClass} !w-full !min-h-[54px] !py-2.5 !px-4 bg-white/[0.07] border-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_16px_rgba(7,10,35,0.22)]`;
+  const compactButtonRowClass = 'w-full max-w-[760px] mx-auto flex items-center justify-center';
+  const compactDualButtonRowClass = 'w-full max-w-[760px] mx-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 sm:gap-3';
   const gridClass = 'grid grid-cols-2 gap-3 w-full max-w-[920px] mx-auto';
   const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center font-normal tracking-wide';
   const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-1';
@@ -527,23 +531,10 @@ const EncuestaPartido = () => {
       <img
         src={Logo}
         alt="Logo Arma2"
-        className="w-[72px] h-auto drop-shadow-[0_0_10px_rgba(22,19,84,0.6)]"
+        className="w-[44px] h-auto drop-shadow-[0_0_8px_rgba(22,19,84,0.5)]"
       />
     </div>
   );
-
-  const resolveVariantAccent = (variant) => {
-    switch (variant) {
-      case 'mvp':
-        return '#47f8b5';
-      case 'gk':
-        return '#ffe07a';
-      case 'danger':
-        return '#ff86a1';
-      default:
-        return '#66e7ff';
-    }
-  };
 
   const flowSteps = useMemo(() => {
     const resolvedSteps = [0];
@@ -590,11 +581,8 @@ const EncuestaPartido = () => {
 
   const renderStepProgress = () => (
     <div className={progressRowClass}>
-      <div className="w-full max-w-[900px] px-2 sm:px-3">
-        <div className="text-center font-oswald text-[11px] sm:text-[12px] leading-none tracking-[0.07em] uppercase text-white/72">
-          Paso {progressCurrentStep} de {progressTotalSteps}
-        </div>
-        <div className="mt-1.5 h-[4px] w-full overflow-hidden rounded-full bg-white/20">
+      <div className="w-full max-w-[760px] px-6 sm:px-8">
+        <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/18">
           <div
             className="h-full w-full origin-left rounded-full transition-transform duration-[220ms] ease-out"
             style={{
@@ -678,12 +666,10 @@ const EncuestaPartido = () => {
   const renderMiniPlayerCards = ({
     isSelected,
     onSelect,
-    variant = 'mvp',
   }) => {
     const playerCount = jugadores.length;
     const adaptiveGrid = resolveAdaptiveGridConfig(playerCount, viewportRatio);
     const hasSelection = jugadores.some((candidate) => isSelected(candidate.uuid));
-    const accentColor = resolveVariantAccent(variant);
 
     return (
       <div className={miniCardsStageClass}>
@@ -706,19 +692,19 @@ const EncuestaPartido = () => {
                 key={jugador.uuid}
                 type="button"
                 onClick={() => onSelect(jugador.uuid)}
-                className={`group relative h-full min-h-0 min-w-0 overflow-hidden rounded-[14px] border bg-[linear-gradient(168deg,rgba(58,84,196,0.28),rgba(16,20,73,0.9))] transition-[transform,opacity] duration-[230ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
+                className={`group relative h-full min-h-0 min-w-0 overflow-hidden rounded-[14px] border bg-[linear-gradient(168deg,rgba(58,84,196,0.28),rgba(16,20,73,0.9))] transition-[transform,opacity,filter] duration-[200ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
                   selected
-                    ? 'z-20 -translate-y-[4px] scale-[1.07] opacity-100'
+                    ? 'z-20 -translate-y-[2px] scale-[1.04] opacity-100'
                     : 'z-10 translate-y-0 scale-100 opacity-100'
                 } ${
-                  hasSelection && !selected ? 'opacity-60 saturate-[0.84]' : 'opacity-100'
+                  hasSelection && !selected ? 'opacity-[0.8] saturate-[0.9]' : 'opacity-100'
                 }`}
                 style={{
                   animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
                   animationDelay: `${Math.min(index * 16, 160)}ms`,
                   borderColor: selected ? 'rgba(229,243,255,0.82)' : 'rgba(255,255,255,0.24)',
                   boxShadow: selected
-                    ? `0 18px 30px rgba(6,9,34,0.56), 0 0 14px ${accentColor}40`
+                    ? '0 14px 24px rgba(7,10,35,0.46)'
                     : '0 10px 18px rgba(8,12,44,0.36)',
                 }}
               >
@@ -929,13 +915,12 @@ const EncuestaPartido = () => {
                 {renderMiniPlayerCards({
                   isSelected: (uuid) => formData.mvp_id === uuid,
                   onSelect: (uuid) => handleInputChange('mvp_id', uuid),
-                  variant: 'mvp',
                 })}
               </div>
               <div className={actionRowClass}>
-                <div className={actionDockClass}>
+                <div className={compactButtonRowClass}>
                   <button
-                    className={btnClass}
+                    className={compactPrimaryBtnClass}
                     onClick={() => setCurrentStep(3)}
                     disabled={!formData.mvp_id}
                   >
@@ -965,14 +950,13 @@ const EncuestaPartido = () => {
                     handleInputChange('arquero_id', uuid);
                     handleInputChange('sin_arquero_fijo', false);
                   },
-                  variant: 'gk',
                 })}
               </div>
               <div className={actionRowClass}>
-                <div className={actionDockClass}>
+                <div className={compactDualButtonRowClass}>
                   <button
                     type="button"
-                    className={`${optionBtnClass} ${formData.sin_arquero_fijo && !formData.arquero_id ? optionBtnSelectedClass : ''}`}
+                    className={`${compactSecondaryBtnClass} ${formData.sin_arquero_fijo && !formData.arquero_id ? optionBtnSelectedClass : ''}`}
                     onClick={() => {
                       handleInputChange('arquero_id', '');
                       handleInputChange('sin_arquero_fijo', true);
@@ -982,7 +966,7 @@ const EncuestaPartido = () => {
                     NO HUBO ARQUEROS FIJOS
                   </button>
                   <button
-                    className={btnClass}
+                    className={compactPrimaryBtnClass}
                     onClick={() => setCurrentStep(4)}
                     disabled={!formData.arquero_id && !formData.sin_arquero_fijo}
                   >
@@ -1129,13 +1113,12 @@ const EncuestaPartido = () => {
                 {renderMiniPlayerCards({
                   isSelected: (uuid) => formData.jugadores_violentos.includes(uuid),
                   onSelect: (uuid) => toggleJugadorViolento(uuid),
-                  variant: 'danger',
                 })}
               </div>
               <div className={actionRowClass}>
-                <div className={actionDockClass}>
+                <div className={compactButtonRowClass}>
                   <button
-                    className={btnClass}
+                    className={compactPrimaryBtnClass}
                     onClick={async () => {
                       if (!hasConfirmedTeams) {
                         await submitSurveyFromCurrentStep();
@@ -1209,7 +1192,6 @@ const EncuestaPartido = () => {
                 {renderMiniPlayerCards({
                   isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
                   onSelect: (uuid) => toggleJugadorAusente(uuid),
-                  variant: 'danger',
                 })}
               </div>
               <div className={actionRowClass}>
@@ -1242,13 +1224,12 @@ const EncuestaPartido = () => {
                 {renderMiniPlayerCards({
                   isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
                   onSelect: (uuid) => toggleJugadorAusente(uuid),
-                  variant: 'danger',
                 })}
               </div>
               <div className={actionRowClass}>
-                <div className={actionDockClass}>
+                <div className={compactButtonRowClass}>
                   <button
-                    className={btnClass}
+                    className={compactPrimaryBtnClass}
                     onClick={() => setCurrentStep(2)}
                     disabled={formData.jugadores_ausentes.length === 0}
                   >
