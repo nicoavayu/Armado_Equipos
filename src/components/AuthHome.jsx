@@ -89,7 +89,7 @@ export default function AuthHome() {
       <div className="w-full max-w-[380px]">
         <div className="auth-logo-block mb-10 text-center">
           <img src={logo} alt="ARMA2" className="auth-logo-mark mx-auto h-[122px] w-auto max-w-full object-contain" />
-          <p className="mt-[14px] text-sm font-medium tracking-[0.3px] text-[rgba(255,255,255,0.9)]">Tu red de fútbol amateur</p>
+          <p className="mt-[14px] text-sm font-medium tracking-[0.3px] text-[rgba(255,255,255,0.9)]">Futbol amateur, nivel pro</p>
         </div>
 
         <div className="auth-premium-card rounded-2xl px-5 py-6 max-[480px]:px-4 max-[480px]:py-5">
