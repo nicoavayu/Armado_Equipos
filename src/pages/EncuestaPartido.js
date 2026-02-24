@@ -529,6 +529,7 @@ const EncuestaPartido = () => {
   const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center font-normal tracking-wide';
   const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-1';
   const centeredSummaryStackClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-5 sm:gap-6';
+  const centeredSummaryButtonWrapClass = 'w-full max-w-[460px] sm:max-w-[500px] mx-auto';
   const miniCardsStageClass = 'w-full h-full min-h-0 overflow-visible px-0.5 pb-0.5 flex items-center justify-center';
 
   const SurveyFooterLogo = () => null;
@@ -805,7 +806,7 @@ const EncuestaPartido = () => {
                 <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
                   ¡Gracias por tu participación!
                 </div>
-                <div className="w-full max-w-[760px] mx-auto">
+                <div className={centeredSummaryButtonWrapClass}>
                   <button className={btnClass} onClick={() => navigate('/')}>
                     VOLVER AL INICIO
                   </button>
@@ -1263,7 +1264,7 @@ const EncuestaPartido = () => {
               <div className={`${textClass} text-[26px] !mb-0`}>
                 Los resultados se publicarán en ~6 horas.
               </div>
-              <div className="w-full max-w-[760px] mx-auto">
+              <div className={centeredSummaryButtonWrapClass}>
                 <button
                   className={btnClass}
                   onClick={() => navigate('/proximos?surveyDone=1')}
