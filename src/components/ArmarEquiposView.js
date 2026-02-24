@@ -8,6 +8,7 @@ import {
   getVotantesIds,
   getVotantesConNombres,
   getJugadoresDelPartido,
+  hasRecordedVotes,
   resetVotacion,
   clearGuestSession,
   supabase,
@@ -542,6 +543,12 @@ export default function ArmarEquiposView({
     const jugadorAEliminar = jugadores.find((j) => j.id === jugadorId);
 
     if (!jugadorAEliminar) return;
+
+    const matchHasVotes = await hasRecordedVotes(partidoActual.id);
+    if (matchHasVotes) {
+      showInlineNotice('warning', 'Ya hay votos registrados. Para editar el plantel, primero reseteá la votación.');
+      return;
+    }
 
     setLoading(true);
     try {

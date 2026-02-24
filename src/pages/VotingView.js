@@ -893,8 +893,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
                   const mapScore = (value) => {
                     const num = Number(value);
-                    if (!Number.isFinite(num) || num < 1 || num > 10) return null;
-                    return Math.round(num);
+                    if (!Number.isFinite(num) || !Number.isInteger(num) || num < 1 || num > 10) return null;
+                    return num;
                   };
 
                   const resultados = { ok: 0, already: 0, invalid: 0 };

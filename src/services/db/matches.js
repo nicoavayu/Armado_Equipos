@@ -11,6 +11,90 @@ const generateMatchCode = (length = 6) => {
   return result;
 };
 
+export const normalizeIdentityValue = (value) => {
+  if (value === null || value === undefined) return null;
+  const normalized = String(value).trim();
+  return normalized.length > 0 ? normalized : null;
+};
+
+export const buildMatchPlayerIdentityMaps = (jugadores = []) => {
+  const byUuid = new Map();
+  const byUserId = new Map();
+  const byNumericId = new Map();
+  const stableRefByAny = new Map();
+
+  for (const jugador of jugadores || []) {
+    const uuid = normalizeIdentityValue(jugador?.uuid);
+    const userId = normalizeIdentityValue(jugador?.usuario_id);
+    const numericId = Number(jugador?.id);
+
+    if (uuid) {
+      byUuid.set(uuid, uuid);
+    }
+    if (userId && uuid) {
+      byUserId.set(userId, uuid);
+    }
+    if (Number.isFinite(numericId) && numericId > 0 && uuid) {
+      byNumericId.set(numericId, uuid);
+    }
+
+    // Canonical target to persist in votos.votado_id:
+    // 1) authenticated users -> usuario_id (stable across roster row replacement)
+    // 2) guests/manual players -> uuid
+    const stableTargetRef = userId || uuid;
+    if (stableTargetRef) {
+      if (uuid) stableRefByAny.set(uuid, stableTargetRef);
+      if (userId) stableRefByAny.set(userId, stableTargetRef);
+      if (Number.isFinite(numericId) && numericId > 0) stableRefByAny.set(String(numericId), stableTargetRef);
+    }
+  }
+
+  return {
+    byUuid,
+    byUserId,
+    byNumericId,
+    stableRefByAny,
+  };
+};
+
+export const resolveTargetPlayerUuid = (row, identityMaps) => {
+  const { byUuid, byUserId, byNumericId } = identityMaps;
+  if (!row) return null;
+
+  // Preferred stable references
+  const refCandidates = [
+    row.votado_uuid,
+    row.votado_usuario_id,
+    row.votado_id,
+    row.jugador_uuid,
+    row.player_uuid,
+  ];
+
+  for (const ref of refCandidates) {
+    const normalized = normalizeIdentityValue(ref);
+    if (!normalized) continue;
+
+    if (byUuid.has(normalized)) return byUuid.get(normalized);
+    if (byUserId.has(normalized)) return byUserId.get(normalized);
+
+    const asNumber = Number(normalized);
+    if (Number.isFinite(asNumber) && byNumericId.has(asNumber)) {
+      return byNumericId.get(asNumber);
+    }
+  }
+
+  // Legacy/public numeric references
+  const numericCandidates = [row.votado_jugador_id, row.votado_player_id, row.player_id];
+  for (const numericRef of numericCandidates) {
+    const asNumber = Number(numericRef);
+    if (Number.isFinite(asNumber) && byNumericId.has(asNumber)) {
+      return byNumericId.get(asNumber);
+    }
+  }
+
+  return null;
+};
+
 /**
  * Fetch ALL players for a match exactly as stored in DB.
  * Kept for backward compatibility (used by Admin/Encuesta flows).
@@ -386,6 +470,44 @@ export const getVotantesConNombres = async (partidoId) => {
 };
 
 /**
+ * Returns true when a match already has persisted votes.
+ * Used to protect roster edits that can orphan vote references.
+ * @param {number} partidoId
+ * @returns {Promise<boolean>}
+ */
+export const hasRecordedVotes = async (partidoId) => {
+  const pid = Number(partidoId);
+  if (!pid || Number.isNaN(pid)) return false;
+
+  try {
+    const [authRes, publicRes] = await Promise.all([
+      supabase
+        .from('votos')
+        .select('id', { count: 'exact', head: true })
+        .eq('partido_id', pid),
+      supabase
+        .from('votos_publicos')
+        .select('id', { count: 'exact', head: true })
+        .eq('partido_id', pid),
+    ]);
+
+    if (authRes.error) {
+      console.warn('[hasRecordedVotes] votos count failed (non-fatal):', authRes.error);
+    }
+    if (publicRes.error) {
+      console.warn('[hasRecordedVotes] votos_publicos count failed (non-fatal):', publicRes.error);
+    }
+
+    const authCount = Number(authRes.count || 0);
+    const publicCount = Number(publicRes.count || 0);
+    return authCount + publicCount > 0;
+  } catch (error) {
+    console.warn('[hasRecordedVotes] failed, falling back to false:', error);
+    return false;
+  }
+};
+
+/**
  * Check if user has already voted in a match
  * @param {string} votanteId - Voter ID
  * @param {number} partidoId - Match ID
@@ -521,14 +643,32 @@ export const submitVotos = async (votos, jugadorUuid, partidoId, jugadorNombre, 
     throw new Error('Ya votaste en este partido');
   }
 
+  // Build stable target references to avoid losing votes when jugadores rows are replaced.
+  let identityMaps = { stableRefByAny: new Map() };
+  try {
+    const { data: matchPlayers, error: rosterError } = await supabase
+      .from('jugadores')
+      .select('id, uuid, usuario_id')
+      .eq('partido_id', partidoId);
+    if (rosterError) {
+      console.warn('[submitVotos] Could not fetch roster identities (non-fatal):', rosterError);
+    } else {
+      identityMaps = buildMatchPlayerIdentityMaps(matchPlayers || []);
+    }
+  } catch (rosterCatchError) {
+    console.warn('[submitVotos] Roster identity lookup failed (non-fatal):', rosterCatchError);
+  }
+
   const votosParaInsertar = Object.entries(votos)
     .filter(([, puntaje]) => puntaje !== undefined && puntaje !== null)
     .map(([votado_id, puntaje]) => {
-      if (!votado_id || typeof votado_id !== 'string' || votado_id.trim() === '') {
+      const normalizedTarget = normalizeIdentityValue(votado_id);
+      if (!normalizedTarget) {
         return null;
       }
+      const stableTarget = identityMaps.stableRefByAny.get(normalizedTarget) || normalizedTarget;
       return {
-        votado_id: votado_id.trim(),
+        votado_id: stableTarget,
         votante_id: votanteId,
         puntaje: Number(puntaje),
         partido_id: partidoId,
@@ -586,7 +726,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     // 1. Fetch votes from regular 'votos' table (authenticated users)
     const { data: votos, error: fetchError } = await supabase
       .from('votos')
-      .select('votado_id, puntaje, votante_id')
+      .select('*')
       .eq('partido_id', partidoId);
 
     if (fetchError) {
@@ -597,7 +737,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     // 2. Fetch votes from 'votos_publicos' table (guest users)
     const { data: publicVotes, error: publicFetchError } = await supabase
       .from('votos_publicos')
-      .select('votado_jugador_id, puntaje, no_lo_conozco')
+      .select('*')
       .eq('partido_id', partidoId);
 
     if (publicFetchError) {
@@ -627,7 +767,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
 
     const { data: jugadores, error: playerError } = await supabase
       .from('jugadores')
-      .select('id, uuid, nombre, is_goalkeeper')
+      .select('id, uuid, usuario_id, nombre, is_goalkeeper')
       .eq('partido_id', partidoId);
 
     if (playerError) {
@@ -649,52 +789,70 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     const goalkeepers = new Set();
     let totalValidVotes = 0;
     let totalInvalidVotes = 0;
+    let unresolvedAuthTargets = 0;
+    let unresolvedPublicTargets = 0;
+    let invalidAuthScores = 0;
+    let invalidPublicScores = 0;
+    const identityMaps = buildMatchPlayerIdentityMaps(jugadores || []);
 
-    // Process regular votes (uuid-based)
+    // Process regular votes (uuid/user-id based)
     if (votos && votos.length > 0) {
       for (const voto of votos) {
-        if (!voto.votado_id) {
+        const targetUuid = resolveTargetPlayerUuid(voto, identityMaps);
+        if (!targetUuid) {
+          unresolvedAuthTargets++;
           totalInvalidVotes++;
           continue;
         }
-        if (!votesByPlayer[voto.votado_id]) votesByPlayer[voto.votado_id] = [];
+        if (!votesByPlayer[targetUuid]) votesByPlayer[targetUuid] = [];
 
         if (voto.puntaje !== null && voto.puntaje !== undefined) {
           const score = Number(voto.puntaje);
           if (!isNaN(score)) {
-            if (score === -2) goalkeepers.add(voto.votado_id);
-            else votesByPlayer[voto.votado_id].push(score);
+            if (score === -2) goalkeepers.add(targetUuid);
+            else votesByPlayer[targetUuid].push(score);
             totalValidVotes++;
-          } else totalInvalidVotes++;
-        } else totalInvalidVotes++;
+          } else {
+            invalidAuthScores++;
+            totalInvalidVotes++;
+          }
+        } else {
+          invalidAuthScores++;
+          totalInvalidVotes++;
+        }
       }
     }
 
-    // Process public votes (id-based or uuid correlation)
+    // Process public votes (id/uuid/user-id correlation)
     if (publicVotes && publicVotes.length > 0) {
-      // Map player numeric IDs to UUIDs for consistency
-      const idToUuidMap = new Map();
-      jugadores.forEach(j => idToUuidMap.set(j.id, j.uuid));
-
       for (const pv of publicVotes) {
-        if (!pv.votado_jugador_id) continue;
-
-        const playerUuid = idToUuidMap.get(pv.votado_jugador_id);
-        if (!playerUuid) continue;
+        const playerUuid = resolveTargetPlayerUuid(pv, identityMaps);
+        if (!playerUuid) {
+          unresolvedPublicTargets++;
+          totalInvalidVotes++;
+          continue;
+        }
 
         if (!votesByPlayer[playerUuid]) votesByPlayer[playerUuid] = [];
 
         if (pv.no_lo_conozco) {
-          // Skip these or handle as -1? The logic below filters out -1/NaN
+          // Explicit "no lo conozco" is valid and excluded from average.
           continue;
         }
 
-        if (pv.puntaje !== null && pv.puntaje !== undefined) {
-          const score = Number(pv.puntaje);
-          if (!isNaN(score) && score >= 1 && score <= 10) {
-            votesByPlayer[playerUuid].push(score);
-            totalValidVotes++;
-          }
+        if (pv.puntaje === null || pv.puntaje === undefined) {
+          invalidPublicScores++;
+          totalInvalidVotes++;
+          continue;
+        }
+
+        const score = Number(pv.puntaje);
+        if (!isNaN(score) && score >= 1 && score <= 10) {
+          votesByPlayer[playerUuid].push(score);
+          totalValidVotes++;
+        } else {
+          invalidPublicScores++;
+          totalInvalidVotes++;
         }
       }
     }
@@ -702,6 +860,10 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     console.log('✅ SUPABASE: Votes grouped:', {
       totalValidVotes,
       totalInvalidVotes,
+      unresolvedAuthTargets,
+      unresolvedPublicTargets,
+      invalidAuthScores,
+      invalidPublicScores,
       playersWithVotes: Object.keys(votesByPlayer).length,
       voteDistribution: Object.entries(votesByPlayer).map(([playerId, votes]) => ({
         playerId,
@@ -709,6 +871,20 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
         votes: votes.filter((v) => v !== -1),
       })),
     });
+
+    const unresolvedTargets = unresolvedAuthTargets + unresolvedPublicTargets;
+    const corruptedVotes = invalidAuthScores + invalidPublicScores;
+
+    // Sacred integrity guard: if any persisted vote cannot be processed, abort close.
+    // This avoids silently dropping votes and falling back to default scores.
+    if (unresolvedTargets > 0 || corruptedVotes > 0) {
+      throw new Error(
+        `Se detectaron votos no procesables. ` +
+        `(unresolved_auth=${unresolvedAuthTargets}, unresolved_public=${unresolvedPublicTargets}, ` +
+        `invalid_auth=${invalidAuthScores}, invalid_public=${invalidPublicScores}, ` +
+        `auth_rows=${regularRowsCount}, public_rows=${publicRowsCount})`
+      );
+    }
 
     // Hard guard: never close voting with zero valid votes.
     // This prevents "all players score 5" false outcomes when persistence failed upstream.
@@ -734,7 +910,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       let avgScore = 5;
       if (numericalVotes.length > 0) {
         const total = numericalVotes.reduce((sum, val) => sum + val, 0);
-        avgScore = Math.round((total / numericalVotes.length) * 100) / 100;
+        avgScore = total / numericalVotes.length;
       }
 
       scoreUpdates.push({

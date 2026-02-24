@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getVotantesIds, getVotantesConNombres, getJugadoresDelPartido, supabase } from '../supabase';
+import { getVotantesIds, getVotantesConNombres, getJugadoresDelPartido, hasRecordedVotes, supabase } from '../supabase';
 import { toBigIntId } from '../utils';
 import { incrementMatchesAbandoned, canAbandonWithoutPenalty } from '../utils/matchStatsManager';
 import { autoCleanupDuplicates } from '../utils/duplicateCleanup';
@@ -302,6 +302,12 @@ export const useAdminPanelState = ({
       return;
     }
 
+    const matchHasVotes = await hasRecordedVotes(partidoActual.id);
+    if (matchHasVotes) {
+      setInlineNotice('warning', 'Ya hay votos registrados. Para editar el plantel, primero reseteá la votación.');
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase
@@ -397,6 +403,12 @@ export const useAdminPanelState = ({
     }
 
     const esAutoEliminacion = jugadorAEliminar?.usuario_id === user?.id;
+
+    const matchHasVotes = await hasRecordedVotes(partidoActual.id);
+    if (matchHasVotes) {
+      setInlineNotice('warning', 'Ya hay votos registrados. Para editar el plantel, primero reseteá la votación.');
+      return;
+    }
 
     setLoading(true);
     try {
