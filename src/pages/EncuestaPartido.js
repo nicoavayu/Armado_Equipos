@@ -510,8 +510,9 @@ const EncuestaPartido = () => {
   const progressRowClass = 'w-full shrink-0 pt-1.5 sm:pt-2';
   const progressGapClass = 'w-full shrink-0 h-7 sm:h-8';
   const contentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden';
-  const playerContentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden py-1.5 sm:py-2';
+  const playerContentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden pt-5 sm:pt-6 pb-1.5 sm:pb-2';
   const actionRowClass = 'w-full shrink-0 flex items-center justify-center pt-2 sm:pt-3';
+  const playerActionRowClass = 'w-full shrink-0 flex items-center justify-center pt-1.5 sm:pt-2 -translate-y-5 sm:-translate-y-6';
   const logoRowClass = 'hidden';
   const titleClass = 'font-bebas text-[clamp(30px,6.2vw,74px)] text-white tracking-[0.055em] font-bold text-center leading-[0.92] uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1';
   const surveyBtnBaseClass = 'w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-[22px] sm:text-[28px] py-3 text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.16] flex items-center justify-center min-h-[58px] rounded-[18px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed';
@@ -696,24 +697,25 @@ const EncuestaPartido = () => {
                 key={jugador.uuid}
                 type="button"
                 onClick={() => onSelect(jugador.uuid)}
-                className={`group relative h-full min-h-0 min-w-0 overflow-visible rounded-[14px] border bg-[linear-gradient(168deg,rgba(58,84,196,0.28),rgba(16,20,73,0.9))] transition-[transform,opacity,filter] duration-[220ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
+                className={`group relative h-full min-h-0 min-w-0 transform-gpu overflow-visible rounded-[14px] border bg-[linear-gradient(168deg,rgba(58,84,196,0.28),rgba(16,20,73,0.9))] transition-[transform,opacity,filter] duration-[260ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
                   selected
-                    ? 'z-20 -translate-y-[2px] scale-[1.03] opacity-100'
-                    : 'z-10 translate-y-0 scale-100 opacity-100'
+                    ? 'z-20 -translate-y-[3px] scale-[1.055]'
+                    : 'z-10 translate-y-0 scale-100'
                 } ${
-                  hasSelection && !selected ? 'opacity-[0.42] saturate-[0.66]' : 'opacity-100'
+                  hasSelection && !selected ? 'saturate-[0.74]' : ''
                 }`}
                 style={{
                   animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
                   animationDelay: `${Math.min(index * 16, 160)}ms`,
                   borderColor: selected ? 'rgba(229,243,255,0.82)' : 'rgba(255,255,255,0.24)',
+                  opacity: hasSelection && !selected ? 0.45 : 1,
                   boxShadow: selected
-                    ? '0 0 0 1px rgba(191,239,255,0.82), 0 0 26px rgba(92,236,255,0.38), 0 16px 26px rgba(7,10,35,0.48)'
+                    ? '0 0 0 1px rgba(191,239,255,0.82), 0 0 20px rgba(92,236,255,0.28), 0 16px 26px rgba(7,10,35,0.48)'
                     : '0 10px 18px rgba(8,12,44,0.36)',
                 }}
               >
                 {selected ? (
-                  <div className="pointer-events-none absolute -inset-1.5 rounded-[16px] bg-[radial-gradient(circle,rgba(121,241,255,0.55)_0%,rgba(121,241,255,0.18)_46%,rgba(121,241,255,0)_78%)] blur-[10px]" />
+                  <div className="pointer-events-none absolute -inset-1.5 rounded-[16px] bg-[radial-gradient(circle,rgba(121,241,255,0.48)_0%,rgba(121,241,255,0.16)_46%,rgba(121,241,255,0)_78%)] blur-[9px]" />
                 ) : null}
                 <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[14px]">
                   <div className="relative h-[75%] w-full overflow-hidden bg-[#101544]">
@@ -921,7 +923,7 @@ const EncuestaPartido = () => {
                   onSelect: (uuid) => handleInputChange('mvp_id', uuid),
                 })}
               </div>
-              <div className={actionRowClass}>
+              <div className={playerActionRowClass}>
                 <div className={compactButtonRowClass}>
                   <button
                     className={compactPrimaryBtnClass}
@@ -955,7 +957,7 @@ const EncuestaPartido = () => {
                   },
                 })}
               </div>
-              <div className={actionRowClass}>
+              <div className={playerActionRowClass}>
                 <div className={compactDualButtonRowClass}>
                   <button
                     type="button"
@@ -1114,7 +1116,7 @@ const EncuestaPartido = () => {
                   onSelect: (uuid) => toggleJugadorViolento(uuid),
                 })}
               </div>
-              <div className={actionRowClass}>
+              <div className={playerActionRowClass}>
                 <div className={compactButtonRowClass}>
                   <button
                     className={compactPrimaryBtnClass}
@@ -1191,7 +1193,7 @@ const EncuestaPartido = () => {
                   onSelect: (uuid) => toggleJugadorAusente(uuid),
                 })}
               </div>
-              <div className={actionRowClass}>
+              <div className={playerActionRowClass}>
                 <div className={actionDockClass}>
                   <button
                     className={btnClass}
@@ -1222,7 +1224,7 @@ const EncuestaPartido = () => {
                   onSelect: (uuid) => toggleJugadorAusente(uuid),
                 })}
               </div>
-              <div className={actionRowClass}>
+              <div className={playerActionRowClass}>
                 <div className={compactButtonRowClass}>
                   <button
                     className={compactPrimaryBtnClass}
