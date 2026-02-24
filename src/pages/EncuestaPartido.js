@@ -490,22 +490,22 @@ const EncuestaPartido = () => {
     paddingTop: 'env(safe-area-inset-top)',
     paddingBottom: 'env(safe-area-inset-bottom)',
   };
-  const cardClass = 'w-full max-w-[1100px] mx-auto h-[100dvh] px-3 sm:px-4 flex flex-col overflow-hidden';
-  const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-between gap-2 sm:gap-3 pb-2';
+  const cardClass = 'w-full max-w-[1180px] mx-auto h-[100dvh] px-2.5 sm:px-4 flex flex-col overflow-hidden';
+  const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-start gap-1.5 sm:gap-2 pb-1';
   const questionRowClass = 'w-full shrink-0 flex items-center justify-center';
   const progressRowClass = 'w-full shrink-0 flex items-center justify-center';
-  const contentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden';
-  const actionRowClass = 'w-full shrink-0 flex items-center justify-center';
-  const logoRowClass = 'w-full shrink-0 flex justify-center pt-2 pb-1';
-  const titleClass = 'font-bebas text-[clamp(34px,6.8vw,84px)] text-white tracking-[0.06em] font-bold text-center leading-[0.96] uppercase drop-shadow-[0_8px_20px_rgba(6,9,36,0.46)] break-words w-full px-1';
+  const contentRowClass = 'w-full flex-1 min-h-0 flex items-stretch justify-center overflow-hidden';
+  const actionRowClass = 'w-full shrink-0 flex items-center justify-center mt-0.5';
+  const logoRowClass = 'w-full shrink-0 flex justify-center pt-0.5 pb-0.5';
+  const titleClass = 'font-bebas text-[clamp(34px,6.8vw,84px)] text-white tracking-[0.06em] font-bold text-center leading-[0.95] uppercase drop-shadow-[0_8px_20px_rgba(6,9,36,0.46)] break-words w-full px-1';
   const surveyBtnBaseClass = 'w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-[22px] sm:text-[28px] py-3 text-center cursor-pointer transition-[transform,opacity,background-color] duration-300 hover:bg-white/[0.16] active:scale-[0.985] flex items-center justify-center min-h-[62px] rounded-[21px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed';
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
   const optionBtnSelectedClass = 'bg-white/[0.26] border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_16px_30px_rgba(22,29,98,0.42)]';
   const gridClass = 'grid grid-cols-2 gap-3 w-full max-w-[920px] mx-auto';
   const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center font-normal tracking-wide';
-  const actionDockClass = 'w-full max-w-[920px] mx-auto flex flex-col gap-2';
-  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-hidden px-0.5';
+  const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-2';
+  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-hidden px-0.5 flex items-stretch';
 
   const SurveyFooterLogo = () => (
     <div className="opacity-65 pointer-events-none">
@@ -576,12 +576,12 @@ const EncuestaPartido = () => {
   const renderStepProgress = () => (
     <div className={progressRowClass}>
       <div className="w-full max-w-[920px] px-0.5">
-        <div className="text-center font-oswald text-[clamp(22px,4.6vw,38px)] leading-none tracking-wide text-white/95">
+        <div className="text-center font-oswald text-[clamp(18px,3.8vw,30px)] leading-none tracking-wide text-white/92">
           Paso {progressCurrentStep} de {progressTotalSteps}
         </div>
-        <div className="mt-2 h-[10px] w-full rounded-full border border-[#7d7df3]/55 bg-[#2a2778]/75 p-[2px] shadow-[inset_0_2px_5px_rgba(8,8,30,0.45)]">
+        <div className="mt-1.5 h-[8px] w-full rounded-full border border-[#7d7df3]/45 bg-[#2a2778]/70 p-[1px] shadow-[inset_0_2px_5px_rgba(8,8,30,0.45)]">
           <div
-            className="h-full rounded-full bg-[linear-gradient(90deg,#53f3cb_0%,#b8ffb6_65%,#cbffec_100%)] transition-[width,opacity,transform] duration-500 ease-out shadow-[0_0_14px_rgba(92,246,212,0.68)]"
+            className="h-full rounded-full bg-[linear-gradient(90deg,#53f3cb_0%,#b8ffb6_65%,#cbffec_100%)] transition-[width,opacity,transform] duration-500 ease-out shadow-[0_0_10px_rgba(92,246,212,0.52)]"
             style={{ width: `${Math.max(progressRatio * 100, 10)}%` }}
           />
         </div>
@@ -592,18 +592,24 @@ const EncuestaPartido = () => {
   const resolveAdaptiveGridConfig = (playerCount) => {
     const safeCount = Math.max(playerCount || 1, 1);
     const rows = safeCount <= 14 ? 2 : safeCount <= 18 ? 3 : 4;
-    const columns = Math.max(Math.ceil(safeCount / rows), 2);
-    const gap = safeCount >= 22 ? 4 : safeCount >= 14 ? 6 : 8;
+    const columns = safeCount <= 10
+      ? 5
+      : safeCount <= 14
+        ? Math.max(Math.ceil(safeCount / rows), 5)
+        : Math.max(Math.ceil(safeCount / rows), 4);
+    const gap = safeCount >= 22 ? 4 : safeCount >= 14 ? 6 : 7;
     const nameSizeClass = safeCount >= 22
       ? 'text-[9px] sm:text-[10px]'
       : safeCount >= 14
-        ? 'text-[10px] sm:text-[11px]'
-        : 'text-[12px] sm:text-[14px]';
+        ? 'text-[10px] sm:text-[12px]'
+        : 'text-[12px] sm:text-[15px]';
     const initialSizeClass = safeCount >= 22
-      ? 'text-[18px] sm:text-[22px]'
+      ? 'text-[16px] sm:text-[20px]'
       : safeCount >= 14
-        ? 'text-[21px] sm:text-[25px]'
-        : 'text-[28px] sm:text-[34px]';
+        ? 'text-[20px] sm:text-[24px]'
+        : 'text-[24px] sm:text-[30px]';
+    const cardAspect = safeCount <= 10 ? '1.03 / 1' : safeCount <= 14 ? '1.06 / 1' : '1.1 / 1';
+    const gridMaxWidth = safeCount <= 10 ? 1160 : safeCount <= 14 ? 1080 : 980;
 
     return {
       rows,
@@ -611,6 +617,8 @@ const EncuestaPartido = () => {
       gap,
       nameSizeClass,
       initialSizeClass,
+      cardAspect,
+      gridMaxWidth,
     };
   };
 
@@ -620,14 +628,14 @@ const EncuestaPartido = () => {
       <svg
         viewBox="0 0 160 160"
         aria-hidden="true"
-        className="absolute left-1/2 top-[51%] h-[68%] w-[68%] -translate-x-1/2 -translate-y-1/2 text-white/34"
+        className="absolute left-1/2 top-[50%] h-[58%] w-[58%] -translate-x-1/2 -translate-y-1/2 text-white/26"
       >
         <path
           fill="currentColor"
           d="M80 68c14 0 25-11 25-25S94 18 80 18 55 29 55 43s11 25 25 25Zm0 10c-24 0-44 14-50 36a8 8 0 0 0 8 10h84a8 8 0 0 0 8-10c-6-22-26-36-50-36Z"
         />
       </svg>
-      <span className={`absolute left-1/2 top-[53%] -translate-x-1/2 -translate-y-1/2 font-bebas tracking-[0.08em] text-white/46 ${initialSizeClass}`}>
+      <span className={`absolute left-1/2 top-[52%] -translate-x-1/2 -translate-y-1/2 font-bebas tracking-[0.08em] text-white/42 ${initialSizeClass}`}>
         {(name || '?').charAt(0).toUpperCase()}
       </span>
     </div>
@@ -646,10 +654,12 @@ const EncuestaPartido = () => {
     return (
       <div className={miniCardsStageClass}>
         <div
-          className="mx-auto grid h-full w-full max-w-[980px] content-center"
+          className="mx-auto grid h-full w-full content-stretch items-stretch"
           style={{
             gridTemplateColumns: `repeat(${adaptiveGrid.columns}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${adaptiveGrid.rows}, minmax(0, 1fr))`,
             gap: `${adaptiveGrid.gap}px`,
+            maxWidth: `${adaptiveGrid.gridMaxWidth}px`,
           }}
         >
           {jugadores.map((jugador, index) => {
@@ -660,27 +670,30 @@ const EncuestaPartido = () => {
                 key={jugador.uuid}
                 type="button"
                 onClick={() => onSelect(jugador.uuid)}
-                className={`group relative min-w-0 overflow-hidden rounded-[14px] border border-white/35 bg-[linear-gradient(170deg,rgba(58,87,215,0.24),rgba(18,19,70,0.74))] shadow-[0_10px_22px_rgba(11,13,50,0.42)] transition-[transform,opacity] duration-220 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
-                  selected ? 'z-20 scale-[1.055] opacity-100' : 'z-10 scale-100'
+                className={`group relative min-w-0 overflow-hidden rounded-[15px] border bg-[linear-gradient(168deg,rgba(60,94,220,0.26),rgba(16,20,75,0.86))] transition-[transform,opacity] duration-[220ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
+                  selected
+                    ? 'z-20 scale-[1.06] opacity-100 border-[#b8fff2] shadow-[0_22px_40px_rgba(20,45,135,0.58),0_0_20px_rgba(126,247,255,0.7)]'
+                    : 'z-10 scale-100 border-white/28 shadow-[0_10px_20px_rgba(8,12,44,0.34)]'
                 } ${
-                  hasSelection && !selected ? 'opacity-[0.7]' : 'opacity-100'
+                  hasSelection && !selected ? 'opacity-[0.65]' : 'opacity-100'
                 }`}
                 style={{
                   animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
                   animationDelay: `${index * 18}ms`,
+                  aspectRatio: adaptiveGrid.cardAspect,
                 }}
               >
                 <div
-                  className={`pointer-events-none absolute inset-0 rounded-[14px] transition-opacity duration-220 ${
-                    selected ? 'opacity-95' : hasSelection ? 'opacity-30' : 'opacity-55'
+                  className={`pointer-events-none absolute inset-0 rounded-[15px] transition-opacity duration-[220ms] ${
+                    selected ? 'opacity-95' : hasSelection ? 'opacity-22' : 'opacity-46'
                   }`}
                   style={{
                     background:
-                      'radial-gradient(130% 90% at 50% 0%, rgba(108,245,255,0.64) 0%, rgba(90,130,255,0.18) 45%, rgba(6,9,42,0) 72%)',
+                      'radial-gradient(130% 90% at 50% 0%, rgba(108,245,255,0.72) 0%, rgba(90,130,255,0.2) 42%, rgba(6,9,42,0) 74%)',
                   }}
                 />
-                <div className="relative flex aspect-[1.12/1] w-full flex-col overflow-hidden rounded-[14px]">
-                  <div className="relative h-[72%] w-full overflow-hidden bg-[#101544]">
+                <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[15px]">
+                  <div className="relative h-[75%] w-full overflow-hidden bg-[#101544]">
                     {hasPhoto ? (
                       <img
                         src={jugador.avatar_url || jugador.foto_url}
@@ -695,9 +708,9 @@ const EncuestaPartido = () => {
                       />
                     )}
                   </div>
-                  <div className="relative flex h-[28%] w-full items-center justify-center px-1.5 bg-[linear-gradient(180deg,rgba(23,29,95,0.86)_0%,rgba(18,19,74,0.96)_100%)]">
+                  <div className="relative flex h-[25%] w-full items-center justify-center px-1.5 bg-[linear-gradient(180deg,rgba(22,30,102,0.9)_0%,rgba(14,18,72,0.98)_100%)]">
                     <span
-                      className={`w-full truncate text-center font-oswald font-semibold tracking-[0.03em] text-white ${adaptiveGrid.nameSizeClass}`}
+                      className={`w-full truncate text-center font-oswald font-semibold tracking-[0.035em] text-white ${adaptiveGrid.nameSizeClass}`}
                     >
                       {jugador.nombre}
                     </span>
@@ -791,7 +804,7 @@ const EncuestaPartido = () => {
       <div className="h-[100dvh] w-full overflow-hidden" style={screenStyle}>
         <style>{animationStyle}</style>
         <div className={cardClass}>
-          <div className="w-full min-h-[42px] shrink-0 pt-1.5">
+          <div className="w-full min-h-[28px] shrink-0 pt-1">
             <InlineNotice
               type={notice?.type}
               message={notice?.message}
