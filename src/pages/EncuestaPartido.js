@@ -12,7 +12,6 @@ import { finalizeIfComplete } from '../services/surveyCompletionService';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { clearMatchFromList } from '../services/matchFinishService';
 import useInlineNotice from '../hooks/useInlineNotice';
-import Logo from '../Logo.png';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 // Styles are now directly in Tailwind
@@ -505,13 +504,14 @@ const EncuestaPartido = () => {
     paddingBottom: 'env(safe-area-inset-bottom)',
   };
   const cardClass = 'w-full max-w-[1180px] mx-auto h-[100dvh] px-2.5 sm:px-4 flex flex-col overflow-hidden';
-  const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-start gap-0.5 pb-0.5';
-  const questionRowClass = 'w-full shrink-0 flex items-center justify-center pt-1.5 sm:pt-2.5';
-  const progressRowClass = 'w-full shrink-0 flex items-center justify-center mt-2 sm:mt-2.5';
-  const contentRowClass = 'w-full flex-1 min-h-0 flex items-stretch justify-center overflow-hidden';
-  const playerContentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden pt-3 sm:pt-4';
-  const actionRowClass = 'w-full shrink-0 flex items-center justify-center mt-3 sm:mt-4';
-  const logoRowClass = 'w-full shrink-0 flex justify-center pt-1.5 pb-3 sm:pb-4';
+  const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-2 sm:gap-3 pb-1.5 sm:pb-2';
+  const playerStepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-between gap-0 pb-1 sm:pb-1.5';
+  const questionRowClass = 'w-full shrink-0 flex items-center justify-center pt-4 sm:pt-5';
+  const progressRowClass = 'w-full shrink-0 flex items-center justify-center pt-2 sm:pt-2.5';
+  const contentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden';
+  const playerContentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden py-1.5 sm:py-2';
+  const actionRowClass = 'w-full shrink-0 flex items-center justify-center pt-2 sm:pt-3';
+  const logoRowClass = 'hidden';
   const titleClass = 'font-bebas text-[clamp(30px,6.2vw,74px)] text-white tracking-[0.055em] font-bold text-center leading-[0.92] uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1';
   const surveyBtnBaseClass = 'w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-[22px] sm:text-[28px] py-3 text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.16] flex items-center justify-center min-h-[58px] rounded-[18px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed';
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase`;
@@ -524,17 +524,9 @@ const EncuestaPartido = () => {
   const gridClass = 'grid grid-cols-2 gap-3 w-full max-w-[920px] mx-auto';
   const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center font-normal tracking-wide';
   const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-1';
-  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-hidden px-0.5 pb-0.5 flex items-center';
+  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-hidden px-0.5 pb-0.5 flex items-center justify-center';
 
-  const SurveyFooterLogo = () => (
-    <div className="opacity-65 pointer-events-none">
-      <img
-        src={Logo}
-        alt="Logo Arma2"
-        className="w-[44px] h-auto drop-shadow-[0_0_8px_rgba(22,19,84,0.5)]"
-      />
-    </div>
-  );
+  const SurveyFooterLogo = () => null;
 
   const flowSteps = useMemo(() => {
     const resolvedSteps = [0];
@@ -578,17 +570,19 @@ const EncuestaPartido = () => {
     ? progressTotalSteps
     : Math.max(currentFlowIndex + 1, 1);
   const progressFillScale = Math.min(Math.max(progressCurrentStep / progressTotalSteps, 0), 1);
+  const progressFillPercent = Math.round(progressFillScale * 100);
 
   const renderStepProgress = () => (
     <div className={progressRowClass}>
-      <div className="w-full max-w-[760px] px-6 sm:px-8">
-        <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/18">
+      <div className="w-full px-0.5 sm:px-1">
+        <div className="h-[11px] w-full overflow-hidden rounded-full border border-white/20 bg-white/10 shadow-[inset_0_1px_2px_rgba(5,8,30,0.36)]">
           <div
-            className="h-full w-full origin-left rounded-full transition-transform duration-[220ms] ease-out"
+            className="h-full origin-left rounded-full transition-all duration-[260ms] ease-out"
             style={{
-              transform: `scaleX(${progressFillScale})`,
+              width: `${progressFillPercent}%`,
               background:
-                'linear-gradient(90deg, rgba(93,236,255,0.88) 0%, rgba(123,180,255,0.84) 55%, rgba(132,242,255,0.86) 100%)',
+                'linear-gradient(90deg, rgba(93,236,255,0.82) 0%, rgba(123,180,255,0.82) 55%, rgba(132,242,255,0.84) 100%)',
+              boxShadow: '0 0 14px rgba(111,227,255,0.36)',
             }}
           />
         </div>
@@ -604,7 +598,7 @@ const EncuestaPartido = () => {
 
     if (safeCount <= 10) {
       columns = isWideViewport ? 4 : 3;
-      rows = isWideViewport ? 3 : 4;
+      rows = Math.ceil(safeCount / columns) + 1;
     } else if (safeCount <= 14) {
       columns = isWideViewport ? 5 : 4;
       rows = Math.max(3, Math.ceil(safeCount / columns));
@@ -620,12 +614,12 @@ const EncuestaPartido = () => {
       rows += 1;
     }
 
-    const gap = safeCount >= 22 ? 6 : safeCount >= 14 ? 8 : 10;
+    const gap = safeCount >= 22 ? 6 : safeCount >= 14 ? 8 : 9;
     const nameSizeClass = safeCount >= 22
       ? 'text-[9px] sm:text-[10px]'
       : safeCount >= 14
         ? 'text-[10px] sm:text-[11px]'
-        : 'text-[12px] sm:text-[13px]';
+        : 'text-[11px] sm:text-[12px]';
     const silhouetteSizeClass = safeCount >= 22
       ? 'h-[42%] w-[42%]'
       : safeCount >= 14
@@ -681,7 +675,7 @@ const EncuestaPartido = () => {
             gap: `${adaptiveGrid.gap}px`,
             maxWidth: `${adaptiveGrid.gridMaxWidth}px`,
             maxHeight: '100%',
-            minHeight: '70%',
+            minHeight: '62%',
           }}
         >
           {jugadores.map((jugador, index) => {
@@ -694,17 +688,17 @@ const EncuestaPartido = () => {
                 onClick={() => onSelect(jugador.uuid)}
                 className={`group relative h-full min-h-0 min-w-0 overflow-hidden rounded-[14px] border bg-[linear-gradient(168deg,rgba(58,84,196,0.28),rgba(16,20,73,0.9))] transition-[transform,opacity,filter] duration-[200ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
                   selected
-                    ? 'z-20 -translate-y-[2px] scale-[1.04] opacity-100'
+                    ? 'z-20 -translate-y-[2px] scale-[1.035] opacity-100'
                     : 'z-10 translate-y-0 scale-100 opacity-100'
                 } ${
-                  hasSelection && !selected ? 'opacity-[0.8] saturate-[0.9]' : 'opacity-100'
+                  hasSelection && !selected ? 'opacity-[0.52] saturate-[0.72]' : 'opacity-100'
                 }`}
                 style={{
                   animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
                   animationDelay: `${Math.min(index * 16, 160)}ms`,
                   borderColor: selected ? 'rgba(229,243,255,0.82)' : 'rgba(255,255,255,0.24)',
                   boxShadow: selected
-                    ? '0 14px 24px rgba(7,10,35,0.46)'
+                    ? '0 0 0 1px rgba(191,239,255,0.82), 0 0 22px rgba(92,236,255,0.34), 0 14px 24px rgba(7,10,35,0.46)'
                     : '0 10px 18px rgba(8,12,44,0.36)',
                 }}
               >
@@ -904,7 +898,7 @@ const EncuestaPartido = () => {
 
           {/* STEP 2: MVP */}
           {currentStep === 2 && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className={titleClass}>
                   ¿QUIÉN FUE EL MEJOR JUGADOR?
@@ -936,7 +930,7 @@ const EncuestaPartido = () => {
 
           {/* STEP 3: ARQUERO */}
           {currentStep === 3 && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className={titleClass}>
                   ¿QUIÉN FUE EL MEJOR ARQUERO?
@@ -1102,7 +1096,7 @@ const EncuestaPartido = () => {
 
           {/* STEP 6: JUGADORES VIOLENTOS */}
           {currentStep === 6 && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className={titleClass}>
                   ¿QUIÉN JUGÓ SUCIO?
@@ -1181,7 +1175,7 @@ const EncuestaPartido = () => {
 
           {/* STEP 11: AUSENTES SIN AVISO (PARTIDO NO JUGADO) */}
           {currentStep === 11 && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className={titleClass}>
                   ¿QUIÉNES FALTARON?
@@ -1213,7 +1207,7 @@ const EncuestaPartido = () => {
 
           {/* STEP 12: AUSENTES (PARTIDO JUGADO) */}
           {currentStep === 12 && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className={titleClass}>
                   ¿QUIÉNES FALTARON?
