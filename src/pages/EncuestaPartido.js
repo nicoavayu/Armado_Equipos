@@ -491,21 +491,22 @@ const EncuestaPartido = () => {
     paddingBottom: 'env(safe-area-inset-bottom)',
   };
   const cardClass = 'w-full max-w-[1180px] mx-auto h-[100dvh] px-2.5 sm:px-4 flex flex-col overflow-hidden';
-  const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-start gap-1.5 sm:gap-2 pb-1';
+  const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-start gap-1 sm:gap-1.5 pb-1';
   const questionRowClass = 'w-full shrink-0 flex items-center justify-center';
   const progressRowClass = 'w-full shrink-0 flex items-center justify-center';
   const contentRowClass = 'w-full flex-1 min-h-0 flex items-stretch justify-center overflow-hidden';
-  const actionRowClass = 'w-full shrink-0 flex items-center justify-center mt-0.5';
+  const playerContentRowClass = 'w-full min-h-0 flex items-start justify-center overflow-hidden';
+  const actionRowClass = 'w-full shrink-0 flex items-center justify-center mt-0';
   const logoRowClass = 'w-full shrink-0 flex justify-center pt-0.5 pb-0.5';
-  const titleClass = 'font-bebas text-[clamp(34px,6.8vw,84px)] text-white tracking-[0.06em] font-bold text-center leading-[0.95] uppercase drop-shadow-[0_8px_20px_rgba(6,9,36,0.46)] break-words w-full px-1';
+  const titleClass = 'font-bebas text-[clamp(34px,6.8vw,84px)] text-white tracking-[0.06em] font-bold text-center leading-[0.94] uppercase drop-shadow-[0_8px_20px_rgba(6,9,36,0.46)] break-words w-full px-1';
   const surveyBtnBaseClass = 'w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-[22px] sm:text-[28px] py-3 text-center cursor-pointer transition-[transform,opacity,background-color] duration-300 hover:bg-white/[0.16] active:scale-[0.985] flex items-center justify-center min-h-[62px] rounded-[21px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed';
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
   const optionBtnSelectedClass = 'bg-white/[0.26] border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_16px_30px_rgba(22,29,98,0.42)]';
   const gridClass = 'grid grid-cols-2 gap-3 w-full max-w-[920px] mx-auto';
   const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center font-normal tracking-wide';
-  const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-2';
-  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-hidden px-0.5 flex items-stretch';
+  const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-1.5';
+  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-hidden px-0.5 flex items-start';
 
   const SurveyFooterLogo = () => (
     <div className="opacity-65 pointer-events-none">
@@ -571,19 +572,45 @@ const EncuestaPartido = () => {
   const progressCurrentStep = currentStep === 99
     ? progressTotalSteps
     : Math.max(currentFlowIndex + 1, 1);
-  const progressRatio = Math.min(progressCurrentStep / progressTotalSteps, 1);
-
   const renderStepProgress = () => (
     <div className={progressRowClass}>
-      <div className="w-full max-w-[920px] px-0.5">
-        <div className="text-center font-oswald text-[clamp(18px,3.8vw,30px)] leading-none tracking-wide text-white/92">
-          Paso {progressCurrentStep} de {progressTotalSteps}
+      <div className="w-full max-w-[820px] px-2">
+        <div className="text-center font-oswald text-[clamp(15px,2.8vw,20px)] leading-none tracking-[0.05em] text-white/78">
+          {progressCurrentStep} de {progressTotalSteps}
         </div>
-        <div className="mt-1.5 h-[8px] w-full rounded-full border border-[#7d7df3]/45 bg-[#2a2778]/70 p-[1px] shadow-[inset_0_2px_5px_rgba(8,8,30,0.45)]">
-          <div
-            className="h-full rounded-full bg-[linear-gradient(90deg,#53f3cb_0%,#b8ffb6_65%,#cbffec_100%)] transition-[width,opacity,transform] duration-500 ease-out shadow-[0_0_10px_rgba(92,246,212,0.52)]"
-            style={{ width: `${Math.max(progressRatio * 100, 10)}%` }}
-          />
+        <div className="mt-1.5 flex items-center justify-center">
+          <div className="flex items-center">
+            {Array.from({ length: progressTotalSteps }).map((_, idx) => {
+              const stepNumber = idx + 1;
+              const isComplete = stepNumber < progressCurrentStep;
+              const isCurrent = stepNumber === progressCurrentStep;
+              return (
+                <React.Fragment key={`progress-${stepNumber}`}>
+                  <span
+                    className={`relative block h-[8px] w-[8px] rounded-full border transition-[opacity,transform,background-color,border-color] duration-200 ease-out ${
+                      isComplete || isCurrent
+                        ? 'bg-[#59f7b8] border-[#a6ffd8] opacity-100'
+                        : 'bg-[#312d87] border-[#6c6cd8]/55 opacity-75'
+                    } ${isCurrent ? 'scale-[1.15]' : 'scale-100'}`}
+                    style={{
+                      boxShadow: isComplete || isCurrent
+                        ? '0 0 8px rgba(89,247,184,0.72)'
+                        : '0 0 0 0 rgba(0,0,0,0)',
+                    }}
+                  />
+                  {idx < progressTotalSteps - 1 ? (
+                    <span
+                      className={`mx-[5px] block h-[2px] w-[20px] rounded-full transition-colors duration-200 ease-out ${
+                        stepNumber < progressCurrentStep
+                          ? 'bg-[#59f7b8]/70'
+                          : 'bg-[#5f5cbc]/45'
+                      }`}
+                    />
+                  ) : null}
+                </React.Fragment>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -608,8 +635,8 @@ const EncuestaPartido = () => {
       : safeCount >= 14
         ? 'text-[20px] sm:text-[24px]'
         : 'text-[24px] sm:text-[30px]';
-    const cardAspect = safeCount <= 10 ? '1.03 / 1' : safeCount <= 14 ? '1.06 / 1' : '1.1 / 1';
-    const gridMaxWidth = safeCount <= 10 ? 1160 : safeCount <= 14 ? 1080 : 980;
+    const cardAspect = safeCount <= 10 ? '1.04 / 1' : safeCount <= 14 ? '1.08 / 1' : '1.12 / 1';
+    const gridMaxWidth = safeCount <= 10 ? 1140 : safeCount <= 14 ? 1060 : 980;
 
     return {
       rows,
@@ -654,10 +681,9 @@ const EncuestaPartido = () => {
     return (
       <div className={miniCardsStageClass}>
         <div
-          className="mx-auto grid h-full w-full content-stretch items-stretch"
+          className="mx-auto grid w-full content-start"
           style={{
             gridTemplateColumns: `repeat(${adaptiveGrid.columns}, minmax(0, 1fr))`,
-            gridTemplateRows: `repeat(${adaptiveGrid.rows}, minmax(0, 1fr))`,
             gap: `${adaptiveGrid.gap}px`,
             maxWidth: `${adaptiveGrid.gridMaxWidth}px`,
           }}
@@ -670,7 +696,7 @@ const EncuestaPartido = () => {
                 key={jugador.uuid}
                 type="button"
                 onClick={() => onSelect(jugador.uuid)}
-                className={`group relative min-w-0 overflow-hidden rounded-[15px] border bg-[linear-gradient(168deg,rgba(60,94,220,0.26),rgba(16,20,75,0.86))] transition-[transform,opacity] duration-[220ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
+                className={`group relative min-w-0 overflow-hidden rounded-[15px] border bg-[linear-gradient(168deg,rgba(60,94,220,0.26),rgba(16,20,75,0.86))] transition-[transform,opacity] duration-[220ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
                   selected
                     ? 'z-20 scale-[1.06] opacity-100 border-[#b8fff2] shadow-[0_22px_40px_rgba(20,45,135,0.58),0_0_20px_rgba(126,247,255,0.7)]'
                     : 'z-10 scale-100 border-white/28 shadow-[0_10px_20px_rgba(8,12,44,0.34)]'
@@ -907,7 +933,7 @@ const EncuestaPartido = () => {
                 </div>
               </div>
               {renderStepProgress()}
-              <div className={contentRowClass}>
+              <div className={playerContentRowClass}>
                 {renderMiniPlayerCards({
                   isSelected: (uuid) => formData.mvp_id === uuid,
                   onSelect: (uuid) => handleInputChange('mvp_id', uuid),
@@ -940,7 +966,7 @@ const EncuestaPartido = () => {
                 </div>
               </div>
               {renderStepProgress()}
-              <div className={contentRowClass}>
+              <div className={playerContentRowClass}>
                 {renderMiniPlayerCards({
                   isSelected: (uuid) => formData.arquero_id === uuid,
                   onSelect: (uuid) => {
@@ -1107,7 +1133,7 @@ const EncuestaPartido = () => {
                 </div>
               </div>
               {renderStepProgress()}
-              <div className={contentRowClass}>
+              <div className={playerContentRowClass}>
                 {renderMiniPlayerCards({
                   isSelected: (uuid) => formData.jugadores_violentos.includes(uuid),
                   onSelect: (uuid) => toggleJugadorViolento(uuid),
@@ -1187,7 +1213,7 @@ const EncuestaPartido = () => {
                 </div>
               </div>
               {renderStepProgress()}
-              <div className={contentRowClass}>
+              <div className={playerContentRowClass}>
                 {renderMiniPlayerCards({
                   isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
                   onSelect: (uuid) => toggleJugadorAusente(uuid),
@@ -1220,7 +1246,7 @@ const EncuestaPartido = () => {
                 </div>
               </div>
               {renderStepProgress()}
-              <div className={contentRowClass}>
+              <div className={playerContentRowClass}>
                 {renderMiniPlayerCards({
                   isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
                   onSelect: (uuid) => toggleJugadorAusente(uuid),
