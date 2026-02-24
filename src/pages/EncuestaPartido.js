@@ -484,46 +484,154 @@ const EncuestaPartido = () => {
   };
 
   // Helper classes for consistency
-  const _wrapperClass = 'min-h-[100dvh] bg-fifa-gradient w-full p-0 flex flex-col overflow-x-hidden';
-  const cardClass = 'w-[92%] max-w-[720px] mx-auto min-h-[100dvh] px-3 md:px-4 flex flex-col';
-  const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-5 md:gap-6 py-5 md:py-6';
-  const questionRowClass = 'w-full flex items-center justify-center';
-  const contentRowClass = 'w-full min-h-[170px] flex items-center justify-center overflow-hidden';
-  const actionRowClass = 'w-full flex items-center justify-center';
-  const logoRowClass = 'w-full flex justify-center pt-5 md:pt-6';
-  const titleClass = 'font-bebas text-[30px] md:text-[56px] text-white tracking-[0.08em] font-bold text-center leading-[1.06] uppercase drop-shadow-md break-words w-full px-1';
-  const surveyBtnBaseClass = 'w-full border border-white/40 bg-white/[0.12] text-white font-bebas text-[22px] md:text-[24px] py-3 text-center cursor-pointer transition-all hover:bg-white/[0.17] active:scale-[0.98] flex items-center justify-center min-h-[64px] rounded-[22px] tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_10px_24px_rgba(17,14,72,0.32)] disabled:opacity-60 disabled:cursor-not-allowed';
+  const screenStyle = {
+    background:
+      'radial-gradient(circle at 50% -12%, rgba(94,128,255,0.34) 0%, rgba(36,30,128,0) 46%), radial-gradient(circle at 50% 50%, rgba(60,112,255,0.2) 0%, rgba(11,14,54,0) 60%), linear-gradient(160deg, #1f1c77 0%, #241466 38%, #19134f 100%)',
+    paddingTop: 'env(safe-area-inset-top)',
+    paddingBottom: 'env(safe-area-inset-bottom)',
+  };
+  const cardClass = 'w-full max-w-[1100px] mx-auto h-[100dvh] px-3 sm:px-4 flex flex-col overflow-hidden';
+  const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-between gap-2 sm:gap-3 pb-2';
+  const questionRowClass = 'w-full shrink-0 flex items-center justify-center';
+  const progressRowClass = 'w-full shrink-0 flex items-center justify-center';
+  const contentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden';
+  const actionRowClass = 'w-full shrink-0 flex items-center justify-center';
+  const logoRowClass = 'w-full shrink-0 flex justify-center pt-2 pb-1';
+  const titleClass = 'font-bebas text-[clamp(34px,6.8vw,84px)] text-white tracking-[0.06em] font-bold text-center leading-[0.96] uppercase drop-shadow-[0_8px_20px_rgba(6,9,36,0.46)] break-words w-full px-1';
+  const surveyBtnBaseClass = 'w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-[22px] sm:text-[28px] py-3 text-center cursor-pointer transition-[transform,opacity,background-color] duration-300 hover:bg-white/[0.16] active:scale-[0.985] flex items-center justify-center min-h-[62px] rounded-[21px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed';
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
-  const optionBtnSelectedClass = 'bg-white/[0.24] border-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_12px_26px_rgba(17,14,72,0.38)]';
-  const gridClass = 'grid grid-cols-2 gap-4 w-full max-w-[520px] mx-auto';
+  const optionBtnSelectedClass = 'bg-white/[0.26] border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_16px_30px_rgba(22,29,98,0.42)]';
+  const gridClass = 'grid grid-cols-2 gap-3 w-full max-w-[920px] mx-auto';
   const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center font-normal tracking-wide';
-  const actionDockClass = 'w-full max-w-[520px] mx-auto flex flex-col gap-3';
-  const miniCardsStageClass = 'w-full h-full max-h-[250px] overflow-y-auto py-1';
-  const miniCardBaseClass = 'flex flex-col items-center justify-start px-1.5 py-2 rounded-[16px] cursor-pointer transition-all border backdrop-blur-sm shadow-[0_8px_20px_rgba(9,12,55,0.28)] hover:-translate-y-[2px]';
+  const actionDockClass = 'w-full max-w-[920px] mx-auto flex flex-col gap-2';
+  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-hidden px-0.5';
 
   const SurveyFooterLogo = () => (
-    <div className="opacity-55 pointer-events-none">
+    <div className="opacity-65 pointer-events-none">
       <img
         src={Logo}
         alt="Logo Arma2"
-        className="w-[68px] h-auto drop-shadow-[0_0_8px_rgba(0,0,0,0.45)]"
+        className="w-[72px] h-auto drop-shadow-[0_0_10px_rgba(22,19,84,0.6)]"
       />
     </div>
   );
 
-  const getSelectedMiniCardClass = (variant) => {
+  const resolveVariantAccent = (variant) => {
     switch (variant) {
       case 'mvp':
-        return 'bg-[#18d8ab] border-[#18d8ab] ring-2 ring-[#76f7da]/70 shadow-[0_12px_26px_rgba(24,216,171,0.45)]';
+        return '#47f8b5';
       case 'gk':
-        return 'bg-[#ffd36b] border-[#ffd36b] ring-2 ring-[#ffe5a0]/75 shadow-[0_12px_26px_rgba(255,211,107,0.45)]';
+        return '#ffe07a';
       case 'danger':
-        return 'bg-[#de1c49] border-[#de1c49] ring-2 ring-[#ff8ea8]/70 shadow-[0_12px_26px_rgba(222,28,73,0.48)]';
+        return '#ff86a1';
       default:
-        return optionBtnSelectedClass;
+        return '#66e7ff';
     }
   };
+
+  const flowSteps = useMemo(() => {
+    const resolvedSteps = [0];
+
+    if (currentStep === 10 || currentStep === 11 || formData.se_jugo === false) {
+      resolvedSteps.push(10);
+      if (currentStep === 11) {
+        resolvedSteps.push(11);
+      }
+      return resolvedSteps;
+    }
+
+    resolvedSteps.push(1);
+
+    if (currentStep === 12 || formData.asistieron_todos === false) {
+      resolvedSteps.push(12);
+    }
+
+    resolvedSteps.push(2, 3, 4);
+
+    if (currentStep === 6 || formData.partido_limpio === false) {
+      resolvedSteps.push(6);
+    }
+
+    if (hasConfirmedTeams) {
+      resolvedSteps.push(5);
+    }
+
+    return resolvedSteps;
+  }, [
+    currentStep,
+    formData.se_jugo,
+    formData.asistieron_todos,
+    formData.partido_limpio,
+    hasConfirmedTeams,
+  ]);
+
+  const progressTotalSteps = Math.max(flowSteps.length, 1);
+  const currentFlowIndex = flowSteps.indexOf(currentStep);
+  const progressCurrentStep = currentStep === 99
+    ? progressTotalSteps
+    : Math.max(currentFlowIndex + 1, 1);
+  const progressRatio = Math.min(progressCurrentStep / progressTotalSteps, 1);
+
+  const renderStepProgress = () => (
+    <div className={progressRowClass}>
+      <div className="w-full max-w-[920px] px-0.5">
+        <div className="text-center font-oswald text-[clamp(22px,4.6vw,38px)] leading-none tracking-wide text-white/95">
+          Paso {progressCurrentStep} de {progressTotalSteps}
+        </div>
+        <div className="mt-2 h-[10px] w-full rounded-full border border-[#7d7df3]/55 bg-[#2a2778]/75 p-[2px] shadow-[inset_0_2px_5px_rgba(8,8,30,0.45)]">
+          <div
+            className="h-full rounded-full bg-[linear-gradient(90deg,#53f3cb_0%,#b8ffb6_65%,#cbffec_100%)] transition-[width,opacity,transform] duration-500 ease-out shadow-[0_0_14px_rgba(92,246,212,0.68)]"
+            style={{ width: `${Math.max(progressRatio * 100, 10)}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  const resolveAdaptiveGridConfig = (playerCount) => {
+    const safeCount = Math.max(playerCount || 1, 1);
+    const rows = safeCount <= 14 ? 2 : safeCount <= 18 ? 3 : 4;
+    const columns = Math.max(Math.ceil(safeCount / rows), 2);
+    const gap = safeCount >= 22 ? 4 : safeCount >= 14 ? 6 : 8;
+    const nameSizeClass = safeCount >= 22
+      ? 'text-[9px] sm:text-[10px]'
+      : safeCount >= 14
+        ? 'text-[10px] sm:text-[11px]'
+        : 'text-[12px] sm:text-[14px]';
+    const initialSizeClass = safeCount >= 22
+      ? 'text-[18px] sm:text-[22px]'
+      : safeCount >= 14
+        ? 'text-[21px] sm:text-[25px]'
+        : 'text-[28px] sm:text-[34px]';
+
+    return {
+      rows,
+      columns,
+      gap,
+      nameSizeClass,
+      initialSizeClass,
+    };
+  };
+
+  const PlayerPhotoFallback = ({ name, initialSizeClass }) => (
+    <div className="relative h-full w-full overflow-hidden bg-[radial-gradient(circle_at_45%_15%,rgba(166,198,255,0.38)_0%,rgba(64,82,185,0.34)_42%,rgba(20,24,74,0.95)_100%)]">
+      <div className="absolute inset-0 bg-[linear-gradient(150deg,rgba(74,113,221,0.26),rgba(14,19,58,0.68))]" />
+      <svg
+        viewBox="0 0 160 160"
+        aria-hidden="true"
+        className="absolute left-1/2 top-[51%] h-[68%] w-[68%] -translate-x-1/2 -translate-y-1/2 text-white/34"
+      >
+        <path
+          fill="currentColor"
+          d="M80 68c14 0 25-11 25-25S94 18 80 18 55 29 55 43s11 25 25 25Zm0 10c-24 0-44 14-50 36a8 8 0 0 0 8 10h84a8 8 0 0 0 8-10c-6-22-26-36-50-36Z"
+        />
+      </svg>
+      <span className={`absolute left-1/2 top-[53%] -translate-x-1/2 -translate-y-1/2 font-bebas tracking-[0.08em] text-white/46 ${initialSizeClass}`}>
+        {(name || '?').charAt(0).toUpperCase()}
+      </span>
+    </div>
+  );
 
   const renderMiniPlayerCards = ({
     isSelected,
@@ -531,72 +639,82 @@ const EncuestaPartido = () => {
     variant = 'mvp',
   }) => {
     const playerCount = jugadores.length;
-    const isDense = playerCount > 12;
-    const isUltraDense = playerCount > 18;
-
-    const gridClass = isUltraDense
-      ? 'grid grid-cols-4 sm:grid-cols-6 gap-1.5 md:gap-2 w-full max-w-[620px] mx-auto place-items-center min-h-full content-center'
-      : isDense
-        ? 'grid grid-cols-4 sm:grid-cols-5 gap-1.5 md:gap-2 w-full max-w-[600px] mx-auto place-items-center min-h-full content-center'
-        : 'grid grid-cols-3 sm:grid-cols-4 gap-2 md:gap-2.5 w-full max-w-[560px] mx-auto place-items-center min-h-full content-center';
-
-    const cardSizeClass = isUltraDense
-      ? 'w-[78px] sm:w-[86px] min-h-[92px]'
-      : isDense
-        ? 'w-[86px] sm:w-[94px] min-h-[98px]'
-        : 'w-[96px] sm:w-[108px] min-h-[104px]';
-
-    const imageSizeClass = isUltraDense
-      ? 'w-[50px] h-[50px]'
-      : isDense
-        ? 'w-[54px] h-[54px]'
-        : 'w-[60px] h-[60px]';
+    const adaptiveGrid = resolveAdaptiveGridConfig(playerCount);
+    const hasSelection = jugadores.some((candidate) => isSelected(candidate.uuid));
+    const accentColor = resolveVariantAccent(variant);
 
     return (
-      <div className={gridClass}>
-        {jugadores.map((jugador, index) => {
-          const selected = isSelected(jugador.uuid);
-          return (
-            <button
-              key={jugador.uuid}
-              type="button"
-              onClick={() => onSelect(jugador.uuid)}
-              className={`${miniCardBaseClass} ${cardSizeClass} ${selected
-                ? getSelectedMiniCardClass(variant)
-                : 'bg-white/[0.08] border-white/20 hover:bg-white/[0.14] hover:border-white/30'
+      <div className={miniCardsStageClass}>
+        <div
+          className="mx-auto grid h-full w-full max-w-[980px] content-center"
+          style={{
+            gridTemplateColumns: `repeat(${adaptiveGrid.columns}, minmax(0, 1fr))`,
+            gap: `${adaptiveGrid.gap}px`,
+          }}
+        >
+          {jugadores.map((jugador, index) => {
+            const selected = isSelected(jugador.uuid);
+            const hasPhoto = Boolean(jugador.avatar_url || jugador.foto_url);
+            return (
+              <button
+                key={jugador.uuid}
+                type="button"
+                onClick={() => onSelect(jugador.uuid)}
+                className={`group relative min-w-0 overflow-hidden rounded-[14px] border border-white/35 bg-[linear-gradient(170deg,rgba(58,87,215,0.24),rgba(18,19,70,0.74))] shadow-[0_10px_22px_rgba(11,13,50,0.42)] transition-[transform,opacity] duration-220 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
+                  selected ? 'z-20 scale-[1.055] opacity-100' : 'z-10 scale-100'
+                } ${
+                  hasSelection && !selected ? 'opacity-[0.7]' : 'opacity-100'
                 }`}
-              style={{
-                animation: 'cardIn 460ms cubic-bezier(0.22,1,0.36,1) both',
-                animationDelay: `${index * 24}ms`,
-              }}
-            >
-              <div className={`${imageSizeClass} rounded-lg border overflow-hidden mb-1.5 bg-black/20 shrink-0 ${selected ? 'border-black/10' : 'border-black/20'}`}>
-                {jugador.avatar_url || jugador.foto_url ? (
-                  <img
-                    src={jugador.avatar_url || jugador.foto_url}
-                    alt={jugador.nombre}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className={`w-full h-full flex items-center justify-center text-base font-semibold ${selected ? 'text-black/70' : 'text-white/60'}`}>
-                    {jugador.nombre.charAt(0)}
-                  </div>
-                )}
-              </div>
-              <span
-                className={`text-[11px] sm:text-[12px] font-semibold text-center leading-tight w-full px-0.5 ${selected ? 'text-slate-900' : 'text-white'}`}
                 style={{
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
+                  animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
+                  animationDelay: `${index * 18}ms`,
                 }}
               >
-                {jugador.nombre}
-              </span>
-            </button>
-          );
-        })}
+                <div
+                  className={`pointer-events-none absolute inset-0 rounded-[14px] transition-opacity duration-220 ${
+                    selected ? 'opacity-95' : hasSelection ? 'opacity-30' : 'opacity-55'
+                  }`}
+                  style={{
+                    background:
+                      'radial-gradient(130% 90% at 50% 0%, rgba(108,245,255,0.64) 0%, rgba(90,130,255,0.18) 45%, rgba(6,9,42,0) 72%)',
+                  }}
+                />
+                <div className="relative flex aspect-[1.12/1] w-full flex-col overflow-hidden rounded-[14px]">
+                  <div className="relative h-[72%] w-full overflow-hidden bg-[#101544]">
+                    {hasPhoto ? (
+                      <img
+                        src={jugador.avatar_url || jugador.foto_url}
+                        alt={jugador.nombre}
+                        className="h-full w-full object-cover object-center"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <PlayerPhotoFallback
+                        name={jugador.nombre}
+                        initialSizeClass={adaptiveGrid.initialSizeClass}
+                      />
+                    )}
+                  </div>
+                  <div className="relative flex h-[28%] w-full items-center justify-center px-1.5 bg-[linear-gradient(180deg,rgba(23,29,95,0.86)_0%,rgba(18,19,74,0.96)_100%)]">
+                    <span
+                      className={`w-full truncate text-center font-oswald font-semibold tracking-[0.03em] text-white ${adaptiveGrid.nameSizeClass}`}
+                    >
+                      {jugador.nombre}
+                    </span>
+                  </div>
+                </div>
+                <div
+                  className={`pointer-events-none absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/85 bg-black/25 text-[12px] text-white transition-[transform,opacity] duration-220 ${
+                    selected ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+                  }`}
+                  style={{ boxShadow: `0 0 0 1px ${accentColor} inset, 0 0 10px ${accentColor}` }}
+                >
+                  ✓
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -611,18 +729,22 @@ const EncuestaPartido = () => {
       from { transform: translateY(12px) scale(0.96); opacity: 0; }
       to { transform: translateY(0) scale(1); opacity: 1; }
     }
+    @keyframes ctaReady {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.012); opacity: 0.96; }
+    }
   `;
 
   if (loading) {
     return (
       <PageTransition>
-        <div className="min-h-[100dvh] w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="h-[100dvh] w-full overflow-hidden" style={screenStyle}>
           <div className={cardClass}>
-            <PageLoadingState
-              title="CARGANDO ENCUESTA"
-              description="Estamos preparando los datos del partido."
-            />
-            <div className="mt-6 flex justify-center">
+            <div className="flex h-full flex-col items-center justify-center gap-5">
+              <PageLoadingState
+                title="CARGANDO ENCUESTA"
+                description="Estamos preparando los datos del partido."
+              />
               <SurveyFooterLogo />
             </div>
           </div>
@@ -634,7 +756,7 @@ const EncuestaPartido = () => {
   if (yaCalificado || alreadySubmitted) {
     return (
       <PageTransition>
-        <div className="min-h-[100dvh] w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="h-[100dvh] w-full overflow-hidden" style={screenStyle}>
           <div className={cardClass}>
             <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
@@ -666,10 +788,10 @@ const EncuestaPartido = () => {
 
   return (
     <PageTransition>
-      <div className="min-h-[100dvh] w-full overflow-y-auto" style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="h-[100dvh] w-full overflow-hidden" style={screenStyle}>
         <style>{animationStyle}</style>
         <div className={cardClass}>
-          <div className="w-full min-h-[52px] pt-2">
+          <div className="w-full min-h-[42px] shrink-0 pt-1.5">
             <InlineNotice
               type={notice?.type}
               message={notice?.message}
@@ -691,6 +813,7 @@ const EncuestaPartido = () => {
                   </div>
                 </div>
               </div>
+              {renderStepProgress()}
               <div className={contentRowClass} />
               <div className={actionRowClass}>
                 <div className={gridClass}>
@@ -730,6 +853,7 @@ const EncuestaPartido = () => {
                   ¿ASISTIERON TODOS?
                 </div>
               </div>
+              {renderStepProgress()}
               <div className={contentRowClass} />
               <div className={actionRowClass}>
                 <div className={gridClass}>
@@ -769,19 +893,18 @@ const EncuestaPartido = () => {
                   ¿QUIÉN FUE EL MEJOR JUGADOR?
                 </div>
               </div>
+              {renderStepProgress()}
               <div className={contentRowClass}>
-                <div className={miniCardsStageClass}>
-                  {renderMiniPlayerCards({
-                    isSelected: (uuid) => formData.mvp_id === uuid,
-                    onSelect: (uuid) => handleInputChange('mvp_id', uuid),
-                    variant: 'mvp',
-                  })}
-                </div>
+                {renderMiniPlayerCards({
+                  isSelected: (uuid) => formData.mvp_id === uuid,
+                  onSelect: (uuid) => handleInputChange('mvp_id', uuid),
+                  variant: 'mvp',
+                })}
               </div>
               <div className={actionRowClass}>
                 <div className={actionDockClass}>
                   <button
-                    className={btnClass}
+                    className={`${btnClass} ${formData.mvp_id ? 'animate-[ctaReady_2.2s_ease-in-out_infinite]' : ''}`}
                     onClick={() => setCurrentStep(3)}
                     disabled={!formData.mvp_id}
                   >
@@ -803,17 +926,16 @@ const EncuestaPartido = () => {
                   ¿QUIÉN FUE EL MEJOR ARQUERO?
                 </div>
               </div>
+              {renderStepProgress()}
               <div className={contentRowClass}>
-                <div className={miniCardsStageClass}>
-                  {renderMiniPlayerCards({
-                    isSelected: (uuid) => formData.arquero_id === uuid,
-                    onSelect: (uuid) => {
-                      handleInputChange('arquero_id', uuid);
-                      handleInputChange('sin_arquero_fijo', false);
-                    },
-                    variant: 'gk',
-                  })}
-                </div>
+                {renderMiniPlayerCards({
+                  isSelected: (uuid) => formData.arquero_id === uuid,
+                  onSelect: (uuid) => {
+                    handleInputChange('arquero_id', uuid);
+                    handleInputChange('sin_arquero_fijo', false);
+                  },
+                  variant: 'gk',
+                })}
               </div>
               <div className={actionRowClass}>
                 <div className={actionDockClass}>
@@ -829,7 +951,7 @@ const EncuestaPartido = () => {
                     NO HUBO ARQUEROS FIJOS
                   </button>
                   <button
-                    className={btnClass}
+                    className={`${btnClass} ${formData.arquero_id || formData.sin_arquero_fijo ? 'animate-[ctaReady_2.2s_ease-in-out_infinite]' : ''}`}
                     onClick={() => setCurrentStep(4)}
                     disabled={!formData.arquero_id && !formData.sin_arquero_fijo}
                   >
@@ -851,6 +973,7 @@ const EncuestaPartido = () => {
                   ¿FUE UN PARTIDO LIMPIO?
                 </div>
               </div>
+              {renderStepProgress()}
               <div className={contentRowClass} />
               <div className={actionRowClass}>
                 <div className={gridClass}>
@@ -899,8 +1022,9 @@ const EncuestaPartido = () => {
                   </div>
                 </div>
               </div>
-              <div className="w-full flex items-start justify-center">
-                <div className="w-full max-w-[560px] mx-auto">
+              {renderStepProgress()}
+              <div className={`${contentRowClass} items-start`}>
+                <div className="w-full max-w-[760px] mx-auto">
                   {hasConfirmedTeams ? (
                     <div className="w-full space-y-3">
                       <TeamsDnDEditor
@@ -969,19 +1093,18 @@ const EncuestaPartido = () => {
                   ¿QUIÉN JUGÓ SUCIO?
                 </div>
               </div>
+              {renderStepProgress()}
               <div className={contentRowClass}>
-                <div className={miniCardsStageClass}>
-                  {renderMiniPlayerCards({
-                    isSelected: (uuid) => formData.jugadores_violentos.includes(uuid),
-                    onSelect: (uuid) => toggleJugadorViolento(uuid),
-                    variant: 'danger',
-                  })}
-                </div>
+                {renderMiniPlayerCards({
+                  isSelected: (uuid) => formData.jugadores_violentos.includes(uuid),
+                  onSelect: (uuid) => toggleJugadorViolento(uuid),
+                  variant: 'danger',
+                })}
               </div>
               <div className={actionRowClass}>
                 <div className={actionDockClass}>
                   <button
-                    className={btnClass}
+                    className={`${btnClass} ${formData.jugadores_violentos.length > 0 ? 'animate-[ctaReady_2.2s_ease-in-out_infinite]' : ''}`}
                     onClick={async () => {
                       if (!hasConfirmedTeams) {
                         await submitSurveyFromCurrentStep();
@@ -1009,10 +1132,11 @@ const EncuestaPartido = () => {
                   ¿POR QUÉ NO SE JUGÓ?
                 </div>
               </div>
+              {renderStepProgress()}
               <div className={contentRowClass}>
                 <div className="w-full max-w-[560px] mx-auto">
                   <textarea
-                    className="w-full h-32 md:h-36 p-5 text-left font-oswald text-[20px] md:text-[22px] bg-white/90 border-[1.5px] border-[#eceaf1] rounded-xl text-[#333] outline-none transition-all placeholder:text-gray-500 focus:bg-white focus:border-[#0EA9C6] resize-none"
+                    className="w-full h-24 sm:h-28 p-4 text-left font-oswald text-[18px] sm:text-[20px] bg-white/90 border-[1.5px] border-[#eceaf1] rounded-xl text-[#333] outline-none transition-all placeholder:text-gray-500 focus:bg-white focus:border-[#0EA9C6] resize-none"
                     value={formData.motivo_no_jugado || ''}
                     onChange={(e) => handleInputChange('motivo_no_jugado', e.target.value)}
                     placeholder="Explica por qué no se pudo jugar..."
@@ -1049,14 +1173,13 @@ const EncuestaPartido = () => {
                   ¿QUIÉNES FALTARON?
                 </div>
               </div>
+              {renderStepProgress()}
               <div className={contentRowClass}>
-                <div className={miniCardsStageClass}>
-                  {renderMiniPlayerCards({
-                    isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
-                    onSelect: (uuid) => toggleJugadorAusente(uuid),
-                    variant: 'danger',
-                  })}
-                </div>
+                {renderMiniPlayerCards({
+                  isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
+                  onSelect: (uuid) => toggleJugadorAusente(uuid),
+                  variant: 'danger',
+                })}
               </div>
               <div className={actionRowClass}>
                 <div className={actionDockClass}>
@@ -1083,19 +1206,18 @@ const EncuestaPartido = () => {
                   ¿QUIÉNES FALTARON?
                 </div>
               </div>
+              {renderStepProgress()}
               <div className={contentRowClass}>
-                <div className={miniCardsStageClass}>
-                  {renderMiniPlayerCards({
-                    isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
-                    onSelect: (uuid) => toggleJugadorAusente(uuid),
-                    variant: 'danger',
-                  })}
-                </div>
+                {renderMiniPlayerCards({
+                  isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
+                  onSelect: (uuid) => toggleJugadorAusente(uuid),
+                  variant: 'danger',
+                })}
               </div>
               <div className={actionRowClass}>
                 <div className={actionDockClass}>
                   <button
-                    className={btnClass}
+                    className={`${btnClass} ${formData.jugadores_ausentes.length > 0 ? 'animate-[ctaReady_2.2s_ease-in-out_infinite]' : ''}`}
                     onClick={() => setCurrentStep(2)}
                     disabled={formData.jugadores_ausentes.length === 0}
                   >
