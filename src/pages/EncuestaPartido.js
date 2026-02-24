@@ -571,15 +571,24 @@ const EncuestaPartido = () => {
     : Math.max(currentFlowIndex + 1, 1);
   const progressFillScale = Math.min(Math.max(progressCurrentStep / progressTotalSteps, 0), 1);
   const progressFillPercent = Math.round(progressFillScale * 100);
+  const [animatedProgressPercent, setAnimatedProgressPercent] = useState(progressFillPercent);
+
+  useEffect(() => {
+    const animationFrame = window.requestAnimationFrame(() => {
+      setAnimatedProgressPercent(progressFillPercent);
+    });
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [progressFillPercent]);
 
   const renderStepProgress = () => (
     <div className={progressRowClass}>
       <div className="w-full px-0.5 sm:px-1">
         <div className="h-[11px] w-full overflow-hidden rounded-full border border-white/20 bg-white/10 shadow-[inset_0_1px_2px_rgba(5,8,30,0.36)]">
           <div
-            className="h-full origin-left rounded-full transition-all duration-[260ms] ease-out"
+            className="h-full origin-left rounded-full transition-[width] duration-[360ms] ease-out"
             style={{
-              width: `${progressFillPercent}%`,
+              width: `${animatedProgressPercent}%`,
               background:
                 'linear-gradient(90deg, rgba(93,236,255,0.82) 0%, rgba(123,180,255,0.82) 55%, rgba(132,242,255,0.84) 100%)',
               boxShadow: '0 0 14px rgba(111,227,255,0.36)',
@@ -686,29 +695,32 @@ const EncuestaPartido = () => {
                 key={jugador.uuid}
                 type="button"
                 onClick={() => onSelect(jugador.uuid)}
-                className={`group relative h-full min-h-0 min-w-0 overflow-hidden rounded-[14px] border bg-[linear-gradient(168deg,rgba(58,84,196,0.28),rgba(16,20,73,0.9))] transition-[transform,opacity,filter] duration-[200ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
+                className={`group relative h-full min-h-0 min-w-0 overflow-visible rounded-[14px] border bg-[linear-gradient(168deg,rgba(58,84,196,0.28),rgba(16,20,73,0.9))] transition-[transform,opacity,filter] duration-[220ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
                   selected
-                    ? 'z-20 -translate-y-[2px] scale-[1.035] opacity-100'
+                    ? 'z-20 -translate-y-[2px] scale-[1.03] opacity-100'
                     : 'z-10 translate-y-0 scale-100 opacity-100'
                 } ${
-                  hasSelection && !selected ? 'opacity-[0.52] saturate-[0.72]' : 'opacity-100'
+                  hasSelection && !selected ? 'opacity-[0.42] saturate-[0.66]' : 'opacity-100'
                 }`}
                 style={{
                   animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
                   animationDelay: `${Math.min(index * 16, 160)}ms`,
                   borderColor: selected ? 'rgba(229,243,255,0.82)' : 'rgba(255,255,255,0.24)',
                   boxShadow: selected
-                    ? '0 0 0 1px rgba(191,239,255,0.82), 0 0 22px rgba(92,236,255,0.34), 0 14px 24px rgba(7,10,35,0.46)'
+                    ? '0 0 0 1px rgba(191,239,255,0.82), 0 0 26px rgba(92,236,255,0.38), 0 16px 26px rgba(7,10,35,0.48)'
                     : '0 10px 18px rgba(8,12,44,0.36)',
                 }}
               >
+                {selected ? (
+                  <div className="pointer-events-none absolute -inset-1.5 rounded-[16px] bg-[radial-gradient(circle,rgba(121,241,255,0.55)_0%,rgba(121,241,255,0.18)_46%,rgba(121,241,255,0)_78%)] blur-[10px]" />
+                ) : null}
                 <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[14px]">
                   <div className="relative h-[75%] w-full overflow-hidden bg-[#101544]">
                     {hasPhoto ? (
                       <img
                         src={jugador.avatar_url || jugador.foto_url}
                         alt={jugador.nombre}
-                        className="h-full w-full object-cover object-center"
+                        className="h-full w-full object-contain object-center bg-[#0f1544]"
                         loading="lazy"
                       />
                     ) : (
@@ -825,7 +837,6 @@ const EncuestaPartido = () => {
                 </div>
               </div>
               {renderStepProgress()}
-              <div className={contentRowClass} />
               <div className={actionRowClass}>
                 <div className={gridClass}>
                   <button
@@ -865,7 +876,6 @@ const EncuestaPartido = () => {
                 </div>
               </div>
               {renderStepProgress()}
-              <div className={contentRowClass} />
               <div className={actionRowClass}>
                 <div className={gridClass}>
                   <button
@@ -983,7 +993,6 @@ const EncuestaPartido = () => {
                 </div>
               </div>
               {renderStepProgress()}
-              <div className={contentRowClass} />
               <div className={actionRowClass}>
                 <div className={gridClass}>
                   <button
