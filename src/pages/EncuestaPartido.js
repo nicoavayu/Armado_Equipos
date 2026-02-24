@@ -506,8 +506,9 @@ const EncuestaPartido = () => {
   const cardClass = 'w-full max-w-[1180px] mx-auto h-[100dvh] px-2.5 sm:px-4 flex flex-col overflow-hidden';
   const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-2 sm:gap-3 pb-1.5 sm:pb-2';
   const playerStepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-between gap-0 pb-1 sm:pb-1.5';
-  const questionRowClass = 'w-full shrink-0 flex items-center justify-center pt-4 sm:pt-5';
-  const progressRowClass = 'w-full shrink-0 flex items-center justify-center pt-2 sm:pt-2.5';
+  const questionRowClass = 'w-full shrink-0 flex items-center justify-center pt-0';
+  const progressRowClass = 'w-full shrink-0 pt-1.5 sm:pt-2';
+  const progressGapClass = 'w-full shrink-0 h-7 sm:h-8';
   const contentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden';
   const playerContentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden py-1.5 sm:py-2';
   const actionRowClass = 'w-full shrink-0 flex items-center justify-center pt-2 sm:pt-3';
@@ -583,15 +584,15 @@ const EncuestaPartido = () => {
 
   const renderStepProgress = () => (
     <div className={progressRowClass}>
-      <div className="w-full px-0.5 sm:px-1">
-        <div className="h-[11px] w-full overflow-hidden rounded-full border border-white/20 bg-white/10 shadow-[inset_0_1px_2px_rgba(5,8,30,0.36)]">
+      <div className="w-full">
+        <div className="h-[3px] w-full overflow-hidden rounded-full bg-white/18 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]">
           <div
-            className="h-full origin-left rounded-full transition-[width] duration-[360ms] ease-out"
+            className="h-full origin-left rounded-full transition-[width] duration-[280ms] ease-out"
             style={{
               width: `${animatedProgressPercent}%`,
               background:
                 'linear-gradient(90deg, rgba(93,236,255,0.82) 0%, rgba(123,180,255,0.82) 55%, rgba(132,242,255,0.84) 100%)',
-              boxShadow: '0 0 14px rgba(111,227,255,0.36)',
+              boxShadow: '0 0 6px rgba(111,227,255,0.22)',
             }}
           />
         </div>
@@ -814,7 +815,9 @@ const EncuestaPartido = () => {
       <div className="h-[100dvh] w-full overflow-hidden" style={screenStyle}>
         <style>{animationStyle}</style>
         <div className={cardClass}>
-          <div className="w-full min-h-[20px] shrink-0 pt-0.5">
+          {renderStepProgress()}
+          <div className={progressGapClass} />
+          <div className="w-full shrink-0 pt-0.5">
             <InlineNotice
               type={notice?.type}
               message={notice?.message}
@@ -836,7 +839,6 @@ const EncuestaPartido = () => {
                   </div>
                 </div>
               </div>
-              {renderStepProgress()}
               <div className={actionRowClass}>
                 <div className={gridClass}>
                   <button
@@ -875,7 +877,6 @@ const EncuestaPartido = () => {
                   ¿ASISTIERON TODOS?
                 </div>
               </div>
-              {renderStepProgress()}
               <div className={actionRowClass}>
                 <div className={gridClass}>
                   <button
@@ -914,7 +915,6 @@ const EncuestaPartido = () => {
                   ¿QUIÉN FUE EL MEJOR JUGADOR?
                 </div>
               </div>
-              {renderStepProgress()}
               <div className={playerContentRowClass}>
                 {renderMiniPlayerCards({
                   isSelected: (uuid) => formData.mvp_id === uuid,
@@ -946,7 +946,6 @@ const EncuestaPartido = () => {
                   ¿QUIÉN FUE EL MEJOR ARQUERO?
                 </div>
               </div>
-              {renderStepProgress()}
               <div className={playerContentRowClass}>
                 {renderMiniPlayerCards({
                   isSelected: (uuid) => formData.arquero_id === uuid,
@@ -992,7 +991,6 @@ const EncuestaPartido = () => {
                   ¿FUE UN PARTIDO LIMPIO?
                 </div>
               </div>
-              {renderStepProgress()}
               <div className={actionRowClass}>
                 <div className={gridClass}>
                   <button
@@ -1040,7 +1038,6 @@ const EncuestaPartido = () => {
                   </div>
                 </div>
               </div>
-              {renderStepProgress()}
               <div className={`${contentRowClass} items-start`}>
                 <div className="w-full max-w-[760px] mx-auto">
                   {hasConfirmedTeams ? (
@@ -1111,7 +1108,6 @@ const EncuestaPartido = () => {
                   ¿QUIÉN JUGÓ SUCIO?
                 </div>
               </div>
-              {renderStepProgress()}
               <div className={playerContentRowClass}>
                 {renderMiniPlayerCards({
                   isSelected: (uuid) => formData.jugadores_violentos.includes(uuid),
@@ -1149,7 +1145,6 @@ const EncuestaPartido = () => {
                   ¿POR QUÉ NO SE JUGÓ?
                 </div>
               </div>
-              {renderStepProgress()}
               <div className={contentRowClass}>
                 <div className="w-full max-w-[560px] mx-auto">
                   <textarea
@@ -1190,7 +1185,6 @@ const EncuestaPartido = () => {
                   ¿QUIÉNES FALTARON?
                 </div>
               </div>
-              {renderStepProgress()}
               <div className={playerContentRowClass}>
                 {renderMiniPlayerCards({
                   isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
@@ -1222,7 +1216,6 @@ const EncuestaPartido = () => {
                   ¿QUIÉNES FALTARON?
                 </div>
               </div>
-              {renderStepProgress()}
               <div className={playerContentRowClass}>
                 {renderMiniPlayerCards({
                   isSelected: (uuid) => formData.jugadores_ausentes.includes(uuid),
