@@ -517,17 +517,18 @@ const EncuestaPartido = () => {
   const playerActionRowClass = 'w-full shrink-0 flex items-center justify-center pt-1.5 sm:pt-2 -translate-y-5 sm:-translate-y-6';
   const logoRowClass = 'hidden';
   const titleClass = 'font-bebas text-[clamp(30px,6.2vw,74px)] text-white tracking-[0.055em] font-bold text-center leading-[0.92] uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1';
-  const surveyBtnBaseClass = 'w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-[22px] sm:text-[28px] py-3 text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.16] flex items-center justify-center min-h-[58px] rounded-[18px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed';
+  const surveyBtnBaseClass = 'w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-[20px] sm:text-[24px] py-2.5 text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.16] flex items-center justify-center min-h-[52px] rounded-[18px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed';
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
   const optionBtnSelectedClass = 'bg-white/[0.26] border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_16px_30px_rgba(22,29,98,0.42)]';
-  const compactPrimaryBtnClass = `${btnClass} !w-auto !min-w-[160px] sm:!min-w-[196px] !px-6 sm:!px-8`;
-  const compactSecondaryBtnClass = `${optionBtnClass} !w-full !min-h-[54px] !py-2.5 !px-4 bg-white/[0.07] border-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_16px_rgba(7,10,35,0.22)]`;
+  const compactPrimaryBtnClass = `${btnClass} !w-auto !min-w-[146px] sm:!min-w-[176px] !px-5 sm:!px-6`;
+  const compactSecondaryBtnClass = `${optionBtnClass} !w-full !min-h-[50px] !py-2 !px-4 bg-white/[0.07] border-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_16px_rgba(7,10,35,0.22)]`;
   const compactButtonRowClass = 'w-full max-w-[760px] mx-auto flex items-center justify-center';
-  const compactDualButtonRowClass = 'w-full max-w-[760px] mx-auto grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 sm:gap-3';
+  const compactDualButtonRowClass = 'w-full max-w-[760px] mx-auto flex items-center justify-center gap-2.5 sm:gap-3';
   const gridClass = 'grid grid-cols-2 gap-3 w-full max-w-[920px] mx-auto';
   const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center font-normal tracking-wide';
   const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-1';
+  const centeredSummaryStackClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-5 sm:gap-6';
   const miniCardsStageClass = 'w-full h-full min-h-0 overflow-visible px-0.5 pb-0.5 flex items-center justify-center';
 
   const SurveyFooterLogo = () => null;
@@ -795,23 +796,19 @@ const EncuestaPartido = () => {
           <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
           <div className="relative z-[1] h-full w-full overflow-visible" style={safeAreaStyle}>
             <div className={cardClass}>
-              <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-                <div className={questionRowClass}>
+              <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+                <div className="w-full">
                   <div className="font-bebas text-[30px] md:text-[44px] text-white tracking-[0.04em] font-bold text-center leading-[1.05] uppercase drop-shadow-md break-words w-full">
                     YA COMPLETASTE<br />LA ENCUESTA
                   </div>
                 </div>
-                <div className={contentRowClass}>
-                  <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
-                    ¡Gracias por tu participación!
-                  </div>
+                <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
+                  ¡Gracias por tu participación!
                 </div>
-                <div className={actionRowClass}>
-                  <div className={actionDockClass}>
-                    <button className={btnClass} onClick={() => navigate('/')}>
-                      VOLVER AL INICIO
-                    </button>
-                  </div>
+                <div className="w-full max-w-[760px] mx-auto">
+                  <button className={btnClass} onClick={() => navigate('/')}>
+                    VOLVER AL INICIO
+                  </button>
                 </div>
                 <div className={logoRowClass}>
                   <SurveyFooterLogo />
@@ -975,14 +972,14 @@ const EncuestaPartido = () => {
                 <div className={compactDualButtonRowClass}>
                   <button
                     type="button"
-                    className={`${compactSecondaryBtnClass} ${formData.sin_arquero_fijo && !formData.arquero_id ? optionBtnSelectedClass : ''}`}
+                    className={`${compactPrimaryBtnClass} ${formData.sin_arquero_fijo && !formData.arquero_id ? optionBtnSelectedClass : ''}`}
                     onClick={() => {
                       handleInputChange('arquero_id', '');
                       handleInputChange('sin_arquero_fijo', true);
                       setCurrentStep(4);
                     }}
                   >
-                    NO HUBO ARQUEROS FIJOS
+                    NO HUBO
                   </button>
                   <button
                     className={compactPrimaryBtnClass}
@@ -1257,26 +1254,22 @@ const EncuestaPartido = () => {
 
           {/* STEP 99: FINAL */}
           {currentStep === 99 && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className={questionRowClass}>
+            <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+              <div className="w-full">
                 <div className={titleClass}>
                   ¡GRACIAS POR CALIFICAR!
                 </div>
               </div>
-              <div className={contentRowClass}>
-                <div className={`${textClass} text-[26px] !mb-0`}>
-                  Los resultados se publicarán en ~6 horas.
-                </div>
+              <div className={`${textClass} text-[26px] !mb-0`}>
+                Los resultados se publicarán en ~6 horas.
               </div>
-              <div className={actionRowClass}>
-                <div className={actionDockClass}>
-                  <button
-                    className={btnClass}
-                    onClick={() => navigate('/proximos?surveyDone=1')}
-                  >
-                    VOLVER AL INICIO
-                  </button>
-                </div>
+              <div className="w-full max-w-[760px] mx-auto">
+                <button
+                  className={btnClass}
+                  onClick={() => navigate('/proximos?surveyDone=1')}
+                >
+                  VOLVER AL INICIO
+                </button>
               </div>
               <div className={logoRowClass}>
                 <SurveyFooterLogo />
