@@ -56,7 +56,21 @@ const EncuestaPartido = () => {
   const [jugadores, setJugadores] = useState([]);
   const [yaCalificado, _setYaCalificado] = useState(false);
   const [encuestaFinalizada, setEncuestaFinalizada] = useState(false);
+  const [viewportRatio, setViewportRatio] = useState(() => {
+    if (typeof window === 'undefined') return 0.6;
+    return window.innerWidth / Math.max(window.innerHeight, 1);
+  });
   const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
+
+  useEffect(() => {
+    const updateViewportRatio = () => {
+      setViewportRatio(window.innerWidth / Math.max(window.innerHeight, 1));
+    };
+
+    updateViewportRatio();
+    window.addEventListener('resize', updateViewportRatio);
+    return () => window.removeEventListener('resize', updateViewportRatio);
+  }, []);
 
   useEffect(() => {
     const fetchPartidoData = async () => {
@@ -491,22 +505,22 @@ const EncuestaPartido = () => {
     paddingBottom: 'env(safe-area-inset-bottom)',
   };
   const cardClass = 'w-full max-w-[1180px] mx-auto h-[100dvh] px-2.5 sm:px-4 flex flex-col overflow-hidden';
-  const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-start gap-1 sm:gap-1.5 pb-1';
+  const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-start gap-0.5 pb-0.5';
   const questionRowClass = 'w-full shrink-0 flex items-center justify-center';
   const progressRowClass = 'w-full shrink-0 flex items-center justify-center';
   const contentRowClass = 'w-full flex-1 min-h-0 flex items-stretch justify-center overflow-hidden';
-  const playerContentRowClass = 'w-full min-h-0 flex items-start justify-center overflow-hidden';
-  const actionRowClass = 'w-full shrink-0 flex items-center justify-center mt-0';
-  const logoRowClass = 'w-full shrink-0 flex justify-center pt-0.5 pb-0.5';
-  const titleClass = 'font-bebas text-[clamp(34px,6.8vw,84px)] text-white tracking-[0.06em] font-bold text-center leading-[0.94] uppercase drop-shadow-[0_8px_20px_rgba(6,9,36,0.46)] break-words w-full px-1';
-  const surveyBtnBaseClass = 'w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-[22px] sm:text-[28px] py-3 text-center cursor-pointer transition-[transform,opacity,background-color] duration-300 hover:bg-white/[0.16] active:scale-[0.985] flex items-center justify-center min-h-[62px] rounded-[21px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed';
+  const playerContentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden';
+  const actionRowClass = 'w-full shrink-0 flex items-center justify-center mt-0.5';
+  const logoRowClass = 'w-full shrink-0 flex justify-center pt-0 pb-0.5';
+  const titleClass = 'font-bebas text-[clamp(30px,6.2vw,74px)] text-white tracking-[0.055em] font-bold text-center leading-[0.92] uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1';
+  const surveyBtnBaseClass = 'w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-[22px] sm:text-[28px] py-3 text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.16] flex items-center justify-center min-h-[58px] rounded-[18px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed';
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
   const optionBtnSelectedClass = 'bg-white/[0.26] border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_16px_30px_rgba(22,29,98,0.42)]';
   const gridClass = 'grid grid-cols-2 gap-3 w-full max-w-[920px] mx-auto';
   const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center font-normal tracking-wide';
-  const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-1.5';
-  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-hidden px-0.5 flex items-start';
+  const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-1';
+  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-hidden px-0.5 pb-0.5 flex items-center';
 
   const SurveyFooterLogo = () => (
     <div className="opacity-65 pointer-events-none">
@@ -572,99 +586,92 @@ const EncuestaPartido = () => {
   const progressCurrentStep = currentStep === 99
     ? progressTotalSteps
     : Math.max(currentFlowIndex + 1, 1);
+  const progressFillScale = Math.min(Math.max(progressCurrentStep / progressTotalSteps, 0), 1);
+
   const renderStepProgress = () => (
     <div className={progressRowClass}>
-      <div className="w-full max-w-[820px] px-2">
-        <div className="text-center font-oswald text-[clamp(15px,2.8vw,20px)] leading-none tracking-[0.05em] text-white/78">
-          {progressCurrentStep} de {progressTotalSteps}
+      <div className="w-full max-w-[900px] px-2 sm:px-3">
+        <div className="text-center font-oswald text-[11px] sm:text-[12px] leading-none tracking-[0.07em] uppercase text-white/72">
+          Paso {progressCurrentStep} de {progressTotalSteps}
         </div>
-        <div className="mt-1.5 flex items-center justify-center">
-          <div className="flex items-center">
-            {Array.from({ length: progressTotalSteps }).map((_, idx) => {
-              const stepNumber = idx + 1;
-              const isComplete = stepNumber < progressCurrentStep;
-              const isCurrent = stepNumber === progressCurrentStep;
-              return (
-                <React.Fragment key={`progress-${stepNumber}`}>
-                  <span
-                    className={`relative block h-[8px] w-[8px] rounded-full border transition-[opacity,transform,background-color,border-color] duration-200 ease-out ${
-                      isComplete || isCurrent
-                        ? 'bg-[#59f7b8] border-[#a6ffd8] opacity-100'
-                        : 'bg-[#312d87] border-[#6c6cd8]/55 opacity-75'
-                    } ${isCurrent ? 'scale-[1.15]' : 'scale-100'}`}
-                    style={{
-                      boxShadow: isComplete || isCurrent
-                        ? '0 0 8px rgba(89,247,184,0.72)'
-                        : '0 0 0 0 rgba(0,0,0,0)',
-                    }}
-                  />
-                  {idx < progressTotalSteps - 1 ? (
-                    <span
-                      className={`mx-[5px] block h-[2px] w-[20px] rounded-full transition-colors duration-200 ease-out ${
-                        stepNumber < progressCurrentStep
-                          ? 'bg-[#59f7b8]/70'
-                          : 'bg-[#5f5cbc]/45'
-                      }`}
-                    />
-                  ) : null}
-                </React.Fragment>
-              );
-            })}
-          </div>
+        <div className="mt-1.5 h-[4px] w-full overflow-hidden rounded-full bg-white/20">
+          <div
+            className="h-full w-full origin-left rounded-full transition-transform duration-[220ms] ease-out"
+            style={{
+              transform: `scaleX(${progressFillScale})`,
+              background:
+                'linear-gradient(90deg, rgba(93,236,255,0.88) 0%, rgba(123,180,255,0.84) 55%, rgba(132,242,255,0.86) 100%)',
+            }}
+          />
         </div>
       </div>
     </div>
   );
 
-  const resolveAdaptiveGridConfig = (playerCount) => {
+  const resolveAdaptiveGridConfig = (playerCount, ratio) => {
     const safeCount = Math.max(playerCount || 1, 1);
-    const rows = safeCount <= 14 ? 2 : safeCount <= 18 ? 3 : 4;
-    const columns = safeCount <= 10
-      ? 5
-      : safeCount <= 14
-        ? Math.max(Math.ceil(safeCount / rows), 5)
-        : Math.max(Math.ceil(safeCount / rows), 4);
-    const gap = safeCount >= 22 ? 4 : safeCount >= 14 ? 6 : 7;
+    const isWideViewport = ratio >= 0.95;
+    let columns;
+    let rows;
+
+    if (safeCount <= 10) {
+      columns = isWideViewport ? 4 : 3;
+      rows = isWideViewport ? 3 : 4;
+    } else if (safeCount <= 14) {
+      columns = isWideViewport ? 5 : 4;
+      rows = Math.max(3, Math.ceil(safeCount / columns));
+    } else if (safeCount <= 22) {
+      columns = isWideViewport ? 6 : 5;
+      rows = Math.max(4, Math.ceil(safeCount / columns));
+    } else {
+      columns = isWideViewport ? 7 : 6;
+      rows = Math.ceil(safeCount / columns);
+    }
+
+    while (rows * columns < safeCount) {
+      rows += 1;
+    }
+
+    const gap = safeCount >= 22 ? 6 : safeCount >= 14 ? 8 : 10;
     const nameSizeClass = safeCount >= 22
       ? 'text-[9px] sm:text-[10px]'
       : safeCount >= 14
-        ? 'text-[10px] sm:text-[12px]'
-        : 'text-[12px] sm:text-[15px]';
-    const initialSizeClass = safeCount >= 22
-      ? 'text-[16px] sm:text-[20px]'
+        ? 'text-[10px] sm:text-[11px]'
+        : 'text-[12px] sm:text-[13px]';
+    const silhouetteSizeClass = safeCount >= 22
+      ? 'h-[42%] w-[42%]'
       : safeCount >= 14
-        ? 'text-[20px] sm:text-[24px]'
-        : 'text-[24px] sm:text-[30px]';
-    const cardAspect = safeCount <= 10 ? '1.04 / 1' : safeCount <= 14 ? '1.08 / 1' : '1.12 / 1';
-    const gridMaxWidth = safeCount <= 10 ? 1140 : safeCount <= 14 ? 1060 : 980;
+        ? 'h-[48%] w-[48%]'
+        : 'h-[54%] w-[54%]';
+    const gridMaxWidth = safeCount <= 10
+      ? (isWideViewport ? 980 : 760)
+      : safeCount <= 14
+        ? (isWideViewport ? 1060 : 840)
+        : (isWideViewport ? 1160 : 920);
 
     return {
       rows,
       columns,
       gap,
       nameSizeClass,
-      initialSizeClass,
-      cardAspect,
+      silhouetteSizeClass,
       gridMaxWidth,
     };
   };
 
-  const PlayerPhotoFallback = ({ name, initialSizeClass }) => (
-    <div className="relative h-full w-full overflow-hidden bg-[radial-gradient(circle_at_45%_15%,rgba(166,198,255,0.38)_0%,rgba(64,82,185,0.34)_42%,rgba(20,24,74,0.95)_100%)]">
-      <div className="absolute inset-0 bg-[linear-gradient(150deg,rgba(74,113,221,0.26),rgba(14,19,58,0.68))]" />
+  const PlayerPhotoFallback = ({ silhouetteSizeClass }) => (
+    <div className="relative h-full w-full overflow-hidden bg-[linear-gradient(160deg,#2f3978_0%,#253066_45%,#1a2148_100%)]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(196,209,247,0.24)_0%,rgba(37,44,90,0)_66%)]" />
       <svg
         viewBox="0 0 160 160"
         aria-hidden="true"
-        className="absolute left-1/2 top-[50%] h-[58%] w-[58%] -translate-x-1/2 -translate-y-1/2 text-white/26"
+        className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[46%] text-white/34 ${silhouetteSizeClass}`}
       >
         <path
           fill="currentColor"
           d="M80 68c14 0 25-11 25-25S94 18 80 18 55 29 55 43s11 25 25 25Zm0 10c-24 0-44 14-50 36a8 8 0 0 0 8 10h84a8 8 0 0 0 8-10c-6-22-26-36-50-36Z"
         />
       </svg>
-      <span className={`absolute left-1/2 top-[52%] -translate-x-1/2 -translate-y-1/2 font-bebas tracking-[0.08em] text-white/42 ${initialSizeClass}`}>
-        {(name || '?').charAt(0).toUpperCase()}
-      </span>
     </div>
   );
 
@@ -674,18 +681,21 @@ const EncuestaPartido = () => {
     variant = 'mvp',
   }) => {
     const playerCount = jugadores.length;
-    const adaptiveGrid = resolveAdaptiveGridConfig(playerCount);
+    const adaptiveGrid = resolveAdaptiveGridConfig(playerCount, viewportRatio);
     const hasSelection = jugadores.some((candidate) => isSelected(candidate.uuid));
     const accentColor = resolveVariantAccent(variant);
 
     return (
       <div className={miniCardsStageClass}>
         <div
-          className="mx-auto grid w-full content-start"
+          className="mx-auto grid h-full w-full place-content-center"
           style={{
             gridTemplateColumns: `repeat(${adaptiveGrid.columns}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${adaptiveGrid.rows}, minmax(0, 1fr))`,
             gap: `${adaptiveGrid.gap}px`,
             maxWidth: `${adaptiveGrid.gridMaxWidth}px`,
+            maxHeight: '100%',
+            minHeight: '70%',
           }}
         >
           {jugadores.map((jugador, index) => {
@@ -696,29 +706,23 @@ const EncuestaPartido = () => {
                 key={jugador.uuid}
                 type="button"
                 onClick={() => onSelect(jugador.uuid)}
-                className={`group relative min-w-0 overflow-hidden rounded-[15px] border bg-[linear-gradient(168deg,rgba(60,94,220,0.26),rgba(16,20,75,0.86))] transition-[transform,opacity] duration-[220ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
+                className={`group relative h-full min-h-0 min-w-0 overflow-hidden rounded-[14px] border bg-[linear-gradient(168deg,rgba(58,84,196,0.28),rgba(16,20,73,0.9))] transition-[transform,opacity] duration-[230ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
                   selected
-                    ? 'z-20 scale-[1.06] opacity-100 border-[#b8fff2] shadow-[0_22px_40px_rgba(20,45,135,0.58),0_0_20px_rgba(126,247,255,0.7)]'
-                    : 'z-10 scale-100 border-white/28 shadow-[0_10px_20px_rgba(8,12,44,0.34)]'
+                    ? 'z-20 -translate-y-[4px] scale-[1.07] opacity-100'
+                    : 'z-10 translate-y-0 scale-100 opacity-100'
                 } ${
-                  hasSelection && !selected ? 'opacity-[0.65]' : 'opacity-100'
+                  hasSelection && !selected ? 'opacity-60 saturate-[0.84]' : 'opacity-100'
                 }`}
                 style={{
                   animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
-                  animationDelay: `${index * 18}ms`,
-                  aspectRatio: adaptiveGrid.cardAspect,
+                  animationDelay: `${Math.min(index * 16, 160)}ms`,
+                  borderColor: selected ? 'rgba(229,243,255,0.82)' : 'rgba(255,255,255,0.24)',
+                  boxShadow: selected
+                    ? `0 18px 30px rgba(6,9,34,0.56), 0 0 14px ${accentColor}40`
+                    : '0 10px 18px rgba(8,12,44,0.36)',
                 }}
               >
-                <div
-                  className={`pointer-events-none absolute inset-0 rounded-[15px] transition-opacity duration-[220ms] ${
-                    selected ? 'opacity-95' : hasSelection ? 'opacity-22' : 'opacity-46'
-                  }`}
-                  style={{
-                    background:
-                      'radial-gradient(130% 90% at 50% 0%, rgba(108,245,255,0.72) 0%, rgba(90,130,255,0.2) 42%, rgba(6,9,42,0) 74%)',
-                  }}
-                />
-                <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[15px]">
+                <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[14px]">
                   <div className="relative h-[75%] w-full overflow-hidden bg-[#101544]">
                     {hasPhoto ? (
                       <img
@@ -729,26 +733,18 @@ const EncuestaPartido = () => {
                       />
                     ) : (
                       <PlayerPhotoFallback
-                        name={jugador.nombre}
-                        initialSizeClass={adaptiveGrid.initialSizeClass}
+                        silhouetteSizeClass={adaptiveGrid.silhouetteSizeClass}
                       />
                     )}
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[46%] bg-gradient-to-t from-[#060a2d]/94 via-[#09113d]/55 to-transparent" />
                   </div>
-                  <div className="relative flex h-[25%] w-full items-center justify-center px-1.5 bg-[linear-gradient(180deg,rgba(22,30,102,0.9)_0%,rgba(14,18,72,0.98)_100%)]">
+                  <div className="relative flex h-[25%] w-full items-center justify-center px-1.5 bg-[linear-gradient(180deg,rgba(16,24,86,0.96)_0%,rgba(12,17,66,0.98)_100%)]">
                     <span
                       className={`w-full truncate text-center font-oswald font-semibold tracking-[0.035em] text-white ${adaptiveGrid.nameSizeClass}`}
                     >
                       {jugador.nombre}
                     </span>
                   </div>
-                </div>
-                <div
-                  className={`pointer-events-none absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-white/85 bg-black/25 text-[12px] text-white transition-[transform,opacity] duration-220 ${
-                    selected ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
-                  }`}
-                  style={{ boxShadow: `0 0 0 1px ${accentColor} inset, 0 0 10px ${accentColor}` }}
-                >
-                  ✓
                 </div>
               </button>
             );
@@ -767,10 +763,6 @@ const EncuestaPartido = () => {
     @keyframes cardIn {
       from { transform: translateY(12px) scale(0.96); opacity: 0; }
       to { transform: translateY(0) scale(1); opacity: 1; }
-    }
-    @keyframes ctaReady {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.012); opacity: 0.96; }
     }
   `;
 
@@ -830,7 +822,7 @@ const EncuestaPartido = () => {
       <div className="h-[100dvh] w-full overflow-hidden" style={screenStyle}>
         <style>{animationStyle}</style>
         <div className={cardClass}>
-          <div className="w-full min-h-[28px] shrink-0 pt-1">
+          <div className="w-full min-h-[20px] shrink-0 pt-0.5">
             <InlineNotice
               type={notice?.type}
               message={notice?.message}
@@ -846,7 +838,7 @@ const EncuestaPartido = () => {
                   <div className={titleClass}>
                     ¿SE JUGÓ EL PARTIDO?
                   </div>
-                  <div className="text-white text-[17px] md:text-[20px] font-oswald text-center font-normal tracking-wide mt-3">
+                  <div className="text-white text-[17px] md:text-[20px] font-oswald text-center font-normal tracking-wide mt-2">
                     {formatFecha(partido.fecha)}<br />
                     {partido.hora && `${partido.hora} - `}{partido.sede ? partido.sede.split(/[,(]/)[0].trim() : 'Sin ubicación'}
                   </div>
@@ -943,7 +935,7 @@ const EncuestaPartido = () => {
               <div className={actionRowClass}>
                 <div className={actionDockClass}>
                   <button
-                    className={`${btnClass} ${formData.mvp_id ? 'animate-[ctaReady_2.2s_ease-in-out_infinite]' : ''}`}
+                    className={btnClass}
                     onClick={() => setCurrentStep(3)}
                     disabled={!formData.mvp_id}
                   >
@@ -990,7 +982,7 @@ const EncuestaPartido = () => {
                     NO HUBO ARQUEROS FIJOS
                   </button>
                   <button
-                    className={`${btnClass} ${formData.arquero_id || formData.sin_arquero_fijo ? 'animate-[ctaReady_2.2s_ease-in-out_infinite]' : ''}`}
+                    className={btnClass}
                     onClick={() => setCurrentStep(4)}
                     disabled={!formData.arquero_id && !formData.sin_arquero_fijo}
                   >
@@ -1143,7 +1135,7 @@ const EncuestaPartido = () => {
               <div className={actionRowClass}>
                 <div className={actionDockClass}>
                   <button
-                    className={`${btnClass} ${formData.jugadores_violentos.length > 0 ? 'animate-[ctaReady_2.2s_ease-in-out_infinite]' : ''}`}
+                    className={btnClass}
                     onClick={async () => {
                       if (!hasConfirmedTeams) {
                         await submitSurveyFromCurrentStep();
@@ -1256,7 +1248,7 @@ const EncuestaPartido = () => {
               <div className={actionRowClass}>
                 <div className={actionDockClass}>
                   <button
-                    className={`${btnClass} ${formData.jugadores_ausentes.length > 0 ? 'animate-[ctaReady_2.2s_ease-in-out_infinite]' : ''}`}
+                    className={btnClass}
                     onClick={() => setCurrentStep(2)}
                     disabled={formData.jugadores_ausentes.length === 0}
                   >
