@@ -12,7 +12,7 @@ const generateMatchCode = (length = 6) => {
 };
 
 /**
- * Fetch ALL players for a match (deduped by normalized nombre).
+ * Fetch ALL players for a match exactly as stored in DB.
  * Kept for backward compatibility (used by Admin/Encuesta flows).
  * @param {number} partidoId
  * @returns {Promise<Array>} jugadores rows
@@ -39,22 +39,7 @@ export const getJugadoresDelPartido = async (partidoId) => {
 
   console.log('[getJugadoresDelPartido] Raw data:', data?.length, data);
 
-  const seen = new Set();
-  const unique = [];
-  (data || []).forEach((p) => {
-    const key = String(p?.nombre || '').toLowerCase().trim();
-    const slot = p?.is_substitute ? 'sub' : 'tit';
-    const compositeKey = key ? `${key}::${slot}` : '';
-    if (!key) {
-      unique.push(p);
-      return;
-    }
-    if (seen.has(compositeKey)) return;
-    seen.add(compositeKey);
-    unique.push(p);
-  });
-
-  return unique;
+  return data || [];
 };
 
 /**
