@@ -7,6 +7,8 @@ const TOP_TABS = [
   { key: 'individual', label: 'Individual' },
   { key: 'equipos', label: 'Equipos' },
 ];
+const PRIMARY_TABS_TOP_OFFSET_PX = 92;
+const SECONDARY_TABS_TOP_OFFSET_PX = 164;
 
 const QuieroJugarHub = () => {
   const [activeTopTab, setActiveTopTab] = useState(() => {
@@ -26,7 +28,7 @@ const QuieroJugarHub = () => {
     <>
       <div
         className="fixed left-0 right-0 z-[950] px-4"
-        style={{ top: '106px' }}
+        style={{ top: `${PRIMARY_TABS_TOP_OFFSET_PX}px` }}
       >
         <div className="w-full max-w-[500px] mx-auto bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1">
           {TOP_TABS.map((tab) => (
@@ -45,9 +47,9 @@ const QuieroJugarHub = () => {
         </div>
       </div>
 
-      <div className="pt-[76px]">
-        {activeTopTab === 'individual' ? <QuieroJugarLegacy /> : <QuieroJugarEquipos />}
-      </div>
+      {activeTopTab === 'individual'
+        ? <QuieroJugarLegacy secondaryTabsTop={SECONDARY_TABS_TOP_OFFSET_PX} />
+        : <QuieroJugarEquipos secondaryTabsTop={SECONDARY_TABS_TOP_OFFSET_PX} />}
     </>
   );
 };

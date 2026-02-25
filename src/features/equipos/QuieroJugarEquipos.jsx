@@ -11,7 +11,7 @@ const SUBTABS = [
   { key: 'mis-equipos', label: 'Mis equipos' },
 ];
 
-const QuieroJugarEquipos = () => {
+const QuieroJugarEquipos = ({ secondaryTabsTop = 116 }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -45,7 +45,7 @@ const QuieroJugarEquipos = () => {
     <>
       <PageTitle title="QUIERO JUGAR" onBack={() => navigate(-1)}>QUIERO JUGAR</PageTitle>
 
-      <div className="w-full flex justify-center px-4 pt-[116px] pb-7">
+      <div className="w-full flex justify-center px-4 pb-7" style={{ paddingTop: `${secondaryTabsTop}px` }}>
         <div className="w-full max-w-[500px] bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1">
           {SUBTABS.map((tab) => (
             <button
@@ -53,7 +53,7 @@ const QuieroJugarEquipos = () => {
               type="button"
               onClick={() => setActiveSubtab(tab.key)}
               className={`flex-1 min-w-0 px-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase transition-all ${activeSubtab === tab.key
-                ? 'bg-primary text-white shadow-lg'
+                ? 'bg-[#128BE9] text-white shadow-[0_6px_18px_rgba(18,139,233,0.38)]'
                 : 'text-white/60 hover:text-white hover:bg-white/10'
                 }`}
             >

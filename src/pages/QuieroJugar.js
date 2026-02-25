@@ -131,7 +131,7 @@ const resolveMatchCoordinates = (partido) => {
   return null;
 };
 
-const QuieroJugar = () => {
+const QuieroJugar = ({ secondaryTabsTop = 126 }) => {
   const MAX_SUBSTITUTE_SLOTS = 4;
 
   const navigate = useNavigate();
@@ -403,12 +403,12 @@ const QuieroJugar = () => {
     <>
       <PageTitle title="QUIERO JUGAR" onBack={onVolver}>QUIERO JUGAR</PageTitle>
 
-      <div className={containerClass} style={{ paddingTop: '126px' }}>
+      <div className={containerClass} style={{ paddingTop: `${secondaryTabsTop}px` }}>
 
         {/* 2. Tabs with added spacing - Removed overlap */}
         <div className="w-full max-w-[500px] mb-8 bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1 relative z-10">
           <button
-            className={`flex-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase cursor-pointer transition-all duration-300 ${activeTab === 'matches' ? 'bg-primary text-white shadow-lg' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase cursor-pointer transition-all duration-300 ${activeTab === 'matches' ? 'bg-[#128BE9] text-white shadow-[0_6px_18px_rgba(18,139,233,0.38)]' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
             onClick={() => {
               setActiveTab('matches');
               sessionStorage.setItem('quiero-jugar-tab', 'matches');
@@ -417,7 +417,7 @@ const QuieroJugar = () => {
             PARTIDOS
           </button>
           <button
-            className={`flex-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase cursor-pointer transition-all duration-300 ${activeTab === 'players' ? 'bg-primary text-white shadow-lg' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase cursor-pointer transition-all duration-300 ${activeTab === 'players' ? 'bg-[#128BE9] text-white shadow-[0_6px_18px_rgba(18,139,233,0.38)]' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
             onClick={() => {
               setActiveTab('players');
               sessionStorage.setItem('quiero-jugar-tab', 'players');
