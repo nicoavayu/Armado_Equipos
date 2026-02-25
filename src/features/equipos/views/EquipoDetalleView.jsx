@@ -921,16 +921,20 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                               type="button"
                               onClick={(event) => {
                                 event.stopPropagation();
+                                const triggerRect = event.currentTarget?.getBoundingClientRect?.();
                                 setOpenMemberMenuId((prev) => {
                                   if (prev === member.id) return null;
 
-                                  const triggerRect = event.currentTarget.getBoundingClientRect();
-                                  const menuEstimatedHeight = 152;
-                                  const viewportPadding = 12;
-                                  const spaceBelow = window.innerHeight - triggerRect.bottom - viewportPadding;
-                                  const spaceAbove = triggerRect.top - viewportPadding;
-                                  const shouldOpenUp = spaceBelow < menuEstimatedHeight && spaceAbove > spaceBelow;
-                                  setOpenMemberMenuDirection(shouldOpenUp ? 'up' : 'down');
+                                  if (triggerRect) {
+                                    const menuEstimatedHeight = 152;
+                                    const viewportPadding = 12;
+                                    const spaceBelow = window.innerHeight - triggerRect.bottom - viewportPadding;
+                                    const spaceAbove = triggerRect.top - viewportPadding;
+                                    const shouldOpenUp = spaceBelow < menuEstimatedHeight && spaceAbove > spaceBelow;
+                                    setOpenMemberMenuDirection(shouldOpenUp ? 'up' : 'down');
+                                  } else {
+                                    setOpenMemberMenuDirection('down');
+                                  }
 
                                   return member.id;
                                 });
