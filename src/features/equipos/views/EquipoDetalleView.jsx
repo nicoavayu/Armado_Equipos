@@ -85,6 +85,12 @@ const normalizeSearchValue = (value) => String(value || '')
   .replace(/[\u0300-\u036f]/g, '')
   .trim()
   .toLowerCase();
+const parseShirtNumber = (value) => {
+  if (value === '' || value == null) return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed)) return Number.NaN;
+  return parsed;
+};
 
 const getRoleOption = (roleValue) => (
   ROLE_OPTIONS.find((option) => option.value === roleValue)
@@ -449,6 +455,28 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     try {
       setIsSaving(true);
       let selectedJugadorId = null;
+      const shirtNumber = parseShirtNumber(newMember.shirtNumber);
+
+      if (Number.isNaN(shirtNumber) || (shirtNumber != null && (shirtNumber < 0 || shirtNumber > 99))) {
+        throw new Error('El numero debe ser un entero entre 0 y 99');
+      }
+
+      const currentShirtNumber = memberModalMode === 'edit'
+        ? parseShirtNumber(memberEditing?.shirt_number)
+        : null;
+      const shouldValidateDuplicatedShirtNumber = shirtNumber != null
+        && (memberModalMode === 'create' || shirtNumber !== currentShirtNumber);
+
+      if (shouldValidateDuplicatedShirtNumber) {
+        const duplicatedByShirtNumber = members.some((member) => {
+          if (member?.id === memberEditing?.id) return false;
+          const existingShirtNumber = parseShirtNumber(member?.shirt_number);
+          return existingShirtNumber != null && existingShirtNumber === shirtNumber;
+        });
+        if (duplicatedByShirtNumber) {
+          throw new Error(`El numero #${shirtNumber} ya esta en uso en la plantilla`);
+        }
+      }
 
       if (memberModalMode === 'create') {
         const duplicatedByName = members.some((member) => (
@@ -499,14 +527,14 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           permissionsRole: 'member',
           role: newMember.role,
           isCaptain: newMember.isCaptain,
-          shirtNumber: newMember.shirtNumber === '' ? null : Number(newMember.shirtNumber),
+          shirtNumber,
           photoUrl,
         });
       } else {
         const updates = {
           role: newMember.role,
           is_captain: newMember.isCaptain,
-          shirt_number: newMember.shirtNumber === '' ? null : Number(newMember.shirtNumber),
+          shirt_number: shirtNumber,
           photo_url: photoUrl,
         };
 
@@ -1175,6 +1203,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                 type="number"
                 min={0}
                 max={99}
+                step={1}
                 value={newMember.shirtNumber}
                 onChange={(event) => setNewMember((prev) => ({ ...prev, shirtNumber: event.target.value }))}
                 placeholder="Ej: 4"
