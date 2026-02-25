@@ -1405,12 +1405,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
             </div>
           </div>
 
-          {memberModalMode === 'edit' ? (
-            <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white/65">
-              <p>Rol actual: {getRoleLabel(memberEditing?.role)}</p>
-              <p className="mt-1">Numero actual: {memberEditing?.shirt_number ?? '-'}</p>
-            </div>
-          ) : null}
         </form>
       </Modal>
 
