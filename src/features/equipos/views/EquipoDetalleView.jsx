@@ -1066,7 +1066,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                             </span>
                             {member.is_captain ? (
                               <span className="inline-flex items-center gap-1 rounded-md border border-amber-300/35 bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-100">
-                                <Crown size={11} /> Capitán
+                                <Crown size={11} /> CAP
                               </span>
                             ) : null}
                           </div>
