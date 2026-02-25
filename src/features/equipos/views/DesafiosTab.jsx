@@ -288,7 +288,7 @@ const DesafiosTab = ({
 
               const available = getAvailableTeamsForChallenge(challenge);
               if (available.length === 0) {
-                notifyBlockingError('No tenes equipos gestionables (owner/admin) para aceptar este desafio');
+                notifyBlockingError('No tenés equipos donde seas capitán para aceptar este desafío');
                 return;
               }
 

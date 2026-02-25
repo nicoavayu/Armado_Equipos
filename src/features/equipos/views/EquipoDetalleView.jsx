@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Check, ChevronDown, Crown, Eye, MoreVertical, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
+import { Camera, ChevronDown, Crown, Eye, MoreVertical, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Modal from '../../../components/Modal';
 import ConfirmModal from '../../../components/ConfirmModal';
@@ -34,7 +34,6 @@ const disabledOptionCardClass = `${optionCardClass} disabled:opacity-50 disabled
 const EMPTY_NEW_MEMBER = {
   jugadorId: '',
   role: 'player',
-  isCaptain: false,
   shirtNumber: '',
 };
 
@@ -290,14 +289,21 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     [teamPendingInvitations],
   );
 
-  const isSelectedTeamOwner = selectedTeam?.owner_user_id === userId;
   const selectedTeamCurrentUserMember = useMemo(
     () => members.find((member) => toStringId(member?.user_id || member?.jugador?.usuario_id) === toStringId(userId)) || null,
     [members, userId],
   );
+  const selectedTeamCaptainMember = useMemo(
+    () => members.find((member) => Boolean(member?.is_captain)) || null,
+    [members],
+  );
   const isCurrentUserInTeam = Boolean(selectedTeamCurrentUserMember);
-  const isSelectedTeamAdmin = ['admin', 'owner'].includes(selectedTeamCurrentUserMember?.permissions_role);
-  const isSelectedTeamManager = Boolean(isSelectedTeamOwner || isSelectedTeamAdmin);
+  const isSelectedTeamCaptain = Boolean(selectedTeamCurrentUserMember?.is_captain);
+  const isSelectedTeamLegacyAdmin = ['admin', 'owner'].includes(selectedTeamCurrentUserMember?.permissions_role)
+    || selectedTeam?.owner_user_id === userId;
+  const isSelectedTeamManager = selectedTeamCaptainMember
+    ? isSelectedTeamCaptain
+    : Boolean(isSelectedTeamCaptain || isSelectedTeamLegacyAdmin);
 
   const filteredFriends = useMemo(() => {
     const query = normalizeSearchValue(friendSearchInput);
@@ -388,7 +394,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
   const openAddMemberChoiceModal = () => {
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo admin puede agregar jugadores');
+      notifyBlockingError('Solo el capitán puede agregar jugadores');
       return;
     }
     setAddMemberChoiceOpen(true);
@@ -402,7 +408,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
   const openInviteMemberModal = async () => {
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo admin puede invitar jugadores');
+      notifyBlockingError('Solo el capitán puede invitar jugadores');
       return;
     }
     if (!userId) return;
@@ -427,7 +433,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     setNewMember({
       jugadorId: toStringId(member?.jugador_id),
       role: normalizeRoleForForm(member?.role),
-      isCaptain: Boolean(member?.is_captain),
       shirtNumber: member?.shirt_number ?? '',
     });
     setMemberNameInput(member?.jugador?.nombre || '');
@@ -474,7 +479,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       && toStringId(memberEditing?.id) === toStringId(selectedTeamCurrentUserMember?.id);
     const canSelfEditFromRoster = Boolean(memberSelfEditMode && isEditingOwnMember);
     if (!isSelectedTeamManager && !canSelfEditFromRoster) {
-      notifyBlockingError('Solo admin puede editar la plantilla');
+      notifyBlockingError('Solo el capitán puede editar la plantilla');
       return;
     }
 
@@ -529,13 +534,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         throw new Error('No se pudo resolver el jugador para la plantilla');
       }
 
-      if (newMember.isCaptain) {
-        const existingCaptain = members.find((member) => member.is_captain && member.id !== memberEditing?.id);
-        if (existingCaptain) {
-          await updateTeamMember(existingCaptain.id, { is_captain: false });
-        }
-      }
-
       let photoUrl = memberModalMode === 'edit' ? (memberEditing?.photo_url || null) : null;
       if (!memberSelfEditMode) {
         if (memberModalMode === 'edit' && removeMemberPhoto) {
@@ -559,19 +557,17 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           userId: null,
           permissionsRole: 'member',
           role: newMember.role,
-          isCaptain: newMember.isCaptain,
+          isCaptain: false,
           shirtNumber,
           photoUrl,
         });
       } else {
         const updates = memberSelfEditMode
           ? {
-            is_captain: newMember.isCaptain,
             shirt_number: shirtNumber,
           }
           : {
             role: newMember.role,
-            is_captain: newMember.isCaptain,
             shirt_number: shirtNumber,
             photo_url: photoUrl,
           };
@@ -591,7 +587,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const handleSendTeamInvitation = async () => {
     if (!selectedTeam?.id) return;
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo admin puede invitar jugadores');
+      notifyBlockingError('Solo el capitán puede invitar jugadores');
       return;
     }
     if (!selectedFriend?.id) {
@@ -618,7 +614,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const handleAddCurrentUserAsMember = async () => {
     if (!selectedTeam?.id) return;
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo admin puede agregar jugadores');
+      notifyBlockingError('Solo el capitán puede agregar jugadores');
       return;
     }
     if (isCurrentUserInTeam) {
@@ -631,7 +627,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       await addCurrentUserAsTeamMember({
         teamId: selectedTeam.id,
         userId,
-        permissionsRole: 'admin',
+        permissionsRole: 'member',
         role: 'player',
       });
       await refreshSelectedTeam();
@@ -644,60 +640,50 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     }
   };
 
-  const handlePromoteMemberToAdmin = async (member) => {
+  const handleTransferCaptain = async (member) => {
     if (!selectedTeam?.id || !member?.id) return;
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo admin puede gestionar permisos');
+      notifyBlockingError('Solo el capitán puede transferir la capitanía');
       return;
     }
 
     const memberUserId = toStringId(member?.user_id || member?.jugador?.usuario_id);
-    const isMemberAdmin = member?.permissions_role === 'admin'
-      || member?.permissions_role === 'owner'
-      || (memberUserId && memberUserId === toStringId(selectedTeam?.owner_user_id));
-
-    if (isMemberAdmin) {
-      notifyBlockingError('Ese jugador ya es admin');
+    if (member?.is_captain) {
+      notifyBlockingError('Ese jugador ya es capitán');
       return;
     }
 
     if (!memberUserId) {
-      notifyBlockingError('Solo usuarios registrados pueden ser admin');
+      notifyBlockingError('Solo jugadores registrados pueden ser capitán');
       return;
     }
 
     try {
       setIsSaving(true);
-      await updateTeamMember(member.id, { permissions_role: 'admin' });
 
-      const adminsToDemote = (members || []).filter((candidate) => {
-        if (!candidate?.id || candidate.id === member.id) return false;
-        return candidate.permissions_role === 'admin';
+      const captainsToDemote = (members || []).filter((candidate) => (
+        candidate?.id
+        && candidate.id !== member.id
+        && Boolean(candidate.is_captain)
+      ));
+
+      for (const captainMember of captainsToDemote) {
+        await updateTeamMember(captainMember.id, {
+          is_captain: false,
+          permissions_role: 'member',
+        });
+      }
+
+      await updateTeamMember(member.id, {
+        is_captain: true,
+        permissions_role: 'admin',
       });
-
-      const currentMemberId = selectedTeamCurrentUserMember?.id;
-      const shouldDemoteCurrentAdmin = selectedTeamCurrentUserMember?.permissions_role === 'admin'
-        && currentMemberId
-        && currentMemberId !== member.id;
-
-      for (const adminMember of adminsToDemote) {
-        if (adminMember.id === currentMemberId && shouldDemoteCurrentAdmin) continue;
-        await updateTeamMember(adminMember.id, { permissions_role: 'member' });
-      }
-
-      if (shouldDemoteCurrentAdmin) {
-        await updateTeamMember(currentMemberId, { permissions_role: 'member' });
-      }
 
       setOpenMemberMenuId(null);
       await refreshSelectedTeam();
-      if (shouldDemoteCurrentAdmin) {
-        console.info('Admin transferido');
-      } else {
-        console.info('Jugador promovido a admin');
-      }
+      console.info('Capitanía transferida');
     } catch (error) {
-      notifyBlockingError(error.message || 'No se pudo asignar permisos de admin');
+      notifyBlockingError(error.message || 'No se pudo transferir la capitanía');
     } finally {
       setIsSaving(false);
     }
@@ -705,7 +691,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
   const handleRevokeTeamInvitation = async (invitationId) => {
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo admin puede revocar invitaciones');
+      notifyBlockingError('Solo el capitán puede revocar invitaciones');
       return;
     }
 
@@ -725,7 +711,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     const canRemoveAsManager = isSelectedTeamManager;
     const canLeaveOwnTeam = toStringId(memberId) === toStringId(selectedTeamCurrentUserMember?.id);
     if (!canRemoveAsManager && !canLeaveOwnTeam) {
-      notifyBlockingError('Solo admin puede quitar jugadores');
+      notifyBlockingError('Solo el capitán puede quitar jugadores');
       return false;
     }
 
@@ -746,6 +732,13 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
   const askRemoveMemberConfirmation = (member) => {
     if (!member?.id) return;
+
+    const isCaptainCard = Boolean(member?.is_captain);
+    const hasOtherMembers = (members || []).some((candidate) => candidate?.id && candidate.id !== member.id);
+    if (isCaptainCard && hasOtherMembers) {
+      notifyBlockingError('Transferí la capitanía antes de quitar al capitán del equipo');
+      return;
+    }
 
     const memberUserId = toStringId(member?.user_id || member?.jugador?.usuario_id);
     const isCurrentUserCard = Boolean(memberUserId && memberUserId === toStringId(userId));
@@ -789,7 +782,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const handleUpdateTeamDetails = async (payload, crestFile) => {
     if (!selectedTeam?.id) return;
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo admin puede editar este equipo');
+      notifyBlockingError('Solo el capitán puede editar este equipo');
       return;
     }
 
@@ -984,13 +977,11 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                   {members.map((member) => {
                     const memberUserId = toStringId(member?.user_id || member?.jugador?.usuario_id);
                     const memberHasUserAccount = Boolean(memberUserId);
-                    const memberIsAdmin = member.permissions_role === 'admin'
-                      || member.permissions_role === 'owner'
-                      || (memberUserId && memberUserId === toStringId(selectedTeam?.owner_user_id));
+                    const memberIsCaptain = Boolean(member?.is_captain);
                     const isCurrentUserCard = Boolean(memberUserId && memberUserId === toStringId(userId));
                     const canOpenMemberMenu = Boolean(isCurrentUserCard || isSelectedTeamManager);
-                    const showPromoteToAdmin = isSelectedTeamManager
-                      && !memberIsAdmin
+                    const canTransferCaptain = isSelectedTeamManager
+                      && !memberIsCaptain
                       && memberHasUserAccount
                       && !isCurrentUserCard;
                     const canRemoveOrLeave = Boolean(isCurrentUserCard || isSelectedTeamManager);
@@ -1013,12 +1004,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                             </span>
                             {member.is_captain ? (
                               <span className="inline-flex items-center gap-1 rounded-md border border-amber-300/35 bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-100">
-                                <Crown size={11} /> CAP
-                              </span>
-                            ) : null}
-                            {memberIsAdmin ? (
-                              <span className="inline-flex items-center rounded-md border border-sky-300/35 bg-sky-500/18 px-1.5 py-0.5 text-[10px] font-semibold text-sky-100">
-                                Admin
+                                <Crown size={11} /> Capitán
                               </span>
                             ) : null}
                           </div>
@@ -1092,18 +1078,18 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                                   </button>
                                 ) : null}
 
-                                {showPromoteToAdmin ? (
+                                {canTransferCaptain ? (
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setOpenMemberMenuId(null);
-                                      handlePromoteMemberToAdmin(member);
+                                      handleTransferCaptain(member);
                                     }}
                                     className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-sky-100 transition-all hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
                                     disabled={isSaving}
                                   >
                                     <Crown size={14} />
-                                    Hacer admin
+                                    Transferir capitanía
                                   </button>
                                 ) : null}
                               </div>
@@ -1473,24 +1459,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               />
             </label>
           </div>
-
-          <label className="inline-flex items-center gap-2.5 text-white/90 font-oswald text-[15px] cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={newMember.isCaptain}
-              onChange={(event) => setNewMember((prev) => ({ ...prev, isCaptain: event.target.checked }))}
-              className="sr-only"
-            />
-            <span
-              className={`inline-flex h-5 w-5 items-center justify-center rounded-md border transition-all ${newMember.isCaptain
-                ? 'border-[#93C5FD] bg-[#2563EB] text-white shadow-[0_0_0_3px_rgba(37,99,235,0.22)]'
-                : 'border-white/30 bg-slate-900/70 text-transparent'
-                }`}
-            >
-              <Check size={13} strokeWidth={3} />
-            </span>
-            <span>Marcar como capitan</span>
-          </label>
 
           {!memberSelfEditMode ? (
             <div className="rounded-xl border border-white/15 bg-white/5 p-3">

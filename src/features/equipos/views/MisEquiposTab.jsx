@@ -107,7 +107,7 @@ const MisEquiposTab = ({ userId }) => {
             await addCurrentUserAsTeamMember({
               teamId: persistedTeam.id,
               userId,
-              permissionsRole: 'admin',
+              permissionsRole: 'member',
               role: 'player',
               isCaptain: true,
             });

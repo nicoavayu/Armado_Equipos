@@ -1736,56 +1736,106 @@ export const getChallengeById = async (challengeId) => {
 };
 
 const resolveUserAdminTeamIds = async ({ userId, teamIds, teamRows = [] }) => {
-  const adminTeamIds = new Set(
-    (teamRows || [])
-      .filter((team) => String(team?.owner_user_id || '') === String(userId || ''))
-      .map((team) => team.id)
-      .filter(Boolean),
-  );
-
+  const adminTeamIds = new Set();
   if (!userId || !Array.isArray(teamIds) || teamIds.length === 0) {
     return adminTeamIds;
   }
 
-  let response = await supabase
-    .from('team_members')
-    .select('team_id, permissions_role')
-    .in('team_id', teamIds)
-    .eq('user_id', userId);
+  const queryMembershipRows = async (selectClause) => {
+    let response = await supabase
+      .from('team_members')
+      .select(selectClause)
+      .in('team_id', teamIds)
+      .eq('user_id', userId);
 
-  if (response.error && isMissingColumnError(response.error, 'user_id')) {
-    const jugadoresResponse = await supabase
-      .from('jugadores')
-      .select('id')
-      .eq('usuario_id', userId);
+    if (response.error && isMissingColumnError(response.error, 'user_id')) {
+      const jugadoresResponse = await supabase
+        .from('jugadores')
+        .select('id')
+        .eq('usuario_id', userId);
 
-    if (jugadoresResponse.error) {
-      throw new Error(jugadoresResponse.error.message || 'No se pudieron cargar tus jugadores');
-    }
+      if (jugadoresResponse.error) {
+        throw new Error(jugadoresResponse.error.message || 'No se pudieron cargar tus jugadores');
+      }
 
-    const jugadorIds = (jugadoresResponse.data || []).map((row) => row?.id).filter(Boolean);
-    if (jugadorIds.length > 0) {
+      const jugadorIds = (jugadoresResponse.data || []).map((row) => row?.id).filter(Boolean);
+      if (jugadorIds.length === 0) return { data: [], error: null };
+
       response = await supabase
         .from('team_members')
-        .select('team_id, permissions_role')
+        .select(selectClause)
         .in('team_id', teamIds)
         .in('jugador_id', jugadorIds);
-    } else {
-      response = { data: [], error: null };
     }
+
+    return response;
+  };
+
+  let captainColumnAvailable = true;
+  let response = await queryMembershipRows('team_id, permissions_role, is_captain');
+
+  if (response.error && isMissingColumnError(response.error, 'is_captain')) {
+    captainColumnAvailable = false;
+    response = await queryMembershipRows('team_id, permissions_role');
   }
 
   if (response.error && isMissingColumnError(response.error, 'permissions_role')) {
-    response = { data: response.data || [], error: null };
+    response = await queryMembershipRows(captainColumnAvailable ? 'team_id, is_captain' : 'team_id');
   }
 
   if (response.error) {
     throw new Error(response.error.message || 'No se pudieron cargar tus permisos de equipos');
   }
 
-  (response.data || []).forEach((row) => {
+  const membershipRows = response.data || [];
+
+  if (captainColumnAvailable) {
+    let teamsWithCaptain = new Set();
+    const captainTeamsResponse = await supabase
+      .from('team_members')
+      .select('team_id')
+      .in('team_id', teamIds)
+      .eq('is_captain', true);
+
+    if (!captainTeamsResponse.error) {
+      teamsWithCaptain = new Set((captainTeamsResponse.data || []).map((row) => row?.team_id).filter(Boolean));
+    }
+
+    membershipRows.forEach((row) => {
+      if (Boolean(row?.is_captain) && row?.team_id) {
+        adminTeamIds.add(row.team_id);
+      }
+    });
+
+    (teamRows || [])
+      .filter((team) => String(team?.owner_user_id || '') === String(userId || ''))
+      .forEach((team) => {
+        if (team?.id && !teamsWithCaptain.has(team.id)) {
+          adminTeamIds.add(team.id);
+        }
+      });
+
+    if (adminTeamIds.size === 0) {
+      const legacyManagedRows = membershipRows.filter((row) => {
+        const role = String(row?.permissions_role || '').toLowerCase();
+        return row?.team_id && (role === 'owner' || role === 'admin');
+      });
+
+      if (legacyManagedRows.length > 0) {
+        legacyManagedRows.forEach((row) => {
+          if (!teamsWithCaptain.has(row.team_id)) {
+            adminTeamIds.add(row.team_id);
+          }
+        });
+      }
+    }
+
+    return adminTeamIds;
+  }
+
+  membershipRows.forEach((row) => {
     const role = String(row?.permissions_role || '').toLowerCase();
-    if (role === 'owner' || role === 'admin') {
+    if ((role === 'owner' || role === 'admin') && row?.team_id) {
       adminTeamIds.add(row.team_id);
     }
   });
@@ -1954,9 +2004,7 @@ export const listMyTeamMatches = async (userId, options = {}) => {
   return Array.from(dedup.values())
     .map((match) => {
       const canManage = adminTeamIds.has(match?.team_a_id)
-        || adminTeamIds.has(match?.team_b_id)
-        || String(match?.team_a?.owner_user_id || '') === String(userId)
-        || String(match?.team_b?.owner_user_id || '') === String(userId);
+        || adminTeamIds.has(match?.team_b_id);
 
       return {
         ...match,
