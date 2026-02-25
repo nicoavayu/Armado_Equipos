@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import TeamCard from '../components/TeamCard';
 import TeamFormModal from '../components/TeamFormModal';
 import Button from '../../../components/Button';
+import ConfirmModal from '../../../components/ConfirmModal';
 import EmptyStateCard from '../../../components/EmptyStateCard';
 import {
   acceptTeamInvitation,
@@ -32,6 +33,7 @@ const MisEquiposTab = ({ userId }) => {
   const [teamFormOpen, setTeamFormOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState(null);
   const [openTeamMenuId, setOpenTeamMenuId] = useState(null);
+  const [teamDeleteTarget, setTeamDeleteTarget] = useState(null);
 
   const loadTeams = useCallback(async () => {
     if (!userId) return;
@@ -140,16 +142,13 @@ const MisEquiposTab = ({ userId }) => {
     }
   };
 
-  const handleDeleteTeam = async (team) => {
-    if (!team?.id) return;
-
-    const confirmed = window.confirm(`Borrar el equipo "${team.name || 'Sin nombre'}"?`);
-    if (!confirmed) return;
-
+  const handleDeleteTeam = async () => {
+    if (!teamDeleteTarget?.id) return;
     try {
       setIsSaving(true);
-      await softDeleteTeam(team.id);
+      await softDeleteTeam(teamDeleteTarget.id);
       setOpenTeamMenuId(null);
+      setTeamDeleteTarget(null);
       await loadTeams();
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo borrar el equipo');
@@ -294,7 +293,8 @@ const MisEquiposTab = ({ userId }) => {
                           className="w-full inline-flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-200 transition-all hover:bg-slate-800"
                           onClick={(event) => {
                             event.stopPropagation();
-                            handleDeleteTeam(team);
+                            setOpenTeamMenuId(null);
+                            setTeamDeleteTarget(team);
                           }}
                           disabled={isSaving}
                         >
@@ -320,6 +320,21 @@ const MisEquiposTab = ({ userId }) => {
         }}
         onSubmit={handleCreateOrUpdateTeam}
         isSubmitting={isSaving}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(teamDeleteTarget)}
+        title="Borrar equipo"
+        message={`¿Querés borrar el equipo "${teamDeleteTarget?.name || 'Sin nombre'}"?`}
+        confirmText="Borrar"
+        cancelText="Cancelar"
+        danger
+        isDeleting={isSaving}
+        onConfirm={handleDeleteTeam}
+        onCancel={() => {
+          if (isSaving) return;
+          setTeamDeleteTarget(null);
+        }}
       />
     </>
   );
