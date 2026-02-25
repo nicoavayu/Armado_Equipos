@@ -13,6 +13,7 @@ import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { clearMatchFromList } from '../services/matchFinishService';
 import useInlineNotice from '../hooks/useInlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { SURVEY_WINDOW_HOURS } from '../utils/surveyNotificationCopy';
 
 // Styles are now directly in Tailwind
 // import './LegacyVoting.css'; // Removed
@@ -1262,7 +1263,7 @@ const EncuestaPartido = () => {
                 </div>
               </div>
               <div className={`${textClass} text-[26px] !mb-0`}>
-                Los resultados se publicarán en ~6 horas.
+                Los resultados se publicarán en ~{SURVEY_WINDOW_HOURS} horas.
               </div>
               <div className={centeredSummaryButtonWrapClass}>
                 <button

@@ -1,8 +1,8 @@
 import { supabase } from '../supabase';
 import { getResultsUrl } from '../utils/routes';
 import { toBigIntId } from '../utils';
-import { SURVEY_FINALIZE_DELAY_MS } from '../config/surveyConfig';
-import { getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
+import { SURVEY_FINALIZE_DELAY_MS, SURVEY_REMINDER_LEAD_MS } from '../config/surveyConfig';
+import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 
 /**
  * Creates post-match survey notifications for all players in a match
@@ -36,7 +36,9 @@ export const createPostMatchSurveyNotifications = async (partido) => {
     // Create notifications for all players
     const nowIso = new Date().toISOString();
     const surveyDeadlineAt = new Date(new Date(nowIso).getTime() + SURVEY_FINALIZE_DELAY_MS).toISOString();
-    const notifications = userIds.map((userId) => ({
+    const reminderSendAt = new Date(new Date(surveyDeadlineAt).getTime() - SURVEY_REMINDER_LEAD_MS).toISOString();
+
+    const startNotifications = userIds.map((userId) => ({
       user_id: userId,
       type: 'survey_start',
       title: '¡Encuesta lista!',
@@ -58,12 +60,40 @@ export const createPostMatchSurveyNotifications = async (partido) => {
       },
       read: false,
       created_at: nowIso,
+      send_at: nowIso,
+    }));
+
+    const reminderNotifications = userIds.map((userId) => ({
+      user_id: userId,
+      type: 'survey_reminder',
+      title: 'Recordatorio de encuesta',
+      message: getSurveyReminderMessage({
+        source: { created_at: nowIso, data: { survey_deadline_at: surveyDeadlineAt } },
+        matchName: partido.nombre || 'reciente',
+        now: new Date(reminderSendAt),
+      }),
+      partido_id: Number(partido.id),
+      match_ref: Number(partido.id),
+      data: {
+        match_id: String(partido.id),
+        matchId: Number(partido.id),
+        matchCode: partido.codigo,
+        matchDate: partido.fecha,
+        matchTime: partido.hora,
+        matchVenue: partido.sede,
+        survey_deadline_at: surveyDeadlineAt,
+        reminder_send_at: reminderSendAt,
+        reminder_type: '1h_before_deadline',
+      },
+      read: false,
+      created_at: nowIso,
+      send_at: reminderSendAt,
     }));
 
     // Insert notifications into the database
     const { data, error } = await supabase
       .from('notifications')
-      .insert(notifications)
+      .insert([...startNotifications, ...reminderNotifications])
       .select();
 
     if (error) throw error;

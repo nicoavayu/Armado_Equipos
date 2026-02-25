@@ -1,13 +1,159 @@
 import { supabase } from '../supabase';
 import { toBigIntId } from '../utils';
 import { parseLocalDateTime } from '../utils/dateLocal';
-import { SURVEY_FINALIZE_DELAY_MS, SURVEY_START_DELAY_MS } from '../config/surveyConfig';
-import { getSurveyStartMessage } from '../utils/surveyNotificationCopy';
+import { SURVEY_FINALIZE_DELAY_MS, SURVEY_REMINDER_LEAD_MS, SURVEY_START_DELAY_MS } from '../config/surveyConfig';
+import { getSurveyReminderMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 
 const isForeignKeyError = (error) => {
   if (!error) return false;
   const raw = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
   return error?.code === '23503' || raw.includes('foreign key');
+};
+
+const resolveSurveyDeadlineAt = (notificationLike, fallbackIso) => {
+  const explicitDeadline = notificationLike?.data?.survey_deadline_at
+    || notificationLike?.data?.deadline_at
+    || notificationLike?.data?.deadlineAt
+    || null;
+
+  if (explicitDeadline) {
+    const explicitDate = new Date(explicitDeadline);
+    if (!Number.isNaN(explicitDate.getTime())) return explicitDate.toISOString();
+  }
+
+  const anchor = notificationLike?.created_at || fallbackIso;
+  const anchorDate = new Date(anchor);
+  if (Number.isNaN(anchorDate.getTime())) return null;
+  return new Date(anchorDate.getTime() + SURVEY_FINALIZE_DELAY_MS).toISOString();
+};
+
+const resolveReminderSendAt = (surveyDeadlineAtIso, nowDate = new Date()) => {
+  const deadlineDate = new Date(surveyDeadlineAtIso);
+  if (Number.isNaN(deadlineDate.getTime())) return null;
+
+  const reminderAtMs = deadlineDate.getTime() - SURVEY_REMINDER_LEAD_MS;
+  if (reminderAtMs <= nowDate.getTime()) {
+    // If we're already inside the final hour but the survey is still open, send reminder now.
+    if (deadlineDate.getTime() > nowDate.getTime()) {
+      return new Date(nowDate.getTime() + 5000).toISOString();
+    }
+    return null;
+  }
+
+  return new Date(reminderAtMs).toISOString();
+};
+
+const fetchMatchRecipientIds = async (partidoId, adminUserId = null) => {
+  const { data: jugadores, error: playersError } = await supabase
+    .from('jugadores')
+    .select('usuario_id')
+    .eq('partido_id', partidoId)
+    .not('usuario_id', 'is', null);
+
+  if (playersError) throw playersError;
+
+  const recipients = new Set();
+  (jugadores || []).forEach((jugador) => {
+    const uid = jugador?.usuario_id;
+    if (uid) recipients.add(uid);
+  });
+  if (adminUserId) recipients.add(adminUserId);
+
+  return Array.from(recipients);
+};
+
+const scheduleSurveyReminderNotifications = async ({
+  partidoId,
+  partido,
+  surveyDeadlineAt,
+  reminderSendAt,
+  nowIso,
+}) => {
+  if (!partidoId || !surveyDeadlineAt || !reminderSendAt) return { inserted: 0 };
+
+  const recipientIds = await fetchMatchRecipientIds(partidoId, partido?.creado_por || null);
+  if (recipientIds.length === 0) return { inserted: 0 };
+
+  const { data: existingReminders, error: existingRemindersError } = await supabase
+    .from('notifications')
+    .select('id, user_id')
+    .eq('partido_id', partidoId)
+    .eq('type', 'survey_reminder');
+
+  if (existingRemindersError) {
+    console.warn('[MATCH_FINISH] Could not check existing survey reminders:', existingRemindersError);
+  }
+
+  const existingReminderUsers = new Set((existingReminders || []).map((row) => row.user_id).filter(Boolean));
+  const pendingRecipients = recipientIds.filter((userId) => !existingReminderUsers.has(userId));
+  if (pendingRecipients.length === 0) return { inserted: 0 };
+
+  const reminderMessage = getSurveyReminderMessage({
+    source: { created_at: nowIso, data: { survey_deadline_at: surveyDeadlineAt } },
+    matchName: partido?.nombre || formatMatchDate(partido?.fecha) || 'este partido',
+    now: new Date(reminderSendAt),
+  });
+
+  const reminderRows = pendingRecipients.map((userId) => ({
+    user_id: userId,
+    type: 'survey_reminder',
+    title: 'Recordatorio de encuesta',
+    message: reminderMessage,
+    partido_id: partidoId,
+    match_ref: partidoId,
+    data: {
+      match_id: String(partidoId),
+      matchId: partidoId,
+      matchCode: partido?.codigo || null,
+      link: `/encuesta/${partidoId}`,
+      partido_nombre: partido?.nombre || null,
+      partido_fecha: partido?.fecha || null,
+      partido_hora: partido?.hora || null,
+      partido_sede: partido?.sede || null,
+      survey_deadline_at: surveyDeadlineAt,
+      reminder_send_at: reminderSendAt,
+      reminder_type: '1h_before_deadline',
+    },
+    read: false,
+    created_at: nowIso,
+    send_at: reminderSendAt,
+  }));
+
+  const { error: bulkInsertError } = await supabase
+    .from('notifications')
+    .insert(reminderRows);
+
+  if (!bulkInsertError) {
+    return { inserted: reminderRows.length };
+  }
+
+  // Duplicate races are fine (another worker/client already inserted).
+  if (bulkInsertError.code === '23505' || String(bulkInsertError.message || '').toLowerCase().includes('duplicate key')) {
+    console.warn('[MATCH_FINISH] survey_reminder duplicate detected, skipping duplicates');
+    return { inserted: 0 };
+  }
+
+  if (!isForeignKeyError(bulkInsertError)) throw bulkInsertError;
+
+  let inserted = 0;
+  for (const row of reminderRows) {
+    // eslint-disable-next-line no-await-in-loop
+    const { error: singleInsertError } = await supabase.from('notifications').insert([row]);
+    if (!singleInsertError) {
+      inserted += 1;
+      continue;
+    }
+    if (
+      isForeignKeyError(singleInsertError)
+      || singleInsertError.code === '23505'
+      || String(singleInsertError.message || '').toLowerCase().includes('duplicate key')
+    ) {
+      continue;
+    }
+    throw singleInsertError;
+  }
+
+  return { inserted };
 };
 
 /**
@@ -23,29 +169,54 @@ export const checkAndNotifyMatchFinish = async (partido) => {
     if (!partidoDateTime) return false;
     const now = new Date();
 
-    // Encuesta habilitada tras delay configurable (debug: 1 minuto, prod: 1 hora).
+    // Encuesta habilitada al finalizar el partido (por defecto: hora de inicio + 1h).
     const surveyStartTime = new Date(partidoDateTime.getTime() + SURVEY_START_DELAY_MS);
     if (now < surveyStartTime) return false;
 
     const partidoId = Number(partido.id);
     if (!partidoId || Number.isNaN(partidoId)) return false;
 
+    const nowIso = new Date().toISOString();
+    const surveyDeadlineAt = new Date(new Date(nowIso).getTime() + SURVEY_FINALIZE_DELAY_MS).toISOString();
+    const reminderSendAt = resolveReminderSendAt(surveyDeadlineAt, now);
+
     // Idempotencia: si ya existe una noti de encuesta, no reenviar.
     const { data: existingNotifications, error: existingError } = await supabase
       .from('notifications')
-      .select('id')
+      .select('id, type, created_at, data')
       .eq('partido_id', partidoId)
-      .in('type', ['survey_start', 'post_match_survey'])
-      .limit(1);
+      .in('type', ['survey_start', 'post_match_survey', 'survey_reminder'])
+      .limit(5);
 
     if (existingError) {
       console.warn('[MATCH_FINISH] Could not check existing survey notifications:', existingError);
     } else if ((existingNotifications || []).length > 0) {
+      const types = new Set((existingNotifications || []).map((n) => n.type));
+      const hasSurveyStart = types.has('survey_start') || types.has('post_match_survey');
+      const hasSurveyReminder = types.has('survey_reminder');
+
+      if (hasSurveyStart && !hasSurveyReminder) {
+        const startNotification = (existingNotifications || []).find((n) => n.type === 'survey_start' || n.type === 'post_match_survey');
+        const resolvedDeadline = resolveSurveyDeadlineAt(startNotification, nowIso);
+        const resolvedReminderAt = resolvedDeadline ? resolveReminderSendAt(resolvedDeadline, now) : null;
+
+        if (resolvedDeadline && resolvedReminderAt) {
+          try {
+            await scheduleSurveyReminderNotifications({
+              partidoId,
+              partido,
+              surveyDeadlineAt: resolvedDeadline,
+              reminderSendAt: resolvedReminderAt,
+              nowIso,
+            });
+          } catch (reminderError) {
+            console.warn('[MATCH_FINISH] Could not backfill survey reminder:', reminderError);
+          }
+        }
+      }
       return false;
     }
 
-    const nowIso = new Date().toISOString();
-    const surveyDeadlineAt = new Date(new Date(nowIso).getTime() + SURVEY_FINALIZE_DELAY_MS).toISOString();
     const title = '¡Encuesta lista!';
     const message = getSurveyStartMessage({
       source: { created_at: nowIso, data: { survey_deadline_at: surveyDeadlineAt } },
@@ -73,11 +244,37 @@ export const checkAndNotifyMatchFinish = async (partido) => {
 
     if (!rpcError) {
       const recipients = Number(rpcData?.recipients_count || 0);
+      if (recipients > 0 && reminderSendAt) {
+        try {
+          await scheduleSurveyReminderNotifications({
+            partidoId,
+            partido,
+            surveyDeadlineAt,
+            reminderSendAt,
+            nowIso,
+          });
+        } catch (reminderError) {
+          console.warn('[MATCH_FINISH] survey reminder scheduling failed after RPC success:', reminderError);
+        }
+      }
       return recipients > 0;
     }
 
     if (rpcError?.code === '23505' || String(rpcError?.message || '').toLowerCase().includes('duplicate key')) {
       console.warn('[MATCH_FINISH] survey_start notification already exists, skipping fallback', rpcError);
+      if (reminderSendAt) {
+        try {
+          await scheduleSurveyReminderNotifications({
+            partidoId,
+            partido,
+            surveyDeadlineAt,
+            reminderSendAt,
+            nowIso,
+          });
+        } catch (reminderError) {
+          console.warn('[MATCH_FINISH] survey reminder scheduling failed on duplicate race:', reminderError);
+        }
+      }
       return false;
     }
 
@@ -125,6 +322,7 @@ export const checkAndNotifyMatchFinish = async (partido) => {
       },
       read: false,
       created_at: nowIso,
+      send_at: nowIso,
     }));
 
     // Insert notifications in bulk first; if one FK fails, retry by user to avoid blocking valid recipients.
@@ -134,6 +332,19 @@ export const checkAndNotifyMatchFinish = async (partido) => {
 
     if (!insertError) {
       console.log(`Sent ${notifications.length} survey notifications for finished match ${partidoId}`);
+      if (reminderSendAt) {
+        try {
+          await scheduleSurveyReminderNotifications({
+            partidoId,
+            partido,
+            surveyDeadlineAt,
+            reminderSendAt,
+            nowIso,
+          });
+        } catch (reminderError) {
+          console.warn('[MATCH_FINISH] survey reminder scheduling failed after fallback bulk insert:', reminderError);
+        }
+      }
       return true;
     }
 
@@ -167,6 +378,19 @@ export const checkAndNotifyMatchFinish = async (partido) => {
 
     if (sentCount > 0) {
       console.log(`Sent ${sentCount} survey notifications for finished match ${partidoId}`);
+      if (reminderSendAt) {
+        try {
+          await scheduleSurveyReminderNotifications({
+            partidoId,
+            partido,
+            surveyDeadlineAt,
+            reminderSendAt,
+            nowIso,
+          });
+        } catch (reminderError) {
+          console.warn('[MATCH_FINISH] survey reminder scheduling failed after fallback single inserts:', reminderError);
+        }
+      }
       return true;
     }
 

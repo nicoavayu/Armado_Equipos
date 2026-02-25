@@ -75,8 +75,8 @@ export const schedulePostMatchSurveyNotifications = async (matchData) => {
     const matchDate = matchData.fecha ? new Date(matchData.fecha) : new Date();
     matchDate.setHours(hours, minutes, 0, 0);
     
-    // Agregar duración del partido (1 hora por defecto) + 1 hora para la notificación
-    const notificationTime = new Date(matchDate.getTime() + 2 * 60 * 60 * 1000);
+    // Notificar encuesta al instante cuando termina el partido (inicio + 1h por defecto)
+    const notificationTime = new Date(matchDate.getTime() + 60 * 60 * 1000);
     
     // Actualizar el partido con la hora de finalización y programación de encuesta
     const { error: updateError } = await supabase
