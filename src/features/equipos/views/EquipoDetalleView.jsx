@@ -166,6 +166,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const [memberEditing, setMemberEditing] = useState(null);
   const [openMemberMenuId, setOpenMemberMenuId] = useState(null);
   const [memberConfirmAction, setMemberConfirmAction] = useState(null);
+  const [memberSelfEditMode, setMemberSelfEditMode] = useState(false);
   const [profileModalPlayer, setProfileModalPlayer] = useState(null);
 
   const [newMember, setNewMember] = useState(EMPTY_NEW_MEMBER);
@@ -340,6 +341,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     setMemberNameInput('');
     setRoleMenuOpen(false);
     setMemberEditing(null);
+    setMemberSelfEditMode(false);
     setMemberPhotoFile(null);
     setRemoveMemberPhoto(false);
 
@@ -373,6 +375,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
   const openCreateMemberModal = () => {
     setMemberModalMode('create');
+    setMemberSelfEditMode(false);
     setMemberEditing(null);
     setNewMember(EMPTY_NEW_MEMBER);
     setMemberNameInput('');
@@ -416,8 +419,10 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     }
   };
 
-  const openEditMemberModal = (member) => {
+  const openEditMemberModal = (member, options = {}) => {
+    const selfEdit = Boolean(options?.selfEdit);
     setMemberModalMode('edit');
+    setMemberSelfEditMode(selfEdit);
     setMemberEditing(member);
     setNewMember({
       jugadorId: toStringId(member?.jugador_id),
@@ -465,7 +470,10 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const handleSaveMember = async (event) => {
     event.preventDefault();
     if (!selectedTeam?.id) return;
-    if (!isSelectedTeamManager) {
+    const isEditingOwnMember = memberModalMode === 'edit'
+      && toStringId(memberEditing?.id) === toStringId(selectedTeamCurrentUserMember?.id);
+    const canSelfEditFromRoster = Boolean(memberSelfEditMode && isEditingOwnMember);
+    if (!isSelectedTeamManager && !canSelfEditFromRoster) {
       notifyBlockingError('Solo admin puede editar la plantilla');
       return;
     }
@@ -529,18 +537,19 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       }
 
       let photoUrl = memberModalMode === 'edit' ? (memberEditing?.photo_url || null) : null;
+      if (!memberSelfEditMode) {
+        if (memberModalMode === 'edit' && removeMemberPhoto) {
+          photoUrl = null;
+        }
 
-      if (memberModalMode === 'edit' && removeMemberPhoto) {
-        photoUrl = null;
-      }
-
-      if (memberPhotoFile) {
-        photoUrl = await uploadTeamMemberPhoto({
-          file: memberPhotoFile,
-          userId,
-          teamId: selectedTeam.id,
-          memberId: memberModalMode === 'edit' ? memberEditing?.id : 'draft',
-        });
+        if (memberPhotoFile) {
+          photoUrl = await uploadTeamMemberPhoto({
+            file: memberPhotoFile,
+            userId,
+            teamId: selectedTeam.id,
+            memberId: memberModalMode === 'edit' ? memberEditing?.id : 'draft',
+          });
+        }
       }
 
       if (memberModalMode === 'create') {
@@ -555,12 +564,17 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           photoUrl,
         });
       } else {
-        const updates = {
-          role: newMember.role,
-          is_captain: newMember.isCaptain,
-          shirt_number: shirtNumber,
-          photo_url: photoUrl,
-        };
+        const updates = memberSelfEditMode
+          ? {
+            is_captain: newMember.isCaptain,
+            shirt_number: shirtNumber,
+          }
+          : {
+            role: newMember.role,
+            is_captain: newMember.isCaptain,
+            shirt_number: shirtNumber,
+            photo_url: photoUrl,
+          };
 
         await updateTeamMember(memberEditing.id, { ...updates });
       }
@@ -1035,7 +1049,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                                   onClick={() => {
                                     setOpenMemberMenuId(null);
                                     if (isCurrentUserCard) {
-                                      navigate('/profile');
+                                      openEditMemberModal(member, { selfEdit: true });
                                       return;
                                     }
 
@@ -1390,50 +1404,59 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           <div className="grid grid-cols-2 gap-3">
             <div className="block">
               <span className="text-xs text-white/80 uppercase tracking-wide">Posicion</span>
-              <div ref={roleMenuContainerRef} className="relative mt-1">
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setRoleMenuOpen((prev) => !prev);
-                  }}
-                  className="w-full inline-flex items-center justify-between rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white transition-all hover:border-[#9ED3FF]/50"
-                  aria-label="Seleccionar posicion"
-                >
-                  <span className="font-semibold tracking-wide">{selectedRoleOption.short}</span>
-                  <ChevronDown size={15} className={`transition-transform ${roleMenuOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {roleMenuOpen ? (
-                  <div
-                    className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto rounded-xl border border-white/15 bg-[#0f172a] p-1 shadow-[0_10px_26px_rgba(0,0,0,0.45)]"
-                    onClick={(event) => event.stopPropagation()}
+              {memberSelfEditMode ? (
+                <input
+                  type="text"
+                  readOnly
+                  value={selectedRoleOption.short}
+                  className="mt-1 w-full rounded-xl bg-slate-800/70 border border-white/15 px-3 py-2 text-white/85 font-semibold tracking-wide"
+                />
+              ) : (
+                <div ref={roleMenuContainerRef} className="relative mt-1">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setRoleMenuOpen((prev) => !prev);
+                    }}
+                    className="w-full inline-flex items-center justify-between rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white transition-all hover:border-[#9ED3FF]/50"
+                    aria-label="Seleccionar posicion"
                   >
-                    {ROLE_OPTIONS.map((option) => {
-                      const isSelected = option.value === selectedRoleOption.value;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => {
-                            setNewMember((prev) => ({ ...prev, role: option.value }));
-                            setRoleMenuOpen(false);
-                          }}
-                          className={`w-full rounded-lg px-3 py-2 text-left transition-all ${isSelected
-                            ? 'bg-[#128BE9]/25 text-white'
-                            : 'text-white/85 hover:bg-white/8'
-                            }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="truncate">{option.label}</span>
-                            <span className="text-xs font-semibold text-[#9ED3FF]">{option.short}</span>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
+                    <span className="font-semibold tracking-wide">{selectedRoleOption.short}</span>
+                    <ChevronDown size={15} className={`transition-transform ${roleMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {roleMenuOpen ? (
+                    <div
+                      className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto rounded-xl border border-white/15 bg-[#0f172a] p-1 shadow-[0_10px_26px_rgba(0,0,0,0.45)]"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      {ROLE_OPTIONS.map((option) => {
+                        const isSelected = option.value === selectedRoleOption.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => {
+                              setNewMember((prev) => ({ ...prev, role: option.value }));
+                              setRoleMenuOpen(false);
+                            }}
+                            className={`w-full rounded-lg px-3 py-2 text-left transition-all ${isSelected
+                              ? 'bg-[#128BE9]/25 text-white'
+                              : 'text-white/85 hover:bg-white/8'
+                              }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="truncate">{option.label}</span>
+                              <span className="text-xs font-semibold text-[#9ED3FF]">{option.short}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
 
             <label className="block">
@@ -1469,64 +1492,66 @@ const EquipoDetalleView = ({ teamId, userId }) => {
             <span>Marcar como capitan</span>
           </label>
 
-          <div className="rounded-xl border border-white/15 bg-white/5 p-3">
-            <span className="text-xs text-white/80 uppercase tracking-wide">Foto (opcional)</span>
-            <div className="mt-2 flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
+          {!memberSelfEditMode ? (
+            <div className="rounded-xl border border-white/15 bg-white/5 p-3">
+              <span className="text-xs text-white/80 uppercase tracking-wide">Foto (opcional)</span>
+              <div className="mt-2 flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
+                  {memberPhotoDisplay ? (
+                    <img src={memberPhotoDisplay} alt="Preview jugador" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-white/40">
+                      <Camera size={16} />
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0 rounded-xl border border-dashed border-white/20 bg-slate-900/45 px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!memberPhotoInputRef.current) return;
+                      memberPhotoInputRef.current.value = '';
+                      memberPhotoInputRef.current.click();
+                    }}
+                    className="w-full inline-flex items-center gap-2 text-left text-sm text-white/90 hover:text-white"
+                  >
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#9ED3FF]/40 bg-[#128BE9]/15 text-[#9ED3FF] shrink-0">
+                      <Camera size={14} />
+                    </span>
+                    <span className="font-semibold">{memberPhotoFile ? 'Cambiar foto' : 'Subir foto'}</span>
+                  </button>
+
+                  <p className="mt-1 text-xs text-white/60 truncate">
+                    {memberPhotoDisplay ? 'Foto lista' : 'PNG, JPG, WEBP o SVG'}
+                  </p>
+
+                  <input
+                    ref={memberPhotoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) handleSelectMemberPhoto(file);
+                    }}
+                    className="hidden"
+                  />
+                </div>
+
                 {memberPhotoDisplay ? (
-                  <img src={memberPhotoDisplay} alt="Preview jugador" className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-white/40">
-                    <Camera size={16} />
-                  </span>
-                )}
+                  <button
+                    type="button"
+                    onClick={handleClearMemberPhoto}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-red-300/35 bg-red-500/10 text-red-200 transition-all hover:bg-red-500/20"
+                    title="Quitar foto"
+                    aria-label="Quitar foto"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                ) : null}
               </div>
-
-              <div className="flex-1 min-w-0 rounded-xl border border-dashed border-white/20 bg-slate-900/45 px-3 py-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!memberPhotoInputRef.current) return;
-                    memberPhotoInputRef.current.value = '';
-                    memberPhotoInputRef.current.click();
-                  }}
-                  className="w-full inline-flex items-center gap-2 text-left text-sm text-white/90 hover:text-white"
-                >
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#9ED3FF]/40 bg-[#128BE9]/15 text-[#9ED3FF] shrink-0">
-                    <Camera size={14} />
-                  </span>
-                  <span className="font-semibold">{memberPhotoFile ? 'Cambiar foto' : 'Subir foto'}</span>
-                </button>
-
-                <p className="mt-1 text-xs text-white/60 truncate">
-                  {memberPhotoDisplay ? 'Foto lista' : 'PNG, JPG, WEBP o SVG'}
-                </p>
-
-                <input
-                  ref={memberPhotoInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) handleSelectMemberPhoto(file);
-                  }}
-                  className="hidden"
-                />
-              </div>
-
-              {memberPhotoDisplay ? (
-                <button
-                  type="button"
-                  onClick={handleClearMemberPhoto}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-red-300/35 bg-red-500/10 text-red-200 transition-all hover:bg-red-500/20"
-                  title="Quitar foto"
-                  aria-label="Quitar foto"
-                >
-                  <Trash2 size={14} />
-                </button>
-              ) : null}
             </div>
-          </div>
+          ) : null}
 
         </form>
       </Modal>
