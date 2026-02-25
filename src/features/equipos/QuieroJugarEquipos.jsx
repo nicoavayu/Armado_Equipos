@@ -75,7 +75,7 @@ const QuieroJugarEquipos = ({
                 type="button"
                 onClick={() => setActiveSubtab(tab.key)}
                 className={`flex-1 min-w-0 px-1 h-10 rounded-[12px] font-oswald text-[18px] font-semibold tracking-[0.01em] transition-colors duration-200 ${activeSubtab === tab.key
-                  ? 'bg-[#235796] text-white'
+                  ? 'bg-[#128BE9] text-white'
                   : 'text-white/58 hover:text-white/[0.88] hover:bg-white/[0.06]'
                   }`}
               >

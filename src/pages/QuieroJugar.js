@@ -432,7 +432,7 @@ const QuieroJugar = ({
           <div className="bg-white/[0.04] border border-white/[0.08] rounded-[16px] p-1 flex gap-1">
             <button
               className={`flex-1 h-10 rounded-[12px] font-oswald text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-colors duration-200 ${activeTab === 'matches'
-                ? 'bg-[#235796] text-white'
+                ? 'bg-[#128BE9] text-white'
                 : 'text-white/58 hover:text-white/[0.88] hover:bg-white/[0.06]'
                 }`}
               onClick={() => {
@@ -444,7 +444,7 @@ const QuieroJugar = ({
             </button>
             <button
               className={`flex-1 h-10 rounded-[12px] font-oswald text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-colors duration-200 ${activeTab === 'players'
-                ? 'bg-[#235796] text-white'
+                ? 'bg-[#128BE9] text-white'
                 : 'text-white/58 hover:text-white/[0.88] hover:bg-white/[0.06]'
                 }`}
               onClick={() => {
