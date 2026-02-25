@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPublicBaseUrl } from '../utils/publicBaseUrl';
 import { UI_SIZES } from '../appConstants';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import {
   closeVotingAndCalculateScores,
+  checkIfAlreadyVoted,
   getVotantesIds,
   getVotantesConNombres,
   getJugadoresDelPartido,
@@ -39,6 +40,7 @@ export default function ArmarEquiposView({
   const [isClosing, setIsClosing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [calling, setCalling] = useState(false);
+  const [checkingVoteStatus, setCheckingVoteStatus] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState({ open: false, action: null });
@@ -62,21 +64,96 @@ export default function ArmarEquiposView({
     return () => clearTimeout(timer);
   }, [inlineNotice]);
 
+  const normalizeIdentity = useCallback((value) => {
+    if (value === null || value === undefined) return null;
+    const normalized = String(value).trim();
+    return normalized.length > 0 ? normalized : null;
+  }, []);
+
+  const normalizeName = useCallback((value) => {
+    if (!value) return null;
+    const normalized = String(value).trim().toLowerCase();
+    return normalized.length > 0 ? normalized : null;
+  }, []);
+
+  const votantesIdSet = useMemo(() => {
+    const ids = (votantes || []).map((id) => normalizeIdentity(id)).filter(Boolean);
+    return new Set(ids);
+  }, [votantes, normalizeIdentity]);
+
+  const votantesNameSet = useMemo(() => {
+    const names = (votantesConNombres || [])
+      .map((voter) => normalizeName(voter?.nombre))
+      .filter(Boolean);
+    return new Set(names);
+  }, [votantesConNombres, normalizeName]);
+
+  const currentRosterPlayer = useMemo(() => {
+    if (!user?.id || !Array.isArray(jugadores)) return null;
+    const authId = normalizeIdentity(user.id);
+    if (!authId) return null;
+    return jugadores.find((j) => {
+      const byUserId = normalizeIdentity(j?.usuario_id);
+      const byUuid = normalizeIdentity(j?.uuid);
+      return byUserId === authId || byUuid === authId;
+    }) || null;
+  }, [jugadores, user?.id, normalizeIdentity]);
+
+  const currentUserIdentityCandidates = useMemo(() => {
+    const candidates = [
+      user?.id,
+      currentRosterPlayer?.usuario_id,
+      currentRosterPlayer?.uuid,
+      currentRosterPlayer?.id,
+    ]
+      .map((value) => normalizeIdentity(value))
+      .filter(Boolean);
+    return Array.from(new Set(candidates));
+  }, [user?.id, currentRosterPlayer, normalizeIdentity]);
+
+  const currentUserNameCandidates = useMemo(() => {
+    const names = [
+      currentRosterPlayer?.nombre,
+      user?.user_metadata?.full_name,
+      user?.user_metadata?.name,
+    ]
+      .map((value) => normalizeName(value))
+      .filter(Boolean);
+    return Array.from(new Set(names));
+  }, [currentRosterPlayer?.nombre, user?.user_metadata?.full_name, user?.user_metadata?.name, normalizeName]);
+
+  const currentUserHasVotedLocal = useMemo(() => {
+    if (currentUserIdentityCandidates.some((id) => votantesIdSet.has(id))) return true;
+    return currentUserNameCandidates.some((name) => votantesNameSet.has(name));
+  }, [currentUserIdentityCandidates, currentUserNameCandidates, votantesIdSet, votantesNameSet]);
+
+  const playerHasVoted = useCallback((player) => {
+    if (!player) return false;
+    const ids = [player.uuid, player.usuario_id, player.id]
+      .map((value) => normalizeIdentity(value))
+      .filter(Boolean);
+    if (ids.some((id) => votantesIdSet.has(id))) return true;
+
+    const normalizedPlayerName = normalizeName(player.nombre);
+    return normalizedPlayerName ? votantesNameSet.has(normalizedPlayerName) : false;
+  }, [normalizeIdentity, normalizeName, votantesIdSet, votantesNameSet]);
+
+  const refreshVotantes = useCallback(async () => {
+    if (!partidoActual?.id) return;
+    try {
+      const votantesIds = await getVotantesIds(partidoActual.id);
+      const votantesNombres = await getVotantesConNombres(partidoActual.id);
+      setVotantes(votantesIds || []);
+      setVotantesConNombres(votantesNombres || []);
+    } catch (error) {
+      console.error('Error loading votantes:', error);
+    }
+  }, [partidoActual?.id]);
+
   // Cargar votantes y suscripción en tiempo real
   useEffect(() => {
-    const loadVotantes = async () => {
-      if (!partidoActual?.id) return;
-      try {
-        const votantesIds = await getVotantesIds(partidoActual.id);
-        const votantesNombres = await getVotantesConNombres(partidoActual.id);
-        setVotantes(votantesIds || []);
-        setVotantesConNombres(votantesNombres || []);
-      } catch (error) {
-        console.error('Error loading votantes:', error);
-      }
-    };
-
-    loadVotantes();
+    if (!partidoActual?.id) return undefined;
+    refreshVotantes();
 
     // Suscripción en tiempo real para refrescar cuando hay cambios
     const subscription = supabase
@@ -86,23 +163,53 @@ export default function ArmarEquiposView({
         schema: 'public',
         table: 'partidos',
         filter: `id=eq.${partidoActual?.id}`,
-      }, async () => {
-        // Refrescar votantes cuando se actualiza el partido
-        try {
-          const votantesIds = await getVotantesIds(partidoActual.id);
-          const votantesNombres = await getVotantesConNombres(partidoActual.id);
-          setVotantes(votantesIds || []);
-          setVotantesConNombres(votantesNombres || []);
-        } catch (error) {
-          console.error('Error refreshing voters:', error);
-        }
+      }, () => {
+        refreshVotantes();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'votos',
+        filter: `partido_id=eq.${partidoActual?.id}`,
+      }, () => {
+        refreshVotantes();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'votos_publicos',
+        filter: `partido_id=eq.${partidoActual?.id}`,
+      }, () => {
+        refreshVotantes();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'public_voters',
+        filter: `partido_id=eq.${partidoActual?.id}`,
+      }, () => {
+        refreshVotantes();
       })
       .subscribe();
 
+    const handleFocus = () => {
+      refreshVotantes();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshVotantes();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       subscription.unsubscribe();
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [partidoActual?.id]);
+  }, [partidoActual?.id, refreshVotantes]);
 
   // Derivar estado de votación desde DB (notificaciones de tipo call_to_vote)
   useEffect(() => {
@@ -299,7 +406,7 @@ export default function ArmarEquiposView({
     return 'Llamar a votar';
   })();
 
-  const handlePrimaryClick = () => {
+  const handlePrimaryClick = async () => {
     const estado = estadoOverride || partidoActual?.estado;
     if (estado === 'equipos_formados') {
       // Already formed, keep current behavior (no redirect in minimal patch)
@@ -307,18 +414,36 @@ export default function ArmarEquiposView({
       return;
     }
     if (votingStarted) {
-      // START CHANGE: Check if user already voted
-      const hasVoted = votantes.includes(user?.id) || (user?.id && votantesConNombres.some((v) => v.id === user.id));
+      if (checkingVoteStatus) return;
+      setCheckingVoteStatus(true);
+      try {
+        let hasVoted = currentUserHasVotedLocal;
 
-      if (hasVoted) {
-        setConfirmConfig({ open: true, action: 'already_voted' });
-        return;
+        if (!hasVoted && partidoActual?.id) {
+          for (const candidateId of currentUserIdentityCandidates) {
+            const alreadyVoted = await checkIfAlreadyVoted(candidateId, partidoActual.id);
+            if (alreadyVoted) {
+              hasVoted = true;
+              break;
+            }
+          }
+        }
+
+        if (hasVoted) {
+          await refreshVotantes();
+          setConfirmConfig({ open: true, action: 'already_voted' });
+          return;
+        }
+
+        // Navigate to voting using partidoId (codigo may not be loaded)
+        console.log('[Teams] Navigating to voting for match:', partidoActual.id);
+        navigate(buildVotingRoute({ partidoId: partidoActual.id }));
+      } catch (error) {
+        console.warn('[Teams] failed to verify local voter status, allowing access to voting', error);
+        navigate(buildVotingRoute({ partidoId: partidoActual.id }));
+      } finally {
+        setCheckingVoteStatus(false);
       }
-      // END CHANGE
-
-      // Navigate to voting using partidoId (codigo may not be loaded)
-      console.log('[Teams] Navigating to voting for match:', partidoActual.id);
-      navigate(buildVotingRoute({ partidoId: partidoActual.id }));
       return;
     }
     // Open confirm modal to start voting
@@ -675,10 +800,7 @@ export default function ArmarEquiposView({
             <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
               {jugadores.map((j) => {
                 // Comparación más robusta de nombres
-                const hasVoted = votantesConNombres.some((v) => {
-                  if (!v.nombre || !j.nombre) return false;
-                  return v.nombre.toLowerCase().trim() === j.nombre.toLowerCase().trim();
-                }) || votantes.includes(j.uuid) || votantes.includes(j.usuario_id);
+                const hasVoted = playerHasVoted(j);
 
                 return (
                   <PlayerCardTrigger
@@ -742,9 +864,9 @@ export default function ArmarEquiposView({
                 type="button"
                 className="relative z-10 w-full font-oswald normal-case text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:brightness-110 active:scale-95"
                 onClick={handlePrimaryClick}
-                disabled={calling}
+                disabled={calling || checkingVoteStatus}
               >
-                {calling ? <LoadingSpinner size="small" /> : primaryLabel}
+                {calling || checkingVoteStatus ? <LoadingSpinner size="small" /> : primaryLabel}
               </button>
               <div className="text-[11px] text-white/50 leading-snug text-center px-1">
                 Notifica a los jugadores que ya tienen la app

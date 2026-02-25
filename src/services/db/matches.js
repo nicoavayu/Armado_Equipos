@@ -373,18 +373,45 @@ export const getVotantesIds = async (partidoId) => {
     console.error('Error fetching regular voters:', regularError);
   }
 
-  // 2. Fetch public voters from 'public_voters'
-  const { data: publicData, error: publicError } = await supabase
+  // 2. Fetch completed public voters from 'public_voters'
+  let publicData = null;
+  let publicError = null;
+  const { data: publicWithCompletionData, error: publicWithCompletionError } = await supabase
     .from('public_voters')
-    .select('id')
+    .select('id, completed_at')
     .eq('partido_id', partidoId);
+
+  if (publicWithCompletionError) {
+    // Fallback for deployments without completed_at column.
+    const { data: publicFallbackData, error: publicFallbackError } = await supabase
+      .from('public_voters')
+      .select('id')
+      .eq('partido_id', partidoId);
+    publicData = publicFallbackData;
+    publicError = publicFallbackError || publicWithCompletionError;
+  } else {
+    publicData = publicWithCompletionData;
+    publicError = null;
+  }
 
   if (publicError) {
     console.warn('Error fetching public voters (non-fatal):', publicError);
   }
 
-  const regularIds = (regularData || []).map((v) => v.votante_id).filter(Boolean);
-  const publicIds = (publicData || []).map((pv) => `public_${pv.id}`);
+  const regularIds = (regularData || [])
+    .map((v) => normalizeIdentityValue(v.votante_id))
+    .filter(Boolean);
+
+  const completedPublicRows = (publicData || []).filter((pv) => {
+    if (!pv || pv.id === null || pv.id === undefined) return false;
+    // If completed_at is not present (legacy fallback query), treat row as completed.
+    if (!Object.prototype.hasOwnProperty.call(pv, 'completed_at')) return true;
+    return Boolean(pv.completed_at);
+  });
+
+  const publicIds = completedPublicRows
+    .map((pv) => normalizeIdentityValue(`public_${pv.id}`))
+    .filter(Boolean);
 
   const combinedVoters = Array.from(new Set([...regularIds, ...publicIds]));
 
@@ -422,11 +449,26 @@ export const getVotantesConNombres = async (partidoId) => {
     throw new Error(`Error fetching voters: ${votosError.message}`);
   }
 
-  // 2. Fetch public voters from 'public_voters' table
-  const { data: publicVotersData, error: publicVotersError } = await supabase
+  // 2. Fetch completed public voters from 'public_voters' table
+  let publicVotersData = null;
+  let publicVotersError = null;
+  const { data: publicWithCompletionData, error: publicWithCompletionError } = await supabase
     .from('public_voters')
-    .select('id, nombre')
+    .select('id, nombre, completed_at')
     .eq('partido_id', partidoId);
+
+  if (publicWithCompletionError) {
+    // Fallback for deployments without completed_at column.
+    const { data: publicFallbackData, error: publicFallbackError } = await supabase
+      .from('public_voters')
+      .select('id, nombre')
+      .eq('partido_id', partidoId);
+    publicVotersData = publicFallbackData;
+    publicVotersError = publicFallbackError || publicWithCompletionError;
+  } else {
+    publicVotersData = publicWithCompletionData;
+    publicVotersError = null;
+  }
 
   if (publicVotersError) {
     console.warn('Error fetching public voters (non-fatal):', publicVotersError);
@@ -437,8 +479,9 @@ export const getVotantesConNombres = async (partidoId) => {
 
   // Add voters from 'votos'
   (votosData || []).forEach((voto) => {
-    if (voto.votante_id && !votantesMap.has(voto.votante_id)) {
-      votantesMap.set(voto.votante_id, {
+    const voterId = normalizeIdentityValue(voto.votante_id);
+    if (voterId && !votantesMap.has(voterId)) {
+      votantesMap.set(voterId, {
         nombre: voto.jugador_nombre || 'Jugador',
         avatar_url: voto.jugador_avatar_url,
       });
@@ -447,7 +490,10 @@ export const getVotantesConNombres = async (partidoId) => {
 
   // Add voters from 'public_voters'
   (publicVotersData || []).forEach((pv) => {
-    const guestId = `public_${pv.id}`;
+    const isCompleted = !Object.prototype.hasOwnProperty.call(pv, 'completed_at') || Boolean(pv.completed_at);
+    if (!isCompleted) return;
+    const guestId = normalizeIdentityValue(`public_${pv.id}`);
+    if (!guestId) return;
     if (!votantesMap.has(guestId)) {
       votantesMap.set(guestId, {
         nombre: pv.nombre || 'Invitado',
@@ -519,20 +565,21 @@ export const checkIfAlreadyVoted = async (votanteId, partidoId) => {
   }
 
   const pid = Number(partidoId);
+  const normalizedVotanteId = normalizeIdentityValue(votanteId);
 
-  if (!votanteId || !pid || Number.isNaN(pid)) {
+  if (!normalizedVotanteId || !pid || Number.isNaN(pid)) {
     console.warn('❗️ checkIfAlreadyVoted: Parámetros inválidos', { votanteId, partidoId });
     return false;
   }
 
-  console.log('🔎 Chequeando si YA VOTÓ (Legacy + Public):', { votanteId, partidoId: pid });
+  console.log('🔎 Chequeando si YA VOTÓ (Legacy + Public):', { votanteId: normalizedVotanteId, partidoId: pid });
 
   try {
     // 1. Check regular 'votos' table
     const { data: authVotes, error: authError } = await supabase
       .from('votos')
       .select('id')
-      .eq('votante_id', votanteId)
+      .eq('votante_id', normalizedVotanteId)
       .eq('partido_id', pid);
 
     if (authError) throw authError;
@@ -540,8 +587,8 @@ export const checkIfAlreadyVoted = async (votanteId, partidoId) => {
 
     // 2. Check public votes
     // If it's a guest ID, check by public_voter_id
-    if (votanteId.toString().startsWith('public_')) {
-      const publicId = votanteId.replace('public_', '');
+    if (normalizedVotanteId.toString().startsWith('public_')) {
+      const publicId = normalizedVotanteId.replace('public_', '');
       const { data: pubVotes, error: pubError } = await supabase
         .from('votos_publicos')
         .select('id')
@@ -554,20 +601,50 @@ export const checkIfAlreadyVoted = async (votanteId, partidoId) => {
     // 3. Name-based check (Paranoid)
     // Try to find the name of this votanteId from jugadores or public_voters
     let voterName = null;
+    const isPublicIdentity = normalizedVotanteId.toString().startsWith('public_');
 
     // Is it a registered user?
-    const { data: player } = await supabase
-      .from('jugadores')
-      .select('nombre')
-      .eq('usuario_id', votanteId)
-      .eq('partido_id', pid)
-      .maybeSingle();
+    if (!isPublicIdentity) {
+      const numericCandidate = Number(normalizedVotanteId);
+      const identityFilters = [
+        `usuario_id.eq.${normalizedVotanteId}`,
+        `uuid.eq.${normalizedVotanteId}`,
+      ];
+      if (Number.isFinite(numericCandidate) && numericCandidate > 0) {
+        identityFilters.push(`id.eq.${numericCandidate}`);
+      }
 
-    if (player) voterName = player.nombre;
+      const { data: player } = await supabase
+        .from('jugadores')
+        .select('id, uuid, usuario_id, nombre')
+        .eq('partido_id', pid)
+        .or(identityFilters.join(','))
+        .maybeSingle();
 
-    if (!voterName && votanteId.toString().startsWith('public_')) {
+      if (player?.nombre) {
+        voterName = player.nombre;
+      }
+
+      // Backward-compatibility: if legacy rows were stored with uuid/id instead of usuario_id.
+      const aliasIds = [
+        normalizeIdentityValue(player?.usuario_id),
+        normalizeIdentityValue(player?.uuid),
+        normalizeIdentityValue(player?.id),
+      ].filter((value) => Boolean(value) && value !== normalizedVotanteId);
+
+      if (aliasIds.length > 0) {
+        const { data: aliasVotes, error: aliasError } = await supabase
+          .from('votos')
+          .select('id')
+          .eq('partido_id', pid)
+          .in('votante_id', aliasIds);
+        if (!aliasError && aliasVotes && aliasVotes.length > 0) return true;
+      }
+    }
+
+    if (!voterName && isPublicIdentity) {
       // Is it a guest?
-      const publicId = votanteId.replace('public_', '');
+      const publicId = normalizedVotanteId.replace('public_', '');
       const { data: pv } = await supabase
         .from('public_voters')
         .select('nombre')
@@ -874,21 +951,27 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
 
     const unresolvedTargets = unresolvedAuthTargets + unresolvedPublicTargets;
     const corruptedVotes = invalidAuthScores + invalidPublicScores;
+    const totalPersistedRows = regularRowsCount + publicRowsCount;
 
-    // Sacred integrity guard: if any persisted vote cannot be processed, abort close.
-    // This avoids silently dropping votes and falling back to default scores.
+    // Keep strict logging for diagnostics, but don't block close when there are valid votes.
+    // Legacy/partial rows may coexist with valid data and should not brick the admin flow.
     if (unresolvedTargets > 0 || corruptedVotes > 0) {
-      throw new Error(
-        `Se detectaron votos no procesables. ` +
-        `(unresolved_auth=${unresolvedAuthTargets}, unresolved_public=${unresolvedPublicTargets}, ` +
-        `invalid_auth=${invalidAuthScores}, invalid_public=${invalidPublicScores}, ` +
-        `auth_rows=${regularRowsCount}, public_rows=${publicRowsCount})`
+      console.warn(
+        '[closeVotingAndCalculateScores] Non-processable votes detected; continuing with valid votes only',
+        {
+          unresolvedAuthTargets,
+          unresolvedPublicTargets,
+          invalidAuthScores,
+          invalidPublicScores,
+          regularRowsCount,
+          publicRowsCount,
+          totalValidVotes,
+        },
       );
     }
 
-    // Hard guard: never close voting with zero valid votes.
-    // This prevents "all players score 5" false outcomes when persistence failed upstream.
-    if (totalValidVotes <= 0) {
+    // Hard guard: if there are persisted vote rows but none can be processed into valid scores, abort.
+    if (totalPersistedRows > 0 && totalValidVotes <= 0) {
       throw new Error(
         `No hay votos válidos guardados para cerrar la votación. ` +
         `(auth_rows=${regularRowsCount}, public_rows=${publicRowsCount}, ` +

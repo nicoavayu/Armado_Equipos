@@ -177,7 +177,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             // Check if user is in match roster
             const { data: jugadoresPartido, error: jugadoresError } = await supabase
               .from('jugadores')
-              .select('usuario_id, nombre')
+              .select('id, uuid, usuario_id, nombre')
               .eq('partido_id', partidoId);
 
             if (!jugadoresError) {
@@ -220,7 +220,21 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
         if (!userId) return setCargandoVotoUsuario(false);
 
-        const hasVoted = await checkIfAlreadyVoted(userId, partidoId);
+        const voterCandidates = Array.from(new Set(
+          [userId, matchPlayer?.usuario_id, matchPlayer?.uuid, matchPlayer?.id]
+            .filter((value) => value !== null && value !== undefined && String(value).trim() !== '')
+            .map((value) => String(value).trim()),
+        ));
+
+        let hasVoted = false;
+        for (const candidateId of voterCandidates) {
+          // eslint-disable-next-line no-await-in-loop
+          const alreadyVoted = await checkIfAlreadyVoted(candidateId, partidoId);
+          if (alreadyVoted) {
+            hasVoted = true;
+            break;
+          }
+        }
         setUsuarioYaVoto(hasVoted);
       } catch (e) {
         setUsuarioYaVoto(false);
