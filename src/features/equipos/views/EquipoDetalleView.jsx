@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Camera, Check, ChevronDown, Crown, MoreVertical, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
+import { Camera, Check, ChevronDown, Crown, Eye, MoreVertical, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Modal from '../../../components/Modal';
 import ConfirmModal from '../../../components/ConfirmModal';
+import ProfileCardModal from '../../../components/ProfileCardModal';
 import TeamFormModal from '../components/TeamFormModal';
 import PlayerMiniCard from '../../../components/PlayerMiniCard';
 import Button from '../../../components/Button';
@@ -32,7 +33,7 @@ const optionCardClass = 'w-full rounded-xl border border-white/15 bg-white/5 p-3
 const disabledOptionCardClass = `${optionCardClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:bg-white/5`;
 const MEMBER_ACTION_MENU_WIDTH = 176;
 const MEMBER_ACTION_MENU_HEIGHT = 152;
-const MEMBER_ACTION_MENU_OFFSET = 8;
+const MEMBER_ACTION_MENU_OFFSET = 4;
 const VIEWPORT_MENU_PADDING = 12;
 
 const EMPTY_NEW_MEMBER = {
@@ -115,7 +116,7 @@ const getRoleLabel = (roleValue) => getRoleOption(roleValue).label;
 const getMemberAvatar = (member) => member?.photo_url || member?.jugador?.avatar_url || null;
 const getMemberProfilePosition = (member) => ROLE_TO_POSITION[member?.role] || 'DEF';
 const normalizeDetailTab = (value) => (String(value || '').toLowerCase() === 'history' ? 'history' : 'plantilla');
-const getSafeMemberMenuPosition = (triggerRect) => {
+const getSafeMemberMenuPosition = (triggerRect, menuHeight = MEMBER_ACTION_MENU_HEIGHT) => {
   if (!triggerRect || typeof window === 'undefined') return null;
 
   const tabbar = typeof document !== 'undefined' ? document.querySelector('.app-tabbar') : null;
@@ -125,16 +126,18 @@ const getSafeMemberMenuPosition = (triggerRect) => {
     Number.isFinite(tabbarTop) ? tabbarTop - VIEWPORT_MENU_PADDING : window.innerHeight - VIEWPORT_MENU_PADDING,
   );
 
+  const safeMenuHeight = Math.max(72, Number(menuHeight) || MEMBER_ACTION_MENU_HEIGHT);
   const spaceBelow = effectiveBottomBoundary - triggerRect.bottom;
   const spaceAbove = triggerRect.top - VIEWPORT_MENU_PADDING;
-  const shouldOpenUp = spaceBelow < MEMBER_ACTION_MENU_HEIGHT && spaceAbove > spaceBelow;
+  const shouldOpenUp = spaceAbove >= safeMenuHeight + MEMBER_ACTION_MENU_OFFSET
+    || spaceAbove > spaceBelow;
 
   const baseTop = shouldOpenUp
-    ? triggerRect.top - MEMBER_ACTION_MENU_HEIGHT - MEMBER_ACTION_MENU_OFFSET
+    ? triggerRect.top - safeMenuHeight - MEMBER_ACTION_MENU_OFFSET
     : triggerRect.bottom + MEMBER_ACTION_MENU_OFFSET;
   const maxTop = Math.max(
     VIEWPORT_MENU_PADDING,
-    effectiveBottomBoundary - MEMBER_ACTION_MENU_HEIGHT,
+    effectiveBottomBoundary - safeMenuHeight,
   );
   const top = Math.min(maxTop, Math.max(VIEWPORT_MENU_PADDING, baseTop));
 
@@ -203,6 +206,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const [openMemberMenuId, setOpenMemberMenuId] = useState(null);
   const [openMemberMenuPosition, setOpenMemberMenuPosition] = useState(null);
   const [memberConfirmAction, setMemberConfirmAction] = useState(null);
+  const [profileModalPlayer, setProfileModalPlayer] = useState(null);
 
   const [newMember, setNewMember] = useState(EMPTY_NEW_MEMBER);
   const [memberNameInput, setMemberNameInput] = useState('');
@@ -692,10 +696,34 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     try {
       setIsSaving(true);
       await updateTeamMember(member.id, { permissions_role: 'admin' });
+
+      const adminsToDemote = (members || []).filter((candidate) => {
+        if (!candidate?.id || candidate.id === member.id) return false;
+        return candidate.permissions_role === 'admin';
+      });
+
+      const currentMemberId = selectedTeamCurrentUserMember?.id;
+      const shouldDemoteCurrentAdmin = selectedTeamCurrentUserMember?.permissions_role === 'admin'
+        && currentMemberId
+        && currentMemberId !== member.id;
+
+      for (const adminMember of adminsToDemote) {
+        if (adminMember.id === currentMemberId && shouldDemoteCurrentAdmin) continue;
+        await updateTeamMember(adminMember.id, { permissions_role: 'member' });
+      }
+
+      if (shouldDemoteCurrentAdmin) {
+        await updateTeamMember(currentMemberId, { permissions_role: 'member' });
+      }
+
       setOpenMemberMenuId(null);
       setOpenMemberMenuPosition(null);
       await refreshSelectedTeam();
-      console.info('Jugador promovido a admin');
+      if (shouldDemoteCurrentAdmin) {
+        console.info('Admin transferido');
+      } else {
+        console.info('Jugador promovido a admin');
+      }
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo asignar permisos de admin');
     } finally {
@@ -722,7 +750,9 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   };
 
   const handleRemoveMember = async (memberId, { skipRefresh = false } = {}) => {
-    if (!isSelectedTeamManager) {
+    const canRemoveAsManager = isSelectedTeamManager;
+    const canLeaveOwnTeam = toStringId(memberId) === toStringId(selectedTeamCurrentUserMember?.id);
+    if (!canRemoveAsManager && !canLeaveOwnTeam) {
       notifyBlockingError('Solo admin puede quitar jugadores');
       return false;
     }
@@ -982,14 +1012,19 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                 <div className="mt-3 space-y-2">
                   {members.map((member) => {
                     const memberUserId = toStringId(member?.user_id || member?.jugador?.usuario_id);
+                    const memberHasUserAccount = Boolean(memberUserId);
                     const memberIsAdmin = member.permissions_role === 'admin'
                       || member.permissions_role === 'owner'
                       || (memberUserId && memberUserId === toStringId(selectedTeam?.owner_user_id));
                     const isCurrentUserCard = Boolean(memberUserId && memberUserId === toStringId(userId));
+                    const canOpenMemberMenu = Boolean(isCurrentUserCard || isSelectedTeamManager);
                     const showPromoteToAdmin = isSelectedTeamManager
                       && !memberIsAdmin
-                      && Boolean(memberUserId)
+                      && memberHasUserAccount
                       && !isCurrentUserCard;
+                    const canRemoveOrLeave = Boolean(isCurrentUserCard || isSelectedTeamManager);
+                    const memberMenuActionCount = [true, canRemoveOrLeave, showPromoteToAdmin].filter(Boolean).length;
+                    const memberMenuHeight = (memberMenuActionCount * 42) + 8;
 
                     return (
                       <PlayerMiniCard
@@ -1019,7 +1054,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                             ) : null}
                           </div>
                         )}
-                        rightSlot={isSelectedTeamManager ? (
+                        rightSlot={canOpenMemberMenu ? (
                           <div className="relative" onClick={(event) => event.stopPropagation()}>
                             <button
                               type="button"
@@ -1033,7 +1068,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                                 }
 
                                 const triggerRect = event.currentTarget?.getBoundingClientRect?.();
-                                const nextPosition = getSafeMemberMenuPosition(triggerRect);
+                                const nextPosition = getSafeMemberMenuPosition(triggerRect, memberMenuHeight);
                                 if (!nextPosition) return;
 
                                 setOpenMemberMenuPosition(nextPosition);
@@ -1070,25 +1105,49 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                                       onClick={() => {
                                         setOpenMemberMenuId(null);
                                         setOpenMemberMenuPosition(null);
+                                        if (isCurrentUserCard) {
+                                          navigate('/profile');
+                                          return;
+                                        }
+
+                                        if (memberHasUserAccount) {
+                                          setProfileModalPlayer({
+                                            id: memberUserId,
+                                            user_id: memberUserId,
+                                            usuario_id: memberUserId,
+                                            uuid: memberUserId,
+                                            nombre: member?.jugador?.nombre || 'Jugador',
+                                            avatar_url: getMemberAvatar(member),
+                                            posicion: getMemberProfilePosition(member),
+                                            ranking: member?.jugador?.score ?? null,
+                                            score: member?.jugador?.score ?? null,
+                                          });
+                                          return;
+                                        }
+
                                         openEditMemberModal(member);
                                       }}
                                       className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-slate-100 transition-all hover:bg-slate-800"
                                     >
-                                      <Pencil size={14} />
-                                      {isCurrentUserCard ? 'Editar perfil' : 'Editar jugador'}
+                                      {isCurrentUserCard || !memberHasUserAccount ? <Pencil size={14} /> : <Eye size={14} />}
+                                      {isCurrentUserCard
+                                        ? 'Editar perfil'
+                                        : (memberHasUserAccount ? 'Ver perfil' : 'Editar jugador')}
                                     </button>
 
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        askRemoveMemberConfirmation(member);
-                                      }}
-                                      className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-red-200 transition-all hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
-                                      disabled={isSaving}
-                                    >
-                                      <Trash2 size={14} />
-                                      {isCurrentUserCard ? 'Abandonar equipo' : 'Borrar jugador'}
-                                    </button>
+                                    {canRemoveOrLeave ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          askRemoveMemberConfirmation(member);
+                                        }}
+                                        className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-red-200 transition-all hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                                        disabled={isSaving}
+                                      >
+                                        <Trash2 size={14} />
+                                        {isCurrentUserCard ? 'Abandonar equipo' : 'Borrar jugador'}
+                                      </button>
+                                    ) : null}
 
                                     {showPromoteToAdmin ? (
                                       <button
@@ -1559,6 +1618,12 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         cancelText="CANCELAR"
         isDeleting={isSaving}
         danger
+      />
+
+      <ProfileCardModal
+        isOpen={Boolean(profileModalPlayer)}
+        onClose={() => setProfileModalPlayer(null)}
+        profile={profileModalPlayer}
       />
 
     </>
