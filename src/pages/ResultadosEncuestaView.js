@@ -18,6 +18,16 @@ const ensurePlayersList = (players) => {
   return [];
 };
 
+const hasAnyAwardData = (row) => Boolean(
+  row?.mvp ||
+  row?.golden_glove ||
+  row?.dirty_player ||
+  (Array.isArray(row?.red_cards) && row.red_cards.length > 0) ||
+  row?.awards?.mvp?.player_id ||
+  row?.awards?.best_gk?.player_id ||
+  row?.awards?.red_card?.player_id
+);
+
 // Context to broadcast live previewPlayers without recreating slides
 const PreviewPlayersContext = createContext([]);
 
@@ -44,6 +54,7 @@ const ResultadosEncuestaView = () => {
   const [jugadores, setJugadores] = useState([]);
   const [showingBadgeAnimations, setShowingBadgeAnimations] = useState(false);
   const [autoOpeningAwards, setAutoOpeningAwards] = useState(false);
+  const [awardsSkippedByEnsure, setAwardsSkippedByEnsure] = useState(false);
   const [_badgeAnimations, setBadgeAnimations] = useState([]);
   const [_currentAnimationIndex, _setCurrentAnimationIndex] = useState(0);
   const [_animationComplete, _setAnimationComplete] = useState(false);
@@ -57,6 +68,13 @@ const ResultadosEncuestaView = () => {
   const badgeTimers = useRef([]);
   const forceStoryOpenedRef = useRef(null);
   const autoOpenGuardRef = useRef(null);
+  const normalizedPartidoAwardsStatus = String(partido?.awards_status || '').toLowerCase();
+  const normalizedResultsAwardsStatus = String(results?.awards_status || '').toLowerCase();
+  const hasInsufficientVotesForAwards = (
+    awardsSkippedByEnsure ||
+    normalizedPartidoAwardsStatus === 'insufficient' ||
+    normalizedResultsAwardsStatus === 'insufficient'
+  );
 
   const setStage = (key, stage) => {
     setSlideStages((prev) => ({ ...prev, [key]: stage }));
@@ -867,10 +885,14 @@ const ResultadosEncuestaView = () => {
             {matchInfo.nombre || matchInfo.titulo || fallbackMatchName}
           </div>
           <div className="text-white/80 text-base md:text-lg">
-            Todavía no hay premios listos para mostrar.
+            {hasInsufficientVotesForAwards
+              ? 'No votó la cantidad mínima de jugadores para hacer la entrega de premios.'
+              : 'Todavía no hay premios listos para mostrar.'}
           </div>
           <div className="text-white/60 text-sm mt-2">
-            Volvé en un momento.
+            {hasInsufficientVotesForAwards
+              ? 'Invitá a tus amigos a completar las encuestas para armar una comunidad más sana.'
+              : 'Volvé en un momento.'}
           </div>
         </div>
       ),
@@ -901,6 +923,7 @@ const ResultadosEncuestaView = () => {
 
       try {
         setLoading(true);
+        setAwardsSkippedByEnsure(false);
 
         let partidoData;
         try {
@@ -1067,11 +1090,17 @@ const ResultadosEncuestaView = () => {
         let row = results;
 
         // If results are missing/not ready, ask backend once.
-        if (!row || !row.results_ready) {
+        if (!row || !row.results_ready || !hasAnyAwardData(row)) {
+          if (!cancelled) {
+            setAwardsSkippedByEnsure(false);
+          }
           const res = await ensureAwards(partidoId);
           if (!cancelled && res?.ok && res.row) {
             row = res.row;
             setResults(res.row);
+          }
+          if (!cancelled) {
+            setAwardsSkippedByEnsure(Boolean(res?.awardsSkipped));
           }
         }
 
@@ -1280,7 +1309,9 @@ const ResultadosEncuestaView = () => {
     return <div className="text-white text-center mt-20 text-xl">Partido no encontrado</div>;
   }
 
-  const awardsStatus = partido.awards_status;
+  const awardsStatus = hasInsufficientVotesForAwards
+    ? 'insufficient'
+    : (partido.awards_status || results?.awards_status || null);
 
   // OVERLAY ANIMATION RENDER
   // Carousel state
@@ -1448,9 +1479,9 @@ const ResultadosEncuestaView = () => {
               }
               className="my-0 max-w-[620px]"
             />
-            {awardsStatus === 'insufficient' && (
+            {hasInsufficientVotesForAwards && (
               <p className="text-orange-400 mt-3 font-bold text-center">
-                No hay suficientes votos para determinar los resultados.
+                No votó la cantidad mínima de jugadores para hacer la entrega de premios. Invitá a tus amigos a completar las encuestas para armar una comunidad más sana.
               </p>
             )}
           </div>
@@ -1488,22 +1519,24 @@ const ResultadosEncuestaView = () => {
               onClick={async () => {
                 try {
                   setLoading(true);
+                  setAwardsSkippedByEnsure(false);
                   const res = await ensureAwards(partidoId);
-                if (res?.ok && res.row && (res.row.mvp || res.row.golden_glove || res.row.dirty_player || (Array.isArray(res.row.red_cards) && res.row.red_cards.length > 0))) {
-                  setResults(res.row);
-                  setPreviewPlayers(JSON.parse(JSON.stringify(jugadores)));
-                  badgesApplied.current.clear();
-                  const slides = prepareCarouselSlides(res.row, jugadores);
-                  if (slides.length > 0) {
-                    setCarouselSlides(slides);
-                    setShowingBadgeAnimations(true);
+                  setAwardsSkippedByEnsure(Boolean(res?.awardsSkipped));
+                  if (res?.ok && res.row && (res.row.mvp || res.row.golden_glove || res.row.dirty_player || (Array.isArray(res.row.red_cards) && res.row.red_cards.length > 0))) {
+                    setResults(res.row);
+                    setPreviewPlayers(JSON.parse(JSON.stringify(jugadores)));
+                    badgesApplied.current.clear();
+                    const slides = prepareCarouselSlides(res.row, jugadores);
+                    if (slides.length > 0) {
+                      setCarouselSlides(slides);
+                      setShowingBadgeAnimations(true);
+                    }
                   }
+                } catch (e) {
+                  console.error('[RESULTADOS] ensureAwards from CTA failed', e);
+                } finally {
+                  setLoading(false);
                 }
-              } catch (e) {
-                console.error('[RESULTADOS] ensureAwards from CTA failed', e);
-              } finally {
-                setLoading(false);
-              }
               }}
               className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-black bg-[#FFD700] border border-[#ffe066] hover:bg-[#ffc800] transition-transform hover:scale-[1.03] shadow-[0_0_15px_rgba(255,215,0,0.4)] flex items-center justify-center gap-2"
             >

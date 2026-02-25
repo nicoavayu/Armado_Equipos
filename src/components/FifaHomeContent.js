@@ -489,63 +489,90 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white/5 border border-white/10 backdrop-blur-[15px] rounded-2xl p-6 mt-5 mb-10 shadow-xl">
+      <section className="mt-5 mb-10">
         <h3 className="font-oswald text-[28px] m-0 mb-4 text-white/90 font-semibold tracking-[0.01em]">Actividad reciente</h3>
-        <div className="min-h-[320px]">
-          {activityLoading ? (
-            <div className="h-[320px] flex flex-col gap-3 pr-1">
-              <div className="h-[62px] rounded-xl bg-white/10 border border-white/10 animate-pulse"></div>
-              <div className="h-[62px] rounded-xl bg-white/10 border border-white/10 animate-pulse"></div>
-              <div className="h-[62px] rounded-xl bg-white/10 border border-white/10 animate-pulse"></div>
-              <div className="h-[62px] rounded-xl bg-white/10 border border-white/10 animate-pulse"></div>
-            </div>
-          ) : activityItems.length > 0 ? (
-            <div className="flex flex-col gap-3 h-[320px] overflow-y-auto pr-1 custom-scrollbar">
-              {activityItems.map((item) => {
-                const Icon = activityIconMap[item.icon] || Bell;
-                const iconColorClass = severityIconClass[item.severity] || severityIconClass.neutral;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => navigate(item.route)}
-                    className="w-full flex items-center justify-between gap-3 p-3.5 bg-white/5 rounded-xl border border-white/5 text-left hover:bg-white/10 active:bg-white/15 transition-colors"
-                  >
-                    <div className="flex items-start min-w-0">
-                      <div className={`mr-3 mt-0.5 shrink-0 ${iconColorClass}`}>
-                        <Icon size={24} />
+
+        <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen">
+          <div className="px-4">
+            <div className="min-h-[320px]">
+              {activityLoading ? (
+                <div className="h-[320px] overflow-hidden">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={`activity-skeleton-${index}`} className="py-3">
+                      <div className="flex items-start gap-3 px-2">
+                        <div className="w-5 h-5 rounded-full bg-white/[0.14] animate-pulse mt-1" />
+                        <div className="min-w-0 flex-1">
+                          <div className="h-3.5 w-[82%] rounded bg-white/[0.13] animate-pulse" />
+                          <div className="h-3 mt-2 w-[52%] rounded bg-white/[0.08] animate-pulse" />
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <div className="text-white text-sm leading-snug truncate">{item.title}</div>
-                        <div className="text-white/65 text-xs mt-1 truncate">{item.subtitle}</div>
+                      {index < 3 && <div className="mt-3 h-px bg-white/[0.07]" />}
+                    </div>
+                  ))}
+                </div>
+              ) : activityItems.length > 0 ? (
+                <div className="h-[320px] overflow-y-auto pr-0.5 custom-scrollbar">
+                  {activityItems.map((item, index) => {
+                    const Icon = activityIconMap[item.icon] || Bell;
+                    const iconColorClass = severityIconClass[item.severity] || severityIconClass.neutral;
+                    const subtitleParts = [item.subtitle];
+                    if (item.count > 1) subtitleParts.push(`x${item.count}`);
+                    const subtitleText = subtitleParts.filter(Boolean).join(' · ');
+
+                    return (
+                      <div key={item.id}>
+                        <button
+                          onClick={() => navigate(item.route)}
+                          className="w-full flex items-start gap-3 px-3 py-3.5 rounded-lg text-left bg-white/[0.035] hover:bg-white/[0.06] active:bg-white/[0.08] transition-colors"
+                        >
+                          <div className={`mt-1 shrink-0 ${iconColorClass}`}>
+                            <Icon size={18} />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div
+                              className="text-white/92 text-[14px] leading-5 font-medium"
+                              style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {item.title}
+                            </div>
+                            <div className="text-white/58 text-xs mt-1 truncate">
+                              {subtitleText}
+                            </div>
+                          </div>
+
+                          <div className="pt-1.5 shrink-0 text-white/35">
+                            <ChevronRight size={14} />
+                          </div>
+                        </button>
+
+                        {index < activityItems.length - 1 && (
+                          <div className="h-px bg-white/[0.07] my-0.5" />
+                        )}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 text-white/60">
-                      {item.count > 1 && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/10 border border-white/15">
-                          x{item.count}
-                        </span>
-                      )}
-                      <ChevronRight size={16} />
-                    </div>
-                  </button>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="h-[320px] flex flex-col items-center justify-center text-center px-5">
+                  <Bell size={22} className="text-white/45 mb-3" />
+                  <div className="font-oswald text-[23px] sm:text-[22px] leading-tight tracking-[0.01em] text-white/90 font-semibold">
+                    Sin notificaciones
+                  </div>
+                  <div className="font-oswald text-[15px] text-white/60 mt-1.5 max-w-[360px]">
+                    Cuando haya actividad nueva en tus partidos, te va a aparecer acá.
+                  </div>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="h-[320px] flex flex-col items-center justify-center text-center px-4 -translate-y-2 md:-translate-y-1">
-              <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center shadow-[0_8px_24px_rgba(0,0,0,0.25)] mb-3.5">
-                <Bell size={30} className="text-white/80" />
-              </div>
-              <div className="font-oswald text-[24px] sm:text-[22px] leading-tight tracking-[0.01em] text-white/90 font-semibold">
-                Sin notificaciones
-              </div>
-              <div className="font-oswald text-[16px] text-white/60 mt-1.5 max-w-[340px]">
-                Cuando haya actividad nueva en tus partidos, te va a aparecer acá.
-              </div>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      </section>
 
 
     </div>
