@@ -793,6 +793,7 @@ export default function ArmarEquiposView({
           confirmText={'Notificar y votar'}
           cancelText={'Cancelar'}
           isDeleting={calling}
+          actionsAlign="center"
         />
 
         <ConfirmModal

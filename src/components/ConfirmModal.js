@@ -12,6 +12,7 @@ export default function ConfirmModal({
   isDeleting = false,
   singleButton = false,
   danger = false,
+  actionsAlign = 'end',
 }) {
   const overlayRef = useRef(null);
   const cancelRef = useRef(null);
@@ -138,7 +139,7 @@ export default function ConfirmModal({
         <div id="confirm-modal-message" className="text-base leading-relaxed text-white/85 mb-6 font-oswald">
           {message}
         </div>
-        <div className="flex gap-3 justify-end">
+        <div className={`flex gap-3 ${actionsAlign === 'center' ? 'justify-center' : 'justify-end'}`}>
           {!singleButton && (
             <button
               ref={cancelRef}
