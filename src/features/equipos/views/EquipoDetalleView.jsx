@@ -31,7 +31,6 @@ const disabledOptionCardClass = `${optionCardClass} disabled:opacity-50 disabled
 
 const EMPTY_NEW_MEMBER = {
   jugadorId: '',
-  permissionsRole: 'member',
   role: 'player',
   isCaptain: false,
   shirtNumber: '',
@@ -163,6 +162,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [memberModalMode, setMemberModalMode] = useState('create');
   const [memberEditing, setMemberEditing] = useState(null);
+  const [openMemberMenuId, setOpenMemberMenuId] = useState(null);
 
   const [newMember, setNewMember] = useState(EMPTY_NEW_MEMBER);
   const [memberNameInput, setMemberNameInput] = useState('');
@@ -187,6 +187,13 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     window.addEventListener('click', closeMenu);
     return () => window.removeEventListener('click', closeMenu);
   }, [detailActionsMenuOpen]);
+
+  useEffect(() => {
+    if (!openMemberMenuId) return undefined;
+    const closeMenu = () => setOpenMemberMenuId(null);
+    window.addEventListener('click', closeMenu);
+    return () => window.removeEventListener('click', closeMenu);
+  }, [openMemberMenuId]);
 
   useEffect(() => {
     if (!roleMenuOpen) return undefined;
@@ -363,7 +370,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
   const openAddMemberChoiceModal = () => {
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo owner/admin puede agregar jugadores');
+      notifyBlockingError('Solo admin puede agregar jugadores');
       return;
     }
     setAddMemberChoiceOpen(true);
@@ -377,7 +384,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
   const openInviteMemberModal = async () => {
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo owner/admin puede invitar jugadores');
+      notifyBlockingError('Solo admin puede invitar jugadores');
       return;
     }
     if (!userId) return;
@@ -399,7 +406,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     setMemberEditing(member);
     setNewMember({
       jugadorId: toStringId(member?.jugador_id),
-      permissionsRole: member?.permissions_role || 'member',
       role: normalizeRoleForForm(member?.role),
       isCaptain: Boolean(member?.is_captain),
       shirtNumber: member?.shirt_number ?? '',
@@ -445,7 +451,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     event.preventDefault();
     if (!selectedTeam?.id) return;
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo owner/admin puede editar la plantilla');
+      notifyBlockingError('Solo admin puede editar la plantilla');
       return;
     }
 
@@ -541,10 +547,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           photo_url: photoUrl,
         };
 
-        if (isSelectedTeamOwner && (memberEditing?.user_id || memberEditing?.jugador?.usuario_id)) {
-          updates.permissions_role = newMember.permissionsRole || 'member';
-        }
-
         await updateTeamMember(memberEditing.id, { ...updates });
       }
 
@@ -560,7 +562,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const handleSendTeamInvitation = async () => {
     if (!selectedTeam?.id) return;
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo owner/admin puede invitar jugadores');
+      notifyBlockingError('Solo admin puede invitar jugadores');
       return;
     }
     if (!selectedFriend?.id) {
@@ -587,7 +589,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const handleAddCurrentUserAsMember = async () => {
     if (!selectedTeam?.id) return;
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo owner/admin puede agregar jugadores');
+      notifyBlockingError('Solo admin puede agregar jugadores');
       return;
     }
     if (isCurrentUserInTeam) {
@@ -613,9 +615,44 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     }
   };
 
+  const handlePromoteMemberToAdmin = async (member) => {
+    if (!selectedTeam?.id || !member?.id) return;
+    if (!isSelectedTeamManager) {
+      notifyBlockingError('Solo admin puede gestionar permisos');
+      return;
+    }
+
+    const memberUserId = toStringId(member?.user_id || member?.jugador?.usuario_id);
+    const isMemberAdmin = member?.permissions_role === 'admin'
+      || member?.permissions_role === 'owner'
+      || (memberUserId && memberUserId === toStringId(selectedTeam?.owner_user_id));
+
+    if (isMemberAdmin) {
+      notifyBlockingError('Ese jugador ya es admin');
+      return;
+    }
+
+    if (!memberUserId) {
+      notifyBlockingError('Solo usuarios registrados pueden ser admin');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await updateTeamMember(member.id, { permissions_role: 'admin' });
+      setOpenMemberMenuId(null);
+      await refreshSelectedTeam();
+      console.info('Jugador promovido a admin');
+    } catch (error) {
+      notifyBlockingError(error.message || 'No se pudo asignar permisos de admin');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleRevokeTeamInvitation = async (invitationId) => {
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo owner/admin puede revocar invitaciones');
+      notifyBlockingError('Solo admin puede revocar invitaciones');
       return;
     }
 
@@ -633,7 +670,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
   const handleRemoveMember = async (memberId) => {
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo owner/admin puede quitar jugadores');
+      notifyBlockingError('Solo admin puede quitar jugadores');
       return;
     }
 
@@ -651,7 +688,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const handleUpdateTeamDetails = async (payload, crestFile) => {
     if (!selectedTeam?.id) return;
     if (!isSelectedTeamManager) {
-      notifyBlockingError('Solo owner/admin puede editar este equipo');
+      notifyBlockingError('Solo admin puede editar este equipo');
       return;
     }
 
@@ -764,7 +801,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                     <Pencil size={15} />
                     Editar equipo
                   </button>
-                  {isSelectedTeamOwner ? (
+                  {isSelectedTeamManager ? (
                     <button
                       type="button"
                       onClick={() => {
@@ -845,9 +882,10 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                 <div className="mt-3 space-y-2">
                   {members.map((member) => {
                     const memberUserId = toStringId(member?.user_id || member?.jugador?.usuario_id);
-                    const memberIsOwner = member.permissions_role === 'owner'
+                    const memberIsAdmin = member.permissions_role === 'admin'
+                      || member.permissions_role === 'owner'
                       || (memberUserId && memberUserId === toStringId(selectedTeam?.owner_user_id));
-                    const memberIsAdmin = !memberIsOwner && member.permissions_role === 'admin';
+                    const canPromoteToAdmin = isSelectedTeamManager && !memberIsAdmin && Boolean(memberUserId);
 
                     return (
                       <PlayerMiniCard
@@ -869,11 +907,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                                 <Crown size={11} /> CAP
                               </span>
                             ) : null}
-                            {memberIsOwner ? (
-                              <span className="inline-flex items-center rounded-md border border-sky-300/35 bg-sky-500/18 px-1.5 py-0.5 text-[10px] font-semibold text-sky-100">
-                                Owner
-                              </span>
-                            ) : null}
                             {memberIsAdmin ? (
                               <span className="inline-flex items-center rounded-md border border-sky-300/35 bg-sky-500/18 px-1.5 py-0.5 text-[10px] font-semibold text-sky-100">
                                 Admin
@@ -882,26 +915,62 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                           </div>
                         )}
                         rightSlot={isSelectedTeamManager ? (
-                          <div className="flex items-center gap-1.5">
+                          <div className="relative" onClick={(event) => event.stopPropagation()}>
                             <button
                               type="button"
-                              onClick={() => openEditMemberModal(member)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setOpenMemberMenuId((prev) => (prev === member.id ? null : member.id));
+                              }}
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/8 text-white/80 hover:bg-white/15"
-                              title="Editar jugador"
-                              aria-label="Editar jugador"
-                            >
-                              <Pencil size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveMember(member.id)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-300/35 bg-red-500/10 text-red-200 hover:bg-red-500/20"
-                              title="Quitar jugador"
-                              aria-label="Quitar jugador"
+                              title="Acciones del jugador"
+                              aria-label="Acciones del jugador"
                               disabled={isSaving}
                             >
-                              <Trash2 size={14} />
+                              <MoreVertical size={14} />
                             </button>
+
+                            {openMemberMenuId === member.id ? (
+                              <div className="absolute right-0 mt-2 z-30 w-44 rounded-xl border border-slate-700 bg-slate-900 shadow-lg overflow-hidden">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenMemberMenuId(null);
+                                    openEditMemberModal(member);
+                                  }}
+                                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-slate-100 transition-all hover:bg-slate-800"
+                                >
+                                  <Pencil size={14} />
+                                  Editar jugador
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenMemberMenuId(null);
+                                    handleRemoveMember(member.id);
+                                  }}
+                                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-red-200 transition-all hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                                  disabled={isSaving}
+                                >
+                                  <Trash2 size={14} />
+                                  Borrar jugador
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenMemberMenuId(null);
+                                    handlePromoteMemberToAdmin(member);
+                                  }}
+                                  className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-sky-100 transition-all hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                                  disabled={isSaving || !canPromoteToAdmin}
+                                >
+                                  <Crown size={14} />
+                                  Hacer admin
+                                </button>
+                              </div>
+                            ) : null}
                           </div>
                         ) : null}
                       />
@@ -1259,20 +1328,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
             </label>
           </div>
 
-          {memberModalMode === 'edit' && isSelectedTeamOwner && (memberEditing?.user_id || memberEditing?.jugador?.usuario_id) ? (
-            <label className="block">
-              <span className="text-xs text-white/80 uppercase tracking-wide">Permisos</span>
-              <select
-                value={newMember.permissionsRole || 'member'}
-                onChange={(event) => setNewMember((prev) => ({ ...prev, permissionsRole: event.target.value }))}
-                className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
-              >
-                <option value="member">Miembro</option>
-                <option value="admin">Admin</option>
-              </select>
-            </label>
-          ) : null}
-
           <label className="inline-flex items-center gap-2.5 text-white/90 font-oswald text-[15px] cursor-pointer select-none">
             <input
               type="checkbox"
@@ -1353,9 +1408,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           {memberModalMode === 'edit' ? (
             <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white/65">
               <p>Rol actual: {getRoleLabel(memberEditing?.role)}</p>
-              {(memberEditing?.user_id || memberEditing?.jugador?.usuario_id) ? (
-                <p className="mt-1">Permiso actual: {memberEditing?.permissions_role || 'member'}</p>
-              ) : null}
               <p className="mt-1">Numero actual: {memberEditing?.shirt_number ?? '-'}</p>
             </div>
           ) : null}
