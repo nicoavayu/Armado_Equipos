@@ -512,9 +512,9 @@ const EncuestaPartido = () => {
   const progressRowClass = 'sticky top-0 z-40 w-full shrink-0 pt-1.5 sm:pt-2';
   const progressGapClass = 'w-full shrink-0 h-7 sm:h-8';
   const contentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-visible';
-  const playerContentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-visible pt-5 sm:pt-6 pb-1.5 sm:pb-2';
+  const playerContentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-visible pt-5 sm:pt-6 pb-3 sm:pb-4';
   const actionRowClass = 'w-full shrink-0 flex items-center justify-center pt-3 sm:pt-4';
-  const playerActionRowClass = 'w-full shrink-0 flex items-center justify-center pt-1.5 sm:pt-2 -translate-y-5 sm:-translate-y-6';
+  const playerActionRowClass = 'w-full shrink-0 flex items-center justify-center pt-2.5 sm:pt-3.5';
   const logoRowClass = 'hidden';
   const titleClass = 'font-bebas text-[clamp(30px,6.2vw,74px)] text-white tracking-[0.055em] font-bold text-center leading-[0.92] uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1';
   const surveyBtnBaseClass = 'w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-[20px] sm:text-[24px] py-2.5 text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.16] flex items-center justify-center min-h-[52px] rounded-[18px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed';
@@ -530,7 +530,7 @@ const EncuestaPartido = () => {
   const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-1';
   const centeredSummaryStackClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-5 sm:gap-6';
   const centeredSummaryButtonWrapClass = 'w-full max-w-[460px] sm:max-w-[500px] mx-auto';
-  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-visible px-0.5 pb-0.5 flex items-center justify-center';
+  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-visible px-0.5 pb-2 sm:pb-3 flex items-center justify-center';
 
   const SurveyFooterLogo = () => null;
 
@@ -689,7 +689,7 @@ const EncuestaPartido = () => {
             gridTemplateRows: `repeat(${adaptiveGrid.rows}, minmax(0, 1fr))`,
             gap: `${adaptiveGrid.gap}px`,
             maxWidth: `${adaptiveGrid.gridMaxWidth}px`,
-            maxHeight: '100%',
+            maxHeight: '94%',
             minHeight: '62%',
           }}
         >
