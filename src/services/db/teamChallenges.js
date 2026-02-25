@@ -639,18 +639,6 @@ export const listAccessibleTeams = async (userId) => {
     }
   }
 
-  const acceptedInvitationsResponse = await supabase
-    .from('team_invitations')
-    .select('team_id')
-    .eq('invited_user_id', userId)
-    .eq('status', 'accepted');
-
-  if (!acceptedInvitationsResponse.error) {
-    (acceptedInvitationsResponse.data || []).forEach((row) => {
-      if (row?.team_id) memberTeamIds.add(row.team_id);
-    });
-  }
-
   const ownTeamIds = new Set((ownTeamsResponse.data || []).map((team) => team.id));
   const extraTeamIds = Array.from(memberTeamIds).filter((teamId) => !ownTeamIds.has(teamId));
 
