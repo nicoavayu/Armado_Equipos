@@ -552,6 +552,8 @@ const AmigosView = () => {
     return <div className="text-center p-5 bg-red-500/10 rounded-lg text-red-600 mt-5">Error: {error}</div>;
   }
 
+  const searchInputClass = 'w-full h-14 px-5 text-[15px] border border-white/20 rounded-2xl bg-white/5 text-white font-oswald box-border placeholder-white/35 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md';
+
   return (
     <div className="w-full m-0 pt-0 box-border">
       {notice && (
@@ -595,7 +597,7 @@ const AmigosView = () => {
       {activeTab === 'discover' ? (
         <>
           {/* Search users */}
-          <div className="flex justify-center w-full my-[10px] mb-[12px] relative box-border z-10">
+          <div className="w-full max-w-[500px] mx-auto my-[10px] mb-[12px] relative box-border z-10">
             <input
               type="text"
               placeholder="Buscar usuarios por nombre o email..."
@@ -608,7 +610,7 @@ const AmigosView = () => {
                   setSearchResults([]);
                 }
               }}
-              className="w-full p-[16px_20px] text-[15px] border border-white/20 rounded-2xl bg-white/5 text-white font-oswald box-border placeholder-white/30 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md sm:text-[14px] sm:p-[14px_10px]"
+              className={searchInputClass}
             />
 
             {searchQuery && (
@@ -744,7 +746,7 @@ const AmigosView = () => {
               placeholder="Buscar amigo..."
               value={friendSearchQuery}
               onChange={(e) => setFriendSearchQuery(e.target.value)}
-              className="w-full p-[14px_16px] text-[14px] border border-white/20 rounded-2xl bg-white/5 text-white font-oswald box-border placeholder-white/35 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 backdrop-blur-md"
+              className={searchInputClass}
             />
           </div>
 
