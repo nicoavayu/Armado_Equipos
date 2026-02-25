@@ -297,6 +297,11 @@ const isOrderedSetModeError = (error) => (
   normalizeMessage(error).includes('within group is required for ordered-set aggregate mode')
 );
 
+const isUniqueConstraintError = (error) => (
+  String(error?.code || '').trim() === '23505'
+  || normalizeMessage(error).includes('duplicate key')
+);
+
 const hasAnyMissingColumns = (error, columns) => (
   columns.some((columnName) => isMissingColumnError(error, columnName))
 );
@@ -999,6 +1004,129 @@ export const ensureLocalTeamPlayerByName = async ({ teamId, displayName }) => {
   };
 };
 
+export const ensureRosterCandidateByUserId = async (userId) => {
+  assertAuthenticatedUser(userId);
+
+  const existingResponse = await supabase
+    .from('jugadores')
+    .select('id, usuario_id, nombre, avatar_url, score')
+    .eq('usuario_id', userId)
+    .order('id', { ascending: false })
+    .limit(1);
+
+  if (existingResponse.error) {
+    throw new Error(existingResponse.error.message || 'No se pudo resolver el jugador del usuario');
+  }
+
+  if (existingResponse.data?.[0]) {
+    const existing = existingResponse.data[0];
+    return {
+      jugador_id: existing.id,
+      usuario_id: existing.usuario_id || null,
+      nombre: existing.nombre || 'Jugador',
+      avatar_url: existing.avatar_url || null,
+      posicion: null,
+      ranking: existing.score ?? null,
+    };
+  }
+
+  let fallbackName = 'Jugador';
+  const profileResponse = await supabase
+    .from('usuarios')
+    .select('nombre')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!profileResponse.error) {
+    const profileName = String(profileResponse.data?.nombre || '').trim();
+    if (profileName) fallbackName = profileName;
+  }
+
+  const insertResponse = await supabase
+    .from('jugadores')
+    .insert({
+      nombre: fallbackName,
+      usuario_id: userId,
+    })
+    .select('id, usuario_id, nombre, avatar_url, score')
+    .single();
+
+  if (insertResponse.error) {
+    throw new Error(insertResponse.error.message || 'No se pudo crear el jugador del usuario');
+  }
+
+  const created = insertResponse.data;
+  return {
+    jugador_id: created.id,
+    usuario_id: created.usuario_id || userId,
+    nombre: created.nombre || fallbackName,
+    avatar_url: created.avatar_url || null,
+    posicion: null,
+    ranking: created.score ?? null,
+  };
+};
+
+const findExistingTeamMemberByUserId = async ({ teamId, userId }) => {
+  if (!teamId || !userId) return null;
+
+  let hasUserIdColumn = true;
+  const directResponse = await supabase
+    .from('team_members')
+    .select('id, user_id')
+    .eq('team_id', teamId)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (directResponse.error && isMissingColumnError(directResponse.error, 'user_id')) {
+    hasUserIdColumn = false;
+  } else if (directResponse.error) {
+    throw new Error(directResponse.error.message || 'No se pudo validar la membresia del equipo');
+  } else if ((directResponse.data || [])[0]?.id) {
+    return {
+      id: directResponse.data[0].id,
+      user_id: directResponse.data[0].user_id || userId,
+      hasUserIdColumn,
+    };
+  }
+
+  const fallbackSelect = hasUserIdColumn
+    ? `
+      id,
+      user_id,
+      jugador:jugadores!team_members_jugador_id_fkey(
+        usuario_id
+      )
+    `
+    : `
+      id,
+      jugador:jugadores!team_members_jugador_id_fkey(
+        usuario_id
+      )
+    `;
+
+  const fallbackResponse = await supabase
+    .from('team_members')
+    .select(fallbackSelect)
+    .eq('team_id', teamId);
+
+  if (fallbackResponse.error) {
+    throw new Error(fallbackResponse.error.message || 'No se pudo validar la membresia del equipo');
+  }
+
+  const existing = (fallbackResponse.data || []).find(
+    (row) => String(row?.jugador?.usuario_id || '') === String(userId),
+  );
+
+  if (!existing?.id) return null;
+
+  return {
+    id: existing.id,
+    user_id: existing.user_id || null,
+    hasUserIdColumn,
+  };
+};
+
 export const listTeamMembers = async (teamId) => {
   const legacyMemberSelect = `
     id,
@@ -1247,6 +1375,72 @@ export const addTeamMember = async ({
   }
 
   return unwrapSingle(response, 'No se pudo agregar el jugador al equipo');
+};
+
+export const addCurrentUserAsTeamMember = async ({
+  teamId,
+  userId,
+  permissionsRole = 'member',
+  role = 'player',
+  isCaptain = false,
+  shirtNumber = null,
+  photoUrl = null,
+}) => {
+  assertAuthenticatedUser(userId);
+  if (!teamId) {
+    throw new Error('Equipo invalido para agregarte a la plantilla');
+  }
+
+  const existingMember = await findExistingTeamMemberByUserId({ teamId, userId });
+  if (existingMember?.id) {
+    if (existingMember.hasUserIdColumn && !existingMember.user_id) {
+      const syncResponse = await supabase
+        .from('team_members')
+        .update({ user_id: userId })
+        .eq('id', existingMember.id)
+        .select('id')
+        .maybeSingle();
+
+      if (syncResponse.error && !isMissingColumnError(syncResponse.error, 'user_id')) {
+        console.warn('[TEAM_MEMBERS] No se pudo sincronizar user_id en miembro existente:', syncResponse.error);
+      }
+    }
+
+    return {
+      id: existingMember.id,
+      alreadyExists: true,
+    };
+  }
+
+  const profilePlayer = await ensureRosterCandidateByUserId(userId);
+
+  try {
+    const inserted = await addTeamMember({
+      teamId,
+      jugadorId: profilePlayer.jugador_id,
+      userId,
+      permissionsRole,
+      role,
+      isCaptain,
+      shirtNumber,
+      photoUrl,
+    });
+
+    return {
+      ...inserted,
+      alreadyExists: false,
+    };
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) throw error;
+
+    const duplicatedMember = await findExistingTeamMemberByUserId({ teamId, userId });
+    if (!duplicatedMember?.id) throw error;
+
+    return {
+      id: duplicatedMember.id,
+      alreadyExists: true,
+    };
+  }
 };
 
 export const updateTeamMember = async (memberId, updates) => {

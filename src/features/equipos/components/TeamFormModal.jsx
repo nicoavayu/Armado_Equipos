@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Check } from 'lucide-react';
 import Modal from '../../../components/Modal';
 import Button from '../../../components/Button';
 import {
@@ -40,6 +41,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
   const [colors, setColors] = useState([]);
   const [crestFile, setCrestFile] = useState(null);
   const [crestPreview, setCrestPreview] = useState(null);
+  const [addCurrentUserAsPlayer, setAddCurrentUserAsPlayer] = useState(true);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -56,6 +58,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
     setColors(toInitialColors(initialTeam));
     setCrestFile(null);
     setCrestPreview(initialTeam?.crest_url || null);
+    setAddCurrentUserAsPlayer(!initialTeam);
   }, [initialTeam, isOpen]);
 
   useEffect(() => () => {
@@ -91,6 +94,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
   };
 
   const title = useMemo(() => (initialTeam ? 'Editar equipo' : 'Crear equipo'), [initialTeam]);
+  const isCreateMode = !initialTeam;
 
   return (
     <Modal
@@ -142,7 +146,9 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
             color_primary: normalizedColors[0] || null,
             color_secondary: normalizedColors[1] || null,
             color_accent: normalizedColors[2] || null,
-          }, crestFile);
+          }, crestFile, {
+            addCurrentUserAsPlayer: Boolean(isCreateMode && addCurrentUserAsPlayer),
+          });
         }}
       >
         <label className="block">
@@ -209,6 +215,29 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
             />
           </div>
         </label>
+
+        {isCreateMode ? (
+          <label className="rounded-xl border border-white/15 bg-white/5 p-3 inline-flex items-start gap-2.5 text-white/90 font-oswald text-[15px] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={addCurrentUserAsPlayer}
+              onChange={(event) => setAddCurrentUserAsPlayer(event.target.checked)}
+              className="sr-only"
+            />
+            <span
+              className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-md border transition-all ${addCurrentUserAsPlayer
+                ? 'border-[#93C5FD] bg-[#2563EB] text-white shadow-[0_0_0_3px_rgba(37,99,235,0.22)]'
+                : 'border-white/30 bg-slate-900/70 text-transparent'
+                }`}
+            >
+              <Check size={13} strokeWidth={3} />
+            </span>
+            <span className="leading-tight">
+              <span className="block text-white">Agregarme como jugador</span>
+              <span className="mt-1 block text-xs text-white/65">Te agrega automáticamente a la plantilla del equipo.</span>
+            </span>
+          </label>
+        ) : null}
 
         <div className="rounded-xl border border-white/15 bg-white/5 p-3">
           <div className="flex items-center justify-between">

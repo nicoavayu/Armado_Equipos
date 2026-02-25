@@ -6,6 +6,7 @@ import TeamFormModal from '../components/TeamFormModal';
 import PlayerMiniCard from '../../../components/PlayerMiniCard';
 import Button from '../../../components/Button';
 import {
+  addCurrentUserAsTeamMember,
   addTeamMember,
   ensureLocalTeamPlayerByName,
   listAccessibleTeams,
@@ -26,6 +27,7 @@ import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, QUIERO_JUGAR_TOP_TAB_STORAGE_K
 
 const modalActionButtonClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
 const optionCardClass = 'w-full rounded-xl border border-white/15 bg-white/5 p-3 text-left transition-all hover:bg-white/10';
+const disabledOptionCardClass = `${optionCardClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:bg-white/5`;
 
 const EMPTY_NEW_MEMBER = {
   jugadorId: '',
@@ -270,6 +272,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     () => members.find((member) => toStringId(member?.user_id || member?.jugador?.usuario_id) === toStringId(userId)) || null,
     [members, userId],
   );
+  const isCurrentUserInTeam = Boolean(selectedTeamCurrentUserMember);
   const isSelectedTeamAdmin = ['admin', 'owner'].includes(selectedTeamCurrentUserMember?.permissions_role);
   const isSelectedTeamManager = Boolean(isSelectedTeamOwner || isSelectedTeamAdmin);
 
@@ -576,6 +579,35 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       console.info('Invitacion enviada');
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo enviar la invitacion');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAddCurrentUserAsMember = async () => {
+    if (!selectedTeam?.id) return;
+    if (!isSelectedTeamManager) {
+      notifyBlockingError('Solo owner/admin puede agregar jugadores');
+      return;
+    }
+    if (isCurrentUserInTeam) {
+      notifyBlockingError('Ya sos jugador de este equipo');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await addCurrentUserAsTeamMember({
+        teamId: selectedTeam.id,
+        userId,
+        permissionsRole: 'admin',
+        role: 'player',
+      });
+      await refreshSelectedTeam();
+      setAddMemberChoiceOpen(false);
+      console.info('Te agregaste al equipo');
+    } catch (error) {
+      notifyBlockingError(error.message || 'No se pudo agregarte al equipo');
     } finally {
       setIsSaving(false);
     }
@@ -982,7 +1014,21 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         <div className="space-y-2">
           <button
             type="button"
-            className={optionCardClass}
+            className={disabledOptionCardClass}
+            disabled={isSaving || isCurrentUserInTeam}
+            onClick={handleAddCurrentUserAsMember}
+          >
+            <p className="text-white font-oswald text-[18px]">Agregarme a mí</p>
+            <p className="mt-1 text-xs text-white/65">Usar mi perfil como jugador de este equipo.</p>
+            {isCurrentUserInTeam ? (
+              <p className="mt-1 text-[11px] text-white/60">Ya sos jugador de este equipo</p>
+            ) : null}
+          </button>
+
+          <button
+            type="button"
+            className={disabledOptionCardClass}
+            disabled={isSaving}
             onClick={() => {
               setAddMemberChoiceOpen(false);
               openCreateMemberModal();
@@ -994,7 +1040,8 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
           <button
             type="button"
-            className={optionCardClass}
+            className={disabledOptionCardClass}
+            disabled={isSaving}
             onClick={async () => {
               setAddMemberChoiceOpen(false);
               await openInviteMemberModal();

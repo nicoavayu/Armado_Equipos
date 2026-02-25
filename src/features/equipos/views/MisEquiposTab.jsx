@@ -7,6 +7,7 @@ import Button from '../../../components/Button';
 import EmptyStateCard from '../../../components/EmptyStateCard';
 import {
   acceptTeamInvitation,
+  addCurrentUserAsTeamMember,
   createTeam,
   listAccessibleTeams,
   listIncomingTeamInvitations,
@@ -86,17 +87,33 @@ const MisEquiposTab = ({ userId }) => {
     return () => window.removeEventListener('click', closeMenu);
   }, [openTeamMenuId]);
 
-  const handleCreateOrUpdateTeam = async (payload, crestFile) => {
+  const handleCreateOrUpdateTeam = async (payload, crestFile, options = {}) => {
     if (!userId) return;
 
     try {
       setIsSaving(true);
 
       let persistedTeam;
+      const shouldAutoAddCurrentUser = !editingTeam?.id && Boolean(options?.addCurrentUserAsPlayer);
       if (editingTeam?.id) {
         persistedTeam = await updateTeam(editingTeam.id, payload);
       } else {
         persistedTeam = await createTeam(userId, payload);
+
+        if (shouldAutoAddCurrentUser) {
+          try {
+            await addCurrentUserAsTeamMember({
+              teamId: persistedTeam.id,
+              userId,
+              permissionsRole: 'admin',
+              role: 'player',
+              isCaptain: true,
+            });
+          } catch (autoAddError) {
+            console.warn('[MIS_EQUIPOS] Equipo creado, pero no se pudo auto-agregar al usuario:', autoAddError);
+            notifyBlockingError('Equipo creado, pero no pudimos agregarte automaticamente a la plantilla');
+          }
+        }
       }
 
       if (crestFile) {
