@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Camera, Check, ChevronDown, Crown, MoreVertical, Pencil, Trash2, UserPlus, Users } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Modal from '../../../components/Modal';
+import ConfirmModal from '../../../components/ConfirmModal';
 import TeamFormModal from '../components/TeamFormModal';
 import PlayerMiniCard from '../../../components/PlayerMiniCard';
 import Button from '../../../components/Button';
@@ -117,7 +118,14 @@ const normalizeDetailTab = (value) => (String(value || '').toLowerCase() === 'hi
 const getSafeMemberMenuPosition = (triggerRect) => {
   if (!triggerRect || typeof window === 'undefined') return null;
 
-  const spaceBelow = window.innerHeight - triggerRect.bottom - VIEWPORT_MENU_PADDING;
+  const tabbar = typeof document !== 'undefined' ? document.querySelector('.app-tabbar') : null;
+  const tabbarTop = tabbar?.getBoundingClientRect?.().top;
+  const effectiveBottomBoundary = Math.min(
+    window.innerHeight - VIEWPORT_MENU_PADDING,
+    Number.isFinite(tabbarTop) ? tabbarTop - VIEWPORT_MENU_PADDING : window.innerHeight - VIEWPORT_MENU_PADDING,
+  );
+
+  const spaceBelow = effectiveBottomBoundary - triggerRect.bottom;
   const spaceAbove = triggerRect.top - VIEWPORT_MENU_PADDING;
   const shouldOpenUp = spaceBelow < MEMBER_ACTION_MENU_HEIGHT && spaceAbove > spaceBelow;
 
@@ -126,7 +134,7 @@ const getSafeMemberMenuPosition = (triggerRect) => {
     : triggerRect.bottom + MEMBER_ACTION_MENU_OFFSET;
   const maxTop = Math.max(
     VIEWPORT_MENU_PADDING,
-    window.innerHeight - MEMBER_ACTION_MENU_HEIGHT - VIEWPORT_MENU_PADDING,
+    effectiveBottomBoundary - MEMBER_ACTION_MENU_HEIGHT,
   );
   const top = Math.min(maxTop, Math.max(VIEWPORT_MENU_PADDING, baseTop));
 
@@ -194,6 +202,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const [memberEditing, setMemberEditing] = useState(null);
   const [openMemberMenuId, setOpenMemberMenuId] = useState(null);
   const [openMemberMenuPosition, setOpenMemberMenuPosition] = useState(null);
+  const [memberConfirmAction, setMemberConfirmAction] = useState(null);
 
   const [newMember, setNewMember] = useState(EMPTY_NEW_MEMBER);
   const [memberNameInput, setMemberNameInput] = useState('');
@@ -712,20 +721,67 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     }
   };
 
-  const handleRemoveMember = async (memberId) => {
+  const handleRemoveMember = async (memberId, { skipRefresh = false } = {}) => {
     if (!isSelectedTeamManager) {
       notifyBlockingError('Solo admin puede quitar jugadores');
-      return;
+      return false;
     }
 
     try {
       setIsSaving(true);
       await removeTeamMember(memberId);
-      await refreshSelectedTeam();
+      if (!skipRefresh) {
+        await refreshSelectedTeam();
+      }
+      return true;
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo quitar el jugador');
+      return false;
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const askRemoveMemberConfirmation = (member) => {
+    if (!member?.id) return;
+
+    const memberUserId = toStringId(member?.user_id || member?.jugador?.usuario_id);
+    const isCurrentUserCard = Boolean(memberUserId && memberUserId === toStringId(userId));
+
+    setOpenMemberMenuId(null);
+    setOpenMemberMenuPosition(null);
+    setMemberConfirmAction({
+      type: isCurrentUserCard ? 'leave' : 'remove',
+      memberId: member.id,
+      memberName: member?.jugador?.nombre || 'Jugador',
+      isCurrentUserCard,
+    });
+  };
+
+  const closeMemberConfirmModal = () => {
+    if (isSaving) return;
+    setMemberConfirmAction(null);
+  };
+
+  const confirmRemoveMemberAction = async () => {
+    if (!memberConfirmAction?.memberId) return;
+    const isLeavingOwnTeam = Boolean(memberConfirmAction.isCurrentUserCard);
+    const removed = await handleRemoveMember(
+      memberConfirmAction.memberId,
+      { skipRefresh: isLeavingOwnTeam },
+    );
+    if (!removed) return;
+
+    setMemberConfirmAction(null);
+
+    if (isLeavingOwnTeam) {
+      sessionStorage.setItem(QUIERO_JUGAR_TOP_TAB_STORAGE_KEY, 'equipos');
+      sessionStorage.setItem(QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, 'mis-equipos');
+      navigate('/quiero-jugar', {
+        state: {
+          equiposSubtab: 'mis-equipos',
+        },
+      });
     }
   };
 
@@ -929,12 +985,17 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                     const memberIsAdmin = member.permissions_role === 'admin'
                       || member.permissions_role === 'owner'
                       || (memberUserId && memberUserId === toStringId(selectedTeam?.owner_user_id));
-                    const canPromoteToAdmin = isSelectedTeamManager && !memberIsAdmin && Boolean(memberUserId);
+                    const isCurrentUserCard = Boolean(memberUserId && memberUserId === toStringId(userId));
+                    const showPromoteToAdmin = isSelectedTeamManager
+                      && !memberIsAdmin
+                      && Boolean(memberUserId)
+                      && !isCurrentUserCard;
 
                     return (
                       <PlayerMiniCard
                         key={member.id}
                         variant="friend"
+                        isSelf={isCurrentUserCard}
                         profile={{
                           nombre: member?.jugador?.nombre || 'Jugador',
                           avatar_url: getMemberAvatar(member),
@@ -990,14 +1051,14 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                               createPortal(
                                 <>
                                   <div
-                                    className="fixed inset-0 z-[240] bg-transparent"
+                                    className="fixed inset-0 z-[1190] bg-transparent"
                                     onClick={() => {
                                       setOpenMemberMenuId(null);
                                       setOpenMemberMenuPosition(null);
                                     }}
                                   />
                                   <div
-                                    className="fixed z-[250] w-44 rounded-xl border border-slate-700 bg-slate-900 shadow-lg overflow-hidden"
+                                    className="fixed z-[1200] w-44 rounded-xl border border-slate-700 bg-slate-900 shadow-lg overflow-hidden"
                                     style={{
                                       top: `${openMemberMenuPosition.top}px`,
                                       left: `${openMemberMenuPosition.left}px`,
@@ -1014,36 +1075,36 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                                       className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-slate-100 transition-all hover:bg-slate-800"
                                     >
                                       <Pencil size={14} />
-                                      Editar jugador
+                                      {isCurrentUserCard ? 'Editar perfil' : 'Editar jugador'}
                                     </button>
 
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        setOpenMemberMenuId(null);
-                                        setOpenMemberMenuPosition(null);
-                                        handleRemoveMember(member.id);
+                                        askRemoveMemberConfirmation(member);
                                       }}
                                       className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-red-200 transition-all hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
                                       disabled={isSaving}
                                     >
                                       <Trash2 size={14} />
-                                      Borrar jugador
+                                      {isCurrentUserCard ? 'Abandonar equipo' : 'Borrar jugador'}
                                     </button>
 
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setOpenMemberMenuId(null);
-                                        setOpenMemberMenuPosition(null);
-                                        handlePromoteMemberToAdmin(member);
-                                      }}
-                                      className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-sky-100 transition-all hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
-                                      disabled={isSaving || !canPromoteToAdmin}
-                                    >
-                                      <Crown size={14} />
-                                      Hacer admin
-                                    </button>
+                                    {showPromoteToAdmin ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setOpenMemberMenuId(null);
+                                          setOpenMemberMenuPosition(null);
+                                          handlePromoteMemberToAdmin(member);
+                                        }}
+                                        className="w-full inline-flex items-center gap-2 px-3 py-2 text-left text-sm text-sky-100 transition-all hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
+                                        disabled={isSaving}
+                                      >
+                                        <Crown size={14} />
+                                        Hacer admin
+                                      </button>
+                                    ) : null}
                                   </div>
                                 </>,
                                 document.body,
@@ -1225,7 +1286,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               loadingText="Enviando..."
               disabled={isSaving || !selectedFriend}
             >
-              Enviar invitacion
+              Aceptar
             </Button>
           </div>
         )}
@@ -1485,6 +1546,20 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
         </form>
       </Modal>
+
+      <ConfirmModal
+        isOpen={Boolean(memberConfirmAction)}
+        title={memberConfirmAction?.type === 'leave' ? 'Abandonar equipo' : 'Borrar jugador'}
+        message={memberConfirmAction?.type === 'leave'
+          ? `¿Seguro que querés abandonar "${selectedTeam?.name || 'este equipo'}"?`
+          : `¿Seguro que querés borrar a ${memberConfirmAction?.memberName || 'este jugador'} del equipo?`}
+        onConfirm={confirmRemoveMemberAction}
+        onCancel={closeMemberConfirmModal}
+        confirmText={memberConfirmAction?.type === 'leave' ? 'ABANDONAR' : 'BORRAR'}
+        cancelText="CANCELAR"
+        isDeleting={isSaving}
+        danger
+      />
 
     </>
   );

@@ -28,6 +28,7 @@ const getBackgroundColor = (name) => {
 const skinClasses = {
   searching: 'bg-[#1e293b]/70 border-white/5 hover:border-white/20 hover:bg-[#1e293b] shadow-sm',
   friend: 'bg-[linear-gradient(135deg,rgba(39,77,153,0.58),rgba(29,55,112,0.64))] backdrop-blur-lg border-[#3c78d6]/55 hover:border-[#4f8fec]/70 hover:bg-[linear-gradient(135deg,rgba(45,87,168,0.62),rgba(35,66,132,0.68))] shadow-[0_12px_28px_rgba(7,20,52,0.36)]',
+  friendSelf: 'bg-[linear-gradient(135deg,rgba(169,124,28,0.5),rgba(98,67,16,0.62))] backdrop-blur-lg border-[#F6D06B]/70 hover:border-[#FFE08A]/90 hover:bg-[linear-gradient(135deg,rgba(184,137,34,0.58),rgba(111,76,19,0.68))] shadow-[0_14px_30px_rgba(84,57,12,0.42)]',
 };
 
 const PlayerMiniCard = ({
@@ -39,6 +40,7 @@ const PlayerMiniCard = ({
   rightSlot = null,
   metaBadge = null,
   showMenuPlaceholder = false,
+  isSelf = false,
 }) => {
   const name = profile?.nombre || 'Usuario';
   const avatarUrl = profile?.avatar_url || profile?.foto_url;
@@ -55,16 +57,28 @@ const PlayerMiniCard = ({
   const posColor = getPosColor(posicion);
   const showDistance = variant === 'searching' && typeof distanceKm === 'number' && Number.isFinite(distanceKm);
   const showMissingDistance = variant === 'searching' && showDistanceUnavailable && !showDistance;
-  const ratingContainerClass = variant === 'friend'
-    ? 'bg-[#233f78]/88 border-[#e6bf4f]/35 text-[#ffe08a]'
-    : 'bg-[#FFD700]/10 border-[#FFD700]/30 text-[#FFD700]';
+  const isSelfFriendCard = variant === 'friend' && isSelf;
+  const cardSkinClass = isSelfFriendCard
+    ? skinClasses.friendSelf
+    : (skinClasses[variant] || skinClasses.friend);
+  const ratingContainerClass = isSelfFriendCard
+    ? 'bg-[#5b3e0b]/80 border-[#f4d37b]/65 text-[#ffecb8]'
+    : (variant === 'friend'
+      ? 'bg-[#233f78]/88 border-[#e6bf4f]/35 text-[#ffe08a]'
+      : 'bg-[#FFD700]/10 border-[#FFD700]/30 text-[#FFD700]');
+  const nameClass = isSelfFriendCard ? 'text-[#fff4d1]' : 'text-white';
+  const detailTextClass = isSelfFriendCard ? 'text-[#ffe6ac]' : (variant === 'friend' ? 'text-[#d4e4ff]' : 'text-white/60');
+  const avatarBorderClass = isSelfFriendCard ? 'border-[#f4d37b]/60' : 'border-white/15';
+  const placeholderMenuClass = isSelfFriendCard
+    ? 'text-[#ffe6ac]'
+    : (variant === 'friend' ? 'text-[#d7e6ff]' : 'text-white/50');
 
   return (
     <div
       onClick={onClick}
-      className={`relative flex items-center gap-3 rounded-xl p-3.5 border transition-all duration-200 ${skinClasses[variant] || skinClasses.friend} ${onClick ? 'cursor-pointer active:scale-[0.99]' : ''}`}
+      className={`relative flex items-center gap-3 rounded-xl p-3.5 border transition-all duration-200 ${cardSkinClass} ${onClick ? 'cursor-pointer active:scale-[0.99]' : ''}`}
     >
-      <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border border-white/15 bg-slate-800 flex items-center justify-center">
+      <div className={`w-12 h-12 rounded-full overflow-hidden shrink-0 border bg-slate-800 flex items-center justify-center ${avatarBorderClass}`}>
         {avatarUrl ? (
           <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
         ) : (
@@ -79,13 +93,13 @@ const PlayerMiniCard = ({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
-          <span className={`font-bebas text-lg tracking-wide leading-none truncate ${variant === 'friend' ? 'text-white' : 'text-white'}`}>
+          <span className={`font-bebas text-lg tracking-wide leading-none truncate ${nameClass}`}>
             {name}
           </span>
           {metaBadge}
         </div>
 
-        <div className={`flex items-center gap-2.5 text-[11px] font-oswald uppercase tracking-wide ${variant === 'friend' ? 'text-[#d4e4ff]' : 'text-white/60'}`}>
+        <div className={`flex items-center gap-2.5 text-[11px] font-oswald uppercase tracking-wide ${detailTextClass}`}>
           <div className={`inline-flex items-center gap-1 px-2 py-1 rounded border font-bold normal-case ${ratingContainerClass}`}>
             <Star size={12} fill="currentColor" />
             <span>{ratingStr}</span>
@@ -116,7 +130,7 @@ const PlayerMiniCard = ({
 
       {rightSlot}
       {showMenuPlaceholder && !rightSlot && (
-        <div className={variant === 'friend' ? 'text-[#d7e6ff]' : 'text-white/50'}>
+        <div className={placeholderMenuClass}>
           <MoreVertical size={18} />
         </div>
       )}

@@ -183,12 +183,6 @@ const TeamChatPage = () => {
         classNameContent="!p-0"
       >
         <div className="rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.35)] overflow-hidden">
-          <div className="border-b border-white/10 px-4 py-3 bg-slate-800/70">
-            <p className="text-white font-oswald text-lg leading-tight">
-              {team?.name ? `Chat de ${team.name}` : 'Chat del equipo'}
-            </p>
-          </div>
-
           {loading ? (
             <div className="p-4 text-sm text-white/70">Cargando chat...</div>
           ) : null}
