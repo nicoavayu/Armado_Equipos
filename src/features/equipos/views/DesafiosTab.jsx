@@ -172,12 +172,12 @@ const DesafiosTab = ({
         onClose={() => setInlineNotice({ type: '', message: '' })}
       />
 
-      <div className="rounded-2xl border border-white/15 bg-[linear-gradient(135deg,rgba(47,58,113,0.5),rgba(31,40,84,0.42))] p-3">
-        <div className="w-full rounded-2xl border border-[#2f73b8]/35 bg-[#08162f]/80 p-2.5 flex items-center gap-3">
+      <div className="rounded-2xl border border-[#2f73b8]/35 bg-[#08162f]/80 p-2.5">
+        <div className="w-full flex items-center gap-3">
           <Button
             type="button"
             onClick={() => setShowPublishModal(true)}
-            className="flex-1 !h-14 !rounded-xl !bg-[#128BE9] !text-white !font-oswald !text-[18px] !font-semibold !tracking-[0.01em] shadow-[0_4px_14px_rgba(18,139,233,0.3)] hover:brightness-110 active:scale-95 transition-all"
+            className="flex-1 !h-14 !rounded-xl !bg-[#128BE9] !text-white !font-oswald !text-[18px] !font-semibold !tracking-[0.01em] !normal-case !whitespace-nowrap shadow-[0_4px_14px_rgba(18,139,233,0.3)] hover:brightness-110 active:scale-95 transition-all"
           >
             Publicar desafio
           </Button>
