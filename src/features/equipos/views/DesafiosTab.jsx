@@ -7,14 +7,12 @@ import CompleteChallengeModal from '../components/CompleteChallengeModal';
 import NeighborhoodAutocomplete from '../components/NeighborhoodAutocomplete';
 import Modal from '../../../components/Modal';
 import InlineNotice from '../../../components/ui/InlineNotice';
-import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS, normalizeTeamSkillLevel } from '../config';
+import { TEAM_FORMAT_OPTIONS, TEAM_SKILL_OPTIONS } from '../config';
 import {
   acceptChallenge,
   cancelChallenge,
   completeChallenge,
   createChallenge,
-  getTeamMatchByChallengeId,
-  listMyChallenges,
   listMyManageableTeams,
   listMyTeams,
   listOpenChallenges,
@@ -51,30 +49,6 @@ const buildShareText = (challenge) => {
     .join(' | ');
 };
 
-const challengeMatchesFilters = (challenge, filters) => {
-  if (filters.format && Number(challenge?.format) !== Number(filters.format)) return false;
-
-  if (filters.skillLevel) {
-    const challengeSkill = normalizeTeamSkillLevel(challenge?.skill_level);
-    const filterSkill = normalizeTeamSkillLevel(filters.skillLevel);
-    if (challengeSkill !== filterSkill) return false;
-  }
-
-  const zoneFilter = String(filters.zone || '').trim().toLowerCase();
-  if (!zoneFilter) return true;
-
-  const possibleZones = [
-    challenge?.challenger_team?.base_zone,
-    challenge?.accepted_team?.base_zone,
-    challenge?.location,
-    challenge?.location_name,
-  ]
-    .map((value) => String(value || '').trim().toLowerCase())
-    .filter(Boolean);
-
-  return possibleZones.some((value) => value.includes(zoneFilter));
-};
-
 const DesafiosTab = ({
   userId,
   prefilledTeamId = null,
@@ -84,12 +58,10 @@ const DesafiosTab = ({
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openChallenges, setOpenChallenges] = useState([]);
-  const [myChallenges, setMyChallenges] = useState([]);
   const [myTeams, setMyTeams] = useState([]);
   const [manageableTeams, setManageableTeams] = useState([]);
   const [filters, setFilters] = useState({ format: '', zone: '', skillLevel: '' });
   const [showFilters, setShowFilters] = useState(false);
-  const [scope, setScope] = useState('all');
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [acceptingChallenge, setAcceptingChallenge] = useState(null);
   const [selectedAcceptTeamId, setSelectedAcceptTeamId] = useState('');
@@ -102,12 +74,8 @@ const DesafiosTab = ({
 
     try {
       setLoading(true);
-      const [openRows, myRows] = await Promise.all([
-        listOpenChallenges(filters),
-        listMyChallenges(userId),
-      ]);
+      const openRows = await listOpenChallenges(filters);
       setOpenChallenges(openRows || []);
-      setMyChallenges(myRows || []);
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudieron cargar los desafios');
     } finally {
@@ -146,10 +114,8 @@ const DesafiosTab = ({
   }, [prefilledTeamId]);
 
   const visibleChallenges = useMemo(
-    () => (scope === 'mine'
-      ? myChallenges.filter((challenge) => challengeMatchesFilters(challenge, filters))
-      : openChallenges.filter((challenge) => challenge.status === 'open')),
-    [filters, myChallenges, openChallenges, scope],
+    () => openChallenges.filter((challenge) => challenge.status === 'open'),
+    [openChallenges],
   );
 
   const activeFiltersCount = useMemo(() => (
@@ -197,23 +163,6 @@ const DesafiosTab = ({
     }
   };
 
-  const canManage = (challenge) => challenge.created_by_user_id === userId || challenge.accepted_by_user_id === userId;
-
-  const openChallengeMatch = useCallback(async (challenge) => {
-    if (!challenge?.id) return;
-
-    try {
-      const match = await getTeamMatchByChallengeId(challenge.id);
-      if (!match?.id) {
-        notifyBlockingError('Todavia no existe un partido asociado a este desafio');
-        return;
-      }
-      navigate(`/quiero-jugar/equipos/partidos/${match.id}`);
-    } catch (error) {
-      notifyBlockingError(error.message || 'No se pudo abrir el partido del desafio');
-    }
-  }, [navigate]);
-
   return (
     <div className="w-full max-w-[560px] flex flex-col gap-3">
       <InlineNotice
@@ -224,11 +173,11 @@ const DesafiosTab = ({
       />
 
       <div className="rounded-2xl border border-white/15 bg-[linear-gradient(135deg,rgba(47,58,113,0.5),rgba(31,40,84,0.42))] p-3">
-        <div className="w-full bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1">
+        <div className="w-full rounded-2xl border border-[#2f73b8]/35 bg-[#08162f]/80 p-2.5 flex items-center gap-3">
           <Button
             type="button"
             onClick={() => setShowPublishModal(true)}
-            className={`${publishActionClass} flex-1 !h-auto !rounded-lg !py-2.5 !text-sm !font-bold !tracking-wider !uppercase`}
+            className="flex-1 !h-14 !rounded-xl !bg-[#128BE9] !text-white !font-oswald !text-[18px] !font-semibold !tracking-[0.01em] shadow-[0_4px_14px_rgba(18,139,233,0.3)] hover:brightness-110 active:scale-95 transition-all"
           >
             Publicar desafio
           </Button>
@@ -236,12 +185,12 @@ const DesafiosTab = ({
           <button
             type="button"
             onClick={() => setShowFilters((prev) => !prev)}
-            className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-bold tracking-wider uppercase transition-all ${showFilters
-              ? 'bg-primary text-white shadow-lg'
-              : 'text-white/60 hover:text-white hover:bg-white/10'
+            className={`flex-1 h-14 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 font-oswald text-[18px] font-semibold tracking-[0.01em] border transition-all active:scale-95 ${showFilters
+              ? 'text-white border-[#2f73b8] shadow-[0_0_0_1px_rgba(47,115,184,0.45)]'
+              : 'text-[#9fd7ff] border-[#2f73b8]/70 hover:bg-slate-700'
               }`}
           >
-            <Search size={16} />
+            <Search size={20} />
             <span>Buscar</span>
             {activeFiltersCount > 0 ? (
               <span className="inline-flex h-5 min-w-[18px] items-center justify-center rounded-full bg-[#128BE9] px-1 text-[11px] leading-none text-white">
@@ -249,31 +198,6 @@ const DesafiosTab = ({
               </span>
             ) : null}
           </button>
-        </div>
-
-        <div className="mt-2.5">
-          <div className="w-full max-w-[320px] bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1">
-            <button
-              type="button"
-              onClick={() => setScope('all')}
-              className={`flex-1 rounded-lg py-2 text-xs font-bold tracking-wider uppercase transition-all ${scope === 'all'
-                ? 'bg-primary text-white shadow-lg'
-                : 'text-white/60 hover:text-white hover:bg-white/10'
-                }`}
-            >
-              Todos
-            </button>
-            <button
-              type="button"
-              onClick={() => setScope('mine')}
-              className={`flex-1 rounded-lg py-2 text-xs font-bold tracking-wider uppercase transition-all ${scope === 'mine'
-                ? 'bg-primary text-white shadow-lg'
-                : 'text-white/60 hover:text-white hover:bg-white/10'
-                }`}
-            >
-              Mios
-            </button>
-          </div>
         </div>
 
         {showFilters ? (
@@ -328,63 +252,14 @@ const DesafiosTab = ({
       {!loading && visibleChallenges.length === 0 ? (
         <EmptyStateCard
           icon={Flag}
-          title={scope === 'mine' ? 'Sin desafíos tuyos' : 'Sin desafíos abiertos'}
-          description={scope === 'mine'
-            ? 'No encontramos desafios tuyos con esos filtros.'
-            : 'No encontramos desafíos abiertos con esos filtros.'}
+          title="Sin desafíos abiertos"
+          description="No encontramos desafíos abiertos con esos filtros."
           className="my-0 p-5"
         />
       ) : null}
 
       {!loading ? visibleChallenges.map((challenge) => {
         const isOwnChallenge = challenge.created_by_user_id === userId;
-        const allowManage = canManage(challenge);
-
-        if (scope === 'mine') {
-          let primaryLabel = 'Ver detalle';
-          let primaryAction = () => handleShare(challenge);
-
-          if (challenge.status === 'open') {
-            primaryLabel = 'Compartir';
-            primaryAction = () => handleShare(challenge);
-          } else if (challenge.status === 'accepted') {
-            primaryLabel = 'Ver partido';
-            primaryAction = () => openChallengeMatch(challenge);
-          } else if (challenge.status === 'confirmed') {
-            primaryLabel = allowManage ? 'Finalizar' : 'Ver detalle';
-            primaryAction = allowManage
-              ? () => setCompleteTarget(challenge)
-              : () => handleShare(challenge);
-          } else if (challenge.status === 'completed') {
-            primaryLabel = 'Compartir';
-            primaryAction = () => handleShare(challenge);
-          }
-
-          return (
-            <ChallengeCard
-              key={challenge.id}
-              challenge={challenge}
-              isOwnChallenge={isOwnChallenge}
-              primaryLabel={primaryLabel}
-              onPrimaryAction={primaryAction}
-              onCancel={async () => {
-                if (!allowManage) return;
-
-                try {
-                  setIsSubmitting(true);
-                  await cancelChallenge(challenge.id);
-                  await loadChallenges();
-                } catch (error) {
-                  notifyBlockingError(error.message || 'No se pudo cancelar el desafio');
-                } finally {
-                  setIsSubmitting(false);
-                }
-              }}
-              canCancel={allowManage && challenge.status === 'open'}
-              disabled={isSubmitting}
-            />
-          );
-        }
 
         return (
           <ChallengeCard
