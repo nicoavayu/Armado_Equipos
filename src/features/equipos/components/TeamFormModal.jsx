@@ -30,7 +30,9 @@ const normalizeHex = (value) => {
   return /^#[0-9A-Fa-f]{6}$/.test(withHash) ? withHash.toUpperCase() : null;
 };
 
-const actionButtonClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
+const actionButtonClass = 'h-[44px] min-h-[44px] rounded-xl px-4 py-2.5 text-base font-bebas tracking-[0.5px] !normal-case';
+const actionPrimaryClass = `${actionButtonClass} !bg-[#128BE9] !border-2 !border-transparent !text-white !shadow-lg hover:brightness-110 hover:-translate-y-px`;
+const actionSecondaryClass = `${actionButtonClass} !bg-transparent !border-2 !border-white/60 !text-white/90 hover:!bg-white/10 hover:!border-white hover:!text-white`;
 
 const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = false }) => {
   const crestFileRef = useRef(null);
@@ -98,12 +100,12 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
       className="w-full max-w-[560px]"
       classNameContent="p-4 sm:p-5"
       footer={(
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 mt-2.5 max-w-[420px] mx-auto">
           <Button
             type="button"
             onClick={onClose}
             variant="secondary"
-            className={actionButtonClass}
+            className={actionSecondaryClass}
             disabled={isSubmitting}
           >
             Cancelar
@@ -111,12 +113,12 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
           <Button
             type="submit"
             form="team-form-modal"
-            className={actionButtonClass}
+            className={actionPrimaryClass}
             loading={isSubmitting}
             loadingText="Guardando..."
             disabled={form.name.trim().length === 0}
           >
-            Guardar equipo
+            Guardar
           </Button>
         </div>
       )}
