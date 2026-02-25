@@ -163,6 +163,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const [memberModalMode, setMemberModalMode] = useState('create');
   const [memberEditing, setMemberEditing] = useState(null);
   const [openMemberMenuId, setOpenMemberMenuId] = useState(null);
+  const [openMemberMenuDirection, setOpenMemberMenuDirection] = useState('down');
 
   const [newMember, setNewMember] = useState(EMPTY_NEW_MEMBER);
   const [memberNameInput, setMemberNameInput] = useState('');
@@ -915,12 +916,24 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                           </div>
                         )}
                         rightSlot={isSelectedTeamManager ? (
-                          <div className="relative" onClick={(event) => event.stopPropagation()}>
+                          <div className="relative overflow-visible" onClick={(event) => event.stopPropagation()}>
                             <button
                               type="button"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                setOpenMemberMenuId((prev) => (prev === member.id ? null : member.id));
+                                setOpenMemberMenuId((prev) => {
+                                  if (prev === member.id) return null;
+
+                                  const triggerRect = event.currentTarget.getBoundingClientRect();
+                                  const menuEstimatedHeight = 152;
+                                  const viewportPadding = 12;
+                                  const spaceBelow = window.innerHeight - triggerRect.bottom - viewportPadding;
+                                  const spaceAbove = triggerRect.top - viewportPadding;
+                                  const shouldOpenUp = spaceBelow < menuEstimatedHeight && spaceAbove > spaceBelow;
+                                  setOpenMemberMenuDirection(shouldOpenUp ? 'up' : 'down');
+
+                                  return member.id;
+                                });
                               }}
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/8 text-white/80 hover:bg-white/15"
                               title="Acciones del jugador"
@@ -931,7 +944,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                             </button>
 
                             {openMemberMenuId === member.id ? (
-                              <div className="absolute right-0 mt-2 z-30 w-44 rounded-xl border border-slate-700 bg-slate-900 shadow-lg overflow-hidden">
+                              <div className={`absolute right-0 z-40 w-44 rounded-xl border border-slate-700 bg-slate-900 shadow-lg overflow-hidden ${openMemberMenuDirection === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
                                 <button
                                   type="button"
                                   onClick={() => {
