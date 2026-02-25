@@ -973,7 +973,16 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               ) : null}
 
               {!detailLoading && (members.length > 0 || teamPendingInvitations.length > 0) ? (
-                <div className="mt-3 space-y-2">
+                <div className="mt-4 mb-2 flex items-center gap-3 px-1">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
+                    Jugadores
+                  </span>
+                  <span className="h-px flex-1 bg-white/10" />
+                </div>
+              ) : null}
+
+              {!detailLoading && (members.length > 0 || teamPendingInvitations.length > 0) ? (
+                <div className="space-y-2">
                   {members.map((member) => {
                     const memberUserId = toStringId(member?.user_id || member?.jugador?.usuario_id);
                     const memberHasUserAccount = Boolean(memberUserId);
