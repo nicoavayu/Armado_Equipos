@@ -180,16 +180,16 @@ const MatchCard = ({
                 </div>
             </div>
 
-            {/* Modalidad, Tipo, Precio y Jugadores */}
+            {/* Tipo, Modalidad, Precio y Jugadores */}
             <div className="flex flex-wrap items-center gap-2 mb-3">
-                <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-lg shrink-0 whitespace-nowrap ${getModalidadClass(partido.modalidad)} ${isFinished ? 'opacity-70' : ''}`}>
-                    {partido.modalidad || 'F5'}
-                </div>
                 {originBadgeLabel ? (
                     <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-lg shrink-0 whitespace-nowrap ${getOriginClass(originBadgeLabel)} ${isFinished ? 'opacity-70' : ''}`}>
                         {originBadgeLabel}
                     </div>
                 ) : null}
+                <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-lg shrink-0 whitespace-nowrap ${getModalidadClass(partido.modalidad)} ${isFinished ? 'opacity-70' : ''}`}>
+                    {partido.modalidad || 'F5'}
+                </div>
                 <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-lg shrink-0 whitespace-nowrap ${getGeneroClass(generoLabel)} ${isFinished ? 'opacity-70' : ''}`}>
                     {generoLabel}
                 </div>
