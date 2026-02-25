@@ -32,6 +32,74 @@ const severityIconClass = {
   neutral: 'text-white/80',
 };
 
+const AWARDS_RING_WINDOW_MS = 24 * 60 * 60 * 1000;
+const AWARDS_RING_NOTIFICATION_TYPES = new Set(['survey_results_ready', 'awards_ready']);
+
+const resolveNotificationMatchId = (notification) => (
+  notification?.partido_id
+  ?? notification?.data?.match_id
+  ?? notification?.data?.matchId
+  ?? notification?.match_ref
+  ?? null
+);
+
+const hasAnyAwardsWinner = (row) => Boolean(
+  row?.mvp
+  || row?.golden_glove
+  || row?.dirty_player
+  || (Array.isArray(row?.red_cards) && row.red_cards.length > 0)
+  || row?.awards?.mvp?.player_id
+  || row?.awards?.best_gk?.player_id
+  || row?.awards?.red_card?.player_id
+);
+
+const isAwardsInsufficientOrSkipped = (row) => {
+  const awardsStatus = String(row?.awards_status || '').toLowerCase();
+  return awardsStatus.includes('insufficient') || awardsStatus.includes('skip');
+};
+
+const isAwardsReadyAndVisible = (row) => (
+  Boolean(row?.results_ready)
+  && !isAwardsInsufficientOrSkipped(row)
+  && hasAnyAwardsWinner(row)
+);
+
+const extractWinnerIds = (row) => {
+  const awards = row?.awards || {};
+  const mvpWinnerId = row?.mvp ?? awards?.mvp?.player_id ?? null;
+  const gloveWinnerId = row?.golden_glove ?? awards?.best_gk?.player_id ?? null;
+  const dirtyWinnerId = row?.dirty_player
+    ?? (Array.isArray(row?.red_cards) ? row.red_cards[0] : null)
+    ?? awards?.red_card?.player_id
+    ?? null;
+
+  return [mvpWinnerId, gloveWinnerId, dirtyWinnerId]
+    .filter((id) => id !== null && id !== undefined && String(id).trim() !== '');
+};
+
+const hasRenderableWinnerInRoster = (row, roster = []) => {
+  const winnerIds = extractWinnerIds(row);
+  if (winnerIds.length === 0 || !Array.isArray(roster) || roster.length === 0) return false;
+
+  return winnerIds.some((winnerId) => {
+    const winnerStr = String(winnerId);
+    const winnerStrLower = winnerStr.toLowerCase();
+
+    return roster.some((player) => {
+      const uuid = player?.uuid != null ? String(player.uuid) : '';
+      const usuarioId = player?.usuario_id != null ? String(player.usuario_id) : '';
+      const numericId = player?.id != null ? String(player.id) : '';
+
+      return (
+        uuid === winnerStr
+        || usuarioId === winnerStr
+        || numericId === winnerStr
+        || (uuid && winnerStr && uuid.toLowerCase() === winnerStrLower)
+      );
+    });
+  });
+};
+
 const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _onViewActivePlayers }) => {
   const { user, profile, refreshProfile } = useAuth();
   const notificationsCtx = useNotifications() || {};
@@ -46,24 +114,40 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
   const [activityItems, setActivityItems] = useState([]);
   const [showProximosPartidos, setShowProximosPartidos] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [awardsReadyVisibleMatchIds, setAwardsReadyVisibleMatchIds] = useState([]);
+  const [awardsRingLoading, setAwardsRingLoading] = useState(false);
   const statusDropdownRef = useRef(null);
   const activityLoadedRef = useRef(false);
 
   const nowTs = Date.now();
-  const AWARDS_STORY_WINDOW_MS = 24 * 60 * 60 * 1000;
-  const awardsStoryNotifs = (notifications || [])
-    .filter((n) => ['survey_results_ready', 'awards_ready'].includes(n.type))
+  const awardsCandidateNotifs = (notifications || [])
+    .filter((n) => AWARDS_RING_NOTIFICATION_TYPES.has(n.type))
     .filter((n) => {
       const createdTs = n?.created_at ? new Date(n.created_at).getTime() : 0;
-      return createdTs > 0 && (nowTs - createdTs) <= AWARDS_STORY_WINDOW_MS;
+      return createdTs > 0 && (nowTs - createdTs) <= AWARDS_RING_WINDOW_MS;
     })
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const awardsCandidateMatchIds = Array.from(new Set(
+    awardsCandidateNotifs
+      .map((notif) => resolveNotificationMatchId(notif))
+      .filter((id) => id !== null && id !== undefined)
+      .map((id) => String(id).trim())
+      .filter(Boolean),
+  ));
+  const awardsCandidateMatchIdsKey = awardsCandidateMatchIds.join(',');
+  const awardsReadyVisibleMatchIdSet = new Set((awardsReadyVisibleMatchIds || []).map((id) => String(id)));
+  const awardsStoryNotifs = awardsCandidateNotifs.filter((notif) => {
+    const matchId = resolveNotificationMatchId(notif);
+    if (!matchId) return false;
+    return awardsReadyVisibleMatchIdSet.has(String(matchId));
+  });
   const hasAwardsStoryPending = awardsStoryNotifs.some((n) => !n.read);
   const hasAwardsStoryViewed = !hasAwardsStoryPending && awardsStoryNotifs.some((n) => n.read);
-  const hasAwardsStory = hasAwardsStoryPending || hasAwardsStoryViewed;
+  const awardsReadyAndVisible = awardsStoryNotifs.length > 0;
+  const shouldShowAwardsRing = !awardsRingLoading && awardsReadyAndVisible;
 
   const openAwardsStoryFromNotification = async (notif) => {
-    const matchId = notif?.partido_id ?? notif?.data?.match_id ?? notif?.data?.matchId ?? notif?.match_ref;
+    const matchId = resolveNotificationMatchId(notif);
     if (!matchId) return false;
     if (!notif?.read && notif?.id) {
       try { await markAsRead(notif.id); } catch (_) { /* non-blocking */ }
@@ -81,7 +165,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
   const handleAvatarClick = async (e) => {
     e.stopPropagation();
-    if (hasAwardsStory) {
+    if (shouldShowAwardsRing) {
       const latestPending = awardsStoryNotifs.find((n) => !n.read);
       const latestViewed = awardsStoryNotifs.find((n) => n.read);
       if (latestPending && await openAwardsStoryFromNotification(latestPending)) return;
@@ -108,6 +192,88 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     setShowProximosPartidos(true);
     navigate(location.pathname, { replace: true, state: {} });
   }, [location.pathname, location.state, navigate]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const validateAwardsRing = async () => {
+      if (!user?.id) {
+        setAwardsReadyVisibleMatchIds([]);
+        setAwardsRingLoading(false);
+        return;
+      }
+
+      const candidateMatchIds = awardsCandidateMatchIds;
+
+      if (candidateMatchIds.length === 0) {
+        setAwardsReadyVisibleMatchIds([]);
+        setAwardsRingLoading(false);
+        return;
+      }
+
+      const normalizedNumericIds = candidateMatchIds
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id));
+
+      if (normalizedNumericIds.length === 0) {
+        setAwardsReadyVisibleMatchIds([]);
+        setAwardsRingLoading(false);
+        return;
+      }
+
+      setAwardsRingLoading(true);
+      setAwardsReadyVisibleMatchIds([]);
+
+      try {
+        const { data: surveyResultsRows, error: surveyResultsError } = await supabase
+          .from('survey_results')
+          .select('*')
+          .in('partido_id', normalizedNumericIds);
+
+        if (surveyResultsError) throw surveyResultsError;
+
+        const { data: rosterRows, error: rosterError } = await supabase
+          .from('jugadores')
+          .select('partido_id, id, uuid, usuario_id')
+          .in('partido_id', normalizedNumericIds);
+
+        if (rosterError) throw rosterError;
+
+        const rosterByMatchId = new Map();
+        (rosterRows || []).forEach((player) => {
+          const key = String(player?.partido_id ?? '');
+          if (!key) return;
+          const list = rosterByMatchId.get(key) || [];
+          list.push(player);
+          rosterByMatchId.set(key, list);
+        });
+
+        const readyMatchIds = (surveyResultsRows || [])
+          .filter((row) => isAwardsReadyAndVisible(row))
+          .filter((row) => hasRenderableWinnerInRoster(row, rosterByMatchId.get(String(row.partido_id)) || []))
+          .map((row) => String(row.partido_id));
+
+        if (!cancelled) {
+          setAwardsReadyVisibleMatchIds(readyMatchIds);
+        }
+      } catch (error) {
+        console.warn('[AWARDS_RING] Could not validate awards visibility:', error);
+        if (!cancelled) {
+          setAwardsReadyVisibleMatchIds([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setAwardsRingLoading(false);
+        }
+      }
+    };
+
+    validateAwardsRing();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, awardsCandidateMatchIdsKey]);
 
   const fetchActiveMatches = async () => {
     if (!user) {
@@ -351,10 +517,10 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
               <div
                 className={[
                   'rounded-full',
-                  hasAwardsStoryPending || hasAwardsStoryViewed ? 'p-[2px]' : 'p-0',
+                  shouldShowAwardsRing ? 'p-[2px]' : 'p-0',
                   hasAwardsStoryPending
                     ? 'bg-gradient-to-r from-[#ff2f5b] via-[#ff5f3a] to-[#ff9800] shadow-[0_0_0_2px_rgba(255,255,255,0.10),0_0_16px_rgba(255,111,53,0.30)]'
-                    : hasAwardsStoryViewed
+                    : shouldShowAwardsRing && hasAwardsStoryViewed
                       ? 'bg-white/25'
                       : 'bg-transparent',
                 ].join(' ')}

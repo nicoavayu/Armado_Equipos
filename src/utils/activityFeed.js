@@ -102,6 +102,75 @@ const quoteMatchName = (value, fallback = 'Partido') => {
   return `"${raw || fallback}"`;
 };
 
+const normalizeTeamLabel = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const normalized = raw.toLowerCase();
+  const genericTeamLabels = new Set([
+    'equipo a',
+    'equipo b',
+    'tu equipo',
+    'equipo rival',
+    'el equipo rival',
+    'rival',
+  ]);
+
+  if (genericTeamLabels.has(normalized)) return '';
+  return raw;
+};
+
+const extractChallengeTeamsFromMessage = (message = '') => {
+  const raw = String(message || '').trim();
+  if (!raw) return { teamA: '', teamB: '' };
+
+  // Example: "El desafio entre napoli y maturana fue aceptado."
+  const betweenMatch = raw.match(/entre\s+(.+?)\s+y\s+(.+?)\s+fue\s+aceptado/i);
+  if (betweenMatch) {
+    return {
+      teamA: normalizeTeamLabel(betweenMatch[1]),
+      teamB: normalizeTeamLabel(betweenMatch[2]),
+    };
+  }
+
+  // Example: "Confirmaste napoli para enfrentar a maturana."
+  const versusMatch = raw.match(/confirmaste\s+(.+?)\s+para enfrentar a\s+(.+?)(?:\.|$)/i);
+  if (versusMatch) {
+    return {
+      teamA: normalizeTeamLabel(versusMatch[1]),
+      teamB: normalizeTeamLabel(versusMatch[2]),
+    };
+  }
+
+  return { teamA: '', teamB: '' };
+};
+
+const resolveChallengeTeamNames = (notification) => {
+  const data = notification?.data || {};
+  const teamAFromData = normalizeTeamLabel(
+    data?.team_a_name
+    || data?.challenger_team_name
+    || data?.home_team_name
+    || '',
+  );
+  const teamBFromData = normalizeTeamLabel(
+    data?.team_b_name
+    || data?.accepted_team_name
+    || data?.away_team_name
+    || '',
+  );
+
+  if (teamAFromData && teamBFromData) {
+    return { teamA: teamAFromData, teamB: teamBFromData };
+  }
+
+  const fromMessage = extractChallengeTeamsFromMessage(notification?.message || '');
+  return {
+    teamA: teamAFromData || fromMessage.teamA || '',
+    teamB: teamBFromData || fromMessage.teamB || '',
+  };
+};
+
 const routeForMatch = ({ matchId, matchCode, currentUserId, match }) => {
   if (!matchId) return null;
   if (match?.source_type === 'team_match') return `/quiero-jugar/equipos/partidos/${matchId}`;
@@ -299,13 +368,16 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     };
   }
   if (type === 'challenge_accepted' || type === 'team_match_created') {
-    const teamA = notification?.data?.team_a_name || notification?.data?.challenger_team_name || 'Equipo A';
-    const teamB = notification?.data?.team_b_name || notification?.data?.accepted_team_name || 'Equipo B';
+    const { teamA, teamB } = resolveChallengeTeamNames(notification);
+    const hasBothTeams = Boolean(teamA && teamB);
+    const title = hasBothTeams
+      ? `Desafio aceptado: ${quoteMatchName(`${teamA} vs ${teamB}`, 'desafio')}`
+      : 'Desafio aceptado';
     return {
       ...base,
       icon: 'CalendarClock',
-      title: `Desafio aceptado: ${quoteMatchName(`${teamA} vs ${teamB}`, 'partido')}`,
-      subtitle: stripEmojis(notification?.message || 'Ya pueden coordinar la cancha'),
+      title,
+      subtitle: dateLabel || '',
       route: teamMatchId ? `/quiero-jugar/equipos/partidos/${teamMatchId}` : '/quiero-jugar',
     };
   }

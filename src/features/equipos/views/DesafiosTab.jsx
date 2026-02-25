@@ -224,11 +224,11 @@ const DesafiosTab = ({
       />
 
       <div className="rounded-2xl border border-white/15 bg-[linear-gradient(135deg,rgba(47,58,113,0.5),rgba(31,40,84,0.42))] p-3">
-        <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
+        <div className="w-full bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1">
           <Button
             type="button"
             onClick={() => setShowPublishModal(true)}
-            className={publishActionClass}
+            className={`${publishActionClass} flex-1 !h-auto !rounded-lg !py-2.5 !text-sm !font-bold !tracking-wider !uppercase`}
           >
             Publicar desafio
           </Button>
@@ -236,7 +236,10 @@ const DesafiosTab = ({
           <button
             type="button"
             onClick={() => setShowFilters((prev) => !prev)}
-            className="inline-flex h-12 items-center gap-1.5 rounded-xl border border-[#9ED3FF]/35 bg-[#128BE9]/12 px-3 text-[16px] font-oswald text-[#D4EBFF] transition-all hover:bg-[#128BE9]/22"
+            className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-bold tracking-wider uppercase transition-all ${showFilters
+              ? 'bg-primary text-white shadow-lg'
+              : 'text-white/60 hover:text-white hover:bg-white/10'
+              }`}
           >
             <Search size={16} />
             <span>Buscar</span>
@@ -249,13 +252,13 @@ const DesafiosTab = ({
         </div>
 
         <div className="mt-2.5">
-          <div className="inline-flex rounded-lg border border-white/15 bg-white/5 p-1">
+          <div className="w-full max-w-[320px] bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1">
             <button
               type="button"
               onClick={() => setScope('all')}
-              className={`rounded-md px-3 py-1.5 text-[13px] font-oswald font-semibold transition-all ${scope === 'all'
-                ? 'border border-white/25 bg-white/12 text-white'
-                : 'border border-transparent text-white/65 hover:text-white/85'
+              className={`flex-1 rounded-lg py-2 text-xs font-bold tracking-wider uppercase transition-all ${scope === 'all'
+                ? 'bg-primary text-white shadow-lg'
+                : 'text-white/60 hover:text-white hover:bg-white/10'
                 }`}
             >
               Todos
@@ -263,9 +266,9 @@ const DesafiosTab = ({
             <button
               type="button"
               onClick={() => setScope('mine')}
-              className={`rounded-md px-3 py-1.5 text-[13px] font-oswald font-semibold transition-all ${scope === 'mine'
-                ? 'border border-white/25 bg-white/12 text-white'
-                : 'border border-transparent text-white/65 hover:text-white/85'
+              className={`flex-1 rounded-lg py-2 text-xs font-bold tracking-wider uppercase transition-all ${scope === 'mine'
+                ? 'bg-primary text-white shadow-lg'
+                : 'text-white/60 hover:text-white hover:bg-white/10'
                 }`}
             >
               Mios

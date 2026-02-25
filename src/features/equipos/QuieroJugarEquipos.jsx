@@ -46,15 +46,15 @@ const QuieroJugarEquipos = () => {
       <PageTitle title="QUIERO JUGAR" onBack={() => navigate(-1)}>QUIERO JUGAR</PageTitle>
 
       <div className="w-full flex justify-center px-4 pt-[116px] pb-7">
-        <div className="w-full max-w-[560px] rounded-xl border border-white/15 bg-[linear-gradient(135deg,rgba(61,74,130,0.42),rgba(31,43,96,0.4))] p-1.5 grid grid-cols-2 gap-1.5">
+        <div className="w-full max-w-[500px] bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1">
           {SUBTABS.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setActiveSubtab(tab.key)}
-              className={`min-w-0 rounded-lg px-1 py-2.5 text-[18px] font-oswald font-semibold normal-case tracking-[0.01em] transition-all ${activeSubtab === tab.key
-                ? 'border border-[#A5B8FF]/45 bg-[linear-gradient(135deg,rgba(133,121,236,0.58),rgba(113,108,217,0.56))] text-white shadow-[0_8px_22px_rgba(121,111,231,0.34)]'
-                : 'border border-transparent bg-transparent text-white/60 hover:text-white/80'
+              className={`flex-1 min-w-0 px-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase transition-all ${activeSubtab === tab.key
+                ? 'bg-primary text-white shadow-lg'
+                : 'text-white/60 hover:text-white hover:bg-white/10'
                 }`}
             >
               {tab.label}

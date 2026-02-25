@@ -406,9 +406,9 @@ const QuieroJugar = () => {
       <div className={containerClass} style={{ paddingTop: '126px' }}>
 
         {/* 2. Tabs with added spacing - Removed overlap */}
-        <div className="flex mb-8 rounded-xl overflow-hidden w-full max-w-[500px] bg-white/5 border border-white/10 relative z-10">
+        <div className="w-full max-w-[500px] mb-8 bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1 relative z-10">
           <button
-            className={`flex-1 py-3 bg-transparent border-none text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-all duration-300 uppercase relative ${activeTab === 'matches' ? 'text-white bg-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]' : 'text-white/40 hover:text-white/60'}`}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase cursor-pointer transition-all duration-300 ${activeTab === 'matches' ? 'bg-primary text-white shadow-lg' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
             onClick={() => {
               setActiveTab('matches');
               sessionStorage.setItem('quiero-jugar-tab', 'matches');
@@ -416,9 +416,8 @@ const QuieroJugar = () => {
           >
             PARTIDOS
           </button>
-          <div className="w-[1px] bg-white/10 h-full self-stretch" />
           <button
-            className={`flex-1 py-3 bg-transparent border-none text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-all duration-300 uppercase relative ${activeTab === 'players' ? 'text-white bg-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)]' : 'text-white/40 hover:text-white/60'}`}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase cursor-pointer transition-all duration-300 ${activeTab === 'players' ? 'bg-primary text-white shadow-lg' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
             onClick={() => {
               setActiveTab('players');
               sessionStorage.setItem('quiero-jugar-tab', 'players');

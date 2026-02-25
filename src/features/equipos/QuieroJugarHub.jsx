@@ -28,15 +28,15 @@ const QuieroJugarHub = () => {
         className="fixed left-0 right-0 z-[950] px-4"
         style={{ top: '106px' }}
       >
-        <div className="w-full max-w-[560px] mx-auto rounded-xl border border-white/15 bg-[linear-gradient(135deg,rgba(55,63,109,0.58),rgba(40,50,95,0.54))] backdrop-blur-xl p-1.5 grid grid-cols-2 gap-1.5">
+        <div className="w-full max-w-[500px] mx-auto bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1">
           {TOP_TABS.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setActiveTopTab(tab.key)}
-              className={`rounded-lg py-2.5 text-[18px] font-oswald font-semibold normal-case tracking-[0.01em] transition-all ${activeTopTab === tab.key
-                ? 'border border-[#A5B8FF]/45 bg-[linear-gradient(135deg,rgba(136,123,238,0.62),rgba(113,108,217,0.58))] text-white shadow-[0_8px_22px_rgba(121,111,231,0.32)]'
-                : 'bg-transparent border border-transparent text-white/60 hover:text-white/80'
+              className={`flex-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase transition-all ${activeTopTab === tab.key
+                ? 'bg-primary text-white shadow-lg'
+                : 'text-white/60 hover:text-white hover:bg-white/10'
                 }`}
             >
               {tab.label}
