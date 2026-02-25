@@ -660,24 +660,24 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
         <div className="relative left-1/2 right-1/2 ml-[-50vw] mr-[-50vw] w-screen">
           <div className="px-4">
-            <div className="min-h-[320px]">
+            <div className="min-h-[340px]">
               {activityLoading ? (
-                <div className="h-[320px] overflow-hidden">
+                <div className="h-[340px] overflow-hidden">
                   {Array.from({ length: 4 }).map((_, index) => (
                     <div key={`activity-skeleton-${index}`} className="py-3">
-                      <div className="flex items-start gap-3 px-2">
+                      <div className="flex items-start gap-3 px-2.5">
                         <div className="w-5 h-5 rounded-full bg-white/[0.14] animate-pulse mt-1" />
                         <div className="min-w-0 flex-1">
                           <div className="h-3.5 w-[82%] rounded bg-white/[0.13] animate-pulse" />
                           <div className="h-3 mt-2 w-[52%] rounded bg-white/[0.08] animate-pulse" />
                         </div>
                       </div>
-                      {index < 3 && <div className="mt-3 h-px bg-white/[0.07]" />}
+                      {index < 3 && <div className="mt-3 h-px bg-white/[0.06]" />}
                     </div>
                   ))}
                 </div>
               ) : activityItems.length > 0 ? (
-                <div className="h-[320px] overflow-y-auto pr-0.5 custom-scrollbar">
+                <div className="h-[340px] overflow-y-auto pr-0.5 custom-scrollbar">
                   {activityItems.map((item, index) => {
                     const Icon = activityIconMap[item.icon] || Bell;
                     const iconColorClass = severityIconClass[item.severity] || severityIconClass.neutral;
@@ -689,15 +689,15 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                       <div key={item.id}>
                         <button
                           onClick={() => navigate(item.route)}
-                          className="w-full flex items-start gap-3 px-3 py-3.5 rounded-lg text-left bg-white/[0.035] hover:bg-white/[0.06] active:bg-white/[0.08] transition-colors"
+                          className="w-full flex items-start gap-3 px-3.5 py-3 rounded-md text-left bg-white/[0.025] hover:bg-white/[0.045] active:bg-white/[0.06] transition-colors"
                         >
                           <div className={`mt-1 shrink-0 ${iconColorClass}`}>
-                            <Icon size={18} />
+                            <Icon size={17} />
                           </div>
 
                           <div className="min-w-0 flex-1">
                             <div
-                              className="text-white/92 text-[14px] leading-5 font-medium"
+                              className="text-white/92 text-[14px] leading-[1.25rem] font-medium"
                               style={{
                                 display: '-webkit-box',
                                 WebkitLineClamp: 2,
@@ -707,25 +707,25 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                             >
                               {item.title}
                             </div>
-                            <div className="text-white/58 text-xs mt-1 truncate">
+                            <div className="text-white/58 text-[12px] leading-4 mt-1 truncate">
                               {subtitleText}
                             </div>
                           </div>
 
-                          <div className="pt-1.5 shrink-0 text-white/35">
+                          <div className="pt-1.5 shrink-0 text-white/30">
                             <ChevronRight size={14} />
                           </div>
                         </button>
 
                         {index < activityItems.length - 1 && (
-                          <div className="h-px bg-white/[0.07] my-0.5" />
+                          <div className="h-px bg-white/[0.06] my-0.5" />
                         )}
                       </div>
                     );
                   })}
                 </div>
               ) : (
-                <div className="h-[320px] flex flex-col items-center justify-center text-center px-5">
+                <div className="h-[340px] flex flex-col items-center justify-center text-center px-5">
                   <Bell size={22} className="text-white/45 mb-3" />
                   <div className="font-oswald text-[23px] sm:text-[22px] leading-tight tracking-[0.01em] text-white/90 font-semibold">
                     Sin notificaciones

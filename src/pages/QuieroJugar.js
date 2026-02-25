@@ -131,7 +131,11 @@ const resolveMatchCoordinates = (partido) => {
   return null;
 };
 
-const QuieroJugar = ({ secondaryTabsTop = 126 }) => {
+const QuieroJugar = ({
+  secondaryTabsTop = 126,
+  secondaryTabsDirection = 'right',
+  secondaryTabsTransitionKey = 'individual',
+}) => {
   const MAX_SUBSTITUTE_SLOTS = 4;
 
   const navigate = useNavigate();
@@ -159,6 +163,7 @@ const QuieroJugar = ({ secondaryTabsTop = 126 }) => {
   const [inviteTargetPlayer, setInviteTargetPlayer] = useState(null);
   const [actionFriendStatus, setActionFriendStatus] = useState(null);
   const [isSubmittingFriend, setIsSubmittingFriend] = useState(false);
+  const [showSecondaryTabs, setShowSecondaryTabs] = useState(false);
   const { getRelationshipStatus, sendFriendRequest } = useAmigos(user?.id || null);
 
   useEffect(() => {
@@ -172,6 +177,15 @@ const QuieroJugar = ({ secondaryTabsTop = 126 }) => {
   useEffect(() => {
     sessionStorage.setItem('quiero-jugar-match-distance-km', String(maxMatchDistanceKm));
   }, [maxMatchDistanceKm]);
+
+  useEffect(() => {
+    setShowSecondaryTabs(false);
+    const frameId = window.requestAnimationFrame(() => {
+      setShowSecondaryTabs(true);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [secondaryTabsDirection, secondaryTabsTransitionKey]);
 
   useEffect(() => {
     const resolveActionPlayerRelationship = async () => {
@@ -405,26 +419,42 @@ const QuieroJugar = ({ secondaryTabsTop = 126 }) => {
 
       <div className={containerClass} style={{ paddingTop: `${secondaryTabsTop}px` }}>
 
-        {/* 2. Tabs with added spacing - Removed overlap */}
-        <div className="w-full max-w-[500px] mb-8 bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1 relative z-10">
-          <button
-            className={`flex-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase cursor-pointer transition-all duration-300 ${activeTab === 'matches' ? 'bg-[#128BE9] text-white shadow-[0_6px_18px_rgba(18,139,233,0.38)]' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
-            onClick={() => {
-              setActiveTab('matches');
-              sessionStorage.setItem('quiero-jugar-tab', 'matches');
-            }}
-          >
-            PARTIDOS
-          </button>
-          <button
-            className={`flex-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase cursor-pointer transition-all duration-300 ${activeTab === 'players' ? 'bg-[#128BE9] text-white shadow-[0_6px_18px_rgba(18,139,233,0.38)]' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
-            onClick={() => {
-              setActiveTab('players');
-              sessionStorage.setItem('quiero-jugar-tab', 'players');
-            }}
-          >
-            JUGADORES
-          </button>
+        {/* Secondary tabs (contextual filter) */}
+        <div
+          className="w-full max-w-[500px] mb-8 relative z-10 transition-[transform,opacity] duration-200 ease-out will-change-transform"
+          style={{
+            transform: showSecondaryTabs
+              ? 'translateX(0)'
+              : `translateX(${secondaryTabsDirection === 'left' ? '-18px' : '18px'})`,
+            opacity: showSecondaryTabs ? 1 : 0.01,
+          }}
+        >
+          <div className="bg-white/[0.04] border border-white/[0.08] rounded-[16px] p-1 flex gap-1">
+            <button
+              className={`flex-1 h-10 rounded-[12px] font-oswald text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-colors duration-200 ${activeTab === 'matches'
+                ? 'bg-[#235796] text-white'
+                : 'text-white/58 hover:text-white/[0.88] hover:bg-white/[0.06]'
+                }`}
+              onClick={() => {
+                setActiveTab('matches');
+                sessionStorage.setItem('quiero-jugar-tab', 'matches');
+              }}
+            >
+              PARTIDOS
+            </button>
+            <button
+              className={`flex-1 h-10 rounded-[12px] font-oswald text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-colors duration-200 ${activeTab === 'players'
+                ? 'bg-[#235796] text-white'
+                : 'text-white/58 hover:text-white/[0.88] hover:bg-white/[0.06]'
+                }`}
+              onClick={() => {
+                setActiveTab('players');
+                sessionStorage.setItem('quiero-jugar-tab', 'players');
+              }}
+            >
+              JUGADORES
+            </button>
+          </div>
         </div>
 
         {activeTab === 'matches' ? (

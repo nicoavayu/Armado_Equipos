@@ -3,7 +3,6 @@ import { resolveMatchInviteRoute } from './matchInviteRoute';
 import { getSurveyRemainingLabel, resolveSurveyDeadlineAt } from './surveyNotificationCopy';
 
 const ACTIVITY_MAX_ITEMS = 5;
-const MATCH_META_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 const INSIGHT_TTL_MS = 24 * 60 * 60 * 1000;
 
 const RELEVANT_TYPES = new Set([
@@ -24,6 +23,21 @@ const RELEVANT_TYPES = new Set([
   'friend_accepted',
 ]);
 
+const FEED_TEMPLATE_TYPES = new Set([
+  'survey_start',
+  'call_to_vote',
+  'awards_ready',
+  'match_join_request',
+  'match_join_approved',
+  'match_invite',
+  'challenge_accepted',
+  'team_match_created',
+  'match_player_joined',
+  'match_player_left',
+  'friend_request',
+  'friend_accepted',
+]);
+
 const PRIORITY = {
   survey_start: 10,
   call_to_vote: 10,
@@ -34,7 +48,8 @@ const PRIORITY = {
   match_complete: 22,
   match_join_approved: 24,
   match_invite: 24,
-  match_player_update: 26,
+  match_player_joined: 26,
+  match_player_left: 27,
   friend_request: 28,
   friend_accepted: 30,
   challenge_accepted: 18,
@@ -45,20 +60,46 @@ const PRIORITY = {
 
 const severityForType = (type) => {
   if (['match_today', 'falta_jugadores', 'call_to_vote', 'survey_start'].includes(type)) return 'urgent';
-  if (['match_join_request', 'match_invite', 'match_player_update', 'friend_request', 'match_tomorrow', 'challenge_accepted', 'team_match_created'].includes(type)) return 'warning';
+  if (['match_join_request', 'match_invite', 'match_player_joined', 'match_player_left', 'friend_request', 'match_tomorrow', 'challenge_accepted', 'team_match_created'].includes(type)) return 'warning';
   if (['awards_ready', 'match_complete', 'match_join_approved', 'friend_accepted'].includes(type)) return 'success';
   return 'neutral';
 };
 
-const normalizeType = (type, message = '') => {
+const resolveMatchUpdateTemplateType = (message = '') => {
   const msg = String(message || '').toLowerCase();
+  if (!msg) return null;
+
+  if (
+    msg.includes(' se unio')
+    || msg.includes(' se unió')
+    || msg.includes(' se sumo')
+    || msg.includes(' se sumó')
+    || msg.includes(' agregado')
+    || msg.includes(' agrego')
+    || msg.includes(' agregó')
+  ) {
+    return 'match_player_joined';
+  }
+
+  if (
+    msg.includes(' se bajo')
+    || msg.includes(' se bajó')
+    || msg.includes(' salio')
+    || msg.includes(' salió')
+    || msg.includes(' fue removido')
+    || msg.includes(' abandon')
+    || msg.includes(' baja')
+  ) {
+    return 'match_player_left';
+  }
+
+  return null;
+};
+
+const normalizeType = (type, message = '') => {
   if (type === 'survey_start' || type === 'post_match_survey') return 'survey_start';
   if (type === 'survey_results_ready' || type === 'awards_ready') return 'awards_ready';
-  if (type === 'match_update') {
-    if (msg.includes('sum') || msg.includes('agreg')) return 'match_player_update';
-    if (msg.includes('baj') || msg.includes('sali') || msg.includes('fue removido')) return 'match_player_update';
-    return 'match_player_update';
-  }
+  if (type === 'match_update') return resolveMatchUpdateTemplateType(message);
   return type;
 };
 
@@ -96,11 +137,6 @@ const getMatchDisplayName = (match, fallback = 'Partido') => (
   || match?.sede
   || fallback
 );
-
-const quoteMatchName = (value, fallback = 'Partido') => {
-  const raw = String(value || fallback).trim().replace(/^"+|"+$/g, '');
-  return `"${raw || fallback}"`;
-};
 
 const normalizeTeamLabel = (value) => {
   const raw = String(value || '').trim();
@@ -184,6 +220,37 @@ const routeForMatch = ({ matchId, matchCode, currentUserId, match }) => {
 const INSIGHT_STORAGE_KEY = 'activity_insight_weekly_matches_v1';
 const stripEmojis = (text = '') => String(text).replace(/[\p{Extended_Pictographic}\u2600-\u27BF]/gu, '').trim();
 
+const normalizeSpaces = (value = '') => String(value || '').replace(/\s+/g, ' ').trim();
+
+const compactText = (value = '', maxChars = 42, fallback = '') => {
+  const normalized = normalizeSpaces(stripEmojis(value));
+  if (!normalized) return fallback;
+  if (normalized.length <= maxChars) return normalized;
+  return `${normalized.slice(0, maxChars - 1).trimEnd()}…`;
+};
+
+const compactMatchName = (value, fallback = 'Partido') => compactText(value, 34, fallback);
+
+const resolveFriendActorName = (notification) => {
+  const data = notification?.data || {};
+  const fromData = [
+    data?.from_name,
+    data?.sender_name,
+    data?.requester_name,
+    data?.player_name,
+    data?.nombre,
+  ].find(Boolean);
+  if (fromData) return compactText(fromData, 30, '');
+
+  const rawTitle = normalizeSpaces(stripEmojis(notification?.title || ''));
+  const rawMessage = normalizeSpaces(stripEmojis(notification?.message || ''));
+  const titleMatch = rawTitle.match(/^(.+?)\s+te/i);
+  if (titleMatch?.[1]) return compactText(titleMatch[1], 30, '');
+  const messageMatch = rawMessage.match(/^(.+?)\s+te/i);
+  if (messageMatch?.[1]) return compactText(messageMatch[1], 30, '');
+  return '';
+};
+
 const normalizeMatchPlayerMessage = (rawMessage = '') => {
   const cleaned = stripEmojis(rawMessage);
   if (!cleaned) return '';
@@ -195,6 +262,30 @@ const normalizeMatchPlayerMessage = (rawMessage = '') => {
   }
 
   return cleaned;
+};
+
+const resolvePlayerNameFromMatchUpdate = (notification) => {
+  const data = notification?.data || {};
+  const fromData = [
+    data?.player_name,
+    data?.playerName,
+    data?.jugador_nombre,
+    data?.usuario_nombre,
+    data?.display_name,
+  ].find(Boolean);
+
+  if (fromData) return compactText(fromData, 30, '');
+
+  const normalized = normalizeMatchPlayerMessage(notification?.message || '');
+  if (!normalized) return '';
+
+  const directNameMatch = normalized.match(/^(.+?)\s+se\s+(?:unio|unió|sumo|sumó|agrego|agregó|bajo|bajó|retiro|retiró|fue)/i);
+  if (directNameMatch?.[1]) return compactText(directNameMatch[1], 30, '');
+
+  const inverseNameMatch = normalized.match(/^se\s+(?:unio|unió|sumo|sumó|agrego|agregó|bajo|bajó)\s+(.+?)(?:\s+al partido|$)/i);
+  if (inverseNameMatch?.[1]) return compactText(inverseNameMatch[1], 30, '');
+
+  return '';
 };
 
 const buildWeeklyInsightItem = async ({ currentUserId, supabaseClient }) => {
@@ -272,16 +363,17 @@ const buildWeeklyInsightItem = async ({ currentUserId, supabaseClient }) => {
 
 const toActivityFromNotification = (group, match, currentUserId) => {
   const { notification, count, type } = group;
+  if (!FEED_TEMPLATE_TYPES.has(type)) return null;
+
   const partidoId = resolveNotificationMatchId(notification);
   const teamMatchId = notification?.data?.team_match_id || notification?.data?.teamMatchId || null;
   const numericMatchId = Number(partidoId);
   const resolvedPartidoId = Number.isFinite(numericMatchId) && numericMatchId > 0 ? numericMatchId : undefined;
-  const dateLabel = formatMatchDate(match);
   const notificationMatchName = notification?.data?.match_name || notification?.data?.partido_nombre || null;
-  const matchName = getMatchDisplayName(match, notificationMatchName || 'este partido');
-  const quotedMatchName = quoteMatchName(matchName, 'este partido');
+  const matchName = compactMatchName(getMatchDisplayName(match, notificationMatchName || 'Partido'), 'Partido');
+  const dateLabel = formatMatchDate(match);
   const createdAt = notification?.created_at || new Date().toISOString();
-  const fallbackSubtitle = dateLabel || 'Actividad reciente';
+  const fallbackSubtitle = dateLabel || matchName;
   const matchRoute = routeForMatch({ matchId: resolvedPartidoId || partidoId, currentUserId, match });
 
   const base = {
@@ -303,99 +395,110 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     return {
       ...base,
       icon: 'ClipboardList',
-      title: `Completá la encuesta para ${quotedMatchName}`,
-      subtitle: surveySubtitle || dateLabel || 'Completá tu encuesta del partido',
+      title: 'Encuesta disponible',
+      subtitle: compactText(surveySubtitle || matchName, 46, 'Completá tu encuesta'),
       route: partidoId ? `/encuesta/${partidoId}` : '/notifications',
     };
   }
+
   if (type === 'call_to_vote') {
     return {
       ...base,
       icon: 'Vote',
-      title: `Votá y armá equipos para ${quotedMatchName}`,
-      subtitle: dateLabel || 'Entrá para votar jugadores',
+      title: 'Votación abierta',
+      subtitle: fallbackSubtitle,
       route: notification?.data?.matchCode
         ? `/votar-equipos?codigo=${encodeURIComponent(notification.data.matchCode)}`
         : (partidoId ? `/votar-equipos?partidoId=${partidoId}` : '/notifications'),
     };
   }
+
   if (type === 'awards_ready') {
     return {
       ...base,
       icon: 'Trophy',
-      title: `Premiación lista en ${quotedMatchName}`,
-      subtitle: dateLabel || 'Ya podés ver los premios',
+      title: 'Premiación lista',
+      subtitle: fallbackSubtitle,
       route: partidoId ? `/resultados-encuesta/${partidoId}?showAwards=1` : '/notifications',
     };
   }
+
   if (type === 'match_join_request') {
     return {
       ...base,
       icon: 'UserPlus',
-      title: `Solicitud pendiente en ${quotedMatchName}`,
-      subtitle: dateLabel || 'Tenés un jugador esperando aprobación',
+      title: 'Solicitud pendiente',
+      subtitle: fallbackSubtitle,
       route: partidoId ? `/admin/${partidoId}?tab=solicitudes` : '/notifications',
     };
   }
+
   if (type === 'match_join_approved') {
     return {
       ...base,
       icon: 'CheckCircle',
-      title: `Solicitud aprobada en ${quotedMatchName}`,
-      subtitle: dateLabel || 'Ya podés entrar al partido',
+      title: 'Solicitud aprobada',
+      subtitle: fallbackSubtitle,
       route: matchRoute || '/notifications',
     };
   }
+
   if (type === 'match_invite') {
     const inviteRoute = resolveMatchInviteRoute(notification);
     return {
       ...base,
       icon: 'CalendarClock',
-      title: `Recibiste una invitación a ${quotedMatchName}`,
-      subtitle: dateLabel || 'Entrá para aceptar o rechazar la invitación',
+      title: 'Invitación a partido',
+      subtitle: fallbackSubtitle,
       route: inviteRoute || '/notifications',
     };
   }
-  if (type === 'match_player_update') {
-    const playerFirstMessage = normalizeMatchPlayerMessage(notification?.message || 'Hubo un cambio de jugadores');
+
+  if (type === 'match_player_joined' || type === 'match_player_left') {
+    const playerName = resolvePlayerNameFromMatchUpdate(notification);
     const notificationLink = notification?.data?.link || null;
     return {
       ...base,
       icon: 'Users',
-      title: playerFirstMessage || `Cambio de jugadores en ${quotedMatchName}`,
-      subtitle: dateLabel || 'Revisá el estado del partido',
+      title: type === 'match_player_joined' ? 'Se sumó un jugador' : 'Se bajó un jugador',
+      subtitle: playerName || fallbackSubtitle,
       route: notificationLink || matchRoute || '/notifications',
     };
   }
+
   if (type === 'challenge_accepted' || type === 'team_match_created') {
     const { teamA, teamB } = resolveChallengeTeamNames(notification);
-    const hasBothTeams = Boolean(teamA && teamB);
-    const title = hasBothTeams
-      ? `Desafio aceptado: ${quoteMatchName(`${teamA} vs ${teamB}`, 'desafio')}`
-      : 'Desafio aceptado';
+    const compactTeamA = compactText(teamA, 20, '');
+    const compactTeamB = compactText(teamB, 20, '');
+    const teamsLabel = compactTeamA && compactTeamB ? `${compactTeamA} vs ${compactTeamB}` : '';
+
     return {
       ...base,
       icon: 'CalendarClock',
-      title,
-      subtitle: dateLabel || '',
-      route: teamMatchId ? `/quiero-jugar/equipos/partidos/${teamMatchId}` : '/quiero-jugar',
+      title: 'Desafío aceptado',
+      subtitle: teamsLabel || fallbackSubtitle,
+      route: teamMatchId ? `/quiero-jugar/equipos/partidos/${teamMatchId}` : (matchRoute || '/quiero-jugar'),
     };
   }
+
   if (type === 'friend_request') {
+    const actorName = resolveFriendActorName(notification);
     return {
       ...base,
       icon: 'UserPlus',
-      title: stripEmojis(notification?.title || 'Nueva solicitud de amistad'),
-      subtitle: stripEmojis(notification?.message || fallbackSubtitle),
+      title: 'Nueva solicitud de amistad',
+      subtitle: actorName || 'Abrí Amigos para responder',
       route: '/amigos',
     };
   }
+
   if (type === 'friend_accepted') {
+    const actorName = resolveFriendActorName(notification);
     return {
       ...base,
       icon: 'CheckCircle',
-      title: stripEmojis(notification?.title || 'Solicitud de amistad aceptada'),
-      subtitle: stripEmojis(notification?.message || fallbackSubtitle),
+      title: 'Solicitud de amistad aceptada',
+      subtitle: actorName || 'Ya pueden jugar juntos',
       route: '/amigos',
     };
   }
@@ -418,8 +521,7 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
     const isTomorrow = dayDiff === 1;
     if (!isToday && !isTomorrow) return acc;
 
-    const name = getMatchDisplayName(match, 'tu partido');
-    const quotedName = quoteMatchName(name, 'tu partido');
+    const name = compactMatchName(getMatchDisplayName(match, 'Partido'), 'Partido');
     const dateLabel = formatMatchDate(match);
     const route = routeForMatch({ matchId: match.id, currentUserId, match });
     const playerCount = Number(match?.jugadores?.[0]?.count || 0);
@@ -430,8 +532,8 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
       id: `activity-${isToday ? 'match_today' : 'match_tomorrow'}-${match.id}`,
       type: isToday ? 'match_today' : 'match_tomorrow',
       partidoId: Number(match.id),
-      title: `${isToday ? 'Hoy' : 'Mañana'} jugás ${quotedName}`,
-      subtitle: dateLabel || 'Revisá los detalles del partido',
+      title: isToday ? 'Partido de hoy' : 'Partido de mañana',
+      subtitle: dateLabel || name,
       createdAt: matchDate.toISOString(),
       icon: 'CalendarClock',
       route,
@@ -445,7 +547,7 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
         id: `activity-falta_jugadores-${match.id}`,
         type: 'falta_jugadores',
         partidoId: Number(match.id),
-        title: `Faltan ${missing} jugador${missing > 1 ? 'es' : ''} para ${quotedName}`,
+        title: `Faltan ${missing} jugador${missing > 1 ? 'es' : ''}`,
         subtitle: `${playerCount}/${capacity} confirmados`,
         createdAt: matchDate.toISOString(),
         icon: 'AlertTriangle',
@@ -459,7 +561,7 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
         id: `activity-match_complete-${match.id}`,
         type: 'match_complete',
         partidoId: Number(match.id),
-        title: `${quotedName}: partido completo`,
+        title: `${name} completo`,
         subtitle: `${playerCount}/${capacity} confirmados`,
         createdAt: matchDate.toISOString(),
         icon: 'Users',
@@ -506,6 +608,7 @@ const groupNotifications = (notifications = []) => {
     if (!RELEVANT_TYPES.has(notification?.type)) continue;
 
     const type = normalizeType(notification.type, notification.message);
+    if (!type || !FEED_TEMPLATE_TYPES.has(type)) continue;
     if (!shouldIncludeNotification(notification, type)) continue;
 
     const createdAtTs = notification?.created_at ? new Date(notification.created_at).getTime() : 0;

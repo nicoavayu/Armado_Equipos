@@ -11,7 +11,11 @@ const SUBTABS = [
   { key: 'mis-equipos', label: 'Mis equipos' },
 ];
 
-const QuieroJugarEquipos = ({ secondaryTabsTop = 116 }) => {
+const QuieroJugarEquipos = ({
+  secondaryTabsTop = 116,
+  secondaryTabsDirection = 'right',
+  secondaryTabsTransitionKey = 'equipos',
+}) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -20,6 +24,7 @@ const QuieroJugarEquipos = ({ secondaryTabsTop = 116 }) => {
     const stored = sessionStorage.getItem(QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY);
     return SUBTABS.some((tab) => tab.key === stored) ? stored : 'desafios';
   });
+  const [showSecondaryTabs, setShowSecondaryTabs] = useState(false);
 
   const [prefilledTeamId, setPrefilledTeamId] = useState(null);
 
@@ -41,25 +46,43 @@ const QuieroJugarEquipos = ({ secondaryTabsTop = 116 }) => {
     }
   }, [location.state]);
 
+  useEffect(() => {
+    setShowSecondaryTabs(false);
+    const frameId = window.requestAnimationFrame(() => {
+      setShowSecondaryTabs(true);
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [secondaryTabsDirection, secondaryTabsTransitionKey]);
+
   return (
     <>
       <PageTitle title="QUIERO JUGAR" onBack={() => navigate(-1)}>QUIERO JUGAR</PageTitle>
 
       <div className="w-full flex justify-center px-4 pb-7" style={{ paddingTop: `${secondaryTabsTop}px` }}>
-        <div className="w-full max-w-[500px] bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1">
-          {SUBTABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveSubtab(tab.key)}
-              className={`flex-1 min-w-0 px-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase transition-all ${activeSubtab === tab.key
-                ? 'bg-[#128BE9] text-white shadow-[0_6px_18px_rgba(18,139,233,0.38)]'
-                : 'text-white/60 hover:text-white hover:bg-white/10'
-                }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div
+          className="w-full max-w-[500px] transition-[transform,opacity] duration-200 ease-out will-change-transform"
+          style={{
+            transform: showSecondaryTabs
+              ? 'translateX(0)'
+              : `translateX(${secondaryTabsDirection === 'left' ? '-18px' : '18px'})`,
+            opacity: showSecondaryTabs ? 1 : 0.01,
+          }}
+        >
+          <div className="bg-white/[0.04] border border-white/[0.08] rounded-[16px] p-1 flex gap-1">
+            {SUBTABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveSubtab(tab.key)}
+                className={`flex-1 min-w-0 px-1 h-10 rounded-[12px] font-oswald text-[18px] font-semibold tracking-[0.01em] transition-colors duration-200 ${activeSubtab === tab.key
+                  ? 'bg-[#235796] text-white'
+                  : 'text-white/58 hover:text-white/[0.88] hover:bg-white/[0.06]'
+                  }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
