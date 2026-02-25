@@ -81,6 +81,29 @@ const ROLE_TO_POSITION = {
   captain: 'DEF',
 };
 
+const PROFILE_POSITION_CODE_TO_LABEL = {
+  ARQ: 'Arquero',
+  DEF: 'Defensor',
+  MED: 'Mediocampista',
+  DEL: 'Delantero',
+  SD: 'Sin definir',
+};
+
+const PROFILE_POSITION_ALIAS = {
+  arq: 'ARQ',
+  arquero: 'ARQ',
+  gk: 'ARQ',
+  def: 'DEF',
+  defensor: 'DEF',
+  defender: 'DEF',
+  med: 'MED',
+  mediocampista: 'MED',
+  mid: 'MED',
+  del: 'DEL',
+  delantero: 'DEL',
+  forward: 'DEL',
+};
+
 const toStringId = (value) => (value == null ? '' : String(value));
 const normalizeSearchValue = (value) => String(value || '')
   .normalize('NFD')
@@ -110,6 +133,24 @@ const getRoleLabel = (roleValue) => getRoleOption(roleValue).label;
 const getMemberAvatar = (member) => member?.photo_url || member?.jugador?.avatar_url || null;
 const getMemberProfilePosition = (member) => ROLE_TO_POSITION[member?.role] || 'DEF';
 const normalizeDetailTab = (value) => (String(value || '').toLowerCase() === 'history' ? 'history' : 'plantilla');
+
+const normalizeProfilePositionCode = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return 'SD';
+
+  const upperRaw = raw.toUpperCase();
+  if (Object.prototype.hasOwnProperty.call(PROFILE_POSITION_CODE_TO_LABEL, upperRaw)) {
+    return upperRaw;
+  }
+
+  const aliasMatch = PROFILE_POSITION_ALIAS[raw.toLowerCase()];
+  if (aliasMatch) return aliasMatch;
+  return 'SD';
+};
+
+const getMemberProfilePositionFromProfile = (member) => normalizeProfilePositionCode(
+  member?.jugador?.posicion || member?.jugador?.rol_favorito || '',
+);
 
 const formatPlayedDate = (playedAt) => {
   if (!playedAt) return 'Sin fecha';
@@ -326,6 +367,18 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
   const summaryStats = useMemo(() => summarizeTeamFromMatches(teamMatchHistory), [teamMatchHistory]);
   const selectedRoleOption = useMemo(() => getRoleOption(newMember.role), [newMember.role]);
+  const isEditingRegisteredMember = useMemo(
+    () => memberModalMode === 'edit' && Boolean(memberEditing?.user_id || memberEditing?.jugador?.usuario_id),
+    [memberEditing, memberModalMode],
+  );
+  const selectedProfilePositionCode = useMemo(
+    () => getMemberProfilePositionFromProfile(memberEditing),
+    [memberEditing],
+  );
+  const selectedProfilePositionLabel = useMemo(
+    () => PROFILE_POSITION_CODE_TO_LABEL[selectedProfilePositionCode] || PROFILE_POSITION_CODE_TO_LABEL.SD,
+    [selectedProfilePositionCode],
+  );
 
   const selectedTeamGradientStyle = useMemo(
     () => (selectedTeam ? getTeamGradientStyle(selectedTeam) : undefined),
@@ -562,7 +615,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           photoUrl,
         });
       } else {
-        const updates = memberSelfEditMode
+        const updates = (memberSelfEditMode || isEditingRegisteredMember)
           ? {
             shirt_number: shirtNumber,
           }
@@ -1399,13 +1452,19 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           <div className="grid grid-cols-2 gap-3">
             <div className="block">
               <span className="text-xs text-white/80 uppercase tracking-wide">Posicion</span>
-              {memberSelfEditMode ? (
-                <input
-                  type="text"
-                  readOnly
-                  value={selectedRoleOption.short}
-                  className="mt-1 w-full rounded-xl bg-slate-800/70 border border-white/15 px-3 py-2 text-white/85 font-semibold tracking-wide"
-                />
+              {isEditingRegisteredMember ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => notifyBlockingError('Podés configurar tu posición desde el botón Perfil.')}
+                    className="mt-1 w-full inline-flex items-center justify-between rounded-xl bg-slate-800/70 border border-white/15 px-3 py-2 text-white/85 transition-all hover:border-[#9ED3FF]/40"
+                    aria-label="Posicion configurada desde perfil"
+                  >
+                    <span className="font-semibold tracking-wide">{selectedProfilePositionCode}</span>
+                    <span className="text-[10px] text-white/60">Perfil</span>
+                  </button>
+                  <p className="mt-1 text-[11px] text-white/60">{selectedProfilePositionLabel}</p>
+                </>
               ) : (
                 <div ref={roleMenuContainerRef} className="relative mt-1">
                   <button

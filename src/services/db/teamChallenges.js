@@ -98,6 +98,7 @@ const TEAM_MEMBER_SELECT_BASE = `
     usuario_id,
     nombre,
     avatar_url,
+    posicion,
     score
   )
 `;
@@ -118,6 +119,7 @@ const TEAM_MEMBER_SELECT_WITH_PHOTO = `
     usuario_id,
     nombre,
     avatar_url,
+    posicion,
     score
   )
 `;
@@ -1129,6 +1131,7 @@ export const listTeamMembers = async (teamId) => {
       usuario_id,
       nombre,
       avatar_url,
+      posicion,
       score
     )
   `;
