@@ -440,7 +440,7 @@ const QuieroJugar = ({
                 sessionStorage.setItem('quiero-jugar-tab', 'matches');
               }}
             >
-              PARTIDOS
+              Partidos
             </button>
             <button
               className={`flex-1 h-10 rounded-[12px] font-oswald text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-colors duration-200 ${activeTab === 'players'
@@ -452,7 +452,7 @@ const QuieroJugar = ({
                 sessionStorage.setItem('quiero-jugar-tab', 'players');
               }}
             >
-              JUGADORES
+              Jugadores
             </button>
           </div>
         </div>

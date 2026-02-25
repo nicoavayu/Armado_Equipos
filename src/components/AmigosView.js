@@ -565,29 +565,31 @@ const AmigosView = () => {
         </div>
       )}
 
-      <div className="w-full max-w-[500px] mx-auto mb-4 bg-white/5 border border-white/10 rounded-xl p-1 flex gap-1">
-        <button
-          type="button"
-          onClick={() => setActiveTab('discover')}
-          className={`flex-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase transition-all ${
-            activeTab === 'discover'
-              ? 'bg-primary text-white shadow-lg'
-              : 'text-white/60 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          Descubrir
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('friends')}
-          className={`flex-1 py-2.5 rounded-lg text-sm font-bold tracking-wider uppercase transition-all ${
-            activeTab === 'friends'
-              ? 'bg-primary text-white shadow-lg'
-              : 'text-white/60 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          Mis amigos
-        </button>
+      <div className="w-full max-w-[500px] mx-auto mb-4 rounded-[18px] border border-white/15 bg-[linear-gradient(140deg,rgba(34,46,98,0.8),rgba(28,37,84,0.74))] p-1.5 shadow-[0_8px_22px_rgba(5,12,34,0.34)]">
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => setActiveTab('discover')}
+            className={`flex-1 h-12 rounded-[13px] font-oswald text-[20px] font-semibold tracking-[0.01em] !normal-case transition-all duration-200 ${
+              activeTab === 'discover'
+                ? 'bg-[#7e76de] text-white shadow-[0_6px_16px_rgba(126,118,222,0.42)]'
+                : 'bg-transparent text-white/58 hover:text-white/90 hover:bg-white/[0.08]'
+            }`}
+          >
+            Descubrir
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('friends')}
+            className={`flex-1 h-12 rounded-[13px] font-oswald text-[20px] font-semibold tracking-[0.01em] !normal-case transition-all duration-200 ${
+              activeTab === 'friends'
+                ? 'bg-[#7e76de] text-white shadow-[0_6px_16px_rgba(126,118,222,0.42)]'
+                : 'bg-transparent text-white/58 hover:text-white/90 hover:bg-white/[0.08]'
+            }`}
+          >
+            Mis amigos
+          </button>
+        </div>
       </div>
 
       {activeTab === 'discover' ? (
