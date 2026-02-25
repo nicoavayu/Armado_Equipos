@@ -10,6 +10,7 @@ import {
   createTeam,
   listAccessibleTeams,
   listIncomingTeamInvitations,
+  listTeamMemberCountsByTeamIds,
   rejectTeamInvitation,
   softDeleteTeam,
   updateTeam,
@@ -37,8 +38,23 @@ const MisEquiposTab = ({ userId }) => {
     try {
       setLoading(true);
       const rows = await listAccessibleTeams(userId);
-      setTeams(rows || []);
-      setOpenTeamMenuId((prev) => ((rows || []).some((team) => team.id === prev) ? prev : null));
+      let enrichedRows = rows || [];
+
+      try {
+        const countsByTeamId = await listTeamMemberCountsByTeamIds(enrichedRows.map((team) => team?.id));
+        enrichedRows = enrichedRows.map((team) => {
+          const teamId = String(team?.id || '');
+          return {
+            ...team,
+            member_count: countsByTeamId[teamId] ?? 0,
+          };
+        });
+      } catch (countError) {
+        console.warn('[MIS_EQUIPOS] No se pudo cargar la cantidad de jugadores por equipo:', countError);
+      }
+
+      setTeams(enrichedRows);
+      setOpenTeamMenuId((prev) => (enrichedRows.some((team) => team.id === prev) ? prev : null));
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudieron cargar tus equipos');
     } finally {

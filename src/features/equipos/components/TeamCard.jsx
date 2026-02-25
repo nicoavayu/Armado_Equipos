@@ -14,6 +14,9 @@ const TeamCard = React.memo(({ team, stats, onClick, footer, className = '' }) =
   const gradientStyle = getTeamGradientStyle(team);
   const badgeStyle = getTeamBadgeStyle(team);
   const accent = getTeamAccent(team);
+  const normalizedMemberCount = Number(team?.member_count);
+  const memberCount = Number.isFinite(normalizedMemberCount) ? normalizedMemberCount : null;
+  const memberLabel = `${memberCount ?? 0} ${memberCount === 1 ? 'jugador' : 'jugadores'}`;
 
   const played = getStatValue(stats, 'played');
   const won = getStatValue(stats, 'won');
@@ -82,7 +85,7 @@ const TeamCard = React.memo(({ team, stats, onClick, footer, className = '' }) =
         <div className="mt-3 pt-3 border-t border-white/15">{footer}</div>
       ) : (
         <div className="mt-3 text-[11px] text-white/70 inline-flex items-center gap-1.5 font-oswald">
-          <Users size={12} /> Ver detalle del equipo
+          <Users size={12} /> {memberLabel} · Ver detalle del equipo
         </div>
       )}
     </button>

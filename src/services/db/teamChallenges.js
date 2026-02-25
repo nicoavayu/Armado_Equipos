@@ -677,6 +677,29 @@ export const listAccessibleTeams = async (userId) => {
   )).map(withTeamCompatibility);
 };
 
+export const listTeamMemberCountsByTeamIds = async (teamIds = []) => {
+  const normalizedTeamIds = uniqueValues((teamIds || []).filter(Boolean).map((value) => String(value)));
+  if (normalizedTeamIds.length === 0) return {};
+
+  const response = await supabase
+    .from('team_members')
+    .select('team_id')
+    .in('team_id', normalizedTeamIds);
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudo cargar la cantidad de jugadores por equipo');
+  }
+
+  const countsByTeamId = Object.fromEntries(normalizedTeamIds.map((teamId) => [teamId, 0]));
+  (response.data || []).forEach((row) => {
+    const teamId = String(row?.team_id || '');
+    if (!teamId || !Object.prototype.hasOwnProperty.call(countsByTeamId, teamId)) return;
+    countsByTeamId[teamId] += 1;
+  });
+
+  return countsByTeamId;
+};
+
 export const listMyManageableTeams = async (userId) => {
   assertAuthenticatedUser(userId);
 
