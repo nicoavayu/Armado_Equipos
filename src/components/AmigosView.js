@@ -520,18 +520,6 @@ const AmigosView = () => {
     }
   };
 
-  const handleSearchInCommunity = () => {
-    const term = String(friendSearchQuery || '').trim();
-    setActiveTab('discover');
-    setSearchQuery(term);
-
-    if (term.length >= 2) {
-      searchUsers(term);
-    } else {
-      setSearchResults([]);
-    }
-  };
-
   const filteredFriends = useMemo(() => {
     const term = String(friendSearchQuery || '').trim().toLowerCase();
     if (!term) return amigos || [];
@@ -610,9 +598,6 @@ const AmigosView = () => {
         <>
           {/* Search users */}
           <div className="w-full max-w-[500px] mx-auto my-[10px] mb-[12px] relative box-border z-10">
-            <p className="mb-2 px-1 text-[11px] uppercase tracking-wider text-white/55">
-              Buscar en toda la comunidad
-            </p>
             <input
               type="text"
               placeholder="Buscar jugador por nombre o email..."
@@ -759,28 +744,16 @@ const AmigosView = () => {
         <>
           {/* Search friends */}
           <div className="w-full max-w-[500px] mx-auto mb-4">
-            <p className="mb-2 px-1 text-[11px] uppercase tracking-wider text-white/55">
-              Filtrar solo mis amigos
-            </p>
             <input
               type="text"
-              placeholder="Filtrar en mis amigos..."
+              placeholder="Buscar en mis amigos..."
               value={friendSearchQuery}
               onChange={(e) => setFriendSearchQuery(e.target.value)}
               className={searchInputClass}
             />
-            <div className="mt-2 flex items-center justify-between gap-3 px-1">
-              <p className="text-xs text-white/55">
-                Este campo filtra solo tu lista actual.
-              </p>
-              <button
-                type="button"
-                onClick={handleSearchInCommunity}
-                className="shrink-0 text-xs font-semibold text-[#8fa5ff] hover:text-[#a7b8ff] transition-colors"
-              >
-                Buscar en comunidad
-              </button>
-            </div>
+            <p className="mt-2 px-1 text-xs text-white/55">
+              Este campo filtra solo tu lista actual.
+            </p>
           </div>
 
           {Array.isArray(amigos) && amigos.length > 0 ? (
