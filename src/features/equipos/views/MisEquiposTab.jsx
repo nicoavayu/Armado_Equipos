@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { MoreVertical, Trash2, Users } from 'lucide-react';
+import { MoreVertical, Shield, Trash2, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import TeamCard from '../components/TeamCard';
 import TeamFormModal from '../components/TeamFormModal';
@@ -203,45 +203,51 @@ const MisEquiposTab = ({ userId }) => {
           <div className="rounded-2xl border border-white/15 bg-[#0f172acc] p-3">
             <h5 className="text-white font-oswald text-lg">Invitaciones de equipo</h5>
             <div className="mt-2 space-y-2">
-              {incomingInvitations.map((invitation) => (
-                <div key={invitation.id} className="rounded-xl border border-white/15 bg-white/5 p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="h-10 w-10 rounded-lg overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
-                      {invitation?.team?.crest_url ? (
-                        <img src={invitation.team.crest_url} alt={`Escudo ${invitation?.team?.name || 'equipo'}`} className="h-full w-full object-cover" />
-                      ) : (
-                        <Users size={16} className="text-white/60" />
-                      )}
+              {incomingInvitations.map((invitation) => {
+                const teamName = invitation?.team?.name || invitation?.team_name || invitation?.teamName || 'Equipo';
+                const teamCrestUrl = invitation?.team?.crest_url || invitation?.team_crest_url || invitation?.teamCrestUrl || null;
+                const inviterName = invitation?.invited_by_user?.nombre || invitation?.invited_by_name || invitation?.invitedByName || 'Un usuario';
+
+                return (
+                  <div key={invitation.id} className="rounded-xl border border-white/15 bg-white/5 p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-10 w-10 rounded-lg overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
+                        {teamCrestUrl ? (
+                          <img src={teamCrestUrl} alt={`Escudo ${teamName}`} className="h-full w-full object-cover" />
+                        ) : (
+                          <Shield size={16} className="text-white/60" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-white font-oswald text-[16px] truncate">{teamName}</p>
+                        <p className="text-[11px] text-white/65 truncate">
+                          {`${inviterName} te invito a formar parte del equipo`}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-white font-oswald text-[16px] truncate">{invitation?.team?.name || 'Equipo'}</p>
-                      <p className="text-[11px] text-white/65 truncate">
-                        Invita {invitation?.invited_by_user?.nombre || 'un capitan'}
-                      </p>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        onClick={() => handleAcceptIncomingInvitation(invitation.id)}
+                        className="!h-10 !text-[15px]"
+                        loading={isSaving}
+                        disabled={isSaving}
+                      >
+                        Aceptar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="!h-10 !text-[15px]"
+                        onClick={() => handleRejectIncomingInvitation(invitation.id)}
+                        disabled={isSaving}
+                      >
+                        Rechazar
+                      </Button>
                     </div>
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      onClick={() => handleAcceptIncomingInvitation(invitation.id)}
-                      className="!h-10 !text-[15px]"
-                      loading={isSaving}
-                      disabled={isSaving}
-                    >
-                      Aceptar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="!h-10 !text-[15px]"
-                      onClick={() => handleRejectIncomingInvitation(invitation.id)}
-                      disabled={isSaving}
-                    >
-                      Rechazar
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ) : null}

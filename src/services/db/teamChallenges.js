@@ -1288,6 +1288,61 @@ export const listTeamMatchMembers = async ({ matchId, teamIds = [] }) => {
   return Object.fromEntries(entries);
 };
 
+const pickSingleRelation = (value) => {
+  if (Array.isArray(value)) return value[0] || null;
+  return value || null;
+};
+
+const normalizeTeamInvitationRow = (row = {}) => {
+  const teamRelation = pickSingleRelation(row?.team);
+  const invitedByRelation = pickSingleRelation(row?.invited_by_user);
+
+  const teamName = (
+    teamRelation?.name
+    || row?.team_name
+    || row?.teamName
+    || null
+  );
+  const teamCrestUrl = (
+    teamRelation?.crest_url
+    || row?.team_crest_url
+    || row?.teamCrestUrl
+    || null
+  );
+  const invitedByName = (
+    invitedByRelation?.nombre
+    || row?.invited_by_name
+    || row?.invitedByName
+    || null
+  );
+  const invitedByAvatar = (
+    invitedByRelation?.avatar_url
+    || row?.invited_by_avatar_url
+    || row?.invitedByAvatarUrl
+    || null
+  );
+
+  return {
+    ...row,
+    team: (teamRelation || teamName || teamCrestUrl)
+      ? {
+        ...(teamRelation || {}),
+        id: teamRelation?.id || row?.team_id || null,
+        name: teamName,
+        crest_url: teamCrestUrl,
+      }
+      : null,
+    invited_by_user: (invitedByRelation || invitedByName || invitedByAvatar)
+      ? {
+        ...(invitedByRelation || {}),
+        id: invitedByRelation?.id || row?.invited_by_user_id || null,
+        nombre: invitedByName,
+        avatar_url: invitedByAvatar,
+      }
+      : null,
+  };
+};
+
 export const listTeamPendingInvitations = async (teamId) => {
   const response = await supabase
     .from('team_invitations')
@@ -1300,11 +1355,19 @@ export const listTeamPendingInvitations = async (teamId) => {
     throw new Error(response.error.message || 'No se pudieron cargar las invitaciones del equipo');
   }
 
-  return response.data || [];
+  return (response.data || []).map(normalizeTeamInvitationRow);
 };
 
 export const listIncomingTeamInvitations = async (userId) => {
   assertAuthenticatedUser(userId);
+
+  const rpcResponse = await supabase.rpc('rpc_list_incoming_team_invitations', {
+    p_user_id: userId,
+  });
+
+  if (!rpcResponse.error) {
+    return (rpcResponse.data || []).map(normalizeTeamInvitationRow);
+  }
 
   const response = await supabase
     .from('team_invitations')
@@ -1314,10 +1377,13 @@ export const listIncomingTeamInvitations = async (userId) => {
     .order('created_at', { ascending: false });
 
   if (response.error) {
-    throw new Error(response.error.message || 'No se pudieron cargar las invitaciones pendientes');
+    if (isMissingFunctionError(rpcResponse.error, 'rpc_list_incoming_team_invitations')) {
+      throw new Error(response.error.message || 'No se pudieron cargar las invitaciones pendientes');
+    }
+    throw new Error(rpcResponse.error.message || 'No se pudieron cargar las invitaciones pendientes');
   }
 
-  return response.data || [];
+  return (response.data || []).map(normalizeTeamInvitationRow);
 };
 
 export const sendTeamInvitation = async ({ teamId, invitedUserId }) => {
