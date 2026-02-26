@@ -1,5 +1,6 @@
 import { parseLocalDateTime } from './dateLocal';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
+import { quoteMatchName } from './notificationText';
 import { getSurveyRemainingLabel, resolveSurveyDeadlineAt } from './surveyNotificationCopy';
 
 const ACTIVITY_MAX_ITEMS = 5;
@@ -234,6 +235,11 @@ const hasUsableMatchName = (value) => {
   const normalized = normalizeSpaces(String(value || '')).toLowerCase();
   return Boolean(normalized) && normalized !== 'partido';
 };
+const getQuotedMatchLabel = (matchName) => (
+  hasUsableMatchName(matchName)
+    ? quoteMatchName(matchName, 'este partido')
+    : null
+);
 
 const resolveFriendActorName = (notification) => {
   const data = notification?.data || {};
@@ -375,6 +381,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   const resolvedPartidoId = Number.isFinite(numericMatchId) && numericMatchId > 0 ? numericMatchId : undefined;
   const notificationMatchName = notification?.data?.match_name || notification?.data?.partido_nombre || null;
   const matchName = compactMatchName(getMatchDisplayName(match, notificationMatchName || 'Partido'), 'Partido');
+  const quotedMatchName = getQuotedMatchLabel(matchName);
   const dateLabel = formatMatchDate(match);
   const createdAt = notification?.created_at || new Date().toISOString();
   const fallbackSubtitle = dateLabel || matchName;
@@ -396,8 +403,8 @@ const toActivityFromNotification = (group, match, currentUserId) => {
 
   if (type === 'survey_start') {
     const surveySubtitle = getSurveyRemainingLabel(resolveSurveyDeadlineAt(notification));
-    const surveyTitle = hasUsableMatchName(matchName)
-      ? `Encuesta disponible para ${matchName}`
+    const surveyTitle = quotedMatchName
+      ? `Encuesta disponible para ${quotedMatchName}`
       : 'Encuesta disponible';
     return {
       ...base,
@@ -409,10 +416,13 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   }
 
   if (type === 'call_to_vote') {
+    const votingTitle = quotedMatchName
+      ? `Votación abierta para ${quotedMatchName}`
+      : 'Votación abierta';
     return {
       ...base,
       icon: 'Vote',
-      title: 'Votación abierta',
+      title: votingTitle,
       subtitle: fallbackSubtitle,
       route: notification?.data?.matchCode
         ? `/votar-equipos?codigo=${encodeURIComponent(notification.data.matchCode)}`
@@ -421,30 +431,39 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   }
 
   if (type === 'awards_ready') {
+    const awardsTitle = quotedMatchName
+      ? `Premiación lista para ${quotedMatchName}`
+      : 'Premiación lista';
     return {
       ...base,
       icon: 'Trophy',
-      title: 'Premiación lista',
+      title: awardsTitle,
       subtitle: fallbackSubtitle,
       route: partidoId ? `/resultados-encuesta/${partidoId}?showAwards=1` : '/notifications',
     };
   }
 
   if (type === 'match_join_request') {
+    const requestTitle = quotedMatchName
+      ? `Solicitud pendiente para ${quotedMatchName}`
+      : 'Solicitud pendiente';
     return {
       ...base,
       icon: 'UserPlus',
-      title: 'Solicitud pendiente',
+      title: requestTitle,
       subtitle: fallbackSubtitle,
       route: partidoId ? `/admin/${partidoId}?tab=solicitudes` : '/notifications',
     };
   }
 
   if (type === 'match_join_approved') {
+    const approvedTitle = quotedMatchName
+      ? `Solicitud aprobada para ${quotedMatchName}`
+      : 'Solicitud aprobada';
     return {
       ...base,
       icon: 'CheckCircle',
-      title: 'Solicitud aprobada',
+      title: approvedTitle,
       subtitle: fallbackSubtitle,
       route: matchRoute || '/notifications',
     };
@@ -452,10 +471,13 @@ const toActivityFromNotification = (group, match, currentUserId) => {
 
   if (type === 'match_invite') {
     const inviteRoute = resolveMatchInviteRoute(notification);
+    const inviteTitle = quotedMatchName
+      ? `Invitación a ${quotedMatchName}`
+      : 'Invitación a partido';
     return {
       ...base,
       icon: 'CalendarClock',
-      title: 'Invitación a partido',
+      title: inviteTitle,
       subtitle: fallbackSubtitle,
       route: inviteRoute || '/notifications',
     };
@@ -464,15 +486,18 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   if (type === 'match_player_joined' || type === 'match_player_left') {
     const playerName = resolvePlayerNameFromMatchUpdate(notification);
     const notificationLink = notification?.data?.link || null;
-    const joinedTitle = hasUsableMatchName(matchName)
-      ? `Se sumó un jugador a ${matchName}`
+    const joinedTitle = quotedMatchName
+      ? `Se sumó un jugador a ${quotedMatchName}`
       : 'Se sumó un jugador';
+    const leftTitle = quotedMatchName
+      ? `Se bajó un jugador de ${quotedMatchName}`
+      : 'Se bajó un jugador';
     return {
       ...base,
       icon: 'Users',
       title: type === 'match_player_joined'
         ? joinedTitle
-        : 'Se bajó un jugador',
+        : leftTitle,
       subtitle: playerName || fallbackSubtitle,
       route: notificationLink || matchRoute || '/notifications',
     };
