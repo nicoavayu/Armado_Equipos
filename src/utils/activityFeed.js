@@ -489,11 +489,14 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   if (type === 'team_invite') {
     const actorName = compactText(resolveTeamInviteActorName(notification), 30, '');
     const teamName = compactText(resolveNotificationTeamName(notification, 'Equipo'), 24, 'Equipo');
+    const inviteSubtitle = actorName
+      ? `${actorName} te invito a formar parte del equipo`
+      : 'Te invitaron a formar parte del equipo';
     return {
       ...base,
       icon: 'Users',
       title: `Invitación al equipo ${quoteMatchName(teamName, 'Equipo')}`,
-      subtitle: actorName || 'Tenés una invitación pendiente',
+      subtitle: inviteSubtitle,
       route: '/quiero-jugar',
     };
   }
