@@ -1640,6 +1640,57 @@ export const updateTeamMember = async (memberId, updates) => {
   return unwrapSingle(response, 'No se pudo actualizar el miembro del equipo');
 };
 
+export const transferTeamCaptaincy = async ({ teamId, newCaptainMemberId }) => {
+  if (!teamId || !newCaptainMemberId) {
+    throw new Error('Datos invalidos para transferir la capitania');
+  }
+
+  const rpcResponse = await supabase.rpc('rpc_transfer_team_captaincy', {
+    p_team_id: teamId,
+    p_new_captain_member_id: newCaptainMemberId,
+  });
+
+  if (!rpcResponse.error) {
+    return {
+      id: rpcResponse.data || newCaptainMemberId,
+    };
+  }
+
+  if (!isMissingFunctionError(rpcResponse.error, 'rpc_transfer_team_captaincy')) {
+    throw new Error(rpcResponse.error.message || 'No se pudo transferir la capitania');
+  }
+
+  // Fallback for environments without the RPC migration yet.
+  const captainsResponse = await supabase
+    .from('team_members')
+    .select('id, is_captain')
+    .eq('team_id', teamId);
+
+  if (captainsResponse.error) {
+    throw new Error(captainsResponse.error.message || 'No se pudo transferir la capitania');
+  }
+
+  const captainsToDemote = (captainsResponse.data || []).filter((candidate) => (
+    candidate?.id
+    && candidate.id !== newCaptainMemberId
+    && Boolean(candidate.is_captain)
+  ));
+
+  for (const captainMember of captainsToDemote) {
+    await updateTeamMember(captainMember.id, {
+      is_captain: false,
+    });
+  }
+
+  await updateTeamMember(newCaptainMemberId, {
+    is_captain: true,
+  });
+
+  return {
+    id: newCaptainMemberId,
+  };
+};
+
 export const removeTeamMember = async (memberId) => {
   const response = await supabase
     .from('team_members')

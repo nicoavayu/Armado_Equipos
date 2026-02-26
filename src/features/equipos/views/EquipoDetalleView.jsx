@@ -18,6 +18,7 @@ import {
   removeTeamMember,
   revokeTeamInvitation,
   sendTeamInvitation,
+  transferTeamCaptaincy,
   updateTeam,
   updateTeamMember,
 } from '../../../services/db/teamChallenges';
@@ -719,23 +720,9 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
     try {
       setIsSaving(true);
-
-      const captainsToDemote = (members || []).filter((candidate) => (
-        candidate?.id
-        && candidate.id !== member.id
-        && Boolean(candidate.is_captain)
-      ));
-
-      for (const captainMember of captainsToDemote) {
-        await updateTeamMember(captainMember.id, {
-          is_captain: false,
-          permissions_role: 'member',
-        });
-      }
-
-      await updateTeamMember(member.id, {
-        is_captain: true,
-        permissions_role: 'admin',
+      await transferTeamCaptaincy({
+        teamId: selectedTeam.id,
+        newCaptainMemberId: member.id,
       });
 
       setOpenMemberMenuId(null);
