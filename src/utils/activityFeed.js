@@ -230,6 +230,10 @@ const compactText = (value = '', maxChars = 42, fallback = '') => {
 };
 
 const compactMatchName = (value, fallback = 'Partido') => compactText(value, 34, fallback);
+const hasUsableMatchName = (value) => {
+  const normalized = normalizeSpaces(String(value || '')).toLowerCase();
+  return Boolean(normalized) && normalized !== 'partido';
+};
 
 const resolveFriendActorName = (notification) => {
   const data = notification?.data || {};
@@ -392,10 +396,13 @@ const toActivityFromNotification = (group, match, currentUserId) => {
 
   if (type === 'survey_start') {
     const surveySubtitle = getSurveyRemainingLabel(resolveSurveyDeadlineAt(notification));
+    const surveyTitle = hasUsableMatchName(matchName)
+      ? `Encuesta disponible para ${matchName}`
+      : 'Encuesta disponible';
     return {
       ...base,
       icon: 'ClipboardList',
-      title: 'Encuesta disponible',
+      title: surveyTitle,
       subtitle: compactText(surveySubtitle || matchName, 46, 'Completá tu encuesta'),
       route: partidoId ? `/encuesta/${partidoId}` : '/notifications',
     };
@@ -457,10 +464,15 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   if (type === 'match_player_joined' || type === 'match_player_left') {
     const playerName = resolvePlayerNameFromMatchUpdate(notification);
     const notificationLink = notification?.data?.link || null;
+    const joinedTitle = hasUsableMatchName(matchName)
+      ? `Se sumó un jugador a ${matchName}`
+      : 'Se sumó un jugador';
     return {
       ...base,
       icon: 'Users',
-      title: type === 'match_player_joined' ? 'Se sumó un jugador' : 'Se bajó un jugador',
+      title: type === 'match_player_joined'
+        ? joinedTitle
+        : 'Se bajó un jugador',
       subtitle: playerName || fallbackSubtitle,
       route: notificationLink || matchRoute || '/notifications',
     };
