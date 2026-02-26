@@ -583,13 +583,18 @@ const AmigosView = () => {
           <button
             type="button"
             onClick={() => setActiveTab('discover')}
-            className={`flex-1 h-12 rounded-[13px] font-oswald text-[20px] font-semibold tracking-[0.01em] !normal-case transition-all duration-200 ${
+            className={`flex-1 h-12 rounded-[13px] font-oswald text-[20px] font-semibold tracking-[0.01em] !normal-case transition-all duration-200 relative ${
               activeTab === 'discover'
                 ? 'bg-[#7e76de] text-white shadow-[0_6px_16px_rgba(126,118,222,0.42)]'
                 : 'bg-transparent text-white/58 hover:text-white/90 hover:bg-white/[0.08]'
             }`}
           >
             Comunidad
+            {pendingRequests.length > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-[#128BE9] text-white text-[10px] font-bold rounded-full border border-white/25 shadow-[0_6px_16px_rgba(18,139,233,0.35)]">
+                {pendingRequests.length}
+              </span>
+            )}
           </button>
         </div>
       </div>

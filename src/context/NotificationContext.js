@@ -213,6 +213,94 @@ export const NotificationProvider = ({ children }) => {
         throw selectErr;
       }
 
+      // Fallback for social notifications:
+      // If friend requests exist in `amigos` but notification inserts were blocked (e.g. RLS),
+      // synthesize in-app friend_request notifications so users still see them in the bell/feed.
+      let syntheticFriendRequestNotifications = [];
+      try {
+        const { data: pendingFriendRequests, error: pendingError } = await supabase
+          .from('amigos')
+          .select('id, user_id, created_at')
+          .eq('friend_id', currentUserId)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+
+        if (pendingError) {
+          logger.warn('[NOTIFICATIONS] Pending friend requests fallback query failed:', pendingError);
+        } else if (Array.isArray(pendingFriendRequests) && pendingFriendRequests.length > 0) {
+          const existingUnreadRequestIds = new Set();
+          const existingUnreadSenderIds = new Set();
+
+          (data || []).forEach((notification) => {
+            if (notification?.type !== 'friend_request' || notification?.read) return;
+            const requestId = notification?.data?.requestId;
+            const senderId = notification?.data?.senderId;
+            if (requestId) existingUnreadRequestIds.add(String(requestId));
+            if (senderId) existingUnreadSenderIds.add(String(senderId));
+          });
+
+          const missingPendingRequests = pendingFriendRequests.filter((request) => (
+            !existingUnreadRequestIds.has(String(request?.id))
+            && !existingUnreadSenderIds.has(String(request?.user_id))
+          ));
+
+          if (missingPendingRequests.length > 0) {
+            const senderIds = [...new Set(missingPendingRequests.map((request) => request?.user_id).filter(Boolean))];
+            const senderNameById = new Map();
+
+            if (senderIds.length > 0) {
+              const { data: senderRows, error: senderError } = await supabase
+                .from('usuarios')
+                .select('id, nombre')
+                .in('id', senderIds);
+
+              if (senderError) {
+                logger.warn('[NOTIFICATIONS] Pending friend requests fallback sender lookup failed:', senderError);
+              } else {
+                (senderRows || []).forEach((row) => {
+                  if (row?.id) senderNameById.set(row.id, row?.nombre || 'Alguien');
+                });
+              }
+            }
+
+            syntheticFriendRequestNotifications = missingPendingRequests.map((request) => {
+              const senderId = request?.user_id || null;
+              const senderName = senderNameById.get(senderId) || 'Alguien';
+              const createdAtMs = new Date(request?.created_at || Date.now()).getTime();
+              const syntheticCreatedAt = Number.isFinite(createdAtMs)
+                ? new Date(createdAtMs + 1).toISOString()
+                : new Date().toISOString();
+
+              return {
+                id: request.id, // Keep UUID-like id to avoid invalid-id update errors in markAsRead
+                user_id: currentUserId,
+                type: 'friend_request',
+                title: 'Nueva solicitud de amistad',
+                message: `${senderName} te ha enviado una solicitud de amistad`,
+                data: {
+                  requestId: request.id,
+                  senderId,
+                  senderName,
+                  source: 'amigos_pending_fallback',
+                },
+                read: false,
+                created_at: syntheticCreatedAt,
+                updated_at: syntheticCreatedAt,
+                send_at: null,
+                status: 'sent',
+              };
+            });
+          }
+        }
+      } catch (pendingFallbackError) {
+        logger.warn('[NOTIFICATIONS] Pending friend requests fallback failed:', pendingFallbackError);
+      }
+
+      const mergedData = [
+        ...(Array.isArray(data) ? data : []),
+        ...syntheticFriendRequestNotifications,
+      ];
+
       setLastFetchAt(new Date().toISOString());
       setLastFetchCount((data && data.length) || 0);
       if (DEBUG_NOTIFICATIONS) {
@@ -230,7 +318,7 @@ export const NotificationProvider = ({ children }) => {
       const now = Date.now();
       const visibleRaw = [];
       const scheduledRaw = [];
-      for (const n of data) {
+      for (const n of mergedData) {
         try {
           const sendAt = n.send_at ? new Date(n.send_at).getTime() : null;
           if (!sendAt || sendAt <= now) visibleRaw.push(n);
