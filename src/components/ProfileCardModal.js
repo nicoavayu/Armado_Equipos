@@ -453,7 +453,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
         {/* Contact Info Modal */}
         {showContactInfo && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000]" onClick={() => setShowContactInfo(false)}>
+          <div data-modal-root="true" className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000]" onClick={() => setShowContactInfo(false)}>
             <div className="bg-[#1a1a1a] rounded-xl p-6 max-w-[400px] w-[90%] border-2 border-[#333] shadow-[0_8px_32px_rgba(0,0,0,0.5)] sm:p-5 sm:w-[95%]" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-5">
                 <h3 className="text-white m-0 text-lg font-semibold sm:text-base">Contactar a {modalProfile?.nombre}</h3>
@@ -496,7 +496,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
         {/* Admin Confirmation Modal */}
         {showAdminConfirm && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10001]" onClick={() => !isAdminLoading && setShowAdminConfirm(false)}>
+          <div data-modal-root="true" className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10001]" onClick={() => !isAdminLoading && setShowAdminConfirm(false)}>
             <div className="bg-[#1a1a1a] rounded-xl p-6 max-w-[380px] w-[90%] border-2 border-[#333] shadow-[0_8px_32px_rgba(0,0,0,0.5)] sm:p-5 sm:w-[95%]" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-white text-lg font-semibold mb-3">Confirmar cambio de rol</h3>
               <p className="text-white/80 text-sm mb-6 leading-relaxed">

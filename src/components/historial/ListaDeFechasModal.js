@@ -164,6 +164,7 @@ const ListaDeFechasModal = ({ partidosFrecuentes, onClose, nombrePartido, error,
         `}
       </style>
       <div
+        data-modal-root="true"
         className="fixed inset-0 bg-black/70 flex justify-center items-center z-[1000] animate-[fadeIn_0.3s_ease]"
         onClick={(e) => {
           // Cerrar modal al hacer clic fuera del contenido — solo si el click fue directo en el overlay

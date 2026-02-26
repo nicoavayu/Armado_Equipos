@@ -67,7 +67,7 @@ function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[5200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl" onClick={onClose}>
+    <div data-modal-root="true" className="fixed inset-0 z-[5200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl" onClick={onClose}>
       <div
         className="w-full max-w-xl bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-[0_32px_64px_rgba(0,0,0,0.5)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -318,7 +318,7 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
 
   return (
     <>
-      <div className="fixed inset-0 z-[5100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl" onClick={close}>
+      <div data-modal-root="true" className="fixed inset-0 z-[5100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl" onClick={close}>
         <div
           className="w-full max-w-3xl bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 shadow-[0_32px_64px_rgba(0,0,0,0.5)] overflow-hidden"
           onClick={(e) => e.stopPropagation()}

@@ -94,7 +94,7 @@ const PlayerActionModal = ({
     : null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] pointer-events-auto p-4 animate-fade-in">
+    <div data-modal-root="true" className="fixed inset-0 z-[9999] pointer-events-auto p-4 animate-fade-in">
       <div
         className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
         onClick={onClose}

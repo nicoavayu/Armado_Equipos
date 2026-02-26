@@ -302,6 +302,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
   const modalContent = (
     <div
+      data-modal-root="true"
       className="fixed inset-0 z-[9999] flex items-start justify-center bg-black/75 backdrop-blur-[2px] pt-[90px] px-4 pb-4 md:px-3 md:pt-[75px]"
       onClick={(e) => {
         if (loading) return;

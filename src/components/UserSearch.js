@@ -98,7 +98,7 @@ const UserSearch = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]">
+    <div data-modal-root="true" className="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]">
       <div className="bg-gradient-to-b from-[#62c1ff] to-[#b579f8] rounded-xl w-[90%] max-w-[500px] max-h-[80vh] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
         <div className="flex justify-between items-center p-5 border-b border-white/20">
           <h3 className="m-0 text-white font-oswald text-xl">Buscar usuarios</h3>

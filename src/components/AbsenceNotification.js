@@ -72,7 +72,7 @@ const AbsenceNotification = ({ userId, partidoId, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000] p-5 max-[768px]:p-[10px]">
+    <div data-modal-root="true" className="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000] p-5 max-[768px]:p-[10px]">
       <div className="bg-white rounded-xl w-full max-w-[500px] max-h-[90vh] overflow-y-auto shadow-[0_10px_30px_rgba(0,0,0,0.3)] max-[768px]:max-h-[95vh]">
         <div className="flex justify-between items-center px-6 py-5 border-b border-[#eee] max-[768px]:px-5 max-[768px]:py-4">
           <h2 className="m-0 text-[#333] text-[1.5rem]">Notificar Ausencia</h2>

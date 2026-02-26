@@ -108,6 +108,7 @@ export default function ConfirmModal({
   const modalContent = (
     <div
       ref={overlayRef}
+      data-modal-root="true"
       className={`
         fixed inset-0 bg-black/80 z-[20000] flex items-center justify-center p-4 
         transition-opacity duration-200 backdrop-blur-md

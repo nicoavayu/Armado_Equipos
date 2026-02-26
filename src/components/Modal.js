@@ -61,6 +61,7 @@ const Modal = ({
 
   const modalContent = (
     <div
+      data-modal-root="true"
       className="fixed inset-0 bg-black/75 backdrop-blur-[4px] z-[10001] flex items-center justify-center animate-[fadeIn_0.2s_ease-out]"
       style={{
         paddingTop: 'max(1.25rem, env(safe-area-inset-top))',

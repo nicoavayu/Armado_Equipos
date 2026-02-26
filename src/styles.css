@@ -85,6 +85,17 @@ body {
   overflow-x: clip;
 }
 
+/* Force sentence case in modal action buttons: first letter uppercase, rest lowercase. */
+[data-modal-root='true'] button:not([data-preserve-button-case='true']),
+[data-modal-root='true'] button:not([data-preserve-button-case='true']) * {
+  text-transform: lowercase !important;
+}
+
+[data-modal-root='true'] button:not([data-preserve-button-case='true'])::first-letter,
+[data-modal-root='true'] button:not([data-preserve-button-case='true']) *::first-letter {
+  text-transform: uppercase !important;
+}
+
 @media (max-width: 640px) {
   body.chat-open .app-tabbar {
     opacity: 0;

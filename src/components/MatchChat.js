@@ -362,6 +362,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
   return (
     <div
+      data-modal-root="true"
       className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-[10000] p-0 sm:p-[15px]"
       onClick={handleClose}
     >

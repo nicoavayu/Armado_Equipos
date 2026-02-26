@@ -103,7 +103,7 @@ const PartidosPendientesNotification = ({ userId }) => {
 
       {/* Modal con lista de partidos pendientes */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-[1000] animate-[fadeIn_0.3s_ease]" onClick={() => setShowModal(false)}>
+        <div data-modal-root="true" className="fixed inset-0 bg-black/70 flex justify-center items-center z-[1000] animate-[fadeIn_0.3s_ease]" onClick={() => setShowModal(false)}>
           <div className="bg-[#1a1a2e] w-[90%] max-w-[500px] max-h-[90vh] rounded-xl overflow-hidden flex flex-col shadow-[0_5px_20px_rgba(0,0,0,0.5)] animate-[slideUp_0.3s_ease] md:w-[95%] md:max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center px-5 py-[15px] bg-[#16162e] border-b border-[#2a2a40]">
               <h3 className="m-0 text-white text-[1.2rem]">Partidos pendientes de calificación</h3>

@@ -123,6 +123,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
     return (
       <div
         ref={overlayRef}
+        data-modal-root="true"
         className={`fixed inset-0 bg-black/60 z-[2000] flex items-center justify-center p-4 transition-opacity duration-200 ${visible ? 'opacity-100' : 'opacity-0'}`}
         onClick={() => { if (!isDeleting) onCancel && onCancel(); }}
         role="dialog"

@@ -18,7 +18,7 @@ const WelcomeModal = () => {
           }
         `}
       </style>
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[2000]">
+      <div data-modal-root="true" className="fixed inset-0 bg-black/70 flex items-center justify-center z-[2000]">
         <div className="bg-gradient-to-br from-[#8178e5] to-[#5d54c0] rounded-xl p-6 max-w-[90%] w-[400px] shadow-[0_10px_25px_rgba(0,0,0,0.3)] text-white text-center animate-[fadeIn_0.3s_ease-out]">
           <h2 className="mt-0 font-oswald text-2xl font-normal">Bienvenido a Arma2</h2>
           <p className="mb-6 leading-relaxed">

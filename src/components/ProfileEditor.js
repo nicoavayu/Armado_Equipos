@@ -347,7 +347,7 @@ const DeleteAccountModal = ({
   const canConfirm = confirmationText.trim().toUpperCase() === 'ELIMINAR' && !loading;
 
   return (
-    <div className="fixed inset-0 z-[1300] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div data-modal-root="true" className="fixed inset-0 z-[1300] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="w-full max-w-[560px] bg-[#0f172a]/95 border border-red-500/30 rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.6)] overflow-hidden">
         <div className="px-5 py-4 border-b border-white/10 flex items-start justify-between gap-4">
           <div>
@@ -931,7 +931,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
   // Overlay Mode (Default)
   return (
-    <div className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center backdrop-blur-xl overflow-y-auto overflow-x-hidden py-5 px-0 sm:items-start sm:p-[10px_10px_20px] md:items-center md:py-5">
+    <div data-modal-root="true" className="fixed inset-0 bg-black/90 z-[1000] flex items-center justify-center backdrop-blur-xl overflow-y-auto overflow-x-hidden py-5 px-0 sm:items-start sm:p-[10px_10px_20px] md:items-center md:py-5">
       <div className="flex flex-col md:flex-row w-full md:w-[90vw] max-w-[1200px] min-h-[95vh] md:min-h-[80vh] bg-white/5 backdrop-blur-2xl rounded-none md:rounded-[30px] overflow-hidden shadow-[0_32px_64px_rgba(0,0,0,0.6)] border border-white/10 m-0 md:m-auto">
 
         {/* Left Side - Player Card */}

@@ -341,7 +341,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
   if (!isOpen) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] p-5" onClick={onClose}>
+    <div data-modal-root="true" className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] p-5" onClick={onClose}>
       <div
         className="bg-[#1a1a1a] rounded-xl w-[calc(100vw-40px)] max-w-[360px] max-h-[80vh] overflow-hidden border-2 border-[#333] sm:w-[300px] sm:max-w-[calc(100vw-32px)]"
         onClick={(e) => e.stopPropagation()}

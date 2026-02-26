@@ -56,7 +56,7 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
   if (!isOpen) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] p-4 sm:p-3" onClick={onClose}>
+    <div data-modal-root="true" className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] p-4 sm:p-3" onClick={onClose}>
       <motion.div
         className="bg-[#1F2252] rounded-3xl p-6 w-full max-w-[540px] border border-white/15 backdrop-blur-md max-h-[90vh] overflow-y-auto"
         initial={{ opacity: 0, scale: 0.96, y: 10 }}
