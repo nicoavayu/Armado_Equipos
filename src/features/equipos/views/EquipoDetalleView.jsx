@@ -223,6 +223,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const [memberPhotoFile, setMemberPhotoFile] = useState(null);
   const [memberPhotoPreview, setMemberPhotoPreview] = useState(null);
   const [removeMemberPhoto, setRemoveMemberPhoto] = useState(false);
+  const [showProfilePositionHint, setShowProfilePositionHint] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -381,10 +382,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     () => getMemberProfilePositionFromProfile(memberEditing),
     [memberEditing],
   );
-  const selectedProfilePositionLabel = useMemo(
-    () => PROFILE_POSITION_CODE_TO_LABEL[selectedProfilePositionCode] || PROFILE_POSITION_CODE_TO_LABEL.SD,
-    [selectedProfilePositionCode],
-  );
 
   const selectedTeamGradientStyle = useMemo(
     () => (selectedTeam ? getTeamGradientStyle(selectedTeam) : undefined),
@@ -409,6 +406,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     setMemberSelfEditMode(false);
     setMemberPhotoFile(null);
     setRemoveMemberPhoto(false);
+    setShowProfilePositionHint(false);
 
     if (memberPhotoInputRef.current) {
       memberPhotoInputRef.current.value = '';
@@ -448,6 +446,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     setMemberPhotoFile(null);
     setRemoveMemberPhoto(false);
     setMemberPhotoPreview(null);
+    setShowProfilePositionHint(false);
     setMemberModalOpen(true);
   };
 
@@ -499,6 +498,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     setMemberPhotoFile(null);
     setRemoveMemberPhoto(false);
     setMemberPhotoPreview(member?.photo_url || null);
+    setShowProfilePositionHint(false);
     setMemberModalOpen(true);
   };
 
@@ -1462,14 +1462,15 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                 <>
                   <button
                     type="button"
-                    onClick={() => notifyBlockingError('Podés configurar tu posición desde el botón Perfil.')}
-                    className="mt-1 w-full inline-flex items-center justify-between rounded-xl bg-slate-800/70 border border-white/15 px-3 py-2 text-white/85 transition-all hover:border-[#9ED3FF]/40"
+                    onClick={() => setShowProfilePositionHint(true)}
+                    className="mt-1 w-full inline-flex items-center justify-start rounded-xl bg-slate-900/45 border border-white/10 px-3 py-2 text-white/55 transition-all hover:border-white/20 hover:text-white/70"
                     aria-label="Posicion configurada desde perfil"
                   >
                     <span className="font-semibold tracking-wide">{selectedProfilePositionCode}</span>
-                    <span className="text-[10px] text-white/60">Perfil</span>
                   </button>
-                  <p className="mt-1 text-[11px] text-white/60">{selectedProfilePositionLabel}</p>
+                  {showProfilePositionHint ? (
+                    <p className="mt-1 text-[11px] text-white/60">Podés cambiar esto desde la ventana de Perfil.</p>
+                  ) : null}
                 </>
               ) : (
                 <div ref={roleMenuContainerRef} className="relative mt-1">
