@@ -1450,7 +1450,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                 type="text"
                 readOnly
                 value={memberEditing?.jugador?.nombre || 'Jugador'}
-                className="mt-1 w-full rounded-xl bg-slate-800/70 border border-white/15 px-3 py-2 text-white/85"
+                className="mt-1 w-full rounded-xl bg-slate-900/45 border border-white/10 px-3 py-2 text-white/55 cursor-not-allowed"
               />
             )}
           </label>
@@ -1463,13 +1463,13 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                   <button
                     type="button"
                     onClick={() => setShowProfilePositionHint(true)}
-                    className="mt-1 w-full inline-flex items-center justify-start rounded-xl bg-slate-900/45 border border-white/10 px-3 py-2 text-white/55 transition-all hover:border-white/20 hover:text-white/70"
+                    className="mt-1 w-full inline-flex items-center justify-start rounded-xl bg-slate-900/45 border border-white/10 px-3 py-2 text-white/55 cursor-help"
                     aria-label="Posicion configurada desde perfil"
                   >
                     <span className="font-semibold tracking-wide">{selectedProfilePositionCode}</span>
                   </button>
                   {showProfilePositionHint ? (
-                    <p className="mt-1 text-[11px] text-white/60">Podés cambiar esto desde la ventana de Perfil.</p>
+                    <p className="mt-1 text-[11px] text-white/60">Podes cambiar tu posicion desde la ventana de perfil</p>
                   ) : null}
                 </>
               ) : (
