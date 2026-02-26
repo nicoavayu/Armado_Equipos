@@ -1165,28 +1165,44 @@ export const listTeamMembers = async (teamId) => {
 
   let profileByUserId = new Map();
   if (memberUserIds.length > 0) {
-    let profileResponse = await supabase
-      .from('usuarios')
-      .select('id, posicion, rol_favorito')
-      .in('id', memberUserIds);
+    const profileSelectClauses = [
+      'id, posicion, posicion_favorita, rol_favorito',
+      'id, posicion, posicion_favorita',
+      'id, posicion, rol_favorito',
+      'id, posicion',
+      'id, posicion_favorita, rol_favorito',
+      'id, posicion_favorita',
+      'id, rol_favorito',
+      'id',
+    ];
 
-    if (profileResponse.error && isMissingColumnError(profileResponse.error, 'rol_favorito')) {
-      profileResponse = await supabase
+    let profileResponse = null;
+    for (const selectClause of profileSelectClauses) {
+      const candidate = await supabase
         .from('usuarios')
-        .select('id, posicion')
+        .select(selectClause)
         .in('id', memberUserIds);
+
+      if (!candidate.error) {
+        profileResponse = candidate;
+        break;
+      }
+
+      const missingPositionColumns = (
+        isMissingColumnError(candidate.error, 'posicion')
+        || isMissingColumnError(candidate.error, 'posicion_favorita')
+        || isMissingColumnError(candidate.error, 'rol_favorito')
+      );
+
+      if (!missingPositionColumns) {
+        profileResponse = candidate;
+        break;
+      }
     }
 
-    if (profileResponse.error && isMissingColumnError(profileResponse.error, 'posicion')) {
-      profileResponse = await supabase
-        .from('usuarios')
-        .select('id, rol_favorito')
-        .in('id', memberUserIds);
-    }
-
-    if (!profileResponse.error) {
+    if (!profileResponse?.error) {
       profileByUserId = new Map(
-        (profileResponse.data || [])
+        (profileResponse?.data || [])
           .filter((profile) => profile?.id)
           .map((profile) => [String(profile.id), profile]),
       );
@@ -1196,7 +1212,7 @@ export const listTeamMembers = async (teamId) => {
   return rows.map((row) => {
     const memberUserId = row?.user_id || row?.jugador?.usuario_id || null;
     const profile = memberUserId ? profileByUserId.get(String(memberUserId)) : null;
-    const profilePosition = profile?.posicion || profile?.rol_favorito || null;
+    const profilePosition = profile?.posicion || profile?.posicion_favorita || profile?.rol_favorito || null;
 
     return {
       ...row,
@@ -1206,6 +1222,7 @@ export const listTeamMembers = async (teamId) => {
       jugador: {
         ...(row?.jugador || {}),
         posicion: profilePosition || row?.jugador?.posicion || null,
+        posicion_favorita: profile?.posicion_favorita || row?.jugador?.posicion_favorita || null,
         rol_favorito: profile?.rol_favorito || row?.jugador?.rol_favorito || null,
       },
     };

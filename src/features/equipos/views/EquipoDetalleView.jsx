@@ -149,8 +149,14 @@ const normalizeProfilePositionCode = (value) => {
 };
 
 const getMemberProfilePositionFromProfile = (member) => normalizeProfilePositionCode(
-  member?.jugador?.posicion || member?.jugador?.rol_favorito || '',
+  member?.jugador?.posicion || member?.jugador?.posicion_favorita || member?.jugador?.rol_favorito || '',
 );
+
+const getMemberPositionForCard = (member) => {
+  const profilePosition = getMemberProfilePositionFromProfile(member);
+  if (profilePosition !== 'SD') return profilePosition;
+  return getMemberProfilePosition(member);
+};
 
 const formatPlayedDate = (playedAt) => {
   if (!playedAt) return 'Sin fecha';
@@ -1056,7 +1062,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                         profile={{
                           nombre: member?.jugador?.nombre || 'Jugador',
                           avatar_url: getMemberAvatar(member),
-                          posicion: getMemberProfilePosition(member),
+                          posicion: getMemberPositionForCard(member),
                           ranking: member?.jugador?.score ?? null,
                         }}
                         metaBadge={(
@@ -1109,7 +1115,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                                         uuid: memberUserId,
                                         nombre: member?.jugador?.nombre || 'Jugador',
                                         avatar_url: getMemberAvatar(member),
-                                        posicion: getMemberProfilePosition(member),
+                                        posicion: getMemberPositionForCard(member),
                                         ranking: member?.jugador?.score ?? null,
                                         score: member?.jugador?.score ?? null,
                                       });
