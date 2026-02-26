@@ -15,6 +15,7 @@ import { TEAM_FORMAT_OPTIONS, TEAM_MODE_OPTIONS } from '../features/equipos/conf
 import { getTeamBadgeStyle, getTeamGradientStyle } from '../features/equipos/utils/teamColors';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import {
+  getChallengeHeadToHeadStats,
   getTeamMatchById,
   listTeamMatchMembers,
   updateTeamMatchDetails,
@@ -22,6 +23,13 @@ import {
 import { notifyBlockingError } from '../utils/notifyBlockingError';
 
 const AVATAR_VISIBLE_LIMIT = 6;
+const EMPTY_CHALLENGE_HEAD_TO_HEAD = Object.freeze({
+  totalMatchesScheduled: 0,
+  lastMatchScheduledAt: null,
+  lastWinnerTeamId: null,
+  winsTeamA: 0,
+  winsTeamB: 0,
+});
 
 const toDateTimeLocalValue = (isoDate) => {
   if (!isoDate) return '';
@@ -102,6 +110,17 @@ const getInitials = (value) => {
   if (words.length === 0) return 'J';
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
   return `${words[0][0] || ''}${words[1][0] || ''}`.toUpperCase();
+};
+
+const formatHeadToHeadDate = (value) => {
+  if (!value) return 'SIN DATOS';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 'SIN DATOS';
+  return parsed.toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+  });
 };
 
 const TeamCardLocked = ({
@@ -206,6 +225,9 @@ const TeamMatchDetailPage = () => {
   const [selectedPlayerProfile, setSelectedPlayerProfile] = useState(null);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [actionsMenuPosition, setActionsMenuPosition] = useState({ top: 0, left: 0 });
+  const [challengeHeadToHead, setChallengeHeadToHead] = useState(EMPTY_CHALLENGE_HEAD_TO_HEAD);
+  const [challengeHeadToHeadLoading, setChallengeHeadToHeadLoading] = useState(false);
+  const [showChallengeHeadToHead, setShowChallengeHeadToHead] = useState(false);
   const actionsMenuButtonRef = useRef(null);
 
   const [scheduledAtInput, setScheduledAtInput] = useState('');
@@ -264,9 +286,49 @@ const TeamMatchDetailPage = () => {
   }, [loadData]);
 
   const isChallengeMatch = useMemo(
-    () => String(match?.origin_type || '').toLowerCase() === 'challenge' || Boolean(match?.challenge_id),
-    [match?.challenge_id, match?.origin_type],
+    () => String(match?.type || match?.origin_type || '').toLowerCase() === 'challenge' || Boolean(match?.challenge_id),
+    [match?.challenge_id, match?.origin_type, match?.type],
   );
+
+  useEffect(() => {
+    let ignore = false;
+
+    const loadChallengeHeadToHead = async () => {
+      const teamAId = match?.team_a_id;
+      const teamBId = match?.team_b_id;
+      if (!isChallengeMatch || !teamAId || !teamBId) {
+        setShowChallengeHeadToHead(false);
+        setChallengeHeadToHeadLoading(false);
+        setChallengeHeadToHead(EMPTY_CHALLENGE_HEAD_TO_HEAD);
+        return;
+      }
+
+      setShowChallengeHeadToHead(true);
+      setChallengeHeadToHeadLoading(true);
+
+      try {
+        const stats = await getChallengeHeadToHeadStats({ teamAId, teamBId });
+        if (ignore) return;
+        setChallengeHeadToHead({
+          ...EMPTY_CHALLENGE_HEAD_TO_HEAD,
+          ...(stats || {}),
+        });
+      } catch (_error) {
+        if (ignore) return;
+        setShowChallengeHeadToHead(false);
+        setChallengeHeadToHead(EMPTY_CHALLENGE_HEAD_TO_HEAD);
+      } finally {
+        if (!ignore) {
+          setChallengeHeadToHeadLoading(false);
+        }
+      }
+    };
+
+    loadChallengeHeadToHead();
+    return () => {
+      ignore = true;
+    };
+  }, [isChallengeMatch, match?.team_a_id, match?.team_b_id]);
 
   const challengeCreatorUserId = useMemo(
     () => match?.challenge?.created_by_user_id || null,
@@ -283,6 +345,68 @@ const TeamMatchDetailPage = () => {
     [challengeCreatorUserId, isChallengeMatch, user?.id],
   );
   const canShowEditAction = canEditMatchInfo && match?.status !== 'cancelled' && match?.status !== 'played';
+
+  const currentUserTeamId = useMemo(() => {
+    const teamAId = match?.team_a_id ? String(match.team_a_id) : null;
+    const teamBId = match?.team_b_id ? String(match.team_b_id) : null;
+    const userId = user?.id ? String(user.id) : null;
+    if (!teamAId || !teamBId) return null;
+    if (!userId) return teamAId;
+
+    const membersA = teamMembersByTeamId[teamAId] || [];
+    const membersB = teamMembersByTeamId[teamBId] || [];
+    const inA = membersA.some((member) => String(member?.user_id || member?.jugador?.usuario_id || '') === userId);
+    const inB = membersB.some((member) => String(member?.user_id || member?.jugador?.usuario_id || '') === userId);
+    if (inA && !inB) return teamAId;
+    if (inB && !inA) return teamBId;
+
+    if (String(match?.team_a?.owner_user_id || '') === userId) return teamAId;
+    if (String(match?.team_b?.owner_user_id || '') === userId) return teamBId;
+
+    return teamAId;
+  }, [
+    match?.team_a?.owner_user_id,
+    match?.team_a_id,
+    match?.team_b?.owner_user_id,
+    match?.team_b_id,
+    teamMembersByTeamId,
+    user?.id,
+  ]);
+
+  const challengeHeadToHeadView = useMemo(() => {
+    if (!match) return null;
+
+    const stats = challengeHeadToHead || EMPTY_CHALLENGE_HEAD_TO_HEAD;
+    const teamAId = String(match?.team_a_id || '');
+    const teamBId = String(match?.team_b_id || '');
+    const totalMatchesScheduled = Number(stats.totalMatchesScheduled || 0);
+    const hasScheduledHistory = totalMatchesScheduled > 0;
+    const winsTeamA = Number(stats.winsTeamA || 0);
+    const winsTeamB = Number(stats.winsTeamB || 0);
+    const hasValidatedResults = (winsTeamA + winsTeamB) > 0 || Boolean(stats.lastWinnerTeamId);
+
+    const winnerTeamId = String(stats.lastWinnerTeamId || '');
+    const isWinnerTeamA = winnerTeamId && winnerTeamId === teamAId;
+    const isWinnerTeamB = winnerTeamId && winnerTeamId === teamBId;
+    const lastWinnerName = isWinnerTeamA
+      ? String(match?.team_a?.name || '').trim()
+      : isWinnerTeamB
+        ? String(match?.team_b?.name || '').trim()
+        : '';
+
+    const perspectiveIsTeamB = Boolean(currentUserTeamId && currentUserTeamId === teamBId);
+    const wins = perspectiveIsTeamB ? winsTeamB : winsTeamA;
+    const losses = perspectiveIsTeamB ? winsTeamA : winsTeamB;
+    const historialValue = hasValidatedResults ? `${wins}V - ${losses}D` : 'SIN ENCUESTAS';
+
+    return {
+      hasScheduledHistory,
+      totalMatchesScheduled,
+      lastMatchDateText: formatHeadToHeadDate(stats.lastMatchScheduledAt),
+      lastWinnerText: lastWinnerName || 'SIN DATOS',
+      historialValue,
+    };
+  }, [challengeHeadToHead, currentUserTeamId, match]);
 
   const getSafeMenuPosition = useCallback((rect) => {
     const menuWidth = 192; // w-48
@@ -508,6 +632,52 @@ const TeamMatchDetailPage = () => {
                     onOpenRoster={() => setRosterTeamId(match?.team_b_id)}
                   />
                 </div>
+
+                {isChallengeMatch && showChallengeHeadToHead ? (
+                  <div className="mt-3 rounded-2xl border border-white/12 bg-slate-900/35 px-4 py-3 backdrop-blur-sm h-[80px]">
+                    {challengeHeadToHeadLoading ? (
+                      <div className="grid h-full grid-cols-4 gap-3">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                          <div key={`challenge-history-skeleton-${index}`} className="flex flex-col justify-center gap-2">
+                            <div className="h-2.5 w-16 rounded bg-white/12" />
+                            <div className="h-4 w-20 rounded bg-white/18" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : challengeHeadToHeadView?.hasScheduledHistory ? (
+                      <div className="grid h-full grid-cols-4 gap-3">
+                        <div className="min-w-0 flex flex-col justify-center">
+                          <span className="text-[11px] uppercase tracking-[0.12em] text-white/55">Ultima vez</span>
+                          <span className="text-[16px] sm:text-[17px] font-oswald font-semibold text-white">
+                            {challengeHeadToHeadView.lastMatchDateText}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex flex-col justify-center">
+                          <span className="text-[11px] uppercase tracking-[0.12em] text-white/55">Partidos</span>
+                          <span className="text-[16px] sm:text-[17px] font-oswald font-semibold text-white">
+                            {challengeHeadToHeadView.totalMatchesScheduled}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex flex-col justify-center">
+                          <span className="text-[11px] uppercase tracking-[0.12em] text-white/55">Ultimo ganador</span>
+                          <span className="text-[16px] sm:text-[17px] font-oswald font-semibold text-white truncate" title={challengeHeadToHeadView.lastWinnerText}>
+                            {challengeHeadToHeadView.lastWinnerText}
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex flex-col justify-center">
+                          <span className="text-[11px] uppercase tracking-[0.12em] text-white/55">Historial</span>
+                          <span className="text-[16px] sm:text-[17px] font-oswald font-semibold text-white">
+                            {challengeHeadToHeadView.historialValue}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-center text-[15px] font-oswald font-medium text-white/85">
+                        Es la primera vez que se enfrentan
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
             </>

@@ -2334,6 +2334,35 @@ export const listTeamHistoryByRival = async (teamId) => {
   }));
 };
 
+export const getChallengeHeadToHeadStats = async ({ teamAId, teamBId }) => {
+  if (!teamAId || !teamBId) {
+    throw new Error('Equipos invalidos para historial');
+  }
+
+  const response = await supabase.rpc('rpc_get_challenge_head_to_head_stats', {
+    p_team_a_id: teamAId,
+    p_team_b_id: teamBId,
+  });
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudo cargar el historial entre equipos');
+  }
+
+  const row = Array.isArray(response.data) ? (response.data[0] || {}) : (response.data || {});
+
+  return {
+    totalMatchesScheduled: Number(
+      row?.totalMatchesScheduled
+      ?? row?.total_matches_scheduled
+      ?? 0,
+    ) || 0,
+    lastMatchScheduledAt: row?.lastMatchScheduledAt || row?.last_match_scheduled_at || null,
+    lastWinnerTeamId: row?.lastWinnerTeamId || row?.last_winner_team_id || null,
+    winsTeamA: Number(row?.winsTeamA ?? row?.wins_team_a ?? 0) || 0,
+    winsTeamB: Number(row?.winsTeamB ?? row?.wins_team_b ?? 0) || 0,
+  };
+};
+
 export const listTeamMatchHistory = async (teamId) => {
   if (!teamId) return [];
 
