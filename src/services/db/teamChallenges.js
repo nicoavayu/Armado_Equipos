@@ -98,7 +98,6 @@ const TEAM_MEMBER_SELECT_BASE = `
     usuario_id,
     nombre,
     avatar_url,
-    posicion,
     score
   )
 `;
@@ -119,7 +118,6 @@ const TEAM_MEMBER_SELECT_WITH_PHOTO = `
     usuario_id,
     nombre,
     avatar_url,
-    posicion,
     score
   )
 `;
@@ -1131,7 +1129,6 @@ export const listTeamMembers = async (teamId) => {
       usuario_id,
       nombre,
       avatar_url,
-      posicion,
       score
     )
   `;
@@ -1158,12 +1155,61 @@ export const listTeamMembers = async (teamId) => {
     throw new Error(response.error.message || 'No se pudo cargar la plantilla');
   }
 
-  return (response.data || []).map((row) => ({
-    ...row,
-    user_id: row?.user_id || row?.jugador?.usuario_id || null,
-    permissions_role: row?.permissions_role || 'member',
-    photo_url: row?.photo_url || null,
-  }));
+  const rows = response.data || [];
+  const memberUserIds = uniqueValues(
+    rows
+      .map((row) => row?.user_id || row?.jugador?.usuario_id || null)
+      .filter(Boolean)
+      .map((value) => String(value)),
+  );
+
+  let profileByUserId = new Map();
+  if (memberUserIds.length > 0) {
+    let profileResponse = await supabase
+      .from('usuarios')
+      .select('id, posicion, rol_favorito')
+      .in('id', memberUserIds);
+
+    if (profileResponse.error && isMissingColumnError(profileResponse.error, 'rol_favorito')) {
+      profileResponse = await supabase
+        .from('usuarios')
+        .select('id, posicion')
+        .in('id', memberUserIds);
+    }
+
+    if (profileResponse.error && isMissingColumnError(profileResponse.error, 'posicion')) {
+      profileResponse = await supabase
+        .from('usuarios')
+        .select('id, rol_favorito')
+        .in('id', memberUserIds);
+    }
+
+    if (!profileResponse.error) {
+      profileByUserId = new Map(
+        (profileResponse.data || [])
+          .filter((profile) => profile?.id)
+          .map((profile) => [String(profile.id), profile]),
+      );
+    }
+  }
+
+  return rows.map((row) => {
+    const memberUserId = row?.user_id || row?.jugador?.usuario_id || null;
+    const profile = memberUserId ? profileByUserId.get(String(memberUserId)) : null;
+    const profilePosition = profile?.posicion || profile?.rol_favorito || null;
+
+    return {
+      ...row,
+      user_id: memberUserId,
+      permissions_role: row?.permissions_role || 'member',
+      photo_url: row?.photo_url || null,
+      jugador: {
+        ...(row?.jugador || {}),
+        posicion: profilePosition || row?.jugador?.posicion || null,
+        rol_favorito: profile?.rol_favorito || row?.jugador?.rol_favorito || null,
+      },
+    };
+  });
 };
 
 export const listTeamMatchMembers = async ({ matchId, teamIds = [] }) => {
