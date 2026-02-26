@@ -105,6 +105,16 @@ export async function openNotification(n, navigate) {
       return;
     }
 
+    if (type === 'team_captain_transfer') {
+      const teamId = n?.data?.team_id || n?.data?.teamId || null;
+      if (teamId) {
+        navigate(`/quiero-jugar/equipos/${teamId}`);
+      } else {
+        navigate('/quiero-jugar');
+      }
+      return;
+    }
+
     // default: home
     navigate('/');
   } catch (e) {

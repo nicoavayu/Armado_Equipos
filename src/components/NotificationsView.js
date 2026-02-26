@@ -188,6 +188,11 @@ const NotificationsView = () => {
       case 'team_invite':
         safeNavigate(notification, '/quiero-jugar');
         break;
+      case 'team_captain_transfer': {
+        const teamId = data.team_id || data.teamId || null;
+        safeNavigate(notification, teamId ? `/quiero-jugar/equipos/${teamId}` : '/quiero-jugar');
+        break;
+      }
       case 'match_invite':
       {
         const inviteRoute = resolveMatchInviteRoute(notification);
@@ -366,6 +371,8 @@ const NotificationsView = () => {
       case 'match_update':
         return Users;
       case 'team_invite':
+        return Users;
+      case 'team_captain_transfer':
         return Users;
       case 'challenge_accepted':
       case 'team_match_created':

@@ -157,6 +157,12 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       return;
     }
 
+    if (notification.type === 'team_captain_transfer') {
+      const teamId = notification?.data?.team_id || notification?.data?.teamId || null;
+      safeNavigate(notification, teamId ? `/quiero-jugar/equipos/${teamId}` : '/quiero-jugar');
+      return;
+    }
+
     if (notification.type === 'match_join_request') {
       const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId;
       const link = notification?.data?.link || (matchId ? `/admin/${matchId}?tab=solicitudes` : null);
@@ -240,6 +246,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       case 'friend_accepted': return CheckCircle;
       case 'match_update': return Users;
       case 'team_invite': return Users;
+      case 'team_captain_transfer': return Users;
       case 'match_cancelled': return XCircle;
       case 'match_join_request': return UserPlus;
       case 'match_join_approved': return CheckCircle;
@@ -399,7 +406,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           ) : (
             <div className="p-0">
               {filteredNotifications.map((notification) => {
-                const clickable = ['match_invite', 'team_invite', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished', 'award_won'].includes(notification.type);
+                const clickable = ['match_invite', 'team_invite', 'team_captain_transfer', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished', 'award_won'].includes(notification.type);
                 const Icon = getNotificationIcon(notification.type) || User;
                 const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
                 const isSurveyReminder = notification.type === 'survey_reminder';

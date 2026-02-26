@@ -725,6 +725,10 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         newCaptainMemberId: member.id,
       });
 
+      console.info(
+        `${member?.jugador?.nombre || 'Jugador'} ahora es el capitan de ${selectedTeam?.name || 'tu equipo'}`,
+      );
+
       setOpenMemberMenuId(null);
       await refreshSelectedTeam();
       console.info('Capitanía transferida');

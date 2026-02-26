@@ -593,6 +593,9 @@ export const NotificationProvider = ({ children }) => {
       case 'team_invite':
         console.info(`${notification.title || 'Invitacion de equipo'}: ${formatTeamInviteMessage(notification)}`, toastOptions);
         break;
+      case 'team_captain_transfer':
+        console.info(`${notification.title || 'Capitania transferida'}: ${notification.message || ''}`, toastOptions);
+        break;
       case 'call_to_vote':
         console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
@@ -637,6 +640,7 @@ export const NotificationProvider = ({ children }) => {
     const friendRequests = unread.filter((n) => n.type === 'friend_request').length;
     const matchInvites = unread.filter((n) => n.type === 'match_invite').length;
     const teamInvites = unread.filter((n) => n.type === 'team_invite').length;
+    const captainTransfers = unread.filter((n) => n.type === 'team_captain_transfer').length;
     const matchJoinRequests = unread.filter((n) => n.type === 'match_join_request').length;
     const matchJoinApproved = unread.filter((n) => n.type === 'match_join_approved').length;
     const callToVote = unread.filter((n) => n.type === 'call_to_vote').length;
@@ -651,7 +655,7 @@ export const NotificationProvider = ({ children }) => {
 
     setUnreadCount({
       friends: friendRequests,
-      matches: matchInvites + teamInvites + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyResults + awardsReady + awardWon + surveyFinished + noShowPenalty + noShowRecovery,
+      matches: matchInvites + teamInvites + captainTransfers + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyResults + awardsReady + awardWon + surveyFinished + noShowPenalty + noShowRecovery,
       total: unread.length,
     });
   };

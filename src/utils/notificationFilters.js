@@ -16,6 +16,7 @@ const MATCH_TYPES = new Set([
   'call_to_vote',
   'pre_match_vote',
   'team_invite',
+  'team_captain_transfer',
   // Social notifications stay visible under "Partidos" to avoid a separate filter tab.
   'friend_request',
   'friend_accepted',
