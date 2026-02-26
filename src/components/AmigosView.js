@@ -85,7 +85,7 @@ const AmigosView = () => {
   const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const [activeTab, setActiveTab] = useState('discover');
+  const [activeTab, setActiveTab] = useState('friends');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -520,6 +520,18 @@ const AmigosView = () => {
     }
   };
 
+  const handleSearchInCommunity = () => {
+    const term = String(friendSearchQuery || '').trim();
+    setActiveTab('discover');
+    setSearchQuery(term);
+
+    if (term.length >= 2) {
+      searchUsers(term);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
   const filteredFriends = useMemo(() => {
     const term = String(friendSearchQuery || '').trim().toLowerCase();
     if (!term) return amigos || [];
@@ -571,17 +583,6 @@ const AmigosView = () => {
         <div className="flex gap-1.5">
           <button
             type="button"
-            onClick={() => setActiveTab('discover')}
-            className={`flex-1 h-12 rounded-[13px] font-oswald text-[20px] font-semibold tracking-[0.01em] !normal-case transition-all duration-200 ${
-              activeTab === 'discover'
-                ? 'bg-[#7e76de] text-white shadow-[0_6px_16px_rgba(126,118,222,0.42)]'
-                : 'bg-transparent text-white/58 hover:text-white/90 hover:bg-white/[0.08]'
-            }`}
-          >
-            Descubrir
-          </button>
-          <button
-            type="button"
             onClick={() => setActiveTab('friends')}
             className={`flex-1 h-12 rounded-[13px] font-oswald text-[20px] font-semibold tracking-[0.01em] !normal-case transition-all duration-200 ${
               activeTab === 'friends'
@@ -591,6 +592,17 @@ const AmigosView = () => {
           >
             Mis amigos
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('discover')}
+            className={`flex-1 h-12 rounded-[13px] font-oswald text-[20px] font-semibold tracking-[0.01em] !normal-case transition-all duration-200 ${
+              activeTab === 'discover'
+                ? 'bg-[#7e76de] text-white shadow-[0_6px_16px_rgba(126,118,222,0.42)]'
+                : 'bg-transparent text-white/58 hover:text-white/90 hover:bg-white/[0.08]'
+            }`}
+          >
+            Comunidad
+          </button>
         </div>
       </div>
 
@@ -598,9 +610,12 @@ const AmigosView = () => {
         <>
           {/* Search users */}
           <div className="w-full max-w-[500px] mx-auto my-[10px] mb-[12px] relative box-border z-10">
+            <p className="mb-2 px-1 text-[11px] uppercase tracking-wider text-white/55">
+              Buscar en toda la comunidad
+            </p>
             <input
               type="text"
-              placeholder="Buscar usuarios por nombre o email..."
+              placeholder="Buscar jugador por nombre o email..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -612,6 +627,9 @@ const AmigosView = () => {
               }}
               className={searchInputClass}
             />
+            <p className="mt-2 px-1 text-xs text-white/55">
+              Esta busqueda incluye a todos los usuarios registrados.
+            </p>
 
             {searchQuery && (
               <div className="w-full max-w-[700px] mx-auto rounded-xl absolute left-1/2 -translate-x-1/2 top-full bg-black/90 border border-white/20 max-h-[300px] overflow-y-auto z-[1000] mt-1 sm:max-w-[98vw]">
@@ -741,13 +759,28 @@ const AmigosView = () => {
         <>
           {/* Search friends */}
           <div className="w-full max-w-[500px] mx-auto mb-4">
+            <p className="mb-2 px-1 text-[11px] uppercase tracking-wider text-white/55">
+              Filtrar solo mis amigos
+            </p>
             <input
               type="text"
-              placeholder="Buscar amigo..."
+              placeholder="Filtrar en mis amigos..."
               value={friendSearchQuery}
               onChange={(e) => setFriendSearchQuery(e.target.value)}
               className={searchInputClass}
             />
+            <div className="mt-2 flex items-center justify-between gap-3 px-1">
+              <p className="text-xs text-white/55">
+                Este campo filtra solo tu lista actual.
+              </p>
+              <button
+                type="button"
+                onClick={handleSearchInCommunity}
+                className="shrink-0 text-xs font-semibold text-[#8fa5ff] hover:text-[#a7b8ff] transition-colors"
+              >
+                Buscar en comunidad
+              </button>
+            </div>
           </div>
 
           {Array.isArray(amigos) && amigos.length > 0 ? (
@@ -776,7 +809,7 @@ const AmigosView = () => {
           ) : (
             <div className="text-center p-10 bg-black/5 rounded-lg mt-5">
               <p className="m-2.5 text-base text-white">No tenes amigos agregados todavia.</p>
-              <p className="m-2.5 text-base text-white">Usa la solapa Descubrir para enviar solicitudes.</p>
+              <p className="m-2.5 text-base text-white">Usa la solapa Comunidad para enviar solicitudes.</p>
             </div>
           )}
         </>
@@ -829,6 +862,12 @@ const SearchUserItem = ({
     try {
       const result = await sendFriendRequest(user.id);
       if (result.success) {
+        setRelationshipStatus({
+          id: result?.data?.id || relationshipStatus?.id || null,
+          status: 'pending',
+          user_id: currentUserId,
+          friend_id: user.id,
+        });
         if (typeof onInlineNotice === 'function') {
           onInlineNotice({
             key: `friend_request_sent_${user.id}`,

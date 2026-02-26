@@ -118,7 +118,7 @@ export const useAmigos = (currentUserId) => {
       console.log('[AMIGOS] Checking if current user is the requester (user_id)');
       const { data, error } = await supabase
         .from('amigos')
-        .select('id, status')
+        .select('id, status, user_id, friend_id')
         .eq('user_id', currentUserId)
         .eq('friend_id', playerId)
         .maybeSingle();
@@ -137,7 +137,7 @@ export const useAmigos = (currentUserId) => {
       console.log('[AMIGOS] Checking if current user is the receiver (friend_id)');
       const { data: reverseData, error: reverseError } = await supabase
         .from('amigos')
-        .select('id, status')
+        .select('id, status, user_id, friend_id')
         .eq('user_id', playerId)
         .eq('friend_id', currentUserId)
         .maybeSingle();
@@ -163,6 +163,10 @@ export const useAmigos = (currentUserId) => {
       return { success: false, message: 'Faltan parámetros necesarios' };
     }
 
+    if (currentUserId === friendId) {
+      return { success: false, message: 'No podes enviarte una solicitud a vos mismo' };
+    }
+
     // Validate UUID formats
     if (!isValidUUID(currentUserId) || !isValidUUID(friendId)) {
       console.error('[AMIGOS] Invalid UUID format in sendFriendRequest', {
@@ -176,6 +180,24 @@ export const useAmigos = (currentUserId) => {
 
     console.log('[AMIGOS] Sending friend request:', { from: currentUserId, to: friendId });
     try {
+      const createPendingRequest = async () => {
+        const { data: insertData, error: insertError } = await supabase
+          .from('amigos')
+          .insert([{
+            user_id: currentUserId,
+            friend_id: friendId,
+            status: 'pending',
+          }])
+          .select('id, user_id, friend_id, status, created_at')
+          .single();
+
+        if (insertError) {
+          throw insertError;
+        }
+
+        return insertData;
+      };
+
       // Check if a relationship already exists
       console.log('[AMIGOS] Checking if relationship already exists');
       const existingRelation = await getRelationshipStatus(friendId);
@@ -185,24 +207,38 @@ export const useAmigos = (currentUserId) => {
         console.log('[AMIGOS] Relationship already exists:', existingRelation);
 
         if (existingRelation.status === 'rejected') {
-          // Update existing rejected relationship to pending
-          console.log('[AMIGOS] Updating rejected relationship to pending');
-          const { data: updateData, error } = await supabase
+          // Recreate request from current user so direction and RLS constraints stay consistent.
+          console.log('[AMIGOS] Recreating rejected relationship as pending request');
+          const { data: deletedRows, error: deleteError } = await supabase
             .from('amigos')
-            .update({
-              status: 'pending',
-              updated_at: new Date().toISOString(),
-            })
+            .delete()
             .eq('id', existingRelation.id)
-            .select()
-            .single();
+            .eq('status', 'rejected')
+            .select('id');
 
-          if (error) {
-            console.error('[AMIGOS] Error updating friend request:', error);
-            throw error;
+          if (deleteError) {
+            console.error('[AMIGOS] Error deleting rejected relationship:', deleteError);
+            throw deleteError;
           }
 
-          data = updateData;
+          if (!Array.isArray(deletedRows) || deletedRows.length === 0) {
+            const latestRelation = await getRelationshipStatus(friendId);
+            if (latestRelation?.status === 'accepted') {
+              return { success: false, message: 'Ya son amigos' };
+            }
+            if (latestRelation?.status === 'pending') {
+              return { success: false, message: 'Ya existe una solicitud pendiente con este jugador' };
+            }
+            return { success: false, message: 'No se pudo reenviar la solicitud. Intentá nuevamente.' };
+          }
+
+          data = await createPendingRequest();
+        } else if (existingRelation.status === 'pending') {
+          console.warn('[AMIGOS] Relationship exists with status pending');
+          return { success: false, message: 'Ya existe una solicitud pendiente con este jugador' };
+        } else if (existingRelation.status === 'accepted') {
+          console.warn('[AMIGOS] Relationship exists with status accepted');
+          return { success: false, message: 'Ya son amigos' };
         } else {
           // Other statuses (pending, accepted) should not allow new requests
           console.warn('[AMIGOS] Relationship exists with status:', existingRelation.status);
@@ -211,22 +247,7 @@ export const useAmigos = (currentUserId) => {
       } else {
         // Create new friend request
         console.log('[AMIGOS] Creating new friend request');
-        const { data: insertData, error } = await supabase
-          .from('amigos')
-          .insert([{
-            user_id: currentUserId,
-            friend_id: friendId,
-            status: 'pending',
-          }])
-          .select()
-          .single();
-
-        if (error) {
-          console.error('[AMIGOS] Error inserting friend request:', error);
-          throw error;
-        }
-
-        data = insertData;
+        data = await createPendingRequest();
       }
 
 
@@ -274,6 +295,10 @@ export const useAmigos = (currentUserId) => {
       // Return friendly error message based on error type
       if (err.message && err.message.includes('UUID')) {
         return { success: false, message: 'Error: Identificadores inválidos' };
+      }
+
+      if (err.code === '23505') {
+        return { success: false, message: 'Ya existe una solicitud pendiente con este jugador' };
       }
 
       return { success: false, message: 'Error al enviar solicitud de amistad' };
