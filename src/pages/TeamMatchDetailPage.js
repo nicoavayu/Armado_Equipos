@@ -60,9 +60,18 @@ const statusLabelByValue = {
 
 const getOriginBadgeClass = (originType) => {
   if (String(originType || '').toLowerCase() === 'challenge') {
-    return 'border-[#6B7280] bg-[#374151]/70 text-[#E5E7EB]';
+    return 'bg-[#2b1d52] border-2 border-[#c084fc] text-[#f3e8ff]';
   }
-  return 'border-[#3B82F6] bg-[#1E3A5F]/75 text-[#DBEAFE]';
+  return 'bg-[#15344f] border-2 border-[#22d3ee] text-[#e0f2fe]';
+};
+
+const getStatusBadgeClass = (statusValue) => {
+  const status = String(statusValue || '').trim().toLowerCase();
+  if (status === 'confirmed') return 'text-[#D6F8E2] border-[#5AD17B]/45 bg-[#2F9E44]/24';
+  if (status === 'pending') return 'text-[#FDE68A] border-[#FBBF24]/45 bg-[#B45309]/24';
+  if (status === 'played') return 'text-[#D4EBFF] border-[#9ED3FF]/45 bg-[#128BE9]/22';
+  if (status === 'cancelled') return 'text-[#E2E8F0] border-[#94A3B8]/45 bg-[#475569]/28';
+  return 'text-white/85 border-white/25 bg-white/10';
 };
 
 const getPlayerName = (member) => String(member?.jugador?.nombre || 'Jugador').trim();
@@ -421,7 +430,7 @@ const TeamMatchDetailPage = () => {
                     <span className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getOriginBadgeClass(match?.origin_type)}`}>
                       <Flag size={12} /> {match?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso'}
                     </span>
-                    <span className="inline-flex items-center rounded-lg border border-white/20 bg-white/10 px-2 py-1 text-[11px] text-white/80 font-oswald uppercase tracking-wide">
+                    <span className={`inline-flex items-center rounded-lg border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getStatusBadgeClass(match?.status)}`}>
                       {statusLabelByValue[match?.status] || match?.status || 'Pendiente'}
                     </span>
                   </div>

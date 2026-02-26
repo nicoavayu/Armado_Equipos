@@ -436,13 +436,17 @@ const resolveChallengeMatchStatus = (row, fallbackStatus) => {
   if (!isChallengeOrigin) return baseStatus;
 
   const rawChallengeStatus = String(row?.challenge?.status || '').trim();
-  if (!rawChallengeStatus) return baseStatus;
+  if (!rawChallengeStatus) {
+    // A challenge team_match only exists once a rival accepted, so default to confirmed.
+    return baseStatus === 'pending' ? 'confirmed' : baseStatus;
+  }
 
   const challengeStatus = normalizeChallengeStatus(rawChallengeStatus);
   if (challengeStatus === 'completed') return 'played';
   if (challengeStatus === 'confirmed') return 'confirmed';
   if (challengeStatus === 'canceled') return 'cancelled';
-  if (challengeStatus === 'accepted' || challengeStatus === 'open') return 'pending';
+  if (challengeStatus === 'accepted') return 'confirmed';
+  if (challengeStatus === 'open') return 'pending';
 
   return baseStatus;
 };
