@@ -8,7 +8,12 @@ import { useAmigos } from '../hooks/useAmigos';
 import { useAuth } from './AuthProvider';
 import EmptyStateCard from './EmptyStateCard';
 import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
-import { applyMatchNameQuotes, quoteMatchName, resolveNotificationMatchName } from '../utils/notificationText';
+import {
+  applyMatchNameQuotes,
+  formatTeamInviteMessage,
+  quoteMatchName,
+  resolveNotificationMatchName,
+} from '../utils/notificationText';
 import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OPTIONS } from '../utils/notificationFilters';
 import { buildNotificationFallbackRoute, extractNotificationMatchId } from '../utils/notificationRoutes';
 import { groupNotificationsByMatch } from '../utils/notificationGrouping';
@@ -179,6 +184,9 @@ const NotificationsView = () => {
         break;
       case 'friend_accepted':
         safeNavigate(notification, '/amigos');
+        break;
+      case 'team_invite':
+        safeNavigate(notification, '/quiero-jugar');
         break;
       case 'match_invite':
       {
@@ -357,6 +365,8 @@ const NotificationsView = () => {
         return CalendarClock;
       case 'match_update':
         return Users;
+      case 'team_invite':
+        return Users;
       case 'challenge_accepted':
       case 'team_match_created':
         return CalendarClock;
@@ -426,6 +436,7 @@ const NotificationsView = () => {
     const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
     const isSurveyReminder = notification.type === 'survey_reminder';
     const isSurveyResults = notification.type === 'survey_results_ready';
+    const isTeamInvite = notification.type === 'team_invite';
     const matchName = resolveNotificationMatchName(notification, 'este partido');
     const quotedMatchName = quoteMatchName(matchName, 'este partido');
     const title = isSurveyStartLike
@@ -434,6 +445,8 @@ const NotificationsView = () => {
         ? 'Recordatorio de encuesta'
         : isSurveyResults
           ? 'Resultados de encuesta listos'
+          : isTeamInvite
+            ? (notification.title || 'Invitacion de equipo')
           : applyMatchNameQuotes(notification.title || 'Notificación', matchName);
     const message = isSurveyStartLike
       ? getSurveyStartMessage({ source: notification, matchName: quotedMatchName })
@@ -441,6 +454,8 @@ const NotificationsView = () => {
         ? getSurveyReminderMessage({ source: notification, matchName: quotedMatchName })
         : isSurveyResults
           ? getSurveyResultsReadyMessage({ matchName: quotedMatchName })
+          : isTeamInvite
+            ? formatTeamInviteMessage(notification)
           : applyMatchNameQuotes(notification.message || '', matchName);
 
     return { title, message };

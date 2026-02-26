@@ -1,6 +1,6 @@
 import { parseLocalDateTime } from './dateLocal';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
-import { quoteMatchName } from './notificationText';
+import { quoteMatchName, resolveNotificationTeamName, resolveTeamInviteActorName } from './notificationText';
 import { getSurveyRemainingLabel, resolveSurveyDeadlineAt } from './surveyNotificationCopy';
 
 const ACTIVITY_MAX_ITEMS = 5;
@@ -15,6 +15,7 @@ const RELEVANT_TYPES = new Set([
   'match_join_request',
   'match_join_approved',
   'match_invite',
+  'team_invite',
   'challenge_accepted',
   'team_match_created',
   'match_update',
@@ -31,6 +32,7 @@ const FEED_TEMPLATE_TYPES = new Set([
   'match_join_request',
   'match_join_approved',
   'match_invite',
+  'team_invite',
   'challenge_accepted',
   'team_match_created',
   'match_player_joined',
@@ -46,6 +48,7 @@ const PRIORITY = {
   match_join_request: 14,
   match_today: 16,
   falta_jugadores: 18,
+  team_invite: 22,
   match_complete: 22,
   match_join_approved: 24,
   match_invite: 24,
@@ -61,7 +64,7 @@ const PRIORITY = {
 
 const severityForType = (type) => {
   if (['match_today', 'falta_jugadores', 'call_to_vote', 'survey_start'].includes(type)) return 'urgent';
-  if (['match_join_request', 'match_invite', 'match_player_joined', 'match_player_left', 'friend_request', 'match_tomorrow', 'challenge_accepted', 'team_match_created'].includes(type)) return 'warning';
+  if (['match_join_request', 'match_invite', 'team_invite', 'match_player_joined', 'match_player_left', 'friend_request', 'match_tomorrow', 'challenge_accepted', 'team_match_created'].includes(type)) return 'warning';
   if (['awards_ready', 'match_complete', 'match_join_approved', 'friend_accepted'].includes(type)) return 'success';
   return 'neutral';
 };
@@ -483,6 +486,18 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     };
   }
 
+  if (type === 'team_invite') {
+    const actorName = compactText(resolveTeamInviteActorName(notification), 30, '');
+    const teamName = compactText(resolveNotificationTeamName(notification, 'Equipo'), 24, 'Equipo');
+    return {
+      ...base,
+      icon: 'Users',
+      title: `Invitación al equipo ${quoteMatchName(teamName, 'Equipo')}`,
+      subtitle: actorName || 'Tenés una invitación pendiente',
+      route: '/quiero-jugar',
+    };
+  }
+
   if (type === 'match_player_joined' || type === 'match_player_left') {
     const playerName = resolvePlayerNameFromMatchUpdate(notification);
     const notificationLink = notification?.data?.link || null;
@@ -630,6 +645,12 @@ const shouldIncludeNotification = (notification, normalizedType) => {
   if (normalizedType === 'match_join_request') {
     // Join requests are operationally important for admins.
     // Keep unread requests visible for longer so they don't disappear from "Actividad reciente".
+    if (!notification.read) return ageMs <= 7 * 24 * 60 * 60 * 1000;
+    return ageMs <= 72 * 60 * 60 * 1000;
+  }
+
+  if (normalizedType === 'team_invite') {
+    // Team invites are user-actionable and should remain visible longer while pending.
     if (!notification.read) return ageMs <= 7 * 24 * 60 * 60 * 1000;
     return ageMs <= 72 * 60 * 60 * 1000;
   }

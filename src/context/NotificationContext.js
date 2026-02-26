@@ -5,7 +5,12 @@ import { useInterval } from '../hooks/useInterval';
 import { logger } from '../lib/logger';
 import { subscribeToNotifications } from '../services/realtimeService';
 import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
-import { applyMatchNameQuotes, quoteMatchName, resolveNotificationMatchName } from '../utils/notificationText';
+import {
+  applyMatchNameQuotes,
+  formatTeamInviteMessage,
+  quoteMatchName,
+  resolveNotificationMatchName,
+} from '../utils/notificationText';
 
 const NotificationContext = createContext();
 const DEBUG_NOTIFICATIONS = process.env.NODE_ENV !== 'production';
@@ -585,6 +590,9 @@ export const NotificationProvider = ({ children }) => {
       case 'match_invite':
         console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
+      case 'team_invite':
+        console.info(`${notification.title || 'Invitacion de equipo'}: ${formatTeamInviteMessage(notification)}`, toastOptions);
+        break;
       case 'call_to_vote':
         console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
@@ -628,6 +636,7 @@ export const NotificationProvider = ({ children }) => {
     const unread = notifs.filter((n) => !n.read);
     const friendRequests = unread.filter((n) => n.type === 'friend_request').length;
     const matchInvites = unread.filter((n) => n.type === 'match_invite').length;
+    const teamInvites = unread.filter((n) => n.type === 'team_invite').length;
     const matchJoinRequests = unread.filter((n) => n.type === 'match_join_request').length;
     const matchJoinApproved = unread.filter((n) => n.type === 'match_join_approved').length;
     const callToVote = unread.filter((n) => n.type === 'call_to_vote').length;
@@ -642,7 +651,7 @@ export const NotificationProvider = ({ children }) => {
 
     setUnreadCount({
       friends: friendRequests,
-      matches: matchInvites + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyResults + awardsReady + awardWon + surveyFinished + noShowPenalty + noShowRecovery,
+      matches: matchInvites + teamInvites + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyResults + awardsReady + awardWon + surveyFinished + noShowPenalty + noShowRecovery,
       total: unread.length,
     });
   };

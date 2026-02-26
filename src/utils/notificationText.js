@@ -32,3 +32,46 @@ export const applyMatchNameQuotes = (text, matchName) => {
     return quoted;
   });
 };
+
+export const resolveNotificationTeamName = (notification, fallback = 'Equipo') => {
+  const data = notification?.data || {};
+  return (
+    data?.team_name
+    || data?.teamName
+    || data?.equipo_nombre
+    || data?.equipoName
+    || fallback
+  );
+};
+
+export const resolveTeamInviteActorName = (notification) => {
+  const data = notification?.data || {};
+  const fromData = [
+    data?.inviter_name,
+    data?.inviterName,
+    data?.sender_name,
+    data?.senderName,
+    data?.from_name,
+    data?.fromName,
+  ].find(Boolean);
+
+  if (fromData) return String(fromData).trim();
+
+  const sourceText = String(notification?.message || notification?.title || '').trim();
+  const actorMatch = sourceText.match(/^(.+?)\s+te\s+invito/i);
+  if (actorMatch?.[1]) return actorMatch[1].trim();
+
+  return '';
+};
+
+export const formatTeamInviteMessage = (notification) => {
+  const teamName = resolveNotificationTeamName(notification, 'Equipo');
+  const quotedTeamName = quoteMatchName(teamName, 'Equipo');
+  const actorName = resolveTeamInviteActorName(notification);
+
+  if (actorName) {
+    return `${actorName} te invito al equipo ${quotedTeamName}`;
+  }
+
+  return `Te invitaron al equipo ${quotedTeamName}`;
+};

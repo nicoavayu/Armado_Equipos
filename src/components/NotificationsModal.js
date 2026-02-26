@@ -10,7 +10,12 @@ import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyStateCard from './EmptyStateCard';
 import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
-import { applyMatchNameQuotes, quoteMatchName, resolveNotificationMatchName } from '../utils/notificationText';
+import {
+  applyMatchNameQuotes,
+  formatTeamInviteMessage,
+  quoteMatchName,
+  resolveNotificationMatchName,
+} from '../utils/notificationText';
 import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OPTIONS } from '../utils/notificationFilters';
 import { buildNotificationFallbackRoute, extractNotificationMatchId } from '../utils/notificationRoutes';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
@@ -147,6 +152,11 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       return;
     }
 
+    if (notification.type === 'team_invite') {
+      safeNavigate(notification, '/quiero-jugar');
+      return;
+    }
+
     if (notification.type === 'match_join_request') {
       const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId;
       const link = notification?.data?.link || (matchId ? `/admin/${matchId}?tab=solicitudes` : null);
@@ -229,6 +239,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       case 'friend_request': return UserPlus;
       case 'friend_accepted': return CheckCircle;
       case 'match_update': return Users;
+      case 'team_invite': return Users;
       case 'match_cancelled': return XCircle;
       case 'match_join_request': return UserPlus;
       case 'match_join_approved': return CheckCircle;
@@ -388,11 +399,12 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           ) : (
             <div className="p-0">
               {filteredNotifications.map((notification) => {
-                const clickable = ['match_invite', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished', 'award_won'].includes(notification.type);
+                const clickable = ['match_invite', 'team_invite', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished', 'award_won'].includes(notification.type);
                 const Icon = getNotificationIcon(notification.type) || User;
                 const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
                 const isSurveyReminder = notification.type === 'survey_reminder';
                 const isSurveyResults = notification.type === 'survey_results_ready';
+                const isTeamInvite = notification.type === 'team_invite';
                 const matchName = resolveNotificationMatchName(notification, 'este partido');
                 const quotedMatchName = quoteMatchName(matchName, 'este partido');
                 const displayTitle = isSurveyStartLike
@@ -401,6 +413,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                     ? 'Recordatorio de encuesta'
                     : isSurveyResults
                       ? 'Resultados de encuesta listos'
+                      : isTeamInvite
+                        ? (notification.title || 'Invitacion de equipo')
                       : applyMatchNameQuotes(notification.title || 'Notificación', matchName);
                 const displayMessage = isSurveyStartLike
                   ? getSurveyStartMessage({ source: notification, matchName: quotedMatchName })
@@ -408,6 +422,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                     ? getSurveyReminderMessage({ source: notification, matchName: quotedMatchName })
                     : isSurveyResults
                       ? getSurveyResultsReadyMessage({ matchName: quotedMatchName })
+                      : isTeamInvite
+                        ? formatTeamInviteMessage(notification)
                       : applyMatchNameQuotes(notification.message || '', matchName);
 
                 const notificationContent = (

@@ -15,6 +15,7 @@ const MATCH_TYPES = new Set([
   'match_join_approved',
   'call_to_vote',
   'pre_match_vote',
+  'team_invite',
   // Social notifications stay visible under "Partidos" to avoid a separate filter tab.
   'friend_request',
   'friend_accepted',
@@ -54,4 +55,3 @@ export const filterNotificationsByCategory = (notifications = [], category = 'al
 export const getCategoryCount = (notifications = [], category = 'all') => (
   filterNotificationsByCategory(notifications, category).length
 );
-

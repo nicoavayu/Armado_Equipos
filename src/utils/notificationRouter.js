@@ -100,6 +100,11 @@ export async function openNotification(n, navigate) {
       return;
     }
 
+    if (type === 'team_invite') {
+      navigate('/quiero-jugar');
+      return;
+    }
+
     // default: home
     navigate('/');
   } catch (e) {
