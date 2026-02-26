@@ -1055,7 +1055,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                         }}
                         detailBadges={(
                           <div className="inline-flex items-center gap-1.5">
-                            <span className="inline-flex min-w-[34px] items-center justify-center rounded bg-[#16356b]/75 px-2 py-1 text-[10px] font-bold text-[#e6f0ff]">
+                            <span className="inline-flex min-w-[34px] items-center justify-center rounded border border-white/25 bg-black/35 px-2 py-1 text-[10px] font-bold text-white">
                               #{member.shirt_number ?? '-'}
                             </span>
                             {member.is_captain ? (
