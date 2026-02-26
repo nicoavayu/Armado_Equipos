@@ -12,6 +12,8 @@ const AUTHOR_COLORS = [
   '#facc15', '#c084fc', '#06b6d4', '#fb7185', '#34d399', '#818cf8',
   '#2dd4bf', '#4ade80', '#fda4af', '#93c5fd',
 ];
+const TEAM_CHAT_SIDE_COLORS = ['#A78BFA', '#22D3EE'];
+const normalizeAuthorKey = (value) => String(value || '').trim().toLowerCase();
 
 export default function MatchChat({ partidoId, isOpen, onClose }) {
   const { user, profile } = useAuth();
@@ -19,6 +21,8 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [isCompactLayout, setIsCompactLayout] = useState(false);
+  const [teamColorByUserId, setTeamColorByUserId] = useState({});
+  const [teamColorByAuthorName, setTeamColorByAuthorName] = useState({});
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const scrollLockRef = useRef({ scrollY: 0, locked: false });
@@ -109,6 +113,81 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     }, 40);
     return () => clearTimeout(t);
   }, [isOpen, isCompactLayout]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadTeamAuthorPalette = async () => {
+      if (!isOpen || !isTeamMatchChat || !normalizedMatchId) {
+        if (!active) return;
+        setTeamColorByUserId({});
+        setTeamColorByAuthorName({});
+        return;
+      }
+
+      try {
+        const [{ data: matchRow, error: matchError }, { data: memberRows, error: membersError }] = await Promise.all([
+          supabase
+            .from('team_matches')
+            .select('team_a_id, team_b_id')
+            .eq('id', normalizedMatchId)
+            .maybeSingle(),
+          supabase.rpc('rpc_list_team_match_members', { p_match_id: normalizedMatchId }),
+        ]);
+
+        if (matchError) throw matchError;
+        if (membersError) throw membersError;
+
+        const rows = Array.isArray(memberRows) ? memberRows : [];
+        const sideTeamIds = [];
+        const teamAId = String(matchRow?.team_a_id || '').trim();
+        const teamBId = String(matchRow?.team_b_id || '').trim();
+
+        if (teamAId) sideTeamIds.push(teamAId);
+        if (teamBId && teamBId !== teamAId) sideTeamIds.push(teamBId);
+
+        rows.forEach((row) => {
+          const teamId = String(row?.team_id || '').trim();
+          if (!teamId || sideTeamIds.includes(teamId) || sideTeamIds.length >= 2) return;
+          sideTeamIds.push(teamId);
+        });
+
+        const colorByTeamId = {};
+        if (sideTeamIds[0]) colorByTeamId[sideTeamIds[0]] = TEAM_CHAT_SIDE_COLORS[0];
+        if (sideTeamIds[1]) colorByTeamId[sideTeamIds[1]] = TEAM_CHAT_SIDE_COLORS[1];
+
+        const userColorMap = {};
+        const nameColorMap = {};
+
+        rows.forEach((row) => {
+          const teamId = String(row?.team_id || '').trim();
+          const teamColor = colorByTeamId[teamId];
+          if (!teamColor) return;
+
+          const memberUserId = String(row?.user_id || row?.jugador_usuario_id || '').trim();
+          if (memberUserId) userColorMap[memberUserId] = teamColor;
+
+          const authorKey = normalizeAuthorKey(row?.jugador_nombre);
+          if (authorKey) nameColorMap[authorKey] = teamColor;
+        });
+
+        if (!active) return;
+        setTeamColorByUserId(userColorMap);
+        setTeamColorByAuthorName(nameColorMap);
+      } catch (error) {
+        if (!active) return;
+        console.warn('[MATCH_CHAT] No se pudieron resolver colores por equipo. Fallback por jugador.', error);
+        setTeamColorByUserId({});
+        setTeamColorByAuthorName({});
+      }
+    };
+
+    loadTeamAuthorPalette();
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen, isTeamMatchChat, normalizedMatchId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -253,7 +332,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
   };
 
   const getAuthorColor = (author) => {
-    const key = String(author || '').trim().toLowerCase();
+    const key = normalizeAuthorKey(author);
     if (!key) return AUTHOR_COLORS[0];
     let hash = 0;
     for (let i = 0; i < key.length; i += 1) {
@@ -261,6 +340,22 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       hash |= 0;
     }
     return AUTHOR_COLORS[Math.abs(hash) % AUTHOR_COLORS.length];
+  };
+
+  const getMessageAuthorColor = (message) => {
+    if (!isTeamMatchChat) return getAuthorColor(message?.autor);
+
+    const userIdKey = String(message?.user_id || '').trim();
+    if (userIdKey && teamColorByUserId[userIdKey]) {
+      return teamColorByUserId[userIdKey];
+    }
+
+    const authorKey = normalizeAuthorKey(message?.autor);
+    if (authorKey && teamColorByAuthorName[authorKey]) {
+      return teamColorByAuthorName[authorKey];
+    }
+
+    return getAuthorColor(message?.autor);
   };
 
   if (!isOpen) return null;
@@ -294,7 +389,7 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
             </div>
           ) : null}
           {messages.map((msg) => {
-            const authorColor = getAuthorColor(msg.autor);
+            const authorColor = getMessageAuthorColor(msg);
             return (
               <div key={msg.id} className="bg-slate-800 rounded-lg p-3 border-l-[3px]" style={{ borderLeftColor: authorColor }}>
                 <div className="flex justify-between items-center mb-1.5">
