@@ -428,6 +428,25 @@ const normalizeTeamMatchStatus = (value) => {
   return TEAM_MATCH_STATUS_ALIASES[normalized] || normalized;
 };
 
+const resolveChallengeMatchStatus = (row, fallbackStatus) => {
+  const baseStatus = normalizeTeamMatchStatus(fallbackStatus);
+  if (baseStatus === 'played' || baseStatus === 'cancelled') return baseStatus;
+
+  const isChallengeOrigin = String(row?.origin_type || '').toLowerCase() === 'challenge' || Boolean(row?.challenge_id);
+  if (!isChallengeOrigin) return baseStatus;
+
+  const rawChallengeStatus = String(row?.challenge?.status || '').trim();
+  if (!rawChallengeStatus) return baseStatus;
+
+  const challengeStatus = normalizeChallengeStatus(rawChallengeStatus);
+  if (challengeStatus === 'completed') return 'played';
+  if (challengeStatus === 'confirmed') return 'confirmed';
+  if (challengeStatus === 'canceled') return 'cancelled';
+  if (challengeStatus === 'accepted' || challengeStatus === 'open') return 'pending';
+
+  return baseStatus;
+};
+
 const withChallengeCompatibility = (row) => ({
   ...row,
   status: normalizeChallengeStatus(row?.status),
@@ -440,7 +459,7 @@ const withChallengeCompatibility = (row) => ({
 
 const withTeamMatchCompatibility = (row) => ({
   ...row,
-  status: normalizeTeamMatchStatus(row?.status),
+  status: resolveChallengeMatchStatus(row, row?.status),
   origin_type: row?.origin_type || (row?.challenge_id ? 'challenge' : 'individual'),
   location: row?.location ?? row?.location_name ?? null,
   cancha_cost: row?.cancha_cost ?? null,
