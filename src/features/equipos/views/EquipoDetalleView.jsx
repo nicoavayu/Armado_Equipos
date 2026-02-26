@@ -553,8 +553,8 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       let selectedJugadorId = null;
       const shirtNumber = parseShirtNumber(newMember.shirtNumber);
 
-      if (Number.isNaN(shirtNumber) || (shirtNumber != null && (shirtNumber < 0 || shirtNumber > 99))) {
-        throw new Error('El numero debe ser un entero entre 0 y 99');
+      if (Number.isNaN(shirtNumber) || (shirtNumber != null && (shirtNumber < 1 || shirtNumber > 99))) {
+        throw new Error('El numero debe ser un entero entre 1 y 99');
       }
 
       const currentShirtNumber = memberModalMode === 'edit'
@@ -1523,11 +1523,20 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               <span className="text-xs text-white/80 uppercase tracking-wide">Numero</span>
               <input
                 type="number"
-                min={0}
+                min={1}
                 max={99}
                 step={1}
                 value={newMember.shirtNumber}
-                onChange={(event) => setNewMember((prev) => ({ ...prev, shirtNumber: event.target.value }))}
+                onChange={(event) => {
+                  const digitsOnly = String(event.target.value || '').replace(/\D/g, '');
+                  if (!digitsOnly) {
+                    setNewMember((prev) => ({ ...prev, shirtNumber: '' }));
+                    return;
+                  }
+                  const parsed = Number(digitsOnly);
+                  const clamped = Math.min(99, Math.max(1, parsed));
+                  setNewMember((prev) => ({ ...prev, shirtNumber: String(clamped) }));
+                }}
                 placeholder="Ej: 4"
                 className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white"
               />
