@@ -632,53 +632,61 @@ const TeamMatchDetailPage = () => {
                     onOpenRoster={() => setRosterTeamId(match?.team_b_id)}
                   />
                 </div>
-
-                {isChallengeMatch && showChallengeHeadToHead ? (
-                  <div className="mt-3 rounded-2xl border border-white/12 bg-slate-900/35 px-4 py-3 backdrop-blur-sm h-[80px]">
-                    {challengeHeadToHeadLoading ? (
-                      <div className="grid h-full grid-cols-4 gap-3">
-                        {Array.from({ length: 4 }).map((_, index) => (
-                          <div key={`challenge-history-skeleton-${index}`} className="flex flex-col justify-center gap-2">
-                            <div className="h-2.5 w-16 rounded bg-white/12" />
-                            <div className="h-4 w-20 rounded bg-white/18" />
-                          </div>
-                        ))}
-                      </div>
-                    ) : challengeHeadToHeadView?.hasScheduledHistory ? (
-                      <div className="grid h-full grid-cols-4 gap-3">
-                        <div className="min-w-0 flex flex-col justify-center">
-                          <span className="text-[11px] uppercase tracking-[0.12em] text-white/55">Ultima vez</span>
-                          <span className="text-[16px] sm:text-[17px] font-oswald font-semibold text-white">
-                            {challengeHeadToHeadView.lastMatchDateText}
-                          </span>
-                        </div>
-                        <div className="min-w-0 flex flex-col justify-center">
-                          <span className="text-[11px] uppercase tracking-[0.12em] text-white/55">Partidos</span>
-                          <span className="text-[16px] sm:text-[17px] font-oswald font-semibold text-white">
-                            {challengeHeadToHeadView.totalMatchesScheduled}
-                          </span>
-                        </div>
-                        <div className="min-w-0 flex flex-col justify-center">
-                          <span className="text-[11px] uppercase tracking-[0.12em] text-white/55">Ultimo ganador</span>
-                          <span className="text-[16px] sm:text-[17px] font-oswald font-semibold text-white truncate" title={challengeHeadToHeadView.lastWinnerText}>
-                            {challengeHeadToHeadView.lastWinnerText}
-                          </span>
-                        </div>
-                        <div className="min-w-0 flex flex-col justify-center">
-                          <span className="text-[11px] uppercase tracking-[0.12em] text-white/55">Historial</span>
-                          <span className="text-[16px] sm:text-[17px] font-oswald font-semibold text-white">
-                            {challengeHeadToHeadView.historialValue}
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-center text-[15px] font-oswald font-medium text-white/85">
-                        Es la primera vez que se enfrentan
-                      </div>
-                    )}
-                  </div>
-                ) : null}
               </div>
+
+              {isChallengeMatch && showChallengeHeadToHead ? (
+                <div className="border border-white/12 rounded-none bg-slate-900/35 px-3 py-3 backdrop-blur-sm">
+                  {challengeHeadToHeadLoading ? (
+                    <div className="grid grid-cols-4 gap-2">
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <div key={`challenge-history-skeleton-${index}`} className="flex flex-col items-center gap-2">
+                          <div className="h-2.5 w-[88px] rounded bg-white/12" />
+                          <div className="h-4 w-[74px] rounded bg-white/18" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : challengeHeadToHeadView?.hasScheduledHistory ? (
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="text-center">
+                        <div className="whitespace-nowrap text-[9px] sm:text-[11px] uppercase tracking-[0.05em] text-white/55">
+                          Ultima vez
+                        </div>
+                        <div className="mt-1 text-[15px] sm:text-[16px] font-oswald font-semibold text-white leading-tight">
+                          {challengeHeadToHeadView.lastMatchDateText}
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="whitespace-nowrap text-[9px] sm:text-[11px] uppercase tracking-[0.05em] text-white/55">
+                          Partidos
+                        </div>
+                        <div className="mt-1 text-[15px] sm:text-[16px] font-oswald font-semibold text-white leading-tight">
+                          {challengeHeadToHeadView.totalMatchesScheduled}
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="whitespace-nowrap text-[9px] sm:text-[11px] uppercase tracking-[0.05em] text-white/55">
+                          Ultimo ganador
+                        </div>
+                        <div className="mt-1 text-[14px] sm:text-[16px] font-oswald font-semibold text-white leading-tight break-words">
+                          {challengeHeadToHeadView.lastWinnerText}
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="whitespace-nowrap text-[9px] sm:text-[11px] uppercase tracking-[0.05em] text-white/55">
+                          Historial
+                        </div>
+                        <div className="mt-1 text-[14px] sm:text-[16px] font-oswald font-semibold text-white leading-tight break-words">
+                          {challengeHeadToHeadView.historialValue}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-2 text-center text-[15px] font-oswald font-medium text-white/85">
+                      Es la primera vez que se enfrentan
+                    </div>
+                  )}
+                </div>
+              ) : null}
 
             </>
           ) : null}
