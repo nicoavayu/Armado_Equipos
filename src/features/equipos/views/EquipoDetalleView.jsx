@@ -1055,11 +1055,11 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                         }}
                         detailBadges={(
                           <div className="inline-flex items-center gap-1.5">
-                            <span className="inline-flex items-center rounded-full border border-white/28 bg-white/[0.14] px-2 py-[3px] text-[10px] font-oswald font-semibold leading-none text-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                            <span className="inline-flex min-w-[34px] items-center justify-center rounded border border-white/22 bg-[#16356b]/55 px-2 py-1 text-[10px] font-oswald font-bold leading-none text-[#e6f0ff]">
                               #{member.shirt_number ?? '-'}
                             </span>
                             {member.is_captain ? (
-                              <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/35 bg-amber-500/22 px-2 py-[3px] text-[10px] font-oswald font-semibold leading-none text-amber-100">
+                              <span className="inline-flex min-w-[44px] items-center justify-center gap-1 rounded border border-[#f6d06b]/65 bg-[linear-gradient(135deg,rgba(191,149,48,0.85),rgba(138,104,27,0.9))] px-2 py-1 text-[10px] font-oswald font-bold leading-none text-[#fff1c8]">
                                 <Crown size={11} /> CAP
                               </span>
                             ) : null}
