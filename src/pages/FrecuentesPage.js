@@ -3,7 +3,7 @@ import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import PageTransition from '../components/PageTransition';
 import EditarPartidoFrecuente from './EditarPartidoFrecuente';
 import ListaPartidosFrecuentes from './ListaPartidosFrecuentes';
-import { crearPartidoDesdeFrec } from '../supabase';
+import { crearPartidoDesdeFrec, updatePartidoFrecuente } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
 import ConfirmModal from '../components/ConfirmModal';
 import { findDuplicateTemplateMatch, findUserScheduleConflicts } from '../services/db/matchScheduling';
@@ -20,10 +20,34 @@ const inferCupoFromModalidad = (modalidad = '') => {
   return 10;
 };
 
+const toYmdLocal = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const parseYmdAsLocal = (ymd) => {
+  const raw = String(ymd || '').trim();
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+};
+
+const addDaysToYmd = (ymd, days) => {
+  const base = parseYmdAsLocal(ymd);
+  if (!base) return '';
+  const next = new Date(base.getFullYear(), base.getMonth(), base.getDate() + Number(days || 0), 12, 0, 0, 0);
+  return toYmdLocal(next);
+};
+
 const nextYmdForWeekday = (weekday) => {
   const target = Number(weekday);
   if (!Number.isFinite(target) || target < 0 || target > 6) {
-    return new Date().toISOString().split('T')[0];
+    return toYmdLocal(new Date());
   }
   const now = new Date();
   const current = now.getDay();
@@ -48,11 +72,84 @@ const normalizeYmd = (value) => {
   return `${y}-${m}-${d}`;
 };
 
+const formatYmdForHuman = (ymd) => {
+  const date = parseYmdAsLocal(ymd);
+  if (!date) return ymd || '';
+  return date.toLocaleDateString('es-AR', {
+    day: 'numeric',
+    month: 'numeric',
+  });
+};
+
+const formatWeekdayForHuman = (ymd) => {
+  const date = parseYmdAsLocal(ymd);
+  if (!date) return 'día';
+  return date
+    .toLocaleDateString('es-AR', { weekday: 'long' })
+    .replace('.', '')
+    .toLowerCase();
+};
+
+const resolveNextTemplateDate = (partidoFrecuente) => {
+  const todayYmd = toYmdLocal(new Date());
+  const referenceDate = normalizeYmd(partidoFrecuente?.fecha);
+
+  if (referenceDate) {
+    let targetDate = addDaysToYmd(referenceDate, 7);
+    while (targetDate && targetDate <= todayYmd) {
+      targetDate = addDaysToYmd(targetDate, 7);
+    }
+    return {
+      referenceDate,
+      targetDate: targetDate || nextYmdForWeekday(partidoFrecuente?.dia_semana),
+    };
+  }
+
+  let targetDate = nextYmdForWeekday(partidoFrecuente?.dia_semana);
+  while (targetDate && targetDate <= todayYmd) {
+    targetDate = addDaysToYmd(targetDate, 7);
+  }
+
+  return {
+    referenceDate: '',
+    targetDate: targetDate || todayYmd,
+  };
+};
+
+const buildNextCreationPrompt = (partidoFrecuente) => {
+  const nombre = String(partidoFrecuente?.nombre || 'Partido').trim() || 'Partido';
+  const hora = String(partidoFrecuente?.hora || '').trim();
+  const { referenceDate, targetDate } = resolveNextTemplateDate(partidoFrecuente);
+  const weekdayLabel = formatWeekdayForHuman(targetDate);
+  const dateLabel = formatYmdForHuman(targetDate);
+  const referenceLabel = referenceDate ? formatYmdForHuman(referenceDate) : '';
+
+  const scheduleMessage = hora
+    ? `¿Querés crear «${nombre}» para el próximo ${weekdayLabel} ${dateLabel} a las ${hora}?`
+    : `¿Querés crear «${nombre}» para el próximo ${weekdayLabel} ${dateLabel}?`;
+
+  const referenceMessage = referenceLabel
+    ? ` Tomamos como referencia la fecha anterior (${referenceLabel}).`
+    : ' Tomamos como referencia la configuración semanal de esta plantilla.';
+
+  return {
+    template: partidoFrecuente,
+    targetDate,
+    message: `${scheduleMessage}${referenceMessage}`,
+  };
+};
+
 const FrecuentesPage = () => {
   const { navigateWithAnimation } = useAnimatedNavigation();
   const { user } = useAuth();
   const [partidoFrecuenteEditando, setPartidoFrecuenteEditando] = useState(null);
   const [step, setStep] = useState('list');
+  const [nextDateModal, setNextDateModal] = useState({
+    isOpen: false,
+    template: null,
+    targetDate: '',
+    message: '',
+  });
   const [warningModal, setWarningModal] = useState({
     isOpen: false,
     title: '',
@@ -101,11 +198,21 @@ const FrecuentesPage = () => {
       partidoFrecuente?.modalidad || 'F5',
       cupo,
     );
+
+    // Keep the template date moving forward so next creation suggests the following week.
+    if (partidoFrecuente?.id && fechaObjetivo) {
+      try {
+        await updatePartidoFrecuente(partidoFrecuente.id, { fecha: fechaObjetivo });
+      } catch (updateTemplateError) {
+        console.warn('[FRECUENTES] No se pudo actualizar la fecha de referencia en la plantilla:', updateTemplateError);
+      }
+    }
+
     navigateWithAnimation(`/admin/${partido.id}`);
   };
 
-  const handleCreateFromTemplate = async (partidoFrecuente, skipScheduleCheck = false) => {
-    const fechaObjetivo = normalizeYmd(partidoFrecuente?.fecha) || nextYmdForWeekday(partidoFrecuente?.dia_semana);
+  const handleCreateFromTemplate = async (partidoFrecuente, skipScheduleCheck = false, forcedDate = '') => {
+    const fechaObjetivo = normalizeYmd(forcedDate) || normalizeYmd(partidoFrecuente?.fecha) || nextYmdForWeekday(partidoFrecuente?.dia_semana);
 
     const duplicate = await findDuplicateTemplateMatch({
       templateId: partidoFrecuente?.id,
@@ -139,14 +246,14 @@ const FrecuentesPage = () => {
           `Ya tenés un partido en ese horario (${c.nombre || 'Partido'} · ${c.fecha} ${c.hora}).`,
           async () => {
             closeWarningModal();
-            await handleCreateFromTemplate(partidoFrecuente, true);
+            await handleCreateFromTemplate(partidoFrecuente, true, fechaObjetivo);
           },
         );
         return;
       }
     }
 
-    await doCreateFromTemplate(partidoFrecuente);
+    await doCreateFromTemplate({ ...partidoFrecuente, fecha: fechaObjetivo });
   };
 
   if (step === 'edit' && partidoFrecuenteEditando) {
@@ -173,19 +280,14 @@ const FrecuentesPage = () => {
     <PageTransition>
       <div className="pb-24 w-full flex flex-col items-center">
         <ListaPartidosFrecuentes
-          onEntrar={async (partidoFrecuente) => {
-            try {
-              await handleCreateFromTemplate(partidoFrecuente);
-            } catch (error) {
-              if (error?.code === 'DUPLICATE_TEMPLATE_MATCH') {
-                openSingleWarning(
-                  'PARTIDO DUPLICADO',
-                  'Ya existe un partido creado con las mismas características.',
-                );
-                return;
-              }
-              notifyBlockingError(error?.message || 'Error al crear el partido');
-            }
+          onEntrar={(partidoFrecuente) => {
+            const prompt = buildNextCreationPrompt(partidoFrecuente);
+            setNextDateModal({
+              isOpen: true,
+              template: prompt.template,
+              targetDate: prompt.targetDate,
+              message: prompt.message,
+            });
           }}
           onEditar={(partido) => {
             setPartidoFrecuenteEditando(partido);
@@ -194,6 +296,46 @@ const FrecuentesPage = () => {
           onVolver={() => navigateWithAnimation('/', 'back')}
         />
       </div>
+      <ConfirmModal
+        isOpen={nextDateModal.isOpen}
+        title="CREAR PARTIDO"
+        message={nextDateModal.message}
+        confirmText="CREAR PARTIDO"
+        cancelText="CANCELAR"
+        onCancel={() => {
+          setNextDateModal({
+            isOpen: false,
+            template: null,
+            targetDate: '',
+            message: '',
+          });
+        }}
+        onConfirm={async () => {
+          const template = nextDateModal.template;
+          const targetDate = nextDateModal.targetDate;
+          setNextDateModal({
+            isOpen: false,
+            template: null,
+            targetDate: '',
+            message: '',
+          });
+
+          if (!template) return;
+
+          try {
+            await handleCreateFromTemplate(template, false, targetDate);
+          } catch (error) {
+            if (error?.code === 'DUPLICATE_TEMPLATE_MATCH') {
+              openSingleWarning(
+                'PARTIDO DUPLICADO',
+                'Ya existe un partido creado con las mismas características.',
+              );
+              return;
+            }
+            notifyBlockingError(error?.message || 'Error al crear el partido');
+          }
+        }}
+      />
       <ConfirmModal
         isOpen={warningModal.isOpen}
         title={warningModal.title}
