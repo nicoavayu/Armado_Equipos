@@ -31,8 +31,6 @@ const skinClasses = {
   friendSelf: 'bg-[linear-gradient(135deg,rgba(169,124,28,0.5),rgba(98,67,16,0.62))] backdrop-blur-lg border-[#F6D06B]/70 hover:border-[#FFE08A]/90 hover:bg-[linear-gradient(135deg,rgba(184,137,34,0.58),rgba(111,76,19,0.68))] shadow-[0_14px_30px_rgba(84,57,12,0.42)]',
 };
 
-const uniformBadgeClass = 'inline-flex h-[20px] w-[40px] items-center justify-center rounded border px-1 text-[10px] font-oswald font-bold leading-none';
-
 const PlayerMiniCard = ({
   profile,
   variant = 'friend',
@@ -112,7 +110,7 @@ const PlayerMiniCard = ({
           ) : null}
 
           <div
-            className={`${uniformBadgeClass} text-white`}
+            className="inline-flex items-center justify-center px-2 py-1 rounded text-[10px] font-bold text-white min-w-[34px]"
             style={{ backgroundColor: posColor }}
           >
             {posicion}
