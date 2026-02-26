@@ -1570,6 +1570,29 @@ export const updateTeamMember = async (memberId, updates) => {
   if ('photo_url' in updates) payloadBase.photo_url = updates.photo_url || null;
   if ('permissions_role' in updates) payloadBase.permissions_role = updates.permissions_role;
 
+  const isShirtNumberOnlyUpdate = (
+    Object.keys(payloadBase).length === 1
+    && Object.prototype.hasOwnProperty.call(payloadBase, 'shirt_number')
+    && !Object.prototype.hasOwnProperty.call(updates || {}, 'role')
+  );
+
+  if (isShirtNumberOnlyUpdate) {
+    const rpcResponse = await supabase.rpc('rpc_update_team_member_shirt_number', {
+      p_member_id: memberId,
+      p_shirt_number: payloadBase.shirt_number,
+    });
+
+    if (!rpcResponse.error) {
+      return {
+        id: rpcResponse.data || memberId,
+      };
+    }
+
+    if (!isMissingFunctionError(rpcResponse.error, 'rpc_update_team_member_shirt_number')) {
+      throw new Error(rpcResponse.error.message || 'No se pudo actualizar el numero del jugador');
+    }
+  }
+
   const roleCandidates = 'role' in updates ? getRoleCandidates(updates.role) : [null];
   let response = null;
 
@@ -1582,7 +1605,7 @@ export const updateTeamMember = async (memberId, updates) => {
       .update(payload)
       .eq('id', memberId)
       .select('id')
-      .single();
+      .maybeSingle();
 
     if (response.error && isMissingColumnError(response.error, 'photo_url')) {
       const legacyPayload = { ...payload };
@@ -1592,7 +1615,7 @@ export const updateTeamMember = async (memberId, updates) => {
         .update(legacyPayload)
         .eq('id', memberId)
         .select('id')
-        .single();
+        .maybeSingle();
     }
 
     if (response.error && isMissingColumnError(response.error, 'permissions_role')) {
@@ -1603,11 +1626,15 @@ export const updateTeamMember = async (memberId, updates) => {
         .update(compatibilityPayload)
         .eq('id', memberId)
         .select('id')
-        .single();
+        .maybeSingle();
     }
 
     if (!response.error) break;
     if (!isRoleConstraintError(response.error)) break;
+  }
+
+  if (!response?.error && !response?.data) {
+    throw new Error('No se pudo actualizar el jugador. Verifica permisos o recarga la pantalla.');
   }
 
   return unwrapSingle(response, 'No se pudo actualizar el miembro del equipo');
