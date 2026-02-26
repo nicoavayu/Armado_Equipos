@@ -42,9 +42,8 @@ const buildShareText = (challenge) => {
   const when = challenge?.scheduled_at ? new Date(challenge.scheduled_at).toLocaleString('es-AR') : 'A coordinar';
   const where = challenge?.location || challenge?.location_name || 'A coordinar';
   const fieldPrice = formatMoneyAr(challenge?.cancha_cost ?? challenge?.field_price);
-  const canchaText = fieldPrice ? `Cancha ${fieldPrice}` : 'Cancha: a coordinar';
 
-  return [teamA + ' vs ' + teamB, `F${challenge?.format || '-'}`, when, where, canchaText]
+  return [teamA + ' vs ' + teamB, `F${challenge?.format || '-'}`, when, where, fieldPrice ? `Cancha ${fieldPrice}` : null]
     .filter(Boolean)
     .join(' | ');
 };
