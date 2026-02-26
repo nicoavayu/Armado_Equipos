@@ -1046,19 +1046,20 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                         key={member.id}
                         variant="friend"
                         isSelf={isCurrentUserCard}
+                        showRating={false}
                         profile={{
                           nombre: member?.jugador?.nombre || 'Jugador',
                           avatar_url: getMemberAvatar(member),
                           posicion: getMemberPositionForCard(member),
                           ranking: member?.jugador?.score ?? null,
                         }}
-                        metaBadge={(
-                          <div className="inline-flex items-center gap-1">
-                            <span className="inline-flex items-center rounded-md border border-white/25 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        detailBadges={(
+                          <div className="inline-flex items-center gap-1.5">
+                            <span className="inline-flex items-center rounded-full border border-white/28 bg-white/[0.14] px-2 py-[3px] text-[10px] font-oswald font-semibold leading-none text-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                               #{member.shirt_number ?? '-'}
                             </span>
                             {member.is_captain ? (
-                              <span className="inline-flex items-center gap-1 rounded-md border border-amber-300/35 bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-100">
+                              <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/35 bg-amber-500/22 px-2 py-[3px] text-[10px] font-oswald font-semibold leading-none text-amber-100">
                                 <Crown size={11} /> CAP
                               </span>
                             ) : null}
@@ -1158,6 +1159,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                     <PlayerMiniCard
                       key={`pending-${invitation.id}`}
                       variant="friend"
+                      showRating={false}
                       profile={{
                         nombre: invitation?.invited_user?.nombre || 'Jugador',
                         avatar_url: invitation?.invited_user?.avatar_url || null,

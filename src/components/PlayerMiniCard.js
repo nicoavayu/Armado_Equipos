@@ -39,6 +39,8 @@ const PlayerMiniCard = ({
   onClick,
   rightSlot = null,
   metaBadge = null,
+  detailBadges = null,
+  showRating = true,
   showMenuPlaceholder = false,
   isSelf = false,
 }) => {
@@ -100,10 +102,12 @@ const PlayerMiniCard = ({
         </div>
 
         <div className={`flex items-center gap-2.5 text-[11px] font-oswald uppercase tracking-wide ${detailTextClass}`}>
-          <div className={`inline-flex items-center gap-1 px-2 py-1 rounded border font-bold normal-case ${ratingContainerClass}`}>
-            <Star size={12} fill="currentColor" />
-            <span>{ratingStr}</span>
-          </div>
+          {showRating ? (
+            <div className={`inline-flex items-center gap-1 px-2 py-1 rounded border font-bold normal-case ${ratingContainerClass}`}>
+              <Star size={12} fill="currentColor" />
+              <span>{ratingStr}</span>
+            </div>
+          ) : null}
 
           <div
             className="inline-flex items-center justify-center px-2 py-1 rounded text-[10px] font-bold text-white min-w-[34px]"
@@ -111,6 +115,8 @@ const PlayerMiniCard = ({
           >
             {posicion}
           </div>
+
+          {detailBadges}
 
           {showDistance && (
             <span className="inline-flex items-center gap-1 normal-case">
