@@ -1166,13 +1166,14 @@ export const listTeamMembers = async (teamId) => {
   let profileByUserId = new Map();
   if (memberUserIds.length > 0) {
     const profileSelectClauses = [
-      'id, posicion, posicion_favorita, rol_favorito',
-      'id, posicion, posicion_favorita',
-      'id, posicion, rol_favorito',
-      'id, posicion',
-      'id, posicion_favorita, rol_favorito',
-      'id, posicion_favorita',
-      'id, rol_favorito',
+      'id, avatar_url, posicion, posicion_favorita, rol_favorito',
+      'id, avatar_url, posicion, posicion_favorita',
+      'id, avatar_url, posicion, rol_favorito',
+      'id, avatar_url, posicion',
+      'id, avatar_url, posicion_favorita, rol_favorito',
+      'id, avatar_url, posicion_favorita',
+      'id, avatar_url, rol_favorito',
+      'id, avatar_url',
       'id',
     ];
 
@@ -1221,12 +1222,60 @@ export const listTeamMembers = async (teamId) => {
       photo_url: row?.photo_url || null,
       jugador: {
         ...(row?.jugador || {}),
+        avatar_url: row?.jugador?.avatar_url || profile?.avatar_url || null,
         posicion: profilePosition || row?.jugador?.posicion || null,
         posicion_favorita: profile?.posicion_favorita || row?.jugador?.posicion_favorita || null,
         rol_favorito: profile?.rol_favorito || row?.jugador?.rol_favorito || null,
       },
     };
   });
+};
+
+const enrichTeamMatchMembersWithProfileAvatars = async (byTeamId = {}) => {
+  const allMembers = Object.values(byTeamId || {}).flat().filter(Boolean);
+  if (allMembers.length === 0) return byTeamId;
+
+  const userIds = uniqueValues(
+    allMembers
+      .map((member) => member?.user_id || member?.jugador?.usuario_id || null)
+      .filter(Boolean)
+      .map((value) => String(value)),
+  );
+  if (userIds.length === 0) return byTeamId;
+
+  const profileResponse = await supabase
+    .from('usuarios')
+    .select('id, avatar_url')
+    .in('id', userIds);
+
+  if (profileResponse.error) {
+    console.warn('[TEAM_MATCH_MEMBERS] No se pudo resolver avatar_url desde perfiles:', profileResponse.error);
+    return byTeamId;
+  }
+
+  const avatarByUserId = new Map(
+    (profileResponse.data || [])
+      .filter((profile) => profile?.id)
+      .map((profile) => [String(profile.id), profile?.avatar_url || null]),
+  );
+
+  const enrichedByTeamId = {};
+  Object.entries(byTeamId || {}).forEach(([teamId, members]) => {
+    enrichedByTeamId[teamId] = (members || []).map((member) => {
+      const memberUserId = member?.user_id || member?.jugador?.usuario_id || null;
+      const profileAvatar = memberUserId ? avatarByUserId.get(String(memberUserId)) : null;
+      return {
+        ...member,
+        profile_avatar_url: profileAvatar || null,
+        jugador: {
+          ...(member?.jugador || {}),
+          avatar_url: member?.jugador?.avatar_url || profileAvatar || null,
+        },
+      };
+    });
+  });
+
+  return enrichedByTeamId;
 };
 
 export const listTeamMatchMembers = async ({ matchId, teamIds = [] }) => {
@@ -1266,7 +1315,7 @@ export const listTeamMatchMembers = async ({ matchId, teamIds = [] }) => {
         });
       });
 
-      return byTeamId;
+      return enrichTeamMatchMembersWithProfileAvatars(byTeamId);
     }
 
     const rpcErrorMessage = response.error?.message || 'No se pudo cargar la plantilla completa del partido';

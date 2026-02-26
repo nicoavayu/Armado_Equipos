@@ -69,6 +69,7 @@ const getPlayerName = (member) => String(member?.jugador?.nombre || 'Jugador').t
 
 const getPlayerAvatar = (member) => (
   member?.photo_url
+  || member?.profile_avatar_url
   || member?.jugador?.avatar_url
   || null
 );
