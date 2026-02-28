@@ -7,6 +7,7 @@ import { formatLocalDateShort } from '../utils/dateLocal';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PageTitle from '../components/PageTitle';
 import MatchInfoSection from '../components/MatchInfoSection';
+import TabBar from '../components/TabBar';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import { PlayerCardTrigger } from '../components/ProfileComponents';
 import ConfirmModal from '../components/ConfirmModal';
@@ -258,6 +259,7 @@ function SharedInviteLayout({
   isMatchFull,
   inlineNotice,
   onClearInlineNotice,
+  showBottomNav = false,
 }) {
   const isSent = joinStatus === 'pending';
   const isApproved = joinStatus === 'approved';
@@ -278,7 +280,7 @@ function SharedInviteLayout({
   };
 
   return (
-    <div className="min-h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient">
+    <div className={`min-h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient ${showBottomNav ? 'pb-[calc(var(--safe-bottom,0px)+78px)] md:pb-[calc(var(--safe-bottom,0px)+88px)]' : ''}`}>
       <style>{`
         .invite-cta-btn {
           appearance: none;
@@ -432,6 +434,12 @@ function SharedInviteLayout({
           </div>
         </main >
       </div >
+      {showBottomNav && (
+        <TabBar
+          activeTab="quiero-jugar"
+          onTabChange={() => {}}
+        />
+      )}
     </div >
   );
 }
@@ -1333,6 +1341,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   // Pantalla 1: Invitación inicial o público
   if (step === 'invitation') {
     const isPublic = mode === 'public';
+    const showBottomNav = !isPublic && !!user;
     return (
       <>
         <SharedInviteLayout
@@ -1351,6 +1360,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           isMatchFull={isMatchFull}
           inlineNotice={inlineNotice}
           onClearInlineNotice={() => setInlineNotice(null)}
+          showBottomNav={showBottomNav}
         />
         <ConfirmModal
           isOpen={scheduleWarning.isOpen}
