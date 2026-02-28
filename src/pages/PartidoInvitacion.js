@@ -105,8 +105,8 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
     paddingBottom: '24px',
   };
   const softCardWrapperStyle = {
-    backgroundColor: '#263A73',
-    border: '1px solid rgba(120,90,255,0.22)',
+    backgroundColor: '#2A3E78',
+    border: '1px solid rgba(120,90,255,0.28)',
     boxShadow: '0 0 14px rgba(120,90,255,0.12)',
     transform: `skewX(-${skewX}deg)`,
   };
@@ -137,7 +137,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
         <div className="mt-2 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
           <div
             className="h-full rounded-[6px] transition-all duration-200"
-            style={{ width: `${progressPct}%`, backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET }}
+            style={{ width: `${progressPct}%`, backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, filter: 'saturate(1.05)' }}
           />
         </div>
       </div>
