@@ -64,7 +64,8 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   const isSoftVariant = mode === 'invite';
   const softCardStyle = {
     backgroundColor: '#17254E',
-    boxShadow: '0 6px 18px rgba(0,0,0,0.35), 0 0 18px rgba(120, 90, 255, 0.10)',
+    border: '1px solid rgba(88, 122, 255, 0.34)',
+    boxShadow: '0 6px 18px rgba(0,0,0,0.35), 0 0 10px rgba(120, 90, 255, 0.10)',
   };
 
   return (
