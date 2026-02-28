@@ -765,10 +765,17 @@ export default function ArmarEquiposView({
   const skewCounterStyle = {
     transform: `skewX(${SLOT_SKEW_X}deg)`,
   };
-  const primaryVioletPalette = {
-    '--btn': INVITE_ACCEPT_BUTTON_VIOLET,
-    '--btn-dark': INVITE_ACCEPT_BUTTON_VIOLET_DARK,
+  const callToVotePalette = {
+    '--btn': 'linear-gradient(90deg, rgba(100, 77, 255, 0.78) 0%, rgba(123, 97, 255, 0.86) 100%)',
+    '--btn-dark': 'rgba(122, 104, 255, 0.72)',
+    '--btn-text': '#eef0ff',
+    '--btn-shadow': '0 6px 14px rgba(71, 56, 187, 0.22)',
+  };
+  const closeVotingPalette = {
+    '--btn': `linear-gradient(90deg, ${INVITE_ACCEPT_BUTTON_VIOLET_DARK} 0%, ${INVITE_ACCEPT_BUTTON_VIOLET} 100%)`,
+    '--btn-dark': 'rgba(144, 118, 255, 0.86)',
     '--btn-text': '#ffffff',
+    '--btn-shadow': '0 8px 18px rgba(76, 58, 196, 0.34)',
   };
   const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
 
@@ -798,14 +805,14 @@ export default function ArmarEquiposView({
           width: 100%;
           max-width: none;
           min-width: 0;
-          height: 48px;
-          padding-inline: 14px;
+          height: 54px;
+          padding-inline: 16px;
           display: flex;
           flex: 1 1 0;
           align-items: center;
           justify-content: center;
           gap: 0.55rem;
-          font-size: 0.94rem;
+          font-size: 1rem;
           font-weight: 700;
           letter-spacing: 0.045em;
           color: var(--btn-text, #fff);
@@ -878,8 +885,8 @@ export default function ArmarEquiposView({
                   type="button"
                   className={headerActionIconButtonClass}
                   onClick={handleWhatsApp}
-                  title="Compartir invitación"
-                  aria-label="Compartir invitación"
+                  title="Compartir link de votación"
+                  aria-label="Compartir link de votación"
                 >
                   <Share2 size={14} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
                 </button>
@@ -1031,7 +1038,7 @@ export default function ArmarEquiposView({
             <button
               type="button"
               className="invite-cta-btn relative z-10"
-              style={primaryVioletPalette}
+              style={callToVotePalette}
               onClick={handlePrimaryClick}
               disabled={calling || checkingVoteStatus}
             >
@@ -1047,7 +1054,7 @@ export default function ArmarEquiposView({
             <button
               type="button"
               className="invite-cta-btn"
-              style={primaryVioletPalette}
+              style={closeVotingPalette}
               onClick={() => setConfirmConfig({ open: true, action: 'close' })}
               disabled={isClosing}
             >
