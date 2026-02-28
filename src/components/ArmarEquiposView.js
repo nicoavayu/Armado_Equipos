@@ -805,14 +805,15 @@ export default function ArmarEquiposView({
           width: 100%;
           max-width: none;
           min-width: 0;
-          height: 60px;
+          height: 64px;
+          min-height: 64px;
           padding-inline: 18px;
           display: flex;
           flex: 1 1 0;
           align-items: center;
           justify-content: center;
           gap: 0.55rem;
-          font-size: 1.08rem;
+          font-size: 1.14rem;
           font-weight: 700;
           letter-spacing: 0.045em;
           color: var(--btn-text, #fff);
@@ -1030,8 +1031,8 @@ export default function ArmarEquiposView({
         </div>
 
         {/* Botones de acción */}
-        <div className="w-full box-border mx-auto mt-4 mb-0">
-          <div className="w-full flex flex-col gap-1 mb-3">
+        <div className="w-full box-border mx-auto mt-4 mb-0 px-2 sm:px-3">
+          <div className="w-full flex flex-col gap-1.5 mb-3">
             <button
               type="button"
               className="invite-cta-btn relative z-10"
@@ -1041,13 +1042,13 @@ export default function ArmarEquiposView({
             >
               <span>{calling || checkingVoteStatus ? <LoadingSpinner size="small" /> : primaryLabel}</span>
             </button>
-            <div className="text-[11px] text-white/50 leading-snug text-center px-1">
+            <div className="text-[11px] text-white/50 leading-snug text-center px-1 mt-0.5">
               Notifica a los jugadores que ya tienen la app
             </div>
           </div>
 
           {/* Flow progression: Cerrar votación */}
-          <div className="w-full flex flex-col gap-1 mt-3 pt-2 border-t border-slate-700/50">
+          <div className="w-full flex flex-col gap-1.5 mt-3 pt-2 border-t border-slate-700/50">
             <button
               type="button"
               className="invite-cta-btn"
@@ -1057,7 +1058,7 @@ export default function ArmarEquiposView({
             >
               <span>{isClosing ? <LoadingSpinner size="small" /> : 'Cerrar votación'}</span>
             </button>
-            <div className="text-[11px] text-white/50 leading-snug text-center px-1">
+            <div className="text-[11px] text-white/50 leading-snug text-center px-1 mt-0.5">
               Avanza al armado de equipos y bloquea nuevas votaciones
             </div>
           </div>
