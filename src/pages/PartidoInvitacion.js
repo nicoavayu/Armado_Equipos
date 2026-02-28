@@ -61,10 +61,16 @@ const getGuestStorageKey = (matchId, _guestName = '') => `guest_joined_${matchId
 function PlayersReadOnly({ jugadores, partido, mode }) {
   const cupoMaximo = partido.cupo_jugadores || partido.cupo || 'Sin límite';
   const displayCount = jugadores?.length ?? 0;
+  const isSoftVariant = mode === 'invite';
+  const softCardStyle = {
+    backgroundColor: '#17254E',
+    borderRadius: '18px',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.35), 0 0 20px rgba(120,90,255,0.12)',
+  };
 
   return (
-    <div className="w-full bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px]">
-      <div className="flex items-start justify-between gap-3 mb-3 mt-1 px-1">
+    <div className={isSoftVariant ? 'w-full box-border' : 'w-full bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px]'}>
+      <div className={`flex items-start justify-between gap-3 px-1 ${isSoftVariant ? 'mb-3' : 'mb-3 mt-1'}`}>
         <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
           Jugadores ({displayCount}/{cupoMaximo})
         </div>
@@ -78,7 +84,10 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
         <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
           {jugadores.map((j) => (
             <PlayerCardTrigger key={j.uuid || j.id} profile={j} partidoActual={partido}>
-              <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 transition-all min-h-[36px] w-full hover:bg-slate-800 cursor-pointer">
+              <div
+                className={`PlayerCard ${isSoftVariant ? 'PlayerCard--soft flex items-center gap-1.5 rounded-[18px] p-2.5 transition-all min-h-[40px] w-full cursor-pointer hover:brightness-105' : 'flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 transition-all min-h-[36px] w-full hover:bg-slate-800 cursor-pointer'}`}
+                style={isSoftVariant ? softCardStyle : undefined}
+              >
                 {j.foto_url || j.avatar_url ? (
                   <img
                     src={j.foto_url || j.avatar_url}
