@@ -32,6 +32,9 @@ const SafePageTitle = safeComp(PageTitle, 'PageTitle');
 const SafeMatchInfoSection = safeComp(MatchInfoSection, 'MatchInfoSection');
 const SafeWhatsappIcon = safeComp(WhatsappIcon, 'WhatsappIcon');
 const SafeLoadingSpinner = safeComp(LoadingSpinner, 'LoadingSpinner');
+const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
+const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
+const SLOT_SKEW_X = 6;
 
 const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 
@@ -651,6 +654,51 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
   return (
     <SafeTeamDisplayContext.Provider value={true}>
+      <style>{`
+        .invite-cta-btn {
+          appearance: none;
+          cursor: pointer;
+          width: 100%;
+          max-width: none;
+          min-width: 0;
+          height: 48px;
+          padding-inline: 14px;
+          display: flex;
+          flex: 1 1 0;
+          align-items: center;
+          justify-content: center;
+          gap: 0.55rem;
+          font-size: 0.94rem;
+          font-weight: 700;
+          letter-spacing: 0.045em;
+          color: var(--btn-text, #fff);
+          background: var(--btn);
+          border: 1.5px solid var(--btn-dark);
+          border-radius: 0;
+          box-shadow: var(--btn-shadow, none);
+          transform: skew(-6deg);
+          transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
+          backface-visibility: hidden;
+          white-space: nowrap;
+        }
+        .invite-cta-btn > span {
+          transform: skew(6deg);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .invite-cta-btn:hover:not(:disabled) {
+          filter: brightness(1.08);
+        }
+        .invite-cta-btn:active:not(:disabled) {
+          transform: skew(-6deg);
+          opacity: 0.92;
+        }
+        .invite-cta-btn:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+      `}</style>
       {/* Chat button para todos los usuarios - Hide floating trigger as it is in the header */}
       <SafeChatButton partidoId={partidoId} hideTrigger={true} />
       <SafePageTitle onBack={onBackToHome}>EQUIPOS ARMADOS</SafePageTitle>
@@ -775,9 +823,18 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                             return (
                               <div
                                 key={`missing-${team.id}-${playerKey}-${_index}`}
-                                className="bg-slate-900 border border-slate-800 rounded-lg p-2 text-white/70"
+                                className="border p-2 text-white/70"
+                                style={{
+                                  backgroundColor: '#2A3E78',
+                                  border: '1px solid rgba(120,90,255,0.28)',
+                                  boxShadow: '0 0 14px rgba(120,90,255,0.12)',
+                                  borderRadius: 0,
+                                  transform: `skewX(-${SLOT_SKEW_X}deg)`,
+                                }}
                               >
-                                Jugador desconocido ({playerKey})
+                                <span style={{ display: 'block', transform: `skewX(${SLOT_SKEW_X}deg)` }}>
+                                  Jugador desconocido ({playerKey})
+                                </span>
                               </div>
                             );
                           }
@@ -798,15 +855,26 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                     if (Date.now() - lastDragEndAtRef.current < 180) return;
                                     togglePlayerLock(playerKey);
                                   } : undefined}
-                                  className={`bg-slate-900 border border-slate-800 rounded-lg p-2 flex items-center gap-1.5 text-white transition-all min-h-[36px] relative w-full box-border overflow-hidden select-none hover:bg-slate-800 hover:border-slate-700
-                                    ${isLocked ? 'bg-[#FFC107]/20 border-[#FFC107]/60 shadow-[0_0_8px_rgba(255,193,7,0.3)]' : ''}
+                                  className={`border p-0 flex items-center gap-1.5 text-white transition-all h-12 relative w-full box-border overflow-hidden select-none rounded-none
+                                    ${isLocked ? 'shadow-[0_0_8px_rgba(255,193,7,0.3)]' : ''}
                                     ${!isAdmin ? 'cursor-default pointer-events-none' : (teamsConfirmed || isLocked ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing')}
                                     ${dragSnapshot.isDragging ? 'ring-2 ring-[#128BE9] border-[#128BE9]/60 z-20' : ''}
-                                    ${isReplacementTarget ? 'ring-2 ring-[#0EA9C6] border-[#0EA9C6]/70 bg-slate-700/70' : ''}
+                                    ${isReplacementTarget ? 'ring-2 ring-[#0EA9C6] border-[#0EA9C6]/70' : ''}
                                     ${isActiveDraggedPlayer ? 'shadow-[0_0_0_1px_rgba(14,169,198,0.45)]' : ''}
                                   `}
+                                  style={{
+                                    backgroundColor: isLocked ? 'rgba(255,193,7,0.2)' : '#2A3E78',
+                                    borderColor: isLocked ? 'rgba(255,193,7,0.6)' : 'rgba(120,90,255,0.28)',
+                                    boxShadow: isLocked ? '0 0 8px rgba(255,193,7,0.3)' : '0 0 14px rgba(120,90,255,0.12)',
+                                    transform: `skewX(-${SLOT_SKEW_X}deg)`,
+                                  }}
                                 >
-                                  <div className="flex items-center gap-1.5 w-full h-full min-w-0">
+                                  <span
+                                    aria-hidden="true"
+                                    className="absolute left-[1px] top-1/2 -translate-y-1/2 w-[2px] h-[60%] rounded-[2px] pointer-events-none"
+                                    style={{ backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, opacity: 0.74 }}
+                                  />
+                                  <div className="flex items-center gap-1.5 w-full h-full min-w-0 p-2" style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
                                     {player.avatar_url ? (
                                       <img
                                         src={player.avatar_url}
@@ -830,6 +898,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                         style={{
                                           background: getScoreColor(player.score),
                                           borderColor: getScoreColor(player.score).replace('0.9', '0.5'),
+                                          borderRadius: 0,
                                         }}
                                       >
                                         {(player.score || 0).toFixed(2)}
@@ -931,17 +1000,19 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                 {/* Row 1: Randomizar + Promedios */}
                 <div className="grid grid-cols-2 gap-2 w-full">
                   <button
-                    className="w-full font-oswald text-[15px] px-3 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] whitespace-nowrap bg-[#128BE9] hover:brightness-110 active:scale-95 disabled:opacity-50"
+                    className="invite-cta-btn"
+                    style={{ '--btn': '#128BE9', '--btn-dark': '#0f7acc', '--btn-text': '#ffffff' }}
                     onClick={randomizeTeams}
                     disabled={teamsConfirmed}
                   >
-                    Randomizar
+                    <span>Randomizar</span>
                   </button>
                   <button
-                    className="w-full font-oswald text-[15px] px-3 border border-slate-600 rounded-xl cursor-pointer transition-all text-white/80 h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] whitespace-nowrap hover:border-slate-500 hover:text-white/90 bg-transparent active:scale-95 disabled:opacity-50"
+                    className="invite-cta-btn"
+                    style={{ '--btn': 'rgba(23, 35, 74, 0.72)', '--btn-dark': 'rgba(88, 107, 170, 0.46)', '--btn-text': 'rgba(242, 246, 255, 0.9)', '--btn-shadow': '0 6px 16px rgba(0,0,0,0.25)' }}
                     onClick={() => setShowAverages(!showAverages)}
                   >
-                    {showAverages ? 'Ocultar' : 'Promedios'}
+                    <span>{showAverages ? 'Ocultar' : 'Promedios'}</span>
                   </button>
                 </div>
                 <div className="grid grid-cols-2 gap-2 w-full">
@@ -956,11 +1027,12 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                 {/* Row 2: Confirmar/Editar full width */}
                 <div className="w-full flex flex-col gap-1">
                   <button
-                    className="w-full font-oswald text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] whitespace-nowrap bg-primary hover:brightness-110 active:scale-95 disabled:opacity-50"
+                    className="invite-cta-btn"
+                    style={{ '--btn': INVITE_ACCEPT_BUTTON_VIOLET, '--btn-dark': INVITE_ACCEPT_BUTTON_VIOLET_DARK, '--btn-text': '#ffffff' }}
                     onClick={teamsConfirmed ? unconfirmTeams : confirmTeams}
                     disabled={confirming || unconfirming}
                   >
-                    {teamsConfirmed ? (unconfirming ? 'Desconfirmando…' : 'Editar equipos') : (confirming ? 'Confirmando…' : 'Confirmar equipos')}
+                    <span>{teamsConfirmed ? (unconfirming ? 'Desconfirmando…' : 'Editar equipos') : (confirming ? 'Confirmando…' : 'Confirmar equipos')}</span>
                   </button>
                   <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1 min-h-[18px]">
                     {teamsConfirmed ? 'Los equipos están confirmados.' : 'Guarda los equipos de este partido y bloquea cambios.'}
@@ -973,11 +1045,14 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           {/* Share button with helper */}
           <div className="flex flex-col gap-2">
             <button
-              className="w-full font-oswald text-[15px] px-4 border border-slate-700/50 rounded-xl cursor-pointer transition-all text-white/70 h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] hover:border-slate-600 hover:text-white/80 bg-transparent active:scale-95 disabled:opacity-50"
+              className="invite-cta-btn"
+              style={{ '--btn': 'rgba(23, 35, 74, 0.72)', '--btn-dark': 'rgba(88, 107, 170, 0.46)', '--btn-text': 'rgba(242, 246, 255, 0.9)', '--btn-shadow': '0 6px 16px rgba(0,0,0,0.25)' }}
               onClick={handleWhatsAppShare}
             >
-              <SafeWhatsappIcon size={16} style={{ marginRight: 8 }} />
-              Compartir
+              <span>
+                <SafeWhatsappIcon size={16} style={{ marginRight: 8 }} />
+                Compartir
+              </span>
             </button>
             <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1">Comparte los equipos armados al grupo de WhatsApp.</div>
           </div>

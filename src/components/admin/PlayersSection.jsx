@@ -387,6 +387,12 @@ const PlayersSection = ({
       if (!v.nombre || !j.nombre) return false;
       return v.nombre.toLowerCase().trim() === j.nombre.toLowerCase().trim();
     }) || (votantes && (votantes.includes(j.uuid) || votantes.includes(j.usuario_id)));
+    const cardStyle = {
+      backgroundColor: '#2A3E78',
+      border: hasVoted ? '1px solid rgba(74,222,128,0.72)' : '1px solid rgba(120,90,255,0.28)',
+      boxShadow: hasVoted ? '0 0 14px rgba(74,222,128,0.18)' : '0 0 14px rgba(120,90,255,0.12)',
+      transform: `skewX(-${SLOT_SKEW_X}deg)`,
+    };
 
     return (
       <PlayerCardTrigger
@@ -396,47 +402,57 @@ const PlayersSection = ({
         onMakeAdmin={transferirAdmin}
       >
         <div
-          className={`flex items-center gap-1.5 bg-slate-900 border rounded-lg p-2 transition-all min-h-[36px] w-full max-w-[660px] mx-auto hover:bg-slate-800 ${hasVoted ? 'border-emerald-500 hover:border-emerald-400 border-[1.5px]' : 'border-slate-800 hover:border-slate-700'}`}
+          className="relative rounded-none h-12 w-full max-w-[660px] mx-auto overflow-hidden transition-all cursor-pointer hover:brightness-105"
+          style={cardStyle}
         >
-          {j.foto_url || j.avatar_url ? (
-            <img
-              src={j.foto_url || j.avatar_url}
-              alt={j.nombre}
-              className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
-              {getInitials(j.nombre)}
-            </div>
-          )}
+          <span
+            aria-hidden="true"
+            className="absolute left-[1px] top-1/2 -translate-y-1/2 w-[2px] h-[60%] rounded-[2px] pointer-events-none"
+            style={{ backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, opacity: 0.74 }}
+          />
+          <div
+            className="h-full w-full p-2 flex items-center gap-1.5"
+            style={inviteSkewCounterStyle}
+          >
+            {j.foto_url || j.avatar_url ? (
+              <img
+                src={j.foto_url || j.avatar_url}
+                alt={j.nombre}
+                className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
+                {getInitials(j.nombre)}
+              </div>
+            )}
 
-          <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 break-words leading-tight">
-            {j.nombre}
-          </span>
+            <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 truncate leading-tight">
+              {j.nombre}
+            </span>
 
-          {/* Corona para admin */}
-          {partidoActual?.creado_por === j.usuario_id && (
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="#FFD700" style={{ flexShrink: 0 }}>
-              <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
-            </svg>
-          )}
+            {partidoActual?.creado_por === j.usuario_id && (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
+                <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
+              </svg>
+            )}
 
-          {/* Botón eliminar - Solo admin puede eliminar otros */}
-          {isAdmin && j.usuario_id !== user?.id ? (
-            <button
-              className="w-6 h-6 bg-fifa-danger/70 text-white/80 border-0 rounded-full font-bebas text-xl font-bold cursor-pointer transition-all flex items-center justify-center shrink-0 hover:bg-fifa-danger hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={(e) => {
-                e.stopPropagation();
-                setPlayerToRemove({ id: j.id, nombre: j.nombre, isOwnPlayer: false });
-              }}
-              type="button"
-              aria-label="Eliminar jugador"
-              disabled={isClosing}
-              title="Eliminar jugador"
-            >
-              ×
-            </button>
-          ) : null}
+            {isAdmin && j.usuario_id !== user?.id ? (
+              <button
+                className="w-5 h-5 text-white/70 border border-white/25 cursor-pointer transition-all flex items-center justify-center shrink-0 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ transform: `skewX(-${SLOT_SKEW_X}deg)` }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPlayerToRemove({ id: j.id, nombre: j.nombre, isOwnPlayer: false });
+                }}
+                type="button"
+                aria-label="Eliminar jugador"
+                disabled={isClosing}
+                title="Eliminar jugador"
+              >
+                <span style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>×</span>
+              </button>
+            ) : null}
+          </div>
         </div>
       </PlayerCardTrigger >
     );
@@ -464,7 +480,7 @@ const PlayersSection = ({
 
   const renderRosterSections = () => (
     <div className="flex flex-col gap-3">
-      <div className="rounded-lg border border-white/15 bg-black/15 p-2.5">
+      <div className="border border-white/15 bg-white/[0.04] p-2.5">
         <div
           className="flex items-center justify-between px-1 mb-2"
           onClick={() => setIsTitularesOpen((prev) => !prev)}
@@ -509,7 +525,7 @@ const PlayersSection = ({
           }}
         >
           {titularPlayers.length > 0 ? (
-            <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
+            <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border">
               {titularPlayers.map(renderPlayerCard)}
             </div>
           ) : (
@@ -519,7 +535,7 @@ const PlayersSection = ({
       </div>
 
       {showSubstituteSection && (
-        <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-2.5">
+        <div className="border border-amber-400/30 bg-amber-500/10 p-2.5">
           <div
             className="flex items-center justify-between px-1 mb-2"
             onClick={() => setIsSuplentesOpen((prev) => !prev)}
@@ -560,7 +576,7 @@ const PlayersSection = ({
             }}
           >
             {substitutePlayers.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
+              <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border">
                 {substitutePlayers.map(renderPlayerCard)}
               </div>
             ) : null}
@@ -822,18 +838,20 @@ const PlayersSection = ({
                   />
                   {/* Menú después (z-index mayor) con animación */}
                   <div
-                    className="fixed w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-lg z-[9999] transition-all duration-200 ease-out"
+                    className="fixed w-48 border bg-slate-900 shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out"
                     style={{
                       top: `${menuPosition.top}px`,
                       left: `${menuPosition.left}px`,
                       opacity: menuOpen ? 1 : 0,
                       transform: menuOpen ? 'scale(1)' : 'scale(0.95)',
+                      borderColor: 'rgba(88, 107, 170, 0.46)',
+                      borderRadius: 0,
                     }}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <div className="py-1">
+                    <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
                       <button
-                        className="w-full px-3 py-2 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
+                        className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
                         onClick={() => {
                           setMenuOpen(false);
                           setConfirmConfig({ open: true, type: 'abandon' });

@@ -25,6 +25,37 @@ import { sendVotingNotifications } from '../services/notificationService';
 import ConfirmModal from '../components/ConfirmModal';
 import { MoreVertical, X as XIcon, User as UserIcon } from 'lucide-react';
 
+const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
+const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
+const SLOT_SKEW_X = 6;
+
+const resolveSlotsFromMatchType = (match = {}) => {
+  const explicitCapacity = Number(match?.cupo_jugadores || match?.cupo || 0);
+  if (Number.isFinite(explicitCapacity) && explicitCapacity > 0) {
+    return explicitCapacity;
+  }
+
+  const token = String(match?.tipo_partido || match?.modalidad || '').trim().toUpperCase();
+  const normalized = token.replace(/\s+/g, '');
+  const matchByNumber = normalized.match(/F(\d+)/i);
+  if (matchByNumber) {
+    const playersPerTeam = Number(matchByNumber[1]);
+    if (Number.isFinite(playersPerTeam) && playersPerTeam > 0) {
+      return playersPerTeam * 2;
+    }
+  }
+
+  const fallbackByType = {
+    F5: 10,
+    F6: 12,
+    F7: 14,
+    F8: 16,
+    F11: 22,
+  };
+
+  return fallbackByType[normalized] || 10;
+};
+
 export default function ArmarEquiposView({
   onBackToAdmin,
   jugadores,
@@ -700,6 +731,45 @@ export default function ArmarEquiposView({
     }
   }
 
+  const requiredSlots = resolveSlotsFromMatchType(partidoActual);
+  const displayCount = jugadores?.length ?? 0;
+  const confirmedCount = Math.min(displayCount, requiredSlots);
+  const progressPct = requiredSlots > 0
+    ? Math.max(0, Math.min((confirmedCount / requiredSlots) * 100, 100))
+    : 0;
+  const slotItems = Array.from({ length: requiredSlots }, (_, idx) => jugadores?.[idx] || null);
+  const softCardWrapperStyle = {
+    backgroundColor: '#2A3E78',
+    border: '1px solid rgba(120,90,255,0.28)',
+    boxShadow: '0 0 14px rgba(120,90,255,0.12)',
+    transform: `skewX(-${SLOT_SKEW_X}deg)`,
+  };
+  const softPlaceholderWrapperStyle = {
+    background: 'rgba(255,255,255,0.015)',
+    border: '1px dashed rgba(255,255,255,0.055)',
+    boxShadow: 'none',
+    transform: `skewX(-${SLOT_SKEW_X}deg)`,
+  };
+  const skewCounterStyle = {
+    transform: `skewX(${SLOT_SKEW_X}deg)`,
+  };
+  const primaryBluePalette = {
+    '--btn': '#128BE9',
+    '--btn-dark': '#0f7acc',
+    '--btn-text': '#ffffff',
+  };
+  const primaryVioletPalette = {
+    '--btn': INVITE_ACCEPT_BUTTON_VIOLET,
+    '--btn-dark': INVITE_ACCEPT_BUTTON_VIOLET_DARK,
+    '--btn-text': '#ffffff',
+  };
+  const outlinePalette = {
+    '--btn': 'rgba(23, 35, 74, 0.72)',
+    '--btn-dark': 'rgba(88, 107, 170, 0.46)',
+    '--btn-text': 'rgba(242, 246, 255, 0.9)',
+    '--btn-shadow': '0 6px 16px rgba(0,0,0,0.25)',
+  };
+
   // Si no es admin, mostrar acceso denegado
   if (!isAdmin) {
     return (
@@ -719,6 +789,51 @@ export default function ArmarEquiposView({
 
   return (
     <>
+      <style>{`
+        .invite-cta-btn {
+          appearance: none;
+          cursor: pointer;
+          width: 100%;
+          max-width: none;
+          min-width: 0;
+          height: 48px;
+          padding-inline: 14px;
+          display: flex;
+          flex: 1 1 0;
+          align-items: center;
+          justify-content: center;
+          gap: 0.55rem;
+          font-size: 0.94rem;
+          font-weight: 700;
+          letter-spacing: 0.045em;
+          color: var(--btn-text, #fff);
+          background: var(--btn);
+          border: 1.5px solid var(--btn-dark);
+          border-radius: 0;
+          box-shadow: var(--btn-shadow, none);
+          transform: skew(-6deg);
+          transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
+          backface-visibility: hidden;
+          white-space: nowrap;
+        }
+        .invite-cta-btn > span {
+          transform: skew(6deg);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .invite-cta-btn:hover:not(:disabled) {
+          filter: brightness(1.08);
+        }
+        .invite-cta-btn:active:not(:disabled) {
+          transform: skew(-6deg);
+          opacity: 0.92;
+        }
+        .invite-cta-btn:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+      `}</style>
       <PageTitle
         onBack={onBackToAdmin}
         showChatButton={true}
@@ -753,17 +868,8 @@ export default function ArmarEquiposView({
           </div>
         )}
         {/* Lista de jugadores */}
-        <div ref={playersSectionRef} className="bg-white/10 border-2 border-white/20 rounded-xl p-3 min-h-[120px] w-full mx-auto mt-0 box-border">
-          <div className="flex items-start justify-between gap-3 mb-3 mt-2">
-            <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
-              Jugadores ({jugadores.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
-              <div className="text-[12px] text-white/60 font-oswald font-normal tracking-normal mt-1">
-                Votaron: {votantesConNombres.length}/{jugadores.length}
-              </div>
-              <div className="text-[11px] text-white/50 font-oswald font-normal tracking-normal mt-0.5 leading-snug">
-                Esperando votos para armar los equipos
-              </div>
-            </div>
+        <div ref={playersSectionRef} className="relative w-full mx-auto mt-0 box-border min-h-[120px]">
+          <div className="absolute right-0 top-0 z-10">
             {isAdmin && (
               <div className="relative">
                 <button
@@ -776,83 +882,136 @@ export default function ArmarEquiposView({
                   <MoreVertical size={20} />
                 </button>
                 {actionsMenuOpen && (
-                  <div className="absolute top-full right-0 mt-1 rounded-lg border border-slate-700 bg-slate-900 shadow-lg z-10 min-w-[180px]">
-                    <button
-                      className="w-full px-4 py-3 flex items-center gap-2 text-left text-slate-200 hover:bg-slate-800 transition-colors text-sm font-oswald"
-                      onClick={() => {
-                        setActionsMenuOpen(false);
-                        setConfirmConfig({ open: true, action: 'reset' });
-                      }}
-                      type="button"
-                    >
-                      <span>Resetear votación</span>
-                    </button>
+                  <div className="absolute top-full right-0 mt-1 w-48 border bg-slate-900 shadow-lg z-10 overflow-hidden" style={{ borderColor: 'rgba(88, 107, 170, 0.46)', borderRadius: 0 }}>
+                    <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
+                      <button
+                        className="w-full h-[46px] px-4 flex items-center gap-2 text-left text-slate-200 hover:bg-slate-800 transition-colors text-sm font-oswald"
+                        onClick={() => {
+                          setActionsMenuOpen(false);
+                          setConfirmConfig({ open: true, action: 'reset' });
+                        }}
+                        type="button"
+                      >
+                        <span>Resetear votación</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
             )}
           </div>
-          {jugadores.length === 0 ? (
-            <div className="text-center text-white/60 font-oswald text-base p-5 italic">
-              <LoadingSpinner size="medium" />
+
+          <div className="w-full box-border" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)', paddingTop: '16px', paddingBottom: '24px' }}>
+            <div className="px-1 mb-6 pr-10">
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
+                  Jugadores
+                </div>
+                <div className="font-oswald text-[13px] font-medium text-white/75 whitespace-nowrap">
+                  {confirmedCount}/{requiredSlots}
+                </div>
+              </div>
+              <div className="mt-2 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
+                <div
+                  className="h-full rounded-[6px] transition-all duration-200"
+                  style={{ width: `${progressPct}%`, backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, filter: 'saturate(1.05)' }}
+                />
+              </div>
+              <div className="text-[12px] text-white/60 font-oswald font-normal tracking-normal mt-2">
+                Votaron: {votantesConNombres.length}/{jugadores.length}
+              </div>
+              <div className="text-[11px] text-white/50 font-oswald font-normal tracking-normal mt-0.5 leading-snug">
+                Esperando votos para armar los equipos
+              </div>
             </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
-              {jugadores.map((j) => {
-                // Comparación más robusta de nombres
+
+            <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border">
+              {slotItems.map((j, idx) => {
+                if (!j) {
+                  return (
+                    <div
+                      key={`slot-empty-${idx}`}
+                      className="rounded-none h-12 w-full overflow-hidden"
+                      style={softPlaceholderWrapperStyle}
+                      aria-hidden="true"
+                    >
+                      <div
+                        className="h-full w-full p-2 flex items-center justify-center"
+                        style={skewCounterStyle}
+                      >
+                        <UserIcon size={14} className="text-white/[0.13]" />
+                      </div>
+                    </div>
+                  );
+                }
+
                 const hasVoted = playerHasVoted(j);
+                const cardStyle = {
+                  ...softCardWrapperStyle,
+                  border: hasVoted ? '1px solid rgba(74,222,128,0.72)' : softCardWrapperStyle.border,
+                  boxShadow: hasVoted ? '0 0 14px rgba(74,222,128,0.18)' : softCardWrapperStyle.boxShadow,
+                };
 
                 return (
                   <PlayerCardTrigger
-                    key={j.uuid}
+                    key={j.uuid || j.id || `slot-player-${idx}`}
                     profile={j}
                     partidoActual={partidoActual}
                   >
                     <div
-                      className={`flex items-center gap-1.5 bg-slate-900 border rounded-lg p-2 transition-all min-h-[36px] w-full max-w-[660px] mx-auto hover:bg-slate-800 ${hasVoted ? 'border-emerald-500 hover:border-emerald-400 border-[1.5px]' : 'border-slate-800 hover:border-slate-700'}`}
+                      className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-hidden transition-all cursor-pointer hover:brightness-105"
+                      style={cardStyle}
                     >
-                      {j.foto_url || j.avatar_url ? (
-                        <img
-                          src={j.foto_url || j.avatar_url}
-                          alt={j.nombre}
-                          className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
-                        />
-                      ) : (
-                        <AvatarFallback name={j.nombre} size="w-8 h-8" />
-                      )}
+                      <span
+                        aria-hidden="true"
+                        className="absolute left-[1px] top-1/2 -translate-y-1/2 w-[2px] h-[60%] rounded-[2px] pointer-events-none"
+                        style={{ backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, opacity: 0.74 }}
+                      />
+                      <div className="h-full w-full p-2 flex items-center gap-1.5" style={skewCounterStyle}>
+                        {j.foto_url || j.avatar_url ? (
+                          <img
+                            src={j.foto_url || j.avatar_url}
+                            alt={j.nombre}
+                            className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+                          />
+                        ) : (
+                          <AvatarFallback name={j.nombre} size="w-8 h-8" />
+                        )}
 
-                      <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 break-words leading-tight">
-                        {j.nombre}
-                      </span>
+                        <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 truncate leading-tight">
+                          {j.nombre}
+                        </span>
 
-                      {/* Corona para admin */}
-                      {partidoActual?.creado_por === j.usuario_id && (
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="#FFD700" style={{ flexShrink: 0 }}>
-                          <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
-                        </svg>
-                      )}
+                        {partidoActual?.creado_por === j.usuario_id && (
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
+                            <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
+                          </svg>
+                        )}
 
-                      {/* Botón eliminar - Solo admin puede eliminar otros */}
-                      {j.usuario_id !== user?.id && (
-                        <button
-                          className="w-6 h-6 bg-slate-800 text-white/70 border border-slate-700 rounded-full cursor-pointer transition-all flex items-center justify-center shrink-0 hover:bg-slate-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setPlayerToRemove({ id: j.id, nombre: j.nombre });
-                          }}
-                          type="button"
-                          disabled={loading}
-                          aria-label={`Eliminar a ${j.nombre}`}
-                        >
-                          <XIcon size={12} />
-                        </button>
-                      )}
+                        {j.usuario_id !== user?.id && (
+                          <button
+                            className="w-5 h-5 text-white/70 border border-white/25 cursor-pointer transition-all flex items-center justify-center shrink-0 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            style={{ transform: `skewX(-${SLOT_SKEW_X}deg)` }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPlayerToRemove({ id: j.id, nombre: j.nombre });
+                            }}
+                            type="button"
+                            disabled={loading}
+                            aria-label={`Eliminar a ${j.nombre}`}
+                          >
+                            <span style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
+                              <XIcon size={11} />
+                            </span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </PlayerCardTrigger>
                 );
               })}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Botones de acción */}
@@ -862,11 +1021,12 @@ export default function ArmarEquiposView({
             <div className="flex-1 flex flex-col gap-1">
               <button
                 type="button"
-                className="relative z-10 w-full font-oswald normal-case text-[15px] px-4 border-none rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:brightness-110 active:scale-95"
+                className="invite-cta-btn relative z-10"
+                style={primaryBluePalette}
                 onClick={handlePrimaryClick}
                 disabled={calling || checkingVoteStatus}
               >
-                {calling || checkingVoteStatus ? <LoadingSpinner size="small" /> : primaryLabel}
+                <span>{calling || checkingVoteStatus ? <LoadingSpinner size="small" /> : primaryLabel}</span>
               </button>
               <div className="text-[11px] text-white/50 leading-snug text-center px-1">
                 Notifica a los jugadores que ya tienen la app
@@ -875,11 +1035,14 @@ export default function ArmarEquiposView({
 
             <div className="flex-1 flex flex-col gap-1">
               <button
-                className="w-full font-oswald normal-case text-[15px] px-4 border border-slate-600 rounded-xl cursor-pointer transition-all text-white/80 h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed hover:border-slate-500 hover:text-white/90 bg-transparent"
+                className="invite-cta-btn"
+                style={outlinePalette}
                 onClick={handleWhatsApp}
               >
-                <WhatsappIcon size={UI_SIZES.WHATSAPP_ICON_SIZE} style={{ marginRight: 6 }} />
-                Compartir
+                <span>
+                  <WhatsappIcon size={UI_SIZES.WHATSAPP_ICON_SIZE} style={{ marginRight: 6 }} />
+                  Compartir
+                </span>
               </button>
               <div className="text-[11px] text-white/50 leading-snug text-center px-1">
                 Enviá el link a quienes no tienen la app
@@ -891,11 +1054,12 @@ export default function ArmarEquiposView({
           <div className="w-full flex flex-col gap-1 mt-3 pt-2 border-t border-slate-700/50">
             <button
               type="button"
-              className="w-full font-oswald normal-case text-[15px] px-4 border border-white/20 rounded-xl cursor-pointer transition-all text-white h-[44px] min-h-[44px] flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed bg-[#8178e5] hover:brightness-110 active:scale-95 shadow-[0_8px_24px_rgba(129,120,229,0.3)]"
+              className="invite-cta-btn"
+              style={primaryVioletPalette}
               onClick={() => setConfirmConfig({ open: true, action: 'close' })}
               disabled={isClosing}
             >
-              {isClosing ? <LoadingSpinner size="small" /> : 'Cerrar votación'}
+              <span>{isClosing ? <LoadingSpinner size="small" /> : 'Cerrar votación'}</span>
             </button>
             <div className="text-[11px] text-white/50 leading-snug text-center px-1">
               Avanza al armado de equipos y bloquea nuevas votaciones
