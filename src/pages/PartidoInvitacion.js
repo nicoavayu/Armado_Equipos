@@ -105,15 +105,15 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
     paddingBottom: '24px',
   };
   const softCardWrapperStyle = {
-    backgroundColor: '#24356C',
-    border: '1px solid rgba(117,146,255,0.28)',
-    boxShadow: '0 10px 26px rgba(0,0,0,0.45), 0 0 14px rgba(120,90,255,0.14)',
+    backgroundColor: '#263A73',
+    border: '1px solid rgba(120,90,255,0.22)',
+    boxShadow: '0 0 14px rgba(120,90,255,0.12)',
     transform: `skewX(-${skewX}deg)`,
   };
   const softPlaceholderWrapperStyle = {
     background: 'rgba(255,255,255,0.015)',
     border: '1px dashed rgba(255,255,255,0.055)',
-    boxShadow: '0 3px 8px rgba(0,0,0,0.14)',
+    boxShadow: 'none',
     transform: `skewX(-${skewX}deg)`,
   };
   const skewCounterStyle = {
@@ -345,7 +345,7 @@ function SharedInviteLayout({
 
         <main className="pt-0">
           <div className="main-content">
-            <div className="w-full flex flex-col gap-3 overflow-x-visible pt-4">
+            <div className="w-full flex flex-col gap-3 overflow-x-visible pt-3">
               <InlineNotice
                 type={inlineNotice?.type}
                 message={inlineNotice?.message}
