@@ -183,8 +183,8 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
                 >
                   <span
                     aria-hidden="true"
-                    className="absolute left-[1px] top-1/2 -translate-y-1/2 w-[3px] h-[70%] rounded-[2px] pointer-events-none"
-                    style={{ backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET }}
+                    className="absolute left-[1px] top-1/2 -translate-y-1/2 w-[2px] h-[60%] rounded-[2px] pointer-events-none"
+                    style={{ backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, opacity: 0.74 }}
                   />
                   <div
                     className="h-full w-full p-2 flex items-center gap-1.5"
