@@ -4,7 +4,6 @@ import { PlayerCardTrigger } from '../ProfileComponents';
 import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
 import { MoreVertical, LogOut, Share2, UserRound } from 'lucide-react';
-import WhatsappIcon from '../WhatsappIcon';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
@@ -109,7 +108,6 @@ const PlayersSection = ({
   onInviteFriends,
   onAddManual,
   onShareClick,
-  onShareRosterUpdate,
   unirseAlPartido,
 }) => {
   const [localMenuOpen, setLocalMenuOpen] = useState(false);
@@ -117,7 +115,6 @@ const PlayersSection = ({
   const [isRemovingPlayer, setIsRemovingPlayer] = useState(false);
   const [isTitularesOpen, setIsTitularesOpen] = useState(true);
   const [isSuplentesOpen, setIsSuplentesOpen] = useState(true);
-  const [isSharingUpdate, setIsSharingUpdate] = useState(false);
   const [animateCompletionTick, setAnimateCompletionTick] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef(null);
@@ -134,15 +131,8 @@ const PlayersSection = ({
   const remainingTitularSlots = capacity > 0 ? Math.max(0, capacity - titularPlayers.length) : null;
   const isMatchFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
   const canShareInviteLink = isAdmin && typeof onShareClick === 'function' && !isMatchFull;
-  const hasJoinCode = Boolean(String(partidoActual?.codigo || '').trim());
   const completionAnimTimeoutRef = useRef(null);
   const previousCompleteRef = useRef(isTitularesComplete);
-  const canShareRosterUpdate =
-    isAdmin &&
-    typeof onShareRosterUpdate === 'function' &&
-    Boolean(partidoActual?.id) &&
-    hasJoinCode &&
-    capacity > 0;
   const showInviteStylePostJoin = !isAdmin && isPlayerInMatch;
   const inviteRequiredSlots = resolveSlotsFromMatchType(partidoActual);
   const inviteDisplayCount = jugadores?.length ?? 0;
@@ -226,18 +216,6 @@ const PlayersSection = ({
       notifyBlockingError(error?.message || 'No se pudo expulsar al jugador');
     } finally {
       setIsRemovingPlayer(false);
-    }
-  };
-
-  const handleShareRosterUpdateClick = async () => {
-    if (!canShareRosterUpdate || isSharingUpdate) return;
-    setIsSharingUpdate(true);
-    try {
-      await onShareRosterUpdate?.();
-    } catch (error) {
-      console.error('Error sharing roster update:', error);
-    } finally {
-      setIsSharingUpdate(false);
     }
   };
 
@@ -603,30 +581,20 @@ const PlayersSection = ({
               </div>
               <button
                 type="button"
-                className="h-7 w-7 inline-flex items-center justify-center text-white/55 border border-white/15 bg-transparent hover:text-white/82 hover:border-white/28 transition-colors disabled:opacity-35 disabled:cursor-not-allowed"
+                className="h-7 w-7 inline-flex items-center justify-center bg-white text-slate-900 rounded-[5px] transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
                 onClick={() => onShareClick?.()}
                 disabled={!canShareInviteLink}
                 title="Compartir invitación"
                 aria-label="Compartir invitación"
               >
-                <Share2 size={13} />
-              </button>
-              <button
-                type="button"
-                className="h-7 w-7 inline-flex items-center justify-center text-white/55 border border-white/15 bg-transparent hover:text-white/82 hover:border-white/28 transition-colors disabled:opacity-35 disabled:cursor-not-allowed"
-                onClick={handleShareRosterUpdateClick}
-                disabled={!canShareRosterUpdate || isSharingUpdate}
-                title={canShareRosterUpdate ? 'Compartir update por WhatsApp' : 'Update no disponible'}
-                aria-label="Compartir update por WhatsApp"
-              >
-                <WhatsappIcon size={13} />
+                <Share2 size={12} />
               </button>
 
               {isAdmin && isPlayerInMatch && (
                 <button
                   type="button"
                   ref={adminMenuButtonRef}
-                  className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white/90 transition-colors"
+                  className="ml-1 w-8 h-8 flex items-center justify-center text-white/70 hover:text-white/90 transition-colors"
                   onClick={() => {
                     if (adminMenuButtonRef.current) {
                       const rect = adminMenuButtonRef.current.getBoundingClientRect();

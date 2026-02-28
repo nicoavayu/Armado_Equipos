@@ -499,25 +499,25 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
                     {/* Botón ARMAR EQUIPOS PAREJOS - only on Jugadores tab */}
                     {isAdmin && !adminState.pendingInvitation && activeTab === 'jugadores' && (
-                      <div className="w-full max-w-full mx-auto mt-3 mb-8 text-center">
+                      <div className="w-full max-w-full mx-auto mt-3 mb-8 flex flex-col items-center">
                         <button
-                          className="w-full h-[54px] border text-white font-oswald text-[18px] px-4 transition-all disabled:opacity-45 disabled:cursor-not-allowed tracking-[0.01em] font-semibold"
+                          className="w-[90%] max-w-[620px] h-[60px] border text-white font-oswald text-[18px] px-4 transition-all disabled:opacity-45 disabled:cursor-not-allowed tracking-[0.045em] font-semibold"
                           style={{
-                            transform: 'skewX(-5deg)',
-                            background: 'linear-gradient(125deg, #3f2abf 0%, #5a3fe2 55%, #6b50ff 100%)',
-                            borderColor: 'rgba(133, 112, 255, 0.62)',
-                            boxShadow: canBuildBalancedTeams ? '0 0 18px rgba(100, 77, 255, 0.24)' : 'none',
+                            transform: 'skewX(-6deg)',
+                            borderRadius: 0,
+                            background: 'linear-gradient(132deg, #291686 0%, #3f24ba 48%, #5638e6 100%)',
+                            borderColor: 'rgba(132, 112, 255, 0.58)',
+                            boxShadow: canBuildBalancedTeams ? '0 0 22px rgba(86, 56, 230, 0.28)' : 'none',
                           }}
                           onClick={handleArmarEquipos}
                           disabled={!canBuildBalancedTeams}
                           title={!canBuildBalancedTeams ? 'Necesitás al menos 8 jugadores para armar los equipos.' : ''}
                         >
                           <span
-                            className="w-full inline-flex items-center justify-center gap-2"
-                            style={{ transform: 'skewX(5deg)' }}
+                            className="w-full inline-flex items-center justify-center"
+                            style={{ transform: 'skewX(6deg)' }}
                           >
-                            <span aria-hidden="true" className="text-[15px] leading-none">⚽</span>
-                            <span>Armar equipos parejos</span>
+                            ARMAR EQUIPOS
                           </span>
                         </button>
                         {!canBuildBalancedTeams && (
