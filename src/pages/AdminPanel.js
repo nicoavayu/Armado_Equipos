@@ -126,6 +126,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
   const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 4 : 0;
   const isRosterFull = maxRosterSlots > 0 && displayedJugadores.length >= maxRosterSlots;
+  const canBuildBalancedTeams = displayedJugadores.length >= 8;
   const canOpenChatFromHeader = Boolean(isAdmin || adminState.isPlayerInMatch);
 
   const formatInviteDateTime = (fechaRaw, horaRaw) => {
@@ -470,7 +471,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                               left: 0,
                               right: 0,
                               bottom: 0,
-                              backgroundColor: adminState.faltanJugadoresState ? '#009dff' : '#ccc',
+                              backgroundColor: adminState.faltanJugadoresState ? '#644dff' : '#ccc',
                               transition: '0.3s',
                               borderRadius: '24px',
                               opacity: isRosterFull ? 0.5 : 1,
@@ -500,14 +501,26 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                     {isAdmin && !adminState.pendingInvitation && activeTab === 'jugadores' && (
                       <div className="w-full max-w-full mx-auto mt-3 mb-8 text-center">
                         <button
-                          className="w-full h-12 bg-[#644dff] border border-[#4836bb] text-white font-oswald text-[18px] px-4 rounded-[10px] hover:brightness-105 transition-all disabled:opacity-45 disabled:cursor-not-allowed tracking-[0.01em] font-semibold"
+                          className="w-full h-[54px] border text-white font-oswald text-[18px] px-4 transition-all disabled:opacity-45 disabled:cursor-not-allowed tracking-[0.01em] font-semibold"
+                          style={{
+                            transform: 'skewX(-5deg)',
+                            background: 'linear-gradient(125deg, #3f2abf 0%, #5a3fe2 55%, #6b50ff 100%)',
+                            borderColor: 'rgba(133, 112, 255, 0.62)',
+                            boxShadow: canBuildBalancedTeams ? '0 0 18px rgba(100, 77, 255, 0.24)' : 'none',
+                          }}
                           onClick={handleArmarEquipos}
-                          disabled={jugadores.length < 8}
-                          title={jugadores.length < 8 ? 'Necesitás al menos 8 jugadores para armar los equipos.' : ''}
+                          disabled={!canBuildBalancedTeams}
+                          title={!canBuildBalancedTeams ? 'Necesitás al menos 8 jugadores para armar los equipos.' : ''}
                         >
-                          Armar equipos parejos
+                          <span
+                            className="w-full inline-flex items-center justify-center gap-2"
+                            style={{ transform: 'skewX(5deg)' }}
+                          >
+                            <span aria-hidden="true" className="text-[15px] leading-none">⚽</span>
+                            <span>Armar equipos parejos</span>
+                          </span>
                         </button>
-                        {jugadores.length < 8 && (
+                        {!canBuildBalancedTeams && (
                           <div className="text-[11px] text-white/50 mt-2 leading-snug">
                             Disponible cuando haya al menos 8 jugadores
                           </div>

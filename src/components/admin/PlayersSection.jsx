@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
-import { MoreVertical, LogOut, UserRound } from 'lucide-react';
+import { MoreVertical, LogOut, Share2, UserRound } from 'lucide-react';
 import WhatsappIcon from '../WhatsappIcon';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
@@ -268,12 +268,12 @@ const PlayersSection = ({
               onClick={() => setLocalMenuOpen(false)}
             />
             <div
-              className="fixed w-48 border bg-slate-900 shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out"
+              className="fixed w-48 border bg-slate-900/98 shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out"
               style={{
                 top: `${menuPosition.top}px`,
                 left: `${menuPosition.left}px`,
                 opacity: localMenuOpen ? 1 : 0,
-                transform: localMenuOpen ? 'scale(1)' : 'scale(0.95)',
+                transform: localMenuOpen ? `skewX(-${SLOT_SKEW_X}deg) scale(1)` : `skewX(-${SLOT_SKEW_X}deg) scale(0.95)`,
                 borderColor: 'rgba(88, 107, 170, 0.46)',
                 borderRadius: 0,
               }}
@@ -598,78 +598,84 @@ const PlayersSection = ({
               Jugadores
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              {canShareRosterUpdate && (
-                <button
-                  type="button"
-                  className="h-8 px-2.5 inline-flex items-center gap-1.5 text-white/65 border border-white/20 bg-transparent hover:text-white/85 hover:border-white/30 transition-colors text-[11px] font-oswald disabled:opacity-45 disabled:cursor-not-allowed"
-                  onClick={handleShareRosterUpdateClick}
-                  disabled={!canShareRosterUpdate || isSharingUpdate}
-                  title={canShareRosterUpdate ? 'Compartir update por WhatsApp' : 'No disponible'}
-                  aria-label="Compartir update por WhatsApp"
-                >
-                  <WhatsappIcon size={11} style={{ opacity: 0.9 }} />
-                  <span>{isSharingUpdate ? 'Enviando...' : 'Update'}</span>
-                </button>
-              )}
-
-              {isAdmin && isPlayerInMatch && (
-                <div className="relative">
-                  <button
-                    ref={adminMenuButtonRef}
-                    className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white/90 transition-colors"
-                    onClick={() => {
-                      if (adminMenuButtonRef.current) {
-                        const rect = adminMenuButtonRef.current.getBoundingClientRect();
-                        setMenuPosition(getSafeMenuPosition(rect));
-                      }
-                      setMenuOpen(!menuOpen);
-                    }}
-                    aria-label="Más acciones"
-                    type="button"
-                    title="Acciones de administración"
-                  >
-                    <MoreVertical size={20} />
-                  </button>
-                  {menuOpen && ReactDOM.createPortal(
-                    <>
-                      <div
-                        className="fixed inset-0 z-[9998] bg-transparent"
-                        onClick={() => setMenuOpen(false)}
-                      />
-                      <div
-                        className="fixed w-48 border bg-slate-900 shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out"
-                        style={{
-                          top: `${menuPosition.top}px`,
-                          left: `${menuPosition.left}px`,
-                          opacity: menuOpen ? 1 : 0,
-                          transform: menuOpen ? 'scale(1)' : 'scale(0.95)',
-                          borderColor: 'rgba(88, 107, 170, 0.46)',
-                          borderRadius: 0,
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
-                          <button
-                            className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
-                            onClick={() => {
-                              setMenuOpen(false);
-                              setConfirmConfig({ open: true, type: 'abandon' });
-                            }}
-                            type="button"
-                          >
-                            <LogOut size={14} />
-                            <span>Abandonar partido</span>
-                          </button>
-                        </div>
-                      </div>
-                    </>,
-                    document.body,
-                  )}
-                </div>
-              )}
               <div className="font-oswald text-[13px] font-medium text-white/75 whitespace-nowrap">
                 {inviteConfirmedCount}/{inviteRequiredSlots}
               </div>
+              <button
+                type="button"
+                className="h-7 w-7 inline-flex items-center justify-center text-white/55 border border-white/15 bg-transparent hover:text-white/82 hover:border-white/28 transition-colors disabled:opacity-35 disabled:cursor-not-allowed"
+                onClick={() => onShareClick?.()}
+                disabled={!canShareInviteLink}
+                title="Compartir invitación"
+                aria-label="Compartir invitación"
+              >
+                <Share2 size={13} />
+              </button>
+              <button
+                type="button"
+                className="h-7 w-7 inline-flex items-center justify-center text-white/55 border border-white/15 bg-transparent hover:text-white/82 hover:border-white/28 transition-colors disabled:opacity-35 disabled:cursor-not-allowed"
+                onClick={handleShareRosterUpdateClick}
+                disabled={!canShareRosterUpdate || isSharingUpdate}
+                title={canShareRosterUpdate ? 'Compartir update por WhatsApp' : 'Update no disponible'}
+                aria-label="Compartir update por WhatsApp"
+              >
+                <WhatsappIcon size={13} />
+              </button>
+
+              {isAdmin && isPlayerInMatch && (
+                <button
+                  type="button"
+                  ref={adminMenuButtonRef}
+                  className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white/90 transition-colors"
+                  onClick={() => {
+                    if (adminMenuButtonRef.current) {
+                      const rect = adminMenuButtonRef.current.getBoundingClientRect();
+                      setMenuPosition(getSafeMenuPosition(rect));
+                    }
+                    setMenuOpen(!menuOpen);
+                  }}
+                  aria-label="Más acciones"
+                  title="Acciones de administración"
+                >
+                  <MoreVertical size={20} />
+                </button>
+              )}
+
+              {isAdmin && isPlayerInMatch && menuOpen && ReactDOM.createPortal(
+                <>
+                  <div
+                    className="fixed inset-0 z-[9998] bg-transparent"
+                    onClick={() => setMenuOpen(false)}
+                  />
+                  <div
+                    className="fixed w-48 border bg-slate-900/98 shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out"
+                    style={{
+                      top: `${menuPosition.top}px`,
+                      left: `${menuPosition.left}px`,
+                      opacity: menuOpen ? 1 : 0,
+                      transform: menuOpen ? `skewX(-${SLOT_SKEW_X}deg) scale(1)` : `skewX(-${SLOT_SKEW_X}deg) scale(0.95)`,
+                      borderColor: 'rgba(88, 107, 170, 0.46)',
+                      borderRadius: 0,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
+                      <button
+                        className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setConfirmConfig({ open: true, type: 'abandon' });
+                        }}
+                        type="button"
+                      >
+                        <LogOut size={14} />
+                        <span>Abandonar partido</span>
+                      </button>
+                    </div>
+                  </div>
+                </>,
+                document.body,
+              )}
             </div>
           </div>
           <div className="mt-2 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
