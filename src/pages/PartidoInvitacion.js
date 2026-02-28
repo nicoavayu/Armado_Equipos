@@ -96,14 +96,15 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   const isSoftVariant = mode === 'invite';
   const skewX = 6;
   const softCardWrapperStyle = {
-    backgroundColor: '#1B2A56',
-    boxShadow: '0 6px 18px rgba(0,0,0,0.35), 0 0 18px rgba(120,90,255,0.10)',
+    backgroundColor: '#223066',
+    border: '1px solid rgba(120,90,255,0.22)',
+    boxShadow: '0 8px 22px rgba(0,0,0,0.35), 0 0 14px rgba(120,90,255,0.14)',
     transform: `skewX(-${skewX}deg)`,
   };
   const softPlaceholderWrapperStyle = {
-    background: 'rgba(255,255,255,0.02)',
+    background: 'rgba(255,255,255,0.015)',
     border: '1px dashed rgba(255,255,255,0.07)',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
+    boxShadow: '0 4px 10px rgba(0,0,0,0.18)',
     transform: `skewX(-${skewX}deg)`,
   };
   const skewCounterStyle = {
@@ -134,7 +135,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
               return (
                 <div
                   key={`slot-empty-${idx}`}
-                  className="rounded-[11px] min-h-[36px] w-full overflow-hidden"
+                  className="rounded-none min-h-[36px] w-full overflow-hidden"
                   style={softPlaceholderWrapperStyle}
                   aria-hidden="true"
                 >
@@ -163,7 +164,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
             return (
               <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partido}>
                 <div
-                  className="PlayerCard PlayerCard--soft rounded-[11px] min-h-[36px] w-full overflow-hidden transition-all cursor-pointer hover:brightness-105"
+                  className="PlayerCard PlayerCard--soft rounded-none min-h-[36px] w-full overflow-hidden transition-all cursor-pointer hover:brightness-105"
                   style={softCardWrapperStyle}
                 >
                   <div
@@ -282,7 +283,7 @@ function SharedInviteLayout({
           color: var(--btn-text, #fff);
           background: var(--btn);
           border: 2px solid var(--btn-dark);
-          border-radius: 0.75rem;
+          border-radius: 0;
           box-shadow:
             inset 0 1px 0 rgba(255, 255, 255, 0.2),
             0 8px 0 var(--btn-dark),
