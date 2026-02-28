@@ -400,6 +400,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                         setShowInviteModal={adminState.setShowInviteModal}
                         user={user}
                         inputRef={adminState.inputRef}
+                        onShareClick={handleShare}
                       />
                     )}
 
@@ -499,7 +500,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                     {isAdmin && !adminState.pendingInvitation && activeTab === 'jugadores' && (
                       <div className="w-full max-w-full mx-auto mt-3 mb-8 text-center">
                         <button
-                          className="w-full bg-primary text-white font-oswald text-[18px] px-4 py-3 rounded-xl hover:brightness-110 transition-all disabled:opacity-35 disabled:cursor-not-allowed shadow-[0_8px_32px_rgba(129,120,229,0.3)] border border-white/20 active:scale-95 tracking-[0.01em] font-semibold"
+                          className="w-full h-12 bg-[#644dff] border border-[#4836bb] text-white font-oswald text-[18px] px-4 rounded-[10px] hover:brightness-105 transition-all disabled:opacity-45 disabled:cursor-not-allowed tracking-[0.01em] font-semibold"
                           onClick={handleArmarEquipos}
                           disabled={jugadores.length < 8}
                           title={jugadores.length < 8 ? 'Necesitás al menos 8 jugadores para armar los equipos.' : ''}

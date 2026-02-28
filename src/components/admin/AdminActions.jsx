@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import LoadingSpinner from '../LoadingSpinner';
+import WhatsappIcon from '../WhatsappIcon';
+
+const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
+const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
 
 /**
  * Admin action buttons component (add player, invite friends, toggle settings)
@@ -18,6 +22,7 @@ const AdminActions = ({
   setShowInviteModal,
   user,
   inputRef,
+  onShareClick,
 }) => {
   const [isManualOpen, setIsManualOpen] = useState(Boolean(String(nuevoNombre || '').trim()));
   const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
@@ -35,13 +40,59 @@ const AdminActions = ({
 
   return (
     <>
+      <style>{`
+        .invite-cta-btn {
+          appearance: none;
+          cursor: pointer;
+          width: 100%;
+          max-width: none;
+          min-width: 0;
+          height: 48px;
+          padding-inline: 14px;
+          display: flex;
+          flex: 1 1 0;
+          align-items: center;
+          justify-content: center;
+          gap: 0.55rem;
+          font-size: 0.94rem;
+          font-weight: 700;
+          letter-spacing: 0.045em;
+          color: var(--btn-text, #fff);
+          background: var(--btn);
+          border: 1.5px solid var(--btn-dark);
+          border-radius: 0;
+          box-shadow: var(--btn-shadow, none);
+          transform: skew(-6deg);
+          transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
+          backface-visibility: hidden;
+          white-space: nowrap;
+        }
+        .invite-cta-btn > span {
+          transform: skew(6deg);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .invite-cta-btn:hover:not(:disabled) {
+          filter: brightness(1.08);
+        }
+        .invite-cta-btn:active:not(:disabled) {
+          transform: skew(-6deg);
+          opacity: 0.92;
+        }
+        .invite-cta-btn:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+      `}</style>
       {/* Add player section */}
       {!pendingInvitation && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 w-full max-w-full mx-auto box-border mb-0 mt-0">
+        <div className="w-full max-w-full mx-auto box-border mb-0 mt-0">
           <div className="flex flex-col gap-2.5 w-full max-w-full box-border m-0 p-0">
             <div className="flex items-center gap-2 w-full">
               <button
-                className="flex-[1.15] h-11 min-h-[44px] text-[16px] rounded-[10px] bg-[#128BE9] text-white font-oswald font-semibold tracking-[0.01em] cursor-pointer transition-all flex items-center justify-center px-3 whitespace-nowrap hover:brightness-110 shadow-[0_4px_14px_rgba(18,139,233,0.3)] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="invite-cta-btn flex-[1.15]"
+                style={{ '--btn': INVITE_ACCEPT_BUTTON_VIOLET, '--btn-dark': INVITE_ACCEPT_BUTTON_VIOLET_DARK, '--btn-text': '#ffffff' }}
                 type="button"
                 onClick={() => {
                   setShowInviteModal(true);
@@ -49,11 +100,12 @@ const AdminActions = ({
                 disabled={!partidoActual?.id || isRosterFull}
                 aria-label="Invitar amigos al partido"
               >
-                Invitar amigos
+                <span>Invitar amigos</span>
               </button>
 
               <button
-                className="flex-1 h-11 min-h-[44px] text-[15px] rounded-[10px] border border-[#128BE9]/35 bg-[#128BE9]/12 text-[#9fd7ff] font-oswald font-semibold tracking-[0.005em] cursor-pointer transition-all flex items-center justify-center px-2.5 whitespace-nowrap hover:bg-[#128BE9]/22 hover:border-[#128BE9]/55 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="invite-cta-btn flex-1"
+                style={{ '--btn': 'rgba(23, 35, 74, 0.72)', '--btn-dark': 'rgba(88, 107, 170, 0.46)', '--btn-text': 'rgba(242, 246, 255, 0.9)', '--btn-shadow': '0 6px 16px rgba(0,0,0,0.25)' }}
                 type="button"
                 onClick={() => {
                   setIsManualOpen((prev) => {
@@ -68,9 +120,24 @@ const AdminActions = ({
                 aria-expanded={isManualOpen}
                 aria-label={isManualOpen ? 'Ocultar agregar manual' : 'Mostrar agregar manual'}
               >
-                {isManualOpen ? 'Ocultar manual' : 'Agregar manual'}
+                <span>Agregar manual</span>
               </button>
             </div>
+
+            {typeof onShareClick === 'function' && (
+              <div className="w-full flex items-center justify-end">
+                <button
+                  className="h-8 px-2.5 inline-flex items-center gap-1.5 text-white/65 border border-white/20 bg-transparent hover:text-white/85 hover:border-white/30 transition-colors text-[11px] font-oswald"
+                  type="button"
+                  onClick={() => onShareClick?.()}
+                  aria-label="Compartir link por WhatsApp"
+                  title="Compartir link por WhatsApp"
+                >
+                  <WhatsappIcon size={12} />
+                  <span>Compartir link</span>
+                </button>
+              </div>
+            )}
 
             {/* Manual input row */}
             <div className={`overflow-hidden transition-all duration-250 ${isManualOpen ? 'max-h-[70px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
@@ -95,12 +162,13 @@ const AdminActions = ({
                   }}
                 />
                 <button
-                  className="shrink-0 h-11 min-h-[44px] px-4 text-[16px] rounded-[10px] border border-[#128BE9]/30 bg-[#128BE9]/10 text-[#128BE9] font-oswald font-semibold tracking-[0.01em] cursor-pointer transition-all flex items-center justify-center hover:bg-[#128BE9]/20 hover:border-[#128BE9]/50 active:scale-95 disabled:opacity-30"
+                  className="invite-cta-btn shrink-0 !w-auto px-4"
+                  style={{ '--btn': 'rgba(23, 35, 74, 0.72)', '--btn-dark': 'rgba(88, 107, 170, 0.46)', '--btn-text': 'rgba(242, 246, 255, 0.9)', '--btn-shadow': '0 6px 16px rgba(0,0,0,0.25)' }}
                   type="button"
                   onClick={agregarJugador}
                   disabled={!nuevoNombre?.trim() || loading || isClosing || isRosterFull}
                 >
-                  {loading ? <LoadingSpinner size="small" /> : 'Agregar'}
+                  <span>{loading ? <LoadingSpinner size="small" /> : 'Agregar'}</span>
                 </button>
               </div>
             </div>

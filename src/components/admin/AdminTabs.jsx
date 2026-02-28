@@ -7,26 +7,26 @@ import React from 'react';
 const AdminTabs = ({ activeTab, onTabChange, pendingCount = 0 }) => {
     return (
         <div className="w-full max-w-full mx-auto mb-3">
-            <div className="flex gap-2 bg-slate-900/50 border border-slate-800 rounded-xl p-1">
+            <div className="flex gap-2 bg-white/[0.05] border border-white/10 rounded-xl p-1">
                 <button
-                    className={`flex-1 py-2.5 px-4 rounded-lg font-bebas text-sm tracking-wider transition-all ${activeTab === 'jugadores'
-                            ? 'bg-primary text-white shadow-lg'
-                            : 'text-white/60 hover:text-white/80 hover:bg-slate-800/50'
+                    className={`flex-1 h-11 px-4 rounded-lg font-bebas text-sm tracking-wider transition-colors ${activeTab === 'jugadores'
+                            ? 'bg-white/[0.14] text-white'
+                            : 'text-white/55 hover:text-white/75 hover:bg-white/[0.06]'
                         }`}
                     onClick={() => onTabChange('jugadores')}
                 >
                     JUGADORES
                 </button>
                 <button
-                    className={`flex-1 py-2.5 px-4 rounded-lg font-bebas text-sm tracking-wider transition-all relative ${activeTab === 'solicitudes'
-                            ? 'bg-primary text-white shadow-lg'
-                            : 'text-white/60 hover:text-white/80 hover:bg-slate-800/50'
+                    className={`flex-1 h-11 px-4 rounded-lg font-bebas text-sm tracking-wider transition-colors relative ${activeTab === 'solicitudes'
+                            ? 'bg-white/[0.14] text-white'
+                            : 'text-white/55 hover:text-white/75 hover:bg-white/[0.06]'
                         }`}
                     onClick={() => onTabChange('solicitudes')}
                 >
                     SOLICITUDES
                     {pendingCount > 0 && (
-                        <span className="ml-1.5 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-[#128BE9] text-white text-[10px] font-bold rounded-full border border-white/25 shadow-[0_6px_16px_rgba(18,139,233,0.35)]">
+                        <span className="ml-1.5 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-white/20 text-white text-[10px] font-bold rounded-full border border-white/25">
                             {pendingCount}
                         </span>
                     )}
