@@ -805,14 +805,14 @@ export default function ArmarEquiposView({
           width: 100%;
           max-width: none;
           min-width: 0;
-          height: 54px;
-          padding-inline: 16px;
+          height: 60px;
+          padding-inline: 18px;
           display: flex;
           flex: 1 1 0;
           align-items: center;
           justify-content: center;
           gap: 0.55rem;
-          font-size: 1rem;
+          font-size: 1.08rem;
           font-weight: 700;
           letter-spacing: 0.045em;
           color: var(--btn-text, #fff);
@@ -930,10 +930,7 @@ export default function ArmarEquiposView({
                   style={{ width: `${progressPct}%`, backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, filter: 'saturate(1.05)' }}
                 />
               </div>
-              <div className="text-[12px] text-white/60 font-oswald font-normal tracking-normal mt-2">
-                Votaron: {votantesConNombres.length}/{jugadores.length}
-              </div>
-              <div className="text-[11px] text-white/50 font-oswald font-normal tracking-normal mt-0.5 leading-snug">
+              <div className="text-[11px] text-white/50 font-oswald font-normal tracking-normal mt-2 leading-snug">
                 Esperando votos para armar los equipos
               </div>
             </div>
