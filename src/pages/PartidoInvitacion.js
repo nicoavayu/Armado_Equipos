@@ -122,12 +122,12 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
       style={isSoftVariant ? invitePlayersBlockStyle : undefined}
     >
       <div className={`px-1 ${isSoftVariant ? 'mb-6' : 'mb-3 mt-1'}`}>
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex items-end gap-2">
           <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
             Jugadores
           </div>
           <div className="font-oswald text-[13px] font-medium text-white/75 whitespace-nowrap">
-            {confirmedCount} / {requiredSlots} confirmados
+            ({confirmedCount} de {requiredSlots})
           </div>
         </div>
         <div className="mt-3 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
@@ -339,7 +339,7 @@ function SharedInviteLayout({
 
         <main className="pt-0">
           <div className="main-content">
-            <div className="w-full flex flex-col gap-3 overflow-x-visible pt-8">
+            <div className="w-full flex flex-col gap-3 overflow-x-visible pt-7">
               <InlineNotice
                 type={inlineNotice?.type}
                 message={inlineNotice?.message}
