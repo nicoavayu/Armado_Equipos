@@ -3,13 +3,23 @@ import ReactDOM from 'react-dom';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
-import { MoreVertical, LogOut, Share2, UserRound } from 'lucide-react';
+import { MoreVertical, LogOut, Share2 } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
 const SLOT_SKEW_X = 6;
-const CARD_STROKE_BLUE = '#29aaff';
+const HEADER_ICON_GLOW = 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.5))';
+const PLACEHOLDER_NUMBER_STYLE = {
+  color: 'transparent',
+  WebkitTextStroke: '2px rgba(104, 154, 255, 0.5)',
+  textShadow: '-0.6px -0.6px 0 rgba(255,255,255,0.11), 0.8px 0.8px 0 rgba(0,0,0,0.34)',
+  opacity: 0.56,
+  fontFamily: '"Roboto Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+  fontWeight: 700,
+  letterSpacing: '0.02em',
+  lineHeight: 1,
+};
 
 // Helper function to get initials from name
 function getInitials(name) {
@@ -142,6 +152,7 @@ const PlayersSection = ({
     ? Math.max(0, Math.min((inviteConfirmedCount / inviteRequiredSlots) * 100, 100))
     : 0;
   const inviteSlotItems = Array.from({ length: inviteRequiredSlots }, (_, idx) => jugadores?.[idx] || null);
+  const missingSlotsCount = Math.max(0, inviteRequiredSlots - inviteConfirmedCount);
   const inviteButtonPalette = {
     '--btn': INVITE_ACCEPT_BUTTON_VIOLET,
     '--btn-dark': INVITE_ACCEPT_BUTTON_VIOLET_DARK,
@@ -168,6 +179,7 @@ const PlayersSection = ({
   const inviteSkewCounterStyle = {
     transform: `skewX(${SLOT_SKEW_X}deg)`,
   };
+  const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-white/72 hover:text-white/90 transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
 
   useEffect(() => () => {
     if (completionAnimTimeoutRef.current) {
@@ -300,59 +312,66 @@ const PlayersSection = ({
       </div>
 
       <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border px-1">
-        {inviteSlotItems.map((player, idx) => {
-          if (!player) {
-            return (
-              <div
-                key={`slot-empty-${idx}`}
-                className="rounded-none h-12 w-full overflow-hidden"
-                style={inviteSoftPlaceholderWrapperStyle}
-                aria-hidden="true"
-              >
+        {(() => {
+          let slotNumber = missingSlotsCount;
+          return inviteSlotItems.map((player, idx) => {
+            if (!player) {
+              const visibleNumber = slotNumber > 0 ? slotNumber : Math.max(1, inviteRequiredSlots - idx);
+              slotNumber = Math.max(0, slotNumber - 1);
+              return (
                 <div
-                  className="h-full w-full p-2 flex items-center justify-center"
-                  style={inviteSkewCounterStyle}
+                  key={`slot-empty-${idx}`}
+                  className="rounded-none h-12 w-full overflow-hidden"
+                  style={inviteSoftPlaceholderWrapperStyle}
+                  aria-hidden="true"
                 >
-                  <UserRound size={14} className="text-white/[0.13]" />
+                  <div
+                    className="h-full w-full p-2 flex items-center justify-center"
+                    style={inviteSkewCounterStyle}
+                  >
+                    <span className="select-none pointer-events-none text-[28px]" style={PLACEHOLDER_NUMBER_STYLE}>
+                      {visibleNumber}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          }
+              );
+            }
 
-          return (
-            <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partidoActual}>
-              <div
-                className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-visible transition-all cursor-pointer hover:brightness-105"
-                style={inviteSoftCardWrapperStyle}
-              >
+            return (
+              <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partidoActual}>
                 <div
-                  className="h-full w-full p-2 flex items-center gap-1.5"
-                  style={inviteSkewCounterStyle}
+                  className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-visible transition-all cursor-pointer hover:brightness-105"
+                  style={inviteSoftCardWrapperStyle}
                 >
-                  {player.foto_url || player.avatar_url ? (
-                    <img
-                      src={player.foto_url || player.avatar_url}
-                      alt={player.nombre}
-                      className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
-                      {getInitials(player.nombre)}
-                    </div>
-                  )}
-                  <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 truncate leading-tight">
-                    {player.nombre || 'Jugador'}
-                  </span>
-                  {partidoActual?.creado_por === player.usuario_id && (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
-                      <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
-                    </svg>
-                  )}
+                  <div
+                    className="h-full w-full p-2 flex items-center gap-1.5"
+                    style={inviteSkewCounterStyle}
+                  >
+                    {player.foto_url || player.avatar_url ? (
+                      <img
+                        src={player.foto_url || player.avatar_url}
+                        alt={player.nombre}
+                        className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
+                        {getInitials(player.nombre)}
+                      </div>
+                    )}
+                    <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 truncate leading-tight">
+                      {player.nombre || 'Jugador'}
+                    </span>
+                    {partidoActual?.creado_por === player.usuario_id && (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
+                        <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
+                      </svg>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </PlayerCardTrigger>
-          );
-        })}
+              </PlayerCardTrigger>
+            );
+          });
+        })()}
       </div>
     </div>
   );
@@ -566,28 +585,25 @@ const PlayersSection = ({
         <div className="px-1 mb-6">
           <div className="flex items-baseline justify-between gap-2">
             <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
-              Jugadores ({inviteConfirmedCount}/{inviteRequiredSlots})
+              Jugadores
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
-                className="h-7 w-7 inline-flex items-center justify-center text-white border border-white/72 bg-transparent transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
-                style={{ transform: 'skewX(-6deg)', borderRadius: 0 }}
+                className={headerActionIconButtonClass}
                 onClick={() => onShareClick?.()}
                 disabled={!canShareInviteLink}
                 title="Compartir invitación"
                 aria-label="Compartir invitación"
               >
-                <span className="inline-flex items-center justify-center" style={{ transform: 'skewX(6deg)' }}>
-                  <Share2 size={12} style={{ color: CARD_STROKE_BLUE, filter: 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.78))' }} />
-                </span>
+                <Share2 size={14} style={{ filter: HEADER_ICON_GLOW }} />
               </button>
 
               {isAdmin && isPlayerInMatch && (
                 <button
                   type="button"
                   ref={adminMenuButtonRef}
-                  className="ml-1 w-8 h-8 flex items-center justify-center text-white/70 hover:text-white/90 transition-colors"
+                  className={headerActionIconButtonClass}
                   onClick={() => {
                     if (adminMenuButtonRef.current) {
                       const rect = adminMenuButtonRef.current.getBoundingClientRect();
@@ -598,7 +614,7 @@ const PlayersSection = ({
                   aria-label="Más acciones"
                   title="Acciones de administración"
                 >
-                  <MoreVertical size={20} />
+                  <MoreVertical size={16} style={{ filter: HEADER_ICON_GLOW }} />
                 </button>
               )}
 
@@ -653,27 +669,34 @@ const PlayersSection = ({
         </div>
 
         <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border px-1">
-          {inviteSlotItems.map((player, idx) => {
-            if (!player) {
-              return (
-                <div
-                  key={`admin-slot-empty-${idx}`}
-                  className="rounded-none h-12 w-full overflow-hidden"
-                  style={inviteSoftPlaceholderWrapperStyle}
-                  aria-hidden="true"
-                >
+          {(() => {
+            let slotNumber = missingSlotsCount;
+            return inviteSlotItems.map((player, idx) => {
+              if (!player) {
+                const visibleNumber = slotNumber > 0 ? slotNumber : Math.max(1, inviteRequiredSlots - idx);
+                slotNumber = Math.max(0, slotNumber - 1);
+                return (
                   <div
-                    className="h-full w-full p-2 flex items-center justify-center"
-                    style={inviteSkewCounterStyle}
+                    key={`admin-slot-empty-${idx}`}
+                    className="rounded-none h-12 w-full overflow-hidden"
+                    style={inviteSoftPlaceholderWrapperStyle}
+                    aria-hidden="true"
                   >
-                    <UserRound size={14} className="text-white/[0.13]" />
+                    <div
+                      className="h-full w-full p-2 flex items-center justify-center"
+                      style={inviteSkewCounterStyle}
+                    >
+                      <span className="select-none pointer-events-none text-[28px]" style={PLACEHOLDER_NUMBER_STYLE}>
+                        {visibleNumber}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              );
-            }
+                );
+              }
 
-            return renderPlayerCard(player);
-          })}
+              return renderPlayerCard(player);
+            });
+          })()}
         </div>
       </div>
     </div>
