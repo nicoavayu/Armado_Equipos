@@ -2,9 +2,22 @@ function isSafeInternalPath(path) {
   return typeof path === 'string' && path.startsWith('/') && !path.startsWith('//');
 }
 
+function hasInviteCode(path) {
+  if (!isSafeInternalPath(path)) return false;
+  try {
+    const parsed = new URL(path, 'http://localhost');
+    if (!/^\/partido\/\d+\/invitacion$/.test(parsed.pathname)) return false;
+    const code = parsed.searchParams.get('codigo') || parsed.searchParams.get('c');
+    return Boolean(String(code || '').trim());
+  } catch (_error) {
+    return false;
+  }
+}
+
 function isInvitePath(path) {
   if (!isSafeInternalPath(path)) return false;
-  return /^\/partido\/\d+\/invitacion(?:\?.*)?$/.test(path) || /^\/i\/[^/]+(?:\?.*)?$/.test(path);
+  if (/^\/i\/[^/]+(?:\?.*)?$/.test(path)) return true;
+  return hasInviteCode(path);
 }
 
 export function resolveMatchInviteRoute(notification) {
@@ -26,8 +39,8 @@ export function resolveMatchInviteRoute(notification) {
 
   const inviteCodeRaw = data?.codigo ?? data?.matchCode ?? data?.code ?? null;
   const inviteCode = inviteCodeRaw == null ? '' : String(inviteCodeRaw).trim();
-  const query = inviteCode ? `?codigo=${encodeURIComponent(inviteCode)}` : '';
+  if (!inviteCode) return null;
+  const query = `?codigo=${encodeURIComponent(inviteCode)}`;
 
   return `/partido/${matchId}/invitacion${query}`;
 }
-

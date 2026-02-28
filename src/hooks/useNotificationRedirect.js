@@ -34,7 +34,12 @@ export const useNotificationRedirect = () => {
         ...notification,
         type: 'match_invite',
       });
-      if (inviteRoute) navigate(inviteRoute);
+      if (inviteRoute) {
+        navigate(inviteRoute);
+      } else if (notification?.data?.matchId || notification?.data?.partido_id) {
+        const fallbackMatchId = notification?.data?.matchId || notification?.data?.partido_id;
+        navigate(`/partido-publico/${fallbackMatchId}`);
+      }
     } else if (notification.data?.type === 'survey_results_ready') {
       const id = toBigIntId(notification.data?.matchId);
       const url = notification.data?.resultsUrl || (id != null ? `/resultados/${id}` : null);

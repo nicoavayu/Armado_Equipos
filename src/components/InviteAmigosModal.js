@@ -171,7 +171,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
           .eq('type', 'match_invite')
           .eq('match_id_text', partidoActual.id.toString())
           .eq('read', false) // Only block if UNREAD
-          .single();
+          .maybeSingle();
 
         if (extError && extError.code === '42P01') {
           // View doesn't exist, skip duplicate check and allow invitation
