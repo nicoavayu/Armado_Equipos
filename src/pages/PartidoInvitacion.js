@@ -187,14 +187,14 @@ function SharedInviteLayout({
   const isPendingSync = joinStatus === 'approved_pending_sync';
   const isSending = submitting && joinStatus === 'none';
   const rejectButtonPalette = {
-    '--btn': '#e05a74',
-    '--btn-dark': '#a33b52',
-    '--btn-glow': 'rgba(224, 90, 116, 0.36)',
+    '--btn': '#e34d63',
+    '--btn-dark': '#a93447',
+    '--btn-glow': 'rgba(227, 77, 99, 0.34)',
   };
   const acceptButtonPalette = {
     '--btn': '#644dff',
     '--btn-dark': '#4836bb',
-    '--btn-glow': '#654dff63',
+    '--btn-glow': 'rgba(101, 77, 255, 0.38)',
   };
 
   return (
@@ -202,8 +202,8 @@ function SharedInviteLayout({
       <style>{`
         .invite-cta-btn {
           cursor: pointer;
-          width: 184px;
-          max-width: 184px;
+          width: 100%;
+          max-width: none;
           min-width: 0;
           height: 48px;
           display: flex;
@@ -218,18 +218,28 @@ function SharedInviteLayout({
           background: var(--btn);
           border: 2px solid var(--btn-dark);
           border-radius: 0.75rem;
-          box-shadow: 0 8px 0 var(--btn-dark);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.2),
+            0 8px 0 var(--btn-dark),
+            0 12px 20px -8px var(--btn-glow);
           transform: skew(-10deg);
           transition: all 0.1s ease;
-          filter: drop-shadow(0 15px 20px var(--btn-glow));
+          backface-visibility: hidden;
+          white-space: nowrap;
         }
         .invite-cta-btn > span {
           transform: skew(10deg);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
         .invite-cta-btn:active:not(:disabled) {
           letter-spacing: 0px;
           transform: skew(-10deg) translateY(8px);
-          box-shadow: 0 0 0 var(--btn-glow);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.2),
+            0 0 0 var(--btn-dark),
+            0 8px 12px -8px var(--btn-glow);
         }
         .invite-cta-btn:disabled {
           opacity: 0.55;
@@ -256,7 +266,7 @@ function SharedInviteLayout({
 
         <main className="pt-0">
           <div className="main-content">
-            <div className="w-full flex flex-col gap-3 overflow-x-hidden pt-8">
+            <div className="w-full flex flex-col gap-3 overflow-x-visible pt-8">
               <InlineNotice
                 type={inlineNotice?.type}
                 message={inlineNotice?.message}
@@ -322,7 +332,7 @@ function SharedInviteLayout({
                     )}
                   </div>
                 ) : (
-                  <div className="flex flex-row gap-3 w-full justify-center items-stretch">
+                  <div className="flex flex-row gap-3 w-full justify-center items-stretch px-2 sm:px-0 overflow-visible">
                     <button
                       onClick={onNavigateHome}
                       className="invite-cta-btn"
