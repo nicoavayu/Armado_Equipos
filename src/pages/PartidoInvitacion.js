@@ -111,7 +111,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   };
   const softPlaceholderWrapperStyle = {
     background: 'rgba(255,255,255,0.015)',
-    border: '1px dashed rgba(255,255,255,0.07)',
+    border: '1px dashed rgba(255,255,255,0.055)',
     boxShadow: '0 3px 8px rgba(0,0,0,0.14)',
     transform: `skewX(-${skewX}deg)`,
   };
@@ -133,7 +133,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
             {confirmedCount}/{requiredSlots}
           </div>
         </div>
-        <div className="mt-3 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
+        <div className="mt-2 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
           <div
             className="h-full rounded-[6px] transition-all duration-200"
             style={{ width: `${progressPct}%`, backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET }}
@@ -156,7 +156,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
                     className="h-full w-full p-2 flex items-center justify-center"
                     style={skewCounterStyle}
                   >
-                    <UserRound size={14} className="text-white/[0.15]" />
+                    <UserRound size={14} className="text-white/[0.13]" />
                   </div>
                 </div>
               );
@@ -265,9 +265,10 @@ function SharedInviteLayout({
   const isSending = submitting && joinStatus === 'none';
   const rejectButtonPalette = {
     '--btn': 'rgba(23, 35, 74, 0.72)',
-    '--btn-dark': 'rgba(88, 107, 170, 0.52)',
+    '--btn-dark': 'rgba(88, 107, 170, 0.46)',
     '--btn-glow': 'rgba(88, 107, 170, 0.18)',
     '--btn-text': 'rgba(242, 246, 255, 0.9)',
+    '--btn-shadow': '0 6px 16px rgba(0,0,0,0.25)',
   };
   const acceptButtonPalette = {
     '--btn': INVITE_ACCEPT_BUTTON_VIOLET,
@@ -298,7 +299,7 @@ function SharedInviteLayout({
           background: var(--btn);
           border: 1.5px solid var(--btn-dark);
           border-radius: 0;
-          box-shadow: none;
+          box-shadow: var(--btn-shadow, none);
           transform: skew(-6deg);
           transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
           backface-visibility: hidden;
@@ -342,7 +343,7 @@ function SharedInviteLayout({
 
         <main className="pt-0">
           <div className="main-content">
-            <div className="w-full flex flex-col gap-3 overflow-x-visible pt-6">
+            <div className="w-full flex flex-col gap-3 overflow-x-visible pt-4">
               <InlineNotice
                 type={inlineNotice?.type}
                 message={inlineNotice?.message}
