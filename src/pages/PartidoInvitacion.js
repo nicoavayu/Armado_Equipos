@@ -94,10 +94,21 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
     : 0;
   const slotItems = Array.from({ length: requiredSlots }, (_, idx) => jugadores?.[idx] || null);
   const isSoftVariant = mode === 'invite';
-  const softCardStyle = {
+  const skewX = 6;
+  const softCardWrapperStyle = {
     backgroundColor: '#17254E',
     border: '1px solid rgba(88, 122, 255, 0.34)',
-    boxShadow: '0 6px 18px rgba(0,0,0,0.35), 0 0 10px rgba(120, 90, 255, 0.10)',
+    boxShadow: '0 6px 18px rgba(0,0,0,0.35), 0 0 18px rgba(120,90,255,0.10)',
+    transform: `skewX(-${skewX}deg)`,
+  };
+  const softPlaceholderWrapperStyle = {
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px dashed rgba(255,255,255,0.10)',
+    boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
+    transform: `skewX(-${skewX}deg)`,
+  };
+  const skewCounterStyle = {
+    transform: `skewX(${skewX}deg)`,
   };
 
   return (
@@ -120,6 +131,24 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
       <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border">
         {slotItems.map((player, idx) => {
           if (!player) {
+            if (isSoftVariant) {
+              return (
+                <div
+                  key={`slot-empty-${idx}`}
+                  className="rounded-lg min-h-[36px] w-full overflow-hidden"
+                  style={softPlaceholderWrapperStyle}
+                  aria-hidden="true"
+                >
+                  <div
+                    className="h-full min-h-[36px] w-full p-2 flex items-center justify-center"
+                    style={skewCounterStyle}
+                  >
+                    <UserRound size={16} className="text-white/20" />
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div
                 key={`slot-empty-${idx}`}
@@ -131,11 +160,46 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
             );
           }
 
+          if (isSoftVariant) {
+            return (
+              <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partido}>
+                <div
+                  className="PlayerCard PlayerCard--soft rounded-lg min-h-[36px] w-full overflow-hidden transition-all cursor-pointer hover:brightness-105"
+                  style={softCardWrapperStyle}
+                >
+                  <div
+                    className="h-full min-h-[36px] w-full p-2 flex items-center gap-1.5"
+                    style={skewCounterStyle}
+                  >
+                    {player.foto_url || player.avatar_url ? (
+                      <img
+                        src={player.foto_url || player.avatar_url}
+                        alt={player.nombre}
+                        className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
+                        {getInitials(player.nombre)}
+                      </div>
+                    )}
+                    <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 break-words leading-tight">
+                      {player.nombre || 'Jugador'}
+                    </span>
+                    {partido?.creado_por === player.usuario_id && (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
+                        <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              </PlayerCardTrigger>
+            );
+          }
+
           return (
             <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partido}>
               <div
-                className={`PlayerCard ${isSoftVariant ? 'PlayerCard--soft flex items-center gap-1.5 rounded-lg p-2 transition-all min-h-[36px] w-full cursor-pointer hover:brightness-105' : 'flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 transition-all min-h-[36px] w-full hover:bg-slate-800 cursor-pointer'}`}
-                style={isSoftVariant ? softCardStyle : undefined}
+                className="PlayerCard flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 transition-all min-h-[36px] w-full hover:bg-slate-800 cursor-pointer"
               >
                 {player.foto_url || player.avatar_url ? (
                   <img
