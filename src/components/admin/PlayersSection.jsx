@@ -9,7 +9,8 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
 const SLOT_SKEW_X = 6;
-const HEADER_ICON_GLOW = 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.5))';
+const HEADER_ICON_COLOR = '#29aaff';
+const HEADER_ICON_GLOW = 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.78))';
 const PLACEHOLDER_NUMBER_STYLE = {
   color: 'transparent',
   WebkitTextStroke: '2px rgba(104, 154, 255, 0.5)',
@@ -179,7 +180,7 @@ const PlayersSection = ({
   const inviteSkewCounterStyle = {
     transform: `skewX(${SLOT_SKEW_X}deg)`,
   };
-  const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-white/72 hover:text-white/90 transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
+  const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
 
   useEffect(() => () => {
     if (completionAnimTimeoutRef.current) {
@@ -428,8 +429,7 @@ const PlayersSection = ({
 
             {isAdmin && j.usuario_id !== user?.id ? (
               <button
-                className="w-5 h-5 text-white/70 border border-white/25 cursor-pointer transition-all flex items-center justify-center shrink-0 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ transform: `skewX(-${SLOT_SKEW_X}deg)` }}
+                className="w-5 h-5 bg-transparent border-0 p-0 cursor-pointer transition-colors inline-flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={(e) => {
                   e.stopPropagation();
                   setPlayerToRemove({ id: j.id, nombre: j.nombre, isOwnPlayer: false });
@@ -439,7 +439,12 @@ const PlayersSection = ({
                 disabled={isClosing}
                 title="Eliminar jugador"
               >
-                <span style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>×</span>
+                <span
+                  className="leading-none text-[15px]"
+                  style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }}
+                >
+                  ×
+                </span>
               </button>
             ) : null}
           </div>
@@ -596,7 +601,7 @@ const PlayersSection = ({
                 title="Compartir invitación"
                 aria-label="Compartir invitación"
               >
-                <Share2 size={14} style={{ filter: HEADER_ICON_GLOW }} />
+                <Share2 size={14} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
               </button>
 
               {isAdmin && isPlayerInMatch && (
@@ -614,7 +619,7 @@ const PlayersSection = ({
                   aria-label="Más acciones"
                   title="Acciones de administración"
                 >
-                  <MoreVertical size={16} style={{ filter: HEADER_ICON_GLOW }} />
+                  <MoreVertical size={16} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
                 </button>
               )}
 
