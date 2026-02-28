@@ -97,8 +97,8 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   const skewX = 6;
   const softCardWrapperStyle = {
     backgroundColor: '#223066',
-    border: '1px solid rgba(120,90,255,0.22)',
-    boxShadow: '0 8px 22px rgba(0,0,0,0.35), 0 0 14px rgba(120,90,255,0.14)',
+    border: '1px solid rgba(117,146,255,0.24)',
+    boxShadow: '0 8px 22px rgba(0,0,0,0.35), 0 0 18px rgba(112,138,255,0.18)',
     transform: `skewX(-${skewX}deg)`,
   };
   const softPlaceholderWrapperStyle = {
@@ -114,13 +114,15 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   return (
     <div className={isSoftVariant ? 'w-full box-border' : 'w-full bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px]'}>
       <div className={`px-1 ${isSoftVariant ? 'mb-6' : 'mb-3 mt-1'}`}>
-        <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
-          Jugadores
+        <div className="flex items-end justify-between gap-3">
+          <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
+            Jugadores
+          </div>
+          <div className="font-oswald text-[13px] font-medium text-white/75 whitespace-nowrap">
+            {confirmedCount} / {requiredSlots} confirmados
+          </div>
         </div>
-        <div className="mt-1 font-oswald text-sm font-medium text-white/75">
-          {confirmedCount} / {requiredSlots} confirmados
-        </div>
-        <div className="mt-4 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
+        <div className="mt-3 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
           <div
             className="h-full rounded-[6px] bg-gradient-to-r from-primary/85 to-indigo-400/85 transition-all duration-200"
             style={{ width: `${progressPct}%` }}
@@ -267,6 +269,7 @@ function SharedInviteLayout({
     <div className="min-h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient">
       <style>{`
         .invite-cta-btn {
+          appearance: none;
           cursor: pointer;
           width: 100%;
           max-width: none;
@@ -277,35 +280,31 @@ function SharedInviteLayout({
           align-items: center;
           justify-content: center;
           gap: 1rem;
-          font-size: 1.125em;
-          font-weight: 800;
-          letter-spacing: 2px;
+          font-size: 0.94rem;
+          font-weight: 700;
+          letter-spacing: 0.045em;
           color: var(--btn-text, #fff);
           background: var(--btn);
-          border: 2px solid var(--btn-dark);
+          border: 1.5px solid var(--btn-dark);
           border-radius: 0;
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.2),
-            0 8px 0 var(--btn-dark),
-            0 12px 20px -8px var(--btn-glow);
-          transform: skew(-10deg);
-          transition: all 0.1s ease;
+          box-shadow: none;
+          transform: skew(-6deg);
+          transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
           backface-visibility: hidden;
           white-space: nowrap;
         }
         .invite-cta-btn > span {
-          transform: skew(10deg);
+          transform: skew(6deg);
           display: inline-flex;
           align-items: center;
           justify-content: center;
         }
+        .invite-cta-btn:hover:not(:disabled) {
+          filter: brightness(1.08);
+        }
         .invite-cta-btn:active:not(:disabled) {
-          letter-spacing: 0px;
-          transform: skew(-10deg) translateY(8px);
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.2),
-            0 0 0 var(--btn-dark),
-            0 8px 12px -8px var(--btn-glow);
+          transform: skew(-6deg);
+          opacity: 0.92;
         }
         .invite-cta-btn:disabled {
           opacity: 0.55;
