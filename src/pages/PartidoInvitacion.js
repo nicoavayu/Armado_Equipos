@@ -186,9 +186,56 @@ function SharedInviteLayout({
   const isApproved = joinStatus === 'approved';
   const isPendingSync = joinStatus === 'approved_pending_sync';
   const isSending = submitting && joinStatus === 'none';
+  const rejectButtonPalette = {
+    '--btn': '#e05a74',
+    '--btn-dark': '#a33b52',
+    '--btn-glow': 'rgba(224, 90, 116, 0.36)',
+  };
+  const acceptButtonPalette = {
+    '--btn': '#644dff',
+    '--btn-dark': '#4836bb',
+    '--btn-glow': '#654dff63',
+  };
 
   return (
     <div className="min-h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient">
+      <style>{`
+        .invite-cta-btn {
+          cursor: pointer;
+          width: 184px;
+          max-width: 184px;
+          min-width: 0;
+          height: 48px;
+          display: flex;
+          flex: 1 1 0;
+          align-items: center;
+          justify-content: center;
+          gap: 1rem;
+          font-size: 1.125em;
+          font-weight: 800;
+          letter-spacing: 2px;
+          color: #fff;
+          background: var(--btn);
+          border: 2px solid var(--btn-dark);
+          border-radius: 0.75rem;
+          box-shadow: 0 8px 0 var(--btn-dark);
+          transform: skew(-10deg);
+          transition: all 0.1s ease;
+          filter: drop-shadow(0 15px 20px var(--btn-glow));
+        }
+        .invite-cta-btn > span {
+          transform: skew(10deg);
+        }
+        .invite-cta-btn:active:not(:disabled) {
+          letter-spacing: 0px;
+          transform: skew(-10deg) translateY(8px);
+          box-shadow: 0 0 0 var(--btn-glow);
+        }
+        .invite-cta-btn:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
+        }
+      `}</style>
       <div className="mx-auto w-[90vw] max-w-[650px] pt-5 shadow-none">
         <PageTitle
           title={title}
@@ -278,16 +325,18 @@ function SharedInviteLayout({
                   <div className="flex flex-row gap-3 w-full justify-center items-stretch">
                     <button
                       onClick={onNavigateHome}
-                      className="flex-1 min-h-[52px] rounded-[18px] border border-white/28 bg-white/[0.08] text-white/90 font-bebas text-[20px] tracking-[0.08em] transition-[opacity,background-color,border-color,transform] duration-220 ease-out hover:bg-white/[0.14] shadow-[inset_0_1px_0_rgba(255,255,255,0.20),0_10px_24px_rgba(10,10,45,0.24)] active:scale-[0.98] flex items-center justify-center disabled:opacity-55 disabled:cursor-not-allowed"
+                      className="invite-cta-btn"
+                      style={rejectButtonPalette}
                     >
-                      Rechazar
+                      <span>Rechazar</span>
                     </button>
                     <button
                       onClick={onSumarse}
                       disabled={!codigoValido || submitting || isMatchFull}
-                      className="flex-1 min-h-[52px] rounded-[18px] border border-white/50 bg-white/[0.18] text-white font-bebas text-[20px] tracking-[0.08em] transition-[opacity,background-color,border-color,transform] duration-220 ease-out hover:bg-white/[0.24] shadow-[inset_0_1px_0_rgba(255,255,255,0.30),0_14px_28px_rgba(22,29,98,0.34)] active:scale-[0.98] flex items-center justify-center disabled:opacity-55 disabled:cursor-not-allowed"
+                      className="invite-cta-btn"
+                      style={acceptButtonPalette}
                     >
-                      {isMatchFull ? 'Partido completo' : (submitting ? 'Sumando...' : 'Aceptar')}
+                      <span>{isMatchFull ? 'Partido completo' : (submitting ? 'Sumando...' : 'Aceptar')}</span>
                     </button>
                   </div>
                 )}
