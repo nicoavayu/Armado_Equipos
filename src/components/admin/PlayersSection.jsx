@@ -156,12 +156,6 @@ const PlayersSection = ({
     '--btn-dark': INVITE_ACCEPT_BUTTON_VIOLET_DARK,
     '--btn-text': '#ffffff',
   };
-  const inviteOutlineButtonPalette = {
-    '--btn': 'rgba(23, 35, 74, 0.72)',
-    '--btn-dark': 'rgba(88, 107, 170, 0.46)',
-    '--btn-text': 'rgba(242, 246, 255, 0.9)',
-    '--btn-shadow': '0 6px 16px rgba(0,0,0,0.25)',
-  };
   const invitePlayersBlockStyle = {
     background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)',
     paddingTop: '16px',
@@ -274,26 +268,30 @@ const PlayersSection = ({
               onClick={() => setLocalMenuOpen(false)}
             />
             <div
-              className="fixed w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out"
+              className="fixed w-48 border bg-slate-900 shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out"
               style={{
                 top: `${menuPosition.top}px`,
                 left: `${menuPosition.left}px`,
                 opacity: localMenuOpen ? 1 : 0,
                 transform: localMenuOpen ? 'scale(1)' : 'scale(0.95)',
+                borderColor: 'rgba(88, 107, 170, 0.46)',
+                borderRadius: 0,
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                className="w-full px-3 py-2 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
-                onClick={() => {
-                  setLocalMenuOpen(false);
-                  setConfirmConfig({ open: true, type: 'abandon' });
-                }}
-                type="button"
-              >
-                <LogOut size={16} />
-                <span>Abandonar partido</span>
-              </button>
+              <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
+                <button
+                  className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
+                  onClick={() => {
+                    setLocalMenuOpen(false);
+                    setConfirmConfig({ open: true, type: 'abandon' });
+                  }}
+                  type="button"
+                >
+                  <LogOut size={16} />
+                  <span>Abandonar partido</span>
+                </button>
+              </div>
             </div>
           </>,
           document.body,
@@ -587,6 +585,7 @@ const PlayersSection = ({
             max-width: none;
             min-width: 0;
             height: 48px;
+            padding-inline: 14px;
             display: flex;
             flex: 1 1 0;
             align-items: center;
@@ -693,26 +692,15 @@ const PlayersSection = ({
             )}
 
             {showInviteStylePostJoin ? (
-              <div className="w-full max-w-[500px] mx-auto">
-                <div className="flex flex-col gap-3 w-full justify-center items-stretch px-2 sm:px-0 overflow-visible">
-                  <button
-                    className="invite-cta-btn"
-                    style={inviteButtonPalette}
-                    onClick={() => setShowInviteModal(true)}
-                    disabled={isMatchFull}
-                  >
-                    <span>{isMatchFull ? 'Partido completo' : 'Invitar amigos'}</span>
-                  </button>
-                  {typeof onShareClick === 'function' && (
-                    <button
-                      className="invite-cta-btn"
-                      style={inviteOutlineButtonPalette}
-                      onClick={() => onShareClick?.()}
-                    >
-                      <span>Compartir link</span>
-                    </button>
-                  )}
-                </div>
+              <div className="w-full max-w-[250px] mx-auto px-2 sm:px-0">
+                <button
+                  className="invite-cta-btn"
+                  style={inviteButtonPalette}
+                  onClick={() => setShowInviteModal(true)}
+                  disabled={isMatchFull}
+                >
+                  <span>{isMatchFull ? 'Partido completo' : 'Invitar amigos'}</span>
+                </button>
               </div>
             ) : (
               <div className="w-full max-w-[500px] mx-auto bg-[#0f172a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
