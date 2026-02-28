@@ -272,6 +272,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const [alreadyJoined, setAlreadyJoined] = useState(false);
   const [joinStatus, setJoinStatus] = useState('checking'); // 'checking', 'none', 'pending', 'approved', 'approved_pending_sync'
   const [joinSubmitting, setJoinSubmitting] = useState(false);
+  const [inviteValidatedByNotification, setInviteValidatedByNotification] = useState(false);
   const [scheduleWarning, setScheduleWarning] = useState({
     isOpen: false,
     message: '',
@@ -369,6 +370,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       } else {
         setJoinStatus('none');
       }
+      setInviteValidatedByNotification(false);
       setSubmitting(false);
       setJoinSubmitting(false);
 
@@ -509,8 +511,107 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
       // INVITE MODE (default)
       if (!codigoParam || codigoParam.trim() === '') {
-        setError('Partido no encontrado');
-        setLoading(false);
+        // Permitir abrir invitaciones sin código cuando el acceso proviene de una notificación pendiente.
+        if (!user?.id) {
+          setError('Partido no encontrado');
+          setLoading(false);
+          return;
+        }
+
+        try {
+          let inviteNotif = null;
+
+          const { data: extInvite, error: extInviteErr } = await supabase
+            .from('notifications_ext')
+            .select('id, data')
+            .eq('user_id', user.id)
+            .eq('type', 'match_invite')
+            .eq('match_id_text', String(partidoId))
+            .order('send_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (extInviteErr && extInviteErr.code === '42P01') {
+            const { data: notifFallback, error: notifFallbackErr } = await supabase
+              .from('notifications')
+              .select('id, data')
+              .eq('user_id', user.id)
+              .eq('type', 'match_invite')
+              .eq('partido_id', Number(partidoId))
+              .order('send_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (notifFallbackErr) {
+              throw notifFallbackErr;
+            }
+            inviteNotif = notifFallback;
+          } else if (extInviteErr) {
+            throw extInviteErr;
+          } else {
+            inviteNotif = extInvite;
+          }
+
+          if (reqId !== reqIdRef.current) {
+            console.log('[LOAD_PARTIDO] Aborting stale request (invite no-code)', { reqId, current: reqIdRef.current });
+            return;
+          }
+
+          const inviteStatus = String(inviteNotif?.data?.status || 'pending').trim().toLowerCase();
+          const blockedInviteStatuses = new Set(['declined', 'rejected', 'cancelled', 'expired']);
+          const hasValidInvite = Boolean(inviteNotif?.id) && !blockedInviteStatuses.has(inviteStatus);
+
+          if (!hasValidInvite) {
+            setError('Partido no encontrado');
+            setLoading(false);
+            return;
+          }
+
+          const { data: partidoData, error: partidoError } = await supabase
+            .from('partidos_view')
+            .select('*')
+            .eq('id', partidoId)
+            .maybeSingle();
+
+          if (reqId !== reqIdRef.current) {
+            console.log('[LOAD_PARTIDO] Aborting stale request (invite no-code partido fetch)', { reqId, current: reqIdRef.current });
+            return;
+          }
+
+          if (partidoError || !partidoData) {
+            setError('Partido no encontrado');
+            setLoading(false);
+            return;
+          }
+
+          const { data: jugadoresData, count } = await supabase
+            .from('jugadores')
+            .select('*', { count: 'exact' })
+            .eq('partido_id', partidoId);
+
+          if (reqId !== reqIdRef.current) {
+            console.log('[LOAD_PARTIDO] Aborting stale request (invite no-code jugadores fetch)', { reqId, current: reqIdRef.current });
+            return;
+          }
+
+          setPartido({ ...partidoData, jugadoresCount: count || 0 });
+          setJugadores(jugadoresData || []);
+          setInviteValidatedByNotification(true);
+
+          if (isMatchClosed(partidoData)) {
+            setError('Este partido fue cancelado o cerrado.');
+            setLoading(false);
+            return;
+          }
+
+          setLoading(false);
+        } catch (err) {
+          console.error('[LOAD_PARTIDO] invite no-code fallback failed', err);
+          if (reqId === reqIdRef.current) {
+            setError('Partido no encontrado');
+            setLoading(false);
+          }
+        }
         return;
       }
 
@@ -815,11 +916,22 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       return;
     }
 
-    // Validar código
-    if (partido?.codigo && (!codigoParam || codigoParam !== partido.codigo)) {
+    const codigoFromUrl = String(codigoParam || '').trim();
+    const codigoFromMatch = String(partido?.codigo || '').trim();
+    const canBypassCodeValidation = inviteValidatedByNotification === true;
+
+    // Validar código salvo cuando la invitación fue validada por notificación pendiente.
+    if (!canBypassCodeValidation && codigoFromMatch && (!codigoFromUrl || codigoFromUrl !== codigoFromMatch)) {
       showInlineNotice('warning', 'Código inválido.');
       return;
     }
+
+    const buildPostJoinRoute = () => {
+      const resolvedCode = String(codigoFromUrl || codigoFromMatch || '').trim();
+      return resolvedCode
+        ? `/partido/${partidoId}?codigo=${encodeURIComponent(resolvedCode)}`
+        : `/partido/${partidoId}`;
+    };
 
     const maxRoster = getMaxRosterSlots(partido);
     if (maxRoster > 0 && jugadores.length >= maxRoster) {
@@ -854,7 +966,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
       if (existing) {
         if (mode === 'invite') {
-          navigate(`/partido/${partidoId}?codigo=${codigoParam}`);
+          navigate(buildPostJoinRoute());
         } else {
           setJoinStatus('approved');
         }
@@ -894,7 +1006,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
       showInlineNotice('success', 'Te sumaste al partido.');
       if (mode === 'invite') {
-        navigate(`/partido/${partidoId}?codigo=${codigoParam}`);
+        navigate(buildPostJoinRoute());
       } else {
         setJoinStatus('approved');
       }

@@ -22,7 +22,7 @@ describe('matchInviteRoute', () => {
     expect(route).toBe('/partido/355/invitacion?codigo=XYZ999');
   });
 
-  test('returns null when invite has no code', () => {
+  test('falls back to invite route without code when payload has only match id', () => {
     const route = resolveMatchInviteRoute({
       partido_id: 355,
       data: {
@@ -30,6 +30,6 @@ describe('matchInviteRoute', () => {
       },
     });
 
-    expect(route).toBeNull();
+    expect(route).toBe('/partido/355/invitacion');
   });
 });
