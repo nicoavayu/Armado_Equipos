@@ -96,15 +96,14 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   const isSoftVariant = mode === 'invite';
   const skewX = 6;
   const softCardWrapperStyle = {
-    backgroundColor: '#17254E',
-    border: '1px solid rgba(88, 122, 255, 0.34)',
+    backgroundColor: '#1B2A56',
     boxShadow: '0 6px 18px rgba(0,0,0,0.35), 0 0 18px rgba(120,90,255,0.10)',
     transform: `skewX(-${skewX}deg)`,
   };
   const softPlaceholderWrapperStyle = {
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px dashed rgba(255,255,255,0.10)',
-    boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
+    background: 'rgba(255,255,255,0.02)',
+    border: '1px dashed rgba(255,255,255,0.07)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
     transform: `skewX(-${skewX}deg)`,
   };
   const skewCounterStyle = {
@@ -135,7 +134,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
               return (
                 <div
                   key={`slot-empty-${idx}`}
-                  className="rounded-lg min-h-[36px] w-full overflow-hidden"
+                  className="rounded-[11px] min-h-[36px] w-full overflow-hidden"
                   style={softPlaceholderWrapperStyle}
                   aria-hidden="true"
                 >
@@ -143,7 +142,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
                     className="h-full min-h-[36px] w-full p-2 flex items-center justify-center"
                     style={skewCounterStyle}
                   >
-                    <UserRound size={16} className="text-white/20" />
+                    <UserRound size={14} className="text-white/[0.15]" />
                   </div>
                 </div>
               );
@@ -164,7 +163,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
             return (
               <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partido}>
                 <div
-                  className="PlayerCard PlayerCard--soft rounded-lg min-h-[36px] w-full overflow-hidden transition-all cursor-pointer hover:brightness-105"
+                  className="PlayerCard PlayerCard--soft rounded-[11px] min-h-[36px] w-full overflow-hidden transition-all cursor-pointer hover:brightness-105"
                   style={softCardWrapperStyle}
                 >
                   <div
@@ -251,14 +250,16 @@ function SharedInviteLayout({
   const isPendingSync = joinStatus === 'approved_pending_sync';
   const isSending = submitting && joinStatus === 'none';
   const rejectButtonPalette = {
-    '--btn': '#e34d63',
-    '--btn-dark': '#a93447',
-    '--btn-glow': 'rgba(227, 77, 99, 0.34)',
+    '--btn': 'rgba(23, 35, 74, 0.72)',
+    '--btn-dark': 'rgba(88, 107, 170, 0.52)',
+    '--btn-glow': 'rgba(88, 107, 170, 0.18)',
+    '--btn-text': 'rgba(242, 246, 255, 0.9)',
   };
   const acceptButtonPalette = {
     '--btn': '#644dff',
     '--btn-dark': '#4836bb',
     '--btn-glow': 'rgba(101, 77, 255, 0.38)',
+    '--btn-text': '#ffffff',
   };
 
   return (
@@ -278,7 +279,7 @@ function SharedInviteLayout({
           font-size: 1.125em;
           font-weight: 800;
           letter-spacing: 2px;
-          color: #fff;
+          color: var(--btn-text, #fff);
           background: var(--btn);
           border: 2px solid var(--btn-dark);
           border-radius: 0.75rem;
