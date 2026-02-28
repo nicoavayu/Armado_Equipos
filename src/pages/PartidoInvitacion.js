@@ -64,8 +64,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   const isSoftVariant = mode === 'invite';
   const softCardStyle = {
     backgroundColor: '#17254E',
-    borderRadius: '18px',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.35), 0 0 20px rgba(120,90,255,0.12)',
+    boxShadow: '0 6px 18px rgba(0,0,0,0.35), 0 0 18px rgba(120, 90, 255, 0.10)',
   };
 
   return (
@@ -85,7 +84,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
           {jugadores.map((j) => (
             <PlayerCardTrigger key={j.uuid || j.id} profile={j} partidoActual={partido}>
               <div
-                className={`PlayerCard ${isSoftVariant ? 'PlayerCard--soft flex items-center gap-1.5 rounded-[18px] p-2.5 transition-all min-h-[40px] w-full cursor-pointer hover:brightness-105' : 'flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 transition-all min-h-[36px] w-full hover:bg-slate-800 cursor-pointer'}`}
+                className={`PlayerCard ${isSoftVariant ? 'PlayerCard--soft flex items-center gap-1.5 rounded-lg p-2 transition-all min-h-[36px] w-full cursor-pointer hover:brightness-105' : 'flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 transition-all min-h-[36px] w-full hover:bg-slate-800 cursor-pointer'}`}
                 style={isSoftVariant ? softCardStyle : undefined}
               >
                 {j.foto_url || j.avatar_url ? (
