@@ -178,9 +178,14 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
             return (
               <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partido}>
                 <div
-                  className={`PlayerCard PlayerCard--soft rounded-none ${slotHeightClass} w-full overflow-hidden transition-all cursor-pointer hover:brightness-105`}
+                  className={`PlayerCard PlayerCard--soft relative rounded-none ${slotHeightClass} w-full overflow-hidden transition-all cursor-pointer hover:brightness-105`}
                   style={softCardWrapperStyle}
                 >
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-[1px] top-1/2 -translate-y-1/2 w-[3px] h-[70%] rounded-[2px] pointer-events-none"
+                    style={{ backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET }}
+                  />
                   <div
                     className="h-full w-full p-2 flex items-center gap-1.5"
                     style={skewCounterStyle}
