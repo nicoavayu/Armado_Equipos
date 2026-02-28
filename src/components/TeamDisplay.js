@@ -35,6 +35,11 @@ const SafeLoadingSpinner = safeComp(LoadingSpinner, 'LoadingSpinner');
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
 const SLOT_SKEW_X = 6;
+const CARD_BG_BLUE = '#07163b';
+const CARD_STROKE_BLUE = 'rgba(41, 170, 255, 0.9)';
+const CARD_GLOW_BLUE = '0 0 9px rgba(41, 170, 255, 0.24)';
+const SYSTEM_ICON_BLUE = '#29aaff';
+const SYSTEM_ICON_BLUE_GLOW = 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.78))';
 
 const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 
@@ -658,17 +663,18 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         .invite-cta-btn {
           appearance: none;
           cursor: pointer;
-          width: 100%;
-          max-width: none;
-          min-width: 0;
-          height: 48px;
-          padding-inline: 14px;
+          width: 90%;
+          max-width: 560px;
+          min-width: 10px;
+          height: 60px;
+          min-height: 48px;
+          padding-inline: 18px;
           display: flex;
           flex: 1 1 0;
           align-items: center;
           justify-content: center;
           gap: 0.55rem;
-          font-size: 0.94rem;
+          font-size: 1.08rem;
           font-weight: 700;
           letter-spacing: 0.045em;
           color: var(--btn-text, #fff);
@@ -680,6 +686,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
           backface-visibility: hidden;
           white-space: nowrap;
+          margin-inline: auto;
         }
         .invite-cta-btn > span {
           transform: skew(6deg);
@@ -698,6 +705,15 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           opacity: 0.55;
           cursor: not-allowed;
         }
+        .invite-cta-btn--compact {
+          width: 100%;
+          max-width: none;
+          min-width: 0;
+          height: 52px;
+          min-height: 44px;
+          font-size: 0.95rem;
+          margin-inline: 0;
+        }
       `}</style>
       {/* Chat button para todos los usuarios - Hide floating trigger as it is in the header */}
       <SafeChatButton partidoId={partidoId} hideTrigger={true} />
@@ -715,7 +731,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         />
       </div>
 
-      <div data-debug="TEAMDISPLAY_ACTIVE" className="w-[90vw] max-w-[90vw] mx-auto flex flex-col gap-3 overflow-x-hidden mt-4 pb-6">
+      <div data-debug="TEAMDISPLAY_ACTIVE" className="w-[90vw] max-w-[90vw] mx-auto flex flex-col gap-3 overflow-x-visible mt-4 pb-6">
         {/* Team cards */}
         <DragDropContext
           onDragStart={handleDragStart}
@@ -737,12 +753,16 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                     <div
                       ref={dropProvided.innerRef}
                       {...dropProvided.droppableProps}
-                      className="relative bg-white/10 border border-white/20 rounded-xl p-2.5 w-[calc(50%-6px)] box-border transition-all shadow-xl flex flex-col min-h-0 hover:bg-white/[0.12] hover:border-white/25"
+                      className="relative border p-2.5 w-[calc(50%-6px)] box-border transition-all flex flex-col min-h-0 rounded-none"
+                      style={{
+                        borderColor: 'rgba(255,255,255,0.14)',
+                        background: 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%)',
+                      }}
                     >
                       {editingTeamId === team.id && isAdmin ? (
                         <input
                           type="text"
-                          className="font-bebas text-lg text-[#333] bg-white/95 border-2 border-[#0EA9C6] rounded-lg px-3 py-2 text-center tracking-widest uppercase w-full box-border shadow-sm md:text-xl lg:text-2xl"
+                          className="font-bebas text-lg text-[#f5f7ff] bg-[#07163b] border border-[#29aaff] rounded-none px-3 py-2 text-center tracking-widest uppercase w-full box-border md:text-xl lg:text-2xl"
                           value={editingTeamName}
                           onChange={(e) => setEditingTeamName(e.target.value)}
                           onBlur={async () => {
@@ -791,7 +811,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         />
                       ) : (
                         <h3
-                          className="font-bebas text-xl text-white m-0 tracking-wide uppercase cursor-pointer px-0 py-2 rounded-lg transition-all bg-transparent break-words text-center block w-full hover:bg-white/5 mb-2 flex justify-center items-center"
+                          className="font-bebas text-xl text-white m-0 tracking-wide uppercase cursor-pointer px-0 py-2 rounded-none transition-all bg-transparent break-words text-center block w-full mb-2 flex justify-center items-center"
                           onClick={isAdmin ? () => {
                             if (teamsConfirmed) return;
                             setEditingTeamId(team.id);
@@ -805,7 +825,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
                       <div className="flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto max-h-[52vh] md:max-h-[60vh] pr-1">
                         {teamPlayerKeys.length === 0 && (
-                          <div className="text-white/60 text-sm p-3 border border-white/10 rounded bg-black/20">
+                          <div className="text-white/60 text-sm p-3 border border-white/10 rounded-none bg-black/20">
                             No hay jugadores cargados en este equipo (players vacío).
                           </div>
                         )}
@@ -825,9 +845,9 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                 key={`missing-${team.id}-${playerKey}-${_index}`}
                                 className="border p-2 text-white/70"
                                 style={{
-                                  backgroundColor: '#2A3E78',
-                                  border: '1px solid rgba(120,90,255,0.28)',
-                                  boxShadow: '0 0 14px rgba(120,90,255,0.12)',
+                                  backgroundColor: CARD_BG_BLUE,
+                                  border: `1px solid ${CARD_STROKE_BLUE}`,
+                                  boxShadow: CARD_GLOW_BLUE,
                                   borderRadius: 0,
                                   transform: `skewX(-${SLOT_SKEW_X}deg)`,
                                 }}
@@ -855,25 +875,20 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                     if (Date.now() - lastDragEndAtRef.current < 180) return;
                                     togglePlayerLock(playerKey);
                                   } : undefined}
-                                  className={`border p-0 flex items-center gap-1.5 text-white transition-all h-12 relative w-full box-border overflow-hidden select-none rounded-none
+                                  className={`border p-0 flex items-center gap-1.5 text-white transition-all h-12 relative w-full box-border overflow-visible select-none rounded-none
                                     ${isLocked ? 'shadow-[0_0_8px_rgba(255,193,7,0.3)]' : ''}
                                     ${!isAdmin ? 'cursor-default pointer-events-none' : (teamsConfirmed || isLocked ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing')}
-                                    ${dragSnapshot.isDragging ? 'ring-2 ring-[#128BE9] border-[#128BE9]/60 z-20' : ''}
+                                    ${dragSnapshot.isDragging ? 'ring-2 ring-[#29aaff] border-[#29aaff]/60 z-20' : ''}
                                     ${isReplacementTarget ? 'ring-2 ring-[#0EA9C6] border-[#0EA9C6]/70' : ''}
                                     ${isActiveDraggedPlayer ? 'shadow-[0_0_0_1px_rgba(14,169,198,0.45)]' : ''}
                                   `}
                                   style={{
-                                    backgroundColor: isLocked ? 'rgba(255,193,7,0.2)' : '#2A3E78',
-                                    borderColor: isLocked ? 'rgba(255,193,7,0.6)' : 'rgba(120,90,255,0.28)',
-                                    boxShadow: isLocked ? '0 0 8px rgba(255,193,7,0.3)' : '0 0 14px rgba(120,90,255,0.12)',
+                                    backgroundColor: isLocked ? 'rgba(255,193,7,0.16)' : CARD_BG_BLUE,
+                                    borderColor: isLocked ? 'rgba(255,193,7,0.74)' : CARD_STROKE_BLUE,
+                                    boxShadow: isLocked ? '0 0 10px rgba(255,193,7,0.28)' : CARD_GLOW_BLUE,
                                     transform: `skewX(-${SLOT_SKEW_X}deg)`,
                                   }}
                                 >
-                                  <span
-                                    aria-hidden="true"
-                                    className="absolute left-[1px] top-1/2 -translate-y-1/2 w-[2px] h-[60%] rounded-[2px] pointer-events-none"
-                                    style={{ backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, opacity: 0.74 }}
-                                  />
                                   <div className="flex items-center gap-1.5 w-full h-full min-w-0 p-2" style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
                                     {player.avatar_url ? (
                                       <img
@@ -894,7 +909,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
                                     {showAverages && isAdmin && (
                                       <span
-                                        className="font-bebas text-xs font-bold text-white bg-slate-800 px-2 py-1 rounded-md border border-slate-700 shrink-0 whitespace-nowrap"
+                                        className="font-bebas text-xs font-bold text-white bg-slate-800 px-2 py-1 rounded-none border border-slate-700 shrink-0 whitespace-nowrap"
                                         style={{
                                           background: getScoreColor(player.score),
                                           borderColor: getScoreColor(player.score).replace('0.9', '0.5'),
@@ -906,7 +921,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                     )}
 
                                     {isLocked && isAdmin && (
-                                      <span className="text-base text-[#FFC107] shrink-0 p-1 rounded bg-[#FFC107]/20 border border-[#FFC107]/40 animate-pulse">
+                                      <span className="text-base text-[#FFC107] shrink-0 p-1 rounded-none bg-[#FFC107]/20 border border-[#FFC107]/40 animate-pulse">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                                           <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
                                         </svg>
@@ -921,8 +936,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         {dropProvided.placeholder}
                       </div>
 
-                      <div className="bg-slate-900 rounded-lg text-center px-3 py-2 w-full box-border mt-2" style={{
-                        borderWidth: '2px',
+                      <div className="relative text-center w-full box-border mt-2 h-[58px] overflow-hidden rounded-none" style={{
+                        borderWidth: '1.5px',
                         borderStyle: 'solid',
                         borderColor: (() => {
                           const teamA = realtimeTeams.find((t) => t.id === 'equipoA');
@@ -933,9 +948,14 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                           if (diff <= 8) return '#F59E0B';
                           return '#EF4444';
                         })(),
+                        background: CARD_BG_BLUE,
+                        boxShadow: CARD_GLOW_BLUE,
+                        transform: `skewX(-${SLOT_SKEW_X}deg)`,
                       }}>
-                        <div className="text-white/70 text-xs font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
-                        <div className="text-white font-bebas text-xl font-bold">{(team.score ?? 0).toFixed(1)}</div>
+                        <div className="w-full h-full flex flex-col items-center justify-center px-2" style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
+                          <div className="text-white/70 text-[11px] font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
+                          <div className="text-white font-bebas text-[32px] leading-none font-bold">{(team.score ?? 0).toFixed(1)}</div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -974,7 +994,14 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           }
 
           return (
-            <div className="w-full bg-slate-900 border-2 rounded-xl px-4 py-2.5 mt-2" style={{ borderColor: balanceColor }}>
+            <div
+              className="w-full border px-4 py-3 mt-2 rounded-none"
+              style={{
+                borderColor: `${balanceColor}cc`,
+                background: 'linear-gradient(180deg, rgba(7,22,59,0.96) 0%, rgba(9,20,58,0.88) 100%)',
+                boxShadow: '0 0 10px rgba(41, 170, 255, 0.16)',
+              }}
+            >
               <div className="text-center">
                 <div className="font-bebas text-base text-white/90 tracking-wider mb-0.5">BALANCE DEL PARTIDO</div>
                 <div className="font-bebas text-2xl text-white font-bold mb-0.5">DIF: {diff.toFixed(1)}</div>
@@ -998,28 +1025,36 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
             <>
               <div className="flex flex-col gap-3">
                 {/* Row 1: Randomizar + Promedios */}
-                <div className="grid grid-cols-2 gap-2 w-full">
+                <div className="grid grid-cols-2 gap-2 w-full px-1">
                   <button
-                    className="invite-cta-btn"
-                    style={{ '--btn': '#128BE9', '--btn-dark': '#0f7acc', '--btn-text': '#ffffff' }}
+                    className="invite-cta-btn invite-cta-btn--compact"
+                    style={{
+                      '--btn': 'linear-gradient(90deg, rgba(100, 77, 255, 0.74) 0%, rgba(123, 97, 255, 0.84) 100%)',
+                      '--btn-dark': 'rgba(122, 104, 255, 0.72)',
+                      '--btn-text': '#f4f6ff',
+                    }}
                     onClick={randomizeTeams}
                     disabled={teamsConfirmed}
                   >
                     <span>Randomizar</span>
                   </button>
                   <button
-                    className="invite-cta-btn"
-                    style={{ '--btn': 'rgba(23, 35, 74, 0.72)', '--btn-dark': 'rgba(88, 107, 170, 0.46)', '--btn-text': 'rgba(242, 246, 255, 0.9)', '--btn-shadow': '0 6px 16px rgba(0,0,0,0.25)' }}
+                    className="invite-cta-btn invite-cta-btn--compact"
+                    style={{
+                      '--btn': 'rgba(14, 24, 56, 0.88)',
+                      '--btn-dark': 'rgba(71, 119, 194, 0.42)',
+                      '--btn-text': 'rgba(242, 246, 255, 0.9)',
+                    }}
                     onClick={() => setShowAverages(!showAverages)}
                   >
                     <span>{showAverages ? 'Ocultar' : 'Promedios'}</span>
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-2 w-full">
-                  <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1 min-h-[36px] flex items-start justify-center">
+                <div className="grid grid-cols-2 gap-2 w-full px-1">
+                  <div className="text-white/55 text-xs font-oswald text-center leading-tight px-1 min-h-[36px] flex items-start justify-center">
                     Recalcula los equipos para dejarlos lo más parejos posible.
                   </div>
-                  <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1 min-h-[36px] flex items-start justify-center">
+                  <div className="text-white/55 text-xs font-oswald text-center leading-tight px-1 min-h-[36px] flex items-start justify-center">
                     Mirá los promedios y métricas usadas para armar los equipos.
                   </div>
                 </div>
@@ -1028,13 +1063,18 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                 <div className="w-full flex flex-col gap-1">
                   <button
                     className="invite-cta-btn"
-                    style={{ '--btn': INVITE_ACCEPT_BUTTON_VIOLET, '--btn-dark': INVITE_ACCEPT_BUTTON_VIOLET_DARK, '--btn-text': '#ffffff' }}
+                    style={{
+                      '--btn': `linear-gradient(90deg, ${INVITE_ACCEPT_BUTTON_VIOLET_DARK} 0%, ${INVITE_ACCEPT_BUTTON_VIOLET} 100%)`,
+                      '--btn-dark': 'rgba(144, 118, 255, 0.86)',
+                      '--btn-text': '#ffffff',
+                      '--btn-shadow': '0 8px 18px rgba(76, 58, 196, 0.34)',
+                    }}
                     onClick={teamsConfirmed ? unconfirmTeams : confirmTeams}
                     disabled={confirming || unconfirming}
                   >
                     <span>{teamsConfirmed ? (unconfirming ? 'Desconfirmando…' : 'Editar equipos') : (confirming ? 'Confirmando…' : 'Confirmar equipos')}</span>
                   </button>
-                  <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1 min-h-[18px]">
+                  <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1 min-h-[18px] w-[90%] mx-auto">
                     {teamsConfirmed ? 'Los equipos están confirmados.' : 'Guarda los equipos de este partido y bloquea cambios.'}
                   </div>
                 </div>
@@ -1045,16 +1085,23 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           {/* Share button with helper */}
           <div className="flex flex-col gap-2">
             <button
-              className="invite-cta-btn"
-              style={{ '--btn': 'rgba(23, 35, 74, 0.72)', '--btn-dark': 'rgba(88, 107, 170, 0.46)', '--btn-text': 'rgba(242, 246, 255, 0.9)', '--btn-shadow': '0 6px 16px rgba(0,0,0,0.25)' }}
+              className="invite-cta-btn invite-cta-btn--compact"
+              style={{
+                '--btn': 'rgba(14, 24, 56, 0.88)',
+                '--btn-dark': 'rgba(71, 119, 194, 0.42)',
+                '--btn-text': 'rgba(242, 246, 255, 0.9)',
+                width: '90%',
+                maxWidth: '560px',
+                marginInline: 'auto',
+              }}
               onClick={handleWhatsAppShare}
             >
               <span>
-                <SafeWhatsappIcon size={16} style={{ marginRight: 8 }} />
+                <SafeWhatsappIcon size={16} color={SYSTEM_ICON_BLUE} style={{ marginRight: 8, filter: SYSTEM_ICON_BLUE_GLOW }} />
                 Compartir
               </span>
             </button>
-            <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1">Comparte los equipos armados al grupo de WhatsApp.</div>
+            <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1 w-[90%] mx-auto">Comparte los equipos armados al grupo de WhatsApp.</div>
           </div>
         </div>
       </div>
