@@ -30,6 +30,7 @@ const AdminActions = ({
   const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 4 : 0;
   const playersCount = Array.isArray(jugadores) ? jugadores.length : 0;
   const isRosterFull = maxRosterSlots > 0 && playersCount >= maxRosterSlots;
+  const iconGlowFilter = 'drop-shadow(0 0 4px rgba(108, 220, 255, 0.72))';
 
   useEffect(() => {
     if (String(nuevoNombre || '').trim()) {
@@ -185,7 +186,7 @@ const AdminActions = ({
                   title="Compartir por WhatsApp"
                 >
                   <span>
-                    <WhatsappIcon size={22} />
+                    <WhatsappIcon size={22} style={{ filter: iconGlowFilter }} />
                   </span>
                 </button>
                 <p className="admin-action-label font-oswald">Enviar link de invitación</p>
@@ -210,7 +211,7 @@ const AdminActions = ({
                   title={isManualOpen ? 'Ocultar agregar manual' : 'Agregar manual'}
                 >
                   <span>
-                    <Keyboard size={21} strokeWidth={2.05} />
+                    <Keyboard size={21} strokeWidth={2.05} className="text-white" style={{ filter: iconGlowFilter }} />
                   </span>
                 </button>
                 <p className="admin-action-label font-oswald">Ingresar manualmente</p>

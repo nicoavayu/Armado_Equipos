@@ -9,6 +9,7 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
 const SLOT_SKEW_X = 6;
+const SLOT_CLIP_PATH = 'polygon(0 0, 100% 0, 96% 100%, 0 100%)';
 
 // Helper function to get initials from name
 function getInitials(name) {
@@ -155,17 +156,15 @@ const PlayersSection = ({
     backgroundColor: '#07163b',
     border: '1px solid rgba(41, 170, 255, 0.9)',
     boxShadow: '0 0 10px rgba(41, 170, 255, 0.24)',
-    transform: `skewX(-${SLOT_SKEW_X}deg)`,
+    clipPath: SLOT_CLIP_PATH,
   };
   const inviteSoftPlaceholderWrapperStyle = {
     background: 'rgba(255,255,255,0.015)',
     border: '1px dashed rgba(255,255,255,0.055)',
     boxShadow: 'none',
-    transform: `skewX(-${SLOT_SKEW_X}deg)`,
+    clipPath: SLOT_CLIP_PATH,
   };
-  const inviteSkewCounterStyle = {
-    transform: `skewX(${SLOT_SKEW_X}deg)`,
-  };
+  const inviteSkewCounterStyle = {};
 
   useEffect(() => () => {
     if (completionAnimTimeoutRef.current) {
@@ -320,7 +319,7 @@ const PlayersSection = ({
           return (
             <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partidoActual}>
               <div
-                className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-hidden transition-all cursor-pointer hover:brightness-105"
+                className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-visible transition-all cursor-pointer hover:brightness-105"
                 style={inviteSoftCardWrapperStyle}
               >
                 <div
@@ -364,7 +363,7 @@ const PlayersSection = ({
       backgroundColor: '#07163b',
       border: hasVoted ? '1px solid rgba(78, 196, 255, 0.94)' : '1px solid rgba(41, 170, 255, 0.9)',
       boxShadow: hasVoted ? '0 0 11px rgba(41, 170, 255, 0.3)' : '0 0 9px rgba(41, 170, 255, 0.24)',
-      transform: `skewX(-${SLOT_SKEW_X}deg)`,
+      clipPath: SLOT_CLIP_PATH,
     };
 
     return (
@@ -375,7 +374,7 @@ const PlayersSection = ({
         onMakeAdmin={transferirAdmin}
       >
         <div
-          className="relative rounded-none h-12 w-full max-w-[660px] mx-auto overflow-hidden transition-all cursor-pointer hover:brightness-105"
+          className="relative rounded-none h-12 w-full max-w-[660px] mx-auto overflow-visible transition-all cursor-pointer hover:brightness-105"
           style={cardStyle}
         >
           <div
@@ -576,7 +575,7 @@ const PlayersSection = ({
                 aria-label="Compartir invitación"
               >
                 <span className="inline-flex items-center justify-center" style={{ transform: 'skewX(6deg)' }}>
-                  <Share2 size={12} />
+                  <Share2 size={12} className="text-white" style={{ filter: 'drop-shadow(0 0 4px rgba(108, 220, 255, 0.72))' }} />
                 </span>
               </button>
 
