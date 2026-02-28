@@ -209,7 +209,7 @@ function SharedInviteLayout({
 
         <main className="pt-0">
           <div className="main-content">
-            <div className="w-full flex flex-col gap-3 overflow-x-hidden pt-10">
+            <div className="w-full flex flex-col gap-3 overflow-x-hidden pt-8">
               <InlineNotice
                 type={inlineNotice?.type}
                 message={inlineNotice?.message}
@@ -278,14 +278,14 @@ function SharedInviteLayout({
                   <div className="flex flex-row gap-3 w-full justify-center items-stretch">
                     <button
                       onClick={onNavigateHome}
-                      className="flex-1 h-11 bg-white/5 text-white/75 rounded-xl font-oswald text-sm hover:bg-white/10 hover:text-white transition-all border border-white/20 active:scale-95 font-semibold flex items-center justify-center"
+                      className="flex-1 min-h-[52px] rounded-[18px] border border-white/28 bg-white/[0.08] text-white/90 font-bebas text-[20px] tracking-[0.08em] transition-[opacity,background-color,border-color,transform] duration-220 ease-out hover:bg-white/[0.14] shadow-[inset_0_1px_0_rgba(255,255,255,0.20),0_10px_24px_rgba(10,10,45,0.24)] active:scale-[0.98] flex items-center justify-center disabled:opacity-55 disabled:cursor-not-allowed"
                     >
                       Rechazar
                     </button>
                     <button
                       onClick={onSumarse}
                       disabled={!codigoValido || submitting || isMatchFull}
-                      className="flex-1 h-11 bg-primary text-white rounded-xl font-oswald text-sm hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 font-semibold border border-white/10 shadow-[0_4px_14px_rgba(18,139,233,0.25)] flex items-center justify-center"
+                      className="flex-1 min-h-[52px] rounded-[18px] border border-white/50 bg-white/[0.18] text-white font-bebas text-[20px] tracking-[0.08em] transition-[opacity,background-color,border-color,transform] duration-220 ease-out hover:bg-white/[0.24] shadow-[inset_0_1px_0_rgba(255,255,255,0.30),0_14px_28px_rgba(22,29,98,0.34)] active:scale-[0.98] flex items-center justify-center disabled:opacity-55 disabled:cursor-not-allowed"
                     >
                       {isMatchFull ? 'Partido completo' : (submitting ? 'Sumando...' : 'Aceptar')}
                     </button>
