@@ -45,7 +45,8 @@ const AdminActions = ({
         .admin-primary-btn {
           appearance: none;
           cursor: pointer;
-          width: 100%;
+          width: calc(100% - 8px);
+          margin-inline: 4px;
           height: 48px;
           padding: 0 16px;
           display: inline-flex;
@@ -61,6 +62,7 @@ const AdminActions = ({
           transform: skew(-4deg);
           transition: filter 120ms ease, opacity 120ms ease;
           white-space: nowrap;
+          backface-visibility: hidden;
         }
         .admin-primary-btn > span {
           transform: skew(4deg);
@@ -170,7 +172,7 @@ const AdminActions = ({
               <span>Invitar amigos</span>
             </button>
 
-            <div className="grid grid-cols-2 gap-2 w-full overflow-visible">
+            <div className="grid grid-cols-2 gap-2 w-full overflow-visible px-1">
               <div className="admin-action-button-wrap">
                 <button
                   className="admin-action-skew"

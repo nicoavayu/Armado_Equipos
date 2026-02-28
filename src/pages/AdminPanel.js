@@ -373,7 +373,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                   partidoActual={partidoActual}
                 />
               )}
-              <div className={`w-full max-w-full mx-auto flex flex-col gap-3 overflow-x-hidden min-w-0 ${isAdmin ? 'pt-3' : 'pt-0'}`}>
+              <div className={`w-full max-w-full mx-auto flex flex-col gap-3 overflow-visible min-w-0 ${isAdmin ? 'pt-3' : 'pt-0'}`}>
 
                 {!showTeams && (
                   <>

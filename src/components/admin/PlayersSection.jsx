@@ -152,9 +152,9 @@ const PlayersSection = ({
     paddingBottom: '24px',
   };
   const inviteSoftCardWrapperStyle = {
-    backgroundColor: '#2A3E78',
-    border: '1px solid rgba(120,90,255,0.28)',
-    boxShadow: '0 0 14px rgba(120,90,255,0.12)',
+    backgroundColor: '#07163b',
+    border: '1px solid rgba(41, 170, 255, 0.9)',
+    boxShadow: '0 0 10px rgba(41, 170, 255, 0.24)',
     transform: `skewX(-${SLOT_SKEW_X}deg)`,
   };
   const inviteSoftPlaceholderWrapperStyle = {
@@ -323,11 +323,6 @@ const PlayersSection = ({
                 className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-hidden transition-all cursor-pointer hover:brightness-105"
                 style={inviteSoftCardWrapperStyle}
               >
-                <span
-                  aria-hidden="true"
-                  className="absolute left-[1px] top-1/2 -translate-y-1/2 w-[2px] h-[60%] rounded-[2px] pointer-events-none"
-                  style={{ backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, opacity: 0.74 }}
-                />
                 <div
                   className="h-full w-full p-2 flex items-center gap-1.5"
                   style={inviteSkewCounterStyle}
@@ -366,9 +361,9 @@ const PlayersSection = ({
       return v.nombre.toLowerCase().trim() === j.nombre.toLowerCase().trim();
     }) || (votantes && (votantes.includes(j.uuid) || votantes.includes(j.usuario_id)));
     const cardStyle = {
-      backgroundColor: '#2A3E78',
-      border: hasVoted ? '1px solid rgba(74,222,128,0.72)' : '1px solid rgba(120,90,255,0.28)',
-      boxShadow: hasVoted ? '0 0 14px rgba(74,222,128,0.18)' : '0 0 14px rgba(120,90,255,0.12)',
+      backgroundColor: '#07163b',
+      border: hasVoted ? '1px solid rgba(78, 196, 255, 0.94)' : '1px solid rgba(41, 170, 255, 0.9)',
+      boxShadow: hasVoted ? '0 0 11px rgba(41, 170, 255, 0.3)' : '0 0 9px rgba(41, 170, 255, 0.24)',
       transform: `skewX(-${SLOT_SKEW_X}deg)`,
     };
 
@@ -383,11 +378,6 @@ const PlayersSection = ({
           className="relative rounded-none h-12 w-full max-w-[660px] mx-auto overflow-hidden transition-all cursor-pointer hover:brightness-105"
           style={cardStyle}
         >
-          <span
-            aria-hidden="true"
-            className="absolute left-[1px] top-1/2 -translate-y-1/2 w-[2px] h-[60%] rounded-[2px] pointer-events-none"
-            style={{ backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, opacity: 0.74 }}
-          />
           <div
             className="h-full w-full p-2 flex items-center gap-1.5"
             style={inviteSkewCounterStyle}
@@ -573,21 +563,21 @@ const PlayersSection = ({
         <div className="px-1 mb-6">
           <div className="flex items-baseline justify-between gap-2">
             <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
-              Jugadores
+              Jugadores ({inviteConfirmedCount}/{inviteRequiredSlots})
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              <div className="font-oswald text-[13px] font-medium text-white/75 whitespace-nowrap">
-                {inviteConfirmedCount}/{inviteRequiredSlots}
-              </div>
               <button
                 type="button"
-                className="h-7 w-7 inline-flex items-center justify-center bg-white text-slate-900 rounded-[5px] transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
+                className="h-7 w-7 inline-flex items-center justify-center text-white border border-white/72 bg-transparent transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
+                style={{ transform: 'skewX(-6deg)', borderRadius: 0 }}
                 onClick={() => onShareClick?.()}
                 disabled={!canShareInviteLink}
                 title="Compartir invitación"
                 aria-label="Compartir invitación"
               >
-                <Share2 size={12} />
+                <span className="inline-flex items-center justify-center" style={{ transform: 'skewX(6deg)' }}>
+                  <Share2 size={12} />
+                </span>
               </button>
 
               {isAdmin && isPlayerInMatch && (
