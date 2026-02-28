@@ -56,11 +56,43 @@ const getMaxRosterSlots = (match) => {
   return baseCapacity > 0 ? baseCapacity + MAX_SUBSTITUTES : 0;
 };
 
+const resolveSlotsFromMatchType = (match = {}) => {
+  const explicitCapacity = Number(match?.cupo_jugadores || match?.cupo || 0);
+  if (Number.isFinite(explicitCapacity) && explicitCapacity > 0) {
+    return explicitCapacity;
+  }
+
+  const token = String(match?.tipo_partido || match?.modalidad || '').trim().toUpperCase();
+  const normalized = token.replace(/\s+/g, '');
+  const matchByNumber = normalized.match(/F(\d+)/i);
+  if (matchByNumber) {
+    const playersPerTeam = Number(matchByNumber[1]);
+    if (Number.isFinite(playersPerTeam) && playersPerTeam > 0) {
+      return playersPerTeam * 2;
+    }
+  }
+
+  const fallbackByType = {
+    F5: 10,
+    F6: 12,
+    F7: 14,
+    F8: 16,
+    F11: 22,
+  };
+
+  return fallbackByType[normalized] || 10;
+};
+
 const getGuestStorageKey = (matchId, _guestName = '') => `guest_joined_${matchId}`;
 
 function PlayersReadOnly({ jugadores, partido, mode }) {
-  const cupoMaximo = partido.cupo_jugadores || partido.cupo || 'Sin límite';
+  const requiredSlots = resolveSlotsFromMatchType(partido);
   const displayCount = jugadores?.length ?? 0;
+  const confirmedCount = Math.min(displayCount, requiredSlots);
+  const progressPct = requiredSlots > 0
+    ? Math.max(0, Math.min((confirmedCount / requiredSlots) * 100, 100))
+    : 0;
+  const slotItems = Array.from({ length: requiredSlots }, (_, idx) => jugadores?.[idx] || null);
   const isSoftVariant = mode === 'invite';
   const softCardStyle = {
     backgroundColor: '#17254E',
@@ -70,48 +102,65 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
 
   return (
     <div className={isSoftVariant ? 'w-full box-border' : 'w-full bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px]'}>
-      <div className={`flex items-start justify-between gap-3 px-1 ${isSoftVariant ? 'mb-3' : 'mb-3 mt-1'}`}>
+      <div className={`px-1 ${isSoftVariant ? 'mb-6' : 'mb-3 mt-1'}`}>
         <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
-          Jugadores ({displayCount}/{cupoMaximo})
+          Jugadores
+        </div>
+        <div className="mt-1 font-oswald text-sm font-medium text-white/75">
+          {confirmedCount} / {requiredSlots} confirmados
+        </div>
+        <div className="mt-4 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
+          <div
+            className="h-full rounded-[6px] bg-gradient-to-r from-primary/85 to-indigo-400/85 transition-all duration-200"
+            style={{ width: `${progressPct}%` }}
+          />
         </div>
       </div>
 
-      {displayCount === 0 ? (
-        <div className="text-center text-white/40 font-oswald text-base p-5 italic">
-          Aún no hay jugadores anotados.
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-2.5 w-full max-w-[720px] mx-auto justify-items-center box-border">
-          {jugadores.map((j) => (
-            <PlayerCardTrigger key={j.uuid || j.id} profile={j} partidoActual={partido}>
+      <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border">
+        {slotItems.map((player, idx) => {
+          if (!player) {
+            return (
+              <div
+                key={`slot-empty-${idx}`}
+                className="flex items-center justify-center rounded-lg p-2 min-h-[36px] w-full border border-dashed border-white/[0.08] bg-white/[0.03]"
+                aria-hidden="true"
+              >
+                <UserRound size={16} className="text-white/20" />
+              </div>
+            );
+          }
+
+          return (
+            <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partido}>
               <div
                 className={`PlayerCard ${isSoftVariant ? 'PlayerCard--soft flex items-center gap-1.5 rounded-lg p-2 transition-all min-h-[36px] w-full cursor-pointer hover:brightness-105' : 'flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg p-2 transition-all min-h-[36px] w-full hover:bg-slate-800 cursor-pointer'}`}
                 style={isSoftVariant ? softCardStyle : undefined}
               >
-                {j.foto_url || j.avatar_url ? (
+                {player.foto_url || player.avatar_url ? (
                   <img
-                    src={j.foto_url || j.avatar_url}
-                    alt={j.nombre}
+                    src={player.foto_url || player.avatar_url}
+                    alt={player.nombre}
                     className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
                   />
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
-                    {getInitials(j.nombre)}
+                    {getInitials(player.nombre)}
                   </div>
                 )}
                 <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 break-words leading-tight">
-                  {j.nombre || 'Jugador'}
+                  {player.nombre || 'Jugador'}
                 </span>
-                {partido?.creado_por === j.usuario_id && (
+                {partido?.creado_por === player.usuario_id && (
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
                     <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
                   </svg>
                 )}
               </div>
             </PlayerCardTrigger>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -137,16 +186,6 @@ function SharedInviteLayout({
   const isApproved = joinStatus === 'approved';
   const isPendingSync = joinStatus === 'approved_pending_sync';
   const isSending = submitting && joinStatus === 'none';
-  const [showInviteEmotionBlock, setShowInviteEmotionBlock] = useState(false);
-  const starterCapacity = getMatchCapacity(partido);
-  const titularesCount = (jugadores || []).filter((j) => !j?.is_substitute).length;
-  const remainingTitulares = starterCapacity > 0 ? Math.max(0, starterCapacity - titularesCount) : null;
-  const shouldShowInviteEmotion = ctaVariant !== 'public';
-
-  useEffect(() => {
-    const rafId = requestAnimationFrame(() => setShowInviteEmotionBlock(true));
-    return () => cancelAnimationFrame(rafId);
-  }, []);
 
   return (
     <div className="min-h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient">
@@ -178,43 +217,14 @@ function SharedInviteLayout({
                 onClose={onClearInlineNotice}
               />
               <PlayersReadOnly jugadores={jugadores} partido={partido} mode={mode} />
-
-              {/* Texto de estado si faltan jugadores */}
-              {(!starterCapacity || (remainingTitulares !== null && remainingTitulares > 0)) && (
-                <div className="mt-4 text-center text-white/60 font-oswald text-sm">
-                  {starterCapacity
-                    ? `Falta${remainingTitulares > 1 ? 'n' : ''} ${remainingTitulares} titular${remainingTitulares > 1 ? 'es' : ''}`
-                    : 'Cupos disponibles'}
-                </div>
-              )}
               {isMatchFull && (
                 <div className="mt-4 text-center text-rose-300 font-oswald text-sm">
                   El partido ya está completo
                 </div>
               )}
 
-              {shouldShowInviteEmotion && (
-                <div
-                  className={`mx-auto my-6 w-full max-w-[304px] text-center transition-opacity duration-[250ms] ${
-                    showInviteEmotionBlock ? 'opacity-100' : 'opacity-0'
-                  }`}
-                >
-                  <img
-                    src={Logo}
-                    alt=""
-                    aria-hidden="true"
-                    className="mx-auto mb-2 h-3 w-auto opacity-10 pointer-events-none select-none"
-                  />
-                  <p className="font-oswald font-medium italic text-[14px] leading-[1.5] text-center text-white/75">
-                    Un partido no se arma solo.
-                    <br />
-                    Si decís que sí, el equipo cuenta con vos.
-                  </p>
-                </div>
-              )}
-
               {/* CTA */}
-              <div className="w-full max-w-[500px] mx-auto mt-6 px-0 text-center">
+              <div className="w-full max-w-[500px] mx-auto mt-5 px-0 text-center">
                 {ctaVariant === 'public' ? (
                   <div className="flex flex-col gap-3 w-full">
                     <button
