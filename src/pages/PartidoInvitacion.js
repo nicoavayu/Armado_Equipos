@@ -95,16 +95,21 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   const slotItems = Array.from({ length: requiredSlots }, (_, idx) => jugadores?.[idx] || null);
   const isSoftVariant = mode === 'invite';
   const skewX = 6;
+  const invitePlayersBlockStyle = {
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)',
+    paddingTop: '16px',
+    paddingBottom: '24px',
+  };
   const softCardWrapperStyle = {
-    backgroundColor: '#223066',
+    backgroundColor: '#24356C',
     border: '1px solid rgba(117,146,255,0.28)',
-    boxShadow: '0 8px 22px rgba(0,0,0,0.35), 0 0 24px rgba(112,138,255,0.24)',
+    boxShadow: '0 10px 26px rgba(0,0,0,0.45), 0 0 14px rgba(120,90,255,0.14)',
     transform: `skewX(-${skewX}deg)`,
   };
   const softPlaceholderWrapperStyle = {
     background: 'rgba(255,255,255,0.015)',
     border: '1px dashed rgba(255,255,255,0.07)',
-    boxShadow: '0 4px 10px rgba(0,0,0,0.18)',
+    boxShadow: '0 3px 8px rgba(0,0,0,0.14)',
     transform: `skewX(-${skewX}deg)`,
   };
   const skewCounterStyle = {
@@ -112,7 +117,10 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   };
 
   return (
-    <div className={isSoftVariant ? 'w-full box-border' : 'w-full bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px]'}>
+    <div
+      className={isSoftVariant ? 'w-full box-border' : 'w-full bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px]'}
+      style={isSoftVariant ? invitePlayersBlockStyle : undefined}
+    >
       <div className={`px-1 ${isSoftVariant ? 'mb-6' : 'mb-3 mt-1'}`}>
         <div className="flex items-end justify-between gap-3">
           <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
