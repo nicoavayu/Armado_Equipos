@@ -97,8 +97,8 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   const skewX = 6;
   const softCardWrapperStyle = {
     backgroundColor: '#223066',
-    border: '1px solid rgba(117,146,255,0.24)',
-    boxShadow: '0 8px 22px rgba(0,0,0,0.35), 0 0 18px rgba(112,138,255,0.18)',
+    border: '1px solid rgba(117,146,255,0.28)',
+    boxShadow: '0 8px 22px rgba(0,0,0,0.35), 0 0 24px rgba(112,138,255,0.24)',
     transform: `skewX(-${skewX}deg)`,
   };
   const softPlaceholderWrapperStyle = {
