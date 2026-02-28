@@ -360,6 +360,15 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             </div>
           )}
 
+          {/* Tabs full-bleed outside padded/clip containers */}
+          {!showTeams && isAdmin && !adminState.pendingInvitation && (
+            <AdminTabs
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              pendingCount={pendingRequestsCount}
+            />
+          )}
+
           <main className={`pt-0 ${showTeams ? 'overflow-visible' : 'overflow-x-clip'}`}>
             <div className="main-content">
               {showTeams && (
@@ -377,15 +386,6 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
 
                 {!showTeams && (
                   <>
-                    {/* Tabs - only show for admin */}
-                    {isAdmin && !adminState.pendingInvitation && (
-                      <AdminTabs
-                        activeTab={activeTab}
-                        onTabChange={handleTabChange}
-                        pendingCount={pendingRequestsCount}
-                      />
-                    )}
-
                     {/* Show AdminActions only on Jugadores tab */}
                     {activeTab === 'jugadores' && (
                       <AdminActions
