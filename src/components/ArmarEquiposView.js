@@ -967,8 +967,8 @@ export default function ArmarEquiposView({
                   const hasVoted = playerHasVoted(j);
                   const cardStyle = {
                     ...softCardWrapperStyle,
-                    border: hasVoted ? '1px solid rgba(78, 196, 255, 0.94)' : softCardWrapperStyle.border,
-                    boxShadow: hasVoted ? '0 0 11px rgba(41, 170, 255, 0.3)' : softCardWrapperStyle.boxShadow,
+                    border: hasVoted ? '1px solid rgba(74, 222, 128, 0.9)' : softCardWrapperStyle.border,
+                    boxShadow: hasVoted ? '0 0 11px rgba(74, 222, 128, 0.3)' : softCardWrapperStyle.boxShadow,
                   };
 
                   return (
