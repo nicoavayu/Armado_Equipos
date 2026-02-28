@@ -9,7 +9,7 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
 const SLOT_SKEW_X = 6;
-const SLOT_CLIP_PATH = 'polygon(0 0, 100% 0, 96% 100%, 0 100%)';
+const CARD_STROKE_BLUE = '#29aaff';
 
 // Helper function to get initials from name
 function getInitials(name) {
@@ -156,15 +156,18 @@ const PlayersSection = ({
     backgroundColor: '#07163b',
     border: '1px solid rgba(41, 170, 255, 0.9)',
     boxShadow: '0 0 10px rgba(41, 170, 255, 0.24)',
-    clipPath: SLOT_CLIP_PATH,
+    transform: `skewX(-${SLOT_SKEW_X}deg)`,
+    backfaceVisibility: 'hidden',
   };
   const inviteSoftPlaceholderWrapperStyle = {
     background: 'rgba(255,255,255,0.015)',
     border: '1px dashed rgba(255,255,255,0.055)',
     boxShadow: 'none',
-    clipPath: SLOT_CLIP_PATH,
+    transform: `skewX(-${SLOT_SKEW_X}deg)`,
   };
-  const inviteSkewCounterStyle = {};
+  const inviteSkewCounterStyle = {
+    transform: `skewX(${SLOT_SKEW_X}deg)`,
+  };
 
   useEffect(() => () => {
     if (completionAnimTimeoutRef.current) {
@@ -296,7 +299,7 @@ const PlayersSection = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border">
+      <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border px-1">
         {inviteSlotItems.map((player, idx) => {
           if (!player) {
             return (
@@ -363,7 +366,8 @@ const PlayersSection = ({
       backgroundColor: '#07163b',
       border: hasVoted ? '1px solid rgba(78, 196, 255, 0.94)' : '1px solid rgba(41, 170, 255, 0.9)',
       boxShadow: hasVoted ? '0 0 11px rgba(41, 170, 255, 0.3)' : '0 0 9px rgba(41, 170, 255, 0.24)',
-      clipPath: SLOT_CLIP_PATH,
+      transform: `skewX(-${SLOT_SKEW_X}deg)`,
+      backfaceVisibility: 'hidden',
     };
 
     return (
@@ -575,7 +579,7 @@ const PlayersSection = ({
                 aria-label="Compartir invitación"
               >
                 <span className="inline-flex items-center justify-center" style={{ transform: 'skewX(6deg)' }}>
-                  <Share2 size={12} className="text-white" style={{ filter: 'drop-shadow(0 0 4px rgba(108, 220, 255, 0.72))' }} />
+                  <Share2 size={12} style={{ color: CARD_STROKE_BLUE, filter: 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.78))' }} />
                 </span>
               </button>
 
@@ -648,7 +652,7 @@ const PlayersSection = ({
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border">
+        <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border px-1">
           {inviteSlotItems.map((player, idx) => {
             if (!player) {
               return (

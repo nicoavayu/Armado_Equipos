@@ -25,12 +25,13 @@ const AdminActions = ({
   inputRef,
   onShareClick,
 }) => {
+  const iconAccent = '#29aaff';
+  const iconGlowFilter = 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.78))';
   const [isManualOpen, setIsManualOpen] = useState(Boolean(String(nuevoNombre || '').trim()));
   const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
   const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 4 : 0;
   const playersCount = Array.isArray(jugadores) ? jugadores.length : 0;
   const isRosterFull = maxRosterSlots > 0 && playersCount >= maxRosterSlots;
-  const iconGlowFilter = 'drop-shadow(0 0 4px rgba(108, 220, 255, 0.72))';
 
   useEffect(() => {
     if (String(nuevoNombre || '').trim()) {
@@ -186,7 +187,7 @@ const AdminActions = ({
                   title="Compartir por WhatsApp"
                 >
                   <span>
-                    <WhatsappIcon size={22} style={{ filter: iconGlowFilter }} />
+                    <WhatsappIcon size={22} color={iconAccent} style={{ filter: iconGlowFilter }} />
                   </span>
                 </button>
                 <p className="admin-action-label font-oswald">Enviar link de invitación</p>
@@ -211,7 +212,7 @@ const AdminActions = ({
                   title={isManualOpen ? 'Ocultar agregar manual' : 'Agregar manual'}
                 >
                   <span>
-                    <Keyboard size={21} strokeWidth={2.05} className="text-white" style={{ filter: iconGlowFilter }} />
+                    <Keyboard size={21} strokeWidth={2.05} style={{ color: iconAccent, filter: iconGlowFilter }} />
                   </span>
                 </button>
                 <p className="admin-action-label font-oswald">Ingresar manualmente</p>
