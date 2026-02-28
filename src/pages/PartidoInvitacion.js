@@ -45,6 +45,8 @@ function getGoogleMapsUrl(venue) {
 const CLOSED_MATCH_STATUSES = new Set(['cancelado', 'deleted', 'finalizado']);
 const GUEST_SELF_JOIN_ENABLED = true;
 const MAX_SUBSTITUTES = 4;
+const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
+const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
 const isMatchClosed = (match) => {
   const estado = String(match?.estado || '').toLowerCase();
   return CLOSED_MATCH_STATUSES.has(estado);
@@ -95,6 +97,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   const slotItems = Array.from({ length: requiredSlots }, (_, idx) => jugadores?.[idx] || null);
   const isSoftVariant = mode === 'invite';
   const skewX = 6;
+  const slotHeightClass = 'h-12';
   const invitePlayersBlockStyle = {
     background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)',
     paddingTop: '16px',
@@ -122,18 +125,18 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
       style={isSoftVariant ? invitePlayersBlockStyle : undefined}
     >
       <div className={`px-1 ${isSoftVariant ? 'mb-6' : 'mb-3 mt-1'}`}>
-        <div className="flex items-end gap-2">
+        <div className="flex items-baseline gap-2">
           <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
             Jugadores
           </div>
           <div className="font-oswald text-[13px] font-medium text-white/75 whitespace-nowrap">
-            ({confirmedCount} de {requiredSlots})
+            {confirmedCount}/{requiredSlots}
           </div>
         </div>
         <div className="mt-3 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
           <div
-            className="h-full rounded-[6px] bg-gradient-to-r from-primary/85 to-indigo-400/85 transition-all duration-200"
-            style={{ width: `${progressPct}%` }}
+            className="h-full rounded-[6px] transition-all duration-200"
+            style={{ width: `${progressPct}%`, backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET }}
           />
         </div>
       </div>
@@ -145,12 +148,12 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
               return (
                 <div
                   key={`slot-empty-${idx}`}
-                  className="rounded-none min-h-[36px] w-full overflow-hidden"
+                  className={`rounded-none ${slotHeightClass} w-full overflow-hidden`}
                   style={softPlaceholderWrapperStyle}
                   aria-hidden="true"
                 >
                   <div
-                    className="h-full min-h-[36px] w-full p-2 flex items-center justify-center"
+                    className="h-full w-full p-2 flex items-center justify-center"
                     style={skewCounterStyle}
                   >
                     <UserRound size={14} className="text-white/[0.15]" />
@@ -174,11 +177,11 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
             return (
               <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partido}>
                 <div
-                  className="PlayerCard PlayerCard--soft rounded-none min-h-[36px] w-full overflow-hidden transition-all cursor-pointer hover:brightness-105"
+                  className={`PlayerCard PlayerCard--soft rounded-none ${slotHeightClass} w-full overflow-hidden transition-all cursor-pointer hover:brightness-105`}
                   style={softCardWrapperStyle}
                 >
                   <div
-                    className="h-full min-h-[36px] w-full p-2 flex items-center gap-1.5"
+                    className="h-full w-full p-2 flex items-center gap-1.5"
                     style={skewCounterStyle}
                   >
                     {player.foto_url || player.avatar_url ? (
@@ -192,7 +195,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
                         {getInitials(player.nombre)}
                       </div>
                     )}
-                    <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 break-words leading-tight">
+                    <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 truncate leading-tight">
                       {player.nombre || 'Jugador'}
                     </span>
                     {partido?.creado_por === player.usuario_id && (
@@ -267,8 +270,8 @@ function SharedInviteLayout({
     '--btn-text': 'rgba(242, 246, 255, 0.9)',
   };
   const acceptButtonPalette = {
-    '--btn': '#644dff',
-    '--btn-dark': '#4836bb',
+    '--btn': INVITE_ACCEPT_BUTTON_VIOLET,
+    '--btn-dark': INVITE_ACCEPT_BUTTON_VIOLET_DARK,
     '--btn-glow': 'rgba(101, 77, 255, 0.38)',
     '--btn-text': '#ffffff',
   };
@@ -339,7 +342,7 @@ function SharedInviteLayout({
 
         <main className="pt-0">
           <div className="main-content">
-            <div className="w-full flex flex-col gap-3 overflow-x-visible pt-7">
+            <div className="w-full flex flex-col gap-3 overflow-x-visible pt-6">
               <InlineNotice
                 type={inlineNotice?.type}
                 message={inlineNotice?.message}
