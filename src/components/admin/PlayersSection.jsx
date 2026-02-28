@@ -3,9 +3,13 @@ import ReactDOM from 'react-dom';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
-import { MoreVertical, LogOut } from 'lucide-react';
+import { MoreVertical, LogOut, UserRound } from 'lucide-react';
 import WhatsappIcon from '../WhatsappIcon';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+
+const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
+const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
+const SLOT_SKEW_X = 6;
 
 // Helper function to get initials from name
 function getInitials(name) {
@@ -16,6 +20,33 @@ function getInitials(name) {
   }
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
+
+const resolveSlotsFromMatchType = (match = {}) => {
+  const explicitCapacity = Number(match?.cupo_jugadores || match?.cupo || 0);
+  if (Number.isFinite(explicitCapacity) && explicitCapacity > 0) {
+    return explicitCapacity;
+  }
+
+  const token = String(match?.tipo_partido || match?.modalidad || '').trim().toUpperCase();
+  const normalized = token.replace(/\s+/g, '');
+  const matchByNumber = normalized.match(/F(\d+)/i);
+  if (matchByNumber) {
+    const playersPerTeam = Number(matchByNumber[1]);
+    if (Number.isFinite(playersPerTeam) && playersPerTeam > 0) {
+      return playersPerTeam * 2;
+    }
+  }
+
+  const fallbackByType = {
+    F5: 10,
+    F6: 12,
+    F7: 14,
+    F8: 16,
+    F11: 22,
+  };
+
+  return fallbackByType[normalized] || 10;
+};
 
 /**
  * Empty state component for players list
@@ -112,6 +143,45 @@ const PlayersSection = ({
     Boolean(partidoActual?.id) &&
     hasJoinCode &&
     capacity > 0;
+  const showInviteStylePostJoin = !isAdmin && isPlayerInMatch;
+  const inviteRequiredSlots = resolveSlotsFromMatchType(partidoActual);
+  const inviteDisplayCount = jugadores?.length ?? 0;
+  const inviteConfirmedCount = Math.min(inviteDisplayCount, inviteRequiredSlots);
+  const inviteProgressPct = inviteRequiredSlots > 0
+    ? Math.max(0, Math.min((inviteConfirmedCount / inviteRequiredSlots) * 100, 100))
+    : 0;
+  const inviteSlotItems = Array.from({ length: inviteRequiredSlots }, (_, idx) => jugadores?.[idx] || null);
+  const inviteButtonPalette = {
+    '--btn': INVITE_ACCEPT_BUTTON_VIOLET,
+    '--btn-dark': INVITE_ACCEPT_BUTTON_VIOLET_DARK,
+    '--btn-text': '#ffffff',
+  };
+  const inviteOutlineButtonPalette = {
+    '--btn': 'rgba(23, 35, 74, 0.72)',
+    '--btn-dark': 'rgba(88, 107, 170, 0.46)',
+    '--btn-text': 'rgba(242, 246, 255, 0.9)',
+    '--btn-shadow': '0 6px 16px rgba(0,0,0,0.25)',
+  };
+  const invitePlayersBlockStyle = {
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)',
+    paddingTop: '16px',
+    paddingBottom: '24px',
+  };
+  const inviteSoftCardWrapperStyle = {
+    backgroundColor: '#2A3E78',
+    border: '1px solid rgba(120,90,255,0.28)',
+    boxShadow: '0 0 14px rgba(120,90,255,0.12)',
+    transform: `skewX(-${SLOT_SKEW_X}deg)`,
+  };
+  const inviteSoftPlaceholderWrapperStyle = {
+    background: 'rgba(255,255,255,0.015)',
+    border: '1px dashed rgba(255,255,255,0.055)',
+    boxShadow: 'none',
+    transform: `skewX(-${SLOT_SKEW_X}deg)`,
+  };
+  const inviteSkewCounterStyle = {
+    transform: `skewX(${SLOT_SKEW_X}deg)`,
+  };
 
   useEffect(() => () => {
     if (completionAnimTimeoutRef.current) {
@@ -176,6 +246,144 @@ const PlayersSection = ({
       setIsSharingUpdate(false);
     }
   };
+
+  const renderGuestActionsMenu = () => {
+    if (!isPlayerInMatch) return null;
+
+    return (
+      <div className="relative">
+        <button
+          ref={menuButtonRef}
+          className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white/90 transition-colors"
+          onClick={() => {
+            if (menuButtonRef.current) {
+              const rect = menuButtonRef.current.getBoundingClientRect();
+              setMenuPosition(getSafeMenuPosition(rect));
+            }
+            setLocalMenuOpen(!localMenuOpen);
+          }}
+          aria-label="Opciones"
+          type="button"
+        >
+          <MoreVertical size={20} />
+        </button>
+        {localMenuOpen && ReactDOM.createPortal(
+          <>
+            <div
+              className="fixed inset-0 z-[9998] bg-transparent"
+              onClick={() => setLocalMenuOpen(false)}
+            />
+            <div
+              className="fixed w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out"
+              style={{
+                top: `${menuPosition.top}px`,
+                left: `${menuPosition.left}px`,
+                opacity: localMenuOpen ? 1 : 0,
+                transform: localMenuOpen ? 'scale(1)' : 'scale(0.95)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                className="w-full px-3 py-2 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
+                onClick={() => {
+                  setLocalMenuOpen(false);
+                  setConfirmConfig({ open: true, type: 'abandon' });
+                }}
+                type="button"
+              >
+                <LogOut size={16} />
+                <span>Abandonar partido</span>
+              </button>
+            </div>
+          </>,
+          document.body,
+        )}
+      </div>
+    );
+  };
+
+  const renderInviteStyleRoster = () => (
+    <div className="w-full box-border" style={invitePlayersBlockStyle}>
+      <div className={`px-1 mb-6 ${isPlayerInMatch ? 'pr-10' : ''}`}>
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
+            Jugadores
+          </div>
+          <div className="font-oswald text-[13px] font-medium text-white/75 whitespace-nowrap">
+            {inviteConfirmedCount}/{inviteRequiredSlots}
+          </div>
+        </div>
+        <div className="mt-2 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
+          <div
+            className="h-full rounded-[6px] transition-all duration-200"
+            style={{ width: `${inviteProgressPct}%`, backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, filter: 'saturate(1.05)' }}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border">
+        {inviteSlotItems.map((player, idx) => {
+          if (!player) {
+            return (
+              <div
+                key={`slot-empty-${idx}`}
+                className="rounded-none h-12 w-full overflow-hidden"
+                style={inviteSoftPlaceholderWrapperStyle}
+                aria-hidden="true"
+              >
+                <div
+                  className="h-full w-full p-2 flex items-center justify-center"
+                  style={inviteSkewCounterStyle}
+                >
+                  <UserRound size={14} className="text-white/[0.13]" />
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partidoActual}>
+              <div
+                className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-hidden transition-all cursor-pointer hover:brightness-105"
+                style={inviteSoftCardWrapperStyle}
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute left-[1px] top-1/2 -translate-y-1/2 w-[2px] h-[60%] rounded-[2px] pointer-events-none"
+                  style={{ backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, opacity: 0.74 }}
+                />
+                <div
+                  className="h-full w-full p-2 flex items-center gap-1.5"
+                  style={inviteSkewCounterStyle}
+                >
+                  {player.foto_url || player.avatar_url ? (
+                    <img
+                      src={player.foto_url || player.avatar_url}
+                      alt={player.nombre}
+                      className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
+                      {getInitials(player.nombre)}
+                    </div>
+                  )}
+                  <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 truncate leading-tight">
+                    {player.nombre || 'Jugador'}
+                  </span>
+                  {partidoActual?.creado_por === player.usuario_id && (
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
+                      <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
+                    </svg>
+                  )}
+                </div>
+              </div>
+            </PlayerCardTrigger>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   const renderPlayerCard = (j) => {
     const hasVoted = votantesConNombres.some((v) => {
       if (!v.nombre || !j.nombre) return false;
@@ -371,175 +579,175 @@ const PlayersSection = ({
   if (!isAdmin || (!isPlayerInMatch && jugadores.length > 0)) {
     return (
       <>
+        <style>{`
+          .invite-cta-btn {
+            appearance: none;
+            cursor: pointer;
+            width: 100%;
+            max-width: none;
+            min-width: 0;
+            height: 48px;
+            display: flex;
+            flex: 1 1 0;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            font-size: 0.94rem;
+            font-weight: 700;
+            letter-spacing: 0.045em;
+            color: var(--btn-text, #fff);
+            background: var(--btn);
+            border: 1.5px solid var(--btn-dark);
+            border-radius: 0;
+            box-shadow: var(--btn-shadow, none);
+            transform: skew(-6deg);
+            transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
+            backface-visibility: hidden;
+            white-space: nowrap;
+          }
+          .invite-cta-btn > span {
+            transform: skew(6deg);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .invite-cta-btn:hover:not(:disabled) {
+            filter: brightness(1.08);
+          }
+          .invite-cta-btn:active:not(:disabled) {
+            transform: skew(-6deg);
+            opacity: 0.92;
+          }
+          .invite-cta-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+          }
+        `}</style>
         <div className="w-full flex flex-col pb-32">
-        {/* Lista de jugadores para no-admin */}
-        <div className="w-full max-w-full mx-auto mt-2 bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px] min-w-0">
-          <div className="flex items-start justify-between gap-3 mb-3 mt-1 px-1">
-            <div className="font-bebas text-xl text-white tracking-wide">
-              Jugadores ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
-              {jugadoresCompleteBadge}
-            </div>
-            {isPlayerInMatch && (
-              <div className="relative">
-                <button
-                  ref={menuButtonRef}
-                  className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white/90 transition-colors"
-                  onClick={() => {
-                    if (menuButtonRef.current) {
-                      const rect = menuButtonRef.current.getBoundingClientRect();
-                      setMenuPosition(getSafeMenuPosition(rect));
-                    }
-                    setLocalMenuOpen(!localMenuOpen);
-                  }}
-                  aria-label="Opciones"
-                  type="button"
-                >
-                  <MoreVertical size={20} />
-                </button>
-                {localMenuOpen && ReactDOM.createPortal(
-                  <>
-                    {/* Overlay transparente primero (z-index menor) */}
-                    <div
-                      className="fixed inset-0 z-[9998] bg-transparent"
-                      onClick={() => setLocalMenuOpen(false)}
-                    />
-                    {/* Menú después (z-index mayor) con animación */}
-                    <div
-                      className="fixed w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out"
-                      style={{
-                        top: `${menuPosition.top}px`,
-                        left: `${menuPosition.left}px`,
-                        opacity: localMenuOpen ? 1 : 0,
-                        transform: localMenuOpen ? 'scale(1)' : 'scale(0.95)',
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        className="w-full px-3 py-2 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
-                        onClick={() => {
-                          setLocalMenuOpen(false);
-                          setConfirmConfig({ open: true, type: 'abandon' });
-                        }}
-                        type="button"
-                      >
-                        <LogOut size={16} />
-                        <span>Abandonar partido</span>
-                      </button>
-                    </div>
-                  </>,
-                  document.body,
-                )}
+          {showInviteStylePostJoin ? (
+            <div className="relative w-full max-w-full mx-auto mt-2 box-border min-h-[120px] min-w-0">
+              <div className="absolute right-0 top-0 z-10">
+                {renderGuestActionsMenu()}
               </div>
-            )}
-          </div>
-          {jugadores.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 gap-4 w-full">
-              {isAdmin && !isPlayerInMatch && (
-                <button
-                  className="w-full max-w-xs h-14 rounded-xl bg-emerald-600 text-white font-oswald text-[18px] font-semibold tracking-[0.01em] shadow-[0_4px_14px_rgba(16,185,129,0.3)] hover:brightness-110 active:scale-95 transition-all mb-2"
-                  type="button"
-                  onClick={() => unirseAlPartido && unirseAlPartido()}
-                >
-                  Me sumo (jugar)
-                </button>
-              )}
-              <button
-                className="w-full max-w-xs h-14 rounded-xl bg-[#128BE9] text-white font-oswald text-[18px] font-semibold tracking-[0.01em] shadow-[0_4px_14px_rgba(18,139,233,0.3)] hover:brightness-110 active:scale-95 transition-all"
-                type="button"
-                onClick={() => setShowInviteModal(true)}
-              >
-                Invitar amigos
-              </button>
-              <button
-                className="w-full max-w-xs h-14 rounded-xl bg-slate-800 text-white font-oswald text-[18px] font-semibold tracking-[0.01em] border border-white/20 hover:bg-slate-700 active:scale-95 transition-all"
-                type="button"
-                onClick={() => {
-                  // Focus the manual input field
-                  document.querySelector('input[placeholder="Agregar jugador manualmente"]')?.focus();
-                }}
-              >
-                Agregar manualmente
-              </button>
-              {/* Botón compartir link solo si existe handler */}
-              {canShareInviteLink && (
-                <button
-                  className="mt-4 text-xs text-white/70 bg-white/10 px-3 py-2 rounded-lg border border-white/20 hover:bg-white/15 transition-all"
-                  type="button"
-                  onClick={() => onShareClick?.()}
-                >
-                  Compartir link
-                </button>
-              )}
+              {renderInviteStyleRoster()}
             </div>
           ) : (
-            renderRosterSections()
-          )}
-        </div>
-
-        {/* Botones de acción - Static flow instead of fixed, closer to list */}
-        <div className="w-full px-4 mt-6 relative z-10 text-center">
-          {/* Texto de estado si faltan jugadores */}
-          {(!partidoActual.cupo_jugadores || (remainingTitularSlots !== null && remainingTitularSlots > 0)) && (
-            <div className="mb-4 text-white/60 font-oswald text-sm">
-              {capacity
-                ? `Falta${remainingTitularSlots > 1 ? 'n' : ''} ${remainingTitularSlots} titular${remainingTitularSlots > 1 ? 'es' : ''}`
-                : 'Cupos disponibles'}
-            </div>
-          )}
-          <div className="w-full max-w-[500px] mx-auto bg-[#0f172a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-            <div className="flex gap-3">
-              {!isPlayerInMatch ? (
-                // Guest View: Check if invitation is valid
-                invitationStatus && invitationStatus !== 'pending' ? (
-                  <div className="w-full flex flex-col items-center justify-center py-2 text-white/60">
-                    <span className="font-bebas text-xl mb-1 opacity-80">
-                      {invitationStatus === 'declined' ? 'INVITACIÓN RECHAZADA' : 'INVITACIÓN NO VÁLIDA'}
-                    </span>
-                    <span className="text-sm font-light opacity-60">
-                      {invitationStatus === 'declined' ? 'Ya rechazaste esta invitación.' : 'Esta invitación ha expirado o ya fue respondida.'}
-                    </span>
-                  </div>
-                ) : (
-                  // Valid Pending Invitation
-                  <>
+            <div className="w-full max-w-full mx-auto mt-2 bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px] min-w-0">
+              <div className="flex items-start justify-between gap-3 mb-3 mt-1 px-1">
+                <div className="font-bebas text-xl text-white tracking-wide">
+                  Jugadores ({titularPlayers.length}/{partidoActual.cupo_jugadores || 'Sin límite'})
+                  {jugadoresCompleteBadge}
+                </div>
+                {renderGuestActionsMenu()}
+              </div>
+              {jugadores.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-4 w-full">
+                  {isAdmin && !isPlayerInMatch && (
                     <button
-                      className="flex-[1.5] font-oswald text-[18px] h-12 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:bg-[#0f7acc] hover:shadow-[0_0_20px_rgba(18,139,233,0.4)] active:scale-95 shadow-[0_4px_10px_rgba(0,0,0,0.3)]"
-                      onClick={aceptarInvitacion}
-                      disabled={invitationLoading || isMatchFull}
+                      className="w-full max-w-xs h-14 rounded-xl bg-emerald-600 text-white font-oswald text-[18px] font-semibold tracking-[0.01em] shadow-[0_4px_14px_rgba(16,185,129,0.3)] hover:brightness-110 active:scale-95 transition-all mb-2"
+                      type="button"
+                      onClick={() => unirseAlPartido && unirseAlPartido()}
                     >
-                      {invitationLoading ? <LoadingSpinner size="small" /> : 'Aceptar'}
+                      Me sumo (jugar)
                     </button>
-                    <button
-                      className="flex-1 font-oswald text-[18px] h-12 rounded-xl cursor-pointer transition-all text-white/70 flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed bg-transparent border border-white/20 hover:bg-white/10 hover:text-white active:scale-95"
-                      onClick={rechazarInvitacion}
-                      disabled={invitationLoading}
-                    >
-                      Rechazar
-                    </button>
-                  </>
-                )
-              ) : (
-                // Botones para jugador ya en el partido (guest view) - SOLO INVITAR
-                <div className="flex flex-col w-full">
+                  )}
                   <button
-                    className={`w-full font-oswald text-[18px] h-14 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-semibold tracking-[0.01em] bg-[#128BE9] shadow-[0_4px_14px_rgba(18,139,233,0.3)]
-                      ${isMatchFull
-                        ? 'opacity-40 grayscale cursor-not-allowed shadow-none'
-                        : 'hover:brightness-110 active:scale-95'
-                      }`}
-                    onClick={() => {
-                      if (isMatchFull) return;
-                      setShowInviteModal(true);
-                    }}
-                    disabled={isMatchFull}
+                    className="w-full max-w-xs h-14 rounded-xl bg-[#128BE9] text-white font-oswald text-[18px] font-semibold tracking-[0.01em] shadow-[0_4px_14px_rgba(18,139,233,0.3)] hover:brightness-110 active:scale-95 transition-all"
+                    type="button"
+                    onClick={() => setShowInviteModal(true)}
                   >
                     Invitar amigos
                   </button>
+                  <button
+                    className="w-full max-w-xs h-14 rounded-xl bg-slate-800 text-white font-oswald text-[18px] font-semibold tracking-[0.01em] border border-white/20 hover:bg-slate-700 active:scale-95 transition-all"
+                    type="button"
+                    onClick={() => {
+                      document.querySelector('input[placeholder="Agregar jugador manualmente"]')?.focus();
+                    }}
+                  >
+                    Agregar manualmente
+                  </button>
+                  {canShareInviteLink && (
+                    <button
+                      className="mt-4 text-xs text-white/70 bg-white/10 px-3 py-2 rounded-lg border border-white/20 hover:bg-white/15 transition-all"
+                      type="button"
+                      onClick={() => onShareClick?.()}
+                    >
+                      Compartir link
+                    </button>
+                  )}
                 </div>
+              ) : (
+                renderRosterSections()
               )}
             </div>
+          )}
+
+          <div className={`w-full relative z-10 text-center ${showInviteStylePostJoin ? 'px-2 mt-5' : 'px-4 mt-6'}`}>
+            {!showInviteStylePostJoin && (!partidoActual.cupo_jugadores || (remainingTitularSlots !== null && remainingTitularSlots > 0)) && (
+              <div className="mb-4 text-white/60 font-oswald text-sm">
+                {capacity
+                  ? `Falta${remainingTitularSlots > 1 ? 'n' : ''} ${remainingTitularSlots} titular${remainingTitularSlots > 1 ? 'es' : ''}`
+                  : 'Cupos disponibles'}
+              </div>
+            )}
+
+            {showInviteStylePostJoin ? (
+              <div className="w-full max-w-[500px] mx-auto">
+                <div className="flex flex-col gap-3 w-full justify-center items-stretch px-2 sm:px-0 overflow-visible">
+                  <button
+                    className="invite-cta-btn"
+                    style={inviteButtonPalette}
+                    onClick={() => setShowInviteModal(true)}
+                    disabled={isMatchFull}
+                  >
+                    <span>{isMatchFull ? 'Partido completo' : 'Invitar amigos'}</span>
+                  </button>
+                  {typeof onShareClick === 'function' && (
+                    <button
+                      className="invite-cta-btn"
+                      style={inviteOutlineButtonPalette}
+                      onClick={() => onShareClick?.()}
+                    >
+                      <span>Compartir link</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="w-full max-w-[500px] mx-auto bg-[#0f172a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+                <div className="flex gap-3">
+                  {invitationStatus && invitationStatus !== 'pending' ? (
+                    <div className="w-full flex flex-col items-center justify-center py-2 text-white/60">
+                      <span className="font-bebas text-xl mb-1 opacity-80">
+                        {invitationStatus === 'declined' ? 'INVITACIÓN RECHAZADA' : 'INVITACIÓN NO VÁLIDA'}
+                      </span>
+                      <span className="text-sm font-light opacity-60">
+                        {invitationStatus === 'declined' ? 'Ya rechazaste esta invitación.' : 'Esta invitación ha expirado o ya fue respondida.'}
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        className="flex-[1.5] font-oswald text-[18px] h-12 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:bg-[#0f7acc] hover:shadow-[0_0_20px_rgba(18,139,233,0.4)] active:scale-95 shadow-[0_4px_10px_rgba(0,0,0,0.3)]"
+                        onClick={aceptarInvitacion}
+                        disabled={invitationLoading || isMatchFull}
+                      >
+                        {invitationLoading ? <LoadingSpinner size="small" /> : 'Aceptar'}
+                      </button>
+                      <button
+                        className="flex-1 font-oswald text-[18px] h-12 rounded-xl cursor-pointer transition-all text-white/70 flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed bg-transparent border border-white/20 hover:bg-white/10 hover:text-white active:scale-95"
+                        onClick={rechazarInvitacion}
+                        disabled={invitationLoading}
+                      >
+                        Rechazar
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
         </div>
 
         <ConfirmModal
