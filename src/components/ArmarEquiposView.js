@@ -805,8 +805,8 @@ export default function ArmarEquiposView({
           width: 74%;
           max-width: 520px;
           min-width: 10px;
-          height: 64px;
-          min-height: 64px;
+          height: 60px;
+          min-height: 48px;
           padding-inline: 18px;
           display: flex;
           flex: 1 1 0;
