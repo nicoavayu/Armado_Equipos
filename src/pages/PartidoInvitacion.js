@@ -128,9 +128,16 @@ function SharedInviteLayout({
   const isApproved = joinStatus === 'approved';
   const isPendingSync = joinStatus === 'approved_pending_sync';
   const isSending = submitting && joinStatus === 'none';
+  const [showInviteEmotionBlock, setShowInviteEmotionBlock] = useState(false);
   const starterCapacity = getMatchCapacity(partido);
   const titularesCount = (jugadores || []).filter((j) => !j?.is_substitute).length;
   const remainingTitulares = starterCapacity > 0 ? Math.max(0, starterCapacity - titularesCount) : null;
+  const shouldShowInviteEmotion = ctaVariant !== 'public';
+
+  useEffect(() => {
+    const rafId = requestAnimationFrame(() => setShowInviteEmotionBlock(true));
+    return () => cancelAnimationFrame(rafId);
+  }, []);
 
   return (
     <div className="min-h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient">
@@ -174,6 +181,26 @@ function SharedInviteLayout({
               {isMatchFull && (
                 <div className="mt-4 text-center text-rose-300 font-oswald text-sm">
                   El partido ya está completo
+                </div>
+              )}
+
+              {shouldShowInviteEmotion && (
+                <div
+                  className={`mx-auto my-6 w-full max-w-[304px] text-center transition-opacity duration-[250ms] ${
+                    showInviteEmotionBlock ? 'opacity-100' : 'opacity-0'
+                  }`}
+                >
+                  <img
+                    src={Logo}
+                    alt=""
+                    aria-hidden="true"
+                    className="mx-auto mb-2 h-3 w-auto opacity-10 pointer-events-none select-none"
+                  />
+                  <p className="font-oswald font-medium italic text-[14px] leading-[1.5] text-center text-white/75">
+                    Un partido no se arma solo.
+                    <br />
+                    Si decís que sí, el equipo cuenta con vos.
+                  </p>
                 </div>
               )}
 
