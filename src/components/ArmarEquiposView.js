@@ -802,7 +802,7 @@ export default function ArmarEquiposView({
         .invite-cta-btn {
           appearance: none;
           cursor: pointer;
-          width: 74%;
+          width: 90%;
           max-width: 520px;
           min-width: 10px;
           height: 60px;
@@ -1043,7 +1043,7 @@ export default function ArmarEquiposView({
             >
               <span>{calling || checkingVoteStatus ? <LoadingSpinner size="small" /> : primaryLabel}</span>
             </button>
-            <div className="text-[11px] text-white/50 leading-snug text-center px-1 mt-0.5 w-[74%] mx-auto">
+            <div className="text-[11px] text-white/50 leading-snug text-center px-1 mt-0.5 w-[90%] mx-auto">
               Notifica a los jugadores que ya tienen la app
             </div>
           </div>
@@ -1059,7 +1059,7 @@ export default function ArmarEquiposView({
             >
               <span>{isClosing ? <LoadingSpinner size="small" /> : 'Cerrar votación'}</span>
             </button>
-            <div className="text-[11px] text-white/50 leading-snug text-center px-1 mt-0.5 w-[74%] mx-auto">
+            <div className="text-[11px] text-white/50 leading-snug text-center px-1 mt-0.5 w-[90%] mx-auto">
               Avanza al armado de equipos y bloquea nuevas votaciones
             </div>
           </div>
