@@ -24,9 +24,6 @@ const AdminPanelPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const search = new URLSearchParams(window.location.search);
-    if (search.has('codigo')) return;
-
     const cargarPartido = async () => {
       try {
         const id = Number(partidoId);

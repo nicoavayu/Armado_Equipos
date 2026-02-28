@@ -232,16 +232,16 @@ function SharedInviteLayout({
                   <div className="flex flex-row gap-3 w-full justify-center items-stretch">
                     <button
                       onClick={onNavigateHome}
-                      className="flex-1 h-14 bg-white/5 text-white/70 rounded-xl font-bebas text-[18px] tracking-widest hover:bg-white/10 hover:text-white transition-all border border-white/20 active:scale-95 uppercase font-bold flex items-center justify-center"
+                      className="flex-1 h-11 bg-white/5 text-white/75 rounded-xl font-oswald text-sm hover:bg-white/10 hover:text-white transition-all border border-white/20 active:scale-95 font-semibold flex items-center justify-center"
                     >
-                      RECHAZAR
+                      Rechazar
                     </button>
                     <button
                       onClick={onSumarse}
                       disabled={!codigoValido || submitting || isMatchFull}
-                      className="flex-1 h-14 bg-primary text-white rounded-xl font-bebas text-[18px] tracking-widest hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 uppercase font-bold border-2 border-white/10 shadow-[0_4px_14px_rgba(18,139,233,0.25)] flex items-center justify-center"
+                      className="flex-1 h-11 bg-primary text-white rounded-xl font-oswald text-sm hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 font-semibold border border-white/10 shadow-[0_4px_14px_rgba(18,139,233,0.25)] flex items-center justify-center"
                     >
-                      {isMatchFull ? 'PARTIDO COMPLETO' : (submitting ? 'SUMANDO...' : 'ACEPTAR')}
+                      {isMatchFull ? 'Partido completo' : (submitting ? 'Sumando...' : 'Aceptar')}
                     </button>
                   </div>
                 )}
@@ -927,10 +927,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     }
 
     const buildPostJoinRoute = () => {
-      const resolvedCode = String(codigoFromUrl || codigoFromMatch || '').trim();
-      return resolvedCode
-        ? `/partido/${partidoId}?codigo=${encodeURIComponent(resolvedCode)}`
-        : `/partido/${partidoId}`;
+      return `/partido/${partidoId}`;
     };
 
     const maxRoster = getMaxRosterSlots(partido);

@@ -171,7 +171,7 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
           .eq('type', 'match_invite')
           .eq('match_id_text', partidoActual.id.toString())
           .eq('read', false) // Only block if UNREAD
-          .maybeSingle();
+          .limit(1);
 
         if (extError && extError.code === '42P01') {
           // View doesn't exist, skip duplicate check and allow invitation
@@ -179,12 +179,12 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
           existingInvitation = null;
           checkError = null;
         } else {
-          existingInvitation = extData;
+          existingInvitation = Array.isArray(extData) ? extData[0] : null;
           checkError = extError;
         }
       }
 
-      if (checkError && checkError.code !== 'PGRST116') {
+      if (checkError) {
         console.error('[MODAL_AMIGOS] Error checking existing invitation:', checkError);
         throw new Error('Error verificando invitaciones existentes');
       }
@@ -357,14 +357,16 @@ const InviteAmigosModal = ({ isOpen, onClose, currentUserId, partidoActual, juga
         </div>
 
         <div className="px-5 py-4 max-h-[60vh] overflow-y-auto">
-          <div className="min-h-[52px] mb-2">
-            <InlineNotice
-              type={notice?.type}
-              message={notice?.message}
-              autoHideMs={notice?.type === 'warning' ? null : 3000}
-              onClose={clearInlineNotice}
-            />
-          </div>
+          {notice ? (
+            <div className="mb-2">
+              <InlineNotice
+                type={notice?.type}
+                message={notice?.message}
+                autoHideMs={notice?.type === 'warning' ? null : 3000}
+                onClose={clearInlineNotice}
+              />
+            </div>
+          ) : null}
           {loading ? (
             <div className="flex justify-center py-10">
               <LoadingSpinner size="medium" />

@@ -65,8 +65,8 @@ export const useAdminPanelState = ({
 
   // Check invitation
   useEffect(() => {
-    const search = new URLSearchParams(window.location.search);
-    if (search.has('codigo')) return; // no correr en voting view
+    const isVotingView = window.location.pathname.includes('/votar-equipos');
+    if (isVotingView) return;
 
     const checkInvitation = async () => {
       if (!user?.id || !partidoActual?.id) {
@@ -176,8 +176,8 @@ export const useAdminPanelState = ({
 
   // Fetch initial data and real-time subscriptions
   useEffect(() => {
-    const search = new URLSearchParams(window.location.search);
-    if (search.has('codigo')) return;
+    const isVotingView = window.location.pathname.includes('/votar-equipos');
+    if (isVotingView) return;
 
     fetchJugadores();
 
