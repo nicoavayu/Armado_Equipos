@@ -1,6 +1,6 @@
 import React from 'react';
 
-const TAB_SKEW_X = 6;
+const TAB_SKEW_X = 0;
 
 /**
  * Tab selector component for AdminPanel

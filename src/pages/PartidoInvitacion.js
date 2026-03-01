@@ -97,7 +97,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
     : 0;
   const slotItems = Array.from({ length: requiredSlots }, (_, idx) => jugadores?.[idx] || null);
   const isSoftVariant = mode === 'invite';
-  const skewX = 6;
+  const skewX = 0;
   const slotHeightClass = 'h-12';
   const invitePlayersBlockStyle = {
     background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)',
@@ -307,13 +307,13 @@ function SharedInviteLayout({
           border: 1.5px solid var(--btn-dark);
           border-radius: 0;
           box-shadow: var(--btn-shadow, none);
-          transform: skew(-6deg);
+          transform: none;
           transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
           backface-visibility: hidden;
           white-space: nowrap;
         }
         .invite-cta-btn > span {
-          transform: skew(6deg);
+          transform: none;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -322,7 +322,7 @@ function SharedInviteLayout({
           filter: brightness(1.08);
         }
         .invite-cta-btn:active:not(:disabled) {
-          transform: skew(-6deg);
+          transform: none;
           opacity: 0.92;
         }
         .invite-cta-btn:disabled {

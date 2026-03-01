@@ -503,7 +503,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                         <button
                           className="w-[90%] max-w-[620px] h-[60px] border text-white font-oswald text-[18px] px-4 transition-all disabled:opacity-45 disabled:cursor-not-allowed tracking-[0.045em] font-semibold"
                           style={{
-                            transform: 'skewX(-6deg)',
+                            transform: 'none',
                             borderRadius: 0,
                             background: 'linear-gradient(132deg, #291686 0%, #3f24ba 48%, #5638e6 100%)',
                             borderColor: 'rgba(132, 112, 255, 0.58)',
@@ -515,7 +515,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                         >
                           <span
                             className="w-full inline-flex items-center justify-center"
-                            style={{ transform: 'skewX(6deg)' }}
+                            style={{ transform: 'none' }}
                           >
                             ARMAR EQUIPOS
                           </span>

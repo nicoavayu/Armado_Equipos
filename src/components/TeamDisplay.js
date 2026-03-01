@@ -34,7 +34,7 @@ const SafeWhatsappIcon = safeComp(WhatsappIcon, 'WhatsappIcon');
 const SafeLoadingSpinner = safeComp(LoadingSpinner, 'LoadingSpinner');
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
-const SLOT_SKEW_X = 6;
+const SLOT_SKEW_X = 0;
 const CARD_BG_BLUE = '#07163b';
 const CARD_STROKE_BLUE = 'rgba(41, 170, 255, 0.9)';
 const CARD_GLOW_BLUE = '0 0 9px rgba(41, 170, 255, 0.24)';
@@ -682,14 +682,14 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           border: 1.5px solid var(--btn-dark);
           border-radius: 0;
           box-shadow: var(--btn-shadow, none);
-          transform: skew(-6deg);
+          transform: none;
           transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
           backface-visibility: hidden;
           white-space: nowrap;
           margin-inline: auto;
         }
         .invite-cta-btn > span {
-          transform: skew(6deg);
+          transform: none;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -698,7 +698,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           filter: brightness(1.08);
         }
         .invite-cta-btn:active:not(:disabled) {
-          transform: skew(-6deg);
+          transform: none;
           opacity: 0.92;
         }
         .invite-cta-btn:disabled {

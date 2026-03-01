@@ -61,13 +61,13 @@ const AdminActions = ({
           background: linear-gradient(125deg, #4e37df 0%, ${INVITE_ACCEPT_BUTTON_VIOLET} 58%, #735bff 100%);
           border: 1.5px solid ${INVITE_ACCEPT_BUTTON_VIOLET_DARK};
           border-radius: 0;
-          transform: skew(-4deg);
+          transform: none;
           transition: filter 120ms ease, opacity 120ms ease;
           white-space: nowrap;
           backface-visibility: hidden;
         }
         .admin-primary-btn > span {
-          transform: skew(4deg);
+          transform: none;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -99,11 +99,11 @@ const AdminActions = ({
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          transform: skew(-5deg);
+          transform: none;
           transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
         }
         .admin-action-skew > span {
-          transform: skew(5deg);
+          transform: none;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -141,11 +141,11 @@ const AdminActions = ({
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          transform: skew(-5deg);
+          transform: none;
           transition: background-color 120ms ease, border-color 120ms ease, opacity 120ms ease;
         }
         .admin-manual-submit > span {
-          transform: skew(5deg);
+          transform: none;
           display: inline-flex;
           align-items: center;
           justify-content: center;
