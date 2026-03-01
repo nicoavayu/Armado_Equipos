@@ -20,7 +20,6 @@ import StarRating from '../components/StarRating';
 import { AvatarFallback } from '../components/ProfileComponents';
 import EmptyStateCard from '../components/EmptyStateCard';
 import PageLoadingState from '../components/PageLoadingState';
-import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
 import InlineNotice from '../components/ui/InlineNotice';
 
 // Styles are now handled via Tailwind CSS
@@ -32,6 +31,9 @@ const clean = (value) => SANITIZE_ON ? DOMPurify.sanitize(String(value ?? '')) :
 
 // Debug logging
 const DEBUG = false;
+const VOTE_CARD_BG_BLUE = '#07163b';
+const VOTE_CARD_STROKE_BLUE = 'rgba(41, 170, 255, 0.9)';
+const VOTE_CARD_GLOW_BLUE = '0 0 9px rgba(41, 170, 255, 0.24)';
 
 
 export default function VotingView({ onReset, jugadores, partidoActual }) {
@@ -338,7 +340,28 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const cardClass = 'w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-5';
   // Updated title class to match Legacy 'voting-title-modern' but with Tailwind
   const titleClass = 'font-bebas text-[40px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-lg';
-  const btnClass = 'font-bebas text-[27px] md:text-[28px] text-white bg-primary border-2 border-white/20 rounded-2xl tracking-wide py-4 mt-4 w-full cursor-pointer font-bold transition-all duration-300 hover:brightness-110 hover:shadow-[0_4px_20px_rgba(129,120,229,0.5)] disabled:opacity-60 disabled:cursor-not-allowed relative overflow-hidden flex items-center justify-center';
+  const primaryVoteButtonClass = 'w-full h-[60px] min-h-[60px] px-4 border text-white font-oswald text-[20px] md:text-[22px] font-semibold tracking-[0.01em] normal-case rounded-none cursor-pointer transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center';
+  const primaryVoteButtonStyle = {
+    background: 'linear-gradient(132deg, #291686 0%, #3f24ba 48%, #5638e6 100%)',
+    borderColor: 'rgba(132, 112, 255, 0.58)',
+    boxShadow: '0 0 22px rgba(86, 56, 230, 0.28)',
+  };
+  const neutralVoteButtonStyle = {
+    background: 'rgba(23, 35, 74, 0.72)',
+    borderColor: 'rgba(88, 107, 170, 0.46)',
+    boxShadow: 'none',
+    color: 'rgba(255, 255, 255, 0.9)',
+  };
+  const voteCardHeaderStyle = {
+    backgroundColor: 'rgba(42, 56, 102, 0.86)',
+    borderColor: VOTE_CARD_STROKE_BLUE,
+    boxShadow: 'none',
+  };
+  const voteCardBodyStyle = {
+    backgroundColor: VOTE_CARD_BG_BLUE,
+    borderColor: VOTE_CARD_STROKE_BLUE,
+    boxShadow: VOTE_CARD_GLOW_BLUE,
+  };
   const textClass = 'text-white text-[21px] md:text-[26px] font-oswald text-center mb-[30px] tracking-wide';
   const noticeSlot = (
     <div className="w-[90vw] max-w-[520px] mx-auto mt-3">
@@ -387,7 +410,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
           </div>
           <button
-            className={`${PRIMARY_CTA_BUTTON_CLASS} mt-4`}
+            className={`${primaryVoteButtonClass} mt-4`}
+            style={primaryVoteButtonStyle}
             onClick={handleFinalAction}
           >Volver</button>
         </div>
@@ -413,7 +437,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
           </div>
           <button
-            className={`${PRIMARY_CTA_BUTTON_CLASS} mt-4`}
+            className={`${primaryVoteButtonClass} mt-4`}
+            style={primaryVoteButtonStyle}
             onClick={handleFinalAction}
           >Volver</button>
         </div>
@@ -539,10 +564,10 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             </div>
           )}
           <button
-            className={btnClass}
+            className={primaryVoteButtonClass}
             onClick={onReset}
-            style={{ marginTop: 16 }}
-          >VOLVER AL INICIO</button>
+            style={{ ...primaryVoteButtonStyle, marginTop: 16 }}
+          >Volver al inicio</button>
         </div>
       </div>
     );
@@ -578,7 +603,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             <EmptyStateCard
               title="SIN JUGADORES PARA IDENTIFICAR"
               description="Este link no tiene invitados válidos para votar en este partido."
-              actionLabel="VOLVER AL INICIO"
+              actionLabel="Volver al inicio"
               onAction={onReset}
               className="max-w-[400px] my-2"
             />
@@ -588,7 +613,12 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                 {jugadoresIdentificacion.map((j) => (
                   <button
                     key={j.uuid || j.id || j.nombre}
-                    className={`w-full bg-white/5 border border-white/20 text-white font-bebas text-2xl md:text-[2rem] py-3 text-center cursor-pointer transition-all hover:bg-white/15 min-h-[48px] flex items-center justify-center rounded-xl ${nombre === j.nombre ? 'bg-primary/40 border-primary' : ''}`}
+                    className={`w-full border text-white font-bebas text-2xl md:text-[2rem] py-3 text-center cursor-pointer transition-all min-h-[48px] flex items-center justify-center rounded-none hover:brightness-105 ${nombre === j.nombre ? 'bg-primary/40 border-primary' : ''}`}
+                    style={{
+                      backgroundColor: nombre === j.nombre ? undefined : VOTE_CARD_BG_BLUE,
+                      borderColor: nombre === j.nombre ? undefined : VOTE_CARD_STROKE_BLUE,
+                      boxShadow: nombre === j.nombre ? undefined : VOTE_CARD_GLOW_BLUE,
+                    }}
                     onClick={() => setNombre(j.nombre)}
                     type="button"
                   >
@@ -597,9 +627,13 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                 ))}
               </div>
               <button
-                className={btnClass}
+                className={primaryVoteButtonClass}
                 disabled={!nombre}
-                style={{ opacity: nombre ? 1 : 0.4, pointerEvents: nombre ? 'auto' : 'none' }}
+                style={{
+                  ...primaryVoteButtonStyle,
+                  opacity: nombre ? 1 : 0.4,
+                  pointerEvents: nombre ? 'auto' : 'none',
+                }}
                 onClick={handleConfirmNombre}
               >
                 {checkingPublicVoter ? 'Verificando...' : 'Confirmar'}
@@ -649,7 +683,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <div className={titleClass}>¡HOLA, {clean(nombre)}!</div>
           <div className="flex flex-col items-center mb-6">
             <div
-              className={'w-64 h-64 md:w-[320px] md:h-[320px] bg-white/10 border-2 border-white/25 rounded-xl flex items-center justify-center shadow-lg relative overflow-hidden mx-auto mt-4 cursor-pointer hover:border-white/40 transition-all'}
+              className={'w-64 h-64 md:w-[320px] md:h-[320px] border rounded-none flex items-center justify-center relative overflow-hidden mx-auto mt-4 cursor-pointer transition-all hover:brightness-105'}
+              style={voteCardBodyStyle}
               onClick={() => fotoInputRef.current?.click()}
               title={fotoPreview ? 'Cambiar foto' : 'Agregar foto'}
             >
@@ -681,19 +716,20 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <div className="w-full flex flex-col gap-3 mt-2">
             {file && (
               <button
-                className={`${btnClass} !mt-0`}
-                style={{ background: 'rgba(255,255,255,0.17)', borderColor: '#fff' }}
+                className={`${primaryVoteButtonClass} !mt-0`}
+                style={neutralVoteButtonStyle}
                 disabled={subiendoFoto}
                 onClick={handleFotoUpload}
               >
-                {subiendoFoto ? 'SUBIENDO...' : 'GUARDAR FOTO'}
+                {subiendoFoto ? 'Subiendo...' : 'Guardar foto'}
               </button>
             )}
             <button
-              className={`${btnClass} !mt-0`}
+              className={`${primaryVoteButtonClass} !mt-0`}
+              style={primaryVoteButtonStyle}
               onClick={() => setStep(2)}
             >
-              {fotoPreview ? 'CONTINUAR' : 'CONTINUAR SIN FOTO'}
+              {fotoPreview ? 'Continuar' : 'Continuar sin foto'}
             </button>
           </div>
         </div>
@@ -726,10 +762,16 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         {noticeSlot}
         <div className="w-[90vw] max-w-[520px] mx-auto mt-12 mb-12 flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-0">
           <div className={`w-full transition-transform duration-200 ease-out ${animating ? '-translate-x-full opacity-0' : 'translate-x-0 opacity-100'}`}>
-            <div className="w-[80vw] md:w-[320px] mx-auto bg-white/15 border-2 border-white/25 rounded-t-xl text-white font-bebas font-normal text-center uppercase text-[1.3rem] md:text-[2.1rem] tracking-wider py-2 mt-3 mb-0 shadow-sm">
+            <div
+              className="w-[80vw] md:w-[320px] mx-auto border rounded-none text-white font-bebas font-normal text-center uppercase text-[1.3rem] md:text-[2.1rem] tracking-wider py-2 mt-3 mb-0"
+              style={voteCardHeaderStyle}
+            >
               {clean(jugadorVotar.nombre)}
             </div>
-            <div className="w-[80vw] h-[80vw] md:w-[320px] md:h-[320px] bg-white/10 border-2 border-white/25 border-t-0 rounded-b-xl flex items-center justify-center shadow-lg relative overflow-hidden mx-auto mt-0 mb-0">
+            <div
+              className="w-[80vw] h-[80vw] md:w-[320px] md:h-[320px] border border-t-0 rounded-none flex items-center justify-center relative overflow-hidden mx-auto mt-0 mb-0"
+              style={voteCardBodyStyle}
+            >
               {jugadorVotar.avatar_url ? (
                 <img src={jugadorVotar.avatar_url} alt="foto" className="w-full h-full object-cover" />
               ) : (
@@ -777,7 +819,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             </div>
 
             <button
-              className={`${btnClass} !w-auto !min-w-[230px] !px-8 !py-2.5 !text-[16px] md:!text-[18px] mt-6 mb-0 mx-auto font-normal tracking-[1px] hover:shadow-none hover:brightness-105`}
+              className={`${primaryVoteButtonClass} mt-6 mb-0 mx-auto !w-[80vw] md:!w-[320px]`}
               onClick={() => {
                 if (animating) return;
                 setAnimating(true);
@@ -794,9 +836,9 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   setAnimating(false);
                 }, 200);
               }}
-              style={{ background: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.30)', color: 'rgba(255,255,255,0.90)' }}
+              style={neutralVoteButtonStyle}
             >
-              NO LO CONOZCO
+              No lo conozco
             </button>
           </div>
         </div>
@@ -812,7 +854,11 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         <div className="w-[90vw] max-w-[520px] mx-auto mt-20 flex flex-col items-center p-3 pb-8">
           <div className="w-full max-w-full mx-auto mb-4 p-0 list-none">
             {jugadoresParaVotar.map((j, idx) => (
-              <div key={j.uuid} className="flex items-center gap-2.5 mb-2 bg-white/10 rounded-lg p-2.5 border border-white/10 hover:bg-white/15 hover:border-white/20 transition-all">
+              <div
+                key={j.uuid}
+                className="flex items-center gap-2.5 mb-2 p-2.5 border rounded-none transition-all hover:brightness-105"
+                style={voteCardBodyStyle}
+              >
                 <div className="w-10 h-10 rounded-full overflow-hidden shrink-0">
                   {j.avatar_url ?
                     <img src={j.avatar_url} alt="foto" className="w-full h-full object-cover" />
@@ -824,10 +870,11 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   {votos[j.uuid] ? votos[j.uuid] + '/10' : 'No calif.'}
                 </span>
                 <button
-                  className="bg-primary text-white text-[0.85em] px-3 py-1 rounded-lg font-bebas ml-1.5 hover:brightness-110 transition-all shadow-md shrink-0"
+                  className="border px-3 py-1 text-[0.85em] text-white font-oswald font-semibold normal-case rounded-none ml-1.5 transition-all hover:brightness-110 shrink-0"
+                  style={neutralVoteButtonStyle}
                   onClick={() => setEditandoIdx(idx)}
                 >
-                  EDITAR
+                  Editar
                 </button>
               </div>
             ))}
@@ -838,8 +885,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             </div>
           )}
           <button
-            className="w-full font-oswald normal-case text-[20px] md:text-[22px] text-white bg-primary border border-white/20 rounded-xl tracking-[0.01em] py-3.5 mt-4 font-semibold transition-all duration-300 hover:brightness-110 hover:shadow-[0_6px_20px_rgba(129,120,229,0.45)] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ minHeight: '44px' }}
+            className={`${primaryVoteButtonClass} mt-4`}
+            style={primaryVoteButtonStyle}
             disabled={isSubmitting || hasAccess === false || hasAccess === null}
             onClick={async () => {
               // Anti-double submit guard
@@ -1171,7 +1218,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
           </div>
           <button
-            className={`${PRIMARY_CTA_BUTTON_CLASS} mt-4`}
+            className={`${primaryVoteButtonClass} mt-4`}
+            style={primaryVoteButtonStyle}
             onClick={handleFinalAction}
           >Volver</button>
         </div>
