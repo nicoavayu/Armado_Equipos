@@ -778,7 +778,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                 <AvatarFallback name={jugadorVotar.nombre} size="w-full h-full" className="rounded-none text-[80px]" />
               )}
             </div>
-            <div className="flex flex-col items-center mt-7 select-none">
+            <div className="w-full flex flex-col items-center mt-10 select-none px-0">
               <StarRating
                 value={valor}
                 onChange={(valor) => {
@@ -819,7 +819,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             </div>
 
             <button
-              className={`${primaryVoteButtonClass} mt-6 mb-0 mx-auto !w-[80vw] md:!w-[320px]`}
+              className={`${primaryVoteButtonClass} mt-8 mb-0 mx-auto !w-[80vw] md:!w-[320px]`}
               onClick={() => {
                 if (animating) return;
                 setAnimating(true);
