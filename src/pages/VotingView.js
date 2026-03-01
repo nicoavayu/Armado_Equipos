@@ -746,7 +746,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
           <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
           {noticeSlot}
-          <div className="w-[90vw] max-w-[520px] mx-auto mt-12 mb-12 flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-0">
+          <div className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center justify-center py-4">
             <div className="text-white/85 font-oswald text-lg">Votación completada</div>
           </div>
         </div>
@@ -760,7 +760,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
         <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         {noticeSlot}
-        <div className="w-[90vw] max-w-[520px] mx-auto mt-12 mb-12 flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-0">
+        <div className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center justify-center py-4">
           <div className={`w-full transition-transform duration-200 ease-out ${animating ? '-translate-x-full opacity-0' : 'translate-x-0 opacity-100'}`}>
             <div
               className="w-[80vw] md:w-[320px] mx-auto border rounded-none text-white font-bebas font-normal text-center uppercase text-[1.3rem] md:text-[2.1rem] tracking-wider py-2 mt-3 mb-0"
