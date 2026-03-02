@@ -2,7 +2,7 @@ import React from 'react';
 import { Shield, MapPin, Users } from 'lucide-react';
 import { formatSkillLevelLabel, getTeamAccent, getTeamBadgeStyle, getTeamGradientStyle } from '../utils/teamColors';
 
-const CHIP_CLASS = 'font-oswald text-[10px] font-bold text-white/40 border border-white/10 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider';
+const CHIP_CLASS = 'font-oswald text-[10px] font-bold text-white/40 border border-white/10 bg-white/5 px-2 py-0.5 rounded-none uppercase tracking-wider';
 
 const getStatValue = (stats, key) => {
   if (!stats || typeof stats !== 'object') return null;
@@ -27,13 +27,13 @@ const TeamCard = React.memo(({ team, stats, onClick, footer, className = '' }) =
     <button
       type="button"
       onClick={() => onClick?.(team)}
-      className={`relative w-full rounded-2xl p-4 text-left border border-white/10 transition-all duration-300 bg-[#1e293b]/70 backdrop-blur-sm shadow-[0_8px_24px_rgba(0,0,0,0.35)] active:scale-[0.99] hover:border-white/20 font-oswald ${className}`}
+      className={`relative w-full rounded-none p-4 text-left border border-white/10 transition-all duration-300 bg-[#1e293b]/70 backdrop-blur-sm shadow-[0_8px_24px_rgba(0,0,0,0.35)] active:scale-[0.99] hover:border-white/20 font-oswald ${className}`}
       style={gradientStyle}
     >
-      <span className="absolute left-4 right-4 top-0 h-[2px] rounded-full opacity-75" style={{ backgroundColor: accent }} />
+      <span className="absolute left-4 right-4 top-0 h-[2px] rounded-none opacity-75" style={{ backgroundColor: accent }} />
 
       <div className="flex items-start gap-3">
-        <div className="h-14 w-14 rounded-xl overflow-hidden border border-white/30 bg-black/20 flex items-center justify-center shrink-0">
+        <div className="h-14 w-14 rounded-none overflow-hidden border border-white/30 bg-black/20 flex items-center justify-center shrink-0">
           {team?.crest_url ? (
             <img src={team.crest_url} alt={`Escudo ${team?.name || 'equipo'}`} className="h-full w-full object-cover" />
           ) : (
@@ -62,19 +62,19 @@ const TeamCard = React.memo(({ team, stats, onClick, footer, className = '' }) =
 
       {(played !== null || won !== null || draw !== null || lost !== null) && (
         <div className="mt-3 grid grid-cols-4 gap-2">
-          <div className="rounded-xl border border-white/15 bg-black/15 px-2 py-1.5 text-center">
+          <div className="rounded-none border border-white/15 bg-black/15 px-2 py-1.5 text-center">
             <div className="font-oswald text-[10px] text-white/70">PJ</div>
             <div className="font-oswald text-sm font-bold text-white">{played ?? 0}</div>
           </div>
-          <div className="rounded-xl border border-white/15 bg-black/15 px-2 py-1.5 text-center">
+          <div className="rounded-none border border-white/15 bg-black/15 px-2 py-1.5 text-center">
             <div className="font-oswald text-[10px] text-white/70">PG</div>
             <div className="font-oswald text-sm font-bold" style={{ color: accent }}>{won ?? 0}</div>
           </div>
-          <div className="rounded-xl border border-white/15 bg-black/15 px-2 py-1.5 text-center">
+          <div className="rounded-none border border-white/15 bg-black/15 px-2 py-1.5 text-center">
             <div className="font-oswald text-[10px] text-white/70">PE</div>
             <div className="font-oswald text-sm font-bold text-white">{draw ?? 0}</div>
           </div>
-          <div className="rounded-xl border border-white/15 bg-black/15 px-2 py-1.5 text-center">
+          <div className="rounded-none border border-white/15 bg-black/15 px-2 py-1.5 text-center">
             <div className="font-oswald text-[10px] text-white/70">PP</div>
             <div className="font-oswald text-sm font-bold text-white">{lost ?? 0}</div>
           </div>

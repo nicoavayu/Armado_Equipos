@@ -279,7 +279,7 @@ const MisEquiposTab = ({ userId }) => {
                   <div className="absolute right-3 top-3 z-20" onClick={(event) => event.stopPropagation()}>
                     <button
                       type="button"
-                      className="kebab-menu-btn"
+                      className="inline-flex h-8 w-8 items-center justify-center border-0 bg-transparent p-0 text-[#1ec8ff] transition-colors hover:text-[#6ddcff]"
                       onClick={(event) => {
                         event.stopPropagation();
                         setOpenTeamMenuId((prev) => (prev === team.id ? null : team.id));

@@ -31,6 +31,8 @@ import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, QUIERO_JUGAR_TOP_TAB_STORAGE_K
 const modalActionButtonClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
 const optionCardClass = 'w-full rounded-xl border border-white/15 bg-white/5 p-3 text-left transition-all hover:bg-white/10';
 const disabledOptionCardClass = `${optionCardClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:bg-white/5`;
+const transparentMenuButtonClass = 'inline-flex h-8 w-8 items-center justify-center border-0 bg-transparent p-0 text-[#1ec8ff] transition-colors hover:text-[#6ddcff]';
+const addMemberButtonClass = 'mt-3 w-full border border-[#7d5aff] bg-[#6a43ff] px-3 py-3 text-left transition-colors hover:bg-[#7550ff]';
 
 const EMPTY_NEW_MEMBER = {
   jugadorId: '',
@@ -39,8 +41,8 @@ const EMPTY_NEW_MEMBER = {
 };
 
 const DETAIL_TABS = [
-  { key: 'plantilla', label: 'Plantilla' },
-  { key: 'history', label: 'Historial vs rivales' },
+  { key: 'plantilla', label: 'PLANTILLA' },
+  { key: 'history', label: 'HISTORIAL VS RIVALES' },
 ];
 
 const ROLE_OPTIONS = [
@@ -893,15 +895,15 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       <div className="w-full flex justify-center px-4 pt-[116px] pb-6">
         <div className="w-full max-w-[560px] space-y-3">
           <div
-            className="relative rounded-2xl border border-white/15 bg-[#0f172acc] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
+            className="relative rounded-none border border-white/15 bg-[#0f172acc] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
             style={selectedTeamGradientStyle}
           >
             <span
-              className="absolute left-4 right-4 top-0 h-[2px] rounded-full opacity-80"
+              className="absolute left-4 right-4 top-0 h-[2px] rounded-none opacity-80"
               style={{ backgroundColor: selectedTeamAccent }}
             />
             <div className="flex items-start gap-3">
-              <div className="h-14 w-14 rounded-xl overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
+              <div className="h-14 w-14 rounded-none overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
                 {selectedTeam.crest_url ? (
                   <img src={selectedTeam.crest_url} alt={`Escudo ${selectedTeam.name || 'equipo'}`} className="h-full w-full object-cover" />
                 ) : (
@@ -917,7 +919,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               {isSelectedTeamManager ? (
                 <button
                   type="button"
-                  className="kebab-menu-btn"
+                  className={transparentMenuButtonClass}
                   onClick={(event) => {
                     event.stopPropagation();
                     setDetailActionsMenuOpen((prev) => !prev);
@@ -972,25 +974,28 @@ const EquipoDetalleView = ({ teamId, userId }) => {
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/15 bg-[linear-gradient(135deg,rgba(61,74,130,0.42),rgba(31,43,96,0.4))] p-1.5 grid grid-cols-2 gap-1.5">
+          <div className="grid h-[44px] w-full grid-cols-2 overflow-hidden border border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]">
             {DETAIL_TABS.map((tab) => (
               <button
                 key={tab.key}
                 type="button"
                 onClick={() => handleSelectDetailTab(tab.key)}
-                className={`min-w-0 rounded-lg px-1 py-2.5 text-[17px] font-oswald font-semibold normal-case tracking-[0.01em] transition-all ${selectedTabLabel === tab.key
-                  ? 'border border-[#A5B8FF]/45 bg-[linear-gradient(135deg,rgba(133,121,236,0.58),rgba(113,108,217,0.56))] text-white shadow-[0_8px_22px_rgba(121,111,231,0.34)]'
-                  : 'border border-transparent bg-transparent text-white/60 hover:text-white/80'
+                className={`relative min-w-0 border px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${tab.key === 'history' ? 'border-l-0' : ''} ${selectedTabLabel === tab.key
+                  ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
+                  : 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
                   }`}
               >
+                {selectedTabLabel === tab.key ? (
+                  <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
+                ) : null}
                 {tab.label}
               </button>
             ))}
           </div>
 
           {selectedTabLabel === 'plantilla' ? (
-            <div className="rounded-2xl border border-white/15 bg-[#0f172acc] p-4">
-              <div className="flex items-center justify-between gap-2">
+            <div className="pt-1">
+              <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
                 <h5 className="text-white font-oswald text-xl">Plantilla</h5>
                 <span className="text-xs text-white/60">
                   {members.length} jugadores{teamPendingInvitations.length > 0 ? ` · ${teamPendingInvitations.length} pendientes` : ''}
@@ -1001,13 +1006,13 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                 <button
                   type="button"
                   onClick={openAddMemberChoiceModal}
-                  className="mt-3 w-full rounded-xl border border-[#128BE9]/35 bg-[linear-gradient(135deg,rgba(18,139,233,0.18),rgba(14,165,233,0.08))] px-3 py-3 text-left hover:brightness-110"
+                  className={addMemberButtonClass}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#9ED3FF]/40 bg-[#128BE9]/20 text-[#9ED3FF] shrink-0">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-none border border-white/30 bg-black/20 text-white shrink-0">
                       <UserPlus size={20} />
                     </span>
-                    <p className="text-white font-oswald text-lg tracking-wide">
+                    <p className="text-white font-bebas text-lg tracking-[0.03em]">
                       Agregar jugador
                     </p>
                   </div>
@@ -1077,7 +1082,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                                 event.stopPropagation();
                                 setOpenMemberMenuId((prev) => (prev === member.id ? null : member.id));
                               }}
-                              className="kebab-menu-btn"
+                              className={transparentMenuButtonClass}
                               title="Acciones del jugador"
                               aria-label="Acciones del jugador"
                               disabled={isSaving}
@@ -1195,9 +1200,9 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           ) : null}
 
           {selectedTabLabel === 'history' ? (
-            <div className="rounded-2xl border border-white/15 bg-[#0f172acc] p-4">
-              <h5 className="text-white font-oswald text-xl">Historial vs rivales</h5>
-              <div className="mt-2 rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-white/80">
+            <div className="pt-1">
+              <h5 className="border-b border-white/10 pb-2 text-white font-oswald text-xl">Historial vs rivales</h5>
+              <div className="mt-2 rounded-none border border-white/10 bg-white/5 p-3 text-sm text-white/80">
                 PJ {summaryStats.played} · PG {summaryStats.won} · PE {summaryStats.draw} · PP {summaryStats.lost}
               </div>
 
@@ -1216,10 +1221,10 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                       key={match.id}
                       type="button"
                       onClick={() => console.info('Detalle de partido pendiente', match.id)}
-                      className="w-full rounded-xl border border-white/10 bg-white/5 p-3 text-left transition-all hover:bg-white/10"
+                      className="w-full rounded-none border border-white/10 bg-white/5 p-3 text-left transition-all hover:bg-white/10"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="h-11 w-11 rounded-lg overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
+                        <div className="h-11 w-11 rounded-none overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
                           {match?.opponentTeam?.crest_url ? (
                             <img src={match.opponentTeam.crest_url} alt={`Escudo ${match?.opponentTeam?.name || 'rival'}`} className="h-full w-full object-cover" />
                           ) : (
