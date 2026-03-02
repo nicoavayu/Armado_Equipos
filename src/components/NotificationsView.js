@@ -404,7 +404,7 @@ const NotificationsView = () => {
   const hasAnyNotifications = notifications.length > 0;
   const hasVisibleNotifications = groupedNotifications.length > 0;
   const hasUnreadNotifications = (unreadCount?.total || 0) > 0;
-  const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[30px] font-semibold leading-tight text-white sm:text-[26px]';
+  const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[clamp(18px,5.6vw,22px)] font-semibold leading-tight text-white';
   const EMPTY_STATE_CARD_CLASS = 'my-0 p-5';
 
   const handleMarkAllAsRead = async () => {

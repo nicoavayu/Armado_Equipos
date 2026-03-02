@@ -6,7 +6,7 @@ import ConfirmModal from './ConfirmModal';
 import { supabase } from '../supabase';
 import LoadingSpinner from './LoadingSpinner';
 import { useNotifications } from '../context/NotificationContext';
-import { Check, Loader2, X } from 'lucide-react';
+import { Check, Loader2, Users, X } from 'lucide-react';
 import InlineNotice from './ui/InlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import EmptyStateCard from './EmptyStateCard';
@@ -84,7 +84,7 @@ const sortFriendsByDistance = (friends = [], userLocation = null) => {
 const PRIMARY_TOGGLE_CONTAINER_CLASS = 'flex h-[44px] w-full overflow-hidden border-y border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]';
 const PRIMARY_TOGGLE_ACTIVE_CLASS = 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]';
 const PRIMARY_TOGGLE_INACTIVE_CLASS = 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]';
-const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[30px] font-semibold leading-tight text-white sm:text-[26px]';
+const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[clamp(18px,5.6vw,22px)] font-semibold leading-tight text-white';
 
 const AmigosView = () => {
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -795,16 +795,22 @@ const AmigosView = () => {
                 </div>
               </div>
             ) : (
-              <div className="text-center p-10 bg-[rgba(4,31,89,0.65)] border border-[#12b5ff]/45 rounded-none mt-5">
-                <p className="m-2.5 text-base text-white">No encontramos amigos para ese criterio.</p>
-                <p className="m-2.5 text-base text-white/65">Proba con otro nombre o email.</p>
-              </div>
+              <EmptyStateCard
+                icon={Users}
+                title="No encontramos amigos"
+                titleClassName={EMPTY_STATE_TITLE_CLASS}
+                description="Probá con otro nombre o email."
+                className="my-0 p-5"
+              />
             )
           ) : (
-            <div className="text-center p-10 bg-[rgba(4,31,89,0.65)] border border-[#12b5ff]/45 rounded-none mt-5">
-              <p className="m-2.5 text-base text-white">No tenes amigos agregados todavia.</p>
-              <p className="m-2.5 text-base text-white">Usa la solapa Comunidad para enviar solicitudes.</p>
-            </div>
+            <EmptyStateCard
+              icon={Users}
+              title="No tenes amigos agregados"
+              titleClassName={EMPTY_STATE_TITLE_CLASS}
+              description="Usá la solapa Comunidad para enviar solicitudes."
+              className="my-0 p-5"
+            />
           )}
         </>
       )}
