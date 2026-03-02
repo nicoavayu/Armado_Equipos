@@ -563,7 +563,7 @@ const NotificationsView = () => {
                 key={group.key}
                 role="button"
                 tabIndex={0}
-                className={`flex p-3 bg-transparent rounded-none cursor-pointer transition-all duration-200 relative border border-[#12b5ff]/70 hover:border-[#56d1ff] ${group.unreadCount > 0 ? 'border-[#37c6ff]' : ''
+                className={`flex p-3 bg-transparent rounded-none cursor-pointer transition-all duration-200 relative border border-[#6a43ff] hover:border-[#8262ff] ${group.unreadCount > 0 ? 'border-[#6a43ff]' : ''
                   } ${notification.type === 'friend_request' ? 'cursor-default' : ''}`}
                 onClick={(e) => {
                   if (notification.type !== 'friend_request') handleGroupedNotificationClick(group, e);
