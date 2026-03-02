@@ -933,6 +933,26 @@ export default function ArmarEquiposView({
           opacity: 0.55;
           cursor: not-allowed;
         }
+        .invite-cta-btn--match {
+          width: 100%;
+          max-width: none;
+          min-width: 0;
+          height: auto;
+          min-height: 44px;
+          padding: 10px 16px;
+          font-family: "Bebas Neue", "Bebas", "Oswald", sans-serif;
+          font-size: 1rem;
+          font-weight: 400;
+          letter-spacing: 0.01em;
+          border: 1px solid #7d5aff;
+          background: #6a43ff;
+          color: #ffffff;
+          box-shadow: 0 0 14px rgba(106, 67, 255, 0.3);
+        }
+        .invite-cta-btn--match:hover:not(:disabled) {
+          background: #7550ff;
+          filter: none;
+        }
       `}</style>
       <PageTitle
         onBack={onBackToAdmin}
@@ -1124,8 +1144,8 @@ export default function ArmarEquiposView({
           <div className="w-full flex flex-col gap-1.5 mb-3">
             <button
               type="button"
-              className="invite-cta-btn relative z-10"
-              style={callToVotePalette}
+              className={`relative z-10 ${isTeamsFormed ? 'invite-cta-btn invite-cta-btn--match' : 'invite-cta-btn'}`}
+              style={isTeamsFormed ? undefined : callToVotePalette}
               onClick={handlePrimaryClick}
               disabled={calling || checkingVoteStatus}
             >
