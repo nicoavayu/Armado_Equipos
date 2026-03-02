@@ -48,15 +48,15 @@ const QuieroJugarHub = () => {
             marginRight: 'calc(50% - 50vw)',
           }}
         >
-          <div className="flex h-[44px] w-full overflow-hidden border-y border-white/20 bg-[rgba(17,26,59,0.96)]">
+          <div className="flex h-[44px] w-full overflow-hidden border-y border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]">
             {TOP_TABS.map((tab, index) => (
               <button
                 key={tab.key}
                 type="button"
                 onClick={() => handleTopTabChange(tab.key)}
-                className={`relative flex-1 min-w-0 border border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${index > 0 ? 'border-l-0' : ''} ${activeTopTab === tab.key
+                className={`relative flex-1 min-w-0 border px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${index > 0 ? 'border-l-0' : ''} ${activeTopTab === tab.key
                   ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
-                  : 'z-[1] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
+                  : 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
                   }`}
               >
                 {activeTopTab === tab.key ? (
