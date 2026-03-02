@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Modal from '../../../components/Modal';
 import ConfirmModal from '../../../components/ConfirmModal';
 import ProfileCardModal from '../../../components/ProfileCardModal';
+import LoadingSpinner from '../../../components/LoadingSpinner';
 import TeamFormModal from '../components/TeamFormModal';
 import PlayerMiniCard from '../../../components/PlayerMiniCard';
 import Button from '../../../components/Button';
@@ -873,8 +874,8 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   if (loading) {
     return (
       <div className="w-full flex justify-center px-4 pt-[116px] pb-6">
-        <div className="w-full max-w-[560px] rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
-          Cargando equipo...
+        <div className="w-full max-w-[560px] rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70 flex items-center justify-center">
+          <LoadingSpinner size="medium" />
         </div>
       </div>
     );
