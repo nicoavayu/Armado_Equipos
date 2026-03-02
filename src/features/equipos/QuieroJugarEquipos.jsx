@@ -58,9 +58,9 @@ const QuieroJugarEquipos = ({
     <>
       <PageTitle title="QUIERO JUGAR" onBack={() => navigate(-1)}>QUIERO JUGAR</PageTitle>
 
-      <div className="w-full flex justify-center px-4 pb-7" style={{ paddingTop: `${secondaryTabsTop}px` }}>
+      <div className="w-full flex justify-center pb-7" style={{ paddingTop: `${secondaryTabsTop}px` }}>
         <div
-          className="w-full max-w-[500px] transition-[transform,opacity] duration-200 ease-out will-change-transform"
+          className="w-full transition-[transform,opacity] duration-200 ease-out will-change-transform"
           style={{
             transform: showSecondaryTabs
               ? 'translateX(0)'
@@ -68,20 +68,25 @@ const QuieroJugarEquipos = ({
             opacity: showSecondaryTabs ? 1 : 0.01,
           }}
         >
-          <div className="bg-white/[0.04] border border-white/[0.08] rounded-[16px] p-1 flex gap-1">
-            {SUBTABS.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveSubtab(tab.key)}
-                className={`flex-1 min-w-0 px-1 h-10 rounded-[12px] font-oswald text-[18px] font-semibold tracking-[0.01em] transition-colors duration-200 ${activeSubtab === tab.key
-                  ? 'bg-[#128BE9] text-white'
-                  : 'text-white/58 hover:text-white/[0.88] hover:bg-white/[0.06]'
-                  }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="relative left-1/2 w-screen -translate-x-1/2">
+            <div className="flex h-[44px] w-full overflow-hidden border-y border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]">
+              {SUBTABS.map((tab, index) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveSubtab(tab.key)}
+                  className={`relative flex-1 min-w-0 border px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${index > 0 ? 'border-l-0' : ''} ${activeSubtab === tab.key
+                    ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
+                    : 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
+                    }`}
+                >
+                  {activeSubtab === tab.key ? (
+                    <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
+                  ) : null}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
