@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
-import { MoreVertical, LogOut, Share2 } from 'lucide-react';
+import { MoreVertical, LogOut, Share2, UserPlus } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
@@ -607,7 +607,7 @@ const PlayersSection = ({
                 <Share2 size={14} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
               </button>
 
-              {isAdmin && isPlayerInMatch && (
+              {isAdmin && (
                 <button
                   type="button"
                   ref={adminMenuButtonRef}
@@ -626,7 +626,7 @@ const PlayersSection = ({
                 </button>
               )}
 
-              {isAdmin && isPlayerInMatch && menuOpen && ReactDOM.createPortal(
+              {isAdmin && menuOpen && ReactDOM.createPortal(
                 <>
                   <div
                     className="fixed inset-0 z-[9998] bg-transparent"
@@ -648,17 +648,32 @@ const PlayersSection = ({
                   >
                     <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
                       <div className="py-1 bg-transparent">
-                        <button
-                          className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 bg-transparent hover:bg-slate-800/90 transition-colors text-sm font-medium"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            setConfirmConfig({ open: true, type: 'abandon' });
-                          }}
-                          type="button"
-                        >
-                          <LogOut size={14} />
-                          <span>Abandonar partido</span>
-                        </button>
+                        {isPlayerInMatch ? (
+                          <button
+                            className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 bg-transparent hover:bg-slate-800/90 transition-colors text-sm font-medium"
+                            onClick={() => {
+                              setMenuOpen(false);
+                              setConfirmConfig({ open: true, type: 'abandon' });
+                            }}
+                            type="button"
+                          >
+                            <LogOut size={14} />
+                            <span>Abandonar partido</span>
+                          </button>
+                        ) : (
+                          <button
+                            className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 bg-transparent hover:bg-slate-800/90 transition-colors text-sm font-medium disabled:opacity-45 disabled:cursor-not-allowed"
+                            onClick={() => {
+                              setMenuOpen(false);
+                              unirseAlPartido?.();
+                            }}
+                            type="button"
+                            disabled={typeof unirseAlPartido !== 'function' || isMatchFull}
+                          >
+                            <UserPlus size={14} />
+                            <span>Sumarme al partido</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -714,8 +729,8 @@ const PlayersSection = ({
     </div>
   );
 
-  // Guest view (non-admin) OR user with pending invitation
-  if (!isAdmin || (!isPlayerInMatch && jugadores.length > 0)) {
+  // Guest view (non-admin)
+  if (!isAdmin) {
     return (
       <>
         <style>{`
@@ -779,15 +794,6 @@ const PlayersSection = ({
               </div>
               {jugadores.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 gap-4 w-full">
-                  {isAdmin && !isPlayerInMatch && (
-                    <button
-                      className="w-full max-w-xs h-14 rounded-xl bg-emerald-600 text-white font-oswald text-[18px] font-semibold tracking-[0.01em] shadow-[0_4px_14px_rgba(16,185,129,0.3)] hover:brightness-110 active:scale-95 transition-all mb-2"
-                      type="button"
-                      onClick={() => unirseAlPartido && unirseAlPartido()}
-                    >
-                      Me sumo (jugar)
-                    </button>
-                  )}
                   <button
                     className="w-full max-w-xs h-14 rounded-xl bg-[#128BE9] text-white font-oswald text-[18px] font-semibold tracking-[0.01em] shadow-[0_4px_14px_rgba(18,139,233,0.3)] hover:brightness-110 active:scale-95 transition-all"
                     type="button"
