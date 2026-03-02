@@ -8,6 +8,7 @@ import {
   getVotantesIds,
   getVotantesConNombres,
   getJugadoresDelPartido,
+  getTeamsFromDatabase,
   hasRecordedVotes,
   resetVotacion,
   clearGuestSession,
@@ -89,6 +90,7 @@ export default function ArmarEquiposView({
   const [estadoOverride, setEstadoOverride] = useState(null); // Override local para estado después de reset
   const [playerToRemove, setPlayerToRemove] = useState(null); // Para modal de eliminación
   const [inlineNotice, setInlineNotice] = useState(null);
+  const [hasPersistedTeams, setHasPersistedTeams] = useState(false);
   const playersSectionRef = React.useRef(null);
   const navigate = useNavigate();
 
@@ -412,6 +414,7 @@ export default function ArmarEquiposView({
       setVotingStarted(false);
       setVotantes([]);
       setVotantesConNombres([]);
+      setHasPersistedTeams(false);
       setActionsMenuOpen(false);
       setEstadoOverride('votacion'); // Forzar UI a salir de "equipos_formados" mientras se actualiza partidoActual
 
@@ -442,16 +445,124 @@ export default function ArmarEquiposView({
 
   const primaryLabel = (() => {
     const estado = estadoOverride || partidoActual?.estado;
-    if (estado === 'equipos_formados') return 'Ver equipos';
+    if (estado === 'equipos_formados') return 'Ir a equipos armados';
+    if (hasPersistedTeams) return 'Ir a equipos armados';
     if (votingStarted) return 'Ir a votación';
     return 'Llamar a votar';
   })();
 
+  const normalizeTeamsPayload = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (typeof payload === 'string') {
+      try {
+        const parsed = JSON.parse(payload);
+        return Array.isArray(parsed) ? parsed : null;
+      } catch (_error) {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const hasExpectedTeamShape = (teams) => (
+    Array.isArray(teams) &&
+    teams.length === 2 &&
+    teams.find((t) => t?.id === 'equipoA') &&
+    teams.find((t) => t?.id === 'equipoB')
+  );
+
+  const resolveMatchFallbackTeams = () => {
+    const estado = estadoOverride || partidoActual?.estado;
+    if (estado !== 'equipos_formados') return null;
+    const fallbackCandidates = [partidoActual?.equipos_json, partidoActual?.equipos];
+    for (const candidate of fallbackCandidates) {
+      const normalized = normalizeTeamsPayload(candidate);
+      if (hasExpectedTeamShape(normalized)) {
+        return normalized;
+      }
+    }
+    return null;
+  };
+
+  const isTeamsFormed = (estadoOverride || partidoActual?.estado) === 'equipos_formados' || hasPersistedTeams;
+
+  const refreshPersistedTeamsState = useCallback(async () => {
+    if (!partidoActual?.id) {
+      setHasPersistedTeams(false);
+      return false;
+    }
+    try {
+      const persistedTeamsRaw = await getTeamsFromDatabase(partidoActual.id);
+      const persistedTeams = normalizeTeamsPayload(persistedTeamsRaw);
+      const matchFallbackTeams = resolveMatchFallbackTeams();
+      const teams = hasExpectedTeamShape(persistedTeams) ? persistedTeams : matchFallbackTeams;
+      const hasTeams = hasExpectedTeamShape(teams);
+      setHasPersistedTeams(hasTeams);
+      if (hasTeams) {
+        setEstadoOverride('equipos_formados');
+      }
+      return hasTeams;
+    } catch (_e) {
+      setHasPersistedTeams(false);
+      return false;
+    }
+  }, [partidoActual?.id, partidoActual?.estado, partidoActual?.equipos_json, partidoActual?.equipos, estadoOverride]);
+
+  useEffect(() => {
+    refreshPersistedTeamsState();
+  }, [refreshPersistedTeamsState]);
+
+  const openTeamsFormedView = useCallback(async ({ silent = false } = {}) => {
+    if (!partidoActual?.id) {
+      if (!silent) showInlineNotice('warning', 'No hay partido activo.');
+      return false;
+    }
+
+    try {
+      const persistedTeamsRaw = await getTeamsFromDatabase(partidoActual.id);
+      let teams = normalizeTeamsPayload(persistedTeamsRaw);
+      if (!hasExpectedTeamShape(teams)) {
+        teams = resolveMatchFallbackTeams();
+      }
+
+      const hasExpectedTeamIds = hasExpectedTeamShape(teams);
+
+      if (!hasExpectedTeamIds) {
+        setHasPersistedTeams(false);
+        if (!silent) showInlineNotice('warning', 'No se encontraron equipos guardados para este partido.');
+        return false;
+      }
+
+      let matchPlayers = Array.isArray(jugadores) && jugadores.length > 0 ? jugadores : null;
+      if (!matchPlayers) {
+        matchPlayers = await getJugadoresDelPartido(partidoActual.id);
+      }
+
+      setHasPersistedTeams(true);
+      setEstadoOverride('equipos_formados');
+      onTeamsFormed(teams, matchPlayers || []);
+      return true;
+    } catch (error) {
+      console.error('[Teams] openTeamsFormedView failed', error);
+      if (!silent) notifyBlockingError('No se pudieron abrir los equipos guardados.');
+      return false;
+    }
+  }, [jugadores, onTeamsFormed, partidoActual?.id, partidoActual?.estado, partidoActual?.equipos_json, partidoActual?.equipos, estadoOverride]);
+
+  const handleCloseVotingClick = useCallback(async () => {
+    if (isClosing) return;
+    const opened = await openTeamsFormedView({ silent: true });
+    if (opened) return;
+    setConfirmConfig({ open: true, action: 'close' });
+  }, [isClosing, openTeamsFormedView]);
+
   const handlePrimaryClick = async () => {
+    const opened = await openTeamsFormedView({ silent: true });
+    if (opened) return;
+
     const estado = estadoOverride || partidoActual?.estado;
     if (estado === 'equipos_formados') {
-      // Already formed, keep current behavior (no redirect in minimal patch)
-      if (playersSectionRef.current) playersSectionRef.current.scrollIntoView({ behavior: 'smooth' });
+      await openTeamsFormedView();
       return;
     }
     if (votingStarted) {
@@ -645,6 +756,8 @@ export default function ArmarEquiposView({
       }
 
       showInlineNotice('success', 'Votación cerrada. Equipos armados.');
+      setHasPersistedTeams(true);
+      setEstadoOverride('equipos_formados');
 
       // Redirigir a vista de equipos
       onTeamsFormed(teams, matchPlayers);
@@ -1044,7 +1157,9 @@ export default function ArmarEquiposView({
               <span>{calling || checkingVoteStatus ? <LoadingSpinner size="small" /> : primaryLabel}</span>
             </button>
             <div className="text-[11px] text-white/50 leading-snug text-center px-1 mt-0.5 w-[90%] mx-auto">
-              Notifica a los jugadores que ya tienen la app
+              {isTeamsFormed
+                ? 'Abrí los equipos ya armados para este partido'
+                : 'Notifica a los jugadores que ya tienen la app'}
             </div>
           </div>
 
@@ -1054,13 +1169,15 @@ export default function ArmarEquiposView({
               type="button"
               className="invite-cta-btn"
               style={closeVotingPalette}
-              onClick={() => setConfirmConfig({ open: true, action: 'close' })}
+              onClick={handleCloseVotingClick}
               disabled={isClosing}
             >
-              <span>{isClosing ? <LoadingSpinner size="small" /> : 'Cerrar votación'}</span>
+              <span>{isClosing ? <LoadingSpinner size="small" /> : (isTeamsFormed ? 'Ir a equipos armados' : 'Cerrar votación')}</span>
             </button>
             <div className="text-[11px] text-white/50 leading-snug text-center px-1 mt-0.5 w-[90%] mx-auto">
-              Avanza al armado de equipos y bloquea nuevas votaciones
+              {isTeamsFormed
+                ? 'Mostrá la vista de equipos que ya quedó guardada'
+                : 'Avanza al armado de equipos y bloquea nuevas votaciones'}
             </div>
           </div>
         </div>
@@ -1095,7 +1212,7 @@ export default function ArmarEquiposView({
         />
 
         <ConfirmModal
-          isOpen={confirmConfig.open && confirmConfig.action === 'close'}
+          isOpen={confirmConfig.open && confirmConfig.action === 'close' && !isTeamsFormed}
           title={'Cerrar votación'}
           message={votantes.length > 0
             ? `¿Cerrar votación y armar equipos? Se procesaron ${votantes.length} votos.`
