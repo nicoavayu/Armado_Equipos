@@ -517,9 +517,17 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     }
 
     if (destination) {
+      const destinationTeam = realtimeTeams.find((team) => team.id === destination.droppableId);
+      const destinationPlayers = getNormalizedTeamPlayers(destinationTeam);
+      const isCrossTeam = destination.droppableId !== source.droppableId;
+      const hasDestinationPlayers = destinationPlayers.length > 0;
+      const adjustedIndex = (isCrossTeam && hasDestinationPlayers)
+        ? Math.max(0, Math.min(destination.index, destinationPlayers.length - 1))
+        : destination.index;
+
       setDragTarget({
         teamId: destination.droppableId,
-        index: destination.index,
+        index: adjustedIndex,
         sourceTeamId: source.droppableId,
         sourceIndex: source.index,
       });
@@ -565,12 +573,15 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     if (!targetTeam) return;
 
     const targetPlayers = getNormalizedTeamPlayers(targetTeam);
-    const normalizedTargetIndex = Math.max(0, Math.min(targetIndex, targetPlayers.length));
     const isSameTeam = source.droppableId === targetTeamId;
-    const isSwapIntent = Boolean(combine?.draggableId);
+    const normalizedTargetIndex = isSameTeam
+      ? Math.max(0, Math.min(targetIndex, targetPlayers.length))
+      : Math.max(0, Math.min(targetIndex, Math.max(0, targetPlayers.length - 1)));
+    const isSwapIntent = Boolean(combine?.draggableId) || !isSameTeam;
     const targetPlayer = targetPlayers[normalizedTargetIndex];
 
     if (isSameTeam && source.index === normalizedTargetIndex) return;
+    if (!isSameTeam && !targetPlayer) return;
 
     if (isPlayerLocked(sourcePlayer) || (isSwapIntent && targetPlayer && isPlayerLocked(targetPlayer))) {
       showInlineNotice({
@@ -603,16 +614,10 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       const nextSourcePlayers = [...sourcePlayers];
       const nextTargetPlayers = [...targetPlayers];
 
-      if (isSwapIntent && targetPlayer) {
-        [nextSourcePlayers[source.index], nextTargetPlayers[normalizedTargetIndex]] = [
-          nextTargetPlayers[normalizedTargetIndex],
-          nextSourcePlayers[source.index],
-        ];
-      } else {
-        const [moved] = nextSourcePlayers.splice(source.index, 1);
-        const insertAt = Math.max(0, Math.min(normalizedTargetIndex, nextTargetPlayers.length));
-        nextTargetPlayers.splice(insertAt, 0, moved);
-      }
+      [nextSourcePlayers[source.index], nextTargetPlayers[normalizedTargetIndex]] = [
+        nextTargetPlayers[normalizedTargetIndex],
+        nextSourcePlayers[source.index],
+      ];
 
       for (let i = 0; i < nextTeams.length; i += 1) {
         if (nextTeams[i].id === source.droppableId) {
@@ -641,6 +646,21 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         message: 'No se pudo mover el jugador. Intentá de nuevo.',
       });
       return;
+    }
+
+    const teamAAfter = nextTeams.find((team) => team.id === 'equipoA');
+    const teamBAfter = nextTeams.find((team) => team.id === 'equipoB');
+    if (teamAAfter && teamBAfter) {
+      const teamASize = getNormalizedTeamPlayers(teamAAfter).length;
+      const teamBSize = getNormalizedTeamPlayers(teamBAfter).length;
+      if (teamASize !== teamBSize) {
+        showInlineNotice({
+          key: 'teams_drag_unbalanced_blocked',
+          type: 'warning',
+          message: 'Los equipos deben tener la misma cantidad de jugadores.',
+        });
+        return;
+      }
     }
 
     await persistTeams(nextTeams);
