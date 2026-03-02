@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, supabase } from '../supabase';
 import ProfileCard from './ProfileCard';
+import ConfirmModal from './ConfirmModal';
 import InlineNotice from './ui/InlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
@@ -306,7 +307,7 @@ const ProfileEditorForm = ({
             className={`
               col-span-2 w-full h-[54px] rounded-none border text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all flex items-center justify-center
               ${hasChanges
-                ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[rgba(136,120,255,0.75)] text-white shadow-[0_12px_24px_rgba(95,114,255,0.34)] hover:brightness-110 active:opacity-95'
+                ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95'
                 : 'bg-[rgba(26,35,76,0.58)] border-[rgba(84,97,151,0.35)] text-white/30 cursor-not-allowed'}
             `}
             onClick={handleSave}
@@ -316,7 +317,7 @@ const ProfileEditorForm = ({
           </button>
 
           <button
-            className="col-span-2 h-[50px] rounded-none border border-[rgba(255,144,160,0.46)] bg-[rgba(84,25,40,0.34)] text-[#ff9eab] text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(98,30,46,0.46)] hover:text-[#ffb2bc] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+            className="col-span-2 h-[50px] rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/90 text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(30,45,94,0.95)] hover:text-white active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
             onClick={handleLogout}
             disabled={loading}
           >
@@ -324,7 +325,7 @@ const ProfileEditorForm = ({
           </button>
 
           <button
-            className="col-span-2 h-[50px] rounded-none border border-[rgba(255,83,106,0.64)] bg-[rgba(116,20,40,0.52)] text-[#ffb5bf] text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(132,25,46,0.64)] hover:text-[#ffd0d6] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+            className="col-span-2 h-[50px] rounded-none border border-[rgba(241,104,141,0.58)] bg-[rgba(78,23,49,0.55)] text-[#ffd7df] text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(97,29,60,0.7)] hover:text-white active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
             onClick={handleDeleteAccount}
             disabled={loading}
           >
@@ -349,18 +350,18 @@ const DeleteAccountModal = ({
   const canConfirm = confirmationText.trim().toUpperCase() === 'ELIMINAR' && !loading;
 
   return (
-    <div data-modal-root="true" className="fixed inset-0 z-[1300] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-[560px] bg-[#0f172a]/95 border border-red-500/30 rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.6)] overflow-hidden">
-        <div className="px-5 py-4 border-b border-white/10 flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-xl md:text-2xl font-oswald tracking-wide text-red-300">Eliminar cuenta</h3>
-            <p className="text-white/75 text-sm mt-1">
+    <div data-modal-root="true" className="fixed inset-0 z-[20000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="w-full max-w-[500px] bg-white/5 backdrop-blur-2xl rounded-[var(--radius-standard)] p-6 border border-white/10 shadow-[0_32px_64px_rgba(0,0,0,0.5)]">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="pr-2">
+            <h3 className="text-2xl leading-none font-oswald font-semibold tracking-[0.01em] text-white">Eliminar cuenta</h3>
+            <p className="text-base leading-relaxed text-white/80 mt-2 font-oswald">
               Esta acción es permanente y no se puede deshacer.
             </p>
           </div>
           <button
             type="button"
-            className="w-9 h-9 rounded-full border border-white/20 text-white/80 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-9 h-9 rounded-[var(--radius-standard)] border border-white/20 bg-white/5 text-white/80 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={onClose}
             disabled={loading}
             aria-label="Cerrar modal"
@@ -370,13 +371,13 @@ const DeleteAccountModal = ({
         </div>
 
         <form
-          className="px-5 py-5 space-y-5"
+          className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
             if (canConfirm) onConfirm();
           }}
         >
-          <p className="text-white/85 leading-relaxed">
+          <p className="text-[15px] leading-relaxed text-white/85">
             Se eliminará tu perfil, tus datos asociados y se cerrará tu sesión automáticamente.
           </p>
 
@@ -385,7 +386,7 @@ const DeleteAccountModal = ({
               Escribí <span className="text-red-300">ELIMINAR</span> para confirmar
             </label>
             <input
-              className="w-full bg-white/10 border border-white/20 text-white px-4 py-3 rounded-xl text-base transition-all focus:outline-none focus:border-red-400 focus:ring-2 focus:ring-red-400/30 placeholder:text-white/40"
+              className="w-full h-[48px] bg-[rgba(23,35,74,0.74)] border border-[rgba(89,107,168,0.45)] text-white px-4 rounded-none text-base transition-all focus:outline-none focus:border-[rgba(239,68,68,0.7)] focus:ring-2 focus:ring-red-400/25 placeholder:text-white/45 disabled:opacity-60 disabled:cursor-not-allowed"
               type="text"
               value={confirmationText}
               onChange={(e) => onConfirmationTextChange(e.target.value)}
@@ -396,10 +397,10 @@ const DeleteAccountModal = ({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="flex flex-col sm:flex-row gap-3 justify-end">
             <button
               type="button"
-              className="h-[46px] rounded-xl border border-white/25 text-white/90 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-[50px] min-w-[128px] px-6 rounded-[var(--radius-standard)] text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border bg-[rgba(23,35,74,0.72)] border-[rgba(88,107,170,0.46)] text-white hover:brightness-110 active:opacity-95 disabled:opacity-50 disabled:cursor-default transition-all"
               onClick={onClose}
               disabled={loading}
             >
@@ -407,7 +408,11 @@ const DeleteAccountModal = ({
             </button>
             <button
               type="submit"
-              className="h-[46px] rounded-xl border border-red-500/40 bg-red-600/25 text-red-200 hover:bg-red-600/35 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className={`h-[50px] min-w-[132px] px-6 rounded-[var(--radius-standard)] text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap border transition-all ${
+                canConfirm
+                  ? 'bg-[linear-gradient(132deg,#b91c1c_0%,#dc2626_50%,#ef4444_100%)] border-red-300/40 text-white shadow-[0_0_14px_rgba(239,68,68,0.22)] hover:brightness-110 active:opacity-95 cursor-pointer'
+                  : 'bg-[rgba(127,29,29,0.35)] border-[rgba(239,68,68,0.35)] text-red-200/55 cursor-not-allowed'
+              }`}
               disabled={!canConfirm}
             >
               {loading ? 'Eliminando...' : 'Eliminar cuenta'}
@@ -426,6 +431,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const [loading, setLoading] = useState(false);
   const [liveProfile, setLiveProfile] = useState(profile);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [deleteAccountConfirmation, setDeleteAccountConfirmation] = useState('');
   const [inlineNotice, setInlineNotice] = useState(null);
@@ -644,7 +650,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     }
   }, [formData, user, refreshProfile, onClose, setLoading, setHasChanges, profile?.profile_completion, showInlineNotice, isLocalDevSession, updateLocalProfile]);
 
-  const handleLogout = useCallback(async () => {
+  const performLogout = useCallback(async () => {
     if (isLocalDevSession) {
       onClose();
       navigate('/', { replace: true });
@@ -654,6 +660,22 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     onClose();
     navigate('/login', { replace: true });
   }, [onClose, navigate, isLocalDevSession]);
+
+  const handleLogout = useCallback(() => {
+    if (loading) return;
+    setShowLogoutConfirmModal(true);
+  }, [loading]);
+
+  const closeLogoutConfirmModal = useCallback(() => {
+    if (loading) return;
+    setShowLogoutConfirmModal(false);
+  }, [loading]);
+
+  const confirmLogout = useCallback(async () => {
+    if (loading) return;
+    setShowLogoutConfirmModal(false);
+    await performLogout();
+  }, [loading, performLogout]);
 
   const handleDeleteAccount = useCallback(() => {
     if (isLocalDevSession) {
@@ -697,6 +719,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
       setShowDeleteAccountModal(false);
       setDeleteAccountConfirmation('');
+      setShowLogoutConfirmModal(false);
       showInlineNotice('success', 'Cuenta eliminada correctamente.');
       await supabase.auth.signOut();
       onClose();
@@ -926,6 +949,15 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           onConfirmationTextChange={setDeleteAccountConfirmation}
           onClose={closeDeleteAccountModal}
           onConfirm={confirmDeleteAccount}
+        />
+        <ConfirmModal
+          isOpen={showLogoutConfirmModal}
+          title="Cerrar sesión"
+          message="¿Querés cerrar sesión ahora?"
+          confirmText="Cerrar sesión"
+          cancelText="Cancelar"
+          onConfirm={confirmLogout}
+          onCancel={closeLogoutConfirmModal}
         />
       </div>
     );
@@ -1171,7 +1203,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 className={`
                       col-span-2 w-full h-[54px] rounded-none border text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all backdrop-blur-md flex items-center justify-center
                       ${hasChanges
-                        ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[rgba(136,120,255,0.75)] text-white shadow-[0_12px_24px_rgba(95,114,255,0.34)] hover:brightness-110 active:opacity-95'
+                        ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95'
                         : 'bg-[rgba(26,35,76,0.58)] border-[rgba(84,97,151,0.35)] text-white/30 cursor-not-allowed'}
                       disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none
                     `}
@@ -1182,7 +1214,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               </button>
 
               <button
-                className="col-span-2 h-[50px] rounded-none border border-[rgba(255,144,160,0.46)] bg-[rgba(84,25,40,0.34)] text-[#ff9eab] text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(98,30,46,0.46)] hover:text-[#ffb2bc] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+                className="col-span-2 h-[50px] rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/90 text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(30,45,94,0.95)] hover:text-white active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
                 onClick={handleLogout}
                 disabled={loading}
               >
@@ -1190,7 +1222,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               </button>
 
               <button
-                className="col-span-2 h-[50px] rounded-none border border-[rgba(255,83,106,0.64)] bg-[rgba(116,20,40,0.52)] text-[#ffb5bf] text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(132,25,46,0.64)] hover:text-[#ffd0d6] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+                className="col-span-2 h-[50px] rounded-none border border-[rgba(241,104,141,0.58)] bg-[rgba(78,23,49,0.55)] text-[#ffd7df] text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(97,29,60,0.7)] hover:text-white active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
                 onClick={handleDeleteAccount}
                 disabled={loading}
               >
@@ -1206,6 +1238,15 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           onConfirmationTextChange={setDeleteAccountConfirmation}
           onClose={closeDeleteAccountModal}
           onConfirm={confirmDeleteAccount}
+        />
+        <ConfirmModal
+          isOpen={showLogoutConfirmModal}
+          title="Cerrar sesión"
+          message="¿Querés cerrar sesión ahora?"
+          confirmText="Cerrar sesión"
+          cancelText="Cancelar"
+          onConfirm={confirmLogout}
+          onCancel={closeLogoutConfirmModal}
         />
       </div>
     </div>
