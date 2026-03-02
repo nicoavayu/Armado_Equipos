@@ -14,6 +14,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import InlineNotice from './ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
 import ConfirmModal from './ConfirmModal';
+import { buildBalancedTeams } from '../utils/teamBalancer';
 
 // Safe wrappers to prevent runtime crashes if any import resolves undefined
 const safeComp = (Comp, name) => {
@@ -189,7 +190,10 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       .filter(Boolean);
 
   const calculateTeamScore = (teamPlayers) =>
-    teamPlayers.reduce((acc, playerId) => acc + (getPlayerDetails(playerId).score || 0), 0);
+    teamPlayers.reduce((acc, playerId) => {
+      const numericScore = Number(getPlayerDetails(playerId).score);
+      return acc + (Number.isFinite(numericScore) ? numericScore : 0);
+    }, 0);
 
   const persistTeams = async (newTeams) => {
     setRealtimeTeams(newTeams);
@@ -283,58 +287,64 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       return;
     }
 
-    // Don't include locked players in randomization
-    let allPlayers = realtimeTeams.flatMap((t) => getNormalizedTeamPlayers(t));
+    const allPlayers = Array.from(new Set(realtimeTeams.flatMap((t) => getNormalizedTeamPlayers(t))));
+    if (allPlayers.length % 2 !== 0) {
+      showInlineNotice({
+        key: 'teams_randomize_odd_players',
+        type: 'warning',
+        message: 'Para balancear, los equipos deben tener cantidad par de jugadores.',
+      });
+      return;
+    }
+
     const lockedPlayersMap = {};
-
-    // Create a map of locked players with their current team
-    lockedPlayers.forEach((playerId) => {
-      const teamIndex = realtimeTeams.findIndex((team) => getNormalizedTeamPlayers(team).includes(normalizeKey(playerId)));
-      if (teamIndex !== -1) {
-        lockedPlayersMap[normalizeKey(playerId)] = realtimeTeams[teamIndex].id;
-      }
-    });
-
-    // Filter out locked players for randomization
-    const playersToRandomize = allPlayers.filter((playerId) => !isPlayerLocked(playerId));
-    playersToRandomize.sort(() => Math.random() - 0.5);
-
-    // Create new teams with locked players in their original positions
-    const newTeamA = { ...realtimeTeams.find((t) => t.id === 'equipoA'), players: [] };
-    const newTeamB = { ...realtimeTeams.find((t) => t.id === 'equipoB'), players: [] };
-
-    // First, place locked players in their teams
     lockedPlayers.forEach((playerId) => {
       const normalizedPlayerId = normalizeKey(playerId);
       if (!normalizedPlayerId) return;
-
-      if (lockedPlayersMap[normalizedPlayerId] === 'equipoA') {
-        newTeamA.players.push(normalizedPlayerId);
-      } else if (lockedPlayersMap[normalizedPlayerId] === 'equipoB') {
-        newTeamB.players.push(normalizedPlayerId);
+      const currentTeam = realtimeTeams.find((team) =>
+        getNormalizedTeamPlayers(team).includes(normalizedPlayerId));
+      if (currentTeam?.id === 'equipoA' || currentTeam?.id === 'equipoB') {
+        lockedPlayersMap[normalizedPlayerId] = currentTeam.id;
       }
     });
 
-    // Then distribute remaining players
-    const teamANeeds = Math.ceil(allPlayers.length / 2) - newTeamA.players.length;
+    try {
+      const teamA = realtimeTeams.find((t) => t.id === 'equipoA') || { id: 'equipoA', name: 'Equipo A' };
+      const teamB = realtimeTeams.find((t) => t.id === 'equipoB') || { id: 'equipoB', name: 'Equipo B' };
 
-    newTeamA.players = [...newTeamA.players, ...playersToRandomize.slice(0, teamANeeds)];
-    newTeamB.players = [...newTeamB.players, ...playersToRandomize.slice(teamANeeds)];
+      const result = buildBalancedTeams({
+        players: allPlayers.map((playerKey) => ({
+          key: normalizeKey(playerKey),
+          score: getPlayerDetails(playerKey)?.score,
+        })),
+        lockedAssignments: lockedPlayersMap,
+        teamAName: teamA.name || 'Equipo A',
+        teamBName: teamB.name || 'Equipo B',
+        getPlayerKey: (player) => player?.key,
+        getPlayerScore: (player) => player?.score,
+        preferRandomTies: true,
+      });
 
-    // Calculate scores
-    newTeamA.score = calculateTeamScore(newTeamA.players);
-    newTeamB.score = calculateTeamScore(newTeamB.players);
+      const optimizedTeamA = result.teams.find((team) => team.id === 'equipoA');
+      const optimizedTeamB = result.teams.find((team) => team.id === 'equipoB');
+      const newTeams = realtimeTeams.map((team) => {
+        if (team.id === 'equipoA' && optimizedTeamA) {
+          return { ...team, players: optimizedTeamA.players, score: optimizedTeamA.score };
+        }
+        if (team.id === 'equipoB' && optimizedTeamB) {
+          return { ...team, players: optimizedTeamB.players, score: optimizedTeamB.score };
+        }
+        return team;
+      });
 
-    const newTeams = realtimeTeams.map((team) => {
-      if (team.id === 'equipoA') {
-        return newTeamA;
-      } else if (team.id === 'equipoB') {
-        return newTeamB;
-      }
-      return team;
-    });
-
-    await persistTeams(newTeams);
+      await persistTeams(newTeams);
+    } catch (error) {
+      showInlineNotice({
+        key: 'teams_randomize_failed',
+        type: 'warning',
+        message: error?.message || 'No se pudo balancear los equipos.',
+      });
+    }
   };
 
   const buildConfirmationSnapshot = () => {

@@ -1,4 +1,6 @@
 
+import { buildBalancedTeams } from '../utils/teamBalancer';
+
 /**
  * Custom hook for team formation logic
  * @returns {Object} Team formation utilities
@@ -10,43 +12,14 @@ export const useTeamFormation = () => {
    * @returns {Array} Array of two teams
    */
   const armarEquipos = (jugadores) => {
-    // Eliminar duplicados por UUID y nombre
-    const jugadoresUnicos = jugadores.reduce((acc, jugador) => {
-      const existeUuid = acc.find((j) => j.uuid === jugador.uuid);
-      const existeNombre = acc.find((j) => j.nombre.toLowerCase() === jugador.nombre.toLowerCase());
-      
-      if (!existeUuid && !existeNombre) {
-        acc.push(jugador);
-      }
-      return acc;
-    }, []);
-    
-    // Verificar que hay número par de jugadores
-    if (jugadoresUnicos.length % 2 !== 0) {
-      throw new Error('Se necesita un número par de jugadores para formar equipos');
-    }
-    
-    const jugadoresOrdenados = [...jugadoresUnicos].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-    const equipoA = [];
-    const equipoB = [];
-    let puntajeA = 0;
-    let puntajeB = 0;
-    
-    // Distribuir jugadores alternando por puntaje para mejor balance
-    jugadoresOrdenados.forEach((jugador, index) => {
-      if (index % 2 === 0) {
-        equipoA.push(jugador.uuid);
-        puntajeA += jugador.score ?? 0;
-      } else {
-        equipoB.push(jugador.uuid);
-        puntajeB += jugador.score ?? 0;
-      }
+    const result = buildBalancedTeams({
+      players: jugadores,
+      getPlayerKey: (player) => String(player?.uuid || player?.id || player?.usuario_id || '').trim(),
+      getPlayerScore: (player) => player?.score,
+      getPlayerName: (player) => player?.nombre,
+      preferRandomTies: false,
     });
-
-    return [
-      { id: 'equipoA', name: 'Equipo A', players: equipoA, score: puntajeA },
-      { id: 'equipoB', name: 'Equipo B', players: equipoB, score: puntajeB },
-    ];
+    return result.teams;
   };
 
   const safeSetTeams = (setTeams) => (newTeams) => {
