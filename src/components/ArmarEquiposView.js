@@ -894,7 +894,7 @@ export default function ArmarEquiposView({
         precio={partidoActual?.valor_cancha || partidoActual?.valorCancha || partidoActual?.valor || partidoActual?.precio}
         rightActions={null}
       />
-      <div className="w-[90vw] md:w-full max-w-[90vw] md:max-w-4xl mx-auto flex flex-col gap-3 overflow-x-hidden mt-6 pt-0 pb-[calc(var(--safe-bottom,0px)+14px)]">
+      <div className="w-[90vw] md:w-full max-w-[90vw] md:max-w-4xl mx-auto flex flex-col gap-3 overflow-x-hidden mt-0 pt-0 pb-[calc(var(--safe-bottom,0px)+14px)]">
         {inlineNotice && (
           <div
             className={`rounded-xl px-4 py-3 border text-sm font-oswald ${
@@ -909,153 +909,155 @@ export default function ArmarEquiposView({
           </div>
         )}
         {/* Lista de jugadores */}
-        <div ref={playersSectionRef} className="relative w-full mx-auto mt-0 box-border min-h-[120px]">
+        <div ref={playersSectionRef} className="relative left-1/2 w-screen -translate-x-1/2 mt-0 box-border min-h-[120px]">
           <div className="w-full box-border" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)', paddingTop: '16px', paddingBottom: '24px' }}>
-            <div className="px-1 mb-6">
-              <div className="flex items-center justify-between gap-2">
-                <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
-                  Jugadores
-                </div>
-                {isAdmin && (
-                  <div className="relative flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      className={headerActionIconButtonClass}
-                      onClick={handleWhatsApp}
-                      title="Compartir link de votación"
-                      aria-label="Compartir link de votación"
-                    >
-                      <Share2 size={14} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
-                    </button>
-                    <button
-                      className={kebabMenuButtonClass}
-                      onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
-                      type="button"
-                      aria-label="Menú de acciones"
-                      title="Acciones de administración"
-                    >
-                      <MoreVertical size={15} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
-                    </button>
-                    {actionsMenuOpen && (
-                      <div className="absolute top-full right-0 mt-1 w-48 border bg-slate-900/98 shadow-lg z-10 overflow-hidden transition-all duration-200 ease-out" style={{ borderColor: 'rgba(88, 107, 170, 0.46)', borderRadius: 0, transform: `skewX(-${SLOT_SKEW_X}deg)` }}>
-                        <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
-                          <button
-                            className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
-                            onClick={() => {
-                              setActionsMenuOpen(false);
-                              setConfirmConfig({ open: true, action: 'reset' });
-                            }}
-                            type="button"
-                          >
-                            <span>Resetear votación</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
+            <div className="w-[90vw] md:w-full max-w-[90vw] md:max-w-4xl mx-auto">
+              <div className="px-1 mb-6">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
+                    Jugadores
                   </div>
-                )}
-              </div>
-              <div className="mt-2 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
-                <div
-                  className="h-full rounded-[6px] transition-all duration-200"
-                  style={{ width: `${progressPct}%`, backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, filter: 'saturate(1.05)' }}
-                />
-              </div>
-              <div className="text-[11px] text-white/50 font-oswald font-normal tracking-normal mt-2 leading-snug">
-                Esperando votos para armar los equipos
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border px-1">
-              {(() => {
-                let slotNumber = missingSlotsCount;
-                return slotItems.map((j, idx) => {
-                  if (!j) {
-                    const visibleNumber = slotNumber > 0 ? slotNumber : Math.max(1, requiredSlots - idx);
-                    slotNumber = Math.max(0, slotNumber - 1);
-                    return (
-                      <div
-                        key={`slot-empty-${idx}`}
-                        className="rounded-none h-12 w-full overflow-hidden"
-                        style={softPlaceholderWrapperStyle}
-                        aria-hidden="true"
+                  {isAdmin && (
+                    <div className="relative flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        className={headerActionIconButtonClass}
+                        onClick={handleWhatsApp}
+                        title="Compartir link de votación"
+                        aria-label="Compartir link de votación"
                       >
-                        <div
-                          className="h-full w-full p-2 flex items-center justify-center"
-                          style={skewCounterStyle}
-                        >
-                          <span className="select-none pointer-events-none text-[28px]" style={PLACEHOLDER_NUMBER_STYLE}>
-                            {visibleNumber}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  const hasVoted = playerHasVoted(j);
-                  const cardStyle = {
-                    ...softCardWrapperStyle,
-                    border: hasVoted ? '1px solid rgba(74, 222, 128, 0.9)' : softCardWrapperStyle.border,
-                    boxShadow: hasVoted ? '0 0 11px rgba(74, 222, 128, 0.3)' : softCardWrapperStyle.boxShadow,
-                  };
-
-                  return (
-                    <PlayerCardTrigger
-                      key={j.uuid || j.id || `slot-player-${idx}`}
-                      profile={j}
-                      partidoActual={partidoActual}
-                    >
-                      <div
-                        className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-visible transition-all cursor-pointer hover:brightness-105"
-                        style={cardStyle}
+                        <Share2 size={14} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
+                      </button>
+                      <button
+                        className={kebabMenuButtonClass}
+                        onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
+                        type="button"
+                        aria-label="Menú de acciones"
+                        title="Acciones de administración"
                       >
-                        <div className="h-full w-full p-2 flex items-center gap-1.5" style={skewCounterStyle}>
-                          {j.foto_url || j.avatar_url ? (
-                            <img
-                              src={j.foto_url || j.avatar_url}
-                              alt={j.nombre}
-                              className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
-                            />
-                          ) : (
-                            <AvatarFallback name={j.nombre} size="w-8 h-8" />
-                          )}
-
-                          <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 truncate leading-tight">
-                            {j.nombre}
-                          </span>
-
-                          {partidoActual?.creado_por === j.usuario_id && (
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
-                              <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
-                            </svg>
-                          )}
-
-                          {j.usuario_id !== user?.id && (
+                        <MoreVertical size={15} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
+                      </button>
+                      {actionsMenuOpen && (
+                        <div className="absolute top-full right-0 mt-1 w-48 border bg-slate-900/98 shadow-lg z-10 overflow-hidden transition-all duration-200 ease-out" style={{ borderColor: 'rgba(88, 107, 170, 0.46)', borderRadius: 0, transform: `skewX(-${SLOT_SKEW_X}deg)` }}>
+                          <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
                             <button
-                              className="w-5 h-5 bg-transparent border-0 p-0 cursor-pointer transition-colors inline-flex items-center justify-center shrink-0 hover:text-[#29aaff] disabled:opacity-50 disabled:cursor-not-allowed"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setPlayerToRemove({ id: j.id, nombre: j.nombre });
+                              className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
+                              onClick={() => {
+                                setActionsMenuOpen(false);
+                                setConfirmConfig({ open: true, action: 'reset' });
                               }}
                               type="button"
-                              disabled={loading}
-                              aria-label={`Eliminar a ${j.nombre}`}
-                              title={`Eliminar a ${j.nombre}`}
                             >
-                              <span
-                                className="leading-none text-[15px]"
-                                style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }}
-                              >
-                                ×
-                              </span>
+                              <span>Resetear votación</span>
                             </button>
-                          )}
+                          </div>
                         </div>
-                      </div>
-                    </PlayerCardTrigger>
-                  );
-                });
-              })()}
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="mt-2 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
+                  <div
+                    className="h-full rounded-[6px] transition-all duration-200"
+                    style={{ width: `${progressPct}%`, backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, filter: 'saturate(1.05)' }}
+                  />
+                </div>
+                <div className="text-[11px] text-white/50 font-oswald font-normal tracking-normal mt-2 leading-snug">
+                  Esperando votos para armar los equipos
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border px-1">
+                {(() => {
+                  let slotNumber = missingSlotsCount;
+                  return slotItems.map((j, idx) => {
+                    if (!j) {
+                      const visibleNumber = slotNumber > 0 ? slotNumber : Math.max(1, requiredSlots - idx);
+                      slotNumber = Math.max(0, slotNumber - 1);
+                      return (
+                        <div
+                          key={`slot-empty-${idx}`}
+                          className="rounded-none h-12 w-full overflow-hidden"
+                          style={softPlaceholderWrapperStyle}
+                          aria-hidden="true"
+                        >
+                          <div
+                            className="h-full w-full p-2 flex items-center justify-center"
+                            style={skewCounterStyle}
+                          >
+                            <span className="select-none pointer-events-none text-[28px]" style={PLACEHOLDER_NUMBER_STYLE}>
+                              {visibleNumber}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const hasVoted = playerHasVoted(j);
+                    const cardStyle = {
+                      ...softCardWrapperStyle,
+                      border: hasVoted ? '1px solid rgba(74, 222, 128, 0.9)' : softCardWrapperStyle.border,
+                      boxShadow: hasVoted ? '0 0 11px rgba(74, 222, 128, 0.3)' : softCardWrapperStyle.boxShadow,
+                    };
+
+                    return (
+                      <PlayerCardTrigger
+                        key={j.uuid || j.id || `slot-player-${idx}`}
+                        profile={j}
+                        partidoActual={partidoActual}
+                      >
+                        <div
+                          className="PlayerCard PlayerCard--soft relative rounded-none h-12 w-full overflow-visible transition-all cursor-pointer hover:brightness-105"
+                          style={cardStyle}
+                        >
+                          <div className="h-full w-full p-2 flex items-center gap-1.5" style={skewCounterStyle}>
+                            {j.foto_url || j.avatar_url ? (
+                              <img
+                                src={j.foto_url || j.avatar_url}
+                                alt={j.nombre}
+                                className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+                              />
+                            ) : (
+                              <AvatarFallback name={j.nombre} size="w-8 h-8" />
+                            )}
+
+                            <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 truncate leading-tight">
+                              {j.nombre}
+                            </span>
+
+                            {partidoActual?.creado_por === j.usuario_id && (
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
+                                <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
+                              </svg>
+                            )}
+
+                            {j.usuario_id !== user?.id && (
+                              <button
+                                className="w-5 h-5 bg-transparent border-0 p-0 cursor-pointer transition-colors inline-flex items-center justify-center shrink-0 hover:text-[#29aaff] disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPlayerToRemove({ id: j.id, nombre: j.nombre });
+                                }}
+                                type="button"
+                                disabled={loading}
+                                aria-label={`Eliminar a ${j.nombre}`}
+                                title={`Eliminar a ${j.nombre}`}
+                              >
+                                <span
+                                  className="leading-none text-[15px]"
+                                  style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }}
+                                >
+                                  ×
+                                </span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </PlayerCardTrigger>
+                    );
+                  });
+                })()}
+              </div>
             </div>
           </div>
         </div>
