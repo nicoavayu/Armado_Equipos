@@ -252,7 +252,7 @@ const ProfileEditorForm = ({
                   className={`
                     h-[42px] px-2 rounded-none text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
                     ${isActive
-                      ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[#7f8dff] text-white shadow-[0_8px_18px_rgba(95,114,255,0.34)]'
+                      ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_8px_18px_rgba(106,67,255,0.32)]'
                       : 'bg-[rgba(23,35,74,0.74)] border-[rgba(89,107,168,0.45)] text-white/86 hover:bg-[rgba(30,45,94,0.9)] hover:border-[rgba(119,141,214,0.62)]'}
                   `}
                   onClick={() => handleInputChange('pierna_habil', option.key)}
@@ -276,7 +276,7 @@ const ProfileEditorForm = ({
                   className={`
                     h-[42px] px-2 rounded-none text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
                     ${isActive
-                      ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[#7f8dff] text-white shadow-[0_8px_18px_rgba(95,114,255,0.34)]'
+                      ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_8px_18px_rgba(106,67,255,0.32)]'
                       : 'bg-[rgba(23,35,74,0.74)] border-[rgba(89,107,168,0.45)] text-white/86 hover:bg-[rgba(30,45,94,0.9)] hover:border-[rgba(119,141,214,0.62)]'}
                   `}
                   onClick={() => handleInputChange('nivel', option.value)}
@@ -304,7 +304,7 @@ const ProfileEditorForm = ({
         <div className="grid grid-cols-2 gap-4 mt-8 pt-10 border-t border-white/10 w-full min-w-0 pb-16">
           <button
             className={`
-              col-span-2 w-full h-[54px] rounded-none border text-[18px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all flex items-center justify-center
+              col-span-2 w-full h-[54px] rounded-none border text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all flex items-center justify-center
               ${hasChanges
                 ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[rgba(136,120,255,0.75)] text-white shadow-[0_12px_24px_rgba(95,114,255,0.34)] hover:brightness-110 active:opacity-95'
                 : 'bg-[rgba(26,35,76,0.58)] border-[rgba(84,97,151,0.35)] text-white/30 cursor-not-allowed'}
@@ -316,7 +316,7 @@ const ProfileEditorForm = ({
           </button>
 
           <button
-            className="col-span-2 h-[50px] rounded-none border border-[rgba(255,144,160,0.46)] bg-[rgba(84,25,40,0.34)] text-[#ff9eab] text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all hover:bg-[rgba(98,30,46,0.46)] hover:text-[#ffb2bc] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+            className="col-span-2 h-[50px] rounded-none border border-[rgba(255,144,160,0.46)] bg-[rgba(84,25,40,0.34)] text-[#ff9eab] text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(98,30,46,0.46)] hover:text-[#ffb2bc] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
             onClick={handleLogout}
             disabled={loading}
           >
@@ -324,7 +324,7 @@ const ProfileEditorForm = ({
           </button>
 
           <button
-            className="col-span-2 h-[50px] rounded-none border border-[rgba(255,83,106,0.64)] bg-[rgba(116,20,40,0.52)] text-[#ffb5bf] text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all hover:bg-[rgba(132,25,46,0.64)] hover:text-[#ffd0d6] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+            className="col-span-2 h-[50px] rounded-none border border-[rgba(255,83,106,0.64)] bg-[rgba(116,20,40,0.52)] text-[#ffb5bf] text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(132,25,46,0.64)] hover:text-[#ffd0d6] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
             onClick={handleDeleteAccount}
             disabled={loading}
           >
@@ -1119,7 +1119,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                       className={`
                         h-[42px] px-2 rounded-none text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
                         ${isActive
-                          ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[#7f8dff] text-white shadow-[0_8px_18px_rgba(95,114,255,0.34)]'
+                          ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_8px_18px_rgba(106,67,255,0.32)]'
                           : 'bg-[rgba(23,35,74,0.74)] border-[rgba(89,107,168,0.45)] text-white/86 hover:bg-[rgba(30,45,94,0.9)] hover:border-[rgba(119,141,214,0.62)]'}
                       `}
                       onClick={() => handleInputChange('pierna_habil', option.key)}
@@ -1143,7 +1143,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                       className={`
                         h-[42px] px-2 rounded-none text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
                         ${isActive
-                          ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[#7f8dff] text-white shadow-[0_8px_18px_rgba(95,114,255,0.34)]'
+                          ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_8px_18px_rgba(106,67,255,0.32)]'
                           : 'bg-[rgba(23,35,74,0.74)] border-[rgba(89,107,168,0.45)] text-white/86 hover:bg-[rgba(30,45,94,0.9)] hover:border-[rgba(119,141,214,0.62)]'}
                       `}
                       onClick={() => handleInputChange('nivel', option.value)}
@@ -1169,7 +1169,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
             <div className="grid grid-cols-2 gap-3 mt-5 pt-5 border-t border-white/20 w-full relative pb-5 md:pb-0">
               <button
                 className={`
-                      col-span-2 w-full h-[54px] rounded-none border text-[18px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all backdrop-blur-md flex items-center justify-center
+                      col-span-2 w-full h-[54px] rounded-none border text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all backdrop-blur-md flex items-center justify-center
                       ${hasChanges
                         ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[rgba(136,120,255,0.75)] text-white shadow-[0_12px_24px_rgba(95,114,255,0.34)] hover:brightness-110 active:opacity-95'
                         : 'bg-[rgba(26,35,76,0.58)] border-[rgba(84,97,151,0.35)] text-white/30 cursor-not-allowed'}
@@ -1182,7 +1182,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               </button>
 
               <button
-                className="col-span-2 h-[50px] rounded-none border border-[rgba(255,144,160,0.46)] bg-[rgba(84,25,40,0.34)] text-[#ff9eab] text-[16px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all hover:bg-[rgba(98,30,46,0.46)] hover:text-[#ffb2bc] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+                className="col-span-2 h-[50px] rounded-none border border-[rgba(255,144,160,0.46)] bg-[rgba(84,25,40,0.34)] text-[#ff9eab] text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(98,30,46,0.46)] hover:text-[#ffb2bc] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
                 onClick={handleLogout}
                 disabled={loading}
               >
@@ -1190,7 +1190,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               </button>
 
               <button
-                className="col-span-2 h-[50px] rounded-none border border-[rgba(255,83,106,0.64)] bg-[rgba(116,20,40,0.52)] text-[#ffb5bf] text-[16px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all hover:bg-[rgba(132,25,46,0.64)] hover:text-[#ffd0d6] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+                className="col-span-2 h-[50px] rounded-none border border-[rgba(255,83,106,0.64)] bg-[rgba(116,20,40,0.52)] text-[#ffb5bf] text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(132,25,46,0.64)] hover:text-[#ffd0d6] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
                 onClick={handleDeleteAccount}
                 disabled={loading}
               >
