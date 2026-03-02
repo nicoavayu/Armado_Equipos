@@ -22,7 +22,7 @@ const STEPS = {
 };
 
 const INPUT_MODERN_CLASS = 'appearance-none bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white font-sans text-lg px-4 py-3 rounded-none w-full h-12 transition-all focus:outline-none focus:border-[#7f8dff] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 focus:bg-[rgba(62,67,114,0.95)] mb-2 box-border shadow-none backdrop-blur-md';
-const PRIMARY_ACTION_BUTTON_CLASS = 'w-full h-[54px] mt-4 mb-0 rounded-none border border-[rgba(136,120,255,0.75)] bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white font-oswald text-[22px] tracking-[0.01em] font-semibold transition-all hover:brightness-110 active:opacity-95 disabled:opacity-45 disabled:cursor-not-allowed';
+const PRIMARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] mt-4 mb-0 px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px] disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed';
 const SECONDARY_ACTION_BUTTON_CLASS = 'w-full h-[52px] mt-4 mb-0 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-oswald text-[20px] tracking-[0.01em] font-semibold transition-all hover:bg-[rgba(30,45,94,0.95)] active:opacity-95';
 const SEGMENT_BUTTON_BASE_CLASS = 'h-[44px] px-2 text-[16px] font-semibold font-oswald rounded-none transition-all border flex items-center justify-center';
 const CONFIRM_ITEM_CLASS = 'bg-[linear-gradient(160deg,rgba(31,38,86,0.86),rgba(16,24,60,0.94))] border border-[rgba(108,126,196,0.46)] backdrop-blur-md rounded-none p-4 mb-3 flex justify-between items-center text-white font-sans shadow-[0_12px_24px_rgba(4,10,28,0.35)]';
@@ -83,7 +83,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   useEffect(() => { setCupo(modalidadToCupo[modalidad]); }, [modalidad, modalidadToCupo]);
 
   const getSegmentButtonClass = (isActive) => `${SEGMENT_BUTTON_BASE_CLASS} ${isActive
-    ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[#7f8dff] text-white shadow-[0_8px_18px_rgba(95,114,255,0.34)]'
+    ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_8px_18px_rgba(106,67,255,0.34)]'
     : 'bg-[rgba(23,35,74,0.74)] border-[rgba(89,107,168,0.45)] text-white/88 hover:bg-[rgba(30,45,94,0.92)] hover:border-[rgba(119,141,214,0.62)]'
     }`;
 
@@ -740,7 +740,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                     onChange={(e) => setSaveAsFrequent(e.target.checked)}
                   />
                   <span
-                    className="w-11 h-[26px] bg-[rgba(23,35,74,0.9)] border border-[rgba(96,117,188,0.52)] rounded-none relative transition-all duration-150 shadow-inner flex-none peer-checked:bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] peer-checked:border-[#7f8dff] peer-disabled:opacity-45 peer-disabled:cursor-not-allowed after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-5 after:h-5 after:bg-white after:rounded-none after:transition-all after:duration-150 after:ease-[cubic-bezier(.2,.9,.3,1)] after:shadow-md peer-checked:after:translate-x-[18px]"
+                    className="w-11 h-[26px] bg-[rgba(23,35,74,0.9)] border border-[rgba(96,117,188,0.52)] rounded-none relative transition-all duration-150 shadow-inner flex-none peer-checked:bg-[#6a43ff] peer-checked:border-[#7d5aff] peer-disabled:opacity-45 peer-disabled:cursor-not-allowed after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-5 after:h-5 after:bg-white after:rounded-none after:transition-all after:duration-150 after:ease-[cubic-bezier(.2,.9,.3,1)] after:shadow-md peer-checked:after:translate-x-[18px]"
                     aria-hidden="true"
                   />
                   <span className="inline-block ml-3 text-white font-bold font-sans peer-disabled:opacity-45 peer-disabled:cursor-not-allowed">Guardar como partido frecuente</span>
