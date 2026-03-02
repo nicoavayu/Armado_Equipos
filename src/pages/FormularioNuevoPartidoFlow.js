@@ -751,9 +751,23 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                     onChange={(e) => setSaveAsFrequent(e.target.checked)}
                   />
                   <span
-                    className="w-11 h-[26px] bg-[rgba(23,35,74,0.9)] border border-[rgba(96,117,188,0.52)] rounded-none ui-flat relative transition-all duration-150 shadow-inner flex-none peer-checked:bg-[#6a43ff] peer-checked:border-[#7d5aff] peer-disabled:opacity-45 peer-disabled:cursor-not-allowed after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-5 after:h-5 after:bg-white after:rounded-none after:transition-all after:duration-150 after:ease-[cubic-bezier(.2,.9,.3,1)] after:shadow-md peer-checked:after:translate-x-[18px]"
+                    className="relative inline-block w-[50px] h-6 flex-none transition-all duration-300"
+                    style={{
+                      backgroundColor: saveAsFrequent ? '#644dff' : '#ccc',
+                      borderRadius: '24px',
+                      opacity: loading ? 0.5 : 1,
+                    }}
                     aria-hidden="true"
-                  />
+                  >
+                    <span
+                      className="absolute h-[18px] w-[18px] bg-white transition-all duration-300"
+                      style={{
+                        left: saveAsFrequent ? '29px' : '3px',
+                        bottom: '3px',
+                        borderRadius: '50%',
+                      }}
+                    />
+                  </span>
                   <span className="inline-block ml-3 text-white font-bold font-sans peer-disabled:opacity-45 peer-disabled:cursor-not-allowed">Guardar como partido frecuente</span>
                 </label>
                 <div className="pf-switch-note" style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginLeft: 40 }}>
