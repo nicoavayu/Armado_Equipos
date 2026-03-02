@@ -262,7 +262,7 @@ const PlayersSection = ({
               onClick={() => setLocalMenuOpen(false)}
             />
             <div
-              className="fixed w-48 border bg-slate-900/98 shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out"
+              className="fixed w-48 border shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out backdrop-blur-sm"
               style={{
                 top: `${menuPosition.top}px`,
                 left: `${menuPosition.left}px`,
@@ -270,21 +270,25 @@ const PlayersSection = ({
                 transform: localMenuOpen ? `skewX(-${SLOT_SKEW_X}deg) scale(1)` : `skewX(-${SLOT_SKEW_X}deg) scale(0.95)`,
                 borderColor: 'rgba(88, 107, 170, 0.46)',
                 borderRadius: 0,
+                backgroundColor: 'rgba(15, 23, 42, 0.98)',
+                boxShadow: '0 12px 28px rgba(0, 0, 0, 0.45)',
               }}
               onClick={(e) => e.stopPropagation()}
             >
               <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
-                <button
-                  className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
-                  onClick={() => {
-                    setLocalMenuOpen(false);
-                    setConfirmConfig({ open: true, type: 'abandon' });
-                  }}
-                  type="button"
-                >
-                  <LogOut size={16} />
-                  <span>Abandonar partido</span>
-                </button>
+                <div className="py-1 bg-transparent">
+                  <button
+                    className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 bg-transparent hover:bg-slate-800/90 transition-colors text-sm font-medium"
+                    onClick={() => {
+                      setLocalMenuOpen(false);
+                      setConfirmConfig({ open: true, type: 'abandon' });
+                    }}
+                    type="button"
+                  >
+                    <LogOut size={16} />
+                    <span>Abandonar partido</span>
+                  </button>
+                </div>
               </div>
             </div>
           </>,
@@ -629,7 +633,7 @@ const PlayersSection = ({
                     onClick={() => setMenuOpen(false)}
                   />
                   <div
-                    className="fixed w-48 border bg-slate-900/98 shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out"
+                    className="fixed w-48 border shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out backdrop-blur-sm"
                     style={{
                       top: `${menuPosition.top}px`,
                       left: `${menuPosition.left}px`,
@@ -637,21 +641,25 @@ const PlayersSection = ({
                       transform: menuOpen ? `skewX(-${SLOT_SKEW_X}deg) scale(1)` : `skewX(-${SLOT_SKEW_X}deg) scale(0.95)`,
                       borderColor: 'rgba(88, 107, 170, 0.46)',
                       borderRadius: 0,
+                      backgroundColor: 'rgba(15, 23, 42, 0.98)',
+                      boxShadow: '0 12px 28px rgba(0, 0, 0, 0.45)',
                     }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
-                      <button
-                        className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
-                        onClick={() => {
-                          setMenuOpen(false);
-                          setConfirmConfig({ open: true, type: 'abandon' });
-                        }}
-                        type="button"
-                      >
-                        <LogOut size={14} />
-                        <span>Abandonar partido</span>
-                      </button>
+                      <div className="py-1 bg-transparent">
+                        <button
+                          className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 bg-transparent hover:bg-slate-800/90 transition-colors text-sm font-medium"
+                          onClick={() => {
+                            setMenuOpen(false);
+                            setConfirmConfig({ open: true, type: 'abandon' });
+                          }}
+                          type="button"
+                        >
+                          <LogOut size={14} />
+                          <span>Abandonar partido</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </>,
