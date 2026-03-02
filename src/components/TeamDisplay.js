@@ -565,12 +565,14 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     if (!targetTeam) return;
 
     const targetPlayers = getNormalizedTeamPlayers(targetTeam);
-    const targetPlayer = targetPlayers[targetIndex];
-    if (!targetPlayer) return;
+    const normalizedTargetIndex = Math.max(0, Math.min(targetIndex, targetPlayers.length));
+    const isSameTeam = source.droppableId === targetTeamId;
+    const isSwapIntent = Boolean(combine?.draggableId);
+    const targetPlayer = targetPlayers[normalizedTargetIndex];
 
-    if (sourcePlayer === targetPlayer && source.droppableId === targetTeamId) return;
+    if (isSameTeam && source.index === normalizedTargetIndex) return;
 
-    if (isPlayerLocked(sourcePlayer) || isPlayerLocked(targetPlayer)) {
+    if (isPlayerLocked(sourcePlayer) || (isSwapIntent && targetPlayer && isPlayerLocked(targetPlayer))) {
       showInlineNotice({
         key: 'teams_locked_players_move_blocked',
         type: 'warning',
@@ -584,10 +586,10 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       players: getNormalizedTeamPlayers(team),
     }));
 
-    if (source.droppableId === targetTeamId) {
+    if (isSameTeam) {
       const reordered = [...sourcePlayers];
       const [moved] = reordered.splice(source.index, 1);
-      reordered.splice(targetIndex, 0, moved);
+      reordered.splice(normalizedTargetIndex, 0, moved);
 
       for (let i = 0; i < nextTeams.length; i += 1) {
         if (nextTeams[i].id !== source.droppableId) continue;
@@ -601,10 +603,16 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       const nextSourcePlayers = [...sourcePlayers];
       const nextTargetPlayers = [...targetPlayers];
 
-      [nextSourcePlayers[source.index], nextTargetPlayers[targetIndex]] = [
-        nextTargetPlayers[targetIndex],
-        nextSourcePlayers[source.index],
-      ];
+      if (isSwapIntent && targetPlayer) {
+        [nextSourcePlayers[source.index], nextTargetPlayers[normalizedTargetIndex]] = [
+          nextTargetPlayers[normalizedTargetIndex],
+          nextSourcePlayers[source.index],
+        ];
+      } else {
+        const [moved] = nextSourcePlayers.splice(source.index, 1);
+        const insertAt = Math.max(0, Math.min(normalizedTargetIndex, nextTargetPlayers.length));
+        nextTargetPlayers.splice(insertAt, 0, moved);
+      }
 
       for (let i = 0; i < nextTeams.length; i += 1) {
         if (nextTeams[i].id === source.droppableId) {
@@ -621,6 +629,18 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           };
         }
       }
+    }
+
+    const beforeTotal = realtimeTeams.reduce((acc, team) => acc + getNormalizedTeamPlayers(team).length, 0);
+    const afterPlayers = nextTeams.flatMap((team) => getNormalizedTeamPlayers(team));
+    const afterTotal = afterPlayers.length;
+    if (new Set(afterPlayers).size !== afterTotal || afterTotal !== beforeTotal) {
+      showInlineNotice({
+        key: 'teams_drag_integrity_check_failed',
+        type: 'warning',
+        message: 'No se pudo mover el jugador. Intentá de nuevo.',
+      });
+      return;
     }
 
     await persistTeams(nextTeams);
@@ -753,10 +773,10 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                     <div
                       ref={dropProvided.innerRef}
                       {...dropProvided.droppableProps}
-                      className="relative border p-2.5 w-[calc(50%-6px)] box-border transition-all flex flex-col min-h-0 rounded-none"
+                      className="relative border p-2 w-[calc(50%-6px)] box-border transition-all flex flex-col min-h-0 rounded-none"
                       style={{
-                        borderColor: 'rgba(255,255,255,0.14)',
-                        background: 'linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%)',
+                        borderColor: 'rgba(255,255,255,0.09)',
+                        background: 'linear-gradient(180deg, rgba(255,255,255,0.028) 0%, rgba(255,255,255,0.012) 100%)',
                       }}
                     >
                       {editingTeamId === team.id && isAdmin ? (
@@ -823,7 +843,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         </h3>
                       )}
 
-                      <div className="flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto max-h-[52vh] md:max-h-[60vh] pr-1">
+                      <div className="flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto max-h-[52vh] md:max-h-[60vh] pr-0">
                         {teamPlayerKeys.length === 0 && (
                           <div className="text-white/60 text-sm p-3 border border-white/10 rounded-none bg-black/20">
                             No hay jugadores cargados en este equipo (players vacío).
@@ -889,20 +909,27 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                     transform: `skewX(-${SLOT_SKEW_X}deg)`,
                                   }}
                                 >
-                                  <div className="flex items-center gap-1.5 w-full h-full min-w-0 p-2" style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
-                                    {player.avatar_url ? (
-                                      <img
-                                        src={player.avatar_url}
-                                        alt={player.nombre}
-                                        className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
-                                      />
-                                    ) : (
-                                      <AvatarFallback name={player.nombre} size="w-8 h-8" />
-                                    )}
+                                  <div className="flex items-center gap-1.5 w-full h-full min-w-0 p-1.5" style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
+                                    <div className="relative w-8 h-8 shrink-0">
+                                      {player.avatar_url ? (
+                                        <img
+                                          src={player.avatar_url}
+                                          alt={player.nombre}
+                                          className="w-full h-full rounded-full object-cover border border-slate-700 bg-slate-800"
+                                        />
+                                      ) : (
+                                        <AvatarFallback name={player.nombre} size="w-full h-full" className="!shrink-0" />
+                                      )}
+                                      {isLocked && (
+                                        <span className="absolute -top-1 -right-1 h-[18px] w-[18px] inline-flex items-center justify-center rounded-full bg-[#1a223f] border border-[#FFC107]/65 shadow-[0_0_6px_rgba(255,193,7,0.25)] text-[#FFC107]">
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="11" height="11" aria-hidden="true">
+                                            <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
+                                          </svg>
+                                        </span>
+                                      )}
+                                    </div>
                                     <span
-                                      className={`font-oswald text-sm font-semibold text-white flex-1 tracking-wide min-w-0 leading-tight pr-1 ${
-                                        showAverages && isAdmin ? 'whitespace-normal break-words' : 'overflow-hidden text-ellipsis whitespace-nowrap'
-                                      }`}
+                                      className="font-oswald text-sm font-semibold text-white flex-1 tracking-wide min-w-0 leading-tight pr-1 overflow-hidden text-ellipsis whitespace-nowrap"
                                     >
                                       {player.nombre}
                                     </span>
@@ -916,15 +943,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                           borderRadius: 0,
                                         }}
                                       >
-                                        {(player.score || 0).toFixed(2)}
-                                      </span>
-                                    )}
-
-                                    {isLocked && isAdmin && (
-                                      <span className="text-base text-[#FFC107] shrink-0 p-1 rounded-none bg-[#FFC107]/20 border border-[#FFC107]/40 animate-pulse">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-                                          <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
-                                        </svg>
+                                        {(player.score || 0).toFixed(1)}
                                       </span>
                                     )}
                                   </div>
