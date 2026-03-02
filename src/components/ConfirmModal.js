@@ -124,7 +124,7 @@ export default function ConfirmModal({
     >
       <div
         className={`
-          w-full max-w-[500px] bg-white/5 backdrop-blur-2xl rounded-[1.5rem] p-8 shadow-[0_32px_64px_rgba(0,0,0,0.5)] 
+          w-full max-w-[500px] bg-white/5 backdrop-blur-2xl rounded-none p-8 shadow-[0_32px_64px_rgba(0,0,0,0.5)] 
           border border-white/10 text-white transition-all duration-180 ease-[cubic-bezier(.2,.9,.3,1)]
           ${visible ? 'scale-100 opacity-100' : 'scale-[0.98] opacity-0'}
         `}
@@ -144,7 +144,7 @@ export default function ConfirmModal({
           {!singleButton && (
             <button
               ref={cancelRef}
-              className="min-h-[52px] min-w-[128px] px-6 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border border-slate-600 bg-white/[0.06] text-white hover:bg-white/10 hover:border-slate-500 active:scale-[0.98] disabled:opacity-50 disabled:cursor-default transition-all"
+              className="h-[52px] min-w-[128px] px-6 rounded-none text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border bg-[rgba(23,35,74,0.72)] border-[rgba(88,107,170,0.46)] text-white hover:brightness-110 active:opacity-95 disabled:opacity-50 disabled:cursor-default transition-all"
               onMouseDown={handleCancelClick}
               onClick={handleCancelClick}
               disabled={false}
@@ -155,7 +155,11 @@ export default function ConfirmModal({
           )}
           <button
             ref={confirmRef}
-            className={`min-h-[52px] min-w-[132px] px-6 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border-0 text-white hover:shadow-lg hover:opacity-90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-default transition-all ${danger ? 'bg-[#f44336]' : 'bg-[#8178e5]'}`}
+            className={`h-[52px] min-w-[132px] px-6 rounded-none text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border text-white hover:brightness-110 active:opacity-95 disabled:opacity-50 disabled:cursor-default transition-all ${
+              danger
+                ? 'bg-[linear-gradient(132deg,#b91c1c_0%,#dc2626_50%,#ef4444_100%)] border-red-300/40'
+                : 'bg-[linear-gradient(132deg,#291686_0%,#3f24ba_48%,#5638e6_100%)] border-[rgba(132,112,255,0.58)] shadow-[0_0_14px_rgba(86,56,230,0.22)]'
+            }`}
             onMouseDown={handleConfirmClick}
             onClick={handleConfirmClick}
             disabled={isDeleting}

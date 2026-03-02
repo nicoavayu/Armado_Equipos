@@ -73,14 +73,14 @@ const Modal = ({
     >
       <div
         ref={modalRef}
-        className={`bg-[#1a1a1a] rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] max-w-[95vw] max-h-full w-auto flex flex-col overflow-hidden border border-[#333] animate-[scaleIn_0.2s_ease-out] ${className}`}
+        className={`bg-[#1a1a1a] !rounded-none shadow-[0_20px_60px_rgba(0,0,0,0.8)] max-w-[95vw] max-h-full w-auto flex flex-col overflow-hidden border border-[#333] animate-[scaleIn_0.2s_ease-out] ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
         {hasHeader && (
           <div className={`flex items-center p-5 border-b border-[#333] shrink-0 ${title ? 'justify-between' : 'justify-end'}`}>
             {title ? <h2 className="text-white text-xl font-semibold m-0">{title}</h2> : null}
             <button
-              className="bg-transparent border-none text-[#999] text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 hover:text-white hover:bg-white/10 focus:outline-none focus:text-white focus:bg-white/10"
+              className="bg-transparent border-none text-[#999] text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded-none transition-all duration-200 hover:text-white hover:bg-white/10 focus:outline-none focus:text-white focus:bg-white/10"
               onClick={onClose}
               aria-label="Cerrar modal"
               type="button"
