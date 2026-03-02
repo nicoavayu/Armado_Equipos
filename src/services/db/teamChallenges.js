@@ -277,6 +277,12 @@ const TEAM_MATCH_STATUS_ALIASES = {
 const uniqueValues = (values) => Array.from(new Set(values.filter(Boolean)));
 
 const normalizeMessage = (error) => String(error?.message || error?.details || '').toLowerCase();
+const isSingleRowNotReturnedError = (error) => {
+  const message = normalizeMessage(error);
+  const code = String(error?.code || '').toUpperCase();
+  return code === 'PGRST116'
+    || (message.includes('json object requested') && message.includes('multiple (or no) rows returned'));
+};
 
 const isMissingColumnError = (error, columnName) => {
   const message = normalizeMessage(error);
@@ -832,7 +838,14 @@ export const updateTeam = async (teamId, payload) => {
     if (!isSkillLevelConstraintError(response.error)) break;
   }
 
-  return withTeamCompatibility(unwrapSingle(response, 'No se pudo actualizar el equipo'));
+  if (response.error) {
+    if (isSingleRowNotReturnedError(response.error)) {
+      throw new Error('No tenes permisos para editar este equipo (se requiere rol admin/owner)');
+    }
+    throw new Error(response.error.message || 'No se pudo actualizar el equipo');
+  }
+
+  return withTeamCompatibility(response.data);
 };
 
 export const softDeleteTeam = async (teamId) => {
