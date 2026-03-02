@@ -1,6 +1,6 @@
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/components/TeamDisplay.js
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { TeamDisplayContext } from './PlayerCardTrigger';
 import { saveTeamsToDatabase, getTeamsFromDatabase, subscribeToTeamsChanges, unsubscribeFromTeamsChanges, supabase } from '../supabase';
 import ChatButton from './ChatButton';
@@ -214,6 +214,12 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     const [teamId, ...rest] = String(draggableId || '').split('::');
     return { teamId, playerKey: rest.join('::') };
   };
+
+  const maxPlayersPerTeam = useMemo(() => {
+    if (!Array.isArray(realtimeTeams) || realtimeTeams.length === 0) return 1;
+    return Math.max(1, ...realtimeTeams.map((team) => getNormalizedTeamPlayers(team).length));
+  }, [realtimeTeams]);
+  const teamListHeightPx = Math.max(198, (maxPlayersPerTeam * 48) + ((maxPlayersPerTeam - 1) * 4));
 
   if (
     !Array.isArray(realtimeTeams) ||
@@ -548,6 +554,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   };
 
   const handleDragEnd = async (result) => {
+    const lastKnownTarget = dragTarget;
     setActiveDragId(null);
     setDragTarget(null);
     lastDragEndAtRef.current = Date.now();
@@ -556,7 +563,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
     const { source, destination, combine } = result || {};
     if (!source) return;
-    if (!destination && !combine) return;
+    if (!destination && !combine && !lastKnownTarget) return;
 
     const sourceTeam = realtimeTeams.find((team) => team.id === source.droppableId);
     if (!sourceTeam) return;
@@ -575,6 +582,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       const combineTeam = realtimeTeams.find((team) => team.id === targetTeamId);
       const combinePlayers = getNormalizedTeamPlayers(combineTeam);
       targetIndex = combinePlayers.findIndex((key) => key === parsedCombine.playerKey);
+    }
+
+    if (!destination && !combine && lastKnownTarget) {
+      targetTeamId = lastKnownTarget.teamId;
+      targetIndex = lastKnownTarget.index;
     }
 
     if (!targetTeamId || targetIndex === null || targetIndex < 0) return;
@@ -873,7 +885,10 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         </h3>
                       )}
 
-                      <div className="flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto max-h-[52vh] md:max-h-[60vh] pr-0">
+                      <div
+                        className="flex flex-col gap-1 mb-1 w-full flex-1 min-h-0 overflow-y-auto pr-0"
+                        style={{ height: `${teamListHeightPx}px`, minHeight: `${teamListHeightPx}px`, maxHeight: `${teamListHeightPx}px` }}
+                      >
                         {teamPlayerKeys.length === 0 && (
                           <div className="text-white/60 text-sm p-3 border border-white/10 rounded-none bg-black/20">
                             No hay jugadores cargados en este equipo (players vacío).
@@ -921,10 +936,6 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                   ref={dragProvided.innerRef}
                                   {...dragProvided.draggableProps}
                                   {...dragProvided.dragHandleProps}
-                                  onClick={isAdmin ? () => {
-                                    if (Date.now() - lastDragEndAtRef.current < 180) return;
-                                    togglePlayerLock(playerKey);
-                                  } : undefined}
                                   className={`border p-0 flex items-center gap-1.5 text-white transition-all h-12 relative w-full box-border overflow-visible select-none rounded-none
                                     ${isLocked ? 'shadow-[0_0_8px_rgba(255,193,7,0.3)]' : ''}
                                     ${!isAdmin ? 'cursor-default pointer-events-none' : (teamsConfirmed || isLocked ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing')}
@@ -937,6 +948,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                     borderColor: isLocked ? 'rgba(255,193,7,0.74)' : CARD_STROKE_BLUE,
                                     boxShadow: isLocked ? '0 0 10px rgba(255,193,7,0.28)' : CARD_GLOW_BLUE,
                                     transform: `skewX(-${SLOT_SKEW_X}deg)`,
+                                    touchAction: !isAdmin || teamsConfirmed || isLocked ? 'manipulation' : 'none',
                                   }}
                                 >
                                   <div className="flex items-center gap-1.5 w-full h-full min-w-0 p-1.5" style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
@@ -975,6 +987,33 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                       >
                                         {(player.score || 0).toFixed(1)}
                                       </span>
+                                    )}
+                                    {isAdmin && !teamsConfirmed && (
+                                      <button
+                                        type="button"
+                                        className={`h-6 w-6 inline-flex items-center justify-center border text-[10px] font-bold shrink-0 ${
+                                          isLocked
+                                            ? 'bg-[#2d2a1a] border-[#FFC107]/75 text-[#FFC107]'
+                                            : 'bg-[#13203f] border-[#3b73d0]/75 text-[#88c8ff]'
+                                        }`}
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          if (Date.now() - lastDragEndAtRef.current < 180) return;
+                                          togglePlayerLock(playerKey);
+                                        }}
+                                        aria-label={isLocked ? 'Desbloquear jugador' : 'Bloquear jugador'}
+                                        title={isLocked ? 'Desbloquear jugador' : 'Bloquear jugador'}
+                                      >
+                                        {isLocked ? (
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="11" height="11" aria-hidden="true">
+                                            <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
+                                          </svg>
+                                        ) : (
+                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="11" height="11" aria-hidden="true">
+                                            <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25V9a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3V12a3 3 0 00-3-3H8.25V6.75a3.75 3.75 0 017.106-1.635 9 9 0 011.309-1.902A5.25 5.25 0 0012 1.5z" clipRule="evenodd" />
+                                          </svg>
+                                        )}
+                                      </button>
                                     )}
                                   </div>
                                 </div>
