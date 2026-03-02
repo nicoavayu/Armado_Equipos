@@ -7,7 +7,7 @@ const DesafiosPage = () => {
     <PageTransition>
       <QuieroJugarEquipos
         pageTitle="DESAFIOS"
-        secondaryTabsTop={126}
+        secondaryTabsTop={80}
       />
     </PageTransition>
   );

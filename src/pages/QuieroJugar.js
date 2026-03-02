@@ -169,7 +169,7 @@ const geocodeRequest = (geocoder, request) => new Promise((resolve) => {
 });
 
 const QuieroJugar = ({
-  secondaryTabsTop = 126,
+  secondaryTabsTop = 80,
   secondaryTabsDirection = 'right',
   secondaryTabsTransitionKey = 'individual',
 }) => {
@@ -548,7 +548,7 @@ const QuieroJugar = ({
           <div className="relative left-1/2 w-screen -translate-x-1/2">
             <div className="flex h-[44px] w-full overflow-hidden border-y border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]">
               <button
-                className={`relative flex-1 min-w-0 border px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${activeTab === 'matches'
+                className={`relative flex-1 min-w-0 border px-0 py-0 font-bebas text-[0.95rem] uppercase tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${activeTab === 'matches'
                   ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
                   : 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
                   }`}
@@ -560,10 +560,10 @@ const QuieroJugar = ({
                 {activeTab === 'matches' ? (
                   <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
                 ) : null}
-                Partidos
+                PARTIDOS
               </button>
               <button
-                className={`relative flex-1 min-w-0 border border-l-0 px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${activeTab === 'players'
+                className={`relative flex-1 min-w-0 border border-l-0 px-0 py-0 font-bebas text-[0.95rem] uppercase tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${activeTab === 'players'
                   ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
                   : 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
                   }`}
@@ -575,7 +575,7 @@ const QuieroJugar = ({
                 {activeTab === 'players' ? (
                   <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
                 ) : null}
-                Jugadores
+                JUGADORES
               </button>
             </div>
           </div>

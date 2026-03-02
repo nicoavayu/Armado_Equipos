@@ -7,13 +7,13 @@ import MisEquiposTab from './views/MisEquiposTab';
 import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY } from './config';
 
 const SUBTABS = [
-  { key: 'desafios', label: 'Desafios' },
-  { key: 'mis-equipos', label: 'Mis equipos' },
+  { key: 'desafios', label: 'DESAFIOS' },
+  { key: 'mis-equipos', label: 'MIS EQUIPOS' },
 ];
 
 const QuieroJugarEquipos = ({
   pageTitle = 'DESAFIOS',
-  secondaryTabsTop = 116,
+  secondaryTabsTop = 80,
   secondaryTabsDirection = 'right',
   secondaryTabsTransitionKey = 'equipos',
 }) => {
@@ -76,7 +76,7 @@ const QuieroJugarEquipos = ({
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveSubtab(tab.key)}
-                  className={`relative flex-1 min-w-0 border px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${index > 0 ? 'border-l-0' : ''} ${activeSubtab === tab.key
+                  className={`relative flex-1 min-w-0 border px-0 py-0 font-bebas text-[0.95rem] uppercase tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${index > 0 ? 'border-l-0' : ''} ${activeSubtab === tab.key
                     ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
                     : 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
                     }`}
