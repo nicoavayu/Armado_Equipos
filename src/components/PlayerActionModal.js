@@ -22,13 +22,17 @@ const POS_COLOR_MAP = {
 const getPos = (p) => POS_MAP[p] || 'DEF';
 const getPosColor = (p) => POS_COLOR_MAP[p] || '#8178e5';
 
+const ACTION_BTN_BASE_CLASS = 'w-full h-[46px] px-3 rounded-none border font-bebas text-base tracking-[0.01em] leading-none transition-all inline-flex items-center justify-center gap-2 whitespace-nowrap text-center';
+const ACTION_BTN_PRIMARY_CLASS = 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95';
+const ACTION_BTN_SECONDARY_CLASS = 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] text-white/92 hover:bg-[rgba(30,45,94,0.95)] hover:text-white active:opacity-95';
+
 const getFriendButtonConfig = (status, isSubmitting) => {
   if (isSubmitting) {
     return {
       label: 'Enviando...',
       icon: <Clock3 size={16} />,
       disabled: true,
-      className: 'bg-white/5 border border-white/10 text-white/60 cursor-not-allowed',
+      className: 'bg-[rgba(20,31,70,0.72)] border-[rgba(98,117,184,0.5)] text-white/60 cursor-not-allowed opacity-70',
     };
   }
 
@@ -37,7 +41,7 @@ const getFriendButtonConfig = (status, isSubmitting) => {
       label: 'Ya son amigos',
       icon: <CheckCircle2 size={14} />,
       disabled: true,
-      className: 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 cursor-not-allowed',
+      className: 'bg-[rgba(22,90,46,0.45)] border-[rgba(34,197,94,0.58)] text-[#dcfce7] cursor-not-allowed',
     };
   }
 
@@ -46,15 +50,15 @@ const getFriendButtonConfig = (status, isSubmitting) => {
       label: 'Solicitud pendiente',
       icon: <Clock3 size={16} />,
       disabled: true,
-      className: 'bg-[#8178e5]/15 border border-[#8178e5]/40 text-[#b9b2ff] cursor-not-allowed',
+      className: 'bg-[rgba(106,67,255,0.18)] border-[rgba(125,90,255,0.55)] text-[#cfc2ff] cursor-not-allowed',
     };
   }
 
   return {
-    label: 'Agregar',
+    label: 'Solicitar amistad',
     icon: <UserPlus size={16} />,
     disabled: false,
-    className: 'bg-white/5 border border-white/10 text-white hover:bg-white/10 active:scale-95',
+    className: ACTION_BTN_PRIMARY_CLASS,
   };
 };
 
@@ -155,7 +159,7 @@ const PlayerActionModal = ({
               onInvite?.(player);
               onClose();
             }}
-            className="w-full bg-[#128BE9] text-white py-4 rounded-xl font-oswald text-[18px] font-semibold tracking-[0.01em] hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg"
+            className={`${ACTION_BTN_BASE_CLASS} ${ACTION_BTN_PRIMARY_CLASS} h-[48px]`}
             type="button"
           >
             <Trophy size={18} />
@@ -168,7 +172,7 @@ const PlayerActionModal = ({
                 onViewProfile?.(player);
                 onClose();
               }}
-              className="bg-white/5 border border-white/10 text-white py-3 rounded-xl font-oswald text-[16px] font-semibold tracking-[0.01em] hover:bg-white/10 active:scale-95 transition-all flex items-center justify-center gap-2"
+              className={`${ACTION_BTN_BASE_CLASS} ${ACTION_BTN_SECONDARY_CLASS}`}
               type="button"
             >
               <User size={16} />
@@ -178,7 +182,7 @@ const PlayerActionModal = ({
               onClick={() => {
                 if (!friendBtn.disabled) onAddFriend?.(player);
               }}
-              className={`py-3 px-2 rounded-xl font-oswald font-semibold text-[16px] tracking-[0.01em] leading-none transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-center ${friendBtn.className}`}
+              className={`${ACTION_BTN_BASE_CLASS} ${friendBtn.className}`}
               type="button"
               disabled={friendBtn.disabled}
             >

@@ -31,6 +31,11 @@ const resolveRegisteredUserId = (profile) => {
   return candidates.find((value) => isValidUUID(value)) || null;
 };
 
+const PROFILE_ACTION_BUTTON_BASE = 'w-full min-w-0 h-[44px] px-2.5 rounded-none border font-bebas text-[13px] tracking-[0.01em] leading-tight cursor-pointer transition-all inline-flex items-center justify-center text-center disabled:opacity-60 disabled:cursor-not-allowed';
+const PROFILE_ACTION_BUTTON_PRIMARY = 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95';
+const PROFILE_ACTION_BUTTON_INFO = 'bg-[rgba(15,64,98,0.45)] border-[rgba(65,179,255,0.55)] text-[#d3efff] hover:bg-[rgba(15,72,112,0.62)] hover:text-white active:opacity-95';
+const PROFILE_ACTION_BUTTON_WARNING = 'bg-[rgba(94,73,28,0.45)] border-[rgba(236,201,104,0.55)] text-[#ffe7a8] hover:bg-[rgba(116,89,33,0.62)] hover:text-white active:opacity-95';
+
 /**
  * Reusable modal component for displaying a player's ProfileCard
  * @param {Object} props - Component props
@@ -295,11 +300,11 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     // Don't show if profile user doesn't have an account
     return (
       <button
-        className={`w-full min-w-0 border border-[#DE1C49]/40 bg-transparent rounded-xl py-2 px-2.5 text-[11px] leading-tight font-semibold text-[#DE1C49] cursor-pointer transition-all flex items-center justify-center text-center hover:bg-[#DE1C49]/5 hover:border-[#DE1C49]/60 md:py-2.5 md:px-3 md:text-xs sm:py-2 sm:px-2 ${isAdminLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+        className={`${PROFILE_ACTION_BUTTON_BASE} ${PROFILE_ACTION_BUTTON_WARNING}`}
         onClick={handleMakeAdmin}
         disabled={isAdminLoading}
       >
-        <span>{isAdminLoading ? 'Procesando...' : 'Hacer Admin'}</span>
+        <span>{isAdminLoading ? 'Procesando...' : 'Hacer admin'}</span>
       </button>
     );
   };
@@ -324,10 +329,10 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
     return (
       <button
-        className="w-full min-w-0 bg-[#2196F3] border-none rounded-xl py-2 px-2.5 text-[11px] leading-tight font-semibold text-white cursor-pointer transition-all flex items-center justify-center text-center hover:bg-[#2196F3]/90 hover:shadow-lg md:py-2.5 md:px-3 md:text-xs sm:py-2 sm:px-2"
+        className={`${PROFILE_ACTION_BUTTON_BASE} ${PROFILE_ACTION_BUTTON_INFO}`}
         onClick={handleContactPlayer}
       >
-        <span>Contactar Jugador</span>
+        <span>Contactar</span>
       </button>
     );
   };
@@ -352,7 +357,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     if (!relationshipStatus) {
       return (
         <button
-          className={`w-full min-w-0 bg-[#8178e5] border-none rounded-xl py-2 px-2.5 text-[11px] leading-tight font-semibold text-white cursor-pointer transition-all flex items-center justify-center text-center hover:bg-[#8178e5]/90 hover:shadow-lg md:py-2.5 md:px-3 md:text-xs sm:py-2 sm:px-2 ${isLoading ? 'opacity-60 cursor-not-allowed hover:shadow-none' : ''}`}
+          className={`${PROFILE_ACTION_BUTTON_BASE} ${PROFILE_ACTION_BUTTON_PRIMARY} ${isLoading ? 'opacity-60 cursor-not-allowed hover:bg-[#6a43ff]' : ''}`}
           onClick={handleAddFriend}
           disabled={isLoading}
         >
@@ -363,7 +368,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
     if (relationshipStatus.status === 'pending') {
       return (
-        <button className="w-full min-w-0 bg-[#8178e5]/20 border border-[#8178e5]/50 rounded-xl py-2 px-2.5 text-[11px] leading-tight font-semibold text-[#8178e5] cursor-default flex items-center justify-center text-center md:py-2.5 md:px-3 md:text-xs sm:py-2 sm:px-2" disabled>
+        <button className={`${PROFILE_ACTION_BUTTON_BASE} bg-[rgba(106,67,255,0.18)] border-[rgba(125,90,255,0.55)] text-[#cfc2ff] cursor-not-allowed`} disabled>
           <span>Solicitud Pendiente</span>
         </button>
       );
@@ -371,7 +376,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
     if (relationshipStatus.status === 'accepted') {
       return (
-        <button className="w-full min-w-0 bg-[#8178e5]/20 border border-[#8178e5]/50 rounded-xl py-2 px-2.5 text-[11px] leading-tight font-semibold text-[#8178e5] cursor-default flex items-center justify-center text-center md:py-2.5 md:px-3 md:text-xs sm:py-2 sm:px-2" disabled>
+        <button className={`${PROFILE_ACTION_BUTTON_BASE} bg-[rgba(22,90,46,0.45)] border-[rgba(34,197,94,0.58)] text-[#dcfce7] cursor-not-allowed`} disabled>
           <span>✓ Amigos</span>
         </button>
       );
@@ -380,7 +385,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     if (relationshipStatus.status === 'rejected') {
       return (
         <button
-          className={`w-full min-w-0 bg-[#8178e5] border-none rounded-xl py-2 px-2.5 text-[11px] leading-tight font-semibold text-white cursor-pointer transition-all flex items-center justify-center text-center hover:bg-[#8178e5]/90 hover:shadow-lg md:py-2.5 md:px-3 md:text-xs sm:py-2 sm:px-2 ${isLoading ? 'opacity-60 cursor-not-allowed hover:shadow-none' : ''}`}
+          className={`${PROFILE_ACTION_BUTTON_BASE} ${PROFILE_ACTION_BUTTON_PRIMARY} ${isLoading ? 'opacity-60 cursor-not-allowed hover:bg-[#6a43ff]' : ''}`}
           onClick={handleAddFriend}
           disabled={isLoading}
         >
