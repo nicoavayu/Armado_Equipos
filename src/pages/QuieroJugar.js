@@ -701,7 +701,7 @@ const QuieroJugar = ({
               <>
                 <div className="flex gap-2 mb-4 w-full max-w-[500px]">
                   <button
-                    className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'distance'
+                    className={`flex-1 py-2 rounded-none text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'distance'
                       ? 'bg-white/10 text-white border-white/30'
                       : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
                       }`}
@@ -710,7 +710,7 @@ const QuieroJugar = ({
                     <span className="flex items-center gap-1.5 justify-center"><MapPin size={12} /> Distancia</span>
                   </button>
                   <button
-                    className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'rating'
+                    className={`flex-1 py-2 rounded-none text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'rating'
                       ? 'bg-white/10 text-white border-white/30'
                       : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
                       }`}
@@ -719,7 +719,7 @@ const QuieroJugar = ({
                     <span className="flex items-center gap-1.5 justify-center"><Star size={12} /> Rating</span>
                   </button>
                   <button
-                    className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'position'
+                    className={`flex-1 py-2 rounded-none text-[11px] font-bold tracking-wide cursor-pointer transition-all duration-300 uppercase border ${sortBy === 'position'
                       ? 'bg-white/10 text-white border-white/30'
                       : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
                       }`}
