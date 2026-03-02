@@ -87,6 +87,17 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     : 'bg-[rgba(23,35,74,0.74)] border-[rgba(89,107,168,0.45)] text-white/88 hover:bg-[rgba(30,45,94,0.92)] hover:border-[rgba(119,141,214,0.62)]'
     }`;
 
+  const parsedCanchaPrice = useMemo(() => {
+    const precioRaw = (valorCancha !== undefined && valorCancha !== null)
+      ? String(valorCancha).trim()
+      : '';
+    const precioClean = precioRaw.replace(/[^0-9.,-]/g, '').replace(/,/g, '.');
+    const precioNum = precioClean === '' ? NaN : Number(precioClean);
+    return Number.isFinite(precioNum) ? precioNum : null;
+  }, [valorCancha]);
+
+  const canContinueWhereStep = Boolean(sede) && Number.isFinite(parsedCanchaPrice) && parsedCanchaPrice > 0;
+
   const [file, setFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
   const handleFile = (e) => {
@@ -190,12 +201,9 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
       }
 
       // Normalize numeric precio value (used only for the frequent template insert)
-      const precioRaw = (valorCancha !== undefined && valorCancha !== null)
-        ? String(valorCancha).trim()
-        : '';
-      const precioClean = precioRaw.replace(/[^0-9.,-]/g, '').replace(/,/g, '.');
-      const precioNum = precioClean === '' ? NaN : Number(precioClean);
-      const precioVal = Number.isFinite(precioNum) ? precioNum : null;
+      const precioVal = Number.isFinite(parsedCanchaPrice) && parsedCanchaPrice > 0
+        ? parsedCanchaPrice
+        : null;
 
       // Build payload for crearPartido - include precio_cancha_por_persona when provided
       const resolvedCupo = modalidadToCupo[modalidad] ?? cupo;
@@ -334,9 +342,9 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 <div
                   className="w-12 h-12 min-w-[48px] rounded-none bg-[rgba(24,35,76,0.82)] border border-dashed border-[rgba(124,142,210,0.5)] flex items-center justify-center overflow-hidden cursor-pointer"
                   role="button"
-                  aria-label={fotoPreview ? 'Cambiar imagen del partido' : 'Agregar imagen opcional'}
+                  aria-label={fotoPreview ? 'Cambiar imagen del partido' : 'Agregar imagen'}
                   onClick={() => document.getElementById('partido-foto-input').click()}
-                  title={fotoPreview ? 'Cambiar imagen' : 'Agregar imagen opcional'}
+                  title={fotoPreview ? 'Cambiar imagen' : 'Agregar imagen'}
                 >
                   {fotoPreview ? (
                     <img src={fotoPreview} alt="foto partido" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -372,7 +380,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 marginTop: 8,
                 fontFamily: "'Inter', sans-serif",
               }}>
-                La imagen es opcional. El nombre es obligatorio.
+                La imagen no es obligatoria. El nombre es obligatorio.
               </div>
             </div>
 
@@ -602,7 +610,8 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               {/* Optional: valor de la cancha por persona */}
               <div style={{ width: '100%', marginTop: 12, marginBottom: 12 }}>
                 <label style={{ fontWeight: 500, color: '#fff', marginBottom: 8, display: 'block', fontFamily: "'Inter', sans-serif" }}>
-                  Valor de la cancha (por persona) — opcional
+                  Valor de la cancha (por persona)
+                  <span className="ml-1 text-[#7d5aff] font-bold" aria-label="Campo obligatorio">*</span>
                 </label>
                 <input
                   className={INPUT_MODERN_CLASS}
@@ -644,7 +653,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             <div className="flex-shrink-0" style={{ paddingTop: 8 }}>
               <button
                 className={`${PRIMARY_ACTION_BUTTON_CLASS} mb-3`}
-                disabled={!sede}
+                disabled={!canContinueWhereStep}
                 onClick={editMode ? saveAndReturn : nextStep}
               >
                 {editMode ? 'Guardar' : 'Continuar'}
@@ -748,7 +757,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                   <span className="inline-block ml-3 text-white font-bold font-sans peer-disabled:opacity-45 peer-disabled:cursor-not-allowed">Guardar como partido frecuente</span>
                 </label>
                 <div className="pf-switch-note" style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, marginLeft: 40 }}>
-                  Guarda lugar, hora y precio para reutilizarlo luego. (fecha opcional)
+                  Guarda lugar, hora y precio para reutilizarlo luego. (la fecha la definís al crear el partido)
                 </div>
               </div>
             </div>
