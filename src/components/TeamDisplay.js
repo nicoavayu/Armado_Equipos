@@ -936,6 +936,12 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                   ref={dragProvided.innerRef}
                                   {...dragProvided.draggableProps}
                                   {...dragProvided.dragHandleProps}
+                                  onClick={isAdmin ? () => {
+                                    if (teamsConfirmed) return;
+                                    if (dragSnapshot.isDragging) return;
+                                    if (Date.now() - lastDragEndAtRef.current < 200) return;
+                                    togglePlayerLock(playerKey);
+                                  } : undefined}
                                   className={`border p-0 flex items-center gap-1.5 text-white transition-all h-12 relative w-full box-border overflow-visible select-none rounded-none
                                     ${isLocked ? 'shadow-[0_0_8px_rgba(255,193,7,0.3)]' : ''}
                                     ${!isAdmin ? 'cursor-default pointer-events-none' : (teamsConfirmed || isLocked ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing')}
@@ -987,33 +993,6 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                       >
                                         {(player.score || 0).toFixed(1)}
                                       </span>
-                                    )}
-                                    {isAdmin && !teamsConfirmed && (
-                                      <button
-                                        type="button"
-                                        className={`h-6 w-6 inline-flex items-center justify-center border text-[10px] font-bold shrink-0 ${
-                                          isLocked
-                                            ? 'bg-[#2d2a1a] border-[#FFC107]/75 text-[#FFC107]'
-                                            : 'bg-[#13203f] border-[#3b73d0]/75 text-[#88c8ff]'
-                                        }`}
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          if (Date.now() - lastDragEndAtRef.current < 180) return;
-                                          togglePlayerLock(playerKey);
-                                        }}
-                                        aria-label={isLocked ? 'Desbloquear jugador' : 'Bloquear jugador'}
-                                        title={isLocked ? 'Desbloquear jugador' : 'Bloquear jugador'}
-                                      >
-                                        {isLocked ? (
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="11" height="11" aria-hidden="true">
-                                            <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clipRule="evenodd" />
-                                          </svg>
-                                        ) : (
-                                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="11" height="11" aria-hidden="true">
-                                            <path fillRule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25V9a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3V12a3 3 0 00-3-3H8.25V6.75a3.75 3.75 0 017.106-1.635 9 9 0 011.309-1.902A5.25 5.25 0 0012 1.5z" clipRule="evenodd" />
-                                          </svg>
-                                        )}
-                                      </button>
                                     )}
                                   </div>
                                 </div>
