@@ -83,7 +83,7 @@ const sortFriendsByDistance = (friends = [], userLocation = null) => {
 
 const PRIMARY_TOGGLE_CONTAINER_CLASS = 'flex h-[44px] w-full overflow-hidden border-y border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]';
 const PRIMARY_TOGGLE_ACTIVE_CLASS = 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]';
-const PRIMARY_TOGGLE_INACTIVE_CLASS = 'z-[1] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]';
+const PRIMARY_TOGGLE_INACTIVE_CLASS = 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]';
 const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[30px] font-semibold leading-tight text-white sm:text-[26px]';
 
 const AmigosView = () => {
@@ -579,7 +579,7 @@ const AmigosView = () => {
             <button
               type="button"
               onClick={() => setActiveTab('friends')}
-              className={`relative flex-1 min-w-0 border border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
+              className={`relative flex-1 min-w-0 border px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
                 activeTab === 'friends'
                   ? PRIMARY_TOGGLE_ACTIVE_CLASS
                   : PRIMARY_TOGGLE_INACTIVE_CLASS
@@ -593,7 +593,7 @@ const AmigosView = () => {
             <button
               type="button"
               onClick={() => setActiveTab('discover')}
-              className={`relative flex-1 min-w-0 border border-[rgba(106,126,202,0.40)] border-l-0 bg-[rgba(17,26,59,0.96)] px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
+              className={`relative flex-1 min-w-0 border border-l-0 px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
                 activeTab === 'discover'
                   ? PRIMARY_TOGGLE_ACTIVE_CLASS
                   : PRIMARY_TOGGLE_INACTIVE_CLASS

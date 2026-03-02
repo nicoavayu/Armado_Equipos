@@ -4,8 +4,8 @@ import QuieroJugarEquipos from './QuieroJugarEquipos';
 import { FEATURE_EQUIPOS_ENABLED, QUIERO_JUGAR_TOP_TAB_STORAGE_KEY } from './config';
 
 const TOP_TABS = [
-  { key: 'individual', label: 'Individual' },
-  { key: 'equipos', label: 'Equipos' },
+  { key: 'individual', label: 'INDIVIDUAL' },
+  { key: 'equipos', label: 'EQUIPOS' },
 ];
 const PRIMARY_TABS_TOP_OFFSET_PX = 80;
 const PRIMARY_TABS_HEIGHT_PX = 44;
