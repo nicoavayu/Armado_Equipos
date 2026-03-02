@@ -647,7 +647,7 @@ const QuieroJugar = ({
                 <EmptyStateCard
                   icon={CalendarX2}
                   title="Sin partidos abiertos"
-                  titleClassName="font-oswald text-[30px] font-semibold leading-tight text-white"
+                  titleClassName="font-oswald text-[clamp(18px,5.6vw,22px)] font-semibold leading-tight text-white whitespace-nowrap"
                   description="Cuando se publique un partido con cupos disponibles, te va a aparecer acá."
                   actionLabel="Crear partido"
                   onAction={() => navigate('/nuevo-partido')}
