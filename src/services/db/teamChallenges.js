@@ -277,12 +277,6 @@ const TEAM_MATCH_STATUS_ALIASES = {
 const uniqueValues = (values) => Array.from(new Set(values.filter(Boolean)));
 
 const normalizeMessage = (error) => String(error?.message || error?.details || '').toLowerCase();
-const isSingleRowNotReturnedError = (error) => {
-  const message = normalizeMessage(error);
-  const code = String(error?.code || '').toUpperCase();
-  return code === 'PGRST116'
-    || (message.includes('json object requested') && message.includes('multiple (or no) rows returned'));
-};
 
 const isMissingColumnError = (error, columnName) => {
   const message = normalizeMessage(error);
@@ -480,6 +474,25 @@ const withTeamCompatibility = (row) => ({
   ...row,
   mode: normalizeTeamMode(row?.mode),
 });
+
+const teamMatchesRequestedUpdate = (team, requestedUpdatePayload) => {
+  if (!team || !requestedUpdatePayload || typeof requestedUpdatePayload !== 'object') return false;
+
+  const normalizeNullable = (value) => (value == null || value === '' ? null : value);
+
+  if ('name' in requestedUpdatePayload && String(team?.name || '') !== String(requestedUpdatePayload.name || '')) return false;
+  if ('format' in requestedUpdatePayload && Number(team?.format) !== Number(requestedUpdatePayload.format)) return false;
+  if ('mode' in requestedUpdatePayload && normalizeTeamMode(team?.mode) !== normalizeTeamMode(requestedUpdatePayload.mode)) return false;
+  if ('base_zone' in requestedUpdatePayload && normalizeNullable(team?.base_zone) !== normalizeNullable(requestedUpdatePayload.base_zone)) return false;
+  if ('skill_level' in requestedUpdatePayload && normalizeTeamSkillLevel(team?.skill_level) !== normalizeTeamSkillLevel(requestedUpdatePayload.skill_level)) return false;
+  if ('crest_url' in requestedUpdatePayload && normalizeNullable(team?.crest_url) !== normalizeNullable(requestedUpdatePayload.crest_url)) return false;
+  if ('color_primary' in requestedUpdatePayload && normalizeNullable(team?.color_primary) !== normalizeNullable(requestedUpdatePayload.color_primary)) return false;
+  if ('color_secondary' in requestedUpdatePayload && normalizeNullable(team?.color_secondary) !== normalizeNullable(requestedUpdatePayload.color_secondary)) return false;
+  if ('color_accent' in requestedUpdatePayload && normalizeNullable(team?.color_accent) !== normalizeNullable(requestedUpdatePayload.color_accent)) return false;
+  if ('is_active' in requestedUpdatePayload && Boolean(team?.is_active) !== Boolean(requestedUpdatePayload.is_active)) return false;
+
+  return true;
+};
 
 export const upsertChallengeAcceptedNotifications = async ({
   challenge,
@@ -811,12 +824,14 @@ export const updateTeam = async (teamId, payload) => {
     : [null];
 
   let response = null;
+  let requestedUpdatePayload = { ...updatePayloadBase };
 
   for (const skillCandidate of skillCandidates) {
     const updatePayload = { ...updatePayloadBase };
     if (skillCandidate) {
       updatePayload.skill_level = skillCandidate;
     }
+    requestedUpdatePayload = { ...updatePayload };
 
     const runUpdate = (payloadForUpdate) => runTeamSelectWithModeFallback(
       (selectClause) => supabase
@@ -824,13 +839,14 @@ export const updateTeam = async (teamId, payload) => {
         .update(payloadForUpdate)
         .eq('id', teamId)
         .select(selectClause)
-        .single(),
+        .maybeSingle(),
     );
 
     response = await runUpdate(updatePayload);
     if (response.error && isMissingColumnError(response.error, 'mode') && 'mode' in updatePayload) {
       const modeLessPayload = { ...updatePayload };
       delete modeLessPayload.mode;
+      requestedUpdatePayload = { ...modeLessPayload };
       response = await runUpdate(modeLessPayload);
     }
 
@@ -839,13 +855,19 @@ export const updateTeam = async (teamId, payload) => {
   }
 
   if (response.error) {
-    if (isSingleRowNotReturnedError(response.error)) {
-      throw new Error('No tenes permisos para editar este equipo (se requiere rol admin/owner)');
-    }
     throw new Error(response.error.message || 'No se pudo actualizar el equipo');
   }
 
-  return withTeamCompatibility(response.data);
+  if (response.data) {
+    return withTeamCompatibility(response.data);
+  }
+
+  const teamAfterUpdate = await getTeamById(teamId).catch(() => null);
+  if (teamMatchesRequestedUpdate(teamAfterUpdate, requestedUpdatePayload)) {
+    return withTeamCompatibility(teamAfterUpdate);
+  }
+
+  throw new Error('No tenes permisos para editar este equipo (se requiere rol admin/owner)');
 };
 
 export const softDeleteTeam = async (teamId) => {
