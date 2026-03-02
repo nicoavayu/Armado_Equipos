@@ -582,7 +582,7 @@ const AmigosView = () => {
               {activeTab === 'friends' ? (
                 <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
               ) : null}
-              Mis amigos
+              MIS AMIGOS
             </button>
             <button
               type="button"
@@ -597,7 +597,7 @@ const AmigosView = () => {
                 <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
               ) : null}
               <span className="inline-flex items-center justify-center gap-1.5">
-                <span>Comunidad</span>
+                <span>COMUNIDAD</span>
                 {pendingRequests.length > 0 && (
                   <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 bg-[#128BE9] text-white text-[10px] font-bold rounded-none border border-white/25 shadow-[0_6px_16px_rgba(18,139,233,0.35)]">
                     {pendingRequests.length}

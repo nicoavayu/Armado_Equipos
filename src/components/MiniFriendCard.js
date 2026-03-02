@@ -28,7 +28,7 @@ const MiniFriendCard = ({ friend, onRequestRemoveClick, currentUserId }) => {
             <div className="relative z-0">
               <button
                 ref={buttonRef}
-                className="kebab-menu-btn relative z-10"
+                className="h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors relative z-10"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (buttonRef.current) {
@@ -43,7 +43,7 @@ const MiniFriendCard = ({ friend, onRequestRemoveClick, currentUserId }) => {
                 type="button"
                 aria-label={`Opciones de ${name}`}
               >
-                <MoreVertical size={15} />
+                <MoreVertical size={16} />
               </button>
             </div>
           )}

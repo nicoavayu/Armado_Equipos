@@ -27,7 +27,7 @@ const getBackgroundColor = (name) => {
 
 const skinClasses = {
   searching: 'bg-[#1e293b]/70 border-white/5 hover:border-white/20 hover:bg-[#1e293b] shadow-sm',
-  friend: 'bg-[rgba(4,31,89,0.95)] border-[#12b5ff]/80 hover:border-[#56d1ff] hover:bg-[rgba(8,41,109,0.96)] shadow-[0_0_0_1px_rgba(52,167,255,0.16),0_10px_22px_rgba(2,10,34,0.45)]',
+  friend: 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] hover:border-[rgba(124,142,210,0.62)] hover:bg-[rgba(30,45,94,0.95)] shadow-none',
   friendSelf: 'bg-[linear-gradient(135deg,rgba(127,92,18,0.62),rgba(79,54,12,0.78))] border-[#f4d37b]/75 hover:border-[#ffe39d] hover:bg-[linear-gradient(135deg,rgba(145,106,24,0.68),rgba(93,64,16,0.82))] shadow-[0_0_0_1px_rgba(244,211,123,0.2),0_10px_22px_rgba(44,28,6,0.45)]',
 };
 
@@ -66,10 +66,10 @@ const PlayerMiniCard = ({
   const ratingContainerClass = isSelfFriendCard
     ? 'bg-[#5b3e0b]/80 border-[#f4d37b]/65 text-[#ffecb8]'
     : (variant === 'friend'
-      ? 'bg-[#233f78]/88 border-[#e6bf4f]/35 text-[#ffe08a]'
+      ? 'bg-[rgba(10,21,52,0.9)] border-[#e6bf4f]/35 text-[#ffe08a]'
       : 'bg-[#FFD700]/10 border-[#FFD700]/30 text-[#FFD700]');
   const nameClass = isSelfFriendCard ? 'text-[#fff4d1]' : 'text-white';
-  const detailTextClass = isSelfFriendCard ? 'text-[#ffe6ac]' : (variant === 'friend' ? 'text-[#d4e4ff]' : 'text-white/60');
+  const detailTextClass = isSelfFriendCard ? 'text-[#ffe6ac]' : (variant === 'friend' ? 'text-white/72' : 'text-white/60');
   const avatarBorderClass = isSelfFriendCard ? 'border-[#f4d37b]/60' : 'border-white/15';
   const placeholderMenuClass = isSelfFriendCard
     ? 'text-[#ffe6ac]'
