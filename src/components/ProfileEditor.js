@@ -198,6 +198,28 @@ const ProfileEditorForm = ({
           </select>
         </div>
 
+        {/* Localidad Field */}
+        <div className={formGroupClass}>
+          <label className={labelClass}>Localidad</label>
+          <div className="flex gap-2 items-center">
+            <input
+              className={`${inputClass} flex-1`}
+              type="text"
+              value={formData.localidad}
+              onChange={(e) => handleInputChange('localidad', e.target.value)}
+              placeholder="Tu ciudad"
+            />
+            <button
+              className="h-[44px] min-w-[44px] px-3 rounded-none border border-[#f4d03f] bg-[#f4d03f]/15 text-[#f4d03f] text-base cursor-pointer transition-all hover:bg-[#f4d03f]/25 flex items-center justify-center"
+              onClick={handleGeolocation}
+              type="button"
+              title="Obtener ubicación actual"
+            >
+              📍
+            </button>
+          </div>
+        </div>
+
         {/* Posición Field */}
         <div className={formGroupClass}>
           <label className={labelClass}>Posición</label>
@@ -207,8 +229,8 @@ const ProfileEditorForm = ({
                 key={pos.key}
                 type="button"
                 className={`
-                  bg-white/10 border-2 border-white/30 text-white p-2 rounded-md text-xs sm:text-sm font-bold font-oswald cursor-pointer transition-all hover:bg-white/20 hover:border-white/50
-                  ${formData.posicion === pos.key ? 'bg-gradient-to-r from-[#f4d03f] to-[#f7dc6f] !border-[#f4d03f] !text-black shadow-md' : ''}
+                  h-[40px] bg-[rgba(28,39,86,0.72)] border border-[rgba(102,118,182,0.52)] text-white p-2 rounded-none text-xs sm:text-sm font-bold font-oswald cursor-pointer transition-all hover:bg-[rgba(38,51,104,0.86)] hover:border-[rgba(139,156,221,0.68)]
+                  ${formData.posicion === pos.key ? 'bg-gradient-to-r from-[#f4d03f] to-[#f7dc6f] !border-[#f4d03f] !text-[#201600] shadow-[0_8px_18px_rgba(244,208,63,0.32)]' : ''}
                 `}
                 onClick={() => handleInputChange('posicion', pos.key)}
               >
@@ -228,10 +250,10 @@ const ProfileEditorForm = ({
                   key={option.key || 'empty'}
                   type="button"
                   className={`
-                    h-[40px] px-2 rounded-xl text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
+                    h-[42px] px-2 rounded-none text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
                     ${isActive
-                      ? 'bg-primary border-primary text-white shadow-[0_6px_16px_rgba(129,120,229,0.35)]'
-                      : 'bg-white/5 border-white/20 text-white/85 hover:bg-white/10 hover:border-white/30'}
+                      ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[#7f8dff] text-white shadow-[0_8px_18px_rgba(95,114,255,0.34)]'
+                      : 'bg-[rgba(23,35,74,0.74)] border-[rgba(89,107,168,0.45)] text-white/86 hover:bg-[rgba(30,45,94,0.9)] hover:border-[rgba(119,141,214,0.62)]'}
                   `}
                   onClick={() => handleInputChange('pierna_habil', option.key)}
                 >
@@ -252,10 +274,10 @@ const ProfileEditorForm = ({
                   key={option.label}
                   type="button"
                   className={`
-                    h-[40px] px-2 rounded-xl text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
+                    h-[42px] px-2 rounded-none text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
                     ${isActive
-                      ? 'bg-primary border-primary text-white shadow-[0_6px_16px_rgba(129,120,229,0.35)]'
-                      : 'bg-white/5 border-white/20 text-white/85 hover:bg-white/10 hover:border-white/30'}
+                      ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[#7f8dff] text-white shadow-[0_8px_18px_rgba(95,114,255,0.34)]'
+                      : 'bg-[rgba(23,35,74,0.74)] border-[rgba(89,107,168,0.45)] text-white/86 hover:bg-[rgba(30,45,94,0.9)] hover:border-[rgba(119,141,214,0.62)]'}
                   `}
                   onClick={() => handleInputChange('nivel', option.value)}
                 >
@@ -263,28 +285,6 @@ const ProfileEditorForm = ({
                 </button>
               );
             })}
-          </div>
-        </div>
-
-        {/* Localidad Field */}
-        <div className={formGroupClass}>
-          <label className={labelClass}>Localidad</label>
-          <div className="flex gap-2 items-center">
-            <input
-              className={`${inputClass} flex-1`}
-              type="text"
-              value={formData.localidad}
-              onChange={(e) => handleInputChange('localidad', e.target.value)}
-              placeholder="Tu ciudad"
-            />
-            <button
-              className="bg-[#f4d03f]/20 border border-[#f4d03f] text-[#f4d03f] px-3 py-2 rounded-md text-base cursor-pointer transition-all hover:bg-[#f4d03f]/30 flex items-center justify-center min-w-[44px] h-[38px]"
-              onClick={handleGeolocation}
-              type="button"
-              title="Obtener ubicación actual"
-            >
-              📍
-            </button>
           </div>
         </div>
 
@@ -304,8 +304,10 @@ const ProfileEditorForm = ({
         <div className="grid grid-cols-2 gap-4 mt-8 pt-10 border-t border-white/10 w-full min-w-0 pb-16">
           <button
             className={`
-              col-span-2 w-full h-[54px] rounded-2xl text-[18px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all flex items-center justify-center
-              ${hasChanges ? 'bg-primary text-white shadow-[0_10px_30px_rgba(129,120,229,0.4)] hover:-translate-y-1 active:translate-y-0 active:scale-[0.98]' : 'bg-white/5 text-white/20 border border-white/5 cursor-not-allowed'}
+              col-span-2 w-full h-[54px] rounded-none border text-[18px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all flex items-center justify-center
+              ${hasChanges
+                ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[rgba(136,120,255,0.75)] text-white shadow-[0_12px_24px_rgba(95,114,255,0.34)] hover:brightness-110 active:opacity-95'
+                : 'bg-[rgba(26,35,76,0.58)] border-[rgba(84,97,151,0.35)] text-white/30 cursor-not-allowed'}
             `}
             onClick={handleSave}
             disabled={loading || !hasChanges}
@@ -314,7 +316,7 @@ const ProfileEditorForm = ({
           </button>
 
           <button
-            className="col-span-2 h-[48px] bg-red-500/5 border border-red-500/10 text-red-400 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all hover:bg-red-500/10 hover:text-red-300 active:scale-95 flex items-center justify-center"
+            className="col-span-2 h-[50px] rounded-none border border-[rgba(255,144,160,0.46)] bg-[rgba(84,25,40,0.34)] text-[#ff9eab] text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all hover:bg-[rgba(98,30,46,0.46)] hover:text-[#ffb2bc] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
             onClick={handleLogout}
             disabled={loading}
           >
@@ -322,7 +324,7 @@ const ProfileEditorForm = ({
           </button>
 
           <button
-            className="col-span-2 h-[48px] bg-red-600/15 border border-red-500/30 text-red-300 rounded-2xl text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all hover:bg-red-600/25 hover:text-red-200 active:scale-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+            className="col-span-2 h-[50px] rounded-none border border-[rgba(255,83,106,0.64)] bg-[rgba(116,20,40,0.52)] text-[#ffb5bf] text-[16px] font-semibold tracking-[0.01em] font-oswald cursor-pointer transition-all hover:bg-[rgba(132,25,46,0.64)] hover:text-[#ffd0d6] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
             onClick={handleDeleteAccount}
             disabled={loading}
           >
@@ -885,7 +887,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   if (!isOpen) return null;
 
   // Shared classes
-  const inputClass = 'w-full bg-white/10 border border-white/20 text-white px-4 py-3 rounded-xl text-base transition-all focus:outline-none focus:border-primary focus:bg-white/15 focus:ring-2 focus:ring-primary/30 placeholder:text-white/40 read-only:opacity-70 read-only:cursor-not-allowed shadow-inner backdrop-blur-sm';
+  const inputClass = 'w-full bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white px-4 py-3 rounded-none text-base transition-all focus:outline-none focus:border-[#7f8dff] focus:bg-[rgba(62,67,114,0.95)] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 read-only:opacity-70 read-only:cursor-not-allowed shadow-inner backdrop-blur-sm';
   const labelClass = 'text-white/90 text-sm font-bold mb-2 block uppercase tracking-wider';
   const formGroupClass = 'flex flex-col w-full';
 
@@ -1066,6 +1068,27 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
             </div>
 
             <div className={formGroupClass}>
+              <label className={labelClass}>Localidad</label>
+              <div className="flex gap-2 items-center">
+                <input
+                  className={`${inputClass} flex-1`}
+                  type="text"
+                  value={formData.localidad}
+                  onChange={(e) => handleInputChange('localidad', e.target.value)}
+                  placeholder="Tu ciudad"
+                />
+                <button
+                  className="h-[44px] min-w-[44px] px-3 rounded-none border border-[#f4d03f] bg-[#f4d03f]/15 text-[#f4d03f] text-base cursor-pointer transition-all hover:bg-[#f4d03f]/25 flex items-center justify-center"
+                  onClick={handleGeolocation}
+                  type="button"
+                  title="Obtener ubicación actual"
+                >
+                  📍
+                </button>
+              </div>
+            </div>
+
+            <div className={formGroupClass}>
               <label className={labelClass}>Posición</label>
               <div className="grid grid-cols-4 gap-2 md:gap-1.5 mt-1">
                 {positions.map((pos) => (
@@ -1073,8 +1096,8 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                     key={pos.key}
                     type="button"
                     className={`
-                          bg-white/10 border-2 border-white/30 text-white p-2 rounded-md text-xs sm:text-sm font-bold font-oswald cursor-pointer transition-all hover:bg-white/20 hover:border-white/50
-                          ${formData.posicion === pos.key ? 'bg-gradient-to-r from-[#f4d03f] to-[#f7dc6f] !border-[#f4d03f] !text-black shadow-md' : ''}
+                          h-[40px] bg-[rgba(28,39,86,0.72)] border border-[rgba(102,118,182,0.52)] text-white p-2 rounded-none text-xs sm:text-sm font-bold font-oswald cursor-pointer transition-all hover:bg-[rgba(38,51,104,0.86)] hover:border-[rgba(139,156,221,0.68)]
+                          ${formData.posicion === pos.key ? 'bg-gradient-to-r from-[#f4d03f] to-[#f7dc6f] !border-[#f4d03f] !text-[#201600] shadow-[0_8px_18px_rgba(244,208,63,0.32)]' : ''}
                         `}
                     onClick={() => handleInputChange('posicion', pos.key)}
                   >
@@ -1094,10 +1117,10 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                       key={option.key || 'empty'}
                       type="button"
                       className={`
-                        h-[40px] px-2 rounded-xl text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
+                        h-[42px] px-2 rounded-none text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
                         ${isActive
-                          ? 'bg-primary border-primary text-white shadow-[0_6px_16px_rgba(129,120,229,0.35)]'
-                          : 'bg-white/5 border-white/20 text-white/85 hover:bg-white/10 hover:border-white/30'}
+                          ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[#7f8dff] text-white shadow-[0_8px_18px_rgba(95,114,255,0.34)]'
+                          : 'bg-[rgba(23,35,74,0.74)] border-[rgba(89,107,168,0.45)] text-white/86 hover:bg-[rgba(30,45,94,0.9)] hover:border-[rgba(119,141,214,0.62)]'}
                       `}
                       onClick={() => handleInputChange('pierna_habil', option.key)}
                     >
@@ -1118,10 +1141,10 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                       key={option.label}
                       type="button"
                       className={`
-                        h-[40px] px-2 rounded-xl text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
+                        h-[42px] px-2 rounded-none text-[12px] sm:text-[13px] font-semibold tracking-[0.01em] transition-all border
                         ${isActive
-                          ? 'bg-primary border-primary text-white shadow-[0_6px_16px_rgba(129,120,229,0.35)]'
-                          : 'bg-white/5 border-white/20 text-white/85 hover:bg-white/10 hover:border-white/30'}
+                          ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[#7f8dff] text-white shadow-[0_8px_18px_rgba(95,114,255,0.34)]'
+                          : 'bg-[rgba(23,35,74,0.74)] border-[rgba(89,107,168,0.45)] text-white/86 hover:bg-[rgba(30,45,94,0.9)] hover:border-[rgba(119,141,214,0.62)]'}
                       `}
                       onClick={() => handleInputChange('nivel', option.value)}
                     >
@@ -1129,27 +1152,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                     </button>
                   );
                 })}
-              </div>
-            </div>
-
-            <div className={formGroupClass}>
-              <label className={labelClass}>Localidad</label>
-              <div className="flex gap-2 items-center">
-                <input
-                  className={`${inputClass} flex-1`}
-                  type="text"
-                  value={formData.localidad}
-                  onChange={(e) => handleInputChange('localidad', e.target.value)}
-                  placeholder="Tu ciudad"
-                />
-                <button
-                  className="bg-[#f4d03f]/20 border border-[#f4d03f] text-[#f4d03f] px-3 py-2 rounded-md text-base cursor-pointer transition-all hover:bg-[#f4d03f]/30 flex items-center justify-center min-w-[44px] h-[38px]"
-                  onClick={handleGeolocation}
-                  type="button"
-                  title="Obtener ubicación actual"
-                >
-                  📍
-                </button>
               </div>
             </div>
 
@@ -1167,8 +1169,10 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
             <div className="grid grid-cols-2 gap-3 mt-5 pt-5 border-t border-white/20 w-full relative pb-5 md:pb-0">
               <button
                 className={`
-                      col-span-2 w-full h-[50px] bg-white/10 border border-white/20 text-white rounded-xl text-[18px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all backdrop-blur-md flex items-center justify-center
-                      ${hasChanges ? 'bg-primary !border-primary shadow-[0_5px_15px_rgba(129,120,229,0.3)] -translate-y-[2px]' : ''}
+                      col-span-2 w-full h-[54px] rounded-none border text-[18px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all backdrop-blur-md flex items-center justify-center
+                      ${hasChanges
+                        ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[rgba(136,120,255,0.75)] text-white shadow-[0_12px_24px_rgba(95,114,255,0.34)] hover:brightness-110 active:opacity-95'
+                        : 'bg-[rgba(26,35,76,0.58)] border-[rgba(84,97,151,0.35)] text-white/30 cursor-not-allowed'}
                       disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none
                     `}
                 onClick={handleSave}
@@ -1178,7 +1182,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               </button>
 
               <button
-                className="col-span-2 h-[44px] bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-[16px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all hover:bg-red-500/20 flex items-center justify-center disabled:opacity-50"
+                className="col-span-2 h-[50px] rounded-none border border-[rgba(255,144,160,0.46)] bg-[rgba(84,25,40,0.34)] text-[#ff9eab] text-[16px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all hover:bg-[rgba(98,30,46,0.46)] hover:text-[#ffb2bc] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
                 onClick={handleLogout}
                 disabled={loading}
               >
@@ -1186,7 +1190,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               </button>
 
               <button
-                className="col-span-2 h-[44px] bg-red-600/20 border border-red-500/30 text-red-300 rounded-lg text-[16px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all hover:bg-red-600/30 flex items-center justify-center disabled:opacity-50"
+                className="col-span-2 h-[50px] rounded-none border border-[rgba(255,83,106,0.64)] bg-[rgba(116,20,40,0.52)] text-[#ffb5bf] text-[16px] font-semibold font-oswald tracking-[0.01em] cursor-pointer transition-all hover:bg-[rgba(132,25,46,0.64)] hover:text-[#ffd0d6] active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
                 onClick={handleDeleteAccount}
                 disabled={loading}
               >
