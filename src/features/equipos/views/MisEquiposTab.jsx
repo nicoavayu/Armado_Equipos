@@ -20,7 +20,7 @@ import {
 import { uploadTeamCrest } from '../../../services/storage/teamCrests';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 
-const createTeamButtonClass = 'w-full h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
+const createTeamButtonClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !font-bebas !text-base !tracking-[0.01em] !normal-case !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff] sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 
 const MisEquiposTab = ({ userId }) => {
   const navigate = useNavigate();
@@ -186,18 +186,16 @@ const MisEquiposTab = ({ userId }) => {
   return (
     <>
       <div className="w-full max-w-[560px] flex flex-col gap-3">
-        <div className="rounded-2xl border border-white/15 bg-[linear-gradient(135deg,rgba(49,57,108,0.52),rgba(34,43,88,0.46))] p-3">
-          <Button
-            type="button"
-            onClick={() => {
-              setEditingTeam(null);
-              setTeamFormOpen(true);
-            }}
-            className={createTeamButtonClass}
-          >
-            Crear equipo
-          </Button>
-        </div>
+        <Button
+          type="button"
+          onClick={() => {
+            setEditingTeam(null);
+            setTeamFormOpen(true);
+          }}
+          className={createTeamButtonClass}
+        >
+          Crear equipo
+        </Button>
 
         {incomingInvitations.length > 0 ? (
           <div className="rounded-2xl border border-white/15 bg-[#0f172acc] p-3">

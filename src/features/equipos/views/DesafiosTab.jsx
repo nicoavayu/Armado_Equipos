@@ -23,7 +23,9 @@ import Button from '../../../components/Button';
 import { Flag, Search } from 'lucide-react';
 
 const publishActionClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
-const filterFieldClass = 'h-12 rounded-lg bg-slate-900/85 border border-white/20 px-3 text-base text-white outline-none focus:border-[#128BE9]';
+const primaryCtaClass = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center gap-2 transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
+const secondaryCtaClass = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center gap-2 transition-all active:opacity-95 sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
+const filterFieldClass = 'h-[44px] rounded-none bg-[rgba(15,24,56,0.72)] border border-[rgba(88,107,170,0.46)] px-3 text-[15px] text-white outline-none focus:border-[#6a43ff] focus:ring-1 focus:ring-[#6a43ff]/45';
 
 const formatMoneyAr = (value) => {
   const parsed = Number(value);
@@ -171,76 +173,74 @@ const DesafiosTab = ({
         onClose={() => setInlineNotice({ type: '', message: '' })}
       />
 
-      <div className="rounded-2xl border border-[#2f73b8]/35 bg-[#08162f]/80 p-2.5">
-        <div className="w-full flex items-center gap-3">
-          <Button
-            type="button"
-            onClick={() => setShowPublishModal(true)}
-            className="flex-1 !h-14 !rounded-xl !bg-[#128BE9] !text-white !font-oswald !text-[18px] !font-semibold !tracking-[0.01em] !normal-case !whitespace-nowrap shadow-[0_4px_14px_rgba(18,139,233,0.3)] hover:brightness-110 active:scale-95 transition-all"
-          >
-            Publicar desafio
-          </Button>
+      <div className="w-full flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setShowPublishModal(true)}
+          className={primaryCtaClass}
+        >
+          Publicar desafio
+        </button>
 
-          <button
-            type="button"
-            onClick={() => setShowFilters((prev) => !prev)}
-            className={`flex-1 h-14 inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 font-oswald text-[18px] font-semibold tracking-[0.01em] border transition-all active:scale-95 ${showFilters
-              ? 'text-white border-[#2f73b8] shadow-[0_0_0_1px_rgba(47,115,184,0.45)]'
-              : 'text-[#9fd7ff] border-[#2f73b8]/70 hover:bg-slate-700'
-              }`}
-          >
-            <Search size={20} />
-            <span>Buscar</span>
-            {activeFiltersCount > 0 ? (
-              <span className="inline-flex h-5 min-w-[18px] items-center justify-center rounded-full bg-[#128BE9] px-1 text-[11px] leading-none text-white">
-                {activeFiltersCount}
-              </span>
-            ) : null}
-          </button>
-        </div>
-
-        {showFilters ? (
-          <div className="mt-2.5 rounded-xl border border-white/12 bg-[#0f172a8f] p-3">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <select
-                value={filters.format}
-                onChange={(event) => setFilters((prev) => ({ ...prev, format: event.target.value }))}
-                className={filterFieldClass}
-              >
-                <option value="">Formato</option>
-                {TEAM_FORMAT_OPTIONS.map((value) => <option key={value} value={value}>F{value}</option>)}
-              </select>
-
-              <select
-                value={filters.skillLevel}
-                onChange={(event) => setFilters((prev) => ({ ...prev, skillLevel: event.target.value }))}
-                className={filterFieldClass}
-              >
-                <option value="">Todos los niveles</option>
-                {TEAM_SKILL_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-
-              <NeighborhoodAutocomplete
-                value={filters.zone}
-                onChange={(nextZone) => setFilters((prev) => ({ ...prev, zone: nextZone }))}
-                placeholder="Barrio"
-                inputClassName={`${filterFieldClass} w-full disabled:opacity-60 disabled:cursor-not-allowed`}
-              />
-            </div>
-
-            <div className="mt-2.5 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setFilters({ format: '', zone: '', skillLevel: '' })}
-                className="text-[13px] font-oswald text-white/70 transition-all hover:text-white"
-                disabled={activeFiltersCount === 0}
-              >
-                Limpiar filtros
-              </button>
-            </div>
-          </div>
-        ) : null}
+        <button
+          type="button"
+          onClick={() => setShowFilters((prev) => !prev)}
+          className={`${secondaryCtaClass} ${showFilters
+            ? 'border-[#7d5aff] bg-[rgba(106,67,255,0.22)] text-white'
+            : 'border-[rgba(88,107,170,0.46)] bg-[rgba(15,24,56,0.72)] text-white/78 hover:border-[#4a7ed6] hover:text-white'
+            }`}
+        >
+          <Search size={18} />
+          <span>Buscar</span>
+          {activeFiltersCount > 0 ? (
+            <span className="inline-flex h-5 min-w-[18px] items-center justify-center rounded-none bg-[#6a43ff] px-1 text-[11px] leading-none text-white border border-[#7d5aff]">
+              {activeFiltersCount}
+            </span>
+          ) : null}
+        </button>
       </div>
+
+      {showFilters ? (
+        <div className="mt-2.5 border border-[rgba(88,107,170,0.46)] bg-[rgba(15,24,56,0.72)] p-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <select
+              value={filters.format}
+              onChange={(event) => setFilters((prev) => ({ ...prev, format: event.target.value }))}
+              className={filterFieldClass}
+            >
+              <option value="">Formato</option>
+              {TEAM_FORMAT_OPTIONS.map((value) => <option key={value} value={value}>F{value}</option>)}
+            </select>
+
+            <select
+              value={filters.skillLevel}
+              onChange={(event) => setFilters((prev) => ({ ...prev, skillLevel: event.target.value }))}
+              className={filterFieldClass}
+            >
+              <option value="">Todos los niveles</option>
+              {TEAM_SKILL_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+
+            <NeighborhoodAutocomplete
+              value={filters.zone}
+              onChange={(nextZone) => setFilters((prev) => ({ ...prev, zone: nextZone }))}
+              placeholder="Barrio"
+              inputClassName={`${filterFieldClass} w-full disabled:opacity-60 disabled:cursor-not-allowed`}
+            />
+          </div>
+
+          <div className="mt-2.5 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setFilters({ format: '', zone: '', skillLevel: '' })}
+              className="text-[13px] font-oswald text-white/70 transition-all hover:text-white"
+              disabled={activeFiltersCount === 0}
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
