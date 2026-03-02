@@ -34,7 +34,7 @@ const getGeneroClass = (tipo) => {
 const getOriginClass = (originLabel) => {
     const value = normalizeToken(originLabel);
     if (value.includes('desafio')) return 'bg-[#2b1d52] border-2 border-[#c084fc] text-[#f3e8ff]';
-    if (value.includes('amistoso')) return 'bg-[#15344f] border-2 border-[#22d3ee] text-[#e0f2fe]';
+    if (value.includes('amistoso')) return 'bg-[#3b3112] border-2 border-[#facc15] text-[#fef08a]';
     return 'bg-[#334155] border-2 border-[#64748B] text-white';
 };
 
