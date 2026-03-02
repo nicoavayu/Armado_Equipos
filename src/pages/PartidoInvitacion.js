@@ -96,7 +96,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
     ? Math.max(0, Math.min((confirmedCount / requiredSlots) * 100, 100))
     : 0;
   const slotItems = Array.from({ length: requiredSlots }, (_, idx) => jugadores?.[idx] || null);
-  const isSoftVariant = mode === 'invite';
+  const isSoftVariant = mode === 'invite' || mode === 'public';
   const skewX = 0;
   const slotHeightClass = 'h-12';
   const invitePlayersBlockStyle = {
@@ -105,10 +105,11 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
     paddingBottom: '24px',
   };
   const softCardWrapperStyle = {
-    backgroundColor: '#2A3E78',
-    border: '1px solid rgba(120,90,255,0.28)',
-    boxShadow: '0 0 14px rgba(120,90,255,0.12)',
+    backgroundColor: '#07163b',
+    border: '1px solid rgba(41, 170, 255, 0.9)',
+    boxShadow: '0 0 10px rgba(41, 170, 255, 0.24)',
     transform: `skewX(-${skewX}deg)`,
+    backfaceVisibility: 'hidden',
   };
   const softPlaceholderWrapperStyle = {
     background: 'rgba(255,255,255,0.015)',
@@ -178,14 +179,9 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
             return (
               <PlayerCardTrigger key={player.uuid || player.id || `slot-player-${idx}`} profile={player} partidoActual={partido}>
                 <div
-                  className={`PlayerCard PlayerCard--soft relative rounded-none ${slotHeightClass} w-full overflow-hidden transition-all cursor-pointer hover:brightness-105`}
+                  className={`PlayerCard PlayerCard--soft relative rounded-none ${slotHeightClass} w-full overflow-visible transition-all cursor-pointer hover:brightness-105`}
                   style={softCardWrapperStyle}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="absolute left-[1px] top-1/2 -translate-y-1/2 w-[2px] h-[60%] rounded-[2px] pointer-events-none"
-                    style={{ backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, opacity: 0.74 }}
-                  />
                   <div
                     className="h-full w-full p-2 flex items-center gap-1.5"
                     style={skewCounterStyle}
@@ -283,6 +279,16 @@ function SharedInviteLayout({
     '--btn-glow': 'rgba(101, 77, 255, 0.38)',
     '--btn-text': '#ffffff',
   };
+  const successButtonPalette = {
+    '--btn': 'rgba(16, 185, 129, 0.72)',
+    '--btn-dark': 'rgba(52, 211, 153, 0.66)',
+    '--btn-text': '#ffffff',
+  };
+  const warningButtonPalette = {
+    '--btn': 'rgba(146, 64, 14, 0.74)',
+    '--btn-dark': 'rgba(245, 158, 11, 0.62)',
+    '--btn-text': '#fff8eb',
+  };
 
   return (
     <div className={`min-h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient ${showBottomNav ? 'pb-[calc(var(--safe-bottom,0px)+78px)] md:pb-[calc(var(--safe-bottom,0px)+88px)]' : ''}`}>
@@ -371,16 +377,18 @@ function SharedInviteLayout({
                     <button
                       onClick={onSumarse}
                       disabled={submitting || isSent || isApproved || isPendingSync || joinStatus === 'checking' || isMatchFull}
-                      className={`w-full py-3 rounded-xl font-bebas text-lg tracking-widest transition-all font-bold border-2 border-white/10 ${joinStatus === 'checking'
-                        ? 'bg-white/10 text-white/60 cursor-wait shadow-none'
-                        : isMatchFull
-                          ? 'bg-white/10 text-white/55 cursor-not-allowed shadow-none'
-                        : isPendingSync
-                          ? 'bg-emerald-500/70 text-white cursor-wait shadow-none'
-                          : isSent || isApproved
-                            ? 'bg-[#128BE9] opacity-60 text-white/80 cursor-not-allowed shadow-none'
-                            : 'bg-[#128BE9] text-white hover:brightness-110 active:scale-[0.98]'
-                        }`}
+                      className="invite-cta-btn"
+                      style={
+                        joinStatus === 'checking'
+                          ? rejectButtonPalette
+                          : isMatchFull
+                            ? warningButtonPalette
+                            : isPendingSync
+                              ? successButtonPalette
+                              : isSent || isApproved
+                                ? { ...acceptButtonPalette, '--btn': 'rgba(100, 77, 255, 0.38)', '--btn-dark': 'rgba(125, 90, 255, 0.52)' }
+                                : acceptButtonPalette
+                      }
                     >
                       {joinStatus === 'checking' ? (
                         <span className="flex items-center justify-center gap-2">
