@@ -738,7 +738,7 @@ const PlayersSection = ({
             color: var(--btn-text, #fff);
             background: var(--btn);
             border: 1.5px solid var(--btn-dark);
-            border-radius: var(--radius-standard, 10px);
+            border-radius: var(--radius-standard, 5px);
             box-shadow: var(--btn-shadow, none);
             transform: none;
             transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;

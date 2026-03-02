@@ -18,7 +18,7 @@
   --muted: #babec4;
   --gray-txt: #888;
   --chip-radius: 13px;
-  --radius-standard: 10px;
+  --radius-standard: 5px;
   --gradient-bg: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
 
   /* Safe Area Variables */
