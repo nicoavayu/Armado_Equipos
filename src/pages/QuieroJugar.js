@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
@@ -18,11 +18,7 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const containerClass = 'flex flex-col items-center w-full pb-6 px-4 box-border font-oswald';
 
-const hasText = (value) => typeof value === 'string' && value.trim().length > 0;
-
 const normalizeLocationToken = (value) => String(value || '').replace(/\s+/g, ' ').trim();
-
-const areSameText = (a, b) => normalizeLocationToken(a).toLowerCase() === normalizeLocationToken(b).toLowerCase();
 
 const isPostalCodeToken = (token) => /^[A-Z]?\d{4,}[A-Z0-9-]*$/i.test(token);
 
@@ -43,26 +39,15 @@ const buildMatchLocationLabel = (partido) => {
     .filter((token) => !isPostalCodeToken(token))
     .filter((token) => token.toLowerCase() !== 'argentina');
 
+  const fromNamedVenue = stripPostalAndCountry(
+    partido?.nombre_cancha
+    || partido?.cancha_nombre
+    || partido?.location_name
+    || partido?.sede_nombre
+    || null,
+  );
   const place = stripPostalAndCountry(sedeTokens[0]) || 'Dirección no disponible';
-  const cityFromData = stripPostalAndCountry(partido?.ciudad || partido?.localidad || partido?.city || null);
-  const cityFallback = sedeTokens.length >= 2 ? sedeTokens[sedeTokens.length - 1] : null;
-  const city = cityFromData || stripPostalAndCountry(cityFallback);
-
-  const neighborhoodFromData = stripPostalAndCountry(partido?.barrio || partido?.zona || partido?.neighborhood || null);
-  const neighborhoodFallback = sedeTokens.length >= 3 ? sedeTokens[sedeTokens.length - 2] : null;
-  const neighborhood = neighborhoodFromData || stripPostalAndCountry(neighborhoodFallback);
-
-  const parts = [place];
-
-  if (hasText(neighborhood) && !areSameText(neighborhood, place) && !areSameText(neighborhood, city || '')) {
-    parts.push(neighborhood);
-  }
-
-  if (hasText(city) && !areSameText(city, place) && !areSameText(city, neighborhood || '')) {
-    parts.push(city);
-  }
-
-  return parts.join(', ');
+  return fromNamedVenue || place;
 };
 
 const toCoordinateNumber = (value) => {
@@ -98,15 +83,41 @@ const clampMatchDistanceKm = (value) => {
   return Math.min(MAX_MATCH_DISTANCE_KM, Math.max(MIN_MATCH_DISTANCE_KM, Math.round(value)));
 };
 
+const parseMapsData = (value) => {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = JSON.parse(trimmed);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (_error) {
+    return null;
+  }
+};
+
+const getPlaceIdFromMatch = (partido) => {
+  const mapsData = parseMapsData(partido?.sedeMaps || partido?.sede_maps || null);
+  const directPlaceId = partido?.sede_place_id || partido?.place_id || partido?.location_place_id;
+  const mapsPlaceId = mapsData?.place_id || mapsData?.placeId || mapsData?.google_place_id || mapsData?.googlePlaceId;
+  return String(directPlaceId || mapsPlaceId || '').trim() || null;
+};
+
 const resolveMatchCoordinates = (partido) => {
   const directPairs = [
     [partido?.latitud, partido?.longitud],
     [partido?.latitude, partido?.longitude],
+    [partido?.lat, partido?.lng],
+    [partido?.lat, partido?.lon],
+    [partido?.match_latitud, partido?.match_longitud],
+    [partido?.match_lat, partido?.match_lng],
     [partido?.sede_latitud, partido?.sede_longitud],
     [partido?.sede_lat, partido?.sede_lng],
     [partido?.cancha_latitud, partido?.cancha_longitud],
     [partido?.cancha_lat, partido?.cancha_lng],
     [partido?.location_lat, partido?.location_lng],
+    [partido?.location_latitude, partido?.location_longitude],
     [partido?.geo_lat, partido?.geo_lng],
   ];
 
@@ -118,12 +129,14 @@ const resolveMatchCoordinates = (partido) => {
     }
   }
 
-  const mapsData = partido?.sedeMaps || partido?.sede_maps || null;
+  const mapsData = parseMapsData(partido?.sedeMaps || partido?.sede_maps || null);
   if (mapsData && typeof mapsData === 'object') {
     const mapsPairs = [
       [mapsData?.lat, mapsData?.lng],
+      [mapsData?.lat, mapsData?.lon],
       [mapsData?.latitude, mapsData?.longitude],
       [mapsData?.location?.lat, mapsData?.location?.lng],
+      [mapsData?.geometry?.location?.lat, mapsData?.geometry?.location?.lng],
     ];
 
     for (const [rawLat, rawLng] of mapsPairs) {
@@ -137,6 +150,23 @@ const resolveMatchCoordinates = (partido) => {
 
   return null;
 };
+
+const geocodeRequest = (geocoder, request) => new Promise((resolve) => {
+  geocoder.geocode(request, (results, status) => {
+    if (status !== 'OK' || !Array.isArray(results) || !results.length) {
+      resolve(null);
+      return;
+    }
+    const location = results[0]?.geometry?.location;
+    const lat = typeof location?.lat === 'function' ? location.lat() : location?.lat;
+    const lng = typeof location?.lng === 'function' ? location.lng() : location?.lng;
+    if (hasValidCoordinates(lat, lng)) {
+      resolve({ lat: toCoordinateNumber(lat), lng: toCoordinateNumber(lng) });
+      return;
+    }
+    resolve(null);
+  });
+});
 
 const QuieroJugar = ({
   secondaryTabsTop = 126,
@@ -153,6 +183,7 @@ const QuieroJugar = ({
   const [freePlayers, setFreePlayers] = useState([]);
   const [sortBy, setSortBy] = useState('distance');
   const [userLocation, setUserLocation] = useState(null);
+  const [derivedMatchCoordinates, setDerivedMatchCoordinates] = useState({});
   const [maxMatchDistanceKm, setMaxMatchDistanceKm] = useState(() => {
     const saved = Number(sessionStorage.getItem(MATCH_DISTANCE_STORAGE_KEY));
     return clampMatchDistanceKm(saved);
@@ -170,6 +201,8 @@ const QuieroJugar = ({
   const [actionFriendStatus, setActionFriendStatus] = useState(null);
   const [isSubmittingFriend, setIsSubmittingFriend] = useState(false);
   const [showSecondaryTabs, setShowSecondaryTabs] = useState(false);
+  const geocodedMatchIdsRef = useRef(new Set());
+  const geocoderCacheRef = useRef(new Map());
   const { getRelationshipStatus, sendFriendRequest } = useAmigos(user?.id || null);
 
   useEffect(() => {
@@ -183,6 +216,83 @@ const QuieroJugar = ({
   useEffect(() => {
     sessionStorage.setItem(MATCH_DISTANCE_STORAGE_KEY, String(maxMatchDistanceKm));
   }, [maxMatchDistanceKm]);
+
+  useEffect(() => {
+    setDerivedMatchCoordinates({});
+    geocodedMatchIdsRef.current = new Set();
+    geocoderCacheRef.current.clear();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!userLocation || !Array.isArray(partidosAbiertos) || partidosAbiertos.length === 0) return;
+    const mapsApi = window?.google?.maps;
+    if (!mapsApi?.Geocoder) return;
+
+    const pendingMatches = partidosAbiertos.filter((partido) => {
+      const matchId = String(partido?.id || '');
+      if (!matchId) return false;
+      if (resolveMatchCoordinates(partido)) return false;
+      if (derivedMatchCoordinates[matchId] && hasValidCoordinates(derivedMatchCoordinates[matchId]?.lat, derivedMatchCoordinates[matchId]?.lng)) {
+        return false;
+      }
+      return !geocodedMatchIdsRef.current.has(matchId);
+    });
+
+    if (pendingMatches.length === 0) return;
+
+    const geocoder = new mapsApi.Geocoder();
+    let cancelled = false;
+
+    const geocodeMissingMatches = async () => {
+      const updates = {};
+
+      for (const partido of pendingMatches) {
+        if (cancelled) break;
+
+        const matchId = String(partido?.id || '');
+        if (!matchId) continue;
+        geocodedMatchIdsRef.current.add(matchId);
+
+        const placeId = getPlaceIdFromMatch(partido);
+        const address = String(partido?.sede || '').trim();
+        const cacheKey = placeId ? `place:${placeId}` : (address ? `address:${address.toLowerCase()}` : null);
+
+        if (cacheKey && geocoderCacheRef.current.has(cacheKey)) {
+          const cached = geocoderCacheRef.current.get(cacheKey);
+          if (cached && hasValidCoordinates(cached?.lat, cached?.lng)) {
+            updates[matchId] = cached;
+          }
+          continue;
+        }
+
+        let resolved = null;
+        if (placeId) {
+          resolved = await geocodeRequest(geocoder, { placeId });
+        }
+        if (!resolved && address) {
+          resolved = await geocodeRequest(geocoder, { address });
+        }
+
+        if (cacheKey) {
+          geocoderCacheRef.current.set(cacheKey, resolved || null);
+        }
+
+        if (resolved && hasValidCoordinates(resolved?.lat, resolved?.lng)) {
+          updates[matchId] = resolved;
+        }
+      }
+
+      if (!cancelled && Object.keys(updates).length > 0) {
+        setDerivedMatchCoordinates((prev) => ({ ...prev, ...updates }));
+      }
+    };
+
+    geocodeMissingMatches();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userLocation, partidosAbiertos, derivedMatchCoordinates]);
 
   useEffect(() => {
     setShowSecondaryTabs(false);
@@ -481,7 +591,7 @@ const QuieroJugar = ({
                 const oneHourAfter = new Date(matchDateTime.getTime() + 60 * 60 * 1000);
                 if (now > oneHourAfter) return null;
 
-                const matchCoordinates = resolveMatchCoordinates(partido);
+                const matchCoordinates = resolveMatchCoordinates(partido) || derivedMatchCoordinates[String(partido?.id || '')] || null;
                 const distanceKm = userLocation && matchCoordinates
                   ? calculateDistance(
                     userLocation.lat,
@@ -637,14 +747,16 @@ const QuieroJugar = ({
                             <span className="font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap bg-[#213448] border-2 border-[#2dd4bf] text-[#ccfbf1]">{partido.tipo_partido || 'Mixto'}</span>
                           </div>
 
-                          <div className="font-oswald text-sm font-medium text-white/90 flex items-start gap-2 overflow-hidden text-ellipsis">
-                            <MapPin size={16} className="mt-0.5 shrink-0 text-white/85" />
-                            <span className="break-words">{locationLabel}</span>
+                          <div className="font-oswald text-sm font-medium text-white/90 flex items-center gap-2 min-w-0">
+                            <MapPin size={16} className="shrink-0 text-white/85" />
+                            <span className="truncate whitespace-nowrap" title={locationLabel}>{locationLabel}</span>
                           </div>
-                          <div className={`mt-1 text-[12px] font-oswald flex items-center gap-1.5 ${Number.isFinite(roundedDistanceKm) ? 'text-[#9ed3ff]' : 'text-white/35'}`}>
-                            <MapPin size={12} />
-                            {Number.isFinite(roundedDistanceKm) ? `A ${roundedDistanceKm} km` : 'Distancia sin datos'}
-                          </div>
+                          {Number.isFinite(roundedDistanceKm) ? (
+                            <div className="mt-1 text-[12px] font-oswald flex items-center gap-1.5 text-[#9ed3ff]">
+                              <MapPin size={12} />
+                              {`A ${roundedDistanceKm} km`}
+                            </div>
+                          ) : null}
 
                           <div className="flex gap-2 mt-4">
                             <button
