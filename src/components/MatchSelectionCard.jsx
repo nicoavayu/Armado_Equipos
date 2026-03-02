@@ -54,7 +54,16 @@ const MatchSelectionCard = ({
 
     // Título: Nombre del partido o Fecha + Hora
     const title = match.nombre || `${match.fecha_display || match.fecha} • ${match.hora}`;
-    const address = match?.sede || 'A coordinar';
+    const simplifyVenue = (value) => {
+        const raw = String(value || '').trim();
+        if (!raw) return 'A coordinar';
+        const beforeComma = raw.split(',')[0].trim();
+        const beforeDash = beforeComma
+            .replace(/\s+[–—-]\s+.*/g, '')
+            .trim();
+        return beforeDash || beforeComma || raw;
+    };
+    const address = simplifyVenue(match?.sede);
 
     const precioRaw = (match?.precio_cancha_por_persona ?? match?.precio_cancha ?? match?.precio ?? match?.valor_cancha);
     let precioNumber = null;
@@ -92,7 +101,7 @@ const MatchSelectionCard = ({
                 </div>
             </div>
 
-            <h4 className={`font-oswald text-[20px] sm:text-[18px] font-semibold leading-tight tracking-[0.01em] truncate ${isComplete ? 'text-white/55' : 'text-white'}`}>
+            <h4 className={`font-oswald text-[18px] sm:text-[16px] font-semibold leading-tight tracking-[0.01em] truncate -mt-0.5 mb-1 ${isComplete ? 'text-white/55' : 'text-white'}`}>
                 {title}
             </h4>
 
