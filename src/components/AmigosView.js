@@ -632,7 +632,7 @@ const AmigosView = () => {
             </p>
 
             {searchQuery && (
-              <div className="w-full max-w-[700px] mx-auto rounded-none absolute left-1/2 -translate-x-1/2 top-full bg-black/90 border border-white/20 max-h-[300px] overflow-y-auto z-[1000] mt-1 sm:max-w-[98vw]">
+              <div className="w-full max-w-[700px] mx-auto rounded-none absolute left-1/2 -translate-x-1/2 top-full bg-[rgba(4,31,89,0.98)] border border-[#12b5ff]/55 max-h-[300px] overflow-y-auto z-[1000] mt-1 sm:max-w-[98vw] shadow-[0_10px_24px_rgba(2,10,34,0.46)]">
                 {searchLoading ? (
                   <div className="flex items-center gap-2 p-4 text-white/70 text-sm">
                     <LoadingSpinner size="small" />
@@ -655,7 +655,7 @@ const AmigosView = () => {
                     />
                   ))
                 ) : (
-                  <div className="p-4 text-center text-white/60 text-sm">
+                  <div className="p-4 text-center text-white/68 text-sm">
                     No se encontraron usuarios
                   </div>
                 )}
@@ -669,7 +669,7 @@ const AmigosView = () => {
               <h3 className="text-xl font-semibold my-[20px] mb-[15px] text-white">Solicitudes pendientes</h3>
               <div className="flex flex-col gap-2.5 w-full">
                 {pendingRequests.map((request) => (
-                  <div key={request.profile?.uuid || request.profile?.id || request.id} className="flex items-center gap-3 p-4 bg-[rgba(4,31,89,0.95)] border border-[#12b5ff]/80 mb-3 w-full box-border min-h-[64px] transition-all duration-200 shadow-[0_0_0_1px_rgba(52,167,255,0.16),0_10px_22px_rgba(2,10,34,0.45)] hover:border-[#56d1ff] sm:p-3">
+                  <div key={request.profile?.uuid || request.profile?.id || request.id} className="flex items-center gap-3 p-4 rounded-none bg-[rgba(4,31,89,0.95)] border border-[#12b5ff]/80 mb-3 w-full box-border min-h-[64px] transition-all duration-200 shadow-[0_0_0_1px_rgba(52,167,255,0.16),0_10px_22px_rgba(2,10,34,0.45)] hover:border-[#56d1ff] sm:p-3">
                     <PlayerCardTrigger profile={request.profile}>
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <img
