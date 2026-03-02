@@ -563,8 +563,7 @@ const NotificationsView = () => {
                 key={group.key}
                 role="button"
                 tabIndex={0}
-                className={`flex p-3 bg-transparent rounded-none cursor-pointer transition-all duration-200 relative border border-[#6a43ff] hover:border-[#8262ff] ${group.unreadCount > 0 ? 'border-[#6a43ff]' : ''
-                  } ${notification.type === 'friend_request' ? 'cursor-default' : ''}`}
+                className={`flex p-3 bg-transparent rounded-none cursor-pointer transition-all duration-200 relative border border-[rgba(88,107,170,0.46)] hover:border-[#4a7ed6] ${notification.type === 'friend_request' ? 'cursor-default' : ''}`}
                 onClick={(e) => {
                   if (notification.type !== 'friend_request') handleGroupedNotificationClick(group, e);
                 }}
@@ -574,7 +573,7 @@ const NotificationsView = () => {
                   }
                 }}
               >
-                <div className="text-2xl mr-3 flex items-center justify-center w-10 h-10 bg-[rgba(18,35,82,0.94)] border border-[rgba(88,108,176,0.5)] rounded-none text-white/90">
+                <div className="text-2xl mr-3 flex items-center justify-center w-8 h-8 bg-transparent border-0 text-white/90">
                   <Icon size={18} />
                 </div>
                 <div className="flex-1">
@@ -603,7 +602,7 @@ const NotificationsView = () => {
                             onClick={(e) => handleNotificationClick(item, e)}
                           >
                             <div className="flex items-start gap-2">
-                              <div className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-white/80 shrink-0">
+                              <div className="mt-0.5 flex h-5 w-5 items-center justify-center text-white/80 shrink-0">
                                 <ItemIcon size={11} />
                               </div>
                               <div className="min-w-0 flex-1">
