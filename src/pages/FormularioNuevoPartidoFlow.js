@@ -336,6 +336,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               {/* Label moved ABOVE the inline block so thumbnail aligns with the input */}
               <label className="block w-full text-white font-medium mb-2 font-sans" style={STEP_TITLE_STYLE}>
                 Nombre del partido
+                <span className="ml-1 text-[#7d5aff] font-bold" aria-label="Campo obligatorio">*</span>
               </label>
 
               <div className="flex items-center gap-3 w-full mb-2">
@@ -506,6 +507,10 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               <div style={STEP_TITLE_STYLE}>
                 Seleccioná la fecha y hora del partido
               </div>
+              <label style={{ fontWeight: 500, color: '#fff', marginBottom: 8, display: 'block', fontFamily: "'Inter', sans-serif" }}>
+                Fecha
+                <span className="ml-1 text-[#7d5aff] font-bold" aria-label="Campo obligatorio">*</span>
+              </label>
               <input
                 className={INPUT_MODERN_CLASS}
                 type="date"
@@ -513,6 +518,10 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 onChange={(e) => setFecha(e.target.value)}
                 style={{ marginBottom: 22, width: '100%' }}
               />
+              <label style={{ fontWeight: 500, color: '#fff', marginBottom: 8, display: 'block', fontFamily: "'Inter', sans-serif" }}>
+                Hora
+                <span className="ml-1 text-[#7d5aff] font-bold" aria-label="Campo obligatorio">*</span>
+              </label>
               <div className="relative w-full" style={{ marginBottom: 22 }}>
                 <input
                   className={INPUT_MODERN_CLASS}
@@ -604,6 +613,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             <div className="flex-shrink-0">
               <div style={STEP_TITLE_STYLE}>
                 Ingresá la dirección o nombre del lugar
+                <span className="ml-1 text-[#7d5aff] font-bold" aria-label="Campo obligatorio">*</span>
               </div>
               <AutocompleteSede
                 value={sede}
