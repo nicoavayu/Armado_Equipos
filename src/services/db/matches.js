@@ -1044,25 +1044,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
 
     console.log('✅ SUPABASE: All scores updated successfully');
 
-    console.log('📊 SUPABASE: Step 5 - Clearing votes for match:', partidoId);
-
-    // Clear regular votes
-    const { error: deleteError, count: deletedCount } = await supabase
-      .from('votos')
-      .delete()
-      .eq('partido_id', partidoId);
-
-    // Clear public votes
-    const { error: publicDeleteError, count: publicDeletedCount } = await supabase
-      .from('votos_publicos')
-      .delete()
-      .eq('partido_id', partidoId);
-
-    if (deleteError || publicDeleteError) {
-      console.error('❌ SUPABASE: Error clearing votes:', { deleteError, publicDeleteError });
-    }
-
-    console.log('✅ SUPABASE: Votes cleared:', { deletedCount, publicDeletedCount });
+    console.log('📊 SUPABASE: Step 5 - Preserving votes for audit + voter tracking:', partidoId);
 
     const result = {
       message: `Votación cerrada. Se actualizaron los puntajes de ${successfulUpdates.length}/${jugadores.length} jugadores.`,
@@ -1070,7 +1052,8 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       playersTotal: jugadores.length,
       updateErrors: updateErrors.length,
       votesProcessed: totalValidVotes,
-      votesCleared: deletedCount || votos?.length || 0,
+      votesCleared: 0,
+      votesPreserved: totalPersistedRows,
     };
 
     console.log('🎉 SUPABASE: closeVotingAndCalculateScores completed successfully:', result);
