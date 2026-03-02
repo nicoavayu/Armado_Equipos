@@ -204,14 +204,14 @@ const HistoryTemplateCard = ({
       {/* Buttons */}
       <div className="flex gap-2 mt-2 items-stretch">
         <button
-          className="flex-[1.6] font-oswald font-semibold text-[18px] tracking-[0.01em] px-4 py-2.5 border border-[#4e2fd3] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_8px_24px_rgba(106,67,255,0.35)] hover:brightness-110"
+          className="flex-[1.6] font-bebas text-base px-4 py-2.5 border border-[#4e2fd3] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px] bg-[#6a43ff] shadow-[0_8px_24px_rgba(106,67,255,0.35)] hover:brightness-110"
           onClick={() => onViewDetails && onViewDetails(template)}
         >
           Crear partido
         </button>
         {onHistory && (
           <button
-            className="flex-[1] font-oswald font-semibold text-[18px] tracking-[0.01em] px-4 py-2.5 border border-[rgba(106,67,255,0.68)] rounded-none cursor-pointer transition-all text-white/92 min-h-[44px] flex items-center justify-center text-center bg-[rgba(106,67,255,0.22)] hover:bg-[rgba(106,67,255,0.32)] hover:border-[rgba(106,67,255,0.86)]"
+            className="flex-[1] font-bebas text-base px-4 py-2.5 border border-[rgba(106,67,255,0.68)] rounded-none cursor-pointer transition-all text-white/92 min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px] bg-[rgba(106,67,255,0.22)] hover:bg-[rgba(106,67,255,0.32)] hover:border-[rgba(106,67,255,0.86)]"
             onClick={() => onHistory && onHistory(template)}
           >
             Historial
