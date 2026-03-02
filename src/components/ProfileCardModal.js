@@ -48,8 +48,8 @@ const PROFILE_ACTION_BUTTON_WARNING = 'bg-[rgba(94,73,28,0.45)] border-[rgba(236
 const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin }) => {
   const profileUserId = resolveProfileUserId(profile);
   const registeredUserId = resolveRegisteredUserId(profile);
-  const hasRegisteredAccount = Boolean(registeredUserId);
   const [resolvedProfile, setResolvedProfile] = useState(profile);
+  const [hasPersistedUserProfile, setHasPersistedUserProfile] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [relationshipStatus, setRelationshipStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -66,13 +66,20 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
   useEffect(() => {
     setResolvedProfile(profile);
+    setHasPersistedUserProfile(false);
+    setRelationshipStatus(null);
   }, [profile]);
 
   useEffect(() => {
     let isCancelled = false;
 
     const fetchLatestProfile = async () => {
-      if (!isOpen || !registeredUserId) return;
+      if (!isOpen) return;
+
+      if (!registeredUserId) {
+        if (!isCancelled) setHasPersistedUserProfile(false);
+        return;
+      }
 
       const { data: latestProfile, error } = await supabase
         .from('usuarios')
@@ -82,10 +89,16 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
 
       if (error) {
         console.warn('[PROFILE_MODAL] Could not refresh latest profile from usuarios:', error);
+        if (!isCancelled) setHasPersistedUserProfile(false);
         return;
       }
 
-      if (!latestProfile || isCancelled) return;
+      if (!latestProfile || isCancelled) {
+        if (!isCancelled) setHasPersistedUserProfile(false);
+        return;
+      }
+
+      if (!isCancelled) setHasPersistedUserProfile(true);
 
       setResolvedProfile((prev) => {
         const baseProfile = prev || profile || {};
@@ -149,10 +162,10 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
       setIsLoading(false);
     };
 
-    if (isOpen && profile && currentUserId) {
+    if (isOpen && profile && currentUserId && hasPersistedUserProfile) {
       checkRelationship();
     }
-  }, [isOpen, currentUserId, registeredUserId]);
+  }, [isOpen, currentUserId, registeredUserId, hasPersistedUserProfile, profile]);
 
   // Handle friend request actions
   const handleAddFriend = async () => {
@@ -271,7 +284,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
   // Render make admin button
   const renderMakeAdminButton = () => {
     // Don't show if no partido or viewing own profile
-    if (!partidoActual || !onMakeAdmin || !hasRegisteredAccount || currentUserId === registeredUserId) {
+    if (!partidoActual || !onMakeAdmin || !hasPersistedUserProfile || currentUserId === registeredUserId) {
       return null;
     }
 
@@ -312,7 +325,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
   // Render contact player button
   const renderContactButton = () => {
     // Don't show if viewing own profile or no profile ID
-    if (!hasRegisteredAccount || currentUserId === registeredUserId) {
+    if (!hasPersistedUserProfile || currentUserId === registeredUserId) {
       return null;
     }
 
@@ -345,7 +358,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     }
 
     // Unregistered players can open the card, but have no social/admin/contact actions
-    if (!hasRegisteredAccount) {
+    if (!hasPersistedUserProfile) {
       return null;
     }
 
@@ -408,7 +421,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     }
   }, [isOpen, modalProfile?.id]);
 
-  const actionButtons = isOpen && hasRegisteredAccount
+  const actionButtons = isOpen && hasPersistedUserProfile
     ? [renderFriendActionButton(), renderContactButton(), renderMakeAdminButton()].filter(Boolean)
     : [];
   const hasAwards = [
