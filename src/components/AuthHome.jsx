@@ -92,7 +92,7 @@ export default function AuthHome() {
           <p className="mt-[14px] text-sm font-medium tracking-[0.3px] text-[rgba(255,255,255,0.9)]">Futbol amateur, nivel pro</p>
         </div>
 
-        <div className="auth-premium-card rounded-2xl px-5 py-6 max-[480px]:px-4 max-[480px]:py-5">
+        <div className="auth-premium-card rounded-none px-5 py-6 max-[480px]:px-4 max-[480px]:py-5">
           <div className="flex flex-col gap-3">
             <GoogleAuth
               user={null}
@@ -100,7 +100,7 @@ export default function AuthHome() {
               loading={googleLoading}
               onStart={() => setGoogleLoading(true)}
               onEnd={() => setGoogleLoading(false)}
-              className="auth-btn auth-btn-primary flex h-12 w-full items-center justify-center gap-2 rounded-xl px-4 text-base font-medium max-[480px]:h-[46px]"
+              className="auth-btn auth-btn-primary flex h-12 w-full items-center justify-center gap-2 rounded-none px-4 text-base font-medium max-[480px]:h-[46px]"
             />
 
             {mode === 'options' ? (
@@ -111,7 +111,7 @@ export default function AuthHome() {
                   setNotice({ type: '', message: '' });
                 }}
                 disabled={sendingBlocked}
-                className="auth-btn auth-btn-secondary h-12 w-full rounded-xl px-4 text-base font-medium max-[480px]:h-[46px]"
+                className="auth-btn auth-btn-secondary h-12 w-full rounded-none px-4 text-base font-medium max-[480px]:h-[46px]"
               >
                 Continuar con email
               </button>
@@ -124,12 +124,12 @@ export default function AuthHome() {
                   placeholder="tu@email.com"
                   autoComplete="email"
                   required
-                  className="auth-email-input h-12 w-full rounded-xl px-4 text-white placeholder:text-white/45 outline-none max-[480px]:h-[46px]"
+                  className="auth-email-input h-12 w-full rounded-none px-4 text-white placeholder:text-white/45 outline-none max-[480px]:h-[46px]"
                 />
                 <button
                   type="submit"
                   disabled={sendingBlocked}
-                  className="auth-btn auth-btn-secondary h-12 w-full rounded-xl px-4 text-base font-medium max-[480px]:h-[46px]"
+                  className="auth-btn auth-btn-secondary h-12 w-full rounded-none px-4 text-base font-medium max-[480px]:h-[46px]"
                 >
                   {emailLoading ? 'Enviando link...' : 'Enviar link'}
                 </button>
