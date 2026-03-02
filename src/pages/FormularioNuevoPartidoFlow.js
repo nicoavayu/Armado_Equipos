@@ -11,7 +11,6 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 import PageTitle from '../components/PageTitle';
 import ListaPartidosFrecuentes from './ListaPartidosFrecuentes';
-import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
 import InlineNotice from '../components/ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
 
@@ -22,9 +21,12 @@ const STEPS = {
   CONFIRM: 4,
 };
 
-const INPUT_MODERN_CLASS = 'appearance-none bg-white/10 border border-white/20 text-white font-sans text-lg px-4 py-3 rounded-xl w-full h-12 transition-all focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 placeholder:text-white/40 focus:bg-white/15 mb-2 box-border shadow-none backdrop-blur-md';
-const CONFIRM_BTN_CLASS = `${PRIMARY_CTA_BUTTON_CLASS} relative overflow-hidden box-border mt-4 mb-0`;
-const CONFIRM_ITEM_CLASS = 'bg-white/5 border border-white/10 backdrop-blur-md rounded-xl p-4 mb-3 flex justify-between items-center text-white font-sans shadow-lg';
+const INPUT_MODERN_CLASS = 'appearance-none bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white font-sans text-lg px-4 py-3 rounded-none w-full h-12 transition-all focus:outline-none focus:border-[#7f8dff] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 focus:bg-[rgba(62,67,114,0.95)] mb-2 box-border shadow-none backdrop-blur-md';
+const PRIMARY_ACTION_BUTTON_CLASS = 'w-full h-[54px] mt-4 mb-0 rounded-none border border-[rgba(136,120,255,0.75)] bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white font-oswald text-[22px] tracking-[0.01em] font-semibold transition-all hover:brightness-110 active:opacity-95 disabled:opacity-45 disabled:cursor-not-allowed';
+const SECONDARY_ACTION_BUTTON_CLASS = 'w-full h-[52px] mt-4 mb-0 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-oswald text-[20px] tracking-[0.01em] font-semibold transition-all hover:bg-[rgba(30,45,94,0.95)] active:opacity-95';
+const SEGMENT_BUTTON_BASE_CLASS = 'h-[44px] px-2 text-[16px] font-semibold font-oswald rounded-none transition-all border flex items-center justify-center';
+const CONFIRM_ITEM_CLASS = 'bg-[linear-gradient(160deg,rgba(31,38,86,0.86),rgba(16,24,60,0.94))] border border-[rgba(108,126,196,0.46)] backdrop-blur-md rounded-none p-4 mb-3 flex justify-between items-center text-white font-sans shadow-[0_12px_24px_rgba(4,10,28,0.35)]';
+const EDIT_ITEM_BUTTON_CLASS = 'bg-[rgba(26,37,83,0.95)] border border-[rgba(106,126,202,0.52)] text-white px-3 py-1.5 rounded-none text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-[rgba(39,53,110,0.98)] hover:border-[rgba(140,158,228,0.7)]';
 
 const STEP_TITLE_STYLE = {
   color: '#fff',
@@ -79,6 +81,11 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const [cupo, setCupo] = useState(modalidadToCupo['F5']);
   const [tipoPartido, setTipoPartido] = useState('Masculino');
   useEffect(() => { setCupo(modalidadToCupo[modalidad]); }, [modalidad, modalidadToCupo]);
+
+  const getSegmentButtonClass = (isActive) => `${SEGMENT_BUTTON_BASE_CLASS} ${isActive
+    ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[#7f8dff] text-white shadow-[0_8px_18px_rgba(95,114,255,0.34)]'
+    : 'bg-[rgba(23,35,74,0.74)] border-[rgba(89,107,168,0.45)] text-white/88 hover:bg-[rgba(30,45,94,0.92)] hover:border-[rgba(119,141,214,0.62)]'
+    }`;
 
   const [file, setFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
@@ -325,7 +332,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
 
               <div className="flex items-center gap-3 w-full mb-2">
                 <div
-                  className="w-12 h-12 min-w-[48px] rounded-lg bg-white/6 border-[1.5px] border-dashed border-white/12 flex items-center justify-center overflow-hidden cursor-pointer"
+                  className="w-12 h-12 min-w-[48px] rounded-none bg-[rgba(24,35,76,0.82)] border border-dashed border-[rgba(124,142,210,0.5)] flex items-center justify-center overflow-hidden cursor-pointer"
                   role="button"
                   aria-label={fotoPreview ? 'Cambiar imagen del partido' : 'Agregar imagen opcional'}
                   onClick={() => document.getElementById('partido-foto-input').click()}
@@ -386,23 +393,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                     key={tipo}
                     type="button"
                     onClick={() => setModalidad(tipo)}
-                    style={{
-                      padding: '12px 8px',
-                      fontSize: '16px',
-                      fontWeight: modalidad === tipo ? '700' : '500',
-                      fontFamily: "'Inter', sans-serif",
-                      border: modalidad === tipo ? '2px solid transparent' : '1.5px solid rgba(255,255,255,0.2)',
-                      borderRadius: '12px',
-                      background: modalidad === tipo ? 'var(--btn-primary)' : 'rgba(255,255,255,0.05)',
-                      color: '#fff',
-                      backdropFilter: 'blur(8px)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      minHeight: '44px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
+                    className={getSegmentButtonClass(modalidad === tipo)}
                   >
                     {tipo.replace('F', 'F')}
                   </button>
@@ -429,23 +420,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                     key={tipo}
                     type="button"
                     onClick={() => setTipoPartido(tipo)}
-                    style={{
-                      padding: '12px 8px',
-                      fontSize: '16px',
-                      fontWeight: tipoPartido === tipo ? '700' : '500',
-                      fontFamily: "'Inter', sans-serif",
-                      border: tipoPartido === tipo ? '2px solid transparent' : '1.5px solid rgba(255,255,255,0.2)',
-                      borderRadius: '12px',
-                      background: tipoPartido === tipo ? 'var(--btn-primary)' : 'rgba(255,255,255,0.05)',
-                      color: '#fff',
-                      backdropFilter: 'blur(8px)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      minHeight: '44px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
+                    className={getSegmentButtonClass(tipoPartido === tipo)}
                   >
                     {tipo}
                   </button>
@@ -453,17 +428,15 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               </div>
             </div>
             <button
-              className={CONFIRM_BTN_CLASS}
+              className={`${PRIMARY_ACTION_BUTTON_CLASS} mb-3`}
               disabled={!nombrePartido.trim()}
-              style={{ opacity: nombrePartido.trim() ? 1 : 0.4, marginBottom: 12 }}
               onClick={editMode ? saveAndReturn : nextStep}
             >
               {editMode ? 'Guardar' : 'Continuar'}
             </button>
             {editMode && (
               <button
-                className={CONFIRM_BTN_CLASS}
-                style={{ background: 'rgba(255,255,255,0.1)', borderColor: '#fff', color: '#fff' }}
+                className={SECONDARY_ACTION_BUTTON_CLASS}
                 onClick={saveAndReturn}
               >
                 Cancelar
@@ -494,7 +467,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                   maxWidth: 520,
                   maxHeight: '90vh',
                   background: '#1a1a2e',
-                  borderRadius: 12,
+                  borderRadius: 0,
                   overflow: 'auto',
                   boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
                   border: '1px solid rgba(255,255,255,0.06)',
@@ -553,9 +526,8 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               )}
             </div>
             <button
-              className={CONFIRM_BTN_CLASS}
+              className={`${PRIMARY_ACTION_BUTTON_CLASS} mb-3`}
               disabled={!fecha || !hora}
-              style={{ opacity: (fecha && hora) ? 1 : 0.4, marginBottom: 12 }}
               onClick={() => {
                 // Validate time format
                 if (!normalizeTimeHHmm(hora)) {
@@ -593,8 +565,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               />
             </div>
             <button
-              className={CONFIRM_BTN_CLASS}
-              style={{ background: 'rgba(255,255,255,0.1)', borderColor: '#fff', color: '#fff' }}
+              className={SECONDARY_ACTION_BUTTON_CLASS}
               onClick={editMode ? saveAndReturn : prevStep}
             >
               {editMode ? 'Cancelar' : 'Volver atrás'}
@@ -623,6 +594,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                   setSede(info.description);
                   setSedeInfo(info);
                 }}
+                rectangular
               />
 
               {/* Optional: valor de la cancha por persona */}
@@ -650,24 +622,14 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                   <button
                     type="button"
                     onClick={() => setWillPlay(true)}
-                    className="flex-1 h-11 rounded-xl font-bold font-sans text-sm transition-all"
-                    style={{
-                      background: willPlay ? 'var(--btn-primary)' : 'rgba(255,255,255,0.08)',
-                      border: willPlay ? '2px solid transparent' : '1.5px solid rgba(255,255,255,0.2)',
-                      color: '#fff',
-                    }}
+                    className={`flex-1 ${getSegmentButtonClass(willPlay)}`}
                   >
                     Sí, juego
                   </button>
                   <button
                     type="button"
                     onClick={() => setWillPlay(false)}
-                    className="flex-1 h-11 rounded-xl font-bold font-sans text-sm transition-all"
-                    style={{
-                      background: !willPlay ? 'var(--btn-primary)' : 'rgba(255,255,255,0.08)',
-                      border: !willPlay ? '2px solid transparent' : '1.5px solid rgba(255,255,255,0.2)',
-                      color: '#fff',
-                    }}
+                    className={`flex-1 ${getSegmentButtonClass(!willPlay)}`}
                   >
                     No, solo admin
                   </button>
@@ -679,16 +641,14 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             <div className="flex-grow" style={{ marginTop: 72 }} />
             <div className="flex-shrink-0" style={{ paddingTop: 8 }}>
               <button
-                className={CONFIRM_BTN_CLASS}
+                className={`${PRIMARY_ACTION_BUTTON_CLASS} mb-3`}
                 disabled={!sede}
-                style={{ opacity: sede ? 1 : 0.4, marginBottom: 12 }}
                 onClick={editMode ? saveAndReturn : nextStep}
               >
                 {editMode ? 'Guardar' : 'Continuar'}
               </button>
               <button
-                className={CONFIRM_BTN_CLASS}
-                style={{ background: 'rgba(255,255,255,0.1)', borderColor: '#fff', color: '#fff', marginBottom: 0 }}
+                className={SECONDARY_ACTION_BUTTON_CLASS}
                 onClick={editMode ? saveAndReturn : prevStep}
               >
                 {editMode ? 'Cancelar' : 'Volver atrás'}
@@ -717,7 +677,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                     width: 120,
                     height: 120,
                     objectFit: 'cover',
-                    borderRadius: 12,
+                    borderRadius: 0,
                     border: '2px solid rgba(255,255,255,0.3)',
                   }}
                 />
@@ -727,49 +687,49 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Nombre:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{nombrePartido}</span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.NAME)}>Editar</button>
+                <button className={EDIT_ITEM_BUTTON_CLASS} onClick={() => editField(STEPS.NAME)}>Editar</button>
               </li>
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Valor cancha:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{(valorCancha !== undefined && valorCancha !== null && String(valorCancha).trim() !== '') ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(Number(String(valorCancha).replace(/[^0-9.,-]/g, '').replace(/,/g, '.'))) : 'Sin precio'}</span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHERE)}>Editar</button>
+                <button className={EDIT_ITEM_BUTTON_CLASS} onClick={() => editField(STEPS.WHERE)}>Editar</button>
               </li>
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Modalidad:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{modalidad.replace('F', 'Fútbol ')} ({cupo} jugadores)</span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.NAME)}>Editar</button>
+                <button className={EDIT_ITEM_BUTTON_CLASS} onClick={() => editField(STEPS.NAME)}>Editar</button>
               </li>
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Tipo:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{tipoPartido}</span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.NAME)}>Editar</button>
+                <button className={EDIT_ITEM_BUTTON_CLASS} onClick={() => editField(STEPS.NAME)}>Editar</button>
               </li>
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Fecha:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{formatLocalDateShort(fecha)}</span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHEN)}>Editar</button>
+                <button className={EDIT_ITEM_BUTTON_CLASS} onClick={() => editField(STEPS.WHEN)}>Editar</button>
               </li>
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Hora:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{hora}</span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHEN)}>Editar</button>
+                <button className={EDIT_ITEM_BUTTON_CLASS} onClick={() => editField(STEPS.WHEN)}>Editar</button>
               </li>
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Sede:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3" style={{ fontSize: 16, textAlign: 'right' }}>
                   {sede.length > 30 ? sede.substring(0, 30) + '...' : sede}
                 </span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-sans hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHERE)}>Editar</button>
+                <button className={EDIT_ITEM_BUTTON_CLASS} onClick={() => editField(STEPS.WHERE)}>Editar</button>
               </li>
               <li className={CONFIRM_ITEM_CLASS}>
                 <span className="font-semibold text-base text-white/90">Te sumás:</span>
                 <span className="font-normal text-base text-white flex-1 text-center mx-3">{willPlay ? 'Sí, como jugador' : 'No, solo administro'}</span>
-                <button className="bg-white/20 border border-white/40 text-white px-3 py-1.5 rounded text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-white/30 hover:border-white/60" onClick={() => editField(STEPS.WHERE)}>Editar</button>
+                <button className={EDIT_ITEM_BUTTON_CLASS} onClick={() => editField(STEPS.WHERE)}>Editar</button>
               </li>
             </ul>
 
             {/* Toggle: Guardar como partido frecuente (placed just above main action) */}
-            <div className="bg-white/8 border border-white/15 rounded-lg p-3 mb-2" style={{ marginTop: 14, marginBottom: 12 }}>
+            <div className="bg-[linear-gradient(160deg,rgba(31,38,86,0.86),rgba(16,24,60,0.94))] border border-[rgba(108,126,196,0.46)] rounded-none p-3 mb-2" style={{ marginTop: 14, marginBottom: 12 }}>
               <div className="save-frequent-block" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <label className="flex items-center gap-2 cursor-pointer select-none" aria-label="Guardar como partido frecuente">
                   <input
@@ -780,7 +740,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                     onChange={(e) => setSaveAsFrequent(e.target.checked)}
                   />
                   <span
-                    className="w-11 h-[26px] bg-white/10 rounded-full relative transition-all duration-150 shadow-inner flex-none peer-checked:bg-primary peer-disabled:opacity-45 peer-disabled:cursor-not-allowed after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-5 after:h-5 after:bg-white after:rounded-full after:transition-all after:duration-150 after:ease-[cubic-bezier(.2,.9,.3,1)] after:shadow-md peer-checked:after:translate-x-[18px]"
+                    className="w-11 h-[26px] bg-[rgba(23,35,74,0.9)] border border-[rgba(96,117,188,0.52)] rounded-none relative transition-all duration-150 shadow-inner flex-none peer-checked:bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] peer-checked:border-[#7f8dff] peer-disabled:opacity-45 peer-disabled:cursor-not-allowed after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:w-5 after:h-5 after:bg-white after:rounded-none after:transition-all after:duration-150 after:ease-[cubic-bezier(.2,.9,.3,1)] after:shadow-md peer-checked:after:translate-x-[18px]"
                     aria-hidden="true"
                   />
                   <span className="inline-block ml-3 text-white font-bold font-sans peer-disabled:opacity-45 peer-disabled:cursor-not-allowed">Guardar como partido frecuente</span>
@@ -792,7 +752,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-              <button className={CONFIRM_BTN_CLASS} onClick={handleSubmit} disabled={loading} style={{ opacity: loading ? 0.6 : 1 }}>
+              <button className={PRIMARY_ACTION_BUTTON_CLASS} onClick={handleSubmit} disabled={loading}>
                 {loading ? 'Creando…' : 'Crear partido'}
               </button>
             </div>
