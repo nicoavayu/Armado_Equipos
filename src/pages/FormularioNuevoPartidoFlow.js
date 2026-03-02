@@ -8,6 +8,7 @@ import { useTimeout } from '../hooks/useTimeout';
 import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchDateDebug';
 import { v4 as uuidv4 } from 'uuid';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { Camera } from 'lucide-react';
 
 import PageTitle from '../components/PageTitle';
 import ListaPartidosFrecuentes from './ListaPartidosFrecuentes';
@@ -350,7 +351,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                   {fotoPreview ? (
                     <img src={fotoPreview} alt="foto partido" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                   ) : (
-                    <span className="thumbnail-placeholder">📷</span>
+                    <Camera size={18} className="text-white/65" strokeWidth={2} />
                   )}
                   <input
                     id="partido-foto-input"
@@ -363,7 +364,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
 
                 <div style={{ flex: 1 }}>
                   <input
-                    className={`input-modern input-modern--grow ${INPUT_MODERN_CLASS}`}
+                    className={`input-modern input-modern--grow ${INPUT_MODERN_CLASS} !mb-0`}
                     type="text"
                     placeholder="Ej: Partido del Viernes"
                     value={nombrePartido}
@@ -371,17 +372,6 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                     autoFocus
                   />
                 </div>
-              </div>
-
-              {/* Small helper text kept subtle */}
-              <div style={{
-                fontSize: 13,
-                color: 'rgba(255,255,255,0.7)',
-                textAlign: 'center',
-                marginTop: 8,
-                fontFamily: "'Inter', sans-serif",
-              }}>
-                La imagen no es obligatoria. El nombre es obligatorio.
               </div>
             </div>
 
