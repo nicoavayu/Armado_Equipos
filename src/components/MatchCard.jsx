@@ -98,9 +98,9 @@ const MatchCard = ({
     return (
         <div
             onClick={onSelect}
-            className={`relative ${cardToneClass} backdrop-blur-sm rounded-2xl p-5 mb-3 min-h-[150px] border transition-all duration-300 shadow-xl sm:p-4 cursor-pointer
-      ${isFinished ? 'border-slate-800' : ''}
-      ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/50 scale-[1.02]' : 'hover:-translate-y-[1px] hover:shadow-2xl hover:border-slate-700'}
+            className={`relative ${cardToneClass} backdrop-blur-sm rounded-none p-5 mb-3 min-h-[150px] border transition-all duration-200 shadow-[0_10px_24px_rgba(0,0,0,0.28)] sm:p-4 cursor-pointer
+      ${isFinished ? 'border-slate-700/70' : 'border-[rgba(88,107,170,0.46)]'}
+      ${isSelected ? 'border-[#29aaff] ring-1 ring-[#29aaff]/55' : 'hover:brightness-[1.03] hover:border-[#4a7ed6]'}
       ${primaryAction ? '' : 'active:scale-95'}
     `}
         >
@@ -116,11 +116,11 @@ const MatchCard = ({
                 </div>
                 <div className="flex items-center gap-2">
                     {isFinished ? (
-                        <div className="bg-[#4CAF50] text-white px-2 py-1 rounded-xl text-[11px] font-semibold whitespace-nowrap flex items-center gap-1 shadow-sm">
+                        <div className="bg-[#4CAF50] text-white px-2 py-1 rounded-none text-[11px] font-semibold whitespace-nowrap flex items-center gap-1 shadow-sm">
                             ✓ Finalizado
                         </div>
                     ) : userRole === 'admin' ? (
-                        <div className="flex items-center gap-1 bg-slate-700 px-2 py-1 rounded-full text-[10px] font-semibold shrink-0 border border-[#0EA9C6]">
+                        <div className="flex items-center gap-1 bg-slate-700 px-2 py-1 rounded-none text-[10px] font-semibold shrink-0 border border-[#0EA9C6]">
                             <FaCrown size={10} color="#0EA9C6" style={{ marginRight: '1px' }} />
                             <span className="font-semibold uppercase text-[#0EA9C6]">Admin</span>
                         </div>
@@ -141,13 +141,13 @@ const MatchCard = ({
                             </button>
                             {isMenuOpen && (
                                 <div
-                                    className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-lg z-10"
+                                    className="absolute right-0 mt-2 w-48 rounded-none border border-slate-700 bg-slate-900 shadow-lg z-10"
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <div className="py-1">
                                         {userJoined && onAbandon && (
                                             <button
-                                                className="w-full px-3 py-2 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800"
+                                                className="w-full h-[42px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800"
                                                 onClick={(e) => { e.stopPropagation(); onAbandon(partido); }}
                                             >
                                                 <LogOut size={16} />
@@ -156,7 +156,7 @@ const MatchCard = ({
                                         )}
                                         {userRole === 'admin' && onCancel && (
                                             <button
-                                                className="w-full px-3 py-2 flex items-center gap-2 text-left text-red-200 hover:bg-slate-800"
+                                                className="w-full h-[42px] px-3 flex items-center gap-2 text-left text-red-200 hover:bg-slate-800"
                                                 onClick={(e) => { e.stopPropagation(); onCancel(partido); }}
                                             >
                                                 <XCircle size={16} />
@@ -165,7 +165,7 @@ const MatchCard = ({
                                         )}
                                         {isFinished && onClear && (
                                             <button
-                                                className="w-full px-3 py-2 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800"
+                                                className="w-full h-[42px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800"
                                                 onClick={(e) => { e.stopPropagation(); onClear(partido); }}
                                             >
                                                 <XCircle size={16} />
@@ -183,20 +183,20 @@ const MatchCard = ({
             {/* Tipo, Modalidad, Precio y Jugadores */}
             <div className="flex flex-wrap items-center gap-2 mb-3">
                 {originBadgeLabel ? (
-                    <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-lg shrink-0 whitespace-nowrap ${getOriginClass(originBadgeLabel)} ${isFinished ? 'opacity-70' : ''}`}>
+                    <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap ${getOriginClass(originBadgeLabel)} ${isFinished ? 'opacity-70' : ''}`}>
                         {originBadgeLabel}
                     </div>
                 ) : null}
-                <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-lg shrink-0 whitespace-nowrap ${getModalidadClass(partido.modalidad)} ${isFinished ? 'opacity-70' : ''}`}>
+                <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap ${getModalidadClass(partido.modalidad)} ${isFinished ? 'opacity-70' : ''}`}>
                     {partido.modalidad || 'F5'}
                 </div>
-                <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-lg shrink-0 whitespace-nowrap ${getGeneroClass(generoLabel)} ${isFinished ? 'opacity-70' : ''}`}>
+                <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap ${getGeneroClass(generoLabel)} ${isFinished ? 'opacity-70' : ''}`}>
                     {generoLabel}
                 </div>
-                <div className={`font-oswald text-[11px] font-semibold text-slate-200 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 shrink-0 whitespace-nowrap ${isFinished ? 'opacity-70' : ''}`}>
+                <div className={`font-oswald text-[11px] font-semibold text-slate-200 px-2.5 py-1.5 rounded-none border border-slate-700 bg-slate-900 shrink-0 whitespace-nowrap ${isFinished ? 'opacity-70' : ''}`}>
                     {precioLabel}
                 </div>
-                <div className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 whitespace-nowrap ${!isTeamMatch && isComplete
+                <div className={`px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap ${!isTeamMatch && isComplete
                         ? 'bg-[#165a2e] text-[#22c55e] border border-[#22c55e]'
                         : 'bg-slate-900 text-slate-300 border border-slate-700'
                         } ${isFinished ? 'opacity-70' : ''}`}>
@@ -208,7 +208,7 @@ const MatchCard = ({
                     </span>
                 </div>
                 {!isTeamMatch && substitutesCount > 0 ? (
-                    <div className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 whitespace-nowrap border border-amber-400/30 bg-amber-500/10 text-amber-300 ${isFinished ? 'opacity-70' : ''}`}>
+                    <div className={`px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap border border-amber-400/30 bg-amber-500/10 text-amber-300 ${isFinished ? 'opacity-70' : ''}`}>
                         <span className="inline-flex items-center gap-1">
                             <UserRoundPlus size={12} />
                             {substitutesCount}/{MAX_SUBSTITUTE_SLOTS}
@@ -234,7 +234,7 @@ const MatchCard = ({
             {primaryAction && (
                 <div className="flex gap-3 mt-4">
                     <button
-                        className={`flex-1 font-bebas text-base px-4 py-2.5 border-2 border-transparent rounded-xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px] ${primaryAction.disabled ? 'bg-slate-700 text-slate-300 cursor-not-allowed' : primaryAction.className || 'bg-primary shadow-lg hover:brightness-110 hover:-translate-y-px'} disabled:opacity-60`}
+                        className={`flex-1 font-bebas text-base px-4 py-2.5 border border-transparent rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px] ${primaryAction.disabled ? 'bg-slate-700 text-slate-300 cursor-not-allowed border-slate-600' : primaryAction.className || 'bg-primary shadow-lg hover:brightness-110'} disabled:opacity-60`}
                         onClick={(e) => {
                             e.stopPropagation();
                             if (primaryAction.disabled) return;
