@@ -249,6 +249,13 @@ const DesafiosTab = ({
         </div>
       ) : null}
 
+      <div className="mt-1 mb-0.5 flex items-center gap-2.5 px-1">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
+          Desafíos abiertos
+        </span>
+        <span className="h-px flex-1 bg-[rgba(88,107,170,0.46)]" />
+      </div>
+
       {loading ? (
         <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
           Cargando desafios...
