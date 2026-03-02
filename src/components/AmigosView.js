@@ -896,7 +896,7 @@ const SearchUserItem = ({
   };
 
   return (
-    <div className="flex items-center justify-between p-3 border border-[#12b5ff]/60 rounded-none bg-[rgba(4,31,89,0.9)] transition-colors hover:bg-[rgba(8,41,109,0.95)]">
+    <div className="flex items-center justify-between p-3 border border-[rgba(88,107,170,0.46)] rounded-none bg-[rgba(15,24,56,0.72)] transition-all duration-200 hover:border-[#4a7ed6] hover:brightness-[1.03]">
       <PlayerCardTrigger profile={user}>
         <div className="flex items-center gap-3 flex-1 cursor-pointer min-w-0">
           <img
@@ -914,8 +914,8 @@ const SearchUserItem = ({
 
       <button
         className={`
-          px-4 h-9 bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white border border-[rgba(136,120,255,0.75)] rounded-none text-xs font-medium cursor-pointer transition-all hover:brightness-110 whitespace-nowrap
-          ${isButtonDisabled() ? 'bg-[rgba(26,35,76,0.58)] border-[rgba(84,97,151,0.35)] text-white/35 cursor-not-allowed hover:brightness-100' : ''}
+          px-4 h-9 bg-[#6a43ff] text-white border border-[#7d5aff] rounded-none text-xs font-bebas tracking-[0.01em] cursor-pointer transition-all hover:bg-[#7550ff] whitespace-nowrap shadow-[0_0_14px_rgba(106,67,255,0.3)]
+          ${isButtonDisabled() ? 'bg-[rgba(106,67,255,0.55)] border-[rgba(125,90,255,0.5)] text-white/40 cursor-not-allowed hover:bg-[rgba(106,67,255,0.55)] shadow-none' : ''}
         `}
         onClick={handleSendRequest}
         disabled={isButtonDisabled()}
