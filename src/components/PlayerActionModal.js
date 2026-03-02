@@ -22,7 +22,8 @@ const POS_COLOR_MAP = {
 const getPos = (p) => POS_MAP[p] || 'DEF';
 const getPosColor = (p) => POS_COLOR_MAP[p] || '#8178e5';
 
-const ACTION_BTN_BASE_CLASS = 'w-full h-[46px] px-4 rounded-none border font-bebas text-[15px] tracking-[0.01em] leading-none transition-all inline-flex items-center justify-center whitespace-nowrap text-center';
+const ACTION_BTN_BASE_CLASS = 'w-full min-w-0 h-[46px] px-4 rounded-none border font-bebas text-[15px] tracking-[0.01em] leading-tight transition-all inline-flex items-center justify-center text-center';
+const ACTION_BTN_COMPACT_CLASS = 'px-2 text-[14px] whitespace-normal break-words';
 const ACTION_BTN_PRIMARY_CLASS = 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95';
 const ACTION_BTN_SECONDARY_CLASS = 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] text-white/92 hover:bg-[rgba(30,45,94,0.95)] hover:text-white active:opacity-95';
 
@@ -132,7 +133,7 @@ const PlayerActionModal = ({
               onInvite?.(player);
               onClose();
             }}
-            className={`${ACTION_BTN_BASE_CLASS} ${ACTION_BTN_PRIMARY_CLASS} h-[48px]`}
+            className={`${ACTION_BTN_BASE_CLASS} ${ACTION_BTN_PRIMARY_CLASS} h-[48px] whitespace-nowrap`}
             type="button"
             data-preserve-button-case="true"
           >
@@ -145,7 +146,7 @@ const PlayerActionModal = ({
                 onViewProfile?.(player);
                 onClose();
               }}
-              className={`${ACTION_BTN_BASE_CLASS} ${ACTION_BTN_SECONDARY_CLASS}`}
+              className={`${ACTION_BTN_BASE_CLASS} ${ACTION_BTN_COMPACT_CLASS} ${ACTION_BTN_SECONDARY_CLASS}`}
               type="button"
               data-preserve-button-case="true"
             >
@@ -155,7 +156,7 @@ const PlayerActionModal = ({
               onClick={() => {
                 if (!friendBtn.disabled) onAddFriend?.(player);
               }}
-              className={`${ACTION_BTN_BASE_CLASS} ${friendBtn.className}`}
+              className={`${ACTION_BTN_BASE_CLASS} ${ACTION_BTN_COMPACT_CLASS} ${friendBtn.className}`}
               type="button"
               disabled={friendBtn.disabled}
               data-preserve-button-case="true"
