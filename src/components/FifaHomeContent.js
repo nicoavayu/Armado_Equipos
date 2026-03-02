@@ -174,7 +174,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     toggleStatusDropdown(e);
   };
 
-  const cardClass = 'bg-white/10 border border-white/20 rounded-2xl p-4 cursor-pointer transition-[transform,background-color,border-color,box-shadow] duration-300 aspect-square relative overflow-hidden flex flex-col justify-start no-underline text-white backdrop-blur-[15px] z-[1] hover:-translate-y-1.5 hover:scale-[1.02] hover:bg-white/20 hover:border-white/40 active:translate-y-0 active:scale-100 sm:p-3.5 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]';
+  const cardClass = 'bg-white/10 border border-white/20 rounded-none p-4 cursor-pointer transition-[transform,background-color,border-color,box-shadow] duration-300 aspect-square relative overflow-hidden flex flex-col justify-start no-underline text-white backdrop-blur-[15px] z-[1] hover:-translate-y-1.5 hover:scale-[1.02] hover:bg-white/20 hover:border-white/40 active:translate-y-0 active:scale-100 sm:p-3.5 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)]';
 
   useEffect(() => {
     if (user) {
@@ -689,7 +689,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                       <div key={item.id}>
                         <button
                           onClick={() => navigate(item.route)}
-                          className="w-full flex items-start gap-3 px-3.5 py-3 rounded-md text-left bg-white/[0.025] hover:bg-white/[0.045] active:bg-white/[0.06] transition-colors"
+                          className="w-full flex items-start gap-3 px-3.5 py-3 rounded-none border border-white/20 text-left bg-white/[0.025] hover:bg-white/[0.045] active:bg-white/[0.06] transition-colors"
                         >
                           <div className={`mt-1 shrink-0 ${iconColorClass}`}>
                             <Icon size={17} />
