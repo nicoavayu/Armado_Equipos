@@ -32,7 +32,7 @@ import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY } from '../config';
 const modalActionButtonClass = 'h-12 rounded-none text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
 const optionCardClass = 'w-full rounded-none border border-white/15 bg-white/5 p-3 text-left transition-all hover:bg-white/10';
 const disabledOptionCardClass = `${optionCardClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:bg-white/5`;
-const transparentMenuButtonClass = 'inline-flex h-8 w-8 items-center justify-center border-0 bg-transparent p-0 text-[#1ec8ff] transition-colors hover:text-[#6ddcff]';
+const transparentMenuButtonClass = 'kebab-menu-btn relative z-10';
 const addMemberButtonClass = 'mt-3 w-full border border-[#7d5aff] bg-[#6a43ff] px-3 py-3 text-left transition-colors hover:bg-[#7550ff]';
 
 const EMPTY_NEW_MEMBER = {
