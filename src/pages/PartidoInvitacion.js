@@ -87,6 +87,16 @@ const resolveSlotsFromMatchType = (match = {}) => {
 };
 
 const getGuestStorageKey = (matchId, _guestName = '') => `guest_joined_${matchId}`;
+const PLACEHOLDER_NUMBER_STYLE = {
+  color: 'transparent',
+  WebkitTextStroke: '2px rgba(104, 154, 255, 0.5)',
+  textShadow: '-0.6px -0.6px 0 rgba(255,255,255,0.11), 0.8px 0.8px 0 rgba(0,0,0,0.34)',
+  opacity: 0.56,
+  fontFamily: '"Roboto Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+  fontWeight: 700,
+  letterSpacing: '0.02em',
+  lineHeight: 1,
+};
 
 function PlayersReadOnly({ jugadores, partido, mode }) {
   const requiredSlots = resolveSlotsFromMatchType(partido);
@@ -120,6 +130,7 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   const skewCounterStyle = {
     transform: `skewX(${skewX}deg)`,
   };
+  let remainingSlotNumber = Math.max(0, requiredSlots - confirmedCount);
 
   return (
     <div
@@ -146,6 +157,9 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
       <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border">
         {slotItems.map((player, idx) => {
           if (!player) {
+            const visibleNumber = remainingSlotNumber > 0 ? remainingSlotNumber : Math.max(1, requiredSlots - idx);
+            remainingSlotNumber = Math.max(0, remainingSlotNumber - 1);
+
             if (isSoftVariant) {
               return (
                 <div
@@ -158,7 +172,9 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
                     className="h-full w-full p-2 flex items-center justify-center"
                     style={skewCounterStyle}
                   >
-                    <UserRound size={14} className="text-white/[0.13]" />
+                    <span className="select-none pointer-events-none text-[28px]" style={PLACEHOLDER_NUMBER_STYLE}>
+                      {visibleNumber}
+                    </span>
                   </div>
                 </div>
               );
@@ -279,16 +295,16 @@ function SharedInviteLayout({
     '--btn-glow': 'rgba(101, 77, 255, 0.38)',
     '--btn-text': '#ffffff',
   };
-  const successButtonPalette = {
-    '--btn': 'rgba(16, 185, 129, 0.72)',
-    '--btn-dark': 'rgba(52, 211, 153, 0.66)',
-    '--btn-text': '#ffffff',
-  };
-  const warningButtonPalette = {
-    '--btn': 'rgba(146, 64, 14, 0.74)',
-    '--btn-dark': 'rgba(245, 158, 11, 0.62)',
-    '--btn-text': '#fff8eb',
-  };
+  const publicCtaBaseClass = 'w-full font-bebas text-base px-4 py-2.5 border rounded-none transition-all min-h-[44px] flex items-center justify-center text-center disabled:opacity-100';
+  const publicCtaStateClass = joinStatus === 'checking'
+    ? 'border-[rgba(88,107,170,0.46)] bg-[rgba(23,35,74,0.72)] text-[rgba(242,246,255,0.9)] cursor-wait'
+    : isMatchFull
+      ? 'border-[rgba(245,158,11,0.62)] bg-[rgba(146,64,14,0.74)] text-[#fff8eb] cursor-not-allowed'
+      : isPendingSync
+        ? 'border-[rgba(52,211,153,0.66)] bg-[rgba(16,185,129,0.72)] text-white cursor-wait'
+        : isSent || isApproved
+          ? 'border-[rgba(125,90,255,0.52)] bg-[rgba(100,77,255,0.38)] text-white/85 cursor-not-allowed'
+          : 'border-[#7d5aff] bg-[#6a43ff] text-white hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)]';
 
   return (
     <div className={`min-h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient ${showBottomNav ? 'pb-[calc(var(--safe-bottom,0px)+78px)] md:pb-[calc(var(--safe-bottom,0px)+88px)]' : ''}`}>
@@ -377,18 +393,7 @@ function SharedInviteLayout({
                     <button
                       onClick={onSumarse}
                       disabled={submitting || isSent || isApproved || isPendingSync || joinStatus === 'checking' || isMatchFull}
-                      className="invite-cta-btn"
-                      style={
-                        joinStatus === 'checking'
-                          ? rejectButtonPalette
-                          : isMatchFull
-                            ? warningButtonPalette
-                            : isPendingSync
-                              ? successButtonPalette
-                              : isSent || isApproved
-                                ? { ...acceptButtonPalette, '--btn': 'rgba(100, 77, 255, 0.38)', '--btn-dark': 'rgba(125, 90, 255, 0.52)' }
-                                : acceptButtonPalette
-                      }
+                      className={`${publicCtaBaseClass} ${publicCtaStateClass}`}
                     >
                       {joinStatus === 'checking' ? (
                         <span className="flex items-center justify-center gap-2">
