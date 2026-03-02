@@ -10,7 +10,9 @@ import {
 import { formatSkillLevelLabel } from '../utils/teamColors';
 import NeighborhoodAutocomplete from './NeighborhoodAutocomplete';
 
-const actionButtonClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
+const actionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
+const actionPrimaryClass = `${actionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
+const actionSecondaryClass = `${actionButtonBaseClass} !border !border-white/35 !bg-white/5 !text-white hover:!bg-white/10`;
 
 const FORMAT_OPTIONS_LABEL = TEAM_FORMAT_OPTIONS.map((value) => `F${value}`).join(' · ');
 const SKILL_OPTIONS_LABEL = TEAM_SKILL_OPTIONS.map((option) => option.label).join(' · ');
@@ -72,23 +74,25 @@ const PublishChallengeModal = ({
       className="w-full max-w-[560px]"
       classNameContent="p-4 sm:p-5"
       footer={(
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 mt-2.5 max-w-[420px] mx-auto">
           <Button
             type="button"
             onClick={onClose}
             variant="secondary"
-            className={actionButtonClass}
+            className={actionSecondaryClass}
             disabled={isSubmitting}
+            data-preserve-button-case="true"
           >
             Cancelar
           </Button>
           <Button
             type="submit"
             form="publish-challenge-form"
-            className={actionButtonClass}
+            className={actionPrimaryClass}
             loading={isSubmitting}
             loadingText="Publicando..."
             disabled={!selectedTeam}
+            data-preserve-button-case="true"
           >
             Publicar
           </Button>
@@ -119,7 +123,7 @@ const PublishChallengeModal = ({
           <select
             value={challengerTeamId}
             onChange={(event) => setChallengerTeamId(event.target.value)}
-            className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+            className="mt-1 w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
           >
             {teams.length === 0 ? <option value="">Sin equipos</option> : null}
             {teams.map((team) => (
@@ -137,7 +141,7 @@ const PublishChallengeModal = ({
               type="text"
               readOnly
               value={selectedTeam ? `F${selectedTeam.format}` : FORMAT_OPTIONS_LABEL}
-              className="mt-1 w-full rounded-xl bg-slate-800/70 border border-white/15 px-3 py-2 text-white/80"
+              className="mt-1 w-full rounded-none bg-slate-800/70 border border-white/15 px-3 py-2 text-white/80"
             />
           </label>
 
@@ -147,7 +151,7 @@ const PublishChallengeModal = ({
               type="text"
               readOnly
               value={selectedTeam ? formatSkillLevelLabel(selectedTeam.skill_level) : SKILL_OPTIONS_LABEL}
-              className="mt-1 w-full rounded-xl bg-slate-800/70 border border-white/15 px-3 py-2 text-white/80"
+              className="mt-1 w-full rounded-none bg-slate-800/70 border border-white/15 px-3 py-2 text-white/80"
             />
           </label>
         </div>
@@ -157,7 +161,7 @@ const PublishChallengeModal = ({
           <select
             value={mode}
             onChange={(event) => setMode(event.target.value)}
-            className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+            className="mt-1 w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
           >
             {TEAM_MODE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
@@ -171,7 +175,7 @@ const PublishChallengeModal = ({
             type="datetime-local"
             value={scheduledAtLocal}
             onChange={(event) => setScheduledAtLocal(event.target.value)}
-            className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+            className="mt-1 w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
           />
         </label>
 
@@ -182,7 +186,7 @@ const PublishChallengeModal = ({
               value={locationName}
               onChange={setLocationName}
               placeholder="Ej: Palermo"
-              inputClassName="w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9] disabled:opacity-60 disabled:cursor-not-allowed"
+              inputClassName="w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9] disabled:opacity-60 disabled:cursor-not-allowed"
             />
           </div>
         </label>
@@ -194,7 +198,7 @@ const PublishChallengeModal = ({
             inputMode="decimal"
             value={fieldPrice}
             onChange={(event) => setFieldPrice(sanitizeAmountInput(event.target.value))}
-            className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+            className="mt-1 w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
             placeholder="Ej: 24000"
           />
         </label>
@@ -206,7 +210,7 @@ const PublishChallengeModal = ({
             onChange={(event) => setNotes(event.target.value)}
             maxLength={250}
             rows={3}
-            className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9] resize-none"
+            className="mt-1 w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9] resize-none"
           />
         </label>
       </form>
