@@ -28,7 +28,7 @@ const getBackgroundColor = (name) => {
 const skinClasses = {
   searching: 'bg-[rgba(15,24,56,0.72)] border-[rgba(88,107,170,0.46)] hover:border-[#4a7ed6] hover:brightness-[1.03] shadow-none',
   friend: 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] hover:border-[rgba(124,142,210,0.62)] hover:bg-[rgba(30,45,94,0.95)] shadow-none',
-  friendSelf: 'bg-[linear-gradient(135deg,rgba(127,92,18,0.62),rgba(79,54,12,0.78))] border-[#f4d37b]/75 hover:border-[#ffe39d] hover:bg-[linear-gradient(135deg,rgba(145,106,24,0.68),rgba(93,64,16,0.82))] shadow-[0_0_0_1px_rgba(244,211,123,0.2),0_10px_22px_rgba(44,28,6,0.45)]',
+  friendSelf: 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] border-l-[3px] border-l-[#f4d37b] hover:border-[rgba(124,142,210,0.62)] hover:border-l-[#ffe39d] hover:bg-[rgba(30,45,94,0.95)] shadow-[inset_1px_0_0_rgba(244,211,123,0.45)]',
 };
 
 const PlayerMiniCard = ({
@@ -64,15 +64,15 @@ const PlayerMiniCard = ({
     ? skinClasses.friendSelf
     : (skinClasses[variant] || skinClasses.friend);
   const ratingContainerClass = isSelfFriendCard
-    ? 'bg-[#5b3e0b]/80 border-[#f4d37b]/65 text-[#ffecb8]'
+    ? 'bg-[rgba(10,21,52,0.9)] border-[#e6bf4f]/35 text-[#ffe08a]'
     : (variant === 'friend'
       ? 'bg-[rgba(10,21,52,0.9)] border-[#e6bf4f]/35 text-[#ffe08a]'
       : 'bg-[#FFD700]/10 border-[#FFD700]/30 text-[#FFD700]');
-  const nameClass = isSelfFriendCard ? 'text-[#fff4d1]' : 'text-white';
-  const detailTextClass = isSelfFriendCard ? 'text-[#ffe6ac]' : (variant === 'friend' ? 'text-white/72' : 'text-white/60');
+  const nameClass = 'text-white';
+  const detailTextClass = variant === 'friend' ? 'text-white/72' : 'text-white/60';
   const avatarBorderClass = isSelfFriendCard ? 'border-[#f4d37b]/60' : 'border-white/15';
   const placeholderMenuClass = isSelfFriendCard
-    ? 'text-[#ffe6ac]'
+    ? 'text-[#d7e6ff]'
     : (variant === 'friend' ? 'text-[#d7e6ff]' : 'text-white/50');
   const cardShapeClass = (variant === 'friend' || variant === 'searching') ? 'rounded-none' : 'rounded-xl';
 

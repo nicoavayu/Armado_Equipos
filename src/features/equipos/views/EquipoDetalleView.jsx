@@ -894,6 +894,25 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     <>
       <div className="w-full flex justify-center px-4 pt-[116px] pb-6">
         <div className="w-full max-w-[560px] space-y-3">
+          <div className="grid h-[44px] w-full grid-cols-2 overflow-hidden border border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]">
+            {DETAIL_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => handleSelectDetailTab(tab.key)}
+                className={`relative min-w-0 border px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${tab.key === 'history' ? 'border-l-0' : ''} ${selectedTabLabel === tab.key
+                  ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
+                  : 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
+                  }`}
+              >
+                {selectedTabLabel === tab.key ? (
+                  <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
+                ) : null}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           <div
             className="relative rounded-none border border-white/15 bg-[#0f172acc] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
             style={selectedTeamGradientStyle}
@@ -974,25 +993,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
             </div>
           </div>
 
-          <div className="grid h-[44px] w-full grid-cols-2 overflow-hidden border border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]">
-            {DETAIL_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => handleSelectDetailTab(tab.key)}
-                className={`relative min-w-0 border px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${tab.key === 'history' ? 'border-l-0' : ''} ${selectedTabLabel === tab.key
-                  ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
-                  : 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
-                  }`}
-              >
-                {selectedTabLabel === tab.key ? (
-                  <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
-                ) : null}
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
           {selectedTabLabel === 'plantilla' ? (
             <div className="pt-1">
               <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
@@ -1008,10 +1008,8 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                   onClick={openAddMemberChoiceModal}
                   className={addMemberButtonClass}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-none border border-white/30 bg-black/20 text-white shrink-0">
-                      <UserPlus size={20} />
-                    </span>
+                  <div className="flex items-center gap-2.5">
+                    <UserPlus size={20} className="shrink-0 text-white" />
                     <p className="text-white font-bebas text-lg tracking-[0.03em]">
                       Agregar jugador
                     </p>
