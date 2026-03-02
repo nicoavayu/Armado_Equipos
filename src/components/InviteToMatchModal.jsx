@@ -8,6 +8,9 @@ import MatchSelectionCard from './MatchSelectionCard';
 import { CalendarDays, UserPlus, X } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
+const PRIMARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed';
+const SECONDARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed';
+
 const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
     const [matches, setMatches] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -254,33 +257,25 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
     const canSubmit = Boolean(selectedMatchId) && !inviting;
 
 
-    const getButtonLabel = () => {
-        if (inviting) return <><LoadingSpinner size="sm" /> ENVIANDO...</>;
-        return 'INVITAR AL PARTIDO';
-    };
-
     const footerContent = (
-        <div className="h-[106px] flex flex-col justify-center items-center">
+        <div className="w-full">
             <div className="w-full flex flex-col items-center gap-2">
                 <button
-                    className={`w-full h-11 px-6 rounded-xl font-oswald text-sm font-bold uppercase tracking-wide transition-all duration-200 flex items-center justify-center gap-2 ${canSubmit
-                        ? 'bg-[#128BE9] text-white shadow-lg shadow-[#128BE9]/25 hover:brightness-110 hover:-translate-y-px active:scale-[0.98]'
-                        : 'bg-white/5 text-white/25 cursor-not-allowed border border-white/10'
-                        }`}
+                    className={PRIMARY_ACTION_BUTTON_CLASS}
                     onClick={handleInvite}
                     disabled={!canSubmit}
                 >
-                    {!inviting && <UserPlus size={16} />}
-                    {getButtonLabel()}
+                    {inviting ? <LoadingSpinner size="small" /> : <UserPlus size={16} />}
+                    <span>{inviting ? 'Enviando...' : 'Invitar al partido'}</span>
                 </button>
 
                 <button
-                    className="w-full h-10 px-6 rounded-xl font-oswald text-xs font-bold uppercase tracking-wide transition-all duration-200 inline-flex items-center justify-center gap-1.5 border border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:border-white/25 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={SECONDARY_ACTION_BUTTON_CLASS}
                     onClick={onClose}
                     disabled={inviting}
                 >
                     <X size={13} />
-                    Cancelar
+                    <span>Cancelar</span>
                 </button>
             </div>
         </div>
@@ -292,7 +287,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             onClose={onClose}
             title=""
             footer={footerContent}
-            className="w-full max-w-[460px] !bg-[#101a35] border border-white/15 rounded-3xl"
+            className="w-full max-w-[460px] !bg-[#101a35] border border-[rgba(98,117,184,0.58)]"
             classNameContent="p-4 overflow-x-hidden"
         >
             <div className="mb-3 px-1">
@@ -308,14 +303,14 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             </div>
 
             {loading ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-4 bg-white/5 rounded-2xl border border-white/10">
+                <div className="flex flex-col items-center justify-center py-12 gap-4 bg-[rgba(20,31,70,0.82)] rounded-none border border-[rgba(98,117,184,0.58)]">
                     <LoadingSpinner size="lg" />
                     <p className="text-white/40 text-[11px] font-oswald tracking-[0.01em] animate-pulse">
                         Buscando tus partidos...
                     </p>
                 </div>
             ) : matches.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 px-6 text-center bg-white/5 rounded-2xl border border-white/10 border-dashed">
+                <div className="flex flex-col items-center justify-center py-10 px-6 text-center bg-[rgba(20,31,70,0.82)] rounded-none border border-[rgba(98,117,184,0.58)] border-dashed">
                     <p className="text-white/50 text-sm leading-relaxed mb-1">
                         No tenés partidos activos disponibles para invitar.
                     </p>
