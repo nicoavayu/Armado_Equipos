@@ -100,7 +100,7 @@ const HistoryTemplateCard = ({
       : (diaSemanaLabel || fechaCortaLabel || horaLabel || ''));
 
   return (
-    <div className="relative bg-[rgba(4,31,89,0.95)] backdrop-blur-sm rounded-none p-5 min-h-[150px] border border-[#12b5ff]/70 transition-all duration-200 shadow-[0_0_0_1px_rgba(52,167,255,0.14),0_10px_22px_rgba(2,10,34,0.45)] hover:bg-[rgba(8,41,109,0.96)] hover:border-[#56d1ff]">
+    <div className="relative bg-[#1e293b]/92 backdrop-blur-sm rounded-none p-5 min-h-[150px] border border-[#334155] transition-all duration-200 shadow-[0_10px_24px_rgba(0,0,0,0.28)] hover:border-[#4a7ed6] hover:brightness-[1.03]">
       {/* Header */}
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -126,14 +126,14 @@ const HistoryTemplateCard = ({
           {(onEdit || onDelete) && (
             <div className="relative">
               <button
-                className="kebab-menu-btn"
+                className="h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   setMenuOpen((prev) => !prev);
                 }}
                 aria-label="Más acciones"
               >
-                <MoreVertical size={15} />
+                <MoreVertical size={16} />
               </button>
               {menuOpen && (
                 <div className="absolute right-0 mt-2 w-48 rounded-none border border-[rgba(88,107,170,0.62)] bg-[rgba(7,19,48,0.98)] shadow-lg z-10">
@@ -204,14 +204,14 @@ const HistoryTemplateCard = ({
       {/* Buttons */}
       <div className="flex gap-2 mt-2 items-stretch">
         <button
-          className="flex-[1.6] font-oswald font-semibold text-[18px] tracking-[0.01em] px-4 py-2.5 border border-[rgba(136,120,255,0.75)] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] shadow-[0_8px_24px_rgba(70,88,200,0.35)] hover:brightness-110"
+          className="flex-[1.6] font-oswald font-semibold text-[18px] tracking-[0.01em] px-4 py-2.5 border border-[#4e2fd3] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_8px_24px_rgba(106,67,255,0.35)] hover:brightness-110"
           onClick={() => onViewDetails && onViewDetails(template)}
         >
           Crear partido
         </button>
         {onHistory && (
           <button
-            className="flex-[1] font-oswald font-semibold text-[18px] tracking-[0.01em] px-4 py-2.5 border border-[rgba(98,117,184,0.58)] rounded-none cursor-pointer transition-all text-white/85 min-h-[44px] flex items-center justify-center text-center bg-[rgba(20,31,70,0.82)] hover:bg-[rgba(30,45,94,0.95)] hover:border-[rgba(124,142,210,0.6)] hover:text-white"
+            className="flex-[1] font-oswald font-semibold text-[18px] tracking-[0.01em] px-4 py-2.5 border border-[rgba(106,67,255,0.68)] rounded-none cursor-pointer transition-all text-white/92 min-h-[44px] flex items-center justify-center text-center bg-[rgba(106,67,255,0.22)] hover:bg-[rgba(106,67,255,0.32)] hover:border-[rgba(106,67,255,0.86)]"
             onClick={() => onHistory && onHistory(template)}
           >
             Historial

@@ -462,11 +462,11 @@ const ProximosPartidos = ({ onClose }) => {
   const getPrimaryCtaButtonClass = (primaryCtaKind) => {
     switch (primaryCtaKind) {
       case 'survey':
-        return 'bg-gradient-to-r from-[#8178E5] to-[#6A5FE2] text-white hover:brightness-110 shadow-[0_0_14px_rgba(129,120,229,0.3)] border border-[#9b94f0]';
+        return 'bg-[#6a43ff] border border-[#7d5aff] text-white hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)]';
       case 'survey_done':
         return 'bg-slate-700 text-white/50 cursor-not-allowed border border-slate-600';
       default:
-        return 'bg-gradient-to-r from-[#2e9df2] to-[#1f8fe8] border border-[#39b0ff] shadow-[0_0_14px_rgba(18,139,233,0.26)] hover:brightness-110';
+        return 'bg-[#6a43ff] border border-[#7d5aff] text-white hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)]';
     }
   };
 
