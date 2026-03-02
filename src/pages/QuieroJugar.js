@@ -13,7 +13,6 @@ import ProfileCardModal from '../components/ProfileCardModal';
 import PlayerMiniCard from '../components/PlayerMiniCard';
 import EmptyStateCard from '../components/EmptyStateCard';
 import { handleError } from '../lib/errorHandler';
-import { PRIMARY_CTA_BUTTON_CLASS } from '../styles/buttonClasses';
 import { Calendar, Clock, MapPin, Star, Trophy, ListOrdered, Users, CalendarX2 } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
@@ -421,7 +420,7 @@ const QuieroJugar = ({
 
         {/* Secondary tabs (contextual filter) */}
         <div
-          className="w-full max-w-[500px] mb-8 relative z-10 transition-[transform,opacity] duration-200 ease-out will-change-transform"
+          className="w-full mb-8 relative z-10 transition-[transform,opacity] duration-200 ease-out will-change-transform"
           style={{
             transform: showSecondaryTabs
               ? 'translateX(0)'
@@ -429,31 +428,39 @@ const QuieroJugar = ({
             opacity: showSecondaryTabs ? 1 : 0.01,
           }}
         >
-          <div className="bg-white/[0.04] border border-white/[0.08] rounded-[16px] p-1 flex gap-1">
-            <button
-              className={`flex-1 h-10 rounded-[12px] font-oswald text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-colors duration-200 ${activeTab === 'matches'
-                ? 'bg-[#128BE9] text-white'
-                : 'text-white/58 hover:text-white/[0.88] hover:bg-white/[0.06]'
-                }`}
-              onClick={() => {
-                setActiveTab('matches');
-                sessionStorage.setItem('quiero-jugar-tab', 'matches');
-              }}
-            >
-              Partidos
-            </button>
-            <button
-              className={`flex-1 h-10 rounded-[12px] font-oswald text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-colors duration-200 ${activeTab === 'players'
-                ? 'bg-[#128BE9] text-white'
-                : 'text-white/58 hover:text-white/[0.88] hover:bg-white/[0.06]'
-                }`}
-              onClick={() => {
-                setActiveTab('players');
-                sessionStorage.setItem('quiero-jugar-tab', 'players');
-              }}
-            >
-              Jugadores
-            </button>
+          <div className="relative left-1/2 w-screen -translate-x-1/2">
+            <div className="flex h-[44px] w-full overflow-hidden border-y border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]">
+              <button
+                className={`relative flex-1 min-w-0 border border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${activeTab === 'matches'
+                  ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
+                  : 'z-[1] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
+                  }`}
+                onClick={() => {
+                  setActiveTab('matches');
+                  sessionStorage.setItem('quiero-jugar-tab', 'matches');
+                }}
+              >
+                {activeTab === 'matches' ? (
+                  <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
+                ) : null}
+                Partidos
+              </button>
+              <button
+                className={`relative flex-1 min-w-0 border border-[rgba(106,126,202,0.40)] border-l-0 bg-[rgba(17,26,59,0.96)] px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${activeTab === 'players'
+                  ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
+                  : 'z-[1] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
+                  }`}
+                onClick={() => {
+                  setActiveTab('players');
+                  sessionStorage.setItem('quiero-jugar-tab', 'players');
+                }}
+              >
+                {activeTab === 'players' ? (
+                  <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
+                ) : null}
+                Jugadores
+              </button>
+            </div>
           </div>
         </div>
 
@@ -518,7 +525,6 @@ const QuieroJugar = ({
                   titleClassName="font-oswald text-[30px] font-semibold leading-tight text-white"
                   description="Cuando se publique un partido con cupos disponibles, te va a aparecer acá."
                   actionLabel="Crear partido"
-                  actionClassName={`${PRIMARY_CTA_BUTTON_CLASS} mt-6 max-w-[340px] mx-auto`}
                   onAction={() => navigate('/nuevo-partido')}
                 />
               );
