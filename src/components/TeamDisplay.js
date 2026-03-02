@@ -2,7 +2,15 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 // src/components/TeamDisplay.js
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { TeamDisplayContext } from './PlayerCardTrigger';
-import { saveTeamsToDatabase, getTeamsFromDatabase, subscribeToTeamsChanges, unsubscribeFromTeamsChanges, supabase } from '../supabase';
+import {
+  saveTeamsToDatabase,
+  getTeamsFromDatabase,
+  subscribeToTeamsChanges,
+  unsubscribeFromTeamsChanges,
+  getVotantesIds,
+  getVotantesConNombres,
+  supabase,
+} from '../supabase';
 import ChatButton from './ChatButton';
 import PageTitle from './PageTitle';
 import MatchInfoSection from './MatchInfoSection';
@@ -59,6 +67,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   const [dragTarget, setDragTarget] = useState(null);
   const [activeDragId, setActiveDragId] = useState(null);
   const [showShareRequiresConfirmModal, setShowShareRequiresConfirmModal] = useState(false);
+  const [votantes, setVotantes] = useState([]);
+  const [votantesConNombres, setVotantesConNombres] = useState([]);
   const lastDragEndAtRef = useRef(0);
   const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
 
@@ -165,6 +175,92 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     if (!key) return {};
     return realtimePlayers.find((p) => matchesKey(p, key)) || {};
   };
+
+  const normalizeIdentity = (value) => {
+    if (value === null || value === undefined) return null;
+    const normalized = String(value).trim().toLowerCase();
+    return normalized.length > 0 ? normalized : null;
+  };
+
+  const normalizeName = (value) => {
+    if (!value) return null;
+    const normalized = String(value).trim().toLowerCase();
+    return normalized.length > 0 ? normalized : null;
+  };
+
+  const votantesIdSet = useMemo(() => {
+    const ids = (votantes || []).map((id) => normalizeIdentity(id)).filter(Boolean);
+    return new Set(ids);
+  }, [votantes]);
+
+  const votantesNameSet = useMemo(() => {
+    const names = (votantesConNombres || [])
+      .map((voter) => normalizeName(voter?.nombre))
+      .filter(Boolean);
+    return new Set(names);
+  }, [votantesConNombres]);
+
+  const playerHasVoted = (player) => {
+    if (!player) return false;
+    const ids = [player.uuid, player.usuario_id, player.id]
+      .map((value) => normalizeIdentity(value))
+      .filter(Boolean);
+    if (ids.some((id) => votantesIdSet.has(id))) return true;
+    const playerName = normalizeName(player.nombre);
+    return playerName ? votantesNameSet.has(playerName) : false;
+  };
+
+  useEffect(() => {
+    if (!partidoId) return undefined;
+    let isMounted = true;
+
+    const refreshVoters = async () => {
+      try {
+        const [ids, names] = await Promise.all([
+          getVotantesIds(partidoId),
+          getVotantesConNombres(partidoId),
+        ]);
+        if (!isMounted) return;
+        setVotantes(Array.isArray(ids) ? ids : []);
+        setVotantesConNombres(Array.isArray(names) ? names : []);
+      } catch (error) {
+        if (!isMounted) return;
+        console.warn('[TeamDisplay] Error loading voters', error);
+      }
+    };
+
+    refreshVoters();
+    const subscription = supabase
+      .channel(`team-voters-${partidoId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'votos',
+        filter: `partido_id=eq.${partidoId}`,
+      }, refreshVoters)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'votos_publicos',
+        filter: `partido_id=eq.${partidoId}`,
+      }, refreshVoters)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'public_voters',
+        filter: `partido_id=eq.${partidoId}`,
+      }, refreshVoters)
+      .subscribe();
+
+    const handleFocus = () => refreshVoters();
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [partidoId]);
 
   // Robust player array extraction from team object
   const getPlayersArrayFromTeam = (team) => {
@@ -897,6 +993,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                         {teamPlayerKeys.map((playerKey, _index) => {
                           const player = getPlayerDetails(playerKey);
                           const isLocked = isPlayerLocked(playerKey);
+                          const hasVoted = playerHasVoted(player);
                           const draggableId = makeDraggableId(team.id, playerKey);
                           const isReplacementTarget = Boolean(dragTarget) &&
                             dragTarget.sourceTeamId !== team.id &&
@@ -948,11 +1045,16 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                                     ${dragSnapshot.isDragging ? 'ring-2 ring-[#29aaff] border-[#29aaff]/60 z-20' : ''}
                                     ${isReplacementTarget ? 'ring-2 ring-[#0EA9C6] border-[#0EA9C6]/70' : ''}
                                     ${isActiveDraggedPlayer ? 'shadow-[0_0_0_1px_rgba(14,169,198,0.45)]' : ''}
+                                    ${hasVoted ? 'ring-1 ring-emerald-400/70' : ''}
                                   `}
                                   style={{
                                     backgroundColor: isLocked ? 'rgba(255,193,7,0.16)' : CARD_BG_BLUE,
-                                    borderColor: isLocked ? 'rgba(255,193,7,0.74)' : CARD_STROKE_BLUE,
-                                    boxShadow: isLocked ? '0 0 10px rgba(255,193,7,0.28)' : CARD_GLOW_BLUE,
+                                    borderColor: hasVoted
+                                      ? 'rgba(74, 222, 128, 0.9)'
+                                      : (isLocked ? 'rgba(255,193,7,0.74)' : CARD_STROKE_BLUE),
+                                    boxShadow: hasVoted
+                                      ? '0 0 11px rgba(74, 222, 128, 0.3)'
+                                      : (isLocked ? '0 0 10px rgba(255,193,7,0.28)' : CARD_GLOW_BLUE),
                                     transform: `skewX(-${SLOT_SKEW_X}deg)`,
                                     touchAction: !isAdmin || teamsConfirmed || isLocked ? 'manipulation' : 'none',
                                   }}
