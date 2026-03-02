@@ -192,7 +192,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
               <div className="text-white text-lg font-medium font-[Oswald,sans-serif]">{template.hora || '—'}</div>
             </div>
             <button
-              className={`px-3 py-1.5 rounded-none ui-flat text-[10px] font-bold uppercase tracking-widest font-[Oswald,sans-serif] transition-all border ${editTime ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[rgba(136,120,255,0.75)] text-white shadow-[0_8px_24px_rgba(70,88,200,0.35)]' : 'bg-[rgba(20,31,70,0.82)] text-white/60 border-[rgba(98,117,184,0.58)] hover:bg-[rgba(30,45,94,0.95)] hover:text-white/90'}`}
+              className={`px-3 py-1.5 rounded-none text-[10px] font-bold uppercase tracking-widest font-[Oswald,sans-serif] transition-all border ${editTime ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[rgba(136,120,255,0.75)] text-white shadow-[0_8px_24px_rgba(70,88,200,0.35)]' : 'bg-[rgba(20,31,70,0.82)] text-white/60 border-[rgba(98,117,184,0.58)] hover:bg-[rgba(30,45,94,0.95)] hover:text-white/90'}`}
               onClick={() => setEditTime(!editTime)}
             >
               {editTime ? 'CAMBIAR CERRADO' : 'CAMBIAR HORA'}

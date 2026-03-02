@@ -551,13 +551,13 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
             </div>
 
             {showStatusDropdown && createPortal(
-              <div className="fixed top-20 left-4 bg-[rgba(17,26,59,0.98)] rounded-none ui-flat w-[290px] z-[2147483647] overflow-hidden shadow-[0_12px_36px_rgba(8,12,38,0.55)] border border-white/20 backdrop-blur-xl origin-top-left transition-all duration-200 animate-[dropdownSlideIn_0.2s_ease-out]">
+              <div className="fixed top-20 left-4 bg-[rgba(17,26,59,0.98)] rounded-none w-[290px] z-[2147483647] overflow-hidden shadow-[0_12px_36px_rgba(8,12,38,0.55)] border border-white/20 backdrop-blur-xl origin-top-left transition-all duration-200 animate-[dropdownSlideIn_0.2s_ease-out]">
                 <div className="px-4 py-3 font-semibold text-white/90 border-b border-white/20 font-oswald tracking-wide text-xs">
                   Estado de disponibilidad
                 </div>
                 <div className="p-2.5 space-y-2">
                   <button
-                    className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-none ui-flat cursor-pointer transition-[background-color,border-color,color] duration-200 text-white/95 border ${isAvailable ? 'bg-[#6a43ff] border-[#7d5aff] shadow-[0_0_14px_rgba(106,67,255,0.28)]' : 'bg-white/[0.03] border-white/20 hover:bg-white/[0.08]'}`}
+                    className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-none cursor-pointer transition-[background-color,border-color,color] duration-200 text-white/95 border ${isAvailable ? 'bg-[#6a43ff] border-[#7d5aff] shadow-[0_0_14px_rgba(106,67,255,0.28)]' : 'bg-white/[0.03] border-white/20 hover:bg-white/[0.08]'}`}
                     onClick={() => updateAvailabilityStatus(true)}
                     type="button"
                   >
@@ -570,7 +570,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                     </div>
                   </button>
                   <button
-                    className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-none ui-flat cursor-pointer transition-[background-color,border-color,color] duration-200 text-white/95 border ${!isAvailable ? 'bg-[#6a43ff] border-[#7d5aff] shadow-[0_0_14px_rgba(106,67,255,0.28)]' : 'bg-white/[0.03] border-white/20 hover:bg-white/[0.08]'}`}
+                    className={`w-full text-left flex items-start gap-3 px-3.5 py-3 rounded-none cursor-pointer transition-[background-color,border-color,color] duration-200 text-white/95 border ${!isAvailable ? 'bg-[#6a43ff] border-[#7d5aff] shadow-[0_0_14px_rgba(106,67,255,0.28)]' : 'bg-white/[0.03] border-white/20 hover:bg-white/[0.08]'}`}
                     onClick={() => updateAvailabilityStatus(false)}
                     type="button"
                   >
