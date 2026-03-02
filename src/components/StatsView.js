@@ -1599,6 +1599,21 @@ const StatsView = ({ onVolver }) => {
           })}
         </div>
 
+        <div className="mb-6">
+          <motion.button
+            className="w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] flex items-center justify-center gap-2 transition-all hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
+            onClick={() => setShowManualMatchModal(true)}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+          >
+            <ClipboardPlus size={20} />
+            <span className="leading-none">Sumar partido manual</span>
+          </motion.button>
+        </div>
+
         {showResultsRecap && (
           <motion.div
             className={`${statsPanelClass} p-4 mb-6`}
@@ -1926,21 +1941,6 @@ const StatsView = ({ onVolver }) => {
             )}
           </motion.div>
         )}
-
-        <div className="grid grid-cols-1 gap-3 mb-6">
-          <motion.button
-            className="flex items-center justify-center gap-2 px-5 py-4 rounded-none font-oswald text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-all border border-[rgba(136,120,255,0.75)] bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white hover:brightness-110 md:px-4 md:py-3 sm:py-3.5"
-            onClick={() => setShowManualMatchModal(true)}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45 }}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-          >
-            <ClipboardPlus size={24} />
-            <span className="text-[18px] leading-none">Sumar partido manual</span>
-          </motion.button>
-        </div>
 
         {/* Injury as informational status block with secondary action (not a primary CTA) */}
         <motion.div
