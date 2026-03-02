@@ -7,6 +7,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
   const handleTabClick = (tab) => {
     if (tab === 'home') navigate('/');
     else if (tab === 'quiero-jugar') navigate('/quiero-jugar');
+    else if (tab === 'desafios') navigate('/desafios');
     else if (tab === 'amigos') navigate('/amigos');
     else if (tab === 'profile') navigate('/profile');
 
@@ -40,6 +41,20 @@ const TabBar = ({ activeTab, onTabChange }) => {
           </svg>
         </div>
         <span className="text-[10px] md:text-xs font-bold tracking-wider font-sans mt-1">Quiero Jugar</span>
+      </button>
+
+      {/* Desafíos */}
+      <button
+        className={`flex-1 flex flex-col items-center justify-center text-white bg-transparent border-r border-white/20 py-2 cursor-pointer transition-all duration-300 ${activeTab === 'desafios' ? 'bg-white/30 shadow-inner' : ''}`}
+        onClick={() => handleTabClick('desafios')}
+      >
+        <div className="relative flex items-center justify-center mb-0.5">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 md:w-5 md:h-5 drop-shadow-sm">
+            <path fillRule="evenodd" d="M5.625 3.75A1.875 1.875 0 0 0 3.75 5.625v2.25c0 .621.302 1.203.809 1.558l2.41 1.686a6.723 6.723 0 0 0 2.79 1.145 5.982 5.982 0 0 1-2.289 1.39.75.75 0 0 0-.47.696v.9c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-.9a.75.75 0 0 0-.47-.697 5.982 5.982 0 0 1-2.289-1.39 6.723 6.723 0 0 0 2.79-1.144l2.41-1.686a1.875 1.875 0 0 0 .809-1.558v-2.25A1.875 1.875 0 0 0 18.375 3.75h-1.5v-.375A1.875 1.875 0 0 0 15 1.5H9a1.875 1.875 0 0 0-1.875 1.875v.375h-1.5Zm1.5 1.5h9.75v.65a5.25 5.25 0 0 1-4.875 5.236A5.25 5.25 0 0 1 7.125 5.9v-.65Z" clipRule="evenodd" />
+            <path d="M9 18.75A1.5 1.5 0 0 0 7.5 20.25v.75c0 .414.336.75.75.75h7.5a.75.75 0 0 0 .75-.75v-.75A1.5 1.5 0 0 0 15 18.75H9Z" />
+          </svg>
+        </div>
+        <span className="text-[10px] md:text-xs font-bold tracking-wider font-sans mt-1">Desafíos</span>
       </button>
 
       {/* Amigos */}

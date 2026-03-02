@@ -524,7 +524,7 @@ export const upsertChallengeAcceptedNotifications = async ({
     accepted_team_id: challenge.accepted_team_id,
     challenger_team_name: challengerTeamName,
     accepted_team_name: rivalTeamName,
-    link: '/quiero-jugar',
+    link: '/desafios',
     source: 'team_challenge',
   };
 

@@ -34,7 +34,7 @@ const TeamChatPage = () => {
   const inputRef = useRef(null);
 
   const handleBack = useCallback(() => {
-    navigate(`/quiero-jugar/equipos/${teamId}`);
+    navigate(`/desafios/equipos/${teamId}`);
   }, [navigate, teamId]);
 
   const currentAuthorName = useMemo(

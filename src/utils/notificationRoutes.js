@@ -17,9 +17,20 @@ export const extractNotificationMatchId = (notification = {}) => {
 
 export const buildNotificationFallbackRoute = (notification = {}, idMapper = (value) => value) => {
   const data = notification?.data || {};
+  const type = notification?.type || '';
   const teamMatchId = data?.team_match_id || data?.teamMatchId || null;
+  const teamId = data?.team_id || data?.teamId || null;
+
   if ((notification?.type === 'challenge_accepted' || notification?.type === 'team_match_created') && teamMatchId) {
-    return `/quiero-jugar/equipos/partidos/${teamMatchId}`;
+    return `/desafios/equipos/partidos/${teamMatchId}`;
+  }
+
+  if ((type === 'team_captain_transfer' || type === 'team_invite') && teamId) {
+    return `/desafios/equipos/${teamId}`;
+  }
+
+  if (type === 'team_invite' || type === 'team_captain_transfer' || type === 'challenge_accepted' || type === 'team_match_created') {
+    return '/desafios';
   }
 
   const matchId = extractNotificationMatchId(notification);

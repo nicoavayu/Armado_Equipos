@@ -213,7 +213,7 @@ const resolveChallengeTeamNames = (notification) => {
 
 const routeForMatch = ({ matchId, matchCode, currentUserId, match }) => {
   if (!matchId) return null;
-  if (match?.source_type === 'team_match') return `/quiero-jugar/equipos/partidos/${matchId}`;
+  if (match?.source_type === 'team_match') return `/desafios/equipos/partidos/${matchId}`;
   if (matchCode) return `/votar-equipos?codigo=${encodeURIComponent(matchCode)}`;
   if (match?.creado_por && currentUserId && String(match.creado_por) === String(currentUserId)) {
     return `/admin/${matchId}`;
@@ -497,7 +497,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
       icon: 'Users',
       title: `Invitación al equipo ${quoteMatchName(teamName, 'Equipo')}`,
       subtitle: inviteSubtitle,
-      route: '/quiero-jugar',
+      route: '/desafios',
     };
   }
 
@@ -532,7 +532,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
       icon: 'CalendarClock',
       title: 'Desafío aceptado',
       subtitle: teamsLabel || fallbackSubtitle,
-      route: teamMatchId ? `/quiero-jugar/equipos/partidos/${teamMatchId}` : (matchRoute || '/quiero-jugar'),
+      route: teamMatchId ? `/desafios/equipos/partidos/${teamMatchId}` : (matchRoute || '/desafios'),
     };
   }
 

@@ -153,13 +153,13 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     }
 
     if (notification.type === 'team_invite') {
-      safeNavigate(notification, '/quiero-jugar');
+      safeNavigate(notification, '/desafios');
       return;
     }
 
     if (notification.type === 'team_captain_transfer') {
       const teamId = notification?.data?.team_id || notification?.data?.teamId || null;
-      safeNavigate(notification, teamId ? `/quiero-jugar/equipos/${teamId}` : '/quiero-jugar');
+      safeNavigate(notification, teamId ? `/desafios/equipos/${teamId}` : '/desafios');
       return;
     }
 

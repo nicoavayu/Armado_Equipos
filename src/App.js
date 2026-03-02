@@ -32,6 +32,7 @@ const InviteLanding = lazy(() => import('./components/InviteLanding'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const NuevoPartidoPage = lazy(() => import('./pages/NuevoPartidoPage'));
 const QuieroJugarPage = lazy(() => import('./pages/QuieroJugarPage'));
+const DesafiosPage = lazy(() => import('./pages/DesafiosPage'));
 const EquipoDetallePage = lazy(() => import('./pages/EquipoDetallePage'));
 const TeamChatPage = lazy(() => import('./pages/TeamChatPage'));
 const TeamMatchDetailPage = lazy(() => import('./pages/TeamMatchDetailPage'));
@@ -153,21 +154,30 @@ export default function App() {
                           <QuieroJugarPage />
                         </Suspense>
                       } />
-                      <Route path="quiero-jugar/equipos/:teamId" element={
+                      <Route path="desafios" element={
+                        <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
+                          <DesafiosPage />
+                        </Suspense>
+                      } />
+                      <Route path="desafios/equipos/:teamId" element={
                         <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
                           <EquipoDetallePage />
                         </Suspense>
                       } />
-                      <Route path="quiero-jugar/equipos/:teamId/chat" element={
+                      <Route path="desafios/equipos/:teamId/chat" element={
                         <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
                           <TeamChatPage />
                         </Suspense>
                       } />
-                      <Route path="quiero-jugar/equipos/partidos/:matchId" element={
+                      <Route path="desafios/equipos/partidos/:matchId" element={
                         <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
                           <TeamMatchDetailPage />
                         </Suspense>
                       } />
+                      {/* Backward-compatible aliases for old equipos routes */}
+                      <Route path="quiero-jugar/equipos/:teamId" element={<LegacyTeamDetailRedirect />} />
+                      <Route path="quiero-jugar/equipos/:teamId/chat" element={<LegacyTeamChatRedirect />} />
+                      <Route path="quiero-jugar/equipos/partidos/:matchId" element={<LegacyTeamMatchRedirect />} />
                       <Route path="amigos" element={
                         <Suspense fallback={<div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center"><LoadingSpinner size="large" /></div>}>
                           <AmigosPage />
@@ -278,6 +288,21 @@ function LegacyTemplateRedirect() {
 function LegacyTemplateHistoryRedirect() {
   const { templateId } = useParams();
   return <Navigate to={`/frecuentes/${templateId}/historial`} replace />;
+}
+
+function LegacyTeamDetailRedirect() {
+  const { teamId } = useParams();
+  return <Navigate to={`/desafios/equipos/${teamId}`} replace />;
+}
+
+function LegacyTeamChatRedirect() {
+  const { teamId } = useParams();
+  return <Navigate to={`/desafios/equipos/${teamId}/chat`} replace />;
+}
+
+function LegacyTeamMatchRedirect() {
+  const { matchId } = useParams();
+  return <Navigate to={`/desafios/equipos/partidos/${matchId}`} replace />;
 }
 
 function HealthRoute() {

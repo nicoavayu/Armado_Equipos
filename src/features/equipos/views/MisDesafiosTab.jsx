@@ -144,7 +144,7 @@ const MisDesafiosTab = ({
         notifyBlockingError('Todavia no existe un partido asociado a este desafio');
         return;
       }
-      navigate(`/quiero-jugar/equipos/partidos/${match.id}`);
+      navigate(`/desafios/equipos/partidos/${match.id}`);
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo abrir el partido del desafio');
     }

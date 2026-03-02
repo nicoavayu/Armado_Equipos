@@ -17,5 +17,14 @@ describe('notificationRoutes', () => {
     const route = buildNotificationFallbackRoute({});
     expect(route).toBe('/quiero-jugar');
   });
-});
 
+  test('builds fallback route to desafios for team notifications without ids', () => {
+    const route = buildNotificationFallbackRoute({ type: 'team_invite' });
+    expect(route).toBe('/desafios');
+  });
+
+  test('builds fallback route to team detail for captain transfer with team id', () => {
+    const route = buildNotificationFallbackRoute({ type: 'team_captain_transfer', data: { teamId: 55 } });
+    expect(route).toBe('/desafios/equipos/55');
+  });
+});

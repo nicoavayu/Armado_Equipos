@@ -29,9 +29,9 @@ export async function openNotification(n, navigate) {
 
     if (type === 'challenge_accepted' || type === 'team_match_created') {
       if (teamMatchId) {
-        navigate(`/quiero-jugar/equipos/partidos/${teamMatchId}`);
+        navigate(`/desafios/equipos/partidos/${teamMatchId}`);
       } else {
-        navigate('/quiero-jugar');
+        navigate('/desafios');
       }
       return;
     }
@@ -101,16 +101,16 @@ export async function openNotification(n, navigate) {
     }
 
     if (type === 'team_invite') {
-      navigate('/quiero-jugar');
+      navigate('/desafios');
       return;
     }
 
     if (type === 'team_captain_transfer') {
       const teamId = n?.data?.team_id || n?.data?.teamId || null;
       if (teamId) {
-        navigate(`/quiero-jugar/equipos/${teamId}`);
+        navigate(`/desafios/equipos/${teamId}`);
       } else {
-        navigate('/quiero-jugar');
+        navigate('/desafios');
       }
       return;
     }

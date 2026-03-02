@@ -292,7 +292,7 @@ const ProximosPartidos = ({ onClose }) => {
   const _handleMatchClick = (partido) => {
     onClose();
     if (partido?.source_type === 'team_match') {
-      navigate(`/quiero-jugar/equipos/partidos/${partido.team_match_id || partido.id}`);
+      navigate(`/desafios/equipos/partidos/${partido.team_match_id || partido.id}`);
       return;
     }
     navigate(`/admin/${partido.id}`);

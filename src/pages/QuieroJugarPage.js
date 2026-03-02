@@ -1,11 +1,11 @@
 import React from 'react';
 import PageTransition from '../components/PageTransition';
-import QuieroJugarHub from '../features/equipos/QuieroJugarHub';
+import QuieroJugar from './QuieroJugar';
 
 const QuieroJugarPage = () => {
   return (
     <PageTransition>
-      <QuieroJugarHub />
+      <QuieroJugar />
     </PageTransition>
   );
 };

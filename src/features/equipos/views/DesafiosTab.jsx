@@ -399,7 +399,7 @@ const DesafiosTab = ({
             closeAcceptChallengeModal();
             await loadChallenges();
             if (result?.matchId) {
-              navigate(`/quiero-jugar/equipos/partidos/${result.matchId}`);
+              navigate(`/desafios/equipos/partidos/${result.matchId}`);
             }
             notifyAcceptedChallengeSuccess();
           } catch (error) {
@@ -453,7 +453,7 @@ const DesafiosTab = ({
                   closeAcceptChallengeModal();
                   await loadChallenges();
                   if (result?.matchId) {
-                    navigate(`/quiero-jugar/equipos/partidos/${result.matchId}`);
+                    navigate(`/desafios/equipos/partidos/${result.matchId}`);
                   }
                   notifyAcceptedChallengeSuccess();
                 } catch (error) {

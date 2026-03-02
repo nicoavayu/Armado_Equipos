@@ -12,6 +12,7 @@ const SUBTABS = [
 ];
 
 const QuieroJugarEquipos = ({
+  pageTitle = 'DESAFIOS',
   secondaryTabsTop = 116,
   secondaryTabsDirection = 'right',
   secondaryTabsTransitionKey = 'equipos',
@@ -56,7 +57,7 @@ const QuieroJugarEquipos = ({
 
   return (
     <>
-      <PageTitle title="QUIERO JUGAR" onBack={() => navigate(-1)}>QUIERO JUGAR</PageTitle>
+      <PageTitle title={pageTitle} onBack={() => navigate(-1)}>{pageTitle}</PageTitle>
 
       <div className="w-full flex justify-center pb-7" style={{ paddingTop: `${secondaryTabsTop}px` }}>
         <div

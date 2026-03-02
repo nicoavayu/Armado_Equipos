@@ -15,12 +15,12 @@ const EquipoDetallePage = () => {
       navigate(-1);
       return;
     }
-    navigate('/quiero-jugar');
+    navigate('/desafios');
   };
 
   const handleOpenTeamChat = () => {
     if (!teamId) return;
-    navigate(`/quiero-jugar/equipos/${teamId}/chat`);
+    navigate(`/desafios/equipos/${teamId}/chat`);
   };
 
   return (

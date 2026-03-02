@@ -271,7 +271,7 @@ const MisEquiposTab = ({ userId }) => {
               <div key={team.id} className="relative">
                 <TeamCard
                   team={team}
-                  onClick={() => navigate(`/quiero-jugar/equipos/${team.id}`)}
+                  onClick={() => navigate(`/desafios/equipos/${team.id}`)}
                   className="pr-14"
                 />
 

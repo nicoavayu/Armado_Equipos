@@ -10,6 +10,8 @@ const MainLayout = () => {
     if (location.pathname === '/') return 'home';
     if (location.pathname === '/nuevo-partido') return 'votacion';
     if (location.pathname.includes('votacion')) return 'votacion';
+    if (location.pathname.includes('/desafios')) return 'desafios';
+    if (location.pathname.includes('/quiero-jugar/equipos')) return 'desafios';
     if (location.pathname.includes('quiero-jugar')) return 'quiero-jugar';
     if (location.pathname.includes('profile')) return 'profile';
     if (location.pathname.includes('notifications')) return 'notifications';

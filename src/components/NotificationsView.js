@@ -167,7 +167,7 @@ const NotificationsView = () => {
     if (notification.type === 'challenge_accepted' || notification.type === 'team_match_created') {
       const teamMatchId = data.team_match_id || data.teamMatchId;
       if (teamMatchId) {
-        safeNavigate(notification, `/quiero-jugar/equipos/partidos/${teamMatchId}`);
+        safeNavigate(notification, `/desafios/equipos/partidos/${teamMatchId}`);
       } else {
         fallbackToNotificationRoute(notification, 'No encontramos el partido de equipos de esta notificacion.');
       }
@@ -186,11 +186,11 @@ const NotificationsView = () => {
         safeNavigate(notification, '/amigos');
         break;
       case 'team_invite':
-        safeNavigate(notification, '/quiero-jugar');
+        safeNavigate(notification, '/desafios');
         break;
       case 'team_captain_transfer': {
         const teamId = data.team_id || data.teamId || null;
-        safeNavigate(notification, teamId ? `/quiero-jugar/equipos/${teamId}` : '/quiero-jugar');
+        safeNavigate(notification, teamId ? `/desafios/equipos/${teamId}` : '/desafios');
         break;
       }
       case 'match_invite':

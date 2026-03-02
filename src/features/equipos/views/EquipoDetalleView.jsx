@@ -27,7 +27,7 @@ import { getAmigos } from '../../../services/db/friends';
 import { uploadTeamCrest, uploadTeamMemberPhoto } from '../../../services/storage/teamCrests';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import { formatSkillLevelLabel, getTeamAccent, getTeamGradientStyle } from '../utils/teamColors';
-import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, QUIERO_JUGAR_TOP_TAB_STORAGE_KEY } from '../config';
+import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY } from '../config';
 
 const modalActionButtonClass = 'h-12 rounded-none text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
 const optionCardClass = 'w-full rounded-none border border-white/15 bg-white/5 p-3 text-left transition-all hover:bg-white/10';
@@ -822,9 +822,8 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     setMemberConfirmAction(null);
 
     if (isLeavingOwnTeam) {
-      sessionStorage.setItem(QUIERO_JUGAR_TOP_TAB_STORAGE_KEY, 'equipos');
       sessionStorage.setItem(QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, 'mis-equipos');
-      navigate('/quiero-jugar', {
+      navigate('/desafios', {
         state: {
           equiposSubtab: 'mis-equipos',
         },
@@ -975,9 +974,8 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                       type="button"
                       onClick={() => {
                         setDetailActionsMenuOpen(false);
-                        sessionStorage.setItem(QUIERO_JUGAR_TOP_TAB_STORAGE_KEY, 'equipos');
                         sessionStorage.setItem(QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, 'desafios');
-                        navigate('/quiero-jugar', {
+                        navigate('/desafios', {
                           state: {
                             equiposSubtab: 'desafios',
                             prefilledTeamId: selectedTeam.id,
