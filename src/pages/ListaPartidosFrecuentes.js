@@ -163,7 +163,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
   return (
     <div data-modal-root="true" className="fixed inset-0 z-[4000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
       <div
-        className="w-full max-w-lg bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 shadow-[0_32px_64px_rgba(0,0,0,0.5)] overflow-y-auto max-h-[90vh] animate-in zoom-in-95 duration-200"
+        className="w-full max-w-lg bg-[rgba(8,18,44,0.96)] backdrop-blur-2xl border border-[rgba(88,107,170,0.52)] rounded-none p-8 shadow-[0_32px_64px_rgba(0,0,0,0.5)] overflow-y-auto max-h-[90vh] animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-2xl font-semibold font-[Oswald,sans-serif] text-white mb-6 tracking-[0.01em] border-b border-white/10 pb-4">
@@ -181,7 +181,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
             <input
               value={sede}
               onChange={(e) => setSede(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 font-[Oswald,sans-serif] backdrop-blur-sm"
+              className="w-full bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] rounded-none p-3 text-white focus:outline-none focus:ring-2 focus:ring-[#6f7dff]/30 focus:border-[#7f8dff] font-[Oswald,sans-serif] backdrop-blur-sm"
               placeholder="Sede"
             />
           </div>
@@ -192,7 +192,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
               <div className="text-white text-lg font-medium font-[Oswald,sans-serif]">{template.hora || '—'}</div>
             </div>
             <button
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest font-[Oswald,sans-serif] transition-all ${editTime ? 'bg-primary text-white shadow-lg' : 'bg-white/5 text-white/40 border border-white/10'}`}
+              className={`px-3 py-1.5 rounded-none text-[10px] font-bold uppercase tracking-widest font-[Oswald,sans-serif] transition-all border ${editTime ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[rgba(136,120,255,0.75)] text-white shadow-[0_8px_24px_rgba(70,88,200,0.35)]' : 'bg-[rgba(20,31,70,0.82)] text-white/60 border-[rgba(98,117,184,0.58)] hover:bg-[rgba(30,45,94,0.95)] hover:text-white/90'}`}
               onClick={() => setEditTime(!editTime)}
             >
               {editTime ? 'CAMBIAR CERRADO' : 'CAMBIAR HORA'}
@@ -211,7 +211,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
                 type="time"
                 value={selectedTime}
                 onChange={(e) => setSelectedTime(e.target.value)}
-                className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 font-[Oswald,sans-serif] backdrop-blur-sm"
+                className="w-full bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] rounded-none p-3 text-white focus:outline-none focus:ring-2 focus:ring-[#6f7dff]/30 focus:border-[#7f8dff] font-[Oswald,sans-serif] backdrop-blur-sm"
               />
             </div>
           )}
@@ -222,7 +222,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 font-[Oswald,sans-serif] backdrop-blur-sm"
+              className="w-full bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] rounded-none p-3 text-white focus:outline-none focus:ring-2 focus:ring-[#6f7dff]/30 focus:border-[#7f8dff] font-[Oswald,sans-serif] backdrop-blur-sm"
             />
           </div>
 
@@ -234,7 +234,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
               max={30}
               value={cupo}
               onChange={(e) => setCupo(e.target.value)}
-              className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 font-[Oswald,sans-serif] backdrop-blur-sm"
+              className="w-full bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] rounded-none p-3 text-white focus:outline-none focus:ring-2 focus:ring-[#6f7dff]/30 focus:border-[#7f8dff] font-[Oswald,sans-serif] backdrop-blur-sm"
             />
           </div>
 
@@ -248,7 +248,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
                   <button
                     key={`${p?.nombre || 'p'}:${idx}`}
                     type="button"
-                    className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 text-xs font-[Oswald,sans-serif] hover:bg-white/10 active:scale-95"
+                    className="px-3 py-2 rounded-none bg-[rgba(20,31,70,0.82)] border border-[rgba(98,117,184,0.58)] text-white/80 text-xs font-[Oswald,sans-serif] hover:bg-[rgba(30,45,94,0.95)] active:opacity-95"
                     onClick={() => setPlayers((prev) => prev.filter((_, i) => i !== idx))}
                     title="Quitar"
                   >
@@ -262,12 +262,12 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
               <input
                 value={newPlayerName}
                 onChange={(e) => setNewPlayerName(e.target.value)}
-                className="flex-1 bg-white/10 border border-white/20 rounded-xl p-3 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 font-[Oswald,sans-serif] backdrop-blur-sm"
+                className="flex-1 bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] rounded-none p-3 text-white focus:outline-none focus:ring-2 focus:ring-[#6f7dff]/30 focus:border-[#7f8dff] font-[Oswald,sans-serif] backdrop-blur-sm"
                 placeholder="Agregar jugador"
               />
               <button
                 type="button"
-                className="px-4 rounded-xl bg-white/5 hover:bg-white/10 text-white font-semibold transition-all active:scale-95 disabled:opacity-50 font-[Oswald,sans-serif] text-[16px] tracking-[0.01em] border border-white/10"
+                className="px-4 rounded-none bg-[rgba(20,31,70,0.82)] hover:bg-[rgba(30,45,94,0.95)] text-white font-semibold transition-all active:opacity-95 disabled:opacity-50 font-[Oswald,sans-serif] text-[16px] tracking-[0.01em] border border-[rgba(98,117,184,0.58)]"
                 onClick={() => {
                   const n = String(newPlayerName || '').trim();
                   if (!n) return;
@@ -294,14 +294,14 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
 
         <div className="flex gap-3 mt-1">
           <button
-            className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/85 font-semibold rounded-xl transition-all active:scale-95 disabled:opacity-50 font-[Oswald,sans-serif] text-[16px] tracking-[0.01em] border border-white/10"
+            className="flex-1 py-3 bg-[rgba(20,31,70,0.82)] hover:bg-[rgba(30,45,94,0.95)] text-white/90 font-semibold rounded-none transition-all active:opacity-95 disabled:opacity-50 font-[Oswald,sans-serif] text-[16px] tracking-[0.01em] border border-[rgba(98,117,184,0.58)]"
             onClick={onCancel}
             disabled={creating}
           >
             Cancelar
           </button>
           <button
-            className="flex-1 py-4 bg-primary hover:brightness-110 text-white font-semibold rounded-xl transition-all active:scale-95 disabled:opacity-50 font-[Oswald,sans-serif] text-[18px] tracking-[0.01em] border border-white/10 shadow-[0_8px_32px_rgba(129,120,229,0.3)]"
+            className="flex-1 py-4 bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] hover:brightness-110 text-white font-semibold rounded-none transition-all active:opacity-95 disabled:opacity-50 font-[Oswald,sans-serif] text-[18px] tracking-[0.01em] border border-[rgba(136,120,255,0.75)] shadow-[0_8px_32px_rgba(70,88,200,0.35)]"
             onClick={handleCreate}
             disabled={creating}
           >

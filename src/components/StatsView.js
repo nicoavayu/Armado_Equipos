@@ -342,6 +342,25 @@ const StatsView = ({ onVolver }) => {
     return normalizeIdentity(entry);
   };
 
+  const normalizeSurveyWinner = (value) => {
+    const token = normalizeIdentity(value);
+    if (!token) return null;
+    if (token === 'equipo_a' || token === 'a' || token === 'team_a') return 'equipo_a';
+    if (token === 'equipo_b' || token === 'b' || token === 'team_b') return 'equipo_b';
+    if (token === 'empate' || token === 'draw') return 'empate';
+    return null;
+  };
+
+  const normalizeSurveyResultStatus = (value) => {
+    const token = normalizeIdentity(value);
+    if (!token) return null;
+    if (token === 'finished' || token === 'played') return 'finished';
+    if (token === 'draw' || token === 'empate') return 'draw';
+    if (token === 'not_played' || token === 'cancelled' || token === 'cancelado') return 'not_played';
+    if (token === 'pending' || token === 'pendiente') return 'pending';
+    return null;
+  };
+
   const resolveUserTeam = ({ participants, teamA, teamB }) => {
     const teamARefs = new Set((Array.isArray(teamA) ? teamA : []).map(normalizeTeamEntry).filter(Boolean));
     const teamBRefs = new Set((Array.isArray(teamB) ? teamB : []).map(normalizeTeamEntry).filter(Boolean));
@@ -394,14 +413,14 @@ const StatsView = ({ onVolver }) => {
     try {
       let query = await supabase
         .from('survey_results')
-        .select('partido_id, winner_team, snapshot_equipos, snapshot_participantes')
+        .select('partido_id, winner_team, result_status, snapshot_equipos, snapshot_participantes')
         .in('partido_id', matchIds);
 
       if (query.error) {
         // Backward-compatible fallback for environments without snapshot columns.
         query = await supabase
           .from('survey_results')
-          .select('partido_id, winner_team')
+          .select('partido_id, winner_team, result_status')
           .in('partido_id', matchIds);
       }
 
@@ -467,8 +486,13 @@ const StatsView = ({ onVolver }) => {
         source: 'encuesta',
       };
 
-      const winner = normalizeIdentity(survey?.winner_team);
+      const resultStatus = normalizeSurveyResultStatus(survey?.result_status);
+      const winner = normalizeSurveyWinner(survey?.winner_team);
       const hasWinner = winner === 'equipo_a' || winner === 'equipo_b' || winner === 'empate';
+
+      if (resultStatus === 'not_played') {
+        return;
+      }
 
       const snapshotTeams = survey?.snapshot_equipos || null;
       const participants = Array.isArray(survey?.snapshot_participantes)
@@ -481,15 +505,21 @@ const StatsView = ({ onVolver }) => {
         ? snapshotTeams.team_b
         : (Array.isArray(finalTeams?.final_team_b) ? finalTeams.final_team_b : (Array.isArray(teamConfirm?.team_b) ? teamConfirm.team_b : []));
 
-      if (!hasWinner) {
+      if (resultStatus === 'pending' || (!resultStatus && !hasWinner)) {
         pendientes += 1;
         recientes.push({ ...baseRecap, resultKey: 'pendiente', label: 'Pendiente' });
         return;
       }
 
-      if (winner === 'empate') {
+      if (resultStatus === 'draw' || winner === 'empate') {
         empatados += 1;
         recientes.push({ ...baseRecap, resultKey: 'empate', label: 'Empate' });
+        return;
+      }
+
+      if (!hasWinner) {
+        pendientes += 1;
+        recientes.push({ ...baseRecap, resultKey: 'pendiente', label: 'Pendiente' });
         return;
       }
 
@@ -1381,6 +1411,8 @@ const StatsView = ({ onVolver }) => {
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
   ];
+  const statsPanelClass = 'bg-[rgba(4,31,89,0.95)] border border-[#12b5ff]/55 rounded-none backdrop-blur-md';
+  const statsSubPanelClass = 'rounded-none border border-[rgba(88,108,176,0.5)] bg-[rgba(10,21,52,0.85)]';
 
   const getAvailableYears = () => {
     const currentYear = new Date().getFullYear();
@@ -1424,7 +1456,7 @@ const StatsView = ({ onVolver }) => {
       const total = amistosos + torneos;
 
       return (
-        <div className="bg-black/90 border border-white/20 rounded-lg p-2 backdrop-blur-md">
+        <div className="bg-[rgba(4,31,89,0.98)] border border-[#12b5ff]/55 rounded-none p-2 backdrop-blur-md">
           <p className="text-white/80 text-xs m-0 font-oswald">{`${label}`}</p>
           <p className="text-white text-sm font-semibold m-1 font-oswald">
             {`${total} partido${total !== 1 ? 's' : ''}`}
@@ -1457,15 +1489,15 @@ const StatsView = ({ onVolver }) => {
         {/* Period selector first: segmented control to define reading context before metrics */}
         <motion.div
           ref={periodSelectorRef}
-          className="bg-white/10 rounded-2xl p-2 mb-6 backdrop-blur-md border border-white/20 relative z-40 overflow-visible"
+          className="mb-6 relative z-40 overflow-visible border border-[rgba(106,126,202,0.45)] bg-[rgba(17,26,59,0.96)]"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-0">
             {['week', 'month', 'year'].map((p) => (
-              <div key={p} className="relative">
+              <div key={p} className="relative min-w-0">
                 <button
-                  className={`w-full py-2.5 rounded-lg font-oswald text-sm font-semibold transition-all uppercase ${period === p ? 'bg-primary text-white shadow-[0_8px_24px_rgba(129,120,229,0.35)]' : 'text-white/75 hover:text-white hover:bg-white/10'}`}
+                  className={`relative w-full h-[44px] border-r border-[rgba(106,126,202,0.45)] last:border-r-0 px-2 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,color] duration-150 ${period === p ? 'bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]' : 'bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'}`}
                   onClick={() => {
                     setPeriod(p);
                     if (p === 'year') setShowYearDropdown(!showYearDropdown);
@@ -1476,15 +1508,18 @@ const StatsView = ({ onVolver }) => {
                     if (p !== 'week') setShowWeekDropdown(false);
                   }}
                 >
+                  {period === p ? (
+                    <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
+                  ) : null}
                   {p === 'week' ? `Semana ${selectedWeek + 1}` : periodLabels[p]}
                 </button>
 
                 {p === 'week' && showWeekDropdown && period === 'week' && (
-                  <div className="absolute top-full left-0 right-0 bg-black/90 rounded-lg border border-white/20 z-[1200] mt-1 max-h-[240px] overflow-y-auto backdrop-blur-md md:max-h-[150px]">
+                  <div className="absolute top-full left-0 right-0 bg-[rgba(4,31,89,0.98)] rounded-none border border-[#12b5ff]/55 z-[1200] mt-1 max-h-[240px] overflow-y-auto backdrop-blur-md md:max-h-[150px] shadow-[0_10px_24px_rgba(2,10,34,0.46)]">
                     {getAvailableWeeks().map((week) => (
                       <div
                         key={week.index}
-                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-white/10 hover:text-white ${selectedWeek === week.index ? 'bg-white/20 text-white font-semibold' : ''}`}
+                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-[rgba(7,45,116,0.98)] hover:text-white ${selectedWeek === week.index ? 'bg-[rgba(18,70,158,0.42)] text-white font-semibold' : ''}`}
                         onClick={() => {
                           setSelectedWeek(week.index);
                           setShowWeekDropdown(false);
@@ -1498,11 +1533,11 @@ const StatsView = ({ onVolver }) => {
                 )}
 
                 {p === 'year' && showYearDropdown && period === 'year' && (
-                  <div className="absolute top-full left-0 right-0 bg-black/90 rounded-lg border border-white/20 z-[1200] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px]">
+                  <div className="absolute top-full left-0 right-0 bg-[rgba(4,31,89,0.98)] rounded-none border border-[#12b5ff]/55 z-[1200] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px] shadow-[0_10px_24px_rgba(2,10,34,0.46)]">
                     {getAvailableYears().map((year) => (
                       <div
                         key={year}
-                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-white/10 hover:text-white ${selectedYear === year ? 'bg-white/20 text-white font-semibold' : ''}`}
+                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-[rgba(7,45,116,0.98)] hover:text-white ${selectedYear === year ? 'bg-[rgba(18,70,158,0.42)] text-white font-semibold' : ''}`}
                         onClick={() => {
                           setSelectedYear(year);
                           setShowYearDropdown(false);
@@ -1515,11 +1550,11 @@ const StatsView = ({ onVolver }) => {
                 )}
 
                 {p === 'month' && showMonthDropdown && period === 'month' && (
-                  <div className="absolute top-full left-0 right-0 bg-black/90 rounded-lg border border-white/20 z-[1200] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px]">
+                  <div className="absolute top-full left-0 right-0 bg-[rgba(4,31,89,0.98)] rounded-none border border-[#12b5ff]/55 z-[1200] mt-1 max-h-[200px] overflow-y-auto backdrop-blur-md md:max-h-[150px] shadow-[0_10px_24px_rgba(2,10,34,0.46)]">
                     {monthNames.map((month, index) => (
                       <div
                         key={index}
-                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-white/10 hover:text-white ${selectedMonth === index ? 'bg-white/20 text-white font-semibold' : ''}`}
+                        className={`px-4 py-3 text-white/80 cursor-pointer transition-all font-oswald text-sm hover:bg-[rgba(7,45,116,0.98)] hover:text-white ${selectedMonth === index ? 'bg-[rgba(18,70,158,0.42)] text-white font-semibold' : ''}`}
                         onClick={() => {
                           setSelectedMonth(index);
                           setShowMonthDropdown(false);
@@ -1546,7 +1581,7 @@ const StatsView = ({ onVolver }) => {
             return (
               <motion.div
                 key={metric.key}
-                className={`bg-white/10 rounded-2xl p-5 text-left backdrop-blur-md border border-white/20 transition-all hover:-translate-y-1 hover:shadow-xl hover:bg-white/15 md:p-4 ${metric.key === 'lesiones' ? 'cursor-pointer' : ''}`}
+                className={`${statsPanelClass} p-5 text-left transition-all hover:-translate-y-1 hover:shadow-xl hover:bg-[rgba(8,41,109,0.96)] md:p-4 ${metric.key === 'lesiones' ? 'cursor-pointer' : ''}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 + idx * 0.08 }}
@@ -1566,7 +1601,7 @@ const StatsView = ({ onVolver }) => {
 
         {showResultsRecap && (
           <motion.div
-            className="bg-white/10 rounded-2xl p-4 mb-6 backdrop-blur-md border border-white/20"
+            className={`${statsPanelClass} p-4 mb-6`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.26 }}
@@ -1576,19 +1611,19 @@ const StatsView = ({ onVolver }) => {
               Todos tus partidos del período: manuales y partidos reales (con encuesta).
             </div>
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-2">
-              <div className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
+              <div className="rounded-none border border-emerald-300/25 bg-emerald-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
                 <div className="font-oswald text-[11px] text-emerald-200/90">Ganados</div>
                 <div className="font-oswald text-xl font-bold text-emerald-100">{recapGanados}</div>
               </div>
-              <div className="rounded-lg border border-amber-300/25 bg-amber-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
+              <div className="rounded-none border border-amber-300/25 bg-amber-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
                 <div className="font-oswald text-[11px] text-amber-100/90">Empatados</div>
                 <div className="font-oswald text-xl font-bold text-amber-50">{recapEmpatados}</div>
               </div>
-              <div className="rounded-lg border border-rose-300/25 bg-rose-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
+              <div className="rounded-none border border-rose-300/25 bg-rose-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
                 <div className="font-oswald text-[11px] text-rose-100/90">Perdidos</div>
                 <div className="font-oswald text-xl font-bold text-rose-100">{recapPerdidos}</div>
               </div>
-              <div className="rounded-lg border border-sky-300/25 bg-sky-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
+              <div className="rounded-none border border-sky-300/25 bg-sky-400/10 px-3 py-2 text-center min-h-[82px] flex flex-col items-center justify-center">
                 <div className="font-oswald text-[11px] text-sky-100/90">Pendientes</div>
                 <div className="font-oswald text-xl font-bold text-sky-100">{stats.encuestaPendientes}</div>
               </div>
@@ -1609,11 +1644,11 @@ const StatsView = ({ onVolver }) => {
                     ? `${fechaLabel} · ${partido.tipoLabel}`
                     : `${fechaLabel} · ${partido.nombre || 'Partido'} · ${partido.tipoLabel}`;
                   return (
-                    <div key={partido.id} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                    <div key={partido.id} className="flex items-center justify-between gap-2 rounded-none border border-[rgba(88,108,176,0.5)] bg-[rgba(10,21,52,0.85)] px-3 py-2">
                       <div className="font-oswald text-sm text-white/90">
                         {titleLabel}
                       </div>
-                      <span className={`px-2.5 py-1 rounded-full border text-xs font-oswald ${resultMeta.className}`}>
+                      <span className={`px-2.5 py-1 rounded-none border text-xs font-oswald ${resultMeta.className}`}>
                         {partido?.label || resultMeta.label}
                       </span>
                     </div>
@@ -1630,7 +1665,7 @@ const StatsView = ({ onVolver }) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <div className="bg-white/10 rounded-2xl p-4 backdrop-blur-md border border-white/20">
+          <div className={`${statsPanelClass} p-4`}>
             <div className="flex items-center justify-between mb-2">
               <div className="font-oswald text-base font-semibold text-white flex items-center gap-2">
                 <UserCheck size={18} />
@@ -1644,33 +1679,33 @@ const StatsView = ({ onVolver }) => {
               Basado en partidos con encuesta jugada dentro del período.
             </div>
             <div className="grid grid-cols-2 gap-2 mb-2">
-              <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+              <div className={`${statsSubPanelClass} px-3 py-2`}>
                 <div className="font-oswald text-[11px] text-white/60">Con encuesta</div>
                 <div className="font-oswald text-lg text-white font-semibold">{asistencia.partidosConEncuesta || 0}</div>
               </div>
-              <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+              <div className={`${statsSubPanelClass} px-3 py-2`}>
                 <div className="font-oswald text-[11px] text-white/60">Sin encuesta</div>
                 <div className="font-oswald text-lg text-white font-semibold">{asistencia.partidosSinEncuesta || 0}</div>
               </div>
-              <div className="rounded-lg border border-rose-300/25 bg-rose-400/10 px-3 py-2">
+              <div className="rounded-none border border-rose-300/25 bg-rose-400/10 px-3 py-2">
                 <div className="font-oswald text-[11px] text-rose-100/85">Faltas confirmadas</div>
                 <div className="font-oswald text-lg text-rose-100 font-semibold">{asistencia.faltasConfirmadas || 0}</div>
               </div>
-              <div className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
+              <div className="rounded-none border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
                 <div className="font-oswald text-[11px] text-emerald-100/85">Asistencias</div>
                 <div className="font-oswald text-lg text-emerald-100 font-semibold">{asistencia.asistenciasConfirmadas || 0}</div>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <div className="rounded-lg border border-rose-300/20 bg-rose-400/5 px-2.5 py-2 text-center">
+              <div className="rounded-none border border-rose-300/20 bg-rose-400/5 px-2.5 py-2 text-center">
                 <div className="font-oswald text-[10px] text-rose-100/80">Sanciones</div>
                 <div className="font-oswald text-base font-semibold text-rose-100">{asistencia.sancionesPeriodo || 0}</div>
               </div>
-              <div className="rounded-lg border border-sky-300/20 bg-sky-400/5 px-2.5 py-2 text-center">
+              <div className="rounded-none border border-sky-300/20 bg-sky-400/5 px-2.5 py-2 text-center">
                 <div className="font-oswald text-[10px] text-sky-100/80">Recuperaciones</div>
                 <div className="font-oswald text-base font-semibold text-sky-100">{asistencia.recuperacionesPeriodo || 0}</div>
               </div>
-              <div className="rounded-lg border border-amber-300/20 bg-amber-400/5 px-2.5 py-2 text-center">
+              <div className="rounded-none border border-amber-300/20 bg-amber-400/5 px-2.5 py-2 text-center">
                 <div className="font-oswald text-[10px] text-amber-100/80">Deuda pend.</div>
                 <div className="font-oswald text-base font-semibold text-amber-100">
                   {Number(asistencia.deudaPendiente || 0).toFixed(1)}
@@ -1679,7 +1714,7 @@ const StatsView = ({ onVolver }) => {
             </div>
           </div>
 
-          <div className="bg-white/10 rounded-2xl p-4 backdrop-blur-md border border-white/20">
+          <div className={`${statsPanelClass} p-4`}>
             <div className="flex items-center justify-between mb-2">
               <div className="font-oswald text-base font-semibold text-white flex items-center gap-2">
                 <Trophy size={18} />
@@ -1693,28 +1728,28 @@ const StatsView = ({ onVolver }) => {
               Solo partidos con resultado cerrado de encuesta (sin pendientes).
             </div>
             <div className="grid grid-cols-2 gap-2 mb-2">
-              <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+              <div className={`${statsSubPanelClass} px-3 py-2`}>
                 <div className="font-oswald text-[11px] text-white/60">Cerrados</div>
                 <div className="font-oswald text-lg text-white font-semibold">{resultadosEfectivos.cerrados || 0}</div>
               </div>
-              <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+              <div className={`${statsSubPanelClass} px-3 py-2`}>
                 <div className="font-oswald text-[11px] text-white/60">Pendientes</div>
                 <div className="font-oswald text-lg text-white font-semibold">{resultadosEfectivos.pendientes || 0}</div>
               </div>
-              <div className="rounded-lg border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
+              <div className="rounded-none border border-emerald-300/25 bg-emerald-400/10 px-3 py-2">
                 <div className="font-oswald text-[11px] text-emerald-100/85">% Victorias</div>
                 <div className="font-oswald text-lg text-emerald-100 font-semibold">
                   {Number(resultadosEfectivos.winRate || 0).toFixed(1)}%
                 </div>
               </div>
-              <div className="rounded-lg border border-sky-300/25 bg-sky-400/10 px-3 py-2">
+              <div className="rounded-none border border-sky-300/25 bg-sky-400/10 px-3 py-2">
                 <div className="font-oswald text-[11px] text-sky-100/85">% No perder</div>
                 <div className="font-oswald text-lg text-sky-100 font-semibold">
                   {Number(resultadosEfectivos.winDrawRate || 0).toFixed(1)}%
                 </div>
               </div>
             </div>
-            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+            <div className={`${statsSubPanelClass} px-3 py-2`}>
               <div className="font-oswald text-[11px] text-white/65">Eficiencia de puntos</div>
               <div className="flex items-center justify-between">
                 <div className="font-oswald text-base text-white">
@@ -1729,7 +1764,7 @@ const StatsView = ({ onVolver }) => {
         </motion.div>
 
         <motion.div
-          className="bg-white/10 rounded-xl p-3 mb-6 backdrop-blur-md border border-white/20"
+          className={`${statsPanelClass} p-3 mb-6`}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.32 }}
@@ -1747,7 +1782,7 @@ const StatsView = ({ onVolver }) => {
         </motion.div>
 
         <motion.div
-          className="bg-white/10 rounded-2xl p-4 mb-6 backdrop-blur-md border border-white/20"
+          className={`${statsPanelClass} p-4 mb-6`}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.34 }}
@@ -1763,36 +1798,36 @@ const StatsView = ({ onVolver }) => {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
-            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+            <div className={`${statsSubPanelClass} px-3 py-2`}>
               <div className="font-oswald text-[11px] text-white/60">Período actual</div>
               <div className="font-oswald text-lg text-white font-semibold">{consistencia.totalPeriodo || 0}</div>
             </div>
-            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+            <div className={`${statsSubPanelClass} px-3 py-2`}>
               <div className="font-oswald text-[11px] text-white/60">Período anterior</div>
               <div className="font-oswald text-lg text-white font-semibold">{consistencia.totalPeriodoAnterior || 0}</div>
             </div>
-            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+            <div className={`${statsSubPanelClass} px-3 py-2`}>
               <div className="font-oswald text-[11px] text-white/60">Variación</div>
               <div className={`font-oswald text-lg font-semibold ${consistencia.variacion > 0 ? 'text-emerald-200' : consistencia.variacion < 0 ? 'text-rose-200' : 'text-white'}`}>
                 {consistencia.variacion > 0 ? '+' : ''}{consistencia.variacion || 0} ({consistencia.variacionPct || 0}%)
               </div>
             </div>
-            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+            <div className={`${statsSubPanelClass} px-3 py-2`}>
               <div className="font-oswald text-[11px] text-white/60">Promedio mensual ({selectedYear})</div>
               <div className="font-oswald text-lg text-white font-semibold">{Number(consistencia.promedioMensual || 0).toFixed(2)}</div>
             </div>
-            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+            <div className={`${statsSubPanelClass} px-3 py-2`}>
               <div className="font-oswald text-[11px] text-white/60">Meses activos</div>
               <div className="font-oswald text-lg text-white font-semibold">{consistencia.mesesActivos || 0}</div>
             </div>
-            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+            <div className={`${statsSubPanelClass} px-3 py-2`}>
               <div className="font-oswald text-[11px] text-white/60">Mejor mes</div>
               <div className="font-oswald text-lg text-white font-semibold">
                 {consistencia.mejorMesLabel || '-'} ({consistencia.mejorMesTotal || 0})
               </div>
             </div>
           </div>
-          <div className="mt-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+          <div className={`mt-2 ${statsSubPanelClass} px-3 py-2`}>
             <div className="font-oswald text-[11px] text-white/60 mb-3">
               Racha máxima de meses activos: {consistencia.rachaMeses || 0}
             </div>
@@ -1817,7 +1852,7 @@ const StatsView = ({ onVolver }) => {
         </motion.div>
 
         <motion.div
-          className="bg-white/10 rounded-2xl p-4 mb-6 backdrop-blur-md border border-white/20"
+          className={`${statsPanelClass} p-4 mb-6`}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.38 }}
@@ -1832,17 +1867,17 @@ const StatsView = ({ onVolver }) => {
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2 mb-3 sm:grid-cols-1">
-            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+            <div className={`${statsSubPanelClass} px-3 py-2`}>
               <div className="font-oswald text-[11px] text-white/60">Balance período</div>
               <div className={`font-oswald text-lg font-semibold ${Number(rankingTimeline.balancePeriodo || 0) > 0 ? 'text-emerald-200' : Number(rankingTimeline.balancePeriodo || 0) < 0 ? 'text-rose-200' : 'text-white'}`}>
                 {formatSignedDelta(rankingTimeline.balancePeriodo)}
               </div>
             </div>
-            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+            <div className={`${statsSubPanelClass} px-3 py-2`}>
               <div className="font-oswald text-[11px] text-white/60">Racha recuperación</div>
               <div className="font-oswald text-lg text-white font-semibold">{asistencia.streakRecuperacion || 0}</div>
             </div>
-            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2">
+            <div className={`${statsSubPanelClass} px-3 py-2`}>
               <div className="font-oswald text-[11px] text-white/60">Deuda pendiente</div>
               <div className="font-oswald text-lg text-amber-100 font-semibold">{Number(asistencia.deudaPendiente || 0).toFixed(1)}</div>
             </div>
@@ -1850,7 +1885,7 @@ const StatsView = ({ onVolver }) => {
           {Array.isArray(rankingTimeline.movimientos) && rankingTimeline.movimientos.length > 0 ? (
             <div className="flex flex-col gap-2">
               {rankingTimeline.movimientos.slice(0, 6).map((mov) => (
-                <div key={mov.id} className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                <div key={mov.id} className="flex items-center justify-between gap-2 rounded-none border border-[rgba(88,108,176,0.5)] bg-[rgba(10,21,52,0.85)] px-3 py-2">
                   <div className="min-w-0">
                     <div className="font-oswald text-sm text-white truncate">{mov.matchName}</div>
                     <div className="font-oswald text-[11px] text-white/60">
@@ -1870,7 +1905,7 @@ const StatsView = ({ onVolver }) => {
 
         {showLesionesDetalle && (
           <motion.div
-            className="bg-white/10 rounded-xl p-3.5 mb-6 backdrop-blur-md border border-white/20"
+            className={`${statsPanelClass} p-3.5 mb-6`}
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
           >
@@ -1880,7 +1915,7 @@ const StatsView = ({ onVolver }) => {
             ) : (
               <div className="flex flex-col gap-2">
                 {stats.lesionesDetallePeriodo.map((lesion) => (
-                  <div key={lesion.id} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                  <div key={lesion.id} className="bg-[rgba(10,21,52,0.85)] border border-[rgba(88,108,176,0.5)] rounded-none px-3 py-2">
                     <div className="font-oswald text-sm text-white">{lesion.tipo_lesion}</div>
                     <div className="font-oswald text-xs text-white/65">
                       {new Date(lesion.fecha_inicio).toLocaleDateString('es-ES')} {lesion.fecha_fin ? `- ${new Date(lesion.fecha_fin).toLocaleDateString('es-ES')}` : '(activa)'}
@@ -1894,7 +1929,7 @@ const StatsView = ({ onVolver }) => {
 
         <div className="grid grid-cols-1 gap-3 mb-6">
           <motion.button
-            className="flex items-center justify-center gap-2 px-5 py-4 border-none rounded-xl font-oswald text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-all backdrop-blur-md border border-white/20 bg-primary/80 text-white hover:bg-primary hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(129,120,229,0.3)] md:px-4 md:py-3 sm:py-3.5"
+            className="flex items-center justify-center gap-2 px-5 py-4 rounded-none font-oswald text-[18px] font-semibold tracking-[0.01em] cursor-pointer transition-all border border-[rgba(136,120,255,0.75)] bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white hover:brightness-110 md:px-4 md:py-3 sm:py-3.5"
             onClick={() => setShowManualMatchModal(true)}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1909,7 +1944,7 @@ const StatsView = ({ onVolver }) => {
 
         {/* Injury as informational status block with secondary action (not a primary CTA) */}
         <motion.div
-          className="bg-white/10 rounded-xl p-3.5 mb-6 backdrop-blur-md border border-white/20"
+          className={`${statsPanelClass} p-3.5 mb-6`}
           initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.5 }}
@@ -1940,14 +1975,14 @@ const StatsView = ({ onVolver }) => {
             </div>
           </div>
           <button
-            className="mt-3 w-full px-3 py-2 rounded-lg border border-white/20 text-white/85 text-xs uppercase tracking-wide hover:bg-white/10 transition-colors"
+            className="mt-3 w-full px-3 py-2 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/85 text-xs uppercase tracking-wide hover:bg-[rgba(30,45,94,0.95)] transition-colors"
             onClick={() => setShowInjuryModal(true)}
           >
             Registrar nueva lesión
           </button>
           {injuryStatus?.type === 'active' && (
             <button
-              className="mt-2 w-full px-3 py-2 rounded-lg border border-primary/40 bg-primary/20 text-white text-xs uppercase tracking-wide hover:bg-primary/30 transition-colors"
+              className="mt-2 w-full px-3 py-2 rounded-none border border-[rgba(136,120,255,0.75)] bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white text-xs uppercase tracking-wide hover:brightness-110 transition-colors"
               onClick={markActiveLesionAsRecovered}
             >
               Marcar recuperado
@@ -1957,7 +1992,7 @@ const StatsView = ({ onVolver }) => {
 
         {stats.chartData.length > 0 && (
           <motion.div
-            className="bg-white/10 rounded-2xl p-5 mb-6 backdrop-blur-md border border-white/20"
+            className={`${statsPanelClass} p-5 mb-6`}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.8 }}
@@ -1988,12 +2023,12 @@ const StatsView = ({ onVolver }) => {
 
         {stats.topFriend && (
           <motion.div
-            className="bg-white/10 rounded-2xl p-5 mb-6 relative overflow-hidden backdrop-blur-md border border-[#ffd700]/30 shadow-[0_8px_32px_rgba(255,215,0,0.1)]"
+            className="bg-[rgba(4,31,89,0.95)] rounded-none p-5 mb-6 relative overflow-hidden backdrop-blur-md border border-[#ffd700]/45 shadow-[0_8px_32px_rgba(255,215,0,0.1)]"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.9 }}
           >
-            <div className="bg-[#ffd700]/20 text-[#ffd700] px-3 py-1.5 rounded-full font-oswald text-xs font-semibold uppercase mb-3 inline-flex items-center gap-1.5 border border-[#ffd700]/30">
+            <div className="bg-[#ffd700]/20 text-[#ffd700] px-3 py-1.5 rounded-none font-oswald text-xs font-semibold uppercase mb-3 inline-flex items-center gap-1.5 border border-[#ffd700]/30">
               <Trophy size={16} />
               Top Friend
             </div>
@@ -2022,7 +2057,7 @@ const StatsView = ({ onVolver }) => {
               return (
                 <motion.div
                   key={`annual-${index}`}
-                  className="bg-white/10 rounded-xl p-4 backdrop-blur-md border border-white/20 text-left transition-all hover:-translate-y-0.5 hover:bg-white/15 md:p-3"
+                  className={`${statsPanelClass} p-4 text-left transition-all hover:-translate-y-0.5 hover:bg-[rgba(8,41,109,0.96)] md:p-3`}
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 1.1 + index * 0.08 }}
@@ -2045,7 +2080,7 @@ const StatsView = ({ onVolver }) => {
               return (
                 <motion.div
                   key={`historical-${index}`}
-                  className="bg-white/10 rounded-xl p-4 backdrop-blur-md border border-white/20 text-left transition-all hover:-translate-y-0.5 hover:bg-white/15 md:p-3"
+                  className={`${statsPanelClass} p-4 text-left transition-all hover:-translate-y-0.5 hover:bg-[rgba(8,41,109,0.96)] md:p-3`}
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 1.4 + index * 0.08 }}
@@ -2074,7 +2109,7 @@ const StatsView = ({ onVolver }) => {
               {stats.topAmigos.map((amigo, index) => (
                 <motion.div
                   key={amigo.nombre}
-                  className="flex items-center gap-4 bg-white/10 rounded-xl p-4 mb-3 backdrop-blur-md border border-white/20 transition-all hover:translate-x-2 hover:bg-white/15 md:p-3 md:gap-3"
+                  className="flex items-center gap-4 bg-[rgba(4,31,89,0.95)] rounded-none p-4 mb-3 backdrop-blur-md border border-[#12b5ff]/55 transition-all hover:translate-x-2 hover:bg-[rgba(8,41,109,0.96)] md:p-3 md:gap-3"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 1.3 + index * 0.1 }}
@@ -2104,7 +2139,7 @@ const StatsView = ({ onVolver }) => {
 
         {stats.partidosJugados === 0 && (
           <motion.div
-            className="text-center p-10 bg-white/10 rounded-2xl backdrop-blur-md border border-white/20"
+            className="text-center p-10 bg-[rgba(4,31,89,0.95)] rounded-none backdrop-blur-md border border-[#12b5ff]/55"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
           >

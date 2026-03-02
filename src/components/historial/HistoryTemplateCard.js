@@ -1,6 +1,33 @@
 import React, { useState } from 'react';
 import { MoreVertical } from 'lucide-react';
 
+const normalizeToken = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .trim();
+
+const getModalidadClass = (modalidad) => {
+  const raw = normalizeToken(modalidad);
+  if (!raw) return 'bg-[#0f2f23] border-2 border-[#22c55e] text-[#dcfce7]';
+  if (raw.includes('11')) return 'bg-[#1a2450] border-2 border-[#818cf8] text-[#e0e7ff]';
+  if (raw.includes('9')) return 'bg-[#0f3b42] border-2 border-[#22d3ee] text-[#cffafe]';
+  if (raw.includes('8')) return 'bg-[#4a1a30] border-2 border-[#f43f5e] text-[#ffe4e6]';
+  if (raw.includes('7')) return 'bg-[#321d5a] border-2 border-[#a78bfa] text-[#ede9fe]';
+  if (raw.includes('6')) return 'bg-[#1b2f55] border-2 border-[#60a5fa] text-[#dbeafe]';
+  if (raw.includes('5')) return 'bg-[#0f2f23] border-2 border-[#22c55e] text-[#dcfce7]';
+  return 'bg-slate-700 border-2 border-slate-500 text-white';
+};
+
+const getGeneroClass = (tipo) => {
+  if (!tipo) return 'bg-[#14344a] border-2 border-[#38bdf8] text-[#dbeafe]';
+  const tipoLower = normalizeToken(tipo);
+  if (tipoLower.includes('masculino')) return 'bg-[#14344a] border-2 border-[#38bdf8] text-[#dbeafe]';
+  if (tipoLower.includes('femenino')) return 'bg-[#4a1538] border-2 border-[#f472b6] text-[#fce7f3]';
+  if (tipoLower.includes('mixto')) return 'bg-[#213448] border-2 border-[#2dd4bf] text-[#ccfbf1]';
+  return 'bg-slate-700 border-2 border-slate-500 text-white';
+};
+
 const formatPrice = (precioRaw) => {
   if (precioRaw === undefined || precioRaw === null || String(precioRaw).trim() === '') return 'Sin precio';
   const parsed = Number(String(precioRaw).replace(/[^0-9.,-]/g, '').replace(/,/g, '.'));
@@ -73,7 +100,7 @@ const HistoryTemplateCard = ({
       : (diaSemanaLabel || fechaCortaLabel || horaLabel || ''));
 
   return (
-    <div className="relative bg-[#1e293b]/70 backdrop-blur-sm rounded-2xl p-5 min-h-[150px] border border-slate-800 transition-all duration-300 shadow-xl hover:-translate-y-[2px] hover:shadow-2xl hover:border-slate-700">
+    <div className="relative bg-[rgba(4,31,89,0.95)] backdrop-blur-sm rounded-none p-5 min-h-[150px] border border-[#12b5ff]/70 transition-all duration-200 shadow-[0_0_0_1px_rgba(52,167,255,0.14),0_10px_22px_rgba(2,10,34,0.45)] hover:bg-[rgba(8,41,109,0.96)] hover:border-[#56d1ff]">
       {/* Header */}
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -92,7 +119,7 @@ const HistoryTemplateCard = ({
 
         <div className="flex items-center gap-2">
           {isAdmin && (
-            <div className="flex items-center gap-1.5 bg-slate-700 px-2.5 py-1.5 rounded-full text-[11px] font-semibold shrink-0 border border-[#0EA9C6]">
+            <div className="flex items-center gap-1.5 bg-[rgba(10,21,52,0.9)] px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 border border-[#0EA9C6]">
               <span className="font-semibold uppercase text-[#0EA9C6]">Admin</span>
             </div>
           )}
@@ -109,11 +136,11 @@ const HistoryTemplateCard = ({
                 <MoreVertical size={15} />
               </button>
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-lg z-10">
+                <div className="absolute right-0 mt-2 w-48 rounded-none border border-[rgba(88,107,170,0.62)] bg-[rgba(7,19,48,0.98)] shadow-lg z-10">
                   <div className="py-1">
                     {onEdit && (
                       <button
-                        className="w-full px-3 py-2 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800"
+                        className="w-full px-3 py-2 flex items-center gap-2 text-left text-slate-100 hover:bg-[rgba(19,38,88,0.95)]"
                         onClick={(e) => {
                           e.stopPropagation();
                           setMenuOpen(false);
@@ -125,7 +152,7 @@ const HistoryTemplateCard = ({
                     )}
                     {onDelete && (
                       <button
-                        className="w-full px-3 py-2 flex items-center gap-2 text-left text-red-200 hover:bg-slate-800"
+                        className="w-full px-3 py-2 flex items-center gap-2 text-left text-red-200 hover:bg-[rgba(19,38,88,0.95)]"
                         onClick={(e) => {
                           e.stopPropagation();
                           setMenuOpen(false);
@@ -145,16 +172,16 @@ const HistoryTemplateCard = ({
 
       {/* Chips */}
       <div className="flex flex-nowrap items-center gap-2 mb-4">
-        <div className="font-oswald text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-lg bg-slate-700 border-2 border-[#4CAF50] shrink-0 whitespace-nowrap">
+        <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap ${getModalidadClass(modalidad)}`}>
           {modalidad}
         </div>
-        <div className="font-oswald text-[11px] font-semibold text-white px-2.5 py-1.5 rounded-lg bg-slate-700 border-2 border-[#2196F3] shrink-0 whitespace-nowrap">
+        <div className={`font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap ${getGeneroClass(tipo)}`}>
           {tipo}
         </div>
-        <div className="font-oswald text-[11px] font-semibold text-slate-200 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 shrink-0 whitespace-nowrap">
+        <div className="font-oswald text-[11px] font-semibold text-slate-200 px-2.5 py-1.5 rounded-none border border-slate-700 bg-slate-900 shrink-0 whitespace-nowrap">
           {priceLabel}
         </div>
-        <div className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold shrink-0 whitespace-nowrap ${
+        <div className={`flex items-center gap-1 px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap ${
           isComplete
             ? 'bg-[#165a2e] text-[#22c55e] border border-[#22c55e]'
             : 'bg-slate-900 text-slate-300 border border-slate-700'
@@ -177,14 +204,14 @@ const HistoryTemplateCard = ({
       {/* Buttons */}
       <div className="flex gap-2 mt-2 items-stretch">
         <button
-          className="flex-[1.6] font-oswald font-semibold text-[18px] tracking-[0.01em] px-4 py-2.5 border-2 border-transparent rounded-xl cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#128BE9] shadow-lg hover:brightness-110 hover:-translate-y-px"
+          className="flex-[1.6] font-oswald font-semibold text-[18px] tracking-[0.01em] px-4 py-2.5 border border-[rgba(136,120,255,0.75)] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] shadow-[0_8px_24px_rgba(70,88,200,0.35)] hover:brightness-110"
           onClick={() => onViewDetails && onViewDetails(template)}
         >
           Crear partido
         </button>
         {onHistory && (
           <button
-            className="flex-[1] font-oswald font-semibold text-[18px] tracking-[0.01em] px-4 py-2.5 border border-white/20 rounded-xl cursor-pointer transition-all text-white/85 min-h-[44px] flex items-center justify-center text-center bg-transparent hover:bg-white/10 hover:border-white/35 hover:text-white"
+            className="flex-[1] font-oswald font-semibold text-[18px] tracking-[0.01em] px-4 py-2.5 border border-[rgba(98,117,184,0.58)] rounded-none cursor-pointer transition-all text-white/85 min-h-[44px] flex items-center justify-center text-center bg-[rgba(20,31,70,0.82)] hover:bg-[rgba(30,45,94,0.95)] hover:border-[rgba(124,142,210,0.6)] hover:text-white"
             onClick={() => onHistory && onHistory(template)}
           >
             Historial
