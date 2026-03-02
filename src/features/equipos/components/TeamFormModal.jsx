@@ -10,6 +10,7 @@ import {
   normalizeTeamSkillLevel,
 } from '../config';
 import NeighborhoodAutocomplete from './NeighborhoodAutocomplete';
+import { PRIMARY_CTA_BUTTON_CLASS } from '../../../styles/buttonClasses';
 
 const EMPTY_FORM = {
   name: '',
@@ -31,9 +32,9 @@ const normalizeHex = (value) => {
   return /^#[0-9A-Fa-f]{6}$/.test(withHash) ? withHash.toUpperCase() : null;
 };
 
-const actionButtonClass = 'h-[46px] min-h-[46px] !rounded-none px-4 py-2.5 !text-[18px] !font-oswald !font-semibold !tracking-[0.01em] !normal-case';
-const actionPrimaryClass = `${actionButtonClass} !bg-[#6a43ff] !border !border-[#7d5aff] !text-white !shadow-[0_0_16px_rgba(106,67,255,0.28)] hover:!bg-[#7550ff]`;
-const actionSecondaryClass = `${actionButtonClass} !bg-transparent !border !border-white/55 !text-white hover:!bg-white/10 hover:!border-white/75`;
+const actionTypographyClass = '!text-[18px] !font-oswald !font-semibold !tracking-[0.01em] !normal-case';
+const actionPrimaryClass = `${PRIMARY_CTA_BUTTON_CLASS} !h-[48px] !min-h-[48px] !rounded-xl ${actionTypographyClass}`;
+const actionSecondaryClass = `!w-full !h-[48px] !min-h-[48px] !rounded-xl !border !border-white/20 !bg-white/5 !text-white hover:!bg-white/10 ${actionTypographyClass}`;
 
 const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = false }) => {
   const crestFileRef = useRef(null);
