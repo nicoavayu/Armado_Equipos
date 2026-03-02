@@ -26,7 +26,6 @@ import { buildBalancedTeams } from '../utils/teamBalancer';
 import { MoreVertical, Share2 } from 'lucide-react';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
-const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
 const SLOT_SKEW_X = 0;
 const HEADER_ICON_COLOR = '#29aaff';
 const HEADER_ICON_GLOW = 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.78))';
@@ -853,18 +852,7 @@ export default function ArmarEquiposView({
   const skewCounterStyle = {
     transform: `skewX(${SLOT_SKEW_X}deg)`,
   };
-  const callToVotePalette = {
-    '--btn': 'linear-gradient(90deg, rgba(100, 77, 255, 0.78) 0%, rgba(123, 97, 255, 0.86) 100%)',
-    '--btn-dark': 'rgba(122, 104, 255, 0.72)',
-    '--btn-text': '#eef0ff',
-    '--btn-shadow': '0 6px 14px rgba(71, 56, 187, 0.22)',
-  };
-  const closeVotingPalette = {
-    '--btn': `linear-gradient(90deg, ${INVITE_ACCEPT_BUTTON_VIOLET_DARK} 0%, ${INVITE_ACCEPT_BUTTON_VIOLET} 100%)`,
-    '--btn-dark': 'rgba(144, 118, 255, 0.86)',
-    '--btn-text': '#ffffff',
-    '--btn-shadow': '0 8px 18px rgba(76, 58, 196, 0.34)',
-  };
+  const sharedVoteCtaClass = 'w-[90%] max-w-[520px] mx-auto font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95 disabled:opacity-55 disabled:cursor-not-allowed';
   const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
   const kebabMenuButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
 
@@ -887,73 +875,6 @@ export default function ArmarEquiposView({
 
   return (
     <>
-      <style>{`
-        .invite-cta-btn {
-          appearance: none;
-          cursor: pointer;
-          width: 90%;
-          max-width: 520px;
-          min-width: 10px;
-          height: 60px;
-          min-height: 48px;
-          padding-inline: 18px;
-          display: flex;
-          flex: 1 1 0;
-          align-items: center;
-          justify-content: center;
-          gap: 0.55rem;
-          font-size: 1.14rem;
-          font-weight: 700;
-          letter-spacing: 0.045em;
-          color: var(--btn-text, #fff);
-          background: var(--btn);
-          border: 1.5px solid var(--btn-dark);
-          border-radius: 0;
-          box-shadow: var(--btn-shadow, none);
-          transform: none;
-          transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
-          backface-visibility: hidden;
-          white-space: nowrap;
-          margin-inline: auto;
-        }
-        .invite-cta-btn > span {
-          transform: none;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .invite-cta-btn:hover:not(:disabled) {
-          filter: brightness(1.08);
-        }
-        .invite-cta-btn:active:not(:disabled) {
-          transform: none;
-          opacity: 0.92;
-        }
-        .invite-cta-btn:disabled {
-          opacity: 0.55;
-          cursor: not-allowed;
-        }
-        .invite-cta-btn--match {
-          width: 100%;
-          max-width: none;
-          min-width: 0;
-          height: auto;
-          min-height: 44px;
-          padding: 10px 16px;
-          font-family: "Bebas Neue", "Bebas", "Oswald", sans-serif;
-          font-size: 1rem;
-          font-weight: 400;
-          letter-spacing: 0.01em;
-          border: 1px solid #7d5aff;
-          background: #6a43ff;
-          color: #ffffff;
-          box-shadow: 0 0 14px rgba(106, 67, 255, 0.3);
-        }
-        .invite-cta-btn--match:hover:not(:disabled) {
-          background: #7550ff;
-          filter: none;
-        }
-      `}</style>
       <PageTitle
         onBack={onBackToAdmin}
         showChatButton={true}
@@ -1144,8 +1065,7 @@ export default function ArmarEquiposView({
           <div className="w-full flex flex-col gap-1.5 mb-3">
             <button
               type="button"
-              className={`relative z-10 ${isTeamsFormed ? 'invite-cta-btn invite-cta-btn--match' : 'invite-cta-btn'}`}
-              style={isTeamsFormed ? undefined : callToVotePalette}
+              className={`relative z-10 ${sharedVoteCtaClass}`}
               onClick={handlePrimaryClick}
               disabled={calling || checkingVoteStatus}
             >
@@ -1162,8 +1082,7 @@ export default function ArmarEquiposView({
             <div className="w-full flex flex-col gap-1.5 mt-3 pt-2 border-t border-slate-700/50">
               <button
                 type="button"
-                className="invite-cta-btn"
-                style={closeVotingPalette}
+                className={sharedVoteCtaClass}
                 onClick={handleCloseVotingClick}
                 disabled={isClosing}
               >
