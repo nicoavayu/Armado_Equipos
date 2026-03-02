@@ -181,7 +181,7 @@ const PlayersSection = ({
     transform: `skewX(${SLOT_SKEW_X}deg)`,
   };
   const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
-  const kebabMenuButtonClass = 'kebab-menu-btn';
+  const kebabMenuButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
 
   useEffect(() => () => {
     if (completionAnimTimeoutRef.current) {
@@ -294,16 +294,14 @@ const PlayersSection = ({
     );
   };
 
-  const renderInviteStyleRoster = () => (
+  const renderInviteStyleRoster = (headerActions = null) => (
     <div className="w-full box-border" style={invitePlayersBlockStyle}>
-      <div className={`px-1 mb-6 ${isPlayerInMatch ? 'pr-10' : ''}`}>
-        <div className="flex items-baseline justify-between gap-2">
+      <div className="px-1 mb-6">
+        <div className="flex items-center justify-between gap-2">
           <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
-            Jugadores
+            Jugadores ({inviteConfirmedCount}/{inviteRequiredSlots})
           </div>
-          <div className="font-oswald text-[13px] font-medium text-white/75 whitespace-nowrap">
-            {inviteConfirmedCount}/{inviteRequiredSlots}
-          </div>
+          {headerActions ? <div className="flex items-center gap-1.5 shrink-0">{headerActions}</div> : null}
         </div>
         <div className="mt-2 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
           <div
@@ -760,10 +758,7 @@ const PlayersSection = ({
         <div className="w-full flex flex-col pb-32">
           {showInviteStylePostJoin ? (
             <div className="relative w-full max-w-full mx-auto mt-2 box-border min-h-[120px] min-w-0">
-              <div className="absolute right-0 top-0 z-10">
-                {renderGuestActionsMenu()}
-              </div>
-              {renderInviteStyleRoster()}
+              {renderInviteStyleRoster(renderGuestActionsMenu())}
             </div>
           ) : (
             <div className="w-full max-w-full mx-auto mt-2 bg-white/10 border-2 border-white/20 rounded-xl p-3 box-border min-h-[120px] min-w-0">

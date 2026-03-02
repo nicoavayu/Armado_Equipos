@@ -866,7 +866,7 @@ export default function ArmarEquiposView({
     '--btn-shadow': '0 8px 18px rgba(76, 58, 196, 0.34)',
   };
   const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
-  const kebabMenuButtonClass = 'kebab-menu-btn';
+  const kebabMenuButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
 
   // Si no es admin, mostrar acceso denegado
   if (!isAdmin) {
@@ -969,51 +969,50 @@ export default function ArmarEquiposView({
         )}
         {/* Lista de jugadores */}
         <div ref={playersSectionRef} className="relative w-full mx-auto mt-0 box-border min-h-[120px]">
-          <div className="absolute right-0 top-0 z-10">
-            {isAdmin && (
-              <div className="relative flex items-center gap-1.5">
-                <button
-                  type="button"
-                  className={headerActionIconButtonClass}
-                  onClick={handleWhatsApp}
-                  title="Compartir link de votación"
-                  aria-label="Compartir link de votación"
-                >
-                  <Share2 size={14} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
-                </button>
-                <button
-                  className={kebabMenuButtonClass}
-                  onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
-                  type="button"
-                  aria-label="Menú de acciones"
-                  title="Acciones de administración"
-                >
-                  <MoreVertical size={15} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
-                </button>
-                {actionsMenuOpen && (
-                  <div className="absolute top-full right-0 mt-1 w-48 border bg-slate-900/98 shadow-lg z-10 overflow-hidden transition-all duration-200 ease-out" style={{ borderColor: 'rgba(88, 107, 170, 0.46)', borderRadius: 0, transform: `skewX(-${SLOT_SKEW_X}deg)` }}>
-                    <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
-                      <button
-                        className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
-                        onClick={() => {
-                          setActionsMenuOpen(false);
-                          setConfirmConfig({ open: true, action: 'reset' });
-                        }}
-                        type="button"
-                      >
-                        <span>Resetear votación</span>
-                      </button>
-                    </div>
+          <div className="w-full box-border" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)', paddingTop: '16px', paddingBottom: '24px' }}>
+            <div className="px-1 mb-6">
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
+                  Jugadores
+                </div>
+                {isAdmin && (
+                  <div className="relative flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      className={headerActionIconButtonClass}
+                      onClick={handleWhatsApp}
+                      title="Compartir link de votación"
+                      aria-label="Compartir link de votación"
+                    >
+                      <Share2 size={14} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
+                    </button>
+                    <button
+                      className={kebabMenuButtonClass}
+                      onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
+                      type="button"
+                      aria-label="Menú de acciones"
+                      title="Acciones de administración"
+                    >
+                      <MoreVertical size={15} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
+                    </button>
+                    {actionsMenuOpen && (
+                      <div className="absolute top-full right-0 mt-1 w-48 border bg-slate-900/98 shadow-lg z-10 overflow-hidden transition-all duration-200 ease-out" style={{ borderColor: 'rgba(88, 107, 170, 0.46)', borderRadius: 0, transform: `skewX(-${SLOT_SKEW_X}deg)` }}>
+                        <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
+                          <button
+                            className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
+                            onClick={() => {
+                              setActionsMenuOpen(false);
+                              setConfirmConfig({ open: true, action: 'reset' });
+                            }}
+                            type="button"
+                          >
+                            <span>Resetear votación</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
-          </div>
-
-          <div className="w-full box-border" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)', paddingTop: '16px', paddingBottom: '24px' }}>
-            <div className="px-1 mb-6 pr-14">
-              <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
-                Jugadores
               </div>
               <div className="mt-2 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
                 <div
