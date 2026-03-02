@@ -1,8 +1,7 @@
-import React from 'react';
-import { CalendarClock, Flag, MapPin, Shield } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { CalendarClock, Flag, MapPin, MoreVertical, Pencil, Shield } from 'lucide-react';
 import { CHALLENGE_STATUS_LABELS } from '../config';
 import { formatSkillLevelLabel, getTeamGradientStyle, getTeamPalette } from '../utils/teamColors';
-import { PRIMARY_CTA_BUTTON_CLASS } from '../../../styles/buttonClasses';
 
 const CTA_BY_STATUS = {
   open: 'Aceptar',
@@ -12,17 +11,18 @@ const CTA_BY_STATUS = {
   canceled: 'Cancelado',
 };
 
-const CHIP_CLASS = 'font-oswald text-[10px] font-bold text-white/40 border border-white/10 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider';
+const CHIP_BASE_CLASS = 'font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap';
 const STATUS_BADGE_CLASS = {
-  open: 'text-[#D4EBFF] border-[#9ED3FF]/45 bg-[#128BE9]/22',
-  accepted: 'text-[#D4EBFF] border-[#9ED3FF]/45 bg-[#128BE9]/22',
-  confirmed: 'text-[#D6F8E2] border-[#5AD17B]/45 bg-[#2F9E44]/24',
-  completed: 'text-[#FFD9D9] border-[#F87171]/45 bg-[#B91C1C]/24',
-  canceled: 'text-[#D1D5DB] border-white/25 bg-white/10',
+  open: 'text-[#D4EBFF] border border-[#9ED3FF]/45 bg-[#128BE9]/22',
+  accepted: 'text-[#D4EBFF] border border-[#9ED3FF]/45 bg-[#128BE9]/22',
+  confirmed: 'text-[#D6F8E2] border border-[#5AD17B]/45 bg-[#2F9E44]/24',
+  completed: 'text-[#FFD9D9] border border-[#F87171]/45 bg-[#B91C1C]/24',
+  canceled: 'text-[#D1D5DB] border border-white/25 bg-white/10',
 };
 
-const compactPrimaryClass = `${PRIMARY_CTA_BUTTON_CLASS} !w-auto flex-1 px-4 py-2.5 min-h-[48px] text-[18px] tracking-[0.01em]`;
-const ownPrimaryClass = 'w-full !w-auto flex-1 rounded-xl border border-red-300/35 bg-red-500/12 text-red-100 font-oswald font-semibold px-4 py-2.5 min-h-[48px] text-[18px] tracking-[0.01em] transition-all hover:bg-red-500/18 disabled:opacity-45 disabled:cursor-not-allowed';
+const primaryCtaClass = 'w-full flex-1 font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff]';
+const secondaryCtaClass = 'w-full flex-1 font-bebas text-base px-4 py-2.5 border border-white/35 rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-white/5 hover:bg-white/10';
+const menuButtonClass = 'kebab-menu-btn';
 
 const formatChallengeDate = (value) => {
   if (!value) return 'A coordinar';
@@ -50,7 +50,7 @@ const formatMoneyAr = (value) => {
 const TeamSide = ({ team, fallbackText }) => {
   if (!team) {
     return (
-      <div className="flex-1 rounded-xl border border-dashed border-white/20 bg-white/5 p-3 min-h-[88px] flex items-center justify-center">
+      <div className="flex-1 rounded-none border border-dashed border-white/20 bg-[rgba(15,24,56,0.45)] p-3 min-h-[88px] flex items-center justify-center">
         <p className="font-oswald text-white/60 text-xs font-semibold tracking-wide uppercase">{fallbackText}</p>
       </div>
     );
@@ -60,9 +60,9 @@ const TeamSide = ({ team, fallbackText }) => {
   const palette = getTeamPalette(team);
 
   return (
-    <div className="flex-1 rounded-xl border border-white/10 p-3 bg-[#1e293b]/55 shadow-[0_8px_20px_rgba(0,0,0,0.25)]" style={style}>
+    <div className="flex-1 rounded-none border border-[rgba(41,170,255,0.9)] p-3 bg-[#07163b] shadow-[0_0_10px_rgba(41,170,255,0.24)]" style={style}>
       <div className="flex items-center gap-2">
-        <div className="h-10 w-10 rounded-lg overflow-hidden border border-white/30 bg-black/15 flex items-center justify-center shrink-0">
+        <div className="h-10 w-10 rounded-none overflow-hidden border border-white/30 bg-black/15 flex items-center justify-center shrink-0">
           {team.crest_url ? (
             <img src={team.crest_url} alt={team.name || 'Escudo'} className="h-full w-full object-cover" />
           ) : (
@@ -76,7 +76,10 @@ const TeamSide = ({ team, fallbackText }) => {
       </div>
 
       {team.base_zone ? (
-        <div className={`${CHIP_CLASS} mt-2 inline-flex items-center gap-1`} style={{ borderColor: `${palette.accent}66`, color: '#F8FAFC', backgroundColor: palette.chipBg }}>
+        <div
+          className={`${CHIP_BASE_CLASS} mt-2 inline-flex items-center gap-1 border`}
+          style={{ borderColor: `${palette.accent}66`, color: '#F8FAFC', backgroundColor: palette.chipBg }}
+        >
           <MapPin size={11} /> {team.base_zone}
         </div>
       ) : null}
@@ -92,36 +95,90 @@ const ChallengeCard = ({
   canCancel = false,
   disabled = false,
   isOwnChallenge = false,
+  canEdit = false,
+  onEdit = null,
 }) => {
   const status = (challenge?.status || 'open').toLowerCase();
   const label = CHALLENGE_STATUS_LABELS[status] || status;
   const cta = primaryLabel || CTA_BY_STATUS[status] || 'Ver detalle';
   const fieldPriceLabel = formatMoneyAr(challenge?.cancha_cost ?? challenge?.field_price);
   const locationLabel = challenge?.location || challenge?.location_name || 'A coordinar';
-  const statusClass = STATUS_BADGE_CLASS[status] || 'text-white/90 bg-white/10 border-white/20';
+  const statusClass = STATUS_BADGE_CLASS[status] || 'text-white/90 bg-white/10 border border-white/20';
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const handleClickOutside = (event) => {
+      if (!menuRef.current || menuRef.current.contains(event.target)) return;
+      setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!canEdit && menuOpen) setMenuOpen(false);
+  }, [canEdit, menuOpen]);
 
   return (
     <div
-      className={`w-full rounded-2xl border backdrop-blur-sm p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)] font-oswald ${isOwnChallenge
-        ? 'border-[#C026D3]/55 bg-[linear-gradient(135deg,rgba(192,38,211,0.12),rgba(30,41,59,0.86))] shadow-[0_8px_24px_rgba(192,38,211,0.16)]'
-        : 'border-white/10 bg-[#1e293b]/70'
+      className={`relative w-full border backdrop-blur-sm p-4 shadow-[0_10px_24px_rgba(0,0,0,0.28)] font-oswald ${isOwnChallenge
+        ? 'border-[rgba(192,38,211,0.56)] bg-[#1e293b]/92'
+        : 'border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92'
         }`}
     >
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        {isOwnChallenge ? (
-          <span className={`${CHIP_CLASS} border-[#E879F9]/45 bg-[#C026D3]/18 text-[#F5D0FE]`}>
-            Mi desafio
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          {isOwnChallenge ? (
+            <span className={`${CHIP_BASE_CLASS} border border-[#E879F9]/45 bg-[#C026D3]/18 text-[#F5D0FE]`}>
+              Mi desafio
+            </span>
+          ) : null}
+          <span className={`${CHIP_BASE_CLASS} ${statusClass}`}>
+            {label}
           </span>
+          <span className={`${CHIP_BASE_CLASS} inline-flex items-center gap-1 border border-white/20 bg-white/5 text-white/90`}>
+            <Flag size={11} /> F{challenge?.format || '-'}
+          </span>
+          <span className={`${CHIP_BASE_CLASS} border border-white/20 bg-white/5 text-white/90`}>
+            {formatSkillLevelLabel(challenge?.skill_level)}
+          </span>
+        </div>
+
+        {canEdit ? (
+          <div className="relative shrink-0" ref={menuRef}>
+            <button
+              type="button"
+              className={menuButtonClass}
+              onClick={(event) => {
+                event.stopPropagation();
+                setMenuOpen((prev) => !prev);
+              }}
+              aria-label="Mas acciones"
+              title="Mas acciones"
+            >
+              <MoreVertical size={16} />
+            </button>
+            {menuOpen ? (
+              <div className="absolute right-0 mt-2 w-48 rounded-none border border-slate-700 bg-slate-900 shadow-lg z-20" onClick={(event) => event.stopPropagation()}>
+                <div className="py-1">
+                  <button
+                    type="button"
+                    className="w-full h-[42px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onEdit?.(challenge);
+                    }}
+                  >
+                    <Pencil size={15} />
+                    <span>Editar desafio</span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         ) : null}
-        <span className={`${CHIP_CLASS} ${statusClass}`}>
-          {label}
-        </span>
-        <span className={`${CHIP_CLASS} inline-flex items-center gap-1`}>
-          <Flag size={11} /> F{challenge?.format || '-'}
-        </span>
-        <span className={CHIP_CLASS}>
-          {formatSkillLevelLabel(challenge?.skill_level)}
-        </span>
       </div>
 
       <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
@@ -130,15 +187,15 @@ const ChallengeCard = ({
         <TeamSide team={challenge?.accepted_team} fallbackText="Busco rival" />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/70 font-oswald">
-        <span className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2 py-1 bg-white/5">
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/75 font-oswald">
+        <span className="inline-flex items-center gap-1 rounded-none border border-white/20 px-2.5 py-1.5 bg-white/5">
           <CalendarClock size={12} /> {formatChallengeDate(challenge?.scheduled_at)}
         </span>
-        <span className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2 py-1 bg-white/5">
+        <span className="inline-flex items-center gap-1 rounded-none border border-white/20 px-2.5 py-1.5 bg-white/5">
           <MapPin size={12} /> {locationLabel}
         </span>
         {fieldPriceLabel ? (
-          <span className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-2 py-1 bg-white/5">
+          <span className="inline-flex items-center gap-1 rounded-none border border-white/20 px-2.5 py-1.5 bg-white/5">
             {`Cancha ${fieldPriceLabel}`}
           </span>
         ) : null}
@@ -153,7 +210,7 @@ const ChallengeCard = ({
           type="button"
           disabled={disabled}
           onClick={onPrimaryAction}
-          className={`${isOwnChallenge ? ownPrimaryClass : compactPrimaryClass} disabled:opacity-45 disabled:cursor-not-allowed`}
+          className={`${primaryCtaClass} disabled:opacity-45 disabled:cursor-not-allowed`}
         >
           {cta}
         </button>
@@ -163,7 +220,7 @@ const ChallengeCard = ({
             type="button"
             disabled={disabled}
             onClick={onCancel}
-            className="rounded-xl border border-white/20 bg-white/5 text-white font-oswald font-semibold px-4 py-2.5 min-h-[48px] text-[18px] tracking-[0.01em] hover:bg-white/10 disabled:opacity-45 disabled:cursor-not-allowed"
+            className={`${secondaryCtaClass} disabled:opacity-45 disabled:cursor-not-allowed`}
           >
             Cancelar
           </button>

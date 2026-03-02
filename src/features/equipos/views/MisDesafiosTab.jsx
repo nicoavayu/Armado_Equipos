@@ -2,11 +2,14 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ChallengeCard from '../components/ChallengeCard';
 import CompleteChallengeModal from '../components/CompleteChallengeModal';
+import PublishChallengeModal from '../components/PublishChallengeModal';
 import {
   cancelChallenge,
   completeChallenge,
   getTeamMatchByChallengeId,
+  listMyManageableTeams,
   listMyChallenges,
+  updateChallenge,
 } from '../../../services/db/teamChallenges';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import EmptyStateCard from '../../../components/EmptyStateCard';
@@ -53,6 +56,8 @@ const MisDesafiosTab = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusTab, setStatusTab] = useState('open');
   const [myChallenges, setMyChallenges] = useState([]);
+  const [manageableTeams, setManageableTeams] = useState([]);
+  const [editingChallenge, setEditingChallenge] = useState(null);
   const [completeTarget, setCompleteTarget] = useState(null);
 
   const loadData = async () => {
@@ -60,8 +65,12 @@ const MisDesafiosTab = ({
 
     try {
       setLoading(true);
-      const rows = await listMyChallenges(userId);
+      const [rows, manageable] = await Promise.all([
+        listMyChallenges(userId),
+        listMyManageableTeams(userId),
+      ]);
       setMyChallenges(rows);
+      setManageableTeams(manageable || []);
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudieron cargar tus desafios');
     } finally {
@@ -84,6 +93,11 @@ const MisDesafiosTab = ({
   const filtered = useMemo(
     () => myChallenges.filter((challenge) => challenge.status === statusTab),
     [myChallenges, statusTab],
+  );
+
+  const manageableTeamIds = useMemo(
+    () => new Set((manageableTeams || []).map((team) => team.id).filter(Boolean)),
+    [manageableTeams],
   );
 
   useEffect(() => {
@@ -174,6 +188,8 @@ const MisDesafiosTab = ({
 
       {!loading ? filtered.map((challenge) => {
         const allowManage = canManage(challenge);
+        const canEditChallenge = challenge.status === 'open'
+          && manageableTeamIds.has(challenge.challenger_team_id);
 
         let primaryLabel = 'Ver detalle';
         let primaryAction = () => handleShare(challenge);
@@ -198,6 +214,8 @@ const MisDesafiosTab = ({
           <ChallengeCard
             key={challenge.id}
             challenge={challenge}
+            canEdit={canEditChallenge}
+            onEdit={(targetChallenge) => setEditingChallenge(targetChallenge)}
             primaryLabel={primaryLabel}
             onPrimaryAction={primaryAction}
             onCancel={async () => {
@@ -218,6 +236,30 @@ const MisDesafiosTab = ({
           />
         );
       }) : null}
+
+      <PublishChallengeModal
+        isOpen={Boolean(editingChallenge)}
+        teams={manageableTeams}
+        initialChallenge={editingChallenge}
+        submitLabel="Guardar"
+        submitLoadingText="Guardando..."
+        isSubmitting={isSubmitting}
+        onClose={() => setEditingChallenge(null)}
+        onSubmit={async (payload) => {
+          if (!editingChallenge?.id) return;
+
+          try {
+            setIsSubmitting(true);
+            await updateChallenge(userId, editingChallenge.id, payload);
+            setEditingChallenge(null);
+            await loadData();
+          } catch (error) {
+            notifyBlockingError(error.message || 'No se pudo editar el desafio');
+          } finally {
+            setIsSubmitting(false);
+          }
+        }}
+      />
 
       <CompleteChallengeModal
         isOpen={Boolean(completeTarget)}

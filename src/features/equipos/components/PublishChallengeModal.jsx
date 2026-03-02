@@ -27,6 +27,18 @@ const parseOptionalAmount = (value) => {
   return parsed;
 };
 
+const toLocalDateTimeInputValue = (value) => {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  const hour = String(parsed.getHours()).padStart(2, '0');
+  const minute = String(parsed.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hour}:${minute}`;
+};
+
 const PublishChallengeModal = ({
   isOpen,
   teams = [],
@@ -34,6 +46,9 @@ const PublishChallengeModal = ({
   onSubmit,
   isSubmitting = false,
   prefilledTeamId = null,
+  initialChallenge = null,
+  submitLabel = 'Publicar',
+  submitLoadingText = 'Publicando...',
 }) => {
   const [challengerTeamId, setChallengerTeamId] = useState('');
   const [scheduledAtLocal, setScheduledAtLocal] = useState('');
@@ -41,9 +56,21 @@ const PublishChallengeModal = ({
   const [notes, setNotes] = useState('');
   const [fieldPrice, setFieldPrice] = useState('');
   const [mode, setMode] = useState('Masculino');
+  const isEditMode = Boolean(initialChallenge?.id);
 
   useEffect(() => {
     if (!isOpen) return;
+
+    if (isEditMode) {
+      setChallengerTeamId(initialChallenge?.challenger_team_id || prefilledTeamId || teams[0]?.id || '');
+      setScheduledAtLocal(toLocalDateTimeInputValue(initialChallenge?.scheduled_at));
+      setLocationName(initialChallenge?.location || initialChallenge?.location_name || '');
+      setNotes(initialChallenge?.notes || '');
+      const parsedPrice = Number(initialChallenge?.cancha_cost ?? initialChallenge?.field_price);
+      setFieldPrice(Number.isFinite(parsedPrice) && parsedPrice > 0 ? String(Math.round(parsedPrice)) : '');
+      setMode(normalizeTeamMode(initialChallenge?.mode || initialChallenge?.challenger_team?.mode));
+      return;
+    }
 
     if (prefilledTeamId) {
       setChallengerTeamId(prefilledTeamId);
@@ -56,21 +83,22 @@ const PublishChallengeModal = ({
     setNotes('');
     setFieldPrice('');
     setMode('Masculino');
-  }, [isOpen, prefilledTeamId, teams]);
+  }, [initialChallenge, isEditMode, isOpen, prefilledTeamId, teams]);
 
   const selectedTeam = useMemo(() => teams.find((team) => team.id === challengerTeamId) || null, [challengerTeamId, teams]);
 
   useEffect(() => {
+    if (isEditMode) return;
     if (!isOpen) return;
     if (!selectedTeam) return;
     setMode(normalizeTeamMode(selectedTeam.mode));
-  }, [isOpen, selectedTeam]);
+  }, [isEditMode, isOpen, selectedTeam]);
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Publicar desafio"
+      title={isEditMode ? 'Editar desafio' : 'Publicar desafio'}
       className="w-full max-w-[560px]"
       classNameContent="p-4 sm:p-5"
       footer={(
@@ -90,11 +118,11 @@ const PublishChallengeModal = ({
             form="publish-challenge-form"
             className={actionPrimaryClass}
             loading={isSubmitting}
-            loadingText="Publicando..."
+            loadingText={submitLoadingText}
             disabled={!selectedTeam}
             data-preserve-button-case="true"
           >
-            Publicar
+            {submitLabel}
           </Button>
         </div>
       )}

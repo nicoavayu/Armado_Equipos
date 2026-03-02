@@ -16,6 +16,7 @@ import {
   listMyManageableTeams,
   listMyTeams,
   listOpenChallenges,
+  updateChallenge,
 } from '../../../services/db/teamChallenges';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import EmptyStateCard from '../../../components/EmptyStateCard';
@@ -64,6 +65,7 @@ const DesafiosTab = ({
   const [filters, setFilters] = useState({ format: '', zone: '', skillLevel: '' });
   const [showFilters, setShowFilters] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
+  const [editingChallenge, setEditingChallenge] = useState(null);
   const [acceptingChallenge, setAcceptingChallenge] = useState(null);
   const [selectedAcceptTeamId, setSelectedAcceptTeamId] = useState('');
   const [formatMismatchConfirm, setFormatMismatchConfirm] = useState(null);
@@ -125,6 +127,11 @@ const DesafiosTab = ({
       .filter(Boolean)
       .length
   ), [filters]);
+
+  const manageableTeamIds = useMemo(
+    () => new Set((manageableTeams || []).map((team) => team.id).filter(Boolean)),
+    [manageableTeams],
+  );
 
   const getAvailableTeamsForChallenge = (challenge) => manageableTeams.filter((team) => (
     team.id !== challenge.challenger_team_id &&
@@ -258,13 +265,18 @@ const DesafiosTab = ({
       ) : null}
 
       {!loading ? visibleChallenges.map((challenge) => {
-        const isOwnChallenge = challenge.created_by_user_id === userId;
+        const isOwnChallenge = manageableTeamIds.has(challenge.challenger_team_id)
+          || challenge.created_by_user_id === userId;
+        const canEditChallenge = challenge.status === 'open'
+          && manageableTeamIds.has(challenge.challenger_team_id);
 
         return (
           <ChallengeCard
             key={challenge.id}
             challenge={challenge}
             isOwnChallenge={isOwnChallenge}
+            canEdit={canEditChallenge}
+            onEdit={(targetChallenge) => setEditingChallenge(targetChallenge)}
             primaryLabel={isOwnChallenge ? 'Cancelar desafio' : 'Aceptar'}
             onPrimaryAction={async () => {
               if (challenge.status !== 'open') return;
@@ -315,6 +327,34 @@ const DesafiosTab = ({
             onChallengePublished?.();
           } catch (error) {
             notifyBlockingError(error.message || 'No se pudo publicar el desafio');
+          } finally {
+            setIsSubmitting(false);
+          }
+        }}
+      />
+
+      <PublishChallengeModal
+        isOpen={Boolean(editingChallenge)}
+        teams={manageableTeams}
+        initialChallenge={editingChallenge}
+        submitLabel="Guardar"
+        submitLoadingText="Guardando..."
+        isSubmitting={isSubmitting}
+        onClose={() => setEditingChallenge(null)}
+        onSubmit={async (payload) => {
+          if (!editingChallenge?.id) return;
+
+          try {
+            setIsSubmitting(true);
+            await updateChallenge(userId, editingChallenge.id, payload);
+            setEditingChallenge(null);
+            await loadChallenges();
+            setInlineNotice({
+              type: 'success',
+              message: 'Desafio actualizado correctamente.',
+            });
+          } catch (error) {
+            notifyBlockingError(error.message || 'No se pudo editar el desafio');
           } finally {
             setIsSubmitting(false);
           }

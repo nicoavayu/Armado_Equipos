@@ -1953,6 +1953,74 @@ export const createChallenge = async (userId, payload) => {
   throw new Error(response?.error?.message || 'No se pudo publicar el desafio');
 };
 
+export const updateChallenge = async (userId, challengeId, payload) => {
+  assertAuthenticatedUser(userId);
+
+  if (!challengeId) {
+    throw new Error('No se pudo identificar el desafio a editar');
+  }
+
+  const skillCandidates = getSkillCandidates(payload.skill_level);
+  let response = null;
+
+  for (const skillCandidate of skillCandidates) {
+    const updatePayload = {
+      challenger_team_id: payload.challenger_team_id,
+      scheduled_at: payload.scheduled_at || null,
+      mode: payload.mode || null,
+      location: payload.location || payload.location_name || null,
+      location_name: payload.location_name || null,
+      location_place_id: payload.location_place_id || null,
+      format: Number(payload.format),
+      skill_level: skillCandidate,
+      cancha_cost: payload.cancha_cost ?? payload.field_price ?? null,
+      field_price: payload.field_price ?? null,
+      notes: payload.notes || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const payloadVariants = buildChallengeInsertPayloadVariants(updatePayload);
+    for (const payloadVariant of payloadVariants) {
+      response = await supabase
+        .from('challenges')
+        .update(payloadVariant)
+        .eq('id', challengeId)
+        .eq('status', 'open')
+        .select(CHALLENGE_SELECT_WITH_PRICING)
+        .single();
+
+      if (response.error && isChallengeSelectCompatibilityError(response.error)) {
+        response = await runChallengeSelectWithFallback(
+          (selectClause) => supabase
+            .from('challenges')
+            .update(payloadVariant)
+            .eq('id', challengeId)
+            .eq('status', 'open')
+            .select(selectClause)
+            .single(),
+          CHALLENGE_SELECT_BASE,
+        );
+      }
+
+      if (!response.error) {
+        return withChallengeCompatibility(response.data);
+      }
+
+      if (isSkillLevelConstraintError(response.error)) {
+        break;
+      }
+
+      if (!(isChallengeWriteCompatibilityError(response.error) || isChallengeSelectCompatibilityError(response.error))) {
+        break;
+      }
+    }
+
+    if (!isSkillLevelConstraintError(response.error)) break;
+  }
+
+  throw new Error(response?.error?.message || 'No se pudo editar el desafio');
+};
+
 export const cancelChallenge = async (challengeId) => {
   const response = await runChallengeSelectWithFallback(
     (selectClause) => supabase
