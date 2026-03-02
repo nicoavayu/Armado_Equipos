@@ -92,7 +92,7 @@ const MatchSelectionCard = ({
                 </div>
             </div>
 
-            <h4 className={`font-oswald text-[36px] sm:text-[30px] leading-none tracking-[0.01em] truncate ${isComplete ? 'text-white/55' : 'text-white'}`}>
+            <h4 className={`font-oswald text-[20px] sm:text-[18px] font-semibold leading-tight tracking-[0.01em] truncate ${isComplete ? 'text-white/55' : 'text-white'}`}>
                 {title}
             </h4>
 
