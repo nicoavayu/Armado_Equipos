@@ -88,7 +88,15 @@ const hasValidCoordinates = (lat, lng) => {
   return true;
 };
 
-const MATCH_DISTANCE_OPTIONS_KM = [5, 10, 15, 20, 25, 30];
+const MATCH_DISTANCE_STORAGE_KEY = 'quiero-jugar-match-distance-km';
+const MIN_MATCH_DISTANCE_KM = 1;
+const MAX_MATCH_DISTANCE_KM = 50;
+const DEFAULT_MATCH_DISTANCE_KM = 30;
+
+const clampMatchDistanceKm = (value) => {
+  if (!Number.isFinite(value)) return DEFAULT_MATCH_DISTANCE_KM;
+  return Math.min(MAX_MATCH_DISTANCE_KM, Math.max(MIN_MATCH_DISTANCE_KM, Math.round(value)));
+};
 
 const resolveMatchCoordinates = (partido) => {
   const directPairs = [
@@ -145,10 +153,9 @@ const QuieroJugar = ({
   const [freePlayers, setFreePlayers] = useState([]);
   const [sortBy, setSortBy] = useState('distance');
   const [userLocation, setUserLocation] = useState(null);
-  const [matchSortBy, setMatchSortBy] = useState('proximidad');
   const [maxMatchDistanceKm, setMaxMatchDistanceKm] = useState(() => {
-    const saved = Number(sessionStorage.getItem('quiero-jugar-match-distance-km'));
-    return MATCH_DISTANCE_OPTIONS_KM.includes(saved) ? saved : 30;
+    const saved = Number(sessionStorage.getItem(MATCH_DISTANCE_STORAGE_KEY));
+    return clampMatchDistanceKm(saved);
   });
   const [activeTab, setActiveTab] = useState(() => {
     const savedTab = sessionStorage.getItem('quiero-jugar-tab');
@@ -174,7 +181,7 @@ const QuieroJugar = ({
   }, [user]);
 
   useEffect(() => {
-    sessionStorage.setItem('quiero-jugar-match-distance-km', String(maxMatchDistanceKm));
+    sessionStorage.setItem(MATCH_DISTANCE_STORAGE_KEY, String(maxMatchDistanceKm));
   }, [maxMatchDistanceKm]);
 
   useEffect(() => {
@@ -497,24 +504,32 @@ const QuieroJugar = ({
             });
 
             const sortedPartidos = [...filteredPartidos].sort((a, b) => {
-              if (matchSortBy === 'proximidad') {
-                const hasDistanceA = Number.isFinite(a.distanceKm);
-                const hasDistanceB = Number.isFinite(b.distanceKm);
+              const createdA = new Date(a.created_at || '').getTime();
+              const createdB = new Date(b.created_at || '').getTime();
+              const hasCreatedA = Number.isFinite(createdA);
+              const hasCreatedB = Number.isFinite(createdB);
 
-                if (hasDistanceA && hasDistanceB) {
-                  const byDistance = a.distanceKm - b.distanceKm;
-                  if (byDistance !== 0) return byDistance;
-                }
+              if (hasCreatedA && hasCreatedB && createdA !== createdB) return createdB - createdA;
+              if (hasCreatedA && !hasCreatedB) return -1;
+              if (!hasCreatedA && hasCreatedB) return 1;
 
-                if (hasDistanceA && !hasDistanceB) return -1;
-                if (!hasDistanceA && hasDistanceB) return 1;
+              const startA = new Date(`${a.fecha || ''}T${a.hora || '00:00'}`).getTime();
+              const startB = new Date(`${b.fecha || ''}T${b.hora || '00:00'}`).getTime();
+              const hasStartA = Number.isFinite(startA);
+              const hasStartB = Number.isFinite(startB);
 
-                const dateA = new Date(`${a.fecha}T${a.hora}`).getTime();
-                const dateB = new Date(`${b.fecha}T${b.hora}`).getTime();
-                return dateA - dateB;
-              }
+              if (hasStartA && hasStartB && startA !== startB) return startA - startB;
+              if (hasStartA && !hasStartB) return -1;
+              if (!hasStartA && hasStartB) return 1;
 
-              return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+              const hasDistanceA = Number.isFinite(a.distanceKm);
+              const hasDistanceB = Number.isFinite(b.distanceKm);
+
+              if (hasDistanceA && hasDistanceB) return a.distanceKm - b.distanceKm;
+              if (hasDistanceA && !hasDistanceB) return -1;
+              if (!hasDistanceA && hasDistanceB) return 1;
+
+              return 0;
             });
 
             if (activePartidos.length === 0) {
@@ -532,71 +547,27 @@ const QuieroJugar = ({
 
             return (
               <>
-                <div className="w-full max-w-[500px] mb-4 p-3 rounded-xl border border-white/10 bg-white/5">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-white/80">
+                <div className="w-full max-w-[500px] mb-4 border border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92 px-3 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
+                  <div className="flex items-center justify-between gap-2 mb-2.5">
+                    <span className="font-bebas text-[0.9rem] uppercase tracking-[0.06em] text-white/85">
                       Distancia maxima de partidos
                     </span>
-                    <span className="text-xs font-bold text-[#9ed3ff]">
+                    <span className="font-oswald text-sm font-semibold text-[#9ed3ff]">
                       {maxMatchDistanceKm} km
                     </span>
                   </div>
 
                   <input
                     type="range"
-                    min={5}
-                    max={30}
-                    step={5}
+                    min={MIN_MATCH_DISTANCE_KM}
+                    max={MAX_MATCH_DISTANCE_KM}
+                    step={1}
                     value={maxMatchDistanceKm}
-                    onChange={(e) => {
-                      const value = Number(e.target.value);
-                      if (MATCH_DISTANCE_OPTIONS_KM.includes(value)) {
-                        setMaxMatchDistanceKm(value);
-                      }
-                    }}
-                    className="w-full accent-[#128BE9]"
+                    onChange={(e) => setMaxMatchDistanceKm(clampMatchDistanceKm(Number(e.target.value)))}
+                    className="w-full accent-[#6a43ff]"
                   />
 
-                  <div className="mt-2 grid grid-cols-6 gap-1.5">
-                    {MATCH_DISTANCE_OPTIONS_KM.map((distanceOption) => (
-                      <button
-                        key={distanceOption}
-                        type="button"
-                        onClick={() => setMaxMatchDistanceKm(distanceOption)}
-                        className={`rounded-md py-1 text-[11px] font-bold transition-all border ${maxMatchDistanceKm === distanceOption
-                          ? 'bg-white/15 text-white border-white/30'
-                          : 'bg-transparent text-white/45 border-white/10 hover:bg-white/10 hover:text-white/80'
-                          }`}
-                      >
-                        {distanceOption}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="mt-3 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setMatchSortBy('proximidad')}
-                      className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide uppercase border transition-all ${matchSortBy === 'proximidad'
-                        ? 'bg-white/10 text-white border-white/30'
-                        : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
-                        }`}
-                    >
-                      Proximidad
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMatchSortBy('recientes')}
-                      className={`flex-1 py-2 rounded-lg text-[11px] font-bold tracking-wide uppercase border transition-all ${matchSortBy === 'recientes'
-                        ? 'bg-white/10 text-white border-white/30'
-                        : 'bg-transparent text-white/40 border-white/10 hover:bg-white/5'
-                        }`}
-                    >
-                      Recientes
-                    </button>
-                  </div>
-
-                  <p className="mt-2 text-[11px] text-white/55">
+                  <p className="mt-2 text-[11px] font-oswald text-white/55">
                     {userLocation
                       ? 'Filtramos por distancia solo los partidos con coordenadas.'
                       : 'Activa ubicacion o cargala en tu perfil para filtrar por distancia.'}
@@ -604,7 +575,7 @@ const QuieroJugar = ({
                 </div>
 
                 {sortedPartidos.length === 0 ? (
-                  <div className="w-full max-w-[500px] rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
+                  <div className="w-full max-w-[500px] border border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92 p-6 text-center">
                     <p className="text-white font-oswald text-base">
                       No hay partidos dentro de {maxMatchDistanceKm} km.
                     </p>
@@ -629,26 +600,32 @@ const QuieroJugar = ({
                       const roundedDistanceKm = Number.isFinite(partido.distanceKm) ? Math.round(partido.distanceKm) : null;
 
                       return (
-                        <div key={partido.id} className="w-full max-w-[500px] bg-[#1e293b]/70 backdrop-blur-sm rounded-2xl p-5 mb-3 border border-white/10 shadow-lg hover:border-white/20 transition-all duration-300">
-                          <div className="flex justify-between items-start mb-4">
-                            <div className="flex flex-col flex-1 min-w-0 pr-3">
-                              <span className="text-xs text-white/60 font-oswald flex items-center gap-1.5 font-light tracking-wide uppercase">
-                                <span className="bg-white/10 px-2 py-1 rounded-lg flex items-center gap-1.5 border border-white/5"><Calendar size={12} className="text-[#128BE9]" /> {formattedDate}</span>
-                                <span className="bg-white/10 px-2 py-1 rounded-lg flex items-center gap-1.5 border border-white/5"><Clock size={12} className="text-[#128BE9]" /> {partido.hora} hs</span>
-                              </span>
+                        <div
+                          key={partido.id}
+                          className="w-full max-w-[500px] bg-[#1e293b]/92 border border-[rgba(88,107,170,0.46)] p-5 mb-3 shadow-[0_10px_24px_rgba(0,0,0,0.28)] transition-all duration-200 hover:brightness-[1.03] hover:border-[#4a7ed6]"
+                        >
+                          <div className="flex justify-between items-start mb-3 gap-3">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="inline-flex items-center gap-1.5 font-oswald text-[15px] font-bold text-white capitalize min-w-0">
+                                <Calendar size={14} className="text-white/80 shrink-0" />
+                                <span className="truncate">{formattedDate}</span>
+                                <span className="text-white/50">•</span>
+                                <Clock size={14} className="text-white/80 shrink-0" />
+                                <span>{partido.hora} hs</span>
+                              </div>
                             </div>
-                            <div className="shrink-0 flex items-center gap-1.5">
+                            <div className="shrink-0 flex items-center gap-2">
                               {isComplete ? (
-                                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded border border-emerald-400/20 tracking-wider">
+                                <span className="px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap bg-[#165a2e] text-[#22c55e] border border-[#22c55e]">
                                   {titularesDisplayCount}/{cupoMaximo}
                                 </span>
                               ) : (
-                                <span className="text-[10px] font-bold text-white/90 bg-white/10 px-2 py-1 rounded border border-white/20 tracking-wider">
+                                <span className="px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap bg-slate-900 text-slate-300 border border-slate-700">
                                   {titularesDisplayCount}/{cupoMaximo}
                                 </span>
                               )}
                               {substitutesCount > 0 && (
-                                <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-1 rounded border border-amber-400/30 tracking-wider">
+                                <span className="px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap border border-amber-400/30 bg-amber-500/10 text-amber-300">
                                   {substitutesCount}/{MAX_SUBSTITUTE_SLOTS}
                                 </span>
                               )}
@@ -656,23 +633,22 @@ const QuieroJugar = ({
                           </div>
 
                           <div className="flex items-center gap-2 mb-3">
-                            <span className="text-[10px] font-bold text-white/40 border border-white/5 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider">{partido.modalidad || 'F5'}</span>
-                            <span className="text-[10px] font-bold text-white/40 border border-white/5 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider">{partido.tipo_partido || 'Mixto'}</span>
+                            <span className="font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap bg-[#0f2f23] border-2 border-[#22c55e] text-[#dcfce7]">{partido.modalidad || 'F5'}</span>
+                            <span className="font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap bg-[#213448] border-2 border-[#2dd4bf] text-[#ccfbf1]">{partido.tipo_partido || 'Mixto'}</span>
                           </div>
 
-                          <div className="text-[13px] text-white/60 font-oswald leading-snug break-words">
-                            {locationLabel}
+                          <div className="font-oswald text-sm font-medium text-white/90 flex items-start gap-2 overflow-hidden text-ellipsis">
+                            <MapPin size={16} className="mt-0.5 shrink-0 text-white/85" />
+                            <span className="break-words">{locationLabel}</span>
                           </div>
-                          {userLocation && (
-                            <div className={`mt-1 text-[11px] font-oswald flex items-center gap-1.5 ${Number.isFinite(roundedDistanceKm) ? 'text-[#9ed3ff]' : 'text-white/35'}`}>
-                              <MapPin size={12} />
-                              {Number.isFinite(roundedDistanceKm) ? `A ${roundedDistanceKm} km` : 'Distancia sin datos'}
-                            </div>
-                          )}
+                          <div className={`mt-1 text-[12px] font-oswald flex items-center gap-1.5 ${Number.isFinite(roundedDistanceKm) ? 'text-[#9ed3ff]' : 'text-white/35'}`}>
+                            <MapPin size={12} />
+                            {Number.isFinite(roundedDistanceKm) ? `A ${roundedDistanceKm} km` : 'Distancia sin datos'}
+                          </div>
 
                           <div className="flex gap-2 mt-4">
                             <button
-                              className="flex-1 py-3 rounded-xl text-xs font-bold bg-[#128BE9] hover:brightness-110 text-white normal-case shadow-lg active:scale-[0.98] transition-all"
+                              className="flex-1 font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff]"
                               onClick={() => navigate(`/partido-publico/${partido.id}`)}
                             >
                               Ver partido
