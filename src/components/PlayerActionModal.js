@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { User, UserPlus, CheckCircle2, Clock3, Trophy, X, Star } from 'lucide-react';
+import { User, X, Star } from 'lucide-react';
 
 const POS_MAP = {
   ARQ: 'ARQ',
@@ -22,7 +22,7 @@ const POS_COLOR_MAP = {
 const getPos = (p) => POS_MAP[p] || 'DEF';
 const getPosColor = (p) => POS_COLOR_MAP[p] || '#8178e5';
 
-const ACTION_BTN_BASE_CLASS = 'w-full h-[46px] px-3 rounded-none border font-bebas text-base tracking-[0.01em] leading-none transition-all inline-flex items-center justify-center gap-2 whitespace-nowrap text-center';
+const ACTION_BTN_BASE_CLASS = 'w-full h-[46px] px-4 rounded-none border font-bebas text-[15px] tracking-[0.01em] leading-none transition-all inline-flex items-center justify-center whitespace-nowrap text-center';
 const ACTION_BTN_PRIMARY_CLASS = 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95';
 const ACTION_BTN_SECONDARY_CLASS = 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] text-white/92 hover:bg-[rgba(30,45,94,0.95)] hover:text-white active:opacity-95';
 
@@ -30,7 +30,6 @@ const getFriendButtonConfig = (status, isSubmitting) => {
   if (isSubmitting) {
     return {
       label: 'Enviando...',
-      icon: <Clock3 size={16} />,
       disabled: true,
       className: 'bg-[rgba(20,31,70,0.72)] border-[rgba(98,117,184,0.5)] text-white/60 cursor-not-allowed opacity-70',
     };
@@ -39,7 +38,6 @@ const getFriendButtonConfig = (status, isSubmitting) => {
   if (status === 'accepted') {
     return {
       label: 'Ya son amigos',
-      icon: <CheckCircle2 size={14} />,
       disabled: true,
       className: 'bg-[rgba(22,90,46,0.45)] border-[rgba(34,197,94,0.58)] text-[#dcfce7] cursor-not-allowed',
     };
@@ -48,7 +46,6 @@ const getFriendButtonConfig = (status, isSubmitting) => {
   if (status === 'pending') {
     return {
       label: 'Solicitud pendiente',
-      icon: <Clock3 size={16} />,
       disabled: true,
       className: 'bg-[rgba(106,67,255,0.18)] border-[rgba(125,90,255,0.55)] text-[#cfc2ff] cursor-not-allowed',
     };
@@ -56,7 +53,6 @@ const getFriendButtonConfig = (status, isSubmitting) => {
 
   return {
     label: 'Solicitar amistad',
-    icon: <UserPlus size={16} />,
     disabled: false,
     className: ACTION_BTN_PRIMARY_CLASS,
   };
@@ -71,7 +67,6 @@ const PlayerActionModal = ({
   onAddFriend,
   friendStatus = null,
   isSubmittingFriend = false,
-  anchorPoint = null,
 }) => {
   if (!isOpen || !player) return null;
 
@@ -81,21 +76,6 @@ const PlayerActionModal = ({
   const position = getPos(player.posicion || player.rol_favorito || 'DEF');
   const positionColor = getPosColor(position);
   const friendBtn = getFriendButtonConfig(friendStatus, isSubmittingFriend);
-  const modalWidth = 340;
-  const modalHeight = 420;
-  const viewportPadding = 16;
-  const clampedX = anchorPoint
-    ? Math.min(
-      Math.max(anchorPoint.x, (modalWidth / 2) + viewportPadding),
-      window.innerWidth - (modalWidth / 2) - viewportPadding,
-    )
-    : null;
-  const clampedY = anchorPoint
-    ? Math.min(
-      Math.max(anchorPoint.y, (modalHeight / 2) + viewportPadding),
-      window.innerHeight - (modalHeight / 2) - viewportPadding,
-    )
-    : null;
 
   const modalContent = (
     <div data-modal-root="true" className="fixed inset-0 z-[9999] pointer-events-auto p-4 animate-fade-in">
@@ -106,19 +86,12 @@ const PlayerActionModal = ({
 
       <div
         className="relative w-full max-w-[340px] bg-[#1e293b] border border-white/20 p-6 rounded-2xl shadow-2xl transition-transform duration-200 ease-out scale-100"
-        style={anchorPoint
-          ? {
-            position: 'fixed',
-            left: `${clampedX}px`,
-            top: `${clampedY}px`,
-            transform: 'translate(-50%, -50%)',
-          }
-          : {
-            position: 'fixed',
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-          }}
+        style={{
+          position: 'fixed',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+        }}
       >
         <button
           onClick={onClose}
@@ -161,8 +134,8 @@ const PlayerActionModal = ({
             }}
             className={`${ACTION_BTN_BASE_CLASS} ${ACTION_BTN_PRIMARY_CLASS} h-[48px]`}
             type="button"
+            data-preserve-button-case="true"
           >
-            <Trophy size={18} />
             Invitar a un partido
           </button>
 
@@ -174,8 +147,8 @@ const PlayerActionModal = ({
               }}
               className={`${ACTION_BTN_BASE_CLASS} ${ACTION_BTN_SECONDARY_CLASS}`}
               type="button"
+              data-preserve-button-case="true"
             >
-              <User size={16} />
               Ver perfil
             </button>
             <button
@@ -185,8 +158,8 @@ const PlayerActionModal = ({
               className={`${ACTION_BTN_BASE_CLASS} ${friendBtn.className}`}
               type="button"
               disabled={friendBtn.disabled}
+              data-preserve-button-case="true"
             >
-              {friendBtn.icon}
               {friendBtn.label}
             </button>
           </div>
