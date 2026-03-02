@@ -892,15 +892,15 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
   return (
     <>
-      <div className="w-full flex justify-center px-4 pt-[116px] pb-6">
-        <div className="w-full max-w-[560px] space-y-3">
-          <div className="grid h-[44px] w-full grid-cols-2 overflow-hidden border border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]">
-            {DETAIL_TABS.map((tab) => (
+      <div className="w-full pt-[80px] pb-6 md:pt-[72px]">
+        <div className="relative left-1/2 w-screen -translate-x-1/2">
+          <div className="flex h-[44px] w-full overflow-hidden border-y border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]">
+            {DETAIL_TABS.map((tab, index) => (
               <button
                 key={tab.key}
                 type="button"
                 onClick={() => handleSelectDetailTab(tab.key)}
-                className={`relative min-w-0 border px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${tab.key === 'history' ? 'border-l-0' : ''} ${selectedTabLabel === tab.key
+                className={`relative flex-1 min-w-0 border px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${index > 0 ? 'border-l-0' : ''} ${selectedTabLabel === tab.key
                   ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
                   : 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
                   }`}
@@ -912,11 +912,14 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               </button>
             ))}
           </div>
+        </div>
 
-          <div
-            className="relative rounded-none border border-white/15 bg-[#0f172acc] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
-            style={selectedTeamGradientStyle}
-          >
+        <div className="w-full flex justify-center px-4 pt-3">
+          <div className="w-full max-w-[560px] space-y-3">
+            <div
+              className="relative rounded-none border border-white/15 bg-[#0f172acc] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
+              style={selectedTeamGradientStyle}
+            >
             <span
               className="absolute left-4 right-4 top-0 h-[2px] rounded-none opacity-80"
               style={{ backgroundColor: selectedTeamAccent }}
@@ -991,10 +994,10 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                 </div>
               ) : null}
             </div>
-          </div>
+            </div>
 
-          {selectedTabLabel === 'plantilla' ? (
-            <div className="pt-1">
+            {selectedTabLabel === 'plantilla' ? (
+              <div className="pt-1">
               <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
                 <h5 className="text-white font-oswald text-xl">Plantilla</h5>
                 <span className="text-xs text-white/60">
@@ -1194,11 +1197,11 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                   ))}
                 </div>
               ) : null}
-            </div>
-          ) : null}
+              </div>
+            ) : null}
 
-          {selectedTabLabel === 'history' ? (
-            <div className="pt-1">
+            {selectedTabLabel === 'history' ? (
+              <div className="pt-1">
               <h5 className="border-b border-white/10 pb-2 text-white font-oswald text-xl">Historial vs rivales</h5>
               <div className="mt-2 rounded-none border border-white/10 bg-white/5 p-3 text-sm text-white/80">
                 PJ {summaryStats.played} · PG {summaryStats.won} · PE {summaryStats.draw} · PP {summaryStats.lost}
@@ -1247,8 +1250,9 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                   ))}
                 </div>
               ) : null}
-            </div>
-          ) : null}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
