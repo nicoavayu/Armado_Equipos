@@ -17,6 +17,23 @@ const MiniFriendCard = ({ friend, onRequestRemoveClick, currentUserId }) => {
   // Debug logs
   console.log('[MINI_FRIEND_CARD] Render state:', { showMenu, showInviteModal, name });
 
+  const getSafeMenuPosition = (rect) => {
+    const menuWidth = 192; // w-48
+    const menuHeight = 108;
+    const margin = 12;
+    const rawLeft = rect.right - menuWidth;
+    const safeLeft = Math.min(
+      Math.max(margin, rawLeft),
+      Math.max(margin, window.innerWidth - menuWidth - margin),
+    );
+    const safeTop = Math.min(
+      rect.bottom + 8,
+      Math.max(margin, window.innerHeight - menuHeight - margin),
+    );
+
+    return { top: safeTop, left: safeLeft };
+  };
+
   return (
     <div className="relative overflow-visible">
       <PlayerCardTrigger profile={profile}>
@@ -28,15 +45,12 @@ const MiniFriendCard = ({ friend, onRequestRemoveClick, currentUserId }) => {
             <div className="relative z-0">
               <button
                 ref={buttonRef}
-                className="h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors relative z-10"
+                className="kebab-menu-btn relative z-10"
                 onClick={(e) => {
                   e.stopPropagation();
                   if (buttonRef.current) {
                     const rect = buttonRef.current.getBoundingClientRect();
-                    setMenuPosition({
-                      top: rect.bottom + 8,
-                      left: rect.left - 140 + rect.width,
-                    });
+                    setMenuPosition(getSafeMenuPosition(rect));
                   }
                   setShowMenu(!showMenu);
                 }}
@@ -65,7 +79,7 @@ const MiniFriendCard = ({ friend, onRequestRemoveClick, currentUserId }) => {
           />
           {/* Menú después (z-index mayor) */}
           <div
-            className="fixed bg-slate-900 rounded-none shadow-[0_8px_24px_rgba(0,0,0,0.3)] z-[9999] min-w-[160px] overflow-hidden max-[768px]:min-w-[180px] border border-slate-800"
+            className="fixed z-[9999] w-48 rounded-none border border-[rgba(88,107,170,0.62)] bg-[rgba(7,19,48,0.98)] shadow-lg overflow-hidden"
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,
@@ -73,28 +87,29 @@ const MiniFriendCard = ({ friend, onRequestRemoveClick, currentUserId }) => {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              className="block w-full p-[12px_16px] bg-none border-none text-left text-sm text-[#2196F3] cursor-pointer transition-colors hover:bg-slate-800 font-medium max-[768px]:p-[14px_16px] max-[768px]:text-[15px]"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowInviteModal(true);
-                setShowMenu(false);
-              }}
-            >
-              Invitar a partido
-            </button>
-            <div className="h-[1px] bg-slate-700" />
-            <button
-              className="block w-full p-[12px_16px] bg-none border-none text-left text-sm text-[#DE1C49] cursor-pointer transition-colors hover:bg-slate-800 font-medium max-[768px]:p-[14px_16px] max-[768px]:text-[15px]"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowMenu(false);
-                // Delegarle a AmigosView para abrir el modal centralizado
-                onRequestRemoveClick?.(friend);
-              }}
-            >
-              Eliminar amigo
-            </button>
+            <div className="py-1">
+              <button
+                className="w-full px-3 py-2 text-left text-sm font-medium text-slate-100 transition-colors hover:bg-[rgba(19,38,88,0.95)]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowInviteModal(true);
+                  setShowMenu(false);
+                }}
+              >
+                Invitar a partido
+              </button>
+              <button
+                className="w-full px-3 py-2 text-left text-sm font-medium text-red-200 transition-colors hover:bg-[rgba(19,38,88,0.95)]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMenu(false);
+                  // Delegarle a AmigosView para abrir el modal centralizado
+                  onRequestRemoveClick?.(friend);
+                }}
+              >
+                Eliminar amigo
+              </button>
+            </div>
           </div>
         </>,
         document.body,
