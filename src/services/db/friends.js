@@ -1,5 +1,17 @@
 import { supabase } from '../../lib/supabaseClient';
 
+const isValidUUID = (value) => {
+  if (!value || typeof value !== 'string') return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(value);
+};
+
+const normalizeMessage = (error) => String(error?.message || error?.details || '').toLowerCase();
+const isMissingColumnError = (error) => {
+  const message = normalizeMessage(error);
+  return message.includes('column') && (message.includes('does not exist') || message.includes('schema cache'));
+};
+
 const pickBestAvatarUrl = (...candidates) => {
   const valid = candidates
     .filter((value) => typeof value === 'string' && value.trim().length > 0)
@@ -74,16 +86,31 @@ export const getAmigos = async (userId) => {
     }
 
     // 4. Hacer SELECT FROM usuarios WHERE id IN (friendIds) - usar campos que sabemos que existen
-    const friendIds = uniqueFriendMappings.map((m) => m.friendId);
+    const friendIds = uniqueFriendMappings
+      .map((m) => m.friendId)
+      .filter((id) => isValidUUID(String(id || '')));
+
+    if (friendIds.length === 0) {
+      console.warn('[GET_AMIGOS] No valid UUID friend IDs found in mappings');
+      return [];
+    }
+
+    const fetchUsuarios = async (selectClause) => supabase
+      .from('usuarios')
+      .select(selectClause)
+      .in('id', friendIds);
+
+    let usersResponse = await fetchUsuarios(
+      'id, nombre, avatar_url, localidad, ranking, partidos_jugados, posicion, email, pierna_habil, nivel, latitud, longitud',
+    );
+    if (usersResponse.error && isMissingColumnError(usersResponse.error)) {
+      usersResponse = await fetchUsuarios('id, nombre, avatar_url, ranking, partidos_jugados, posicion, email');
+    }
+
     const [
-      { data: users, error: usersError },
       { data: profilesData, error: profilesError },
       { data: jugadoresData, error: jugadoresError },
     ] = await Promise.all([
-      supabase
-        .from('usuarios')
-        .select('id, nombre, avatar_url, localidad, ranking, partidos_jugados, posicion, email, pierna_habil, nivel, latitud, longitud')
-        .in('id', friendIds),
       supabase
         .from('profiles')
         .select('id, avatar_url')
@@ -95,6 +122,9 @@ export const getAmigos = async (userId) => {
         .not('avatar_url', 'is', null)
         .order('id', { ascending: false }),
     ]);
+
+    const users = usersResponse.data;
+    const usersError = usersResponse.error;
 
     if (usersError) throw usersError;
     if (profilesError) {

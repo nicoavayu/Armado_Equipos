@@ -12,6 +12,12 @@ const isValidUUID = (value) => {
   return uuidRegex.test(value);
 };
 
+const normalizeMessage = (error) => String(error?.message || error?.details || '').toLowerCase();
+const isMissingColumnError = (error) => {
+  const message = normalizeMessage(error);
+  return message.includes('column') && (message.includes('does not exist') || message.includes('schema cache'));
+};
+
 const pickBestAvatarUrl = (...candidates) => {
   const valid = candidates
     .filter((value) => typeof value === 'string' && value.trim().length > 0)
@@ -492,20 +498,31 @@ export const useAmigos = (currentUserId) => {
 
       const requesterIds = requestsData
         .map((item) => item.user_id)
-        .filter(Boolean);
+        .filter((id) => isValidUUID(String(id || '')));
+
+      if (requesterIds.length === 0) {
+        return [];
+      }
+
+      const fetchUsuarios = async (selectClause) => supabase
+        .from('usuarios')
+        .select(selectClause)
+        .in('id', requesterIds);
+
+      let usuariosResponse = await fetchUsuarios(
+        'id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero, pierna_habil, nivel',
+      );
+      if (usuariosResponse.error && isMissingColumnError(usuariosResponse.error)) {
+        usuariosResponse = await fetchUsuarios('id, nombre, avatar_url, email, posicion, ranking, partidos_jugados');
+      }
 
       const [
         { data: profilesData, error: profilesError },
-        { data: usuariosData, error: usuariosError },
         { data: jugadoresData, error: jugadoresError },
       ] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, nombre, avatar_url')
-          .in('id', requesterIds),
-        supabase
-          .from('usuarios')
-          .select('id, nombre, avatar_url, email, posicion, ranking, partidos_jugados, pais_codigo, numero, pierna_habil, nivel')
           .in('id', requesterIds),
         supabase
           .from('jugadores')
@@ -514,6 +531,9 @@ export const useAmigos = (currentUserId) => {
           .not('avatar_url', 'is', null)
           .order('id', { ascending: false }),
       ]);
+
+      const usuariosData = usuariosResponse.data;
+      const usuariosError = usuariosResponse.error;
 
       if (profilesError) {
         console.warn('[AMIGOS] Error fetching profiles fallback for pending requests:', profilesError);
