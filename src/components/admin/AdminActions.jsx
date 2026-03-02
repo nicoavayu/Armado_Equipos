@@ -3,8 +3,8 @@ import { Keyboard } from 'lucide-react';
 import LoadingSpinner from '../LoadingSpinner';
 import WhatsappIcon from '../WhatsappIcon';
 
-const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
-const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
+const INVITE_ACCEPT_BUTTON_VIOLET = '#6a43ff';
+const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4e2fd3';
 
 /**
  * Admin action buttons component (add player, invite friends, toggle settings)
@@ -47,18 +47,18 @@ const AdminActions = ({
         .admin-primary-btn {
           appearance: none;
           cursor: pointer;
-          width: calc(100% - 8px);
-          margin-inline: 4px;
-          height: 48px;
-          padding: 0 16px;
+          flex: 1 1 auto;
+          min-width: 0;
+          height: 44px;
+          padding: 0 14px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          font-size: 0.96rem;
+          font-size: 0.95rem;
           font-weight: 700;
-          letter-spacing: 0.04em;
+          letter-spacing: 0.02em;
           color: #fff;
-          background: linear-gradient(125deg, #4e37df 0%, ${INVITE_ACCEPT_BUTTON_VIOLET} 58%, #735bff 100%);
+          background: ${INVITE_ACCEPT_BUTTON_VIOLET};
           border: 1.5px solid ${INVITE_ACCEPT_BUTTON_VIOLET_DARK};
           border-radius: 0;
           transform: none;
@@ -81,18 +81,17 @@ const AdminActions = ({
         }
 
         .admin-action-button-wrap {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
+          display: inline-flex;
           overflow: visible;
         }
 
         .admin-action-skew {
           appearance: none;
           cursor: pointer;
-          width: 100%;
-          height: 46px;
-          border: 1.5px solid rgba(120, 90, 255, 0.34);
+          width: 44px;
+          min-width: 44px;
+          height: 44px;
+          border: 1.5px solid rgba(106, 67, 255, 0.46);
           background: rgba(17, 25, 54, 0.68);
           color: rgba(255, 255, 255, 0.78);
           border-radius: 0;
@@ -110,8 +109,8 @@ const AdminActions = ({
         }
         .admin-action-skew:hover:not(:disabled),
         .admin-action-skew.is-active {
-          background: rgba(30, 41, 83, 0.86);
-          border-color: rgba(120, 90, 255, 0.52);
+          background: rgba(106, 67, 255, 0.22);
+          border-color: rgba(106, 67, 255, 0.76);
           color: #fff;
         }
         .admin-action-skew:disabled {
@@ -120,12 +119,7 @@ const AdminActions = ({
         }
 
         .admin-action-label {
-          margin: 0;
-          text-align: center;
-          font-size: 11px;
-          line-height: 1.15;
-          color: rgba(255, 255, 255, 0.62);
-          letter-spacing: 0.01em;
+          display: none;
         }
 
         .admin-manual-submit {
@@ -135,7 +129,7 @@ const AdminActions = ({
           min-width: 92px;
           padding: 0 16px;
           border: 1.5px solid ${INVITE_ACCEPT_BUTTON_VIOLET_DARK};
-          background: linear-gradient(125deg, #4e37df 0%, ${INVITE_ACCEPT_BUTTON_VIOLET} 58%, #735bff 100%);
+          background: ${INVITE_ACCEPT_BUTTON_VIOLET};
           color: #fff;
           border-radius: 0;
           display: inline-flex;
@@ -157,65 +151,83 @@ const AdminActions = ({
           opacity: 0.5;
           cursor: not-allowed;
         }
+
+        .admin-invite-actions-row {
+          width: 100%;
+          display: flex;
+          align-items: stretch;
+          gap: 8px;
+          padding-inline: 4px;
+          box-sizing: border-box;
+        }
+
+        .admin-quick-actions {
+          display: inline-flex;
+          align-items: stretch;
+          gap: 6px;
+          flex: 0 0 auto;
+        }
       `}</style>
       {/* Add player section */}
       {!pendingInvitation && (
         <div className="w-full max-w-full mx-auto box-border mb-0 mt-0">
           <div className="flex flex-col gap-2.5 w-full max-w-full box-border m-0 p-0 overflow-visible">
-            <button
-              className="admin-primary-btn font-oswald"
-              type="button"
-              onClick={() => {
-                setShowInviteModal(true);
-              }}
-              disabled={!partidoActual?.id || isRosterFull}
-              aria-label="Invitar amigos al partido"
-            >
-              <span>Invitar amigos</span>
-            </button>
+            <div className="admin-invite-actions-row">
+              <button
+                className="admin-primary-btn font-oswald"
+                type="button"
+                onClick={() => {
+                  setShowInviteModal(true);
+                }}
+                disabled={!partidoActual?.id || isRosterFull}
+                aria-label="Invitar amigos al partido"
+              >
+                <span>Invitar amigos</span>
+              </button>
 
-            <div className="grid grid-cols-2 gap-2 w-full overflow-visible px-1">
-              <div className="admin-action-button-wrap">
-                <button
-                  className="admin-action-skew"
-                  type="button"
-                  onClick={() => {
-                    onShareClick?.();
-                  }}
-                  disabled={typeof onShareClick !== 'function' || isRosterFull}
-                  aria-label="Compartir por WhatsApp"
-                  title="Compartir por WhatsApp"
-                >
-                  <span>
-                    <WhatsappIcon size={22} color={iconAccent} style={{ filter: iconGlowFilter }} />
-                  </span>
-                </button>
-                <p className="admin-action-label font-oswald">Enviar link de invitación</p>
-              </div>
+              <div className="admin-quick-actions">
+                <div className="admin-action-button-wrap">
+                  <button
+                    className="admin-action-skew"
+                    type="button"
+                    onClick={() => {
+                      onShareClick?.();
+                    }}
+                    disabled={typeof onShareClick !== 'function' || isRosterFull}
+                    aria-label="Enviar link de invitación por WhatsApp"
+                    title="Enviar link de invitación"
+                  >
+                    <span>
+                      <WhatsappIcon size={20} color={iconAccent} style={{ filter: iconGlowFilter }} />
+                    </span>
+                  </button>
+                  <p className="admin-action-label font-oswald">Enviar link de invitación</p>
+                </div>
 
-              <div className="admin-action-button-wrap">
-                <button
-                  className={`admin-action-skew ${isManualOpen ? 'is-active' : ''}`}
-                  type="button"
-                  onClick={() => {
-                    setIsManualOpen((prev) => {
-                      const next = !prev;
-                      if (next) {
-                        window.setTimeout(() => inputRef?.current?.focus(), 0);
-                      }
-                      return next;
-                    });
-                  }}
-                  disabled={isRosterFull}
-                  aria-expanded={isManualOpen}
-                  aria-label={isManualOpen ? 'Ocultar agregar manual' : 'Mostrar agregar manual'}
-                  title={isManualOpen ? 'Ocultar agregar manual' : 'Agregar manual'}
-                >
-                  <span>
-                    <Keyboard size={21} strokeWidth={2.05} style={{ color: iconAccent, filter: iconGlowFilter }} />
-                  </span>
-                </button>
-                <p className="admin-action-label font-oswald">Ingresar manualmente</p>
+                <div className="admin-action-button-wrap">
+                  <button
+                    className={`admin-action-skew ${isManualOpen ? 'is-active' : ''}`}
+                    type="button"
+                    onClick={() => {
+                      setIsManualOpen((prev) => {
+                        const next = !prev;
+                        if (next) {
+                          window.setTimeout(() => inputRef?.current?.focus(), 0);
+                        }
+                        return next;
+                      });
+                    }}
+                    disabled={isRosterFull}
+                    aria-expanded={isManualOpen}
+                    aria-label={isManualOpen ? 'Ocultar agregar manual' : 'Ingresar manualmente'}
+                    title={isManualOpen ? 'Ocultar agregar manual' : 'Ingresar manualmente'}
+                  >
+                    <span>
+                      <Keyboard size={20} strokeWidth={2.05} style={{ color: iconAccent, filter: iconGlowFilter }} />
+                    </span>
+                  </button>
+                  <p className="admin-action-label font-oswald">Ingresar manualmente</p>
+                </div>
               </div>
             </div>
 
