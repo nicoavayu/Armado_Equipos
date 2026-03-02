@@ -13,7 +13,7 @@ import ProfileCardModal from '../components/ProfileCardModal';
 import PlayerMiniCard from '../components/PlayerMiniCard';
 import EmptyStateCard from '../components/EmptyStateCard';
 import { handleError } from '../lib/errorHandler';
-import { Calendar, Clock, MapPin, Star, Trophy, ListOrdered, Users, CalendarX2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, Star, Trophy, ListOrdered, UserX, CalendarX2 } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const containerClass = 'flex flex-col items-center w-full pb-6 px-4 box-border font-oswald';
@@ -781,9 +781,10 @@ const QuieroJugar = ({
 
             {freePlayers.length === 0 ? (
               <EmptyStateCard
-                icon={Users}
-                title="SIN JUGADORES DISPONIBLES"
-                description="Todavía no hay jugadores marcados como disponibles cerca tuyo."
+                icon={UserX}
+                title="Sin jugadores disponibles"
+                titleClassName="font-oswald text-[clamp(18px,5.6vw,22px)] font-semibold leading-tight text-white whitespace-nowrap"
+                description="Todavía no hay jugadores disponibles cerca tuyo."
               />
             ) : (
               <>
