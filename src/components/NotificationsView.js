@@ -479,15 +479,15 @@ const NotificationsView = () => {
       <div className="w-full max-w-[600px] mx-auto">
         {hasAnyNotifications && (
           <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1.5">
+            <div className="inline-flex items-center gap-2 rounded-none border border-[rgba(106,126,202,0.45)] bg-[rgba(17,26,59,0.96)] px-2.5 py-1.5">
               <span className="text-[10px] leading-none uppercase tracking-[0.08em] font-oswald text-white/60">
                 No leídas
               </span>
               <span
-                className={`inline-flex min-w-[22px] h-[22px] px-1.5 items-center justify-center rounded-full border text-[12px] font-oswald font-semibold leading-none ${
+                className={`inline-flex min-w-[22px] h-[22px] px-1.5 items-center justify-center rounded-none border text-[12px] font-oswald font-semibold leading-none ${
                   hasUnreadNotifications
-                    ? 'border-primary/65 bg-primary/25 text-white'
-                    : 'border-white/20 bg-white/5 text-white/70'
+                    ? 'border-[rgba(136,120,255,0.75)] bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white'
+                    : 'border-[rgba(106,126,202,0.4)] bg-[rgba(26,35,76,0.58)] text-white/70'
                 }`}
               >
                 {unreadCount?.total || 0}
@@ -497,7 +497,7 @@ const NotificationsView = () => {
               type="button"
               onClick={handleMarkAllAsRead}
               disabled={!hasUnreadNotifications || markingAllAsRead}
-              className="shrink-0 px-3 py-1.5 rounded-full border text-[11px] font-oswald font-medium transition-colors bg-white/5 border-white/20 text-white/75 hover:bg-white/10 hover:text-white disabled:opacity-45 disabled:cursor-not-allowed"
+              className="shrink-0 h-[34px] px-3 rounded-none border text-[11px] font-oswald font-medium transition-colors bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] text-white/80 hover:bg-[rgba(30,45,94,0.95)] hover:text-white disabled:opacity-45 disabled:cursor-not-allowed"
             >
               {markingAllAsRead ? 'Marcando...' : 'Marcar todas como leídas'}
             </button>
@@ -514,10 +514,10 @@ const NotificationsView = () => {
                   key={option.key}
                   type="button"
                   onClick={() => setActiveFilter(option.key)}
-                  className={`w-full min-w-0 px-2.5 py-1.5 rounded-full border text-[11px] sm:w-auto sm:text-xs font-oswald transition-colors ${
+                  className={`w-full min-w-0 h-[38px] px-2.5 rounded-none border text-[11px] sm:w-auto sm:text-xs font-oswald transition-colors ${
                     isActive
-                      ? 'bg-primary/80 border-primary text-white'
-                      : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10 hover:text-white'
+                      ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[rgba(136,120,255,0.75)] text-white'
+                      : 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] text-white/72 hover:bg-[rgba(30,45,94,0.95)] hover:text-white'
                   }`}
                 >
                   {option.label} {count > 0 ? `(${count})` : ''}
@@ -563,7 +563,7 @@ const NotificationsView = () => {
                 key={group.key}
                 role="button"
                 tabIndex={0}
-                className={`flex p-3 bg-white/10 rounded-lg cursor-pointer transition-all duration-200 relative border border-white/10 hover:bg-white/15 ${group.unreadCount > 0 ? 'bg-[#128BE9]/15 border-[#128BE9]/35' : ''
+                className={`flex p-3 bg-[rgba(4,31,89,0.95)] rounded-none cursor-pointer transition-all duration-200 relative border border-[#12b5ff]/70 hover:bg-[rgba(8,41,109,0.96)] hover:border-[#56d1ff] shadow-[0_0_0_1px_rgba(52,167,255,0.14),0_10px_22px_rgba(2,10,34,0.45)] ${group.unreadCount > 0 ? 'bg-[rgba(7,45,116,0.98)] border-[#37c6ff]' : ''
                   } ${notification.type === 'friend_request' ? 'cursor-default' : ''}`}
                 onClick={(e) => {
                   if (notification.type !== 'friend_request') handleGroupedNotificationClick(group, e);
@@ -574,7 +574,7 @@ const NotificationsView = () => {
                   }
                 }}
               >
-                <div className="text-2xl mr-3 flex items-center justify-center w-10 h-10 bg-white/10 rounded-full text-white/90">
+                <div className="text-2xl mr-3 flex items-center justify-center w-10 h-10 bg-[rgba(18,35,82,0.94)] border border-[rgba(88,108,176,0.5)] rounded-none text-white/90">
                   <Icon size={18} />
                 </div>
                 <div className="flex-1">
@@ -591,7 +591,7 @@ const NotificationsView = () => {
                     </button>
                   )}
                   {isExpanded && groupedItems.length > 0 && (
-                    <div className="mb-2 rounded-md border border-white/10 bg-black/15 overflow-hidden">
+                    <div className="mb-2 rounded-none border border-[rgba(88,108,176,0.5)] bg-[rgba(10,21,52,0.85)] overflow-hidden">
                       {groupedItems.map((item, index) => {
                         const ItemIcon = getNotificationIcon(item.type);
                         const { title, message } = getDisplayCopy(item);
@@ -599,7 +599,7 @@ const NotificationsView = () => {
                           <button
                             key={`${group.key}-${item.id}-${index}`}
                             type="button"
-                            className="w-full px-2.5 py-2 text-left hover:bg-white/10 transition-colors border-b last:border-b-0 border-white/10"
+                            className="w-full px-2.5 py-2 text-left hover:bg-[rgba(30,45,94,0.9)] transition-colors border-b last:border-b-0 border-[rgba(88,108,176,0.4)]"
                             onClick={(e) => handleNotificationClick(item, e)}
                           >
                             <div className="flex items-start gap-2">
@@ -624,7 +624,7 @@ const NotificationsView = () => {
                   {notification.type === 'friend_request' && !notification.read && (
                     <div className="flex gap-2 mt-2">
                       <button
-                        className="px-3 py-1.5 rounded border-none cursor-pointer text-xs font-medium transition-all min-w-[70px] bg-[#2196F3] text-white hover:bg-[#1976D2] disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="px-3 h-8 rounded-none border border-[rgba(136,120,255,0.75)] cursor-pointer text-xs font-medium transition-all min-w-[92px] bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleAcceptFriend(notification);
@@ -634,7 +634,7 @@ const NotificationsView = () => {
                         {processingRequests.has(notification.data?.requestId) ? 'Aceptando...' : 'Aceptar'}
                       </button>
                       <button
-                        className="px-3 py-1.5 rounded border-none cursor-pointer text-xs font-medium transition-all min-w-[70px] bg-[#f44336] text-white hover:bg-[#da190b] disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="px-3 h-8 rounded-none border border-[rgba(255,83,106,0.64)] cursor-pointer text-xs font-medium transition-all min-w-[92px] bg-[rgba(116,20,40,0.52)] text-[#ffb5bf] hover:bg-[rgba(132,25,46,0.64)] hover:text-[#ffd0d6] disabled:opacity-60 disabled:cursor-not-allowed"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRejectFriend(notification);
