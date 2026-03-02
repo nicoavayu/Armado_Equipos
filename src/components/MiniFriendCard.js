@@ -65,7 +65,7 @@ const MiniFriendCard = ({ friend, onRequestRemoveClick, currentUserId }) => {
           />
           {/* Menú después (z-index mayor) */}
           <div
-            className="fixed bg-slate-900 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.3)] z-[9999] min-w-[160px] overflow-hidden max-[768px]:min-w-[180px] border border-slate-800"
+            className="fixed bg-slate-900 rounded-none shadow-[0_8px_24px_rgba(0,0,0,0.3)] z-[9999] min-w-[160px] overflow-hidden max-[768px]:min-w-[180px] border border-slate-800"
             style={{
               top: `${menuPosition.top}px`,
               left: `${menuPosition.left}px`,

@@ -27,8 +27,8 @@ const getBackgroundColor = (name) => {
 
 const skinClasses = {
   searching: 'bg-[#1e293b]/70 border-white/5 hover:border-white/20 hover:bg-[#1e293b] shadow-sm',
-  friend: 'bg-[linear-gradient(135deg,rgba(39,77,153,0.58),rgba(29,55,112,0.64))] backdrop-blur-lg border-[#3c78d6]/55 hover:border-[#4f8fec]/70 hover:bg-[linear-gradient(135deg,rgba(45,87,168,0.62),rgba(35,66,132,0.68))] shadow-[0_12px_28px_rgba(7,20,52,0.36)]',
-  friendSelf: 'bg-[linear-gradient(135deg,rgba(169,124,28,0.5),rgba(98,67,16,0.62))] backdrop-blur-lg border-[#F6D06B]/70 hover:border-[#FFE08A]/90 hover:bg-[linear-gradient(135deg,rgba(184,137,34,0.58),rgba(111,76,19,0.68))] shadow-[0_14px_30px_rgba(84,57,12,0.42)]',
+  friend: 'bg-[rgba(4,31,89,0.95)] border-[#12b5ff]/80 hover:border-[#56d1ff] hover:bg-[rgba(8,41,109,0.96)] shadow-[0_0_0_1px_rgba(52,167,255,0.16),0_10px_22px_rgba(2,10,34,0.45)]',
+  friendSelf: 'bg-[linear-gradient(135deg,rgba(127,92,18,0.62),rgba(79,54,12,0.78))] border-[#f4d37b]/75 hover:border-[#ffe39d] hover:bg-[linear-gradient(135deg,rgba(145,106,24,0.68),rgba(93,64,16,0.82))] shadow-[0_0_0_1px_rgba(244,211,123,0.2),0_10px_22px_rgba(44,28,6,0.45)]',
 };
 
 const PlayerMiniCard = ({
@@ -74,11 +74,12 @@ const PlayerMiniCard = ({
   const placeholderMenuClass = isSelfFriendCard
     ? 'text-[#ffe6ac]'
     : (variant === 'friend' ? 'text-[#d7e6ff]' : 'text-white/50');
+  const cardShapeClass = variant === 'friend' ? 'rounded-none' : 'rounded-xl';
 
   return (
     <div
       onClick={onClick}
-      className={`relative flex items-center gap-3 rounded-xl p-3.5 border transition-all duration-200 ${cardSkinClass} ${onClick ? 'cursor-pointer active:scale-[0.99]' : ''}`}
+      className={`relative flex items-center gap-3 p-3.5 border transition-all duration-200 ${cardShapeClass} ${cardSkinClass} ${onClick ? 'cursor-pointer active:scale-[0.99]' : ''}`}
     >
       <div className={`w-12 h-12 rounded-full overflow-hidden shrink-0 border bg-slate-800 flex items-center justify-center ${avatarBorderClass}`}>
         {avatarUrl ? (
