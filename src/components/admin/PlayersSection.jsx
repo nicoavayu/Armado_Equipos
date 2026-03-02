@@ -181,7 +181,7 @@ const PlayersSection = ({
     transform: `skewX(${SLOT_SKEW_X}deg)`,
   };
   const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
-  const kebabMenuButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
+  const kebabMenuButtonClass = 'kebab-menu-btn';
 
   useEffect(() => () => {
     if (completionAnimTimeoutRef.current) {

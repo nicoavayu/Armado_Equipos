@@ -854,7 +854,7 @@ export default function ArmarEquiposView({
   };
   const sharedVoteCtaClass = 'w-[90%] max-w-[520px] mx-auto font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95 disabled:opacity-55 disabled:cursor-not-allowed';
   const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
-  const kebabMenuButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
+  const kebabMenuButtonClass = 'kebab-menu-btn';
 
   // Si no es admin, mostrar acceso denegado
   if (!isAdmin) {
