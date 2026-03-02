@@ -1164,23 +1164,22 @@ export default function ArmarEquiposView({
             </div>
           </div>
 
-          {/* Flow progression: Cerrar votación */}
-          <div className="w-full flex flex-col gap-1.5 mt-3 pt-2 border-t border-slate-700/50">
-            <button
-              type="button"
-              className="invite-cta-btn"
-              style={closeVotingPalette}
-              onClick={handleCloseVotingClick}
-              disabled={isClosing}
-            >
-              <span>{isClosing ? <LoadingSpinner size="small" /> : (isTeamsFormed ? 'Ir a equipos armados' : 'Cerrar votación')}</span>
-            </button>
-            <div className="text-[11px] text-white/50 leading-snug text-center px-1 mt-0.5 w-[90%] mx-auto">
-              {isTeamsFormed
-                ? 'Mostrá la vista de equipos que ya quedó guardada'
-                : 'Avanza al armado de equipos y bloquea nuevas votaciones'}
+          {!isTeamsFormed && (
+            <div className="w-full flex flex-col gap-1.5 mt-3 pt-2 border-t border-slate-700/50">
+              <button
+                type="button"
+                className="invite-cta-btn"
+                style={closeVotingPalette}
+                onClick={handleCloseVotingClick}
+                disabled={isClosing}
+              >
+                <span>{isClosing ? <LoadingSpinner size="small" /> : 'Cerrar votación'}</span>
+              </button>
+              <div className="text-[11px] text-white/50 leading-snug text-center px-1 mt-0.5 w-[90%] mx-auto">
+                Avanza al armado de equipos y bloquea nuevas votaciones
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <ConfirmModal
