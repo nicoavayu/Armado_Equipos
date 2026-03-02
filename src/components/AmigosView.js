@@ -9,6 +9,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { Check, Loader2, X } from 'lucide-react';
 import InlineNotice from './ui/InlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import EmptyStateCard from './EmptyStateCard';
 
 const toCoordinateNumber = (value) => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -79,6 +80,11 @@ const sortFriendsByDistance = (friends = [], userLocation = null) => {
 
   return sortByDistanceThenName(friendsWithDistance);
 };
+
+const PRIMARY_TOGGLE_CONTAINER_CLASS = 'flex h-[44px] w-full overflow-hidden border-y border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]';
+const PRIMARY_TOGGLE_ACTIVE_CLASS = 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]';
+const PRIMARY_TOGGLE_INACTIVE_CLASS = 'z-[1] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]';
+const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[30px] font-semibold leading-tight text-white sm:text-[26px]';
 
 const AmigosView = () => {
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -569,14 +575,14 @@ const AmigosView = () => {
 
       <div className="w-full mb-4">
         <div className="relative left-1/2 w-screen -translate-x-1/2">
-          <div className="flex h-[44px] w-full overflow-hidden border-y border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)]">
+          <div className={PRIMARY_TOGGLE_CONTAINER_CLASS}>
             <button
               type="button"
               onClick={() => setActiveTab('friends')}
               className={`relative flex-1 min-w-0 border border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
                 activeTab === 'friends'
-                  ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
-                  : 'z-[1] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
+                  ? PRIMARY_TOGGLE_ACTIVE_CLASS
+                  : PRIMARY_TOGGLE_INACTIVE_CLASS
               }`}
             >
               {activeTab === 'friends' ? (
@@ -589,8 +595,8 @@ const AmigosView = () => {
               onClick={() => setActiveTab('discover')}
               className={`relative flex-1 min-w-0 border border-[rgba(106,126,202,0.40)] border-l-0 bg-[rgba(17,26,59,0.96)] px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
                 activeTab === 'discover'
-                  ? 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]'
-                  : 'z-[1] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]'
+                  ? PRIMARY_TOGGLE_ACTIVE_CLASS
+                  : PRIMARY_TOGGLE_INACTIVE_CLASS
               }`}
             >
               {activeTab === 'discover' ? (
@@ -746,12 +752,12 @@ const AmigosView = () => {
                 ))}
               </div>
             ) : (
-              <div className="w-full text-center p-6 bg-[rgba(4,31,89,0.85)] border border-[#12b5ff]/55 rounded-none">
-                <p className="text-white/85 font-oswald text-base">Todavia no tenemos sugerencias.</p>
-                <p className="text-white/55 font-oswald text-sm mt-1">
-                  Cuando compartas mas partidos con jugadores nuevos, te los recomendamos aca.
-                </p>
-              </div>
+              <EmptyStateCard
+                title="Todavia no tenemos sugerencias."
+                titleClassName={EMPTY_STATE_TITLE_CLASS}
+                description="Cuando compartas mas partidos con jugadores nuevos, te los recomendamos aca."
+                className="my-0 p-5"
+              />
             )}
           </div>
         </>

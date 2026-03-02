@@ -404,6 +404,8 @@ const NotificationsView = () => {
   const hasAnyNotifications = notifications.length > 0;
   const hasVisibleNotifications = groupedNotifications.length > 0;
   const hasUnreadNotifications = (unreadCount?.total || 0) > 0;
+  const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[30px] font-semibold leading-tight text-white sm:text-[26px]';
+  const EMPTY_STATE_CARD_CLASS = 'my-0 p-5';
 
   const handleMarkAllAsRead = async () => {
     if (markingAllAsRead || !hasUnreadNotifications) return;
@@ -532,10 +534,9 @@ const NotificationsView = () => {
             <EmptyStateCard
               icon={Bell}
               title="SIN NOTIFICACIONES"
-              titleClassName="font-oswald font-semibold text-[24px] leading-none tracking-[0.01em] text-white sm:text-[22px]"
+              titleClassName={EMPTY_STATE_TITLE_CLASS}
               description="Cuando pase algo importante en tus partidos, te lo mostramos acá."
-              actionLabel="Ver partidos"
-              onAction={() => navigate('/quiero-jugar')}
+              className={EMPTY_STATE_CARD_CLASS}
             />
           </div>
         ) : !hasVisibleNotifications ? (
@@ -543,8 +544,9 @@ const NotificationsView = () => {
             <EmptyStateCard
               icon={Bell}
               title="SIN RESULTADOS EN ESTE FILTRO"
-              titleClassName="font-oswald font-semibold text-[24px] leading-none tracking-[0.01em] text-white sm:text-[22px]"
+              titleClassName={EMPTY_STATE_TITLE_CLASS}
               description="Probá con otro filtro para ver el resto de tus notificaciones."
+              className={EMPTY_STATE_CARD_CLASS}
             />
           </div>
         ) : (

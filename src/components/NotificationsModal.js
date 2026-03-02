@@ -295,6 +295,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   const filteredNotifications = filterNotificationsByCategory(notifications, activeFilter);
   const hasAnyNotifications = notifications.length > 0;
   const hasVisibleNotifications = filteredNotifications.length > 0;
+  const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[30px] font-semibold leading-tight text-white sm:text-[26px]';
+  const EMPTY_STATE_CARD_CLASS = 'my-0 p-5';
 
   if (!isOpen) {
     return null;
@@ -389,9 +391,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
               <EmptyStateCard
                 icon={Bell}
                 title="SIN NOTIFICACIONES"
-                titleClassName="font-oswald font-semibold text-[24px] leading-none tracking-[0.01em] text-white sm:text-[22px]"
+                titleClassName={EMPTY_STATE_TITLE_CLASS}
                 description="Te avisaremos cuando tengas novedades de partidos, encuestas o invitaciones."
-                className="my-10"
+                className={EMPTY_STATE_CARD_CLASS}
               />
             </div>
           ) : !hasVisibleNotifications ? (
@@ -399,9 +401,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
               <EmptyStateCard
                 icon={Bell}
                 title="SIN RESULTADOS EN ESTE FILTRO"
-                titleClassName="font-oswald font-semibold text-[24px] leading-none tracking-[0.01em] text-white sm:text-[22px]"
+                titleClassName={EMPTY_STATE_TITLE_CLASS}
                 description="Probá con otro filtro para ver el resto de tus notificaciones."
-                className="my-10"
+                className={EMPTY_STATE_CARD_CLASS}
               />
             </div>
           ) : (
