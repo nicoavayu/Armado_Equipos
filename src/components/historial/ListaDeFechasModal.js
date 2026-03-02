@@ -171,7 +171,7 @@ const ListaDeFechasModal = ({ partidosFrecuentes, onClose, nombrePartido, error,
           if (e.target === e.currentTarget) onClose();
         }}
       >
-        <div className="bg-[#1a1a2e] w-[90%] max-w-[600px] max-h-[90vh] rounded-xl overflow-hidden flex flex-col shadow-[0_5px_20px_rgba(0,0,0,0.5)] animate-[slideUp_0.3s_ease] max-[768px]:w-full max-[768px]:h-full max-[768px]:max-w-none max-[768px]:max-h-none max-[768px]:rounded-none">
+        <div className="bg-[#1a1a2e] w-[90%] max-w-[600px] max-h-[90vh] rounded-none overflow-hidden flex flex-col shadow-[0_5px_20px_rgba(0,0,0,0.5)] animate-[slideUp_0.3s_ease] max-[768px]:w-full max-[768px]:h-full max-[768px]:max-w-none max-[768px]:max-h-none max-[768px]:rounded-none">
           {selectedPartido ? (
             // Mostrar ficha de partido seleccionado
             <FichaDePartido
@@ -214,7 +214,7 @@ const ListaDeFechasModal = ({ partidosFrecuentes, onClose, nombrePartido, error,
                       return (
                         <div
                           key={partido.id}
-                          className="flex justify-between items-center px-5 py-[15px] mb-2 bg-white/10 rounded-xl border border-white/20 cursor-pointer transition-all duration-300 shadow-[0_4px_12px_rgba(0,0,0,0.1)] relative pointer-events-auto hover:-translate-y-0.5 hover:shadow-[0_8px_16px_rgba(0,0,0,0.15)] hover:border-white/40 hover:bg-white/15"
+                          className="flex justify-between items-center px-5 py-[15px] mb-2 bg-white/10 rounded-none border border-white/20 cursor-pointer transition-all duration-300 shadow-[0_4px_12px_rgba(0,0,0,0.1)] relative pointer-events-auto hover:-translate-y-0.5 hover:shadow-[0_8px_16px_rgba(0,0,0,0.15)] hover:border-white/40 hover:bg-white/15"
                           onClick={() => handleSelectPartido(partido)}
                         >
                           <div className="flex flex-col">
@@ -225,7 +225,7 @@ const ListaDeFechasModal = ({ partidosFrecuentes, onClose, nombrePartido, error,
                               <span className="text-[#aaa] text-[0.9rem]">{partido.sede || partido.lugar || 'Sin ubicación'}</span>
                               <span className="text-[#8178e5] text-[0.8rem] font-semibold">{jugadores.length} jugadores</span>
                               {equipos.length === 2 && (
-                                <span className="bg-[#4CAF50] text-white py-[2px] px-2 rounded-xl text-[0.8rem] font-semibold">Equipos formados</span>
+                                <span className="bg-[#4CAF50] text-white py-[2px] px-2 rounded-none text-[0.8rem] font-semibold">Equipos formados</span>
                               )}
                             </div>
                           </div>
@@ -234,7 +234,7 @@ const ListaDeFechasModal = ({ partidosFrecuentes, onClose, nombrePartido, error,
                           <div className="flex items-center gap-2 min-w-[160px] justify-end relative z-10 pointer-events-auto max-[768px]:min-w-[110px]" style={{ position: 'relative', zIndex: 9998, pointerEvents: 'auto' }}>
                             <button
                               type="button"
-                              className="bg-none border-none text-[#ff6b6b] text-[18px] cursor-pointer p-1.5 rounded-lg pointer-events-auto relative z-[11] hover:bg-[#ff6b6b]/10"
+                              className="bg-none border-none text-[#ff6b6b] text-[18px] cursor-pointer p-1.5 rounded-none pointer-events-auto relative z-[11] hover:bg-[#ff6b6b]/10"
                               style={{ position: 'relative', zIndex: 9999, pointerEvents: 'auto' }}
                               onPointerDown={(e) => { console.log('[Historial] pointerdown delete', partido.id, e.type); if (e && e.stopPropagation) e.stopPropagation(); }}
                               onTouchStart={(e) => { console.log('[Historial] touchstart delete', partido.id); if (e && e.stopPropagation) e.stopPropagation(); }}

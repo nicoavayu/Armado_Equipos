@@ -192,7 +192,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
               <div className="text-white text-lg font-medium font-[Oswald,sans-serif]">{template.hora || '—'}</div>
             </div>
             <button
-              className={`px-3 py-1.5 rounded-none text-[10px] font-bold uppercase tracking-widest font-[Oswald,sans-serif] transition-all border ${editTime ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[rgba(136,120,255,0.75)] text-white shadow-[0_8px_24px_rgba(70,88,200,0.35)]' : 'bg-[rgba(20,31,70,0.82)] text-white/60 border-[rgba(98,117,184,0.58)] hover:bg-[rgba(30,45,94,0.95)] hover:text-white/90'}`}
+              className={`px-3 py-1.5 rounded-none text-xs font-bebas tracking-[0.01em] transition-all border ${editTime ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)]' : 'bg-[rgba(20,31,70,0.82)] text-white/70 border-[rgba(98,117,184,0.58)] hover:bg-[rgba(30,45,94,0.95)] hover:text-white/90'}`}
               onClick={() => setEditTime(!editTime)}
             >
               {editTime ? 'CAMBIAR CERRADO' : 'CAMBIAR HORA'}
@@ -248,7 +248,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
                   <button
                     key={`${p?.nombre || 'p'}:${idx}`}
                     type="button"
-                    className="px-3 py-2 rounded-none bg-[rgba(20,31,70,0.82)] border border-[rgba(98,117,184,0.58)] text-white/80 text-xs font-[Oswald,sans-serif] hover:bg-[rgba(30,45,94,0.95)] active:opacity-95"
+                    className="px-3 py-2 rounded-none bg-[rgba(20,31,70,0.82)] border border-[rgba(98,117,184,0.58)] text-white/80 text-xs font-bebas tracking-[0.01em] hover:bg-[rgba(30,45,94,0.95)] active:opacity-95"
                     onClick={() => setPlayers((prev) => prev.filter((_, i) => i !== idx))}
                     title="Quitar"
                   >
@@ -267,7 +267,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
               />
               <button
                 type="button"
-                className="px-4 rounded-none bg-[rgba(20,31,70,0.82)] hover:bg-[rgba(30,45,94,0.95)] text-white font-semibold transition-all active:opacity-95 disabled:opacity-50 font-[Oswald,sans-serif] text-[16px] tracking-[0.01em] border border-[rgba(98,117,184,0.58)]"
+                className="px-4 py-2 rounded-none bg-[rgba(20,31,70,0.82)] hover:bg-[rgba(30,45,94,0.95)] text-white/92 font-bebas text-base tracking-[0.01em] transition-all active:opacity-95 disabled:opacity-50 border border-[rgba(98,117,184,0.58)]"
                 onClick={() => {
                   const n = String(newPlayerName || '').trim();
                   if (!n) return;
@@ -294,14 +294,14 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
 
         <div className="flex gap-3 mt-1">
           <button
-            className="flex-1 py-3 bg-[rgba(20,31,70,0.82)] hover:bg-[rgba(30,45,94,0.95)] text-white/90 font-semibold rounded-none transition-all active:opacity-95 disabled:opacity-50 font-[Oswald,sans-serif] text-[16px] tracking-[0.01em] border border-[rgba(98,117,184,0.58)]"
+            className="flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] transition-all hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:opacity-50 sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
             onClick={onCancel}
             disabled={creating}
           >
             Cancelar
           </button>
           <button
-            className="flex-1 py-4 bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] hover:brightness-110 text-white font-semibold rounded-none transition-all active:opacity-95 disabled:opacity-50 font-[Oswald,sans-serif] text-[18px] tracking-[0.01em] border border-[rgba(136,120,255,0.75)] shadow-[0_8px_32px_rgba(70,88,200,0.35)]"
+            className="flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all hover:bg-[#7550ff] active:opacity-95 disabled:opacity-50 sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px] shadow-[0_0_14px_rgba(106,67,255,0.3)]"
             onClick={handleCreate}
             disabled={creating}
           >

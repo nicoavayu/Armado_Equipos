@@ -68,7 +68,7 @@ const HistorialDePartidosButton = ({ partidoFrecuente, className }) => {
   return (
     <>
       <button
-        className={className || 'bg-white/20 border-2 border-white/40 rounded-lg text-white py-2 px-4 font-bebas text-sm font-semibold cursor-pointer transition-all duration-200 flex items-center justify-center uppercase tracking-[0.5px] flex-1 hover:bg-white/30 hover:border-white/60 hover:-translate-y-[1px] disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none'}
+        className={className || 'bg-[rgba(20,31,70,0.82)] border border-[rgba(125,90,255,0.58)] rounded-none text-white/92 py-2.5 px-4 font-bebas text-base tracking-[0.01em] cursor-pointer transition-all duration-200 flex items-center justify-center flex-1 hover:bg-[rgba(30,45,94,0.95)] hover:border-[rgba(125,90,255,0.7)] disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]'}
         onClick={handleClick}
         disabled={loading}
       >

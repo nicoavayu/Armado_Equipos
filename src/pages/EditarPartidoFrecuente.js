@@ -9,7 +9,7 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const SECTION_LABEL_CLASS = 'text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1 mb-2';
 const INPUT_CLASS = 'appearance-none bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white font-oswald text-lg px-4 py-3 rounded-none w-full box-border h-[52px] transition-all duration-300 focus:outline-none focus:border-[#7f8dff] focus:ring-2 focus:ring-[#6f7dff]/30 backdrop-blur-md placeholder:text-white/30';
-const PRIMARY_NAV_BUTTON_CLASS = 'w-full h-[54px] mt-4 mb-0 rounded-none border border-[rgba(136,120,255,0.75)] bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white font-oswald text-[22px] tracking-[0.01em] font-semibold transition-all hover:brightness-110 active:opacity-95 disabled:opacity-45 disabled:cursor-not-allowed';
+const PRIMARY_NAV_BUTTON_CLASS = 'w-full min-h-[44px] mt-4 mb-0 px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all hover:bg-[#7550ff] active:opacity-95 disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:cursor-not-allowed flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
 
 export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }) {
   const [nombre, setNombre] = useState(partido.nombre);
@@ -139,7 +139,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
           <div className="flex gap-4 justify-end">
             <button
               ref={cancelRef}
-              className="flex-1 py-3 px-4 bg-[rgba(20,31,70,0.82)] border border-[rgba(98,117,184,0.58)] text-white font-bold rounded-none transition-all hover:bg-[rgba(30,45,94,0.95)] font-oswald uppercase tracking-widest text-xs"
+              className="flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] transition-all hover:bg-[rgba(30,45,94,0.95)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
               onClick={() => { if (isDeleting) return; onCancel && onCancel(); }}
               disabled={isDeleting}
               aria-disabled={isDeleting}
@@ -148,7 +148,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
             </button>
             <button
               ref={confirmRef}
-              className="flex-1 py-3 px-4 bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white font-bold rounded-none transition-all shadow-[0_8px_24px_rgba(70,88,200,0.35)] hover:brightness-110 font-oswald uppercase tracking-widest text-xs border border-[rgba(136,120,255,0.75)]"
+              className="flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all hover:bg-[#7550ff] active:opacity-95 disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
               onClick={() => { if (isDeleting) return; onConfirm && onConfirm(); }}
               disabled={isDeleting}
               aria-disabled={isDeleting}
@@ -433,8 +433,8 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
                   key={tipo}
                   type="button"
                   onClick={() => setTipoPartido(tipo)}
-                  className={`py-3 px-2 text-sm font-oswald font-bold rounded-none cursor-pointer transition-all duration-300 min-h-[48px] flex items-center justify-center border ${tipoPartido === tipo
-                    ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[rgba(136,120,255,0.75)] text-white shadow-[0_8px_24px_rgba(70,88,200,0.35)]'
+                  className={`py-3 px-2 text-base font-bebas tracking-[0.01em] rounded-none cursor-pointer transition-all duration-300 min-h-[48px] flex items-center justify-center border ${tipoPartido === tipo
+                    ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)]'
                     : 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] text-white/80 hover:bg-[rgba(30,45,94,0.95)] hover:border-[rgba(124,142,210,0.6)]'
                   }`}
                 >
@@ -455,8 +455,8 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
                   key={mod}
                   type="button"
                   onClick={() => setModalidad(mod)}
-                  className={`py-3 px-2 text-sm font-oswald font-bold rounded-none cursor-pointer transition-all duration-300 min-h-[48px] flex items-center justify-center border ${modalidad === mod
-                    ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[rgba(136,120,255,0.75)] text-white shadow-[0_8px_24px_rgba(70,88,200,0.35)]'
+                  className={`py-3 px-2 text-base font-bebas tracking-[0.01em] rounded-none cursor-pointer transition-all duration-300 min-h-[48px] flex items-center justify-center border ${modalidad === mod
+                    ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)]'
                     : 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] text-white/80 hover:bg-[rgba(30,45,94,0.95)] hover:border-[rgba(124,142,210,0.6)]'
                   }`}
                 >

@@ -40,10 +40,38 @@ const formatSentenceCase = (value, fallback = '') => {
 
 const winnerLabel = (winnerTeam) => {
   if (!winnerTeam) return 'Sin definir';
-  if (winnerTeam === 'equipo_a') return 'Ganó Equipo A';
-  if (winnerTeam === 'equipo_b') return 'Ganó Equipo B';
-  if (winnerTeam === 'empate') return 'Empate';
+  const normalized = String(winnerTeam).trim().toLowerCase();
+  if (normalized === 'equipo_a' || normalized === 'a' || normalized === 'team_a') return 'Ganó Equipo A';
+  if (normalized === 'equipo_b' || normalized === 'b' || normalized === 'team_b') return 'Ganó Equipo B';
+  if (normalized === 'empate' || normalized === 'draw') return 'Empate';
   return String(winnerTeam);
+};
+
+const normalizeResultStatus = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === 'finished' || normalized === 'played') return 'finished';
+  if (normalized === 'draw' || normalized === 'empate') return 'draw';
+  if (normalized === 'not_played' || normalized === 'cancelled' || normalized === 'cancelado') return 'not_played';
+  if (normalized === 'pending' || normalized === 'pendiente') return 'pending';
+  return null;
+};
+
+const normalizeWinnerTeam = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === 'equipo_a' || normalized === 'a' || normalized === 'team_a') return 'equipo_a';
+  if (normalized === 'equipo_b' || normalized === 'b' || normalized === 'team_b') return 'equipo_b';
+  if (normalized === 'empate' || normalized === 'draw') return 'empate';
+  return null;
+};
+
+const isClosedHistoryResult = (row) => {
+  const status = normalizeResultStatus(row?.result_status);
+  if (status === 'pending' || status === 'not_played') return false;
+  if (status === 'finished' || status === 'draw') return true;
+  const winner = normalizeWinnerTeam(row?.winner_team);
+  return winner === 'equipo_a' || winner === 'equipo_b' || winner === 'empate';
 };
 
 const resolveSnapshotPlayer = (value, resolveName) => {
@@ -58,14 +86,14 @@ const resolveSnapshotPlayer = (value, resolveName) => {
 };
 
 const ResultStatusPill = ({ ready, fullWidth = false }) => (
-  <div className={`${fullWidth ? 'w-full justify-center' : 'inline-flex'} inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border whitespace-nowrap ${ready ? 'bg-emerald-500/10 border-emerald-300/35 text-emerald-200' : 'bg-amber-500/10 border-amber-300/35 text-amber-100'}`}>
+  <div className={`${fullWidth ? 'w-full justify-center' : 'inline-flex'} inline-flex items-center gap-1.5 px-2.5 py-1 rounded-none border whitespace-nowrap ${ready ? 'bg-emerald-500/10 border-emerald-300/35 text-emerald-200' : 'bg-amber-500/10 border-amber-300/35 text-amber-100'}`}>
     <span className={`w-1.5 h-1.5 rounded-full ${ready ? 'bg-emerald-300' : 'bg-amber-300'}`}></span>
     <span className="font-oswald text-[11px] uppercase tracking-wide leading-none">{ready ? 'Resultados listos' : 'Resultados pendientes'}</span>
   </div>
 );
 
 const PlayerRow = ({ player }) => (
-  <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-700 rounded-md px-2 py-1.5">
+  <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-700 rounded-none px-2 py-1.5">
     {player?.avatar_url ? (
       <img
         src={player.avatar_url}
@@ -80,7 +108,7 @@ const PlayerRow = ({ player }) => (
 );
 
 const TeamColumn = ({ title, team = [], resolvePlayer }) => (
-  <div className="bg-black/20 border border-white/10 rounded-xl p-2.5">
+  <div className="bg-black/20 border border-white/10 rounded-none p-2.5">
     <div className="font-bebas text-base text-white uppercase tracking-wider mb-1.5">{title}</div>
     {team.length === 0 ? (
       <div className="text-white/50 text-sm font-oswald">Sin equipos confirmados.</div>
@@ -95,7 +123,7 @@ const TeamColumn = ({ title, team = [], resolvePlayer }) => (
 );
 
 const AwardRow = ({ title, icon, playerName }) => (
-  <div className="flex items-center gap-2 bg-slate-900/80 border border-slate-700 rounded-lg px-2.5 py-2">
+  <div className="flex items-center gap-2 bg-slate-900/80 border border-slate-700 rounded-none px-2.5 py-2">
     <img src={icon} alt={title} className="w-7 h-7 object-contain shrink-0" />
     <div className="min-w-0">
       <div className="font-bebas text-[12px] text-white/70 uppercase tracking-wide leading-none">{title}</div>
@@ -202,7 +230,7 @@ const TemplateHistoryPage = () => {
         if (matchIds.length > 0) {
           const { data: resRows } = await supabase
             .from('survey_results')
-            .select('partido_id, winner_team, scoreline, resultados_encuesta_listos, snapshot_participantes, snapshot_equipos, snapshot_resultados_encuesta')
+            .select('partido_id, winner_team, scoreline, result_status, resultados_encuesta_listos, snapshot_participantes, snapshot_equipos, snapshot_resultados_encuesta')
             .in('partido_id', matchIds);
           (resRows || []).forEach((r) => resMap.set(Number(r.partido_id), r));
         }
@@ -236,6 +264,7 @@ const TemplateHistoryPage = () => {
                 partido_id: Number(id),
                 winner_team: null,
                 scoreline: null,
+                result_status: 'finished',
                 resultados_encuesta_listos: true,
                 snapshot_participantes: null,
                 snapshot_equipos: null,
@@ -281,8 +310,13 @@ const TemplateHistoryPage = () => {
           });
         });
 
+        const closedMatches = (partidos || []).filter((match) => {
+          const resultRow = resMap.get(Number(match.id));
+          return isClosedHistoryResult(resultRow);
+        });
+
         if (!alive) return;
-        setMatches(partidos);
+        setMatches(closedMatches);
         setResults(resMap);
         setSnapshots(mergedSnapshots);
         setCounts(cntMap);
@@ -359,7 +393,7 @@ const TemplateHistoryPage = () => {
         HISTORIAL
       </PageTitle>
 
-      <div className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+      <div className="w-full mt-1 bg-slate-900 border border-slate-800 rounded-none p-4 shadow-xl">
         {!isDetail && (
           <>
             <div className="font-bebas text-[28px] leading-7 text-white tracking-wide truncate">
@@ -371,7 +405,7 @@ const TemplateHistoryPage = () => {
         {loading ? (
           <div className="py-14 flex items-center justify-center"><LoadingSpinner size="large" /></div>
         ) : matches.length === 0 ? (
-          <div className="flex flex-col items-center text-center gap-3 py-10 border border-dashed border-white/10 rounded-xl bg-slate-900/40 mt-5">
+          <div className="flex flex-col items-center text-center gap-3 py-10 border border-dashed border-white/10 rounded-none bg-slate-900/40 mt-5">
             <div className="text-white/70 font-oswald text-base">Todavía no hay partidos creados desde esta plantilla.</div>
           </div>
         ) : (
@@ -388,7 +422,7 @@ const TemplateHistoryPage = () => {
                       type="button"
                       key={m.id}
                       onClick={() => setSelectedId(mid)}
-                      className="text-left rounded-xl p-2.5 border border-slate-700 bg-slate-800/60 hover:border-slate-500 transition-all min-h-[100px] overflow-hidden"
+                      className="text-left rounded-none p-2.5 border border-slate-700 bg-slate-800/60 hover:border-slate-500 transition-all min-h-[100px] overflow-hidden"
                     >
                       <div className="w-full font-bebas text-[18px] text-white leading-6 text-center truncate">
                         {fmtDateShort(m.fecha)}
@@ -436,7 +470,7 @@ const TemplateHistoryPage = () => {
                 )}
 
                 <div className="grid grid-cols-2 gap-2 items-stretch">
-                  <div className="bg-black/20 border border-white/10 rounded-xl p-2.5">
+                  <div className="bg-black/20 border border-white/10 rounded-none p-2.5">
                     <div className="font-bebas text-base text-white uppercase tracking-wider mb-1.5">Resultado</div>
                     {!resultsReady ? (
                       <div className="text-white/60 text-xs font-oswald">Pendiente hasta cierre de encuesta.</div>
@@ -449,7 +483,7 @@ const TemplateHistoryPage = () => {
                     )}
                   </div>
 
-                  <div className="bg-black/20 border border-white/10 rounded-xl p-2.5">
+                  <div className="bg-black/20 border border-white/10 rounded-none p-2.5">
                     <div className="font-bebas text-base text-white uppercase tracking-wider mb-1.5">Premios</div>
                     {!resultsReady ? (
                       <div className="text-white/60 text-xs font-oswald">Esperando resultados.</div>

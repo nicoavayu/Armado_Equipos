@@ -22,7 +22,7 @@ const fmtTime = (hhmm) => {
 function ResultPill({ winnerTeam, scoreline, resultsReady = false }) {
   if (!resultsReady) {
     return (
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-300/30">
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-none bg-amber-500/10 border border-amber-300/30">
         <Trophy size={16} className="text-amber-300" />
         <div className="font-oswald text-xs text-amber-100 uppercase tracking-wide">
           Resultados pendientes
@@ -32,13 +32,14 @@ function ResultPill({ winnerTeam, scoreline, resultsReady = false }) {
   }
 
   let label = 'Sin resultado';
-  if (winnerTeam === 'equipo_a') label = 'Ganó A';
-  if (winnerTeam === 'equipo_b') label = 'Ganó B';
-  if (winnerTeam === 'empate') label = 'Empate';
+  const normalized = String(winnerTeam || '').trim().toLowerCase();
+  if (normalized === 'equipo_a' || normalized === 'a' || normalized === 'team_a') label = 'Ganó A';
+  if (normalized === 'equipo_b' || normalized === 'b' || normalized === 'team_b') label = 'Ganó B';
+  if (normalized === 'empate' || normalized === 'draw') label = 'Empate';
   const sub = scoreline ? String(scoreline).trim() : '';
 
   return (
-    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-none bg-white/5 border border-white/10">
       <Trophy size={16} className="text-[#f4d03f]" />
       <div className="font-oswald text-xs text-white/85 uppercase tracking-wide">
         {label}{sub ? ` · ${sub}` : ''}
@@ -46,6 +47,33 @@ function ResultPill({ winnerTeam, scoreline, resultsReady = false }) {
     </div>
   );
 }
+
+const normalizeResultStatus = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === 'finished' || normalized === 'played') return 'finished';
+  if (normalized === 'draw' || normalized === 'empate') return 'draw';
+  if (normalized === 'not_played' || normalized === 'cancelled' || normalized === 'cancelado') return 'not_played';
+  if (normalized === 'pending' || normalized === 'pendiente') return 'pending';
+  return null;
+};
+
+const normalizeWinnerTeam = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === 'equipo_a' || normalized === 'a' || normalized === 'team_a') return 'equipo_a';
+  if (normalized === 'equipo_b' || normalized === 'b' || normalized === 'team_b') return 'equipo_b';
+  if (normalized === 'empate' || normalized === 'draw') return 'empate';
+  return null;
+};
+
+const isClosedHistoryResult = (row) => {
+  const status = normalizeResultStatus(row?.result_status);
+  if (status === 'pending' || status === 'not_played') return false;
+  if (status === 'finished' || status === 'draw') return true;
+  const winner = normalizeWinnerTeam(row?.winner_team);
+  return winner === 'equipo_a' || winner === 'equipo_b' || winner === 'empate';
+};
 
 function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
   const participants = Array.isArray(snapshot?.participants) ? snapshot.participants : [];
@@ -69,7 +97,7 @@ function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
   return (
     <div data-modal-root="true" className="fixed inset-0 z-[5200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl" onClick={onClose}>
       <div
-        className="w-full max-w-xl bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-[0_32px_64px_rgba(0,0,0,0.5)] overflow-hidden"
+        className="w-full max-w-xl bg-white/5 backdrop-blur-2xl border border-white/10 rounded-none shadow-[0_32px_64px_rgba(0,0,0,0.5)] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
@@ -82,7 +110,7 @@ function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
           </div>
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 active:scale-95 flex items-center justify-center"
+            className="w-10 h-10 rounded-none bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 active:scale-95 flex items-center justify-center"
             aria-label="Cerrar"
           >
             <X size={18} />
@@ -91,7 +119,7 @@ function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
 
         <div className="px-6 py-5 flex flex-col gap-4 max-h-[70vh] overflow-y-auto">
           <div className="flex items-center justify-between gap-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-none bg-white/5 border border-white/10">
               <Users size={16} className="text-[#0EA9C6]" />
               <div className="font-oswald text-xs text-white/85 uppercase tracking-wide">
                 {participants.length ? `${participants.length} jugadores` : 'Participantes no disponibles'}
@@ -101,7 +129,7 @@ function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-black/20 border border-white/10 rounded-2xl p-4">
+            <div className="bg-black/20 border border-white/10 rounded-none p-4">
               <div className="font-bebas text-lg text-white uppercase tracking-wider mb-2">Equipo A</div>
               {teamA.length === 0 ? (
                 <div className="text-white/50 text-sm font-oswald">Sin equipos confirmados.</div>
@@ -115,7 +143,7 @@ function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
                 </div>
               )}
             </div>
-            <div className="bg-black/20 border border-white/10 rounded-2xl p-4">
+            <div className="bg-black/20 border border-white/10 rounded-none p-4">
               <div className="font-bebas text-lg text-white uppercase tracking-wider mb-2">Equipo B</div>
               {teamB.length === 0 ? (
                 <div className="text-white/50 text-sm font-oswald">Sin equipos confirmados.</div>
@@ -132,7 +160,7 @@ function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
           </div>
 
           {participants.length > 0 && (
-            <div className="bg-black/20 border border-white/10 rounded-2xl p-4">
+            <div className="bg-black/20 border border-white/10 rounded-none p-4">
               <div className="font-bebas text-lg text-white uppercase tracking-wider mb-2">Participantes</div>
               <div className="grid grid-cols-2 gap-2">
                 {participants.map((p, idx) => (
@@ -144,7 +172,7 @@ function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
             </div>
           )}
 
-          <div className="bg-black/20 border border-white/10 rounded-2xl p-4">
+          <div className="bg-black/20 border border-white/10 rounded-none p-4">
             <div className="font-bebas text-lg text-white uppercase tracking-wider mb-2">Resultados de Encuesta</div>
             {!resultsReady ? (
               <div className="text-white/60 text-sm font-oswald">
@@ -253,7 +281,7 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
         if (matchIds.length > 0) {
           const { data: resRows } = await supabase
             .from('survey_results')
-            .select('partido_id, winner_team, scoreline, results_ready, resultados_encuesta_listos, snapshot_participantes, snapshot_equipos, snapshot_resultados_encuesta')
+            .select('partido_id, winner_team, scoreline, result_status, results_ready, resultados_encuesta_listos, snapshot_participantes, snapshot_equipos, snapshot_resultados_encuesta')
             .in('partido_id', matchIds);
           (resRows || []).forEach((r) => resMap.set(Number(r.partido_id), r));
         }
@@ -287,8 +315,13 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
           });
         });
 
+        const closedMatches = (partidos || []).filter((match) => {
+          const resultRow = resMap.get(Number(match.id));
+          return isClosedHistoryResult(resultRow);
+        });
+
         if (!alive) return;
-        setMatches(partidos || []);
+        setMatches(closedMatches);
         setSnapshots(mergedSnapshots);
         setResults(resMap);
         setCounts(cntMap);
@@ -320,7 +353,7 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
     <>
       <div data-modal-root="true" className="fixed inset-0 z-[5100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl" onClick={close}>
         <div
-          className="w-full max-w-3xl bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-6 shadow-[0_32px_64px_rgba(0,0,0,0.5)] overflow-hidden"
+          className="w-full max-w-3xl bg-white/5 backdrop-blur-2xl border border-white/10 rounded-none p-6 shadow-[0_32px_64px_rgba(0,0,0,0.5)] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-start justify-between gap-4 pb-4 border-b border-white/10">
@@ -332,7 +365,7 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
             </div>
             <button
               onClick={close}
-              className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 active:scale-95 flex items-center justify-center shrink-0"
+              className="w-10 h-10 rounded-none bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 active:scale-95 flex items-center justify-center shrink-0"
               aria-label="Cerrar"
             >
               <X size={18} />
@@ -362,7 +395,7 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
                       key={m.id}
                       type="button"
                       onClick={() => setSelected(m)}
-                      className="text-left bg-black/20 border border-white/10 rounded-2xl p-4 hover:bg-black/25 hover:border-white/15 active:scale-[0.99] transition-all"
+                      className="text-left bg-black/20 border border-white/10 rounded-none p-4 hover:bg-black/25 hover:border-white/15 active:scale-[0.99] transition-all"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="inline-flex items-center gap-2 text-white/80">
@@ -379,7 +412,7 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
                       </div>
 
                       <div className="mt-3 flex flex-col gap-2">
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 w-fit">
+                        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-none bg-white/5 border border-white/10 w-fit">
                           <Users size={16} className="text-[#0EA9C6]" />
                           <div className="font-oswald text-xs text-white/80 uppercase tracking-wide">
                             {participantsCount ? `${participantsCount} jugadores` : 'Sin jugadores'}
