@@ -29,8 +29,8 @@ import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import { formatSkillLevelLabel, getTeamAccent, getTeamGradientStyle } from '../utils/teamColors';
 import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, QUIERO_JUGAR_TOP_TAB_STORAGE_KEY } from '../config';
 
-const modalActionButtonClass = 'h-12 rounded-xl text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
-const optionCardClass = 'w-full rounded-xl border border-white/15 bg-white/5 p-3 text-left transition-all hover:bg-white/10';
+const modalActionButtonClass = 'h-12 rounded-none text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
+const optionCardClass = 'w-full rounded-none border border-white/15 bg-white/5 p-3 text-left transition-all hover:bg-white/10';
 const disabledOptionCardClass = `${optionCardClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:bg-white/5`;
 const transparentMenuButtonClass = 'inline-flex h-8 w-8 items-center justify-center border-0 bg-transparent p-0 text-[#1ec8ff] transition-colors hover:text-[#6ddcff]';
 const addMemberButtonClass = 'mt-3 w-full border border-[#7d5aff] bg-[#6a43ff] px-3 py-3 text-left transition-colors hover:bg-[#7550ff]';
@@ -1353,7 +1353,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               value={friendSearchInput}
               onChange={(event) => setFriendSearchInput(event.target.value)}
               placeholder="Nombre de amigo"
-              className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+              className="mt-1 w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
             />
           </label>
 
@@ -1375,7 +1375,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                     key={friendId}
                     type="button"
                     onClick={() => setSelectedFriendUserId(friendId)}
-                    className={`w-full rounded-xl border p-2 transition-all text-left ${isSelected
+                    className={`w-full rounded-none border p-2 transition-all text-left ${isSelected
                       ? 'border-[#9ED3FF]/50 bg-[#128BE9]/15'
                       : 'border-white/15 bg-white/5 hover:bg-white/10'
                       }`}
@@ -1443,7 +1443,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                   value={memberNameInput}
                   onChange={(event) => setMemberNameInput(event.target.value)}
                   placeholder="Nombre del jugador"
-                  className="w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+                  className="w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
                 />
               </div>
             ) : (
@@ -1451,7 +1451,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                 type="text"
                 readOnly
                 value={memberEditing?.jugador?.nombre || 'Jugador'}
-                className="mt-1 w-full rounded-xl bg-slate-900/45 border border-white/10 px-3 py-2 text-white/55 cursor-not-allowed"
+                className="mt-1 w-full rounded-none bg-slate-900/45 border border-white/10 px-3 py-2 text-white/55 cursor-not-allowed"
               />
             )}
           </label>
@@ -1464,7 +1464,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                   <button
                     type="button"
                     onClick={() => setShowProfilePositionHint(true)}
-                    className="mt-1 w-full inline-flex items-center justify-start rounded-xl bg-slate-900/45 border border-white/10 px-3 py-2 text-white/55 cursor-help"
+                    className="mt-1 w-full inline-flex items-center justify-start rounded-none bg-slate-900/45 border border-white/10 px-3 py-2 text-white/55 cursor-help"
                     aria-label="Posicion configurada desde perfil"
                   >
                     <span className="font-semibold tracking-wide">{selectedProfilePositionCode}</span>
@@ -1481,7 +1481,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                       event.stopPropagation();
                       setRoleMenuOpen((prev) => !prev);
                     }}
-                    className="w-full inline-flex items-center justify-between rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white transition-all hover:border-[#9ED3FF]/50"
+                    className="w-full inline-flex items-center justify-between rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white transition-all hover:border-[#9ED3FF]/50"
                     aria-label="Seleccionar posicion"
                   >
                     <span className="font-semibold tracking-wide">{selectedRoleOption.short}</span>
@@ -1490,7 +1490,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
                   {roleMenuOpen ? (
                     <div
-                      className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto rounded-xl border border-white/15 bg-[#0f172a] p-1 shadow-[0_10px_26px_rgba(0,0,0,0.45)]"
+                      className="absolute z-30 mt-1 w-full max-h-60 overflow-y-auto rounded-none border border-white/15 bg-[#0f172a] p-1 shadow-[0_10px_26px_rgba(0,0,0,0.45)]"
                       onClick={(event) => event.stopPropagation()}
                     >
                       {ROLE_OPTIONS.map((option) => {
@@ -1503,7 +1503,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                               setNewMember((prev) => ({ ...prev, role: option.value }));
                               setRoleMenuOpen(false);
                             }}
-                            className={`w-full rounded-lg px-3 py-2 text-left transition-all ${isSelected
+                            className={`w-full rounded-none px-3 py-2 text-left transition-all ${isSelected
                               ? 'bg-[#128BE9]/25 text-white'
                               : 'text-white/85 hover:bg-white/8'
                               }`}
@@ -1540,13 +1540,13 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                   setNewMember((prev) => ({ ...prev, shirtNumber: String(clamped) }));
                 }}
                 placeholder="Ej: 4"
-                className="mt-1 w-full rounded-xl bg-slate-900/80 border border-white/20 px-3 py-2 text-white"
+                className="mt-1 w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white"
               />
             </label>
           </div>
 
           {!memberSelfEditMode ? (
-            <div className="rounded-xl border border-white/15 bg-white/5 p-3">
+            <div className="rounded-none border border-white/15 bg-white/5 p-3">
               <span className="text-xs text-white/80 uppercase tracking-wide">Foto (opcional)</span>
               <div className="mt-2 flex items-center gap-3">
                 <div className="h-12 w-12 rounded-full overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
@@ -1559,7 +1559,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                   )}
                 </div>
 
-                <div className="flex-1 min-w-0 rounded-xl border border-dashed border-white/20 bg-slate-900/45 px-3 py-2">
+                <div className="flex-1 min-w-0 rounded-none border border-dashed border-white/20 bg-slate-900/45 px-3 py-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -1569,7 +1569,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                     }}
                     className="w-full inline-flex items-center gap-2 text-left text-sm text-white/90 hover:text-white"
                   >
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#9ED3FF]/40 bg-[#128BE9]/15 text-[#9ED3FF] shrink-0">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-none border border-[#9ED3FF]/40 bg-[#128BE9]/15 text-[#9ED3FF] shrink-0">
                       <Camera size={14} />
                     </span>
                     <span className="font-semibold">{memberPhotoFile ? 'Cambiar foto' : 'Subir foto'}</span>
@@ -1595,7 +1595,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                   <button
                     type="button"
                     onClick={handleClearMemberPhoto}
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-red-300/35 bg-red-500/10 text-red-200 transition-all hover:bg-red-500/20"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-none border border-red-300/35 bg-red-500/10 text-red-200 transition-all hover:bg-red-500/20"
                     title="Quitar foto"
                     aria-label="Quitar foto"
                   >

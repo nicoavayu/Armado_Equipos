@@ -18,6 +18,7 @@
   --muted: #babec4;
   --gray-txt: #888;
   --chip-radius: 13px;
+  --radius-standard: 10px;
   --gradient-bg: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
 
   /* Safe Area Variables */
@@ -60,6 +61,17 @@ html {
   --btn-danger: #ed4358;
   --muted: #4c4d58;
   --gray-txt: #b2b2c7;
+}
+
+/* Restore a consistent baseline radius for previously flattened controls. */
+[class~='rounded-none'],
+[class~='!rounded-none'] {
+  border-radius: var(--radius-standard) !important;
+}
+
+/* Keep segmented toggles and full-bleed bars flat when explicitly requested. */
+.ui-flat {
+  border-radius: 0 !important;
 }
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');

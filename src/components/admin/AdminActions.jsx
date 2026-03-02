@@ -60,7 +60,7 @@ const AdminActions = ({
           color: #fff;
           background: ${INVITE_ACCEPT_BUTTON_VIOLET};
           border: 1.5px solid ${INVITE_ACCEPT_BUTTON_VIOLET_DARK};
-          border-radius: 0;
+          border-radius: var(--radius-standard, 10px);
           transform: none;
           transition: filter 120ms ease, opacity 120ms ease;
           white-space: nowrap;
@@ -94,7 +94,7 @@ const AdminActions = ({
           border: 1.5px solid rgba(106, 67, 255, 0.46);
           background: rgba(17, 25, 54, 0.68);
           color: rgba(255, 255, 255, 0.78);
-          border-radius: 0;
+          border-radius: var(--radius-standard, 10px);
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -131,7 +131,7 @@ const AdminActions = ({
           border: 1.5px solid ${INVITE_ACCEPT_BUTTON_VIOLET_DARK};
           background: ${INVITE_ACCEPT_BUTTON_VIOLET};
           color: #fff;
-          border-radius: 0;
+          border-radius: var(--radius-standard, 10px);
           display: inline-flex;
           align-items: center;
           justify-content: center;

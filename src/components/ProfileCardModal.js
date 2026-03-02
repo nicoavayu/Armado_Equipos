@@ -497,14 +497,14 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
         {/* Admin Confirmation Modal */}
         {showAdminConfirm && (
           <div data-modal-root="true" className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10001]" onClick={() => !isAdminLoading && setShowAdminConfirm(false)}>
-            <div className="bg-[#1a1a1a] rounded-xl p-6 max-w-[380px] w-[90%] border-2 border-[#333] shadow-[0_8px_32px_rgba(0,0,0,0.5)] sm:p-5 sm:w-[95%]" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-[#1a1a1a] rounded-[var(--radius-standard)] p-6 max-w-[380px] w-[90%] border-2 border-[#333] shadow-[0_8px_32px_rgba(0,0,0,0.5)] sm:p-5 sm:w-[95%]" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-white text-lg font-semibold mb-3">Confirmar cambio de rol</h3>
               <p className="text-white/80 text-sm mb-6 leading-relaxed">
                 Este jugador pasará a ser administrador del partido. ¿Confirmás?
               </p>
               <div className="flex gap-3 justify-end">
                 <button
-                  className="border border-slate-600 bg-transparent rounded-xl py-2 px-4 text-[11px] font-semibold text-slate-300 cursor-pointer transition-all flex items-center justify-center gap-0.5 hover:bg-white/5 hover:border-slate-500 disabled:opacity-60 disabled:cursor-not-allowed md:py-2.5 md:px-5 md:text-xs sm:py-2 sm:px-4"
+                  className="border border-slate-600 bg-transparent rounded-[var(--radius-standard)] py-2 px-4 text-[11px] font-semibold text-slate-300 cursor-pointer transition-all flex items-center justify-center gap-0.5 hover:bg-white/5 hover:border-slate-500 disabled:opacity-60 disabled:cursor-not-allowed md:py-2.5 md:px-5 md:text-xs sm:py-2 sm:px-4"
                   onClick={() => setShowAdminConfirm(false)}
                   disabled={isAdminLoading}
                   type="button"
@@ -512,7 +512,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
                   Cancelar
                 </button>
                 <button
-                  className='bg-[#8178e5] border-none rounded-xl py-2 px-4 text-[11px] font-semibold text-white cursor-pointer transition-all flex items-center justify-center gap-0.5 hover:bg-[#8178e5]/90 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed md:py-2.5 md:px-5 md:text-xs sm:py-2 sm:px-4'
+                  className='bg-[#8178e5] border-none rounded-[var(--radius-standard)] py-2 px-4 text-[11px] font-semibold text-white cursor-pointer transition-all flex items-center justify-center gap-0.5 hover:bg-[#8178e5]/90 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed md:py-2.5 md:px-5 md:text-xs sm:py-2 sm:px-4'
                   onClick={handleConfirmAdmin}
                   disabled={isAdminLoading}
                   type="button"

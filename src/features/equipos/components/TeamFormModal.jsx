@@ -227,7 +227,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
               className="sr-only"
             />
             <span
-              className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-none border transition-all ${addCurrentUserAsPlayer
+              className={`mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-none ui-flat border transition-all ${addCurrentUserAsPlayer
                 ? 'border-[#93C5FD] bg-[#2563EB] text-white shadow-[0_0_0_3px_rgba(37,99,235,0.22)]'
                 : 'border-white/30 bg-slate-900/70 text-transparent'
                 }`}

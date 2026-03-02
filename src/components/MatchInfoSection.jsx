@@ -132,7 +132,7 @@ export default function MatchInfoSection(props) {
   return (
     <div className="relative left-1/2 -translate-x-1/2 w-screen max-w-[100vw] px-0 mx-0 overflow-hidden box-border">
       <div className="relative w-full flex justify-center items-start m-0 p-0">
-        <div className={`${topOffset} mb-0 p-3 relative w-full max-w-none box-border bg-white/[0.04] rounded-none flex justify-center sm:max-w-full sm:p-[8px_10px] border-t border-b border-white/[0.08]`}>
+        <div className={`${topOffset} mb-0 p-3 relative w-full max-w-none box-border bg-white/[0.04] rounded-none ui-flat flex justify-center sm:max-w-full sm:p-[8px_10px] border-t border-b border-white/[0.08]`}>
           <div
             className="flex items-center w-full overflow-hidden flex-nowrap"
             style={{
