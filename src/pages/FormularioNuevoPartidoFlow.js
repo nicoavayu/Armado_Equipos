@@ -526,7 +526,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               )}
             </div>
             <button
-              className={`${PRIMARY_ACTION_BUTTON_CLASS} mb-3`}
+              className={`${PRIMARY_ACTION_BUTTON_CLASS} !mt-6 mb-3`}
               disabled={!fecha || !hora}
               onClick={() => {
                 // Validate time format
@@ -556,20 +556,22 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
             >
               {editMode ? 'Guardar' : 'Continuar'}
             </button>
-            <div className="min-h-[52px] mt-2">
-              <InlineNotice
-                type={notice?.type}
-                message={notice?.message}
-                autoHideMs={notice?.type === 'warning' ? null : 3000}
-                onClose={clearInlineNotice}
-              />
-            </div>
             <button
-              className={SECONDARY_ACTION_BUTTON_CLASS}
+              className={`${SECONDARY_ACTION_BUTTON_CLASS} !mt-0`}
               onClick={editMode ? saveAndReturn : prevStep}
             >
               {editMode ? 'Cancelar' : 'Volver atrás'}
             </button>
+            {notice?.message ? (
+              <div className="mt-2">
+                <InlineNotice
+                  type={notice?.type}
+                  message={notice?.message}
+                  autoHideMs={notice?.type === 'warning' ? null : 3000}
+                  onClose={clearInlineNotice}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
       </div >
@@ -648,7 +650,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                 {editMode ? 'Guardar' : 'Continuar'}
               </button>
               <button
-                className={SECONDARY_ACTION_BUTTON_CLASS}
+                className={`${SECONDARY_ACTION_BUTTON_CLASS} !mt-0`}
                 onClick={editMode ? saveAndReturn : prevStep}
               >
                 {editMode ? 'Cancelar' : 'Volver atrás'}
