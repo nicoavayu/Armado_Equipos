@@ -23,7 +23,7 @@ const STEPS = {
 
 const INPUT_MODERN_CLASS = 'appearance-none bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white font-sans text-lg px-4 py-3 rounded-none w-full h-12 transition-all focus:outline-none focus:border-[#7f8dff] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 focus:bg-[rgba(62,67,114,0.95)] mb-2 box-border shadow-none backdrop-blur-md';
 const PRIMARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] mt-4 mb-0 px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px] disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed';
-const SECONDARY_ACTION_BUTTON_CLASS = 'w-full h-[52px] mt-4 mb-0 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-oswald text-[20px] tracking-[0.01em] font-semibold transition-all hover:bg-[rgba(30,45,94,0.95)] active:opacity-95';
+const SECONDARY_ACTION_BUTTON_CLASS = 'w-full h-[52px] mt-4 mb-0 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] transition-all hover:bg-[rgba(30,45,94,0.95)] active:opacity-95';
 const SEGMENT_BUTTON_BASE_CLASS = 'h-[44px] px-2 text-[16px] font-semibold font-oswald rounded-none transition-all border flex items-center justify-center';
 const CONFIRM_ITEM_CLASS = 'bg-[linear-gradient(160deg,rgba(31,38,86,0.86),rgba(16,24,60,0.94))] border border-[rgba(108,126,196,0.46)] backdrop-blur-md rounded-none p-4 mb-3 flex justify-between items-center text-white font-sans shadow-[0_12px_24px_rgba(4,10,28,0.35)]';
 const EDIT_ITEM_BUTTON_CLASS = 'bg-[rgba(26,37,83,0.95)] border border-[rgba(106,126,202,0.52)] text-white px-3 py-1.5 rounded-none text-xs font-semibold cursor-pointer transition-all font-oswald hover:bg-[rgba(39,53,110,0.98)] hover:border-[rgba(140,158,228,0.7)]';
@@ -501,85 +501,92 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
       <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]">
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div className="w-full flex flex-col items-center pb-10">
-          <div className="w-full max-w-[440px] px-4">
-            <div style={STEP_TITLE_STYLE}>
-              Seleccioná la fecha y hora del partido
-            </div>
-            <input
-              className={INPUT_MODERN_CLASS}
-              type="date"
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-              style={{ marginBottom: 22, width: '100%' }}
-            />
-            <div className="relative w-full" style={{ marginBottom: 22 }}>
+          <div className="w-full max-w-[440px] px-4 flex flex-col h-full">
+            <div className="flex-shrink-0">
+              <div style={STEP_TITLE_STYLE}>
+                Seleccioná la fecha y hora del partido
+              </div>
               <input
                 className={INPUT_MODERN_CLASS}
-                type="time"
-                value={hora}
-                onChange={(e) => setHora(e.target.value)}
-                placeholder="hh:mm"
-                style={{
-                  marginBottom: 0,
-                  width: '100%',
-                  height: 55,
-                  color: hora ? undefined : 'transparent',
-                  WebkitTextFillColor: hora ? undefined : 'transparent',
-                }}
+                type="date"
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+                style={{ marginBottom: 22, width: '100%' }}
               />
-              {!hora && (
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/40 font-sans text-lg">
-                  Hora (hh:mm)
-                </span>
-              )}
-            </div>
-            <button
-              className={`${PRIMARY_ACTION_BUTTON_CLASS} !mt-6 mb-3`}
-              disabled={!fecha || !hora}
-              onClick={() => {
-                // Validate time format
-                if (!normalizeTimeHHmm(hora)) {
-                  showInlineNotice({
-                    key: 'new_match_invalid_time',
-                    type: 'warning',
-                    message: 'Se requiere una hora válida.',
-                  });
-                  return;
-                }
-
-                // DEBUG: Log validation info
-                const debugInfo = getDebugInfo(fecha, hora);
-                console.log('[DEBUG] Match validation:', debugInfo);
-
-                if (isBlockedInDebug(fecha, hora)) {
-                  showInlineNotice({
-                    key: 'new_match_past_datetime',
-                    type: 'warning',
-                    message: 'No podés crear un partido en el pasado.',
-                  });
-                  return;
-                }
-                editMode ? saveAndReturn() : nextStep();
-              }}
-            >
-              {editMode ? 'Guardar' : 'Continuar'}
-            </button>
-            <button
-              className={`${SECONDARY_ACTION_BUTTON_CLASS} !mt-0`}
-              onClick={editMode ? saveAndReturn : prevStep}
-            >
-              {editMode ? 'Cancelar' : 'Volver atrás'}
-            </button>
-            {notice?.message ? (
-              <div className="mt-2">
-                <InlineNotice
-                  type={notice?.type}
-                  message={notice?.message}
-                  autoHideMs={notice?.type === 'warning' ? null : 3000}
-                  onClose={clearInlineNotice}
+              <div className="relative w-full" style={{ marginBottom: 22 }}>
+                <input
+                  className={INPUT_MODERN_CLASS}
+                  type="time"
+                  value={hora}
+                  onChange={(e) => setHora(e.target.value)}
+                  placeholder="hh:mm"
+                  style={{
+                    marginBottom: 0,
+                    width: '100%',
+                    height: 55,
+                    color: hora ? undefined : 'transparent',
+                    WebkitTextFillColor: hora ? undefined : 'transparent',
+                  }}
                 />
+                {!hora && (
+                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/40 font-sans text-lg">
+                    Hora (hh:mm)
+                  </span>
+                )}
               </div>
-            ) : null}
+            </div>
+
+            <div className="flex-grow" style={{ marginTop: 72 }} />
+
+            <div className="flex-shrink-0" style={{ paddingTop: 8 }}>
+              <button
+                className={`${PRIMARY_ACTION_BUTTON_CLASS} mb-3`}
+                disabled={!fecha || !hora}
+                onClick={() => {
+                  // Validate time format
+                  if (!normalizeTimeHHmm(hora)) {
+                    showInlineNotice({
+                      key: 'new_match_invalid_time',
+                      type: 'warning',
+                      message: 'Se requiere una hora válida.',
+                    });
+                    return;
+                  }
+
+                  // DEBUG: Log validation info
+                  const debugInfo = getDebugInfo(fecha, hora);
+                  console.log('[DEBUG] Match validation:', debugInfo);
+
+                  if (isBlockedInDebug(fecha, hora)) {
+                    showInlineNotice({
+                      key: 'new_match_past_datetime',
+                      type: 'warning',
+                      message: 'No podés crear un partido en el pasado.',
+                    });
+                    return;
+                  }
+                  editMode ? saveAndReturn() : nextStep();
+                }}
+              >
+                {editMode ? 'Guardar' : 'Continuar'}
+              </button>
+              <button
+                className={`${SECONDARY_ACTION_BUTTON_CLASS} !mt-0`}
+                onClick={editMode ? saveAndReturn : prevStep}
+              >
+                {editMode ? 'Cancelar' : 'Volver atrás'}
+              </button>
+              {notice?.message ? (
+                <div className="mt-2">
+                  <InlineNotice
+                    type={notice?.type}
+                    message={notice?.message}
+                    autoHideMs={notice?.type === 'warning' ? null : 3000}
+                    onClose={clearInlineNotice}
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </div >
