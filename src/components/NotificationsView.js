@@ -486,7 +486,7 @@ const NotificationsView = () => {
               <span
                 className={`inline-flex min-w-[22px] h-[22px] px-1.5 items-center justify-center rounded-none border text-[12px] font-oswald font-semibold leading-none ${
                   hasUnreadNotifications
-                    ? 'border-[rgba(136,120,255,0.75)] bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white'
+                    ? 'border-[#644dff] bg-[#644dff] text-white'
                     : 'border-[rgba(106,126,202,0.4)] bg-[rgba(26,35,76,0.58)] text-white/70'
                 }`}
               >
@@ -516,7 +516,7 @@ const NotificationsView = () => {
                   onClick={() => setActiveFilter(option.key)}
                   className={`w-full min-w-0 h-[38px] px-2.5 rounded-none border text-[11px] sm:w-auto sm:text-xs font-oswald transition-colors ${
                     isActive
-                      ? 'bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] border-[rgba(136,120,255,0.75)] text-white'
+                      ? 'bg-[#644dff] border-[#644dff] text-white'
                       : 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] text-white/72 hover:bg-[rgba(30,45,94,0.95)] hover:text-white'
                   }`}
                 >
@@ -563,7 +563,7 @@ const NotificationsView = () => {
                 key={group.key}
                 role="button"
                 tabIndex={0}
-                className={`flex p-3 bg-[rgba(4,31,89,0.95)] rounded-none cursor-pointer transition-all duration-200 relative border border-[#12b5ff]/70 hover:bg-[rgba(8,41,109,0.96)] hover:border-[#56d1ff] shadow-[0_0_0_1px_rgba(52,167,255,0.14),0_10px_22px_rgba(2,10,34,0.45)] ${group.unreadCount > 0 ? 'bg-[rgba(7,45,116,0.98)] border-[#37c6ff]' : ''
+                className={`flex p-3 bg-transparent rounded-none cursor-pointer transition-all duration-200 relative border border-[#12b5ff]/70 hover:border-[#56d1ff] ${group.unreadCount > 0 ? 'border-[#37c6ff]' : ''
                   } ${notification.type === 'friend_request' ? 'cursor-default' : ''}`}
                 onClick={(e) => {
                   if (notification.type !== 'friend_request') handleGroupedNotificationClick(group, e);
