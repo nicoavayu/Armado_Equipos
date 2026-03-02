@@ -891,6 +891,7 @@ export default function ArmarEquiposView({
     '--btn-shadow': '0 8px 18px rgba(76, 58, 196, 0.34)',
   };
   const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
+  const kebabMenuButtonClass = 'kebab-menu-btn';
 
   // Si no es admin, mostrar acceso denegado
   if (!isAdmin) {
@@ -1006,13 +1007,13 @@ export default function ArmarEquiposView({
                   <Share2 size={14} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
                 </button>
                 <button
-                  className={headerActionIconButtonClass}
+                  className={kebabMenuButtonClass}
                   onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
                   type="button"
                   aria-label="Menú de acciones"
                   title="Acciones de administración"
                 >
-                  <MoreVertical size={16} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
+                  <MoreVertical size={15} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
                 </button>
                 {actionsMenuOpen && (
                   <div className="absolute top-full right-0 mt-1 w-48 border bg-slate-900/98 shadow-lg z-10 overflow-hidden transition-all duration-200 ease-out" style={{ borderColor: 'rgba(88, 107, 170, 0.46)', borderRadius: 0, transform: `skewX(-${SLOT_SKEW_X}deg)` }}>

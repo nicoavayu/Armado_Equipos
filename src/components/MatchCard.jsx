@@ -130,14 +130,14 @@ const MatchCard = ({
                     {showMenu && (
                         <div className="relative">
                             <button
-                                className="p-2 rounded-full border border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-200"
+                                className="kebab-menu-btn"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onMenuToggle?.(partido.id);
                                 }}
                                 aria-label="Más acciones"
                             >
-                                <MoreVertical size={16} />
+                                <MoreVertical size={15} />
                             </button>
                             {isMenuOpen && (
                                 <div

@@ -79,6 +79,36 @@ body {
   touch-action: pan-y pinch-zoom;
 }
 
+.kebab-menu-btn {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(75, 118, 206, 0.62);
+  border-radius: 4px;
+  background: #0f1838;
+  color: #7fd4ff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 8px rgba(0, 0, 0, 0.28);
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+  flex-shrink: 0;
+}
+
+.kebab-menu-btn:hover:not(:disabled) {
+  background: #14204a;
+  border-color: rgba(90, 142, 236, 0.76);
+  color: #a7e6ff;
+}
+
+.kebab-menu-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.kebab-menu-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 #root {
   position: relative;
   overflow-x: hidden;

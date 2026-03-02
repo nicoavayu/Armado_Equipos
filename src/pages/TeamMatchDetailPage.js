@@ -565,7 +565,7 @@ const TeamMatchDetailPage = () => {
                         type="button"
                         aria-label="Mas acciones"
                         title="Mas acciones"
-                        className="h-8 w-8 inline-flex items-center justify-center rounded-full border border-white/20 bg-white/5 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                        className="kebab-menu-btn"
                         onClick={() => {
                           if (actionsMenuButtonRef.current) {
                             const rect = actionsMenuButtonRef.current.getBoundingClientRect();
@@ -574,7 +574,7 @@ const TeamMatchDetailPage = () => {
                           setActionsMenuOpen((prev) => !prev);
                         }}
                       >
-                        <MoreVertical size={18} />
+                        <MoreVertical size={15} />
                       </button>
                       {actionsMenuOpen && ReactDOM.createPortal(
                         <>

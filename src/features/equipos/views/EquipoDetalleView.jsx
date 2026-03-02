@@ -917,7 +917,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               {isSelectedTeamManager ? (
                 <button
                   type="button"
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 text-slate-200 transition-all hover:border-slate-500 hover:bg-slate-800 hover:text-white"
+                  className="kebab-menu-btn"
                   onClick={(event) => {
                     event.stopPropagation();
                     setDetailActionsMenuOpen((prev) => !prev);
@@ -925,7 +925,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                   aria-label="Acciones del equipo"
                   title="Acciones del equipo"
                 >
-                  <MoreVertical size={16} />
+                  <MoreVertical size={15} />
                 </button>
               ) : null}
 
@@ -1077,7 +1077,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                                 event.stopPropagation();
                                 setOpenMemberMenuId((prev) => (prev === member.id ? null : member.id));
                               }}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/8 text-white/80 hover:bg-white/15"
+                              className="kebab-menu-btn"
                               title="Acciones del jugador"
                               aria-label="Acciones del jugador"
                               disabled={isSaving}

@@ -181,6 +181,7 @@ const PlayersSection = ({
     transform: `skewX(${SLOT_SKEW_X}deg)`,
   };
   const headerActionIconButtonClass = 'h-8 w-8 inline-flex items-center justify-center bg-transparent border-0 p-0 text-[#29aaff]/80 hover:text-[#29aaff] transition-colors disabled:opacity-45 disabled:cursor-not-allowed';
+  const kebabMenuButtonClass = 'kebab-menu-btn';
 
   useEffect(() => () => {
     if (completionAnimTimeoutRef.current) {
@@ -241,7 +242,7 @@ const PlayersSection = ({
       <div className="relative">
         <button
           ref={menuButtonRef}
-          className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white/90 transition-colors"
+          className={kebabMenuButtonClass}
           onClick={() => {
             if (menuButtonRef.current) {
               const rect = menuButtonRef.current.getBoundingClientRect();
@@ -252,7 +253,7 @@ const PlayersSection = ({
           aria-label="Opciones"
           type="button"
         >
-          <MoreVertical size={20} />
+          <MoreVertical size={15} />
         </button>
         {localMenuOpen && ReactDOM.createPortal(
           <>
@@ -608,7 +609,7 @@ const PlayersSection = ({
                 <button
                   type="button"
                   ref={adminMenuButtonRef}
-                  className={headerActionIconButtonClass}
+                  className={kebabMenuButtonClass}
                   onClick={() => {
                     if (adminMenuButtonRef.current) {
                       const rect = adminMenuButtonRef.current.getBoundingClientRect();
@@ -619,7 +620,7 @@ const PlayersSection = ({
                   aria-label="Más acciones"
                   title="Acciones de administración"
                 >
-                  <MoreVertical size={16} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
+                  <MoreVertical size={15} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
                 </button>
               )}
 

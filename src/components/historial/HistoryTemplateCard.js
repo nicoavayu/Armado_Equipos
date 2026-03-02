@@ -99,14 +99,14 @@ const HistoryTemplateCard = ({
           {(onEdit || onDelete) && (
             <div className="relative">
               <button
-                className="p-2 rounded-full border border-slate-700 hover:border-slate-500 hover:bg-slate-800 text-slate-200"
+                className="kebab-menu-btn"
                 onClick={(e) => {
                   e.stopPropagation();
                   setMenuOpen((prev) => !prev);
                 }}
                 aria-label="Más acciones"
               >
-                <MoreVertical size={16} />
+                <MoreVertical size={15} />
               </button>
               {menuOpen && (
                 <div className="absolute right-0 mt-2 w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-lg z-10">
