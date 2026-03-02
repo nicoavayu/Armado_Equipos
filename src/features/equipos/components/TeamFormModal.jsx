@@ -112,6 +112,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
             variant="secondary"
             className={actionSecondaryClass}
             disabled={isSubmitting}
+            data-preserve-button-case="true"
           >
             Cancelar
           </Button>
@@ -122,6 +123,7 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
             loading={isSubmitting}
             loadingText="Guardando..."
             disabled={form.name.trim().length === 0}
+            data-preserve-button-case="true"
           >
             Guardar
           </Button>
