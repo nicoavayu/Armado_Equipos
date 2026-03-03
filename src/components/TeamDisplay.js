@@ -51,6 +51,33 @@ const SYSTEM_ICON_BLUE = '#29aaff';
 const SYSTEM_ICON_BLUE_GLOW = 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.78))';
 
 const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+const hasMissingColumnError = (error, columnName) => {
+  const msg = String(error?.message || '').toLowerCase();
+  return msg.includes('does not exist') && msg.includes(String(columnName || '').toLowerCase());
+};
+const persistMatchTeamsConfirmedState = async ({ partidoId, confirmed }) => {
+  const pid = Number(partidoId);
+  if (!pid) return;
+
+  const timestamp = confirmed ? new Date().toISOString() : null;
+  const preferredPayload = { teams_confirmed: Boolean(confirmed), teams_confirmed_at: timestamp };
+  const preferredRes = await supabase
+    .from('partidos')
+    .update(preferredPayload)
+    .eq('id', pid);
+  if (!preferredRes.error) return;
+
+  if (hasMissingColumnError(preferredRes.error, 'teams_confirmed_at')) {
+    const fallbackRes = await supabase
+      .from('partidos')
+      .update({ teams_confirmed: Boolean(confirmed) })
+      .eq('id', pid);
+    if (!fallbackRes.error) return;
+    throw fallbackRes.error;
+  }
+
+  throw preferredRes.error;
+};
 
 const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = false, partidoId = null, nombre: _nombre, fecha, hora, sede, modalidad, tipo }) => {
   const [showAverages, setShowAverages] = useState(false);
@@ -108,14 +135,73 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
     const loadConfirmState = async () => {
       if (!partidoId) return;
       try {
-        const { data, error } = await supabase
+        let data = null;
+
+        // Prefer modern schema first. This avoids legacy-column 400s on current DBs.
+        const modernRes = await supabase
           .from('partidos')
-          .select('teams_confirmed, template_id, from_frequent_match_id')
+          .select('teams_confirmed, template_id')
           .eq('id', Number(partidoId))
           .maybeSingle();
-        if (error) throw error;
-        setTeamsConfirmed(Boolean(data?.teams_confirmed));
+
+        if (!modernRes.error) {
+          data = modernRes.data;
+        } else if (hasMissingColumnError(modernRes.error, 'template_id')) {
+          // Backward compatibility: legacy schema
+          const legacyRes = await supabase
+            .from('partidos')
+            .select('teams_confirmed, from_frequent_match_id')
+            .eq('id', Number(partidoId))
+            .maybeSingle();
+
+          if (!legacyRes.error) {
+            data = legacyRes.data;
+          } else if (hasMissingColumnError(legacyRes.error, 'from_frequent_match_id')) {
+            // Very old schema: only teams_confirmed exists
+            const minimalRes = await supabase
+              .from('partidos')
+              .select('teams_confirmed')
+              .eq('id', Number(partidoId))
+              .maybeSingle();
+            if (minimalRes.error) throw minimalRes.error;
+            data = minimalRes.data;
+          } else {
+            throw legacyRes.error;
+          }
+        } else {
+          throw modernRes.error;
+        }
+
+        let hasConfirmationSnapshot = false;
+        try {
+          const { data: confirmationRow, error: confirmationError } = await supabase
+            .from('partido_team_confirmations')
+            .select('partido_id')
+            .eq('partido_id', Number(partidoId))
+            .maybeSingle();
+
+          if (confirmationError) {
+            console.warn('[TEAMS_CONFIRM] could not load confirmation snapshot (non-blocking)', confirmationError?.message || confirmationError);
+          } else {
+            hasConfirmationSnapshot = Boolean(confirmationRow?.partido_id);
+          }
+        } catch (snapshotError) {
+          console.warn('[TEAMS_CONFIRM] could not load confirmation snapshot (non-blocking)', snapshotError?.message || snapshotError);
+        }
+
+        const matchFlagConfirmed = Boolean(data?.teams_confirmed);
+        const resolvedConfirmed = matchFlagConfirmed || hasConfirmationSnapshot;
+        setTeamsConfirmed(resolvedConfirmed);
         setTemplateId(data?.template_id || data?.from_frequent_match_id || null);
+
+        // Heal old rows that have snapshot but stale/missing teams_confirmed flag.
+        if (!matchFlagConfirmed && hasConfirmationSnapshot) {
+          try {
+            await persistMatchTeamsConfirmedState({ partidoId, confirmed: true });
+          } catch (syncError) {
+            console.warn('[TEAMS_CONFIRM] could not sync teams_confirmed from snapshot (non-blocking)', syncError?.message || syncError);
+          }
+        }
       } catch (e) {
         // Older DBs may not have these columns yet.
         console.warn('[TEAMS_CONFIRM] could not load teams_confirmed/template_id (non-blocking)', e?.message || e);
@@ -530,15 +616,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         .upsert(payload, { onConflict: 'partido_id' });
       if (snapErr) throw snapErr;
 
-      // Mark match as confirmed (best-effort if columns exist)
-      try {
-        await supabase
-          .from('partidos')
-          .update({ teams_confirmed: true, teams_confirmed_at: new Date().toISOString() })
-          .eq('id', Number(partidoId));
-      } catch (_e) {
-        // non-blocking
-      }
+      // Persist confirmed flag for future loads and survey flow.
+      await persistMatchTeamsConfirmedState({ partidoId, confirmed: true });
 
       setTeamsConfirmed(true);
       showInlineNotice({
@@ -572,15 +651,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         // non-blocking
       }
 
-      // Reset flag (best-effort)
-      try {
-        await supabase
-          .from('partidos')
-          .update({ teams_confirmed: false, teams_confirmed_at: null })
-          .eq('id', Number(partidoId));
-      } catch (_e) {
-        // non-blocking
-      }
+      // Persist unconfirmed flag.
+      await persistMatchTeamsConfirmedState({ partidoId, confirmed: false });
 
       setTeamsConfirmed(false);
       showInlineNotice({
