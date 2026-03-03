@@ -118,8 +118,6 @@ const PlayersSection = ({
   processingAction: _processingAction,
   handleAbandon: _handleAbandon,
   invitationStatus,
-  onInviteFriends,
-  onAddManual,
   onShareClick,
   unirseAlPartido,
 }) => {
@@ -147,12 +145,6 @@ const PlayersSection = ({
   const completionAnimTimeoutRef = useRef(null);
   const previousCompleteRef = useRef(isTitularesComplete);
   const showInviteStylePostJoin = !isAdmin && isPlayerInMatch;
-  const invitationsOpen = Boolean(
-    partidoActual?.invitations_open
-    ?? partidoActual?.falta_jugadores
-    ?? partidoActual?.faltan_jugadores
-    ?? false,
-  );
   const inviteRequiredSlots = resolveSlotsFromMatchType(partidoActual);
   const inviteDisplayCount = jugadores?.length ?? 0;
   const inviteConfirmedCount = Math.min(inviteDisplayCount, inviteRequiredSlots);
@@ -165,18 +157,6 @@ const PlayersSection = ({
     '--btn': INVITE_ACCEPT_BUTTON_VIOLET,
     '--btn-dark': INVITE_ACCEPT_BUTTON_VIOLET_DARK,
     '--btn-text': '#ffffff',
-  };
-  const inviteJoinedStatusPalette = {
-    '--btn': 'rgba(100, 77, 255, 0.38)',
-    '--btn-dark': 'rgba(125, 90, 255, 0.52)',
-    '--btn-text': 'rgba(255,255,255,0.92)',
-    '--btn-shadow': 'none',
-  };
-  const inviteSecondaryButtonPalette = {
-    '--btn': 'rgba(23, 35, 74, 0.72)',
-    '--btn-dark': 'rgba(88, 107, 170, 0.46)',
-    '--btn-text': 'rgba(242, 246, 255, 0.9)',
-    '--btn-shadow': '0 6px 16px rgba(0,0,0,0.25)',
   };
   const invitePlayersBlockStyle = {
     background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)',
@@ -265,17 +245,6 @@ const PlayersSection = ({
     } catch (error) {
       console.error('[CALENDAR_ICS] Error creating calendar file', error);
       notifyBlockingError('No se pudo agregar el partido al calendario');
-    }
-  };
-
-  const handleSuggestMatch = () => {
-    if (!invitationsOpen) return;
-    if (typeof onInviteFriends === 'function') {
-      onInviteFriends();
-      return;
-    }
-    if (typeof setShowInviteModal === 'function') {
-      setShowInviteModal(true);
     }
   };
 
@@ -791,10 +760,9 @@ const PlayersSection = ({
             align-items: center;
             justify-content: center;
             gap: 1rem;
-            font-family: "Bebas Neue", "Oswald", system-ui, sans-serif;
-            font-size: 1rem;
+            font-size: 0.94rem;
             font-weight: 700;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.045em;
             color: var(--btn-text, #fff);
             background: var(--btn);
             border: 1.5px solid var(--btn-dark);
@@ -883,14 +851,7 @@ const PlayersSection = ({
             {showInviteStylePostJoin ? (
               <div className="w-full max-w-[340px] mx-auto px-2 sm:px-0 flex flex-col gap-2">
                 <div className="w-full border-t border-white/15 mb-1" aria-hidden="true" />
-                <div
-                  className="invite-cta-btn"
-                  style={{ ...inviteJoinedStatusPalette, cursor: 'default' }}
-                  role="status"
-                  aria-label="Ya formás parte del partido"
-                >
-                  <span>Ya formás parte</span>
-                </div>
+                <p className="m-0 text-white/90 font-oswald text-base text-center">Te has unido!</p>
                 <p className="m-0 text-emerald-400 font-oswald text-sm text-center">Podés acceder desde Mis partidos.</p>
                 <button
                   className="invite-cta-btn"
@@ -899,15 +860,6 @@ const PlayersSection = ({
                 >
                   <span>Agregar al calendario</span>
                 </button>
-                {invitationsOpen ? (
-                  <button
-                    className="invite-cta-btn"
-                    style={inviteSecondaryButtonPalette}
-                    onClick={handleSuggestMatch}
-                  >
-                    <span>Sugerir partido a un amigo</span>
-                  </button>
-                ) : null}
               </div>
             ) : (
               <div className="w-full max-w-[500px] mx-auto bg-[#0f172a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">

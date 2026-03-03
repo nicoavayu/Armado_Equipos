@@ -17,6 +17,7 @@ import Logo from '../Logo.png';
 import { findUserScheduleConflicts } from '../services/db/matchScheduling';
 import { notifyAdminJoinRequest, notifyAdminPlayerJoined } from '../services/matchJoinNotificationService';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { buildMatchCalendarIcs, shareOrDownloadCalendarIcs } from '../utils/calendarInvite';
 
 /**
  * Pantalla pública de invitación a un partido
@@ -276,6 +277,7 @@ function SharedInviteLayout({
   isMatchFull,
   inlineNotice,
   onClearInlineNotice,
+  onAddToCalendar,
   showBottomNav = false,
 }) {
   const isSent = joinStatus === 'pending';
@@ -389,45 +391,54 @@ function SharedInviteLayout({
               {/* CTA */}
               <div className="w-full max-w-[500px] mx-auto mt-5 px-0 text-center">
                 {ctaVariant === 'public' ? (
-                  <div className="flex flex-col gap-3 w-full">
-                    <button
-                      onClick={onSumarse}
-                      disabled={submitting || isSent || isApproved || isPendingSync || joinStatus === 'checking' || isMatchFull}
-                      className={`${publicCtaBaseClass} ${publicCtaStateClass}`}
-                    >
-                      {joinStatus === 'checking' ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <LoadingSpinner size="small" />
-                          Verificando...
-                        </span>
-                      ) : isPendingSync ? (
-                        <span className="flex items-center justify-center gap-2">
-                          <LoadingSpinner size="small" />
-                          Aprobado - sincronizando...
-                        </span>
-                      ) : isMatchFull ? 'Partido completo' :
-                        isSending ? 'Enviando...' :
-                          isSent ? 'Solicitud enviada' :
-                            isApproved ? 'Ya formás parte' :
+                  isApproved ? (
+                    <div className="flex flex-col gap-2 w-full">
+                      <div className="w-full border-t border-white/15 mb-1" aria-hidden="true" />
+                      <p className="m-0 text-white/90 font-oswald text-base text-center">Te has unido!</p>
+                      <p className="m-0 text-emerald-400 font-oswald text-sm text-center">Podés acceder desde Mis partidos.</p>
+                      <button
+                        onClick={onAddToCalendar}
+                        className="invite-cta-btn"
+                        style={acceptButtonPalette}
+                      >
+                        Agregar al calendario
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3 w-full">
+                      <button
+                        onClick={onSumarse}
+                        disabled={submitting || isSent || isPendingSync || joinStatus === 'checking' || isMatchFull}
+                        className={`${publicCtaBaseClass} ${publicCtaStateClass}`}
+                      >
+                        {joinStatus === 'checking' ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <LoadingSpinner size="small" />
+                            Verificando...
+                          </span>
+                        ) : isPendingSync ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <LoadingSpinner size="small" />
+                            Aprobado - sincronizando...
+                          </span>
+                        ) : isMatchFull ? 'Partido completo' :
+                          isSending ? 'Enviando...' :
+                            isSent ? 'Solicitud enviada' :
                               'Solicitar unirme'}
-                    </button>
+                      </button>
 
-                    {isSent && (
-                      <p className="text-white/70 font-oswald text-sm mt-1">
-                        Esperando aprobación del admin.
-                      </p>
-                    )}
-                    {isApproved && (
-                      <p className="text-emerald-400 font-oswald text-sm mt-1">
-                        Podés acceder desde Mis partidos.
-                      </p>
-                    )}
-                    {isPendingSync && (
-                      <p className="text-emerald-300 font-oswald text-sm mt-1">
-                        Tu solicitud fue aprobada. Sincronizando acceso...
-                      </p>
-                    )}
-                  </div>
+                      {isSent && (
+                        <p className="text-white/70 font-oswald text-sm mt-1">
+                          Esperando aprobación del admin.
+                        </p>
+                      )}
+                      {isPendingSync && (
+                        <p className="text-emerald-300 font-oswald text-sm mt-1">
+                          Tu solicitud fue aprobada. Sincronizando acceso...
+                        </p>
+                      )}
+                    </div>
+                  )
                 ) : (
                   <div className="flex flex-row gap-3 w-full justify-center items-stretch px-2 sm:px-0 overflow-visible">
                     <button
@@ -948,7 +959,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           reqId: originalReqId
         });
         setJoinStatus('approved');
-        showInlineNotice('success', 'Ya formás parte del partido.');
+        showInlineNotice('success', 'Te has unido. Podés acceder desde Mis partidos.');
       } else {
         console.log('[RECHECK] Not yet synced, retrying...', { attempt, matchId, userUuid, originalReqId });
         recheckMembership(userUuid, matchId, originalReqId, attempt + 1);
@@ -992,6 +1003,20 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     } else {
       // Usuario sin login: ingreso rápido con nombre + foto
       setStep('guest-form');
+    }
+  };
+
+  const handleAddToCalendar = async () => {
+    try {
+      const { content, fileName } = buildMatchCalendarIcs(partido);
+      await shareOrDownloadCalendarIcs({
+        content,
+        fileName,
+        title: 'Agregar al calendario',
+      });
+    } catch (error) {
+      console.error('[CALENDAR_ICS] Error creating calendar file', error);
+      notifyBlockingError('No se pudo agregar el partido al calendario');
     }
   };
 
@@ -1378,6 +1403,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           isMatchFull={isMatchFull}
           inlineNotice={inlineNotice}
           onClearInlineNotice={() => setInlineNotice(null)}
+          onAddToCalendar={handleAddToCalendar}
           showBottomNav={showBottomNav}
         />
         <ConfirmModal
