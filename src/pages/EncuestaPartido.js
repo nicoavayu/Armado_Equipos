@@ -8,7 +8,7 @@ import PageLoadingState from '../components/PageLoadingState';
 import PageTransition from '../components/PageTransition';
 import InlineNotice from '../components/ui/InlineNotice';
 import TeamsDnDEditor from '../components/TeamsDnDEditor';
-import { ensureSurveyWindowOpen, finalizeIfComplete } from '../services/surveyCompletionService';
+import { finalizeIfComplete } from '../services/surveyCompletionService';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { clearMatchFromList } from '../services/matchFinishService';
 import useInlineNotice from '../hooks/useInlineNotice';
@@ -312,15 +312,6 @@ const EncuestaPartido = () => {
         if (!partidoData) {
           throw new AppError('Partido no encontrado', ERROR_CODES.NOT_FOUND);
         }
-
-        // Survey lifecycle is initialized by match ID (no stale/cached match context).
-        try {
-          await ensureSurveyWindowOpen(matchIdNum);
-        } catch (_surveyWindowError) {
-          // Non-blocking fallback.
-        }
-
-        if (cancelled) return;
 
         // teams_* metadata may come from partidos_view or public.partidos depending on environment.
         let teamsConfirmedValue = Boolean(partidoData?.teams_confirmed);
