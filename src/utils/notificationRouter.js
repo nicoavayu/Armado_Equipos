@@ -97,7 +97,7 @@ export async function openNotification(n, navigate) {
 
     if (type === 'match_invite') {
       const inviteStatus = String(n?.data?.status || 'pending').trim().toLowerCase();
-      if (inviteStatus !== 'pending') {
+      if (inviteStatus !== 'pending' || n?.read === true) {
         return;
       }
       const inviteRoute = resolveMatchInviteRoute(n);

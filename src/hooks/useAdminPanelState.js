@@ -24,6 +24,33 @@ const toNotifTs = (row) => {
 };
 
 const normalizeInviteStatus = (status) => String(status || 'pending').trim().toLowerCase();
+const toMatchIdText = (value) => String(value ?? '').trim();
+const buildMatchNotificationOrFilter = (matchId) => {
+  const matchIdText = toMatchIdText(matchId);
+  const matchIdNumber = Number(matchId);
+  return [
+    Number.isFinite(matchIdNumber) ? `partido_id.eq.${matchIdNumber}` : null,
+    `data->>matchId.eq.${matchIdText}`,
+    `data->>match_id.eq.${matchIdText}`,
+    `data->>partido_id.eq.${matchIdText}`,
+    `data->>partidoId.eq.${matchIdText}`,
+  ]
+    .filter(Boolean)
+    .join(',');
+};
+
+const notificationBelongsToMatch = (notificationRow, matchId) => {
+  const targetId = toMatchIdText(matchId);
+  if (!targetId) return false;
+  const rowMatchId = toMatchIdText(
+    notificationRow?.partido_id
+    ?? notificationRow?.data?.matchId
+    ?? notificationRow?.data?.match_id
+    ?? notificationRow?.data?.partido_id
+    ?? notificationRow?.data?.partidoId,
+  );
+  return rowMatchId === targetId;
+};
 
 /**
  * Custom hook for AdminPanel state management and handlers
@@ -81,20 +108,11 @@ export const useAdminPanelState = ({
       return { hasPendingInvite: false, status: null, inviteMode: null, blockedByKick: false };
     }
 
-    const matchIdText = String(matchId);
-    const matchIdNumber = Number(matchId);
-    const inviteOrFilter = [
-      Number.isFinite(matchIdNumber) ? `partido_id.eq.${matchIdNumber}` : null,
-      `data->>matchId.eq.${matchIdText}`,
-      `data->>match_id.eq.${matchIdText}`,
-      `data->>partido_id.eq.${matchIdText}`,
-    ]
-      .filter(Boolean)
-      .join(',');
+    const inviteOrFilter = buildMatchNotificationOrFilter(matchId);
 
     let notificationsQuery = supabase
       .from('notifications')
-      .select('id, type, data, send_at, created_at')
+      .select('id, type, data, read, send_at, created_at, partido_id')
       .eq('user_id', targetUserId)
       .in('type', ['match_invite', 'match_kicked']);
 
@@ -113,12 +131,13 @@ export const useAdminPanelState = ({
       .sort((a, b) => toNotifTs(b) - toNotifTs(a))[0] || null;
 
     const latestInvite = rows
-      .filter((row) => row?.type === 'match_invite')
+      .filter((row) => row?.type === 'match_invite' && notificationBelongsToMatch(row, matchId))
       .sort((a, b) => toNotifTs(b) - toNotifTs(a))[0] || null;
 
     const inviteStatus = normalizeInviteStatus(latestInvite?.data?.status || null);
     const inviteMode = String(latestInvite?.data?.invite_mode || latestInvite?.data?.inviteMode || 'direct').trim().toLowerCase();
-    const inviteIsPending = Boolean(latestInvite) && inviteStatus === 'pending' && !BLOCKED_INVITE_STATUSES.has(inviteStatus);
+    const inviteIsUnread = latestInvite?.read !== true;
+    const inviteIsPending = Boolean(latestInvite) && inviteIsUnread && inviteStatus === 'pending' && !BLOCKED_INVITE_STATUSES.has(inviteStatus);
 
     const kickTs = toNotifTs(latestKick);
     const inviteTs = toNotifTs(latestInvite);
@@ -546,8 +565,8 @@ export const useAdminPanelState = ({
             .eq('status', 'approved');
 
           const kickedAt = new Date().toISOString();
-          const matchIdText = String(partidoActual.id);
-          const matchIdNumber = Number(partidoActual.id);
+          const matchIdText = toMatchIdText(partidoActual.id);
+          const matchNotificationFilter = buildMatchNotificationOrFilter(partidoActual.id);
           let inviteNotifications = [];
 
           const { data: extInviteRows, error: extInviteErr } = await supabase
@@ -564,23 +583,14 @@ export const useAdminPanelState = ({
           if (Array.isArray(extInviteRows) && extInviteRows.length > 0) {
             inviteNotifications = extInviteRows;
           } else {
-            const inviteOrFilter = [
-              Number.isFinite(matchIdNumber) ? `partido_id.eq.${matchIdNumber}` : null,
-              `data->>matchId.eq.${matchIdText}`,
-              `data->>match_id.eq.${matchIdText}`,
-              `data->>partido_id.eq.${matchIdText}`,
-            ]
-              .filter(Boolean)
-              .join(',');
-
             let inviteQuery = supabase
               .from('notifications')
               .select('id, data')
               .eq('user_id', jugadorAEliminar.usuario_id)
               .eq('type', 'match_invite');
 
-            if (inviteOrFilter) {
-              inviteQuery = inviteQuery.or(inviteOrFilter);
+            if (matchNotificationFilter) {
+              inviteQuery = inviteQuery.or(matchNotificationFilter);
             }
 
             const { data: rawInviteRows, error: rawInviteErr } = await inviteQuery;
@@ -622,17 +632,56 @@ export const useAdminPanelState = ({
 
           const payload = {
             user_id: jugadorAEliminar.usuario_id,
+            partido_id: Number(partidoActual.id),
             type: 'match_kicked',
             title: 'Expulsado del partido',
             message: `Has sido expulsado del partido "${partidoActual.nombre || 'PARTIDO'}"`,
             data: {
+              match_id: matchIdText,
               matchId: toBigIntId(partidoActual.id),
+              partido_id: toBigIntId(partidoActual.id),
               matchName: partidoActual.nombre,
               kickedBy: user.id,
+              status: 'kicked',
+              kicked_at: kickedAt,
             },
             read: false,
+            send_at: kickedAt,
           };
-          await supabase.from('notifications').insert([payload]);
+          const { error: kickInsertError } = await supabase.from('notifications').insert([payload]);
+          if (kickInsertError) {
+            const rawKickError = String(kickInsertError?.message || '').toLowerCase();
+            const isDuplicateKick = kickInsertError.code === '23505'
+              || kickInsertError.status === 409
+              || rawKickError.includes('duplicate')
+              || rawKickError.includes('conflict');
+
+            if (isDuplicateKick) {
+              let kickUpdateQuery = supabase
+                .from('notifications')
+                .update({
+                  title: payload.title,
+                  message: payload.message,
+                  read: false,
+                  read_at: null,
+                  send_at: kickedAt,
+                  data: payload.data,
+                })
+                .eq('user_id', jugadorAEliminar.usuario_id)
+                .eq('type', 'match_kicked');
+
+              if (matchNotificationFilter) {
+                kickUpdateQuery = kickUpdateQuery.or(matchNotificationFilter);
+              }
+
+              const { error: kickUpdateError } = await kickUpdateQuery;
+              if (kickUpdateError) {
+                console.error('[LEAVE_MATCH] Error refreshing existing kick notification after duplicate conflict:', kickUpdateError);
+              }
+            } else {
+              console.error('[LEAVE_MATCH] Error creating kick notification:', kickInsertError);
+            }
+          }
         } catch (notifError) {
           console.error('[LEAVE_MATCH] Error sending kick notification:', notifError);
         }
@@ -805,20 +854,39 @@ export const useAdminPanelState = ({
 
       const { data: notifications } = await supabase
         .from('notifications')
-        .select('id, data')
+        .select('id, data, partido_id')
         .eq('user_id', user.id)
         .eq('type', 'match_invite')
         .eq('read', false);
 
-      const matchNotification = notifications?.find((n) =>
-        n.data && n.data.matchId === partidoActual.id,
-      );
+      const acceptedAt = new Date().toISOString();
+      const matchedInviteRows = (notifications || []).filter((row) => notificationBelongsToMatch(row, partidoActual.id));
+      if (matchedInviteRows.length > 0) {
+        const markResults = await Promise.all(
+          matchedInviteRows.map((row) =>
+            supabase
+              .from('notifications')
+              .update({
+                read: true,
+                read_at: acceptedAt,
+                data: {
+                  ...(row?.data || {}),
+                  status: 'accepted',
+                  accepted_at: acceptedAt,
+                },
+              })
+              .eq('id', row.id),
+          ),
+        );
 
-      if (matchNotification) {
-        await supabase
-          .from('notifications')
-          .update({ read: true })
-          .eq('id', matchNotification.id);
+        markResults.forEach((result, index) => {
+          if (result?.error) {
+            console.error('[ACCEPT_INVITE] Error marking invite as accepted:', {
+              notificationId: matchedInviteRows[index]?.id,
+              error: result.error,
+            });
+          }
+        });
       }
 
       await notifyAdminPlayerJoined({
@@ -906,20 +974,39 @@ export const useAdminPanelState = ({
     try {
       const { data: notifications } = await supabase
         .from('notifications')
-        .select('id, data')
+        .select('id, data, partido_id')
         .eq('user_id', user.id)
         .eq('type', 'match_invite')
         .eq('read', false);
 
-      const matchNotification = notifications?.find((n) =>
-        n.data && n.data.matchId === partidoActual.id,
-      );
+      const declinedAt = new Date().toISOString();
+      const matchedInviteRows = (notifications || []).filter((row) => notificationBelongsToMatch(row, partidoActual.id));
+      if (matchedInviteRows.length > 0) {
+        const markResults = await Promise.all(
+          matchedInviteRows.map((row) =>
+            supabase
+              .from('notifications')
+              .update({
+                read: true,
+                read_at: declinedAt,
+                data: {
+                  ...(row?.data || {}),
+                  status: 'declined',
+                  declined_at: declinedAt,
+                },
+              })
+              .eq('id', row.id),
+          ),
+        );
 
-      if (matchNotification) {
-        await supabase
-          .from('notifications')
-          .update({ read: true })
-          .eq('id', matchNotification.id);
+        markResults.forEach((result, index) => {
+          if (result?.error) {
+            console.error('[DECLINE_INVITE] Error marking invite as declined:', {
+              notificationId: matchedInviteRows[index]?.id,
+              error: result.error,
+            });
+          }
+        });
       }
 
       const { data: userProfile } = await supabase

@@ -157,7 +157,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
     if (notification.type === 'match_invite') {
       const inviteStatus = String(notification?.data?.status || 'pending').trim().toLowerCase();
-      if (inviteStatus !== 'pending') {
+      if (inviteStatus !== 'pending' || notification?.read === true) {
         console.info('Esta invitación ya no está activa');
         return;
       }

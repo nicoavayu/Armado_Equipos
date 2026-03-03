@@ -75,6 +75,21 @@ const getNotificationTs = (row) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const toMatchIdText = (value) => String(value ?? '').trim();
+const buildMatchNotificationOrFilter = (matchId) => {
+  const matchIdText = toMatchIdText(matchId);
+  const matchIdNumber = Number(matchId);
+  return [
+    Number.isFinite(matchIdNumber) ? `partido_id.eq.${matchIdNumber}` : null,
+    `data->>matchId.eq.${matchIdText}`,
+    `data->>match_id.eq.${matchIdText}`,
+    `data->>partido_id.eq.${matchIdText}`,
+    `data->>partidoId.eq.${matchIdText}`,
+  ]
+    .filter(Boolean)
+    .join(',');
+};
+
 const normalizeInviteStatus = (status) => String(status || 'pending').trim().toLowerCase();
 
 const isInviteActive = (row) => !BLOCKED_INVITE_STATUSES.has(normalizeInviteStatus(row?.data?.status));
@@ -84,8 +99,7 @@ async function fetchInviteAccessState({ userId, matchId }) {
     return { hasActiveInvite: false, blockedByKick: false };
   }
 
-  const matchIdText = String(matchId);
-  const matchIdNumber = Number(matchId);
+  const matchIdText = toMatchIdText(matchId);
   let rows = [];
 
   const { data: extRows, error: extError } = await supabase
@@ -99,14 +113,7 @@ async function fetchInviteAccessState({ userId, matchId }) {
   if (!extError) {
     rows = extRows || [];
   } else if (extError.code === '42P01') {
-    const orFilters = [
-      Number.isFinite(matchIdNumber) ? `partido_id.eq.${matchIdNumber}` : null,
-      `data->>matchId.eq.${matchIdText}`,
-      `data->>match_id.eq.${matchIdText}`,
-      `data->>partido_id.eq.${matchIdText}`,
-    ]
-      .filter(Boolean)
-      .join(',');
+    const orFilters = buildMatchNotificationOrFilter(matchId);
 
     let fallbackQuery = supabase
       .from('notifications')
@@ -134,6 +141,50 @@ async function fetchInviteAccessState({ userId, matchId }) {
   const blockedByKick = Boolean(latestKick) && !hasActiveInvite;
 
   return { hasActiveInvite, blockedByKick };
+}
+
+async function markOwnMatchInviteAs({ userId, matchId, status }) {
+  if (!userId || !matchId || !status) return;
+
+  const statusToken = String(status).trim().toLowerCase();
+  const nowIso = new Date().toISOString();
+  const statusTsKey = statusToken === 'accepted' ? 'accepted_at' : `${statusToken}_at`;
+  const matchOrFilter = buildMatchNotificationOrFilter(matchId);
+
+  let selectQuery = supabase
+    .from('notifications')
+    .select('id, data')
+    .eq('user_id', userId)
+    .eq('type', 'match_invite');
+
+  if (matchOrFilter) {
+    selectQuery = selectQuery.or(matchOrFilter);
+  }
+
+  const { data: rows, error: rowsError } = await selectQuery;
+  if (rowsError) {
+    throw rowsError;
+  }
+
+  const targetRows = rows || [];
+  if (targetRows.length === 0) return;
+
+  await Promise.all(
+    targetRows.map((row) =>
+      supabase
+        .from('notifications')
+        .update({
+          read: true,
+          read_at: nowIso,
+          data: {
+            ...(row?.data || {}),
+            status: statusToken,
+            [statusTsKey]: nowIso,
+          },
+        })
+        .eq('id', row.id),
+    ),
+  );
 }
 
 const resolveSlotsFromMatchType = (match = {}) => {
@@ -1255,6 +1306,15 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         .maybeSingle();
 
       if (existing) {
+        try {
+          await markOwnMatchInviteAs({
+            userId: user.id,
+            matchId: partidoId,
+            status: 'accepted',
+          });
+        } catch (markInviteError) {
+          console.error('[SUMARSE_CON_CUENTA] Error marking existing invite as accepted:', markInviteError);
+        }
         if (mode === 'invite') {
           navigate(buildPostJoinRoute());
         } else {
@@ -1283,6 +1343,16 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
       if (insertError) {
         throw insertError;
+      }
+
+      try {
+        await markOwnMatchInviteAs({
+          userId: user.id,
+          matchId: partidoId,
+          status: 'accepted',
+        });
+      } catch (markInviteError) {
+        console.error('[SUMARSE_CON_CUENTA] Error marking invite as accepted:', markInviteError);
       }
 
       const resolvedName = userData?.nombre || user.email?.split('@')[0] || 'Jugador';
