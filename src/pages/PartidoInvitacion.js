@@ -297,7 +297,7 @@ function SharedInviteLayout({
     '--btn-glow': 'rgba(101, 77, 255, 0.38)',
     '--btn-text': '#ffffff',
   };
-  const publicCtaBaseClass = 'w-full font-bebas text-base px-4 py-2.5 border rounded-none transition-all min-h-[44px] flex items-center justify-center text-center disabled:opacity-100';
+  const publicCtaBaseClass = 'w-full font-oswald text-[17px] px-4 py-2.5 border rounded-[5px] transition-all min-h-[48px] flex items-center justify-center text-center font-semibold tracking-[0.01em] disabled:opacity-100';
   const publicCtaStateClass = joinStatus === 'checking'
     ? 'border-[rgba(88,107,170,0.46)] bg-[rgba(23,35,74,0.72)] text-[rgba(242,246,255,0.9)] cursor-wait'
     : isMatchFull
@@ -306,7 +306,21 @@ function SharedInviteLayout({
         ? 'border-[rgba(52,211,153,0.66)] bg-[rgba(16,185,129,0.72)] text-white cursor-wait'
         : isSent || isApproved
           ? 'border-[rgba(125,90,255,0.52)] bg-[rgba(100,77,255,0.38)] text-white/85 cursor-not-allowed'
-          : 'border-[#7d5aff] bg-[#6a43ff] text-white hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)]';
+          : 'border-[#4836bb] bg-[#644dff] text-white hover:bg-[#6f59ff] shadow-[0_8px_20px_rgba(101,77,255,0.28)]';
+
+  const renderJoinedBlock = () => (
+    <div className="flex flex-col gap-2 w-full">
+      <p className="m-0 text-white/95 font-oswald text-[18px] font-semibold text-center leading-none">Te has unido!</p>
+      <p className="m-0 text-emerald-300 font-oswald text-[16px] text-center leading-none">Podes acceder desde Mis partidos</p>
+      <button
+        onClick={onAddToCalendar}
+        className="invite-cta-btn"
+        style={acceptButtonPalette}
+      >
+        Agregar al calendario
+      </button>
+    </div>
+  );
 
   return (
     <div className={`min-h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient ${showBottomNav ? 'pb-[calc(var(--safe-bottom,0px)+78px)] md:pb-[calc(var(--safe-bottom,0px)+88px)]' : ''}`}>
@@ -323,9 +337,10 @@ function SharedInviteLayout({
           align-items: center;
           justify-content: center;
           gap: 1rem;
-          font-size: 0.94rem;
-          font-weight: 700;
-          letter-spacing: 0.045em;
+          font-size: 1rem;
+          font-weight: 600;
+          letter-spacing: 0.01em;
+          font-family: 'Oswald', sans-serif;
           color: var(--btn-text, #fff);
           background: var(--btn);
           border: 1.5px solid var(--btn-dark);
@@ -387,23 +402,13 @@ function SharedInviteLayout({
                   El partido ya está completo
                 </div>
               )}
+              <div className="w-full border-t border-white/12 mt-2" aria-hidden="true" />
 
               {/* CTA */}
               <div className="w-full max-w-[500px] mx-auto mt-5 px-0 text-center">
                 {ctaVariant === 'public' ? (
                   isApproved ? (
-                    <div className="flex flex-col gap-2 w-full">
-                      <div className="w-full border-t border-white/15 mb-1" aria-hidden="true" />
-                      <p className="m-0 text-white/90 font-oswald text-base text-center">Te has unido!</p>
-                      <p className="m-0 text-emerald-400 font-oswald text-sm text-center">Podés acceder desde Mis partidos.</p>
-                      <button
-                        onClick={onAddToCalendar}
-                        className="invite-cta-btn"
-                        style={acceptButtonPalette}
-                      >
-                        Agregar al calendario
-                      </button>
-                    </div>
+                    renderJoinedBlock()
                   ) : (
                     <div className="flex flex-col gap-3 w-full">
                       <button
@@ -440,23 +445,27 @@ function SharedInviteLayout({
                     </div>
                   )
                 ) : (
-                  <div className="flex flex-row gap-3 w-full justify-center items-stretch px-2 sm:px-0 overflow-visible">
-                    <button
-                      onClick={onNavigateHome}
-                      className="invite-cta-btn"
-                      style={rejectButtonPalette}
-                    >
-                      <span>Rechazar</span>
-                    </button>
-                    <button
-                      onClick={onSumarse}
-                      disabled={!codigoValido || submitting || isMatchFull}
-                      className="invite-cta-btn"
-                      style={acceptButtonPalette}
-                    >
-                      <span>{isMatchFull ? 'Partido completo' : (submitting ? 'Sumando...' : 'Aceptar')}</span>
-                    </button>
-                  </div>
+                  isApproved ? (
+                    renderJoinedBlock()
+                  ) : (
+                    <div className="flex flex-row gap-3 w-full justify-center items-stretch px-2 sm:px-0 overflow-visible">
+                      <button
+                        onClick={onNavigateHome}
+                        className="invite-cta-btn"
+                        style={rejectButtonPalette}
+                      >
+                        <span>Rechazar</span>
+                      </button>
+                      <button
+                        onClick={onSumarse}
+                        disabled={!codigoValido || submitting || isMatchFull}
+                        className="invite-cta-btn"
+                        style={acceptButtonPalette}
+                      >
+                        <span>{isMatchFull ? 'Partido completo' : (submitting ? 'Sumando...' : 'Aceptar')}</span>
+                      </button>
+                    </div>
+                  )
                 )}
               </div>
             </div>
@@ -959,7 +968,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           reqId: originalReqId
         });
         setJoinStatus('approved');
-        showInlineNotice('success', 'Te has unido. Podés acceder desde Mis partidos.');
+        showInlineNotice('success', 'Te has unido! Podes acceder desde Mis partidos.');
       } else {
         console.log('[RECHECK] Not yet synced, retrying...', { attempt, matchId, userUuid, originalReqId });
         recheckMembership(userUuid, matchId, originalReqId, attempt + 1);
