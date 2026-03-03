@@ -48,7 +48,6 @@ const CLOSED_MATCH_STATUSES = new Set(['cancelado', 'deleted', 'finalizado']);
 const GUEST_SELF_JOIN_ENABLED = true;
 const MAX_SUBSTITUTES = 4;
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
-const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
 const isMatchClosed = (match) => {
   const estado = String(match?.estado || '').toLowerCase();
   return CLOSED_MATCH_STATUSES.has(estado);
@@ -284,20 +283,9 @@ function SharedInviteLayout({
   const isApproved = joinStatus === 'approved';
   const isPendingSync = joinStatus === 'approved_pending_sync';
   const isSending = submitting && joinStatus === 'none';
-  const rejectButtonPalette = {
-    '--btn': 'rgba(23, 35, 74, 0.72)',
-    '--btn-dark': 'rgba(88, 107, 170, 0.46)',
-    '--btn-glow': 'rgba(88, 107, 170, 0.18)',
-    '--btn-text': 'rgba(242, 246, 255, 0.9)',
-    '--btn-shadow': '0 6px 16px rgba(0,0,0,0.25)',
-  };
-  const acceptButtonPalette = {
-    '--btn': INVITE_ACCEPT_BUTTON_VIOLET,
-    '--btn-dark': INVITE_ACCEPT_BUTTON_VIOLET_DARK,
-    '--btn-glow': 'rgba(101, 77, 255, 0.38)',
-    '--btn-text': '#ffffff',
-  };
-  const publicCtaBaseClass = 'w-full font-oswald text-[17px] px-4 py-2.5 border rounded-[5px] transition-all min-h-[48px] flex items-center justify-center text-center font-semibold tracking-[0.01em] disabled:opacity-100';
+  const matchPrimaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-[5px] cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] disabled:opacity-60 disabled:cursor-not-allowed';
+  const matchSecondaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[rgba(88,107,170,0.46)] rounded-[5px] cursor-pointer transition-all text-[rgba(242,246,255,0.9)] min-h-[44px] flex items-center justify-center text-center bg-[rgba(23,35,74,0.72)] hover:bg-[rgba(31,45,91,0.82)] disabled:opacity-60 disabled:cursor-not-allowed';
+  const publicCtaBaseClass = 'w-full font-bebas text-base px-4 py-2.5 border rounded-[5px] transition-all min-h-[44px] flex items-center justify-center text-center disabled:opacity-100';
   const publicCtaStateClass = joinStatus === 'checking'
     ? 'border-[rgba(88,107,170,0.46)] bg-[rgba(23,35,74,0.72)] text-[rgba(242,246,255,0.9)] cursor-wait'
     : isMatchFull
@@ -306,7 +294,7 @@ function SharedInviteLayout({
         ? 'border-[rgba(52,211,153,0.66)] bg-[rgba(16,185,129,0.72)] text-white cursor-wait'
         : isSent || isApproved
           ? 'border-[rgba(125,90,255,0.52)] bg-[rgba(100,77,255,0.38)] text-white/85 cursor-not-allowed'
-          : 'border-[#4836bb] bg-[#644dff] text-white hover:bg-[#6f59ff] shadow-[0_8px_20px_rgba(101,77,255,0.28)]';
+          : 'border-[#7d5aff] bg-[#6a43ff] text-white hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)]';
 
   const renderJoinedBlock = () => (
     <div className="flex flex-col gap-2 w-full">
@@ -314,8 +302,7 @@ function SharedInviteLayout({
       <p className="m-0 text-emerald-300 font-oswald text-[16px] text-center leading-none">Podes acceder desde Mis partidos</p>
       <button
         onClick={onAddToCalendar}
-        className="invite-cta-btn"
-        style={acceptButtonPalette}
+        className={matchPrimaryButtonClass}
       >
         Agregar al calendario
       </button>
@@ -324,51 +311,6 @@ function SharedInviteLayout({
 
   return (
     <div className={`min-h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient ${showBottomNav ? 'pb-[calc(var(--safe-bottom,0px)+78px)] md:pb-[calc(var(--safe-bottom,0px)+88px)]' : ''}`}>
-      <style>{`
-        .invite-cta-btn {
-          appearance: none;
-          cursor: pointer;
-          width: 100%;
-          max-width: none;
-          min-width: 0;
-          height: 48px;
-          display: flex;
-          flex: 1 1 0;
-          align-items: center;
-          justify-content: center;
-          gap: 1rem;
-          font-size: 1rem;
-          font-weight: 600;
-          letter-spacing: 0.01em;
-          font-family: 'Oswald', sans-serif;
-          color: var(--btn-text, #fff);
-          background: var(--btn);
-          border: 1.5px solid var(--btn-dark);
-          border-radius: var(--radius-standard, 5px);
-          box-shadow: var(--btn-shadow, none);
-          transform: none;
-          transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
-          backface-visibility: hidden;
-          white-space: nowrap;
-        }
-        .invite-cta-btn > span {
-          transform: none;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .invite-cta-btn:hover:not(:disabled) {
-          filter: brightness(1.08);
-        }
-        .invite-cta-btn:active:not(:disabled) {
-          transform: none;
-          opacity: 0.92;
-        }
-        .invite-cta-btn:disabled {
-          opacity: 0.55;
-          cursor: not-allowed;
-        }
-      `}</style>
       <div className="mx-auto w-[90vw] max-w-[650px] pt-5 shadow-none">
         <PageTitle
           title={title}
@@ -448,19 +390,17 @@ function SharedInviteLayout({
                   isApproved ? (
                     renderJoinedBlock()
                   ) : (
-                    <div className="flex flex-row gap-3 w-full justify-center items-stretch px-2 sm:px-0 overflow-visible">
+                    <div className="flex flex-row gap-3 w-full">
                       <button
                         onClick={onNavigateHome}
-                        className="invite-cta-btn"
-                        style={rejectButtonPalette}
+                        className={matchSecondaryButtonClass}
                       >
                         <span>Rechazar</span>
                       </button>
                       <button
                         onClick={onSumarse}
                         disabled={!codigoValido || submitting || isMatchFull}
-                        className="invite-cta-btn"
-                        style={acceptButtonPalette}
+                        className={matchPrimaryButtonClass}
                       >
                         <span>{isMatchFull ? 'Partido completo' : (submitting ? 'Sumando...' : 'Aceptar')}</span>
                       </button>
