@@ -17,8 +17,12 @@ export const shouldUseTeamsSetupStep = ({ teamsConfirmed, teamsLocked }) => (
   !teamsConfirmed && !teamsLocked
 );
 
-export const resolveNextResultGateStep = ({ teamsConfirmed, teamsLocked }) => (
-  shouldUseTeamsSetupStep({ teamsConfirmed, teamsLocked })
+export const resolveNextResultGateStep = ({
+  teamsConfirmed,
+  teamsLocked,
+  forceOrganizeTeamsStep = false,
+}) => (
+  forceOrganizeTeamsStep || shouldUseTeamsSetupStep({ teamsConfirmed, teamsLocked })
     ? SURVEY_STEPS.ORGANIZE_TEAMS
     : SURVEY_STEPS.RESULT
 );
@@ -30,6 +34,8 @@ export const buildSurveyFlowSteps = ({
   partidoLimpio,
   teamsConfirmed,
   teamsLocked,
+  compactFlowMode = false,
+  forceOrganizeTeamsStep = false,
 }) => {
   const resolvedSteps = [SURVEY_STEPS.PLAYED];
 
@@ -46,6 +52,14 @@ export const buildSurveyFlowSteps = ({
     return resolvedSteps;
   }
 
+  if (compactFlowMode) {
+    if (forceOrganizeTeamsStep || shouldUseTeamsSetupStep({ teamsConfirmed, teamsLocked })) {
+      resolvedSteps.push(SURVEY_STEPS.ORGANIZE_TEAMS);
+    }
+    resolvedSteps.push(SURVEY_STEPS.RESULT);
+    return resolvedSteps;
+  }
+
   resolvedSteps.push(SURVEY_STEPS.ATTENDANCE);
 
   if (currentStep === SURVEY_STEPS.ABSENTS || asistieronTodos === false) {
@@ -58,7 +72,7 @@ export const buildSurveyFlowSteps = ({
     resolvedSteps.push(SURVEY_STEPS.DIRTY_PLAYERS);
   }
 
-  if (shouldUseTeamsSetupStep({ teamsConfirmed, teamsLocked })) {
+  if (forceOrganizeTeamsStep || shouldUseTeamsSetupStep({ teamsConfirmed, teamsLocked })) {
     resolvedSteps.push(SURVEY_STEPS.ORGANIZE_TEAMS);
   }
 
