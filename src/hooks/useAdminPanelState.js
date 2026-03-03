@@ -475,21 +475,60 @@ export const useAdminPanelState = ({
             .eq('status', 'approved');
 
           const kickedAt = new Date().toISOString();
-          const { data: inviteNotifications } = await supabase
-            .from('notifications')
+          const matchIdText = String(partidoActual.id);
+          const matchIdNumber = Number(partidoActual.id);
+          let inviteNotifications = [];
+
+          const { data: extInviteRows, error: extInviteErr } = await supabase
+            .from('notifications_ext')
             .select('id, data')
             .eq('user_id', jugadorAEliminar.usuario_id)
             .eq('type', 'match_invite')
-            .eq('partido_id', partidoActual.id);
+            .eq('match_id_text', matchIdText);
+
+          if (extInviteErr && extInviteErr.code !== '42P01') {
+            console.error('[LEAVE_MATCH] Error querying notifications_ext invites to invalidate:', extInviteErr);
+          }
+
+          if (Array.isArray(extInviteRows) && extInviteRows.length > 0) {
+            inviteNotifications = extInviteRows;
+          } else {
+            const inviteOrFilter = [
+              Number.isFinite(matchIdNumber) ? `partido_id.eq.${matchIdNumber}` : null,
+              `data->>matchId.eq.${matchIdText}`,
+              `data->>match_id.eq.${matchIdText}`,
+              `data->>partido_id.eq.${matchIdText}`,
+            ]
+              .filter(Boolean)
+              .join(',');
+
+            let inviteQuery = supabase
+              .from('notifications')
+              .select('id, data')
+              .eq('user_id', jugadorAEliminar.usuario_id)
+              .eq('type', 'match_invite');
+
+            if (inviteOrFilter) {
+              inviteQuery = inviteQuery.or(inviteOrFilter);
+            }
+
+            const { data: rawInviteRows, error: rawInviteErr } = await inviteQuery;
+            if (rawInviteErr) {
+              console.error('[LEAVE_MATCH] Error querying notifications invites to invalidate:', rawInviteErr);
+            } else {
+              inviteNotifications = rawInviteRows || [];
+            }
+          }
 
           if (Array.isArray(inviteNotifications) && inviteNotifications.length > 0) {
-            await Promise.all(
+            const updateResults = await Promise.all(
               inviteNotifications.map((inviteRow) =>
                 supabase
                   .from('notifications')
                   .update({
                     read: true,
                     read_at: kickedAt,
+                    status: 'kicked',
                     data: {
                       ...(inviteRow?.data || {}),
                       status: 'kicked',
@@ -499,6 +538,15 @@ export const useAdminPanelState = ({
                   .eq('id', inviteRow.id),
               ),
             );
+
+            updateResults.forEach((result, index) => {
+              if (result?.error) {
+                console.error('[LEAVE_MATCH] Error invalidating match invite after kick:', {
+                  inviteId: inviteNotifications[index]?.id,
+                  error: result.error,
+                });
+              }
+            });
           }
 
           const payload = {

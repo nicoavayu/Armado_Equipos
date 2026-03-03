@@ -48,6 +48,16 @@ const CLOSED_MATCH_STATUSES = new Set(['cancelado', 'deleted', 'finalizado']);
 const GUEST_SELF_JOIN_ENABLED = true;
 const MAX_SUBSTITUTES = 4;
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
+const BLOCKED_INVITE_STATUSES = new Set([
+  'declined',
+  'rejected',
+  'cancelled',
+  'expired',
+  'kicked',
+  'removed',
+  'revoked',
+  'invalid',
+]);
 const isMatchClosed = (match) => {
   const estado = String(match?.estado || '').toLowerCase();
   return CLOSED_MATCH_STATUSES.has(estado);
@@ -58,6 +68,73 @@ const getMaxRosterSlots = (match) => {
   const baseCapacity = getMatchCapacity(match);
   return baseCapacity > 0 ? baseCapacity + MAX_SUBSTITUTES : 0;
 };
+
+const getNotificationTs = (row) => {
+  const value = row?.send_at || row?.created_at || null;
+  const parsed = Date.parse(value || '');
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeInviteStatus = (status) => String(status || 'pending').trim().toLowerCase();
+
+const isInviteActive = (row) => !BLOCKED_INVITE_STATUSES.has(normalizeInviteStatus(row?.data?.status));
+
+async function fetchInviteAccessState({ userId, matchId }) {
+  if (!userId || !matchId) {
+    return { hasActiveInvite: false, blockedByKick: false };
+  }
+
+  const matchIdText = String(matchId);
+  const matchIdNumber = Number(matchId);
+  let rows = [];
+
+  const { data: extRows, error: extError } = await supabase
+    .from('notifications_ext')
+    .select('id, type, data, send_at')
+    .eq('user_id', userId)
+    .in('type', ['match_invite', 'match_kicked'])
+    .eq('match_id_text', matchIdText)
+    .order('send_at', { ascending: false });
+
+  if (!extError) {
+    rows = extRows || [];
+  } else if (extError.code === '42P01') {
+    const orFilters = [
+      Number.isFinite(matchIdNumber) ? `partido_id.eq.${matchIdNumber}` : null,
+      `data->>matchId.eq.${matchIdText}`,
+      `data->>match_id.eq.${matchIdText}`,
+      `data->>partido_id.eq.${matchIdText}`,
+    ]
+      .filter(Boolean)
+      .join(',');
+
+    let fallbackQuery = supabase
+      .from('notifications')
+      .select('id, type, data, send_at')
+      .eq('user_id', userId)
+      .in('type', ['match_invite', 'match_kicked']);
+
+    if (orFilters) {
+      fallbackQuery = fallbackQuery.or(orFilters);
+    }
+
+    const { data: fallbackRows, error: fallbackError } = await fallbackQuery.order('send_at', { ascending: false });
+    if (fallbackError) throw fallbackError;
+    rows = fallbackRows || [];
+  } else {
+    throw extError;
+  }
+
+  const latestKick = rows.find((row) => row?.type === 'match_kicked') || null;
+  const latestActiveInvite = rows.find((row) => row?.type === 'match_invite' && isInviteActive(row)) || null;
+
+  const kickTs = getNotificationTs(latestKick);
+  const inviteTs = getNotificationTs(latestActiveInvite);
+  const hasActiveInvite = Boolean(latestActiveInvite) && (kickTs === 0 || inviteTs > kickTs);
+  const blockedByKick = Boolean(latestKick) && !hasActiveInvite;
+
+  return { hasActiveInvite, blockedByKick };
+}
 
 const resolveSlotsFromMatchType = (match = {}) => {
   const explicitCapacity = Number(match?.cupo_jugadores || match?.cupo || 0);
@@ -707,49 +784,25 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         }
 
         try {
-          let inviteNotif = null;
-
-          const { data: extInvite, error: extInviteErr } = await supabase
-            .from('notifications_ext')
-            .select('id, data')
-            .eq('user_id', user.id)
-            .eq('type', 'match_invite')
-            .eq('match_id_text', String(partidoId))
-            .order('send_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (extInviteErr && extInviteErr.code === '42P01') {
-            const { data: notifFallback, error: notifFallbackErr } = await supabase
-              .from('notifications')
-              .select('id, data')
-              .eq('user_id', user.id)
-              .eq('type', 'match_invite')
-              .eq('partido_id', Number(partidoId))
-              .order('send_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
-
-            if (notifFallbackErr) {
-              throw notifFallbackErr;
-            }
-            inviteNotif = notifFallback;
-          } else if (extInviteErr) {
-            throw extInviteErr;
-          } else {
-            inviteNotif = extInvite;
-          }
+          const inviteAccess = await fetchInviteAccessState({
+            userId: user.id,
+            matchId: partidoId,
+          });
 
           if (reqId !== reqIdRef.current) {
             console.log('[LOAD_PARTIDO] Aborting stale request (invite no-code)', { reqId, current: reqIdRef.current });
             return;
           }
 
-          const inviteStatus = String(inviteNotif?.data?.status || 'pending').trim().toLowerCase();
-          const blockedInviteStatuses = new Set(['declined', 'rejected', 'cancelled', 'expired', 'kicked', 'removed', 'revoked', 'invalid']);
-          const hasValidInvite = Boolean(inviteNotif?.id) && !blockedInviteStatuses.has(inviteStatus);
+          if (inviteAccess.blockedByKick) {
+            showInlineNotice('warning', 'Ya no formás parte de este partido.');
+            setError('Ya no tenés acceso a este partido.');
+            setLoading(false);
+            navigate('/', { replace: true });
+            return;
+          }
 
-          if (!hasValidInvite) {
+          if (!inviteAccess.hasActiveInvite) {
             setError('Partido no encontrado');
             setLoading(false);
             return;
@@ -804,6 +857,26 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       }
 
       try {
+        if (user?.id) {
+          const inviteAccess = await fetchInviteAccessState({
+            userId: user.id,
+            matchId: partidoId,
+          });
+
+          if (reqId !== reqIdRef.current) {
+            console.log('[LOAD_PARTIDO] Aborting stale request (invite mode access check)', { reqId, current: reqIdRef.current });
+            return;
+          }
+
+          if (inviteAccess.blockedByKick) {
+            showInlineNotice('warning', 'Ya no formás parte de este partido.');
+            setError('Ya no tenés acceso a este partido.');
+            setLoading(false);
+            navigate('/', { replace: true });
+            return;
+          }
+        }
+
         const { data, error: fetchError } = await supabase.rpc('get_partido_by_invite', {
           p_partido_id: Number(partidoId),
           p_codigo: codigoParam
@@ -853,12 +926,12 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       }
     }
     loadPartido();
-  }, [partidoId, codigoParam, mode, user]);
+  }, [partidoId, codigoParam, mode, user, navigate]);
 
   // Realtime membership guard:
   // If the user is removed from jugadores while viewing the match, return to home immediately.
   useEffect(() => {
-    if (mode !== 'public' || !user?.id || !partidoId) return undefined;
+    if ((mode !== 'public' && mode !== 'invite') || !user?.id || !partidoId) return undefined;
 
     const channel = supabase
       .channel(`public-match-membership-${partidoId}-${user.id}`)
@@ -871,7 +944,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         const removedUserId = payload?.old?.usuario_id;
         if (String(removedUserId) !== String(user.id)) return;
         showInlineNotice('warning', 'Fuiste removido del partido por el admin.');
-        setTimeout(() => navigate('/'), 900);
+        setTimeout(() => navigate('/', { replace: true }), 900);
       })
       .subscribe();
 
@@ -1126,6 +1199,24 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     if (!canBypassCodeValidation && codigoFromMatch && (!codigoFromUrl || codigoFromUrl !== codigoFromMatch)) {
       showInlineNotice('warning', 'Código inválido.');
       return;
+    }
+
+    if (mode === 'invite') {
+      try {
+        const inviteAccess = await fetchInviteAccessState({
+          userId: user.id,
+          matchId: partidoId,
+        });
+
+        const inviteInvalidated = inviteValidatedByNotification && !inviteAccess.hasActiveInvite;
+        if (inviteAccess.blockedByKick || inviteInvalidated) {
+          showInlineNotice('warning', 'Ya no tenés acceso a este partido.');
+          navigate('/', { replace: true });
+          return;
+        }
+      } catch (inviteAccessError) {
+        console.error('[SUMARSE_CON_CUENTA] invite access check failed:', inviteAccessError);
+      }
     }
 
     const buildPostJoinRoute = () => {
