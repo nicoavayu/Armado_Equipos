@@ -145,6 +145,7 @@ const PlayersSection = ({
   const completionAnimTimeoutRef = useRef(null);
   const previousCompleteRef = useRef(isTitularesComplete);
   const showInviteStylePostJoin = !isAdmin && isPlayerInMatch;
+  const showInviteStyleRoster = !isAdmin;
   const inviteRequiredSlots = resolveSlotsFromMatchType(partidoActual);
   const inviteDisplayCount = jugadores?.length ?? 0;
   const inviteConfirmedCount = Math.min(inviteDisplayCount, inviteRequiredSlots);
@@ -792,7 +793,7 @@ const PlayersSection = ({
           }
         `}</style>
         <div className="w-full flex flex-col pb-32">
-          {showInviteStylePostJoin ? (
+          {showInviteStyleRoster ? (
             <div className="relative w-full max-w-full mx-auto mt-2 box-border min-h-[120px] min-w-0">
               {renderInviteStyleRoster(renderGuestActionsMenu())}
             </div>
@@ -839,8 +840,8 @@ const PlayersSection = ({
             </div>
           )}
 
-          <div className={`w-full relative z-10 text-center ${showInviteStylePostJoin ? 'px-2 mt-5' : 'px-4 mt-6'}`}>
-            {!showInviteStylePostJoin && (!partidoActual.cupo_jugadores || (remainingTitularSlots !== null && remainingTitularSlots > 0)) && (
+          <div className={`w-full relative z-10 text-center ${showInviteStyleRoster ? 'px-2 mt-5' : 'px-4 mt-6'}`}>
+            {!showInviteStyleRoster && (!partidoActual.cupo_jugadores || (remainingTitularSlots !== null && remainingTitularSlots > 0)) && (
               <div className="mb-4 text-white/60 font-oswald text-sm">
                 {capacity
                   ? `Falta${remainingTitularSlots > 1 ? 'n' : ''} ${remainingTitularSlots} titular${remainingTitularSlots > 1 ? 'es' : ''}`
