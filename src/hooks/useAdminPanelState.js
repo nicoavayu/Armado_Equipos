@@ -6,6 +6,25 @@ import { autoCleanupDuplicates } from '../utils/duplicateCleanup';
 import { notifyAdminPlayerJoined } from '../services/matchJoinNotificationService';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
+const BLOCKED_INVITE_STATUSES = new Set([
+  'declined',
+  'rejected',
+  'cancelled',
+  'expired',
+  'kicked',
+  'removed',
+  'revoked',
+  'invalid',
+]);
+
+const toNotifTs = (row) => {
+  const value = row?.send_at || row?.created_at || null;
+  const parsed = Date.parse(value || '');
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const normalizeInviteStatus = (status) => String(status || 'pending').trim().toLowerCase();
+
 /**
  * Custom hook for AdminPanel state management and handlers
  * @param {Object} props - Hook props
@@ -56,6 +75,62 @@ export const useAdminPanelState = ({
 
   // Combined membership state
   const isPlayerInMatch = !!currentPlayerInMatch || hasApprovedRequest;
+
+  const getInviteAccessState = async (targetUserId, matchId) => {
+    if (!targetUserId || !matchId) {
+      return { hasPendingInvite: false, status: null, inviteMode: null, blockedByKick: false };
+    }
+
+    const matchIdText = String(matchId);
+    const matchIdNumber = Number(matchId);
+    const inviteOrFilter = [
+      Number.isFinite(matchIdNumber) ? `partido_id.eq.${matchIdNumber}` : null,
+      `data->>matchId.eq.${matchIdText}`,
+      `data->>match_id.eq.${matchIdText}`,
+      `data->>partido_id.eq.${matchIdText}`,
+    ]
+      .filter(Boolean)
+      .join(',');
+
+    let notificationsQuery = supabase
+      .from('notifications')
+      .select('id, type, data, send_at, created_at')
+      .eq('user_id', targetUserId)
+      .in('type', ['match_invite', 'match_kicked']);
+
+    if (inviteOrFilter) {
+      notificationsQuery = notificationsQuery.or(inviteOrFilter);
+    }
+
+    const { data: notifications, error: notifError } = await notificationsQuery.order('send_at', { ascending: false });
+    if (notifError) {
+      throw notifError;
+    }
+
+    const rows = notifications || [];
+    const latestKick = rows
+      .filter((row) => row?.type === 'match_kicked')
+      .sort((a, b) => toNotifTs(b) - toNotifTs(a))[0] || null;
+
+    const latestInvite = rows
+      .filter((row) => row?.type === 'match_invite')
+      .sort((a, b) => toNotifTs(b) - toNotifTs(a))[0] || null;
+
+    const inviteStatus = normalizeInviteStatus(latestInvite?.data?.status || null);
+    const inviteMode = String(latestInvite?.data?.invite_mode || latestInvite?.data?.inviteMode || 'direct').trim().toLowerCase();
+    const inviteIsPending = Boolean(latestInvite) && inviteStatus === 'pending' && !BLOCKED_INVITE_STATUSES.has(inviteStatus);
+
+    const kickTs = toNotifTs(latestKick);
+    const inviteTs = toNotifTs(latestInvite);
+    const blockedByKick = Boolean(latestKick) && (!inviteIsPending || inviteTs <= kickTs);
+
+    return {
+      hasPendingInvite: inviteIsPending && !blockedByKick,
+      status: blockedByKick ? 'kicked' : (latestInvite ? inviteStatus : null),
+      inviteMode: latestInvite ? inviteMode : null,
+      blockedByKick,
+    };
+  };
 
   // Sync with initial props
   useEffect(() => {
@@ -109,39 +184,28 @@ export const useAdminPanelState = ({
         }
 
         console.log('[ADMIN_PANEL] Checking invitation for match:', partidoActual.id);
+        const inviteState = await getInviteAccessState(user.id, partidoActual.id);
 
-        const { data: invitation } = await supabase
-          .from('notifications_ext')
-          .select('id, data')
-          .eq('user_id', user.id)
-          .eq('type', 'match_invite')
-          // .eq('read', false) // REMOVER: queremos ver si existe aunque esté leída para controlar estado
-          .eq('match_id_text', partidoActual.id.toString())
-          .order('send_at', { ascending: false }) // Get latest
-          .limit(1)
-          .maybeSingle();
-
-        if (invitation) {
-          const status = invitation.data?.status || 'pending';
-          const inviteMode = String(invitation.data?.invite_mode || invitation.data?.inviteMode || 'direct').toLowerCase();
-
-          // Request-join suggestions should always use the public "Solicitar unirme" flow.
-          // They must not activate the direct accept/reject invitation UI.
-          if (inviteMode === 'request_join') {
-            setPendingInvitation(false);
-            setInvitationStatus(null);
-            return;
-          }
-
-          setInvitationStatus(status);
-          setPendingInvitation(status === 'pending');
-        } else {
+        if (inviteState.blockedByKick) {
           setPendingInvitation(false);
-          setInvitationStatus(null);
+          setInvitationStatus('kicked');
+          return;
         }
+
+        // Request-join suggestions should always use the public "Solicitar unirme" flow.
+        // They must not activate the direct accept/reject invitation UI.
+        if (inviteState.inviteMode === 'request_join') {
+          setPendingInvitation(false);
+          setInvitationStatus(inviteState.status);
+          return;
+        }
+
+        setPendingInvitation(inviteState.hasPendingInvite);
+        setInvitationStatus(inviteState.status);
 
       } catch (error) {
         setPendingInvitation(false);
+        setInvitationStatus(null);
       } finally {
         setInvitationChecked(true);
       }
@@ -161,6 +225,13 @@ export const useAdminPanelState = ({
       onBackToHome?.();
     }
   }, [isPlayerInMatch, isAdmin, invitationChecked, onBackToHome]);
+
+  useEffect(() => {
+    if (isAdmin || !invitationChecked) return;
+    if (invitationStatus !== 'kicked') return;
+    if (isPlayerInMatch) return;
+    onBackToHome?.();
+  }, [isAdmin, invitationChecked, invitationStatus, isPlayerInMatch, onBackToHome]);
 
   const fetchJugadores = async () => {
     if (!partidoActual?.id) return [];
@@ -663,6 +734,22 @@ export const useAdminPanelState = ({
 
   const aceptarInvitacion = async () => {
     if (!user?.id || !partidoActual?.id) return false;
+
+    try {
+      const inviteState = await getInviteAccessState(user.id, partidoActual.id);
+      const isDirectPendingInvite = inviteState.hasPendingInvite && inviteState.inviteMode !== 'request_join';
+      if (!isDirectPendingInvite) {
+        setPendingInvitation(false);
+        setInvitationStatus(inviteState.status);
+        if (inviteState.blockedByKick) {
+          onBackToHome?.();
+        }
+        return false;
+      }
+    } catch (inviteStateError) {
+      console.error('[ACCEPT_INVITE] Error checking invite access state:', inviteStateError);
+      return false;
+    }
 
     const yaEstaEnPartido = jugadores.some((j) => j.usuario_id === user.id);
     if (yaEstaEnPartido) {
