@@ -3,8 +3,6 @@ import ReactDOM from 'react-dom';
 import { getAmigos, supabase } from '../supabase';
 import LoadingSpinner from './LoadingSpinner';
 import { formatLocalDateShort } from '../utils/dateLocal';
-import InlineNotice from './ui/InlineNotice';
-import useInlineNotice from '../hooks/useInlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const normalizeInviteMode = (value) => {
@@ -26,11 +24,8 @@ const InviteAmigosModal = ({
   const [inviting, setInviting] = useState(false);
   const [invitedFriends, setInvitedFriends] = useState(new Set());
   const [selectedFriendIds, setSelectedFriendIds] = useState(new Set());
-  const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
   const inviteMode = normalizeInviteMode(mode);
   const isRequestJoinMode = inviteMode === 'request_join';
-  const inviteLabelSingular = isRequestJoinMode ? 'sugerencia' : 'invitación';
-  const inviteLabelPlural = isRequestJoinMode ? 'sugerencias' : 'invitaciones';
 
   const visibleFriends = useMemo(
     () => amigos.filter((amigo) => !invitedFriends.has(amigo.id)),
@@ -63,9 +58,8 @@ const InviteAmigosModal = ({
   useEffect(() => {
     if (!isOpen) {
       setSelectedFriendIds(new Set());
-      clearInlineNotice();
     }
-  }, [isOpen, clearInlineNotice]);
+  }, [isOpen]);
 
   const fetchAmigos = async () => {
     setLoading(true);
@@ -206,27 +200,15 @@ const InviteAmigosModal = ({
   const handleInviteError = (error) => {
     const rawMessage = String(error?.message || '').toLowerCase();
     if (rawMessage.includes('invitations_closed')) {
-      showInlineNotice({
-        key: 'invite_friends_closed',
-        type: 'warning',
-        message: 'El partido no está abierto para sugerencias.',
-      });
+      notifyBlockingError('El partido no está abierto para sugerencias.');
       return;
     }
     if (rawMessage.includes('guest_direct_invite_forbidden')) {
-      showInlineNotice({
-        key: 'invite_friends_mode_forbidden',
-        type: 'warning',
-        message: 'Solo podés enviar sugerencias para solicitar unirme.',
-      });
+      notifyBlockingError('Solo podés enviar sugerencias para solicitar unirme.');
       return;
     }
     if (rawMessage.includes('actor_not_in_match')) {
-      showInlineNotice({
-        key: 'invite_friends_not_in_match',
-        type: 'warning',
-        message: 'Debes formar parte del partido para sugerirlo.',
-      });
+      notifyBlockingError('Debes formar parte del partido para sugerirlo.');
       return;
     }
     notifyBlockingError('Error al enviar la invitación');
@@ -234,20 +216,12 @@ const InviteAmigosModal = ({
 
   const handleInvitar = async (amigo) => {
     if (!partidoActual?.id) {
-      showInlineNotice({
-        key: 'invite_friends_missing_match',
-        type: 'warning',
-        message: 'No hay partido seleccionado.',
-      });
+      notifyBlockingError('No hay partido seleccionado.');
       return;
     }
 
     if (isRequestJoinMode && !invitationsOpen) {
-      showInlineNotice({
-        key: 'invite_friends_closed',
-        type: 'warning',
-        message: 'El partido no está abierto para sugerencias.',
-      });
+      notifyBlockingError('El partido no está abierto para sugerencias.');
       return;
     }
 
@@ -257,32 +231,15 @@ const InviteAmigosModal = ({
       const result = await sendInviteToFriend(amigo, inviteContext);
 
       if (result.status === 'already_invited') {
-        showInlineNotice({
-          key: `invite_friends_already_${amigo.id}`,
-          type: 'info',
-          message: `${amigo.nombre} ya recibió esta ${inviteLabelSingular}.`,
-        });
         setInvitedFriends((prev) => new Set([...prev, amigo.id]));
         return;
       }
 
       if (result.status === 'recipient_unavailable') {
-        showInlineNotice({
-          key: `invite_friends_unavailable_${amigo.id}`,
-          type: 'info',
-          message: `${amigo.nombre} no recibe ${inviteLabelPlural} en este momento.`,
-        });
         return;
       }
 
       setInvitedFriends((prev) => new Set([...prev, amigo.id]));
-      showInlineNotice({
-        key: `invite_friends_sent_${amigo.id}`,
-        type: 'success',
-        message: isRequestJoinMode
-          ? `Sugerencia enviada a ${amigo.nombre}.`
-          : `Invitación enviada a ${amigo.nombre}.`,
-      });
     } catch (error) {
       console.error('[MODAL_AMIGOS] Error sending invite:', error);
       handleInviteError(error);
@@ -307,38 +264,25 @@ const InviteAmigosModal = ({
   const handleSendSelected = async () => {
     if (!isRequestJoinMode) return;
     if (!invitationsOpen) {
-      showInlineNotice({
-        key: 'invite_friends_closed',
-        type: 'warning',
-        message: 'El partido no está abierto para sugerencias.',
-      });
+      notifyBlockingError('El partido no está abierto para sugerencias.');
       return;
     }
 
     const selectedFriends = visibleFriends.filter((friend) => selectedFriendIds.has(friend.id));
     if (selectedFriends.length === 0) {
-      showInlineNotice({
-        key: 'invite_friends_select_one',
-        type: 'warning',
-        message: 'Seleccioná al menos un amigo.',
-      });
+      notifyBlockingError('Seleccioná al menos un amigo.');
       return;
     }
 
     setInviting(true);
     try {
       const inviteContext = await getInviteContext();
-      let sentCount = 0;
-      let skippedCount = 0;
       const sentIds = [];
 
       for (const friend of selectedFriends) {
         const result = await sendInviteToFriend(friend, inviteContext);
         if (result.status === 'sent') {
-          sentCount += 1;
           sentIds.push(friend.id);
-        } else {
-          skippedCount += 1;
         }
       }
 
@@ -346,32 +290,6 @@ const InviteAmigosModal = ({
         setInvitedFriends((prev) => new Set([...prev, ...sentIds]));
       }
       setSelectedFriendIds(new Set());
-
-      if (sentCount > 0 && skippedCount === 0) {
-        showInlineNotice({
-          key: 'invite_friends_bulk_sent',
-          type: 'success',
-          message: sentCount === 1
-            ? 'Sugerencia enviada.'
-            : `Sugerencias enviadas (${sentCount}).`,
-        });
-        return;
-      }
-
-      if (sentCount > 0 && skippedCount > 0) {
-        showInlineNotice({
-          key: 'invite_friends_bulk_partial',
-          type: 'info',
-          message: `Se enviaron ${sentCount} ${isRequestJoinMode ? 'sugerencia' : 'invitación'}${sentCount > 1 ? 's' : ''}. ${skippedCount} ya tenía una ${inviteLabelSingular} pendiente o no recibe ${inviteLabelPlural}.`,
-        });
-        return;
-      }
-
-      showInlineNotice({
-        key: 'invite_friends_bulk_none',
-        type: 'info',
-        message: `No se enviaron ${inviteLabelPlural} nuevas.`,
-      });
     } catch (error) {
       console.error('[MODAL_AMIGOS] Error sending selected invites:', error);
       handleInviteError(error);
@@ -405,17 +323,6 @@ const InviteAmigosModal = ({
         </div>
 
         <div className="px-5 py-4 max-h-[60vh] overflow-y-auto">
-          {notice ? (
-            <div className="mb-2">
-              <InlineNotice
-                type={notice?.type}
-                message={notice?.message}
-                autoHideMs={notice?.type === 'warning' ? null : 3000}
-                onClose={clearInlineNotice}
-              />
-            </div>
-          ) : null}
-
           {isRequestJoinMode && (
             <p className="m-0 mb-2 text-white/70 text-xs">
               Seleccioná uno o más amigos para enviarles una sugerencia.
