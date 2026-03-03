@@ -11,6 +11,8 @@ const Modals = ({
   partidoActual,
   user,
   jugadores,
+  inviteMode = 'direct',
+  invitationsOpen = false,
 }) => {
   return (
     <>
@@ -22,6 +24,8 @@ const Modals = ({
           currentUserId={user?.id}
           partidoActual={partidoActual}
           jugadores={jugadores}
+          mode={inviteMode}
+          invitationsOpen={invitationsOpen}
         />
       )}
     </>

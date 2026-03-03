@@ -32,4 +32,25 @@ describe('matchInviteRoute', () => {
 
     expect(route).toBe('/partido/355/invitacion');
   });
+
+  test('routes request_join invites to public join flow', () => {
+    const route = resolveMatchInviteRoute({
+      partido_id: 412,
+      data: {
+        invite_mode: 'request_join',
+      },
+    });
+
+    expect(route).toBe('/partido-publico/412');
+  });
+
+  test('accepts explicit partido-publico deep links for invite notifications', () => {
+    const route = resolveMatchInviteRoute({
+      data: {
+        link: '/partido-publico/222',
+      },
+    });
+
+    expect(route).toBe('/partido-publico/222');
+  });
 });

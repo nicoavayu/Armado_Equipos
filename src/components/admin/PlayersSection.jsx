@@ -5,6 +5,7 @@ import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
 import { MoreVertical, LogOut, Share2, UserPlus } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { buildMatchCalendarIcs, shareOrDownloadCalendarIcs } from '../../utils/calendarInvite';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
@@ -146,6 +147,12 @@ const PlayersSection = ({
   const completionAnimTimeoutRef = useRef(null);
   const previousCompleteRef = useRef(isTitularesComplete);
   const showInviteStylePostJoin = !isAdmin && isPlayerInMatch;
+  const invitationsOpen = Boolean(
+    partidoActual?.invitations_open
+    ?? partidoActual?.falta_jugadores
+    ?? partidoActual?.faltan_jugadores
+    ?? false,
+  );
   const inviteRequiredSlots = resolveSlotsFromMatchType(partidoActual);
   const inviteDisplayCount = jugadores?.length ?? 0;
   const inviteConfirmedCount = Math.min(inviteDisplayCount, inviteRequiredSlots);
@@ -158,6 +165,12 @@ const PlayersSection = ({
     '--btn': INVITE_ACCEPT_BUTTON_VIOLET,
     '--btn-dark': INVITE_ACCEPT_BUTTON_VIOLET_DARK,
     '--btn-text': '#ffffff',
+  };
+  const inviteSecondaryButtonPalette = {
+    '--btn': 'rgba(23, 35, 74, 0.72)',
+    '--btn-dark': 'rgba(88, 107, 170, 0.46)',
+    '--btn-text': 'rgba(242, 246, 255, 0.9)',
+    '--btn-shadow': '0 6px 16px rgba(0,0,0,0.25)',
   };
   const invitePlayersBlockStyle = {
     background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)',
@@ -232,6 +245,31 @@ const PlayersSection = ({
       notifyBlockingError(error?.message || 'No se pudo expulsar al jugador');
     } finally {
       setIsRemovingPlayer(false);
+    }
+  };
+
+  const handleAddToCalendar = async () => {
+    try {
+      const { content, fileName } = buildMatchCalendarIcs(partidoActual);
+      await shareOrDownloadCalendarIcs({
+        content,
+        fileName,
+        title: 'Agregar al calendario',
+      });
+    } catch (error) {
+      console.error('[CALENDAR_ICS] Error creating calendar file', error);
+      notifyBlockingError('No se pudo agregar el partido al calendario');
+    }
+  };
+
+  const handleSuggestMatch = () => {
+    if (!invitationsOpen) return;
+    if (typeof onInviteFriends === 'function') {
+      onInviteFriends();
+      return;
+    }
+    if (typeof setShowInviteModal === 'function') {
+      setShowInviteModal(true);
     }
   };
 
@@ -836,15 +874,24 @@ const PlayersSection = ({
             )}
 
             {showInviteStylePostJoin ? (
-              <div className="w-full max-w-[250px] mx-auto px-2 sm:px-0">
+              <div className="w-full max-w-[340px] mx-auto px-2 sm:px-0 flex flex-col gap-2">
+                <p className="m-0 text-white/78 font-oswald text-sm text-center">Ya formas parte del partido</p>
                 <button
                   className="invite-cta-btn"
                   style={inviteButtonPalette}
-                  onClick={() => setShowInviteModal(true)}
-                  disabled={isMatchFull}
+                  onClick={handleAddToCalendar}
                 >
-                  <span>{isMatchFull ? 'Partido completo' : 'Invitar amigos'}</span>
+                  <span>Agregar al calendario</span>
                 </button>
+                {invitationsOpen ? (
+                  <button
+                    className="invite-cta-btn"
+                    style={inviteSecondaryButtonPalette}
+                    onClick={handleSuggestMatch}
+                  >
+                    <span>Sugerir partido a un amigo</span>
+                  </button>
+                ) : null}
               </div>
             ) : (
               <div className="w-full max-w-[500px] mx-auto bg-[#0f172a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">

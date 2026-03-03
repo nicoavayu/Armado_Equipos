@@ -128,6 +128,13 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const isRosterFull = maxRosterSlots > 0 && displayedJugadores.length >= maxRosterSlots;
   const canBuildBalancedTeams = displayedJugadores.length >= 8;
   const canOpenChatFromHeader = Boolean(isAdmin || adminState.isPlayerInMatch);
+  const invitationsOpen = Boolean(
+    partidoActual?.invitations_open
+    ?? adminState.faltanJugadoresState
+    ?? partidoActual?.falta_jugadores
+    ?? partidoActual?.faltan_jugadores
+    ?? false,
+  );
 
   const formatInviteDateTime = (fechaRaw, horaRaw) => {
     const fecha = String(fechaRaw || '').trim().slice(0, 10);
@@ -540,6 +547,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
             partidoActual={partidoActual}
             user={user}
             jugadores={jugadores}
+            inviteMode={isAdmin ? 'direct' : 'request_join'}
+            invitationsOpen={invitationsOpen}
           />
         </>
       )}

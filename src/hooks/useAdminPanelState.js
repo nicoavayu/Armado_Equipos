@@ -122,6 +122,16 @@ export const useAdminPanelState = ({
 
         if (invitation) {
           const status = invitation.data?.status || 'pending';
+          const inviteMode = String(invitation.data?.invite_mode || invitation.data?.inviteMode || 'direct').toLowerCase();
+
+          // Request-join suggestions should always use the public "Solicitar unirme" flow.
+          // They must not activate the direct accept/reject invitation UI.
+          if (inviteMode === 'request_join') {
+            setPendingInvitation(false);
+            setInvitationStatus(null);
+            return;
+          }
+
           setInvitationStatus(status);
           // Sólo mostrar como pending si el status es pending (o undefined) Y no está leída (opcional, pero user quiere que rejection invalide)
           // User req: "Si invite status != 'pending' ... mostrar pantalla read-only"

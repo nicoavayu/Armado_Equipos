@@ -7,12 +7,19 @@ function isInvitePath(path) {
   return /^\/partido\/\d+\/invitacion(?:\?.*)?$/.test(path) || /^\/i\/[^/]+(?:\?.*)?$/.test(path);
 }
 
+function isPublicJoinPath(path) {
+  if (!isSafeInternalPath(path)) return false;
+  return /^\/partido-publico\/\d+(?:\?.*)?$/.test(path);
+}
+
 export function resolveMatchInviteRoute(notification) {
   const data = notification?.data || {};
   const candidatePath = notification?.deep_link || notification?.deepLink || data?.deep_link || data?.deepLink || data?.link;
-  if (isInvitePath(candidatePath)) {
+  if (isInvitePath(candidatePath) || isPublicJoinPath(candidatePath)) {
     return candidatePath;
   }
+
+  const inviteMode = String(data?.invite_mode || data?.inviteMode || 'direct').trim().toLowerCase();
 
   const matchId = notification?.partido_id
     ?? data?.match_id
@@ -23,6 +30,10 @@ export function resolveMatchInviteRoute(notification) {
     ?? null;
 
   if (!matchId) return null;
+
+  if (inviteMode === 'request_join') {
+    return `/partido-publico/${matchId}`;
+  }
 
   const inviteCodeRaw = data?.codigo ?? data?.matchCode ?? data?.code ?? null;
   const inviteCode = inviteCodeRaw == null ? '' : String(inviteCodeRaw).trim();
