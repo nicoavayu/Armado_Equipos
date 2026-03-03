@@ -97,7 +97,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
     return Number.isFinite(precioNum) ? precioNum : null;
   }, [valorCancha]);
 
-  const canContinueWhereStep = Boolean(sede) && Number.isFinite(parsedCanchaPrice) && parsedCanchaPrice > 0;
+  const canContinueWhereStep = Boolean(sede);
 
   const [file, setFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
@@ -618,7 +618,6 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               <div style={{ width: '100%', marginTop: 12, marginBottom: 12 }}>
                 <label style={{ fontWeight: 500, color: '#fff', marginBottom: 8, display: 'block', fontFamily: "'Inter', sans-serif" }}>
                   Valor de la cancha (por persona)
-                  <span className="ml-1 text-[#7d5aff] font-bold" aria-label="Campo obligatorio">*</span>
                 </label>
                 <input
                   className={INPUT_MODERN_CLASS}
