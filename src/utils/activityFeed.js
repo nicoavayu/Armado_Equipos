@@ -2,6 +2,7 @@ import { parseLocalDateTime } from './dateLocal';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
 import { quoteMatchName, resolveNotificationTeamName, resolveTeamInviteActorName } from './notificationText';
 import { getSurveyRemainingLabel, resolveSurveyDeadlineAt } from './surveyNotificationCopy';
+import { formatVenueShort } from './venueFormat';
 
 const ACTIVITY_MAX_ITEMS = 5;
 const INSIGHT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -244,15 +245,23 @@ const getQuotedMatchLabel = (matchName) => (
     : null
 );
 
-const formatMatchHour = (match) => {
-  const rawHour = normalizeSpaces(String(match?.hora || ''));
+const formatMatchHour = (match, notification) => {
+  const rawHour = normalizeSpaces(String(
+    match?.hora
+    || notification?.data?.hora
+    || notification?.hora
+    || '',
+  ));
   const explicitHourMatch = rawHour.match(/^(\d{1,2}):(\d{2})/);
   if (explicitHourMatch) {
     const hours = explicitHourMatch[1].padStart(2, '0');
     return `${hours}:${explicitHourMatch[2]}`;
   }
 
-  const parsed = parseLocalDateTime(match?.fecha, match?.hora);
+  const parsed = parseLocalDateTime(
+    match?.fecha || notification?.data?.fecha || notification?.fecha,
+    match?.hora || notification?.data?.hora || notification?.hora,
+  );
   if (!parsed) return '';
   return parsed.toLocaleTimeString('es-AR', {
     hour: '2-digit',
@@ -262,64 +271,96 @@ const formatMatchHour = (match) => {
   });
 };
 
-const abbreviateVenueLabel = (rawVenue = '') => {
-  const normalized = normalizeSpaces(stripEmojis(rawVenue));
-  if (!normalized) return '';
-
-  const firstChunk = normalized.split(/\s[-–—]\s|,|·/)[0].trim();
-  if (!firstChunk) return '';
-
-  const words = firstChunk.split(/\s+/).filter(Boolean);
-  if (words.length === 1) return compactText(words[0], 14, words[0]);
-
-  const firstWord = words[0];
-  const secondWord = String(words[1] || '').replace(/[^\p{L}\p{N}]/gu, '');
-  if (!secondWord) return compactText(firstWord, 14, firstWord);
-
-  const shortSecondWord = secondWord.length <= 3 ? secondWord : `${secondWord.slice(0, 3)}.`;
-  return compactText(`${firstWord} ${shortSecondWord}`, 18, `${firstWord} ${shortSecondWord}`);
-};
-
 const resolveHomeMatchName = (notification, match) => (
   compactMatchName(
-    getMatchDisplayName(
-      match,
-      notification?.data?.match_name
-      || notification?.data?.partido_nombre
-      || '',
-    ),
+    match?.nombre
+    || match?.titulo
+    || match?.name
+    || notification?.data?.match_name
+    || notification?.data?.partido_nombre
+    || notification?.match_name
+    || notification?.partido_nombre
+    || '',
     '',
   )
 );
 
-const buildHomeNotificationText = (notification, match) => {
+const resolveRelativeDayLabel = (match, notification, type) => {
+  const parsed = parseLocalDateTime(
+    match?.fecha || notification?.data?.fecha || notification?.fecha,
+    match?.hora || notification?.data?.hora || notification?.hora,
+  );
+
+  if (parsed) {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const matchStart = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+    const dayDiff = Math.round((matchStart.getTime() - todayStart.getTime()) / (24 * 60 * 60 * 1000));
+    if (dayDiff === 0) return 'hoy';
+    if (dayDiff === 1) return 'mañana';
+    const weekday = parsed.toLocaleDateString('es-AR', { weekday: 'long', timeZone: 'America/Argentina/Buenos_Aires' });
+    if (weekday) return `el ${weekday.toLowerCase()}`;
+  }
+
+  if (type === 'match_today') return 'hoy';
+  if (type === 'match_tomorrow') return 'mañana';
+  return 'próximamente';
+};
+
+const resolveHomeVenueLabel = (notification, match) => formatVenueShort({
+  name: match?.venue_name
+    || match?.place_name
+    || match?.venue?.name
+    || notification?.data?.venue_name
+    || notification?.data?.place_name
+    || notification?.data?.venue?.name
+    || '',
+  displayName: match?.venue?.displayName
+    || notification?.data?.venue?.displayName
+    || '',
+  title: match?.venue?.title
+    || notification?.data?.venue?.title
+    || '',
+  venueName: match?.venue?.venueName
+    || notification?.data?.venue?.venueName
+    || '',
+  formattedAddress: match?.sede
+    || notification?.data?.sede
+    || match?.address
+    || notification?.data?.formattedAddress
+    || '',
+  address: match?.address
+    || notification?.data?.address
+    || '',
+}, { maxLen: 34 }) || '';
+
+export const buildHomeNotificationText = (notification, match) => {
   const type = normalizeType(notification?.type, notification?.message) || notification?.type || '';
   const matchName = resolveHomeMatchName(notification, match);
   if (!hasUsableMatchName(matchName)) return null;
 
   const quotedMatchName = quoteMatchName(matchName, 'este partido');
-  const hourLabel = formatMatchHour(match);
-  const venueLabel = abbreviateVenueLabel(match?.sede || notification?.data?.sede || '');
-  const buildSubtitle = (preferVenue = false) => {
-    const contextLabel = preferVenue ? (venueLabel || hourLabel) : (hourLabel || venueLabel);
-    return contextLabel ? `${quotedMatchName} · ${contextLabel}` : quotedMatchName;
+  const hourLabel = formatMatchHour(match, notification);
+  const venueLabel = resolveHomeVenueLabel(notification, match);
+  const buildSubtitle = (contextLabel) => {
+    if (!contextLabel) return null;
+    return `${quotedMatchName} · ${contextLabel}`;
   };
 
-  if (type === 'match_today') {
+  if (type === 'match_today' || type === 'match_tomorrow') {
+    const dayLabel = resolveRelativeDayLabel(match, notification, type);
+    const subtitle = buildSubtitle(venueLabel || hourLabel);
+    if (!subtitle) return null;
     return {
-      title: hourLabel ? `Jugás hoy ${hourLabel}` : 'Jugás hoy',
-      subtitle: buildSubtitle(true),
-    };
-  }
-
-  if (type === 'match_tomorrow') {
-    return {
-      title: hourLabel ? `Jugás mañana ${hourLabel}` : 'Jugás mañana',
-      subtitle: buildSubtitle(true),
+      title: hourLabel ? `Jugás ${dayLabel} ${hourLabel}` : `Jugás ${dayLabel}`,
+      subtitle,
     };
   }
 
   if (type === 'falta_jugadores') {
+    const subtitle = buildSubtitle(hourLabel || venueLabel);
+    if (!subtitle) return null;
+
     const missingRaw = notification?.data?.missingPlayers
       ?? notification?.data?.missing_players
       ?? notification?.meta?.missingPlayers
@@ -332,33 +373,39 @@ const buildHomeNotificationText = (notification, match) => {
       : null;
     const title = missing === 1
       ? 'Falta 1 para completar'
-      : (missing && missing > 1 ? `Quedan ${missing} lugares` : 'Faltan jugadores');
+      : (missing && missing > 1 ? `Quedan ${missing} lugares` : 'Quedan lugares');
     return {
       title,
-      subtitle: buildSubtitle(false),
+      subtitle,
     };
   }
 
   if (type === 'match_complete') {
+    const subtitle = buildSubtitle(venueLabel || hourLabel);
+    if (!subtitle) return null;
     return {
       title: 'Partido completo',
-      subtitle: buildSubtitle(false),
+      subtitle,
     };
   }
 
   if (type === 'match_player_joined') {
+    const subtitle = buildSubtitle(hourLabel || venueLabel);
+    if (!subtitle) return null;
     const playerName = compactText(resolvePlayerNameFromMatchUpdate(notification), 24, '');
     return {
       title: playerName ? `${playerName} se sumó` : 'Se sumó un jugador',
-      subtitle: buildSubtitle(false),
+      subtitle,
     };
   }
 
   if (type === 'match_player_left') {
+    const subtitle = buildSubtitle(hourLabel || venueLabel);
+    if (!subtitle) return null;
     const playerName = compactText(resolvePlayerNameFromMatchUpdate(notification), 24, '');
     return {
       title: playerName ? `${playerName} se bajó` : 'Un jugador se bajó',
-      subtitle: buildSubtitle(false),
+      subtitle,
     };
   }
 
@@ -628,6 +675,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     const notificationLink = notification?.data?.link || null;
     return {
       ...base,
+      count: 1,
       icon: 'Users',
       title: homeCopy.title,
       subtitle: homeCopy.subtitle,
