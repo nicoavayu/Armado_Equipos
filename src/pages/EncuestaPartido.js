@@ -6,12 +6,11 @@ import { useAuth } from '../components/AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import PageLoadingState from '../components/PageLoadingState';
 import PageTransition from '../components/PageTransition';
-import InlineNotice from '../components/ui/InlineNotice';
+import ConfirmModal from '../components/ConfirmModal';
 import TeamsDnDEditor from '../components/TeamsDnDEditor';
 import { finalizeIfComplete } from '../services/surveyCompletionService';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { clearMatchFromList } from '../services/matchFinishService';
-import useInlineNotice from '../hooks/useInlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { SURVEY_WINDOW_HOURS } from '../utils/surveyNotificationCopy';
 import {
@@ -163,11 +162,25 @@ const EncuestaPartido = () => {
   const [jugadores, setJugadores] = useState([]);
   const [yaCalificado, _setYaCalificado] = useState(false);
   const [encuestaFinalizada, setEncuestaFinalizada] = useState(false);
+  const [surveyModal, setSurveyModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+  });
   const [viewportRatio, setViewportRatio] = useState(() => {
     if (typeof window === 'undefined') return 0.6;
     return window.innerWidth / Math.max(window.innerHeight, 1);
   });
-  const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
+  const closeSurveyModal = () => {
+    setSurveyModal({ isOpen: false, title: '', message: '' });
+  };
+  const openSurveyModal = (message, title = 'Aviso') => {
+    setSurveyModal({
+      isOpen: true,
+      title,
+      message: String(message || 'No se pudo completar la acción.'),
+    });
+  };
 
   useEffect(() => {
     const updateViewportRatio = () => {
@@ -183,7 +196,7 @@ const EncuestaPartido = () => {
     let cancelled = false;
 
     const resetSurveyState = () => {
-      clearInlineNotice();
+      setSurveyModal({ isOpen: false, title: '', message: '' });
       setPartido(null);
       setJugadores([]);
       setAlreadySubmitted(false);
@@ -433,7 +446,7 @@ const EncuestaPartido = () => {
     return () => {
       cancelled = true;
     };
-  }, [id, user, navigate, clearInlineNotice]);
+  }, [id, user, navigate]);
 
   // Mark survey related notifications as read when entering survey page
   useEffect(() => {
@@ -533,9 +546,9 @@ const EncuestaPartido = () => {
 
   const organizeTeamsHelperText = useMemo(() => {
     if (hasConfirmedTeams || teamsLocked || teamsSource === 'admin') {
-      return 'Estos son los equipos registrados. Podés reordenarlos antes de confirmar el resultado.';
+      return 'Armá los equipos finales como finalmente se jugó el partido.';
     }
-    return 'Si los equipos no están correctos, reorganizalos con drag and drop antes de continuar.';
+    return 'Armá los equipos finales como finalmente se jugó el partido.';
   }, [hasConfirmedTeams, teamsLocked, teamsSource]);
 
   const finalTeamsValidation = useMemo(() => {
@@ -663,19 +676,8 @@ const EncuestaPartido = () => {
       if (outcome.seJugo && !teamsConfirmed && !teamsLocked) {
         const persistResult = await persistSurveyTeamsDefinition();
         if (!persistResult.ok) {
-          showInlineNotice({
-            key: 'survey_final_teams_save_error',
-            type: 'warning',
-            message: persistResult.message,
-          });
+          openSurveyModal(persistResult.message, 'No se pudieron guardar los equipos');
           return;
-        }
-        if (persistResult.alreadyLocked) {
-          showInlineNotice({
-            key: 'survey_teams_already_locked',
-            type: 'success',
-            message: 'Los equipos ya habían sido definidos por otro votante. Vamos a usar esa versión.',
-          });
         }
       }
 
@@ -691,11 +693,7 @@ const EncuestaPartido = () => {
         : null) || jugadores.find((j) => j.usuario_id === user.id);
       const currentUserPlayerId = Number(currentUserPlayer?.id || linkedPlayerId);
       if (!Number.isFinite(currentUserPlayerId) || currentUserPlayerId <= 0) {
-        showInlineNotice({
-          key: 'survey_user_not_eligible',
-          type: 'warning',
-          message: 'Solo jugadores con cuenta registrada pueden completar esta encuesta.',
-        });
+        openSurveyModal('Solo jugadores con cuenta registrada pueden completar esta encuesta.', 'No podés completar la encuesta');
         return;
       }
 
@@ -779,22 +777,14 @@ const EncuestaPartido = () => {
     }
 
     if (currentStep === SURVEY_STEPS.RESULT && !formData.ganador) {
-      showInlineNotice({
-        key: 'survey_missing_winner',
-        type: 'warning',
-        message: 'Elegí el resultado: Equipo A, Equipo B, Empate o No jugado.',
-      });
+      openSurveyModal('Elegí el resultado: Equipo A, Equipo B, Empate o No jugado.', 'Falta seleccionar resultado');
       return;
     }
 
     const needsValidTeamsForResult = currentStep === SURVEY_STEPS.RESULT
       && (formData.ganador === 'equipo_a' || formData.ganador === 'equipo_b');
     if (needsValidTeamsForResult && !finalTeamsValidation.ok) {
-      showInlineNotice({
-        key: 'survey_invalid_final_teams',
-        type: 'warning',
-        message: finalTeamsValidation.message,
-      });
+      openSurveyModal(finalTeamsValidation.message, 'Equipos incompletos');
       return;
     }
 
@@ -809,6 +799,11 @@ const EncuestaPartido = () => {
   const handleLockTeamsAndContinue = async () => {
     if (submitting || encuestaFinalizada || alreadySubmitted) return;
 
+    if (compactFlowMode && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador)) {
+      openSurveyModal('Elegí quién ganó o marcá empate para continuar.', 'Falta seleccionar resultado');
+      return;
+    }
+
     if (teamsConfirmed || teamsLocked) {
       setCurrentStep(SURVEY_STEPS.RESULT);
       return;
@@ -818,26 +813,8 @@ const EncuestaPartido = () => {
     try {
       const persistResult = await persistSurveyTeamsDefinition();
       if (!persistResult.ok) {
-        showInlineNotice({
-          key: 'survey_final_teams_save_error',
-          type: 'warning',
-          message: persistResult.message,
-        });
+        openSurveyModal(persistResult.message, 'No se pudieron guardar los equipos');
         return;
-      }
-
-      if (persistResult.alreadyLocked) {
-        showInlineNotice({
-          key: 'survey_teams_already_locked',
-          type: 'success',
-          message: 'Los equipos ya habían sido definidos por otro votante. Vamos a usar esa versión.',
-        });
-      } else {
-        showInlineNotice({
-          key: 'survey_teams_locked',
-          type: 'success',
-          message: 'Equipos guardados. Continuemos con el resultado final.',
-        });
       }
 
       setCurrentStep(SURVEY_STEPS.RESULT);
@@ -1179,14 +1156,6 @@ const EncuestaPartido = () => {
           <div className={cardClass}>
             {renderStepProgress()}
             <div className={progressGapClass} />
-            <div className="w-full shrink-0 pt-0.5">
-              <InlineNotice
-                type={notice?.type}
-                message={notice?.message}
-                autoHideMs={notice?.type === 'warning' ? null : 3000}
-                onClose={clearInlineNotice}
-              />
-            </div>
           {/* STEP 0: ¿SE JUGÓ? */}
           {currentStep === SURVEY_STEPS.PLAYED && (
             <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
@@ -1426,19 +1395,9 @@ const EncuestaPartido = () => {
                         onWinnerChange={() => {}}
                         onChange={() => {}}
                       />
-
-                      {!finalTeamsValidation.ok ? (
-                        <div className="rounded-[5px] border border-rose-300/35 bg-rose-400/10 px-3 py-2 text-sm font-oswald text-rose-100">
-                          Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.
-                        </div>
-                      ) : null}
                     </div>
                   ) : (
-                    <div className="rounded-[5px] border border-amber-300/35 bg-amber-400/10 p-4 text-center text-white/90">
-                      <div className="font-oswald text-[16px] leading-snug">
-                        No pudimos resolver los equipos para cerrar el partido.
-                      </div>
-                    </div>
+                    <div className="h-[2px] w-full" />
                   )}
 
                   <div className="mt-3 grid grid-cols-1 gap-2.5">
@@ -1448,7 +1407,7 @@ const EncuestaPartido = () => {
                       onClick={() => {
                         handleInputChange('ganador', 'equipo_a');
                         handleInputChange('se_jugo', true);
-                        clearInlineNotice();
+                        closeSurveyModal();
                       }}
                       disabled={!finalTeamsValidation.ok}
                     >
@@ -1460,7 +1419,7 @@ const EncuestaPartido = () => {
                       onClick={() => {
                         handleInputChange('ganador', 'equipo_b');
                         handleInputChange('se_jugo', true);
-                        clearInlineNotice();
+                        closeSurveyModal();
                       }}
                       disabled={!finalTeamsValidation.ok}
                     >
@@ -1472,7 +1431,7 @@ const EncuestaPartido = () => {
                       onClick={() => {
                         handleInputChange('ganador', 'empate');
                         handleInputChange('se_jugo', true);
-                        clearInlineNotice();
+                        closeSurveyModal();
                       }}
                     >
                       EMPATE
@@ -1483,7 +1442,7 @@ const EncuestaPartido = () => {
                       onClick={() => {
                         handleInputChange('ganador', 'no_jugado');
                         handleInputChange('se_jugo', false);
-                        clearInlineNotice();
+                        closeSurveyModal();
                       }}
                     >
                       NO JUGADO / CANCELADO
@@ -1547,18 +1506,18 @@ const EncuestaPartido = () => {
 
           {/* STEP 7: ORGANIZAR EQUIPOS (solo si no estaban confirmados) */}
           {currentStep === SURVEY_STEPS.ORGANIZE_TEAMS && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${stepClass} !justify-start animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className="w-full">
                   <div className={titleClass}>
-                    ORGANIZÁ LOS EQUIPOS COMO SE JUGÓ
+                    ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ
                   </div>
                   <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
                     {organizeTeamsHelperText}
                   </div>
                 </div>
               </div>
-              <div className={`${contentRowClass} items-start`}>
+              <div className="w-full shrink-0 pt-1.5">
                 <div className="w-full max-w-[760px] mx-auto space-y-3">
                   <TeamsDnDEditor
                     teamA={finalTeams.teamA}
@@ -1568,24 +1527,64 @@ const EncuestaPartido = () => {
                     onWinnerChange={() => {}}
                     onChange={(next) => {
                       setFinalTeams(next);
-                      clearInlineNotice();
+                      closeSurveyModal();
                     }}
                     disabled={teamsLocked && !compactFlowMode}
                   />
 
-                  {!finalTeamsValidation.ok ? (
-                    <div className="rounded-[5px] border border-rose-300/35 bg-rose-400/10 px-3 py-2 text-sm font-oswald text-rose-100">
-                      Los equipos deben quedar consistentes antes de continuar.
+                  {compactFlowMode ? (
+                    <div className="w-full pt-1">
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <button
+                          type="button"
+                          className={`${optionBtnClass} ${formData.ganador === 'equipo_a' ? optionBtnSelectedClass : ''}`}
+                          onClick={() => {
+                            handleInputChange('ganador', 'equipo_a');
+                            handleInputChange('se_jugo', true);
+                            closeSurveyModal();
+                          }}
+                          disabled={!finalTeamsValidation.ok}
+                        >
+                          GANÓ EQUIPO A
+                        </button>
+                        <button
+                          type="button"
+                          className={`${optionBtnClass} ${formData.ganador === 'equipo_b' ? optionBtnSelectedClass : ''}`}
+                          onClick={() => {
+                            handleInputChange('ganador', 'equipo_b');
+                            handleInputChange('se_jugo', true);
+                            closeSurveyModal();
+                          }}
+                          disabled={!finalTeamsValidation.ok}
+                        >
+                          GANÓ EQUIPO B
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        className={`mt-2.5 ${optionBtnClass} ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
+                        onClick={() => {
+                          handleInputChange('ganador', 'empate');
+                          handleInputChange('se_jugo', true);
+                          closeSurveyModal();
+                        }}
+                      >
+                        EMPATE
+                      </button>
                     </div>
                   ) : null}
                 </div>
               </div>
-              <div className="w-full shrink-0 flex items-center justify-center pt-1.5 sm:pt-2.5">
+              <div className="w-full shrink-0 flex items-center justify-center pt-2 sm:pt-3">
                 <div className={actionDockClass}>
                   <button
                     className={btnClass}
                     onClick={handleLockTeamsAndContinue}
-                    disabled={submitting || encuestaFinalizada}
+                    disabled={
+                      submitting
+                      || encuestaFinalizada
+                      || (compactFlowMode && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador))
+                    }
                   >
                     CONTINUAR
                   </button>
@@ -1730,6 +1729,16 @@ const EncuestaPartido = () => {
         </div>
       </div>
     </div>
+    <ConfirmModal
+      isOpen={surveyModal.isOpen}
+      title={surveyModal.title}
+      message={surveyModal.message}
+      confirmText="Aceptar"
+      singleButton={true}
+      onConfirm={closeSurveyModal}
+      onCancel={closeSurveyModal}
+      actionsAlign="center"
+    />
     </PageTransition>
   );
 };
