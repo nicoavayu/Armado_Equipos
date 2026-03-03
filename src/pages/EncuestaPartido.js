@@ -51,6 +51,44 @@ const DEFAULT_FORM_DATA = {
 
 const normalizeIdentityToken = (value) => String(value || '').trim().toLowerCase();
 
+const normalizeRosterRef = (value) => String(value || '').trim().toLowerCase();
+
+const parsePersistedTeamsPayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (typeof payload === 'string') {
+    try {
+      const parsed = JSON.parse(payload);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+  return null;
+};
+
+const extractTeamRefsFromPersistedTeams = (payload) => {
+  const normalized = parsePersistedTeamsPayload(payload);
+  if (!Array.isArray(normalized) || normalized.length === 0) return new Set();
+
+  const refs = new Set();
+  normalized.forEach((team) => {
+    const players = Array.isArray(team?.players) ? team.players : [];
+    players.forEach((playerRef) => {
+      const token = normalizeRosterRef(playerRef);
+      if (token) refs.add(token);
+    });
+  });
+  return refs;
+};
+
+const playerMatchesRefSet = (player, refSet) => {
+  if (!player || !(refSet instanceof Set) || refSet.size === 0) return false;
+  const candidates = [player?.id, player?.uuid, player?.usuario_id]
+    .map((value) => normalizeRosterRef(value))
+    .filter(Boolean);
+  return candidates.some((candidate) => refSet.has(candidate));
+};
+
 const ensureLinkedPlayerForSurvey = async ({ matchId, user }) => {
   const matchIdNum = Number(matchId);
   if (!Number.isFinite(matchIdNum) || matchIdNum <= 0 || !user?.id) {
@@ -255,11 +293,12 @@ const EncuestaPartido = () => {
         let teamsLockedAtValue = null;
         let persistedSurveyTeamA = [];
         let persistedSurveyTeamB = [];
+        let persistedTeamsPayload = null;
         try {
           const { data: pRow, error: pErr } = await supabase
             .from('partidos')
             .select(
-              'teams_confirmed, teams_locked, teams_source, teams_locked_by_user_id, teams_locked_at, survey_team_a, survey_team_b, final_team_a, final_team_b',
+              'teams_confirmed, teams_locked, teams_source, teams_locked_by_user_id, teams_locked_at, survey_team_a, survey_team_b, final_team_a, final_team_b, equipos_json, equipos',
             )
             .eq('id', matchIdNum)
             .maybeSingle();
@@ -277,9 +316,14 @@ const EncuestaPartido = () => {
             persistedSurveyTeamB = Array.isArray(pRow.survey_team_b)
               ? pRow.survey_team_b
               : (Array.isArray(pRow.final_team_b) ? pRow.final_team_b : []);
+            persistedTeamsPayload = pRow?.equipos_json ?? pRow?.equipos ?? null;
           }
         } catch (_e) {
           // Non-blocking fallback.
+        }
+
+        if (persistedTeamsPayload == null) {
+          persistedTeamsPayload = partidoData?.equipos_json ?? partidoData?.equipos ?? null;
         }
 
         let jugadoresPartido = [];
@@ -295,6 +339,15 @@ const EncuestaPartido = () => {
           jugadoresPartido = partidoData.jugadores && Array.isArray(partidoData.jugadores)
             ? partidoData.jugadores
             : [];
+        }
+
+        const persistedTeamRefs = extractTeamRefsFromPersistedTeams(persistedTeamsPayload);
+        if (persistedTeamRefs.size > 0) {
+          const rosterFilteredByPersistedTeams = (jugadoresPartido || [])
+            .filter((player) => playerMatchesRefSet(player, persistedTeamRefs));
+          if (rosterFilteredByPersistedTeams.length > 0) {
+            jugadoresPartido = rosterFilteredByPersistedTeams;
+          }
         }
 
         const loggedRosterPlayers = (jugadoresPartido || []).filter((player) => Boolean(player?.usuario_id));
