@@ -8,12 +8,25 @@ import PageLoadingState from '../components/PageLoadingState';
 import PageTransition from '../components/PageTransition';
 import InlineNotice from '../components/ui/InlineNotice';
 import TeamsDnDEditor from '../components/TeamsDnDEditor';
-import { finalizeIfComplete } from '../services/surveyCompletionService';
+import { ensureSurveyWindowOpen, finalizeIfComplete } from '../services/surveyCompletionService';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { clearMatchFromList } from '../services/matchFinishService';
 import useInlineNotice from '../hooks/useInlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { SURVEY_WINDOW_HOURS } from '../utils/surveyNotificationCopy';
+import {
+  buildPlayerRefToKeyMap,
+  buildSeededInitialTeams,
+  lockSurveyTeamsOnce,
+  resolvePersistRef,
+  resolvePlayerKey,
+  toPlayerKeysFromRefs,
+} from '../services/surveyTeamsService';
+import {
+  buildSurveyFlowSteps,
+  resolveNextResultGateStep,
+  SURVEY_STEPS,
+} from '../utils/surveyFlow';
 
 // Styles are now directly in Tailwind
 // import './LegacyVoting.css'; // Removed
@@ -21,6 +34,167 @@ import { SURVEY_WINDOW_HOURS } from '../utils/surveyNotificationCopy';
 const Utils_formatTime = (iso) => {
   if (!iso) return '??';
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const DEFAULT_FORM_DATA = {
+  se_jugo: true,
+  partido_limpio: true,
+  asistieron_todos: true,
+  jugadores_ausentes: [],
+  jugadores_violentos: [],
+  mvp_id: '',
+  arquero_id: '',
+  sin_arquero_fijo: false,
+  motivo_no_jugado: '',
+  ganador: '',
+  resultado: '',
+};
+
+const normalizeIdentityToken = (value) => String(value || '').trim().toLowerCase();
+
+const resolveUserDisplayName = (user) => (
+  String(
+    user?.user_metadata?.full_name
+    || user?.user_metadata?.name
+    || user?.email?.split('@')?.[0]
+    || 'Jugador',
+  ).trim()
+);
+
+const resolveUserAvatarUrl = (user) => (
+  user?.user_metadata?.avatar_url
+  || user?.user_metadata?.picture
+  || null
+);
+
+const isOnConflictInferenceError = (error) => (
+  /on conflict|no unique|matching the on conflict specification/i.test(String(error?.message || ''))
+);
+
+const isDuplicateKeyError = (error) => (
+  String(error?.code || '') === '23505'
+  || /duplicate key/i.test(String(error?.message || ''))
+);
+
+const ensureLinkedPlayerForSurvey = async ({ matchId, user }) => {
+  const matchIdNum = Number(matchId);
+  if (!Number.isFinite(matchIdNum) || matchIdNum <= 0 || !user?.id) {
+    return null;
+  }
+
+  const playerFields = 'id, partido_id, usuario_id, uuid, nombre, avatar_url, score, is_goalkeeper';
+
+  const fetchLinkedRows = async () => {
+    const { data, error } = await supabase
+      .from('jugadores')
+      .select(playerFields)
+      .eq('partido_id', matchIdNum)
+      .eq('usuario_id', user.id)
+      .order('id', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  };
+
+  let linkedRows = await fetchLinkedRows();
+  if (linkedRows.length > 1) {
+    const canonical = linkedRows[0];
+    const duplicateIds = linkedRows
+      .slice(1)
+      .map((row) => Number(row?.id))
+      .filter((value) => Number.isFinite(value));
+    if (duplicateIds.length > 0) {
+      try {
+        await supabase
+          .from('jugadores')
+          .update({ usuario_id: null })
+          .in('id', duplicateIds)
+          .eq('partido_id', matchIdNum)
+          .eq('usuario_id', user.id);
+      } catch (_dedupeError) {
+        // Non-blocking fallback.
+      }
+    }
+    return canonical;
+  }
+
+  if (linkedRows.length === 1) return linkedRows[0];
+
+  // Deterministic manual->user linkage: only when uuid exactly matches auth user id.
+  try {
+    const { data: rosterRows, error: rosterError } = await supabase
+      .from('jugadores')
+      .select(playerFields)
+      .eq('partido_id', matchIdNum)
+      .order('id', { ascending: true });
+    if (rosterError) throw rosterError;
+
+    const normalizedUserId = normalizeIdentityToken(user.id);
+    const deterministicManualCandidates = (rosterRows || []).filter((row) => (
+      !row?.usuario_id && normalizeIdentityToken(row?.uuid) === normalizedUserId
+    ));
+
+    if (deterministicManualCandidates.length === 1) {
+      const manualRow = deterministicManualCandidates[0];
+      const { data: relinkedRow, error: relinkErr } = await supabase
+        .from('jugadores')
+        .update({ usuario_id: user.id })
+        .eq('id', manualRow.id)
+        .eq('partido_id', matchIdNum)
+        .is('usuario_id', null)
+        .select(playerFields)
+        .maybeSingle();
+
+      if (!relinkErr && relinkedRow?.id) {
+        return relinkedRow;
+      }
+
+      linkedRows = await fetchLinkedRows();
+      if (linkedRows.length > 0) return linkedRows[0];
+    }
+  } catch (_manualLinkError) {
+    // Non-blocking fallback.
+  }
+
+  // If no deterministic manual mapping exists, create/ensure one linked player row.
+  const createPayload = {
+    partido_id: matchIdNum,
+    usuario_id: user.id,
+    nombre: resolveUserDisplayName(user),
+    avatar_url: resolveUserAvatarUrl(user),
+    score: 5,
+    is_goalkeeper: false,
+  };
+
+  const tryCreate = async (payload) => {
+    const { data, error } = await supabase
+      .from('jugadores')
+      .upsert(payload, { onConflict: 'partido_id,usuario_id' })
+      .select(playerFields)
+      .maybeSingle();
+    return { data, error };
+  };
+
+  let createResult = await tryCreate(createPayload);
+
+  if (createResult.error && isOnConflictInferenceError(createResult.error)) {
+    const { data, error } = await supabase
+      .from('jugadores')
+      .insert([createPayload])
+      .select(playerFields)
+      .maybeSingle();
+    createResult = { data, error };
+  }
+
+  if (createResult.error && isDuplicateKeyError(createResult.error)) {
+    linkedRows = await fetchLinkedRows();
+    if (linkedRows.length > 0) return linkedRows[0];
+  }
+
+  if (createResult.error) throw createResult.error;
+  if (createResult.data?.id) return createResult.data;
+
+  linkedRows = await fetchLinkedRows();
+  return linkedRows[0] || null;
 };
 
 const EncuestaPartido = () => {
@@ -37,22 +211,15 @@ const EncuestaPartido = () => {
   const [teamsConfirmed, setTeamsConfirmed] = useState(false);
   const [confirmedTeams, setConfirmedTeams] = useState({ teamA: [], teamB: [] });
   const [finalTeams, setFinalTeams] = useState({ teamA: [], teamB: [] });
-  const [currentStep, setCurrentStep] = useState(0);
+  const [teamsLocked, setTeamsLocked] = useState(false);
+  const [teamsSource, setTeamsSource] = useState(null);
+  const [teamsLockedByUserId, setTeamsLockedByUserId] = useState(null);
+  const [teamsLockedAt, setTeamsLockedAt] = useState(null);
+  const [currentStep, setCurrentStep] = useState(SURVEY_STEPS.PLAYED);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  const [linkedPlayerId, setLinkedPlayerId] = useState(null);
 
-  const [formData, setFormData] = useState({
-    se_jugo: true,
-    partido_limpio: true,
-    asistieron_todos: true,
-    jugadores_ausentes: [],
-    jugadores_violentos: [],
-    mvp_id: '',
-    arquero_id: '',
-    sin_arquero_fijo: false,
-    motivo_no_jugado: '',
-    ganador: '',
-    resultado: '',
-  });
+  const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
   const [jugadores, setJugadores] = useState([]);
   const [yaCalificado, _setYaCalificado] = useState(false);
   const [encuestaFinalizada, setEncuestaFinalizada] = useState(false);
@@ -73,35 +240,67 @@ const EncuestaPartido = () => {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const resetSurveyState = () => {
+      clearInlineNotice();
+      setPartido(null);
+      setJugadores([]);
+      setAlreadySubmitted(false);
+      setEncuestaFinalizada(false);
+      setTeamsConfirmed(false);
+      setConfirmedTeams({ teamA: [], teamB: [] });
+      setFinalTeams({ teamA: [], teamB: [] });
+      setTeamsLocked(false);
+      setTeamsSource(null);
+      setTeamsLockedByUserId(null);
+      setTeamsLockedAt(null);
+      setCurrentStep(SURVEY_STEPS.PLAYED);
+      setFormData({ ...DEFAULT_FORM_DATA });
+      setLinkedPlayerId(null);
+    };
+
     const fetchPartidoData = async () => {
       try {
         if (!id || !user) {
-          navigate('/');
+          if (!cancelled) navigate('/');
           return;
+        }
+
+        const matchIdNum = Number(id);
+        if (!Number.isFinite(matchIdNum) || matchIdNum <= 0) {
+          throw new AppError('Partido inválido', ERROR_CODES.VALIDATION_ERROR);
         }
 
         setLoading(true);
 
-        // Check if user already submitted survey
-        const currentUserPlayer = await supabase
-          .from('jugadores')
-          .select('id')
-          .eq('partido_id', id)
-          .eq('usuario_id', user.id)
-          .single();
+        // Ensure exactly one linked jugadores row for the authenticated user in this match.
+        const currentUserPlayer = await ensureLinkedPlayerForSurvey({
+          matchId: matchIdNum,
+          user,
+        });
 
-        if (currentUserPlayer.data?.id) {
-          const { data: existingSurvey } = await supabase
+        if (cancelled) return;
+        setLinkedPlayerId(currentUserPlayer?.id || null);
+
+        let hasSubmitted = false;
+        if (currentUserPlayer?.id) {
+          const { data: existingSurvey, error: existingSurveyErr } = await supabase
             .from('post_match_surveys')
             .select('id')
             .eq('partido_id', parseInt(id))
-            .eq('votante_id', currentUserPlayer.data.id)
-            .single();
+            .eq('votante_id', currentUserPlayer.id)
+            .maybeSingle();
 
-          if (existingSurvey) {
-            setAlreadySubmitted(true);
+          if (existingSurveyErr && existingSurveyErr.code !== 'PGRST116') {
+            throw existingSurveyErr;
           }
+
+          hasSubmitted = Boolean(existingSurvey?.id);
         }
+
+        if (cancelled) return;
+        setAlreadySubmitted(hasSubmitted);
 
         const { data: partidoData, error: partidoError } = await supabase
           .from('partidos_view')
@@ -114,83 +313,175 @@ const EncuestaPartido = () => {
           throw new AppError('Partido no encontrado', ERROR_CODES.NOT_FOUND);
         }
 
-        // teams_confirmed may come from partidos_view or public.partidos depending on environment
+        // Survey lifecycle is initialized by match ID (no stale/cached match context).
+        try {
+          await ensureSurveyWindowOpen(matchIdNum);
+        } catch (_surveyWindowError) {
+          // Non-blocking fallback.
+        }
+
+        if (cancelled) return;
+
+        // teams_* metadata may come from partidos_view or public.partidos depending on environment.
         let teamsConfirmedValue = Boolean(partidoData?.teams_confirmed);
+        let teamsLockedValue = false;
+        let teamsSourceValue = teamsConfirmedValue ? 'admin' : null;
+        let teamsLockedByValue = null;
+        let teamsLockedAtValue = null;
+        let persistedSurveyTeamA = [];
+        let persistedSurveyTeamB = [];
         try {
           const { data: pRow, error: pErr } = await supabase
             .from('partidos')
-            .select('teams_confirmed')
-            .eq('id', Number(id))
+            .select(
+              'teams_confirmed, teams_locked, teams_source, teams_locked_by_user_id, teams_locked_at, survey_team_a, survey_team_b, final_team_a, final_team_b',
+            )
+            .eq('id', matchIdNum)
             .maybeSingle();
-          if (!pErr && pRow && typeof pRow.teams_confirmed === 'boolean') {
-            teamsConfirmedValue = pRow.teams_confirmed;
+          if (!pErr && pRow) {
+            if (typeof pRow.teams_confirmed === 'boolean') {
+              teamsConfirmedValue = pRow.teams_confirmed;
+            }
+            teamsLockedValue = Boolean(pRow.teams_locked);
+            teamsSourceValue = pRow.teams_source || (teamsConfirmedValue ? 'admin' : null);
+            teamsLockedByValue = pRow.teams_locked_by_user_id || null;
+            teamsLockedAtValue = pRow.teams_locked_at || null;
+            persistedSurveyTeamA = Array.isArray(pRow.survey_team_a)
+              ? pRow.survey_team_a
+              : (Array.isArray(pRow.final_team_a) ? pRow.final_team_a : []);
+            persistedSurveyTeamB = Array.isArray(pRow.survey_team_b)
+              ? pRow.survey_team_b
+              : (Array.isArray(pRow.final_team_b) ? pRow.final_team_b : []);
           }
         } catch (_e) {
-          // non-blocking
+          // Non-blocking fallback.
         }
 
-        setTeamsConfirmed(teamsConfirmedValue);
-        setPartido({ ...partidoData, teams_confirmed: teamsConfirmedValue });
-
-        const jugadoresPartido = partidoData.jugadores && Array.isArray(partidoData.jugadores)
-          ? partidoData.jugadores
-          : [];
+        let jugadoresPartido = [];
+        try {
+          const { data: rosterRows, error: rosterError } = await supabase
+            .from('jugadores')
+            .select('*')
+            .eq('partido_id', matchIdNum)
+            .order('id', { ascending: true });
+          if (rosterError) throw rosterError;
+          jugadoresPartido = Array.isArray(rosterRows) ? rosterRows : [];
+        } catch (_rosterFetchError) {
+          jugadoresPartido = partidoData.jugadores && Array.isArray(partidoData.jugadores)
+            ? partidoData.jugadores
+            : [];
+        }
         setJugadores(jugadoresPartido);
 
+        const playerRefToKey = buildPlayerRefToKeyMap(jugadoresPartido);
         let resolvedTeamA = [];
         let resolvedTeamB = [];
 
-        if (teamsConfirmedValue) {
-          try {
-            const normalizeRef = (value) => String(value || '').trim().toLowerCase();
-            const { data: confirmationRow, error: confirmationError } = await supabase
-              .from('partido_team_confirmations')
-              .select('team_a, team_b')
-              .eq('partido_id', Number(id))
-              .maybeSingle();
-            if (!confirmationError && confirmationRow) {
-              const toKeyMap = new Map();
-              jugadoresPartido.forEach((player) => {
-                const key = String(player.uuid || player.usuario_id || player.id || '').trim();
-                if (!key) return;
-                [player.uuid, player.usuario_id, player.id, key]
-                  .map((ref) => normalizeRef(ref))
-                  .filter(Boolean)
-                  .forEach((ref) => toKeyMap.set(ref, key));
-              });
+        try {
+          const { data: confirmationRow, error: confirmationError } = await supabase
+            .from('partido_team_confirmations')
+            .select('team_a, team_b')
+            .eq('partido_id', matchIdNum)
+            .maybeSingle();
+          if (!confirmationError && confirmationRow) {
+            resolvedTeamA = toPlayerKeysFromRefs({
+              refs: Array.isArray(confirmationRow.team_a) ? confirmationRow.team_a : [],
+              refToKeyMap: playerRefToKey,
+            });
+            resolvedTeamB = toPlayerKeysFromRefs({
+              refs: Array.isArray(confirmationRow.team_b) ? confirmationRow.team_b : [],
+              refToKeyMap: playerRefToKey,
+            });
+          }
+        } catch (_confirmationFetchError) {
+          // Non-blocking fallback.
+        }
 
-              resolvedTeamA = (Array.isArray(confirmationRow.team_a) ? confirmationRow.team_a : [])
-                .map((ref) => toKeyMap.get(normalizeRef(ref)))
-                .filter(Boolean);
-              resolvedTeamB = (Array.isArray(confirmationRow.team_b) ? confirmationRow.team_b : [])
-                .map((ref) => toKeyMap.get(normalizeRef(ref)))
-                .filter(Boolean);
-            }
-          } catch (_confirmationFetchError) {
-            // Non-blocking fallback.
+        if (cancelled) return;
+
+        const resolvedConfirmedTeams = resolvedTeamA.length > 0 && resolvedTeamB.length > 0;
+        if (resolvedConfirmedTeams) {
+          teamsConfirmedValue = true;
+        }
+
+        const lockedTeamA = toPlayerKeysFromRefs({
+          refs: persistedSurveyTeamA,
+          refToKeyMap: playerRefToKey,
+        });
+        const lockedTeamB = toPlayerKeysFromRefs({
+          refs: persistedSurveyTeamB,
+          refToKeyMap: playerRefToKey,
+        });
+        const resolvedLockedTeams = lockedTeamA.length > 0 && lockedTeamB.length > 0;
+        const initialTeams = buildSeededInitialTeams({
+          playerKeys: jugadoresPartido.map((player) => resolvePlayerKey(player)).filter(Boolean),
+          seed: matchIdNum,
+        });
+
+        if (resolvedConfirmedTeams) {
+          setTeamsConfirmed(true);
+          setPartido({ ...partidoData, teams_confirmed: true });
+          setConfirmedTeams({ teamA: resolvedTeamA, teamB: resolvedTeamB });
+          setFinalTeams({ teamA: resolvedTeamA, teamB: resolvedTeamB });
+          setTeamsSource('admin');
+          setTeamsLocked(true);
+          setTeamsLockedByUserId(null);
+          setTeamsLockedAt(null);
+        } else {
+          setConfirmedTeams({ teamA: [], teamB: [] });
+
+          // Safety fallback: if confirmed/locked teams can't be reconstructed, allow re-selection.
+          const shouldAllowManualRecovery = (teamsConfirmedValue || teamsLockedValue) && !resolvedLockedTeams;
+          if (teamsLockedValue && resolvedLockedTeams) {
+            setTeamsConfirmed(false);
+            setPartido({ ...partidoData, teams_confirmed: false });
+            setFinalTeams({ teamA: lockedTeamA, teamB: lockedTeamB });
+            setTeamsLocked(true);
+            setTeamsSource(teamsSourceValue || 'survey');
+            setTeamsLockedByUserId(teamsLockedByValue);
+            setTeamsLockedAt(teamsLockedAtValue);
+          } else if (shouldAllowManualRecovery) {
+            setTeamsConfirmed(false);
+            setPartido({ ...partidoData, teams_confirmed: false });
+            setFinalTeams(initialTeams);
+            setTeamsLocked(false);
+            setTeamsSource('survey');
+            setTeamsLockedByUserId(null);
+            setTeamsLockedAt(null);
+          } else {
+            setTeamsConfirmed(false);
+            setPartido({ ...partidoData, teams_confirmed: false });
+            setFinalTeams(initialTeams);
+            setTeamsLocked(false);
+            setTeamsSource('survey');
+            setTeamsLockedByUserId(null);
+            setTeamsLockedAt(null);
           }
         }
 
-        if (resolvedTeamA.length > 0 && resolvedTeamB.length > 0) {
-          setConfirmedTeams({ teamA: resolvedTeamA, teamB: resolvedTeamB });
-          setFinalTeams({ teamA: resolvedTeamA, teamB: resolvedTeamB });
-        } else {
-          setConfirmedTeams({ teamA: [], teamB: [] });
-          setFinalTeams({ teamA: [], teamB: [] });
-        }
-
       } catch (error) {
-        handleError(error, { showToast: true, onError: () => { } });
-        navigate('/');
+        if (!cancelled) {
+          handleError(error, { showToast: true, onError: () => { } });
+          navigate('/');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
+    resetSurveyState();
     if (id && user) {
       fetchPartidoData();
+    } else {
+      setLoading(false);
     }
-  }, [id, user, navigate]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, user, navigate, clearInlineNotice]);
 
   // Mark survey related notifications as read when entering survey page
   useEffect(() => {
@@ -261,14 +552,6 @@ const EncuestaPartido = () => {
     });
   };
 
-  const resolvePlayerKey = (player) => {
-    if (!player) return null;
-    return String(player.uuid || player.usuario_id || player.id || '').trim() || null;
-  };
-  const resolvePersistRef = (player) => (
-    String(player?.uuid || player?.usuario_id || player?.id || '').trim() || null
-  );
-
   const playersByKey = useMemo(() => {
     const map = {};
     (jugadores || []).forEach((player) => {
@@ -279,13 +562,28 @@ const EncuestaPartido = () => {
     return map;
   }, [jugadores]);
 
+  const allPlayerKeys = useMemo(() => (
+    Object.keys(playersByKey)
+  ), [playersByKey]);
+  const playerRefToKeyMap = useMemo(() => buildPlayerRefToKeyMap(jugadores), [jugadores]);
+
   const hasConfirmedTeams = teamsConfirmed && confirmedTeams.teamA.length > 0 && confirmedTeams.teamB.length > 0;
+  const teamsContextLabel = useMemo(() => {
+    if (hasConfirmedTeams || teamsSource === 'admin') {
+      return 'Equipos confirmados';
+    }
+    if (teamsLockedByUserId || teamsLockedAt || teamsLocked || teamsSource === 'survey') {
+      return 'Equipos definidos por el primer votante';
+    }
+    return 'Equipos a definir en encuesta';
+  }, [hasConfirmedTeams, teamsLocked, teamsLockedAt, teamsLockedByUserId, teamsSource]);
 
   const finalTeamsValidation = useMemo(() => {
-    if (!hasConfirmedTeams) return { ok: false, message: 'Para registrar resultado, primero deben estar confirmados los equipos.' };
-
     const teamA = Array.isArray(finalTeams?.teamA) ? finalTeams.teamA : [];
     const teamB = Array.isArray(finalTeams?.teamB) ? finalTeams.teamB : [];
+    const expectedKeys = hasConfirmedTeams
+      ? new Set([...(confirmedTeams.teamA || []), ...(confirmedTeams.teamB || [])])
+      : new Set(allPlayerKeys);
 
     if (teamA.length === 0 || teamB.length === 0) {
       return { ok: false, message: 'Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.' };
@@ -296,24 +594,34 @@ const EncuestaPartido = () => {
       return { ok: false, message: 'Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.' };
     }
 
-    const confirmedSet = new Set([...(confirmedTeams.teamA || []), ...(confirmedTeams.teamB || [])]);
-    if (uniqueFinal.size !== confirmedSet.size) {
+    if (expectedKeys.size > 0 && uniqueFinal.size !== expectedKeys.size) {
       return { ok: false, message: 'Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.' };
     }
 
     for (const key of uniqueFinal) {
-      if (!confirmedSet.has(key)) {
+      if (expectedKeys.size > 0 && !expectedKeys.has(key)) {
         return { ok: false, message: 'Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.' };
       }
     }
 
     return { ok: true, message: '' };
-  }, [finalTeams, confirmedTeams, hasConfirmedTeams]);
+  }, [allPlayerKeys, confirmedTeams, finalTeams, hasConfirmedTeams]);
 
-  const persistFinalTeams = async () => {
-    if (!hasConfirmedTeams) {
-      return { ok: false, message: 'Para registrar resultado, primero deben estar confirmados los equipos.' };
+  const hydrateTeamsFromRefs = ({ teamARefs = [], teamBRefs = [] }) => {
+    const teamA = toPlayerKeysFromRefs({ refs: teamARefs, refToKeyMap: playerRefToKeyMap });
+    const teamB = toPlayerKeysFromRefs({ refs: teamBRefs, refToKeyMap: playerRefToKeyMap });
+    if (teamA.length > 0 && teamB.length > 0) {
+      setFinalTeams({ teamA, teamB });
+      return true;
     }
+    return false;
+  };
+
+  const persistSurveyTeamsDefinition = async () => {
+    if (hasConfirmedTeams || teamsLocked) {
+      return { ok: true, message: '' };
+    }
+
     if (!finalTeamsValidation.ok) {
       return { ok: false, message: finalTeamsValidation.message };
     }
@@ -325,20 +633,63 @@ const EncuestaPartido = () => {
       .map((key) => resolvePersistRef(playersByKey[key]))
       .filter(Boolean);
 
-    const { data: rpcData, error: rpcError } = await supabase.rpc('save_match_final_teams', {
-      p_partido_id: Number(id),
-      p_final_team_a: teamARefs,
-      p_final_team_b: teamBRefs,
-    });
-
-    if (rpcError) {
+    if (teamARefs.length === 0 || teamBRefs.length === 0) {
       return { ok: false, message: 'No se pudieron guardar los equipos finales. Intentá nuevamente.' };
     }
-    if (rpcData?.success === false) {
-      return { ok: false, message: 'Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.' };
+
+    let lockResult;
+    try {
+      lockResult = await lockSurveyTeamsOnce({
+        matchId: Number(id),
+        teamARefs,
+        teamBRefs,
+      });
+    } catch (_rpcError) {
+      return { ok: false, message: 'No se pudieron guardar los equipos finales. Intentá nuevamente.' };
     }
 
-    return { ok: true, message: '' };
+    if (!lockResult.ok) {
+      return { ok: false, message: 'No se pudieron guardar los equipos finales. Intentá nuevamente.' };
+    }
+
+    setTeamsLocked(lockResult.teamsLocked || lockResult.alreadyLocked || lockResult.success);
+    setTeamsSource(lockResult.teamsSource || 'survey');
+    setTeamsLockedByUserId(lockResult.teamsLockedByUserId || null);
+    setTeamsLockedAt(lockResult.teamsLockedAt || null);
+
+    if (lockResult.teamARefs.length > 0 && lockResult.teamBRefs.length > 0) {
+      hydrateTeamsFromRefs({
+        teamARefs: lockResult.teamARefs,
+        teamBRefs: lockResult.teamBRefs,
+      });
+    }
+
+    return {
+      ok: true,
+      message: '',
+      alreadyLocked: lockResult.alreadyLocked,
+      lockedByOther: lockResult.lockedByOther,
+    };
+  };
+
+  const resolveSurveyOutcome = () => {
+    const winner = String(formData.ganador || '').trim();
+    if (winner === 'equipo_a') {
+      return { seJugo: true, ganador: 'A', resultado: 'finished' };
+    }
+    if (winner === 'equipo_b') {
+      return { seJugo: true, ganador: 'B', resultado: 'finished' };
+    }
+    if (winner === 'empate') {
+      return { seJugo: true, ganador: 'DRAW', resultado: 'draw' };
+    }
+    if (winner === 'no_jugado') {
+      return { seJugo: false, ganador: 'NOT_PLAYED', resultado: 'not_played' };
+    }
+    if (formData.se_jugo === false) {
+      return { seJugo: false, ganador: 'NOT_PLAYED', resultado: 'not_played' };
+    }
+    return { seJugo: true, ganador: null, resultado: 'pending' };
   };
 
   const continueSubmitFlow = async () => {
@@ -348,23 +699,48 @@ const EncuestaPartido = () => {
         return;
       }
 
-      if (formData.se_jugo) {
-        const persistResult = await persistFinalTeams();
+      const outcome = resolveSurveyOutcome();
+      if (outcome.seJugo && !teamsConfirmed && !teamsLocked) {
+        const persistResult = await persistSurveyTeamsDefinition();
         if (!persistResult.ok) {
           showInlineNotice({
             key: 'survey_final_teams_save_error',
             type: 'warning',
-            message: `${persistResult.message} Vamos a guardar la encuesta igual.`,
+            message: persistResult.message,
+          });
+          return;
+        }
+        if (persistResult.alreadyLocked) {
+          showInlineNotice({
+            key: 'survey_teams_already_locked',
+            type: 'success',
+            message: 'Los equipos ya habían sido definidos por otro votante. Vamos a usar esa versión.',
           });
         }
       }
 
-      const mvpPlayer = formData.mvp_id ? jugadores.find((j) => j.uuid === formData.mvp_id) : null;
-      const arqueroPlayer = formData.arquero_id ? jugadores.find((j) => j.uuid === formData.arquero_id) : null;
-      const currentUserPlayer = jugadores.find((j) => j.usuario_id === user.id);
+      const mvpPlayer = outcome.seJugo && formData.mvp_id
+        ? jugadores.find((j) => j.uuid === formData.mvp_id)
+        : null;
+      const arqueroPlayer = outcome.seJugo && formData.arquero_id
+        ? jugadores.find((j) => j.uuid === formData.arquero_id)
+        : null;
+      const linkedPlayerIdNum = Number(linkedPlayerId);
+      const currentUserPlayer = (Number.isFinite(linkedPlayerIdNum)
+        ? jugadores.find((j) => Number(j?.id) === linkedPlayerIdNum)
+        : null) || jugadores.find((j) => j.usuario_id === user.id);
+      const currentUserPlayerId = Number(currentUserPlayer?.id || linkedPlayerId);
+      if (!Number.isFinite(currentUserPlayerId) || currentUserPlayerId <= 0) {
+        showInlineNotice({
+          key: 'survey_user_not_eligible',
+          type: 'warning',
+          message: 'Solo jugadores con cuenta registrada pueden completar esta encuesta.',
+        });
+        return;
+      }
 
       const uuidToId = new Map(jugadores.map((j) => [j.uuid, j.id]));
-      const violentosIds = (formData.jugadores_violentos || [])
+      const violentosIds = (outcome.seJugo ? formData.jugadores_violentos : [])
         .map((u) => uuidToId.get(u))
         .filter(Boolean);
       const ausentesIds = (formData.jugadores_ausentes || [])
@@ -373,17 +749,17 @@ const EncuestaPartido = () => {
 
       const surveyData = {
         partido_id: parseInt(id),
-        votante_id: currentUserPlayer?.id || null,
-        se_jugo: formData.se_jugo,
-        motivo_no_jugado: formData.motivo_no_jugado || null,
+        votante_id: currentUserPlayerId,
+        se_jugo: outcome.seJugo,
+        motivo_no_jugado: outcome.seJugo ? null : (formData.motivo_no_jugado || null),
         asistieron_todos: formData.asistieron_todos,
         jugadores_ausentes: ausentesIds,
-        partido_limpio: formData.partido_limpio,
+        partido_limpio: outcome.seJugo ? formData.partido_limpio : true,
         jugadores_violentos: violentosIds,
         mejor_jugador_eq_a: mvpPlayer?.id || null,
         mejor_jugador_eq_b: arqueroPlayer?.id || null, // Usamos este campo para el arquero
-        ganador: formData.ganador || null,
-        resultado: formData.resultado || null,
+        ganador: outcome.ganador,
+        resultado: outcome.resultado || null,
         created_at: new Date().toISOString(),
       };
 
@@ -420,19 +796,13 @@ const EncuestaPartido = () => {
 
       setAlreadySubmitted(true);
       setEncuestaFinalizada(true);
-      setCurrentStep(99);
+      setCurrentStep(SURVEY_STEPS.DONE);
 
     } catch (error) {
       handleError(error, { showToast: true, onError: () => { } });
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const submitSurveyFromCurrentStep = async () => {
-    if (submitting || encuestaFinalizada || alreadySubmitted) return;
-    setSubmitting(true);
-    await continueSubmitFlow();
   };
 
   const handleSubmit = async (e) => {
@@ -448,25 +818,18 @@ const EncuestaPartido = () => {
       return;
     }
 
-    if (currentStep === 5 && !formData.ganador) {
+    if (currentStep === SURVEY_STEPS.RESULT && !formData.ganador) {
       showInlineNotice({
         key: 'survey_missing_winner',
         type: 'warning',
-        message: 'Elegí el resultado: Equipo A, Equipo B o Empate.',
+        message: 'Elegí el resultado: Equipo A, Equipo B, Empate o No jugado.',
       });
       return;
     }
 
-    if (currentStep === 5 && !hasConfirmedTeams) {
-      showInlineNotice({
-        key: 'survey_missing_confirmed_teams',
-        type: 'warning',
-        message: 'Para registrar resultado, primero deben estar confirmados los equipos',
-      });
-      return;
-    }
-
-    if (currentStep === 5 && !finalTeamsValidation.ok) {
+    const needsValidTeamsForResult = currentStep === SURVEY_STEPS.RESULT
+      && (formData.ganador === 'equipo_a' || formData.ganador === 'equipo_b');
+    if (needsValidTeamsForResult && !finalTeamsValidation.ok) {
       showInlineNotice({
         key: 'survey_invalid_final_teams',
         type: 'warning',
@@ -481,6 +844,46 @@ const EncuestaPartido = () => {
 
     setSubmitting(true);
     await continueSubmitFlow();
+  };
+
+  const handleLockTeamsAndContinue = async () => {
+    if (submitting || encuestaFinalizada || alreadySubmitted) return;
+
+    if (teamsConfirmed || teamsLocked) {
+      setCurrentStep(SURVEY_STEPS.RESULT);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const persistResult = await persistSurveyTeamsDefinition();
+      if (!persistResult.ok) {
+        showInlineNotice({
+          key: 'survey_final_teams_save_error',
+          type: 'warning',
+          message: persistResult.message,
+        });
+        return;
+      }
+
+      if (persistResult.alreadyLocked) {
+        showInlineNotice({
+          key: 'survey_teams_already_locked',
+          type: 'success',
+          message: 'Los equipos ya habían sido definidos por otro votante. Vamos a usar esa versión.',
+        });
+      } else {
+        showInlineNotice({
+          key: 'survey_teams_locked',
+          type: 'success',
+          message: 'Equipos guardados. Continuemos con el resultado final.',
+        });
+      }
+
+      setCurrentStep(SURVEY_STEPS.RESULT);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const formatFecha = (fechaStr) => {
@@ -518,7 +921,7 @@ const EncuestaPartido = () => {
   const playerActionRowClass = 'w-full shrink-0 flex items-center justify-center pt-2.5 sm:pt-3.5';
   const logoRowClass = 'hidden';
   const titleClass = 'font-bebas text-[clamp(30px,6.2vw,74px)] text-white tracking-[0.055em] font-bold text-center leading-[0.92] uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1';
-  const surveyBtnBaseClass = 'w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-[20px] sm:text-[24px] py-2.5 text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.16] flex items-center justify-center min-h-[52px] rounded-[18px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed';
+  const surveyBtnBaseClass = 'w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-[20px] sm:text-[24px] py-2.5 text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.16] flex items-center justify-center min-h-[52px] rounded-[5px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed';
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
   const optionBtnSelectedClass = 'bg-white/[0.26] border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_16px_30px_rgba(22,29,98,0.42)]';
@@ -531,49 +934,29 @@ const EncuestaPartido = () => {
   const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-1';
   const centeredSummaryStackClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-5 sm:gap-6';
   const centeredSummaryButtonWrapClass = 'w-full max-w-[460px] sm:max-w-[500px] mx-auto';
-  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-visible px-0.5 pb-2 sm:pb-3 flex items-center justify-center';
+  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-visible px-2 sm:px-3 pb-2 sm:pb-3 flex items-center justify-center';
 
   const SurveyFooterLogo = () => null;
 
-  const flowSteps = useMemo(() => {
-    const resolvedSteps = [0];
-
-    if (currentStep === 10 || currentStep === 11 || formData.se_jugo === false) {
-      resolvedSteps.push(10);
-      if (currentStep === 11) {
-        resolvedSteps.push(11);
-      }
-      return resolvedSteps;
-    }
-
-    resolvedSteps.push(1);
-
-    if (currentStep === 12 || formData.asistieron_todos === false) {
-      resolvedSteps.push(12);
-    }
-
-    resolvedSteps.push(2, 3, 4);
-
-    if (currentStep === 6 || formData.partido_limpio === false) {
-      resolvedSteps.push(6);
-    }
-
-    if (hasConfirmedTeams) {
-      resolvedSteps.push(5);
-    }
-
-    return resolvedSteps;
-  }, [
+  const flowSteps = useMemo(() => buildSurveyFlowSteps({
+    currentStep,
+    seJugo: formData.se_jugo,
+    asistieronTodos: formData.asistieron_todos,
+    partidoLimpio: formData.partido_limpio,
+    teamsConfirmed,
+    teamsLocked,
+  }), [
     currentStep,
     formData.se_jugo,
     formData.asistieron_todos,
     formData.partido_limpio,
-    hasConfirmedTeams,
+    teamsConfirmed,
+    teamsLocked,
   ]);
 
   const progressTotalSteps = Math.max(flowSteps.length, 1);
   const currentFlowIndex = flowSteps.indexOf(currentStep);
-  const progressCurrentStep = currentStep === 99
+  const progressCurrentStep = currentStep === SURVEY_STEPS.DONE
     ? progressTotalSteps
     : Math.max(currentFlowIndex + 1, 1);
   const progressFillScale = Math.min(Math.max(progressCurrentStep / progressTotalSteps, 0), 1);
@@ -614,7 +997,7 @@ const EncuestaPartido = () => {
 
     if (safeCount <= 10) {
       columns = isWideViewport ? 4 : 3;
-      rows = Math.ceil(safeCount / columns) + 1;
+      rows = Math.ceil(safeCount / columns);
     } else if (safeCount <= 14) {
       columns = isWideViewport ? 5 : 4;
       rows = Math.max(3, Math.ceil(safeCount / columns));
@@ -684,14 +1067,15 @@ const EncuestaPartido = () => {
     return (
       <div className={miniCardsStageClass}>
         <div
-          className="mx-auto grid h-full w-full place-content-center"
+          className="mx-auto grid h-full w-full place-content-center overflow-visible"
           style={{
             gridTemplateColumns: `repeat(${adaptiveGrid.columns}, minmax(0, 1fr))`,
             gridTemplateRows: `repeat(${adaptiveGrid.rows}, minmax(0, 1fr))`,
             gap: `${adaptiveGrid.gap}px`,
             maxWidth: `${adaptiveGrid.gridMaxWidth}px`,
-            maxHeight: '94%',
-            minHeight: '62%',
+            maxHeight: '95%',
+            minHeight: '64%',
+            padding: '4px 3px',
           }}
         >
           {jugadores.map((jugador, index) => {
@@ -702,9 +1086,9 @@ const EncuestaPartido = () => {
                 key={jugador.uuid}
                 type="button"
                 onClick={() => onSelect(jugador.uuid)}
-                className={`group relative h-full min-h-0 min-w-0 transform-gpu overflow-visible rounded-[14px] border bg-[linear-gradient(168deg,rgba(58,84,196,0.28),rgba(16,20,73,0.9))] transition-[transform,opacity,filter] duration-[260ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
+                className={`group relative h-full min-h-0 min-w-0 transform-gpu overflow-visible rounded-[8px] border bg-[linear-gradient(168deg,rgba(58,84,196,0.28),rgba(16,20,73,0.9))] transition-[transform,opacity,filter] duration-[260ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
                   selected
-                    ? 'z-20 -translate-y-[3px] scale-[1.055]'
+                    ? 'z-20 -translate-y-[2px] scale-[1.035]'
                     : 'z-10 translate-y-0 scale-100'
                 } ${
                   hasSelection && !selected ? 'saturate-[0.74]' : ''
@@ -718,10 +1102,10 @@ const EncuestaPartido = () => {
                 }}
               >
                 {selected ? (
-                  <div className="pointer-events-none absolute -inset-1.5 rounded-[16px] bg-[radial-gradient(circle,rgba(121,241,255,0.48)_0%,rgba(121,241,255,0.16)_46%,rgba(121,241,255,0)_78%)] blur-[9px]" />
+                  <div className="pointer-events-none absolute -inset-1 rounded-[10px] bg-[radial-gradient(circle,rgba(121,241,255,0.48)_0%,rgba(121,241,255,0.16)_46%,rgba(121,241,255,0)_78%)] blur-[8px]" />
                 ) : null}
                 <div
-                  className="relative flex h-full w-full flex-col overflow-hidden rounded-[14px]"
+                  className="relative flex h-full w-full flex-col overflow-hidden rounded-[8px]"
                   style={{
                     animation: 'cardIn 420ms cubic-bezier(0.22,1,0.36,1) both',
                     animationDelay: `${Math.min(index * 16, 160)}ms`,
@@ -841,7 +1225,7 @@ const EncuestaPartido = () => {
               />
             </div>
           {/* STEP 0: ¿SE JUGÓ? */}
-          {currentStep === 0 && (
+          {currentStep === SURVEY_STEPS.PLAYED && (
             <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className="w-full">
@@ -860,7 +1244,10 @@ const EncuestaPartido = () => {
                     className={`${optionBtnClass} ${formData.se_jugo ? optionBtnSelectedClass : ''}`}
                     onClick={() => {
                       handleInputChange('se_jugo', true);
-                      setCurrentStep(1);
+                      if (formData.ganador === 'no_jugado') {
+                        handleInputChange('ganador', '');
+                      }
+                      setCurrentStep(SURVEY_STEPS.ATTENDANCE);
                     }}
                     type="button"
                   >
@@ -870,7 +1257,8 @@ const EncuestaPartido = () => {
                     className={`${optionBtnClass} ${!formData.se_jugo ? optionBtnSelectedClass : ''}`}
                     onClick={() => {
                       handleInputChange('se_jugo', false);
-                      setCurrentStep(10);
+                      handleInputChange('ganador', 'no_jugado');
+                      setCurrentStep(SURVEY_STEPS.NOT_PLAYED_REASON);
                     }}
                     type="button"
                   >
@@ -885,7 +1273,7 @@ const EncuestaPartido = () => {
           )}
 
           {/* STEP 1: ¿ASISTIERON TODOS? */}
-          {currentStep === 1 && (
+          {currentStep === SURVEY_STEPS.ATTENDANCE && (
             <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className={titleClass}>
@@ -898,7 +1286,7 @@ const EncuestaPartido = () => {
                     className={optionBtnClass}
                     onClick={() => {
                       handleInputChange('asistieron_todos', true);
-                      setCurrentStep(2);
+                      setCurrentStep(SURVEY_STEPS.MVP);
                     }}
                     type="button"
                   >
@@ -908,7 +1296,7 @@ const EncuestaPartido = () => {
                     className={optionBtnClass}
                     onClick={() => {
                       handleInputChange('asistieron_todos', false);
-                      setCurrentStep(12);
+                      setCurrentStep(SURVEY_STEPS.ABSENTS);
                     }}
                     type="button"
                   >
@@ -923,7 +1311,7 @@ const EncuestaPartido = () => {
           )}
 
           {/* STEP 2: MVP */}
-          {currentStep === 2 && (
+          {currentStep === SURVEY_STEPS.MVP && (
             <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className={titleClass}>
@@ -940,7 +1328,7 @@ const EncuestaPartido = () => {
                 <div className={compactButtonRowClass}>
                   <button
                     className={compactPrimaryBtnClass}
-                    onClick={() => setCurrentStep(3)}
+                    onClick={() => setCurrentStep(SURVEY_STEPS.GOALKEEPER)}
                     disabled={!formData.mvp_id}
                   >
                     SIGUIENTE
@@ -954,7 +1342,7 @@ const EncuestaPartido = () => {
           )}
 
           {/* STEP 3: ARQUERO */}
-          {currentStep === 3 && (
+          {currentStep === SURVEY_STEPS.GOALKEEPER && (
             <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className={titleClass}>
@@ -978,14 +1366,14 @@ const EncuestaPartido = () => {
                     onClick={() => {
                       handleInputChange('arquero_id', '');
                       handleInputChange('sin_arquero_fijo', true);
-                      setCurrentStep(4);
+                      setCurrentStep(SURVEY_STEPS.CLEAN_MATCH);
                     }}
                   >
                     NO HUBO
                   </button>
                   <button
                     className={compactPrimaryBtnClass}
-                    onClick={() => setCurrentStep(4)}
+                    onClick={() => setCurrentStep(SURVEY_STEPS.CLEAN_MATCH)}
                     disabled={!formData.arquero_id && !formData.sin_arquero_fijo}
                   >
                     SIGUIENTE
@@ -999,7 +1387,7 @@ const EncuestaPartido = () => {
           )}
 
           {/* STEP 4: ¿PARTIDO LIMPIO? */}
-          {currentStep === 4 && (
+          {currentStep === SURVEY_STEPS.CLEAN_MATCH && (
             <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className={titleClass}>
@@ -1010,13 +1398,12 @@ const EncuestaPartido = () => {
                 <div className={gridClass}>
                   <button
                     className={`${optionBtnClass} ${formData.partido_limpio ? optionBtnSelectedClass : ''}`}
-                    onClick={async () => {
+                    onClick={() => {
                       handleInputChange('partido_limpio', true);
-                      if (!hasConfirmedTeams) {
-                        await submitSurveyFromCurrentStep();
-                        return;
-                      }
-                      setCurrentStep(5);
+                      setCurrentStep(resolveNextResultGateStep({
+                        teamsConfirmed,
+                        teamsLocked,
+                      }));
                     }}
                     type="button"
                   >
@@ -1026,7 +1413,7 @@ const EncuestaPartido = () => {
                     className={`${optionBtnClass} ${!formData.partido_limpio ? optionBtnSelectedClass : ''}`}
                     onClick={() => {
                       handleInputChange('partido_limpio', false);
-                      setCurrentStep(6);
+                      setCurrentStep(SURVEY_STEPS.DIRTY_PLAYERS);
                     }}
                     type="button"
                   >
@@ -1041,7 +1428,7 @@ const EncuestaPartido = () => {
           )}
 
           {/* STEP 5: ¿QUIÉN GANÓ? */}
-          {currentStep === 5 && (
+          {currentStep === SURVEY_STEPS.RESULT && (
             <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className="w-full">
@@ -1049,27 +1436,23 @@ const EncuestaPartido = () => {
                     ¿QUIÉN GANÓ?
                   </div>
                   <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
-                    Si hubo algún cambio de último momento en la cancha, podés ajustar los equipos acá.
+                    {teamsContextLabel}
+                    {teamsSource === 'survey' ? ' · Primera respuesta define equipos.' : ''}
                   </div>
                 </div>
               </div>
               <div className={`${contentRowClass} items-start`}>
                 <div className="w-full max-w-[760px] mx-auto">
-                  {hasConfirmedTeams ? (
+                  {finalTeams.teamA.length > 0 && finalTeams.teamB.length > 0 ? (
                     <div className="w-full space-y-3">
                       <TeamsDnDEditor
                         teamA={finalTeams.teamA}
                         teamB={finalTeams.teamB}
                         playersByKey={playersByKey}
-                        selectedWinner={formData.ganador}
-                        onWinnerChange={(winner) => {
-                          handleInputChange('ganador', winner);
-                          clearInlineNotice();
-                        }}
-                        onChange={(next) => {
-                          setFinalTeams(next);
-                          clearInlineNotice();
-                        }}
+                        disabled={true}
+                        selectedWinner=""
+                        onWinnerChange={() => {}}
+                        onChange={() => {}}
                       />
 
                       {!finalTeamsValidation.ok ? (
@@ -1077,25 +1460,63 @@ const EncuestaPartido = () => {
                           Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.
                         </div>
                       ) : null}
-
-                      <button
-                        type="button"
-                        className={`${optionBtnClass} normal-case ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
-                        onClick={() => {
-                          handleInputChange('ganador', 'empate');
-                          clearInlineNotice();
-                        }}
-                      >
-                        Empate
-                      </button>
                     </div>
                   ) : (
                     <div className="rounded-2xl border border-amber-300/35 bg-amber-400/10 p-4 text-center text-white/90">
                       <div className="font-oswald text-[16px] leading-snug">
-                        Para registrar resultado, primero deben estar confirmados los equipos
+                        No pudimos resolver los equipos para cerrar el partido.
                       </div>
                     </div>
                   )}
+
+                  <div className="mt-3 grid grid-cols-1 gap-2.5">
+                    <button
+                      type="button"
+                      className={`${optionBtnClass} ${formData.ganador === 'equipo_a' ? optionBtnSelectedClass : ''}`}
+                      onClick={() => {
+                        handleInputChange('ganador', 'equipo_a');
+                        handleInputChange('se_jugo', true);
+                        clearInlineNotice();
+                      }}
+                      disabled={!finalTeamsValidation.ok}
+                    >
+                      GANÓ EQUIPO A
+                    </button>
+                    <button
+                      type="button"
+                      className={`${optionBtnClass} ${formData.ganador === 'equipo_b' ? optionBtnSelectedClass : ''}`}
+                      onClick={() => {
+                        handleInputChange('ganador', 'equipo_b');
+                        handleInputChange('se_jugo', true);
+                        clearInlineNotice();
+                      }}
+                      disabled={!finalTeamsValidation.ok}
+                    >
+                      GANÓ EQUIPO B
+                    </button>
+                    <button
+                      type="button"
+                      className={`${optionBtnClass} ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
+                      onClick={() => {
+                        handleInputChange('ganador', 'empate');
+                        handleInputChange('se_jugo', true);
+                        clearInlineNotice();
+                      }}
+                    >
+                      EMPATE
+                    </button>
+                    <button
+                      type="button"
+                      className={`${optionBtnClass} ${formData.ganador === 'no_jugado' ? optionBtnSelectedClass : ''}`}
+                      onClick={() => {
+                        handleInputChange('ganador', 'no_jugado');
+                        handleInputChange('se_jugo', false);
+                        clearInlineNotice();
+                      }}
+                    >
+                      NO JUGADO / CANCELADO
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className={actionRowClass}>
@@ -1116,7 +1537,7 @@ const EncuestaPartido = () => {
           )}
 
           {/* STEP 6: JUGADORES VIOLENTOS */}
-          {currentStep === 6 && (
+          {currentStep === SURVEY_STEPS.DIRTY_PLAYERS && (
             <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className={titleClass}>
@@ -1133,12 +1554,11 @@ const EncuestaPartido = () => {
                 <div className={compactButtonRowClass}>
                   <button
                     className={compactPrimaryBtnClass}
-                    onClick={async () => {
-                      if (!hasConfirmedTeams) {
-                        await submitSurveyFromCurrentStep();
-                        return;
-                      }
-                      setCurrentStep(5);
+                    onClick={() => {
+                      setCurrentStep(resolveNextResultGateStep({
+                        teamsConfirmed,
+                        teamsLocked,
+                      }));
                     }}
                     disabled={formData.jugadores_violentos.length === 0}
                   >
@@ -1152,8 +1572,60 @@ const EncuestaPartido = () => {
             </div>
           )}
 
+          {/* STEP 7: ORGANIZAR EQUIPOS (solo si no estaban confirmados) */}
+          {currentStep === SURVEY_STEPS.ORGANIZE_TEAMS && (
+            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+              <div className={questionRowClass}>
+                <div className="w-full">
+                  <div className={titleClass}>
+                    ORGANIZÁ LOS EQUIPOS COMO SE JUGÓ
+                  </div>
+                  <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
+                    El primer votante que guarda esta pantalla define los equipos para todos.
+                  </div>
+                </div>
+              </div>
+              <div className={`${contentRowClass} items-start`}>
+                <div className="w-full max-w-[760px] mx-auto space-y-3">
+                  <TeamsDnDEditor
+                    teamA={finalTeams.teamA}
+                    teamB={finalTeams.teamB}
+                    playersByKey={playersByKey}
+                    selectedWinner=""
+                    onWinnerChange={() => {}}
+                    onChange={(next) => {
+                      setFinalTeams(next);
+                      clearInlineNotice();
+                    }}
+                    disabled={teamsLocked}
+                  />
+
+                  {!finalTeamsValidation.ok ? (
+                    <div className="rounded-xl border border-rose-300/35 bg-rose-400/10 px-3 py-2 text-sm font-oswald text-rose-100">
+                      Los equipos deben quedar consistentes antes de continuar.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <div className={actionRowClass}>
+                <div className={actionDockClass}>
+                  <button
+                    className={btnClass}
+                    onClick={handleLockTeamsAndContinue}
+                    disabled={submitting || encuestaFinalizada}
+                  >
+                    GUARDAR EQUIPOS Y CONTINUAR
+                  </button>
+                </div>
+              </div>
+              <div className={logoRowClass}>
+                <SurveyFooterLogo />
+              </div>
+            </div>
+          )}
+
           {/* STEP 10: MOTIVO NO JUGADO */}
-          {currentStep === 10 && (
+          {currentStep === SURVEY_STEPS.NOT_PLAYED_REASON && (
             <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className={titleClass}>
@@ -1174,13 +1646,17 @@ const EncuestaPartido = () => {
                 <div className={actionDockClass}>
                   <button
                     className={btnClass}
-                    onClick={() => setCurrentStep(11)}
+                    onClick={() => setCurrentStep(SURVEY_STEPS.NOT_PLAYED_ABSENTS)}
                   >
                     AUSENCIA SIN AVISO
                   </button>
                   <button
                     className={btnClass}
-                    onClick={continueSubmitFlow}
+                    onClick={() => {
+                      if (submitting || encuestaFinalizada) return;
+                      setSubmitting(true);
+                      continueSubmitFlow();
+                    }}
                   >
                     FINALIZAR
                   </button>
@@ -1193,7 +1669,7 @@ const EncuestaPartido = () => {
           )}
 
           {/* STEP 11: AUSENTES SIN AVISO (PARTIDO NO JUGADO) */}
-          {currentStep === 11 && (
+          {currentStep === SURVEY_STEPS.NOT_PLAYED_ABSENTS && (
             <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className={titleClass}>
@@ -1224,7 +1700,7 @@ const EncuestaPartido = () => {
           )}
 
           {/* STEP 12: AUSENTES (PARTIDO JUGADO) */}
-          {currentStep === 12 && (
+          {currentStep === SURVEY_STEPS.ABSENTS && (
             <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className={titleClass}>
@@ -1241,7 +1717,7 @@ const EncuestaPartido = () => {
                 <div className={compactButtonRowClass}>
                   <button
                     className={compactPrimaryBtnClass}
-                    onClick={() => setCurrentStep(2)}
+                    onClick={() => setCurrentStep(SURVEY_STEPS.MVP)}
                     disabled={formData.jugadores_ausentes.length === 0}
                   >
                     SIGUIENTE
@@ -1255,7 +1731,7 @@ const EncuestaPartido = () => {
           )}
 
           {/* STEP 99: FINAL */}
-          {currentStep === 99 && (
+          {currentStep === SURVEY_STEPS.DONE && (
             <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className="w-full">
                 <div className={titleClass}>
