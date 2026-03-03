@@ -8,7 +8,6 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { buildMatchCalendarIcs, shareOrDownloadCalendarIcs } from '../../utils/calendarInvite';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
-const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4836bb';
 const SLOT_SKEW_X = 0;
 const HEADER_ICON_COLOR = '#29aaff';
 const HEADER_ICON_GLOW = 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.78))';
@@ -154,11 +153,8 @@ const PlayersSection = ({
     : 0;
   const inviteSlotItems = Array.from({ length: inviteRequiredSlots }, (_, idx) => jugadores?.[idx] || null);
   const missingSlotsCount = Math.max(0, inviteRequiredSlots - inviteConfirmedCount);
-  const inviteButtonPalette = {
-    '--btn': INVITE_ACCEPT_BUTTON_VIOLET,
-    '--btn-dark': INVITE_ACCEPT_BUTTON_VIOLET_DARK,
-    '--btn-text': '#ffffff',
-  };
+  const matchPrimaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-[5px] cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] disabled:opacity-60 disabled:cursor-not-allowed';
+  const matchSecondaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[rgba(88,107,170,0.46)] rounded-[5px] cursor-pointer transition-all text-[rgba(242,246,255,0.9)] min-h-[44px] flex items-center justify-center text-center bg-[rgba(23,35,74,0.72)] hover:bg-[rgba(31,45,91,0.82)] disabled:opacity-60 disabled:cursor-not-allowed';
   const invitePlayersBlockStyle = {
     background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)',
     paddingTop: '16px',
@@ -747,51 +743,6 @@ const PlayersSection = ({
   if (!isAdmin) {
     return (
       <>
-        <style>{`
-          .invite-cta-btn {
-            appearance: none;
-            cursor: pointer;
-            width: 100%;
-            max-width: none;
-            min-width: 0;
-            height: 48px;
-            padding-inline: 14px;
-            display: flex;
-            flex: 1 1 0;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            font-size: 0.94rem;
-            font-weight: 700;
-            letter-spacing: 0.045em;
-            color: var(--btn-text, #fff);
-            background: var(--btn);
-            border: 1.5px solid var(--btn-dark);
-            border-radius: var(--radius-standard, 5px);
-            box-shadow: var(--btn-shadow, none);
-            transform: none;
-            transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
-            backface-visibility: hidden;
-            white-space: nowrap;
-          }
-          .invite-cta-btn > span {
-            transform: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .invite-cta-btn:hover:not(:disabled) {
-            filter: brightness(1.08);
-          }
-          .invite-cta-btn:active:not(:disabled) {
-            transform: none;
-            opacity: 0.92;
-          }
-          .invite-cta-btn:disabled {
-            opacity: 0.55;
-            cursor: not-allowed;
-          }
-        `}</style>
         <div className="w-full flex flex-col pb-32">
           {showInviteStyleRoster ? (
             <div className="relative w-full max-w-full mx-auto mt-2 box-border min-h-[120px] min-w-0">
@@ -855,15 +806,14 @@ const PlayersSection = ({
                 <p className="m-0 text-white/90 font-oswald text-base text-center">Te has unido!</p>
                 <p className="m-0 text-emerald-400 font-oswald text-sm text-center">Podés acceder desde Mis partidos.</p>
                 <button
-                  className="invite-cta-btn"
-                  style={inviteButtonPalette}
+                  className={matchPrimaryButtonClass}
                   onClick={handleAddToCalendar}
                 >
                   <span>Agregar al calendario</span>
                 </button>
               </div>
             ) : (
-              <div className="w-full max-w-[500px] mx-auto bg-[#0f172a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+              <div className="w-full max-w-[500px] mx-auto">
                 <div className="flex gap-3">
                   {invitationStatus && invitationStatus !== 'pending' ? (
                     <div className="w-full flex flex-col items-center justify-center py-2 text-white/60">
@@ -877,14 +827,14 @@ const PlayersSection = ({
                   ) : (
                     <>
                       <button
-                        className="flex-[1.5] font-oswald text-[18px] h-12 rounded-xl cursor-pointer transition-all text-white flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed bg-[#128BE9] hover:bg-[#0f7acc] hover:shadow-[0_0_20px_rgba(18,139,233,0.4)] active:scale-95 shadow-[0_4px_10px_rgba(0,0,0,0.3)]"
+                        className={matchPrimaryButtonClass}
                         onClick={aceptarInvitacion}
                         disabled={invitationLoading || isMatchFull}
                       >
                         {invitationLoading ? <LoadingSpinner size="small" /> : 'Aceptar'}
                       </button>
                       <button
-                        className="flex-1 font-oswald text-[18px] h-12 rounded-xl cursor-pointer transition-all text-white/70 flex items-center justify-center font-semibold tracking-[0.01em] disabled:opacity-50 disabled:cursor-not-allowed bg-transparent border border-white/20 hover:bg-white/10 hover:text-white active:scale-95"
+                        className={matchSecondaryButtonClass}
                         onClick={rechazarInvitacion}
                         disabled={invitationLoading}
                       >
