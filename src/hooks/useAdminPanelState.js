@@ -40,6 +40,7 @@ export const useAdminPanelState = ({
   const [faltanJugadoresState, setFaltanJugadoresState] = useState(partidoActual?.falta_jugadores || false);
   const [actionNotice, setActionNotice] = useState(null);
   const inputRef = useRef();
+  const previousIsPlayerInMatchRef = useRef(false);
   const setInlineNotice = (type, message) => {
     setActionNotice({ type, message, ts: Date.now() });
   };
@@ -133,23 +134,7 @@ export const useAdminPanelState = ({
           }
 
           setInvitationStatus(status);
-          // Sólo mostrar como pending si el status es pending (o undefined) Y no está leída (opcional, pero user quiere que rejection invalide)
-          // User req: "Si invite status != 'pending' ... mostrar pantalla read-only"
-          // So actually we want to KNOW if there is an invitation even if handled/declined to show the invalid screen?
-          // Or does 'pendingInvitation' boolean drive the UI?
-          // AdminPanel uses `pendingInvitation` to show the guest view UI (checking MatchInfoSection vs PlayersSection).
-          // If I set pendingInvitation=true, it shows guest view.
-          // I should set pendingInvitation=true if there is ANY recent invite record, and let the view handle the 'Invalid' state based on 'invitationStatus'.
-          // WAIT. AdminPanel logic: `!showTeams && ( ... AdminActions ... PlayersSection )`
-          // PlayersSection handles `!isPlayerInMatch`.
-
-          // Correct approach:
-          // If status IS pending, treat as valid invite -> pendingInvitation = true.
-          // If status IS declined, we still might want to show "You declined this".
-          // But normally if I declined, I proceed to see the match as a stranger (or see nothing special).
-          // User wants: "Al abrir la pantalla de Aceptar invitación ... Si invite status != pending ... mostrar pantalla read-only".
-          // This implies we DO enter the flow.
-          setPendingInvitation(true);
+          setPendingInvitation(status === 'pending');
         } else {
           setPendingInvitation(false);
           setInvitationStatus(null);
@@ -164,6 +149,18 @@ export const useAdminPanelState = ({
 
     checkInvitation();
   }, [user?.id, partidoActual?.id, jugadores]);
+
+  useEffect(() => {
+    const wasInMatch = previousIsPlayerInMatchRef.current;
+    previousIsPlayerInMatchRef.current = isPlayerInMatch;
+
+    if (isAdmin || !invitationChecked) return;
+
+    // If the player was in the match and got removed while viewing this screen, return to Home.
+    if (wasInMatch && !isPlayerInMatch) {
+      onBackToHome?.();
+    }
+  }, [isPlayerInMatch, isAdmin, invitationChecked, onBackToHome]);
 
   const fetchJugadores = async () => {
     if (!partidoActual?.id) return [];
@@ -476,6 +473,33 @@ export const useAdminPanelState = ({
             .eq('match_id', partidoActual.id)
             .eq('user_id', jugadorAEliminar.usuario_id)
             .eq('status', 'approved');
+
+          const kickedAt = new Date().toISOString();
+          const { data: inviteNotifications } = await supabase
+            .from('notifications')
+            .select('id, data')
+            .eq('user_id', jugadorAEliminar.usuario_id)
+            .eq('type', 'match_invite')
+            .eq('partido_id', partidoActual.id);
+
+          if (Array.isArray(inviteNotifications) && inviteNotifications.length > 0) {
+            await Promise.all(
+              inviteNotifications.map((inviteRow) =>
+                supabase
+                  .from('notifications')
+                  .update({
+                    read: true,
+                    read_at: kickedAt,
+                    data: {
+                      ...(inviteRow?.data || {}),
+                      status: 'kicked',
+                      kicked_at: kickedAt,
+                    },
+                  })
+                  .eq('id', inviteRow.id),
+              ),
+            );
+          }
 
           const payload = {
             user_id: jugadorAEliminar.usuario_id,

@@ -156,6 +156,11 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     }
 
     if (notification.type === 'match_invite') {
+      const inviteStatus = String(notification?.data?.status || 'pending').trim().toLowerCase();
+      if (inviteStatus !== 'pending') {
+        console.info('Esta invitación ya no está activa');
+        return;
+      }
       const inviteRoute = resolveMatchInviteRoute(notification);
       if (inviteRoute) {
         safeNavigate(notification, inviteRoute);
@@ -192,7 +197,6 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
     if (notification.type === 'match_kicked') {
       console.info('Fuiste removido del partido');
-      safeNavigate(notification, '/');
       return;
     }
 
@@ -485,10 +489,12 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                     role="button"
                     tabIndex={0}
                     onClick={(e) => {
+                      if (!clickable) return;
                       e.stopPropagation();
                       handleNotificationClick(notification);
                     }}
                     onKeyDown={(e) => {
+                      if (!clickable) return;
                       if (e.key === 'Enter') {
                         e.stopPropagation();
                         handleNotificationClick(notification);

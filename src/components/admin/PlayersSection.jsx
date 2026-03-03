@@ -104,6 +104,7 @@ const PlayersSection = ({
   isClosing,
   // Guest view props
   isPlayerInMatch,
+  pendingInvitation,
   aceptarInvitacion,
   rechazarInvitacion,
   invitationLoading,
@@ -146,6 +147,7 @@ const PlayersSection = ({
   const previousCompleteRef = useRef(isTitularesComplete);
   const showInviteStylePostJoin = !isAdmin && isPlayerInMatch;
   const showInviteStyleRoster = !isAdmin;
+  const hasActivePendingInvite = pendingInvitation && invitationStatus === 'pending';
   const inviteRequiredSlots = resolveSlotsFromMatchType(partidoActual);
   const inviteDisplayCount = jugadores?.length ?? 0;
   const inviteConfirmedCount = Math.min(inviteDisplayCount, inviteRequiredSlots);
@@ -821,13 +823,21 @@ const PlayersSection = ({
             ) : (
               <div className="w-full max-w-[500px] mx-auto">
                 <div className="flex gap-3">
-                  {invitationStatus && invitationStatus !== 'pending' ? (
+                  {!hasActivePendingInvite ? (
                     <div className="w-full flex flex-col items-center justify-center py-2 text-white/60">
                       <span className="font-bebas text-xl mb-1 opacity-80">
-                        {invitationStatus === 'declined' ? 'INVITACIÓN RECHAZADA' : 'INVITACIÓN NO VÁLIDA'}
+                        {invitationStatus === 'declined'
+                          ? 'INVITACIÓN RECHAZADA'
+                          : invitationStatus === 'kicked'
+                            ? 'INVITACIÓN CANCELADA'
+                            : 'INVITACIÓN NO VÁLIDA'}
                       </span>
                       <span className="text-sm font-light opacity-60">
-                        {invitationStatus === 'declined' ? 'Ya rechazaste esta invitación.' : 'Esta invitación ha expirado o ya fue respondida.'}
+                        {invitationStatus === 'declined'
+                          ? 'Ya rechazaste esta invitación.'
+                          : invitationStatus === 'kicked'
+                            ? 'Fuiste removido del partido por el admin.'
+                            : 'Esta invitación ha expirado o ya fue respondida.'}
                       </span>
                     </div>
                   ) : (

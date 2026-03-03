@@ -426,6 +426,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                         eliminarJugador={adminState.eliminarJugador}
                         isClosing={adminState.isClosing}
                         isPlayerInMatch={adminState.isPlayerInMatch}
+                        pendingInvitation={adminState.pendingInvitation}
                         aceptarInvitacion={adminState.aceptarInvitacion}
                         rechazarInvitacion={adminState.rechazarInvitacion}
                         invitationLoading={adminState.invitationLoading}

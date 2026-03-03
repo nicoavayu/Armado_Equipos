@@ -746,7 +746,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           }
 
           const inviteStatus = String(inviteNotif?.data?.status || 'pending').trim().toLowerCase();
-          const blockedInviteStatuses = new Set(['declined', 'rejected', 'cancelled', 'expired']);
+          const blockedInviteStatuses = new Set(['declined', 'rejected', 'cancelled', 'expired', 'kicked', 'removed', 'revoked', 'invalid']);
           const hasValidInvite = Boolean(inviteNotif?.id) && !blockedInviteStatuses.has(inviteStatus);
 
           if (!hasValidInvite) {

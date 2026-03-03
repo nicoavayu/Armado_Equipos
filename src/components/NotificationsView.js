@@ -187,7 +187,7 @@ const NotificationsView = () => {
       return;
     }
 
-    if (data.matchId && notification?.type !== 'match_invite') {
+    if (data.matchId && notification?.type !== 'match_invite' && notification?.type !== 'match_kicked') {
       safeNavigate(notification, `/partido/${toBigIntId(data.matchId)}`);
       return;
     }
@@ -208,6 +208,11 @@ const NotificationsView = () => {
       }
       case 'match_invite':
       {
+        const inviteStatus = String(data?.status || 'pending').trim().toLowerCase();
+        if (inviteStatus !== 'pending') {
+          console.info('Esta invitación ya no está activa');
+          break;
+        }
         const inviteRoute = resolveMatchInviteRoute(notification);
         if (inviteRoute) {
           safeNavigate(notification, inviteRoute);
@@ -215,6 +220,9 @@ const NotificationsView = () => {
           fallbackToNotificationRoute(notification, 'No pudimos abrir la invitación. Te mostramos tus partidos.');
         }
       }
+        break;
+      case 'match_kicked':
+        // Informativa: no navega.
         break;
       case 'call_to_vote': {
         const { matchCode, matchId } = data;
@@ -449,7 +457,7 @@ const NotificationsView = () => {
 
   const handleGroupedNotificationClick = async (group, e) => {
     const notification = group?.latest;
-    if (!notification || notification.type === 'friend_request') return;
+    if (!notification || notification.type === 'friend_request' || notification.type === 'match_kicked') return;
     await markGroupAsRead(group);
     await handleNotificationClick(notification, e);
   };
@@ -589,12 +597,12 @@ const NotificationsView = () => {
                 key={group.key}
                 role="button"
                 tabIndex={0}
-                className={`flex p-3 bg-transparent rounded-none cursor-pointer transition-all duration-200 relative border border-[rgba(88,107,170,0.46)] hover:border-[#4a7ed6] ${notification.type === 'friend_request' ? 'cursor-default' : ''}`}
+                className={`flex p-3 bg-transparent rounded-none cursor-pointer transition-all duration-200 relative border border-[rgba(88,107,170,0.46)] hover:border-[#4a7ed6] ${(notification.type === 'friend_request' || notification.type === 'match_kicked') ? 'cursor-default' : ''}`}
                 onClick={(e) => {
-                  if (notification.type !== 'friend_request') handleGroupedNotificationClick(group, e);
+                  if (notification.type !== 'friend_request' && notification.type !== 'match_kicked') handleGroupedNotificationClick(group, e);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && notification.type !== 'friend_request') {
+                  if (e.key === 'Enter' && notification.type !== 'friend_request' && notification.type !== 'match_kicked') {
                     handleGroupedNotificationClick(group, e);
                   }
                 }}
