@@ -693,7 +693,7 @@ const AmigosView = () => {
                     </PlayerCardTrigger>
                     <div className="flex gap-2 shrink-0">
                       <button
-                        className="h-11 w-11 rounded-none border border-white/20 bg-[var(--btn-success)] text-white shadow-[0_8px_20px_rgba(39,174,96,0.35)] transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                        className="h-11 w-11 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                         onClick={() => handleAcceptRequest(request.id)}
                         disabled={processingRequests.has(request.id)}
                         aria-label={processingRequests.has(request.id) && processingRequestAction[request.id] === 'accept' ? 'Aceptando solicitud' : 'Aceptar solicitud'}
@@ -706,7 +706,7 @@ const AmigosView = () => {
                         )}
                       </button>
                       <button
-                        className="h-11 w-11 rounded-none border border-white/20 bg-[var(--btn-danger)] text-white shadow-[0_8px_20px_rgba(231,76,60,0.3)] transition-all hover:brightness-110 hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                        className="h-11 w-11 rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(23,35,74,0.72)] text-[rgba(242,246,255,0.9)] transition-all hover:bg-[rgba(31,45,91,0.82)] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                         onClick={() => handleRejectRequest(request.id)}
                         disabled={processingRequests.has(request.id)}
                         aria-label={processingRequests.has(request.id) && processingRequestAction[request.id] === 'reject' ? 'Rechazando solicitud' : 'Rechazar solicitud'}

@@ -657,7 +657,7 @@ const NotificationsView = () => {
                   {notification.type === 'friend_request' && !notification.read && (
                     <div className="flex gap-2 mt-2">
                       <button
-                        className="px-3 h-8 rounded-none border border-[rgba(136,120,255,0.75)] cursor-pointer text-xs font-medium transition-all min-w-[92px] bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="px-3 h-8 rounded-none border border-[#7d5aff] cursor-pointer text-xs font-bebas tracking-[0.01em] transition-all min-w-[92px] bg-[#6a43ff] text-white hover:bg-[#7550ff] shadow-[0_0_12px_rgba(106,67,255,0.28)] disabled:opacity-60 disabled:cursor-not-allowed"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleAcceptFriend(notification);
@@ -667,7 +667,7 @@ const NotificationsView = () => {
                         {processingRequests.has(notification.data?.requestId) ? 'Aceptando...' : 'Aceptar'}
                       </button>
                       <button
-                        className="px-3 h-8 rounded-none border border-[rgba(255,83,106,0.64)] cursor-pointer text-xs font-medium transition-all min-w-[92px] bg-[rgba(116,20,40,0.52)] text-[#ffb5bf] hover:bg-[rgba(132,25,46,0.64)] hover:text-[#ffd0d6] disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="px-3 h-8 rounded-none border border-[rgba(88,107,170,0.46)] cursor-pointer text-xs font-bebas tracking-[0.01em] transition-all min-w-[92px] bg-[rgba(23,35,74,0.72)] text-[rgba(242,246,255,0.9)] hover:bg-[rgba(31,45,91,0.82)] disabled:opacity-60 disabled:cursor-not-allowed"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRejectFriend(notification);
