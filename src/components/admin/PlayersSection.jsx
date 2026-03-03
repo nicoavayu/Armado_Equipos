@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
@@ -20,6 +21,23 @@ const PLACEHOLDER_NUMBER_STYLE = {
   fontWeight: 700,
   letterSpacing: '0.02em',
   lineHeight: 1,
+};
+const SUBSTITUTES_PROGRESS_COLOR = '#cda24b';
+const SUBSTITUTES_PLACEHOLDER_NUMBER_STYLE = {
+  ...PLACEHOLDER_NUMBER_STYLE,
+  WebkitTextStroke: '2px rgba(232, 188, 88, 0.52)',
+  textShadow: '-0.6px -0.6px 0 rgba(255,255,255,0.09), 0.8px 0.8px 0 rgba(54,35,0,0.45)',
+  opacity: 0.58,
+};
+const SUBSTITUTES_SLOT_PLACEHOLDER_STYLE = {
+  background: 'rgba(184, 141, 42, 0.08)',
+  border: '1px dashed rgba(239, 194, 92, 0.36)',
+  boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.02)',
+};
+const SUBSTITUTES_CARD_STYLE = {
+  backgroundColor: '#271f08',
+  border: '1px solid rgba(237, 196, 101, 0.58)',
+  boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.02)',
 };
 
 // Helper function to get initials from name
@@ -126,6 +144,7 @@ const PlayersSection = ({
   const [isRemovingPlayer, setIsRemovingPlayer] = useState(false);
   const [isTitularesOpen, setIsTitularesOpen] = useState(true);
   const [isSuplentesOpen, setIsSuplentesOpen] = useState(true);
+  const [isTitularesView, setIsTitularesView] = useState(true);
   const [animateCompletionTick, setAnimateCompletionTick] = useState(false);
   const [joinSuccessModalOpen, setJoinSuccessModalOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
@@ -156,6 +175,14 @@ const PlayersSection = ({
     : 0;
   const inviteSlotItems = Array.from({ length: inviteRequiredSlots }, (_, idx) => jugadores?.[idx] || null);
   const missingSlotsCount = Math.max(0, inviteRequiredSlots - inviteConfirmedCount);
+  const visibleSubstitutePlayers = substitutePlayers.slice(0, 4);
+  const substituteOverflowCount = Math.max(0, substitutePlayers.length - visibleSubstitutePlayers.length);
+  const substituteSlotItems = Array.from({ length: 4 }, (_, idx) => visibleSubstitutePlayers[idx] || null);
+  const substituteProgressPct = Math.max(0, Math.min((Math.min(substitutePlayers.length, 4) / 4) * 100, 100));
+  const activeRosterProgressPct = isTitularesView ? inviteProgressPct : substituteProgressPct;
+  const activeRosterProgressColor = isTitularesView ? INVITE_ACCEPT_BUTTON_VIOLET : SUBSTITUTES_PROGRESS_COLOR;
+  const rosterViewportRows = Math.max(1, Math.ceil(inviteRequiredSlots / 2));
+  const rosterViewportMinHeight = (rosterViewportRows * 48) + (Math.max(0, rosterViewportRows - 1) * 16);
   const matchPrimaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-[5px] cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] disabled:opacity-60 disabled:cursor-not-allowed';
   const matchSecondaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[rgba(88,107,170,0.46)] rounded-[5px] cursor-pointer transition-all text-[rgba(242,246,255,0.9)] min-h-[44px] flex items-center justify-center text-center bg-[rgba(23,35,74,0.72)] hover:bg-[rgba(31,45,91,0.82)] disabled:opacity-60 disabled:cursor-not-allowed';
   const invitePlayersBlockStyle = {
@@ -476,6 +503,179 @@ const PlayersSection = ({
     );
   };
 
+  const renderSubstituteCard = (player, queuePosition) => {
+    const isCreator = partidoActual?.creado_por === player.usuario_id;
+    const playerKey = player.uuid || player.id || `${player.nombre}-${player.usuario_id || queuePosition || 'manual'}`;
+    return (
+      <PlayerCardTrigger
+        key={`substitute-${playerKey}`}
+        profile={player}
+        partidoActual={partidoActual}
+        onMakeAdmin={transferirAdmin}
+      >
+        <div
+          className="relative rounded-none h-12 w-full max-w-[660px] mx-auto overflow-visible transition-all cursor-pointer hover:brightness-105"
+          style={{
+            ...SUBSTITUTES_CARD_STYLE,
+            transform: `skewX(-${SLOT_SKEW_X}deg)`,
+            backfaceVisibility: 'hidden',
+          }}
+        >
+          <div
+            className="absolute top-1 z-[2] min-w-[20px] h-[18px] px-1 rounded-[3px] inline-flex items-center justify-center text-[11px] font-bold leading-none"
+            style={{
+              right: isCreator ? '32px' : '6px',
+              color: '#f4deaa',
+              background: 'rgba(116, 84, 19, 0.46)',
+              border: '1px solid rgba(239, 194, 92, 0.58)',
+              fontFamily: '"Roboto Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+              letterSpacing: '0.01em',
+            }}
+            aria-label={`Posición en cola ${queuePosition}`}
+            title={`Posición en cola ${queuePosition}`}
+          >
+            {queuePosition}
+          </div>
+
+          <div
+            className="h-full w-full p-2 flex items-center gap-1.5"
+            style={inviteSkewCounterStyle}
+          >
+            {player.foto_url || player.avatar_url ? (
+              <img
+                src={player.foto_url || player.avatar_url}
+                alt={player.nombre}
+                className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
+                {getInitials(player.nombre)}
+              </div>
+            )}
+            <span className="flex-1 font-oswald text-sm font-semibold text-white tracking-wide min-w-0 truncate leading-tight">
+              {player.nombre || 'Jugador'}
+            </span>
+
+            {isCreator && (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="16" height="16" fill="#FFD700" style={{ flexShrink: 0 }}>
+                <path d="M345 151.2C354.2 143.9 360 132.6 360 120C360 97.9 342.1 80 320 80C297.9 80 280 97.9 280 120C280 132.6 285.9 143.9 295 151.2L226.6 258.8C216.6 274.5 195.3 278.4 180.4 267.2L120.9 222.7C125.4 216.3 128 208.4 128 200C128 177.9 110.1 160 88 160C65.9 160 48 177.9 48 200C48 221.8 65.5 239.6 87.2 240L119.8 457.5C124.5 488.8 151.4 512 183.1 512L456.9 512C488.6 512 515.5 488.8 520.2 457.5L552.8 240C574.5 239.6 592 221.8 592 200C592 177.9 574.1 160 552 160C529.9 160 512 177.9 512 200C512 208.4 514.6 216.3 519.1 222.7L459.7 267.3C444.8 278.5 423.5 274.6 413.5 258.9L345 151.2z" />
+              </svg>
+            )}
+
+            {isAdmin && player.usuario_id !== user?.id ? (
+              <button
+                className="w-5 h-5 bg-transparent border-0 p-0 cursor-pointer transition-colors inline-flex items-center justify-center shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPlayerToRemove({ id: player.id, nombre: player.nombre, isOwnPlayer: false });
+                }}
+                type="button"
+                aria-label="Eliminar jugador"
+                disabled={isClosing}
+                title="Eliminar jugador"
+              >
+                <span
+                  className="leading-none text-[15px]"
+                  style={{ color: '#f4cf7e' }}
+                >
+                  ×
+                </span>
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </PlayerCardTrigger>
+    );
+  };
+
+  const renderAdminTitularesGrid = () => (
+    <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border px-1">
+      {(() => {
+        let slotNumber = missingSlotsCount;
+        return inviteSlotItems.map((player, idx) => {
+          if (!player) {
+            const visibleNumber = slotNumber > 0 ? slotNumber : Math.max(1, inviteRequiredSlots - idx);
+            slotNumber = Math.max(0, slotNumber - 1);
+            return (
+              <div
+                key={`admin-slot-empty-${idx}`}
+                className="rounded-none h-12 w-full overflow-hidden"
+                style={inviteSoftPlaceholderWrapperStyle}
+                aria-hidden="true"
+              >
+                <div
+                  className="h-full w-full p-2 flex items-center justify-center"
+                  style={inviteSkewCounterStyle}
+                >
+                  <span className="select-none pointer-events-none text-[28px]" style={PLACEHOLDER_NUMBER_STYLE}>
+                    {visibleNumber}
+                  </span>
+                </div>
+              </div>
+            );
+          }
+
+          return renderPlayerCard(player);
+        });
+      })()}
+    </div>
+  );
+
+  const renderAdminSubstitutesGrid = () => (
+    <motion.div
+      layout
+      className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border px-1"
+      transition={{ layout: { duration: 0.22, ease: 'easeOut' } }}
+    >
+      <AnimatePresence initial={false}>
+        {substituteSlotItems.map((player, idx) => {
+          if (!player) {
+            return (
+              <motion.div
+                key={`admin-substitute-empty-${idx}`}
+                layout
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="rounded-none h-12 w-full overflow-hidden"
+                style={{
+                  ...SUBSTITUTES_SLOT_PLACEHOLDER_STYLE,
+                  transform: `skewX(-${SLOT_SKEW_X}deg)`,
+                }}
+                aria-hidden="true"
+              >
+                <div
+                  className="h-full w-full p-2 flex items-center justify-center"
+                  style={inviteSkewCounterStyle}
+                >
+                  <span className="select-none pointer-events-none text-[28px]" style={SUBSTITUTES_PLACEHOLDER_NUMBER_STYLE}>
+                    {idx + 1}
+                  </span>
+                </div>
+              </motion.div>
+            );
+          }
+
+          const playerKey = player.uuid || player.id || `${player.nombre}-${player.usuario_id || idx}`;
+          return (
+            <motion.div
+              key={`admin-substitute-player-${playerKey}`}
+              layout
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="w-full"
+            >
+              {renderSubstituteCard(player, idx + 1)}
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
+    </motion.div>
+  );
+
   const jugadoresCompleteBadge = isTitularesComplete ? (
     <span className="ml-2 inline-flex items-center" title="Titulares completos" aria-label="Titulares completos">
       <span className={`relative inline-flex h-5 w-5 items-center justify-center rounded-full border border-emerald-300/70 bg-emerald-500/20 ${animateCompletionTick ? 'shadow-[0_0_0_6px_rgba(74,222,128,0.15)]' : ''}`}>
@@ -612,8 +812,39 @@ const PlayersSection = ({
       <div className="w-full box-border" style={invitePlayersBlockStyle}>
         <div className="px-1 mb-6">
           <div className="flex items-baseline justify-between gap-2">
-            <div className="font-oswald text-xl font-semibold text-white tracking-[0.01em]">
-              Jugadores
+            <div className="font-oswald text-xl font-semibold tracking-[0.01em] flex items-center">
+              <button
+                type="button"
+                onClick={() => setIsTitularesView(true)}
+                className="bg-transparent border-0 p-0 m-0 text-left transition-colors duration-150"
+                style={{ color: isTitularesView ? '#ffffff' : 'rgba(255,255,255,0.55)' }}
+                aria-pressed={isTitularesView}
+              >
+                Titulares
+              </button>
+              <span className="mx-2 text-white/35 select-none pointer-events-none">|</span>
+              <button
+                type="button"
+                onClick={() => setIsTitularesView(false)}
+                className="bg-transparent border-0 p-0 m-0 text-left transition-colors duration-150 inline-flex items-center gap-1.5"
+                style={{ color: isTitularesView ? 'rgba(255,255,255,0.55)' : 'rgba(252, 230, 178, 0.95)' }}
+                aria-pressed={!isTitularesView}
+              >
+                <span>Suplentes</span>
+                {substituteOverflowCount > 0 && (
+                  <span
+                    className="inline-flex items-center justify-center px-1.5 h-[16px] rounded-[3px] text-[10px] leading-none font-bold"
+                    style={{
+                      color: '#f4d89a',
+                      background: 'rgba(121, 88, 20, 0.36)',
+                      border: '1px solid rgba(239, 194, 92, 0.45)',
+                    }}
+                    aria-label={`${substituteOverflowCount} suplentes extra`}
+                  >
+                    +{substituteOverflowCount}
+                  </span>
+                )}
+              </button>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               <button
@@ -705,7 +936,7 @@ const PlayersSection = ({
           <div className="mt-2 h-[6px] w-full overflow-hidden rounded-[6px] bg-white/[0.08]">
             <div
               className="h-full rounded-[6px] transition-all duration-200"
-              style={{ width: `${inviteProgressPct}%`, backgroundColor: INVITE_ACCEPT_BUTTON_VIOLET, filter: 'saturate(1.05)' }}
+              style={{ width: `${activeRosterProgressPct}%`, backgroundColor: activeRosterProgressColor, filter: 'saturate(1.05)' }}
             />
           </div>
           {duplicatesDetected > 0 && (
@@ -715,35 +946,18 @@ const PlayersSection = ({
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4 w-full max-w-[720px] mx-auto justify-items-center box-border px-1">
-          {(() => {
-            let slotNumber = missingSlotsCount;
-            return inviteSlotItems.map((player, idx) => {
-              if (!player) {
-                const visibleNumber = slotNumber > 0 ? slotNumber : Math.max(1, inviteRequiredSlots - idx);
-                slotNumber = Math.max(0, slotNumber - 1);
-                return (
-                  <div
-                    key={`admin-slot-empty-${idx}`}
-                    className="rounded-none h-12 w-full overflow-hidden"
-                    style={inviteSoftPlaceholderWrapperStyle}
-                    aria-hidden="true"
-                  >
-                    <div
-                      className="h-full w-full p-2 flex items-center justify-center"
-                      style={inviteSkewCounterStyle}
-                    >
-                      <span className="select-none pointer-events-none text-[28px]" style={PLACEHOLDER_NUMBER_STYLE}>
-                        {visibleNumber}
-                      </span>
-                    </div>
-                  </div>
-                );
-              }
-
-              return renderPlayerCard(player);
-            });
-          })()}
+        <div style={{ minHeight: `${rosterViewportMinHeight}px` }}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={isTitularesView ? 'admin-roster-titulares' : 'admin-roster-suplentes'}
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -8 }}
+              transition={{ duration: 0.16, ease: 'easeOut' }}
+            >
+              {isTitularesView ? renderAdminTitularesGrid() : renderAdminSubstitutesGrid()}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </div>
