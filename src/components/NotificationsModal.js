@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CalendarClock, CheckCircle, ClipboardList, ShieldAlert, Trophy, User, UserPlus, Users, Vote, XCircle } from 'lucide-react';
@@ -18,6 +18,7 @@ import {
 } from '../utils/notificationText';
 import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OPTIONS } from '../utils/notificationFilters';
 import { buildNotificationFallbackRoute, extractNotificationMatchId } from '../utils/notificationRoutes';
+import { filterNotificationsForInbox } from '../utils/notificationInviteState';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { resolveSurveyAccess } from '../utils/surveyAccess';
 
@@ -321,8 +322,12 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const filteredNotifications = filterNotificationsByCategory(notifications, activeFilter);
-  const hasAnyNotifications = notifications.length > 0;
+  const visibleNotifications = useMemo(
+    () => filterNotificationsForInbox(notifications),
+    [notifications],
+  );
+  const filteredNotifications = filterNotificationsByCategory(visibleNotifications, activeFilter);
+  const hasAnyNotifications = visibleNotifications.length > 0;
   const hasVisibleNotifications = filteredNotifications.length > 0;
   const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[clamp(18px,5.6vw,22px)] font-semibold leading-tight text-white';
   const EMPTY_STATE_CARD_CLASS = 'my-0 p-5';
@@ -355,7 +360,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         <div className="flex justify-between items-center px-5 pb-4 md:px-4 md:pb-3 border-b border-[#333] shrink-0">
           <h3 className="text-white text-xl md:text-lg font-semibold m-0">Notificaciones</h3>
           <div className="flex items-center gap-3">
-            {notifications.length > 0 && (
+            {visibleNotifications.length > 0 && (
               <button
                 className={'bg-[#dc3545] border-none text-white text-sm font-medium cursor-pointer px-3 py-1.5 rounded-md transition-all flex items-center gap-2 hover:bg-[#c82333] disabled:opacity-60 disabled:cursor-not-allowed'}
                 onClick={(e) => {
@@ -363,7 +368,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                   e.stopPropagation();
                   handleClearAllNotifications();
                 }}
-                disabled={loading || notifications.length === 0}
+                disabled={loading || visibleNotifications.length === 0}
                 title={loading ? 'Marcando notificaciones…' : 'Marcar todas como leídas'}
               >
                 {loading ? (
@@ -392,7 +397,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
             <div className="px-4 py-3 border-b border-[#2a2a2a] grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               {NOTIFICATION_FILTER_OPTIONS.map((option) => {
                 const isActive = activeFilter === option.key;
-                const count = getCategoryCount(notifications, option.key);
+                const count = getCategoryCount(visibleNotifications, option.key);
                 return (
                   <button
                     key={option.key}

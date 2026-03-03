@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toBigIntId } from '../utils';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
+import { isPendingMatchInviteNotification } from '../utils/notificationInviteState';
 
 /**
  * Hook para manejar redirecciones desde notificaciones push
@@ -30,10 +31,14 @@ export const useNotificationRedirect = () => {
   // Función para manejar notificaciones cuando la app está abierta
   const handleForegroundNotification = (notification) => {
     if (notification.data?.type === 'match_invite') {
-      const inviteRoute = resolveMatchInviteRoute({
+      const invitePayload = {
         ...notification,
         type: 'match_invite',
-      });
+      };
+      if (!isPendingMatchInviteNotification(invitePayload)) {
+        return;
+      }
+      const inviteRoute = resolveMatchInviteRoute(invitePayload);
       if (inviteRoute) {
         navigate(inviteRoute);
       } else if (notification?.data?.matchId || notification?.data?.partido_id) {

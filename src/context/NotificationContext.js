@@ -11,6 +11,7 @@ import {
   quoteMatchName,
   resolveNotificationMatchName,
 } from '../utils/notificationText';
+import { filterNotificationsForInbox } from '../utils/notificationInviteState';
 
 const NotificationContext = createContext();
 const DEBUG_NOTIFICATIONS = process.env.NODE_ENV !== 'production';
@@ -336,8 +337,11 @@ export const NotificationProvider = ({ children }) => {
 
       logger.log('[NOTIFICATIONS] Visible fetched:', visibleRaw.length, 'Scheduled fetched:', scheduledRaw.length);
 
+      // Hide stale invite/kick rows before dedupe so lists stay actionable.
+      const visibleForDisplay = filterNotificationsForInbox(visibleRaw);
+
       // Deduplicate only the visible notifications for display
-      const dedupedVisible = dedupeNotificationsForDisplay(visibleRaw);
+      const dedupedVisible = dedupeNotificationsForDisplay(visibleForDisplay);
 
       setNotifications(dedupedVisible);
       setScheduledNotifications(scheduledRaw);
@@ -539,27 +543,28 @@ export const NotificationProvider = ({ children }) => {
     }
 
     // Insert and dedupe using the same logic as fetch (to avoid duplicate cards)
-    setNotifications((prev) => {
-      logger.log('[NOTIFICATIONS] Current notifications count:', prev.length);
-      // Evitar duplicados por id
-      if (prev.find((n) => n.id === notification.id)) {
-        logger.log('[NOTIFICATIONS] Notification already exists, skipping');
-        return prev;
-      }
+      setNotifications((prev) => {
+        logger.log('[NOTIFICATIONS] Current notifications count:', prev.length);
+        // Evitar duplicados por id
+        if (prev.find((n) => n.id === notification.id)) {
+          logger.log('[NOTIFICATIONS] Notification already exists, skipping');
+          return prev;
+        }
 
-      const updated = [notification, ...prev];
+        const updated = [notification, ...prev];
+        const visibleUpdated = filterNotificationsForInbox(updated);
 
-      try {
-        const deduped = dedupeNotificationsForDisplay(updated);
-        logger.log('[NOTIFICATIONS] Updated notifications count after dedupe:', deduped.length);
-        updateUnreadCount(deduped);
-        return deduped;
-      } catch (e) {
-        logger.error('[NOTIFICATIONS] Error during dedupe, falling back to raw list:', e);
-        updateUnreadCount(updated);
-        return updated;
-      }
-    });
+        try {
+          const deduped = dedupeNotificationsForDisplay(visibleUpdated);
+          logger.log('[NOTIFICATIONS] Updated notifications count after dedupe:', deduped.length);
+          updateUnreadCount(deduped);
+          return deduped;
+        } catch (e) {
+          logger.error('[NOTIFICATIONS] Error during dedupe, falling back to raw list:', e);
+          updateUnreadCount(visibleUpdated);
+          return visibleUpdated;
+        }
+      });
 
     // Show toast notification for real-time updates
     showNotificationToast(notification);

@@ -3,6 +3,12 @@ import { resolveMatchInviteRoute } from './matchInviteRoute';
 import { quoteMatchName, resolveNotificationTeamName, resolveTeamInviteActorName } from './notificationText';
 import { getSurveyRemainingLabel, resolveSurveyDeadlineAt } from './surveyNotificationCopy';
 import { formatVenueShort } from './venueFormat';
+import {
+  buildLatestKickTsByMatch,
+  getNotificationTimestampMs,
+  isInviteInvalidatedByKick,
+  isPendingMatchInviteNotification,
+} from './notificationInviteState';
 
 const ACTIVITY_MAX_ITEMS = 5;
 const INSIGHT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -808,6 +814,10 @@ const shouldIncludeNotification = (notification, normalizedType) => {
   const ts = notification?.created_at ? new Date(notification.created_at).getTime() : 0;
   if (!ts) return false;
 
+  if (normalizedType === 'match_invite' && !isPendingMatchInviteNotification(notification)) {
+    return false;
+  }
+
   const ageMs = Date.now() - ts;
   const isSurveyLike = normalizedType === 'survey_start' || normalizedType === 'call_to_vote' || normalizedType === 'awards_ready';
 
@@ -836,6 +846,7 @@ const shouldIncludeNotification = (notification, normalizedType) => {
 };
 
 const groupNotifications = (notifications = []) => {
+  const latestKickTsByMatch = buildLatestKickTsByMatch(notifications);
   const groups = new Map();
   for (const notification of notifications) {
     if (!RELEVANT_TYPES.has(notification?.type)) continue;
@@ -843,8 +854,9 @@ const groupNotifications = (notifications = []) => {
     const type = normalizeType(notification.type, notification.message);
     if (!type || !FEED_TEMPLATE_TYPES.has(type)) continue;
     if (!shouldIncludeNotification(notification, type)) continue;
+    if (type === 'match_invite' && isInviteInvalidatedByKick(notification, latestKickTsByMatch)) continue;
 
-    const createdAtTs = notification?.created_at ? new Date(notification.created_at).getTime() : 0;
+    const createdAtTs = getNotificationTimestampMs(notification);
     const matchId = resolveNotificationMatchId(notification);
     const groupKey = `${type}::${matchId ?? 'none'}`;
     const current = groups.get(groupKey);

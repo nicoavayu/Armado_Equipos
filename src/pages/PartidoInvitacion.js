@@ -18,6 +18,10 @@ import { findUserScheduleConflicts } from '../services/db/matchScheduling';
 import { notifyAdminJoinRequest, notifyAdminPlayerJoined } from '../services/matchJoinNotificationService';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { buildMatchCalendarIcs, shareOrDownloadCalendarIcs } from '../utils/calendarInvite';
+import {
+  getNotificationTimestampMs,
+  isPendingMatchInviteNotification,
+} from '../utils/notificationInviteState';
 
 /**
  * Pantalla pública de invitación a un partido
@@ -48,16 +52,6 @@ const CLOSED_MATCH_STATUSES = new Set(['cancelado', 'deleted', 'finalizado']);
 const GUEST_SELF_JOIN_ENABLED = true;
 const MAX_SUBSTITUTES = 4;
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
-const BLOCKED_INVITE_STATUSES = new Set([
-  'declined',
-  'rejected',
-  'cancelled',
-  'expired',
-  'kicked',
-  'removed',
-  'revoked',
-  'invalid',
-]);
 const isMatchClosed = (match) => {
   const estado = String(match?.estado || '').toLowerCase();
   return CLOSED_MATCH_STATUSES.has(estado);
@@ -67,12 +61,6 @@ const getMatchCapacity = (match) => Number(match?.cupo_jugadores || match?.cupo 
 const getMaxRosterSlots = (match) => {
   const baseCapacity = getMatchCapacity(match);
   return baseCapacity > 0 ? baseCapacity + MAX_SUBSTITUTES : 0;
-};
-
-const getNotificationTs = (row) => {
-  const value = row?.send_at || row?.created_at || null;
-  const parsed = Date.parse(value || '');
-  return Number.isFinite(parsed) ? parsed : 0;
 };
 
 const toMatchIdText = (value) => String(value ?? '').trim();
@@ -90,10 +78,6 @@ const buildMatchNotificationOrFilter = (matchId) => {
     .join(',');
 };
 
-const normalizeInviteStatus = (status) => String(status || 'pending').trim().toLowerCase();
-
-const isInviteActive = (row) => !BLOCKED_INVITE_STATUSES.has(normalizeInviteStatus(row?.data?.status));
-
 async function fetchInviteAccessState({ userId, matchId }) {
   if (!userId || !matchId) {
     return { hasActiveInvite: false, blockedByKick: false };
@@ -104,7 +88,7 @@ async function fetchInviteAccessState({ userId, matchId }) {
 
   const { data: extRows, error: extError } = await supabase
     .from('notifications_ext')
-    .select('id, type, data, send_at')
+    .select('id, type, data, read, send_at, created_at, partido_id')
     .eq('user_id', userId)
     .in('type', ['match_invite', 'match_kicked'])
     .eq('match_id_text', matchIdText)
@@ -117,7 +101,7 @@ async function fetchInviteAccessState({ userId, matchId }) {
 
     let fallbackQuery = supabase
       .from('notifications')
-      .select('id, type, data, send_at')
+      .select('id, type, data, read, send_at, created_at, partido_id')
       .eq('user_id', userId)
       .in('type', ['match_invite', 'match_kicked']);
 
@@ -133,11 +117,13 @@ async function fetchInviteAccessState({ userId, matchId }) {
   }
 
   const latestKick = rows.find((row) => row?.type === 'match_kicked') || null;
-  const latestActiveInvite = rows.find((row) => row?.type === 'match_invite' && isInviteActive(row)) || null;
+  const latestPendingInvite = rows.find(
+    (row) => row?.type === 'match_invite' && isPendingMatchInviteNotification(row),
+  ) || null;
 
-  const kickTs = getNotificationTs(latestKick);
-  const inviteTs = getNotificationTs(latestActiveInvite);
-  const hasActiveInvite = Boolean(latestActiveInvite) && (kickTs === 0 || inviteTs > kickTs);
+  const kickTs = getNotificationTimestampMs(latestKick);
+  const inviteTs = getNotificationTimestampMs(latestPendingInvite);
+  const hasActiveInvite = Boolean(latestPendingInvite) && (kickTs === 0 || inviteTs > kickTs);
   const blockedByKick = Boolean(latestKick) && !hasActiveInvite;
 
   return { hasActiveInvite, blockedByKick };
@@ -921,6 +907,14 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
           if (inviteAccess.blockedByKick) {
             showInlineNotice('warning', 'Ya no formás parte de este partido.');
+            setError('Ya no tenés acceso a este partido.');
+            setLoading(false);
+            navigate('/', { replace: true });
+            return;
+          }
+
+          if (!inviteAccess.hasActiveInvite) {
+            showInlineNotice('warning', 'Esta invitación ya no está activa.');
             setError('Ya no tenés acceso a este partido.');
             setLoading(false);
             navigate('/', { replace: true });

@@ -17,6 +17,7 @@ import {
 import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OPTIONS } from '../utils/notificationFilters';
 import { buildNotificationFallbackRoute, extractNotificationMatchId } from '../utils/notificationRoutes';
 import { groupNotificationsByMatch } from '../utils/notificationGrouping';
+import { filterNotificationsForInbox } from '../utils/notificationInviteState';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import supabase from '../supabase';
 import { resolveSurveyAccess } from '../utils/surveyAccess';
@@ -428,14 +429,18 @@ const NotificationsView = () => {
     }
   };
 
-  const filteredNotifications = filterNotificationsByCategory(notifications, activeFilter);
+  const visibleNotifications = useMemo(
+    () => filterNotificationsForInbox(notifications),
+    [notifications],
+  );
+  const filteredNotifications = filterNotificationsByCategory(visibleNotifications, activeFilter);
   const groupedNotifications = useMemo(
     () => groupNotificationsByMatch(filteredNotifications),
     [filteredNotifications],
   );
-  const hasAnyNotifications = notifications.length > 0;
+  const hasAnyNotifications = visibleNotifications.length > 0;
   const hasVisibleNotifications = groupedNotifications.length > 0;
-  const hasUnreadNotifications = (unreadCount?.total || 0) > 0;
+  const hasUnreadNotifications = visibleNotifications.some((item) => !item.read);
   const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[clamp(18px,5.6vw,22px)] font-semibold leading-tight text-white';
   const EMPTY_STATE_CARD_CLASS = 'my-0 p-5';
 
@@ -542,7 +547,7 @@ const NotificationsView = () => {
           <div className="mb-3 grid grid-cols-2 gap-2 pb-1 sm:flex sm:flex-wrap">
             {NOTIFICATION_FILTER_OPTIONS.map((option) => {
               const isActive = activeFilter === option.key;
-              const count = getCategoryCount(notifications, option.key);
+              const count = getCategoryCount(visibleNotifications, option.key);
               return (
                 <button
                   key={option.key}
