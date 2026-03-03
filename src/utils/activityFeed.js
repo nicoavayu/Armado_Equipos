@@ -244,6 +244,127 @@ const getQuotedMatchLabel = (matchName) => (
     : null
 );
 
+const formatMatchHour = (match) => {
+  const rawHour = normalizeSpaces(String(match?.hora || ''));
+  const explicitHourMatch = rawHour.match(/^(\d{1,2}):(\d{2})/);
+  if (explicitHourMatch) {
+    const hours = explicitHourMatch[1].padStart(2, '0');
+    return `${hours}:${explicitHourMatch[2]}`;
+  }
+
+  const parsed = parseLocalDateTime(match?.fecha, match?.hora);
+  if (!parsed) return '';
+  return parsed.toLocaleTimeString('es-AR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'America/Argentina/Buenos_Aires',
+  });
+};
+
+const abbreviateVenueLabel = (rawVenue = '') => {
+  const normalized = normalizeSpaces(stripEmojis(rawVenue));
+  if (!normalized) return '';
+
+  const firstChunk = normalized.split(/\s[-–—]\s|,|·/)[0].trim();
+  if (!firstChunk) return '';
+
+  const words = firstChunk.split(/\s+/).filter(Boolean);
+  if (words.length === 1) return compactText(words[0], 14, words[0]);
+
+  const firstWord = words[0];
+  const secondWord = String(words[1] || '').replace(/[^\p{L}\p{N}]/gu, '');
+  if (!secondWord) return compactText(firstWord, 14, firstWord);
+
+  const shortSecondWord = secondWord.length <= 3 ? secondWord : `${secondWord.slice(0, 3)}.`;
+  return compactText(`${firstWord} ${shortSecondWord}`, 18, `${firstWord} ${shortSecondWord}`);
+};
+
+const resolveHomeMatchName = (notification, match) => (
+  compactMatchName(
+    getMatchDisplayName(
+      match,
+      notification?.data?.match_name
+      || notification?.data?.partido_nombre
+      || '',
+    ),
+    '',
+  )
+);
+
+const buildHomeNotificationText = (notification, match) => {
+  const type = normalizeType(notification?.type, notification?.message) || notification?.type || '';
+  const matchName = resolveHomeMatchName(notification, match);
+  if (!hasUsableMatchName(matchName)) return null;
+
+  const quotedMatchName = quoteMatchName(matchName, 'este partido');
+  const hourLabel = formatMatchHour(match);
+  const venueLabel = abbreviateVenueLabel(match?.sede || notification?.data?.sede || '');
+  const buildSubtitle = (preferVenue = false) => {
+    const contextLabel = preferVenue ? (venueLabel || hourLabel) : (hourLabel || venueLabel);
+    return contextLabel ? `${quotedMatchName} · ${contextLabel}` : quotedMatchName;
+  };
+
+  if (type === 'match_today') {
+    return {
+      title: hourLabel ? `Jugás hoy ${hourLabel}` : 'Jugás hoy',
+      subtitle: buildSubtitle(true),
+    };
+  }
+
+  if (type === 'match_tomorrow') {
+    return {
+      title: hourLabel ? `Jugás mañana ${hourLabel}` : 'Jugás mañana',
+      subtitle: buildSubtitle(true),
+    };
+  }
+
+  if (type === 'falta_jugadores') {
+    const missingRaw = notification?.data?.missingPlayers
+      ?? notification?.data?.missing_players
+      ?? notification?.meta?.missingPlayers
+      ?? notification?.missingPlayers
+      ?? notification?.missing
+      ?? null;
+    const parsedMissing = Number(missingRaw);
+    const missing = Number.isFinite(parsedMissing) && parsedMissing > 0
+      ? Math.round(parsedMissing)
+      : null;
+    const title = missing === 1
+      ? 'Falta 1 para completar'
+      : (missing && missing > 1 ? `Quedan ${missing} lugares` : 'Faltan jugadores');
+    return {
+      title,
+      subtitle: buildSubtitle(false),
+    };
+  }
+
+  if (type === 'match_complete') {
+    return {
+      title: 'Partido completo',
+      subtitle: buildSubtitle(false),
+    };
+  }
+
+  if (type === 'match_player_joined') {
+    const playerName = compactText(resolvePlayerNameFromMatchUpdate(notification), 24, '');
+    return {
+      title: playerName ? `${playerName} se sumó` : 'Se sumó un jugador',
+      subtitle: buildSubtitle(false),
+    };
+  }
+
+  if (type === 'match_player_left') {
+    const playerName = compactText(resolvePlayerNameFromMatchUpdate(notification), 24, '');
+    return {
+      title: playerName ? `${playerName} se bajó` : 'Un jugador se bajó',
+      subtitle: buildSubtitle(false),
+    };
+  }
+
+  return null;
+};
+
 const resolveFriendActorName = (notification) => {
   const data = notification?.data || {};
   const fromData = [
@@ -502,21 +623,14 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   }
 
   if (type === 'match_player_joined' || type === 'match_player_left') {
-    const playerName = resolvePlayerNameFromMatchUpdate(notification);
+    const homeCopy = buildHomeNotificationText({ ...notification, type }, match);
+    if (!homeCopy) return null;
     const notificationLink = notification?.data?.link || null;
-    const joinedTitle = quotedMatchName
-      ? `Se sumó un jugador a ${quotedMatchName}`
-      : 'Se sumó un jugador';
-    const leftTitle = quotedMatchName
-      ? `Se bajó un jugador de ${quotedMatchName}`
-      : 'Se bajó un jugador';
     return {
       ...base,
       icon: 'Users',
-      title: type === 'match_player_joined'
-        ? joinedTitle
-        : leftTitle,
-      subtitle: playerName || fallbackSubtitle,
+      title: homeCopy.title,
+      subtitle: homeCopy.subtitle,
       route: notificationLink || matchRoute || '/notifications',
     };
   }
@@ -576,34 +690,41 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
     const isTomorrow = dayDiff === 1;
     if (!isToday && !isTomorrow) return acc;
 
-    const name = compactMatchName(getMatchDisplayName(match, 'Partido'), 'Partido');
-    const dateLabel = formatMatchDate(match);
     const route = routeForMatch({ matchId: match.id, currentUserId, match });
     const playerCount = Number(match?.jugadores?.[0]?.count || 0);
     const capacity = Number(match?.cupo_jugadores || 10);
     const missing = Math.max(capacity - playerCount, 0);
+    const scheduleType = isToday ? 'match_today' : 'match_tomorrow';
+    const scheduleCopy = buildHomeNotificationText({ type: scheduleType, data: {} }, match);
+    if (!scheduleCopy) return acc;
 
     acc.push({
-      id: `activity-${isToday ? 'match_today' : 'match_tomorrow'}-${match.id}`,
-      type: isToday ? 'match_today' : 'match_tomorrow',
+      id: `activity-${scheduleType}-${match.id}`,
+      type: scheduleType,
       partidoId: Number(match.id),
-      title: isToday ? 'Partido de hoy' : 'Partido de mañana',
-      subtitle: dateLabel || name,
+      title: scheduleCopy.title,
+      subtitle: scheduleCopy.subtitle,
       createdAt: matchDate.toISOString(),
       icon: 'CalendarClock',
       route,
       count: 1,
       priority: isToday ? PRIORITY.match_today : PRIORITY.match_tomorrow,
-      severity: severityForType(isToday ? 'match_today' : 'match_tomorrow'),
+      severity: severityForType(scheduleType),
     });
 
     if (missing > 0) {
+      const missingCopy = buildHomeNotificationText({
+        type: 'falta_jugadores',
+        data: { missingPlayers: missing },
+      }, match);
+      if (!missingCopy) return acc;
+
       acc.push({
         id: `activity-falta_jugadores-${match.id}`,
         type: 'falta_jugadores',
         partidoId: Number(match.id),
-        title: `Faltan ${missing} jugador${missing > 1 ? 'es' : ''}`,
-        subtitle: `${playerCount}/${capacity} confirmados`,
+        title: missingCopy.title,
+        subtitle: missingCopy.subtitle,
         createdAt: matchDate.toISOString(),
         icon: 'AlertTriangle',
         route,
@@ -612,12 +733,15 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
         severity: severityForType('falta_jugadores'),
       });
     } else {
+      const completeCopy = buildHomeNotificationText({ type: 'match_complete', data: {} }, match);
+      if (!completeCopy) return acc;
+
       acc.push({
         id: `activity-match_complete-${match.id}`,
         type: 'match_complete',
         partidoId: Number(match.id),
-        title: `${name} completo`,
-        subtitle: `${playerCount}/${capacity} confirmados`,
+        title: completeCopy.title,
+        subtitle: completeCopy.subtitle,
         createdAt: matchDate.toISOString(),
         icon: 'Users',
         route,
