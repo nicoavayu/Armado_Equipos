@@ -166,6 +166,12 @@ const PlayersSection = ({
     '--btn-dark': INVITE_ACCEPT_BUTTON_VIOLET_DARK,
     '--btn-text': '#ffffff',
   };
+  const inviteJoinedStatusPalette = {
+    '--btn': 'rgba(100, 77, 255, 0.38)',
+    '--btn-dark': 'rgba(125, 90, 255, 0.52)',
+    '--btn-text': 'rgba(255,255,255,0.92)',
+    '--btn-shadow': 'none',
+  };
   const inviteSecondaryButtonPalette = {
     '--btn': 'rgba(23, 35, 74, 0.72)',
     '--btn-dark': 'rgba(88, 107, 170, 0.46)',
@@ -785,9 +791,10 @@ const PlayersSection = ({
             align-items: center;
             justify-content: center;
             gap: 1rem;
-            font-size: 0.94rem;
+            font-family: "Bebas Neue", "Oswald", system-ui, sans-serif;
+            font-size: 1rem;
             font-weight: 700;
-            letter-spacing: 0.045em;
+            letter-spacing: 0.03em;
             color: var(--btn-text, #fff);
             background: var(--btn);
             border: 1.5px solid var(--btn-dark);
@@ -875,7 +882,16 @@ const PlayersSection = ({
 
             {showInviteStylePostJoin ? (
               <div className="w-full max-w-[340px] mx-auto px-2 sm:px-0 flex flex-col gap-2">
-                <p className="m-0 text-white/78 font-oswald text-sm text-center">Ya formas parte del partido</p>
+                <div className="w-full border-t border-white/15 mb-1" aria-hidden="true" />
+                <div
+                  className="invite-cta-btn"
+                  style={{ ...inviteJoinedStatusPalette, cursor: 'default' }}
+                  role="status"
+                  aria-label="Ya formás parte del partido"
+                >
+                  <span>Ya formás parte</span>
+                </div>
+                <p className="m-0 text-emerald-400 font-oswald text-sm text-center">Podés acceder desde Mis partidos.</p>
                 <button
                   className="invite-cta-btn"
                   style={inviteButtonPalette}

@@ -419,7 +419,7 @@ function SharedInviteLayout({
                     )}
                     {isApproved && (
                       <p className="text-emerald-400 font-oswald text-sm mt-1">
-                        Ya sos parte del partido. Entrás desde Mis partidos.
+                        Podés acceder desde Mis partidos.
                       </p>
                     )}
                     {isPendingSync && (
