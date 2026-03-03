@@ -14,18 +14,26 @@ const reorder = (list, startIndex, endIndex) => {
 const resolveName = (player) => player?.nombre || player?.name || 'Jugador';
 const resolveAvatar = (player) => player?.avatar_url || player?.foto_url || null;
 
-const PlayerChip = ({ player, provided, snapshot, isReplacementTarget = false }) => {
+const PlayerChip = ({
+  player,
+  provided,
+  snapshot,
+  isReplacementTarget = false,
+  disabled = false,
+}) => {
   const avatar = resolveAvatar(player);
+  const dragProps = disabled ? {} : provided.draggableProps;
+  const dragHandleProps = disabled ? {} : provided.dragHandleProps;
   return (
     <div
       ref={provided.innerRef}
-      {...provided.draggableProps}
-      {...provided.dragHandleProps}
-      className={`group flex items-center gap-2 rounded-xl border border-white/20 bg-white/[0.10] px-2.5 py-2 text-left transition-all duration-150 ease-out
+      {...dragProps}
+      {...dragHandleProps}
+      className={`group flex items-center gap-2 rounded-[5px] border border-white/20 bg-white/[0.10] px-2.5 py-2 text-left transition-all duration-150 ease-out
         ${snapshot.isDragging ? 'scale-[1.02] border-[#128BE9]/65 bg-[#128BE9]/18 shadow-[0_8px_24px_rgba(18,139,233,0.35)]' : 'hover:bg-white/[0.14]'}
         ${isReplacementTarget ? 'ring-2 ring-[#0EA9C6]/80 border-[#0EA9C6]/70 bg-[#0EA9C6]/15' : ''}`}
     >
-      <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg border border-white/20 bg-black/20">
+      <div className="h-8 w-8 shrink-0 overflow-hidden rounded-[5px] border border-white/20 bg-black/20">
         {avatar ? (
           <img src={avatar} alt={resolveName(player)} className="h-full w-full object-cover" />
         ) : (
@@ -51,29 +59,31 @@ const TeamColumn = ({
   isDragging = false,
   dragTarget = null,
   sourceTeamId = null,
+  disabled = false,
 }) => {
   return (
     <button
       type="button"
       onClick={() => {
-        if (!isDragging) onSelect?.();
+        if (disabled || isDragging) return;
+        onSelect?.();
       }}
-      className={`min-w-0 rounded-2xl border p-2.5 text-left backdrop-blur-md transition-all duration-150 ease-out ${
+      className={`min-w-0 rounded-[5px] border p-2.5 text-left backdrop-blur-md transition-all duration-150 ease-out ${
         selected
           ? 'border-[#73bcff]/70 bg-[#128BE9]/18 shadow-[0_0_0_1px_rgba(115,188,255,0.35),0_12px_26px_rgba(18,139,233,0.28)]'
           : 'border-white/15 bg-white/[0.06]'
-      }`}
+      } ${disabled ? 'cursor-default' : ''}`}
     >
       <div className="mb-2 px-0.5">
         <div className="font-bebas text-[22px] leading-none tracking-wide text-white/95">{title}</div>
         <div className="mt-1 text-[12px] font-oswald text-white/70">{playerKeys.length} jugadores</div>
       </div>
-      <Droppable droppableId={droppableId}>
+      <Droppable droppableId={droppableId} isDropDisabled={disabled}>
         {(dropProvided, dropSnapshot) => (
           <div
             ref={dropProvided.innerRef}
             {...dropProvided.droppableProps}
-            className={`flex max-h-[40dvh] min-h-[180px] flex-col gap-2 overflow-y-auto rounded-xl border border-transparent p-1.5 transition-all duration-150 ease-out
+            className={`flex max-h-[40dvh] min-h-[180px] flex-col gap-2 overflow-y-auto rounded-[5px] border border-transparent p-1.5 transition-all duration-150 ease-out
               ${dropSnapshot.isDraggingOver ? 'border-[#128BE9]/55 bg-[#128BE9]/14' : ''}`}
           >
             {playerKeys.map((key, index) => {
@@ -84,13 +94,19 @@ const TeamColumn = ({
                 dragTarget.teamId === droppableId &&
                 dragTarget.index === index;
               return (
-                <Draggable key={draggableId} draggableId={draggableId} index={index}>
+                <Draggable
+                  key={draggableId}
+                  draggableId={draggableId}
+                  index={index}
+                  isDragDisabled={disabled}
+                >
                   {(dragProvided, dragSnapshot) => (
                     <PlayerChip
                       player={player}
                       provided={dragProvided}
                       snapshot={dragSnapshot}
                       isReplacementTarget={isReplacementTarget}
+                      disabled={disabled}
                     />
                   )}
                 </Draggable>
@@ -215,6 +231,7 @@ export default function TeamsDnDEditor({
   return (
     <DragDropContext
       onDragStart={() => {
+        if (disabled) return;
         suppressSelectRef.current = true;
         setIsDragging(true);
       }}
@@ -231,6 +248,7 @@ export default function TeamsDnDEditor({
           isDragging={isDragging}
           dragTarget={dragTarget}
           sourceTeamId={dragTarget?.sourceTeamId || null}
+          disabled={disabled}
           onSelect={() => {
             if (suppressSelectRef.current) return;
             onWinnerChange?.('equipo_a');
@@ -245,6 +263,7 @@ export default function TeamsDnDEditor({
           isDragging={isDragging}
           dragTarget={dragTarget}
           sourceTeamId={dragTarget?.sourceTeamId || null}
+          disabled={disabled}
           onSelect={() => {
             if (suppressSelectRef.current) return;
             onWinnerChange?.('equipo_b');

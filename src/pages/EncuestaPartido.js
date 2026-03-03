@@ -1456,13 +1456,13 @@ const EncuestaPartido = () => {
                       />
 
                       {!finalTeamsValidation.ok ? (
-                        <div className="rounded-xl border border-rose-300/35 bg-rose-400/10 px-3 py-2 text-sm font-oswald text-rose-100">
+                        <div className="rounded-[5px] border border-rose-300/35 bg-rose-400/10 px-3 py-2 text-sm font-oswald text-rose-100">
                           Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.
                         </div>
                       ) : null}
                     </div>
                   ) : (
-                    <div className="rounded-2xl border border-amber-300/35 bg-amber-400/10 p-4 text-center text-white/90">
+                    <div className="rounded-[5px] border border-amber-300/35 bg-amber-400/10 p-4 text-center text-white/90">
                       <div className="font-oswald text-[16px] leading-snug">
                         No pudimos resolver los equipos para cerrar el partido.
                       </div>
@@ -1601,7 +1601,7 @@ const EncuestaPartido = () => {
                   />
 
                   {!finalTeamsValidation.ok ? (
-                    <div className="rounded-xl border border-rose-300/35 bg-rose-400/10 px-3 py-2 text-sm font-oswald text-rose-100">
+                    <div className="rounded-[5px] border border-rose-300/35 bg-rose-400/10 px-3 py-2 text-sm font-oswald text-rose-100">
                       Los equipos deben quedar consistentes antes de continuar.
                     </div>
                   ) : null}
