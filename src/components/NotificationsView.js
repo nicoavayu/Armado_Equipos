@@ -18,6 +18,8 @@ import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OP
 import { buildNotificationFallbackRoute, extractNotificationMatchId } from '../utils/notificationRoutes';
 import { groupNotificationsByMatch } from '../utils/notificationGrouping';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import supabase from '../supabase';
+import { resolveSurveyAccess } from '../utils/surveyAccess';
 
 
 const NotificationsView = () => {
@@ -104,6 +106,17 @@ const NotificationsView = () => {
 
     if (notification?.type === 'survey_start') {
       try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
+      if (matchId && user?.id) {
+        const access = await resolveSurveyAccess({
+          supabaseClient: supabase,
+          matchId,
+          userId: user.id,
+        });
+        if (!access.allowed) {
+          notifyBlockingError(access.message);
+          return;
+        }
+      }
       if (link) {
         safeNavigate(notification, link, { replace: false });
       } else if (matchId) {
@@ -239,6 +252,17 @@ const NotificationsView = () => {
       case 'survey_reminder':
         console.log('[NOTIFICATION_CLICK] Survey reminder - matchId:', data.matchId);
         if (data.matchId) {
+          if (user?.id) {
+            const access = await resolveSurveyAccess({
+              supabaseClient: supabase,
+              matchId: data.matchId,
+              userId: user.id,
+            });
+            if (!access.allowed) {
+              notifyBlockingError(access.message);
+              break;
+            }
+          }
           const url = `/encuesta/${toBigIntId(data.matchId)}`;
           console.log('[NOTIFICATION_CLICK] Navigating to:', url);
           safeNavigate(notification, url);

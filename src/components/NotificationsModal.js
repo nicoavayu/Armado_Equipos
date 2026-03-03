@@ -19,6 +19,7 @@ import {
 import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OPTIONS } from '../utils/notificationFilters';
 import { buildNotificationFallbackRoute, extractNotificationMatchId } from '../utils/notificationRoutes';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { resolveSurveyAccess } from '../utils/surveyAccess';
 
 const NotificationsModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
@@ -115,6 +116,18 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       const link = notification?.data?.link;
       const matchId = extractNotificationMatchId(notification);
 
+      if (matchId && user?.id) {
+        const access = await resolveSurveyAccess({
+          supabaseClient: supabase,
+          matchId,
+          userId: user.id,
+        });
+        if (!access.allowed) {
+          notifyBlockingError(access.message);
+          return;
+        }
+      }
+
       if (link) {
         safeNavigate(notification, link);
       } else if (matchId) {
@@ -184,12 +197,24 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     }
 
     if (notification.type === 'survey_reminder') {
+      const reminderMatchId = extractNotificationMatchId(notification);
+      if (reminderMatchId && user?.id) {
+        const access = await resolveSurveyAccess({
+          supabaseClient: supabase,
+          matchId: reminderMatchId,
+          userId: user.id,
+        });
+        if (!access.allowed) {
+          notifyBlockingError(access.message);
+          return;
+        }
+      }
+
       try {
         await openNotification(notification, navigate);
       } catch (error) {
         console.error('[NOTIFICATION_CLICK] survey_reminder openNotification error', error);
       }
-      const reminderMatchId = extractNotificationMatchId(notification);
       if (!reminderMatchId) {
         fallbackToNotificationRoute(notification, 'No encontramos la encuesta que te queríamos recordar.');
       }

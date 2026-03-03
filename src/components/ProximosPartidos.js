@@ -81,7 +81,12 @@ const ProximosPartidos = ({ onClose }) => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('surveyDone') === '1') {
       fetchUserMatches();
-      navigate('/proximos', { replace: true });
+      urlParams.delete('surveyDone');
+      const nextSearch = urlParams.toString();
+      navigate({
+        pathname: window.location.pathname,
+        search: nextSearch ? `?${nextSearch}` : '',
+      }, { replace: true });
     }
   }, [navigate]);
 

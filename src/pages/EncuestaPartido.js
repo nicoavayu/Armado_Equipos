@@ -205,14 +205,23 @@ const EncuestaPartido = () => {
     title: '',
     message: '',
   });
+  const [surveyExitRoute, setSurveyExitRoute] = useState(null);
   const [viewportRatio, setViewportRatio] = useState(() => {
     if (typeof window === 'undefined') return 0.6;
     return window.innerWidth / Math.max(window.innerHeight, 1);
   });
   const closeSurveyModal = () => {
     setSurveyModal({ isOpen: false, title: '', message: '' });
+    const routeToExit = surveyExitRoute;
+    setSurveyExitRoute(null);
+    if (routeToExit) {
+      navigate(routeToExit, { replace: true });
+    }
   };
-  const openSurveyModal = (message, title = 'Aviso') => {
+  const openSurveyModal = (message, title = 'Aviso', options = {}) => {
+    if (options?.exitRoute) {
+      setSurveyExitRoute(options.exitRoute);
+    }
     setSurveyModal({
       isOpen: true,
       title,
@@ -250,6 +259,7 @@ const EncuestaPartido = () => {
       setFormData({ ...DEFAULT_FORM_DATA });
       setLinkedPlayerId(null);
       setLoggedRosterCount(0);
+      setSurveyExitRoute(null);
     };
 
     const fetchPartidoData = async () => {
@@ -360,14 +370,26 @@ const EncuestaPartido = () => {
         setLoggedRosterCount(loggedCount);
 
         if (loggedCount === 0) {
-          notifyBlockingError('Este partido no tiene jugadores con cuenta registrada. No se puede abrir la encuesta.');
-          navigate('/proximos');
+          openSurveyModal(
+            'Este partido se jugó sin jugadores con cuenta registrada, por eso no se generaron datos para la encuesta.',
+            'Encuesta no disponible',
+            { exitRoute: '/' },
+          );
+          setPartido(partidoData || null);
+          setJugadores([]);
+          setLoading(false);
           return;
         }
 
         if (!currentUserEligiblePlayer?.id) {
-          notifyBlockingError('Solo jugadores con cuenta registrada en este partido pueden completar la encuesta.');
-          navigate('/proximos');
+          openSurveyModal(
+            'Esta encuesta solo está disponible para jugadores con cuenta registrada que participaron de este partido.',
+            'Encuesta no disponible',
+            { exitRoute: '/' },
+          );
+          setPartido(partidoData || null);
+          setJugadores([]);
+          setLoading(false);
           return;
         }
 
@@ -1200,6 +1222,48 @@ const EncuestaPartido = () => {
     );
   }
 
+  if (!partido) {
+    return (
+      <PageTransition>
+        <div className="relative h-[100dvh] w-full overflow-visible">
+          <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
+          <div className="relative z-[1] h-full w-full overflow-visible" style={safeAreaStyle}>
+            <div className={cardClass}>
+              <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+                <div className="w-full">
+                  <div className={titleClass}>
+                    ENCUESTA NO DISPONIBLE
+                  </div>
+                </div>
+                <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
+                  No se pudieron cargar los datos del partido.
+                </div>
+                <div className={centeredSummaryButtonWrapClass}>
+                  <button className={btnClass} onClick={() => navigate('/')}>
+                    VOLVER AL INICIO
+                  </button>
+                </div>
+                <div className={logoRowClass}>
+                  <SurveyFooterLogo />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <ConfirmModal
+          isOpen={surveyModal.isOpen}
+          title={surveyModal.title}
+          message={surveyModal.message}
+          confirmText="Aceptar"
+          singleButton={true}
+          onConfirm={closeSurveyModal}
+          onCancel={closeSurveyModal}
+          actionsAlign="center"
+        />
+      </PageTransition>
+    );
+  }
+
   return (
     <PageTransition>
       <div className="relative h-[100dvh] w-full overflow-visible">
@@ -1769,7 +1833,7 @@ const EncuestaPartido = () => {
               <div className={centeredSummaryButtonWrapClass}>
                 <button
                   className={btnClass}
-                  onClick={() => navigate('/proximos?surveyDone=1')}
+                  onClick={() => navigate('/')}
                 >
                   VOLVER AL INICIO
                 </button>

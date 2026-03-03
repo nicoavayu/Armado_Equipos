@@ -944,6 +944,53 @@ const fetchCompletedActionsByMatch = async ({ groups, currentUserId, supabaseCli
   return { votedMatchIds, surveyedMatchIds };
 };
 
+const fetchSurveyIneligibleMatchIds = async ({ groups, currentUserId, supabaseClient }) => {
+  const ineligible = new Set();
+  if (!currentUserId || !supabaseClient) return ineligible;
+
+  const surveyMatchIds = [...new Set(
+    (groups || [])
+      .filter((group) => group?.type === 'survey_start')
+      .map((group) => Number(group?.matchId))
+      .filter((id) => Number.isFinite(id) && id > 0),
+  )];
+
+  if (!surveyMatchIds.length) return ineligible;
+
+  try {
+    const { data: rosterRows, error: rosterError } = await supabaseClient
+      .from('jugadores')
+      .select('partido_id, usuario_id')
+      .in('partido_id', surveyMatchIds)
+      .not('usuario_id', 'is', null);
+
+    if (rosterError) throw rosterError;
+
+    const statsByMatch = new Map();
+    (rosterRows || []).forEach((row) => {
+      const matchId = Number(row?.partido_id);
+      if (!Number.isFinite(matchId) || matchId <= 0) return;
+      const prev = statsByMatch.get(matchId) || { loggedCount: 0, hasCurrentUser: false };
+      prev.loggedCount += 1;
+      if (String(row?.usuario_id || '') === String(currentUserId)) {
+        prev.hasCurrentUser = true;
+      }
+      statsByMatch.set(matchId, prev);
+    });
+
+    surveyMatchIds.forEach((matchId) => {
+      const stats = statsByMatch.get(matchId) || { loggedCount: 0, hasCurrentUser: false };
+      if (stats.loggedCount === 0 || stats.hasCurrentUser !== true) {
+        ineligible.add(matchId);
+      }
+    });
+  } catch (error) {
+    console.error('[ACTIVITY_FEED] failed to resolve survey eligibility:', error);
+  }
+
+  return ineligible;
+};
+
 export const buildActivityFeed = async (notifications = [], options = {}) => {
   const { activeMatches = [], currentUserId = null, supabaseClient = null } = options;
   const activeMatchMap = new Map(
@@ -962,9 +1009,20 @@ export const buildActivityFeed = async (notifications = [], options = {}) => {
     if (group.type === 'survey_start' && completedActions.surveyedMatchIds.has(pid)) return false;
     return true;
   });
-  const fetchedMatchMap = await fetchMissingMatches({ groups: pendingGroups, activeMatchMap, supabaseClient });
+  const ineligibleSurveyMatchIds = await fetchSurveyIneligibleMatchIds({
+    groups: pendingGroups,
+    currentUserId,
+    supabaseClient,
+  });
+  const eligibleGroups = pendingGroups.filter((group) => {
+    if (group.type !== 'survey_start') return true;
+    const pid = Number(group?.matchId || 0);
+    if (!pid) return true;
+    return !ineligibleSurveyMatchIds.has(pid);
+  });
+  const fetchedMatchMap = await fetchMissingMatches({ groups: eligibleGroups, activeMatchMap, supabaseClient });
 
-  const notificationItems = pendingGroups
+  const notificationItems = eligibleGroups
     .map((group) => {
       const match = group.matchId ? (activeMatchMap.get(Number(group.matchId)) || fetchedMatchMap.get(Number(group.matchId))) : null;
       return toActivityFromNotification(group, match, currentUserId);
