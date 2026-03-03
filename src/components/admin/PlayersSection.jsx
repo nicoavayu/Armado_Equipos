@@ -126,6 +126,7 @@ const PlayersSection = ({
   const [isTitularesOpen, setIsTitularesOpen] = useState(true);
   const [isSuplentesOpen, setIsSuplentesOpen] = useState(true);
   const [animateCompletionTick, setAnimateCompletionTick] = useState(false);
+  const [joinSuccessModalOpen, setJoinSuccessModalOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef(null);
   const adminMenuButtonRef = useRef(null);
@@ -228,6 +229,13 @@ const PlayersSection = ({
       notifyBlockingError(error?.message || 'No se pudo expulsar al jugador');
     } finally {
       setIsRemovingPlayer(false);
+    }
+  };
+
+  const handleAcceptInvitation = async () => {
+    const joined = await aceptarInvitacion?.();
+    if (joined) {
+      setJoinSuccessModalOpen(true);
     }
   };
 
@@ -803,8 +811,6 @@ const PlayersSection = ({
             {showInviteStylePostJoin ? (
               <div className="w-full max-w-[340px] mx-auto px-2 sm:px-0 flex flex-col gap-2">
                 <div className="w-full border-t border-white/15 mb-1" aria-hidden="true" />
-                <p className="m-0 text-white/90 font-oswald text-base text-center">Te has unido!</p>
-                <p className="m-0 text-emerald-400 font-oswald text-sm text-center">Podés acceder desde Mis partidos.</p>
                 <button
                   className={matchPrimaryButtonClass}
                   onClick={handleAddToCalendar}
@@ -828,7 +834,7 @@ const PlayersSection = ({
                     <>
                       <button
                         className={matchPrimaryButtonClass}
-                        onClick={aceptarInvitacion}
+                        onClick={handleAcceptInvitation}
                         disabled={invitationLoading || isMatchFull}
                       >
                         {invitationLoading ? <LoadingSpinner size="small" /> : 'Aceptar'}
@@ -861,6 +867,15 @@ const PlayersSection = ({
           cancelText="CANCELAR"
           isDeleting={isRemovingPlayer}
           danger
+        />
+        <ConfirmModal
+          isOpen={joinSuccessModalOpen}
+          title="Te has unido!"
+          message="Podes acceder desde Mis partidos."
+          confirmText="Aceptar"
+          singleButton={true}
+          onConfirm={() => setJoinSuccessModalOpen(false)}
+          onCancel={() => setJoinSuccessModalOpen(false)}
         />
       </>
     );

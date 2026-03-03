@@ -590,18 +590,18 @@ export const useAdminPanelState = ({
   };
 
   const aceptarInvitacion = async () => {
-    if (!user?.id || !partidoActual?.id) return;
+    if (!user?.id || !partidoActual?.id) return false;
 
     const yaEstaEnPartido = jugadores.some((j) => j.usuario_id === user.id);
     if (yaEstaEnPartido) {
       setInlineNotice('warning', 'Ya estás en este partido');
       setPendingInvitation(false);
-      return;
+      return false;
     }
 
     if (isRosterFull) {
       setInlineNotice('warning', 'El partido está completo (titulares y suplentes)');
-      return;
+      return false;
     }
 
     setInvitationLoading(true);
@@ -614,7 +614,7 @@ export const useAdminPanelState = ({
         .single();
 
       if (existingPlayer) {
-        return;
+        return false;
       }
 
       const { data: userProfile, error: profileError } = await supabase
@@ -639,7 +639,7 @@ export const useAdminPanelState = ({
       if (insertError) {
         if (insertError.code === '23505') {
           setPendingInvitation(false);
-          return;
+          return false;
         }
         throw insertError;
       }
@@ -674,13 +674,7 @@ export const useAdminPanelState = ({
       setJugadoresLocal(jugadoresActualizados);
       onJugadoresChange(jugadoresActualizados);
       setPendingInvitation(false);
-
-      setInlineNotice('success', 'Te uniste al partido');
-
-      // Force refresh to show guest view
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      return true;
 
     } catch (error) {
       if (error.message && error.message.includes('row-level security policy')) {
@@ -688,6 +682,7 @@ export const useAdminPanelState = ({
       } else {
         notifyBlockingError('Error al unirse al partido: ' + error.message);
       }
+      return false;
     } finally {
       setInvitationLoading(false);
     }

@@ -298,8 +298,6 @@ function SharedInviteLayout({
 
   const renderJoinedBlock = () => (
     <div className="flex flex-col gap-2 w-full">
-      <p className="m-0 text-white/95 font-oswald text-[18px] font-semibold text-center leading-none">Te has unido!</p>
-      <p className="m-0 text-emerald-300 font-oswald text-[16px] text-center leading-none">Podes acceder desde Mis partidos</p>
       <button
         onClick={onAddToCalendar}
         className={matchPrimaryButtonClass}
@@ -445,6 +443,10 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     isOpen: false,
     message: '',
   });
+  const [joinSuccessModal, setJoinSuccessModal] = useState({
+    isOpen: false,
+    afterConfirm: null,
+  });
   const [inlineNotice, setInlineNotice] = useState(null);
   const pendingContinueRef = useRef(null);
 
@@ -462,6 +464,24 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       isOpen: true,
       message,
     });
+  };
+
+  const openJoinSuccessModal = (afterConfirm = null) => {
+    setJoinSuccessModal({
+      isOpen: true,
+      afterConfirm,
+    });
+  };
+
+  const closeJoinSuccessModal = () => {
+    const callback = joinSuccessModal.afterConfirm;
+    setJoinSuccessModal({
+      isOpen: false,
+      afterConfirm: null,
+    });
+    if (typeof callback === 'function') {
+      callback();
+    }
   };
 
   const toCompressedDataUrl = async (file) => {
@@ -908,7 +928,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           reqId: originalReqId
         });
         setJoinStatus('approved');
-        showInlineNotice('success', 'Te has unido! Podes acceder desde Mis partidos.');
+        openJoinSuccessModal();
       } else {
         console.log('[RECHECK] Not yet synced, retrying...', { attempt, matchId, userUuid, originalReqId });
         recheckMembership(userUuid, matchId, originalReqId, attempt + 1);
@@ -1183,11 +1203,13 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         adminUserId: partido?.creado_por || null,
       });
 
-      showInlineNotice('success', 'Te sumaste al partido.');
       if (mode === 'invite') {
-        navigate(buildPostJoinRoute());
+        openJoinSuccessModal(() => {
+          navigate(buildPostJoinRoute());
+        });
       } else {
         setJoinStatus('approved');
+        openJoinSuccessModal();
       }
     } catch (err) {
       console.error('[PartidoInvitacion] Error sumando con cuenta:', err);
@@ -1371,6 +1393,15 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             }
             closeScheduleWarning();
           }}
+        />
+        <ConfirmModal
+          isOpen={joinSuccessModal.isOpen}
+          title="Te has unido!"
+          message="Podes acceder desde Mis partidos."
+          confirmText="Aceptar"
+          singleButton={true}
+          onCancel={closeJoinSuccessModal}
+          onConfirm={closeJoinSuccessModal}
         />
       </>
     );
