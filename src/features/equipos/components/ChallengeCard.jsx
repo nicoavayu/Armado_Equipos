@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CalendarClock, Flag, MapPin, MoreVertical, Pencil, Shield } from 'lucide-react';
 import { CHALLENGE_STATUS_LABELS } from '../config';
-import { formatSkillLevelLabel, getTeamGradientStyle, getTeamPalette } from '../utils/teamColors';
+import { formatSkillLevelLabel, getTeamPalette, getTeamProvidedColors } from '../utils/teamColors';
 
 const CTA_BY_STATUS = {
   open: 'Aceptar',
@@ -56,33 +56,49 @@ const TeamSide = ({ team, fallbackText }) => {
     );
   }
 
-  const style = getTeamGradientStyle(team);
   const palette = getTeamPalette(team);
+  const bandColors = getTeamProvidedColors(team, 3);
+  const hasColorBand = bandColors.length > 0;
 
   return (
-    <div className="flex-1 rounded-none border border-[rgba(41,170,255,0.9)] p-3 bg-[#07163b] shadow-[0_0_10px_rgba(41,170,255,0.24)]" style={style}>
-      <div className="flex items-center gap-2">
-        <div className="h-10 w-10 rounded-none overflow-hidden border border-white/30 bg-black/15 flex items-center justify-center shrink-0">
-          {team.crest_url ? (
-            <img src={team.crest_url} alt={team.name || 'Escudo'} className="h-full w-full object-cover" />
-          ) : (
-            <Shield size={18} className="text-white/80" />
-          )}
-        </div>
-        <div className="min-w-0">
-          <div className="text-white font-oswald text-[15px] font-semibold leading-tight truncate">{team.name || 'Equipo'}</div>
-          <div className="font-oswald text-[11px] uppercase text-white/75">F{team.format || '-'} · {formatSkillLevelLabel(team.skill_level)}</div>
-        </div>
-      </div>
-
-      {team.base_zone ? (
-        <div
-          className={`${CHIP_BASE_CLASS} mt-2 inline-flex items-center gap-1 border`}
-          style={{ borderColor: `${palette.accent}66`, color: '#F8FAFC', backgroundColor: palette.chipBg }}
-        >
-          <MapPin size={11} /> {team.base_zone}
-        </div>
+    <div className="relative flex-1 overflow-hidden rounded-none border border-[rgba(41,170,255,0.9)] p-3 bg-[#07163b] shadow-[0_0_10px_rgba(41,170,255,0.24)]">
+      {hasColorBand ? (
+        <span className="pointer-events-none absolute left-0 top-0 bottom-0 z-[1] w-[12px] overflow-hidden">
+          <span
+            className="grid h-full w-full"
+            style={{ gridTemplateColumns: `repeat(${bandColors.length}, minmax(0, 1fr))` }}
+          >
+            {bandColors.map((color, index) => (
+              <span key={`${color}-${index}`} style={{ backgroundColor: color }} />
+            ))}
+          </span>
+        </span>
       ) : null}
+
+      <div className={hasColorBand ? 'pl-4' : ''}>
+        <div className="flex items-center gap-2">
+          <div className="h-10 w-10 rounded-none overflow-hidden border border-white/30 bg-black/15 flex items-center justify-center shrink-0">
+            {team.crest_url ? (
+              <img src={team.crest_url} alt={team.name || 'Escudo'} className="h-full w-full object-cover" />
+            ) : (
+              <Shield size={18} className="text-white/80" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="text-white font-oswald text-[15px] font-semibold leading-tight truncate">{team.name || 'Equipo'}</div>
+            <div className="font-oswald text-[11px] uppercase text-white/75">F{team.format || '-'} · {formatSkillLevelLabel(team.skill_level)}</div>
+          </div>
+        </div>
+
+        {team.base_zone ? (
+          <div
+            className={`${CHIP_BASE_CLASS} mt-2 inline-flex items-center gap-1 border`}
+            style={{ borderColor: `${palette.accent}66`, color: '#F8FAFC', backgroundColor: palette.chipBg }}
+          >
+            <MapPin size={11} /> {team.base_zone}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 };
