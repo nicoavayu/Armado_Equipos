@@ -12,18 +12,26 @@ const LoadingSpinner = ({ size = 'medium', fullScreen = false, className = '' })
     large: 'w-16 h-16',
   };
 
-  const wrapperClasses = fullScreen
-    ? 'fixed inset-0 flex items-center justify-center'
-    : 'flex items-center justify-center w-full h-full';
+  const spinnerClasses = `animate-spin ${sizeClasses[String(size).toLowerCase()] || sizeClasses.medium} ${className}`.trim();
+
+  if (fullScreen) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center">
+        <img
+          src="/spinner.svg"
+          alt="Loading..."
+          className={spinnerClasses}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className={`${wrapperClasses} ${className}`.trim()}>
-      <img
-        src="/spinner.svg"
-        alt="Loading..."
-        className={`animate-spin ${sizeClasses[String(size).toLowerCase()] || sizeClasses.medium}`}
-      />
-    </div>
+    <img
+      src="/spinner.svg"
+      alt="Loading..."
+      className={spinnerClasses}
+    />
   );
 };
 

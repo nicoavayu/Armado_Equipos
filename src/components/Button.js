@@ -50,10 +50,10 @@ const Button = ({
       {...props}
     >
       {loading ? (
-        <div className="flex items-center gap-2">
+        <>
           <LoadingSpinner size="sm" />
           {loadingText}
-        </div>
+        </>
       ) : children}
     </motion.button>
   );
