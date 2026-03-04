@@ -32,6 +32,7 @@ import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY } from '../config';
 const modalActionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 const modalPrimaryActionButtonClass = `${modalActionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
 const modalSecondaryActionButtonClass = `${modalActionButtonBaseClass} !border !border-[rgba(98,117,184,0.58)] !bg-[rgba(20,31,70,0.82)] !text-white/92 hover:!bg-[rgba(30,45,94,0.95)]`;
+const teamSectionModalShellClass = '!rounded-none !border !border-[rgba(88,107,170,0.52)] !bg-[rgba(8,18,44,0.96)] !shadow-[0_26px_58px_rgba(0,0,0,0.62)]';
 const optionCardClass = 'w-full rounded-none border border-white/15 bg-white/5 p-3 text-left transition-all hover:bg-white/10';
 const disabledOptionCardClass = `${optionCardClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:bg-white/5`;
 const transparentMenuButtonClass = 'kebab-menu-btn relative z-10';
@@ -1269,7 +1270,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         isOpen={addMemberChoiceOpen}
         onClose={() => setAddMemberChoiceOpen(false)}
         title="Agregar Jugador"
-        className="w-full max-w-[520px] !rounded-none !border !border-[rgba(88,107,170,0.46)] !bg-[rgba(30,41,59,0.96)] !shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
+        className={`w-full max-w-[520px] ${teamSectionModalShellClass}`}
         classNameContent="p-4 sm:p-5"
       >
         <div className="space-y-2">
@@ -1318,7 +1319,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         isOpen={inviteMemberModalOpen}
         onClose={closeInviteMemberModal}
         title="Invitar Amigo"
-        className="w-full max-w-[560px] !rounded-none !border !border-[rgba(88,107,170,0.46)] !bg-[rgba(30,41,59,0.96)] !shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
+        className={`w-full max-w-[560px] ${teamSectionModalShellClass}`}
         classNameContent="p-4 sm:p-5"
         footer={(
           <div className="grid grid-cols-2 gap-2">
@@ -1408,7 +1409,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         isOpen={memberModalOpen}
         onClose={closeMemberModal}
         title={memberModalMode === 'create' ? 'Agregar Jugador' : 'Editar Jugador'}
-        className="w-full max-w-[560px] !rounded-none !border !border-[rgba(88,107,170,0.46)] !bg-[rgba(30,41,59,0.96)] !shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
+        className={`w-full max-w-[560px] ${teamSectionModalShellClass}`}
         classNameContent="p-4 sm:p-5"
         footer={(
           <div className="grid grid-cols-2 gap-2">
