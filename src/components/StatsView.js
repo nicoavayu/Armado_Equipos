@@ -395,6 +395,41 @@ const StatsView = ({ onVolver }) => {
     return null;
   };
 
+  const isNotPlayedOutcomeToken = (value) => {
+    const token = normalizeIdentity(value);
+    if (!token) return false;
+    return (
+      token === 'not_played'
+      || token === 'cancelled'
+      || token === 'cancelado'
+      || token === 'no_jugado'
+      || token === 'notplayed'
+    );
+  };
+
+  const isClosedPlayedSurveyOutcome = ({ resultStatus, winnerTeam, finishedAt }) => {
+    const normalizedStatus = normalizeSurveyResultStatus(resultStatus);
+    const normalizedWinner = normalizeSurveyWinner(winnerTeam);
+
+    if (normalizedStatus === 'not_played' || isNotPlayedOutcomeToken(winnerTeam)) {
+      return false;
+    }
+
+    if (normalizedStatus === 'finished' || normalizedStatus === 'draw') {
+      return true;
+    }
+
+    if (normalizedWinner === 'equipo_a' || normalizedWinner === 'equipo_b' || normalizedWinner === 'empate') {
+      return true;
+    }
+
+    if (finishedAt && normalizedStatus !== 'pending') {
+      return true;
+    }
+
+    return false;
+  };
+
   const resolveUserTeam = ({ participants, teamA, teamB, matchPlayers = [] }) => {
     const teamARefs = new Set((Array.isArray(teamA) ? teamA : []).map(normalizeTeamEntry).filter(Boolean));
     const teamBRefs = new Set((Array.isArray(teamB) ? teamB : []).map(normalizeTeamEntry).filter(Boolean));
@@ -1098,15 +1133,32 @@ const StatsView = ({ onVolver }) => {
     }
 
     let rows = [];
+    let surveyResultsQueryFailed = false;
     try {
       const { data, error } = await supabase
         .from('survey_results')
-        .select('partido_id, result_status')
+        .select('partido_id, result_status, winner_team, finished_at')
         .in('partido_id', normalizedMatchIds);
       if (error) throw error;
       rows = data || [];
     } catch (error) {
+      surveyResultsQueryFailed = true;
       console.warn('[STATS] No se pudo usar survey_results como fallback de asistencia.', error);
+    }
+
+    let lifecycleRows = [];
+    try {
+      const { data, error } = await supabase
+        .from('partidos')
+        .select('id, result_status, winner_team, finished_at')
+        .in('id', normalizedMatchIds);
+      if (error) throw error;
+      lifecycleRows = data || [];
+    } catch (_error) {
+      lifecycleRows = [];
+    }
+
+    if (surveyResultsQueryFailed && lifecycleRows.length === 0) {
       return {
         partidosConEncuesta: 0,
         partidosSinEncuesta: normalizedMatchIds.length,
@@ -1120,7 +1172,14 @@ const StatsView = ({ onVolver }) => {
     (rows || []).forEach((row) => {
       const id = Number(row?.partido_id);
       if (!Number.isFinite(id)) return;
-      resultByMatch.set(id, normalizeSurveyResultStatus(row?.result_status));
+      resultByMatch.set(id, row);
+    });
+
+    const lifecycleByMatch = new Map();
+    (lifecycleRows || []).forEach((row) => {
+      const id = Number(row?.id);
+      if (!Number.isFinite(id)) return;
+      lifecycleByMatch.set(id, row);
     });
 
     let partidosConEncuesta = 0;
@@ -1128,14 +1187,28 @@ const StatsView = ({ onVolver }) => {
     const playedMatchIds = [];
 
     normalizedMatchIds.forEach((matchId) => {
-      const status = resultByMatch.get(matchId);
-      if (!status) {
-        partidosSinEncuesta += 1;
+      const surveyRow = resultByMatch.get(matchId) || null;
+      const lifecycleRow = lifecycleByMatch.get(matchId) || null;
+      const resultStatus = surveyRow?.result_status ?? lifecycleRow?.result_status ?? null;
+      const winnerTeam = surveyRow?.winner_team ?? lifecycleRow?.winner_team ?? null;
+      const finishedAt = surveyRow?.finished_at ?? lifecycleRow?.finished_at ?? null;
+      const hasAnyMetadata = Boolean(surveyRow || lifecycleRow);
+
+      if (
+        normalizeSurveyResultStatus(resultStatus) === 'not_played'
+        || isNotPlayedOutcomeToken(winnerTeam)
+      ) {
         return;
       }
-      if (status === 'finished' || status === 'draw') {
+
+      if (isClosedPlayedSurveyOutcome({ resultStatus, winnerTeam, finishedAt })) {
         partidosConEncuesta += 1;
         playedMatchIds.push(matchId);
+        return;
+      }
+
+      if (!hasAnyMetadata) {
+        partidosSinEncuesta += 1;
       }
     });
 
