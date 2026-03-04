@@ -113,7 +113,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       console.warn('[NOTIFICATION_CLICK] onClose threw:', e);
     }
 
-    if (notification.type === 'survey_start') {
+    if (notification.type === 'survey_start' || notification.type === 'post_match_survey') {
       const link = notification?.data?.link;
       const matchId = extractNotificationMatchId(notification);
 
@@ -201,7 +201,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (notification.type === 'survey_reminder') {
+    if (notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h') {
       const reminderMatchId = extractNotificationMatchId(notification);
       if (reminderMatchId && user?.id) {
         const access = await resolveSurveyAccess({
@@ -267,7 +267,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       case 'match_invite': return CalendarClock;
       case 'call_to_vote': return Vote;
       case 'survey_start': return ClipboardList;
+      case 'post_match_survey': return ClipboardList;
       case 'survey_reminder': return ClipboardList;
+      case 'survey_reminder_12h': return ClipboardList;
       case 'survey_results_ready': return Trophy;
       case 'awards_ready': return Trophy;
       case 'survey_finished': return ClipboardList;
@@ -443,10 +445,10 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           ) : (
             <div className="p-0">
               {filteredNotifications.map((notification) => {
-                const clickable = ['match_invite', 'team_invite', 'team_captain_transfer', 'call_to_vote', 'survey_start', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished', 'award_won'].includes(notification.type);
+                const clickable = ['match_invite', 'team_invite', 'team_captain_transfer', 'call_to_vote', 'survey_start', 'post_match_survey', 'survey_reminder', 'survey_reminder_12h', 'survey_results_ready', 'awards_ready', 'survey_finished', 'award_won'].includes(notification.type);
                 const Icon = getNotificationIcon(notification.type) || User;
                 const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
-                const isSurveyReminder = notification.type === 'survey_reminder';
+                const isSurveyReminder = notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h';
                 const isSurveyResults = notification.type === 'survey_results_ready';
                 const isTeamInvite = notification.type === 'team_invite';
                 const matchName = resolveNotificationMatchName(notification, 'este partido');

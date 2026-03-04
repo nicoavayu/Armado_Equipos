@@ -27,6 +27,7 @@ const SURVEY_TYPES = new Set([
   'survey_start',
   'post_match_survey',
   'survey_reminder',
+  'survey_reminder_12h',
   'survey_finished',
   'survey_results',
   'survey_results_ready',

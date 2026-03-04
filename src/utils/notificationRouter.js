@@ -2,17 +2,52 @@ import { supabase } from '../supabase';
 import { logger } from '../lib/logger';
 import { getResultsUrl } from './routes';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
+import { extractNotificationMatchId } from './notificationRoutes';
 
-// const encuestaUrl = (matchId) => `/encuesta/${matchId}`;
+const normalizeSurveyLink = (rawLink, matchId) => {
+  const fallback = matchId ? `/encuesta/${matchId}` : null;
+  if (!rawLink) return fallback;
+
+  const link = String(rawLink || '').trim();
+  if (!link) return fallback;
+
+  // Legacy routes used /partidos/:id/encuesta; app route is /encuesta/:id.
+  const normalized = link.replace(
+    /^\/partidos\/([^/]+)\/encuesta(\?.*)?$/i,
+    '/encuesta/$1$2',
+  );
+
+  return normalized || fallback;
+};
+
+const SURVEY_NOTIFICATION_TYPES = new Set([
+  'survey',
+  'survey_start',
+  'post_match_survey',
+  'survey_reminder',
+  'survey_reminder_12h',
+]);
+
+const RESULTS_NOTIFICATION_TYPES = new Set([
+  'survey_results',
+  'survey_results_ready',
+  'awards_ready',
+  'award_won',
+]);
 
 export async function openNotification(n, navigate) {
   try {
     const type = n?.type;
-    const matchId = n?.data?.matchId || n?.data?.partido_id || n?.partido_id;
+    const matchId = extractNotificationMatchId(n);
     const teamMatchId = n?.data?.team_match_id || n?.data?.teamMatchId || null;
 
-    // Prefer explicit deep_link fields if present
-    const deepLink = n?.deep_link || n?.deepLink || n?.data?.deep_link || n?.data?.deepLink || (matchId ? `/partidos/${matchId}/encuesta` : null);
+    // Prefer explicit deep links and fallback to the canonical survey route.
+    const deepLink = n?.deep_link
+      || n?.deepLink
+      || n?.data?.deep_link
+      || n?.data?.deepLink
+      || n?.data?.link
+      || null;
 
     console.debug('[openNotification] opening notification', { id: n?.id, type, matchId, deepLink });
 
@@ -36,23 +71,18 @@ export async function openNotification(n, navigate) {
       return;
     }
 
-    if (!matchId) return;
-
-    // Survey notifications should deep-link to the survey UI (not admin panel)
-    if (type === 'survey' || type === 'survey_reminder') {
-      console.debug('[openNotification] navigating to survey deep_link', { deepLink });
-      if (deepLink) {
-        navigate(deepLink);
-      } else {
-        // fallback to path using matchId
-        navigate(`/partidos/${matchId}/encuesta`);
-      }
+    if (SURVEY_NOTIFICATION_TYPES.has(type)) {
+      const surveyLink = normalizeSurveyLink(deepLink, matchId);
+      console.debug('[openNotification] navigating to survey link', { surveyLink });
+      if (surveyLink) navigate(surveyLink);
       return;
     }
 
-    if (type === 'survey_results_ready' || type === 'awards_ready') {
+    if (!matchId) return;
+
+    if (RESULTS_NOTIFICATION_TYPES.has(type)) {
       // Prefer explicit resultsUrl
-      const base = n?.data?.resultsUrl || getResultsUrl(Number(matchId)) || n?.data?.link || `/encuesta/${matchId}`;
+      const base = n?.data?.resultsUrl || n?.data?.link || getResultsUrl(Number(matchId)) || `/resultados-encuesta/${matchId}`;
       // Ensure showAwards=1 is in query so legacy pages open awards section
       const url = base.includes('?') ? `${base}&showAwards=1` : `${base}?showAwards=1`;
       // Pass navigation state to force awards computation on the destination
@@ -67,7 +97,7 @@ export async function openNotification(n, navigate) {
     }
 
     if (type === 'survey_finished') {
-      const base = n?.data?.resultsUrl || getResultsUrl(Number(matchId)) || n?.data?.link || `/resultados-encuesta/${matchId}`;
+      const base = n?.data?.resultsUrl || n?.data?.link || getResultsUrl(Number(matchId)) || `/resultados-encuesta/${matchId}`;
       navigate(base);
       return;
     }

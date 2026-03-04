@@ -364,6 +364,7 @@ export const NotificationProvider = ({ children }) => {
       'survey_start',
       'post_match_survey',
       'survey_reminder',
+      'survey_reminder_12h',
       'call_to_vote',
     ];
     const keepMap = new Map(); // key -> notification for partido-linked
@@ -389,7 +390,7 @@ export const NotificationProvider = ({ children }) => {
       const surveyGroup = (
         n.type === 'survey_start' || n.type === 'post_match_survey'
           ? 'survey_open'
-          : n.type === 'survey_reminder'
+          : n.type === 'survey_reminder' || n.type === 'survey_reminder_12h'
             ? 'survey_reminder'
             : String(n.type || 'default')
       );
@@ -429,7 +430,7 @@ export const NotificationProvider = ({ children }) => {
     // If there's a survey-related notification for a partido, we should suppress lower-priority
     // notifications (like 'call_to_vote') that reference the same partido even if they were stored
     // as non-partido grouped notifications. Build a set of partido ids that have survey notifications.
-    const surveyTypes = new Set(['survey_start', 'post_match_survey', 'survey_reminder', 'survey_results_ready', 'awards_ready', 'survey_finished']);
+    const surveyTypes = new Set(['survey_start', 'post_match_survey', 'survey_reminder', 'survey_reminder_12h', 'survey_results_ready', 'awards_ready', 'survey_finished']);
     const surveyPartidoIds = new Set();
     for (const n of Array.from(keepMap.values())) {
       if (surveyTypes.has(n.type)) {
@@ -613,7 +614,8 @@ export const NotificationProvider = ({ children }) => {
         console.info(`${notification.title || '¡Encuesta lista!'}: ${surveyMessage}`, toastOptions);
         break;
       }
-      case 'survey_reminder': {
+      case 'survey_reminder':
+      case 'survey_reminder_12h': {
         const reminderMessage = getSurveyReminderMessage({
           source: notification,
           matchName: quoteMatchName(resolveNotificationMatchName(notification, 'este partido'), 'este partido'),
@@ -651,6 +653,7 @@ export const NotificationProvider = ({ children }) => {
     const callToVote = unread.filter((n) => n.type === 'call_to_vote').length;
     const surveyStarts = unread.filter((n) => n.type === 'survey_start').length;
     const postMatchSurveys = unread.filter((n) => n.type === 'post_match_survey').length;
+    const surveyReminders = unread.filter((n) => n.type === 'survey_reminder' || n.type === 'survey_reminder_12h').length;
     const surveyResults = unread.filter((n) => n.type === 'survey_results_ready').length;
     const awardsReady = unread.filter((n) => n.type === 'awards_ready').length;
     const awardWon = unread.filter((n) => n.type === 'award_won').length;
@@ -660,7 +663,7 @@ export const NotificationProvider = ({ children }) => {
 
     setUnreadCount({
       friends: friendRequests,
-      matches: matchInvites + teamInvites + captainTransfers + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyResults + awardsReady + awardWon + surveyFinished + noShowPenalty + noShowRecovery,
+      matches: matchInvites + teamInvites + captainTransfers + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyReminders + surveyResults + awardsReady + awardWon + surveyFinished + noShowPenalty + noShowRecovery,
       total: unread.length,
     });
   };

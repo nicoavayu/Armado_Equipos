@@ -105,7 +105,7 @@ const NotificationsView = () => {
       return;
     }
 
-    if (notification?.type === 'survey_start') {
+    if (notification?.type === 'survey_start' || notification?.type === 'post_match_survey') {
       try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
       if (matchId && user?.id) {
         const access = await resolveSurveyAccess({
@@ -252,19 +252,20 @@ const NotificationsView = () => {
         break;
       }
       case 'post_match_survey':
-        if (data.partido_id) {
-          safeNavigate(notification, `/encuesta/${toBigIntId(data.partido_id)}`);
+        if (matchId) {
+          safeNavigate(notification, `/encuesta/${toBigIntId(matchId)}`);
         } else {
           fallbackToNotificationRoute(notification, 'No encontramos la encuesta de este partido.');
         }
         break;
       case 'survey_reminder':
-        console.log('[NOTIFICATION_CLICK] Survey reminder - matchId:', data.matchId);
-        if (data.matchId) {
+      case 'survey_reminder_12h':
+        console.log('[NOTIFICATION_CLICK] Survey reminder - matchId:', matchId);
+        if (matchId) {
           if (user?.id) {
             const access = await resolveSurveyAccess({
               supabaseClient: supabase,
-              matchId: data.matchId,
+              matchId,
               userId: user.id,
             });
             if (!access.allowed) {
@@ -272,7 +273,7 @@ const NotificationsView = () => {
               break;
             }
           }
-          const url = `/encuesta/${toBigIntId(data.matchId)}`;
+          const url = `/encuesta/${toBigIntId(matchId)}`;
           console.log('[NOTIFICATION_CLICK] Navigating to:', url);
           safeNavigate(notification, url);
         } else {
@@ -411,8 +412,10 @@ const NotificationsView = () => {
       case 'team_match_created':
         return CalendarClock;
       case 'post_match_survey':
+      case 'survey_start':
         return ClipboardList;
       case 'survey_reminder':
+      case 'survey_reminder_12h':
         return ClipboardList;
       case 'call_to_vote':
         return Vote;
@@ -480,7 +483,7 @@ const NotificationsView = () => {
 
   const getDisplayCopy = (notification) => {
     const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
-    const isSurveyReminder = notification.type === 'survey_reminder';
+    const isSurveyReminder = notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h';
     const isSurveyResults = notification.type === 'survey_results_ready';
     const isTeamInvite = notification.type === 'team_invite';
     const matchName = resolveNotificationMatchName(notification, 'este partido');
