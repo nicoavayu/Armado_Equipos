@@ -1,85 +1,99 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Swords } from 'lucide-react';
+import {
+  IoFootball,
+  IoFootballOutline,
+  IoHome,
+  IoHomeOutline,
+  IoPeople,
+  IoPeopleOutline,
+  IoPerson,
+  IoPersonOutline,
+} from 'react-icons/io5';
 
 const TabBar = ({ activeTab, onTabChange }) => {
   const navigate = useNavigate();
 
-  const handleTabClick = (tab) => {
-    if (tab === 'home') navigate('/');
-    else if (tab === 'quiero-jugar') navigate('/quiero-jugar');
-    else if (tab === 'desafios') navigate('/desafios');
-    else if (tab === 'amigos') navigate('/amigos');
-    else if (tab === 'profile') navigate('/profile');
+  const tabs = [
+    { key: 'home', label: 'Inicio', href: '/', ActiveIcon: IoHome, InactiveIcon: IoHomeOutline },
+    {
+      key: 'quiero-jugar',
+      label: 'Quiero Jugar',
+      href: '/quiero-jugar',
+      ActiveIcon: IoFootball,
+      InactiveIcon: IoFootballOutline,
+    },
+    {
+      key: 'desafios',
+      label: 'Desafíos',
+      href: '/desafios',
+      ActiveIcon: Swords,
+      InactiveIcon: Swords,
+      simulatedActive: true,
+    },
+    { key: 'amigos', label: 'Amigos', href: '/amigos', ActiveIcon: IoPeople, InactiveIcon: IoPeopleOutline },
+    { key: 'profile', label: 'Perfil', href: '/profile', ActiveIcon: IoPerson, InactiveIcon: IoPersonOutline },
+  ];
 
-    if (onTabChange) onTabChange(tab);
+  const handleTabClick = (tab) => {
+    navigate(tab.href);
+
+    if (onTabChange) onTabChange(tab.key);
   };
 
   return (
-    <div className="app-tabbar fixed bottom-0 left-0 right-0 flex min-h-[70px] h-auto md:min-h-[80px] z-[1000] bg-white/10 backdrop-blur-[20px] border-t border-white/20 pb-[var(--safe-bottom,0px)] shadow-[0_-8px_32px_rgba(0,0,0,0.3)] transition-[transform,opacity] duration-200">
-      {/* Home */}
-      <button
-        className={`flex-1 flex flex-col items-center justify-center text-white bg-transparent border-r border-white/20 py-2 cursor-pointer transition-all duration-300 font-oswald text-sm md:py-3 md:pb-2 ${activeTab === 'home' ? 'bg-white/30' : ''}`}
-        onClick={() => handleTabClick('home')}
-      >
-        <div className="relative flex items-center justify-center mb-1">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 md:w-6 md:h-6 drop-shadow-sm">
-            <path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.689-8.69a2.25 2.25 0 00-3.182 0l-8.69 8.69a.75.75 0 001.061 1.06l8.69-8.69z" />
-            <path d="M12 5.432l8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 01-.75-.75v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V21a.75.75 0 01-.75.75H5.625a1.875 1.875 0 01-1.875-1.875v-6.198a2.29 2.29 0 00.091-.086L12 5.43z" />
-          </svg>
-        </div>
-        <span className="text-[10px] md:text-xs font-bold tracking-wider font-sans mt-1">Inicio</span>
-      </button>
+    <div
+      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] flex min-h-[70px] h-auto md:min-h-[80px] bg-white/5 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.16)] transition-[transform,opacity] duration-200"
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), var(--safe-bottom, 0px))' }}
+    >
+      {tabs.map((tab, index) => {
+        const isActive = activeTab === tab.key;
+        const IconComponent = isActive ? tab.ActiveIcon : tab.InactiveIcon;
+        const useSimulatedActive = isActive && tab.simulatedActive;
+        const iconProps = {
+          size: 24,
+          className: `h-6 w-6 transition-[opacity,transform,filter,color] duration-200 group-active:scale-95 ${
+            isActive ? 'scale-100 opacity-100' : 'scale-100 opacity-60'
+          } ${
+            useSimulatedActive
+              ? 'drop-shadow-[0_2px_6px_rgba(255,255,255,0.25)]'
+              : isActive
+              ? 'drop-shadow-[0_2px_4px_rgba(255,255,255,0.2)]'
+              : 'drop-shadow-none'
+          }`,
+        };
 
-      {/* Quiero Jugar */}
-      <button
-        className={`flex-1 flex flex-col items-center justify-center text-white bg-transparent border-r border-white/20 py-2 cursor-pointer transition-all duration-300 ${activeTab === 'quiero-jugar' ? 'bg-white/30 shadow-inner' : ''}`}
-        onClick={() => handleTabClick('quiero-jugar')}
-      >
-        <div className="relative flex items-center justify-center mb-0.5">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 md:w-5 md:h-5 drop-shadow-sm">
-            <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" />
-          </svg>
-        </div>
-        <span className="text-[10px] md:text-xs font-bold tracking-wider font-sans mt-1">Quiero Jugar</span>
-      </button>
+        if (tab.simulatedActive) {
+          iconProps.strokeWidth = useSimulatedActive ? 2.9 : 2.1;
+        }
 
-      {/* Desafíos */}
-      <button
-        className={`flex-1 flex flex-col items-center justify-center text-white bg-transparent border-r border-white/20 py-2 cursor-pointer transition-all duration-300 ${activeTab === 'desafios' ? 'bg-white/30 shadow-inner' : ''}`}
-        onClick={() => handleTabClick('desafios')}
-      >
-        <div className="relative flex items-center justify-center mb-0.5">
-          <Swords className="w-6 h-6 md:w-5 md:h-5 drop-shadow-sm" strokeWidth={2.2} />
-        </div>
-        <span className="text-[10px] md:text-xs font-bold tracking-wider font-sans mt-1">Desafíos</span>
-      </button>
-
-      {/* Amigos */}
-      <button
-        className={`flex-1 flex flex-col items-center justify-center text-white bg-transparent border-r border-white/20 py-2 cursor-pointer transition-all duration-300 ${activeTab === 'amigos' ? 'bg-white/30 shadow-inner' : ''}`}
-        onClick={() => handleTabClick('amigos')}
-      >
-        <div className="relative flex items-center justify-center mb-0.5">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 md:w-5 md:h-5 drop-shadow-sm">
-            <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
-          </svg>
-        </div>
-        <span className="text-[10px] md:text-xs font-bold tracking-wider font-sans mt-1">Amigos</span>
-      </button>
-
-      {/* Perfil */}
-      <button
-        className={`flex-1 flex flex-col items-center justify-center text-white bg-transparent border-none py-2 cursor-pointer transition-all duration-300 ${activeTab === 'profile' ? 'bg-white/30 shadow-inner' : ''} active:bg-white/40`}
-        onClick={() => handleTabClick('profile')}
-      >
-        <div className="relative flex items-center justify-center mb-0.5">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 md:w-5 md:h-5 drop-shadow-sm">
-            <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" />
-          </svg>
-        </div>
-        <span className="text-[10px] md:text-xs font-bold tracking-wider font-sans mt-1">Perfil</span>
-      </button>
+        return (
+          <button
+            key={tab.key}
+            type="button"
+            aria-current={isActive ? 'page' : undefined}
+            onClick={() => handleTabClick(tab)}
+            className={`group relative flex min-h-[44px] flex-1 flex-col items-center justify-center bg-transparent py-2 md:py-3 transition-[color,opacity,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
+              index < tabs.length - 1 ? 'border-r border-white/10' : ''
+            } ${isActive ? 'text-white' : 'text-white/70'}`}
+          >
+            <span className="relative flex h-6 w-6 items-center justify-center">
+              <IconComponent {...iconProps} />
+              {isActive && (
+                <span className="pointer-events-none absolute -bottom-[7px] left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-white/95 shadow-[0_0_6px_rgba(255,255,255,0.45)]" />
+              )}
+            </span>
+            <span
+              className={`mt-2 text-[12px] font-sans tracking-wide transition-[opacity,color,font-weight] duration-200 ${
+                isActive ? 'font-bold text-white opacity-100' : 'font-semibold text-white/75 opacity-60'
+              }`}
+            >
+              {tab.label}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 };
