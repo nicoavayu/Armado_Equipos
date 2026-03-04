@@ -29,7 +29,9 @@ import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import { formatSkillLevelLabel, getTeamAccent, getTeamGradientStyle } from '../utils/teamColors';
 import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY } from '../config';
 
-const modalActionButtonClass = 'h-12 rounded-none text-[18px] font-oswald font-semibold tracking-[0.01em] !normal-case';
+const modalActionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
+const modalPrimaryActionButtonClass = `${modalActionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
+const modalSecondaryActionButtonClass = `${modalActionButtonBaseClass} !border !border-[rgba(98,117,184,0.58)] !bg-[rgba(20,31,70,0.82)] !text-white/92 hover:!bg-[rgba(30,45,94,0.95)]`;
 const optionCardClass = 'w-full rounded-none border border-white/15 bg-white/5 p-3 text-left transition-all hover:bg-white/10';
 const disabledOptionCardClass = `${optionCardClass} disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:bg-white/5`;
 const transparentMenuButtonClass = 'kebab-menu-btn relative z-10';
@@ -1315,8 +1317,8 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       <Modal
         isOpen={inviteMemberModalOpen}
         onClose={closeInviteMemberModal}
-        title="Invitar amigo"
-        className="w-full max-w-[560px]"
+        title="Invitar Amigo"
+        className="w-full max-w-[560px] !rounded-none !border-[rgba(88,107,170,0.46)] !bg-[#1e293b]/96 !shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
         classNameContent="p-4 sm:p-5"
         footer={(
           <div className="grid grid-cols-2 gap-2">
@@ -1324,14 +1326,14 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               type="button"
               onClick={closeInviteMemberModal}
               variant="secondary"
-              className={modalActionButtonClass}
+              className={modalSecondaryActionButtonClass}
               disabled={isSaving}
             >
               Cancelar
             </Button>
             <Button
               type="button"
-              className={modalActionButtonClass}
+              className={modalPrimaryActionButtonClass}
               onClick={handleSendTeamInvitation}
               loading={isSaving}
               loadingText="Enviando..."
@@ -1403,8 +1405,8 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       <Modal
         isOpen={memberModalOpen}
         onClose={closeMemberModal}
-        title={memberModalMode === 'create' ? 'Agregar jugador' : 'Editar jugador'}
-        className="w-full max-w-[560px]"
+        title={memberModalMode === 'create' ? 'Agregar Jugador' : 'Editar Jugador'}
+        className="w-full max-w-[560px] !rounded-none !border-[rgba(88,107,170,0.46)] !bg-[#1e293b]/96 !shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
         classNameContent="p-4 sm:p-5"
         footer={(
           <div className="grid grid-cols-2 gap-2">
@@ -1412,7 +1414,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               type="button"
               onClick={closeMemberModal}
               variant="secondary"
-              className={modalActionButtonClass}
+              className={modalSecondaryActionButtonClass}
               disabled={isSaving}
             >
               Cancelar
@@ -1420,7 +1422,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
             <Button
               type="submit"
               form="team-member-form"
-              className={modalActionButtonClass}
+              className={modalPrimaryActionButtonClass}
               loading={isSaving}
               loadingText={memberModalMode === 'create' ? 'Agregando...' : 'Guardando...'}
               disabled={isSaving || (memberModalMode === 'create' && memberNameInput.trim().length === 0)}
@@ -1432,7 +1434,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       >
         <form id="team-member-form" className="space-y-3" onSubmit={handleSaveMember}>
           <label className="block">
-            <span className="text-xs text-white/80 uppercase tracking-wide">Nombre</span>
+            <span className="text-xs text-white/80 tracking-wide">Nombre</span>
             {memberModalMode === 'create' ? (
               <div className="mt-1">
                 <input
@@ -1456,7 +1458,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="block">
-              <span className="text-xs text-white/80 uppercase tracking-wide">Posicion</span>
+              <span className="text-xs text-white/80 tracking-wide">Posición</span>
               {isEditingRegisteredMember ? (
                 <>
                   <button
@@ -1520,7 +1522,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
             </div>
 
             <label className="block">
-              <span className="text-xs text-white/80 uppercase tracking-wide">Numero</span>
+              <span className="text-xs text-white/80 tracking-wide">Número</span>
               <input
                 type="number"
                 min={1}
@@ -1545,7 +1547,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
 
           {!memberSelfEditMode ? (
             <div className="rounded-none border border-white/15 bg-white/5 p-3">
-              <span className="text-xs text-white/80 uppercase tracking-wide">Foto (opcional)</span>
+              <span className="text-xs text-white/80 tracking-wide">Foto (Opcional)</span>
               <div className="mt-2 flex items-center gap-3">
                 <div className="h-12 w-12 rounded-full overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
                   {memberPhotoDisplay ? (
