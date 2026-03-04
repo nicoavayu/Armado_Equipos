@@ -182,6 +182,36 @@ const StatsView = ({ onVolver }) => {
     const candidates = getPlayerIdentityCandidates(jugador);
     return candidates.some((c) => userRefs.has(c));
   };
+  const resolveMatchType = (match) => {
+    const tokens = [
+      match?.tipo_partido,
+      match?.tipo,
+      match?.modalidad,
+      match?.mode,
+      match?.format,
+      match?.competition_type,
+    ]
+      .map(normalizeIdentity)
+      .filter(Boolean)
+      .join(' ');
+
+    if (!tokens) return 'amistoso';
+
+    if (
+      tokens.includes('torneo')
+      || tokens.includes('liga')
+      || tokens.includes('copa')
+      || tokens.includes('cup')
+      || tokens.includes('league')
+      || tokens.includes('playoff')
+      || tokens.includes('compet')
+      || tokens.includes('champ')
+    ) {
+      return 'torneo';
+    }
+
+    return 'amistoso';
+  };
 
   useEffect(() => {
     if (user) {
@@ -257,8 +287,8 @@ const StatsView = ({ onVolver }) => {
         encuestaPerdidos: partidosData.surveyOutcomes.perdidos,
         encuestaPendientes: partidosData.surveyOutcomes.pendientes,
         encuestaSinEquipoDetectado: partidosData.surveyOutcomes.sinEquipoDetectado,
-        amistosos: partidosData.total + partidosManualesData.amistosos,
-        torneos: partidosManualesData.torneos,
+        amistosos: (partidosData.amistosos || 0) + partidosManualesData.amistosos,
+        torneos: (partidosData.torneos || 0) + partidosManualesData.torneos,
         lesionesPeriodo: lesionesData.enPeriodoCount,
         lesionesDetallePeriodo: lesionesData.enPeriodoDetalle,
         lesionActiva: lesionesData.activa,
@@ -323,12 +353,16 @@ const StatsView = ({ onVolver }) => {
     const chartData = generateChartData(userPartidos, period);
     const logros = await calculateLogros(partidos);
     const surveyOutcomes = await getSurveyOutcomeStats(userPartidos);
+    const amistosos = userPartidos.filter((match) => resolveMatchType(match) === 'amistoso').length;
+    const torneos = userPartidos.filter((match) => resolveMatchType(match) === 'torneo').length;
 
     return {
       total: userPartidos.length,
       promedioRating: promedioRating,
       chartData,
       record: userPartidos.length,
+      amistosos,
+      torneos,
       logros,
       surveyOutcomes,
       partidos: userPartidos,
@@ -361,7 +395,7 @@ const StatsView = ({ onVolver }) => {
     return null;
   };
 
-  const resolveUserTeam = ({ participants, teamA, teamB }) => {
+  const resolveUserTeam = ({ participants, teamA, teamB, matchPlayers = [] }) => {
     const teamARefs = new Set((Array.isArray(teamA) ? teamA : []).map(normalizeTeamEntry).filter(Boolean));
     const teamBRefs = new Set((Array.isArray(teamB) ? teamB : []).map(normalizeTeamEntry).filter(Boolean));
     if (teamARefs.size === 0 && teamBRefs.size === 0) return null;
@@ -385,6 +419,12 @@ const StatsView = ({ onVolver }) => {
         refs.forEach((ref) => candidateRefs.add(ref));
       }
     });
+
+    (Array.isArray(matchPlayers) ? matchPlayers : [])
+      .filter((player) => isCurrentUserPlayer(player))
+      .forEach((player) => {
+        getPlayerIdentityCandidates(player).forEach((ref) => candidateRefs.add(ref));
+      });
 
     const isInTeamA = [...candidateRefs].some((ref) => teamARefs.has(ref));
     if (isInTeamA) return 'equipo_a';
@@ -523,7 +563,12 @@ const StatsView = ({ onVolver }) => {
         return;
       }
 
-      const userTeam = resolveUserTeam({ participants, teamA, teamB });
+      const userTeam = resolveUserTeam({
+        participants,
+        teamA,
+        teamB,
+        matchPlayers: match?.jugadores || [],
+      });
       if (!userTeam) {
         sinEquipoDetectado += 1;
         recientes.push({ ...baseRecap, resultKey: 'sin_equipo', label: 'Sin equipo detectado' });
@@ -608,51 +653,127 @@ const StatsView = ({ onVolver }) => {
     };
   };
 
-  const calculateLogros = async (allPartidos) => {
-    const userPartidos = allPartidos.filter((partido) =>
-      partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
-    );
-
+  const calculateLogros = async (allPartidos = []) => {
     const annualLogros = [];
     const historicalLogros = [];
+    const yearStart = `${selectedYear}-01-01`;
+    const yearEnd = `${selectedYear}-12-31`;
 
-    // Obtener total histórico de todos los partidos
-    const [{ data: todosPartidos }, { data: partidosManualesHistoricos }] = await Promise.all([
+    const [yearMatchesRes, allMatchesRes, manualHistoryRes] = await Promise.all([
+      supabase
+        .from('partidos_view')
+        .select('*')
+        .gte('fecha', yearStart)
+        .lte('fecha', yearEnd)
+        .eq('estado', 'finalizado'),
       supabase.from('partidos_view').select('id, jugadores').eq('estado', 'finalizado'),
       supabase.from('partidos_manuales').select('*').eq('usuario_id', user.id),
     ]);
 
-    const totalPartidosNormales = todosPartidos?.filter((partido) =>
+    const fallbackYearMatches = (allPartidos || []).filter((match) => {
+      const date = new Date(`${String(match?.fecha || '')}T00:00:00`);
+      return !Number.isNaN(date.getTime()) && date.getFullYear() === selectedYear;
+    });
+    const yearMatchesData = yearMatchesRes.error ? fallbackYearMatches : (yearMatchesRes.data || []);
+    const userYearPartidos = yearMatchesData.filter((partido) =>
       partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
-    ).length || 0;
+    );
 
-    const totalPartidosManuales = partidosManualesHistoricos?.length || 0;
+    const totalPartidosNormales = (allMatchesRes.data || []).filter((partido) =>
+      partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
+    ).length;
+    const totalPartidosManuales = manualHistoryRes.error ? 0 : (manualHistoryRes.data?.length || 0);
     const totalHistorico = totalPartidosNormales + totalPartidosManuales;
 
-    // Obtener premios del año seleccionado
-    const yearStart = new Date(selectedYear, 0, 1).toISOString().split('T')[0];
-    const yearEnd = new Date(selectedYear, 11, 31).toISOString().split('T')[0];
+    const normalizeAwardType = (value) => {
+      const token = normalizeIdentity(value);
+      if (token === 'mvp') return 'mvp';
+      if (token === 'best_gk' || token === 'guante_dorado' || token === 'golden_glove') return 'best_gk';
+      if (token === 'red_card' || token === 'tarjeta_roja') return 'red_card';
+      return null;
+    };
+    const registerAwardIfUser = (awardType, candidateRef, userRefsSet, awardCounts) => {
+      const normalizedType = normalizeAwardType(awardType);
+      if (!normalizedType || !(userRefsSet instanceof Set) || userRefsSet.size === 0) return;
+      const candidate = normalizeIdentity(candidateRef);
+      if (!candidate || !userRefsSet.has(candidate)) return;
+      awardCounts[normalizedType] += 1;
+    };
+    const buildUserRefsByMatchId = (matches = []) => {
+      const map = new Map();
+      (matches || []).forEach((match) => {
+        const matchId = Number(match?.id);
+        if (!Number.isFinite(matchId)) return;
+        const refs = new Set();
+        (match?.jugadores || [])
+          .filter((jugador) => isCurrentUserPlayer(jugador))
+          .forEach((jugador) => {
+            getPlayerIdentityCandidates(jugador).forEach((ref) => refs.add(ref));
+          });
+        if (refs.size > 0) {
+          map.set(matchId, refs);
+        }
+      });
+      return map;
+    };
 
-    const { data: surveys } = await supabase
-      .from('post_match_surveys')
-      .select('*')
-      .gte('created_at', yearStart)
-      .lte('created_at', yearEnd);
+    const awardCounts = { mvp: 0, best_gk: 0, red_card: 0 };
+    const userRefsByMatchId = buildUserRefsByMatchId(userYearPartidos);
+    const yearMatchIds = [...userRefsByMatchId.keys()];
 
-    // Contar MVPs
-    const mvpCount = surveys?.filter((survey) =>
-      survey.mejor_jugador === user.id || survey.mejor_jugador === user.email,
-    ).length || 0;
+    if (yearMatchIds.length > 0) {
+      let usedPlayerAwards = false;
+      try {
+        const { data: playerAwardsRows, error: playerAwardsErr } = await supabase
+          .from('player_awards')
+          .select('partido_id, jugador_id, award_type')
+          .in('partido_id', yearMatchIds);
+        if (playerAwardsErr) throw playerAwardsErr;
 
-    // Contar Guantes Dorados
-    const guanteDoradoCount = surveys?.filter((survey) =>
-      survey.guante_dorado === user.id || survey.guante_dorado === user.email,
-    ).length || 0;
+        usedPlayerAwards = true;
+        (playerAwardsRows || []).forEach((row) => {
+          const refs = userRefsByMatchId.get(Number(row?.partido_id));
+          registerAwardIfUser(row?.award_type, row?.jugador_id, refs, awardCounts);
+        });
+      } catch (playerAwardsError) {
+        console.warn('[STATS] No se pudo leer player_awards para logros anuales. Se usa fallback.', playerAwardsError);
+      }
 
-    // Contar Tarjetas Rojas
-    const tarjetaRojaCount = surveys?.filter((survey) =>
-      survey.tarjeta_roja === user.id || survey.tarjeta_roja === user.email,
-    ).length || 0;
+      if (!usedPlayerAwards) {
+        try {
+          let query = await supabase
+            .from('survey_results')
+            .select('partido_id, mvp, golden_glove, red_cards, awards')
+            .in('partido_id', yearMatchIds);
+
+          if (query.error) {
+            query = await supabase
+              .from('survey_results')
+              .select('partido_id, mvp, golden_glove, red_cards')
+              .in('partido_id', yearMatchIds);
+          }
+          if (query.error) throw query.error;
+
+          (query.data || []).forEach((row) => {
+            const refs = userRefsByMatchId.get(Number(row?.partido_id));
+            if (!refs) return;
+
+            registerAwardIfUser('mvp', row?.awards?.mvp?.player_id ?? row?.mvp, refs, awardCounts);
+            registerAwardIfUser('best_gk', row?.awards?.best_gk?.player_id ?? row?.golden_glove, refs, awardCounts);
+            registerAwardIfUser('red_card', row?.awards?.red_card?.player_id, refs, awardCounts);
+            (Array.isArray(row?.red_cards) ? row.red_cards : []).forEach((redRef) => {
+              registerAwardIfUser('red_card', redRef, refs, awardCounts);
+            });
+          });
+        } catch (surveyResultsError) {
+          console.warn('[STATS] No se pudo leer survey_results para logros anuales.', surveyResultsError);
+        }
+      }
+    }
+
+    const mvpCount = awardCounts.mvp;
+    const guanteDoradoCount = awardCounts.best_gk;
+    const tarjetaRojaCount = awardCounts.red_card;
 
     // Mejor mes (siempre mostrar un mes, incluso con 0 partidos)
     const now = new Date();
@@ -663,10 +784,9 @@ const StatsView = ({ onVolver }) => {
       count: 0,
     }));
 
-    userPartidos.forEach((partido) => {
+    userYearPartidos.forEach((partido) => {
       const date = new Date(partido.fecha);
       if (Number.isNaN(date.getTime())) return;
-      if (date.getFullYear() !== selectedYear) return;
       const monthIndex = date.getMonth();
       if (monthIndex >= 0 && monthIndex <= 11) {
         monthBuckets[monthIndex].count += 1;
@@ -689,8 +809,8 @@ const StatsView = ({ onVolver }) => {
 
     // Mejor rating (siempre mostrar)
     let mejorRating = 0;
-    if (userPartidos.length > 0) {
-      const ratings = userPartidos.map((p) => {
+    if (userYearPartidos.length > 0) {
+      const ratings = userYearPartidos.map((p) => {
         const userPlayer = p.jugadores?.find((j) => isCurrentUserPlayer(j));
         return userPlayer?.score || 5;
       });
@@ -791,7 +911,7 @@ const StatsView = ({ onVolver }) => {
           label,
         };
       });
-    const chartData = generateChartData(partidosManuales || [], period, true);
+    const chartData = generateChartData(partidosManuales || [], period);
 
     return {
       total: partidosManuales?.length || 0,
@@ -1402,7 +1522,7 @@ const StatsView = ({ onVolver }) => {
     }
   };
 
-  const generateChartData = (partidos, period, isManual = false) => {
+  const generateChartData = (partidos, period) => {
     const data = {};
 
     partidos.forEach((partido) => {
@@ -1426,12 +1546,8 @@ const StatsView = ({ onVolver }) => {
         data[key] = { amistosos: 0, torneos: 0 };
       }
 
-      if (isManual) {
-        if (partido.tipo_partido === 'amistoso') {
-          data[key].amistosos += 1;
-        } else {
-          data[key].torneos += 1;
-        }
+      if (resolveMatchType(partido) === 'torneo') {
+        data[key].torneos += 1;
       } else {
         data[key].amistosos += 1;
       }
