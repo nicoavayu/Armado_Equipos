@@ -1995,7 +1995,7 @@ export const updateChallenge = async (userId, challengeId, payload) => {
         .eq('id', challengeId)
         .eq('status', 'open')
         .select(CHALLENGE_SELECT_WITH_PRICING)
-        .single();
+        .maybeSingle();
 
       if (response.error && isChallengeSelectCompatibilityError(response.error)) {
         response = await runChallengeSelectWithFallback(
@@ -2005,13 +2005,24 @@ export const updateChallenge = async (userId, challengeId, payload) => {
             .eq('id', challengeId)
             .eq('status', 'open')
             .select(selectClause)
-            .single(),
+            .maybeSingle(),
           CHALLENGE_SELECT_BASE,
         );
       }
 
       if (!response.error) {
-        return withChallengeCompatibility(response.data);
+        if (response.data) {
+          return withChallengeCompatibility(response.data);
+        }
+
+        response = {
+          ...response,
+          error: {
+            code: 'CHALLENGE_UPDATE_NO_ROWS',
+            message: 'No se pudo editar el desafio. Verifica que siga abierto y que seas capitan/owner del equipo desafiante.',
+          },
+        };
+        break;
       }
 
       if (isSkillLevelConstraintError(response.error)) {
