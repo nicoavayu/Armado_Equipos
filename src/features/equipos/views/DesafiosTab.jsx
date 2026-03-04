@@ -69,6 +69,7 @@ const DesafiosTab = ({
   const [acceptingChallenge, setAcceptingChallenge] = useState(null);
   const [selectedAcceptTeamId, setSelectedAcceptTeamId] = useState('');
   const [formatMismatchConfirm, setFormatMismatchConfirm] = useState(null);
+  const [cancelConfirmChallenge, setCancelConfirmChallenge] = useState(null);
   const [completeTarget, setCompleteTarget] = useState(null);
   const [inlineNotice, setInlineNotice] = useState({ type: '', message: '' });
 
@@ -285,18 +286,7 @@ const DesafiosTab = ({
               if (challenge.status !== 'open') return;
 
               if (isOwnChallenge) {
-                const confirmed = window.confirm('Cancelar este desafio?');
-                if (!confirmed) return;
-
-                try {
-                  setIsSubmitting(true);
-                  await cancelChallenge(challenge.id);
-                  await loadChallenges();
-                } catch (error) {
-                  notifyBlockingError(error.message || 'No se pudo cancelar el desafio');
-                } finally {
-                  setIsSubmitting(false);
-                }
+                setCancelConfirmChallenge(challenge);
                 return;
               }
 
@@ -412,6 +402,63 @@ const DesafiosTab = ({
           }
         }}
       />
+
+      <Modal
+        isOpen={Boolean(cancelConfirmChallenge)}
+        onClose={() => {
+          if (isSubmitting) return;
+          setCancelConfirmChallenge(null);
+        }}
+        title="Cancelar Desafio"
+        showCloseButton
+        closeOnBackdrop={!isSubmitting}
+        closeOnEscape={!isSubmitting}
+        className="w-full max-w-[520px] !rounded-none !border !border-[rgba(88,107,170,0.46)] !bg-[rgba(30,41,59,0.96)] !shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
+        classNameContent="p-4 sm:p-5"
+        footer={(
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className={publishActionSecondaryClass}
+              onClick={() => setCancelConfirmChallenge(null)}
+              disabled={isSubmitting}
+              data-preserve-button-case="true"
+            >
+              Volver
+            </Button>
+            <Button
+              type="button"
+              className={publishActionPrimaryClass}
+              loading={isSubmitting}
+              loadingText="Cancelando..."
+              onClick={async () => {
+                if (!cancelConfirmChallenge?.id) return;
+                try {
+                  setIsSubmitting(true);
+                  await cancelChallenge(cancelConfirmChallenge.id);
+                  setCancelConfirmChallenge(null);
+                  await loadChallenges();
+                } catch (error) {
+                  notifyBlockingError(error.message || 'No se pudo cancelar el desafio');
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
+              data-preserve-button-case="true"
+            >
+              Cancelar
+            </Button>
+          </div>
+        )}
+      >
+        <p className="text-sm text-white/75">
+          ¿Querés cancelar este desafio?
+        </p>
+        <p className="mt-2 text-sm text-white/75">
+          Esta accion no se puede deshacer.
+        </p>
+      </Modal>
 
       <Modal
         isOpen={Boolean(formatMismatchConfirm)}
