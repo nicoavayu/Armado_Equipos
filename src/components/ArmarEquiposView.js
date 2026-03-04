@@ -89,7 +89,6 @@ export default function ArmarEquiposView({
   const [votingStarted, setVotingStarted] = useState(false);
   const [estadoOverride, setEstadoOverride] = useState(null); // Override local para estado después de reset
   const [playerToRemove, setPlayerToRemove] = useState(null); // Para modal de eliminación
-  const [inlineNotice, setInlineNotice] = useState(null);
   const [hasPersistedTeams, setHasPersistedTeams] = useState(false);
   const playersSectionRef = React.useRef(null);
   const navigate = useNavigate();
@@ -97,15 +96,7 @@ export default function ArmarEquiposView({
   // Control de permisos: verificar si el usuario es admin del partido
   const isAdmin = user?.id && partidoActual?.creado_por === user.id;
 
-  const showInlineNotice = (type, message) => {
-    setInlineNotice({ type, message, ts: Date.now() });
-  };
-
-  useEffect(() => {
-    if (!inlineNotice) return undefined;
-    const timer = setTimeout(() => setInlineNotice(null), 4200);
-    return () => clearTimeout(timer);
-  }, [inlineNotice]);
+  const showInlineNotice = useCallback(() => {}, []);
 
   const normalizeIdentity = useCallback((value) => {
     if (value === null || value === undefined) return null;
@@ -895,19 +886,6 @@ export default function ArmarEquiposView({
         rightActions={null}
       />
       <div className="w-[90vw] md:w-full max-w-[90vw] md:max-w-4xl mx-auto flex flex-col gap-3 overflow-x-hidden mt-0 pt-0 pb-[calc(var(--safe-bottom,0px)+14px)]">
-        {inlineNotice && (
-          <div
-            className={`rounded-xl px-4 py-3 border text-sm font-oswald ${
-              inlineNotice.type === 'success'
-                ? 'bg-emerald-500/15 border-emerald-400/40 text-emerald-200'
-                : inlineNotice.type === 'warning'
-                  ? 'bg-amber-500/15 border-amber-400/40 text-amber-100'
-                  : 'bg-sky-500/15 border-sky-400/40 text-sky-100'
-            }`}
-          >
-            {inlineNotice.message}
-          </div>
-        )}
         {/* Lista de jugadores */}
         <div ref={playersSectionRef} className="relative left-1/2 w-screen -translate-x-1/2 mt-0 box-border min-h-[120px]">
           <div className="w-full box-border" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)', paddingTop: '16px', paddingBottom: '24px' }}>
