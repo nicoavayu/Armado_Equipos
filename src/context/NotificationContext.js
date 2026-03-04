@@ -11,6 +11,7 @@ import {
   quoteMatchName,
   resolveNotificationMatchName,
 } from '../utils/notificationText';
+import { isTeamChallengeNotification } from '../utils/notificationRoutes';
 import { filterNotificationsForInbox } from '../utils/notificationInviteState';
 
 const NotificationContext = createContext();
@@ -49,8 +50,17 @@ export const NotificationProvider = ({ children }) => {
   const resolveNotificationMatchId = useCallback((notification) => {
     if (!notification) return null;
     const data = notification.data || {};
+    if (isTeamChallengeNotification(notification)) {
+      const challengeId = data.challenge_id ?? data.challengeId ?? null;
+      if (challengeId !== null && challengeId !== undefined && String(challengeId).trim() !== '') {
+        return `challenge:${String(challengeId)}`;
+      }
+    }
+
     const candidate = (
-      notification.partido_id
+      data.team_match_id
+      ?? data.teamMatchId
+      ?? notification.partido_id
       ?? notification.match_ref
       ?? data.partido_id
       ?? data.partidoId
@@ -392,6 +402,8 @@ export const NotificationProvider = ({ children }) => {
           ? 'survey_open'
           : n.type === 'survey_reminder' || n.type === 'survey_reminder_12h'
             ? 'survey_reminder'
+            : isTeamChallengeNotification(n)
+              ? 'team_challenge_accepted'
             : String(n.type || 'default')
       );
       const key = `${n.user_id}::${String(pid)}::${surveyGroup}`;

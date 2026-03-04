@@ -17,7 +17,12 @@ import {
   resolveNotificationMatchName,
 } from '../utils/notificationText';
 import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OPTIONS } from '../utils/notificationFilters';
-import { buildNotificationFallbackRoute, extractNotificationMatchId } from '../utils/notificationRoutes';
+import {
+  buildNotificationFallbackRoute,
+  buildTeamChallengeRoute,
+  extractNotificationMatchId,
+  isTeamChallengeNotification,
+} from '../utils/notificationRoutes';
 import { filterNotificationsForInbox } from '../utils/notificationInviteState';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { resolveSurveyAccess } from '../utils/surveyAccess';
@@ -179,6 +184,11 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     if (notification.type === 'team_captain_transfer') {
       const teamId = notification?.data?.team_id || notification?.data?.teamId || null;
       safeNavigate(notification, teamId ? `/desafios/equipos/${teamId}` : '/desafios');
+      return;
+    }
+
+    if (isTeamChallengeNotification(notification)) {
+      safeNavigate(notification, buildTeamChallengeRoute(notification));
       return;
     }
 
@@ -445,12 +455,14 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           ) : (
             <div className="p-0">
               {filteredNotifications.map((notification) => {
-                const clickable = ['match_invite', 'team_invite', 'team_captain_transfer', 'call_to_vote', 'survey_start', 'post_match_survey', 'survey_reminder', 'survey_reminder_12h', 'survey_results_ready', 'awards_ready', 'survey_finished', 'award_won'].includes(notification.type);
+                const clickable = ['match_invite', 'team_invite', 'team_captain_transfer', 'call_to_vote', 'survey_start', 'post_match_survey', 'survey_reminder', 'survey_reminder_12h', 'survey_results_ready', 'awards_ready', 'survey_finished', 'award_won'].includes(notification.type)
+                  || isTeamChallengeNotification(notification);
                 const Icon = getNotificationIcon(notification.type) || User;
                 const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
                 const isSurveyReminder = notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h';
                 const isSurveyResults = notification.type === 'survey_results_ready';
                 const isTeamInvite = notification.type === 'team_invite';
+                const isTeamChallengeAccepted = isTeamChallengeNotification(notification);
                 const matchName = resolveNotificationMatchName(notification, 'este partido');
                 const quotedMatchName = quoteMatchName(matchName, 'este partido');
                 const displayTitle = isSurveyStartLike
@@ -459,6 +471,8 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                     ? 'Recordatorio de encuesta'
                     : isSurveyResults
                       ? 'Resultados de encuesta listos'
+                      : isTeamChallengeAccepted
+                        ? 'Desafío aceptado!'
                       : isTeamInvite
                         ? (notification.title || 'Invitacion de equipo')
                       : applyMatchNameQuotes(notification.title || 'Notificación', matchName);

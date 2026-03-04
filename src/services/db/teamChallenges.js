@@ -541,7 +541,7 @@ export const upsertChallengeAcceptedNotifications = async ({
     notificationRows.push({
       user_id: createdByUserId,
       type: 'match_update',
-      title: 'Tu desafio fue aceptado',
+      title: 'Tu desafío fue aceptado!',
       message: `${rivalTeamName} acepto el desafio de ${challengerTeamName}.`,
       data: {
         ...baseData,
@@ -556,7 +556,7 @@ export const upsertChallengeAcceptedNotifications = async ({
     notificationRows.push({
       user_id: acceptedByUserId,
       type: 'match_update',
-      title: 'Desafio aceptado',
+      title: 'Desafío aceptado!',
       message: `Confirmaste ${rivalTeamName} para enfrentar a ${challengerTeamName}.`,
       data: {
         ...baseData,

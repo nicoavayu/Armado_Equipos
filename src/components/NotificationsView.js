@@ -15,7 +15,12 @@ import {
   resolveNotificationMatchName,
 } from '../utils/notificationText';
 import { filterNotificationsByCategory, getCategoryCount, NOTIFICATION_FILTER_OPTIONS } from '../utils/notificationFilters';
-import { buildNotificationFallbackRoute, extractNotificationMatchId } from '../utils/notificationRoutes';
+import {
+  buildNotificationFallbackRoute,
+  buildTeamChallengeRoute,
+  extractNotificationMatchId,
+  isTeamChallengeNotification,
+} from '../utils/notificationRoutes';
 import { groupNotificationsByMatch } from '../utils/notificationGrouping';
 import { filterNotificationsForInbox } from '../utils/notificationInviteState';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
@@ -178,13 +183,9 @@ const NotificationsView = () => {
       }
     }
 
-    if (notification.type === 'challenge_accepted' || notification.type === 'team_match_created') {
-      const teamMatchId = data.team_match_id || data.teamMatchId;
-      if (teamMatchId) {
-        safeNavigate(notification, `/desafios/equipos/partidos/${teamMatchId}`);
-      } else {
-        fallbackToNotificationRoute(notification, 'No encontramos el partido de equipos de esta notificacion.');
-      }
+    if (isTeamChallengeNotification(notification)) {
+      const challengeRoute = buildTeamChallengeRoute(notification);
+      safeNavigate(notification, challengeRoute, {}, 'No encontramos el destino de este desafío.');
       return;
     }
 
@@ -486,6 +487,7 @@ const NotificationsView = () => {
     const isSurveyReminder = notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h';
     const isSurveyResults = notification.type === 'survey_results_ready';
     const isTeamInvite = notification.type === 'team_invite';
+    const isTeamChallengeAccepted = isTeamChallengeNotification(notification);
     const matchName = resolveNotificationMatchName(notification, 'este partido');
     const quotedMatchName = quoteMatchName(matchName, 'este partido');
     const title = isSurveyStartLike
@@ -494,6 +496,8 @@ const NotificationsView = () => {
         ? 'Recordatorio de encuesta'
         : isSurveyResults
           ? 'Resultados de encuesta listos'
+          : isTeamChallengeAccepted
+            ? 'Desafío aceptado!'
           : isTeamInvite
             ? (notification.title || 'Invitacion de equipo')
           : applyMatchNameQuotes(notification.title || 'Notificación', matchName);

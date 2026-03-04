@@ -752,7 +752,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     return {
       ...base,
       icon: 'CalendarClock',
-      title: 'Desafío aceptado',
+      title: 'Desafío aceptado!',
       subtitle: compactText(subtitle, 64, 'Desafío aceptado'),
       route: teamMatchId ? `/desafios/equipos/partidos/${teamMatchId}` : (matchRoute || '/desafios'),
     };

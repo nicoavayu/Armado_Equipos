@@ -2,7 +2,11 @@ import { supabase } from '../supabase';
 import { logger } from '../lib/logger';
 import { getResultsUrl } from './routes';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
-import { extractNotificationMatchId } from './notificationRoutes';
+import {
+  buildTeamChallengeRoute,
+  extractNotificationMatchId,
+  isTeamChallengeNotification,
+} from './notificationRoutes';
 
 const normalizeSurveyLink = (rawLink, matchId) => {
   const fallback = matchId ? `/encuesta/${matchId}` : null;
@@ -39,7 +43,6 @@ export async function openNotification(n, navigate) {
   try {
     const type = n?.type;
     const matchId = extractNotificationMatchId(n);
-    const teamMatchId = n?.data?.team_match_id || n?.data?.teamMatchId || null;
 
     // Prefer explicit deep links and fallback to the canonical survey route.
     const deepLink = n?.deep_link
@@ -62,12 +65,8 @@ export async function openNotification(n, navigate) {
       }
     })();
 
-    if (type === 'challenge_accepted' || type === 'team_match_created') {
-      if (teamMatchId) {
-        navigate(`/desafios/equipos/partidos/${teamMatchId}`);
-      } else {
-        navigate('/desafios');
-      }
+    if (isTeamChallengeNotification(n)) {
+      navigate(buildTeamChallengeRoute(n));
       return;
     }
 
