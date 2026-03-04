@@ -877,11 +877,93 @@ export const updateTeam = async (teamId, payload) => {
   throw new Error('No tenes permisos para editar este equipo (se requiere rol admin/owner)');
 };
 
-export const softDeleteTeam = async (teamId) => {
+const cancelPendingChallengesForTeam = async (teamId) => {
+  const normalizedTeamId = String(teamId || '').trim();
+  if (!normalizedTeamId) return 0;
+
+  const nowIso = new Date().toISOString();
+  let response = await supabase
+    .from('challenges')
+    .update({ status: 'canceled', updated_at: nowIso })
+    .or(`challenger_team_id.eq.${normalizedTeamId},accepted_team_id.eq.${normalizedTeamId}`)
+    .in('status', ['open', 'accepted', 'confirmed'])
+    .select('id');
+
+  if (response.error && isMissingColumnError(response.error, 'updated_at')) {
+    response = await supabase
+      .from('challenges')
+      .update({ status: 'canceled' })
+      .or(`challenger_team_id.eq.${normalizedTeamId},accepted_team_id.eq.${normalizedTeamId}`)
+      .in('status', ['open', 'accepted', 'confirmed'])
+      .select('id');
+  }
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudieron cancelar los desafios pendientes del equipo');
+  }
+
+  return Array.isArray(response.data) ? response.data.length : 0;
+};
+
+const cancelPendingTeamMatchesForTeam = async (teamId) => {
+  const normalizedTeamId = String(teamId || '').trim();
+  if (!normalizedTeamId) return 0;
+
+  const matchesResponse = await supabase
+    .from('team_matches')
+    .select('id, status')
+    .or(`team_a_id.eq.${normalizedTeamId},team_b_id.eq.${normalizedTeamId}`);
+
+  if (matchesResponse.error) {
+    throw new Error(matchesResponse.error.message || 'No se pudieron cargar los partidos del equipo');
+  }
+
+  const pendingMatches = (matchesResponse.data || []).filter((row) => {
+    const normalizedStatus = normalizeTeamMatchStatus(row?.status);
+    return normalizedStatus === 'pending' || normalizedStatus === 'confirmed';
+  });
+
+  let canceledCount = 0;
+  for (const match of pendingMatches) {
+    let cancelResponse = await supabase.rpc('rpc_cancel_team_match', {
+      p_match_id: match.id,
+    });
+
+    if (cancelResponse.error && isMissingFunctionError(cancelResponse.error, 'rpc_cancel_team_match')) {
+      cancelResponse = await supabase
+        .from('team_matches')
+        .update({ status: 'cancelled' })
+        .eq('id', match.id)
+        .select('id')
+        .maybeSingle();
+    }
+
+    if (cancelResponse.error) {
+      throw new Error(cancelResponse.error.message || 'No se pudieron cancelar los partidos pendientes del equipo');
+    }
+
+    canceledCount += 1;
+  }
+
+  return canceledCount;
+};
+
+export const softDeleteTeam = async (teamId, options = {}) => {
+  const normalizedTeamId = String(teamId || '').trim();
+  if (!normalizedTeamId) {
+    throw new Error('Equipo invalido');
+  }
+
+  const cleanupPendingChallenges = options?.cleanupPendingChallenges !== false;
+  if (cleanupPendingChallenges) {
+    await cancelPendingTeamMatchesForTeam(normalizedTeamId);
+    await cancelPendingChallengesForTeam(normalizedTeamId);
+  }
+
   const response = await supabase
     .from('teams')
     .update({ is_active: false })
-    .eq('id', teamId)
+    .eq('id', normalizedTeamId)
     .select('id')
     .single();
 

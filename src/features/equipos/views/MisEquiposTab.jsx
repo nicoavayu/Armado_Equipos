@@ -34,6 +34,7 @@ const MisEquiposTab = ({ userId }) => {
   const [editingTeam, setEditingTeam] = useState(null);
   const [openTeamMenuId, setOpenTeamMenuId] = useState(null);
   const [teamDeleteTarget, setTeamDeleteTarget] = useState(null);
+  const [teamDeleteCascadeConfirmOpen, setTeamDeleteCascadeConfirmOpen] = useState(false);
 
   const loadTeams = useCallback(async () => {
     if (!userId) return;
@@ -149,6 +150,7 @@ const MisEquiposTab = ({ userId }) => {
       await softDeleteTeam(teamDeleteTarget.id);
       setOpenTeamMenuId(null);
       setTeamDeleteTarget(null);
+      setTeamDeleteCascadeConfirmOpen(false);
       await loadTeams();
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo borrar el equipo');
@@ -306,6 +308,7 @@ const MisEquiposTab = ({ userId }) => {
                             event.stopPropagation();
                             setOpenTeamMenuId(null);
                             setTeamDeleteTarget(team);
+                            setTeamDeleteCascadeConfirmOpen(false);
                           }}
                           disabled={isSaving}
                         >
@@ -334,10 +337,29 @@ const MisEquiposTab = ({ userId }) => {
       />
 
       <ConfirmModal
-        isOpen={Boolean(teamDeleteTarget)}
+        isOpen={Boolean(teamDeleteTarget) && !teamDeleteCascadeConfirmOpen}
         title="Borrar equipo"
         message={`¿Querés borrar el equipo "${teamDeleteTarget?.name || 'Sin nombre'}"?`}
-        confirmText="Borrar"
+        confirmText="Aceptar"
+        cancelText="Cancelar"
+        danger
+        isDeleting={isSaving}
+        onConfirm={() => {
+          if (isSaving) return;
+          setTeamDeleteCascadeConfirmOpen(true);
+        }}
+        onCancel={() => {
+          if (isSaving) return;
+          setTeamDeleteTarget(null);
+          setTeamDeleteCascadeConfirmOpen(false);
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(teamDeleteTarget) && teamDeleteCascadeConfirmOpen}
+        title="Desafíos pendientes"
+        message="Al borrar el equipo se borrarán todos los desafíos pendientes que tenga vinculados. ¿Querés continuar?"
+        confirmText="Aceptar"
         cancelText="Cancelar"
         danger
         isDeleting={isSaving}
@@ -345,6 +367,7 @@ const MisEquiposTab = ({ userId }) => {
         onCancel={() => {
           if (isSaving) return;
           setTeamDeleteTarget(null);
+          setTeamDeleteCascadeConfirmOpen(false);
         }}
       />
     </>
