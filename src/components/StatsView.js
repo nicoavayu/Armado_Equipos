@@ -1953,7 +1953,7 @@ const StatsView = ({ onVolver }) => {
           </motion.div>
         )}
 
-        <div className="mb-6 flex flex-col gap-2.5">
+        <div className="mb-3">
           <motion.button
             className="w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] flex items-center justify-center gap-2 transition-all hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
             onClick={() => setShowManualMatchModal(true)}
@@ -1966,19 +1966,62 @@ const StatsView = ({ onVolver }) => {
             <ClipboardPlus size={20} />
             <span className="leading-none">Sumar Partido Manual</span>
           </motion.button>
-          <motion.button
-            className="w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] flex items-center justify-center gap-2 transition-all hover:bg-[rgba(30,45,94,0.95)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
-            onClick={() => setShowInjuryModal(true)}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.24 }}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.99 }}
-          >
-            <CircleAlert size={20} />
-            <span className="leading-none">Registrar Nueva Lesión</span>
-          </motion.button>
         </div>
+
+        {/* Injury as informational status block */}
+        <motion.div
+          className={`${statsPanelClass} p-3.5 mb-3`}
+          initial={{ opacity: 0, x: -16 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.22 }}
+        >
+          <div className="flex items-start gap-2.5">
+            <div className={`mt-0.5 shrink-0 ${injuryStatus?.type === 'active' ? 'text-[#ff8a8a]' : 'text-[#8ddf9a]'}`}>
+              {injuryStatus?.type === 'active' ? <CircleAlert size={24} /> : <AlertCircle size={24} />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-oswald text-xs text-white/70 uppercase tracking-wide mb-1">Estado físico</div>
+              {injuryStatus ? (
+                <>
+                  <div className="font-oswald text-[18px] leading-tight font-semibold text-white mb-0.5">
+                    {injuryStatus.type === 'active' ? 'En recuperación' : 'Sin lesión activa'}
+                  </div>
+                  <div className="font-oswald text-xs text-white/70 truncate">
+                    {injuryStatus.type === 'active'
+                      ? (injuryStatus.subtext || injuryStatus.text)
+                      : injuryStatus.text}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="font-oswald text-[18px] leading-tight font-semibold text-white mb-0.5">Sin lesión activa</div>
+                  <div className="font-oswald text-xs text-white/70 truncate">Sin registros recientes</div>
+                </>
+              )}
+            </div>
+          </div>
+          {injuryStatus?.type === 'active' && (
+            <button
+              className="mt-3 w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
+              onClick={markActiveLesionAsRecovered}
+            >
+              Marcar recuperado
+            </button>
+          )}
+        </motion.div>
+
+        <motion.button
+          className="w-full mb-6 min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] flex items-center justify-center gap-2 transition-all hover:bg-[rgba(30,45,94,0.95)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
+          onClick={() => setShowInjuryModal(true)}
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.24 }}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+        >
+          <CircleAlert size={20} />
+          <span className="leading-none">Registrar Nueva Lesión</span>
+        </motion.button>
 
         {showResultsRecap && (
           <motion.div
@@ -2281,48 +2324,6 @@ const StatsView = ({ onVolver }) => {
             </div>
           ) : (
             <div className="font-oswald text-sm text-white/70">Sin movimientos de ranking en este período.</div>
-          )}
-        </motion.div>
-
-        {/* Injury as informational status block */}
-        <motion.div
-          className={`${statsPanelClass} p-3.5 mb-6`}
-          initial={{ opacity: 0, x: -16 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <div className="flex items-start gap-2.5">
-            <div className={`mt-0.5 shrink-0 ${injuryStatus?.type === 'active' ? 'text-[#ff8a8a]' : 'text-[#8ddf9a]'}`}>
-              {injuryStatus?.type === 'active' ? <CircleAlert size={24} /> : <AlertCircle size={24} />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-oswald text-xs text-white/70 uppercase tracking-wide mb-1">Estado físico</div>
-              {injuryStatus ? (
-                <>
-                  <div className="font-oswald text-[18px] leading-tight font-semibold text-white mb-0.5">
-                    {injuryStatus.type === 'active' ? 'En recuperación' : 'Sin lesión activa'}
-                  </div>
-                  <div className="font-oswald text-xs text-white/70 truncate">
-                    {injuryStatus.type === 'active'
-                      ? (injuryStatus.subtext || injuryStatus.text)
-                      : injuryStatus.text}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="font-oswald text-[18px] leading-tight font-semibold text-white mb-0.5">Sin lesión activa</div>
-                  <div className="font-oswald text-xs text-white/70 truncate">Sin registros recientes</div>
-                </>
-              )}
-            </div>
-          </div>
-          {injuryStatus?.type === 'active' && (
-            <button
-              className="mt-3 w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
-              onClick={markActiveLesionAsRecovered}
-            >
-              Marcar recuperado
-            </button>
           )}
         </motion.div>
 
