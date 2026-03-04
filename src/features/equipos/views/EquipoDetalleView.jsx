@@ -1268,8 +1268,8 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       <Modal
         isOpen={addMemberChoiceOpen}
         onClose={() => setAddMemberChoiceOpen(false)}
-        title="Agregar jugador"
-        className="w-full max-w-[520px]"
+        title="Agregar Jugador"
+        className="w-full max-w-[520px] !rounded-none !border !border-[rgba(88,107,170,0.46)] !bg-[rgba(30,41,59,0.96)] !shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
         classNameContent="p-4 sm:p-5"
       >
         <div className="space-y-2">
@@ -1279,7 +1279,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
             disabled={isSaving || isCurrentUserInTeam}
             onClick={handleAddCurrentUserAsMember}
           >
-            <p className="text-white font-oswald text-[18px]">Agregarme a mí</p>
+            <p className="text-white font-oswald text-[18px]">Agregarme A Mí</p>
             <p className="mt-1 text-xs text-white/65">Usar mi perfil como jugador de este equipo.</p>
             {isCurrentUserInTeam ? (
               <p className="mt-1 text-[11px] text-white/60">Ya sos jugador de este equipo</p>
@@ -1295,7 +1295,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               openCreateMemberModal();
             }}
           >
-            <p className="text-white font-oswald text-[18px]">Crear jugador nuevo</p>
+            <p className="text-white font-oswald text-[18px]">Crear Jugador Nuevo</p>
             <p className="mt-1 text-xs text-white/65">Jugador local solo para este equipo.</p>
           </button>
 
@@ -1308,7 +1308,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               await openInviteMemberModal();
             }}
           >
-            <p className="text-white font-oswald text-[18px]">Invitar amigo</p>
+            <p className="text-white font-oswald text-[18px]">Invitar Amigo</p>
             <p className="mt-1 text-xs text-white/65">Enviar invitacion a un usuario registrado.</p>
           </button>
         </div>
@@ -1318,7 +1318,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         isOpen={inviteMemberModalOpen}
         onClose={closeInviteMemberModal}
         title="Invitar Amigo"
-        className="w-full max-w-[560px] !rounded-none !border-[rgba(88,107,170,0.46)] !bg-[#1e293b]/96 !shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
+        className="w-full max-w-[560px] !rounded-none !border !border-[rgba(88,107,170,0.46)] !bg-[rgba(30,41,59,0.96)] !shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
         classNameContent="p-4 sm:p-5"
         footer={(
           <div className="grid grid-cols-2 gap-2">
@@ -1328,6 +1328,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               variant="secondary"
               className={modalSecondaryActionButtonClass}
               disabled={isSaving}
+              data-preserve-button-case="true"
             >
               Cancelar
             </Button>
@@ -1338,6 +1339,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               loading={isSaving}
               loadingText="Enviando..."
               disabled={isSaving || !selectedFriend}
+              data-preserve-button-case="true"
             >
               Aceptar
             </Button>
@@ -1406,7 +1408,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         isOpen={memberModalOpen}
         onClose={closeMemberModal}
         title={memberModalMode === 'create' ? 'Agregar Jugador' : 'Editar Jugador'}
-        className="w-full max-w-[560px] !rounded-none !border-[rgba(88,107,170,0.46)] !bg-[#1e293b]/96 !shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
+        className="w-full max-w-[560px] !rounded-none !border !border-[rgba(88,107,170,0.46)] !bg-[rgba(30,41,59,0.96)] !shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
         classNameContent="p-4 sm:p-5"
         footer={(
           <div className="grid grid-cols-2 gap-2">
@@ -1416,6 +1418,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               variant="secondary"
               className={modalSecondaryActionButtonClass}
               disabled={isSaving}
+              data-preserve-button-case="true"
             >
               Cancelar
             </Button>
@@ -1426,6 +1429,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               loading={isSaving}
               loadingText={memberModalMode === 'create' ? 'Agregando...' : 'Guardando...'}
               disabled={isSaving || (memberModalMode === 'create' && memberNameInput.trim().length === 0)}
+              data-preserve-button-case="true"
             >
               {memberModalMode === 'create' ? 'Agregar' : 'Guardar'}
             </Button>
