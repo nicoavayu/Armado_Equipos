@@ -21,6 +21,9 @@ import { uploadTeamCrest } from '../../../services/storage/teamCrests';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 
 const createTeamButtonClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !font-bebas !text-base !tracking-[0.01em] !normal-case !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff] sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
+const invitationActionButtonBaseClass = '!h-10 !rounded-none !px-3 !text-[15px] !font-bebas !tracking-[0.01em] !normal-case';
+const invitationAcceptButtonClass = `${invitationActionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
+const invitationRejectButtonClass = `${invitationActionButtonBaseClass} !border !border-[rgba(98,117,184,0.58)] !bg-[rgba(20,31,70,0.82)] !text-white/92 hover:!bg-[rgba(30,45,94,0.95)]`;
 
 const MisEquiposTab = ({ userId }) => {
   const navigate = useNavigate();
@@ -237,18 +240,20 @@ const MisEquiposTab = ({ userId }) => {
                       <Button
                         type="button"
                         onClick={() => handleAcceptIncomingInvitation(invitation.id)}
-                        className="!h-10 !text-[15px]"
+                        className={invitationAcceptButtonClass}
                         loading={isSaving}
                         disabled={isSaving}
+                        data-preserve-button-case="true"
                       >
                         Aceptar
                       </Button>
                       <Button
                         type="button"
                         variant="secondary"
-                        className="!h-10 !text-[15px]"
+                        className={invitationRejectButtonClass}
                         onClick={() => handleRejectIncomingInvitation(invitation.id)}
                         disabled={isSaving}
+                        data-preserve-button-case="true"
                       >
                         Rechazar
                       </Button>
