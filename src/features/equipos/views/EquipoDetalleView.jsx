@@ -26,7 +26,7 @@ import {
 import { getAmigos } from '../../../services/db/friends';
 import { uploadTeamCrest, uploadTeamMemberPhoto } from '../../../services/storage/teamCrests';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
-import { formatSkillLevelLabel, getTeamAccent, getTeamGradientStyle } from '../utils/teamColors';
+import { formatSkillLevelLabel, getTeamProvidedColors } from '../utils/teamColors';
 import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY } from '../config';
 
 const modalActionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
@@ -389,13 +389,8 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     [memberEditing],
   );
 
-  const selectedTeamGradientStyle = useMemo(
-    () => (selectedTeam ? getTeamGradientStyle(selectedTeam) : undefined),
-    [selectedTeam],
-  );
-
-  const selectedTeamAccent = useMemo(
-    () => (selectedTeam ? getTeamAccent(selectedTeam) : '#128BE9'),
+  const selectedTeamBandColors = useMemo(
+    () => (selectedTeam ? getTeamProvidedColors(selectedTeam, 3) : []),
     [selectedTeam],
   );
 
@@ -917,14 +912,21 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         <div className="w-full flex justify-center px-4 pt-3">
           <div className="w-full max-w-[560px] space-y-3">
             <div
-              className="relative rounded-none border border-white/15 bg-[#0f172acc] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
-              style={selectedTeamGradientStyle}
+              className="relative overflow-hidden rounded-none border border-white/15 bg-[#0f172acc] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
             >
-            <span
-              className="absolute left-4 right-4 top-0 h-[2px] rounded-none opacity-80"
-              style={{ backgroundColor: selectedTeamAccent }}
-            />
-            <div className="flex items-start gap-3">
+            {selectedTeamBandColors.length > 0 ? (
+              <span className="pointer-events-none absolute left-0 top-0 bottom-0 z-[1] w-[12px] overflow-hidden">
+                <span
+                  className="grid h-full w-full"
+                  style={{ gridTemplateColumns: `repeat(${selectedTeamBandColors.length}, minmax(0, 1fr))` }}
+                >
+                  {selectedTeamBandColors.map((color, index) => (
+                    <span key={`${color}-${index}`} style={{ backgroundColor: color }} />
+                  ))}
+                </span>
+              </span>
+            ) : null}
+            <div className={`flex items-start gap-3 ${selectedTeamBandColors.length > 0 ? 'pl-2' : ''}`}>
               <div className="h-14 w-14 rounded-none overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
                 {selectedTeam.crest_url ? (
                   <img src={selectedTeam.crest_url} alt={`Escudo ${selectedTeam.name || 'equipo'}`} className="h-full w-full object-cover" />

@@ -28,7 +28,7 @@ const TeamCard = React.memo(({ team, stats, onClick, footer, className = '' }) =
     <button
       type="button"
       onClick={() => onClick?.(team)}
-      className={`relative w-full overflow-hidden rounded-none p-4 text-left border border-white/10 transition-all duration-300 bg-[#1e293b]/70 backdrop-blur-sm shadow-[0_8px_24px_rgba(0,0,0,0.35)] active:scale-[0.99] hover:border-white/20 font-oswald ${className}`}
+      className={`relative w-full overflow-hidden rounded-none p-4 text-left border border-white/10 transition-all duration-300 bg-[#1e293b]/70 backdrop-blur-sm shadow-[0_8px_24px_rgba(0,0,0,0.35)] active:scale-[0.99] hover:border-white/20 font-oswald ${hasColorBand ? 'pl-7' : ''} ${className}`}
     >
       {hasColorBand ? (
         <span className="pointer-events-none absolute left-0 top-0 bottom-0 z-[1] w-[12px] overflow-hidden">
@@ -95,7 +95,7 @@ const TeamCard = React.memo(({ team, stats, onClick, footer, className = '' }) =
       {footer ? (
         <div className="mt-3 pt-3 border-t border-white/15">{footer}</div>
       ) : (
-        <div className="mt-3 text-[11px] text-white/70 inline-flex items-center gap-1.5 font-oswald">
+        <div className="mt-3 text-[11px] text-white/70 inline-flex items-center gap-2 font-oswald">
           <Users size={12} /> {memberLabel} · Ver detalle del equipo
         </div>
       )}
