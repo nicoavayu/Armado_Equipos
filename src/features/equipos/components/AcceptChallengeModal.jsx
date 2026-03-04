@@ -20,9 +20,9 @@ const AcceptChallengeModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Aceptar Desafio"
-      className="w-full max-w-[520px] !rounded-none !border !border-[rgba(88,107,170,0.46)] !bg-[rgba(30,41,59,0.96)] !shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
-      classNameContent="p-4 sm:p-5"
+      title="Aceptar desafío"
+      className="w-full max-w-[520px] !rounded-none !border !border-[rgba(88,107,170,0.52)] !bg-[rgba(8,18,44,0.96)] !shadow-[0_26px_58px_rgba(0,0,0,0.62)]"
+      classNameContent="p-4 sm:p-5 !font-oswald"
       footer={(
         <div className="grid grid-cols-2 gap-2">
           <Button
@@ -49,14 +49,14 @@ const AcceptChallengeModal = ({
         </div>
       )}
     >
-      <p className="text-sm text-white/70 mb-3">
-        Elegi uno de tus equipos para aceptar el desafio F{challenge?.format || '-'}
+      <p className="mb-3 text-[15px] leading-relaxed text-white/82">
+        Elegí uno de tus equipos para aceptar el desafío F{challenge?.format || '-'}
       </p>
 
       <select
         value={selectedTeamId}
         onChange={(event) => onChangeTeam(event.target.value)}
-        className="w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
+        className="h-[44px] w-full rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(10,23,58,0.92)] px-3 text-[15px] text-white outline-none focus:border-[#6a43ff] focus:ring-1 focus:ring-[#6a43ff]/45"
       >
         {availableTeams.map((team) => (
           <option key={team.id} value={team.id}>
