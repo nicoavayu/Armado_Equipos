@@ -26,7 +26,7 @@ const MainLayout = () => {
   return (
     <div className="flex flex-col min-h-[100dvh]">
       {/* App Shell / Main Content Container */}
-      <main className="flex-1 flex flex-col pt-[var(--safe-top,0px)] pb-[calc(var(--safe-bottom,0px)+70px)] md:pb-[calc(var(--safe-bottom,0px)+80px)] overflow-x-hidden">
+      <main className="flex-1 flex flex-col pt-[var(--safe-top,0px)] pb-[calc(env(safe-area-inset-bottom)+96px)] md:pb-[calc(env(safe-area-inset-bottom)+104px)] overflow-x-hidden">
         <Outlet />
       </main>
 

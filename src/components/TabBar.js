@@ -48,20 +48,19 @@ const TabBar = ({ activeTab, onTabChange }) => {
 
   return (
     <div
-      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] relative min-h-[70px] h-auto md:min-h-[80px] bg-white/5 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.16)] transition-[transform,opacity] duration-200"
-      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), var(--safe-bottom, 0px))' }}
+      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] min-h-[70px] h-auto md:min-h-[80px] bg-white/5 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.16)] pb-[calc(env(safe-area-inset-bottom)+10px)] transition-[transform,opacity] duration-200"
     >
-      <div
-        className="pointer-events-none absolute top-0 left-0 h-[3px]"
-        style={{
-          width: `calc(100% / ${tabs.length})`,
-          transform: `translateX(${activeIndex * 100}%)`,
-          transition: 'transform 250ms ease-out, opacity 200ms ease-out',
-        }}
-      >
-        <span className="mx-3 block h-full rounded-full bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.22)] md:mx-4" />
-      </div>
-      <div className="grid w-full grid-cols-5">
+      <div className="relative grid w-full grid-cols-5">
+        <div
+          className="pointer-events-none absolute top-0 left-0 h-[3px]"
+          style={{
+            width: `calc(100% / ${tabs.length})`,
+            transform: `translateX(${activeIndex * 100}%)`,
+            transition: 'transform 250ms ease-out, opacity 200ms ease-out',
+          }}
+        >
+          <span className="mx-3 block h-full rounded-full bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.22)] md:mx-4" />
+        </div>
         {tabs.map((tab, index) => {
           const isActive = activeTab === tab.key;
           const IconComponent = isActive ? tab.ActiveIcon : tab.InactiveIcon;
