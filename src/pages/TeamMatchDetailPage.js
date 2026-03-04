@@ -91,6 +91,10 @@ const getPlayerAvatar = (member) => (
   || null
 );
 
+const modalActionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
+const modalActionPrimaryClass = `${modalActionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
+const modalActionSecondaryClass = `${modalActionButtonBaseClass} !border !border-[rgba(98,117,184,0.58)] !bg-[rgba(20,31,70,0.82)] !text-white/92 hover:!bg-[rgba(30,45,94,0.95)]`;
+
 const getPlayerProfile = (member) => {
   const userId = member?.user_id || member?.jugador?.usuario_id || null;
   const fallbackId = member?.jugador?.id || member?.jugador_id || null;
@@ -704,20 +708,22 @@ const TeamMatchDetailPage = () => {
               type="button"
               onClick={() => setEditModalOpen(false)}
               variant="secondary"
-              className="h-11 rounded-xl text-[16px] font-oswald font-semibold tracking-[0.01em] !normal-case"
+              className={modalActionSecondaryClass}
               disabled={saving}
+              data-preserve-button-case="true"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               form="team-match-edit-form"
-              className="h-11 rounded-xl text-[16px] font-oswald font-semibold tracking-[0.01em] !normal-case"
+              className={modalActionPrimaryClass}
               loading={saving}
               loadingText="Guardando..."
               disabled={saving}
+              data-preserve-button-case="true"
             >
-              Guardar cambios
+              Guardar
             </Button>
           </div>
         )}
