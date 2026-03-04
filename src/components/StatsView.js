@@ -937,6 +937,103 @@ const StatsView = ({ onVolver }) => {
     };
   };
 
+  const getNoShowPenaltyCountForMatches = async (matchIds = []) => {
+    const normalizedMatchIds = (matchIds || [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id));
+
+    if (normalizedMatchIds.length === 0) return 0;
+
+    try {
+      const { data, error } = await supabase
+        .from('rating_adjustments')
+        .select('partido_id')
+        .eq('user_id', user.id)
+        .eq('type', 'no_show_penalty')
+        .in('partido_id', normalizedMatchIds);
+
+      if (error) throw error;
+      return new Set((data || [])
+        .map((row) => Number(row?.partido_id))
+        .filter((id) => Number.isFinite(id))).size;
+    } catch (error) {
+      console.warn('[STATS] No se pudieron cargar penalizaciones por inasistencia para fallback.', error);
+      return 0;
+    }
+  };
+
+  const getAttendanceStatsFromSurveyResults = async (matchIds = []) => {
+    const normalizedMatchIds = (matchIds || [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id));
+
+    if (normalizedMatchIds.length === 0) {
+      return {
+        partidosConEncuesta: 0,
+        partidosSinEncuesta: 0,
+        asistenciasConfirmadas: 0,
+        faltasConfirmadas: 0,
+        asistenciaPct: 0,
+      };
+    }
+
+    let rows = [];
+    try {
+      const { data, error } = await supabase
+        .from('survey_results')
+        .select('partido_id, result_status')
+        .in('partido_id', normalizedMatchIds);
+      if (error) throw error;
+      rows = data || [];
+    } catch (error) {
+      console.warn('[STATS] No se pudo usar survey_results como fallback de asistencia.', error);
+      return {
+        partidosConEncuesta: 0,
+        partidosSinEncuesta: normalizedMatchIds.length,
+        asistenciasConfirmadas: 0,
+        faltasConfirmadas: 0,
+        asistenciaPct: 0,
+      };
+    }
+
+    const resultByMatch = new Map();
+    (rows || []).forEach((row) => {
+      const id = Number(row?.partido_id);
+      if (!Number.isFinite(id)) return;
+      resultByMatch.set(id, normalizeSurveyResultStatus(row?.result_status));
+    });
+
+    let partidosConEncuesta = 0;
+    let partidosSinEncuesta = 0;
+    const playedMatchIds = [];
+
+    normalizedMatchIds.forEach((matchId) => {
+      const status = resultByMatch.get(matchId);
+      if (!status) {
+        partidosSinEncuesta += 1;
+        return;
+      }
+      if (status === 'finished' || status === 'draw') {
+        partidosConEncuesta += 1;
+        playedMatchIds.push(matchId);
+      }
+    });
+
+    const faltasConfirmadas = await getNoShowPenaltyCountForMatches(playedMatchIds);
+    const asistenciasConfirmadas = Math.max(0, partidosConEncuesta - faltasConfirmadas);
+    const asistenciaPct = partidosConEncuesta > 0
+      ? Number(((asistenciasConfirmadas / partidosConEncuesta) * 100).toFixed(1))
+      : 0;
+
+    return {
+      partidosConEncuesta,
+      partidosSinEncuesta,
+      asistenciasConfirmadas,
+      faltasConfirmadas,
+      asistenciaPct,
+    };
+  };
+
   const getAttendanceStats = async (userPartidos = []) => {
     const matchIds = (userPartidos || []).map((p) => Number(p?.id)).filter((id) => Number.isFinite(id));
     if (matchIds.length === 0) {
@@ -949,12 +1046,22 @@ const StatsView = ({ onVolver }) => {
       };
     }
 
-    const { data: surveysRows, error: surveysErr } = await supabase
-      .from('post_match_surveys')
-      .select('partido_id, votante_id, se_jugo, jugadores_ausentes')
-      .in('partido_id', matchIds);
+    let surveysRows = [];
+    try {
+      const { data, error } = await supabase
+        .from('post_match_surveys')
+        .select('partido_id, votante_id, se_jugo, jugadores_ausentes')
+        .in('partido_id', matchIds);
+      if (error) throw error;
+      surveysRows = data || [];
+    } catch (surveysErr) {
+      console.warn('[STATS] No se pudo leer post_match_surveys para asistencia. Se usa fallback.', surveysErr);
+      return getAttendanceStatsFromSurveyResults(matchIds);
+    }
 
-    if (surveysErr) throw surveysErr;
+    if (surveysRows.length === 0) {
+      return getAttendanceStatsFromSurveyResults(matchIds);
+    }
 
     const surveysByMatch = new Map();
     (surveysRows || []).forEach((row) => {
@@ -977,6 +1084,7 @@ const StatsView = ({ onVolver }) => {
     let partidosConEncuesta = 0;
     let faltasConfirmadas = 0;
     let partidosSinEncuesta = 0;
+    const playedMatchIds = [];
 
     matchIds.forEach((matchId) => {
       const rows = surveysByMatch.get(matchId) || [];
@@ -987,6 +1095,7 @@ const StatsView = ({ onVolver }) => {
 
       if (!isMatchPlayedFromSurveys(rows)) return;
       partidosConEncuesta += 1;
+      playedMatchIds.push(matchId);
 
       const userPlayerId = userPlayerByMatch.get(matchId);
       if (!Number.isFinite(userPlayerId)) return;
@@ -998,7 +1107,9 @@ const StatsView = ({ onVolver }) => {
       }
     });
 
-    const asistenciasConfirmadas = Math.max(0, partidosConEncuesta - faltasConfirmadas);
+    const penaltiesFallbackCount = await getNoShowPenaltyCountForMatches(playedMatchIds);
+    const resolvedFaltasConfirmadas = Math.max(faltasConfirmadas, penaltiesFallbackCount);
+    const asistenciasConfirmadas = Math.max(0, partidosConEncuesta - resolvedFaltasConfirmadas);
     const asistenciaPct = partidosConEncuesta > 0
       ? Number(((asistenciasConfirmadas / partidosConEncuesta) * 100).toFixed(1))
       : 0;
@@ -1007,7 +1118,7 @@ const StatsView = ({ onVolver }) => {
       partidosConEncuesta,
       partidosSinEncuesta,
       asistenciasConfirmadas,
-      faltasConfirmadas,
+      faltasConfirmadas: resolvedFaltasConfirmadas,
       asistenciaPct,
     };
   };
@@ -1212,12 +1323,42 @@ const StatsView = ({ onVolver }) => {
   const getExtendedStats = async ({ dateRange, partidosData, partidosManualesData }) => {
     const userPartidos = partidosData?.partidos || [];
     const totalPeriodoActual = (partidosData?.total || 0) + (partidosManualesData?.total || 0);
+    const defaultExtendedStats = getDefaultExtendedStats();
+    const defaultRankingStats = {
+      rankingActual: null,
+      balancePeriodo: 0,
+      movimientos: [],
+      sancionesPeriodo: 0,
+      recuperacionesPeriodo: 0,
+      deudaPendiente: 0,
+      streakRecuperacion: 0,
+    };
 
-    const [attendanceStats, rankingStats, consistencyStats] = await Promise.all([
+    const [attendanceRes, rankingRes, consistencyRes] = await Promise.allSettled([
       getAttendanceStats(userPartidos),
       getRankingTimelineStats({ dateRange, userPartidos }),
       getConsistencyStats({ dateRange, totalPeriodoActual }),
     ]);
+
+    const attendanceStats = attendanceRes.status === 'fulfilled'
+      ? attendanceRes.value
+      : defaultExtendedStats.asistencia;
+    const rankingStats = rankingRes.status === 'fulfilled'
+      ? rankingRes.value
+      : defaultRankingStats;
+    const consistencyStats = consistencyRes.status === 'fulfilled'
+      ? consistencyRes.value
+      : defaultExtendedStats.consistencia;
+
+    if (attendanceRes.status === 'rejected') {
+      console.warn('[STATS] attendance metrics failed, using fallback.', attendanceRes.reason);
+    }
+    if (rankingRes.status === 'rejected') {
+      console.warn('[STATS] ranking metrics failed, using fallback.', rankingRes.reason);
+    }
+    if (consistencyRes.status === 'rejected') {
+      console.warn('[STATS] consistency metrics failed, using fallback.', consistencyRes.reason);
+    }
 
     return {
       asistencia: {
