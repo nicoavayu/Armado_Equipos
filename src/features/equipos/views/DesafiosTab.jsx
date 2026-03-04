@@ -14,7 +14,6 @@ import {
   completeChallenge,
   createChallenge,
   listMyManageableTeams,
-  listMyTeams,
   listOpenChallenges,
   updateChallenge,
 } from '../../../services/db/teamChallenges';
@@ -60,7 +59,6 @@ const DesafiosTab = ({
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [openChallenges, setOpenChallenges] = useState([]);
-  const [myTeams, setMyTeams] = useState([]);
   const [manageableTeams, setManageableTeams] = useState([]);
   const [filters, setFilters] = useState({ format: '', zone: '', skillLevel: '' });
   const [showFilters, setShowFilters] = useState(false);
@@ -90,11 +88,7 @@ const DesafiosTab = ({
     if (!userId) return;
 
     try {
-      const [ownedTeams, manageable] = await Promise.all([
-        listMyTeams(userId),
-        listMyManageableTeams(userId),
-      ]);
-      setMyTeams(ownedTeams || []);
+      const manageable = await listMyManageableTeams(userId);
       setManageableTeams(manageable || []);
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudieron cargar tus equipos');
@@ -321,7 +315,7 @@ const DesafiosTab = ({
 
       <PublishChallengeModal
         isOpen={showPublishModal}
-        teams={myTeams}
+        teams={manageableTeams}
         prefilledTeamId={prefilledTeamId}
         isSubmitting={isSubmitting}
         onClose={() => setShowPublishModal(false)}

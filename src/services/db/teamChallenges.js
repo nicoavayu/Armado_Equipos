@@ -2126,6 +2126,34 @@ const resolveUserAdminTeamIds = async ({ userId, teamIds, teamRows = [] }) => {
     return adminTeamIds;
   }
 
+  let cachedJugadorIds = null;
+  const getJugadorIdsForUser = async () => {
+    if (cachedJugadorIds !== null) return cachedJugadorIds;
+
+    const jugadoresResponse = await supabase
+      .from('jugadores')
+      .select('id')
+      .eq('usuario_id', userId);
+
+    if (jugadoresResponse.error) {
+      throw new Error(jugadoresResponse.error.message || 'No se pudieron cargar tus jugadores');
+    }
+
+    cachedJugadorIds = uniqueValues((jugadoresResponse.data || []).map((row) => row?.id).filter(Boolean));
+    return cachedJugadorIds;
+  };
+
+  const queryMembershipRowsByJugadorId = async (selectClause) => {
+    const jugadorIds = await getJugadorIdsForUser();
+    if (jugadorIds.length === 0) return { data: [], error: null };
+
+    return supabase
+      .from('team_members')
+      .select(selectClause)
+      .in('team_id', teamIds)
+      .in('jugador_id', jugadorIds);
+  };
+
   const queryMembershipRows = async (selectClause) => {
     let response = await supabase
       .from('team_members')
@@ -2134,23 +2162,21 @@ const resolveUserAdminTeamIds = async ({ userId, teamIds, teamRows = [] }) => {
       .eq('user_id', userId);
 
     if (response.error && isMissingColumnError(response.error, 'user_id')) {
-      const jugadoresResponse = await supabase
-        .from('jugadores')
-        .select('id')
-        .eq('usuario_id', userId);
+      response = await queryMembershipRowsByJugadorId(selectClause);
+      return response;
+    }
 
-      if (jugadoresResponse.error) {
-        throw new Error(jugadoresResponse.error.message || 'No se pudieron cargar tus jugadores');
+    if (response.error) {
+      return response;
+    }
+
+    // Some deployments keep user_id nullable in team_members; fallback to jugador_id if needed.
+    if ((response.data || []).length === 0) {
+      const fallbackResponse = await queryMembershipRowsByJugadorId(selectClause);
+      if (fallbackResponse.error) return fallbackResponse;
+      if ((fallbackResponse.data || []).length > 0) {
+        return fallbackResponse;
       }
-
-      const jugadorIds = (jugadoresResponse.data || []).map((row) => row?.id).filter(Boolean);
-      if (jugadorIds.length === 0) return { data: [], error: null };
-
-      response = await supabase
-        .from('team_members')
-        .select(selectClause)
-        .in('team_id', teamIds)
-        .in('jugador_id', jugadorIds);
     }
 
     return response;
