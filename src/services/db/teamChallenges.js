@@ -2019,7 +2019,7 @@ export const updateChallenge = async (userId, challengeId, payload) => {
           ...response,
           error: {
             code: 'CHALLENGE_UPDATE_NO_ROWS',
-            message: 'No se pudo editar el desafio. Verifica que siga abierto y que seas capitan/owner del equipo desafiante.',
+            message: 'No se pudo editar el desafio. Verifica que siga abierto y que seas admin/capitan/owner del equipo desafiante.',
           },
         };
         break;
