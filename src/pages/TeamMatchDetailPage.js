@@ -12,7 +12,7 @@ import MatchInfoSection from '../components/MatchInfoSection';
 import ProfileCardModal from '../components/ProfileCardModal';
 import LocationAutocomplete from '../features/equipos/components/LocationAutocomplete';
 import { TEAM_FORMAT_OPTIONS, TEAM_MODE_OPTIONS } from '../features/equipos/config';
-import { getTeamBadgeStyle, getTeamGradientStyle } from '../features/equipos/utils/teamColors';
+import { getTeamBadgeStyle, getTeamProvidedColors } from '../features/equipos/utils/teamColors';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import {
   getChallengeHeadToHeadStats,
@@ -140,13 +140,25 @@ const TeamCardLocked = ({
   const statusLabel = totalMembers > 0 ? `${totalMembers} jugadores` : 'Sin jugadores';
   const teamName = team?.name || fallbackName;
   const badgeStyle = getTeamBadgeStyle(team);
+  const bandColors = getTeamProvidedColors(team, 3);
+  const hasColorBand = bandColors.length > 0;
 
   return (
     <div
-      className="relative overflow-hidden rounded-none border p-4 sm:p-5 min-h-[224px] min-w-0"
-      style={team ? getTeamGradientStyle(team) : undefined}
+      className={`relative overflow-hidden rounded-none border border-[rgba(88,107,170,0.46)] bg-[#1e293b]/72 p-4 sm:p-5 min-h-[224px] min-w-0 ${hasColorBand ? 'pl-9 sm:pl-10' : ''}`}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.16),transparent_56%)]" />
+      {hasColorBand ? (
+        <span className="pointer-events-none absolute left-0 top-0 bottom-0 z-[1] w-[12px] overflow-hidden">
+          <span
+            className="grid h-full w-full"
+            style={{ gridTemplateColumns: `repeat(${bandColors.length}, minmax(0, 1fr))` }}
+          >
+            {bandColors.map((color, index) => (
+              <span key={`${color}-${index}`} style={{ backgroundColor: color }} />
+            ))}
+          </span>
+        </span>
+      ) : null}
 
       <div className="relative flex h-full flex-col">
         <div className="flex flex-col items-center text-center">
