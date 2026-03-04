@@ -53,6 +53,55 @@ const normalizeIdentityToken = (value) => String(value || '').trim().toLowerCase
 
 const normalizeRosterRef = (value) => String(value || '').trim().toLowerCase();
 
+const normalizeSurveyStatusToken = (value) => {
+  const token = normalizeIdentityToken(value);
+  if (!token) return null;
+  if (token === 'closed' || token === 'cerrada') return 'closed';
+  if (token === 'open' || token === 'abierta') return 'open';
+  return null;
+};
+
+const normalizeResultStatusToken = (value) => {
+  const token = normalizeIdentityToken(value);
+  if (!token) return null;
+  if (token === 'finished' || token === 'played') return 'finished';
+  if (token === 'draw' || token === 'empate') return 'draw';
+  if (token === 'not_played' || token === 'cancelled' || token === 'cancelado' || token === 'no_jugado') return 'not_played';
+  if (token === 'pending' || token === 'pendiente') return 'pending';
+  return null;
+};
+
+const resolveSurveyClosedState = ({ surveyStatus, resultStatus, surveyClosesAt, finishedAt, now = Date.now() }) => {
+  const normalizedSurveyStatus = normalizeSurveyStatusToken(surveyStatus);
+  const normalizedResultStatus = normalizeResultStatusToken(resultStatus);
+  const closesAtMs = surveyClosesAt ? new Date(surveyClosesAt).getTime() : NaN;
+  const finishedAtMs = finishedAt ? new Date(finishedAt).getTime() : NaN;
+  const deadlineReached = Number.isFinite(closesAtMs) && now >= closesAtMs;
+  const hasClosedResult = normalizedResultStatus === 'finished'
+    || normalizedResultStatus === 'draw'
+    || normalizedResultStatus === 'not_played';
+
+  if (normalizedSurveyStatus === 'closed' || hasClosedResult || deadlineReached || Number.isFinite(finishedAtMs)) {
+    return {
+      closed: true,
+      normalizedSurveyStatus,
+      normalizedResultStatus,
+      closedByDeadline: deadlineReached,
+      closesAt: Number.isFinite(closesAtMs) ? new Date(closesAtMs).toISOString() : null,
+      finishedAt: Number.isFinite(finishedAtMs) ? new Date(finishedAtMs).toISOString() : null,
+    };
+  }
+
+  return {
+    closed: false,
+    normalizedSurveyStatus,
+    normalizedResultStatus,
+    closedByDeadline: false,
+    closesAt: Number.isFinite(closesAtMs) ? new Date(closesAtMs).toISOString() : null,
+    finishedAt: Number.isFinite(finishedAtMs) ? new Date(finishedAtMs).toISOString() : null,
+  };
+};
+
 const parsePersistedTeamsPayload = (payload) => {
   if (Array.isArray(payload)) return payload;
   if (typeof payload === 'string') {
@@ -195,6 +244,8 @@ const EncuestaPartido = () => {
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [linkedPlayerId, setLinkedPlayerId] = useState(null);
   const [loggedRosterCount, setLoggedRosterCount] = useState(0);
+  const [surveyClosed, setSurveyClosed] = useState(false);
+  const [surveyClosedAt, setSurveyClosedAt] = useState(null);
 
   const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
   const [jugadores, setJugadores] = useState([]);
@@ -229,6 +280,36 @@ const EncuestaPartido = () => {
     });
   };
 
+  const getSurveyClosedMessage = (closedAtIso = null) => {
+    if (!closedAtIso) {
+      return 'Esta encuesta ya cerró y no se puede completar.';
+    }
+    try {
+      const closedDate = new Date(closedAtIso);
+      if (Number.isNaN(closedDate.getTime())) {
+        return 'Esta encuesta ya cerró y no se puede completar.';
+      }
+      const fecha = closedDate.toLocaleDateString('es-ES');
+      const hora = Utils_formatTime(closedAtIso);
+      return `Esta encuesta ya cerró y no se puede completar. Cerró el ${fecha} a las ${hora}.`;
+    } catch (_error) {
+      return 'Esta encuesta ya cerró y no se puede completar.';
+    }
+  };
+
+  const enforceSurveyClosedUiState = (closedAtIso = null, options = {}) => {
+    setSurveyClosed(true);
+    setSurveyClosedAt(closedAtIso || null);
+    setEncuestaFinalizada(true);
+    if (options?.showModal !== false) {
+      openSurveyModal(
+        getSurveyClosedMessage(closedAtIso),
+        'Encuesta cerrada',
+        { exitRoute: options?.exitRoute || '/' },
+      );
+    }
+  };
+
   useEffect(() => {
     const updateViewportRatio = () => {
       setViewportRatio(window.innerWidth / Math.max(window.innerHeight, 1));
@@ -259,6 +340,8 @@ const EncuestaPartido = () => {
       setFormData({ ...DEFAULT_FORM_DATA });
       setLinkedPlayerId(null);
       setLoggedRosterCount(0);
+      setSurveyClosed(false);
+      setSurveyClosedAt(null);
       setSurveyExitRoute(null);
     };
 
@@ -304,11 +387,15 @@ const EncuestaPartido = () => {
         let persistedSurveyTeamA = [];
         let persistedSurveyTeamB = [];
         let persistedTeamsPayload = null;
+        let surveyStatusValue = partidoData?.survey_status || null;
+        let surveyClosesAtValue = partidoData?.survey_closes_at || null;
+        let resultStatusValue = partidoData?.result_status || null;
+        let finishedAtValue = partidoData?.finished_at || null;
         try {
           const { data: pRow, error: pErr } = await supabase
             .from('partidos')
             .select(
-              'teams_confirmed, teams_locked, teams_source, teams_locked_by_user_id, teams_locked_at, survey_team_a, survey_team_b, final_team_a, final_team_b, equipos_json, equipos',
+              'teams_confirmed, teams_locked, teams_source, teams_locked_by_user_id, teams_locked_at, survey_team_a, survey_team_b, final_team_a, final_team_b, equipos_json, equipos, survey_status, survey_closes_at, result_status, finished_at',
             )
             .eq('id', matchIdNum)
             .maybeSingle();
@@ -320,6 +407,10 @@ const EncuestaPartido = () => {
             teamsSourceValue = pRow.teams_source || (teamsConfirmedValue ? 'admin' : null);
             teamsLockedByValue = pRow.teams_locked_by_user_id || null;
             teamsLockedAtValue = pRow.teams_locked_at || null;
+            surveyStatusValue = pRow.survey_status || surveyStatusValue;
+            surveyClosesAtValue = pRow.survey_closes_at || surveyClosesAtValue;
+            resultStatusValue = pRow.result_status || resultStatusValue;
+            finishedAtValue = pRow.finished_at || finishedAtValue;
             persistedSurveyTeamA = Array.isArray(pRow.survey_team_a)
               ? pRow.survey_team_a
               : (Array.isArray(pRow.final_team_a) ? pRow.final_team_a : []);
@@ -410,6 +501,31 @@ const EncuestaPartido = () => {
         hasSubmitted = Boolean(existingSurvey?.id);
         if (cancelled) return;
         setAlreadySubmitted(hasSubmitted);
+
+        const closedState = resolveSurveyClosedState({
+          surveyStatus: surveyStatusValue,
+          resultStatus: resultStatusValue,
+          surveyClosesAt: surveyClosesAtValue,
+          finishedAt: finishedAtValue,
+          now: Date.now(),
+        });
+
+        if (!hasSubmitted && closedState.closed) {
+          let closedAt = closedState.finishedAt || closedState.closesAt || null;
+          try {
+            const finalizeRes = await finalizeIfComplete(matchIdNum);
+            closedAt = finalizeRes?.closedAt || finalizeRes?.deadlineAt || closedAt;
+          } catch (_finalizeError) {
+            // Non-blocking.
+          }
+
+          if (cancelled) return;
+          setPartido(partidoData || null);
+          setJugadores(jugadoresPartido);
+          enforceSurveyClosedUiState(closedAt, { showModal: true, exitRoute: '/' });
+          setLoading(false);
+          return;
+        }
 
         setJugadores(jugadoresPartido);
 
@@ -614,17 +730,17 @@ const EncuestaPartido = () => {
       return 'Equipos confirmados';
     }
     if (teamsLockedByUserId || teamsLockedAt || teamsLocked || teamsSource === 'survey') {
-      return 'Equipos definidos por el primer votante';
+      return 'Equipos finales cargados por jugadores (editable)';
     }
     return 'Equipos a definir en encuesta';
   }, [hasConfirmedTeams, teamsLocked, teamsLockedAt, teamsLockedByUserId, teamsSource]);
 
   const organizeTeamsHelperText = useMemo(() => {
-    if (hasConfirmedTeams || teamsLocked || teamsSource === 'admin') {
+    if (hasConfirmedTeams || teamsSource === 'admin') {
       return 'Armá los equipos finales como finalmente se jugó el partido.';
     }
-    return 'Armá los equipos finales como finalmente se jugó el partido.';
-  }, [hasConfirmedTeams, teamsLocked, teamsSource]);
+    return 'Armá o ajustá los equipos finales según cómo se jugó realmente el partido.';
+  }, [hasConfirmedTeams, teamsSource]);
   const compactWinnerSelectionHelperText = 'En caso de que haya habido algún cambio de último minuto, podés rearmar los equipos de la manera en la que finalmente se jugó. Para elegir al ganador, seleccioná la lista del equipo ganador y presioná continuar.';
 
   const finalTeamsValidation = useMemo(() => {
@@ -667,7 +783,7 @@ const EncuestaPartido = () => {
   };
 
   const persistSurveyTeamsDefinition = async () => {
-    if (hasConfirmedTeams || teamsLocked) {
+    if (hasConfirmedTeams || teamsSource === 'admin') {
       return { ok: true, message: '' };
     }
 
@@ -721,6 +837,44 @@ const EncuestaPartido = () => {
     };
   };
 
+  const ensureSurveyCanReceiveSubmission = async () => {
+    const matchIdNum = Number(id);
+    if (!Number.isFinite(matchIdNum) || matchIdNum <= 0) {
+      return { canSubmit: false, closedAt: null };
+    }
+
+    let lifecycleRow = null;
+    try {
+      const { data, error } = await supabase
+        .from('partidos')
+        .select('survey_status, survey_closes_at, result_status, finished_at')
+        .eq('id', matchIdNum)
+        .maybeSingle();
+      if (!error) lifecycleRow = data || null;
+    } catch (_error) {
+      lifecycleRow = null;
+    }
+
+    const closure = resolveSurveyClosedState({
+      surveyStatus: lifecycleRow?.survey_status,
+      resultStatus: lifecycleRow?.result_status,
+      surveyClosesAt: lifecycleRow?.survey_closes_at,
+      finishedAt: lifecycleRow?.finished_at,
+      now: Date.now(),
+    });
+
+    if (closure.closed) {
+      try {
+        await finalizeIfComplete(matchIdNum);
+      } catch (_finalizeError) {
+        // Non-blocking.
+      }
+      return { canSubmit: false, closedAt: closure.finishedAt || closure.closesAt || null };
+    }
+
+    return { canSubmit: true, closedAt: null };
+  };
+
   const resolveSurveyOutcome = () => {
     const winner = String(formData.ganador || '').trim();
     if (winner === 'equipo_a') {
@@ -748,8 +902,14 @@ const EncuestaPartido = () => {
         return;
       }
 
+      const submissionGate = await ensureSurveyCanReceiveSubmission();
+      if (!submissionGate.canSubmit) {
+        enforceSurveyClosedUiState(submissionGate.closedAt);
+        return;
+      }
+
       const outcome = resolveSurveyOutcome();
-      if (outcome.seJugo && !skipPersistTeams && !teamsConfirmed && !teamsLocked) {
+      if (outcome.seJugo && !skipPersistTeams && !teamsConfirmed && teamsSource !== 'admin') {
         const persistResult = await persistSurveyTeamsDefinition();
         if (!persistResult.ok) {
           openSurveyModal(persistResult.message, 'No se pudieron guardar los equipos');
@@ -847,6 +1007,11 @@ const EncuestaPartido = () => {
       return;
     }
 
+    if (surveyClosed) {
+      enforceSurveyClosedUiState(surveyClosedAt, { showModal: true, exitRoute: '/' });
+      return;
+    }
+
     if (alreadySubmitted) {
       console.info('Ya completaste esta encuesta');
       return;
@@ -882,7 +1047,7 @@ const EncuestaPartido = () => {
 
     const shouldSubmitFromHere = compactFlowMode;
 
-    if (teamsConfirmed || teamsLocked) {
+    if (teamsConfirmed || teamsSource === 'admin') {
       if (shouldSubmitFromHere) {
         setSubmitting(true);
         await continueSubmitFlow();
@@ -1203,6 +1368,48 @@ const EncuestaPartido = () => {
     );
   }
 
+  if (surveyClosed && !alreadySubmitted) {
+    return (
+      <PageTransition>
+        <div className="relative h-[100dvh] w-full overflow-visible">
+          <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
+          <div className="relative z-[1] h-full w-full overflow-visible" style={safeAreaStyle}>
+            <div className={cardClass}>
+              <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+                <div className="w-full">
+                  <div className={titleClass}>
+                    ENCUESTA CERRADA
+                  </div>
+                </div>
+                <div className="text-white text-[18px] md:text-[22px] font-oswald text-center font-normal tracking-wide leading-[1.25]">
+                  {getSurveyClosedMessage(surveyClosedAt)}
+                </div>
+                <div className={centeredSummaryButtonWrapClass}>
+                  <button className={btnClass} onClick={() => navigate('/')}>
+                    VOLVER AL INICIO
+                  </button>
+                </div>
+                <div className={logoRowClass}>
+                  <SurveyFooterLogo />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <ConfirmModal
+          isOpen={surveyModal.isOpen}
+          title={surveyModal.title}
+          message={surveyModal.message}
+          confirmText="Aceptar"
+          singleButton={true}
+          onConfirm={closeSurveyModal}
+          onCancel={closeSurveyModal}
+          actionsAlign="center"
+        />
+      </PageTransition>
+    );
+  }
+
   if (yaCalificado || alreadySubmitted) {
     return (
       <PageTransition>
@@ -1508,7 +1715,6 @@ const EncuestaPartido = () => {
                   </div>
                   <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
                     {teamsContextLabel}
-                    {teamsSource === 'survey' ? ' · Primera respuesta define equipos.' : ''}
                   </div>
                 </div>
               </div>
@@ -1664,7 +1870,7 @@ const EncuestaPartido = () => {
                       setFinalTeams(next);
                       closeSurveyModal();
                     }}
-                    disabled={teamsLocked && !compactFlowMode}
+                    disabled={hasConfirmedTeams || teamsSource === 'admin'}
                   />
 
                   {compactFlowMode ? (

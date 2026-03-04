@@ -13,8 +13,8 @@ export const SURVEY_STEPS = {
   DONE: 99,
 };
 
-export const shouldUseTeamsSetupStep = ({ teamsConfirmed, teamsLocked }) => (
-  !teamsConfirmed && !teamsLocked
+export const shouldUseTeamsSetupStep = ({ teamsConfirmed }) => (
+  !teamsConfirmed
 );
 
 export const resolveNextResultGateStep = ({
