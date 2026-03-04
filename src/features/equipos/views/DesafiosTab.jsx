@@ -25,6 +25,8 @@ import { Flag, Search } from 'lucide-react';
 const publishActionBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 const publishActionPrimaryClass = `${publishActionBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
 const publishActionSecondaryClass = `${publishActionBaseClass} !border !border-[rgba(98,117,184,0.58)] !bg-[rgba(20,31,70,0.82)] !text-white/92 hover:!bg-[rgba(30,45,94,0.95)]`;
+const challengeConfirmModalClass = 'w-full max-w-[520px] !rounded-none !border !border-[rgba(88,107,170,0.52)] !bg-[rgba(8,18,44,0.96)] !shadow-[0_26px_58px_rgba(0,0,0,0.62)]';
+const challengeConfirmModalContentClass = 'p-4 sm:p-5 !font-oswald';
 const primaryCtaClass = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center gap-2 transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
 const secondaryCtaClass = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center gap-2 transition-all active:opacity-95 sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
 const filterFieldClass = 'h-[44px] rounded-none bg-[rgba(15,24,56,0.72)] border border-[rgba(88,107,170,0.46)] px-3 text-[15px] text-white outline-none focus:border-[#6a43ff] focus:ring-1 focus:ring-[#6a43ff]/45';
@@ -409,12 +411,12 @@ const DesafiosTab = ({
           if (isSubmitting) return;
           setCancelConfirmChallenge(null);
         }}
-        title="Cancelar Desafio"
+        title="Cancelar Desafío"
         showCloseButton
         closeOnBackdrop={!isSubmitting}
         closeOnEscape={!isSubmitting}
-        className="w-full max-w-[520px] !rounded-none !border !border-[rgba(88,107,170,0.46)] !bg-[rgba(30,41,59,0.96)] !shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
-        classNameContent="p-4 sm:p-5"
+        className={challengeConfirmModalClass}
+        classNameContent={challengeConfirmModalContentClass}
         footer={(
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -452,11 +454,11 @@ const DesafiosTab = ({
           </div>
         )}
       >
-        <p className="text-sm text-white/75">
-          ¿Querés cancelar este desafio?
+        <p className="text-[15px] leading-relaxed text-white/82">
+          ¿Querés cancelar este desafío?
         </p>
-        <p className="mt-2 text-sm text-white/75">
-          Esta accion no se puede deshacer.
+        <p className="mt-2 text-[15px] leading-relaxed text-white/72">
+          Esta acción no se puede deshacer.
         </p>
       </Modal>
 
@@ -464,8 +466,8 @@ const DesafiosTab = ({
         isOpen={Boolean(formatMismatchConfirm)}
         onClose={() => setFormatMismatchConfirm(null)}
         title="Formato Combinado"
-        className="w-full max-w-[520px] !rounded-none !border !border-[rgba(88,107,170,0.46)] !bg-[rgba(30,41,59,0.96)] !shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
-        classNameContent="p-4 sm:p-5"
+        className={challengeConfirmModalClass}
+        classNameContent={challengeConfirmModalContentClass}
         footer={(
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -520,13 +522,13 @@ const DesafiosTab = ({
           </div>
         )}
       >
-        <p className="text-sm text-white/75">
-          Este desafio es F{formatMismatchConfirm?.challengeFormat ?? '-'} y el equipo{' '}
+        <p className="text-[15px] leading-relaxed text-white/82">
+          Este desafío es F{formatMismatchConfirm?.challengeFormat ?? '-'} y el equipo{' '}
           <strong>{formatMismatchConfirm?.acceptedTeamName || 'seleccionado'}</strong> es F
           {formatMismatchConfirm?.acceptedTeamFormat ?? '-'}.
         </p>
-        <p className="mt-2 text-sm text-white/75">
-          Si continuas, se creara un partido con <strong>formato combinado</strong>.
+        <p className="mt-2 text-[15px] leading-relaxed text-white/72">
+          Si continuás, se creará un partido con <strong>formato combinado</strong>.
         </p>
       </Modal>
 
