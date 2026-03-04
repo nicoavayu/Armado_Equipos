@@ -8,6 +8,11 @@ import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
 // import './InjuryModal.css'; // REMOVED
 
+const SECTION_LABEL_CLASS = 'font-oswald text-xs font-medium text-white/70 uppercase tracking-widest pl-0.5';
+const FIELD_CLASS = 'h-[52px] w-full appearance-none rounded-none border border-[rgba(133,149,208,0.5)] bg-[rgba(53,58,102,0.88)] px-4 text-white font-oswald text-lg outline-none transition-all duration-300 focus:border-[#7f8dff] focus:ring-2 focus:ring-[#6f7dff]/30 backdrop-blur-md';
+const SECONDARY_ACTION_BUTTON_CLASS = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
+const PRIMARY_ACTION_BUTTON_CLASS = 'min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
+
 const InjuryModal = ({ isOpen, onClose, onSaved }) => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
@@ -151,34 +156,45 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
   if (!isOpen) return null;
 
   const modalContent = (
-    <div data-modal-root="true" className="fixed inset-0 bg-black/70 flex items-center justify-center z-[10000] p-4 sm:p-3" onClick={onClose}>
+    <div
+      data-modal-root="true"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[10000] p-4 sm:p-3"
+      onClick={onClose}
+    >
       <motion.div
-        className="bg-[#1F2252] rounded-3xl p-6 w-full max-w-[540px] border border-white/15 backdrop-blur-md max-h-[90vh] overflow-y-auto"
+        className="bg-[#1e293b]/96 rounded-none p-6 w-full max-w-[540px] border border-[rgba(88,107,170,0.46)] backdrop-blur-md max-h-[90vh] overflow-y-auto shadow-[0_20px_50px_rgba(3,10,32,0.55)]"
         initial={{ opacity: 0, scale: 0.96, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 10 }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
-          <h3 className="font-oswald text-xl font-semibold text-white m-0">{activeLesion ? 'Gestionar lesión' : 'Registrar lesión'}</h3>
-          <button className="bg-transparent border-none text-white/80 cursor-pointer p-1 rounded transition-all hover:bg-white/10 hover:text-white" onClick={onClose}>
+          <h3 className="font-oswald text-[34px] leading-none font-semibold text-white m-0 md:text-3xl sm:text-[30px]">
+            {activeLesion ? 'Gestionar lesión' : 'Registrar lesión'}
+          </h3>
+          <button
+            className="bg-transparent border border-transparent text-white/80 cursor-pointer p-1.5 rounded-none transition-all hover:border-[rgba(98,117,184,0.58)] hover:bg-[rgba(20,31,70,0.82)] hover:text-white"
+            onClick={onClose}
+            type="button"
+            aria-label="Cerrar modal"
+          >
             <X size={24} />
           </button>
         </div>
 
         {activeLesion && (
-          <div className="bg-white/10 rounded-xl p-4 mb-5 border border-white/20">
+          <div className="bg-[rgba(15,24,56,0.72)] rounded-none p-4 mb-5 border border-[rgba(98,117,184,0.58)]">
             <div className="mb-3">
-              <h4 className="text-white m-0 mb-3 text-base font-semibold flex items-center gap-2">
+              <h4 className="text-white m-0 mb-3 text-base font-semibold flex items-center gap-2 font-oswald">
                 <CircleAlert size={20} className="text-[#ff8a8a]" />
                 Lesión activa
               </h4>
-              <p className="text-white/90 my-1 text-sm"><strong>Tipo:</strong> {activeLesion.tipo_lesion}</p>
-              <p className="text-white/90 my-1 text-sm"><strong>Desde:</strong> {new Date(activeLesion.fecha_inicio).toLocaleDateString('es-ES')}</p>
+              <p className="text-white/90 my-1 text-sm font-oswald"><strong>Tipo:</strong> {activeLesion.tipo_lesion}</p>
+              <p className="text-white/90 my-1 text-sm font-oswald"><strong>Desde:</strong> {new Date(activeLesion.fecha_inicio).toLocaleDateString('es-ES')}</p>
             </div>
             <button
               type="button"
-              className="bg-primary text-white border-none rounded-lg p-3 px-4 font-semibold cursor-pointer transition-all mt-3 w-full hover:brightness-110 hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+              className={`${PRIMARY_ACTION_BUTTON_CLASS} w-full`}
               onClick={markAsRecovered}
               disabled={loading}
             >
@@ -189,56 +205,56 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
                 </>
               )}
             </button>
-            <div className="flex items-center gap-3 text-center text-white/70 text-sm my-4">
-              <div className="h-px bg-white/20 flex-1"></div>
-              <span className="inline-flex items-center gap-1.5">
+            <div className="flex items-center gap-3 text-center text-white/70 text-sm my-4 font-oswald">
+              <div className="h-px bg-[rgba(98,117,184,0.58)] flex-1"></div>
+              <span className="inline-flex items-center gap-1.5 text-white/75">
                 <Plus size={16} />
                 O registrar nueva lesión
               </span>
-              <div className="h-px bg-white/20 flex-1"></div>
+              <div className="h-px bg-[rgba(98,117,184,0.58)] flex-1"></div>
             </div>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <label className="font-oswald text-sm font-semibold text-white uppercase">Tipo de Lesión</label>
+            <label className={SECTION_LABEL_CLASS}>Tipo de lesión</label>
             <select
               value={formData.tipo_lesion}
               onChange={(e) => setFormData({ ...formData, tipo_lesion: e.target.value })}
               required
-              className="p-3 px-4 border-2 border-white/20 rounded-lg bg-white/10 text-white font-oswald text-base backdrop-blur-md outline-none focus:border-white/50 focus:bg-white/15"
+              className={`${FIELD_CLASS} [color-scheme:dark]`}
             >
-              <option value="" className="bg-[#333] text-white">Seleccionar tipo de lesión</option>
+              <option value="" className="bg-[#1b2450] text-white">Seleccionar tipo de lesión</option>
               {tiposLesion.map((tipo) => (
-                <option key={tipo} value={tipo} className="bg-[#333] text-white">{tipo}</option>
+                <option key={tipo} value={tipo} className="bg-[#1b2450] text-white">{tipo}</option>
               ))}
             </select>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="font-oswald text-sm font-semibold text-white uppercase">Fecha de Inicio</label>
+            <label className={SECTION_LABEL_CLASS}>Fecha de inicio</label>
             <input
               type="date"
               value={formData.fecha_inicio}
               onChange={(e) => setFormData({ ...formData, fecha_inicio: e.target.value })}
               required
-              className="p-3 px-4 border-2 border-white/20 rounded-lg bg-white/10 text-white font-oswald text-base backdrop-blur-md outline-none focus:border-white/50 focus:bg-white/15"
+              className={`${FIELD_CLASS} [color-scheme:dark]`}
             />
-            <div className="text-white/55 text-xs flex items-center gap-1.5">
+            <div className="text-white/60 text-xs flex items-center gap-1.5 font-oswald">
               <CalendarDays size={16} />
               Fecha de inicio de la lesión
             </div>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="font-oswald text-sm font-semibold text-white uppercase">Fecha de Fin (opcional)</label>
+            <label className={SECTION_LABEL_CLASS}>Fecha de fin (opcional)</label>
             <input
               type="date"
               value={formData.fecha_fin}
               onChange={(e) => setFormData({ ...formData, fecha_fin: e.target.value })}
               min={formData.fecha_inicio}
-              className="p-3 px-4 border-2 border-white/20 rounded-lg bg-white/10 text-white font-oswald text-base backdrop-blur-md outline-none focus:border-white/50 focus:bg-white/15"
+              className={`${FIELD_CLASS} [color-scheme:dark]`}
             />
             <small className="font-oswald text-xs text-white/70 mt-1">
               Dejar vacío si la lesión sigue activa
@@ -246,15 +262,19 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
           </div>
 
           <div className="flex gap-3 mt-2">
-            <button type="button" className="flex-1 p-3 border-2 border-white/20 rounded-lg bg-white/10 text-white/80 font-oswald text-sm font-semibold uppercase cursor-pointer transition-all hover:bg-white/15 hover:text-white" onClick={onClose}>
+            <button
+              type="button"
+              className={SECONDARY_ACTION_BUTTON_CLASS}
+              onClick={onClose}
+            >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 p-3 border-none rounded-lg bg-primary text-white font-oswald text-sm font-semibold uppercase cursor-pointer transition-all hover:brightness-110 hover:-translate-y-px hover:shadow-lg disabled:bg-white/20 disabled:text-white/50 disabled:cursor-not-allowed"
+              className={`${PRIMARY_ACTION_BUTTON_CLASS} flex-1`}
               disabled={loading}
             >
-              {loading ? 'Guardando...' : 'Registrar Lesión'}
+              {loading ? 'Guardando...' : 'Registrar lesión'}
             </button>
           </div>
         </form>

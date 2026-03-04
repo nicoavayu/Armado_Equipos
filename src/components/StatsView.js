@@ -1929,7 +1929,7 @@ const StatsView = ({ onVolver }) => {
           })}
         </div>
 
-        <div className="mb-6">
+        <div className="mb-6 flex flex-col gap-2.5">
           <motion.button
             className="w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] flex items-center justify-center gap-2 transition-all hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
             onClick={() => setShowManualMatchModal(true)}
@@ -1941,6 +1941,18 @@ const StatsView = ({ onVolver }) => {
           >
             <ClipboardPlus size={20} />
             <span className="leading-none">Sumar partido manual</span>
+          </motion.button>
+          <motion.button
+            className="w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] flex items-center justify-center gap-2 transition-all hover:bg-[rgba(30,45,94,0.95)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
+            onClick={() => setShowInjuryModal(true)}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.24 }}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+          >
+            <CircleAlert size={20} />
+            <span className="leading-none">Registrar nueva lesión</span>
           </motion.button>
         </div>
 
@@ -2272,7 +2284,7 @@ const StatsView = ({ onVolver }) => {
           </motion.div>
         )}
 
-        {/* Injury as informational status block with secondary action (not a primary CTA) */}
+        {/* Injury as informational status block */}
         <motion.div
           className={`${statsPanelClass} p-3.5 mb-6`}
           initial={{ opacity: 0, x: -16 }}
@@ -2304,15 +2316,9 @@ const StatsView = ({ onVolver }) => {
               )}
             </div>
           </div>
-          <button
-            className="mt-3 w-full px-3 py-2 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/85 text-xs uppercase tracking-wide hover:bg-[rgba(30,45,94,0.95)] transition-colors"
-            onClick={() => setShowInjuryModal(true)}
-          >
-            Registrar nueva lesión
-          </button>
           {injuryStatus?.type === 'active' && (
             <button
-              className="mt-2 w-full px-3 py-2 rounded-none border border-[rgba(136,120,255,0.75)] bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white text-xs uppercase tracking-wide hover:brightness-110 transition-colors"
+              className="mt-3 w-full px-3 py-2 rounded-none border border-[rgba(136,120,255,0.75)] bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white text-xs uppercase tracking-wide hover:brightness-110 transition-colors"
               onClick={markActiveLesionAsRecovered}
             >
               Marcar recuperado
