@@ -1940,7 +1940,7 @@ const StatsView = ({ onVolver }) => {
             whileTap={{ scale: 0.99 }}
           >
             <ClipboardPlus size={20} />
-            <span className="leading-none">Sumar partido manual</span>
+            <span className="leading-none">Sumar Partido Manual</span>
           </motion.button>
           <motion.button
             className="w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] flex items-center justify-center gap-2 transition-all hover:bg-[rgba(30,45,94,0.95)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
@@ -1952,7 +1952,7 @@ const StatsView = ({ onVolver }) => {
             whileTap={{ scale: 0.99 }}
           >
             <CircleAlert size={20} />
-            <span className="leading-none">Registrar nueva lesión</span>
+            <span className="leading-none">Registrar Nueva Lesión</span>
           </motion.button>
         </div>
 

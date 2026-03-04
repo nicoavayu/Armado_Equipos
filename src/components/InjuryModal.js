@@ -170,7 +170,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
       >
         <div className="flex justify-between items-center mb-6">
           <h3 className="font-oswald text-[34px] leading-none font-semibold text-white m-0 md:text-3xl sm:text-[30px]">
-            {activeLesion ? 'Gestionar lesión' : 'Registrar lesión'}
+            {activeLesion ? 'Gestionar Lesión' : 'Registrar Lesión'}
           </h3>
           <button
             className="bg-transparent border border-transparent text-white/80 cursor-pointer p-1.5 rounded-none transition-all hover:border-[rgba(98,117,184,0.58)] hover:bg-[rgba(20,31,70,0.82)] hover:text-white"
@@ -274,7 +274,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
               className={`${PRIMARY_ACTION_BUTTON_CLASS} flex-1`}
               disabled={loading}
             >
-              {loading ? 'Guardando...' : 'Registrar lesión'}
+              {loading ? 'Registrando...' : 'Registrar'}
             </button>
           </div>
         </form>
