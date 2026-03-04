@@ -1348,13 +1348,13 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       >
         <div className="space-y-3">
           <label className="block">
-            <span className="text-xs text-white/80 uppercase tracking-wide">Buscar amigo</span>
+            <span className="text-xs text-white/80 tracking-wide">Buscar Amigo</span>
             <input
               type="text"
               autoComplete="off"
               value={friendSearchInput}
               onChange={(event) => setFriendSearchInput(event.target.value)}
-              placeholder="Nombre de amigo"
+              placeholder="Nombre De Amigo"
               className="mt-1 w-full rounded-none bg-slate-900/80 border border-white/20 px-3 py-2 text-white outline-none focus:border-[#128BE9]"
             />
           </label>
