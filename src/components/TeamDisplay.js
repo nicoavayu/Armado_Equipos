@@ -694,26 +694,16 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
           teamId: parsedCombine.teamId,
           index: combineIndex,
           sourceTeamId: source.droppableId,
-          sourceIndex: source.index,
         });
         return;
       }
     }
 
     if (destination) {
-      const destinationTeam = realtimeTeams.find((team) => team.id === destination.droppableId);
-      const destinationPlayers = getNormalizedTeamPlayers(destinationTeam);
-      const isCrossTeam = destination.droppableId !== source.droppableId;
-      const hasDestinationPlayers = destinationPlayers.length > 0;
-      const adjustedIndex = (isCrossTeam && hasDestinationPlayers)
-        ? Math.max(0, Math.min(destination.index, destinationPlayers.length - 1))
-        : destination.index;
-
       setDragTarget({
         teamId: destination.droppableId,
-        index: adjustedIndex,
+        index: destination.index,
         sourceTeamId: source.droppableId,
-        sourceIndex: source.index,
       });
       return;
     }
@@ -722,7 +712,6 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   };
 
   const handleDragEnd = async (result) => {
-    const lastKnownTarget = dragTarget;
     setActiveDragId(null);
     setDragTarget(null);
     lastDragEndAtRef.current = Date.now();
@@ -731,69 +720,53 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
     const { source, destination, combine } = result || {};
     if (!source) return;
-    if (!destination && !combine && !lastKnownTarget) return;
+    if (!destination && !combine) return;
 
-    const sourceTeam = realtimeTeams.find((team) => team.id === source.droppableId);
-    if (!sourceTeam) return;
-
-    const sourcePlayers = getNormalizedTeamPlayers(sourceTeam);
-    const sourcePlayer = sourcePlayers[source.index];
-    if (!sourcePlayer) return;
-
-    let targetTeamId = destination?.droppableId || null;
-    let targetIndex = destination?.index ?? null;
+    let sourceTeamId = source.droppableId;
+    let destinationTeamId = destination?.droppableId || null;
+    let destinationIndex = destination?.index ?? null;
 
     if (combine?.draggableId) {
       const parsedCombine = parseDraggableId(combine.draggableId);
-      targetTeamId = parsedCombine.teamId;
+      destinationTeamId = parsedCombine.teamId;
 
-      const combineTeam = realtimeTeams.find((team) => team.id === targetTeamId);
+      const combineTeam = realtimeTeams.find((team) => team.id === destinationTeamId);
       const combinePlayers = getNormalizedTeamPlayers(combineTeam);
-      targetIndex = combinePlayers.findIndex((key) => key === parsedCombine.playerKey);
+      destinationIndex = combinePlayers.findIndex((key) => key === parsedCombine.playerKey);
     }
 
-    if (!destination && !combine && lastKnownTarget) {
-      targetTeamId = lastKnownTarget.teamId;
-      targetIndex = lastKnownTarget.index;
-    }
+    if (!destinationTeamId || destinationIndex === null || destinationIndex < 0) return;
 
-    if (!targetTeamId || targetIndex === null || targetIndex < 0) return;
+    const sourceTeam = realtimeTeams.find((team) => team.id === sourceTeamId);
+    const destinationTeam = realtimeTeams.find((team) => team.id === destinationTeamId);
+    if (!sourceTeam || !destinationTeam) return;
 
-    const targetTeam = realtimeTeams.find((team) => team.id === targetTeamId);
-    if (!targetTeam) return;
-
-    const targetPlayers = getNormalizedTeamPlayers(targetTeam);
-    const isSameTeam = source.droppableId === targetTeamId;
-    const normalizedTargetIndex = isSameTeam
-      ? Math.max(0, Math.min(targetIndex, targetPlayers.length))
-      : Math.max(0, Math.min(targetIndex, Math.max(0, targetPlayers.length - 1)));
-    const isSwapIntent = Boolean(combine?.draggableId) || !isSameTeam;
-    const targetPlayer = targetPlayers[normalizedTargetIndex];
-
-    if (isSameTeam && source.index === normalizedTargetIndex) return;
-    if (!isSameTeam && !targetPlayer) return;
-
-    if (isPlayerLocked(sourcePlayer) || (isSwapIntent && targetPlayer && isPlayerLocked(targetPlayer))) {
-      showInlineNotice({
-        key: 'teams_locked_players_move_blocked',
-        type: 'warning',
-        message: 'No se pueden mover jugadores bloqueados.',
-      });
-      return;
-    }
+    const sourcePlayers = getNormalizedTeamPlayers(sourceTeam);
+    const destinationPlayers = getNormalizedTeamPlayers(destinationTeam);
+    const sourcePlayer = sourcePlayers[source.index];
+    if (!sourcePlayer) return;
 
     const nextTeams = realtimeTeams.map((team) => ({
       ...team,
       players: getNormalizedTeamPlayers(team),
     }));
 
-    if (isSameTeam) {
+    if (sourceTeamId === destinationTeamId) {
+      if (source.index === destinationIndex) return;
+      if (isPlayerLocked(sourcePlayer)) {
+        showInlineNotice({
+          key: 'teams_locked_players_move_blocked',
+          type: 'warning',
+          message: 'No se pueden mover jugadores bloqueados.',
+        });
+        return;
+      }
       const reordered = [...sourcePlayers];
       const [moved] = reordered.splice(source.index, 1);
-      reordered.splice(normalizedTargetIndex, 0, moved);
+      reordered.splice(destinationIndex, 0, moved);
 
       for (let i = 0; i < nextTeams.length; i += 1) {
-        if (nextTeams[i].id !== source.droppableId) continue;
+        if (nextTeams[i].id !== sourceTeamId) continue;
         nextTeams[i] = {
           ...nextTeams[i],
           players: reordered,
@@ -801,22 +774,33 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         };
       }
     } else {
-      const nextSourcePlayers = [...sourcePlayers];
-      const nextTargetPlayers = [...targetPlayers];
+      const targetPlayer = destinationPlayers[destinationIndex];
+      if (!targetPlayer) return;
+      if (isPlayerLocked(sourcePlayer) || isPlayerLocked(targetPlayer)) {
+        showInlineNotice({
+          key: 'teams_locked_players_move_blocked',
+          type: 'warning',
+          message: 'No se pueden mover jugadores bloqueados.',
+        });
+        return;
+      }
 
-      [nextSourcePlayers[source.index], nextTargetPlayers[normalizedTargetIndex]] = [
-        nextTargetPlayers[normalizedTargetIndex],
+      const nextSourcePlayers = [...sourcePlayers];
+      const nextTargetPlayers = [...destinationPlayers];
+
+      [nextSourcePlayers[source.index], nextTargetPlayers[destinationIndex]] = [
+        nextTargetPlayers[destinationIndex],
         nextSourcePlayers[source.index],
       ];
 
       for (let i = 0; i < nextTeams.length; i += 1) {
-        if (nextTeams[i].id === source.droppableId) {
+        if (nextTeams[i].id === sourceTeamId) {
           nextTeams[i] = {
             ...nextTeams[i],
             players: nextSourcePlayers,
             score: calculateTeamScore(nextSourcePlayers),
           };
-        } else if (nextTeams[i].id === targetTeamId) {
+        } else if (nextTeams[i].id === destinationTeamId) {
           nextTeams[i] = {
             ...nextTeams[i],
             players: nextTargetPlayers,
@@ -977,7 +961,6 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                   key={team.id}
                   droppableId={team.id}
                   isDropDisabled={!isAdmin || teamsConfirmed}
-                  isCombineEnabled={isAdmin && !teamsConfirmed}
                 >
                   {(dropProvided) => (
                     <div

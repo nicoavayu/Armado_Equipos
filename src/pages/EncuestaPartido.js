@@ -625,6 +625,7 @@ const EncuestaPartido = () => {
     }
     return 'Armá los equipos finales como finalmente se jugó el partido.';
   }, [hasConfirmedTeams, teamsLocked, teamsSource]);
+  const compactWinnerSelectionHelperText = 'En caso de que haya habido algún cambio de último minuto, podés rearmar los equipos de la manera en la que finalmente se jugó. Para elegir al ganador, seleccioná la lista del equipo ganador y presioná continuar.';
 
   const finalTeamsValidation = useMemo(() => {
     const teamA = Array.isArray(finalTeams?.teamA) ? finalTeams.teamA : [];
@@ -1623,14 +1624,14 @@ const EncuestaPartido = () => {
 
           {/* STEP 7: ORGANIZAR EQUIPOS (solo si no estaban confirmados) */}
           {currentStep === SURVEY_STEPS.ORGANIZE_TEAMS && (
-            <div className={`${stepClass} !justify-start animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${stepClass} !justify-start pt-2 sm:pt-4 animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className="w-full">
                   <div className={titleClass}>
-                    ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ
+                    {compactFlowMode ? '¿QUIÉN GANÓ?' : 'ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ'}
                   </div>
                   <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
-                    {organizeTeamsHelperText}
+                    {compactFlowMode ? compactWinnerSelectionHelperText : organizeTeamsHelperText}
                   </div>
                 </div>
               </div>
@@ -1640,8 +1641,13 @@ const EncuestaPartido = () => {
                     teamA={finalTeams.teamA}
                     teamB={finalTeams.teamB}
                     playersByKey={playersByKey}
-                    selectedWinner=""
-                    onWinnerChange={() => {}}
+                    selectedWinner={compactFlowMode ? formData.ganador : ''}
+                    onWinnerChange={(winner) => {
+                      if (!compactFlowMode) return;
+                      handleInputChange('ganador', winner);
+                      handleInputChange('se_jugo', true);
+                      closeSurveyModal();
+                    }}
                     onChange={(next) => {
                       setFinalTeams(next);
                       closeSurveyModal();
@@ -1650,36 +1656,10 @@ const EncuestaPartido = () => {
                   />
 
                   {compactFlowMode ? (
-                    <div className="w-full pt-1">
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <button
-                          type="button"
-                          className={`${optionBtnClass} ${formData.ganador === 'equipo_a' ? optionBtnSelectedClass : ''}`}
-                          onClick={() => {
-                            handleInputChange('ganador', 'equipo_a');
-                            handleInputChange('se_jugo', true);
-                            closeSurveyModal();
-                          }}
-                          disabled={!finalTeamsValidation.ok}
-                        >
-                          GANÓ EQUIPO A
-                        </button>
-                        <button
-                          type="button"
-                          className={`${optionBtnClass} ${formData.ganador === 'equipo_b' ? optionBtnSelectedClass : ''}`}
-                          onClick={() => {
-                            handleInputChange('ganador', 'equipo_b');
-                            handleInputChange('se_jugo', true);
-                            closeSurveyModal();
-                          }}
-                          disabled={!finalTeamsValidation.ok}
-                        >
-                          GANÓ EQUIPO B
-                        </button>
-                      </div>
+                    <div className="w-full pt-2.5">
                       <button
                         type="button"
-                        className={`mt-2.5 ${optionBtnClass} ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
+                        className={`${optionBtnClass} ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
                         onClick={() => {
                           handleInputChange('ganador', 'empate');
                           handleInputChange('se_jugo', true);
@@ -1692,7 +1672,7 @@ const EncuestaPartido = () => {
                   ) : null}
                 </div>
               </div>
-              <div className="w-full shrink-0 flex items-center justify-center pt-2 sm:pt-3">
+              <div className={`w-full shrink-0 flex items-center justify-center ${compactFlowMode ? 'pt-5 sm:pt-6' : 'pt-2 sm:pt-3'}`}>
                 <div className={actionDockClass}>
                   <button
                     className={btnClass}
