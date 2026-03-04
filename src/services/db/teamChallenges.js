@@ -315,6 +315,10 @@ const isChallengeWriteCompatibilityError = (error) => (
   hasAnyMissingColumns(error, ['mode', 'location', 'cancha_cost', 'price_per_team', 'field_price'])
 );
 
+const isChallengeOwnerOnlyInsertError = (error) => (
+  normalizeMessage(error).includes('solo owner del challenger_team puede crear el challenge')
+);
+
 const isTeamMatchSelectCompatibilityError = (error) => (
   isOrderedSetModeError(error)
   || hasAnyMissingColumns(error, [
@@ -1948,6 +1952,10 @@ export const createChallenge = async (userId, payload) => {
     }
 
     if (!isSkillLevelConstraintError(response.error)) break;
+  }
+
+  if (isChallengeOwnerOnlyInsertError(response?.error)) {
+    throw new Error('No se pudo publicar: falta aplicar la migración 20260304103000_allow_captain_create_challenge.sql en Supabase para habilitar capitanes.');
   }
 
   throw new Error(response?.error?.message || 'No se pudo publicar el desafio');
