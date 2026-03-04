@@ -101,6 +101,13 @@ const getProvidedColors = (team) => [
   normalizeHex(team?.color_accent),
 ].filter(Boolean);
 
+export const getTeamProvidedColors = (team, maxColors = 3) => {
+  const safeMax = Number.isFinite(Number(maxColors))
+    ? Math.max(0, Math.floor(Number(maxColors)))
+    : 3;
+  return getProvidedColors(team).slice(0, safeMax);
+};
+
 export const getTeamPalette = (team) => {
   const colors = getProvidedColors(team);
 

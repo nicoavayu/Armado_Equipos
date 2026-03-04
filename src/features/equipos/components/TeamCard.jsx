@@ -1,6 +1,6 @@
 import React from 'react';
 import { Shield, MapPin, Users } from 'lucide-react';
-import { formatSkillLevelLabel, getTeamAccent, getTeamBadgeStyle, getTeamGradientStyle } from '../utils/teamColors';
+import { formatSkillLevelLabel, getTeamAccent, getTeamBadgeStyle, getTeamProvidedColors } from '../utils/teamColors';
 
 const CHIP_CLASS = 'font-oswald text-[10px] font-bold text-white/40 border border-white/10 bg-white/5 px-2 py-0.5 rounded-none uppercase tracking-wider';
 
@@ -11,9 +11,10 @@ const getStatValue = (stats, key) => {
 };
 
 const TeamCard = React.memo(({ team, stats, onClick, footer, className = '' }) => {
-  const gradientStyle = getTeamGradientStyle(team);
   const badgeStyle = getTeamBadgeStyle(team);
   const accent = getTeamAccent(team);
+  const bandColors = getTeamProvidedColors(team, 3);
+  const hasColorBand = bandColors.length > 0;
   const normalizedMemberCount = Number(team?.member_count);
   const memberCount = Number.isFinite(normalizedMemberCount) ? normalizedMemberCount : null;
   const memberLabel = `${memberCount ?? 0} ${memberCount === 1 ? 'jugador' : 'jugadores'}`;
@@ -27,10 +28,20 @@ const TeamCard = React.memo(({ team, stats, onClick, footer, className = '' }) =
     <button
       type="button"
       onClick={() => onClick?.(team)}
-      className={`relative w-full rounded-none p-4 text-left border border-white/10 transition-all duration-300 bg-[#1e293b]/70 backdrop-blur-sm shadow-[0_8px_24px_rgba(0,0,0,0.35)] active:scale-[0.99] hover:border-white/20 font-oswald ${className}`}
-      style={gradientStyle}
+      className={`relative w-full overflow-hidden rounded-none p-4 text-left border border-white/10 transition-all duration-300 bg-[#1e293b]/70 backdrop-blur-sm shadow-[0_8px_24px_rgba(0,0,0,0.35)] active:scale-[0.99] hover:border-white/20 font-oswald ${className}`}
     >
-      <span className="absolute left-4 right-4 top-0 h-[2px] rounded-none opacity-75" style={{ backgroundColor: accent }} />
+      {hasColorBand ? (
+        <span className="pointer-events-none absolute left-0 top-0 bottom-0 z-[1] w-[12px] overflow-hidden">
+          <span
+            className="grid h-full w-full"
+            style={{ gridTemplateColumns: `repeat(${bandColors.length}, minmax(0, 1fr))` }}
+          >
+            {bandColors.map((color, index) => (
+              <span key={`${color}-${index}`} style={{ backgroundColor: color }} />
+            ))}
+          </span>
+        </span>
+      ) : null}
 
       <div className="flex items-start gap-3">
         <div className="h-14 w-14 rounded-none overflow-hidden border border-white/30 bg-black/20 flex items-center justify-center shrink-0">
