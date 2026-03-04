@@ -35,6 +35,7 @@ const MisEquiposTab = ({ userId }) => {
   const [openTeamMenuId, setOpenTeamMenuId] = useState(null);
   const [teamDeleteTarget, setTeamDeleteTarget] = useState(null);
   const [teamDeleteCascadeConfirmOpen, setTeamDeleteCascadeConfirmOpen] = useState(false);
+  const [teamDeleteSuccess, setTeamDeleteSuccess] = useState(null);
 
   const loadTeams = useCallback(async () => {
     if (!userId) return;
@@ -147,11 +148,18 @@ const MisEquiposTab = ({ userId }) => {
     if (!teamDeleteTarget?.id) return;
     try {
       setIsSaving(true);
-      await softDeleteTeam(teamDeleteTarget.id);
+      const deleteResult = await softDeleteTeam(teamDeleteTarget.id);
+      const canceledChallenges = Number(deleteResult?.canceledChallenges || 0);
+      const canceledTeamMatches = Number(deleteResult?.canceledTeamMatches || 0);
+      const effectiveCanceledPending = canceledChallenges > 0 ? canceledChallenges : canceledTeamMatches;
+
       setOpenTeamMenuId(null);
       setTeamDeleteTarget(null);
       setTeamDeleteCascadeConfirmOpen(false);
       await loadTeams();
+      setTeamDeleteSuccess({
+        canceledPending: effectiveCanceledPending,
+      });
     } catch (error) {
       notifyBlockingError(error.message || 'No se pudo borrar el equipo');
     } finally {
@@ -369,6 +377,16 @@ const MisEquiposTab = ({ userId }) => {
           setTeamDeleteTarget(null);
           setTeamDeleteCascadeConfirmOpen(false);
         }}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(teamDeleteSuccess)}
+        title="Equipo borrado"
+        message={`Equipo borrado. Se cancelaron ${teamDeleteSuccess?.canceledPending || 0} desafío${Number(teamDeleteSuccess?.canceledPending || 0) === 1 ? '' : 's'} pendiente${Number(teamDeleteSuccess?.canceledPending || 0) === 1 ? '' : 's'}.`}
+        confirmText="Aceptar"
+        singleButton
+        onConfirm={() => setTeamDeleteSuccess(null)}
+        onCancel={() => setTeamDeleteSuccess(null)}
       />
     </>
   );

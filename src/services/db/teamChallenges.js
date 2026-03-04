@@ -955,9 +955,11 @@ export const softDeleteTeam = async (teamId, options = {}) => {
   }
 
   const cleanupPendingChallenges = options?.cleanupPendingChallenges !== false;
+  let canceledTeamMatches = 0;
+  let canceledChallenges = 0;
   if (cleanupPendingChallenges) {
-    await cancelPendingTeamMatchesForTeam(normalizedTeamId);
-    await cancelPendingChallengesForTeam(normalizedTeamId);
+    canceledTeamMatches = await cancelPendingTeamMatchesForTeam(normalizedTeamId);
+    canceledChallenges = await cancelPendingChallengesForTeam(normalizedTeamId);
   }
 
   const response = await supabase
@@ -967,7 +969,13 @@ export const softDeleteTeam = async (teamId, options = {}) => {
     .select('id')
     .single();
 
-  return unwrapSingle(response, 'No se pudo desactivar el equipo');
+  const deletedTeam = unwrapSingle(response, 'No se pudo desactivar el equipo');
+  return {
+    ...deletedTeam,
+    cleanupPendingChallenges,
+    canceledTeamMatches,
+    canceledChallenges,
+  };
 };
 
 export const listRosterCandidates = async () => {
