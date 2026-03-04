@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 
 
 const LoadingSpinner = ({ size = 'medium', fullScreen = false, className = '' }) => {
@@ -15,7 +16,7 @@ const LoadingSpinner = ({ size = 'medium', fullScreen = false, className = '' })
   const spinnerClasses = `animate-spin ${sizeClasses[String(size).toLowerCase()] || sizeClasses.medium} ${className}`.trim();
 
   if (fullScreen) {
-    return (
+    const fullscreenSpinner = (
       <div className="fixed inset-0 z-[1200] flex items-center justify-center pointer-events-none">
         <img
           src="/spinner.svg"
@@ -24,6 +25,12 @@ const LoadingSpinner = ({ size = 'medium', fullScreen = false, className = '' })
         />
       </div>
     );
+
+    if (typeof document !== 'undefined' && document.body) {
+      return ReactDOM.createPortal(fullscreenSpinner, document.body);
+    }
+
+    return fullscreenSpinner;
   }
 
   return (
