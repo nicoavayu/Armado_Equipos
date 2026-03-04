@@ -75,6 +75,7 @@ const DesafiosTab = ({
   const [cancelConfirmChallenge, setCancelConfirmChallenge] = useState(null);
   const [completeTarget, setCompleteTarget] = useState(null);
   const [inlineNotice, setInlineNotice] = useState({ type: '', message: '' });
+  const [acceptBlockedMessage, setAcceptBlockedMessage] = useState('');
 
   const loadChallenges = useCallback(async () => {
     if (!userId) return;
@@ -295,7 +296,7 @@ const DesafiosTab = ({
 
               const available = getAvailableTeamsForChallenge(challenge);
               if (available.length === 0) {
-                notifyBlockingError('No tenés equipos donde seas capitán para aceptar este desafío');
+                setAcceptBlockedMessage('No tenés equipos donde seas capitán para aceptar este desafío');
                 return;
               }
 
@@ -502,6 +503,30 @@ const DesafiosTab = ({
         </p>
         <p className="mt-2 text-[15px] leading-relaxed text-white/72">
           Si continuás, se creará un partido con <strong>formato combinado</strong>.
+        </p>
+      </Modal>
+
+      <Modal
+        isOpen={Boolean(acceptBlockedMessage)}
+        onClose={() => setAcceptBlockedMessage('')}
+        title="Atención"
+        className={challengeConfirmModalClass}
+        classNameContent={challengeConfirmModalContentClass}
+        footer={(
+          <div className="grid grid-cols-1">
+            <Button
+              type="button"
+              className={publishActionPrimaryClass}
+              onClick={() => setAcceptBlockedMessage('')}
+              data-preserve-button-case="true"
+            >
+              Aceptar
+            </Button>
+          </div>
+        )}
+      >
+        <p className="text-[15px] leading-relaxed text-white/82">
+          {acceptBlockedMessage}
         </p>
       </Modal>
 
