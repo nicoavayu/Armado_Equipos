@@ -143,14 +143,14 @@ const TeamCardLocked = ({
 
   return (
     <div
-      className="relative overflow-hidden rounded-[28px] border p-4 sm:p-5 min-h-[224px] min-w-0"
+      className="relative overflow-hidden rounded-none border p-4 sm:p-5 min-h-[224px] min-w-0"
       style={team ? getTeamGradientStyle(team) : undefined}
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.16),transparent_56%)]" />
 
       <div className="relative flex h-full flex-col">
         <div className="flex flex-col items-center text-center">
-          <div className="h-16 w-16 rounded-2xl overflow-hidden border border-white/20 bg-black/30 flex items-center justify-center shrink-0">
+          <div className="h-16 w-16 rounded-none overflow-hidden border border-white/20 bg-black/30 flex items-center justify-center shrink-0">
             {team?.crest_url ? (
               <img src={team.crest_url} alt={teamName} className="h-full w-full object-cover" />
             ) : (
@@ -161,7 +161,7 @@ const TeamCardLocked = ({
           <button
             type="button"
             onClick={onOpenRoster}
-            className="mt-3 inline-flex items-center rounded-full border px-3 py-1.5 text-[12px] uppercase tracking-[0.12em] font-oswald transition-colors hover:bg-white/15"
+            className="mt-3 inline-flex items-center rounded-none border px-3 py-1.5 text-[12px] uppercase tracking-[0.12em] font-oswald transition-colors hover:bg-white/15"
             style={badgeStyle}
             aria-label={`Ver plantilla de ${teamName}`}
             title="Ver plantilla completa"
@@ -200,7 +200,7 @@ const TeamCardLocked = ({
             <button
               type="button"
               onClick={onOpenRoster}
-              className="h-9 min-w-[36px] px-2 rounded-full border border-white/30 bg-slate-900/70 text-[11px] text-white/85 font-oswald shrink-0"
+              className="h-9 min-w-[36px] px-2 rounded-none border border-white/30 bg-slate-900/70 text-[11px] text-white/85 font-oswald shrink-0"
               aria-label={`Ver ${overflowCount} jugadores mas`}
               title="Ver plantilla completa"
             >
@@ -551,13 +551,13 @@ const TeamMatchDetailPage = () => {
 
           {!loading && match ? (
             <>
-              <div className="rounded-2xl border border-white/15 bg-[#1e293b]/65 p-4">
-                <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getOriginBadgeClass(match?.origin_type)}`}>
+                    <span className={`inline-flex items-center gap-1 rounded-none border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getOriginBadgeClass(match?.origin_type)}`}>
                       <Flag size={12} /> {match?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso'}
                     </span>
-                    <span className={`inline-flex items-center rounded-lg border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getStatusBadgeClass(match?.status)}`}>
+                    <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getStatusBadgeClass(match?.status)}`}>
                       {statusLabelByValue[match?.status] || match?.status || 'Pendiente'}
                     </span>
                   </div>
@@ -587,7 +587,7 @@ const TeamMatchDetailPage = () => {
                             onClick={() => setActionsMenuOpen(false)}
                           />
                           <div
-                            className="fixed z-[9999] w-48 rounded-xl border border-slate-700 bg-slate-900 shadow-lg"
+                            className="fixed z-[9999] w-48 rounded-none border border-slate-700 bg-slate-900 shadow-lg"
                             style={{
                               top: `${actionsMenuPosition.top}px`,
                               left: `${actionsMenuPosition.left}px`,
@@ -638,7 +638,7 @@ const TeamMatchDetailPage = () => {
               </div>
 
               {isChallengeMatch && showChallengeHeadToHead ? (
-                <div className="mt-2 h-16 rounded-2xl border border-white/10 bg-white/[0.04] px-[14px] py-[10px]">
+                <div className="mt-2 h-16 rounded-none border border-white/10 bg-white/[0.04] px-[14px] py-[10px]">
                   {challengeHeadToHeadLoading ? (
                     <div className="grid h-full grid-cols-4 gap-2">
                       {Array.from({ length: 4 }).map((_, index) => (
