@@ -180,6 +180,15 @@ const extractChallengeTeamsFromMessage = (message = '') => {
     };
   }
 
+  // Example: "Se creo el partido para napoli vs maturana."
+  const vsMatch = raw.match(/partido\s+para\s+(.+?)\s+vs\.?\s+(.+?)(?:\.|$)/i);
+  if (vsMatch) {
+    return {
+      teamA: normalizeTeamLabel(vsMatch[1]),
+      teamB: normalizeTeamLabel(vsMatch[2]),
+    };
+  }
+
   // Example: "Confirmaste napoli para enfrentar a maturana."
   const versusMatch = raw.match(/confirmaste\s+(.+?)\s+para enfrentar a\s+(.+?)(?:\.|$)/i);
   if (versusMatch) {
@@ -190,6 +199,46 @@ const extractChallengeTeamsFromMessage = (message = '') => {
   }
 
   return { teamA: '', teamB: '' };
+};
+
+const formatActivityDateTimeShort = (isoValue) => {
+  if (!isoValue) return '';
+  const parsed = new Date(isoValue);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toLocaleString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'America/Argentina/Buenos_Aires',
+  }).replace(',', '');
+};
+
+const resolveChallengeDateLabel = (notification, match) => {
+  const data = notification?.data || {};
+
+  const parsedLocal = parseLocalDateTime(
+    match?.fecha || data?.match_date || data?.fecha || null,
+    match?.hora || data?.match_time || data?.hora || null,
+  );
+  if (parsedLocal && !Number.isNaN(parsedLocal.getTime())) {
+    return parsedLocal.toLocaleString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'America/Argentina/Buenos_Aires',
+    }).replace(',', '');
+  }
+
+  return formatActivityDateTimeShort(
+    data?.scheduled_at
+    || data?.scheduledAt
+    || notification?.created_at
+    || null,
+  );
 };
 
 const resolveChallengeTeamNames = (notification) => {
@@ -694,12 +743,17 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     const compactTeamA = compactText(teamA, 20, '');
     const compactTeamB = compactText(teamB, 20, '');
     const teamsLabel = compactTeamA && compactTeamB ? `${compactTeamA} vs ${compactTeamB}` : '';
+    const challengeDateLabel = resolveChallengeDateLabel(notification, match);
+    const subtitleFromMessage = compactText(notification?.message || '', 56, '');
+    const subtitle = [teamsLabel, challengeDateLabel].filter(Boolean).join(' · ')
+      || subtitleFromMessage
+      || fallbackSubtitle;
 
     return {
       ...base,
       icon: 'CalendarClock',
       title: 'Desafío aceptado',
-      subtitle: teamsLabel || fallbackSubtitle,
+      subtitle: compactText(subtitle, 64, 'Desafío aceptado'),
       route: teamMatchId ? `/desafios/equipos/partidos/${teamMatchId}` : (matchRoute || '/desafios'),
     };
   }
