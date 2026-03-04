@@ -197,6 +197,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
               className={`${PRIMARY_ACTION_BUTTON_CLASS} w-full`}
               onClick={markAsRecovered}
               disabled={loading}
+              data-preserve-button-case="true"
             >
               {loading ? 'Marcando...' : (
                 <>
@@ -266,6 +267,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
               type="button"
               className={SECONDARY_ACTION_BUTTON_CLASS}
               onClick={onClose}
+              data-preserve-button-case="true"
             >
               Cancelar
             </button>
@@ -273,6 +275,7 @@ const InjuryModal = ({ isOpen, onClose, onSaved }) => {
               type="submit"
               className={`${PRIMARY_ACTION_BUTTON_CLASS} flex-1`}
               disabled={loading}
+              data-preserve-button-case="true"
             >
               {loading ? 'Registrando...' : 'Registrar'}
             </button>

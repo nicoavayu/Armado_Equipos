@@ -148,6 +148,7 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
               type="button"
               className={SECONDARY_ACTION_BUTTON_CLASS}
               onClick={onClose}
+              data-preserve-button-case="true"
             >
               Cancelar
             </button>
@@ -155,6 +156,7 @@ const ManualMatchModal = ({ isOpen, onClose, onSaved }) => {
               type="submit"
               className={PRIMARY_ACTION_BUTTON_CLASS}
               disabled={loading}
+              data-preserve-button-case="true"
             >
               {loading ? 'Guardando...' : 'Guardar'}
             </button>
