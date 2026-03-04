@@ -1929,6 +1929,30 @@ const StatsView = ({ onVolver }) => {
           })}
         </div>
 
+        {showLesionesDetalle && (
+          <motion.div
+            className={`${statsPanelClass} p-3.5 mb-6`}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="font-oswald text-xs text-white/70 uppercase tracking-wide mb-2">Lesiones del período</div>
+            {stats.lesionesDetallePeriodo.length === 0 ? (
+              <div className="font-oswald text-sm text-white/75">No registraste lesiones en este período.</div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {stats.lesionesDetallePeriodo.map((lesion) => (
+                  <div key={lesion.id} className="bg-[rgba(15,24,56,0.72)] border border-[rgba(88,107,170,0.46)] rounded-none px-3 py-2">
+                    <div className="font-oswald text-sm text-white">{lesion.tipo_lesion}</div>
+                    <div className="font-oswald text-xs text-white/65">
+                      {new Date(lesion.fecha_inicio).toLocaleDateString('es-ES')} {lesion.fecha_fin ? `- ${new Date(lesion.fecha_fin).toLocaleDateString('es-ES')}` : '(activa)'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
         <div className="mb-6 flex flex-col gap-2.5">
           <motion.button
             className="w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] flex items-center justify-center gap-2 transition-all hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
@@ -2260,30 +2284,6 @@ const StatsView = ({ onVolver }) => {
           )}
         </motion.div>
 
-        {showLesionesDetalle && (
-          <motion.div
-            className={`${statsPanelClass} p-3.5 mb-6`}
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="font-oswald text-xs text-white/70 uppercase tracking-wide mb-2">Lesiones del período</div>
-            {stats.lesionesDetallePeriodo.length === 0 ? (
-              <div className="font-oswald text-sm text-white/75">No registraste lesiones en este período.</div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {stats.lesionesDetallePeriodo.map((lesion) => (
-                  <div key={lesion.id} className="bg-[rgba(15,24,56,0.72)] border border-[rgba(88,107,170,0.46)] rounded-none px-3 py-2">
-                    <div className="font-oswald text-sm text-white">{lesion.tipo_lesion}</div>
-                    <div className="font-oswald text-xs text-white/65">
-                      {new Date(lesion.fecha_inicio).toLocaleDateString('es-ES')} {lesion.fecha_fin ? `- ${new Date(lesion.fecha_fin).toLocaleDateString('es-ES')}` : '(activa)'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        )}
-
         {/* Injury as informational status block */}
         <motion.div
           className={`${statsPanelClass} p-3.5 mb-6`}
@@ -2318,7 +2318,7 @@ const StatsView = ({ onVolver }) => {
           </div>
           {injuryStatus?.type === 'active' && (
             <button
-              className="mt-3 w-full px-3 py-2 rounded-none border border-[rgba(136,120,255,0.75)] bg-[linear-gradient(90deg,#4f8ef7_0%,#6f4dff_100%)] text-white text-xs uppercase tracking-wide hover:brightness-110 transition-colors"
+              className="mt-3 w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]"
               onClick={markActiveLesionAsRecovered}
             >
               Marcar recuperado
