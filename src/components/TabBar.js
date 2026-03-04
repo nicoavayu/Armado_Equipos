@@ -41,59 +41,72 @@ const TabBar = ({ activeTab, onTabChange }) => {
 
     if (onTabChange) onTabChange(tab.key);
   };
+  const activeIndex = Math.max(
+    0,
+    tabs.findIndex((tab) => tab.key === activeTab)
+  );
 
   return (
     <div
-      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] flex min-h-[70px] h-auto md:min-h-[80px] bg-white/5 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.16)] transition-[transform,opacity] duration-200"
+      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] relative min-h-[70px] h-auto md:min-h-[80px] bg-white/5 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.16)] transition-[transform,opacity] duration-200"
       style={{ paddingBottom: 'max(env(safe-area-inset-bottom), var(--safe-bottom, 0px))' }}
     >
-      {tabs.map((tab, index) => {
-        const isActive = activeTab === tab.key;
-        const IconComponent = isActive ? tab.ActiveIcon : tab.InactiveIcon;
-        const useSimulatedActive = isActive && tab.simulatedActive;
-        const iconProps = {
-          size: 24,
-          className: `h-6 w-6 transition-[opacity,transform,filter,color] duration-200 group-active:scale-95 ${
-            isActive ? 'scale-100 opacity-100' : 'scale-100 opacity-60'
-          } ${
-            useSimulatedActive
-              ? 'drop-shadow-[0_2px_6px_rgba(255,255,255,0.25)]'
-              : isActive
-              ? 'drop-shadow-[0_2px_4px_rgba(255,255,255,0.2)]'
-              : 'drop-shadow-none'
-          }`,
-        };
+      <div
+        className="pointer-events-none absolute top-0 left-0 h-[3px]"
+        style={{
+          width: `calc(100% / ${tabs.length})`,
+          transform: `translateX(${activeIndex * 100}%)`,
+          transition: 'transform 250ms ease-out, opacity 200ms ease-out',
+        }}
+      >
+        <span className="mx-3 block h-full rounded-full bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.22)] md:mx-4" />
+      </div>
+      <div className="grid w-full grid-cols-5">
+        {tabs.map((tab, index) => {
+          const isActive = activeTab === tab.key;
+          const IconComponent = isActive ? tab.ActiveIcon : tab.InactiveIcon;
+          const useSimulatedActive = isActive && tab.simulatedActive;
+          const iconProps = {
+            size: 24,
+            className: `h-6 w-6 transition-[opacity,transform,filter,color] duration-200 group-active:scale-95 ${
+              isActive ? 'scale-100 opacity-100' : 'scale-100 opacity-60'
+            } ${
+              useSimulatedActive
+                ? 'drop-shadow-[0_2px_6px_rgba(255,255,255,0.25)]'
+                : isActive
+                ? 'drop-shadow-[0_2px_4px_rgba(255,255,255,0.2)]'
+                : 'drop-shadow-none'
+            }`,
+          };
 
-        if (tab.simulatedActive) {
-          iconProps.strokeWidth = useSimulatedActive ? 2.9 : 2.1;
-        }
+          if (tab.simulatedActive) {
+            iconProps.strokeWidth = useSimulatedActive ? 2.9 : 2.1;
+          }
 
-        return (
-          <button
-            key={tab.key}
-            type="button"
-            aria-current={isActive ? 'page' : undefined}
-            onClick={() => handleTabClick(tab)}
-            className={`group relative flex min-h-[44px] flex-1 flex-col items-center justify-center bg-transparent py-2 md:py-3 transition-[color,opacity,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
-              index < tabs.length - 1 ? 'border-r border-white/10' : ''
-            } ${isActive ? 'text-white' : 'text-white/70'}`}
-          >
-            <span className="relative flex h-6 w-6 items-center justify-center">
-              <IconComponent {...iconProps} />
-              {isActive && (
-                <span className="pointer-events-none absolute -bottom-[7px] left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-white/95 shadow-[0_0_6px_rgba(255,255,255,0.45)]" />
-              )}
-            </span>
-            <span
-              className={`mt-2 text-[12px] font-sans tracking-wide transition-[opacity,color,font-weight] duration-200 ${
-                isActive ? 'font-bold text-white opacity-100' : 'font-semibold text-white/75 opacity-60'
-              }`}
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              aria-current={isActive ? 'page' : undefined}
+              onClick={() => handleTabClick(tab)}
+              className={`group relative flex min-h-[44px] flex-1 flex-col items-center justify-center bg-transparent py-2 md:py-3 transition-[color,opacity,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
+                index < tabs.length - 1 ? 'border-r border-white/10' : ''
+              } ${isActive ? 'text-white' : 'text-white/70'}`}
             >
-              {tab.label}
-            </span>
-          </button>
-        );
-      })}
+              <span className="relative flex h-6 w-6 items-center justify-center">
+                <IconComponent {...iconProps} />
+              </span>
+              <span
+                className={`mt-2 text-[12px] font-sans tracking-wide transition-[opacity,color,font-weight] duration-200 ${
+                  isActive ? 'font-bold text-white opacity-100' : 'font-semibold text-white/75 opacity-60'
+                }`}
+              >
+                {tab.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 };
