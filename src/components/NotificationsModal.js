@@ -420,7 +420,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
           {loading ? (
             <div className="text-center text-[#999] py-[60px] px-5 text-base">
-              <LoadingSpinner size="medium" />
+              <LoadingSpinner size="medium" fullScreen />
             </div>
           ) : !hasAnyNotifications ? (
             <div className="px-4">

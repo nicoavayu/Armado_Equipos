@@ -238,7 +238,7 @@ const SolicitudesSection = ({ partidoActual, onRequestAccepted, onRequestResolve
     if (loading) {
         return (
             <div className="flex justify-center items-center py-12">
-                <LoadingSpinner size="medium" />
+                <LoadingSpinner size="medium" fullScreen />
             </div>
         );
     }

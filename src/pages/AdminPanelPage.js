@@ -93,7 +93,7 @@ const AdminPanelPage = () => {
   if (loading) {
     return (
       <div className="min-h-[100dvh] w-full max-w-full overflow-x-clip flex items-center justify-center content-with-tabbar">
-        <LoadingSpinner size="large" />
+        <LoadingSpinner size="large" fullScreen />
       </div>
     );
   }

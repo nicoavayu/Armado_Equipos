@@ -870,7 +870,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   if (loading) {
     return (
       <div className="w-full flex justify-center px-4 pt-[116px] pb-6">
-        <LoadingSpinner size="medium" />
+        <LoadingSpinner size="medium" fullScreen />
       </div>
     );
   }

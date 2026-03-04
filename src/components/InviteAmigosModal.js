@@ -331,7 +331,7 @@ const InviteAmigosModal = ({
 
           {loading ? (
             <div className="flex justify-center py-10">
-              <LoadingSpinner size="medium" />
+              <LoadingSpinner size="medium" fullScreen />
             </div>
           ) : amigos.length === 0 ? (
             <div className="text-center text-white/70 py-10 px-5 text-base">

@@ -403,7 +403,7 @@ const TemplateHistoryPage = () => {
         )}
 
         {loading ? (
-          <div className="py-14 flex items-center justify-center"><LoadingSpinner size="large" /></div>
+          <div className="py-14 flex items-center justify-center"><LoadingSpinner size="large" fullScreen /></div>
         ) : matches.length === 0 ? (
           <div className="flex flex-col items-center text-center gap-3 py-10 border border-dashed border-white/10 rounded-none bg-slate-900/40 mt-5">
             <div className="text-white/70 font-oswald text-base">Todavía no hay partidos creados desde esta plantilla.</div>

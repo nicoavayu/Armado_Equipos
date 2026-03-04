@@ -121,7 +121,7 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-10 px-5 text-[#aaa] text-center h-full">
-        <LoadingSpinner size="medium" />
+        <LoadingSpinner size="medium" fullScreen />
       </div>
     );
   }

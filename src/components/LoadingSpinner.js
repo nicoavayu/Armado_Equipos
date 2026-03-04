@@ -16,7 +16,7 @@ const LoadingSpinner = ({ size = 'medium', fullScreen = false, className = '' })
 
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center">
+      <div className="fixed inset-0 z-[1200] flex items-center justify-center pointer-events-none">
         <img
           src="/spinner.svg"
           alt="Loading..."

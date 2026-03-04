@@ -1479,7 +1479,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   if (loading) {
     return (
       <div className="min-h-[100dvh] w-screen bg-fifa-gradient flex items-center justify-center p-4">
-        <LoadingSpinner size="large" />
+        <LoadingSpinner size="large" fullScreen />
       </div>
     );
   }

@@ -375,7 +375,7 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
           <div className="pt-5">
             {loading ? (
               <div className="py-16 flex items-center justify-center">
-                <LoadingSpinner size="large" />
+                <LoadingSpinner size="large" fullScreen />
               </div>
             ) : matches.length === 0 ? (
               <div className="py-16 text-center text-white/60 font-oswald">

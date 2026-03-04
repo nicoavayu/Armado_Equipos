@@ -190,8 +190,7 @@ const ListaDeFechasModal = ({ partidosFrecuentes, onClose, nombrePartido, error,
                 {loading ? (
                   // Estado de carga
                   <div className="flex flex-col items-center justify-center py-[60px] px-0 text-center text-[#aaa]">
-                    <div className="w-10 h-10 border-4 border-[#8178e5]/30 rounded-full border-t-[#8178e5] animate-[spin_1s_linear_infinite] mb-5"></div>
-                    <LoadingSpinner size="medium" />
+                    <LoadingSpinner size="medium" fullScreen />
                   </div>
                 ) : error ? (
                   // Estado de error

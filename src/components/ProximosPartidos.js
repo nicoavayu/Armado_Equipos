@@ -506,7 +506,7 @@ const ProximosPartidos = ({ onClose }) => {
       <div className="flex-1 pt-[96px] px-4 pb-[100px] overflow-y-auto w-full box-border sm:pt-[96px] sm:px-4 sm:pb-[100px]">
         {loading ? (
           <div className="text-center py-[60px] px-5">
-            <LoadingSpinner size="medium" />
+            <LoadingSpinner size="medium" fullScreen />
           </div>
         ) : partidos.length === 0 ? (
           <div className="text-center py-[60px] px-5 mt-[70px]">

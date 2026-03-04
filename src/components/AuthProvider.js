@@ -271,7 +271,7 @@ const AuthProvider = ({ children }) => {
   if (loading) {
     return (
       <div className="voting-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <LoadingSpinner size="large" />
+        <LoadingSpinner size="large" fullScreen />
       </div>
     );
   }

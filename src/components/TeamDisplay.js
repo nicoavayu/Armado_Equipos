@@ -411,7 +411,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   ) {
     return (
       <div className="min-h-[60dvh] w-full flex items-center justify-center">
-        <SafeLoadingSpinner size="large" />
+        <SafeLoadingSpinner size="large" fullScreen />
       </div>
     );
   }
