@@ -67,11 +67,12 @@ const ProximosPartidos = ({ onClose }) => {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'post_match_surveys' }, (payload) => {
         const { partido_id, votante_id } = payload.new || {};
         if (!partido_id || !votante_id) return;
-        const expectedVotanteId = userJugadorIdByMatch[partido_id];
+        const matchKey = String(partido_id);
+        const expectedVotanteId = userJugadorIdByMatch[partido_id] || userJugadorIdByMatch[matchKey];
         if (!expectedVotanteId) return;
         if (String(votante_id) !== String(expectedVotanteId)) return; // solo mi encuesta para ese partido
-        setCompletedSurveys((prev) => { const s = new Set(prev); s.add(partido_id); return s; });
-        setPartidos((prev) => prev.filter((p) => p.id !== partido_id)); // limpia inmediatamente
+        setCompletedSurveys((prev) => { const s = new Set(prev); s.add(matchKey); return s; });
+        setPartidos((prev) => prev.filter((p) => String(p.id) !== matchKey && String(p?.partido_id || '') !== matchKey)); // limpia inmediatamente
       });
     return () => { supabase.removeChannel(channel); };
   }, [user?.id, userJugadorIdByMatch]);
@@ -258,10 +259,18 @@ const ProximosPartidos = ({ onClose }) => {
         const expectedPlayers = Number.isFinite(formatNumber) && formatNumber > 0
           ? formatNumber * 2
           : null;
+        const linkedPartidoId = Number(match?.partido_id);
+        const hasLinkedPartidoId = Number.isFinite(linkedPartidoId) && linkedPartidoId > 0;
+        const linkedPartidoKey = hasLinkedPartidoId ? String(linkedPartidoId) : null;
+
+        if (linkedPartidoKey && (clearedMatchIds.has(linkedPartidoKey) || localCompletedSurveys.has(linkedPartidoKey))) {
+          return null;
+        }
 
         return {
           id: match.id,
           team_match_id: match.id,
+          partido_id: hasLinkedPartidoId ? linkedPartidoId : null,
           source_type: 'team_match',
           origin_type: match.origin_type || 'challenge',
           challenge_id: match.challenge_id || null,
@@ -278,14 +287,24 @@ const ProximosPartidos = ({ onClose }) => {
           team_b: match?.team_b || null,
           userRole: match?.canManage ? 'admin' : 'player',
           userJoined: true,
-          hasCompletedSurvey: false,
+          hasCompletedSurvey: linkedPartidoKey ? localCompletedSurveys.has(linkedPartidoKey) : false,
           can_manage: Boolean(match?.canManage),
           team_match_status: match?.status || 'pending',
           is_format_combined: Boolean(match?.is_format_combined),
         };
-      });
+      }).filter(Boolean);
 
-      setPartidos([...partidosEnriquecidos, ...teamMatchesEnriquecidos]);
+      const linkedPartidoIds = new Set(
+        teamMatchesEnriquecidos
+          .map((match) => String(match?.partido_id || ''))
+          .filter(Boolean),
+      );
+
+      const partidosEnriquecidosSinDuplicados = partidosEnriquecidos.filter(
+        (partido) => !linkedPartidoIds.has(String(partido?.id || '')),
+      );
+
+      setPartidos([...partidosEnriquecidosSinDuplicados, ...teamMatchesEnriquecidos]);
 
     } catch (error) {
       console.error('Error fetching matches:', error);
@@ -324,7 +343,16 @@ const ProximosPartidos = ({ onClose }) => {
 
   const _handleSurveyClick = (e, partido) => {
     e.stopPropagation();
-    navigate(`/encuesta/${partido.id}`);
+    const surveyMatchId = partido?.source_type === 'team_match'
+      ? Number(partido?.partido_id)
+      : Number(partido?.id);
+
+    if (!Number.isFinite(surveyMatchId) || surveyMatchId <= 0) {
+      notifyBlockingError('La encuesta de este partido aún se está preparando');
+      return;
+    }
+
+    navigate(`/encuesta/${surveyMatchId}`);
   };
 
   const _handleClearMatch = (e, partido) => {
@@ -423,7 +451,14 @@ const ProximosPartidos = ({ onClose }) => {
     if (partido?.source_type === 'team_match') {
       const status = String(partido?.team_match_status || '').toLowerCase();
       if (status === 'played') return true;
-      return false;
+      const scheduledAt = partido?.scheduled_at ? new Date(partido.scheduled_at) : null;
+      if (scheduledAt && !Number.isNaN(scheduledAt.getTime())) {
+        return new Date() >= scheduledAt;
+      }
+      if (!partido.fecha || !partido.hora) return false;
+      const parsed = parseLocalDateTime(partido.fecha, partido.hora);
+      if (!parsed) return false;
+      return new Date() >= parsed;
     }
 
     if (!partido.fecha || !partido.hora) return false;
@@ -444,6 +479,18 @@ const ProximosPartidos = ({ onClose }) => {
 
   const getPrimaryCta = (partido) => {
     if (partido?.source_type === 'team_match') {
+      const matchFinished = isMatchFinished(partido);
+      const joined = !!partido.userJoined;
+      const completed = !!partido.hasCompletedSurvey;
+      const surveyMatchId = Number(partido?.partido_id);
+
+      if (matchFinished) {
+        if (joined && !completed && Number.isFinite(surveyMatchId) && surveyMatchId > 0) {
+          return { label: 'Completar encuesta', kind: 'survey', disabled: false, onClick: (e) => _handleSurveyClick(e, partido) };
+        }
+        if (joined && completed) return { label: 'Encuesta completada', kind: 'survey_done', disabled: true };
+      }
+
       return { label: 'Ver partido', kind: 'details', disabled: false, onClick: () => _handleMatchClick(partido) };
     }
 

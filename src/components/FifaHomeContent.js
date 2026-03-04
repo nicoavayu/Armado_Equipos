@@ -392,17 +392,35 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         const day = scheduledDate ? String(scheduledDate.getDate()).padStart(2, '0') : null;
         const hour = scheduledDate ? String(scheduledDate.getHours()).padStart(2, '0') : null;
         const minute = scheduledDate ? String(scheduledDate.getMinutes()).padStart(2, '0') : null;
+        const linkedPartidoId = Number(match?.partido_id);
+        const hasLinkedPartidoId = Number.isFinite(linkedPartidoId) && linkedPartidoId > 0;
+        const linkedPartidoKey = hasLinkedPartidoId ? String(linkedPartidoId) : null;
+
+        if (linkedPartidoKey && (clearedMatchIds.has(linkedPartidoKey) || completedSurveys.has(linkedPartidoKey))) {
+          return null;
+        }
 
         return {
           id: match?.id,
+          partido_id: hasLinkedPartidoId ? linkedPartidoId : null,
           source_type: 'team_match',
           fecha: year ? `${year}-${month}-${day}` : null,
           hora: hour ? `${hour}:${minute}` : null,
           scheduled_at: match?.scheduled_at || null,
         };
-      });
+      }).filter(Boolean);
 
-      setActiveMatches([...partidosFiltrados, ...teamMatchesEnriquecidos]);
+      const linkedPartidoIds = new Set(
+        teamMatchesEnriquecidos
+          .map((match) => String(match?.partido_id || ''))
+          .filter(Boolean),
+      );
+
+      const partidosFiltradosSinDuplicados = partidosFiltrados.filter(
+        (partido) => !linkedPartidoIds.has(String(partido?.id || '')),
+      );
+
+      setActiveMatches([...partidosFiltradosSinDuplicados, ...teamMatchesEnriquecidos]);
     } catch (error) {
       console.error('Error fetching active matches:', error);
     } finally {

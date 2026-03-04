@@ -2560,7 +2560,49 @@ export const listMyTeamMatches = async (userId, options = {}) => {
     teamRows: teams,
   });
 
-  return Array.from(dedup.values())
+  const hydratedMatches = await Promise.all(
+    Array.from(dedup.values()).map(async (row) => {
+      const match = withTeamMatchCompatibility(row);
+      const status = normalizeTeamMatchStatus(match?.status);
+      if (!match?.id || match?.partido_id || status === 'cancelled') {
+        return match;
+      }
+
+      try {
+        const bridgeResponse = await supabase.rpc('sync_team_match_to_partido', {
+          p_team_match_id: match.id,
+        });
+
+        if (bridgeResponse.error) {
+          if (!isMissingFunctionError(bridgeResponse.error, 'sync_team_match_to_partido')) {
+            console.warn('[TEAM_CHALLENGES] listMyTeamMatches sync_team_match_to_partido failed', {
+              matchId: match.id,
+              code: bridgeResponse.error.code,
+              message: bridgeResponse.error.message,
+            });
+          }
+          return match;
+        }
+
+        const partidoId = Number(bridgeResponse.data);
+        if (Number.isFinite(partidoId) && partidoId > 0) {
+          return {
+            ...match,
+            partido_id: partidoId,
+          };
+        }
+      } catch (error) {
+        console.warn('[TEAM_CHALLENGES] listMyTeamMatches sync_team_match_to_partido exception', {
+          matchId: match.id,
+          message: error?.message || String(error),
+        });
+      }
+
+      return match;
+    }),
+  );
+
+  return hydratedMatches
     .map((match) => {
       const canManage = adminTeamIds.has(match?.team_a_id)
         || adminTeamIds.has(match?.team_b_id);
