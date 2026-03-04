@@ -156,6 +156,7 @@ const TEAM_CHAT_MESSAGE_SELECT = `
 
 const TEAM_MATCH_SELECT = `
   id,
+  partido_id,
   origin_type,
   challenge_id,
   team_a_id,
@@ -322,6 +323,7 @@ const isChallengeOwnerOnlyInsertError = (error) => (
 const isTeamMatchSelectCompatibilityError = (error) => (
   isOrderedSetModeError(error)
   || hasAnyMissingColumns(error, [
+    'partido_id',
     'origin_type',
     'mode',
     'scheduled_at',
@@ -467,6 +469,7 @@ const withChallengeCompatibility = (row) => ({
 
 const withTeamMatchCompatibility = (row) => ({
   ...row,
+  partido_id: row?.partido_id ?? null,
   status: resolveChallengeMatchStatus(row, row?.status),
   origin_type: row?.origin_type || (row?.challenge_id ? 'challenge' : 'individual'),
   location: row?.location ?? row?.location_name ?? null,
@@ -2124,7 +2127,43 @@ export const completeChallenge = async ({ challengeId, scoreA, scoreB, playedAt 
     throw new Error(response.error.message || 'No se pudo finalizar el desafio');
   }
 
-  return response.data;
+  const matchRow = response.data || null;
+  const matchId = matchRow?.id || null;
+  if (!matchId) {
+    return matchRow;
+  }
+
+  try {
+    const bridgeResponse = await supabase.rpc('sync_team_match_to_partido', {
+      p_team_match_id: matchId,
+    });
+
+    if (bridgeResponse.error) {
+      if (!isMissingFunctionError(bridgeResponse.error, 'sync_team_match_to_partido')) {
+        console.warn('[TEAM_CHALLENGES] sync_team_match_to_partido failed', {
+          matchId,
+          code: bridgeResponse.error.code,
+          message: bridgeResponse.error.message,
+        });
+      }
+      return matchRow;
+    }
+
+    const syncedPartidoId = Number(bridgeResponse.data);
+    if (Number.isFinite(syncedPartidoId) && syncedPartidoId > 0) {
+      return {
+        ...matchRow,
+        partido_id: syncedPartidoId,
+      };
+    }
+  } catch (error) {
+    console.warn('[TEAM_CHALLENGES] sync_team_match_to_partido exception', {
+      matchId,
+      message: error?.message || String(error),
+    });
+  }
+
+  return matchRow;
 };
 
 export const getChallengeById = async (challengeId) => {
