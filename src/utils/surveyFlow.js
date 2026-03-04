@@ -55,8 +55,9 @@ export const buildSurveyFlowSteps = ({
   if (compactFlowMode) {
     if (forceOrganizeTeamsStep || shouldUseTeamsSetupStep({ teamsConfirmed, teamsLocked })) {
       resolvedSteps.push(SURVEY_STEPS.ORGANIZE_TEAMS);
+    } else {
+      resolvedSteps.push(SURVEY_STEPS.RESULT);
     }
-    resolvedSteps.push(SURVEY_STEPS.RESULT);
     return resolvedSteps;
   }
 

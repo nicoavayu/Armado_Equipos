@@ -741,7 +741,7 @@ const EncuestaPartido = () => {
     return { seJugo: true, ganador: null, resultado: 'pending' };
   };
 
-  const continueSubmitFlow = async () => {
+  const continueSubmitFlow = async ({ skipPersistTeams = false } = {}) => {
     try {
       if (alreadySubmitted) {
         console.info('Ya completaste esta encuesta');
@@ -749,7 +749,7 @@ const EncuestaPartido = () => {
       }
 
       const outcome = resolveSurveyOutcome();
-      if (outcome.seJugo && !teamsConfirmed && !teamsLocked) {
+      if (outcome.seJugo && !skipPersistTeams && !teamsConfirmed && !teamsLocked) {
         const persistResult = await persistSurveyTeamsDefinition();
         if (!persistResult.ok) {
           openSurveyModal(persistResult.message, 'No se pudieron guardar los equipos');
@@ -880,7 +880,14 @@ const EncuestaPartido = () => {
       return;
     }
 
+    const shouldSubmitFromHere = compactFlowMode;
+
     if (teamsConfirmed || teamsLocked) {
+      if (shouldSubmitFromHere) {
+        setSubmitting(true);
+        await continueSubmitFlow();
+        return;
+      }
       setCurrentStep(SURVEY_STEPS.RESULT);
       return;
     }
@@ -890,6 +897,11 @@ const EncuestaPartido = () => {
       const persistResult = await persistSurveyTeamsDefinition();
       if (!persistResult.ok) {
         openSurveyModal(persistResult.message, 'No se pudieron guardar los equipos');
+        return;
+      }
+
+      if (shouldSubmitFromHere) {
+        await continueSubmitFlow({ skipPersistTeams: true });
         return;
       }
 
@@ -1683,7 +1695,7 @@ const EncuestaPartido = () => {
                       || (compactFlowMode && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador))
                     }
                   >
-                    CONTINUAR
+                    {compactFlowMode ? 'FINALIZAR ENCUESTA' : 'CONTINUAR'}
                   </button>
                 </div>
               </div>
