@@ -48,7 +48,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
 
   return (
     <div
-      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] min-h-[70px] h-auto md:min-h-[80px] bg-white/5 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.16)] pb-[calc(env(safe-area-inset-bottom)+10px)] transition-[transform,opacity] duration-200"
+      className="app-tabbar fixed bottom-0 left-0 right-0 z-[1000] min-h-[62px] h-auto md:min-h-[70px] bg-white/5 backdrop-blur-md border-t border-white/10 shadow-[0_-8px_24px_rgba(0,0,0,0.16)] pb-[max(env(safe-area-inset-bottom),4px)] transition-[transform,opacity] duration-200"
     >
       <div className="relative grid w-full grid-cols-5">
         <div
@@ -88,7 +88,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
               type="button"
               aria-current={isActive ? 'page' : undefined}
               onClick={() => handleTabClick(tab)}
-              className={`group relative flex min-h-[44px] flex-1 flex-col items-center justify-center bg-transparent py-2 md:py-3 transition-[color,opacity,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
+              className={`group relative flex min-h-[42px] flex-1 flex-col items-center justify-center bg-transparent py-1.5 md:py-2 transition-[color,opacity,background-color] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
                 index < tabs.length - 1 ? 'border-r border-white/10' : ''
               } ${isActive ? 'text-white' : 'text-white/70'}`}
             >
@@ -96,7 +96,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
                 <IconComponent {...iconProps} />
               </span>
               <span
-                className={`mt-2 text-[12px] font-sans tracking-wide transition-[opacity,color,font-weight] duration-200 ${
+                className={`mt-1.5 text-[12px] font-sans tracking-wide transition-[opacity,color,font-weight] duration-200 ${
                   isActive ? 'font-bold text-white opacity-100' : 'font-semibold text-white/75 opacity-60'
                 }`}
               >
