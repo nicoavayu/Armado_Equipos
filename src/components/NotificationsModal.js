@@ -128,7 +128,6 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       const matchId = extractNotificationMatchId(notification);
 
       if (matchId && isSurveyNotificationClosed(notification)) {
-        navigateToSurveyResults(notification, matchId);
         return;
       }
 
@@ -224,7 +223,6 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     if (notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h') {
       const reminderMatchId = extractNotificationMatchId(notification);
       if (reminderMatchId && isSurveyNotificationClosed(notification)) {
-        navigateToSurveyResults(notification, reminderMatchId);
         return;
       }
 
@@ -349,16 +347,32 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const navigateToSurveyResults = (notification, matchId, options = {}) => {
-    const resultsUrl = notification?.data?.resultsUrl || (
-      matchId ? `/resultados-encuesta/${matchId}` : null
-    );
-    return safeNavigate(
-      notification,
-      resultsUrl,
-      options,
-      'No encontramos los resultados de esta encuesta.',
-    );
+  const isClosedSurveyNotification = (notification) => {
+    const type = notification?.type;
+    const isSurveyStartLike = type === 'survey_start' || type === 'post_match_survey';
+    const isSurveyReminder = type === 'survey_reminder' || type === 'survey_reminder_12h';
+    if (!isSurveyStartLike && !isSurveyReminder) return false;
+    return isSurveyNotificationClosed(notification);
+  };
+
+  const isNotificationInteractive = (notification) => {
+    if (!notification) return false;
+    if (isClosedSurveyNotification(notification)) return false;
+    const clickableTypes = new Set([
+      'match_invite',
+      'team_invite',
+      'team_captain_transfer',
+      'call_to_vote',
+      'survey_start',
+      'post_match_survey',
+      'survey_reminder',
+      'survey_reminder_12h',
+      'survey_results_ready',
+      'awards_ready',
+      'survey_finished',
+      'award_won',
+    ]);
+    return clickableTypes.has(notification.type) || isTeamChallengeNotification(notification);
   };
 
   const visibleNotifications = useMemo(
@@ -482,8 +496,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
           ) : (
             <div className="p-0">
               {filteredNotifications.map((notification) => {
-                const clickable = ['match_invite', 'team_invite', 'team_captain_transfer', 'call_to_vote', 'survey_start', 'post_match_survey', 'survey_reminder', 'survey_reminder_12h', 'survey_results_ready', 'awards_ready', 'survey_finished', 'award_won'].includes(notification.type)
-                  || isTeamChallengeNotification(notification);
+                const clickable = isNotificationInteractive(notification);
                 const Icon = getNotificationIcon(notification.type) || User;
                 const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
                 const isSurveyReminder = notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h';
@@ -530,12 +543,12 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                 return (
                   <div
                     key={`${notification.id}:${notification.created_at}`}
-                    className={`block p-4 border-b border-[#2a2a2a] transition-all cursor-pointer md:py-[14px] md:px-4
+                    className={`block p-4 border-b border-[#2a2a2a] transition-all md:py-[14px] md:px-4
                       ${!notification.read ? 'bg-[rgba(33,150,243,0.1)] border-l-[3px] border-l-[#2196F3]' : ''} 
-                      ${clickable ? 'hover:bg-white/15 hover:scale-[1.01]' : 'active:bg-white/5'}
+                      ${clickable ? 'cursor-pointer hover:bg-white/15 hover:scale-[1.01]' : 'cursor-default opacity-85'}
                     `}
-                    role="button"
-                    tabIndex={0}
+                    role={clickable ? 'button' : undefined}
+                    tabIndex={clickable ? 0 : -1}
                     onClick={(e) => {
                       if (!clickable) return;
                       e.stopPropagation();

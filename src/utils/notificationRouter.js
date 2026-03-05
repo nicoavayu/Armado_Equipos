@@ -73,8 +73,7 @@ export async function openNotification(n, navigate) {
 
     if (SURVEY_NOTIFICATION_TYPES.has(type)) {
       if (matchId && isSurveyNotificationClosed(n)) {
-        const resultsUrl = n?.data?.resultsUrl || getResultsUrl(Number(matchId)) || `/resultados-encuesta/${matchId}`;
-        navigate(resultsUrl);
+        console.debug('[openNotification] survey closed, skip navigation', { matchId, notificationId: n?.id });
         return;
       }
 

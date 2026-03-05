@@ -100,18 +100,6 @@ const NotificationsView = () => {
     }
   };
 
-  const navigateToSurveyResults = (notification, resolvedMatchId, options = {}) => {
-    const resultsUrl = notification?.data?.resultsUrl || (
-      resolvedMatchId ? `/resultados-encuesta/${toBigIntId(resolvedMatchId)}` : null
-    );
-    return safeNavigate(
-      notification,
-      resultsUrl,
-      options,
-      'No encontramos los resultados de esta encuesta.',
-    );
-  };
-
   const handleNotificationClick = async (notification, e) => {
     if (e) { e.preventDefault?.(); e.stopPropagation?.(); }
 
@@ -131,7 +119,6 @@ const NotificationsView = () => {
       try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
 
       if (matchId && isSurveyNotificationClosed(notification)) {
-        navigateToSurveyResults(notification, matchId);
         return;
       }
 
@@ -287,7 +274,6 @@ const NotificationsView = () => {
         console.log('[NOTIFICATION_CLICK] Survey reminder - matchId:', matchId);
         if (matchId) {
           if (isSurveyNotificationClosed(notification)) {
-            navigateToSurveyResults(notification, matchId);
             break;
           }
 
@@ -492,9 +478,38 @@ const NotificationsView = () => {
     await Promise.all(unreadItems.map((item) => markAsRead(item.id)));
   };
 
+  const isClosedSurveyNotification = (notification) => {
+    const type = notification?.type;
+    const isSurveyStartLike = type === 'survey_start' || type === 'post_match_survey';
+    const isSurveyReminder = type === 'survey_reminder' || type === 'survey_reminder_12h';
+    if (!isSurveyStartLike && !isSurveyReminder) return false;
+    return isSurveyNotificationClosed(notification);
+  };
+
+  const isNotificationInteractive = (notification) => {
+    if (!notification) return false;
+    if (notification.type === 'friend_request' || notification.type === 'match_kicked') return false;
+    if (isClosedSurveyNotification(notification)) return false;
+    const clickableTypes = new Set([
+      'match_invite',
+      'team_invite',
+      'team_captain_transfer',
+      'call_to_vote',
+      'survey_start',
+      'post_match_survey',
+      'survey_reminder',
+      'survey_reminder_12h',
+      'survey_results_ready',
+      'awards_ready',
+      'survey_finished',
+      'award_won',
+    ]);
+    return clickableTypes.has(notification.type) || isTeamChallengeNotification(notification);
+  };
+
   const handleGroupedNotificationClick = async (group, e) => {
     const notification = group?.latest;
-    if (!notification || notification.type === 'friend_request' || notification.type === 'match_kicked') return;
+    if (!isNotificationInteractive(notification)) return;
     await markGroupAsRead(group);
     await handleNotificationClick(notification, e);
   };
@@ -632,17 +647,21 @@ const NotificationsView = () => {
                 : null;
               const groupedItems = group.items.slice(1);
               const isExpanded = expandedGroups.has(group.key);
+              const isInteractive = isNotificationInteractive(notification);
               return (
                 <div
                 key={group.key}
-                role="button"
-                tabIndex={0}
-                className={`flex p-3 bg-transparent rounded-none cursor-pointer transition-all duration-200 relative border border-[rgba(88,107,170,0.46)] hover:border-[#4a7ed6] ${(notification.type === 'friend_request' || notification.type === 'match_kicked') ? 'cursor-default' : ''}`}
+                role={isInteractive ? 'button' : undefined}
+                tabIndex={isInteractive ? 0 : -1}
+                className={`flex p-3 bg-transparent rounded-none transition-all duration-200 relative border border-[rgba(88,107,170,0.46)] ${
+                  isInteractive ? 'cursor-pointer hover:border-[#4a7ed6]' : 'cursor-default opacity-85'
+                }`}
                 onClick={(e) => {
-                  if (notification.type !== 'friend_request' && notification.type !== 'match_kicked') handleGroupedNotificationClick(group, e);
+                  if (!isInteractive) return;
+                  handleGroupedNotificationClick(group, e);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && notification.type !== 'friend_request' && notification.type !== 'match_kicked') {
+                  if (e.key === 'Enter' && isInteractive) {
                     handleGroupedNotificationClick(group, e);
                   }
                 }}
@@ -668,12 +687,19 @@ const NotificationsView = () => {
                       {groupedItems.map((item, index) => {
                         const ItemIcon = getNotificationIcon(item.type);
                         const { title, message } = getDisplayCopy(item);
+                        const itemInteractive = isNotificationInteractive(item);
                         return (
                           <button
                             key={`${group.key}-${item.id}-${index}`}
                             type="button"
-                            className="w-full px-2.5 py-2 text-left hover:bg-[rgba(30,45,94,0.9)] transition-colors border-b last:border-b-0 border-[rgba(88,108,176,0.4)]"
-                            onClick={(e) => handleNotificationClick(item, e)}
+                            disabled={!itemInteractive}
+                            className={`w-full px-2.5 py-2 text-left transition-colors border-b last:border-b-0 border-[rgba(88,108,176,0.4)] ${
+                              itemInteractive ? 'hover:bg-[rgba(30,45,94,0.9)]' : 'opacity-85 cursor-default'
+                            }`}
+                            onClick={(e) => {
+                              if (!itemInteractive) return;
+                              handleNotificationClick(item, e);
+                            }}
                           >
                             <div className="flex items-start gap-2">
                               <div className="mt-0.5 flex h-5 w-5 items-center justify-center text-white/80 shrink-0">

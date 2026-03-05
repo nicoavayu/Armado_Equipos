@@ -643,7 +643,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
       title: surveyTitle,
       subtitle: compactText(surveySubtitle || matchName, 46, 'Completá tu encuesta'),
       route: partidoId
-        ? (surveyClosed ? `/resultados-encuesta/${partidoId}` : `/encuesta/${partidoId}`)
+        ? (surveyClosed ? null : `/encuesta/${partidoId}`)
         : '/notifications',
     };
   }

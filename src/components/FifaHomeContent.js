@@ -702,12 +702,22 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                     const subtitleParts = [item.subtitle];
                     if (item.count > 1) subtitleParts.push(`x${item.count}`);
                     const subtitleText = subtitleParts.filter(Boolean).join(' · ');
+                    const canNavigate = Boolean(item.route);
 
                     return (
                       <div key={item.id}>
                         <button
-                          onClick={() => navigate(item.route)}
-                          className="w-full flex items-start gap-3 px-3.5 py-3 rounded-none border border-white/20 text-left bg-white/[0.025] hover:bg-white/[0.045] active:bg-white/[0.06] transition-colors"
+                          type="button"
+                          disabled={!canNavigate}
+                          onClick={() => {
+                            if (!canNavigate) return;
+                            navigate(item.route);
+                          }}
+                          className={`w-full flex items-start gap-3 px-3.5 py-3 rounded-none border border-white/20 text-left bg-white/[0.025] transition-colors ${
+                            canNavigate
+                              ? 'hover:bg-white/[0.045] active:bg-white/[0.06]'
+                              : 'opacity-85 cursor-default'
+                          }`}
                         >
                           <div className={`mt-1 shrink-0 ${iconColorClass}`}>
                             <Icon size={17} />
@@ -730,9 +740,11 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                             </div>
                           </div>
 
-                          <div className="pt-1.5 shrink-0 text-white/30">
-                            <ChevronRight size={14} />
-                          </div>
+                          {canNavigate && (
+                            <div className="pt-1.5 shrink-0 text-white/30">
+                              <ChevronRight size={14} />
+                            </div>
+                          )}
                         </button>
 
                         {index < activityItems.length - 1 && (
