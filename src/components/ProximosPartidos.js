@@ -341,20 +341,6 @@ const ProximosPartidos = ({ onClose }) => {
     setShowConfirm(true);
   };
 
-  const _handleSurveyClick = (e, partido) => {
-    e.stopPropagation();
-    const surveyMatchId = partido?.source_type === 'team_match'
-      ? Number(partido?.partido_id)
-      : Number(partido?.id);
-
-    if (!Number.isFinite(surveyMatchId) || surveyMatchId <= 0) {
-      notifyBlockingError('La encuesta de este partido aún se está preparando');
-      return;
-    }
-
-    navigate(`/encuesta/${surveyMatchId}`);
-  };
-
   const _handleClearMatch = (e, partido) => {
     if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
     console.log('[PROXIMOS] click LIMPIAR', partido?.id);
@@ -479,31 +465,13 @@ const ProximosPartidos = ({ onClose }) => {
 
   const getPrimaryCta = (partido) => {
     if (partido?.source_type === 'team_match') {
-      const matchFinished = isMatchFinished(partido);
-      const joined = !!partido.userJoined;
-      const completed = !!partido.hasCompletedSurvey;
-      const surveyMatchId = Number(partido?.partido_id);
-
-      if (matchFinished) {
-        if (joined && !completed && Number.isFinite(surveyMatchId) && surveyMatchId > 0) {
-          return { label: 'Completar encuesta', kind: 'survey', disabled: false, onClick: (e) => _handleSurveyClick(e, partido) };
-        }
-        if (joined && completed) return { label: 'Encuesta completada', kind: 'survey_done', disabled: true };
-      }
-
       return { label: 'Ver partido', kind: 'details', disabled: false, onClick: () => _handleMatchClick(partido) };
     }
 
     const matchFinished = isMatchFinished(partido);
     const joined = !!partido.userJoined;
-    const completed = !!partido.hasCompletedSurvey;
 
     if (matchFinished) {
-      if (joined && !completed) {
-        // Use a distinct visual treatment for post-match survey
-        return { label: 'Completar encuesta', kind: 'survey', disabled: false, onClick: (e) => _handleSurveyClick(e, partido) };
-      }
-      if (joined && completed) return { label: 'Encuesta completada', kind: 'survey_done', disabled: true };
       return { label: 'Ver partido', kind: 'details', disabled: false, onClick: () => _handleMatchClick(partido) };
     }
 
@@ -513,10 +481,6 @@ const ProximosPartidos = ({ onClose }) => {
 
   const getPrimaryCtaButtonClass = (primaryCtaKind) => {
     switch (primaryCtaKind) {
-      case 'survey':
-        return 'bg-[#6a43ff] border border-[#7d5aff] text-white hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)]';
-      case 'survey_done':
-        return 'bg-slate-700 text-white/50 cursor-not-allowed border border-slate-600';
       default:
         return 'bg-[#6a43ff] border border-[#7d5aff] text-white hover:bg-[#7550ff] shadow-[0_0_14px_rgba(106,67,255,0.3)]';
     }
@@ -545,6 +509,8 @@ const ProximosPartidos = ({ onClose }) => {
     });
   };
 
+  const visiblePartidos = getSortedPartidos().filter((partido) => !isMatchFinished(partido));
+
 
   return (
     <div className="fixed top-0 left-0 w-screen h-[100dvh] text-white flex flex-col overflow-hidden z-[1000]">
@@ -555,7 +521,7 @@ const ProximosPartidos = ({ onClose }) => {
           <div className="text-center py-[60px] px-5">
             <LoadingSpinner size="medium" fullScreen />
           </div>
-        ) : partidos.length === 0 ? (
+        ) : visiblePartidos.length === 0 ? (
           <div className="text-center py-[60px] px-5 mt-[70px]">
             <p className="text-[22px] font-bold mb-2 text-white text-center font-oswald">No tienes partidos próximos</p>
             <span className="text-[15px] opacity-95 block text-center text-white/80">Crea un partido o únete a uno para verlo aquí</span>
@@ -564,7 +530,7 @@ const ProximosPartidos = ({ onClose }) => {
           <>
             {/* Sorting controls removed: always sorted by proximity */}
             <div className="flex flex-col gap-[1px] w-full box-border">
-              {getSortedPartidos().map((partido) => {
+              {visiblePartidos.map((partido) => {
                 const matchFinished = isMatchFinished(partido);
                 const primaryCta = getPrimaryCta(partido);
 
