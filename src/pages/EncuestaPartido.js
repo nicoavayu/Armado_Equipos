@@ -1866,9 +1866,11 @@ const EncuestaPartido = () => {
                   <div className={titleClass}>
                     ¿QUIÉN GANÓ?
                   </div>
-                  <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
-                    {shouldDisableTeamReorganization ? compactWinnerSelectionHelperText : teamsContextLabel}
-                  </div>
+                  {!shouldDisableTeamReorganization && (
+                    <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
+                      {teamsContextLabel}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className={`${contentRowClass} items-start`}>
@@ -1879,9 +1881,14 @@ const EncuestaPartido = () => {
                         teamA={finalTeams.teamA}
                         teamB={finalTeams.teamB}
                         playersByKey={playersByKey}
+                        selectedWinner={formData.ganador}
+                        onWinnerChange={(winner) => {
+                          handleInputChange('ganador', winner);
+                          handleInputChange('se_jugo', true);
+                          closeSurveyModal();
+                        }}
+                        allowWinnerSelectionWhenDisabled={finalTeamsValidation.ok}
                         disabled={true}
-                        selectedWinner=""
-                        onWinnerChange={() => {}}
                         onChange={() => {}}
                       />
                     </div>
@@ -1890,30 +1897,6 @@ const EncuestaPartido = () => {
                   )}
 
                   <div className="mt-3 grid grid-cols-1 gap-2.5">
-                    <button
-                      type="button"
-                      className={`${optionBtnClass} ${formData.ganador === 'equipo_a' ? optionBtnSelectedClass : ''}`}
-                      onClick={() => {
-                        handleInputChange('ganador', 'equipo_a');
-                        handleInputChange('se_jugo', true);
-                        closeSurveyModal();
-                      }}
-                      disabled={!finalTeamsValidation.ok}
-                    >
-                      GANÓ EQUIPO A
-                    </button>
-                    <button
-                      type="button"
-                      className={`${optionBtnClass} ${formData.ganador === 'equipo_b' ? optionBtnSelectedClass : ''}`}
-                      onClick={() => {
-                        handleInputChange('ganador', 'equipo_b');
-                        handleInputChange('se_jugo', true);
-                        closeSurveyModal();
-                      }}
-                      disabled={!finalTeamsValidation.ok}
-                    >
-                      GANÓ EQUIPO B
-                    </button>
                     <button
                       type="button"
                       className={`${optionBtnClass} ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}

@@ -60,19 +60,21 @@ const TeamColumn = ({
   dragTarget = null,
   sourceTeamId = null,
   disabled = false,
+  allowWinnerSelectionWhenDisabled = false,
 }) => {
   return (
     <button
       type="button"
       onClick={() => {
-        if (disabled || isDragging) return;
+        if (isDragging) return;
+        if (disabled && !allowWinnerSelectionWhenDisabled) return;
         onSelect?.();
       }}
       className={`min-w-0 rounded-[5px] border p-2.5 text-left backdrop-blur-md transition-all duration-150 ease-out ${
         selected
           ? 'border-[#73bcff]/70 bg-[#128BE9]/18 shadow-[0_0_0_1px_rgba(115,188,255,0.35),0_12px_26px_rgba(18,139,233,0.28)]'
           : 'border-white/15 bg-white/[0.06]'
-      } ${disabled ? 'cursor-default' : ''}`}
+      } ${disabled && !allowWinnerSelectionWhenDisabled ? 'cursor-default' : 'cursor-pointer'}`}
     >
       <div className="mb-2 px-0.5">
         <div className="font-bebas text-[22px] leading-none tracking-wide text-white/95">{title}</div>
@@ -128,6 +130,7 @@ export default function TeamsDnDEditor({
   disabled = false,
   selectedWinner = '',
   onWinnerChange,
+  allowWinnerSelectionWhenDisabled = false,
 }) {
   const suppressSelectRef = React.useRef(false);
   const [isDragging, setIsDragging] = React.useState(false);
@@ -249,6 +252,7 @@ export default function TeamsDnDEditor({
           dragTarget={dragTarget}
           sourceTeamId={dragTarget?.sourceTeamId || null}
           disabled={disabled}
+          allowWinnerSelectionWhenDisabled={allowWinnerSelectionWhenDisabled}
           onSelect={() => {
             if (suppressSelectRef.current) return;
             onWinnerChange?.('equipo_a');
@@ -264,6 +268,7 @@ export default function TeamsDnDEditor({
           dragTarget={dragTarget}
           sourceTeamId={dragTarget?.sourceTeamId || null}
           disabled={disabled}
+          allowWinnerSelectionWhenDisabled={allowWinnerSelectionWhenDisabled}
           onSelect={() => {
             if (suppressSelectRef.current) return;
             onWinnerChange?.('equipo_b');
