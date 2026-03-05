@@ -271,9 +271,40 @@ const resolveChallengeTeamNames = (notification) => {
   };
 };
 
-const routeForMatch = ({ matchId, matchCode, currentUserId, match }) => {
+const isTeamChallengeLikeMatch = (match = {}) => {
+  if (!match || typeof match !== 'object') return false;
+
+  const sourceType = String(match?.source_type || match?.sourceType || '').trim().toLowerCase();
+  if (sourceType === 'team_match' || sourceType === 'challenge') return true;
+
+  const originType = String(match?.origin_type || match?.originType || '').trim().toLowerCase();
+  if (originType === 'challenge') return true;
+
+  if (
+    match?.challenge_id
+    || match?.challengeId
+    || match?.team_match_id
+    || match?.teamMatchId
+    || match?.team_a_id
+    || match?.teamAId
+    || match?.team_b_id
+    || match?.teamBId
+  ) {
+    return true;
+  }
+
+  const matchName = String(match?.nombre || match?.titulo || match?.name || '').trim().toLowerCase();
+  if (!matchName) return false;
+  return /^desaf[ií]o\s*:/.test(matchName);
+};
+
+const routeForMatch = ({ matchId, matchCode, currentUserId, match, teamMatchId = null }) => {
+  if (isTeamChallengeLikeMatch(match)) {
+    const resolvedTeamMatchId = teamMatchId || match?.team_match_id || match?.teamMatchId || null;
+    if (resolvedTeamMatchId) return `/desafios/equipos/partidos/${resolvedTeamMatchId}`;
+    return '/desafios';
+  }
   if (!matchId) return null;
-  if (match?.source_type === 'team_match') return `/desafios/equipos/partidos/${matchId}`;
   if (matchCode) return `/votar-equipos?codigo=${encodeURIComponent(matchCode)}`;
   if (match?.creado_por && currentUserId && String(match.creado_por) === String(currentUserId)) {
     return `/admin/${matchId}`;
@@ -615,7 +646,12 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   const dateLabel = formatMatchDate(match);
   const createdAt = notification?.created_at || new Date().toISOString();
   const fallbackSubtitle = dateLabel || matchName;
-  const matchRoute = routeForMatch({ matchId: resolvedPartidoId || partidoId, currentUserId, match });
+  const matchRoute = routeForMatch({
+    matchId: resolvedPartidoId || partidoId,
+    currentUserId,
+    match,
+    teamMatchId,
+  });
 
   const base = {
     id: `activity-${type}-${partidoId ?? notification?.id}`,
@@ -795,7 +831,7 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   return activeMatches.reduce((acc, match) => {
-    if (match?.source_type === 'team_match') return acc;
+    if (isTeamChallengeLikeMatch(match)) return acc;
     const matchDate = parseLocalDateTime(match?.fecha, match?.hora);
     if (!matchDate) return acc;
 
