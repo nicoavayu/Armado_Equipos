@@ -11,6 +11,7 @@ import TeamsDnDEditor from '../components/TeamsDnDEditor';
 import { finalizeIfComplete } from '../services/surveyCompletionService';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { clearMatchFromList } from '../services/matchFinishService';
+import { listTeamMatchMembers } from '../services/db/teamChallenges';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { SURVEY_WINDOW_HOURS } from '../utils/surveyNotificationCopy';
 import {
@@ -138,6 +139,86 @@ const playerMatchesRefSet = (player, refSet) => {
   return candidates.some((candidate) => refSet.has(candidate));
 };
 
+const resolveTeamMatchFixedTeams = ({
+  players = [],
+  membersByTeamId = {},
+  teamAId = null,
+  teamBId = null,
+}) => {
+  const roster = Array.isArray(players) ? players : [];
+  const teamAIdKey = String(teamAId || '').trim();
+  const teamBIdKey = String(teamBId || '').trim();
+  if (!teamAIdKey || !teamBIdKey) return { teamA: [], teamB: [] };
+
+  const membersA = Array.isArray(membersByTeamId?.[teamAIdKey]) ? membersByTeamId[teamAIdKey] : [];
+  const membersB = Array.isArray(membersByTeamId?.[teamBIdKey]) ? membersByTeamId[teamBIdKey] : [];
+  if (membersA.length === 0 || membersB.length === 0) return { teamA: [], teamB: [] };
+
+  const byUserId = new Map();
+  const byName = new Map();
+  const allRosterKeys = [];
+
+  roster.forEach((player) => {
+    const key = resolvePlayerKey(player);
+    if (!key) return;
+    allRosterKeys.push(key);
+
+    const userToken = normalizeIdentityToken(player?.usuario_id);
+    if (userToken && !byUserId.has(userToken)) {
+      byUserId.set(userToken, key);
+    }
+
+    const nameToken = normalizeIdentityToken(player?.nombre);
+    if (nameToken) {
+      const existing = byName.get(nameToken) || [];
+      existing.push(key);
+      byName.set(nameToken, existing);
+    }
+  });
+
+  const usedKeys = new Set();
+  const pullKeyForMember = (member) => {
+    const userToken = normalizeIdentityToken(member?.user_id || member?.jugador?.usuario_id);
+    if (userToken) {
+      const userKey = byUserId.get(userToken);
+      if (userKey && !usedKeys.has(userKey)) {
+        usedKeys.add(userKey);
+        return userKey;
+      }
+    }
+
+    const nameToken = normalizeIdentityToken(member?.jugador?.nombre);
+    if (nameToken) {
+      const bucket = byName.get(nameToken) || [];
+      while (bucket.length > 0) {
+        const candidateKey = bucket.shift();
+        if (candidateKey && !usedKeys.has(candidateKey)) {
+          usedKeys.add(candidateKey);
+          byName.set(nameToken, bucket);
+          return candidateKey;
+        }
+      }
+    }
+
+    return null;
+  };
+
+  const teamA = membersA.map((member) => pullKeyForMember(member)).filter(Boolean);
+  const teamB = membersB.map((member) => pullKeyForMember(member)).filter(Boolean);
+
+  const remainingKeys = allRosterKeys.filter((key) => !usedKeys.has(key));
+  remainingKeys.forEach((key) => {
+    if (teamA.length <= teamB.length) teamA.push(key);
+    else teamB.push(key);
+  });
+
+  const dedupTeamA = Array.from(new Set(teamA));
+  const dedupTeamB = Array.from(new Set(teamB.filter((key) => !dedupTeamA.includes(key))));
+  if (dedupTeamA.length === 0 || dedupTeamB.length === 0) return { teamA: [], teamB: [] };
+
+  return { teamA: dedupTeamA, teamB: dedupTeamB };
+};
+
 const ensureLinkedPlayerForSurvey = async ({ matchId, user }) => {
   const matchIdNum = Number(matchId);
   if (!Number.isFinite(matchIdNum) || matchIdNum <= 0 || !user?.id) {
@@ -240,6 +321,7 @@ const EncuestaPartido = () => {
   const [teamsSource, setTeamsSource] = useState(null);
   const [teamsLockedByUserId, setTeamsLockedByUserId] = useState(null);
   const [teamsLockedAt, setTeamsLockedAt] = useState(null);
+  const [isTeamChallengeSurvey, setIsTeamChallengeSurvey] = useState(false);
   const [currentStep, setCurrentStep] = useState(SURVEY_STEPS.PLAYED);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [linkedPlayerId, setLinkedPlayerId] = useState(null);
@@ -336,6 +418,7 @@ const EncuestaPartido = () => {
       setTeamsSource(null);
       setTeamsLockedByUserId(null);
       setTeamsLockedAt(null);
+      setIsTeamChallengeSurvey(false);
       setCurrentStep(SURVEY_STEPS.PLAYED);
       setFormData({ ...DEFAULT_FORM_DATA });
       setLinkedPlayerId(null);
@@ -387,6 +470,8 @@ const EncuestaPartido = () => {
         let persistedSurveyTeamA = [];
         let persistedSurveyTeamB = [];
         let persistedTeamsPayload = null;
+        let isTeamChallengeValue = false;
+        let challengeTeamMatchContext = null;
         let surveyStatusValue = partidoData?.survey_status || null;
         let surveyClosesAtValue = partidoData?.survey_closes_at || null;
         let resultStatusValue = partidoData?.result_status || null;
@@ -420,6 +505,22 @@ const EncuestaPartido = () => {
             persistedTeamsPayload = pRow?.equipos_json ?? pRow?.equipos ?? null;
           }
         } catch (_e) {
+          // Non-blocking fallback.
+        }
+
+        try {
+          const { data: teamMatchRow, error: teamMatchError } = await supabase
+            .from('team_matches')
+            .select('id, team_a_id, team_b_id, challenge_id, origin_type')
+            .eq('partido_id', matchIdNum)
+            .maybeSingle();
+
+          if (!teamMatchError && teamMatchRow?.id) {
+            const originType = normalizeIdentityToken(teamMatchRow?.origin_type);
+            isTeamChallengeValue = originType === 'challenge' || Boolean(teamMatchRow?.challenge_id);
+            challengeTeamMatchContext = teamMatchRow;
+          }
+        } catch (_teamMatchLookupError) {
           // Non-blocking fallback.
         }
 
@@ -458,6 +559,7 @@ const EncuestaPartido = () => {
           : loggedRosterPlayers.find((row) => normalizeIdentityToken(row?.usuario_id) === normalizeIdentityToken(user.id));
 
         if (cancelled) return;
+        setIsTeamChallengeSurvey(isTeamChallengeValue);
         setLoggedRosterCount(loggedCount);
 
         if (loggedCount === 0) {
@@ -530,6 +632,29 @@ const EncuestaPartido = () => {
         setJugadores(jugadoresPartido);
 
         const playerRefToKey = buildPlayerRefToKeyMap(jugadoresPartido);
+        let challengeFixedTeams = { teamA: [], teamB: [] };
+        if (
+          isTeamChallengeValue
+          && challengeTeamMatchContext?.id
+          && challengeTeamMatchContext?.team_a_id
+          && challengeTeamMatchContext?.team_b_id
+        ) {
+          try {
+            const membersByTeamId = await listTeamMatchMembers({
+              matchId: challengeTeamMatchContext.id,
+              teamIds: [challengeTeamMatchContext.team_a_id, challengeTeamMatchContext.team_b_id],
+            });
+
+            challengeFixedTeams = resolveTeamMatchFixedTeams({
+              players: jugadoresPartido,
+              membersByTeamId,
+              teamAId: challengeTeamMatchContext.team_a_id,
+              teamBId: challengeTeamMatchContext.team_b_id,
+            });
+          } catch (_teamMembersError) {
+            challengeFixedTeams = { teamA: [], teamB: [] };
+          }
+        }
         let resolvedTeamA = [];
         let resolvedTeamB = [];
 
@@ -551,6 +676,16 @@ const EncuestaPartido = () => {
           }
         } catch (_confirmationFetchError) {
           // Non-blocking fallback.
+        }
+
+        if (
+          resolvedTeamA.length === 0
+          && resolvedTeamB.length === 0
+          && challengeFixedTeams.teamA.length > 0
+          && challengeFixedTeams.teamB.length > 0
+        ) {
+          resolvedTeamA = challengeFixedTeams.teamA;
+          resolvedTeamB = challengeFixedTeams.teamB;
         }
 
         if (cancelled) return;
@@ -579,7 +714,7 @@ const EncuestaPartido = () => {
           setPartido({ ...partidoData, teams_confirmed: true });
           setConfirmedTeams({ teamA: resolvedTeamA, teamB: resolvedTeamB });
           setFinalTeams({ teamA: resolvedTeamA, teamB: resolvedTeamB });
-          setTeamsSource('admin');
+          setTeamsSource(isTeamChallengeValue ? 'team_challenge' : 'admin');
           setTeamsLocked(true);
           setTeamsLockedByUserId(null);
           setTeamsLockedAt(null);
@@ -723,9 +858,15 @@ const EncuestaPartido = () => {
   ), [playersByKey]);
   const playerRefToKeyMap = useMemo(() => buildPlayerRefToKeyMap(jugadores), [jugadores]);
   const compactFlowMode = loggedRosterCount > 0 && loggedRosterCount < 3;
+  const shouldDisableTeamReorganization = isTeamChallengeSurvey;
+  const shouldForceOrganizeTeamsStep = compactFlowMode && !shouldDisableTeamReorganization;
+  const shouldShowWinnerSelectionInOrganizeStep = compactFlowMode || shouldDisableTeamReorganization;
 
   const hasConfirmedTeams = teamsConfirmed && confirmedTeams.teamA.length > 0 && confirmedTeams.teamB.length > 0;
   const teamsContextLabel = useMemo(() => {
+    if (shouldDisableTeamReorganization) {
+      return 'Equipos fijos del desafío';
+    }
     if (hasConfirmedTeams || teamsSource === 'admin') {
       return 'Equipos confirmados';
     }
@@ -733,14 +874,17 @@ const EncuestaPartido = () => {
       return 'Equipos finales cargados por jugadores (editable)';
     }
     return 'Equipos a definir en encuesta';
-  }, [hasConfirmedTeams, teamsLocked, teamsLockedAt, teamsLockedByUserId, teamsSource]);
+  }, [hasConfirmedTeams, shouldDisableTeamReorganization, teamsLocked, teamsLockedAt, teamsLockedByUserId, teamsSource]);
 
   const organizeTeamsHelperText = useMemo(() => {
+    if (shouldDisableTeamReorganization) {
+      return 'Los equipos del desafío son fijos. Elegí quién ganó o marcá empate para continuar.';
+    }
     if (hasConfirmedTeams || teamsSource === 'admin') {
       return 'Armá los equipos finales como finalmente se jugó el partido.';
     }
     return 'Armá o ajustá los equipos finales según cómo se jugó realmente el partido.';
-  }, [hasConfirmedTeams, teamsSource]);
+  }, [hasConfirmedTeams, shouldDisableTeamReorganization, teamsSource]);
   const compactWinnerSelectionHelperText = 'En caso de que haya habido algún cambio de último minuto, podés rearmar los equipos de la manera en la que finalmente se jugó. Para elegir al ganador, seleccioná la lista del equipo ganador y presioná continuar.';
 
   const finalTeamsValidation = useMemo(() => {
@@ -783,6 +927,10 @@ const EncuestaPartido = () => {
   };
 
   const persistSurveyTeamsDefinition = async () => {
+    if (shouldDisableTeamReorganization) {
+      return { ok: true, message: '' };
+    }
+
     if (hasConfirmedTeams || teamsSource === 'admin') {
       return { ok: true, message: '' };
     }
@@ -909,7 +1057,7 @@ const EncuestaPartido = () => {
       }
 
       const outcome = resolveSurveyOutcome();
-      if (outcome.seJugo && !skipPersistTeams && !teamsConfirmed && teamsSource !== 'admin') {
+      if (outcome.seJugo && !skipPersistTeams && !teamsConfirmed && teamsSource !== 'admin' && !shouldDisableTeamReorganization) {
         const persistResult = await persistSurveyTeamsDefinition();
         if (!persistResult.ok) {
           openSurveyModal(persistResult.message, 'No se pudieron guardar los equipos');
@@ -1040,12 +1188,12 @@ const EncuestaPartido = () => {
   const handleLockTeamsAndContinue = async () => {
     if (submitting || encuestaFinalizada || alreadySubmitted) return;
 
-    if (compactFlowMode && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador)) {
+    if (shouldShowWinnerSelectionInOrganizeStep && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador)) {
       openSurveyModal('Elegí quién ganó o marcá empate para continuar.', 'Falta seleccionar resultado');
       return;
     }
 
-    const shouldSubmitFromHere = compactFlowMode;
+    const shouldSubmitFromHere = shouldShowWinnerSelectionInOrganizeStep;
 
     if (teamsConfirmed || teamsSource === 'admin') {
       if (shouldSubmitFromHere) {
@@ -1136,7 +1284,8 @@ const EncuestaPartido = () => {
     teamsConfirmed,
     teamsLocked,
     compactFlowMode,
-    forceOrganizeTeamsStep: compactFlowMode,
+    forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
+    disableOrganizeTeamsStep: shouldDisableTeamReorganization,
   }), [
     currentStep,
     formData.se_jugo,
@@ -1145,6 +1294,8 @@ const EncuestaPartido = () => {
     teamsConfirmed,
     teamsLocked,
     compactFlowMode,
+    shouldForceOrganizeTeamsStep,
+    shouldDisableTeamReorganization,
   ]);
 
   const progressTotalSteps = Math.max(flowSteps.length, 1);
@@ -1521,7 +1672,8 @@ const EncuestaPartido = () => {
                           ? resolveNextResultGateStep({
                             teamsConfirmed,
                             teamsLocked,
-                            forceOrganizeTeamsStep: true,
+                            forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
+                            disableOrganizeTeamsStep: shouldDisableTeamReorganization,
                           })
                           : SURVEY_STEPS.ATTENDANCE,
                       );
@@ -1680,7 +1832,8 @@ const EncuestaPartido = () => {
                       setCurrentStep(resolveNextResultGateStep({
                         teamsConfirmed,
                         teamsLocked,
-                        forceOrganizeTeamsStep: compactFlowMode,
+                        forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
+                        disableOrganizeTeamsStep: shouldDisableTeamReorganization,
                       }));
                     }}
                     type="button"
@@ -1714,7 +1867,7 @@ const EncuestaPartido = () => {
                     ¿QUIÉN GANÓ?
                   </div>
                   <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
-                    {teamsContextLabel}
+                    {shouldDisableTeamReorganization ? compactWinnerSelectionHelperText : teamsContextLabel}
                   </div>
                 </div>
               </div>
@@ -1825,7 +1978,8 @@ const EncuestaPartido = () => {
                       setCurrentStep(resolveNextResultGateStep({
                         teamsConfirmed,
                         teamsLocked,
-                        forceOrganizeTeamsStep: compactFlowMode,
+                        forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
+                        disableOrganizeTeamsStep: shouldDisableTeamReorganization,
                       }));
                     }}
                     disabled={formData.jugadores_violentos.length === 0}
@@ -1846,10 +2000,10 @@ const EncuestaPartido = () => {
               <div className={questionRowClass}>
                 <div className="w-full">
                   <div className={titleClass}>
-                    {compactFlowMode ? '¿QUIÉN GANÓ?' : 'ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ'}
+                    {shouldShowWinnerSelectionInOrganizeStep ? '¿QUIÉN GANÓ?' : 'ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ'}
                   </div>
                   <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
-                    {compactFlowMode ? compactWinnerSelectionHelperText : organizeTeamsHelperText}
+                    {shouldShowWinnerSelectionInOrganizeStep ? compactWinnerSelectionHelperText : organizeTeamsHelperText}
                   </div>
                 </div>
               </div>
@@ -1859,21 +2013,22 @@ const EncuestaPartido = () => {
                     teamA={finalTeams.teamA}
                     teamB={finalTeams.teamB}
                     playersByKey={playersByKey}
-                    selectedWinner={compactFlowMode ? formData.ganador : ''}
+                    selectedWinner={shouldShowWinnerSelectionInOrganizeStep ? formData.ganador : ''}
                     onWinnerChange={(winner) => {
-                      if (!compactFlowMode) return;
+                      if (!shouldShowWinnerSelectionInOrganizeStep) return;
                       handleInputChange('ganador', winner);
                       handleInputChange('se_jugo', true);
                       closeSurveyModal();
                     }}
                     onChange={(next) => {
+                      if (shouldDisableTeamReorganization) return;
                       setFinalTeams(next);
                       closeSurveyModal();
                     }}
-                    disabled={hasConfirmedTeams || teamsSource === 'admin'}
+                    disabled={hasConfirmedTeams || teamsSource === 'admin' || shouldDisableTeamReorganization}
                   />
 
-                  {compactFlowMode ? (
+                  {shouldShowWinnerSelectionInOrganizeStep ? (
                     <div className="w-full pt-2.5">
                       <button
                         type="button"
@@ -1890,7 +2045,7 @@ const EncuestaPartido = () => {
                   ) : null}
                 </div>
               </div>
-              <div className={`w-full shrink-0 flex items-center justify-center ${compactFlowMode ? 'pt-5 sm:pt-6' : 'pt-2 sm:pt-3'}`}>
+              <div className={`w-full shrink-0 flex items-center justify-center ${shouldShowWinnerSelectionInOrganizeStep ? 'pt-5 sm:pt-6' : 'pt-2 sm:pt-3'}`}>
                 <div className={actionDockClass}>
                   <button
                     className={btnClass}
@@ -1898,10 +2053,10 @@ const EncuestaPartido = () => {
                     disabled={
                       submitting
                       || encuestaFinalizada
-                      || (compactFlowMode && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador))
+                      || (shouldShowWinnerSelectionInOrganizeStep && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador))
                     }
                   >
-                    {compactFlowMode ? 'FINALIZAR ENCUESTA' : 'CONTINUAR'}
+                    {shouldShowWinnerSelectionInOrganizeStep ? 'FINALIZAR ENCUESTA' : 'CONTINUAR'}
                   </button>
                 </div>
               </div>
