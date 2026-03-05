@@ -119,13 +119,13 @@ const normalizeType = (type, message = '') => {
 };
 
 export const resolveNotificationMatchId = (notification) => (
-  notification?.data?.team_match_id
-  ?? notification?.data?.teamMatchId
-  ?? notification?.partido_id
+  notification?.partido_id
   ?? notification?.data?.match_id
   ?? notification?.data?.matchId
   ?? notification?.data?.partido_id
   ?? notification?.data?.partidoId
+  ?? notification?.data?.team_match_id
+  ?? notification?.data?.teamMatchId
   ?? notification?.match_ref
   ?? null
 );
@@ -217,6 +217,36 @@ const formatActivityDateTimeShort = (isoValue) => {
     hour12: false,
     timeZone: 'America/Argentina/Buenos_Aires',
   }).replace(',', '');
+};
+
+const PAST_MATCH_ALLOWED_NOTIFICATION_TYPES = new Set([
+  'survey_start',
+  'awards_ready',
+]);
+
+const resolveActivityMatchStartAt = ({ notification, match }) => {
+  const data = notification?.data || {};
+
+  const parsedLocal = parseLocalDateTime(
+    match?.fecha || data?.match_date || data?.fecha || null,
+    match?.hora || data?.match_time || data?.hora || null,
+  );
+  if (parsedLocal && !Number.isNaN(parsedLocal.getTime())) return parsedLocal;
+
+  const rawScheduledAt = (
+    match?.scheduled_at
+    || match?.scheduledAt
+    || data?.scheduled_at
+    || data?.scheduledAt
+    || data?.match_at
+    || data?.matchAt
+    || null
+  );
+  if (!rawScheduledAt) return null;
+
+  const parsedScheduled = new Date(rawScheduledAt);
+  if (Number.isNaN(parsedScheduled.getTime())) return null;
+  return parsedScheduled;
 };
 
 const resolveChallengeDateLabel = (notification, match) => {
@@ -834,6 +864,7 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
     if (isTeamChallengeLikeMatch(match)) return acc;
     const matchDate = parseLocalDateTime(match?.fecha, match?.hora);
     if (!matchDate) return acc;
+    if (matchDate.getTime() <= now.getTime()) return acc;
 
     const startOfMatch = new Date(matchDate.getFullYear(), matchDate.getMonth(), matchDate.getDate());
     const dayDiff = Math.round((startOfMatch.getTime() - startOfToday.getTime()) / (24 * 60 * 60 * 1000));
@@ -1130,8 +1161,27 @@ export const buildActivityFeed = async (notifications = [], options = {}) => {
     return !ineligibleSurveyMatchIds.has(pid);
   });
   const fetchedMatchMap = await fetchMissingMatches({ groups: eligibleGroups, activeMatchMap, supabaseClient });
+  const nowTs = Date.now();
 
-  const notificationItems = eligibleGroups
+  const timingEligibleGroups = eligibleGroups.filter((group) => {
+    const type = group?.type || '';
+    if (PAST_MATCH_ALLOWED_NOTIFICATION_TYPES.has(type)) return true;
+
+    const matchIdNum = Number(group?.matchId);
+    const match = Number.isFinite(matchIdNum) && matchIdNum > 0
+      ? (activeMatchMap.get(matchIdNum) || fetchedMatchMap.get(matchIdNum) || null)
+      : null;
+
+    const startsAt = resolveActivityMatchStartAt({
+      notification: group?.notification,
+      match,
+    });
+    if (!startsAt) return true;
+
+    return startsAt.getTime() > nowTs;
+  });
+
+  const notificationItems = timingEligibleGroups
     .map((group) => {
       const match = group.matchId ? (activeMatchMap.get(Number(group.matchId)) || fetchedMatchMap.get(Number(group.matchId))) : null;
       return toActivityFromNotification(group, match, currentUserId);
