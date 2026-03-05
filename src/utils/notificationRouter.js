@@ -2,6 +2,7 @@ import { supabase } from '../supabase';
 import { logger } from '../lib/logger';
 import { getResultsUrl } from './routes';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
+import { isSurveyNotificationClosed } from './surveyNotificationCopy';
 import {
   buildTeamChallengeRoute,
   extractNotificationMatchId,
@@ -71,6 +72,12 @@ export async function openNotification(n, navigate) {
     }
 
     if (SURVEY_NOTIFICATION_TYPES.has(type)) {
+      if (matchId && isSurveyNotificationClosed(n)) {
+        const resultsUrl = n?.data?.resultsUrl || getResultsUrl(Number(matchId)) || `/resultados-encuesta/${matchId}`;
+        navigate(resultsUrl);
+        return;
+      }
+
       const surveyLink = normalizeSurveyLink(deepLink, matchId);
       console.debug('[openNotification] navigating to survey link', { surveyLink });
       if (surveyLink) navigate(surveyLink);

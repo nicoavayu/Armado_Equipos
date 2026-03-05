@@ -1,7 +1,11 @@
 import { parseLocalDateTime } from './dateLocal';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
 import { quoteMatchName, resolveNotificationTeamName, resolveTeamInviteActorName } from './notificationText';
-import { getSurveyRemainingLabel, resolveSurveyDeadlineAt } from './surveyNotificationCopy';
+import {
+  getSurveyRemainingLabel,
+  isSurveyNotificationClosed,
+  resolveSurveyDeadlineAt,
+} from './surveyNotificationCopy';
 import { formatVenueShort } from './venueFormat';
 import {
   buildLatestKickTsByMatch,
@@ -628,16 +632,19 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   };
 
   if (type === 'survey_start') {
+    const surveyClosed = isSurveyNotificationClosed(notification);
     const surveySubtitle = getSurveyRemainingLabel(resolveSurveyDeadlineAt(notification));
-    const surveyTitle = quotedMatchName
-      ? `Encuesta disponible para ${quotedMatchName}`
-      : 'Encuesta disponible';
+    const surveyTitle = surveyClosed
+      ? (quotedMatchName ? `Encuesta finalizada para ${quotedMatchName}` : 'Encuesta finalizada')
+      : (quotedMatchName ? `Encuesta disponible para ${quotedMatchName}` : 'Encuesta disponible');
     return {
       ...base,
       icon: 'ClipboardList',
       title: surveyTitle,
       subtitle: compactText(surveySubtitle || matchName, 46, 'Completá tu encuesta'),
-      route: partidoId ? `/encuesta/${partidoId}` : '/notifications',
+      route: partidoId
+        ? (surveyClosed ? `/resultados-encuesta/${partidoId}` : `/encuesta/${partidoId}`)
+        : '/notifications',
     };
   }
 

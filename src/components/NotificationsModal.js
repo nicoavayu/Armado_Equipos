@@ -9,7 +9,12 @@ import { openNotification } from '../utils/notificationRouter';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyStateCard from './EmptyStateCard';
-import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
+import {
+  getSurveyReminderMessage,
+  getSurveyResultsReadyMessage,
+  getSurveyStartMessage,
+  isSurveyNotificationClosed,
+} from '../utils/surveyNotificationCopy';
 import {
   applyMatchNameQuotes,
   formatTeamInviteMessage,
@@ -122,6 +127,11 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       const link = notification?.data?.link;
       const matchId = extractNotificationMatchId(notification);
 
+      if (matchId && isSurveyNotificationClosed(notification)) {
+        navigateToSurveyResults(notification, matchId);
+        return;
+      }
+
       if (matchId && user?.id) {
         const access = await resolveSurveyAccess({
           supabaseClient: supabase,
@@ -213,6 +223,11 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
     if (notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h') {
       const reminderMatchId = extractNotificationMatchId(notification);
+      if (reminderMatchId && isSurveyNotificationClosed(notification)) {
+        navigateToSurveyResults(notification, reminderMatchId);
+        return;
+      }
+
       if (reminderMatchId && user?.id) {
         const access = await resolveSurveyAccess({
           supabaseClient: supabase,
@@ -332,6 +347,18 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       fallbackToNotificationRoute(notification, message);
       return false;
     }
+  };
+
+  const navigateToSurveyResults = (notification, matchId, options = {}) => {
+    const resultsUrl = notification?.data?.resultsUrl || (
+      matchId ? `/resultados-encuesta/${matchId}` : null
+    );
+    return safeNavigate(
+      notification,
+      resultsUrl,
+      options,
+      'No encontramos los resultados de esta encuesta.',
+    );
   };
 
   const visibleNotifications = useMemo(

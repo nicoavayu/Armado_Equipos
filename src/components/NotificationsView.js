@@ -7,7 +7,12 @@ import { useNotifications } from '../context/NotificationContext';
 import { useAmigos } from '../hooks/useAmigos';
 import { useAuth } from './AuthProvider';
 import EmptyStateCard from './EmptyStateCard';
-import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
+import {
+  getSurveyReminderMessage,
+  getSurveyResultsReadyMessage,
+  getSurveyStartMessage,
+  isSurveyNotificationClosed,
+} from '../utils/surveyNotificationCopy';
 import {
   applyMatchNameQuotes,
   formatTeamInviteMessage,
@@ -95,6 +100,18 @@ const NotificationsView = () => {
     }
   };
 
+  const navigateToSurveyResults = (notification, resolvedMatchId, options = {}) => {
+    const resultsUrl = notification?.data?.resultsUrl || (
+      resolvedMatchId ? `/resultados-encuesta/${toBigIntId(resolvedMatchId)}` : null
+    );
+    return safeNavigate(
+      notification,
+      resultsUrl,
+      options,
+      'No encontramos los resultados de esta encuesta.',
+    );
+  };
+
   const handleNotificationClick = async (notification, e) => {
     if (e) { e.preventDefault?.(); e.stopPropagation?.(); }
 
@@ -112,6 +129,12 @@ const NotificationsView = () => {
 
     if (notification?.type === 'survey_start' || notification?.type === 'post_match_survey') {
       try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
+
+      if (matchId && isSurveyNotificationClosed(notification)) {
+        navigateToSurveyResults(notification, matchId);
+        return;
+      }
+
       if (matchId && user?.id) {
         const access = await resolveSurveyAccess({
           supabaseClient: supabase,
@@ -263,6 +286,11 @@ const NotificationsView = () => {
       case 'survey_reminder_12h':
         console.log('[NOTIFICATION_CLICK] Survey reminder - matchId:', matchId);
         if (matchId) {
+          if (isSurveyNotificationClosed(notification)) {
+            navigateToSurveyResults(notification, matchId);
+            break;
+          }
+
           if (user?.id) {
             const access = await resolveSurveyAccess({
               supabaseClient: supabase,

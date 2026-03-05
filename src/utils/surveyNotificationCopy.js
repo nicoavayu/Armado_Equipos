@@ -66,6 +66,19 @@ export const getSurveyRemainingLabel = (deadlineAt, now = new Date()) => {
   return `Quedan ${minutesLeft} minutos para completar la encuesta.`;
 };
 
+export const isSurveyDeadlinePassed = (deadlineAt, now = new Date()) => {
+  const deadlineDate = toDate(deadlineAt);
+  if (!deadlineDate) return false;
+
+  const nowDate = toDate(now) || new Date();
+  return deadlineDate.getTime() <= nowDate.getTime();
+};
+
+export const isSurveyNotificationClosed = (source = {}, now = new Date()) => {
+  const deadlineAt = resolveSurveyDeadlineAt(source);
+  return isSurveyDeadlinePassed(deadlineAt, now);
+};
+
 export const getSurveyStartMessage = ({ matchName = 'este partido' } = {}) => {
   return `Ya está disponible la encuesta del partido ${quoteMatchName(matchName, 'este partido')}.`;
 };
