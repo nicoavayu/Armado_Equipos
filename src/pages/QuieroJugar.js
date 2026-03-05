@@ -19,6 +19,11 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 const containerClass = 'flex flex-col items-center w-full pb-6 px-4 box-border font-oswald';
 
 const normalizeLocationToken = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+const normalizeMatchToken = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .trim();
 
 const isPostalCodeToken = (token) => /^[A-Z]?\d{4,}[A-Z0-9-]*$/i.test(token);
 
@@ -410,7 +415,11 @@ const QuieroJugar = ({
         .order('fecha', { ascending: true });
 
       if (error) throw error;
-      setPartidosAbiertos(data || []);
+      const sanitizedRows = (data || []).filter((row) => {
+        const matchName = normalizeMatchToken(row?.nombre || row?.titulo || row?.name || '');
+        return !/^desafio\s*:/.test(matchName);
+      });
+      setPartidosAbiertos(sanitizedRows);
     } catch (error) {
       notifyBlockingError('Error cargando partidos: ' + error.message);
     } finally {

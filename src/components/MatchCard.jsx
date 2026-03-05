@@ -53,7 +53,14 @@ const MatchCard = ({
     onSelect = () => { },
 }) => {
     const MAX_SUBSTITUTE_SLOTS = 4;
+    const matchName = String(partido?.nombre || partido?.titulo || partido?.name || '').trim();
+    const isChallengeLikeOrigin = (
+        normalizeToken(partido?.origin_badge || '').includes('desafio')
+        || normalizeToken(partido?.origin_type || '') === 'challenge'
+        || /^desaf[ií]o\s*:/.test(matchName.toLowerCase())
+    );
     const isTeamMatch = partido?.source_type === 'team_match';
+    const useTeamMatchPresentation = isTeamMatch || isChallengeLikeOrigin;
     const showMenu = (userJoined || userRole === 'admin' || isFinished) && (onAbandon || onCancel || onClear);
 
     const precioRaw = (partido?.precio_cancha_por_persona ?? partido?.precio_cancha ?? partido?.precio ?? partido?.valor_cancha);
@@ -76,21 +83,21 @@ const MatchCard = ({
     const isComplete = titularesDisplayCount >= cupoMaximo;
     const dateLabel = partido?.fecha_display || partido?.fecha || 'A coordinar';
     const timeLabel = partido?.hora || '';
-    const originBadgeLabel = isTeamMatch
+    const originBadgeLabel = useTeamMatchPresentation
         ? (partido?.origin_badge
             || (partido?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso'))
-        : 'Amistoso';
+        : (isChallengeLikeOrigin ? 'Desafio' : 'Amistoso');
     const isChallengeCard = String(originBadgeLabel || '').toLowerCase().includes('desafio');
     const cardToneClass = isChallengeCard
         ? 'bg-[#262e44]/94 border-[#4b5563]'
         : 'bg-[#1e293b]/92 border-[#334155]';
-    const generoLabel = isTeamMatch
+    const generoLabel = useTeamMatchPresentation
         ? (partido?.genero_partido || 'Masculino')
         : (partido?.tipo_partido || 'Masculino');
     const totalPlayersTarget = Number(partido?.cupo_jugadores);
     const playersChipLabel = Number.isFinite(totalPlayersTarget) && totalPlayersTarget > 0
-        ? (isTeamMatch ? `${totalPlayersTarget} jugadores` : `${titularesDisplayCount}/${cupoMaximo}`)
-        : (isTeamMatch ? 'Sin cupo' : `${titularesDisplayCount}/${cupoMaximo}`);
+        ? (useTeamMatchPresentation ? `${totalPlayersTarget} jugadores` : `${titularesDisplayCount}/${cupoMaximo}`)
+        : (useTeamMatchPresentation ? 'Sin cupo' : `${titularesDisplayCount}/${cupoMaximo}`);
     const teamsLabel = partido?.team_a?.name && partido?.team_b?.name
         ? `${partido.team_a.name} vs ${partido.team_b.name}`
         : null;
@@ -207,7 +214,7 @@ const MatchCard = ({
                         {playersChipLabel}
                     </span>
                 </div>
-                {!isTeamMatch && substitutesCount > 0 ? (
+                {!useTeamMatchPresentation && substitutesCount > 0 ? (
                     <div className={`px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap border border-amber-400/30 bg-amber-500/10 text-amber-300 ${isFinished ? 'opacity-70' : ''}`}>
                         <span className="inline-flex items-center gap-1">
                             <UserRoundPlus size={12} />
@@ -217,7 +224,7 @@ const MatchCard = ({
                 ) : null}
             </div>
 
-            {isTeamMatch && teamsLabel ? (
+            {useTeamMatchPresentation && teamsLabel ? (
                 <div className={`font-oswald text-sm font-medium text-white/85 mb-3 ${isFinished ? 'opacity-70' : ''}`}>
                     {teamsLabel}
                 </div>
@@ -228,7 +235,7 @@ const MatchCard = ({
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="16" height="16" fill="rgba(255, 255, 255, 0.9)">
                     <path d="M0 188.6C0 84.4 86 0 192 0S384 84.4 384 188.6c0 119.3-120.2 262.3-170.4 316.8-11.8 12.8-31.5 12.8-43.3 0-50.2-54.5-170.4-197.5-170.4-316.8zM192 256a64 64 0 1 0 0-128 64 64 0 1 0 0 128z" />
                 </svg>
-                <span className="truncate">{isTeamMatch ? (partido.sede || 'A coordinar') : partido.sede?.split(',')[0]}</span>
+                <span className="truncate">{useTeamMatchPresentation ? (partido.sede || 'A coordinar') : partido.sede?.split(',')[0]}</span>
             </div>
 
             {primaryAction && (

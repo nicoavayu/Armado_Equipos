@@ -30,6 +30,59 @@ const toLocalDateParts = (isoValue) => {
   };
 };
 
+const normalizeTextToken = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .trim();
+
+const isChallengeLikePartido = (partido = {}) => {
+  if (!partido || typeof partido !== 'object') return false;
+
+  const sourceType = normalizeTextToken(partido?.source_type || partido?.sourceType);
+  if (sourceType === 'team_match' || sourceType === 'challenge') return true;
+
+  const originType = normalizeTextToken(partido?.origin_type || partido?.originType);
+  if (originType === 'challenge') return true;
+
+  if (
+    partido?.challenge_id
+    || partido?.challengeId
+    || partido?.team_match_id
+    || partido?.teamMatchId
+  ) {
+    return true;
+  }
+
+  const matchName = normalizeTextToken(partido?.nombre || partido?.titulo || partido?.name || '');
+  return /^desafio\s*:/.test(matchName);
+};
+
+const parseChallengeTeamsFromName = (matchName = '') => {
+  const raw = String(matchName || '').trim();
+  if (!raw) return null;
+  const parsed = raw.match(/^desaf[ií]o\s*:\s*(.+?)\s+vs\.?\s+(.+)$/i);
+  if (!parsed) return null;
+  return {
+    teamA: String(parsed[1] || '').trim(),
+    teamB: String(parsed[2] || '').trim(),
+  };
+};
+
+const buildTeamsKey = (teamA, teamB) => {
+  const a = normalizeTextToken(teamA);
+  const b = normalizeTextToken(teamB);
+  if (!a || !b) return null;
+  return [a, b].sort().join('::');
+};
+
+const buildDateHourKey = (fecha, hora) => {
+  const f = String(fecha || '').trim();
+  const h = String(hora || '').trim();
+  if (!f) return null;
+  return `${f}|${h}`;
+};
+
 const ProximosPartidos = ({ onClose }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -242,7 +295,7 @@ const ProximosPartidos = ({ onClose }) => {
         }
       });
 
-      const partidosEnriquecidos = partidosFiltrados.map((partido) => ({
+      const partidosEnriquecidosBase = partidosFiltrados.map((partido) => ({
         ...partido,
         userRole: partidosAdminIds.includes(partido.id) ? 'admin' : 'player',
         userJoined: partidosComoJugador.includes(partido.id),
@@ -294,6 +347,73 @@ const ProximosPartidos = ({ onClose }) => {
         };
       }).filter(Boolean);
 
+      const teamMatchByPartidoId = new Map(
+        teamMatchesEnriquecidos
+          .filter((match) => match?.partido_id)
+          .map((match) => [String(match.partido_id), match]),
+      );
+
+      const teamMatchBySignature = new Map();
+      teamMatchesEnriquecidos.forEach((match) => {
+        const teamsKey = buildTeamsKey(match?.team_a?.name, match?.team_b?.name);
+        const dateHourKey = buildDateHourKey(match?.fecha, match?.hora);
+        if (teamsKey && dateHourKey) {
+          teamMatchBySignature.set(`${teamsKey}|${dateHourKey}`, match);
+        }
+        if (teamsKey) {
+          const fallbackKey = `${teamsKey}|*`;
+          if (!teamMatchBySignature.has(fallbackKey)) {
+            teamMatchBySignature.set(fallbackKey, match);
+          }
+        }
+      });
+
+      const partidosEnriquecidos = partidosEnriquecidosBase.map((partido) => {
+        const partidoIdKey = String(partido?.id || '');
+        const linkedByPartidoId = teamMatchByPartidoId.get(partidoIdKey) || null;
+
+        const parsedTeams = parseChallengeTeamsFromName(partido?.nombre || partido?.titulo || partido?.name || '');
+        const parsedTeamsKey = buildTeamsKey(parsedTeams?.teamA, parsedTeams?.teamB);
+        const dateHourKey = buildDateHourKey(partido?.fecha, partido?.hora);
+        const linkedBySignature = parsedTeamsKey
+          ? (
+            (dateHourKey ? teamMatchBySignature.get(`${parsedTeamsKey}|${dateHourKey}`) : null)
+            || teamMatchBySignature.get(`${parsedTeamsKey}|*`)
+            || null
+          )
+          : null;
+
+        const linkedTeamMatch = linkedByPartidoId || linkedBySignature || null;
+        const shouldTreatAsChallenge = isChallengeLikePartido(partido) || Boolean(linkedTeamMatch);
+        if (!shouldTreatAsChallenge) return partido;
+
+        const inferredCupo = Number(linkedTeamMatch?.cupo_jugadores || 0);
+        const fallbackCupo = Number(partido?.cupo_jugadores || 0);
+        const resolvedCupo = Number.isFinite(inferredCupo) && inferredCupo > 0
+          ? inferredCupo
+          : (Number.isFinite(fallbackCupo) && fallbackCupo > 0 ? fallbackCupo : null);
+
+        const teamAName = linkedTeamMatch?.team_a?.name || parsedTeams?.teamA || '';
+        const teamBName = linkedTeamMatch?.team_b?.name || parsedTeams?.teamB || '';
+
+        return {
+          ...partido,
+          source_type: 'team_match',
+          origin_type: 'challenge',
+          origin_badge: 'Desafio',
+          team_match_id: linkedTeamMatch?.team_match_id || linkedTeamMatch?.id || null,
+          challenge_id: linkedTeamMatch?.challenge_id || partido?.challenge_id || null,
+          modalidad: linkedTeamMatch?.modalidad || partido?.modalidad || 'F5',
+          genero_partido: linkedTeamMatch?.genero_partido || partido?.tipo_partido || 'Masculino',
+          cupo_jugadores: resolvedCupo,
+          team_a: linkedTeamMatch?.team_a || (teamAName ? { name: teamAName } : null),
+          team_b: linkedTeamMatch?.team_b || (teamBName ? { name: teamBName } : null),
+          can_manage: Boolean(linkedTeamMatch?.can_manage),
+          team_match_status: linkedTeamMatch?.team_match_status || 'confirmed',
+          userRole: linkedTeamMatch?.userRole || partido.userRole,
+        };
+      });
+
       const linkedPartidoIds = new Set(
         teamMatchesEnriquecidos
           .map((match) => String(match?.partido_id || ''))
@@ -316,7 +436,16 @@ const ProximosPartidos = ({ onClose }) => {
   const _handleMatchClick = (partido) => {
     onClose();
     if (partido?.source_type === 'team_match') {
-      navigate(`/desafios/equipos/partidos/${partido.team_match_id || partido.id}`);
+      const teamMatchId = partido?.team_match_id || null;
+      if (teamMatchId) {
+        navigate(`/desafios/equipos/partidos/${teamMatchId}`);
+      } else {
+        navigate('/desafios');
+      }
+      return;
+    }
+    if (isChallengeLikePartido(partido)) {
+      navigate('/desafios');
       return;
     }
     navigate(`/admin/${partido.id}`);
@@ -360,7 +489,13 @@ const ProximosPartidos = ({ onClose }) => {
       if (actionType === 'cancel') {
         setProcessingDeleteId(partidoTarget.id);
         if (partidoTarget?.source_type === 'team_match') {
-          await cancelTeamMatch(partidoTarget.team_match_id || partidoTarget.id);
+          const teamMatchId = partidoTarget?.team_match_id || null;
+          if (!teamMatchId) {
+            notifyBlockingError('No se pudo identificar el desafío para cancelarlo.');
+            setProcessingDeleteId(null);
+            return;
+          }
+          await cancelTeamMatch(teamMatchId);
         } else {
           await cancelPartidoWithNotification(partidoTarget.id, 'Partido cancelado por el administrador');
         }
