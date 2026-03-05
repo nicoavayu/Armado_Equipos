@@ -130,6 +130,13 @@ export const resolveNotificationMatchId = (notification) => (
   ?? null
 );
 
+const extractNotificationTeamMatchId = (notification) => {
+  const candidate = notification?.data?.team_match_id ?? notification?.data?.teamMatchId ?? null;
+  if (candidate === null || candidate === undefined) return null;
+  const normalized = String(candidate).trim();
+  return normalized || null;
+};
+
 const formatMatchDate = (match) => {
   if (!match?.fecha) return '';
   const dt = parseLocalDateTime(match.fecha, match.hora);
@@ -986,19 +993,26 @@ const groupNotifications = (notifications = []) => {
 
     const createdAtTs = getNotificationTimestampMs(notification);
     const matchId = resolveNotificationMatchId(notification);
+    const teamMatchId = extractNotificationTeamMatchId(notification);
     const groupKey = `${type}::${matchId ?? 'none'}`;
     const current = groups.get(groupKey);
     if (!current) {
       groups.set(groupKey, {
         type,
         matchId: matchId ? Number(matchId) : null,
+        teamMatchId,
         notification,
         count: 1,
       });
       continue;
     }
     const currentTs = current.notification?.created_at ? new Date(current.notification.created_at).getTime() : 0;
-    if (createdAtTs >= currentTs) current.notification = notification;
+    if (createdAtTs >= currentTs) {
+      current.notification = notification;
+      current.teamMatchId = teamMatchId || current.teamMatchId || null;
+    } else if (!current.teamMatchId && teamMatchId) {
+      current.teamMatchId = teamMatchId;
+    }
     current.count += 1;
   }
   return [...groups.values()];
@@ -1024,6 +1038,42 @@ const fetchMissingMatches = async ({ groups, activeMatchMap, supabaseClient }) =
     console.error('[ACTIVITY_FEED] match enrichment failed:', error);
     return new Map();
   }
+};
+
+const fetchTeamMatchStartByIds = async ({ groups, supabaseClient }) => {
+  const map = new Map();
+  if (!supabaseClient) return map;
+
+  const ids = [...new Set(
+    (groups || [])
+      .map((group) => group?.teamMatchId || extractNotificationTeamMatchId(group?.notification))
+      .filter(Boolean),
+  )];
+
+  if (ids.length === 0) return map;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('team_matches')
+      .select('id, scheduled_at, played_at')
+      .in('id', ids);
+    if (error) throw error;
+
+    (data || []).forEach((row) => {
+      const id = row?.id ? String(row.id).trim() : '';
+      if (!id) return;
+      const rawStart = row?.played_at || row?.scheduled_at || null;
+      if (!rawStart) return;
+
+      const parsed = new Date(rawStart);
+      if (Number.isNaN(parsed.getTime())) return;
+      map.set(id, parsed);
+    });
+  } catch (error) {
+    console.warn('[ACTIVITY_FEED] team match schedule enrichment failed:', error);
+  }
+
+  return map;
 };
 
 const fetchCompletedActionsByMatch = async ({ groups, currentUserId, supabaseClient }) => {
@@ -1161,6 +1211,7 @@ export const buildActivityFeed = async (notifications = [], options = {}) => {
     return !ineligibleSurveyMatchIds.has(pid);
   });
   const fetchedMatchMap = await fetchMissingMatches({ groups: eligibleGroups, activeMatchMap, supabaseClient });
+  const teamMatchStartMap = await fetchTeamMatchStartByIds({ groups: eligibleGroups, supabaseClient });
   const nowTs = Date.now();
 
   const timingEligibleGroups = eligibleGroups.filter((group) => {
@@ -1172,10 +1223,17 @@ export const buildActivityFeed = async (notifications = [], options = {}) => {
       ? (activeMatchMap.get(matchIdNum) || fetchedMatchMap.get(matchIdNum) || null)
       : null;
 
-    const startsAt = resolveActivityMatchStartAt({
+    let startsAt = resolveActivityMatchStartAt({
       notification: group?.notification,
       match,
     });
+
+    if (!startsAt) {
+      const teamMatchId = group?.teamMatchId || extractNotificationTeamMatchId(group?.notification);
+      if (teamMatchId && teamMatchStartMap.has(teamMatchId)) {
+        startsAt = teamMatchStartMap.get(teamMatchId);
+      }
+    }
     if (!startsAt) return true;
 
     return startsAt.getTime() > nowTs;
