@@ -1,4 +1,5 @@
 import { parseLocalDateTime } from './dateLocal';
+import { SURVEY_START_DELAY_MS } from '../config/surveyConfig';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
 import { quoteMatchName, resolveNotificationTeamName, resolveTeamInviteActorName } from './notificationText';
 import {
@@ -227,7 +228,6 @@ const formatActivityDateTimeShort = (isoValue) => {
 };
 
 const PAST_MATCH_ALLOWED_NOTIFICATION_TYPES = new Set([
-  'survey_start',
   'awards_ready',
 ]);
 
@@ -1216,8 +1216,6 @@ export const buildActivityFeed = async (notifications = [], options = {}) => {
 
   const timingEligibleGroups = eligibleGroups.filter((group) => {
     const type = group?.type || '';
-    if (PAST_MATCH_ALLOWED_NOTIFICATION_TYPES.has(type)) return true;
-
     const matchIdNum = Number(group?.matchId);
     const match = Number.isFinite(matchIdNum) && matchIdNum > 0
       ? (activeMatchMap.get(matchIdNum) || fetchedMatchMap.get(matchIdNum) || null)
@@ -1234,6 +1232,14 @@ export const buildActivityFeed = async (notifications = [], options = {}) => {
         startsAt = teamMatchStartMap.get(teamMatchId);
       }
     }
+
+    if (type === 'survey_start') {
+      if (!startsAt) return true;
+      return nowTs >= (startsAt.getTime() + SURVEY_START_DELAY_MS);
+    }
+
+    if (PAST_MATCH_ALLOWED_NOTIFICATION_TYPES.has(type)) return true;
+
     if (!startsAt) return true;
 
     return startsAt.getTime() > nowTs;

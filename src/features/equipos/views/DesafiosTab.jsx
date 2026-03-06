@@ -14,6 +14,7 @@ import {
   cancelChallenge,
   completeChallenge,
   createChallenge,
+  getTeamMatchByChallengeId,
   listMyManageableTeams,
   listOpenChallenges,
   updateChallenge,
@@ -118,7 +119,10 @@ const DesafiosTab = ({
   }, [prefilledTeamId]);
 
   const visibleChallenges = useMemo(
-    () => openChallenges.filter((challenge) => challenge.status === 'open'),
+    () => openChallenges.filter((challenge) => {
+      const status = String(challenge?.status || '').toLowerCase();
+      return status === 'open' || status === 'accepted';
+    }),
     [openChallenges],
   );
 
@@ -151,6 +155,20 @@ const DesafiosTab = ({
       message: 'Desafio aceptado. Ya podes verlo en Mis partidos.',
     });
   }, []);
+
+  const openChallengeMatch = useCallback(async (challenge) => {
+    if (!challenge?.id) return;
+    try {
+      const match = await getTeamMatchByChallengeId(challenge.id);
+      if (!match?.id) {
+        notifyBlockingError('Todavía no existe un partido asociado a este desafío.');
+        return;
+      }
+      navigate(`/desafios/equipos/partidos/${match.id}`);
+    } catch (error) {
+      notifyBlockingError(error.message || 'No se pudo abrir el partido del desafío.');
+    }
+  }, [navigate]);
 
   const handleShare = async (challenge) => {
     try {
@@ -252,7 +270,7 @@ const DesafiosTab = ({
 
       <div className="mt-1 mb-0.5 flex items-center gap-2.5 px-1">
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">
-          Desafíos abiertos
+          Desafíos públicos
         </span>
         <span className="h-px flex-1 bg-[rgba(88,107,170,0.46)]" />
       </div>
@@ -266,8 +284,8 @@ const DesafiosTab = ({
       {!loading && visibleChallenges.length === 0 ? (
         <EmptyStateCard
           icon={Flag}
-          title="Sin desafíos abiertos"
-          description="No encontramos desafíos abiertos con esos filtros."
+          title="Sin desafíos"
+          description="No encontramos desafíos para esos filtros."
           className="my-0 p-5"
         />
       ) : null}
@@ -275,8 +293,46 @@ const DesafiosTab = ({
       {!loading ? visibleChallenges.map((challenge) => {
         const isOwnChallenge = manageableTeamIds.has(challenge.challenger_team_id)
           || challenge.created_by_user_id === userId;
+        const isParticipantChallenge = isOwnChallenge
+          || manageableTeamIds.has(challenge.accepted_team_id)
+          || challenge.accepted_by_user_id === userId;
         const canEditChallenge = challenge.status === 'open'
           && manageableTeamIds.has(challenge.challenger_team_id);
+        const status = String(challenge?.status || '').toLowerCase();
+
+        let primaryLabel = 'Ver detalle';
+        let primaryDisabled = false;
+        let primaryAction = async () => {};
+
+        if (status === 'open') {
+          primaryLabel = isOwnChallenge ? 'Cancelar desafio' : 'Aceptar';
+          primaryAction = async () => {
+            if (isOwnChallenge) {
+              setCancelConfirmChallenge(challenge);
+              return;
+            }
+
+            const available = getAvailableTeamsForChallenge(challenge);
+            if (available.length === 0) {
+              setAcceptBlockedMessage('No tenés equipos donde seas capitán para aceptar este desafío');
+              return;
+            }
+
+            setAcceptingChallenge(challenge);
+            setSelectedAcceptTeamId(available[0].id);
+          };
+        } else if (status === 'accepted') {
+          if (isOwnChallenge) {
+            primaryLabel = 'Cancelar desafio';
+            primaryAction = async () => setCancelConfirmChallenge(challenge);
+          } else if (isParticipantChallenge) {
+            primaryLabel = 'Ver partido';
+            primaryAction = async () => openChallengeMatch(challenge);
+          } else {
+            primaryLabel = 'Ya aceptado';
+            primaryDisabled = true;
+          }
+        }
 
         return (
           <ChallengeCard
@@ -285,26 +341,10 @@ const DesafiosTab = ({
             isOwnChallenge={isOwnChallenge}
             canEdit={canEditChallenge}
             onEdit={(targetChallenge) => setEditingChallenge(targetChallenge)}
-            primaryLabel={isOwnChallenge ? 'Cancelar desafio' : 'Aceptar'}
-            onPrimaryAction={async () => {
-              if (challenge.status !== 'open') return;
-
-              if (isOwnChallenge) {
-                setCancelConfirmChallenge(challenge);
-                return;
-              }
-
-              const available = getAvailableTeamsForChallenge(challenge);
-              if (available.length === 0) {
-                setAcceptBlockedMessage('No tenés equipos donde seas capitán para aceptar este desafío');
-                return;
-              }
-
-              setAcceptingChallenge(challenge);
-              setSelectedAcceptTeamId(available[0].id);
-            }}
+            primaryLabel={primaryLabel}
+            onPrimaryAction={primaryAction}
             canCancel={false}
-            disabled={isSubmitting}
+            disabled={isSubmitting || primaryDisabled}
           />
         );
       }) : null}

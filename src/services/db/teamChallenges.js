@@ -1949,7 +1949,7 @@ export const listOpenChallenges = async ({ format, zone, skillLevel } = {}) => {
     let query = supabase
       .from('challenges')
       .select(selectClause)
-      .eq('status', 'open')
+      .in('status', ['open', 'accepted'])
       .order('created_at', { ascending: false });
 
     if (format) {
@@ -1962,7 +1962,7 @@ export const listOpenChallenges = async ({ format, zone, skillLevel } = {}) => {
   const response = await runChallengeSelectWithFallback(execute);
 
   if (response.error) {
-    throw new Error(response.error.message || 'No se pudieron cargar desafios abiertos');
+    throw new Error(response.error.message || 'No se pudieron cargar los desafios');
   }
 
   let rows = (response.data || []).map(withChallengeCompatibility);

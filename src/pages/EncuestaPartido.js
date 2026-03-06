@@ -13,6 +13,8 @@ import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { clearMatchFromList } from '../services/matchFinishService';
 import { listTeamMatchMembers } from '../services/db/teamChallenges';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { SURVEY_START_DELAY_MS } from '../config/surveyConfig';
+import { parseLocalDateTime } from '../utils/dateLocal';
 import { SURVEY_WINDOW_HOURS } from '../utils/surveyNotificationCopy';
 import {
   buildPlayerRefToKeyMap,
@@ -217,6 +219,93 @@ const resolveTeamMatchFixedTeams = ({
   if (dedupTeamA.length === 0 || dedupTeamB.length === 0) return { teamA: [], teamB: [] };
 
   return { teamA: dedupTeamA, teamB: dedupTeamB };
+};
+
+const fillMissingPlayerFields = (existing, candidate) => ({
+  ...existing,
+  uuid: existing?.uuid || candidate?.uuid || null,
+  usuario_id: existing?.usuario_id || candidate?.usuario_id || null,
+  nombre: existing?.nombre || candidate?.nombre || 'Jugador',
+  avatar_url: existing?.avatar_url || candidate?.avatar_url || null,
+  score: existing?.score ?? candidate?.score ?? null,
+  is_goalkeeper: existing?.is_goalkeeper ?? candidate?.is_goalkeeper ?? false,
+});
+
+const mergeChallengeTeamMembersIntoRoster = ({ roster = [], membersByTeamId = {} }) => {
+  const merged = Array.isArray(roster) ? [...roster] : [];
+  const byPlayerId = new Map();
+  const byUserId = new Map();
+
+  merged.forEach((player, index) => {
+    const idNum = Number(player?.id);
+    if (Number.isFinite(idNum) && idNum > 0 && !byPlayerId.has(idNum)) {
+      byPlayerId.set(idNum, index);
+    }
+    const userToken = normalizeIdentityToken(player?.usuario_id);
+    if (userToken && !byUserId.has(userToken)) {
+      byUserId.set(userToken, index);
+    }
+  });
+
+  Object.values(membersByTeamId || {}).forEach((members) => {
+    (members || []).forEach((member) => {
+      const rawJugadorId = Number(member?.jugador_id || member?.jugador?.id || 0);
+      const jugadorId = Number.isFinite(rawJugadorId) && rawJugadorId > 0 ? rawJugadorId : null;
+      const userId = member?.user_id || member?.jugador?.usuario_id || null;
+      const userToken = normalizeIdentityToken(userId);
+      const fallbackRef = String(member?.id || jugadorId || member?.jugador?.nombre || 'member').trim();
+
+      const candidate = {
+        id: jugadorId,
+        uuid: userToken || `tm-${fallbackRef}`,
+        usuario_id: userId || null,
+        nombre: String(member?.jugador?.nombre || 'Jugador').trim() || 'Jugador',
+        avatar_url: member?.photo_url || member?.jugador?.avatar_url || null,
+        score: member?.jugador?.score ?? null,
+        is_goalkeeper: normalizeIdentityToken(member?.role) === 'gk',
+      };
+
+      if (jugadorId && byPlayerId.has(jugadorId)) {
+        const index = byPlayerId.get(jugadorId);
+        merged[index] = fillMissingPlayerFields(merged[index], candidate);
+        if (userToken && !byUserId.has(userToken)) {
+          byUserId.set(userToken, index);
+        }
+        return;
+      }
+
+      if (userToken && byUserId.has(userToken)) {
+        const index = byUserId.get(userToken);
+        merged[index] = fillMissingPlayerFields(merged[index], candidate);
+        if (jugadorId && !byPlayerId.has(jugadorId)) {
+          byPlayerId.set(jugadorId, index);
+        }
+        return;
+      }
+
+      merged.push(candidate);
+      const newIndex = merged.length - 1;
+      if (jugadorId && !byPlayerId.has(jugadorId)) {
+        byPlayerId.set(jugadorId, newIndex);
+      }
+      if (userToken && !byUserId.has(userToken)) {
+        byUserId.set(userToken, newIndex);
+      }
+    });
+  });
+
+  return merged;
+};
+
+const resolveSurveyMatchStartAt = ({ partidoRow, teamMatchRow }) => {
+  const localStart = parseLocalDateTime(partidoRow?.fecha || null, partidoRow?.hora || null);
+  if (localStart && !Number.isNaN(localStart.getTime())) return localStart;
+
+  const scheduledAt = teamMatchRow?.scheduled_at || null;
+  if (!scheduledAt) return null;
+  const scheduledDate = new Date(scheduledAt);
+  if (Number.isNaN(scheduledDate.getTime())) return null;
+  return scheduledDate;
 };
 
 const ensureLinkedPlayerForSurvey = async ({ matchId, user }) => {
@@ -472,6 +561,7 @@ const EncuestaPartido = () => {
         let persistedTeamsPayload = null;
         let isTeamChallengeValue = false;
         let challengeTeamMatchContext = null;
+        let challengeMembersByTeamId = null;
         let surveyStatusValue = partidoData?.survey_status || null;
         let surveyClosesAtValue = partidoData?.survey_closes_at || null;
         let resultStatusValue = partidoData?.result_status || null;
@@ -511,7 +601,7 @@ const EncuestaPartido = () => {
         try {
           const { data: teamMatchRow, error: teamMatchError } = await supabase
             .from('team_matches')
-            .select('id, team_a_id, team_b_id, challenge_id, origin_type')
+            .select('id, team_a_id, team_b_id, challenge_id, origin_type, scheduled_at')
             .eq('partido_id', matchIdNum)
             .maybeSingle();
 
@@ -522,6 +612,31 @@ const EncuestaPartido = () => {
           }
         } catch (_teamMatchLookupError) {
           // Non-blocking fallback.
+        }
+
+        const matchStartAt = resolveSurveyMatchStartAt({
+          partidoRow: partidoData,
+          teamMatchRow: challengeTeamMatchContext,
+        });
+        if (matchStartAt && Date.now() < (matchStartAt.getTime() + SURVEY_START_DELAY_MS)) {
+          const scheduledLabel = matchStartAt.toLocaleString('es-AR', {
+            weekday: 'short',
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+            timeZone: 'America/Argentina/Buenos_Aires',
+          });
+          openSurveyModal(
+            `La encuesta se habilita al finalizar el partido. Está programado para ${scheduledLabel}.`,
+            'Encuesta no disponible',
+            { exitRoute: '/' },
+          );
+          setPartido(partidoData || null);
+          setJugadores([]);
+          setLoading(false);
+          return;
         }
 
         if (persistedTeamsPayload == null) {
@@ -549,6 +664,26 @@ const EncuestaPartido = () => {
             .filter((player) => playerMatchesRefSet(player, persistedTeamRefs));
           if (rosterFilteredByPersistedTeams.length > 0) {
             jugadoresPartido = rosterFilteredByPersistedTeams;
+          }
+        }
+
+        if (
+          isTeamChallengeValue
+          && challengeTeamMatchContext?.id
+          && challengeTeamMatchContext?.team_a_id
+          && challengeTeamMatchContext?.team_b_id
+        ) {
+          try {
+            challengeMembersByTeamId = await listTeamMatchMembers({
+              matchId: challengeTeamMatchContext.id,
+              teamIds: [challengeTeamMatchContext.team_a_id, challengeTeamMatchContext.team_b_id],
+            });
+            jugadoresPartido = mergeChallengeTeamMembersIntoRoster({
+              roster: jugadoresPartido,
+              membersByTeamId: challengeMembersByTeamId,
+            });
+          } catch (_teamMembersError) {
+            challengeMembersByTeamId = null;
           }
         }
 
@@ -640,7 +775,7 @@ const EncuestaPartido = () => {
           && challengeTeamMatchContext?.team_b_id
         ) {
           try {
-            const membersByTeamId = await listTeamMatchMembers({
+            const membersByTeamId = challengeMembersByTeamId || await listTeamMatchMembers({
               matchId: challengeTeamMatchContext.id,
               teamIds: [challengeTeamMatchContext.team_a_id, challengeTeamMatchContext.team_b_id],
             });
@@ -1081,13 +1216,13 @@ const EncuestaPartido = () => {
         return;
       }
 
-      const uuidToId = new Map(jugadores.map((j) => [j.uuid, j.id]));
+      const uuidToId = new Map(jugadores.map((j) => [j.uuid, Number(j?.id)]));
       const violentosIds = (outcome.seJugo ? formData.jugadores_violentos : [])
         .map((u) => uuidToId.get(u))
-        .filter(Boolean);
+        .filter((value) => Number.isFinite(value) && value > 0);
       const ausentesIds = (formData.jugadores_ausentes || [])
         .map((u) => uuidToId.get(u))
-        .filter(Boolean);
+        .filter((value) => Number.isFinite(value) && value > 0);
 
       const surveyData = {
         partido_id: parseInt(id),
