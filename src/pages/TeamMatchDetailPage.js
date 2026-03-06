@@ -34,7 +34,7 @@ import {
 } from '../services/db/teamChallenges';
 import { notifyBlockingError } from '../utils/notifyBlockingError';
 
-const AVATAR_VISIBLE_LIMIT = 6;
+const AVATAR_VISIBLE_LIMIT = 5;
 const DETAIL_CARD_RADIUS_CLASS = 'rounded-[18px]';
 const EMPTY_CHALLENGE_HEAD_TO_HEAD = Object.freeze({
   totalMatchesScheduled: 0,
@@ -43,20 +43,6 @@ const EMPTY_CHALLENGE_HEAD_TO_HEAD = Object.freeze({
   winsTeamA: 0,
   winsTeamB: 0,
 });
-
-const SQUAD_FILTER_TABS = [
-  { key: 'available', label: 'Disponibles' },
-  { key: 'starter', label: 'Titulares' },
-  { key: 'substitute', label: 'Suplentes' },
-  { key: 'out', label: 'Afuera' },
-];
-
-const SQUAD_EMPTY_MESSAGE_BY_TAB = {
-  available: 'Todavía no hay disponibles.',
-  starter: 'No hay titulares definidos.',
-  substitute: 'No hay suplentes definidos.',
-  out: 'No hay jugadores en afuera.',
-};
 
 const toDateTimeLocalValue = (isoDate) => {
   if (!isoDate) return '';
@@ -241,9 +227,9 @@ const TeamCardLocked = ({
           </button>
         </div>
 
-        <div className="mt-4 h-px bg-[rgba(88,107,170,0.34)]" />
+        <div className="mt-3 h-px bg-[rgba(88,107,170,0.34)]" />
 
-        <div className="mt-4 flex items-center justify-center gap-2 flex-wrap min-h-[38px]">
+        <div className="mt-3 flex items-center justify-center gap-2 flex-nowrap overflow-hidden min-h-[40px]">
           {visibleMembers.length > 0 ? visibleMembers.map((member) => {
             const name = getPlayerName(member);
             const avatar = getPlayerAvatar(member);
@@ -271,7 +257,7 @@ const TeamCardLocked = ({
             <button
               type="button"
               onClick={onOpenRoster}
-              className="h-10 min-w-[40px] px-2 rounded-full border border-white/30 bg-slate-900/70 text-[11px] text-white/85 font-oswald shrink-0"
+              className="h-10 w-10 rounded-full border border-white/30 bg-slate-900/70 text-[11px] text-white/85 font-oswald shrink-0 flex items-center justify-center"
               aria-label={`Ver ${overflowCount} jugadores mas`}
               title="Ver plantilla completa"
             >
@@ -308,7 +294,6 @@ const TeamMatchDetailPage = () => {
   const [challengeHeadToHead, setChallengeHeadToHead] = useState(EMPTY_CHALLENGE_HEAD_TO_HEAD);
   const [challengeHeadToHeadLoading, setChallengeHeadToHeadLoading] = useState(false);
   const [showChallengeHeadToHead, setShowChallengeHeadToHead] = useState(false);
-  const [squadFilterTab, setSquadFilterTab] = useState('available');
   const [isSquadRosterViewOpen, setIsSquadRosterViewOpen] = useState(false);
   const actionsMenuButtonRef = useRef(null);
 
@@ -677,38 +662,8 @@ const TeamMatchDetailPage = () => {
     [canManageTeamSquad, myChallengeTeamId],
   );
 
-  const challengeSquadRowsByTab = useMemo(() => {
-    const rows = myChallengeSquadRows || [];
-    return {
-      available: rows.filter((row) => String(row?.availability_status || '').trim().toLowerCase() === 'available'),
-      starter: rows.filter((row) => (
-        Boolean(row?.approved_by_captain) && String(row?.selection_status || '').trim().toLowerCase() === 'starter'
-      )),
-      substitute: rows.filter((row) => (
-        Boolean(row?.approved_by_captain) && String(row?.selection_status || '').trim().toLowerCase() === 'substitute'
-      )),
-      out: rows.filter((row) => {
-        const selection = String(row?.selection_status || '').trim().toLowerCase();
-        return selection === 'not_selected' || !row?.approved_by_captain;
-      }),
-    };
-  }, [myChallengeSquadRows]);
-
-  const squadFilterTabOptions = useMemo(() => (
-    SQUAD_FILTER_TABS.map((tab) => ({
-      ...tab,
-      count: (challengeSquadRowsByTab?.[tab.key] || []).length,
-    }))
-  ), [challengeSquadRowsByTab]);
-
-  const visibleMySquadRows = useMemo(
-    () => challengeSquadRowsByTab?.[squadFilterTab] || [],
-    [challengeSquadRowsByTab, squadFilterTab],
-  );
-  const selectedSquadFilterTabOption = useMemo(
-    () => squadFilterTabOptions.find((tab) => tab.key === squadFilterTab) || squadFilterTabOptions[0] || null,
-    [squadFilterTab, squadFilterTabOptions],
-  );
+  const availabilityStatusCurrent = String(currentUserSquadRow?.availability_status || '').trim().toLowerCase();
+  const hasAvailabilityResponse = availabilityStatusCurrent === 'available' || availabilityStatusCurrent === 'unavailable';
 
   const challengeSquadViewState = useMemo(() => resolveChallengeSquadViewState({
     isChallengeMatch,
@@ -735,7 +690,6 @@ const TeamMatchDetailPage = () => {
   );
 
   useEffect(() => {
-    setSquadFilterTab('available');
     setIsSquadRosterViewOpen(false);
   }, [match?.challenge_id, myChallengeTeamId]);
 
@@ -1245,29 +1199,29 @@ const TeamMatchDetailPage = () => {
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="text-[16px] text-white font-oswald">¿Jugás este partido?</span>
                           </div>
-                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                            <button
-                              type="button"
-                              className={`rounded-none border px-2.5 py-1 text-[11px] font-oswald uppercase tracking-wide disabled:opacity-60 ${String(currentUserSquadRow?.availability_status || '').toLowerCase() === 'available'
-                                ? 'border-[#5AD17B]/45 bg-[#2F9E44]/24 text-[#D6F8E2]'
-                                : 'border-white/25 bg-white/5 text-white/80'
-                                }`}
+                          <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <Button
                               onClick={() => handleChangeAvailability('available')}
                               disabled={challengeSquadSaving || !challengeSquadEditable}
+                              className={`!h-[50px] !rounded-[20px] !text-[20px] !tracking-[0.02em] ${
+                                availabilityStatusCurrent === 'available'
+                                  ? ''
+                                  : '!border-white/15 !bg-primary/70 !shadow-none'
+                              }`}
                             >
                               Estoy
-                            </button>
-                            <button
-                              type="button"
-                              className={`rounded-none border px-2.5 py-1 text-[11px] font-oswald uppercase tracking-wide disabled:opacity-60 ${String(currentUserSquadRow?.availability_status || '').toLowerCase() === 'unavailable'
-                                ? 'border-[#FBBF24]/45 bg-[#B45309]/24 text-[#FDE68A]'
-                                : 'border-white/25 bg-white/5 text-white/80'
-                                }`}
+                            </Button>
+                            <Button
                               onClick={() => handleChangeAvailability('unavailable')}
                               disabled={challengeSquadSaving || !challengeSquadEditable}
+                              className={`!h-[50px] !rounded-[20px] !text-[20px] !tracking-[0.02em] ${
+                                availabilityStatusCurrent === 'unavailable'
+                                  ? ''
+                                  : '!border-white/15 !bg-primary/70 !shadow-none'
+                              }`}
                             >
                               No puedo
-                            </button>
+                            </Button>
                           </div>
                           <p className="text-[12px] text-white/75 font-oswald">
                             Estado actual: <span className="text-white">{personalChallengeCurrentStateLabel}</span>
@@ -1280,27 +1234,22 @@ const TeamMatchDetailPage = () => {
                         </div>
 
                         {!isSquadRosterViewOpen ? (
-                          <div className="rounded-none border border-white/10 bg-white/[0.02] p-2.5">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="text-[13px] text-white font-oswald uppercase tracking-[0.04em]">Mi plantel</p>
-                                <p className="text-[11px] text-white/70 font-oswald">
-                                  {showMySquadManagement
-                                    ? 'Administrá titulares y suplentes en una vista dedicada.'
-                                    : 'El capitán de tu equipo administra el plantel.'}
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                className="rounded-none border border-white/25 bg-white/5 px-3 py-1 text-[11px] font-oswald uppercase tracking-wide text-white/85 hover:bg-white/10"
+                          <div className="space-y-2">
+                            {hasAvailabilityResponse ? (
+                              <Button
                                 onClick={() => setIsSquadRosterViewOpen(true)}
+                                className="!h-[54px] !rounded-[24px] !text-[24px]"
                               >
-                                Ver plantel
-                              </button>
-                            </div>
+                                Mi plantel
+                              </Button>
+                            ) : (
+                              <p className="text-[11px] text-white/60 font-oswald">
+                                Confirmá si jugás para abrir Mi plantel.
+                              </p>
+                            )}
                           </div>
                         ) : (
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             <div className="flex items-center justify-between gap-2">
                               <button
                                 type="button"
@@ -1318,66 +1267,20 @@ const TeamMatchDetailPage = () => {
                               Suplentes {myChallengeSquadCounters.substitutes} / {challengeSquadLimits.substitutes}
                             </p>
 
-                            <div className="space-y-2">
-                              {squadFilterTabOptions.map((tab) => {
-                                const isActive = squadFilterTab === tab.key;
-                                const countLabel = tab.count === 1 ? 'jugador' : 'jugadores';
-                                const summary = tab.key === 'starter'
-                                  ? `${tab.count} / ${challengeSquadLimits.starters}`
-                                  : tab.key === 'substitute'
-                                    ? `${tab.count} / ${challengeSquadLimits.substitutes}`
-                                    : tab.key === 'available'
-                                      ? `${tab.count} ${countLabel} disponibles`
-                                      : `${tab.count} ${countLabel}`;
-                                const ctaLabel = tab.key === 'starter'
-                                  ? 'Administrar titulares'
-                                  : tab.key === 'substitute'
-                                    ? 'Administrar suplentes'
-                                    : tab.key === 'available'
-                                      ? 'Ver jugadores'
-                                      : 'Ver lista';
+                            {!showMySquadManagement ? (
+                              <p className="text-[11px] text-white/65 font-oswald">
+                                El capitán de tu equipo define titulares y suplentes.
+                              </p>
+                            ) : null}
 
-                                return (
-                                  <button
-                                    key={`squad-nav-card-${tab.key}`}
-                                    type="button"
-                                    className={`w-full rounded-none border px-3 py-2 text-left transition-all duration-[140ms] ease-out ${isActive
-                                      ? 'border-[#7d5aff] bg-[#6a43ff]/20 shadow-[0_0_10px_rgba(125,90,255,0.2)]'
-                                      : 'border-white/20 bg-white/[0.03] hover:bg-white/[0.06]'
-                                      }`}
-                                    onClick={() => setSquadFilterTab(tab.key)}
-                                  >
-                                    <div className="flex items-start justify-between gap-2">
-                                      <div className="min-w-0">
-                                        <p className="text-[14px] font-oswald text-white">{tab.label}</p>
-                                        <p className="text-[11px] font-oswald text-white/75">{summary}</p>
-                                      </div>
-                                    </div>
-                                    <p className="mt-1 text-[11px] font-oswald text-white/70">
-                                      → {ctaLabel}
-                                    </p>
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            <div className="rounded-none border border-white/10 bg-white/[0.03] p-2">
-                              <div className="mb-1.5 flex items-center justify-between gap-2">
-                                <span className="text-[12px] font-oswald text-white">
-                                  {selectedSquadFilterTabOption?.label || 'Jugadores'}
-                                </span>
-                                <span className="text-[10px] font-oswald uppercase tracking-wide text-white/65">
-                                  {selectedSquadFilterTabOption?.count ?? visibleMySquadRows.length}
-                                </span>
-                              </div>
-
-                              {visibleMySquadRows.length === 0 ? (
+                            <div className="rounded-none border border-white/10 bg-white/[0.03] p-2.5">
+                              {myChallengeSquadRows.length === 0 ? (
                                 <p className="text-[12px] text-white/60 font-oswald">
-                                  {SQUAD_EMPTY_MESSAGE_BY_TAB[squadFilterTab] || 'Sin jugadores en esta sección.'}
+                                  Todavía no hay jugadores en el plantel.
                                 </p>
                               ) : (
-                                <div className="space-y-1">
-                                  {visibleMySquadRows.map((entry) => {
+                                <div className="space-y-2">
+                                  {myChallengeSquadRows.map((entry) => {
                                     const availabilityStatus = String(entry?.availability_status || '').toLowerCase();
                                     const selectionStatus = String(entry?.selection_status || '').toLowerCase();
                                     const isStarter = selectionStatus === 'starter' && Boolean(entry?.approved_by_captain);
@@ -1387,11 +1290,11 @@ const TeamMatchDetailPage = () => {
                                     return (
                                       <div
                                         key={entry?.id || `${myChallengeTeamId}-${entry?.jugador_id}`}
-                                        className="rounded-none border border-white/10 bg-white/[0.03] px-2 py-0.5"
+                                        className="rounded-none border border-white/10 bg-white/[0.03] px-2.5 py-1.5"
                                       >
                                         <div className="flex items-center justify-between gap-2">
                                           <div className="flex items-center gap-2 min-w-0">
-                                            <div className="h-6 w-6 rounded-full border border-white/25 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[9px] font-semibold text-white/90 shrink-0">
+                                            <div className="h-7 w-7 rounded-full border border-white/25 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[9px] font-semibold text-white/90 shrink-0">
                                               {getPlayerAvatar(entry) ? (
                                                 <img src={getPlayerAvatar(entry)} alt={getPlayerName(entry)} className="h-full w-full object-cover" />
                                               ) : (
@@ -1406,7 +1309,7 @@ const TeamMatchDetailPage = () => {
                                           </div>
                                         </div>
 
-                                        <div className="mt-0.5 flex items-center gap-1">
+                                        <div className="mt-1 flex items-center gap-1">
                                           {[{
                                             key: 'starter',
                                             label: 'Titular',
@@ -1447,26 +1350,25 @@ const TeamMatchDetailPage = () => {
                             </div>
 
                             {showMySquadManagement ? (
-                              <div className="mt-3 flex items-center gap-1.5">
+                              <div className="pt-1 space-y-2">
                                 {challengeSquadStatus === 'open' ? (
-                                  <button
-                                    type="button"
-                                    className="min-w-[172px] rounded-none border border-[#FBBF24]/45 bg-[#B45309]/24 px-3 py-1.5 text-[12px] font-oswald uppercase tracking-wide text-[#FDE68A] disabled:opacity-60"
+                                  <Button
                                     onClick={handleConfirmSquadAndBack}
                                     disabled={challengeSquadSaving || !challengeSquadEditable}
+                                    className="!h-[54px] !rounded-[24px] !text-[24px]"
                                   >
                                     Confirmar plantel
-                                  </button>
+                                  </Button>
                                 ) : null}
                                 {challengeSquadStatus === 'closed' ? (
-                                  <button
-                                    type="button"
-                                    className="rounded-none border border-[#5AD17B]/45 bg-[#2F9E44]/24 px-2 py-1 text-[11px] font-oswald uppercase tracking-wide text-[#D6F8E2] disabled:opacity-60"
+                                  <Button
+                                    variant="secondary"
                                     onClick={() => handleSetChallengeSquadStatus('open')}
                                     disabled={challengeSquadSaving}
+                                    className="!h-[50px] !rounded-[22px] !text-[20px]"
                                   >
                                     Reabrir plantel
-                                  </button>
+                                  </Button>
                                 ) : null}
                               </div>
                             ) : null}
