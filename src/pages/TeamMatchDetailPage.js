@@ -146,6 +146,12 @@ const getInlineNoticeClass = (type) => {
   return 'border-[#9ED3FF]/45 bg-[#128BE9]/22 text-[#D4EBFF]';
 };
 
+const isAvailabilityConstraintNotice = (message) => {
+  const normalized = String(message || '').trim().toLowerCase();
+  if (!normalized) return false;
+  return normalized.includes('disponible') && (normalized.includes('convocad') || normalized.includes('marcarse'));
+};
+
 const getSelectionBadgeClass = (status) => {
   const normalized = String(status || '').trim().toLowerCase();
   if (normalized === 'starter') return 'text-[#D6F8E2] border-[#5AD17B]/45 bg-[#2F9E44]/24';
@@ -163,6 +169,14 @@ const getPersonalChallengeStatusLabel = (row) => {
   if (availability === 'available') return 'Disponible';
   if (availability === 'unavailable') return 'No disponible';
   return 'Pendiente';
+};
+
+const getPersonalChallengeStatusBadgeClass = (row) => {
+  const selection = String(row?.selection_status || '').trim().toLowerCase();
+  if (selection === 'starter' || selection === 'substitute') {
+    return getSelectionBadgeClass(selection);
+  }
+  return getAvailabilityBadgeClass(row?.availability_status);
 };
 
 const normalizeIdentityToken = (value) => String(value || '').trim();
@@ -1202,52 +1216,38 @@ const TeamMatchDetailPage = () => {
                 ) : null}
 
                 {isChallengeMatch && canRenderPrivateChallengeSquad ? (
-                  <div className={`${DETAIL_CARD_RADIUS_CLASS} border border-white/10 bg-white/[0.04] p-3 space-y-2.5`}>
+                  <div className={`${DETAIL_CARD_RADIUS_CLASS} border border-white/10 bg-white/[0.04] p-2.5 space-y-3`}>
                     <div className="flex items-start justify-between gap-2">
-                      <div className="flex min-w-0 flex-col gap-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-white font-oswald text-base">
-                            Convocatoria de {myChallengeTeam?.name || 'Mi equipo'}
-                          </span>
-                          <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getSquadStatusBadgeClass(challengeSquadStatus)}`}>
-                            {SQUAD_STATUS_LABEL_BY_VALUE[challengeSquadStatus] || 'No abierta'}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-oswald text-[15px] truncate">
+                            Convocatoria · {myChallengeTeam?.name || 'Mi equipo'}
                           </span>
                         </div>
-                        <span className="text-[11px] text-white/60 font-oswald">
-                          Desafío compartido, gestión privada de tu equipo.
+                        <span className="mt-1 block text-[11px] text-white/60 font-oswald">
+                          Desafío compartido · gestionás solo tu equipo
                         </span>
                       </div>
-
-                      {showMySquadManagement ? (
-                        <div className="flex items-center gap-1.5">
-                          {challengeSquadStatus === 'open' ? (
-                            <button
-                              type="button"
-                              className="rounded-none border border-[#FBBF24]/45 bg-[#B45309]/24 px-2 py-1 text-[11px] font-oswald uppercase tracking-wide text-[#FDE68A] disabled:opacity-60"
-                              onClick={() => handleSetChallengeSquadStatus('closed')}
-                              disabled={challengeSquadSaving || !challengeSquadEditable}
-                            >
-                              Cerrar
-                            </button>
-                          ) : null}
-                          {challengeSquadStatus === 'closed' ? (
-                            <button
-                              type="button"
-                              className="rounded-none border border-[#5AD17B]/45 bg-[#2F9E44]/24 px-2 py-1 text-[11px] font-oswald uppercase tracking-wide text-[#D6F8E2] disabled:opacity-60"
-                              onClick={() => handleSetChallengeSquadStatus('open')}
-                              disabled={challengeSquadSaving}
-                            >
-                              Reabrir
-                            </button>
-                          ) : null}
-                        </div>
-                      ) : null}
+                      <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide shrink-0 ${getSquadStatusBadgeClass(challengeSquadStatus)}`}>
+                        {SQUAD_STATUS_LABEL_BY_VALUE[challengeSquadStatus] || 'No abierta'}
+                      </span>
                     </div>
 
                     {inlineNotice?.message ? (
-                      <div className={`rounded-none border px-3 py-2 text-[12px] font-oswald leading-relaxed ${getInlineNoticeClass(inlineNotice?.type)}`}>
+                      <div
+                        className={`rounded-none border px-2.5 py-1.5 text-[11px] font-oswald leading-relaxed ${
+                          isAvailabilityConstraintNotice(inlineNotice?.message)
+                            ? 'border-[#9ED3FF]/35 bg-[#0e2a4a]/35 text-[#D4EBFF]'
+                            : getInlineNoticeClass(inlineNotice?.type)
+                        }`}
+                      >
                         <div className="flex items-start justify-between gap-2">
-                          <span>{inlineNotice.message}</span>
+                          <div className="flex min-w-0 items-start gap-1.5">
+                            {isAvailabilityConstraintNotice(inlineNotice?.message) ? (
+                              <span className="mt-[1px] text-[11px] text-[#9ED3FF]" aria-hidden="true">ℹ</span>
+                            ) : null}
+                            <span className="min-w-0">{inlineNotice.message}</span>
+                          </div>
                           <button
                             type="button"
                             className="text-current/80 hover:text-current text-[10px] uppercase tracking-wide"
@@ -1262,18 +1262,13 @@ const TeamMatchDetailPage = () => {
                     {challengeSquadLoading ? (
                       <p className="text-sm text-white/65 font-oswald">Cargando convocatoria...</p>
                     ) : (
-                      <div className="space-y-2.5">
-                        <div className="rounded-none border border-white/10 bg-white/[0.03] p-2.5">
+                      <div className="space-y-3">
+                        <div className="rounded-none border border-white/10 bg-white/[0.03] p-2">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="text-[12px] uppercase tracking-[0.08em] text-white/65 font-oswald">Mi disponibilidad</span>
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide ${getAvailabilityBadgeClass(currentUserSquadRow?.availability_status)}`}>
-                                {getAvailabilityLabel(currentUserSquadRow?.availability_status)}
-                              </span>
-                              <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide ${getSelectionBadgeClass(currentUserSquadRow?.selection_status)}`}>
-                                {getPersonalChallengeStatusLabel(currentUserSquadRow)}
-                              </span>
-                            </div>
+                            <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide ${getPersonalChallengeStatusBadgeClass(currentUserSquadRow)}`}>
+                              {getPersonalChallengeStatusLabel(currentUserSquadRow)}
+                            </span>
                           </div>
                           <div className="mt-2 flex flex-wrap items-center gap-1.5">
                             <button
@@ -1307,13 +1302,13 @@ const TeamMatchDetailPage = () => {
                         </div>
 
                         {showMySquadManagement ? (
-                          <div className="rounded-none border border-white/10 bg-black/15 p-2.5 space-y-2">
+                          <div className="rounded-none border border-white/10 bg-black/15 p-2 space-y-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span className="text-white font-oswald text-[14px] uppercase tracking-[0.04em]">Mi plantel</span>
+                              <span className="text-white font-oswald text-[13px] uppercase tracking-[0.04em]">Mi plantel</span>
                               <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">T {myChallengeSquadCounters.starters}/{challengeSquadLimits.starters}</span>
-                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">S {myChallengeSquadCounters.substitutes}/{challengeSquadLimits.substitutes}</span>
-                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">C {myChallengeSquadCounters.selected}/{challengeSquadLimits.selected}</span>
+                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">TIT {myChallengeSquadCounters.starters}/{challengeSquadLimits.starters}</span>
+                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">SUP {myChallengeSquadCounters.substitutes}/{challengeSquadLimits.substitutes}</span>
+                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">CONV {myChallengeSquadCounters.selected}/{challengeSquadLimits.selected}</span>
                               </div>
                             </div>
 
@@ -1324,8 +1319,8 @@ const TeamMatchDetailPage = () => {
                                   <button
                                     key={`squad-tab-${tab.key}`}
                                     type="button"
-                                    className={`whitespace-nowrap rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide transition-colors ${isActive
-                                      ? 'border-[#7d5aff] bg-[#6a43ff]/35 text-white'
+                                    className={`whitespace-nowrap rounded-none border px-1.5 py-1 text-[10px] font-oswald uppercase tracking-wide transition-all duration-[120ms] ease-out ${isActive
+                                      ? 'border-[#7d5aff] bg-[#6a43ff]/35 text-white shadow-[0_0_8px_rgba(125,90,255,0.28)]'
                                       : 'border-white/25 bg-white/5 text-white/75 hover:bg-white/10'
                                       }`}
                                     onClick={() => setSquadFilterTab(tab.key)}
@@ -1341,7 +1336,7 @@ const TeamMatchDetailPage = () => {
                                 {SQUAD_EMPTY_MESSAGE_BY_TAB[squadFilterTab] || 'Sin jugadores en esta sección.'}
                               </p>
                             ) : (
-                              <div className="space-y-1.5">
+                              <div className="space-y-1">
                                 {visibleMySquadRows.map((entry) => {
                                   const availabilityStatus = String(entry?.availability_status || '').toLowerCase();
                                   const selectionStatus = String(entry?.selection_status || '').toLowerCase();
@@ -1352,18 +1347,18 @@ const TeamMatchDetailPage = () => {
                                   return (
                                     <div
                                       key={entry?.id || `${myChallengeTeamId}-${entry?.jugador_id}`}
-                                      className="rounded-none border border-white/10 bg-white/[0.03] px-2 py-1.5"
+                                      className="rounded-none border border-white/10 bg-white/[0.03] px-2 py-1"
                                     >
                                       <div className="flex items-center justify-between gap-2">
                                         <div className="flex items-center gap-2 min-w-0">
-                                          <div className="h-7 w-7 rounded-full border border-white/25 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[9px] font-semibold text-white/90 shrink-0">
+                                          <div className="h-6 w-6 rounded-full border border-white/25 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[9px] font-semibold text-white/90 shrink-0">
                                             {getPlayerAvatar(entry) ? (
                                               <img src={getPlayerAvatar(entry)} alt={getPlayerName(entry)} className="h-full w-full object-cover" />
                                             ) : (
                                               <span>{getInitials(getPlayerName(entry))}</span>
                                             )}
                                           </div>
-                                          <span className="text-white font-oswald text-[13px] truncate">{getPlayerName(entry)}</span>
+                                          <span className="text-white font-oswald text-[12px] truncate">{getPlayerName(entry)}</span>
                                         </div>
                                         <div className="flex flex-wrap items-center justify-end gap-1">
                                           <span className={`inline-flex items-center rounded-none border px-1.5 py-0.5 text-[9px] font-oswald uppercase tracking-wide ${getAvailabilityBadgeClass(availabilityStatus)}`}>
@@ -1375,7 +1370,7 @@ const TeamMatchDetailPage = () => {
                                         </div>
                                       </div>
 
-                                      <div className="mt-1.5 flex items-center gap-1">
+                                      <div className="mt-1 flex items-center gap-1">
                                         {[{
                                           key: 'starter',
                                           label: 'Titular',
@@ -1392,7 +1387,7 @@ const TeamMatchDetailPage = () => {
                                           <button
                                             key={`${entry?.id || entry?.jugador_id}-${action.key}`}
                                             type="button"
-                                            className={`flex-1 rounded-none border px-1.5 py-1 text-[9px] font-oswald uppercase tracking-wide disabled:opacity-60 ${action.active
+                                            className={`flex-1 rounded-none border px-1.5 py-0.5 text-[9px] font-oswald uppercase tracking-wide disabled:opacity-60 ${action.active
                                               ? 'border-[#7d5aff] bg-[#6a43ff]/35 text-white'
                                               : 'border-white/25 bg-white/5 text-white/80'
                                               }`}
@@ -1415,12 +1410,37 @@ const TeamMatchDetailPage = () => {
                             )}
                           </div>
                         ) : (
-                          <div className="rounded-none border border-white/10 bg-white/[0.02] p-2.5">
+                          <div className="rounded-none border border-white/10 bg-white/[0.02] p-2">
                             <p className="text-[12px] text-white/70 font-oswald">
                               El capitán/admin de {myChallengeTeam?.name || 'tu equipo'} va a definir titulares y suplentes.
                             </p>
                           </div>
                         )}
+
+                        {showMySquadManagement ? (
+                          <div className="flex items-center gap-1.5">
+                            {challengeSquadStatus === 'open' ? (
+                              <button
+                                type="button"
+                                className="rounded-none border border-[#FBBF24]/45 bg-[#B45309]/24 px-2 py-1 text-[11px] font-oswald uppercase tracking-wide text-[#FDE68A] disabled:opacity-60"
+                                onClick={() => handleSetChallengeSquadStatus('closed')}
+                                disabled={challengeSquadSaving || !challengeSquadEditable}
+                              >
+                                Cerrar plantel
+                              </button>
+                            ) : null}
+                            {challengeSquadStatus === 'closed' ? (
+                              <button
+                                type="button"
+                                className="rounded-none border border-[#5AD17B]/45 bg-[#2F9E44]/24 px-2 py-1 text-[11px] font-oswald uppercase tracking-wide text-[#D6F8E2] disabled:opacity-60"
+                                onClick={() => handleSetChallengeSquadStatus('open')}
+                                disabled={challengeSquadSaving}
+                              >
+                                Reabrir plantel
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     )}
                   </div>
