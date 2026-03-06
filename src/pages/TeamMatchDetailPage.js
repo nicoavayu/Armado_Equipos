@@ -146,6 +146,9 @@ const getPlayerAvatar = (member) => (
 const modalActionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 const modalActionPrimaryClass = `${modalActionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
 const modalActionSecondaryClass = `${modalActionButtonBaseClass} !border !border-[rgba(98,117,184,0.58)] !bg-[rgba(20,31,70,0.82)] !text-white/92 hover:!bg-[rgba(30,45,94,0.95)]`;
+const squadActionButtonBaseClass = 'min-h-[44px] px-4 py-2.5 rounded-none border font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
+const squadActionPrimaryClass = `${squadActionButtonBaseClass} border-[#7d5aff] bg-[#6a43ff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95 disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed`;
+const squadActionSecondaryClass = `${squadActionButtonBaseClass} border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:opacity-55 disabled:cursor-not-allowed`;
 
 const getPlayerProfile = (member) => {
   const userId = member?.user_id || member?.jugador?.usuario_id || null;
@@ -1199,29 +1202,23 @@ const TeamMatchDetailPage = () => {
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="text-[16px] text-white font-oswald">¿Jugás este partido?</span>
                           </div>
-                          <div className="mt-1.5 flex items-center gap-2">
-                            <Button
+                          <div className="mt-1.5 flex items-stretch gap-2">
+                            <button
+                              type="button"
                               onClick={() => handleChangeAvailability('available')}
                               disabled={challengeSquadSaving || !challengeSquadEditable}
-                              className={`!w-auto !flex-1 !h-[50px] !rounded-[20px] !text-[20px] !tracking-[0.02em] ${
-                                availabilityStatusCurrent === 'available'
-                                  ? ''
-                                  : '!border-white/15 !bg-primary/70 !shadow-none'
-                              }`}
+                              className={`flex-1 ${availabilityStatusCurrent === 'available' ? squadActionPrimaryClass : squadActionSecondaryClass}`}
                             >
                               Estoy
-                            </Button>
-                            <Button
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => handleChangeAvailability('unavailable')}
                               disabled={challengeSquadSaving || !challengeSquadEditable}
-                              className={`!w-auto !flex-1 !h-[50px] !rounded-[20px] !text-[20px] !tracking-[0.02em] ${
-                                availabilityStatusCurrent === 'unavailable'
-                                  ? ''
-                                  : '!border-white/15 !bg-primary/70 !shadow-none'
-                              }`}
+                              className={`flex-1 ${availabilityStatusCurrent === 'unavailable' ? squadActionPrimaryClass : squadActionSecondaryClass}`}
                             >
                               No puedo
-                            </Button>
+                            </button>
                           </div>
                           <p className="text-[12px] text-white/75 font-oswald">
                             Estado actual: <span className="text-white">{personalChallengeCurrentStateLabel}</span>
@@ -1231,25 +1228,27 @@ const TeamMatchDetailPage = () => {
                               Convocatoria cerrada: solo lectura.
                             </p>
                           ) : null}
+                          {!isSquadRosterViewOpen ? (
+                            <>
+                              <div className="h-px bg-white/10" />
+                              <button
+                                type="button"
+                                onClick={() => setIsSquadRosterViewOpen(true)}
+                                disabled={!hasAvailabilityResponse}
+                                className={`w-full ${squadActionPrimaryClass}`}
+                              >
+                                Mi plantel
+                              </button>
+                              {!hasAvailabilityResponse ? (
+                                <p className="text-[11px] text-white/60 font-oswald">
+                                  Confirmá si jugás para abrir Mi plantel.
+                                </p>
+                              ) : null}
+                            </>
+                          ) : null}
                         </div>
 
-                        {!isSquadRosterViewOpen ? (
-                          <div className="rounded-none border border-white/10 bg-white/[0.02] p-2.5 space-y-2">
-                            <p className="text-[12px] text-white/75 font-oswald">Mi plantel</p>
-                            <Button
-                              onClick={() => setIsSquadRosterViewOpen(true)}
-                              disabled={!hasAvailabilityResponse}
-                              className="!h-[54px] !rounded-[24px] !text-[24px]"
-                            >
-                              Mi plantel
-                            </Button>
-                            {!hasAvailabilityResponse ? (
-                              <p className="text-[11px] text-white/60 font-oswald">
-                                Confirmá si jugás para abrir Mi plantel.
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : (
+                        {isSquadRosterViewOpen ? (
                           <div className="space-y-3">
                             <div className="flex items-center justify-between gap-2">
                               <button
@@ -1374,7 +1373,7 @@ const TeamMatchDetailPage = () => {
                               </div>
                             ) : null}
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     )}
                   </div>
