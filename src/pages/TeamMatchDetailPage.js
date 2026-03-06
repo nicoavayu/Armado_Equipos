@@ -129,9 +129,21 @@ const getPersonalChallengeCurrentStateLabel = (row) => {
   if (selection === 'starter' && row?.approved_by_captain) return 'Titular';
   if (selection === 'substitute' && row?.approved_by_captain) return 'Suplente';
   if (selection === 'not_selected' && row?.approved_by_captain) return 'Afuera';
-  const availability = String(row?.availability_status || '').trim().toLowerCase();
-  if (availability === 'available' || availability === 'unavailable') return 'Confirmado';
-  return '';
+  return 'Pendiente';
+};
+
+const getAvailabilityStatusLabel = (status) => {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (normalized === 'available') return 'Disponible';
+  if (normalized === 'unavailable') return 'No disponible';
+  return 'Pendiente';
+};
+
+const getAvailabilityIndicatorClass = (status) => {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (normalized === 'available') return 'bg-[#22c55e] shadow-[0_0_8px_rgba(34,197,94,0.6)]';
+  if (normalized === 'unavailable') return 'bg-[#ef4444] shadow-[0_0_8px_rgba(239,68,68,0.6)]';
+  return 'bg-[#fbbf24] shadow-[0_0_8px_rgba(251,191,36,0.6)]';
 };
 
 const normalizeIdentityToken = (value) => String(value || '').trim();
@@ -297,6 +309,7 @@ const TeamMatchDetailPage = () => {
   const [challengeHeadToHeadLoading, setChallengeHeadToHeadLoading] = useState(false);
   const [showChallengeHeadToHead, setShowChallengeHeadToHead] = useState(false);
   const [squadFilterTab, setSquadFilterTab] = useState('available');
+  const [isSquadRosterViewOpen, setIsSquadRosterViewOpen] = useState(false);
   const actionsMenuButtonRef = useRef(null);
 
   useEffect(() => {
@@ -723,6 +736,7 @@ const TeamMatchDetailPage = () => {
 
   useEffect(() => {
     setSquadFilterTab('available');
+    setIsSquadRosterViewOpen(false);
   }, [match?.challenge_id, myChallengeTeamId]);
 
   const showChallengeInlineNotice = useCallback((type, message) => {
@@ -879,17 +893,17 @@ const TeamMatchDetailPage = () => {
   ]);
 
   const handleSetChallengeSquadStatus = useCallback(async (nextStatus) => {
-    if (!match?.challenge_id || !canRenderPrivateChallengeSquad) return;
+    if (!match?.challenge_id || !canRenderPrivateChallengeSquad) return false;
     if (!canManageMyChallengeSquad) {
       showChallengeInlineNotice('warning', 'Solo el capitán puede cambiar el estado del plantel.');
-      return;
+      return false;
     }
     const normalizedNextStatus = String(nextStatus || '').trim().toLowerCase();
     if (!['open', 'closed'].includes(normalizedNextStatus)) {
       showChallengeInlineNotice('warning', 'Estado de convocatoria inválido.');
-      return;
+      return false;
     }
-    if (normalizedNextStatus === challengeSquadStatus) return;
+    if (normalizedNextStatus === challengeSquadStatus) return true;
 
     try {
       setChallengeSquadSaving(true);
@@ -905,8 +919,10 @@ const TeamMatchDetailPage = () => {
           ? 'Plantel cerrado para este desafío.'
           : 'Convocatoria reabierta.',
       );
+      return true;
     } catch (error) {
       showChallengeInlineNotice('warning', error?.message || 'No se pudo actualizar el estado de la convocatoria.');
+      return false;
     } finally {
       setChallengeSquadSaving(false);
     }
@@ -918,6 +934,13 @@ const TeamMatchDetailPage = () => {
     match,
     showChallengeInlineNotice,
   ]);
+
+  const handleConfirmSquadAndBack = useCallback(async () => {
+    const success = await handleSetChallengeSquadStatus('closed');
+    if (success) {
+      setIsSquadRosterViewOpen(false);
+    }
+  }, [handleSetChallengeSquadStatus]);
 
   const challengeHeadToHeadView = useMemo(() => {
     if (!match) return null;
@@ -1246,11 +1269,9 @@ const TeamMatchDetailPage = () => {
                               No puedo
                             </button>
                           </div>
-                          {personalChallengeCurrentStateLabel ? (
-                            <p className="text-[12px] text-white/75 font-oswald">
-                              Estado actual: <span className="text-white">{personalChallengeCurrentStateLabel}</span>
-                            </p>
-                          ) : null}
+                          <p className="text-[12px] text-white/75 font-oswald">
+                            Estado actual: <span className="text-white">{personalChallengeCurrentStateLabel}</span>
+                          </p>
                           {!challengeSquadEditable ? (
                             <p className="text-[11px] text-white/55 font-oswald">
                               Convocatoria cerrada: solo lectura.
@@ -1258,17 +1279,43 @@ const TeamMatchDetailPage = () => {
                           ) : null}
                         </div>
 
-                        {showMySquadManagement ? (
+                        {!isSquadRosterViewOpen ? (
+                          <div className="rounded-none border border-white/10 bg-white/[0.02] p-2.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-[13px] text-white font-oswald uppercase tracking-[0.04em]">Mi plantel</p>
+                                <p className="text-[11px] text-white/70 font-oswald">
+                                  {showMySquadManagement
+                                    ? 'Administrá titulares y suplentes en una vista dedicada.'
+                                    : 'El capitán de tu equipo administra el plantel.'}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                className="rounded-none border border-white/25 bg-white/5 px-3 py-1 text-[11px] font-oswald uppercase tracking-wide text-white/85 hover:bg-white/10"
+                                onClick={() => setIsSquadRosterViewOpen(true)}
+                              >
+                                Ver plantel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
                           <div className="space-y-2">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <button
+                                type="button"
+                                className="rounded-none border border-white/25 bg-white/5 px-2.5 py-1 text-[10px] font-oswald uppercase tracking-wide text-white/80 hover:bg-white/10"
+                                onClick={() => setIsSquadRosterViewOpen(false)}
+                              >
+                                Volver
+                              </button>
                               <span className="text-white font-oswald text-[13px] uppercase tracking-[0.04em]">Mi plantel</span>
                             </div>
+
                             <p className="text-[11px] text-white/78 font-oswald">
-                              Titulares {myChallengeSquadCounters.starters}/{challengeSquadLimits.starters}
+                              Titulares {myChallengeSquadCounters.starters} / {challengeSquadLimits.starters}
                               <span className="mx-1 text-white/45">·</span>
-                              Suplentes {myChallengeSquadCounters.substitutes}/{challengeSquadLimits.substitutes}
-                              <span className="mx-1 text-white/45">·</span>
-                              Convocados {myChallengeSquadCounters.selected}/{challengeSquadLimits.selected}
+                              Suplentes {myChallengeSquadCounters.substitutes} / {challengeSquadLimits.substitutes}
                             </p>
 
                             <div className="space-y-2">
@@ -1276,9 +1323,9 @@ const TeamMatchDetailPage = () => {
                                 const isActive = squadFilterTab === tab.key;
                                 const countLabel = tab.count === 1 ? 'jugador' : 'jugadores';
                                 const summary = tab.key === 'starter'
-                                  ? `${tab.count} / ${challengeSquadLimits.starters} jugadores`
+                                  ? `${tab.count} / ${challengeSquadLimits.starters}`
                                   : tab.key === 'substitute'
-                                    ? `${tab.count} / ${challengeSquadLimits.substitutes} jugadores`
+                                    ? `${tab.count} / ${challengeSquadLimits.substitutes}`
                                     : tab.key === 'available'
                                       ? `${tab.count} ${countLabel} disponibles`
                                       : `${tab.count} ${countLabel}`;
@@ -1305,9 +1352,6 @@ const TeamMatchDetailPage = () => {
                                         <p className="text-[14px] font-oswald text-white">{tab.label}</p>
                                         <p className="text-[11px] font-oswald text-white/75">{summary}</p>
                                       </div>
-                                      <span className="text-[10px] font-oswald uppercase tracking-wide text-white/80">
-                                        {isActive ? 'Abierto' : 'Abrir'}
-                                      </span>
                                     </div>
                                     <p className="mt-1 text-[11px] font-oswald text-white/70">
                                       → {ctaLabel}
@@ -1334,16 +1378,11 @@ const TeamMatchDetailPage = () => {
                               ) : (
                                 <div className="space-y-1">
                                   {visibleMySquadRows.map((entry) => {
+                                    const availabilityStatus = String(entry?.availability_status || '').toLowerCase();
                                     const selectionStatus = String(entry?.selection_status || '').toLowerCase();
                                     const isStarter = selectionStatus === 'starter' && Boolean(entry?.approved_by_captain);
                                     const isSubstitute = selectionStatus === 'substitute' && Boolean(entry?.approved_by_captain);
                                     const isOut = !isStarter && !isSubstitute;
-                                    const playerSelectionLabel = isStarter ? 'Titular' : isSubstitute ? 'Suplente' : 'Afuera';
-                                    const playerSelectionClass = isStarter
-                                      ? 'text-[#D6F8E2]'
-                                      : isSubstitute
-                                        ? 'text-[#D4EBFF]'
-                                        : 'text-[#F8D5FF]';
 
                                     return (
                                       <div
@@ -1359,12 +1398,11 @@ const TeamMatchDetailPage = () => {
                                                 <span>{getInitials(getPlayerName(entry))}</span>
                                               )}
                                             </div>
-                                            <div className="min-w-0 flex items-center gap-2">
-                                              <span className="block text-white font-oswald text-[12px] truncate">{getPlayerName(entry)}</span>
-                                              <span className={`block text-[10px] font-oswald uppercase tracking-[0.06em] ${playerSelectionClass}`}>
-                                                {playerSelectionLabel}
-                                              </span>
-                                            </div>
+                                            <span className="block text-white font-oswald text-[12px] truncate">{getPlayerName(entry)}</span>
+                                          </div>
+                                          <div className="inline-flex items-center gap-1.5 text-[10px] text-white/75 font-oswald shrink-0">
+                                            <span className={`h-2.5 w-2.5 rounded-full ${getAvailabilityIndicatorClass(availabilityStatus)}`} />
+                                            <span>{getAvailabilityStatusLabel(availabilityStatus)}</span>
                                           </div>
                                         </div>
 
@@ -1395,7 +1433,7 @@ const TeamMatchDetailPage = () => {
                                                 selectionStatus: action.key,
                                                 row: entry,
                                               })}
-                                              disabled={challengeSquadSaving || !challengeSquadEditable}
+                                              disabled={challengeSquadSaving || !challengeSquadEditable || !showMySquadManagement}
                                             >
                                               {action.label}
                                             </button>
@@ -1407,39 +1445,33 @@ const TeamMatchDetailPage = () => {
                                 </div>
                               )}
                             </div>
-                          </div>
-                        ) : (
-                          <div className="rounded-none border border-white/10 bg-white/[0.02] p-2">
-                            <p className="text-[12px] text-white/70 font-oswald">
-                              El capitán de {myChallengeTeam?.name || 'tu equipo'} va a definir titulares y suplentes.
-                            </p>
+
+                            {showMySquadManagement ? (
+                              <div className="mt-3 flex items-center gap-1.5">
+                                {challengeSquadStatus === 'open' ? (
+                                  <button
+                                    type="button"
+                                    className="min-w-[172px] rounded-none border border-[#FBBF24]/45 bg-[#B45309]/24 px-3 py-1.5 text-[12px] font-oswald uppercase tracking-wide text-[#FDE68A] disabled:opacity-60"
+                                    onClick={handleConfirmSquadAndBack}
+                                    disabled={challengeSquadSaving || !challengeSquadEditable}
+                                  >
+                                    Confirmar plantel
+                                  </button>
+                                ) : null}
+                                {challengeSquadStatus === 'closed' ? (
+                                  <button
+                                    type="button"
+                                    className="rounded-none border border-[#5AD17B]/45 bg-[#2F9E44]/24 px-2 py-1 text-[11px] font-oswald uppercase tracking-wide text-[#D6F8E2] disabled:opacity-60"
+                                    onClick={() => handleSetChallengeSquadStatus('open')}
+                                    disabled={challengeSquadSaving}
+                                  >
+                                    Reabrir plantel
+                                  </button>
+                                ) : null}
+                              </div>
+                            ) : null}
                           </div>
                         )}
-
-                        {showMySquadManagement ? (
-                          <div className="mt-3 flex items-center gap-1.5">
-                            {challengeSquadStatus === 'open' ? (
-                              <button
-                                type="button"
-                                className="min-w-[172px] rounded-none border border-[#FBBF24]/45 bg-[#B45309]/24 px-3 py-1.5 text-[12px] font-oswald uppercase tracking-wide text-[#FDE68A] disabled:opacity-60"
-                                onClick={() => handleSetChallengeSquadStatus('closed')}
-                                disabled={challengeSquadSaving || !challengeSquadEditable}
-                              >
-                                Confirmar plantel
-                              </button>
-                            ) : null}
-                            {challengeSquadStatus === 'closed' ? (
-                              <button
-                                type="button"
-                                className="rounded-none border border-[#5AD17B]/45 bg-[#2F9E44]/24 px-2 py-1 text-[11px] font-oswald uppercase tracking-wide text-[#D6F8E2] disabled:opacity-60"
-                                onClick={() => handleSetChallengeSquadStatus('open')}
-                                disabled={challengeSquadSaving}
-                              >
-                                Reabrir plantel
-                              </button>
-                            ) : null}
-                          </div>
-                        ) : null}
                       </div>
                     )}
                   </div>
