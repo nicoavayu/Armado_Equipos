@@ -692,6 +692,10 @@ const TeamMatchDetailPage = () => {
     () => challengeSquadRowsByTab?.[squadFilterTab] || [],
     [challengeSquadRowsByTab, squadFilterTab],
   );
+  const selectedSquadFilterTabOption = useMemo(
+    () => squadFilterTabOptions.find((tab) => tab.key === squadFilterTab) || squadFilterTabOptions[0] || null,
+    [squadFilterTab, squadFilterTabOptions],
+  );
 
   const challengeSquadViewState = useMemo(() => resolveChallengeSquadViewState({
     isChallengeMatch,
@@ -1267,104 +1271,142 @@ const TeamMatchDetailPage = () => {
                               Convocados {myChallengeSquadCounters.selected}/{challengeSquadLimits.selected}
                             </p>
 
-                            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                            <div className="space-y-2">
                               {squadFilterTabOptions.map((tab) => {
                                 const isActive = squadFilterTab === tab.key;
+                                const countLabel = tab.count === 1 ? 'jugador' : 'jugadores';
+                                const summary = tab.key === 'starter'
+                                  ? `${tab.count} / ${challengeSquadLimits.starters} jugadores`
+                                  : tab.key === 'substitute'
+                                    ? `${tab.count} / ${challengeSquadLimits.substitutes} jugadores`
+                                    : tab.key === 'available'
+                                      ? `${tab.count} ${countLabel} disponibles`
+                                      : `${tab.count} ${countLabel}`;
+                                const ctaLabel = tab.key === 'starter'
+                                  ? 'Administrar titulares'
+                                  : tab.key === 'substitute'
+                                    ? 'Administrar suplentes'
+                                    : tab.key === 'available'
+                                      ? 'Ver jugadores'
+                                      : 'Ver lista';
+
                                 return (
                                   <button
-                                    key={`squad-tab-${tab.key}`}
+                                    key={`squad-nav-card-${tab.key}`}
                                     type="button"
-                                    className={`whitespace-nowrap rounded-none border px-1.5 py-1 text-[10px] font-oswald uppercase tracking-wide transition-all duration-[120ms] ease-out ${isActive
-                                      ? 'border-[#7d5aff] bg-[#6a43ff]/35 text-white shadow-[0_0_8px_rgba(125,90,255,0.28)]'
-                                      : 'border-white/25 bg-white/5 text-white/75 hover:bg-white/10'
+                                    className={`w-full rounded-none border px-3 py-2 text-left transition-all duration-[140ms] ease-out ${isActive
+                                      ? 'border-[#7d5aff] bg-[#6a43ff]/20 shadow-[0_0_10px_rgba(125,90,255,0.2)]'
+                                      : 'border-white/20 bg-white/[0.03] hover:bg-white/[0.06]'
                                       }`}
                                     onClick={() => setSquadFilterTab(tab.key)}
                                   >
-                                    {tab.label} ({tab.count})
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="min-w-0">
+                                        <p className="text-[14px] font-oswald text-white">{tab.label}</p>
+                                        <p className="text-[11px] font-oswald text-white/75">{summary}</p>
+                                      </div>
+                                      <span className="text-[10px] font-oswald uppercase tracking-wide text-white/80">
+                                        {isActive ? 'Abierto' : 'Abrir'}
+                                      </span>
+                                    </div>
+                                    <p className="mt-1 text-[11px] font-oswald text-white/70">
+                                      → {ctaLabel}
+                                    </p>
                                   </button>
                                 );
                               })}
                             </div>
 
-                            {visibleMySquadRows.length === 0 ? (
-                              <p className="text-[12px] text-white/60 font-oswald">
-                                {SQUAD_EMPTY_MESSAGE_BY_TAB[squadFilterTab] || 'Sin jugadores en esta sección.'}
-                              </p>
-                            ) : (
-                              <div className="space-y-1">
-                                {visibleMySquadRows.map((entry) => {
-                                  const selectionStatus = String(entry?.selection_status || '').toLowerCase();
-                                  const isStarter = selectionStatus === 'starter' && Boolean(entry?.approved_by_captain);
-                                  const isSubstitute = selectionStatus === 'substitute' && Boolean(entry?.approved_by_captain);
-                                  const isOut = !isStarter && !isSubstitute;
-                                  const playerSelectionLabel = isStarter ? 'Titular' : isSubstitute ? 'Suplente' : 'Afuera';
-                                  const playerSelectionClass = isStarter
-                                    ? 'text-[#D6F8E2]'
-                                    : isSubstitute
-                                      ? 'text-[#D4EBFF]'
-                                      : 'text-[#F8D5FF]';
+                            <div className="rounded-none border border-white/10 bg-white/[0.03] p-2">
+                              <div className="mb-1.5 flex items-center justify-between gap-2">
+                                <span className="text-[12px] font-oswald text-white">
+                                  {selectedSquadFilterTabOption?.label || 'Jugadores'}
+                                </span>
+                                <span className="text-[10px] font-oswald uppercase tracking-wide text-white/65">
+                                  {selectedSquadFilterTabOption?.count ?? visibleMySquadRows.length}
+                                </span>
+                              </div>
 
-                                  return (
-                                    <div
-                                      key={entry?.id || `${myChallengeTeamId}-${entry?.jugador_id}`}
-                                      className="rounded-none border border-white/10 bg-white/[0.03] px-2 py-0.5"
-                                    >
-                                      <div className="flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                          <div className="h-6 w-6 rounded-full border border-white/25 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[9px] font-semibold text-white/90 shrink-0">
-                                            {getPlayerAvatar(entry) ? (
-                                              <img src={getPlayerAvatar(entry)} alt={getPlayerName(entry)} className="h-full w-full object-cover" />
-                                            ) : (
-                                              <span>{getInitials(getPlayerName(entry))}</span>
-                                            )}
-                                          </div>
-                                          <div className="min-w-0 flex items-center gap-2">
-                                            <span className="block text-white font-oswald text-[12px] truncate">{getPlayerName(entry)}</span>
-                                            <span className={`block text-[10px] font-oswald uppercase tracking-[0.06em] ${playerSelectionClass}`}>
-                                              {playerSelectionLabel}
-                                            </span>
+                              {visibleMySquadRows.length === 0 ? (
+                                <p className="text-[12px] text-white/60 font-oswald">
+                                  {SQUAD_EMPTY_MESSAGE_BY_TAB[squadFilterTab] || 'Sin jugadores en esta sección.'}
+                                </p>
+                              ) : (
+                                <div className="space-y-1">
+                                  {visibleMySquadRows.map((entry) => {
+                                    const selectionStatus = String(entry?.selection_status || '').toLowerCase();
+                                    const isStarter = selectionStatus === 'starter' && Boolean(entry?.approved_by_captain);
+                                    const isSubstitute = selectionStatus === 'substitute' && Boolean(entry?.approved_by_captain);
+                                    const isOut = !isStarter && !isSubstitute;
+                                    const playerSelectionLabel = isStarter ? 'Titular' : isSubstitute ? 'Suplente' : 'Afuera';
+                                    const playerSelectionClass = isStarter
+                                      ? 'text-[#D6F8E2]'
+                                      : isSubstitute
+                                        ? 'text-[#D4EBFF]'
+                                        : 'text-[#F8D5FF]';
+
+                                    return (
+                                      <div
+                                        key={entry?.id || `${myChallengeTeamId}-${entry?.jugador_id}`}
+                                        className="rounded-none border border-white/10 bg-white/[0.03] px-2 py-0.5"
+                                      >
+                                        <div className="flex items-center justify-between gap-2">
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <div className="h-6 w-6 rounded-full border border-white/25 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[9px] font-semibold text-white/90 shrink-0">
+                                              {getPlayerAvatar(entry) ? (
+                                                <img src={getPlayerAvatar(entry)} alt={getPlayerName(entry)} className="h-full w-full object-cover" />
+                                              ) : (
+                                                <span>{getInitials(getPlayerName(entry))}</span>
+                                              )}
+                                            </div>
+                                            <div className="min-w-0 flex items-center gap-2">
+                                              <span className="block text-white font-oswald text-[12px] truncate">{getPlayerName(entry)}</span>
+                                              <span className={`block text-[10px] font-oswald uppercase tracking-[0.06em] ${playerSelectionClass}`}>
+                                                {playerSelectionLabel}
+                                              </span>
+                                            </div>
                                           </div>
                                         </div>
-                                      </div>
 
-                                      <div className="mt-0.5 flex items-center gap-1">
-                                        {[{
-                                          key: 'starter',
-                                          label: 'Titular',
-                                          active: isStarter,
-                                        }, {
-                                          key: 'substitute',
-                                          label: 'Suplente',
-                                          active: isSubstitute,
-                                        }, {
-                                          key: 'not_selected',
-                                          label: 'Afuera',
-                                          active: isOut,
-                                        }].map((action) => (
-                                          <button
-                                            key={`${entry?.id || entry?.jugador_id}-${action.key}`}
-                                            type="button"
-                                            className={`flex-1 rounded-none border px-2.5 py-1 text-[11px] font-oswald uppercase tracking-wide transition-all duration-[140ms] ease-out disabled:opacity-60 ${action.active
-                                              ? 'border-[#7d5aff] bg-[#6a43ff]/35 text-white shadow-[0_0_10px_rgba(125,90,255,0.22)]'
-                                              : 'border-white/25 bg-white/5 text-white/80 hover:bg-white/10'
-                                              }`}
-                                            onClick={() => handleChangeSelection({
-                                              teamId: myChallengeTeamId,
-                                              playerId: entry?.jugador_id,
-                                              selectionStatus: action.key,
-                                              row: entry,
-                                            })}
-                                            disabled={challengeSquadSaving || !challengeSquadEditable}
-                                          >
-                                            {action.label}
-                                          </button>
-                                        ))}
+                                        <div className="mt-0.5 flex items-center gap-1">
+                                          {[{
+                                            key: 'starter',
+                                            label: 'Titular',
+                                            active: isStarter,
+                                          }, {
+                                            key: 'substitute',
+                                            label: 'Suplente',
+                                            active: isSubstitute,
+                                          }, {
+                                            key: 'not_selected',
+                                            label: 'Afuera',
+                                            active: isOut,
+                                          }].map((action) => (
+                                            <button
+                                              key={`${entry?.id || entry?.jugador_id}-${action.key}`}
+                                              type="button"
+                                              className={`flex-1 rounded-none border px-2.5 py-1 text-[11px] font-oswald uppercase tracking-wide transition-all duration-[140ms] ease-out disabled:opacity-60 ${action.active
+                                                ? 'border-[#7d5aff] bg-[#6a43ff]/35 text-white shadow-[0_0_10px_rgba(125,90,255,0.22)]'
+                                                : 'border-white/25 bg-white/5 text-white/80 hover:bg-white/10'
+                                                }`}
+                                              onClick={() => handleChangeSelection({
+                                                teamId: myChallengeTeamId,
+                                                playerId: entry?.jugador_id,
+                                                selectionStatus: action.key,
+                                                row: entry,
+                                              })}
+                                              disabled={challengeSquadSaving || !challengeSquadEditable}
+                                            >
+                                              {action.label}
+                                            </button>
+                                          ))}
+                                        </div>
                                       </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         ) : (
                           <div className="rounded-none border border-white/10 bg-white/[0.02] p-2">
