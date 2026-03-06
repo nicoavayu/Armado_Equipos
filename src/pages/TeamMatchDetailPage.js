@@ -112,9 +112,12 @@ const getSquadStatusBadgeClass = (statusValue) => {
 
 const getPersonalChallengeCurrentStateLabel = (row) => {
   const selection = String(row?.selection_status || '').trim().toLowerCase();
+  const availability = String(row?.availability_status || '').trim().toLowerCase();
   if (selection === 'starter' && row?.approved_by_captain) return 'Titular';
   if (selection === 'substitute' && row?.approved_by_captain) return 'Suplente';
   if (selection === 'not_selected' && row?.approved_by_captain) return 'Afuera';
+  if (availability === 'available') return 'Disponible';
+  if (availability === 'unavailable') return 'No disponible';
   return 'Pendiente';
 };
 
@@ -146,7 +149,7 @@ const getPlayerAvatar = (member) => (
 const modalActionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 const modalActionPrimaryClass = `${modalActionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
 const modalActionSecondaryClass = `${modalActionButtonBaseClass} !border !border-[rgba(98,117,184,0.58)] !bg-[rgba(20,31,70,0.82)] !text-white/92 hover:!bg-[rgba(30,45,94,0.95)]`;
-const squadActionButtonBaseClass = 'min-h-[44px] px-4 py-2.5 rounded-none border font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center text-center sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
+const squadActionButtonBaseClass = 'min-h-[44px] px-4 py-2.5 rounded-none border font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center text-center cursor-pointer sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
 const squadActionPrimaryClass = `${squadActionButtonBaseClass} border-[#7d5aff] bg-[#6a43ff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95 disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed`;
 const squadActionSecondaryClass = `${squadActionButtonBaseClass} border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:opacity-55 disabled:cursor-not-allowed`;
 
@@ -1281,11 +1284,12 @@ const TeamMatchDetailPage = () => {
                               ) : (
                                 <div className="space-y-2">
                                   {myChallengeSquadRows.map((entry) => {
-                                    const availabilityStatus = String(entry?.availability_status || '').toLowerCase();
+                                    const availabilityStatus = String(entry?.availability_status || '').trim().toLowerCase();
                                     const selectionStatus = String(entry?.selection_status || '').toLowerCase();
                                     const isStarter = selectionStatus === 'starter' && Boolean(entry?.approved_by_captain);
                                     const isSubstitute = selectionStatus === 'substitute' && Boolean(entry?.approved_by_captain);
                                     const isOut = !isStarter && !isSubstitute;
+                                    const canAssignPlayer = availabilityStatus === 'available';
 
                                     return (
                                       <div
@@ -1326,7 +1330,7 @@ const TeamMatchDetailPage = () => {
                                             <button
                                               key={`${entry?.id || entry?.jugador_id}-${action.key}`}
                                               type="button"
-                                              className={`flex-1 rounded-none border px-2.5 py-1 text-[11px] font-oswald uppercase tracking-wide transition-all duration-[140ms] ease-out disabled:opacity-60 ${action.active
+                                              className={`flex-1 rounded-none border px-2.5 py-1 text-[11px] font-oswald uppercase tracking-wide transition-all duration-[140ms] ease-out disabled:opacity-55 disabled:cursor-not-allowed ${action.active
                                                 ? 'border-[#7d5aff] bg-[#6a43ff]/35 text-white shadow-[0_0_10px_rgba(125,90,255,0.22)]'
                                                 : 'border-white/25 bg-white/5 text-white/80 hover:bg-white/10'
                                                 }`}
@@ -1336,7 +1340,7 @@ const TeamMatchDetailPage = () => {
                                                 selectionStatus: action.key,
                                                 row: entry,
                                               })}
-                                              disabled={challengeSquadSaving || !challengeSquadEditable || !showMySquadManagement}
+                                              disabled={challengeSquadSaving || !challengeSquadEditable || !showMySquadManagement || !canAssignPlayer}
                                             >
                                               {action.label}
                                             </button>
@@ -1352,23 +1356,24 @@ const TeamMatchDetailPage = () => {
                             {showMySquadManagement ? (
                               <div className="pt-1 space-y-2">
                                 {challengeSquadStatus === 'open' ? (
-                                  <Button
+                                  <button
+                                    type="button"
                                     onClick={handleConfirmSquadAndBack}
                                     disabled={challengeSquadSaving || !challengeSquadEditable}
-                                    className="!h-[54px] !rounded-[24px] !text-[24px]"
+                                    className={`w-full ${squadActionPrimaryClass}`}
                                   >
                                     Confirmar plantel
-                                  </Button>
+                                  </button>
                                 ) : null}
                                 {challengeSquadStatus === 'closed' ? (
-                                  <Button
-                                    variant="secondary"
+                                  <button
+                                    type="button"
                                     onClick={() => handleSetChallengeSquadStatus('open')}
                                     disabled={challengeSquadSaving}
-                                    className="!h-[50px] !rounded-[22px] !text-[20px]"
+                                    className={`w-full ${squadActionSecondaryClass}`}
                                   >
                                     Reabrir plantel
-                                  </Button>
+                                  </button>
                                 ) : null}
                               </div>
                             ) : null}
