@@ -11,7 +11,7 @@ const CTA_BY_STATUS = {
   canceled: 'Cancelado',
 };
 
-const CHIP_BASE_CLASS = 'font-oswald text-[11px] font-semibold px-2.5 py-1.5 shrink-0 whitespace-nowrap';
+const CHIP_BASE_CLASS = 'font-oswald text-[11px] font-semibold px-2.5 py-1.5 rounded-none shrink-0 whitespace-nowrap';
 
 const primaryCtaClass = 'w-full flex-1 font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff]';
 const secondaryCtaClass = 'w-full flex-1 font-bebas text-base px-4 py-2.5 border border-white/35 rounded-none cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-white/5 hover:bg-white/10';
@@ -122,24 +122,24 @@ const ChallengeCard = ({
   return (
     <div
       className={`relative w-full border backdrop-blur-sm p-4 shadow-[0_10px_24px_rgba(0,0,0,0.28)] font-oswald ${isOwnChallenge
-        ? 'border-[rgba(192,38,211,0.56)] bg-[#1e293b]/92 rounded-[28px]'
-        : 'border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92 rounded-[28px]'
+        ? 'border-[rgba(192,38,211,0.56)] bg-[#1e293b]/92'
+        : 'border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92'
         }`}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex flex-wrap items-center gap-2 min-w-0">
           {isOwnChallenge ? (
-            <span className={`${CHIP_BASE_CLASS} rounded-[999px] border border-[#E879F9]/45 bg-[#C026D3]/18 text-[#F5D0FE]`}>
+            <span className={`${CHIP_BASE_CLASS} border border-[#E879F9]/45 bg-[#C026D3]/18 text-[#F5D0FE]`}>
               Mi desafio
             </span>
           ) : null}
-          <span className={`${CHIP_BASE_CLASS} rounded-[999px] inline-flex items-center gap-1 border ${getFormatBadgeClass(challengeFormatLabel)}`}>
+          <span className={`${CHIP_BASE_CLASS} inline-flex items-center gap-1 border ${getFormatBadgeClass(challengeFormatLabel)}`}>
             <Flag size={11} /> {challengeFormatLabel}
           </span>
-          <span className={`${CHIP_BASE_CLASS} rounded-[999px] border ${getSkillBadgeClass(challenge?.skill_level || challenge?.challenger_team?.skill_level)}`}>
+          <span className={`${CHIP_BASE_CLASS} border ${getSkillBadgeClass(challenge?.skill_level || challenge?.challenger_team?.skill_level)}`}>
             {challengeSkillLabel}
           </span>
-          <span className={`${CHIP_BASE_CLASS} rounded-[999px] inline-flex items-center gap-1 border border-white/20 bg-white/5 text-white/90`}>
+          <span className={`${CHIP_BASE_CLASS} inline-flex items-center gap-1 border border-white/20 bg-white/5 text-white/90`}>
             <CalendarClock size={11} /> {formatChallengeDate(challenge?.scheduled_at)}
           </span>
         </div>
@@ -187,7 +187,7 @@ const ChallengeCard = ({
 
       {hasPendingLocation ? (
         <div className="mt-3 flex items-center">
-          <span className="inline-flex items-center gap-1 rounded-[999px] border border-white/20 px-2.5 py-1.5 bg-white/5 text-xs text-white/75 font-oswald">
+          <span className="inline-flex items-center gap-1 rounded-none border border-white/20 px-2.5 py-1.5 bg-white/5 text-xs text-white/75 font-oswald">
             <MapPin size={12} /> A coordinar
           </span>
         </div>
