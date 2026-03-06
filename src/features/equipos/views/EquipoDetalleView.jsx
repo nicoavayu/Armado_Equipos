@@ -470,6 +470,24 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     setAddMemberChoiceOpen(true);
   };
 
+  const handleOpenCreateMemberFromChoice = () => {
+    if (isRosterFull) {
+      notifyBlockingError(`Plantilla completa: ${rosterUsageLabel}.`);
+      return;
+    }
+    setAddMemberChoiceOpen(false);
+    openCreateMemberModal();
+  };
+
+  const handleOpenInviteMemberFromChoice = async () => {
+    if (isRosterFull) {
+      notifyBlockingError(`Plantilla completa: ${rosterUsageLabel}.`);
+      return;
+    }
+    setAddMemberChoiceOpen(false);
+    await openInviteMemberModal();
+  };
+
   const closeInviteMemberModal = () => {
     setInviteMemberModalOpen(false);
     setFriendSearchInput('');
@@ -1040,18 +1058,11 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                 </span>
               </div>
 
-              {isRosterFull ? (
-                <p className="mt-2 text-[12px] text-amber-200/95">
-                  Plantilla completa. Para sumar un jugador tenés que liberar un cupo.
-                </p>
-              ) : null}
-
               {isSelectedTeamManager ? (
                 <button
                   type="button"
                   onClick={openAddMemberChoiceModal}
-                  className={`${addMemberButtonClass} ${isRosterFull ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  disabled={isRosterFull}
+                  className={addMemberButtonClass}
                 >
                   <div className="flex items-center gap-2.5">
                     <UserPlus size={20} className="shrink-0 text-white" />
@@ -1314,16 +1325,10 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         classNameContent="p-4 sm:p-5"
       >
         <div className="space-y-2">
-          {isRosterFull ? (
-            <p className="text-[12px] text-amber-200/95">
-              Plantilla completa ({rosterUsageLabel}). Liberá un cupo para sumar más jugadores.
-            </p>
-          ) : null}
-
           <button
             type="button"
             className={disabledOptionCardClass}
-            disabled={isSaving || isCurrentUserInTeam || isRosterFull}
+            disabled={isSaving || isCurrentUserInTeam}
             onClick={handleAddCurrentUserAsMember}
           >
             <p className="text-white font-oswald text-[18px]">Agregarme A Mí</p>
@@ -1336,11 +1341,8 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           <button
             type="button"
             className={disabledOptionCardClass}
-            disabled={isSaving || isRosterFull}
-            onClick={() => {
-              setAddMemberChoiceOpen(false);
-              openCreateMemberModal();
-            }}
+            disabled={isSaving}
+            onClick={handleOpenCreateMemberFromChoice}
           >
             <p className="text-white font-oswald text-[18px]">Crear Jugador Nuevo</p>
             <p className="mt-1 text-xs text-white/65">Jugador local solo para este equipo.</p>
@@ -1349,11 +1351,8 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           <button
             type="button"
             className={disabledOptionCardClass}
-            disabled={isSaving || isRosterFull}
-            onClick={async () => {
-              setAddMemberChoiceOpen(false);
-              await openInviteMemberModal();
-            }}
+            disabled={isSaving}
+            onClick={handleOpenInviteMemberFromChoice}
           >
             <p className="text-white font-oswald text-[18px]">Invitar Amigo</p>
             <p className="mt-1 text-xs text-white/65">Enviar invitacion a un usuario registrado.</p>
@@ -1385,7 +1384,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               onClick={handleSendTeamInvitation}
               loading={isSaving}
               loadingText="Enviando..."
-              disabled={isSaving || !selectedFriend || isRosterFull}
+              disabled={isSaving || !selectedFriend}
               data-preserve-button-case="true"
             >
               Aceptar
