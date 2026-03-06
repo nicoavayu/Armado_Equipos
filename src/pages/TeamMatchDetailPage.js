@@ -23,6 +23,7 @@ import {
 import { notifyBlockingError } from '../utils/notifyBlockingError';
 
 const AVATAR_VISIBLE_LIMIT = 6;
+const DETAIL_CARD_RADIUS_CLASS = 'rounded-[18px]';
 const EMPTY_CHALLENGE_HEAD_TO_HEAD = Object.freeze({
   totalMatchesScheduled: 0,
   lastMatchScheduledAt: null,
@@ -145,10 +146,10 @@ const TeamCardLocked = ({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-none border border-[rgba(88,107,170,0.46)] bg-[#1e293b]/72 p-4 sm:p-5 min-h-[224px] min-w-0 ${hasColorBand ? 'pl-9 sm:pl-10' : ''}`}
+      className={`relative overflow-hidden ${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(41,170,255,0.4)] bg-[radial-gradient(circle_at_50%_0%,rgba(39,105,255,0.12),rgba(7,22,59,0.95)_48%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] px-4 py-4 sm:px-5 sm:py-5 min-h-[238px] min-w-0 shadow-[0_16px_28px_rgba(3,8,28,0.45)] ${hasColorBand ? 'pl-8 sm:pl-9' : ''}`}
     >
       {hasColorBand ? (
-        <span className="pointer-events-none absolute left-0 top-0 bottom-0 z-[1] w-[12px] overflow-hidden">
+        <span className={`pointer-events-none absolute left-0 top-0 bottom-0 z-[1] w-[10px] overflow-hidden ${DETAIL_CARD_RADIUS_CLASS}`}>
           <span
             className="grid h-full w-full"
             style={{ gridTemplateColumns: `repeat(${bandColors.length}, minmax(0, 1fr))` }}
@@ -162,18 +163,18 @@ const TeamCardLocked = ({
 
       <div className="relative flex h-full flex-col">
         <div className="flex flex-col items-center text-center">
-          <div className="h-16 w-16 rounded-none overflow-hidden border border-white/20 bg-black/30 flex items-center justify-center shrink-0">
+          <div className="h-16 w-16 rounded-[18px] overflow-hidden border border-[#1c4ea8] bg-[#0e1b47] flex items-center justify-center shrink-0">
             {team?.crest_url ? (
               <img src={team.crest_url} alt={teamName} className="h-full w-full object-cover" />
             ) : (
               <Shield size={26} className="text-white/70" />
             )}
           </div>
-          <div className="mt-3 text-white font-oswald text-[21px] sm:text-[24px] leading-tight font-semibold truncate max-w-full">{teamName}</div>
+          <div className="mt-3 w-full text-white font-oswald text-[21px] sm:text-[24px] leading-tight font-semibold whitespace-normal break-words">{teamName}</div>
           <button
             type="button"
             onClick={onOpenRoster}
-            className="mt-3 inline-flex items-center rounded-none border px-3 py-1.5 text-[12px] uppercase tracking-[0.12em] font-oswald transition-colors hover:bg-white/15"
+            className="mt-3 inline-flex items-center rounded-[14px] border px-3 py-1.5 text-[12px] uppercase tracking-[0.12em] font-oswald transition-colors hover:bg-white/15"
             style={badgeStyle}
             aria-label={`Ver plantilla de ${teamName}`}
             title="Ver plantilla completa"
@@ -182,9 +183,9 @@ const TeamCardLocked = ({
           </button>
         </div>
 
-        <div className="mt-4 border-t border-white/10" />
+        <div className="mt-4 h-px bg-[rgba(88,107,170,0.34)]" />
 
-        <div className="mt-3 flex items-center justify-center gap-2 flex-wrap min-h-[32px]">
+        <div className="mt-4 flex items-center justify-center gap-2 flex-wrap min-h-[38px]">
           {visibleMembers.length > 0 ? visibleMembers.map((member) => {
             const name = getPlayerName(member);
             const avatar = getPlayerAvatar(member);
@@ -193,7 +194,7 @@ const TeamCardLocked = ({
                 key={`${member?.id || member?.jugador_id || name}`}
                 type="button"
                 onClick={() => onOpenProfile(getPlayerProfile(member))}
-                className="h-9 w-9 rounded-full border border-white/30 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[10px] font-semibold text-white/90 shrink-0"
+                className="h-10 w-10 rounded-full border border-white/30 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[10px] font-semibold text-white/90 shrink-0"
                 title={name}
                 aria-label={`Ver perfil de ${name}`}
               >
@@ -212,7 +213,7 @@ const TeamCardLocked = ({
             <button
               type="button"
               onClick={onOpenRoster}
-              className="h-9 min-w-[36px] px-2 rounded-none border border-white/30 bg-slate-900/70 text-[11px] text-white/85 font-oswald shrink-0"
+              className="h-10 min-w-[40px] px-2 rounded-full border border-white/30 bg-slate-900/70 text-[11px] text-white/85 font-oswald shrink-0"
               aria-label={`Ver ${overflowCount} jugadores mas`}
               title="Ver plantilla completa"
             >
@@ -626,7 +627,7 @@ const TeamMatchDetailPage = () => {
                   ) : null}
                 </div>
 
-                <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-3 sm:items-center">
+                <div className="flex flex-col gap-3">
                   <TeamCardLocked
                     team={match?.team_a}
                     fallbackName="Equipo A"
@@ -634,10 +635,10 @@ const TeamMatchDetailPage = () => {
                     onOpenProfile={setSelectedPlayerProfile}
                     onOpenRoster={() => setRosterTeamId(match?.team_a_id)}
                   />
-                  <div className="flex items-center justify-center gap-2 text-white/75 text-sm sm:text-base font-oswald font-semibold tracking-[0.12em]">
-                    <span className="h-2 w-2 rounded-full bg-[#7c3aed]/80" />
+                  <div className="flex items-center justify-center gap-2 text-white/70 text-[13px] font-oswald font-medium tracking-[0.08em]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#7c3aed]/85" />
                     <span>VS</span>
-                    <span className="h-2 w-2 rounded-full bg-[#38bdf8]/80" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#38bdf8]/85" />
                   </div>
                   <TeamCardLocked
                     team={match?.team_b}
@@ -650,7 +651,7 @@ const TeamMatchDetailPage = () => {
               </div>
 
               {isChallengeMatch && showChallengeHeadToHead ? (
-                <div className="mt-2 h-16 rounded-none border border-white/10 bg-white/[0.04] px-[14px] py-[10px]">
+                <div className={`mt-2 h-16 ${DETAIL_CARD_RADIUS_CLASS} border border-white/10 bg-white/[0.04] px-[14px] py-[10px]`}>
                   {challengeHeadToHeadLoading ? (
                     <div className="grid h-full grid-cols-4 gap-2">
                       {Array.from({ length: 4 }).map((_, index) => (
