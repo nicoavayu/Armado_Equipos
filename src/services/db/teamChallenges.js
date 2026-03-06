@@ -266,10 +266,21 @@ const CHALLENGE_STATUS_ALIASES = {
 
 const TEAM_MATCH_STATUS_ALIASES = {
   pending: 'pending',
+  open: 'pending',
+  abierto: 'pending',
   confirmado: 'confirmed',
   confirmed: 'confirmed',
+  accepted: 'confirmed',
+  aceptado: 'confirmed',
+  matched: 'confirmed',
+  taken: 'confirmed',
+  ready: 'confirmed',
+  active: 'confirmed',
   played: 'played',
   jugado: 'played',
+  completed: 'played',
+  finalizado: 'played',
+  finished: 'played',
   canceled: 'cancelled',
   cancelled: 'cancelled',
   cancelado: 'cancelled',
@@ -432,6 +443,33 @@ const normalizeTeamMatchStatus = (value) => {
   const normalized = String(value || '').trim().toLowerCase();
   if (!normalized) return 'pending';
   return TEAM_MATCH_STATUS_ALIASES[normalized] || normalized;
+};
+
+const TEAM_MATCH_STATUS_QUERY_VALUES = {
+  pending: ['pending', 'open', 'abierto'],
+  confirmed: ['confirmed', 'confirmado', 'accepted', 'aceptado', 'matched', 'taken', 'ready', 'active'],
+  played: ['played', 'jugado', 'completed', 'finalizado', 'finished', 'closed'],
+  cancelled: ['cancelled', 'canceled', 'cancelado'],
+};
+
+const resolveTeamMatchStatusFilters = (statuses = []) => {
+  const filters = new Set();
+
+  statuses.forEach((status) => {
+    const rawStatus = String(status || '').trim().toLowerCase();
+    if (rawStatus) {
+      filters.add(rawStatus);
+    }
+
+    const normalizedStatus = normalizeTeamMatchStatus(status);
+    if (!normalizedStatus) return;
+
+    filters.add(normalizedStatus);
+    const candidates = TEAM_MATCH_STATUS_QUERY_VALUES[normalizedStatus] || [];
+    candidates.forEach((candidate) => filters.add(candidate));
+  });
+
+  return Array.from(filters);
 };
 
 const resolveChallengeMatchStatus = (row, fallbackStatus) => {
@@ -2503,9 +2541,10 @@ export const cancelTeamMatch = async (matchId) => {
 export const listMyTeamMatches = async (userId, options = {}) => {
   assertAuthenticatedUser(userId);
 
-  const statuses = Array.isArray(options?.statuses)
+  const normalizedStatuses = Array.isArray(options?.statuses)
     ? options.statuses.map((status) => normalizeTeamMatchStatus(status))
     : ['pending', 'confirmed'];
+  const statusFilters = resolveTeamMatchStatusFilters(normalizedStatuses);
 
   const teams = await listAccessibleTeams(userId);
   const teamIds = (teams || []).map((team) => team.id).filter(Boolean);
@@ -2518,8 +2557,8 @@ export const listMyTeamMatches = async (userId, options = {}) => {
         .select(selectClause)
         .in(columnName, teamIds);
 
-      if (statuses.length > 0) {
-        query = query.in('status', statuses);
+      if (statusFilters.length > 0) {
+        query = query.in('status', statusFilters);
       }
 
       return query.order(orderColumn, { ascending: true, nullsFirst: false });

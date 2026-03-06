@@ -5,7 +5,7 @@ import { useInterval } from '../hooks/useInterval';
 import { supabase } from '../supabase';
 import { clearMatchFromList } from '../services/matchFinishService';
 import { cancelPartidoWithNotification } from '../services/db/matches';
-import { cancelTeamMatch, listMyTeamMatches } from '../services/db/teamChallenges';
+import { cancelTeamMatch, getTeamMatchByChallengeId, listMyTeamMatches } from '../services/db/teamChallenges';
 import { parseLocalDateTime, formatLocalDateShort } from '../utils/dateLocal';
 import { canAbandonWithoutPenalty, incrementMatchesAbandoned } from '../utils/matchStatsManager';
 import LoadingSpinner from './LoadingSpinner';
@@ -433,19 +433,73 @@ const ProximosPartidos = ({ onClose }) => {
     }
   };
 
-  const _handleMatchClick = (partido) => {
+  const resolveTeamMatchId = async (partido) => {
+    const directMatchId = Number(partido?.team_match_id || partido?.teamMatchId || 0);
+    if (Number.isFinite(directMatchId) && directMatchId > 0) {
+      return directMatchId;
+    }
+
+    const challengeId = Number(partido?.challenge_id || partido?.challengeId || 0);
+    if (Number.isFinite(challengeId) && challengeId > 0) {
+      try {
+        const challengeMatch = await getTeamMatchByChallengeId(challengeId);
+        const challengeMatchId = Number(challengeMatch?.id || 0);
+        if (Number.isFinite(challengeMatchId) && challengeMatchId > 0) {
+          return challengeMatchId;
+        }
+      } catch (error) {
+        console.warn('[PROXIMOS] resolveTeamMatchId challenge lookup failed', {
+          challengeId,
+          message: error?.message || String(error),
+        });
+      }
+    }
+
+    const partidoIdCandidates = [partido?.partido_id, partido?.id]
+      .map((value) => Number(value || 0))
+      .filter((value, index, values) => (
+        Number.isFinite(value)
+        && value > 0
+        && values.indexOf(value) === index
+      ));
+
+    for (const partidoId of partidoIdCandidates) {
+      const { data, error } = await supabase
+        .from('team_matches')
+        .select('id')
+        .eq('partido_id', partidoId)
+        .in('status', ['pending', 'open', 'abierto', 'confirmed', 'confirmado', 'accepted', 'aceptado', 'matched', 'taken', 'ready', 'active'])
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.warn('[PROXIMOS] resolveTeamMatchId partido lookup failed', {
+          partidoId,
+          code: error?.code,
+          message: error?.message,
+        });
+        continue;
+      }
+
+      const inferredMatchId = Number(data?.[0]?.id || 0);
+      if (Number.isFinite(inferredMatchId) && inferredMatchId > 0) {
+        return inferredMatchId;
+      }
+    }
+
+    return null;
+  };
+
+  const _handleMatchClick = async (partido) => {
     onClose();
-    if (partido?.source_type === 'team_match') {
-      const teamMatchId = partido?.team_match_id || null;
+    if (partido?.source_type === 'team_match' || isChallengeLikePartido(partido)) {
+      const teamMatchId = await resolveTeamMatchId(partido);
       if (teamMatchId) {
         navigate(`/desafios/equipos/partidos/${teamMatchId}`);
       } else {
-        navigate('/desafios');
+        notifyBlockingError('No se pudo abrir el detalle del desafío. Te mostramos la sección de desafíos.');
+        navigate('/desafios', { state: { equiposSubtab: 'desafios' } });
       }
-      return;
-    }
-    if (isChallengeLikePartido(partido)) {
-      navigate('/desafios');
       return;
     }
     navigate(`/admin/${partido.id}`);
