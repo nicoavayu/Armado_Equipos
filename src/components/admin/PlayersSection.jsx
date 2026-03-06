@@ -137,6 +137,7 @@ const PlayersSection = ({
   handleAbandon: _handleAbandon,
   invitationStatus,
   onShareClick,
+  onShareRosterUpdate,
   unirseAlPartido,
 }) => {
   const [localMenuOpen, setLocalMenuOpen] = useState(false);
@@ -162,6 +163,7 @@ const PlayersSection = ({
   const remainingTitularSlots = capacity > 0 ? Math.max(0, capacity - titularPlayers.length) : null;
   const isMatchFull = maxRosterSlots > 0 && jugadores.length >= maxRosterSlots;
   const canShareInviteLink = isAdmin && typeof onShareClick === 'function' && !isMatchFull;
+  const canShareRosterUpdate = isAdmin && typeof onShareRosterUpdate === 'function';
   const completionAnimTimeoutRef = useRef(null);
   const previousCompleteRef = useRef(isTitularesComplete);
   const showInviteStylePostJoin = !isAdmin && isPlayerInMatch;
@@ -850,10 +852,10 @@ const PlayersSection = ({
               <button
                 type="button"
                 className={headerActionIconButtonClass}
-                onClick={() => onShareClick?.()}
-                disabled={!canShareInviteLink}
-                title="Compartir invitación"
-                aria-label="Compartir invitación"
+                onClick={() => onShareRosterUpdate?.()}
+                disabled={!canShareRosterUpdate}
+                title="Compartir update por WhatsApp"
+                aria-label="Compartir update por WhatsApp"
               >
                 <Share2 size={14} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
               </button>
