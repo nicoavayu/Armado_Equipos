@@ -1,4 +1,4 @@
-const normalizeIdToken = (value) => String(value ?? '').trim().toLowerCase();
+const normalizeIdToken = (value) => String(value ?? '').trim();
 
 const resolveMemberUserToken = (member = {}) => normalizeIdToken(
   member?.user_id
@@ -120,5 +120,23 @@ export const getViewerChallengeTeam = ({
   };
 };
 
-export default getViewerChallengeTeam;
+export const resolveChallengeSquadViewState = ({
+  isChallengeMatch = false,
+  viewerChallengeTeam = null,
+  myChallengeTeamId = null,
+  canManageMyChallengeSquad = false,
+}) => {
+  const isParticipant = Boolean(viewerChallengeTeam?.isParticipant);
+  const isAmbiguous = Boolean(viewerChallengeTeam?.isAmbiguous);
+  const hasMyTeam = Boolean(String(myChallengeTeamId || '').trim());
+  const showOperationalModule = Boolean(isChallengeMatch && isParticipant && hasMyTeam && !isAmbiguous);
 
+  return {
+    showAmbiguousNotice: Boolean(isChallengeMatch && isAmbiguous),
+    showOperationalModule,
+    showMyAvailability: showOperationalModule,
+    showMySquadManagement: Boolean(showOperationalModule && canManageMyChallengeSquad),
+  };
+};
+
+export default getViewerChallengeTeam;
