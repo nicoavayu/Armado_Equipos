@@ -222,13 +222,24 @@ GRANT EXECUTE ON FUNCTION public.resolve_challenge_squad_limits(smallint) TO aut
 
 UPDATE public.challenges c
 SET
-  max_starters_per_team = COALESCE(c.max_starters_per_team, l.max_starters),
-  max_substitutes_per_team = COALESCE(c.max_substitutes_per_team, l.max_substitutes),
-  max_selected_per_team = COALESCE(c.max_selected_per_team, l.max_selected)
-FROM public.resolve_challenge_squad_limits(COALESCE(c.match_format, c.format)) l
-WHERE c.max_starters_per_team IS NULL
-   OR c.max_substitutes_per_team IS NULL
-   OR c.max_selected_per_team IS NULL;
+  max_starters_per_team = COALESCE(c.max_starters_per_team, limits.max_starters),
+  max_substitutes_per_team = COALESCE(c.max_substitutes_per_team, limits.max_substitutes),
+  max_selected_per_team = COALESCE(c.max_selected_per_team, limits.max_selected)
+FROM (
+  SELECT
+    c2.id,
+    l.max_starters,
+    l.max_substitutes,
+    l.max_selected
+  FROM public.challenges c2
+  CROSS JOIN LATERAL public.resolve_challenge_squad_limits(COALESCE(c2.match_format, c2.format)) l
+) limits
+WHERE c.id = limits.id
+  AND (
+    c.max_starters_per_team IS NULL
+    OR c.max_substitutes_per_team IS NULL
+    OR c.max_selected_per_team IS NULL
+  );
 
 UPDATE public.challenges
 SET squad_status = CASE
@@ -543,9 +554,9 @@ BEGIN
   UPDATE public.challenges c
   SET
     match_format = COALESCE(c.match_format, c.format),
-    max_starters_per_team = COALESCE(c.max_starters_per_team, l.max_starters),
-    max_substitutes_per_team = COALESCE(c.max_substitutes_per_team, l.max_substitutes),
-    max_selected_per_team = COALESCE(c.max_selected_per_team, l.max_selected),
+    max_starters_per_team = COALESCE(c.max_starters_per_team, limits.max_starters),
+    max_substitutes_per_team = COALESCE(c.max_substitutes_per_team, limits.max_substitutes),
+    max_selected_per_team = COALESCE(c.max_selected_per_team, limits.max_selected),
     squad_status = CASE
       WHEN p_open THEN
         CASE
@@ -560,8 +571,17 @@ BEGIN
       ELSE c.squad_opened_at
     END,
     updated_at = now()
-  FROM public.resolve_challenge_squad_limits(COALESCE(c.match_format, c.format)) l
-  WHERE c.id = v_challenge.id
+  FROM (
+    SELECT
+      c2.id,
+      l.max_starters,
+      l.max_substitutes,
+      l.max_selected
+    FROM public.challenges c2
+    CROSS JOIN LATERAL public.resolve_challenge_squad_limits(COALESCE(c2.match_format, c2.format)) l
+    WHERE c2.id = v_challenge.id
+  ) limits
+  WHERE c.id = limits.id
   RETURNING c.* INTO v_challenge;
 
   INSERT INTO public.challenge_team_squad (
