@@ -10,7 +10,6 @@ import Modal from '../components/Modal';
 import ChatButton from '../components/ChatButton';
 import MatchInfoSection from '../components/MatchInfoSection';
 import ProfileCardModal from '../components/ProfileCardModal';
-import InlineNotice from '../components/ui/InlineNotice';
 import LocationAutocomplete from '../features/equipos/components/LocationAutocomplete';
 import {
   TEAM_FORMAT_OPTIONS,
@@ -18,6 +17,7 @@ import {
   resolveChallengeSquadLimits,
 } from '../features/equipos/config';
 import { getTeamBadgeStyle } from '../features/equipos/utils/teamColors';
+import { getViewerChallengeTeam } from '../features/equipos/utils/challengeViewer';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import {
   getChallengeHeadToHeadStats,
@@ -126,6 +126,33 @@ const getSelectionLabel = (status) => {
   if (normalized === 'starter') return 'Titular';
   if (normalized === 'substitute') return 'Suplente';
   return 'No convocado';
+};
+
+const getInlineNoticeClass = (type) => {
+  const normalized = String(type || '').trim().toLowerCase();
+  if (normalized === 'success') return 'border-[#5AD17B]/45 bg-[#2F9E44]/24 text-[#D6F8E2]';
+  if (normalized === 'warning') return 'border-[#FBBF24]/45 bg-[#B45309]/24 text-[#FDE68A]';
+  if (normalized === 'error') return 'border-[#FCA5A5]/45 bg-[#7F1D1D]/35 text-[#FECACA]';
+  return 'border-[#9ED3FF]/45 bg-[#128BE9]/22 text-[#D4EBFF]';
+};
+
+const getSelectionBadgeClass = (status) => {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (normalized === 'starter') return 'text-[#D6F8E2] border-[#5AD17B]/45 bg-[#2F9E44]/24';
+  if (normalized === 'substitute') return 'text-[#D4EBFF] border-[#9ED3FF]/45 bg-[#128BE9]/22';
+  return 'text-[#F8D5FF] border-[#D8B4FE]/45 bg-[#6D28D9]/22';
+};
+
+const getPersonalChallengeStatusLabel = (row) => {
+  const selection = String(row?.selection_status || '').trim().toLowerCase();
+  if (selection === 'starter') return 'Titular';
+  if (selection === 'substitute') return 'Suplente';
+  if (selection === 'not_selected' && row?.approved_by_captain) return 'Afuera';
+
+  const availability = String(row?.availability_status || '').trim().toLowerCase();
+  if (availability === 'available') return 'Disponible';
+  if (availability === 'unavailable') return 'No disponible';
+  return 'Pendiente';
 };
 
 const normalizeIdentityToken = (value) => String(value || '').trim().toLowerCase();
@@ -284,6 +311,15 @@ const TeamMatchDetailPage = () => {
   const [showChallengeHeadToHead, setShowChallengeHeadToHead] = useState(false);
   const actionsMenuButtonRef = useRef(null);
 
+  useEffect(() => {
+    if (!inlineNotice?.message) return undefined;
+    const autoHideMs = inlineNotice?.type === 'warning' ? 4200 : 3200;
+    const timer = setTimeout(() => {
+      setInlineNotice({ type: '', message: '' });
+    }, autoHideMs);
+    return () => clearTimeout(timer);
+  }, [inlineNotice?.message, inlineNotice?.type]);
+
   const [scheduledAtInput, setScheduledAtInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
   const [canchaCostInput, setCanchaCostInput] = useState('');
@@ -429,33 +465,6 @@ const TeamMatchDetailPage = () => {
   );
   const canShowEditAction = canEditMatchInfo && match?.status !== 'cancelled' && match?.status !== 'played';
 
-  const currentUserTeamId = useMemo(() => {
-    const teamAId = match?.team_a_id ? String(match.team_a_id) : null;
-    const teamBId = match?.team_b_id ? String(match.team_b_id) : null;
-    const userId = user?.id ? String(user.id) : null;
-    if (!teamAId || !teamBId) return null;
-    if (!userId) return teamAId;
-
-    const membersA = teamMembersByTeamId[teamAId] || [];
-    const membersB = teamMembersByTeamId[teamBId] || [];
-    const inA = membersA.some((member) => String(member?.user_id || member?.jugador?.usuario_id || '') === userId);
-    const inB = membersB.some((member) => String(member?.user_id || member?.jugador?.usuario_id || '') === userId);
-    if (inA && !inB) return teamAId;
-    if (inB && !inA) return teamBId;
-
-    if (String(match?.team_a?.owner_user_id || '') === userId) return teamAId;
-    if (String(match?.team_b?.owner_user_id || '') === userId) return teamBId;
-
-    return teamAId;
-  }, [
-    match?.team_a?.owner_user_id,
-    match?.team_a_id,
-    match?.team_b?.owner_user_id,
-    match?.team_b_id,
-    teamMembersByTeamId,
-    user?.id,
-  ]);
-
   const teamMemberByPlayerByTeamId = useMemo(() => {
     const byTeamId = {};
 
@@ -561,29 +570,51 @@ const TeamMatchDetailPage = () => {
     return byTeamId;
   }, [challengeSquadByTeamId, teamMemberByPlayerByTeamId]);
 
-  const displayedTeamMembersByTeamId = useMemo(() => {
+  const viewerChallengeTeam = useMemo(() => getViewerChallengeTeam({
+    match,
+    userId: user?.id || null,
+    teamMembersByTeamId,
+    challengeSquadDisplayByTeamId,
+  }), [challengeSquadDisplayByTeamId, match, teamMembersByTeamId, user?.id]);
+
+  const currentUserTeamId = useMemo(() => (
+    viewerChallengeTeam?.myTeamId
+    || (match?.team_a_id ? String(match.team_a_id) : null)
+  ), [match?.team_a_id, viewerChallengeTeam?.myTeamId]);
+
+  const myChallengeTeamId = useMemo(
+    () => String(viewerChallengeTeam?.myTeamId || '').trim() || null,
+    [viewerChallengeTeam?.myTeamId],
+  );
+
+  const myChallengeTeam = useMemo(() => {
+    if (!myChallengeTeamId) return null;
+    if (String(match?.team_a_id || '') === myChallengeTeamId) return match?.team_a || null;
+    if (String(match?.team_b_id || '') === myChallengeTeamId) return match?.team_b || null;
+    return viewerChallengeTeam?.myTeam || null;
+  }, [match?.team_a, match?.team_a_id, match?.team_b, match?.team_b_id, myChallengeTeamId, viewerChallengeTeam?.myTeam]);
+
+  const canRenderPrivateChallengeSquad = useMemo(
+    () => isChallengeMatch && Boolean(myChallengeTeamId) && Boolean(viewerChallengeTeam?.isParticipant),
+    [isChallengeMatch, myChallengeTeamId, viewerChallengeTeam?.isParticipant],
+  );
+
+  const teamCardsMembersByTeamId = useMemo(() => {
     if (!isChallengeMatch) return teamMembersByTeamId;
 
-    const byTeamId = { ...teamMembersByTeamId };
-    [match?.team_a_id, match?.team_b_id]
-      .filter(Boolean)
-      .forEach((teamIdValue) => {
-        const teamId = String(teamIdValue);
-        const rows = challengeSquadDisplayByTeamId?.[teamId] || [];
-        const approved = rows.filter((row) => row?.approved_by_captain && ['starter', 'substitute'].includes(String(row?.selection_status || '').toLowerCase()));
-        if (approved.length > 0) {
-          byTeamId[teamId] = approved;
-        }
-      });
+    const base = { ...teamMembersByTeamId };
+    if (!myChallengeTeamId) return base;
 
-    return byTeamId;
-  }, [
-    challengeSquadDisplayByTeamId,
-    isChallengeMatch,
-    match?.team_a_id,
-    match?.team_b_id,
-    teamMembersByTeamId,
-  ]);
+    const myApprovedRows = (challengeSquadDisplayByTeamId?.[myChallengeTeamId] || []).filter((row) => (
+      row?.approved_by_captain
+      && ['starter', 'substitute'].includes(String(row?.selection_status || '').toLowerCase())
+    ));
+
+    if (myApprovedRows.length > 0) {
+      base[myChallengeTeamId] = myApprovedRows;
+    }
+    return base;
+  }, [challengeSquadDisplayByTeamId, isChallengeMatch, myChallengeTeamId, teamMembersByTeamId]);
 
   const canManageTeamSquad = useCallback((teamId) => {
     const teamIdToken = String(teamId || '').trim();
@@ -612,11 +643,6 @@ const TeamMatchDetailPage = () => {
     user?.id,
   ]);
 
-  const canManageAnyChallengeSquad = useMemo(
-    () => canManageTeamSquad(match?.team_a_id) || canManageTeamSquad(match?.team_b_id),
-    [canManageTeamSquad, match?.team_a_id, match?.team_b_id],
-  );
-
   const challengeSquadEditable = useMemo(() => (
     challengeSquadStatus === 'open' && match?.status !== 'played' && match?.status !== 'cancelled'
   ), [challengeSquadStatus, match?.status]);
@@ -635,73 +661,219 @@ const TeamMatchDetailPage = () => {
     return byTeamId;
   }, [challengeSquadDisplayByTeamId, user?.id]);
 
+  const currentUserSquadRow = useMemo(
+    () => (myChallengeTeamId ? (currentUserSquadRowByTeamId?.[myChallengeTeamId] || null) : null),
+    [currentUserSquadRowByTeamId, myChallengeTeamId],
+  );
+
+  const myChallengeSquadRows = useMemo(
+    () => (myChallengeTeamId ? (challengeSquadDisplayByTeamId?.[myChallengeTeamId] || []) : []),
+    [challengeSquadDisplayByTeamId, myChallengeTeamId],
+  );
+
+  const myChallengeSquadCounters = useMemo(
+    () => (myChallengeTeamId ? (challengeSquadCountersByTeamId?.[myChallengeTeamId] || { starters: 0, substitutes: 0, selected: 0 }) : { starters: 0, substitutes: 0, selected: 0 }),
+    [challengeSquadCountersByTeamId, myChallengeTeamId],
+  );
+
+  const canManageMyChallengeSquad = useMemo(
+    () => (myChallengeTeamId ? canManageTeamSquad(myChallengeTeamId) : false),
+    [canManageTeamSquad, myChallengeTeamId],
+  );
+
+  const showChallengeInlineNotice = useCallback((type, message) => {
+    if (!message) return;
+    setInlineNotice({ type, message });
+  }, []);
+
   const handleChangeAvailability = useCallback(async (availabilityStatus) => {
-    if (!match?.challenge_id) return;
+    if (!match?.challenge_id || !canRenderPrivateChallengeSquad) return;
+    if (!currentUserSquadRow?.jugador_id) {
+      showChallengeInlineNotice('warning', 'No encontramos tu jugador dentro de este desafío.');
+      return;
+    }
+    if (!challengeSquadEditable) {
+      showChallengeInlineNotice('warning', 'La convocatoria está cerrada y no admite cambios.');
+      return;
+    }
+
+    const normalizedAvailability = String(availabilityStatus || '').trim().toLowerCase();
+    if (String(currentUserSquadRow?.availability_status || '').trim().toLowerCase() === normalizedAvailability) {
+      return;
+    }
+
     try {
       setChallengeSquadSaving(true);
       await setChallengeAvailability({
         challengeId: match.challenge_id,
-        availabilityStatus,
+        availabilityStatus: normalizedAvailability,
       });
       await loadChallengeSquadForMatch(match);
-      setInlineNotice({
-        type: 'success',
-        message: availabilityStatus === 'available'
-          ? 'Te marcaste como disponible.'
-          : 'Te marcaste como no disponible.',
-      });
+      showChallengeInlineNotice(
+        'success',
+        normalizedAvailability === 'available'
+          ? 'Listo, quedaste como disponible.'
+          : 'Listo, quedaste como no disponible.',
+      );
     } catch (error) {
-      notifyBlockingError(error.message || 'No se pudo actualizar tu disponibilidad');
+      showChallengeInlineNotice('warning', error?.message || 'No se pudo actualizar tu disponibilidad.');
     } finally {
       setChallengeSquadSaving(false);
     }
-  }, [loadChallengeSquadForMatch, match]);
+  }, [
+    canRenderPrivateChallengeSquad,
+    challengeSquadEditable,
+    currentUserSquadRow?.availability_status,
+    currentUserSquadRow?.jugador_id,
+    loadChallengeSquadForMatch,
+    match,
+    showChallengeInlineNotice,
+  ]);
 
-  const handleChangeSelection = useCallback(async ({ teamId, playerId, selectionStatus }) => {
-    if (!match?.challenge_id || !teamId || !playerId) return;
+  const handleChangeSelection = useCallback(async ({
+    teamId,
+    playerId,
+    selectionStatus,
+    row,
+  }) => {
+    if (!match?.challenge_id || !teamId || !playerId || !canRenderPrivateChallengeSquad) return;
+    if (!canManageMyChallengeSquad) {
+      showChallengeInlineNotice('warning', 'Solo el capitán/admin puede armar el plantel.');
+      return;
+    }
+    if (String(teamId) !== String(myChallengeTeamId)) {
+      showChallengeInlineNotice('warning', 'Solo podés gestionar el plantel de tu equipo.');
+      return;
+    }
+    if (!challengeSquadEditable) {
+      showChallengeInlineNotice('warning', 'La convocatoria está cerrada y no admite cambios.');
+      return;
+    }
+
+    const normalizedSelection = String(selectionStatus || '').trim().toLowerCase();
+    if (!['starter', 'substitute', 'not_selected'].includes(normalizedSelection)) {
+      showChallengeInlineNotice('warning', 'Acción inválida para la convocatoria.');
+      return;
+    }
+
+    const targetRow = row || (myChallengeSquadRows || []).find(
+      (entry) => String(entry?.jugador_id || '') === String(playerId),
+    );
+    if (!targetRow?.jugador_id) {
+      showChallengeInlineNotice('warning', 'No pudimos encontrar ese jugador en tu convocatoria.');
+      return;
+    }
+
+    const currentSelection = String(targetRow?.selection_status || '').trim().toLowerCase();
+    const currentApproved = Boolean(targetRow?.approved_by_captain);
+    const currentAvailability = String(targetRow?.availability_status || '').trim().toLowerCase();
+    const currentIsSelected = currentApproved && (currentSelection === 'starter' || currentSelection === 'substitute');
+
+    if (normalizedSelection === currentSelection && (normalizedSelection === 'not_selected' || currentApproved)) {
+      return;
+    }
+
+    if ((normalizedSelection === 'starter' || normalizedSelection === 'substitute') && currentAvailability !== 'available') {
+      showChallengeInlineNotice('warning', 'Primero debe marcarse como disponible.');
+      return;
+    }
+
+    const nextStarters = myChallengeSquadCounters?.starters || 0;
+    const nextSubstitutes = myChallengeSquadCounters?.substitutes || 0;
+    const nextSelected = myChallengeSquadCounters?.selected || 0;
+
+    if (normalizedSelection === 'starter' && currentSelection !== 'starter' && nextStarters >= challengeSquadLimits.starters) {
+      showChallengeInlineNotice('warning', `Ya alcanzaste el máximo de titulares (${challengeSquadLimits.starters}).`);
+      return;
+    }
+
+    if (normalizedSelection === 'substitute' && currentSelection !== 'substitute' && nextSubstitutes >= challengeSquadLimits.substitutes) {
+      showChallengeInlineNotice('warning', `Ya alcanzaste el máximo de suplentes (${challengeSquadLimits.substitutes}).`);
+      return;
+    }
+
+    if (
+      (normalizedSelection === 'starter' || normalizedSelection === 'substitute')
+      && !currentIsSelected
+      && nextSelected >= challengeSquadLimits.selected
+    ) {
+      showChallengeInlineNotice('warning', `Ya alcanzaste el máximo de convocados (${challengeSquadLimits.selected}).`);
+      return;
+    }
+
     try {
       setChallengeSquadSaving(true);
       await upsertChallengeTeamSelection({
         challengeId: match.challenge_id,
         teamId,
         playerId,
-        selectionStatus,
-        approvedByCaptain: selectionStatus !== 'not_selected',
+        selectionStatus: normalizedSelection,
+        approvedByCaptain: normalizedSelection !== 'not_selected',
       });
       await loadChallengeSquadForMatch(match);
-      setInlineNotice({
-        type: 'success',
-        message: 'Convocatoria actualizada.',
-      });
+      showChallengeInlineNotice('success', 'Plantel actualizado.');
     } catch (error) {
-      notifyBlockingError(error.message || 'No se pudo actualizar la convocatoria');
+      showChallengeInlineNotice('warning', error?.message || 'No se pudo actualizar la convocatoria.');
     } finally {
       setChallengeSquadSaving(false);
     }
-  }, [loadChallengeSquadForMatch, match]);
+  }, [
+    canManageMyChallengeSquad,
+    canRenderPrivateChallengeSquad,
+    challengeSquadEditable,
+    challengeSquadLimits.selected,
+    challengeSquadLimits.starters,
+    challengeSquadLimits.substitutes,
+    loadChallengeSquadForMatch,
+    match,
+    myChallengeSquadCounters?.selected,
+    myChallengeSquadCounters?.starters,
+    myChallengeSquadCounters?.substitutes,
+    myChallengeSquadRows,
+    myChallengeTeamId,
+    showChallengeInlineNotice,
+  ]);
 
   const handleSetChallengeSquadStatus = useCallback(async (nextStatus) => {
-    if (!match?.challenge_id) return;
+    if (!match?.challenge_id || !canRenderPrivateChallengeSquad) return;
+    if (!canManageMyChallengeSquad) {
+      showChallengeInlineNotice('warning', 'Solo el capitán/admin puede cambiar el estado del plantel.');
+      return;
+    }
+    const normalizedNextStatus = String(nextStatus || '').trim().toLowerCase();
+    if (!['open', 'closed'].includes(normalizedNextStatus)) {
+      showChallengeInlineNotice('warning', 'Estado de convocatoria inválido.');
+      return;
+    }
+    if (normalizedNextStatus === challengeSquadStatus) return;
+
     try {
       setChallengeSquadSaving(true);
       const updatedChallenge = await setChallengeSquadStatus({
         challengeId: match.challenge_id,
-        squadStatus: nextStatus,
+        squadStatus: normalizedNextStatus,
       });
       setChallengeSquadMeta(updatedChallenge || null);
       await loadChallengeSquadForMatch(match);
-      setInlineNotice({
-        type: 'success',
-        message: nextStatus === 'closed'
+      showChallengeInlineNotice(
+        'success',
+        normalizedNextStatus === 'closed'
           ? 'Plantel cerrado para este desafío.'
           : 'Convocatoria reabierta.',
-      });
+      );
     } catch (error) {
-      notifyBlockingError(error.message || 'No se pudo actualizar el estado de la convocatoria');
+      showChallengeInlineNotice('warning', error?.message || 'No se pudo actualizar el estado de la convocatoria.');
     } finally {
       setChallengeSquadSaving(false);
     }
-  }, [loadChallengeSquadForMatch, match]);
+  }, [
+    canManageMyChallengeSquad,
+    canRenderPrivateChallengeSquad,
+    challengeSquadStatus,
+    loadChallengeSquadForMatch,
+    match,
+    showChallengeInlineNotice,
+  ]);
 
   const challengeHeadToHeadView = useMemo(() => {
     if (!match) return null;
@@ -786,8 +958,8 @@ const TeamMatchDetailPage = () => {
   }, [match, rosterTeamId]);
 
   const rosterMembers = useMemo(
-    () => (rosterTeamId ? (displayedTeamMembersByTeamId[rosterTeamId] || []) : []),
-    [displayedTeamMembersByTeamId, rosterTeamId],
+    () => (rosterTeamId ? (teamMembersByTeamId[rosterTeamId] || []) : []),
+    [teamMembersByTeamId, rosterTeamId],
   );
 
   const handleSave = async (event) => {
@@ -864,12 +1036,20 @@ const TeamMatchDetailPage = () => {
         </div>
 
         <div className="mx-auto mt-3 w-full max-w-[560px] space-y-3 px-4">
-          <InlineNotice
-            type={inlineNotice.type}
-            message={inlineNotice.message}
-            autoHideMs={3000}
-            onClose={() => setInlineNotice({ type: '', message: '' })}
-          />
+          {inlineNotice?.message ? (
+            <div className={`rounded-none border px-3 py-2 text-[13px] font-oswald leading-relaxed ${getInlineNoticeClass(inlineNotice?.type)}`}>
+              <div className="flex items-start justify-between gap-2">
+                <span>{inlineNotice.message}</span>
+                <button
+                  type="button"
+                  className="text-current/80 hover:text-current text-xs uppercase tracking-wide"
+                  onClick={() => setInlineNotice({ type: '', message: '' })}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {loading ? (
             <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
@@ -952,7 +1132,7 @@ const TeamMatchDetailPage = () => {
                   <TeamCardLocked
                     team={match?.team_a}
                     fallbackName="Equipo A"
-                    members={displayedTeamMembersByTeamId[match?.team_a_id] || []}
+                    members={teamCardsMembersByTeamId[match?.team_a_id] || []}
                     onOpenProfile={setSelectedPlayerProfile}
                     onOpenRoster={() => setRosterTeamId(match?.team_a_id)}
                   />
@@ -964,23 +1144,38 @@ const TeamMatchDetailPage = () => {
                   <TeamCardLocked
                     team={match?.team_b}
                     fallbackName="Equipo B"
-                    members={displayedTeamMembersByTeamId[match?.team_b_id] || []}
+                    members={teamCardsMembersByTeamId[match?.team_b_id] || []}
                     onOpenProfile={setSelectedPlayerProfile}
                     onOpenRoster={() => setRosterTeamId(match?.team_b_id)}
                   />
                 </div>
 
-                {isChallengeMatch ? (
+                {isChallengeMatch && viewerChallengeTeam?.isAmbiguous ? (
+                  <div className={`${DETAIL_CARD_RADIUS_CLASS} border border-amber-300/35 bg-amber-500/10 p-3`}>
+                    <p className="text-sm font-oswald text-amber-100">
+                      No pudimos resolver a qué equipo pertenecés en este desafío. Reintentá en unos segundos.
+                    </p>
+                  </div>
+                ) : null}
+
+                {isChallengeMatch && canRenderPrivateChallengeSquad ? (
                   <div className={`${DETAIL_CARD_RADIUS_CLASS} border border-white/10 bg-white/[0.04] p-3 space-y-3`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-white font-oswald text-base">Convocatoria</span>
-                        <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getSquadStatusBadgeClass(challengeSquadStatus)}`}>
-                          {SQUAD_STATUS_LABEL_BY_VALUE[challengeSquadStatus] || 'No abierta'}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-white font-oswald text-base">
+                            Convocatoria de {myChallengeTeam?.name || 'Mi equipo'}
+                          </span>
+                          <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getSquadStatusBadgeClass(challengeSquadStatus)}`}>
+                            {SQUAD_STATUS_LABEL_BY_VALUE[challengeSquadStatus] || 'No abierta'}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-white/60 font-oswald">
+                          Esta sección es privada para tu equipo.
                         </span>
                       </div>
 
-                      {canManageAnyChallengeSquad ? (
+                      {canManageMyChallengeSquad ? (
                         <div className="flex items-center gap-2">
                           {challengeSquadStatus === 'open' ? (
                             <button
@@ -1008,132 +1203,133 @@ const TeamMatchDetailPage = () => {
 
                     {challengeSquadLoading ? (
                       <p className="text-sm text-white/65 font-oswald">Cargando convocatoria...</p>
-                    ) : null}
-
-                    {!challengeSquadLoading ? (
+                    ) : (
                       <div className="space-y-3">
-                        {[{
-                          teamId: String(match?.team_a_id || ''),
-                          team: match?.team_a,
-                          fallback: 'Equipo A',
-                        }, {
-                          teamId: String(match?.team_b_id || ''),
-                          team: match?.team_b,
-                          fallback: 'Equipo B',
-                        }].map(({ teamId, team, fallback }) => {
-                          const squadRows = challengeSquadDisplayByTeamId?.[teamId] || [];
-                          const counters = challengeSquadCountersByTeamId?.[teamId] || { starters: 0, substitutes: 0, selected: 0 };
-                          const canManageThisTeam = canManageTeamSquad(teamId);
-                          const currentUserSquadRow = currentUserSquadRowByTeamId?.[teamId] || null;
+                        <div className="rounded-none border border-white/10 bg-white/[0.03] p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-[12px] uppercase tracking-[0.08em] text-white/65 font-oswald">Mi disponibilidad</span>
+                            <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide ${getSelectionBadgeClass(currentUserSquadRow?.selection_status)}`}>
+                              {getPersonalChallengeStatusLabel(currentUserSquadRow)}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[12px] text-white/70 font-oswald">
+                            Marcá si estás para jugar. El capitán define luego titulares y suplentes.
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              className={`rounded-none border px-2.5 py-1.5 text-[11px] font-oswald uppercase tracking-wide disabled:opacity-60 ${String(currentUserSquadRow?.availability_status || '').toLowerCase() === 'available'
+                                ? 'border-[#5AD17B]/45 bg-[#2F9E44]/24 text-[#D6F8E2]'
+                                : 'border-white/25 bg-white/5 text-white/80'
+                                }`}
+                              onClick={() => handleChangeAvailability('available')}
+                              disabled={challengeSquadSaving || !challengeSquadEditable}
+                            >
+                              Disponible
+                            </button>
+                            <button
+                              type="button"
+                              className={`rounded-none border px-2.5 py-1.5 text-[11px] font-oswald uppercase tracking-wide disabled:opacity-60 ${String(currentUserSquadRow?.availability_status || '').toLowerCase() === 'unavailable'
+                                ? 'border-[#FBBF24]/45 bg-[#B45309]/24 text-[#FDE68A]'
+                                : 'border-white/25 bg-white/5 text-white/80'
+                                }`}
+                              onClick={() => handleChangeAvailability('unavailable')}
+                              disabled={challengeSquadSaving || !challengeSquadEditable}
+                            >
+                              No disponible
+                            </button>
+                          </div>
 
-                          return (
-                            <div key={`challenge-squad-${teamId}`} className="rounded-none border border-white/10 bg-black/15 p-2.5 space-y-2">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="text-white font-oswald text-[15px]">
-                                  {team?.name || fallback}
-                                </span>
-                                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                                  <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">Titulares {counters.starters}/{challengeSquadLimits.starters}</span>
-                                  <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">Suplentes {counters.substitutes}/{challengeSquadLimits.substitutes}</span>
-                                  <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">Convocados {counters.selected}/{challengeSquadLimits.selected}</span>
-                                </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide ${getAvailabilityBadgeClass(currentUserSquadRow?.availability_status)}`}>
+                              {getAvailabilityLabel(currentUserSquadRow?.availability_status)}
+                            </span>
+                            <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide ${getSelectionBadgeClass(currentUserSquadRow?.selection_status)}`}>
+                              {getSelectionLabel(currentUserSquadRow?.selection_status)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {canManageMyChallengeSquad ? (
+                          <div className="rounded-none border border-white/10 bg-black/15 p-2.5 space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="text-white font-oswald text-[15px]">Mi plantel</span>
+                              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">Titulares {myChallengeSquadCounters.starters}/{challengeSquadLimits.starters}</span>
+                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">Suplentes {myChallengeSquadCounters.substitutes}/{challengeSquadLimits.substitutes}</span>
+                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">Convocados {myChallengeSquadCounters.selected}/{challengeSquadLimits.selected}</span>
                               </div>
-
-                              {currentUserSquadRow ? (
-                                <div className="rounded-none border border-white/10 bg-white/[0.04] p-2">
-                                  <p className="text-[11px] uppercase tracking-[0.08em] text-white/55">Mi disponibilidad</p>
-                                  <div className="mt-1 flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      className={`rounded-none border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide disabled:opacity-60 ${String(currentUserSquadRow?.availability_status || '').toLowerCase() === 'available'
-                                        ? 'border-[#5AD17B]/45 bg-[#2F9E44]/24 text-[#D6F8E2]'
-                                        : 'border-white/25 bg-white/5 text-white/80'
-                                        }`}
-                                      onClick={() => handleChangeAvailability('available')}
-                                      disabled={challengeSquadSaving || !challengeSquadEditable}
-                                    >
-                                      Disponible
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className={`rounded-none border px-2 py-1 text-[11px] font-oswald uppercase tracking-wide disabled:opacity-60 ${String(currentUserSquadRow?.availability_status || '').toLowerCase() === 'unavailable'
-                                        ? 'border-[#FBBF24]/45 bg-[#B45309]/24 text-[#FDE68A]'
-                                        : 'border-white/25 bg-white/5 text-white/80'
-                                        }`}
-                                      onClick={() => handleChangeAvailability('unavailable')}
-                                      disabled={challengeSquadSaving || !challengeSquadEditable}
-                                    >
-                                      No disponible
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : null}
-
-                              {squadRows.length === 0 ? (
-                                <p className="text-[13px] text-white/60">Todavía nadie indicó disponibilidad.</p>
-                              ) : (
-                                <div className="space-y-2">
-                                  {squadRows.map((entry) => (
-                                    <div
-                                      key={entry?.id || `${teamId}-${entry?.jugador_id}`}
-                                      className="rounded-none border border-white/10 bg-white/[0.03] px-2 py-2"
-                                    >
-                                      <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                          <div className="h-8 w-8 rounded-full border border-white/25 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[10px] font-semibold text-white/90 shrink-0">
-                                            {getPlayerAvatar(entry) ? (
-                                              <img src={getPlayerAvatar(entry)} alt={getPlayerName(entry)} className="h-full w-full object-cover" />
-                                            ) : (
-                                              <span>{getInitials(getPlayerName(entry))}</span>
-                                            )}
-                                          </div>
-                                          <span className="text-white font-oswald text-[14px] truncate">{getPlayerName(entry)}</span>
-                                        </div>
-                                        <div className="flex flex-wrap items-center gap-1.5">
-                                          <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide ${getAvailabilityBadgeClass(entry?.availability_status)}`}>
-                                            {getAvailabilityLabel(entry?.availability_status)}
-                                          </span>
-                                          <span className="inline-flex items-center rounded-none border border-white/25 bg-white/5 px-2 py-1 text-[10px] font-oswald uppercase tracking-wide text-white/85">
-                                            {getSelectionLabel(entry?.selection_status)}
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      {canManageThisTeam ? (
-                                        <div className="mt-2 grid grid-cols-3 gap-1.5">
-                                          {['starter', 'substitute', 'not_selected'].map((selection) => {
-                                            const isActive = String(entry?.selection_status || '').toLowerCase() === selection
-                                              && (selection === 'not_selected' || Boolean(entry?.approved_by_captain));
-                                            return (
-                                              <button
-                                                key={`${entry?.id || entry?.jugador_id}-${selection}`}
-                                                type="button"
-                                                className={`rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide disabled:opacity-60 ${isActive
-                                                  ? 'border-[#7d5aff] bg-[#6a43ff]/35 text-white'
-                                                  : 'border-white/25 bg-white/5 text-white/80'
-                                                  }`}
-                                                onClick={() => handleChangeSelection({
-                                                  teamId,
-                                                  playerId: entry?.jugador_id,
-                                                  selectionStatus: selection,
-                                                })}
-                                                disabled={challengeSquadSaving || !challengeSquadEditable}
-                                              >
-                                                {selection === 'starter' ? 'Titular' : selection === 'substitute' ? 'Suplente' : 'Afuera'}
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
-                                      ) : null}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
                             </div>
-                          );
-                        })}
+
+                            {myChallengeSquadRows.length === 0 ? (
+                              <p className="text-[13px] text-white/60">Todavía nadie indicó disponibilidad.</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {myChallengeSquadRows.map((entry) => (
+                                  <div
+                                    key={entry?.id || `${myChallengeTeamId}-${entry?.jugador_id}`}
+                                    className="rounded-none border border-white/10 bg-white/[0.03] px-2 py-2"
+                                  >
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <div className="h-8 w-8 rounded-full border border-white/25 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[10px] font-semibold text-white/90 shrink-0">
+                                          {getPlayerAvatar(entry) ? (
+                                            <img src={getPlayerAvatar(entry)} alt={getPlayerName(entry)} className="h-full w-full object-cover" />
+                                          ) : (
+                                            <span>{getInitials(getPlayerName(entry))}</span>
+                                          )}
+                                        </div>
+                                        <span className="text-white font-oswald text-[14px] truncate">{getPlayerName(entry)}</span>
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide ${getAvailabilityBadgeClass(entry?.availability_status)}`}>
+                                          {getAvailabilityLabel(entry?.availability_status)}
+                                        </span>
+                                        <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide ${getSelectionBadgeClass(entry?.selection_status)}`}>
+                                          {getSelectionLabel(entry?.selection_status)}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    <div className="mt-2 grid grid-cols-3 gap-1.5">
+                                      {['starter', 'substitute', 'not_selected'].map((selection) => {
+                                        const isActive = String(entry?.selection_status || '').toLowerCase() === selection
+                                          && (selection === 'not_selected' || Boolean(entry?.approved_by_captain));
+                                        return (
+                                          <button
+                                            key={`${entry?.id || entry?.jugador_id}-${selection}`}
+                                            type="button"
+                                            className={`rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide disabled:opacity-60 ${isActive
+                                              ? 'border-[#7d5aff] bg-[#6a43ff]/35 text-white'
+                                              : 'border-white/25 bg-white/5 text-white/80'
+                                              }`}
+                                            onClick={() => handleChangeSelection({
+                                              teamId: myChallengeTeamId,
+                                              playerId: entry?.jugador_id,
+                                              selectionStatus: selection,
+                                              row: entry,
+                                            })}
+                                            disabled={challengeSquadSaving || !challengeSquadEditable}
+                                          >
+                                            {selection === 'starter' ? 'Titular' : selection === 'substitute' ? 'Suplente' : 'Afuera'}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="rounded-none border border-white/10 bg-white/[0.02] p-3">
+                            <p className="text-[13px] text-white/70 font-oswald">
+                              Tu capitán/admin arma el plantel final de {myChallengeTeam?.name || 'tu equipo'}.
+                            </p>
+                          </div>
+                        )}
                       </div>
-                    ) : null}
+                    )}
                   </div>
                 ) : null}
               </div>

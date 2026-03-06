@@ -527,7 +527,6 @@ SET search_path = public
 AS $$
 DECLARE
   v_challenge public.challenges%ROWTYPE;
-  v_prev_status text;
   v_team_match_id uuid;
   v_notified_count integer := 0;
 BEGIN
@@ -548,8 +547,6 @@ BEGIN
   IF v_challenge.accepted_team_id IS NULL THEN
     RETURN jsonb_build_object('prepared', false, 'reason', 'challenge_without_rival');
   END IF;
-
-  v_prev_status := COALESCE(v_challenge.squad_status, 'not_open');
 
   UPDATE public.challenges c
   SET
@@ -615,7 +612,6 @@ BEGIN
   LIMIT 1;
 
   IF p_open
-     AND v_prev_status <> 'open'
      AND COALESCE(v_challenge.squad_status, 'not_open') = 'open' THEN
     BEGIN
       INSERT INTO public.notifications (user_id, type, title, message, data, read, created_at)
@@ -627,6 +623,11 @@ BEGIN
         jsonb_build_object(
           'challenge_id', v_challenge.id,
           'team_match_id', v_team_match_id,
+          'team_a_id', v_challenge.challenger_team_id,
+          'team_b_id', v_challenge.accepted_team_id,
+          'team_a_name', COALESCE((SELECT t.name FROM public.teams t WHERE t.id = v_challenge.challenger_team_id), 'Equipo A'),
+          'team_b_name', COALESCE((SELECT t.name FROM public.teams t WHERE t.id = v_challenge.accepted_team_id), 'Equipo B'),
+          'scheduled_at', v_challenge.scheduled_at,
           'origin_type', 'challenge',
           'source', 'team_challenge',
           'link', CASE
@@ -659,7 +660,14 @@ BEGIN
             AND j.usuario_id IS NOT NULL
         ) all_members
         WHERE user_id IS NOT NULL
-      ) recipients;
+      ) recipients
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM public.notifications n
+        WHERE n.user_id = recipients.user_id
+          AND n.type = 'challenge_squad_open'
+          AND COALESCE(n.data->>'challenge_id', '') = v_challenge.id::text
+      );
 
       GET DIAGNOSTICS v_notified_count = ROW_COUNT;
     EXCEPTION WHEN OTHERS THEN

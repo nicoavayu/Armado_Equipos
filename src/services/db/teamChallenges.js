@@ -2442,6 +2442,16 @@ export const acceptChallenge = async (challengeId, acceptedTeamId, _options = {}
   const rpcRow = Array.isArray(response.data) ? response.data[0] : response.data;
   const matchId = rpcRow?.match_id || rpcRow?.matchId || null;
   const challenge = await getChallengeById(challengeId);
+
+  try {
+    await maybePrepareChallengeTeamSquad(challenge?.id || challengeId, true);
+  } catch (error) {
+    console.warn('[TEAM_CHALLENGES] prepare_challenge_team_squad after accept failed', {
+      challengeId,
+      message: error?.message || String(error),
+    });
+  }
+
   return {
     challenge,
     matchId,
@@ -2458,6 +2468,14 @@ export const confirmChallenge = async (challengeId) => {
   }
 
   const challenge = await getChallengeById(challengeId);
+  try {
+    await maybePrepareChallengeTeamSquad(challenge?.id || challengeId, true);
+  } catch (error) {
+    console.warn('[TEAM_CHALLENGES] prepare_challenge_team_squad after confirm failed', {
+      challengeId,
+      message: error?.message || String(error),
+    });
+  }
   return challenge;
 };
 

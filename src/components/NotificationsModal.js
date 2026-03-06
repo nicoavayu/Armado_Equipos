@@ -302,6 +302,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       case 'match_update': return Users;
       case 'team_invite': return Users;
       case 'team_captain_transfer': return Users;
+      case 'challenge_accepted': return CalendarClock;
+      case 'team_match_created': return CalendarClock;
+      case 'challenge_squad_open': return CalendarClock;
       case 'match_cancelled': return XCircle;
       case 'match_join_request': return UserPlus;
       case 'match_join_approved': return CheckCircle;

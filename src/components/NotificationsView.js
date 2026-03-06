@@ -425,6 +425,7 @@ const NotificationsView = () => {
         return Users;
       case 'challenge_accepted':
       case 'team_match_created':
+      case 'challenge_squad_open':
         return CalendarClock;
       case 'post_match_survey':
       case 'survey_start':

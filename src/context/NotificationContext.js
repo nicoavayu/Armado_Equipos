@@ -402,9 +402,11 @@ export const NotificationProvider = ({ children }) => {
           ? 'survey_open'
           : n.type === 'survey_reminder' || n.type === 'survey_reminder_12h'
             ? 'survey_reminder'
-            : isTeamChallengeNotification(n)
-              ? 'team_challenge_accepted'
-            : String(n.type || 'default')
+            : n.type === 'challenge_squad_open'
+              ? 'team_challenge_squad_open'
+              : isTeamChallengeNotification(n)
+                ? 'team_challenge_accepted'
+                : String(n.type || 'default')
       );
       const key = `${n.user_id}::${String(pid)}::${surveyGroup}`;
       const existing = keepMap.get(key);
@@ -672,10 +674,13 @@ export const NotificationProvider = ({ children }) => {
     const surveyFinished = unread.filter((n) => n.type === 'survey_finished').length;
     const noShowPenalty = unread.filter((n) => n.type === 'no_show_penalty_applied').length;
     const noShowRecovery = unread.filter((n) => n.type === 'no_show_recovery_applied').length;
+    const challengeAccepted = unread.filter((n) => n.type === 'challenge_accepted').length;
+    const teamMatchCreated = unread.filter((n) => n.type === 'team_match_created').length;
+    const challengeSquadOpen = unread.filter((n) => n.type === 'challenge_squad_open').length;
 
     setUnreadCount({
       friends: friendRequests,
-      matches: matchInvites + teamInvites + captainTransfers + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyReminders + surveyResults + awardsReady + awardWon + surveyFinished + noShowPenalty + noShowRecovery,
+      matches: matchInvites + teamInvites + captainTransfers + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyReminders + surveyResults + awardsReady + awardWon + surveyFinished + noShowPenalty + noShowRecovery + challengeAccepted + teamMatchCreated + challengeSquadOpen,
       total: unread.length,
     });
   };
