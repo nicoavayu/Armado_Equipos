@@ -191,7 +191,17 @@ const ChallengeCard = ({
 
       <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
         <TeamSide team={challenge?.challenger_team} fallbackText="Equipo A" />
-        <div className="text-white/65 font-oswald text-xs tracking-[0.14em] px-1">VS</div>
+        <div className="px-1 flex flex-col items-center justify-center gap-2">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#3b9bff] shadow-[0_0_10px_rgba(59,155,255,0.8)]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#7a42ff] shadow-[0_0_10px_rgba(122,66,255,0.8)]" />
+          </div>
+          <div className="text-white/80 font-oswald text-[30px] tracking-[0.16em] leading-none">VS</div>
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#3b9bff] shadow-[0_0_10px_rgba(59,155,255,0.8)]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#7a42ff] shadow-[0_0_10px_rgba(122,66,255,0.8)]" />
+          </div>
+        </div>
         <TeamSide team={challenge?.accepted_team} fallbackText="Busco rival" />
       </div>
 
