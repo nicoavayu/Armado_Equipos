@@ -124,34 +124,6 @@ const getSquadStatusBadgeClass = (statusValue) => {
   return 'text-white/85 border-white/25 bg-white/10';
 };
 
-const getAvailabilityLabel = (status) => {
-  const normalized = String(status || '').trim().toLowerCase();
-  if (normalized === 'available') return 'Disponible';
-  if (normalized === 'unavailable') return 'No disponible';
-  return 'Pendiente';
-};
-
-const getAvailabilityBadgeClass = (status) => {
-  const normalized = String(status || '').trim().toLowerCase();
-  if (normalized === 'available') return 'text-[#D6F8E2] border-[#5AD17B]/45 bg-[#2F9E44]/24';
-  if (normalized === 'unavailable') return 'text-[#FDE68A] border-[#FBBF24]/45 bg-[#B45309]/24';
-  return 'text-[#D4EBFF] border-[#9ED3FF]/45 bg-[#128BE9]/22';
-};
-
-const getInlineNoticeClass = (type) => {
-  const normalized = String(type || '').trim().toLowerCase();
-  if (normalized === 'success') return 'border-[#5AD17B]/45 bg-[#2F9E44]/24 text-[#D6F8E2]';
-  if (normalized === 'warning') return 'border-[#FBBF24]/45 bg-[#B45309]/24 text-[#FDE68A]';
-  if (normalized === 'error') return 'border-[#FCA5A5]/45 bg-[#7F1D1D]/35 text-[#FECACA]';
-  return 'border-[#9ED3FF]/45 bg-[#128BE9]/22 text-[#D4EBFF]';
-};
-
-const isAvailabilityConstraintNotice = (message) => {
-  const normalized = String(message || '').trim().toLowerCase();
-  if (!normalized) return false;
-  return normalized.includes('disponible') && (normalized.includes('convocad') || normalized.includes('marcarse'));
-};
-
 const getSelectionBadgeClass = (status) => {
   const normalized = String(status || '').trim().toLowerCase();
   if (normalized === 'starter') return 'text-[#D6F8E2] border-[#5AD17B]/45 bg-[#2F9E44]/24';
@@ -159,24 +131,12 @@ const getSelectionBadgeClass = (status) => {
   return 'text-[#F8D5FF] border-[#D8B4FE]/45 bg-[#6D28D9]/22';
 };
 
-const getPersonalChallengeStatusLabel = (row) => {
+const getPersonalChallengeCurrentStateLabel = (row) => {
   const selection = String(row?.selection_status || '').trim().toLowerCase();
-  if (selection === 'starter') return 'Titular';
-  if (selection === 'substitute') return 'Suplente';
+  if (selection === 'starter' && row?.approved_by_captain) return 'Titular';
+  if (selection === 'substitute' && row?.approved_by_captain) return 'Suplente';
   if (selection === 'not_selected' && row?.approved_by_captain) return 'Afuera';
-
-  const availability = String(row?.availability_status || '').trim().toLowerCase();
-  if (availability === 'available') return 'Disponible';
-  if (availability === 'unavailable') return 'No disponible';
-  return 'Pendiente';
-};
-
-const getPersonalChallengeStatusBadgeClass = (row) => {
-  const selection = String(row?.selection_status || '').trim().toLowerCase();
-  if (selection === 'starter' || selection === 'substitute') {
-    return getSelectionBadgeClass(selection);
-  }
-  return getAvailabilityBadgeClass(row?.availability_status);
+  return 'Sin responder';
 };
 
 const normalizeIdentityToken = (value) => String(value || '').trim();
@@ -745,6 +705,14 @@ const TeamMatchDetailPage = () => {
   const canRenderPrivateChallengeSquad = Boolean(challengeSquadViewState?.showOperationalModule);
   const showAmbiguousChallengeNotice = Boolean(challengeSquadViewState?.showAmbiguousNotice);
   const showMySquadManagement = Boolean(challengeSquadViewState?.showMySquadManagement);
+  const shouldRenderInlineNotice = Boolean(
+    inlineNotice?.message
+    && String(inlineNotice?.type || '').trim().toLowerCase() !== 'success',
+  );
+  const personalChallengeCurrentStateLabel = useMemo(
+    () => getPersonalChallengeCurrentStateLabel(currentUserSquadRow),
+    [currentUserSquadRow],
+  );
 
   useEffect(() => {
     setSquadFilterTab('available');
@@ -1233,42 +1201,19 @@ const TeamMatchDetailPage = () => {
                       </span>
                     </div>
 
-                    {inlineNotice?.message ? (
-                      <div
-                        className={`rounded-none border px-2.5 py-1.5 text-[11px] font-oswald leading-relaxed ${
-                          isAvailabilityConstraintNotice(inlineNotice?.message)
-                            ? 'border-[#9ED3FF]/35 bg-[#0e2a4a]/35 text-[#D4EBFF]'
-                            : getInlineNoticeClass(inlineNotice?.type)
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex min-w-0 items-start gap-1.5">
-                            {isAvailabilityConstraintNotice(inlineNotice?.message) ? (
-                              <span className="mt-[1px] text-[11px] text-[#9ED3FF]" aria-hidden="true">ℹ</span>
-                            ) : null}
-                            <span className="min-w-0">{inlineNotice.message}</span>
-                          </div>
-                          <button
-                            type="button"
-                            className="text-current/80 hover:text-current text-[10px] uppercase tracking-wide"
-                            onClick={() => setInlineNotice({ type: '', message: '' })}
-                          >
-                            Cerrar
-                          </button>
-                        </div>
-                      </div>
+                    {shouldRenderInlineNotice ? (
+                      <p className="text-[12px] font-oswald text-[#D4EBFF]/85">
+                        {inlineNotice.message}
+                      </p>
                     ) : null}
 
                     {challengeSquadLoading ? (
                       <p className="text-sm text-white/65 font-oswald">Cargando convocatoria...</p>
                     ) : (
                       <div className="space-y-3">
-                        <div className="rounded-none border border-white/10 bg-white/[0.03] p-2">
+                        <div className="space-y-2">
                           <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="text-[12px] uppercase tracking-[0.08em] text-white/65 font-oswald">Mi disponibilidad</span>
-                            <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide ${getPersonalChallengeStatusBadgeClass(currentUserSquadRow)}`}>
-                              {getPersonalChallengeStatusLabel(currentUserSquadRow)}
-                            </span>
+                            <span className="text-[16px] text-white font-oswald">¿Jugás este partido?</span>
                           </div>
                           <div className="mt-2 flex flex-wrap items-center gap-1.5">
                             <button
@@ -1280,7 +1225,7 @@ const TeamMatchDetailPage = () => {
                               onClick={() => handleChangeAvailability('available')}
                               disabled={challengeSquadSaving || !challengeSquadEditable}
                             >
-                              Disponible
+                              Estoy
                             </button>
                             <button
                               type="button"
@@ -1291,24 +1236,27 @@ const TeamMatchDetailPage = () => {
                               onClick={() => handleChangeAvailability('unavailable')}
                               disabled={challengeSquadSaving || !challengeSquadEditable}
                             >
-                              No disponible
+                              No puedo
                             </button>
                           </div>
+                          <p className="text-[12px] text-white/75 font-oswald">
+                            Estado actual: <span className="text-white">{personalChallengeCurrentStateLabel}</span>
+                          </p>
                           {!challengeSquadEditable ? (
-                            <p className="mt-2 text-[11px] text-white/55 font-oswald">
+                            <p className="text-[11px] text-white/55 font-oswald">
                               Convocatoria cerrada: solo lectura.
                             </p>
                           ) : null}
                         </div>
 
                         {showMySquadManagement ? (
-                          <div className="rounded-none border border-white/10 bg-black/15 p-2 space-y-3">
+                          <div className="space-y-3">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <span className="text-white font-oswald text-[13px] uppercase tracking-[0.04em]">Mi plantel</span>
                               <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">TIT {myChallengeSquadCounters.starters}/{challengeSquadLimits.starters}</span>
-                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">SUP {myChallengeSquadCounters.substitutes}/{challengeSquadLimits.substitutes}</span>
-                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">CONV {myChallengeSquadCounters.selected}/{challengeSquadLimits.selected}</span>
+                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">Titulares {myChallengeSquadCounters.starters}/{challengeSquadLimits.starters}</span>
+                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">Suplentes {myChallengeSquadCounters.substitutes}/{challengeSquadLimits.substitutes}</span>
+                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">Convocados {myChallengeSquadCounters.selected}/{challengeSquadLimits.selected}</span>
                               </div>
                             </div>
 
@@ -1338,7 +1286,6 @@ const TeamMatchDetailPage = () => {
                             ) : (
                               <div className="space-y-1">
                                 {visibleMySquadRows.map((entry) => {
-                                  const availabilityStatus = String(entry?.availability_status || '').toLowerCase();
                                   const selectionStatus = String(entry?.selection_status || '').toLowerCase();
                                   const isStarter = selectionStatus === 'starter' && Boolean(entry?.approved_by_captain);
                                   const isSubstitute = selectionStatus === 'substitute' && Boolean(entry?.approved_by_captain);
@@ -1360,14 +1307,9 @@ const TeamMatchDetailPage = () => {
                                           </div>
                                           <span className="text-white font-oswald text-[12px] truncate">{getPlayerName(entry)}</span>
                                         </div>
-                                        <div className="flex flex-wrap items-center justify-end gap-1">
-                                          <span className={`inline-flex items-center rounded-none border px-1.5 py-0.5 text-[9px] font-oswald uppercase tracking-wide ${getAvailabilityBadgeClass(availabilityStatus)}`}>
-                                            {getAvailabilityLabel(availabilityStatus)}
-                                          </span>
-                                          <span className={`inline-flex items-center rounded-none border px-1.5 py-0.5 text-[9px] font-oswald uppercase tracking-wide ${getSelectionBadgeClass(selectionStatus)}`}>
-                                            {isStarter ? 'Titular' : isSubstitute ? 'Suplente' : 'Afuera'}
-                                          </span>
-                                        </div>
+                                        <span className={`inline-flex items-center rounded-none border px-1.5 py-0.5 text-[9px] font-oswald uppercase tracking-wide ${getSelectionBadgeClass(selectionStatus)}`}>
+                                          {isStarter ? 'Titular' : isSubstitute ? 'Suplente' : 'Afuera'}
+                                        </span>
                                       </div>
 
                                       <div className="mt-1 flex items-center gap-1">
@@ -1387,7 +1329,7 @@ const TeamMatchDetailPage = () => {
                                           <button
                                             key={`${entry?.id || entry?.jugador_id}-${action.key}`}
                                             type="button"
-                                            className={`flex-1 rounded-none border px-1.5 py-0.5 text-[9px] font-oswald uppercase tracking-wide disabled:opacity-60 ${action.active
+                                            className={`flex-1 rounded-none border px-2.5 py-1 text-[11px] font-oswald uppercase tracking-wide disabled:opacity-60 ${action.active
                                               ? 'border-[#7d5aff] bg-[#6a43ff]/35 text-white'
                                               : 'border-white/25 bg-white/5 text-white/80'
                                               }`}
@@ -1426,7 +1368,7 @@ const TeamMatchDetailPage = () => {
                                 onClick={() => handleSetChallengeSquadStatus('closed')}
                                 disabled={challengeSquadSaving || !challengeSquadEditable}
                               >
-                                Cerrar plantel
+                                Confirmar plantel
                               </button>
                             ) : null}
                             {challengeSquadStatus === 'closed' ? (
