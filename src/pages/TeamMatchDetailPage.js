@@ -12,7 +12,7 @@ import MatchInfoSection from '../components/MatchInfoSection';
 import ProfileCardModal from '../components/ProfileCardModal';
 import LocationAutocomplete from '../features/equipos/components/LocationAutocomplete';
 import { TEAM_FORMAT_OPTIONS, TEAM_MODE_OPTIONS } from '../features/equipos/config';
-import { getTeamBadgeStyle, getTeamProvidedColors } from '../features/equipos/utils/teamColors';
+import { getTeamBadgeStyle } from '../features/equipos/utils/teamColors';
 import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import {
   getChallengeHeadToHeadStats,
@@ -141,26 +141,11 @@ const TeamCardLocked = ({
   const statusLabel = totalMembers > 0 ? `${totalMembers} jugadores` : 'Sin jugadores';
   const teamName = team?.name || fallbackName;
   const badgeStyle = getTeamBadgeStyle(team);
-  const bandColors = getTeamProvidedColors(team, 3);
-  const hasColorBand = bandColors.length > 0;
 
   return (
     <div
-      className={`relative overflow-hidden ${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(41,170,255,0.4)] bg-[radial-gradient(circle_at_50%_0%,rgba(39,105,255,0.12),rgba(7,22,59,0.95)_48%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] px-4 py-4 sm:px-5 sm:py-5 min-h-[238px] min-w-0 shadow-[0_16px_28px_rgba(3,8,28,0.45)] ${hasColorBand ? 'pl-8 sm:pl-9' : ''}`}
+      className={`relative overflow-hidden ${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(41,170,255,0.4)] bg-[radial-gradient(circle_at_50%_0%,rgba(39,105,255,0.12),rgba(7,22,59,0.95)_48%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] px-4 py-4 sm:px-5 sm:py-5 min-h-[238px] min-w-0 shadow-[0_16px_28px_rgba(3,8,28,0.45)]`}
     >
-      {hasColorBand ? (
-        <span className={`pointer-events-none absolute left-0 top-0 bottom-0 z-[1] w-[10px] overflow-hidden ${DETAIL_CARD_RADIUS_CLASS}`}>
-          <span
-            className="grid h-full w-full"
-            style={{ gridTemplateColumns: `repeat(${bandColors.length}, minmax(0, 1fr))` }}
-          >
-            {bandColors.map((color, index) => (
-              <span key={`${color}-${index}`} style={{ backgroundColor: color }} />
-            ))}
-          </span>
-        </span>
-      ) : null}
-
       <div className="relative flex h-full flex-col">
         <div className="flex flex-col items-center text-center">
           <div className="h-16 w-16 rounded-[18px] overflow-hidden border border-[#1c4ea8] bg-[#0e1b47] flex items-center justify-center shrink-0">
