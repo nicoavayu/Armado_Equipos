@@ -21,7 +21,7 @@ export const isTeamChallengeNotification = (notification = {}) => {
   const source = String(data?.source || '').trim().toLowerCase();
   const title = String(notification?.title || '').trim().toLowerCase();
 
-  if (type === 'challenge_accepted' || type === 'team_match_created') return true;
+  if (type === 'challenge_accepted' || type === 'team_match_created' || type === 'challenge_squad_open') return true;
   if (source === 'team_challenge') return true;
   if (data?.team_match_id || data?.teamMatchId || data?.challenge_id || data?.challengeId) return true;
   if (type === 'match_update' && title.includes('desafio aceptado')) return true;
@@ -64,7 +64,7 @@ export const buildNotificationFallbackRoute = (notification = {}, idMapper = (va
     return `/desafios/equipos/${teamId}`;
   }
 
-  if (type === 'team_invite' || type === 'team_captain_transfer' || type === 'challenge_accepted' || type === 'team_match_created') {
+  if (type === 'team_invite' || type === 'team_captain_transfer' || type === 'challenge_accepted' || type === 'team_match_created' || type === 'challenge_squad_open') {
     return '/desafios';
   }
 

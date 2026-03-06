@@ -11,7 +11,7 @@ import TeamsDnDEditor from '../components/TeamsDnDEditor';
 import { finalizeIfComplete } from '../services/surveyCompletionService';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
 import { clearMatchFromList } from '../services/matchFinishService';
-import { listTeamMatchMembers } from '../services/db/teamChallenges';
+import { listChallengeApprovedSquad, listTeamMatchMembers } from '../services/db/teamChallenges';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { SURVEY_START_DELAY_MS } from '../config/surveyConfig';
 import { parseLocalDateTime } from '../utils/dateLocal';
@@ -297,6 +297,87 @@ const mergeChallengeTeamMembersIntoRoster = ({ roster = [], membersByTeamId = {}
   return merged;
 };
 
+const resolveChallengeTeamsFromApprovedSquad = ({
+  players = [],
+  approvedByTeamId = {},
+  teamAId = null,
+  teamBId = null,
+}) => {
+  const teamAIdKey = String(teamAId || '').trim();
+  const teamBIdKey = String(teamBId || '').trim();
+  if (!teamAIdKey || !teamBIdKey) {
+    return { teamA: [], teamB: [], selectedKeys: new Set() };
+  }
+
+  const approvedTeamA = Array.isArray(approvedByTeamId?.[teamAIdKey]) ? approvedByTeamId[teamAIdKey] : [];
+  const approvedTeamB = Array.isArray(approvedByTeamId?.[teamBIdKey]) ? approvedByTeamId[teamBIdKey] : [];
+  if (approvedTeamA.length === 0 || approvedTeamB.length === 0) {
+    return { teamA: [], teamB: [], selectedKeys: new Set() };
+  }
+
+  const byUserId = new Map();
+  const byUuid = new Map();
+  const byName = new Map();
+  const pushToken = (map, token, key) => {
+    if (!token || !key) return;
+    const bucket = map.get(token) || [];
+    bucket.push(key);
+    map.set(token, bucket);
+  };
+
+  (players || []).forEach((player) => {
+    const key = resolvePlayerKey(player);
+    if (!key) return;
+    pushToken(byUserId, normalizeIdentityToken(player?.usuario_id), key);
+    pushToken(byUuid, normalizeIdentityToken(player?.uuid), key);
+    pushToken(byName, normalizeIdentityToken(player?.nombre), key);
+  });
+
+  const usedKeys = new Set();
+  const pullByToken = (map, token) => {
+    const normalizedToken = normalizeIdentityToken(token);
+    if (!normalizedToken) return null;
+    const bucket = map.get(normalizedToken) || [];
+    while (bucket.length > 0) {
+      const candidate = bucket.shift();
+      if (candidate && !usedKeys.has(candidate)) {
+        map.set(normalizedToken, bucket);
+        usedKeys.add(candidate);
+        return candidate;
+      }
+    }
+    map.set(normalizedToken, bucket);
+    return null;
+  };
+
+  const resolveRowToKey = (row) => {
+    const player = row?.jugador || {};
+    return (
+      pullByToken(byUserId, player?.usuario_id)
+      || pullByToken(byUuid, player?.uuid)
+      || pullByToken(byName, player?.nombre)
+      || null
+    );
+  };
+
+  const teamA = approvedTeamA
+    .map((row) => resolveRowToKey(row))
+    .filter(Boolean);
+  const teamB = approvedTeamB
+    .map((row) => resolveRowToKey(row))
+    .filter(Boolean);
+
+  if (teamA.length === 0 || teamB.length === 0) {
+    return { teamA: [], teamB: [], selectedKeys: new Set() };
+  }
+
+  return {
+    teamA: Array.from(new Set(teamA)),
+    teamB: Array.from(new Set(teamB)),
+    selectedKeys: usedKeys,
+  };
+};
+
 const resolveSurveyMatchStartAt = ({ partidoRow, teamMatchRow }) => {
   const localStart = parseLocalDateTime(partidoRow?.fecha || null, partidoRow?.hora || null);
   if (localStart && !Number.isNaN(localStart.getTime())) return localStart;
@@ -562,6 +643,7 @@ const EncuestaPartido = () => {
         let isTeamChallengeValue = false;
         let challengeTeamMatchContext = null;
         let challengeMembersByTeamId = null;
+        let challengeApprovedSquadByTeamId = null;
         let surveyStatusValue = partidoData?.survey_status || null;
         let surveyClosesAtValue = partidoData?.survey_closes_at || null;
         let resultStatusValue = partidoData?.result_status || null;
@@ -687,6 +769,46 @@ const EncuestaPartido = () => {
           }
         }
 
+        let approvedSquadFixedTeams = { teamA: [], teamB: [] };
+        if (
+          isTeamChallengeValue
+          && challengeTeamMatchContext?.challenge_id
+          && challengeTeamMatchContext?.team_a_id
+          && challengeTeamMatchContext?.team_b_id
+        ) {
+          try {
+            const approvedSquad = await listChallengeApprovedSquad({
+              challengeId: challengeTeamMatchContext.challenge_id,
+              teamIds: [challengeTeamMatchContext.team_a_id, challengeTeamMatchContext.team_b_id],
+            });
+
+            challengeApprovedSquadByTeamId = approvedSquad?.byTeamId || null;
+            const resolvedApprovedTeams = resolveChallengeTeamsFromApprovedSquad({
+              players: jugadoresPartido,
+              approvedByTeamId: challengeApprovedSquadByTeamId || {},
+              teamAId: challengeTeamMatchContext.team_a_id,
+              teamBId: challengeTeamMatchContext.team_b_id,
+            });
+
+            if (
+              resolvedApprovedTeams.teamA.length > 0
+              && resolvedApprovedTeams.teamB.length > 0
+              && resolvedApprovedTeams.selectedKeys.size > 0
+            ) {
+              jugadoresPartido = jugadoresPartido.filter((player) => (
+                resolvedApprovedTeams.selectedKeys.has(resolvePlayerKey(player))
+              ));
+
+              approvedSquadFixedTeams = {
+                teamA: resolvedApprovedTeams.teamA,
+                teamB: resolvedApprovedTeams.teamB,
+              };
+            }
+          } catch (_approvedSquadError) {
+            challengeApprovedSquadByTeamId = null;
+          }
+        }
+
         const loggedRosterPlayers = (jugadoresPartido || []).filter((player) => Boolean(player?.usuario_id));
         const loggedCount = loggedRosterPlayers.length;
         const currentUserEligiblePlayer = currentUserPlayer?.id
@@ -767,12 +889,13 @@ const EncuestaPartido = () => {
         setJugadores(jugadoresPartido);
 
         const playerRefToKey = buildPlayerRefToKeyMap(jugadoresPartido);
-        let challengeFixedTeams = { teamA: [], teamB: [] };
+        let challengeFixedTeams = { ...approvedSquadFixedTeams };
         if (
           isTeamChallengeValue
           && challengeTeamMatchContext?.id
           && challengeTeamMatchContext?.team_a_id
           && challengeTeamMatchContext?.team_b_id
+          && !(approvedSquadFixedTeams.teamA.length > 0 && approvedSquadFixedTeams.teamB.length > 0)
         ) {
           try {
             const membersByTeamId = challengeMembersByTeamId || await listTeamMatchMembers({

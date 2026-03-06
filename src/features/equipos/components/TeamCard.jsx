@@ -1,5 +1,6 @@
 import React from 'react';
 import { Shield, MapPin, Users } from 'lucide-react';
+import { resolveTeamRosterLimit } from '../config';
 import { formatSkillLevelLabel, getTeamAccent, getTeamBadgeStyle, getTeamProvidedColors } from '../utils/teamColors';
 
 const CHIP_CLASS = 'font-oswald text-[10px] font-bold text-white/40 border border-white/10 bg-white/5 px-2 py-0.5 rounded-none uppercase tracking-wider';
@@ -17,7 +18,8 @@ const TeamCard = React.memo(({ team, stats, onClick, footer, className = '' }) =
   const hasColorBand = bandColors.length > 0;
   const normalizedMemberCount = Number(team?.member_count);
   const memberCount = Number.isFinite(normalizedMemberCount) ? normalizedMemberCount : null;
-  const memberLabel = `${memberCount ?? 0} ${memberCount === 1 ? 'jugador' : 'jugadores'}`;
+  const rosterLimit = resolveTeamRosterLimit(team?.format, team?.max_roster_size);
+  const memberLabel = `${memberCount ?? 0}/${rosterLimit} jugadores`;
 
   const played = getStatValue(stats, 'played');
   const won = getStatValue(stats, 'won');

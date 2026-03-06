@@ -52,4 +52,14 @@ describe('notificationRoutes', () => {
     };
     expect(buildNotificationFallbackRoute(notification)).toBe('/desafios');
   });
+
+  test('routes challenge squad notifications to team match detail when id exists', () => {
+    const notification = {
+      type: 'challenge_squad_open',
+      data: { challenge_id: 'abc-1', team_match_id: 'tm-55' },
+    };
+
+    expect(isTeamChallengeNotification(notification)).toBe(true);
+    expect(buildNotificationFallbackRoute(notification)).toBe('/desafios/equipos/partidos/tm-55');
+  });
 });

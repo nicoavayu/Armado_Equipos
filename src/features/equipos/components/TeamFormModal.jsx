@@ -8,6 +8,7 @@ import {
   TEAM_SKILL_OPTIONS,
   normalizeTeamMode,
   normalizeTeamSkillLevel,
+  resolveTeamRosterLimit,
 } from '../config';
 import NeighborhoodAutocomplete from './NeighborhoodAutocomplete';
 
@@ -95,6 +96,10 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
 
   const title = useMemo(() => (initialTeam ? 'Editar equipo' : 'Crear equipo'), [initialTeam]);
   const isCreateMode = !initialTeam;
+  const rosterLimit = useMemo(
+    () => resolveTeamRosterLimit(form.format, initialTeam?.max_roster_size),
+    [form.format, initialTeam?.max_roster_size],
+  );
 
   return (
     <Modal
@@ -177,6 +182,9 @@ const TeamFormModal = ({ isOpen, initialTeam, onClose, onSubmit, isSubmitting = 
                 <option key={value} value={value}>F{value}</option>
               ))}
             </select>
+            <p className="mt-1 text-[11px] text-white/65">
+              Cupo máximo de plantilla: <span className="text-white font-semibold">{rosterLimit}</span> jugadores.
+            </p>
           </label>
 
           <label className="block">

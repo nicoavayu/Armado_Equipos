@@ -30,6 +30,7 @@ const RELEVANT_TYPES = new Set([
   'team_invite',
   'challenge_accepted',
   'team_match_created',
+  'challenge_squad_open',
   'match_update',
   'match_today',
   'falta_jugadores',
@@ -47,6 +48,7 @@ const FEED_TEMPLATE_TYPES = new Set([
   'team_invite',
   'challenge_accepted',
   'team_match_created',
+  'challenge_squad_open',
   'match_player_joined',
   'match_player_left',
   'friend_request',
@@ -70,13 +72,14 @@ const PRIORITY = {
   friend_accepted: 30,
   challenge_accepted: 18,
   team_match_created: 18,
+  challenge_squad_open: 18,
   match_tomorrow: 34,
   insight_weekly_matches: 40,
 };
 
 const severityForType = (type) => {
   if (['match_today', 'falta_jugadores', 'call_to_vote', 'survey_start'].includes(type)) return 'urgent';
-  if (['match_join_request', 'match_invite', 'team_invite', 'match_player_joined', 'match_player_left', 'friend_request', 'match_tomorrow', 'challenge_accepted', 'team_match_created'].includes(type)) return 'warning';
+  if (['match_join_request', 'match_invite', 'team_invite', 'match_player_joined', 'match_player_left', 'friend_request', 'match_tomorrow', 'challenge_accepted', 'team_match_created', 'challenge_squad_open'].includes(type)) return 'warning';
   if (['awards_ready', 'match_complete', 'match_join_approved', 'friend_accepted'].includes(type)) return 'success';
   return 'neutral';
 };
@@ -818,7 +821,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     };
   }
 
-  if (type === 'challenge_accepted' || type === 'team_match_created') {
+  if (type === 'challenge_accepted' || type === 'team_match_created' || type === 'challenge_squad_open') {
     const { teamA, teamB } = resolveChallengeTeamNames(notification);
     const compactTeamA = compactText(teamA, 20, '');
     const compactTeamB = compactText(teamB, 20, '');
@@ -828,12 +831,13 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     const subtitle = [teamsLabel, challengeDateLabel].filter(Boolean).join(' · ')
       || subtitleFromMessage
       || fallbackSubtitle;
+    const isSquadOpen = type === 'challenge_squad_open';
 
     return {
       ...base,
       icon: 'CalendarClock',
-      title: 'Desafío aceptado!',
-      subtitle: compactText(subtitle, 64, 'Desafío aceptado'),
+      title: isSquadOpen ? 'Convocatoria abierta' : 'Desafío aceptado!',
+      subtitle: compactText(subtitle, 64, isSquadOpen ? 'Confirmá disponibilidad para el desafío' : 'Desafío aceptado'),
       route: teamMatchId ? `/desafios/equipos/partidos/${teamMatchId}` : (matchRoute || '/desafios'),
     };
   }

@@ -26,7 +26,6 @@ import { Flag, Search } from 'lucide-react';
 
 const publishActionBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 const publishActionPrimaryClass = `${publishActionBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
-const publishActionSecondaryClass = `${publishActionBaseClass} !border !border-[rgba(98,117,184,0.58)] !bg-[rgba(20,31,70,0.82)] !text-white/92 hover:!bg-[rgba(30,45,94,0.95)]`;
 const challengeConfirmModalClass = 'w-full max-w-[520px] !rounded-none !border !border-[rgba(88,107,170,0.52)] !bg-[rgba(8,18,44,0.96)] !shadow-[0_26px_58px_rgba(0,0,0,0.62)]';
 const challengeConfirmModalContentClass = 'p-4 sm:p-5 !font-oswald';
 const primaryCtaClass = 'flex-1 min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] flex items-center justify-center text-center gap-2 transition-all hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] sm:text-[13px] sm:px-3 sm:py-2 sm:min-h-[36px]';
@@ -72,7 +71,6 @@ const DesafiosTab = ({
   const [editingChallenge, setEditingChallenge] = useState(null);
   const [acceptingChallenge, setAcceptingChallenge] = useState(null);
   const [selectedAcceptTeamId, setSelectedAcceptTeamId] = useState('');
-  const [formatMismatchConfirm, setFormatMismatchConfirm] = useState(null);
   const [cancelConfirmChallenge, setCancelConfirmChallenge] = useState(null);
   const [completeTarget, setCompleteTarget] = useState(null);
   const [inlineNotice, setInlineNotice] = useState({ type: '', message: '' });
@@ -146,7 +144,6 @@ const DesafiosTab = ({
   const closeAcceptChallengeModal = useCallback(() => {
     setAcceptingChallenge(null);
     setSelectedAcceptTeamId('');
-    setFormatMismatchConfirm(null);
   }, []);
 
   const notifyAcceptedChallengeSuccess = useCallback(() => {
@@ -410,22 +407,6 @@ const DesafiosTab = ({
           if (!acceptingChallenge || !selectedAcceptTeamId) return;
 
           const acceptedTeam = manageableTeams.find((team) => team.id === selectedAcceptTeamId) || null;
-          const challengeFormat = Number(acceptingChallenge?.format);
-          const acceptedTeamFormat = Number(acceptedTeam?.format);
-          const hasFormatMismatch = Number.isFinite(challengeFormat)
-            && Number.isFinite(acceptedTeamFormat)
-            && challengeFormat !== acceptedTeamFormat;
-
-          if (hasFormatMismatch) {
-            setFormatMismatchConfirm({
-              challengeId: acceptingChallenge.id,
-              challengeFormat,
-              acceptedTeamId: selectedAcceptTeamId,
-              acceptedTeamName: acceptedTeam?.name || 'Equipo rival',
-              acceptedTeamFormat,
-            });
-            return;
-          }
 
           try {
             setIsSubmitting(true);
@@ -475,76 +456,6 @@ const DesafiosTab = ({
         cancelText="Volver"
         danger
       />
-
-      <Modal
-        isOpen={Boolean(formatMismatchConfirm)}
-        onClose={() => setFormatMismatchConfirm(null)}
-        title="Formato Combinado"
-        className={challengeConfirmModalClass}
-        classNameContent={challengeConfirmModalContentClass}
-        footer={(
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              className={publishActionSecondaryClass}
-              onClick={() => setFormatMismatchConfirm(null)}
-              disabled={isSubmitting}
-              data-preserve-button-case="true"
-            >
-              Volver
-            </Button>
-            <Button
-              type="button"
-              className={publishActionPrimaryClass}
-              loading={isSubmitting}
-              loadingText="Aceptando..."
-              onClick={async () => {
-                if (!formatMismatchConfirm) return;
-                try {
-                  setIsSubmitting(true);
-                  const acceptedTeam = manageableTeams.find(
-                    (team) => team.id === formatMismatchConfirm.acceptedTeamId,
-                  ) || null;
-
-                  const result = await acceptChallenge(
-                    formatMismatchConfirm.challengeId,
-                    formatMismatchConfirm.acceptedTeamId,
-                    {
-                      currentUserId: userId,
-                      acceptedTeamName: acceptedTeam?.name || formatMismatchConfirm.acceptedTeamName,
-                    },
-                  );
-
-                  setFormatMismatchConfirm(null);
-                  closeAcceptChallengeModal();
-                  await loadChallenges();
-                  if (result?.matchId) {
-                    navigate(`/desafios/equipos/partidos/${result.matchId}`);
-                  }
-                  notifyAcceptedChallengeSuccess();
-                } catch (error) {
-                  notifyBlockingError(error.message || 'No se pudo aceptar el desafio');
-                } finally {
-                  setIsSubmitting(false);
-                }
-              }}
-              data-preserve-button-case="true"
-            >
-              Aceptar
-            </Button>
-          </div>
-        )}
-      >
-        <p className="text-[15px] leading-relaxed text-white/82">
-          Este desafío es F{formatMismatchConfirm?.challengeFormat ?? '-'} y el equipo{' '}
-          <strong>{formatMismatchConfirm?.acceptedTeamName || 'seleccionado'}</strong> es F
-          {formatMismatchConfirm?.acceptedTeamFormat ?? '-'}.
-        </p>
-        <p className="mt-2 text-[15px] leading-relaxed text-white/72">
-          Si continuás, se creará un partido con <strong>formato combinado</strong>.
-        </p>
-      </Modal>
 
       <Modal
         isOpen={Boolean(acceptBlockedMessage)}

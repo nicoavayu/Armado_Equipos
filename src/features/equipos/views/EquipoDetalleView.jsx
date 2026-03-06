@@ -27,7 +27,7 @@ import { getAmigos } from '../../../services/db/friends';
 import { uploadTeamCrest, uploadTeamMemberPhoto } from '../../../services/storage/teamCrests';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 import { formatSkillLevelLabel, getTeamProvidedColors } from '../utils/teamColors';
-import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY } from '../config';
+import { QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY, resolveTeamRosterLimit } from '../config';
 
 const modalActionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 const modalPrimaryActionButtonClass = `${modalActionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
@@ -394,6 +394,12 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     () => (selectedTeam ? getTeamProvidedColors(selectedTeam, 3) : []),
     [selectedTeam],
   );
+  const rosterLimit = useMemo(
+    () => resolveTeamRosterLimit(selectedTeam?.format, selectedTeam?.max_roster_size),
+    [selectedTeam?.format, selectedTeam?.max_roster_size],
+  );
+  const isRosterFull = members.length >= rosterLimit;
+  const rosterUsageLabel = `${members.length}/${rosterLimit} jugadores`;
 
   const refreshSelectedTeam = async () => {
     if (!selectedTeam?.id) return;
@@ -457,6 +463,10 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       notifyBlockingError('Solo el capitán puede agregar jugadores');
       return;
     }
+    if (isRosterFull) {
+      notifyBlockingError(`Plantilla completa: ${rosterUsageLabel}.`);
+      return;
+    }
     setAddMemberChoiceOpen(true);
   };
 
@@ -469,6 +479,10 @@ const EquipoDetalleView = ({ teamId, userId }) => {
   const openInviteMemberModal = async () => {
     if (!isSelectedTeamManager) {
       notifyBlockingError('Solo el capitán puede invitar jugadores');
+      return;
+    }
+    if (isRosterFull) {
+      notifyBlockingError(`Plantilla completa: ${rosterUsageLabel}.`);
       return;
     }
     if (!userId) return;
@@ -577,6 +591,10 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       }
 
       if (memberModalMode === 'create') {
+        if (isRosterFull) {
+          throw new Error(`Plantilla completa: ${rosterUsageLabel}.`);
+        }
+
         const duplicatedByName = members.some((member) => (
           normalizeSearchValue(member?.jugador?.nombre) === normalizeSearchValue(normalizedName)
         ));
@@ -651,6 +669,10 @@ const EquipoDetalleView = ({ teamId, userId }) => {
       notifyBlockingError('Solo el capitán puede invitar jugadores');
       return;
     }
+    if (isRosterFull) {
+      notifyBlockingError(`Plantilla completa: ${rosterUsageLabel}.`);
+      return;
+    }
     if (!selectedFriend?.id) {
       notifyBlockingError('Selecciona un amigo para invitar');
       return;
@@ -676,6 +698,10 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     if (!selectedTeam?.id) return;
     if (!isSelectedTeamManager) {
       notifyBlockingError('Solo el capitán puede agregar jugadores');
+      return;
+    }
+    if (isRosterFull) {
+      notifyBlockingError(`Plantilla completa: ${rosterUsageLabel}.`);
       return;
     }
     if (isCurrentUserInTeam) {
@@ -833,6 +859,13 @@ const EquipoDetalleView = ({ teamId, userId }) => {
     if (!selectedTeam?.id) return;
     if (!isSelectedTeamManager) {
       notifyBlockingError('Solo el capitán puede editar este equipo');
+      return;
+    }
+
+    const nextFormat = Number(payload?.format || selectedTeam?.format || 5);
+    const nextRosterLimit = resolveTeamRosterLimit(nextFormat);
+    if (nextFormat !== Number(selectedTeam?.format || 5) && members.length > nextRosterLimit) {
+      notifyBlockingError(`No podés cambiar a F${nextFormat}: tenés ${members.length} jugadores y el máximo es ${nextRosterLimit}.`);
       return;
     }
 
@@ -1003,15 +1036,22 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
                 <h5 className="text-white font-oswald text-xl">Plantilla</h5>
                 <span className="text-xs text-white/60">
-                  {members.length} jugadores{teamPendingInvitations.length > 0 ? ` · ${teamPendingInvitations.length} pendientes` : ''}
+                  {rosterUsageLabel}{teamPendingInvitations.length > 0 ? ` · ${teamPendingInvitations.length} pendientes` : ''}
                 </span>
               </div>
+
+              {isRosterFull ? (
+                <p className="mt-2 text-[12px] text-amber-200/95">
+                  Plantilla completa. Para sumar un jugador tenés que liberar un cupo.
+                </p>
+              ) : null}
 
               {isSelectedTeamManager ? (
                 <button
                   type="button"
                   onClick={openAddMemberChoiceModal}
-                  className={addMemberButtonClass}
+                  className={`${addMemberButtonClass} ${isRosterFull ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  disabled={isRosterFull}
                 >
                   <div className="flex items-center gap-2.5">
                     <UserPlus size={20} className="shrink-0 text-white" />
@@ -1274,10 +1314,16 @@ const EquipoDetalleView = ({ teamId, userId }) => {
         classNameContent="p-4 sm:p-5"
       >
         <div className="space-y-2">
+          {isRosterFull ? (
+            <p className="text-[12px] text-amber-200/95">
+              Plantilla completa ({rosterUsageLabel}). Liberá un cupo para sumar más jugadores.
+            </p>
+          ) : null}
+
           <button
             type="button"
             className={disabledOptionCardClass}
-            disabled={isSaving || isCurrentUserInTeam}
+            disabled={isSaving || isCurrentUserInTeam || isRosterFull}
             onClick={handleAddCurrentUserAsMember}
           >
             <p className="text-white font-oswald text-[18px]">Agregarme A Mí</p>
@@ -1290,7 +1336,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           <button
             type="button"
             className={disabledOptionCardClass}
-            disabled={isSaving}
+            disabled={isSaving || isRosterFull}
             onClick={() => {
               setAddMemberChoiceOpen(false);
               openCreateMemberModal();
@@ -1303,7 +1349,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
           <button
             type="button"
             className={disabledOptionCardClass}
-            disabled={isSaving}
+            disabled={isSaving || isRosterFull}
             onClick={async () => {
               setAddMemberChoiceOpen(false);
               await openInviteMemberModal();
@@ -1339,7 +1385,7 @@ const EquipoDetalleView = ({ teamId, userId }) => {
               onClick={handleSendTeamInvitation}
               loading={isSaving}
               loadingText="Enviando..."
-              disabled={isSaving || !selectedFriend}
+              disabled={isSaving || !selectedFriend || isRosterFull}
               data-preserve-button-case="true"
             >
               Aceptar

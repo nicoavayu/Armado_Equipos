@@ -1,7 +1,12 @@
 import { supabase } from '../../lib/supabaseClient';
-import { normalizeTeamMode, normalizeTeamSkillLevel } from '../../features/equipos/config';
+import {
+  normalizeTeamMode,
+  normalizeTeamSkillLevel,
+  resolveChallengeSquadLimits,
+  resolveTeamRosterLimit,
+} from '../../features/equipos/config';
 
-const TEAM_SELECT = [
+const TEAM_SELECT_LEGACY = [
   'id',
   'owner_user_id',
   'name',
@@ -16,7 +21,9 @@ const TEAM_SELECT = [
   'created_at',
   'updated_at',
 ].join(',');
+const TEAM_SELECT = `${TEAM_SELECT_LEGACY},max_roster_size`;
 const TEAM_SELECT_WITH_MODE = `${TEAM_SELECT},mode`;
+const TEAM_SELECT_LEGACY_WITH_MODE = `${TEAM_SELECT_LEGACY},mode`;
 
 const CHALLENGE_SELECT_BASE = `
   id,
@@ -32,12 +39,19 @@ const CHALLENGE_SELECT_BASE = `
   location_place_id,
   cancha_cost,
   format,
+  match_format,
   skill_level,
+  max_starters_per_team,
+  max_substitutes_per_team,
+  max_selected_per_team,
+  squad_status,
+  squad_opened_at,
+  squad_closed_at,
   notes,
   created_at,
   updated_at,
-  challenger_team:teams!challenges_challenger_team_id_fkey(${TEAM_SELECT}),
-  accepted_team:teams!challenges_accepted_team_id_fkey(${TEAM_SELECT})
+  challenger_team:teams!challenges_challenger_team_id_fkey(${TEAM_SELECT_LEGACY}),
+  accepted_team:teams!challenges_accepted_team_id_fkey(${TEAM_SELECT_LEGACY})
 `;
 
 const CHALLENGE_SELECT_WITH_PRICING = `
@@ -54,14 +68,21 @@ const CHALLENGE_SELECT_WITH_PRICING = `
   location_place_id,
   cancha_cost,
   format,
+  match_format,
   skill_level,
+  max_starters_per_team,
+  max_substitutes_per_team,
+  max_selected_per_team,
+  squad_status,
+  squad_opened_at,
+  squad_closed_at,
   price_per_team,
   field_price,
   notes,
   created_at,
   updated_at,
-  challenger_team:teams!challenges_challenger_team_id_fkey(${TEAM_SELECT}),
-  accepted_team:teams!challenges_accepted_team_id_fkey(${TEAM_SELECT})
+  challenger_team:teams!challenges_challenger_team_id_fkey(${TEAM_SELECT_LEGACY}),
+  accepted_team:teams!challenges_accepted_team_id_fkey(${TEAM_SELECT_LEGACY})
 `;
 
 const CHALLENGE_SELECT_LEGACY = `
@@ -79,8 +100,8 @@ const CHALLENGE_SELECT_LEGACY = `
   notes,
   created_at,
   updated_at,
-  challenger_team:teams!challenges_challenger_team_id_fkey(${TEAM_SELECT}),
-  accepted_team:teams!challenges_accepted_team_id_fkey(${TEAM_SELECT})
+  challenger_team:teams!challenges_challenger_team_id_fkey(${TEAM_SELECT_LEGACY}),
+  accepted_team:teams!challenges_accepted_team_id_fkey(${TEAM_SELECT_LEGACY})
 `;
 
 const TEAM_MEMBER_SELECT_BASE = `
@@ -131,7 +152,7 @@ const TEAM_INVITATION_SELECT = `
   created_at,
   updated_at,
   responded_at,
-  team:teams!team_invitations_team_id_fkey(${TEAM_SELECT}),
+  team:teams!team_invitations_team_id_fkey(${TEAM_SELECT_LEGACY}),
   invited_user:usuarios!team_invitations_invited_user_id_fkey(
     id,
     nombre,
@@ -174,13 +195,18 @@ const TEAM_MATCH_SELECT = `
   is_format_combined,
   created_at,
   updated_at,
-  team_a:teams!team_matches_team_a_id_fkey(${TEAM_SELECT}),
-  team_b:teams!team_matches_team_b_id_fkey(${TEAM_SELECT}),
+  team_a:teams!team_matches_team_a_id_fkey(${TEAM_SELECT_LEGACY}),
+  team_b:teams!team_matches_team_b_id_fkey(${TEAM_SELECT_LEGACY}),
   challenge:challenges!team_matches_challenge_id_fkey(
     id,
     created_by_user_id,
     format,
-    status
+    match_format,
+    status,
+    squad_status,
+    max_starters_per_team,
+    max_substitutes_per_team,
+    max_selected_per_team
   )
 `;
 
@@ -196,8 +222,8 @@ const TEAM_MATCH_SELECT_LEGACY = `
   score_b,
   status,
   created_at,
-  team_a:teams!team_matches_team_a_id_fkey(${TEAM_SELECT}),
-  team_b:teams!team_matches_team_b_id_fkey(${TEAM_SELECT}),
+  team_a:teams!team_matches_team_a_id_fkey(${TEAM_SELECT_LEGACY}),
+  team_b:teams!team_matches_team_b_id_fkey(${TEAM_SELECT_LEGACY}),
   challenge:challenges!team_matches_challenge_id_fkey(
     id,
     created_by_user_id,
@@ -286,6 +312,22 @@ const TEAM_MATCH_STATUS_ALIASES = {
   cancelado: 'cancelled',
 };
 
+const CHALLENGE_SQUAD_STATUS_ALIASES = {
+  open: 'open',
+  abierta: 'open',
+  opened: 'open',
+  not_open: 'not_open',
+  notopen: 'not_open',
+  pendiente: 'not_open',
+  pending: 'not_open',
+  closed: 'closed',
+  cerrada: 'closed',
+  finalized: 'finalized',
+  finalizada: 'finalized',
+  finalizado: 'finalized',
+  finished: 'finalized',
+};
+
 const uniqueValues = (values) => Array.from(new Set(values.filter(Boolean)));
 
 const normalizeMessage = (error) => String(error?.message || error?.details || '').toLowerCase();
@@ -305,6 +347,21 @@ const isMissingFunctionError = (error, functionName) => {
   );
 };
 
+const isMissingTableError = (error, tableName) => {
+  const message = normalizeMessage(error);
+  const tableToken = String(tableName || '').toLowerCase();
+  if (!tableToken) return false;
+  return (
+    message.includes(tableToken)
+    && (
+      message.includes('does not exist')
+      || message.includes('schema cache')
+      || message.includes('relation')
+      || message.includes('could not find')
+    )
+  );
+};
+
 const isOrderedSetModeError = (error) => (
   normalizeMessage(error).includes('within group is required for ordered-set aggregate mode')
 );
@@ -314,17 +371,53 @@ const isUniqueConstraintError = (error) => (
   || normalizeMessage(error).includes('duplicate key')
 );
 
+const isRosterLimitExceededError = (error) => {
+  const message = normalizeMessage(error);
+  return (
+    message.includes('plantilla completa')
+    || (message.includes('maximo') && message.includes('jugadores'))
+    || (message.includes('roster') && message.includes('limit'))
+  );
+};
+
 const hasAnyMissingColumns = (error, columns) => (
   columns.some((columnName) => isMissingColumnError(error, columnName))
 );
 
 const isChallengeSelectCompatibilityError = (error) => (
   isOrderedSetModeError(error)
-  || hasAnyMissingColumns(error, ['mode', 'location', 'cancha_cost', 'price_per_team', 'field_price'])
+  || hasAnyMissingColumns(error, [
+    'mode',
+    'location',
+    'cancha_cost',
+    'price_per_team',
+    'field_price',
+    'match_format',
+    'max_starters_per_team',
+    'max_substitutes_per_team',
+    'max_selected_per_team',
+    'squad_status',
+    'squad_opened_at',
+    'squad_closed_at',
+    'max_roster_size',
+  ])
 );
 
 const isChallengeWriteCompatibilityError = (error) => (
-  hasAnyMissingColumns(error, ['mode', 'location', 'cancha_cost', 'price_per_team', 'field_price'])
+  hasAnyMissingColumns(error, [
+    'mode',
+    'location',
+    'cancha_cost',
+    'price_per_team',
+    'field_price',
+    'match_format',
+    'max_starters_per_team',
+    'max_substitutes_per_team',
+    'max_selected_per_team',
+    'squad_status',
+    'squad_opened_at',
+    'squad_closed_at',
+  ])
 );
 
 const isChallengeOwnerOnlyInsertError = (error) => (
@@ -342,7 +435,17 @@ const isTeamMatchSelectCompatibilityError = (error) => (
     'cancha_cost',
     'is_format_combined',
     'updated_at',
+    'match_format',
+    'squad_status',
+    'max_starters_per_team',
+    'max_substitutes_per_team',
+    'max_selected_per_team',
+    'max_roster_size',
   ])
+);
+
+const isTeamSelectCompatibilityError = (error) => (
+  hasAnyMissingColumns(error, ['mode', 'max_roster_size'])
 );
 
 const runChallengeSelectWithFallback = async (queryFactory, preferred = CHALLENGE_SELECT_WITH_PRICING) => {
@@ -378,11 +481,21 @@ const runTeamMatchSelectWithFallback = async (queryFactory, preferred = TEAM_MAT
 };
 
 const runTeamSelectWithModeFallback = async (queryFactory) => {
-  let response = await queryFactory(TEAM_SELECT_WITH_MODE);
-  if (response.error && isMissingColumnError(response.error, 'mode')) {
-    response = await queryFactory(TEAM_SELECT);
+  const fallbackClauses = [
+    TEAM_SELECT_WITH_MODE,
+    TEAM_SELECT,
+    TEAM_SELECT_LEGACY_WITH_MODE,
+    TEAM_SELECT_LEGACY,
+  ];
+
+  let lastResponse = null;
+  for (const selectClause of fallbackClauses) {
+    const response = await queryFactory(selectClause);
+    if (!response.error) return response;
+    lastResponse = response;
+    if (!isTeamSelectCompatibilityError(response.error)) return response;
   }
-  return response;
+  return lastResponse;
 };
 
 const challengePayloadToKey = (payload) => Object.keys(payload)
@@ -445,6 +558,22 @@ const normalizeTeamMatchStatus = (value) => {
   return TEAM_MATCH_STATUS_ALIASES[normalized] || normalized;
 };
 
+const normalizeChallengeSquadStatus = (value, challengeStatus = null) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized) {
+    return CHALLENGE_SQUAD_STATUS_ALIASES[normalized] || normalized;
+  }
+
+  const normalizedChallengeStatus = normalizeChallengeStatus(challengeStatus);
+  if (normalizedChallengeStatus === 'completed' || normalizedChallengeStatus === 'canceled') {
+    return 'finalized';
+  }
+  if (normalizedChallengeStatus === 'accepted' || normalizedChallengeStatus === 'confirmed') {
+    return 'open';
+  }
+  return 'not_open';
+};
+
 const TEAM_MATCH_STATUS_QUERY_VALUES = {
   pending: ['pending', 'open', 'abierto'],
   confirmed: ['confirmed', 'confirmado', 'accepted', 'aceptado', 'matched', 'taken', 'ready', 'active'],
@@ -503,6 +632,22 @@ const withChallengeCompatibility = (row) => ({
   cancha_cost: row?.cancha_cost ?? row?.field_price ?? null,
   price_per_team: row?.price_per_team ?? null,
   field_price: row?.field_price ?? null,
+  match_format: Number(row?.match_format ?? row?.format) || Number(row?.format) || 5,
+  max_starters_per_team: Number(
+    row?.max_starters_per_team
+    ?? resolveChallengeSquadLimits(row?.match_format ?? row?.format)?.starters,
+  ) || resolveChallengeSquadLimits(row?.match_format ?? row?.format).starters,
+  max_substitutes_per_team: Number(
+    row?.max_substitutes_per_team
+    ?? resolveChallengeSquadLimits(row?.match_format ?? row?.format)?.substitutes,
+  ) || resolveChallengeSquadLimits(row?.match_format ?? row?.format).substitutes,
+  max_selected_per_team: Number(
+    row?.max_selected_per_team
+    ?? resolveChallengeSquadLimits(row?.match_format ?? row?.format)?.selected,
+  ) || resolveChallengeSquadLimits(row?.match_format ?? row?.format).selected,
+  squad_status: normalizeChallengeSquadStatus(row?.squad_status, row?.status),
+  squad_opened_at: row?.squad_opened_at ?? null,
+  squad_closed_at: row?.squad_closed_at ?? null,
 });
 
 const withTeamMatchCompatibility = (row) => ({
@@ -518,6 +663,7 @@ const withTeamMatchCompatibility = (row) => ({
 const withTeamCompatibility = (row) => ({
   ...row,
   mode: normalizeTeamMode(row?.mode),
+  max_roster_size: resolveTeamRosterLimit(row?.format, row?.max_roster_size),
 });
 
 const teamMatchesRequestedUpdate = (team, requestedUpdatePayload) => {
@@ -1530,6 +1676,63 @@ export const listTeamMatchMembers = async ({ matchId, teamIds = [] }) => {
   return Object.fromEntries(entries);
 };
 
+const normalizePlayerIdToken = (value) => {
+  if (value == null) return '';
+  return String(value).trim();
+};
+
+const mapPlayersById = async (playerIds = []) => {
+  const normalizedPlayerIds = uniqueValues(
+    (playerIds || [])
+      .map((playerId) => normalizePlayerIdToken(playerId))
+      .filter(Boolean),
+  );
+  if (normalizedPlayerIds.length === 0) return new Map();
+
+  const response = await supabase
+    .from('jugadores')
+    .select('id, usuario_id, nombre, avatar_url, score, uuid')
+    .in('id', normalizedPlayerIds);
+
+  if (response.error) {
+    throw new Error(response.error.message || 'No se pudieron cargar los jugadores de la convocatoria');
+  }
+
+  return new Map(
+    (response.data || [])
+      .filter((row) => row?.id != null)
+      .map((row) => [normalizePlayerIdToken(row.id), row]),
+  );
+};
+
+const assertTeamHasRosterCapacity = async (teamId) => {
+  if (!teamId) throw new Error('Equipo invalido');
+
+  const [team, memberRowsResponse] = await Promise.all([
+    getTeamById(teamId),
+    supabase
+      .from('team_members')
+      .select('team_id')
+      .eq('team_id', teamId),
+  ]);
+
+  if (memberRowsResponse.error) {
+    throw new Error(memberRowsResponse.error.message || 'No se pudo validar el cupo de la plantilla');
+  }
+
+  const memberCount = Array.isArray(memberRowsResponse.data) ? memberRowsResponse.data.length : 0;
+  const rosterLimit = resolveTeamRosterLimit(team?.format, team?.max_roster_size);
+  if (memberCount >= rosterLimit) {
+    throw new Error(`Plantilla completa: F${team?.format || 5} permite hasta ${rosterLimit} jugadores.`);
+  }
+
+  return {
+    memberCount,
+    rosterLimit,
+    team,
+  };
+};
+
 const pickSingleRelation = (value) => {
   if (Array.isArray(value)) return value[0] || null;
   return value || null;
@@ -1629,12 +1832,17 @@ export const listIncomingTeamInvitations = async (userId) => {
 };
 
 export const sendTeamInvitation = async ({ teamId, invitedUserId }) => {
+  await assertTeamHasRosterCapacity(teamId);
+
   const response = await supabase.rpc('rpc_send_team_invitation', {
     p_team_id: teamId,
     p_invited_user_id: invitedUserId,
   });
 
   if (response.error) {
+    if (isRosterLimitExceededError(response.error)) {
+      throw new Error('Plantilla completa. No podes enviar más invitaciones hasta liberar cupo.');
+    }
     throw new Error(response.error.message || 'No se pudo enviar la invitacion');
   }
 
@@ -1687,6 +1895,8 @@ export const addTeamMember = async ({
   shirtNumber = null,
   photoUrl = null,
 }) => {
+  await assertTeamHasRosterCapacity(teamId);
+
   const roleCandidates = getRoleCandidates(role);
   let response = null;
 
@@ -1734,6 +1944,10 @@ export const addTeamMember = async ({
 
     if (!response.error) break;
     if (!isRoleConstraintError(response.error)) break;
+  }
+
+  if (response?.error && isRosterLimitExceededError(response.error)) {
+    throw new Error('Plantilla completa. No se pueden agregar más jugadores a este equipo.');
   }
 
   return unwrapSingle(response, 'No se pudo agregar el jugador al equipo');
@@ -2196,8 +2410,12 @@ export const acceptChallenge = async (challengeId, acceptedTeamId, _options = {}
     const hint = String(response.error.hint || '').trim();
     const normalized = normalizeMessage(response.error);
 
-    if (normalized.includes('formato invalido para aceptar challenge')) {
-      throw new Error('La base no permite formato combinado todavia. Ejecuta la ultima migracion y reintenta.');
+    if (
+      normalized.includes('formato invalido para aceptar challenge')
+      || (normalized.includes('mismo formato') && normalized.includes('equipos'))
+      || normalized.includes('formato') && normalized.includes('deben ser del mismo')
+    ) {
+      throw new Error('Los dos equipos deben tener el mismo formato para aceptar el desafío.');
     }
 
     // If another request accepted it first, recover by opening the existing match.
@@ -2304,6 +2522,236 @@ export const getChallengeById = async (challengeId) => {
   );
 
   return withChallengeCompatibility(unwrapSingle(response, 'No se pudo cargar el desafio'));
+};
+
+const maybePrepareChallengeTeamSquad = async (challengeId, open = true) => {
+  if (!challengeId) return null;
+
+  const response = await supabase.rpc('prepare_challenge_team_squad', {
+    p_challenge_id: challengeId,
+    p_open: Boolean(open),
+  });
+
+  if (response.error) {
+    if (isMissingFunctionError(response.error, 'prepare_challenge_team_squad')) {
+      return null;
+    }
+    throw new Error(response.error.message || 'No se pudo preparar la convocatoria del desafío');
+  }
+
+  return response.data || null;
+};
+
+const fetchChallengeTeamSquadRows = async ({ challengeId, teamIds = [] }) => {
+  let query = supabase
+    .from('challenge_team_squad')
+    .select(`
+      id,
+      challenge_id,
+      team_id,
+      player_id,
+      availability_status,
+      selection_status,
+      approved_by_captain,
+      participated,
+      attendance_locked,
+      responded_at,
+      selected_at,
+      selected_by,
+      created_at,
+      updated_at
+    `)
+    .eq('challenge_id', challengeId)
+    .order('created_at', { ascending: true });
+
+  const normalizedTeamIds = uniqueValues((teamIds || []).map((value) => String(value || '').trim()).filter(Boolean));
+  if (normalizedTeamIds.length > 0) {
+    query = query.in('team_id', normalizedTeamIds);
+  }
+
+  const response = await query;
+  if (response.error) {
+    if (isMissingTableError(response.error, 'challenge_team_squad')) {
+      return { available: false, rows: [] };
+    }
+    throw new Error(response.error.message || 'No se pudo cargar la convocatoria del desafío');
+  }
+
+  return {
+    available: true,
+    rows: response.data || [],
+  };
+};
+
+export const listChallengeTeamSquad = async ({
+  challengeId,
+  teamIds = [],
+  ensurePrepared = true,
+}) => {
+  if (!challengeId) {
+    throw new Error('Desafío inválido para convocatoria');
+  }
+
+  let challenge = null;
+  try {
+    challenge = await getChallengeById(challengeId);
+  } catch (_error) {
+    challenge = null;
+  }
+
+  if (ensurePrepared) {
+    try {
+      await maybePrepareChallengeTeamSquad(challengeId, true);
+    } catch (error) {
+      if (!isMissingFunctionError(error, 'prepare_challenge_team_squad')) {
+        throw error;
+      }
+    }
+  }
+
+  const squadResult = await fetchChallengeTeamSquadRows({ challengeId, teamIds });
+  if (!squadResult.available) {
+    return {
+      available: false,
+      challenge,
+      rows: [],
+      byTeamId: {},
+    };
+  }
+
+  const playersById = await mapPlayersById((squadResult.rows || []).map((row) => row?.player_id));
+
+  const rows = (squadResult.rows || []).map((row) => {
+    const player = playersById.get(normalizePlayerIdToken(row?.player_id)) || null;
+    return {
+      ...row,
+      team_id: row?.team_id || null,
+      player_id: row?.player_id ?? null,
+      availability_status: String(row?.availability_status || 'pending').toLowerCase(),
+      selection_status: String(row?.selection_status || 'not_selected').toLowerCase(),
+      approved_by_captain: Boolean(row?.approved_by_captain),
+      jugador: player
+        ? {
+          id: player?.id ?? null,
+          uuid: player?.uuid ?? null,
+          usuario_id: player?.usuario_id ?? null,
+          nombre: player?.nombre || 'Jugador',
+          avatar_url: player?.avatar_url || null,
+          score: player?.score ?? null,
+        }
+        : null,
+      user_id: player?.usuario_id || null,
+    };
+  });
+
+  const byTeamId = {};
+  rows.forEach((row) => {
+    const teamId = String(row?.team_id || '').trim();
+    if (!teamId) return;
+    if (!Array.isArray(byTeamId[teamId])) byTeamId[teamId] = [];
+    byTeamId[teamId].push(row);
+  });
+
+  return {
+    available: true,
+    challenge,
+    rows,
+    byTeamId,
+  };
+};
+
+export const listChallengeApprovedSquad = async ({
+  challengeId,
+  teamIds = [],
+}) => {
+  const result = await listChallengeTeamSquad({
+    challengeId,
+    teamIds,
+    ensurePrepared: false,
+  });
+
+  const approvedRows = (result.rows || []).filter((row) => (
+    row?.approved_by_captain
+    && (row?.selection_status === 'starter' || row?.selection_status === 'substitute')
+  ));
+
+  const byTeamId = {};
+  approvedRows.forEach((row) => {
+    const teamId = String(row?.team_id || '').trim();
+    if (!teamId) return;
+    if (!Array.isArray(byTeamId[teamId])) byTeamId[teamId] = [];
+    byTeamId[teamId].push(row);
+  });
+
+  return {
+    ...result,
+    rows: approvedRows,
+    byTeamId,
+  };
+};
+
+export const setChallengeAvailability = async ({
+  challengeId,
+  availabilityStatus,
+}) => {
+  const response = await supabase.rpc('rpc_set_challenge_availability', {
+    p_challenge_id: challengeId,
+    p_availability_status: availabilityStatus,
+  });
+
+  if (response.error) {
+    if (isMissingFunctionError(response.error, 'rpc_set_challenge_availability')) {
+      throw new Error('Falta aplicar la migración de convocatoria por desafío.');
+    }
+    throw new Error(response.error.message || 'No se pudo actualizar tu disponibilidad');
+  }
+
+  return response.data || null;
+};
+
+export const upsertChallengeTeamSelection = async ({
+  challengeId,
+  teamId,
+  playerId,
+  selectionStatus,
+  approvedByCaptain = true,
+}) => {
+  const response = await supabase.rpc('rpc_upsert_challenge_team_selection', {
+    p_challenge_id: challengeId,
+    p_team_id: teamId,
+    p_player_id: String(playerId ?? ''),
+    p_selection_status: selectionStatus,
+    p_approved_by_captain: Boolean(approvedByCaptain),
+  });
+
+  if (response.error) {
+    if (isMissingFunctionError(response.error, 'rpc_upsert_challenge_team_selection')) {
+      throw new Error('Falta aplicar la migración de convocatoria por desafío.');
+    }
+    throw new Error(response.error.message || 'No se pudo actualizar la convocatoria');
+  }
+
+  return response.data || null;
+};
+
+export const setChallengeSquadStatus = async ({
+  challengeId,
+  squadStatus,
+}) => {
+  const normalizedStatus = normalizeChallengeSquadStatus(squadStatus);
+  const response = await supabase.rpc('rpc_set_challenge_squad_status', {
+    p_challenge_id: challengeId,
+    p_squad_status: normalizedStatus,
+  });
+
+  if (response.error) {
+    if (isMissingFunctionError(response.error, 'rpc_set_challenge_squad_status')) {
+      throw new Error('Falta aplicar la migración de convocatoria por desafío.');
+    }
+    throw new Error(response.error.message || 'No se pudo cambiar el estado de la convocatoria');
+  }
+
+  return withChallengeCompatibility(response.data || {});
 };
 
 const resolveUserAdminTeamIds = async ({ userId, teamIds, teamRows = [] }) => {
@@ -2746,8 +3194,8 @@ export const listTeamMatchHistory = async (teamId) => {
       score_b,
       status,
       created_at,
-      team_a:teams!team_matches_team_a_id_fkey(${TEAM_SELECT}),
-      team_b:teams!team_matches_team_b_id_fkey(${TEAM_SELECT})
+      team_a:teams!team_matches_team_a_id_fkey(${TEAM_SELECT_LEGACY}),
+      team_b:teams!team_matches_team_b_id_fkey(${TEAM_SELECT_LEGACY})
     `)
     .or(`team_a_id.eq.${teamId},team_b_id.eq.${teamId}`)
     .eq('status', 'played')
