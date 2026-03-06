@@ -36,26 +36,21 @@ const normalizeTextToken = (value) => String(value || '')
   .toLowerCase()
   .trim();
 
-const isChallengeLikePartido = (partido = {}) => {
+const isTeamMatchNavigationTarget = (partido = {}) => {
   if (!partido || typeof partido !== 'object') return false;
 
   const sourceType = normalizeTextToken(partido?.source_type || partido?.sourceType);
-  if (sourceType === 'team_match' || sourceType === 'challenge') return true;
+  if (sourceType === 'team_match') return true;
 
   const originType = normalizeTextToken(partido?.origin_type || partido?.originType);
   if (originType === 'challenge') return true;
 
-  if (
-    partido?.challenge_id
-    || partido?.challengeId
-    || partido?.team_match_id
+  return Boolean(
+    partido?.team_match_id
     || partido?.teamMatchId
-  ) {
-    return true;
-  }
-
-  const matchName = normalizeTextToken(partido?.nombre || partido?.titulo || partido?.name || '');
-  return /^desafio\s*:/.test(matchName);
+    || partido?.challenge_id
+    || partido?.challengeId
+  );
 };
 
 const parseChallengeTeamsFromName = (matchName = '') => {
@@ -384,7 +379,15 @@ const ProximosPartidos = ({ onClose }) => {
           : null;
 
         const linkedTeamMatch = linkedByPartidoId || linkedBySignature || null;
-        const shouldTreatAsChallenge = isChallengeLikePartido(partido) || Boolean(linkedTeamMatch);
+        const shouldTreatAsChallenge = Boolean(
+          linkedTeamMatch
+          || partido?.team_match_id
+          || partido?.teamMatchId
+          || partido?.challenge_id
+          || partido?.challengeId
+          || normalizeTextToken(partido?.origin_type || partido?.originType) === 'challenge'
+          || normalizeTextToken(partido?.source_type || partido?.sourceType) === 'team_match'
+        );
         if (!shouldTreatAsChallenge) return partido;
 
         const inferredCupo = Number(linkedTeamMatch?.cupo_jugadores || 0);
@@ -464,26 +467,37 @@ const ProximosPartidos = ({ onClose }) => {
       ));
 
     for (const partidoId of partidoIdCandidates) {
-      const { data, error } = await supabase
-        .from('team_matches')
-        .select('id')
-        .eq('partido_id', partidoId)
-        .in('status', ['pending', 'open', 'abierto', 'confirmed', 'confirmado', 'accepted', 'aceptado', 'matched', 'taken', 'ready', 'active'])
-        .order('updated_at', { ascending: false })
-        .limit(1);
+      const lookupAttempts = [
+        () => supabase
+          .from('team_matches')
+          .select('id')
+          .eq('partido_id', partidoId)
+          .in('status', ['pending', 'open', 'abierto', 'confirmed', 'confirmado', 'accepted', 'aceptado', 'matched', 'taken', 'ready', 'active'])
+          .order('updated_at', { ascending: false })
+          .limit(1),
+        () => supabase
+          .from('team_matches')
+          .select('id')
+          .eq('partido_id', partidoId)
+          .order('updated_at', { ascending: false })
+          .limit(1),
+      ];
 
-      if (error) {
-        console.warn('[PROXIMOS] resolveTeamMatchId partido lookup failed', {
-          partidoId,
-          code: error?.code,
-          message: error?.message,
-        });
-        continue;
-      }
+      for (const executeLookup of lookupAttempts) {
+        const { data, error } = await executeLookup();
+        if (error) {
+          console.warn('[PROXIMOS] resolveTeamMatchId partido lookup failed', {
+            partidoId,
+            code: error?.code,
+            message: error?.message,
+          });
+          continue;
+        }
 
-      const inferredMatchId = Number(data?.[0]?.id || 0);
-      if (Number.isFinite(inferredMatchId) && inferredMatchId > 0) {
-        return inferredMatchId;
+        const inferredMatchId = Number(data?.[0]?.id || 0);
+        if (Number.isFinite(inferredMatchId) && inferredMatchId > 0) {
+          return inferredMatchId;
+        }
       }
     }
 
@@ -492,13 +506,18 @@ const ProximosPartidos = ({ onClose }) => {
 
   const _handleMatchClick = async (partido) => {
     onClose();
-    if (partido?.source_type === 'team_match' || isChallengeLikePartido(partido)) {
+    if (isTeamMatchNavigationTarget(partido)) {
       const teamMatchId = await resolveTeamMatchId(partido);
       if (teamMatchId) {
         navigate(`/desafios/equipos/partidos/${teamMatchId}`);
       } else {
-        notifyBlockingError('No se pudo abrir el detalle del desafío. Te mostramos la sección de desafíos.');
-        navigate('/desafios', { state: { equiposSubtab: 'desafios' } });
+        const fallbackPartidoId = Number(partido?.partido_id || partido?.id || 0);
+        if (Number.isFinite(fallbackPartidoId) && fallbackPartidoId > 0) {
+          notifyBlockingError('No se pudo resolver el detalle de desafío. Abrimos el detalle del partido.');
+          navigate(`/admin/${fallbackPartidoId}`);
+        } else {
+          notifyBlockingError('No se pudo abrir el detalle del partido.');
+        }
       }
       return;
     }

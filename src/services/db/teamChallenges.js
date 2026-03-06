@@ -2461,13 +2461,23 @@ export const getTeamMatchById = async (matchId) => {
 export const getTeamMatchByChallengeId = async (challengeId) => {
   if (!challengeId) return null;
 
-  const response = await runTeamMatchSelectWithFallback(
-    (selectClause) => supabase
-      .from('team_matches')
-      .select(selectClause)
-      .eq('challenge_id', challengeId)
-      .maybeSingle(),
+  const queryByOrderColumn = (selectClause, orderColumn) => supabase
+    .from('team_matches')
+    .select(selectClause)
+    .eq('challenge_id', challengeId)
+    .order(orderColumn, { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  let response = await runTeamMatchSelectWithFallback(
+    (selectClause) => queryByOrderColumn(selectClause, 'updated_at'),
   );
+
+  if (response.error && isMissingColumnError(response.error, 'updated_at')) {
+    response = await runTeamMatchSelectWithFallback(
+      (selectClause) => queryByOrderColumn(selectClause, 'created_at'),
+    );
+  }
 
   if (response.error) {
     throw new Error(response.error.message || 'No se pudo cargar el partido del desafio');
