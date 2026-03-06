@@ -229,7 +229,7 @@ const TeamCardLocked = ({
 
         <div className="mt-3 h-px bg-[rgba(88,107,170,0.34)]" />
 
-        <div className="mt-3 flex items-center justify-center gap-2 flex-nowrap overflow-hidden min-h-[40px]">
+        <div className="mt-3 flex items-center justify-center gap-1.5 flex-nowrap overflow-hidden min-h-[36px]">
           {visibleMembers.length > 0 ? visibleMembers.map((member) => {
             const name = getPlayerName(member);
             const avatar = getPlayerAvatar(member);
@@ -238,7 +238,7 @@ const TeamCardLocked = ({
                 key={`${member?.id || member?.jugador_id || name}`}
                 type="button"
                 onClick={() => onOpenProfile(getPlayerProfile(member))}
-                className="h-10 w-10 rounded-full border border-white/30 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[10px] font-semibold text-white/90 shrink-0"
+                className="h-9 w-9 rounded-full border border-white/30 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[10px] font-semibold text-white/90 shrink-0"
                 title={name}
                 aria-label={`Ver perfil de ${name}`}
               >
@@ -257,7 +257,7 @@ const TeamCardLocked = ({
             <button
               type="button"
               onClick={onOpenRoster}
-              className="h-10 w-10 rounded-full border border-white/30 bg-slate-900/70 text-[11px] text-white/85 font-oswald shrink-0 flex items-center justify-center"
+              className="h-9 w-9 rounded-full border border-white/30 bg-slate-900/70 text-[11px] text-white/85 font-oswald shrink-0 flex items-center justify-center"
               aria-label={`Ver ${overflowCount} jugadores mas`}
               title="Ver plantilla completa"
             >
@@ -1195,15 +1195,15 @@ const TeamMatchDetailPage = () => {
                       <p className="text-sm text-white/65 font-oswald">Cargando convocatoria...</p>
                     ) : (
                       <div className="space-y-3">
-                        <div className="space-y-1.5">
+                        <div className="rounded-none border border-white/10 bg-white/[0.02] p-2.5 space-y-2">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="text-[16px] text-white font-oswald">¿Jugás este partido?</span>
                           </div>
-                          <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <div className="mt-1.5 flex items-center gap-2">
                             <Button
                               onClick={() => handleChangeAvailability('available')}
                               disabled={challengeSquadSaving || !challengeSquadEditable}
-                              className={`!h-[50px] !rounded-[20px] !text-[20px] !tracking-[0.02em] ${
+                              className={`!w-auto !flex-1 !h-[50px] !rounded-[20px] !text-[20px] !tracking-[0.02em] ${
                                 availabilityStatusCurrent === 'available'
                                   ? ''
                                   : '!border-white/15 !bg-primary/70 !shadow-none'
@@ -1214,7 +1214,7 @@ const TeamMatchDetailPage = () => {
                             <Button
                               onClick={() => handleChangeAvailability('unavailable')}
                               disabled={challengeSquadSaving || !challengeSquadEditable}
-                              className={`!h-[50px] !rounded-[20px] !text-[20px] !tracking-[0.02em] ${
+                              className={`!w-auto !flex-1 !h-[50px] !rounded-[20px] !text-[20px] !tracking-[0.02em] ${
                                 availabilityStatusCurrent === 'unavailable'
                                   ? ''
                                   : '!border-white/15 !bg-primary/70 !shadow-none'
@@ -1234,19 +1234,20 @@ const TeamMatchDetailPage = () => {
                         </div>
 
                         {!isSquadRosterViewOpen ? (
-                          <div className="space-y-2">
-                            {hasAvailabilityResponse ? (
-                              <Button
-                                onClick={() => setIsSquadRosterViewOpen(true)}
-                                className="!h-[54px] !rounded-[24px] !text-[24px]"
-                              >
-                                Mi plantel
-                              </Button>
-                            ) : (
+                          <div className="rounded-none border border-white/10 bg-white/[0.02] p-2.5 space-y-2">
+                            <p className="text-[12px] text-white/75 font-oswald">Mi plantel</p>
+                            <Button
+                              onClick={() => setIsSquadRosterViewOpen(true)}
+                              disabled={!hasAvailabilityResponse}
+                              className="!h-[54px] !rounded-[24px] !text-[24px]"
+                            >
+                              Mi plantel
+                            </Button>
+                            {!hasAvailabilityResponse ? (
                               <p className="text-[11px] text-white/60 font-oswald">
                                 Confirmá si jugás para abrir Mi plantel.
                               </p>
-                            )}
+                            ) : null}
                           </div>
                         ) : (
                           <div className="space-y-3">
