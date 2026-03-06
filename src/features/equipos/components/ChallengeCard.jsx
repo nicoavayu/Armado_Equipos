@@ -50,6 +50,17 @@ const formatChallengeDate = (value) => {
   });
 };
 
+const formatMoneyAr = (value) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed.toLocaleString('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+};
+
 const TeamSide = ({ team, fallbackText }) => {
   if (!team) {
     return (
@@ -76,11 +87,9 @@ const TeamSide = ({ team, fallbackText }) => {
 
         <div className="h-px w-full bg-[rgba(88,107,170,0.34)]" />
 
-        {team.base_zone ? (
-          <div className={`${CHIP_BASE_CLASS} mt-1 inline-flex items-center gap-1 border border-[rgba(88,107,170,0.46)] bg-white/5 text-white/90`}>
-            <MapPin size={11} /> {team.base_zone}
-          </div>
-        ) : null}
+        <div className={`${CHIP_BASE_CLASS} mt-1 inline-flex items-center gap-1 border border-[rgba(88,107,170,0.46)] bg-white/5 text-white/90`}>
+          <MapPin size={11} /> {team.base_zone || 'Sin definir'}
+        </div>
       </div>
     </div>
   );
@@ -99,7 +108,8 @@ const ChallengeCard = ({
 }) => {
   const status = (challenge?.status || 'open').toLowerCase();
   const cta = primaryLabel || CTA_BY_STATUS[status] || 'Ver detalle';
-  const hasPendingLocation = !String(challenge?.location || challenge?.location_name || '').trim();
+  const locationLabel = String(challenge?.location || challenge?.location_name || '').trim() || 'A coordinar';
+  const fieldPriceLabel = formatMoneyAr(challenge?.cancha_cost ?? challenge?.field_price);
   const challengeSkillLabel = formatSkillLevelLabel(challenge?.skill_level || challenge?.challenger_team?.skill_level);
   const challengeFormatLabel = `F${challenge?.format || '-'}`;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -185,13 +195,14 @@ const ChallengeCard = ({
         <TeamSide team={challenge?.accepted_team} fallbackText="Busco rival" />
       </div>
 
-      {hasPendingLocation ? (
-        <div className="mt-3 flex items-center">
-          <span className="inline-flex items-center gap-1 rounded-none border border-white/20 px-2.5 py-1.5 bg-white/5 text-xs text-white/75 font-oswald">
-            <MapPin size={12} /> A coordinar
-          </span>
-        </div>
-      ) : null}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1 rounded-none border border-white/20 px-2.5 py-1.5 bg-white/5 text-xs text-white/75 font-oswald">
+          <MapPin size={12} /> {locationLabel}
+        </span>
+        <span className="inline-flex items-center gap-1 rounded-none border border-white/20 px-2.5 py-1.5 bg-white/5 text-xs text-white/75 font-oswald">
+          {fieldPriceLabel ? `Cancha ${fieldPriceLabel}` : 'Sin precio'}
+        </span>
+      </div>
 
       {challenge?.notes ? (
         <p className="mt-3 text-[13px] leading-snug text-white/75 break-words font-oswald">{challenge.notes}</p>
