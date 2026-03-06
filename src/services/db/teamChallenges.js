@@ -2413,7 +2413,7 @@ export const acceptChallenge = async (challengeId, acceptedTeamId, _options = {}
     if (
       normalized.includes('formato invalido para aceptar challenge')
       || (normalized.includes('mismo formato') && normalized.includes('equipos'))
-      || normalized.includes('formato') && normalized.includes('deben ser del mismo')
+      || (normalized.includes('formato') && normalized.includes('deben ser del mismo'))
     ) {
       throw new Error('Los dos equipos deben tener el mismo formato para aceptar el desafío.');
     }
