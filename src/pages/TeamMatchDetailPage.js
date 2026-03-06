@@ -775,7 +775,7 @@ const TeamMatchDetailPage = () => {
   }) => {
     if (!match?.challenge_id || !teamId || !playerId || !canRenderPrivateChallengeSquad) return;
     if (!canManageMyChallengeSquad) {
-      showChallengeInlineNotice('warning', 'Solo el capitán/admin puede armar el plantel.');
+      showChallengeInlineNotice('warning', 'Solo el capitán puede armar el plantel.');
       return;
     }
     if (String(teamId) !== String(myChallengeTeamId)) {
@@ -874,7 +874,7 @@ const TeamMatchDetailPage = () => {
   const handleSetChallengeSquadStatus = useCallback(async (nextStatus) => {
     if (!match?.challenge_id || !canRenderPrivateChallengeSquad) return;
     if (!canManageMyChallengeSquad) {
-      showChallengeInlineNotice('warning', 'Solo el capitán/admin puede cambiar el estado del plantel.');
+      showChallengeInlineNotice('warning', 'Solo el capitán puede cambiar el estado del plantel.');
       return;
     }
     const normalizedNextStatus = String(nextStatus || '').trim().toLowerCase();
@@ -1354,7 +1354,7 @@ const TeamMatchDetailPage = () => {
                         ) : (
                           <div className="rounded-none border border-white/10 bg-white/[0.02] p-2">
                             <p className="text-[12px] text-white/70 font-oswald">
-                              El capitán/admin de {myChallengeTeam?.name || 'tu equipo'} va a definir titulares y suplentes.
+                              El capitán de {myChallengeTeam?.name || 'tu equipo'} va a definir titulares y suplentes.
                             </p>
                           </div>
                         )}
