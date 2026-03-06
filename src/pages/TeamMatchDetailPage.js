@@ -1247,15 +1247,17 @@ const TeamMatchDetailPage = () => {
                         </div>
 
                         {showMySquadManagement ? (
-                          <div className="space-y-3">
+                          <div className="space-y-2">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <span className="text-white font-oswald text-[13px] uppercase tracking-[0.04em]">Mi plantel</span>
-                              <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">Titulares {myChallengeSquadCounters.starters} / {challengeSquadLimits.starters}</span>
-                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">Suplentes {myChallengeSquadCounters.substitutes} / {challengeSquadLimits.substitutes}</span>
-                                <span className="rounded-none border border-white/25 px-2 py-1 text-white/85">Convocados {myChallengeSquadCounters.selected} / {challengeSquadLimits.selected}</span>
-                              </div>
                             </div>
+                            <p className="text-[11px] text-white/78 font-oswald">
+                              Titulares {myChallengeSquadCounters.starters}/{challengeSquadLimits.starters}
+                              <span className="mx-1 text-white/45">·</span>
+                              Suplentes {myChallengeSquadCounters.substitutes}/{challengeSquadLimits.substitutes}
+                              <span className="mx-1 text-white/45">·</span>
+                              Convocados {myChallengeSquadCounters.selected}/{challengeSquadLimits.selected}
+                            </p>
 
                             <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                               {squadFilterTabOptions.map((tab) => {
@@ -1297,10 +1299,10 @@ const TeamMatchDetailPage = () => {
                                   return (
                                     <div
                                       key={entry?.id || `${myChallengeTeamId}-${entry?.jugador_id}`}
-                                      className="rounded-none border border-white/10 bg-white/[0.03] px-2 py-1"
+                                      className="rounded-none border border-white/10 bg-white/[0.03] px-2 py-0.5"
                                     >
-                                      <div className="flex items-start gap-2">
-                                        <div className="flex items-start gap-2 min-w-0">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2 min-w-0">
                                           <div className="h-6 w-6 rounded-full border border-white/25 bg-slate-900/70 overflow-hidden flex items-center justify-center text-[9px] font-semibold text-white/90 shrink-0">
                                             {getPlayerAvatar(entry) ? (
                                               <img src={getPlayerAvatar(entry)} alt={getPlayerName(entry)} className="h-full w-full object-cover" />
@@ -1308,7 +1310,7 @@ const TeamMatchDetailPage = () => {
                                               <span>{getInitials(getPlayerName(entry))}</span>
                                             )}
                                           </div>
-                                          <div className="min-w-0">
+                                          <div className="min-w-0 flex items-center gap-2">
                                             <span className="block text-white font-oswald text-[12px] truncate">{getPlayerName(entry)}</span>
                                             <span className={`block text-[10px] font-oswald uppercase tracking-[0.06em] ${playerSelectionClass}`}>
                                               {playerSelectionLabel}
@@ -1317,7 +1319,7 @@ const TeamMatchDetailPage = () => {
                                         </div>
                                       </div>
 
-                                      <div className="mt-1 flex items-center gap-1">
+                                      <div className="mt-0.5 flex items-center gap-1">
                                         {[{
                                           key: 'starter',
                                           label: 'Titular',
@@ -1365,7 +1367,7 @@ const TeamMatchDetailPage = () => {
                         )}
 
                         {showMySquadManagement ? (
-                          <div className="flex items-center gap-1.5">
+                          <div className="mt-3 flex items-center gap-1.5">
                             {challengeSquadStatus === 'open' ? (
                               <button
                                 type="button"
