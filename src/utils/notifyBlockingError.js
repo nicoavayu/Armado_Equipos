@@ -1,6 +1,6 @@
 
-import { toast } from 'react-toastify';
 import { captureException, captureMessage } from './monitoring/sentry';
+import { showGlobalNotice } from './globalNoticeModal';
 
 const DEDUPE_WINDOW_MS = 2000;
 const recentByKey = new Map();
@@ -45,7 +45,9 @@ export const notifyBlockingError = (message, options = {}) => {
     match_id,
     user_id,
     error,
-    ...toastOptions
+    title,
+    confirmText,
+    danger,
   } = options || {};
   const composedKey = screen && action ? `${screen}:${action}:${normalizedMessage}` : null;
   const resolvedKey = dedupeKey || key || composedKey || normalizedMessage;
@@ -60,8 +62,15 @@ export const notifyBlockingError = (message, options = {}) => {
     captureMessage(normalizedMessage, 'error', context);
   }
 
-  if (toast?.error && typeof toast.error === 'function') {
-    return toast.error(normalizedMessage, toastOptions);
+  const noticeId = showGlobalNotice({
+    title: title || 'Aviso',
+    message: normalizedMessage,
+    confirmText: confirmText || 'Entendido',
+    danger: Boolean(danger),
+  });
+
+  if (noticeId) {
+    return noticeId;
   }
 
   if (isDevOrTest) {

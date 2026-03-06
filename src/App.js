@@ -1,12 +1,12 @@
 // import './HomeStyleKit.css'; // Removed in Tailwind migration
 import React, { lazy, Suspense } from 'react';
-import { ToastContainer } from 'react-toastify';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams, Outlet } from 'react-router-dom';
 
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
 import AuthProvider, { useAuth } from './components/AuthProvider';
 import LoadingSpinner from './components/LoadingSpinner';
+import GlobalNoticeModal from './components/GlobalNoticeModal';
 // NotificationsDebugPanel removed
 
 import MainLayout from './components/MainLayout';
@@ -235,12 +235,7 @@ export default function App() {
                     </Route>
                   </Route>
                 </Routes>
-                <ToastContainer
-                  position="top-right"
-                  autoClose={5000}
-                  newestOnTop
-                  limit={3}
-                />
+                <GlobalNoticeModal />
               </Router>
               {/* Debug panel removed */}
             </NotificationProvider>

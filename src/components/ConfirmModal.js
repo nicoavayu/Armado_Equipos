@@ -19,11 +19,6 @@ export default function ConfirmModal({
   const confirmRef = useRef(null);
   const [visible, setVisible] = useState(false);
 
-  // Debug logs
-  useEffect(() => {
-    console.log('[CONFIRM_MODAL] State changed:', { isOpen, visible, isDeleting });
-  }, [isOpen, visible, isDeleting]);
-
   useEffect(() => {
     if (!isOpen) return;
     setVisible(false);
@@ -42,7 +37,6 @@ export default function ConfirmModal({
       if (e.key === 'Escape') {
         if (isDeleting) return;
         e.preventDefault();
-        console.log('[CONFIRM_MODAL] Escape key pressed, calling onCancel');
         onCancel && onCancel();
         return;
       }
@@ -71,35 +65,28 @@ export default function ConfirmModal({
   }, [isOpen, isDeleting, onCancel]);
 
   if (!isOpen) {
-    console.log('[CONFIRM_MODAL] Not open, returning null');
     return null;
   }
 
   const handleOverlayClick = (e) => {
-    console.log('[CONFIRM_MODAL] Backdrop clicked');
     if (isDeleting) {
-      console.log('[CONFIRM_MODAL] isDeleting=true, not closing');
       return;
     }
     e.preventDefault();
     e.stopPropagation();
-    console.log('[CONFIRM_MODAL] Calling onCancel from backdrop');
     onCancel && onCancel();
   };
 
   const handleCancelClick = (e) => {
-    console.log('[CONFIRM_MODAL] Cancel button clicked');
     e.preventDefault();
     e.stopPropagation();
     onCancel && onCancel();
   };
 
   const handleConfirmClick = (e) => {
-    console.log('[CONFIRM_MODAL] Confirm button clicked, isDeleting:', isDeleting);
     e.preventDefault();
     e.stopPropagation();
     if (isDeleting) {
-      console.log('[CONFIRM_MODAL] isDeleting=true, ignoring click');
       return;
     }
     onConfirm && onConfirm();
