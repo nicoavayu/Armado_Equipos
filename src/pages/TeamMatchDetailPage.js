@@ -136,7 +136,9 @@ const getPersonalChallengeCurrentStateLabel = (row) => {
   if (selection === 'starter' && row?.approved_by_captain) return 'Titular';
   if (selection === 'substitute' && row?.approved_by_captain) return 'Suplente';
   if (selection === 'not_selected' && row?.approved_by_captain) return 'Afuera';
-  return 'Sin responder';
+  const availability = String(row?.availability_status || '').trim().toLowerCase();
+  if (availability === 'available' || availability === 'unavailable') return 'Confirmado';
+  return '';
 };
 
 const normalizeIdentityToken = (value) => String(value || '').trim();
@@ -1239,9 +1241,11 @@ const TeamMatchDetailPage = () => {
                               No puedo
                             </button>
                           </div>
-                          <p className="text-[12px] text-white/75 font-oswald">
-                            Estado actual: <span className="text-white">{personalChallengeCurrentStateLabel}</span>
-                          </p>
+                          {personalChallengeCurrentStateLabel ? (
+                            <p className="text-[12px] text-white/75 font-oswald">
+                              Estado actual: <span className="text-white">{personalChallengeCurrentStateLabel}</span>
+                            </p>
+                          ) : null}
                           {!challengeSquadEditable ? (
                             <p className="text-[11px] text-white/55 font-oswald">
                               Convocatoria cerrada: solo lectura.
