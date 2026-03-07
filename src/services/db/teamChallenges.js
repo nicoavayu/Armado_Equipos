@@ -2180,6 +2180,13 @@ export const listOpenChallenges = async ({ format, zone, skillLevel } = {}) => {
   }
 
   let rows = (response.data || []).map(withChallengeCompatibility);
+  const nowMs = Date.now();
+  rows = rows.filter((row) => {
+    if (!row?.scheduled_at) return true;
+    const scheduledMs = new Date(row.scheduled_at).getTime();
+    if (!Number.isFinite(scheduledMs)) return true;
+    return scheduledMs > nowMs;
+  });
 
   if (skillLevel) {
     const normalizedFilter = normalizeTeamSkillLevel(skillLevel);
