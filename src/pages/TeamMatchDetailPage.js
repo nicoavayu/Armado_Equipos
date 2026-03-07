@@ -302,6 +302,8 @@ const TeamMatchDetailPage = () => {
   const [challengeHeadToHeadLoading, setChallengeHeadToHeadLoading] = useState(false);
   const [showChallengeHeadToHead, setShowChallengeHeadToHead] = useState(false);
   const [isSquadRosterViewOpen, setIsSquadRosterViewOpen] = useState(false);
+  const [ambiguousTeamDecision, setAmbiguousTeamDecision] = useState(null);
+  const [ambiguousTeamModalOpen, setAmbiguousTeamModalOpen] = useState(false);
   const actionsMenuButtonRef = useRef(null);
 
   useEffect(() => {
@@ -570,22 +572,76 @@ const TeamMatchDetailPage = () => {
     challengeSquadDisplayByTeamId,
   }), [challengeSquadDisplayByTeamId, match, teamMembersByTeamId, user?.id]);
 
-  const currentUserTeamId = useMemo(() => (
-    viewerChallengeTeam?.myTeamId
-    || (match?.team_a_id ? String(match.team_a_id) : null)
-  ), [match?.team_a_id, viewerChallengeTeam?.myTeamId]);
+  const isAmbiguousChallengeViewer = Boolean(viewerChallengeTeam?.isAmbiguous);
+  const ambiguousFallbackTeamId = useMemo(() => {
+    if (!isAmbiguousChallengeViewer) return null;
+    const acceptedTeamId = String(match?.challenge?.accepted_team_id || '').trim();
+    const teamAId = String(match?.team_a_id || '').trim();
+    const teamBId = String(match?.team_b_id || '').trim();
+    if (acceptedTeamId && (acceptedTeamId === teamAId || acceptedTeamId === teamBId)) return acceptedTeamId;
+    return teamAId || teamBId || null;
+  }, [
+    isAmbiguousChallengeViewer,
+    match?.challenge?.accepted_team_id,
+    match?.team_a_id,
+    match?.team_b_id,
+  ]);
+
+  const ambiguousFallbackTeam = useMemo(() => {
+    if (!ambiguousFallbackTeamId) return null;
+    if (String(match?.team_a_id || '') === ambiguousFallbackTeamId) return match?.team_a || null;
+    if (String(match?.team_b_id || '') === ambiguousFallbackTeamId) return match?.team_b || null;
+    return null;
+  }, [
+    ambiguousFallbackTeamId,
+    match?.team_a,
+    match?.team_a_id,
+    match?.team_b,
+    match?.team_b_id,
+  ]);
 
   const myChallengeTeamId = useMemo(
-    () => String(viewerChallengeTeam?.myTeamId || '').trim() || null,
-    [viewerChallengeTeam?.myTeamId],
+    () => {
+      const directTeamId = String(viewerChallengeTeam?.myTeamId || '').trim();
+      if (directTeamId) return directTeamId;
+      if (isAmbiguousChallengeViewer && ambiguousTeamDecision === 'accepted') {
+        return String(ambiguousFallbackTeamId || '').trim() || null;
+      }
+      return null;
+    },
+    [
+      ambiguousFallbackTeamId,
+      ambiguousTeamDecision,
+      isAmbiguousChallengeViewer,
+      viewerChallengeTeam?.myTeamId,
+    ],
   );
+
+  const currentUserTeamId = useMemo(() => (
+    myChallengeTeamId
+    || (match?.team_a_id ? String(match.team_a_id) : null)
+  ), [match?.team_a_id, myChallengeTeamId]);
 
   const myChallengeTeam = useMemo(() => {
     if (!myChallengeTeamId) return null;
     if (String(match?.team_a_id || '') === myChallengeTeamId) return match?.team_a || null;
     if (String(match?.team_b_id || '') === myChallengeTeamId) return match?.team_b || null;
+    if (String(ambiguousFallbackTeamId || '') === myChallengeTeamId) return ambiguousFallbackTeam;
     return viewerChallengeTeam?.myTeam || null;
-  }, [match?.team_a, match?.team_a_id, match?.team_b, match?.team_b_id, myChallengeTeamId, viewerChallengeTeam?.myTeam]);
+  }, [
+    ambiguousFallbackTeam,
+    ambiguousFallbackTeamId,
+    match?.team_a,
+    match?.team_a_id,
+    match?.team_b,
+    match?.team_b_id,
+    myChallengeTeamId,
+    viewerChallengeTeam?.myTeam,
+  ]);
+  const ambiguousFallbackTeamName = useMemo(
+    () => String(ambiguousFallbackTeam?.name || 'tu equipo').trim() || 'tu equipo',
+    [ambiguousFallbackTeam?.name],
+  );
 
   const teamCardsMembersByTeamId = useMemo(() => {
     if (!isChallengeMatch) return teamMembersByTeamId;
@@ -684,9 +740,16 @@ const TeamMatchDetailPage = () => {
     viewerChallengeTeam,
   ]);
 
-  const canRenderPrivateChallengeSquad = Boolean(challengeSquadViewState?.showOperationalModule);
-  const showAmbiguousChallengeNotice = Boolean(challengeSquadViewState?.showAmbiguousNotice);
-  const showMySquadManagement = Boolean(challengeSquadViewState?.showMySquadManagement);
+  const canRenderAmbiguousTeamAfterConfirm = Boolean(
+    isChallengeMatch
+    && isAmbiguousChallengeViewer
+    && ambiguousTeamDecision === 'accepted'
+    && myChallengeTeamId,
+  );
+  const canRenderPrivateChallengeSquad = Boolean(
+    canRenderAmbiguousTeamAfterConfirm || challengeSquadViewState?.showOperationalModule,
+  );
+  const showMySquadManagement = Boolean(canRenderPrivateChallengeSquad && canManageMyChallengeSquad);
   const shouldRenderInlineNotice = Boolean(
     inlineNotice?.message
     && String(inlineNotice?.type || '').trim().toLowerCase() !== 'success',
@@ -695,6 +758,21 @@ const TeamMatchDetailPage = () => {
     () => getPersonalChallengeCurrentStateLabel(currentUserSquadRow),
     [currentUserSquadRow],
   );
+
+  useEffect(() => {
+    setAmbiguousTeamDecision(null);
+    setAmbiguousTeamModalOpen(false);
+  }, [match?.challenge_id, user?.id]);
+
+  useEffect(() => {
+    if (!isChallengeMatch || !isAmbiguousChallengeViewer) {
+      setAmbiguousTeamModalOpen(false);
+      return;
+    }
+    if (ambiguousTeamDecision === null) {
+      setAmbiguousTeamModalOpen(true);
+    }
+  }, [ambiguousTeamDecision, isAmbiguousChallengeViewer, isChallengeMatch]);
 
   useEffect(() => {
     setIsSquadRosterViewOpen(false);
@@ -1168,17 +1246,6 @@ const TeamMatchDetailPage = () => {
                   />
                 </div>
 
-                {isChallengeMatch && showAmbiguousChallengeNotice ? (
-                  <div className={`${DETAIL_CARD_RADIUS_CLASS} border border-amber-300/35 bg-amber-500/10 p-3`}>
-                    <p className="text-sm font-oswald text-amber-100">
-                      No pudimos determinar tu equipo para este desafío.
-                    </p>
-                    <p className="mt-1 text-[12px] font-oswald text-amber-50/90">
-                      Revisá tu pertenencia a equipos antes de gestionar la convocatoria.
-                    </p>
-                  </div>
-                ) : null}
-
                 {isChallengeMatch && canRenderPrivateChallengeSquad ? (
                   <div className={`${DETAIL_CARD_RADIUS_CLASS} border border-white/10 bg-white/[0.04] p-2.5 space-y-3`}>
                     <div className="flex items-start justify-between gap-2">
@@ -1449,6 +1516,53 @@ const TeamMatchDetailPage = () => {
           ) : null}
         </div>
       </div>
+
+      <Modal
+        isOpen={ambiguousTeamModalOpen}
+        onClose={() => {
+          setAmbiguousTeamDecision('declined');
+          setAmbiguousTeamModalOpen(false);
+        }}
+        title="Confirmar participación"
+        className="w-full max-w-[460px]"
+        classNameContent="p-4 sm:p-5"
+        footer={(
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              onClick={() => {
+                setAmbiguousTeamDecision('declined');
+                setAmbiguousTeamModalOpen(false);
+              }}
+              variant="secondary"
+              className={modalActionSecondaryClass}
+              data-preserve-button-case="true"
+            >
+              Ahora no
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setAmbiguousTeamDecision('accepted');
+                setAmbiguousTeamModalOpen(false);
+              }}
+              className={modalActionPrimaryClass}
+              data-preserve-button-case="true"
+            >
+              Continuar
+            </Button>
+          </div>
+        )}
+      >
+        <div className="space-y-2">
+          <p className="text-sm text-white/90 font-oswald">
+            Formás parte del otro equipo. ¿Estás seguro que querés continuar?
+          </p>
+          <p className="text-[12px] text-white/70 font-oswald">
+            Si continuás, vas a gestionar la convocatoria de <span className="text-white">{ambiguousFallbackTeamName}</span>.
+          </p>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={editModalOpen}
