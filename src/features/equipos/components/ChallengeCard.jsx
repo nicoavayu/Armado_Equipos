@@ -65,37 +65,37 @@ const TeamSide = ({ team, fallbackText }) => {
   const teamName = String(team?.name || 'Equipo').trim() || 'Equipo';
   const teamNameLength = teamName.length;
   const teamNameSizeClass = teamNameLength >= 20
-    ? 'text-[clamp(16px,2.4vw,20px)] tracking-[0.008em]'
+    ? 'text-[clamp(15px,2.3vw,19px)] tracking-[0.006em]'
     : teamNameLength >= 15
-      ? 'text-[clamp(17px,2.7vw,22px)] tracking-[0.012em]'
-      : 'text-[clamp(18px,3vw,24px)] tracking-[0.016em]';
+      ? 'text-[clamp(16px,2.6vw,20px)] tracking-[0.01em]'
+      : 'text-[clamp(17px,2.8vw,22px)] tracking-[0.014em]';
 
   if (!team) {
     return (
-      <div className="flex-1 min-w-0 h-[250px] rounded-[26px] border border-dashed border-white/20 bg-[rgba(15,24,56,0.45)] px-3 py-4 flex items-center justify-center">
+      <div className="flex-1 min-w-0 h-[216px] rounded-[26px] border border-dashed border-white/20 bg-[rgba(15,24,56,0.45)] px-3 py-3 flex items-center justify-center">
         <p className="font-oswald text-white/60 text-xs font-semibold tracking-wide uppercase">{fallbackText}</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 min-w-0 h-[250px] rounded-[26px] border border-[rgba(41,170,255,0.4)] px-3 py-4 bg-[radial-gradient(circle_at_50%_0%,rgba(39,105,255,0.12),rgba(7,22,59,0.95)_48%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] shadow-[0_16px_28px_rgba(3,8,28,0.45)]">
-      <div className="flex flex-col items-center text-center gap-2">
-        <div className="h-14 w-14 rounded-[18px] overflow-hidden border border-[#1c4ea8] bg-[#0e1b47] flex items-center justify-center shrink-0">
+    <div className="flex-1 min-w-0 h-[216px] rounded-[26px] border border-[rgba(41,170,255,0.4)] px-3 py-3 bg-[radial-gradient(circle_at_50%_0%,rgba(39,105,255,0.12),rgba(7,22,59,0.95)_48%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] shadow-[0_16px_28px_rgba(3,8,28,0.45)]">
+      <div className="h-full flex flex-col items-center text-center">
+        <div className="h-12 w-12 rounded-[16px] overflow-hidden border border-[#1c4ea8] bg-[#0e1b47] flex items-center justify-center shrink-0">
           {team.crest_url ? (
             <img src={team.crest_url} alt={teamName} className="h-full w-full object-cover" />
           ) : (
-            <Shield size={22} className="text-white/80" />
+            <Shield size={20} className="text-white/80" />
           )}
         </div>
 
-        <div className={`w-full min-w-0 h-[36px] flex items-center justify-center px-1 text-white font-oswald font-semibold leading-none whitespace-nowrap overflow-hidden text-ellipsis ${teamNameSizeClass}`}>
+        <div className={`mt-2 w-full min-w-0 h-[30px] flex items-center justify-center px-1 text-white font-oswald font-semibold leading-none whitespace-nowrap overflow-hidden text-ellipsis ${teamNameSizeClass}`}>
           {teamName}
         </div>
 
-        <div className="h-px w-full bg-[rgba(88,107,170,0.34)]" />
+        <div className="mt-2 h-px w-full bg-[rgba(88,107,170,0.34)]" />
 
-        <div className={`${CHIP_BASE_CLASS} mt-1 inline-flex items-center gap-1 border border-[rgba(88,107,170,0.46)] bg-white/5 text-white/90`}>
+        <div className={`${CHIP_BASE_CLASS} mt-2 max-w-full inline-flex items-center gap-1 border border-[rgba(88,107,170,0.46)] bg-white/5 text-white/90 overflow-hidden text-ellipsis`}>
           <MapPin size={11} /> {team.base_zone || 'Sin definir'}
         </div>
       </div>
@@ -200,11 +200,11 @@ const ChallengeCard = ({
         ) : null}
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_34px_minmax(0,1fr)] sm:grid-cols-[minmax(0,1fr)_38px_minmax(0,1fr)] gap-1.5 items-center">
+      <div className="grid grid-cols-[minmax(0,1fr)_30px_minmax(0,1fr)] sm:grid-cols-[minmax(0,1fr)_34px_minmax(0,1fr)] gap-1 items-center">
         <TeamSide team={challenge?.challenger_team} fallbackText={teamAFallbackText} />
         <div className="px-0.5 flex flex-col items-center justify-center gap-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-[#3b9bff] shadow-[0_0_7px_rgba(59,155,255,0.75)]" />
-          <div className="text-white/72 font-oswald text-[15px] tracking-[0.06em] leading-none font-normal">VS</div>
+          <div className="text-white/72 font-oswald text-[14px] tracking-[0.055em] leading-none font-normal">VS</div>
           <span className="h-1.5 w-1.5 rounded-full bg-[#7a42ff] shadow-[0_0_7px_rgba(122,66,255,0.75)]" />
         </div>
         <TeamSide team={challenge?.accepted_team} fallbackText={teamBFallbackText} />
