@@ -647,18 +647,49 @@ const TeamMatchDetailPage = () => {
     if (!isChallengeMatch) return teamMembersByTeamId;
 
     const base = { ...teamMembersByTeamId };
-    if (!myChallengeTeamId) return base;
+    const teamAId = String(match?.team_a_id || '').trim();
+    const teamBId = String(match?.team_b_id || '').trim();
+    const challengeTeamIds = [teamAId, teamBId].filter(Boolean);
 
-    const myApprovedRows = (challengeSquadDisplayByTeamId?.[myChallengeTeamId] || []).filter((row) => (
-      row?.approved_by_captain
-      && ['starter', 'substitute'].includes(String(row?.selection_status || '').toLowerCase())
-    ));
+    challengeTeamIds.forEach((teamId) => {
+      const approvedRows = (challengeSquadDisplayByTeamId?.[teamId] || []).filter((row) => (
+        row?.approved_by_captain
+        && ['starter', 'substitute'].includes(String(row?.selection_status || '').toLowerCase())
+      ));
+      if (approvedRows.length > 0) {
+        base[teamId] = approvedRows;
+      }
+    });
 
-    if (myApprovedRows.length > 0) {
-      base[myChallengeTeamId] = myApprovedRows;
+    // Defensive view-level dedupe for corrupted historical data:
+    // a user should never appear selected for both teams in the same challenge.
+    if (teamAId && teamBId) {
+      const seenUsers = new Set();
+      const normalizeRowUser = (row) => normalizeIdentityToken(
+        row?.user_id
+        || row?.jugador?.usuario_id
+        || null,
+      );
+      const rowsA = (base[teamAId] || []).filter((row) => {
+        const userToken = normalizeRowUser(row);
+        if (!userToken) return true;
+        if (seenUsers.has(userToken)) return false;
+        seenUsers.add(userToken);
+        return true;
+      });
+      const rowsB = (base[teamBId] || []).filter((row) => {
+        const userToken = normalizeRowUser(row);
+        if (!userToken) return true;
+        if (seenUsers.has(userToken)) return false;
+        seenUsers.add(userToken);
+        return true;
+      });
+      base[teamAId] = rowsA;
+      base[teamBId] = rowsB;
     }
+
     return base;
-  }, [challengeSquadDisplayByTeamId, isChallengeMatch, myChallengeTeamId, teamMembersByTeamId]);
+  }, [challengeSquadDisplayByTeamId, isChallengeMatch, match?.team_a_id, match?.team_b_id, teamMembersByTeamId]);
 
   const canManageTeamSquad = useCallback((teamId) => {
     const teamIdToken = String(teamId || '').trim();
@@ -746,6 +777,11 @@ const TeamMatchDetailPage = () => {
     && ambiguousTeamDecision === 'accepted'
     && myChallengeTeamId,
   );
+  const shouldRenderAmbiguousChallengeEntry = Boolean(
+    isChallengeMatch
+    && isAmbiguousChallengeViewer
+    && ambiguousTeamDecision !== 'accepted',
+  );
   const canRenderPrivateChallengeSquad = Boolean(
     canRenderAmbiguousTeamAfterConfirm || challengeSquadViewState?.showOperationalModule,
   );
@@ -763,16 +799,6 @@ const TeamMatchDetailPage = () => {
     setAmbiguousTeamDecision(null);
     setAmbiguousTeamModalOpen(false);
   }, [match?.challenge_id, user?.id]);
-
-  useEffect(() => {
-    if (!isChallengeMatch || !isAmbiguousChallengeViewer) {
-      setAmbiguousTeamModalOpen(false);
-      return;
-    }
-    if (ambiguousTeamDecision === null) {
-      setAmbiguousTeamModalOpen(true);
-    }
-  }, [ambiguousTeamDecision, isAmbiguousChallengeViewer, isChallengeMatch]);
 
   useEffect(() => {
     setIsSquadRosterViewOpen(false);
@@ -878,6 +904,26 @@ const TeamMatchDetailPage = () => {
       return;
     }
 
+    const targetUserToken = normalizeIdentityToken(
+      targetRow?.user_id
+      || targetRow?.jugador?.usuario_id
+      || null,
+    );
+    if (targetUserToken && (normalizedSelection === 'starter' || normalizedSelection === 'substitute')) {
+      const hasUserSelectedOnRival = Object.entries(challengeSquadDisplayByTeamId || {}).some(([otherTeamId, rows]) => {
+        if (String(otherTeamId || '') === String(teamId || '')) return false;
+        return (rows || []).some((entry) => (
+          normalizeIdentityToken(entry?.user_id || entry?.jugador?.usuario_id) === targetUserToken
+          && Boolean(entry?.approved_by_captain)
+          && ['starter', 'substitute'].includes(String(entry?.selection_status || '').trim().toLowerCase())
+        ));
+      });
+      if (hasUserSelectedOnRival) {
+        showChallengeInlineNotice('warning', 'Ese usuario ya fue convocado por el otro equipo en este desafío.');
+        return;
+      }
+    }
+
     const nextStarters = myChallengeSquadCounters?.starters || 0;
     const nextSubstitutes = myChallengeSquadCounters?.substitutes || 0;
     const nextSelected = myChallengeSquadCounters?.selected || 0;
@@ -920,6 +966,7 @@ const TeamMatchDetailPage = () => {
   }, [
     canManageMyChallengeSquad,
     canRenderPrivateChallengeSquad,
+    challengeSquadDisplayByTeamId,
     challengeSquadEditable,
     challengeSquadLimits.selected,
     challengeSquadLimits.starters,
@@ -1246,6 +1293,31 @@ const TeamMatchDetailPage = () => {
                   />
                 </div>
 
+                {isChallengeMatch && shouldRenderAmbiguousChallengeEntry ? (
+                  <div className={`${DETAIL_CARD_RADIUS_CLASS} border border-white/10 bg-white/[0.04] p-2.5 space-y-3`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="text-white font-oswald text-[15px] truncate">
+                          Convocatoria · {ambiguousFallbackTeamName}
+                        </span>
+                        <span className="mt-1 block text-[11px] text-white/60 font-oswald">
+                          Desafío compartido · gestionás solo tu equipo
+                        </span>
+                      </div>
+                      <span className={`inline-flex items-center rounded-none border px-2 py-1 text-[10px] font-oswald uppercase tracking-wide shrink-0 ${getSquadStatusBadgeClass(challengeSquadStatus)}`}>
+                        {SQUAD_STATUS_LABEL_BY_VALUE[challengeSquadStatus] || 'No abierta'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAmbiguousTeamModalOpen(true)}
+                      className={`w-full ${squadActionPrimaryClass}`}
+                    >
+                      Gestionar convocatoria
+                    </button>
+                  </div>
+                ) : null}
+
                 {isChallengeMatch && canRenderPrivateChallengeSquad ? (
                   <div className={`${DETAIL_CARD_RADIUS_CLASS} border border-white/10 bg-white/[0.04] p-2.5 space-y-3`}>
                     <div className="flex items-start justify-between gap-2">
@@ -1520,7 +1592,6 @@ const TeamMatchDetailPage = () => {
       <Modal
         isOpen={ambiguousTeamModalOpen}
         onClose={() => {
-          setAmbiguousTeamDecision('declined');
           setAmbiguousTeamModalOpen(false);
         }}
         title="Confirmar participación"
@@ -1531,7 +1602,6 @@ const TeamMatchDetailPage = () => {
             <Button
               type="button"
               onClick={() => {
-                setAmbiguousTeamDecision('declined');
                 setAmbiguousTeamModalOpen(false);
               }}
               variant="secondary"

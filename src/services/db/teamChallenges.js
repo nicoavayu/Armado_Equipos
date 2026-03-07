@@ -3026,6 +3026,10 @@ export const updateTeamMatchDetails = async ({
   }
 
   if (response.error) {
+    const rawMessage = String(response.error?.message || '').trim();
+    if (rawMessage === 'MATCH_FULL_WITH_SUBSTITUTES') {
+      throw new Error('No se puede editar este partido porque ya tiene titulares y suplentes confirmados.');
+    }
     throw new Error(response.error.message || 'No se pudo actualizar el partido');
   }
 
