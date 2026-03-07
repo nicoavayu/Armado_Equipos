@@ -191,6 +191,7 @@ const TeamCardLocked = ({
   members,
   onOpenProfile,
   onOpenRoster,
+  className = '',
 }) => {
   const visibleMembers = (members || []).slice(0, AVATAR_VISIBLE_LIMIT);
   const overflowCount = Math.max(0, (members || []).length - visibleMembers.length);
@@ -207,7 +208,7 @@ const TeamCardLocked = ({
 
   return (
     <div
-      className={`relative overflow-hidden ${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(41,170,255,0.4)] bg-[radial-gradient(circle_at_50%_0%,rgba(39,105,255,0.12),rgba(7,22,59,0.95)_48%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] px-4 py-4 sm:px-5 sm:py-5 h-[238px] min-w-0 shadow-[0_16px_28px_rgba(3,8,28,0.45)]`}
+      className={`relative overflow-hidden ${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(41,170,255,0.4)] bg-[radial-gradient(circle_at_50%_0%,rgba(39,105,255,0.12),rgba(7,22,59,0.95)_48%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] px-4 py-4 sm:px-5 sm:py-5 h-[238px] min-w-0 shadow-[0_16px_28px_rgba(3,8,28,0.45)] ${className}`}
     >
       <div className="relative flex h-full flex-col">
         <div className="flex flex-col items-center text-center">
@@ -1150,6 +1151,7 @@ const TeamMatchDetailPage = () => {
                     members={teamCardsMembersByTeamId[match?.team_a_id] || []}
                     onOpenProfile={setSelectedPlayerProfile}
                     onOpenRoster={() => setRosterTeamId(match?.team_a_id)}
+                    className="mx-auto w-full max-w-[520px]"
                   />
                   <div className="flex items-center justify-center gap-1.5 text-white/70 text-[11px] font-oswald font-medium tracking-[0.06em]">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#7c3aed]/80" />
@@ -1162,6 +1164,7 @@ const TeamMatchDetailPage = () => {
                     members={teamCardsMembersByTeamId[match?.team_b_id] || []}
                     onOpenProfile={setSelectedPlayerProfile}
                     onOpenRoster={() => setRosterTeamId(match?.team_b_id)}
+                    className="mx-auto w-full max-w-[520px]"
                   />
                 </div>
 
