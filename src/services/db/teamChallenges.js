@@ -2163,7 +2163,7 @@ export const listOpenChallenges = async ({ format, zone, skillLevel } = {}) => {
     let query = supabase
       .from('challenges')
       .select(selectClause)
-      .in('status', ['open', 'accepted'])
+      .in('status', ['open', 'accepted', 'confirmed'])
       .order('created_at', { ascending: false });
 
     if (format) {

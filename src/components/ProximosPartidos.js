@@ -78,6 +78,11 @@ const buildDateHourKey = (fecha, hora) => {
   return `${f}|${h}`;
 };
 
+const normalizeIdToken = (value) => {
+  if (value == null) return '';
+  return String(value).trim();
+};
+
 const ProximosPartidos = ({ onClose }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -437,17 +442,17 @@ const ProximosPartidos = ({ onClose }) => {
   };
 
   const resolveTeamMatchId = async (partido) => {
-    const directMatchId = Number(partido?.team_match_id || partido?.teamMatchId || 0);
-    if (Number.isFinite(directMatchId) && directMatchId > 0) {
+    const directMatchId = normalizeIdToken(partido?.team_match_id || partido?.teamMatchId || null);
+    if (directMatchId) {
       return directMatchId;
     }
 
-    const challengeId = Number(partido?.challenge_id || partido?.challengeId || 0);
-    if (Number.isFinite(challengeId) && challengeId > 0) {
+    const challengeId = normalizeIdToken(partido?.challenge_id || partido?.challengeId || null);
+    if (challengeId) {
       try {
         const challengeMatch = await getTeamMatchByChallengeId(challengeId);
-        const challengeMatchId = Number(challengeMatch?.id || 0);
-        if (Number.isFinite(challengeMatchId) && challengeMatchId > 0) {
+        const challengeMatchId = normalizeIdToken(challengeMatch?.id || null);
+        if (challengeMatchId) {
           return challengeMatchId;
         }
       } catch (error) {

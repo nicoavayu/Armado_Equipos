@@ -119,7 +119,7 @@ const DesafiosTab = ({
   const visibleChallenges = useMemo(
     () => openChallenges.filter((challenge) => {
       const status = String(challenge?.status || '').toLowerCase();
-      return status === 'open' || status === 'accepted';
+      return status === 'open' || status === 'accepted' || status === 'confirmed';
     }),
     [openChallenges],
   );
@@ -318,7 +318,7 @@ const DesafiosTab = ({
             setAcceptingChallenge(challenge);
             setSelectedAcceptTeamId(available[0].id);
           };
-        } else if (status === 'accepted') {
+        } else if (status === 'accepted' || status === 'confirmed') {
           if (isOwnChallenge) {
             primaryLabel = 'Cancelar desafio';
             primaryAction = async () => setCancelConfirmChallenge(challenge);

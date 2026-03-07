@@ -112,6 +112,9 @@ const ChallengeCard = ({
   const fieldPriceLabel = formatMoneyAr(challenge?.cancha_cost ?? challenge?.field_price);
   const challengeSkillLabel = formatSkillLevelLabel(challenge?.skill_level || challenge?.challenger_team?.skill_level);
   const challengeFormatLabel = `F${challenge?.format || '-'}`;
+  const hasAcceptedTeam = Boolean(challenge?.accepted_team_id);
+  const teamAFallbackText = hasAcceptedTeam ? 'Equipo rival' : 'Equipo A';
+  const teamBFallbackText = hasAcceptedTeam ? 'Equipo rival' : 'Busco rival';
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -190,13 +193,13 @@ const ChallengeCard = ({
       </div>
 
       <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
-        <TeamSide team={challenge?.challenger_team} fallbackText="Equipo A" />
+        <TeamSide team={challenge?.challenger_team} fallbackText={teamAFallbackText} />
         <div className="px-1 flex flex-col items-center justify-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-[#3b9bff] shadow-[0_0_8px_rgba(59,155,255,0.75)]" />
           <div className="text-white/72 font-oswald text-[17px] tracking-[0.08em] leading-none font-normal">VS</div>
           <span className="h-2 w-2 rounded-full bg-[#7a42ff] shadow-[0_0_8px_rgba(122,66,255,0.75)]" />
         </div>
-        <TeamSide team={challenge?.accepted_team} fallbackText="Busco rival" />
+        <TeamSide team={challenge?.accepted_team} fallbackText={teamBFallbackText} />
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
