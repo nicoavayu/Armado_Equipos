@@ -208,7 +208,7 @@ const TeamCardLocked = ({
 
   return (
     <div
-      className={`relative overflow-hidden ${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(41,170,255,0.4)] bg-[radial-gradient(circle_at_50%_0%,rgba(39,105,255,0.12),rgba(7,22,59,0.95)_48%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] px-4 py-4 sm:px-5 sm:py-5 h-[238px] min-w-0 shadow-[0_16px_28px_rgba(3,8,28,0.45)] ${className}`}
+      className={`relative overflow-hidden ${DETAIL_CARD_RADIUS_CLASS} border border-[rgba(41,170,255,0.4)] bg-[radial-gradient(circle_at_50%_0%,rgba(39,105,255,0.12),rgba(7,22,59,0.95)_48%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] px-4 py-4 sm:px-5 sm:py-5 h-[243px] min-w-0 shadow-[0_16px_28px_rgba(3,8,28,0.45)] ${className}`}
     >
       <div className="relative flex h-full flex-col">
         <div className="flex flex-col items-center text-center">
