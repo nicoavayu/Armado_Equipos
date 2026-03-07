@@ -69,29 +69,6 @@ export const getViewerChallengeTeam = ({
   }
 
   if (inTeamA && inTeamB) {
-    const ownerInA = normalizeIdToken(match?.team_a?.owner_user_id) === userToken;
-    const ownerInB = normalizeIdToken(match?.team_b?.owner_user_id) === userToken;
-    if (ownerInA !== ownerInB) {
-      if (ownerInA) {
-        return {
-          myTeamId: teamAId,
-          myTeam: match?.team_a || null,
-          rivalTeamId: teamBId,
-          rivalTeam: match?.team_b || null,
-          isParticipant: true,
-          isAmbiguous: false,
-        };
-      }
-      return {
-        myTeamId: teamBId,
-        myTeam: match?.team_b || null,
-        rivalTeamId: teamAId,
-        rivalTeam: match?.team_a || null,
-        isParticipant: true,
-        isAmbiguous: false,
-      };
-    }
-
     return {
       ...baseResult,
       isParticipant: true,

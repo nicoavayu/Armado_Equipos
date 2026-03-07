@@ -75,6 +75,23 @@ describe('getViewerChallengeTeam', () => {
     expect(result.myTeamId).toBeNull();
   });
 
+  test('returns ambiguous when user appears in both teams even if owner of one side', () => {
+    const result = getViewerChallengeTeam({
+      match: baseMatch,
+      userId: 'owner-a',
+      teamMembersByTeamId: {
+        'team-a': [{ user_id: 'owner-a' }],
+        'team-b': [{ user_id: 'owner-a' }],
+      },
+      challengeSquadDisplayByTeamId: {},
+    });
+
+    expect(result.isParticipant).toBe(true);
+    expect(result.isAmbiguous).toBe(true);
+    expect(result.myTeamId).toBeNull();
+    expect(result.rivalTeamId).toBeNull();
+  });
+
   test('keeps case-sensitive id comparison (does not lowercase)', () => {
     const result = getViewerChallengeTeam({
       match: baseMatch,

@@ -2725,6 +2725,9 @@ export const setChallengeAvailability = async ({
   });
 
   if (response.error && isMissingFunctionError(response.error, 'rpc_set_challenge_availability')) {
+    if (normalizedTeamId || normalizedPlayerId) {
+      throw new Error('Falta actualizar la RPC de convocatoria (incluyendo team/player) en la base.');
+    }
     response = await supabase.rpc('rpc_set_challenge_availability', {
       p_challenge_id: challengeId,
       p_availability_status: availabilityStatus,
@@ -2736,6 +2739,14 @@ export const setChallengeAvailability = async ({
       throw new Error('Falta aplicar la migración de convocatoria por desafío.');
     }
     throw new Error(response.error.message || 'No se pudo actualizar tu disponibilidad');
+  }
+
+  if (normalizedTeamId || normalizedPlayerId) {
+    const responseTeamId = String(response.data?.team_id || '').trim();
+    const responsePlayerId = String(response.data?.player_id || '').trim();
+    if ((normalizedTeamId && responseTeamId !== normalizedTeamId) || (normalizedPlayerId && responsePlayerId !== normalizedPlayerId)) {
+      throw new Error('La disponibilidad se guardó en otro jugador/equipo. Recargá e intentá de nuevo.');
+    }
   }
 
   return response.data || null;
