@@ -62,27 +62,35 @@ const formatMoneyAr = (value) => {
 };
 
 const TeamSide = ({ team, fallbackText }) => {
+  const teamName = String(team?.name || 'Equipo').trim() || 'Equipo';
+  const teamNameLength = teamName.length;
+  const teamNameSizeClass = teamNameLength >= 20
+    ? 'text-[clamp(16px,2.4vw,20px)] tracking-[0.008em]'
+    : teamNameLength >= 15
+      ? 'text-[clamp(17px,2.7vw,22px)] tracking-[0.012em]'
+      : 'text-[clamp(18px,3vw,24px)] tracking-[0.016em]';
+
   if (!team) {
     return (
-      <div className="flex-1 min-w-0 rounded-[26px] border border-dashed border-white/20 bg-[rgba(15,24,56,0.45)] px-3 py-4 min-h-[150px] flex items-center justify-center">
+      <div className="flex-1 min-w-0 h-[250px] rounded-[26px] border border-dashed border-white/20 bg-[rgba(15,24,56,0.45)] px-3 py-4 flex items-center justify-center">
         <p className="font-oswald text-white/60 text-xs font-semibold tracking-wide uppercase">{fallbackText}</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 min-w-0 rounded-[26px] border border-[rgba(41,170,255,0.4)] px-3 py-4 bg-[radial-gradient(circle_at_50%_0%,rgba(39,105,255,0.12),rgba(7,22,59,0.95)_48%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] shadow-[0_16px_28px_rgba(3,8,28,0.45)]">
+    <div className="flex-1 min-w-0 h-[250px] rounded-[26px] border border-[rgba(41,170,255,0.4)] px-3 py-4 bg-[radial-gradient(circle_at_50%_0%,rgba(39,105,255,0.12),rgba(7,22,59,0.95)_48%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] shadow-[0_16px_28px_rgba(3,8,28,0.45)]">
       <div className="flex flex-col items-center text-center gap-2">
         <div className="h-14 w-14 rounded-[18px] overflow-hidden border border-[#1c4ea8] bg-[#0e1b47] flex items-center justify-center shrink-0">
           {team.crest_url ? (
-            <img src={team.crest_url} alt={team.name || 'Escudo'} className="h-full w-full object-cover" />
+            <img src={team.crest_url} alt={teamName} className="h-full w-full object-cover" />
           ) : (
             <Shield size={22} className="text-white/80" />
           )}
         </div>
 
-        <div className="w-full text-white font-oswald text-[clamp(20px,3.2vw,28px)] font-semibold leading-tight whitespace-normal break-words">
-          {team.name || 'Equipo'}
+        <div className={`w-full min-w-0 h-[36px] flex items-center justify-center px-1 text-white font-oswald font-semibold leading-none whitespace-nowrap overflow-hidden text-ellipsis ${teamNameSizeClass}`}>
+          {teamName}
         </div>
 
         <div className="h-px w-full bg-[rgba(88,107,170,0.34)]" />
@@ -192,12 +200,12 @@ const ChallengeCard = ({
         ) : null}
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+      <div className="grid grid-cols-[minmax(0,1fr)_34px_minmax(0,1fr)] sm:grid-cols-[minmax(0,1fr)_38px_minmax(0,1fr)] gap-1.5 items-center">
         <TeamSide team={challenge?.challenger_team} fallbackText={teamAFallbackText} />
-        <div className="px-1 flex flex-col items-center justify-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-[#3b9bff] shadow-[0_0_8px_rgba(59,155,255,0.75)]" />
-          <div className="text-white/72 font-oswald text-[17px] tracking-[0.08em] leading-none font-normal">VS</div>
-          <span className="h-2 w-2 rounded-full bg-[#7a42ff] shadow-[0_0_8px_rgba(122,66,255,0.75)]" />
+        <div className="px-0.5 flex flex-col items-center justify-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#3b9bff] shadow-[0_0_7px_rgba(59,155,255,0.75)]" />
+          <div className="text-white/72 font-oswald text-[15px] tracking-[0.06em] leading-none font-normal">VS</div>
+          <span className="h-1.5 w-1.5 rounded-full bg-[#7a42ff] shadow-[0_0_7px_rgba(122,66,255,0.75)]" />
         </div>
         <TeamSide team={challenge?.accepted_team} fallbackText={teamBFallbackText} />
       </div>
