@@ -72,14 +72,14 @@ const TeamSide = ({ team, fallbackText }) => {
 
   if (!team) {
     return (
-      <div className="flex-1 min-w-0 h-[216px] rounded-[26px] border border-dashed border-white/20 bg-[rgba(15,24,56,0.45)] px-3 py-3 flex items-center justify-center">
+      <div className="flex-1 min-w-0 h-[168px] rounded-[26px] border border-dashed border-white/20 bg-[rgba(15,24,56,0.45)] px-3 py-3 flex items-center justify-center">
         <p className="font-oswald text-white/60 text-xs font-semibold tracking-wide uppercase">{fallbackText}</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 min-w-0 h-[216px] rounded-[26px] border border-[rgba(41,170,255,0.4)] px-3 py-3 bg-[radial-gradient(circle_at_50%_0%,rgba(39,105,255,0.12),rgba(7,22,59,0.95)_48%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] shadow-[0_16px_28px_rgba(3,8,28,0.45)]">
+    <div className="flex-1 min-w-0 h-[168px] rounded-[26px] border border-[rgba(41,170,255,0.4)] px-3 py-3 bg-[radial-gradient(circle_at_50%_0%,rgba(39,105,255,0.12),rgba(7,22,59,0.95)_48%),linear-gradient(180deg,#081338_0%,#060f2d_100%)] shadow-[0_16px_28px_rgba(3,8,28,0.45)]">
       <div className="h-full flex flex-col items-center text-center">
         <div className="h-12 w-12 rounded-[16px] overflow-hidden border border-[#1c4ea8] bg-[#0e1b47] flex items-center justify-center shrink-0">
           {team.crest_url ? (
