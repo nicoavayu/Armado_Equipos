@@ -311,6 +311,58 @@ const resolveChallengeTeamNames = (notification) => {
   };
 };
 
+const resolveChallengeTeamsLabelForFeed = (notification) => {
+  const data = notification?.data || {};
+  const fromResolved = resolveChallengeTeamNames(notification);
+  const rawTeamA = String(
+    fromResolved.teamA
+    || data?.team_a_name
+    || data?.challenger_team_name
+    || 'Equipo A',
+  ).trim() || 'Equipo A';
+  const rawTeamB = String(
+    fromResolved.teamB
+    || data?.team_b_name
+    || data?.accepted_team_name
+    || 'Equipo B',
+  ).trim() || 'Equipo B';
+
+  return `${compactText(rawTeamA, 20, rawTeamA)} vs ${compactText(rawTeamB, 20, rawTeamB)}`;
+};
+
+const resolveChallengePendingLabelForFeed = (notification) => {
+  const data = notification?.data || {};
+  const myPending = Number(
+    data?.my_team_pending_count
+    ?? data?.pending_my_team_count
+    ?? NaN,
+  );
+  const myTotal = Number(
+    data?.my_team_total_count
+    ?? data?.total_my_team_count
+    ?? NaN,
+  );
+
+  if (Number.isFinite(myPending) && myPending >= 0) {
+    if (Number.isFinite(myTotal) && myTotal > 0) {
+      return myPending > 0
+        ? `Faltan confirmar ${myPending} de ${myTotal} en tu equipo`
+        : 'Tu equipo ya confirmó disponibilidad';
+    }
+    return myPending > 0
+      ? `Faltan confirmar ${myPending} jugadores en tu equipo`
+      : 'Tu equipo ya confirmó disponibilidad';
+  }
+
+  const pendingA = Number(data?.team_a_pending_count ?? data?.pending_team_a_count ?? NaN);
+  const pendingB = Number(data?.team_b_pending_count ?? data?.pending_team_b_count ?? NaN);
+  if (Number.isFinite(pendingA) && Number.isFinite(pendingB)) {
+    return `Faltan confirmar ${pendingA} + ${pendingB} jugadores`;
+  }
+
+  return 'Revisá disponibilidad de tu equipo';
+};
+
 const isTeamChallengeLikeMatch = (match = {}) => {
   if (!match || typeof match !== 'object') return false;
 
@@ -822,22 +874,20 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   }
 
   if (type === 'challenge_accepted' || type === 'team_match_created' || type === 'challenge_squad_open') {
-    const { teamA, teamB } = resolveChallengeTeamNames(notification);
-    const compactTeamA = compactText(teamA, 20, '');
-    const compactTeamB = compactText(teamB, 20, '');
-    const teamsLabel = compactTeamA && compactTeamB ? `${compactTeamA} vs ${compactTeamB}` : '';
+    const teamsLabel = resolveChallengeTeamsLabelForFeed(notification);
     const challengeDateLabel = resolveChallengeDateLabel(notification, match);
     const subtitleFromMessage = compactText(notification?.message || '', 56, '');
-    const subtitle = [teamsLabel, challengeDateLabel].filter(Boolean).join(' · ')
+    const isSquadOpen = type === 'challenge_squad_open';
+    const pendingLabel = isSquadOpen ? resolveChallengePendingLabelForFeed(notification) : '';
+    const subtitle = [teamsLabel, pendingLabel, challengeDateLabel].filter(Boolean).join(' · ')
       || subtitleFromMessage
       || fallbackSubtitle;
-    const isSquadOpen = type === 'challenge_squad_open';
 
     return {
       ...base,
       icon: 'CalendarClock',
-      title: isSquadOpen ? 'Convocatoria abierta' : 'Desafío aceptado!',
-      subtitle: compactText(subtitle, 64, isSquadOpen ? 'Confirmá disponibilidad para el desafío' : 'Desafío aceptado'),
+      title: isSquadOpen ? 'Desafío planteado' : 'Desafío aceptado!',
+      subtitle: compactText(subtitle, 72, isSquadOpen ? 'Desafío entre equipos confirmado' : 'Desafío aceptado'),
       route: teamMatchId ? `/desafios/equipos/partidos/${teamMatchId}` : (matchRoute || '/desafios'),
     };
   }
