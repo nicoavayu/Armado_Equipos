@@ -2711,11 +2711,25 @@ export const listChallengeApprovedSquad = async ({
 export const setChallengeAvailability = async ({
   challengeId,
   availabilityStatus,
+  teamId = null,
+  playerId = null,
 }) => {
-  const response = await supabase.rpc('rpc_set_challenge_availability', {
+  const normalizedTeamId = teamId ? String(teamId).trim() : null;
+  const normalizedPlayerId = playerId ? String(playerId).trim() : null;
+
+  let response = await supabase.rpc('rpc_set_challenge_availability', {
     p_challenge_id: challengeId,
     p_availability_status: availabilityStatus,
+    p_team_id: normalizedTeamId || null,
+    p_player_id: normalizedPlayerId || null,
   });
+
+  if (response.error && isMissingFunctionError(response.error, 'rpc_set_challenge_availability')) {
+    response = await supabase.rpc('rpc_set_challenge_availability', {
+      p_challenge_id: challengeId,
+      p_availability_status: availabilityStatus,
+    });
+  }
 
   if (response.error) {
     if (isMissingFunctionError(response.error, 'rpc_set_challenge_availability')) {

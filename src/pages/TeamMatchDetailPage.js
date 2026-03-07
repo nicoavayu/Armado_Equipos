@@ -725,6 +725,8 @@ const TeamMatchDetailPage = () => {
       await setChallengeAvailability({
         challengeId: match.challenge_id,
         availabilityStatus: normalizedAvailability,
+        teamId: myChallengeTeamId,
+        playerId: currentUserSquadRow?.jugador_id || null,
       });
       await loadChallengeSquadForMatch(match);
       showChallengeInlineNotice(
@@ -745,6 +747,7 @@ const TeamMatchDetailPage = () => {
     currentUserSquadRow?.jugador_id,
     loadChallengeSquadForMatch,
     match,
+    myChallengeTeamId,
     showChallengeInlineNotice,
   ]);
 
