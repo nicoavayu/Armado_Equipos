@@ -126,6 +126,8 @@ export default function TeamsDnDEditor({
   teamA = [],
   teamB = [],
   playersByKey = {},
+  teamALabel = 'Equipo A',
+  teamBLabel = 'Equipo B',
   onChange,
   disabled = false,
   selectedWinner = '',
@@ -243,7 +245,7 @@ export default function TeamsDnDEditor({
     >
       <div className="grid grid-cols-2 gap-2.5">
         <TeamColumn
-          title="Equipo A"
+          title={teamALabel}
           droppableId={TEAM_A_ID}
           playerKeys={teamA}
           playersByKey={playersByKey}
@@ -259,7 +261,7 @@ export default function TeamsDnDEditor({
           }}
         />
         <TeamColumn
-          title="Equipo B"
+          title={teamBLabel}
           droppableId={TEAM_B_ID}
           playerKeys={teamB}
           playersByKey={playersByKey}

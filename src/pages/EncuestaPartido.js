@@ -231,6 +231,53 @@ const fillMissingPlayerFields = (existing, candidate) => ({
   is_goalkeeper: existing?.is_goalkeeper ?? candidate?.is_goalkeeper ?? false,
 });
 
+const dedupeChallengeSurveyRoster = (players = []) => {
+  const input = Array.isArray(players) ? players : [];
+  const deduped = [];
+  const byIdentity = new Map();
+  const byKey = new Map();
+
+  const buildIdentity = (player) => {
+    const userToken = normalizeIdentityToken(player?.usuario_id);
+    if (userToken) return `user:${userToken}`;
+
+    const numericId = Number(player?.id || 0);
+    if (Number.isFinite(numericId) && numericId > 0) return `id:${numericId}`;
+
+    const uuidToken = normalizeIdentityToken(player?.uuid);
+    if (uuidToken && !uuidToken.startsWith('tm-') && !uuidToken.startsWith('member-')) {
+      return `uuid:${uuidToken}`;
+    }
+
+    const nameToken = normalizeIdentityToken(player?.nombre);
+    const avatarToken = normalizeIdentityToken(player?.avatar_url || player?.foto_url || '');
+    if (nameToken) return `name:${nameToken}|avatar:${avatarToken}`;
+    return null;
+  };
+
+  input.forEach((player) => {
+    const keyToken = normalizeIdentityToken(resolvePlayerKey(player));
+    const identityToken = buildIdentity(player);
+    const existingIndex = (
+      identityToken && byIdentity.has(identityToken)
+        ? byIdentity.get(identityToken)
+        : (keyToken && byKey.has(keyToken) ? byKey.get(keyToken) : -1)
+    );
+
+    if (existingIndex >= 0) {
+      deduped[existingIndex] = fillMissingPlayerFields(deduped[existingIndex], player);
+      return;
+    }
+
+    deduped.push(player);
+    const nextIndex = deduped.length - 1;
+    if (identityToken) byIdentity.set(identityToken, nextIndex);
+    if (keyToken) byKey.set(keyToken, nextIndex);
+  });
+
+  return deduped;
+};
+
 const mergeChallengeTeamMembersIntoRoster = ({ roster = [], membersByTeamId = {} }) => {
   const merged = Array.isArray(roster) ? [...roster] : [];
   const byPlayerId = new Map();
@@ -297,6 +344,67 @@ const mergeChallengeTeamMembersIntoRoster = ({ roster = [], membersByTeamId = {}
   return merged;
 };
 
+const mergeApprovedChallengeSquadIntoRoster = ({ roster = [], approvedByTeamId = {} }) => {
+  const merged = Array.isArray(roster) ? [...roster] : [];
+  const byPlayerId = new Map();
+  const byUserId = new Map();
+  const byUuid = new Map();
+  const byName = new Map();
+
+  const registerIndex = (player, index) => {
+    const playerIdNum = Number(player?.id || 0);
+    if (Number.isFinite(playerIdNum) && playerIdNum > 0 && !byPlayerId.has(playerIdNum)) {
+      byPlayerId.set(playerIdNum, index);
+    }
+    const userToken = normalizeIdentityToken(player?.usuario_id);
+    if (userToken && !byUserId.has(userToken)) byUserId.set(userToken, index);
+    const uuidToken = normalizeIdentityToken(player?.uuid);
+    if (uuidToken && !byUuid.has(uuidToken)) byUuid.set(uuidToken, index);
+    const nameToken = normalizeIdentityToken(player?.nombre);
+    if (nameToken && !byName.has(nameToken)) byName.set(nameToken, index);
+  };
+
+  merged.forEach((player, index) => registerIndex(player, index));
+
+  Object.values(approvedByTeamId || {}).forEach((rows) => {
+    (rows || []).forEach((row) => {
+      const jugador = row?.jugador || {};
+      const rawId = Number(row?.player_id || jugador?.id || 0);
+      const playerId = Number.isFinite(rawId) && rawId > 0 ? rawId : null;
+      const userToken = normalizeIdentityToken(jugador?.usuario_id);
+      const uuidToken = normalizeIdentityToken(jugador?.uuid);
+      const nameToken = normalizeIdentityToken(jugador?.nombre);
+
+      let index = -1;
+      if (playerId && byPlayerId.has(playerId)) index = byPlayerId.get(playerId);
+      else if (userToken && byUserId.has(userToken)) index = byUserId.get(userToken);
+      else if (uuidToken && byUuid.has(uuidToken)) index = byUuid.get(uuidToken);
+      else if (nameToken && byName.has(nameToken)) index = byName.get(nameToken);
+
+      const candidate = {
+        id: playerId,
+        uuid: jugador?.uuid || jugador?.usuario_id || `approved-${row?.id || playerId || nameToken || 'player'}`,
+        usuario_id: jugador?.usuario_id || null,
+        nombre: String(jugador?.nombre || 'Jugador').trim() || 'Jugador',
+        avatar_url: jugador?.avatar_url || null,
+        score: jugador?.score ?? null,
+        is_goalkeeper: false,
+      };
+
+      if (index >= 0) {
+        merged[index] = fillMissingPlayerFields(merged[index], candidate);
+        registerIndex(merged[index], index);
+        return;
+      }
+
+      merged.push(candidate);
+      registerIndex(candidate, merged.length - 1);
+    });
+  });
+
+  return merged;
+};
+
 const resolveChallengeTeamsFromApprovedSquad = ({
   players = [],
   approvedByTeamId = {},
@@ -316,18 +424,21 @@ const resolveChallengeTeamsFromApprovedSquad = ({
   }
 
   const byUserId = new Map();
+  const byPlayerId = new Map();
   const byUuid = new Map();
   const byName = new Map();
   const pushToken = (map, token, key) => {
-    if (!token || !key) return;
-    const bucket = map.get(token) || [];
+    const normalizedToken = normalizeIdentityToken(token);
+    if (!normalizedToken || !key) return;
+    const bucket = map.get(normalizedToken) || [];
     bucket.push(key);
-    map.set(token, bucket);
+    map.set(normalizedToken, bucket);
   };
 
   (players || []).forEach((player) => {
     const key = resolvePlayerKey(player);
     if (!key) return;
+    pushToken(byPlayerId, player?.id, key);
     pushToken(byUserId, normalizeIdentityToken(player?.usuario_id), key);
     pushToken(byUuid, normalizeIdentityToken(player?.uuid), key);
     pushToken(byName, normalizeIdentityToken(player?.nombre), key);
@@ -353,7 +464,8 @@ const resolveChallengeTeamsFromApprovedSquad = ({
   const resolveRowToKey = (row) => {
     const player = row?.jugador || {};
     return (
-      pullByToken(byUserId, player?.usuario_id)
+      pullByToken(byPlayerId, row?.player_id || player?.id)
+      || pullByToken(byUserId, player?.usuario_id)
       || pullByToken(byUuid, player?.uuid)
       || pullByToken(byName, player?.nombre)
       || null
@@ -492,6 +604,8 @@ const EncuestaPartido = () => {
   const [teamsLockedByUserId, setTeamsLockedByUserId] = useState(null);
   const [teamsLockedAt, setTeamsLockedAt] = useState(null);
   const [isTeamChallengeSurvey, setIsTeamChallengeSurvey] = useState(false);
+  const [challengeSurveyName, setChallengeSurveyName] = useState('');
+  const [challengeSurveyTeamLabels, setChallengeSurveyTeamLabels] = useState({ teamA: 'Equipo A', teamB: 'Equipo B' });
   const [currentStep, setCurrentStep] = useState(SURVEY_STEPS.PLAYED);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [linkedPlayerId, setLinkedPlayerId] = useState(null);
@@ -589,6 +703,8 @@ const EncuestaPartido = () => {
       setTeamsLockedByUserId(null);
       setTeamsLockedAt(null);
       setIsTeamChallengeSurvey(false);
+      setChallengeSurveyName('');
+      setChallengeSurveyTeamLabels({ teamA: 'Equipo A', teamB: 'Equipo B' });
       setCurrentStep(SURVEY_STEPS.PLAYED);
       setFormData({ ...DEFAULT_FORM_DATA });
       setLinkedPlayerId(null);
@@ -644,6 +760,8 @@ const EncuestaPartido = () => {
         let challengeTeamMatchContext = null;
         let challengeMembersByTeamId = null;
         let challengeApprovedSquadByTeamId = null;
+        let challengeSurveyNameValue = '';
+        let challengeSurveyTeamLabelsValue = { teamA: 'Equipo A', teamB: 'Equipo B' };
         let surveyStatusValue = partidoData?.survey_status || null;
         let surveyClosesAtValue = partidoData?.survey_closes_at || null;
         let resultStatusValue = partidoData?.result_status || null;
@@ -696,6 +814,37 @@ const EncuestaPartido = () => {
           // Non-blocking fallback.
         }
 
+        if (
+          isTeamChallengeValue
+          && challengeTeamMatchContext?.team_a_id
+          && challengeTeamMatchContext?.team_b_id
+        ) {
+          try {
+            const teamIds = [
+              String(challengeTeamMatchContext.team_a_id),
+              String(challengeTeamMatchContext.team_b_id),
+            ].filter(Boolean);
+            const { data: teamsRows, error: teamsError } = await supabase
+              .from('teams')
+              .select('id, nombre, name')
+              .in('id', teamIds);
+            if (!teamsError) {
+              const byId = new Map(
+                (teamsRows || []).map((team) => [String(team?.id || '').trim(), team]),
+              );
+              const teamA = byId.get(String(challengeTeamMatchContext.team_a_id).trim());
+              const teamB = byId.get(String(challengeTeamMatchContext.team_b_id).trim());
+              const teamAName = String(teamA?.nombre || teamA?.name || 'Equipo A').trim() || 'Equipo A';
+              const teamBName = String(teamB?.nombre || teamB?.name || 'Equipo B').trim() || 'Equipo B';
+              challengeSurveyNameValue = `${teamAName} vs ${teamBName}`;
+              challengeSurveyTeamLabelsValue = { teamA: teamAName, teamB: teamBName };
+            }
+          } catch (_challengeNameError) {
+            challengeSurveyNameValue = '';
+            challengeSurveyTeamLabelsValue = { teamA: 'Equipo A', teamB: 'Equipo B' };
+          }
+        }
+
         const matchStartAt = resolveSurveyMatchStartAt({
           partidoRow: partidoData,
           teamMatchRow: challengeTeamMatchContext,
@@ -739,6 +888,7 @@ const EncuestaPartido = () => {
             ? partidoData.jugadores
             : [];
         }
+        jugadoresPartido = dedupeChallengeSurveyRoster(jugadoresPartido);
 
         const persistedTeamRefs = extractTeamRefsFromPersistedTeams(persistedTeamsPayload);
         if (persistedTeamRefs.size > 0) {
@@ -764,6 +914,7 @@ const EncuestaPartido = () => {
               roster: jugadoresPartido,
               membersByTeamId: challengeMembersByTeamId,
             });
+            jugadoresPartido = dedupeChallengeSurveyRoster(jugadoresPartido);
           } catch (_teamMembersError) {
             challengeMembersByTeamId = null;
           }
@@ -783,6 +934,17 @@ const EncuestaPartido = () => {
             });
 
             challengeApprovedSquadByTeamId = approvedSquad?.byTeamId || null;
+            const approvedTeamA = Array.isArray(challengeApprovedSquadByTeamId?.[String(challengeTeamMatchContext.team_a_id)]) ? challengeApprovedSquadByTeamId[String(challengeTeamMatchContext.team_a_id)] : [];
+            const approvedTeamB = Array.isArray(challengeApprovedSquadByTeamId?.[String(challengeTeamMatchContext.team_b_id)]) ? challengeApprovedSquadByTeamId[String(challengeTeamMatchContext.team_b_id)] : [];
+
+            if (approvedTeamA.length > 0 && approvedTeamB.length > 0) {
+              jugadoresPartido = mergeApprovedChallengeSquadIntoRoster({
+                roster: [],
+                approvedByTeamId: challengeApprovedSquadByTeamId || {},
+              });
+              jugadoresPartido = dedupeChallengeSurveyRoster(jugadoresPartido);
+            }
+
             const resolvedApprovedTeams = resolveChallengeTeamsFromApprovedSquad({
               players: jugadoresPartido,
               approvedByTeamId: challengeApprovedSquadByTeamId || {},
@@ -798,6 +960,7 @@ const EncuestaPartido = () => {
               jugadoresPartido = jugadoresPartido.filter((player) => (
                 resolvedApprovedTeams.selectedKeys.has(resolvePlayerKey(player))
               ));
+              jugadoresPartido = dedupeChallengeSurveyRoster(jugadoresPartido);
 
               approvedSquadFixedTeams = {
                 teamA: resolvedApprovedTeams.teamA,
@@ -809,6 +972,8 @@ const EncuestaPartido = () => {
           }
         }
 
+        jugadoresPartido = dedupeChallengeSurveyRoster(jugadoresPartido);
+
         const loggedRosterPlayers = (jugadoresPartido || []).filter((player) => Boolean(player?.usuario_id));
         const loggedCount = loggedRosterPlayers.length;
         const currentUserEligiblePlayer = currentUserPlayer?.id
@@ -817,6 +982,8 @@ const EncuestaPartido = () => {
 
         if (cancelled) return;
         setIsTeamChallengeSurvey(isTeamChallengeValue);
+        setChallengeSurveyName(challengeSurveyNameValue);
+        setChallengeSurveyTeamLabels(challengeSurveyTeamLabelsValue);
         setLoggedRosterCount(loggedCount);
 
         if (loggedCount === 0) {
@@ -1910,6 +2077,11 @@ const EncuestaPartido = () => {
                   <div className={titleClass}>
                     ¿SE JUGÓ EL PARTIDO?
                   </div>
+                  {isTeamChallengeSurvey && challengeSurveyName ? (
+                    <div className="mt-1.5 text-center font-oswald text-[18px] leading-tight text-white md:text-[21px]">
+                      Desafío: {challengeSurveyName}
+                    </div>
+                  ) : null}
                   <div className="text-white text-[17px] md:text-[20px] font-oswald text-center font-normal tracking-wide mt-2">
                     {formatFecha(partido.fecha)}<br />
                     {partido.hora && `${partido.hora} - `}{partido.sede ? partido.sede.split(/[,(]/)[0].trim() : 'Sin ubicación'}
@@ -2139,6 +2311,8 @@ const EncuestaPartido = () => {
                         teamA={finalTeams.teamA}
                         teamB={finalTeams.teamB}
                         playersByKey={playersByKey}
+                        teamALabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamA : 'Equipo A'}
+                        teamBLabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamB : 'Equipo B'}
                         selectedWinner={formData.ganador}
                         onWinnerChange={(winner) => {
                           handleInputChange('ganador', winner);
@@ -2254,6 +2428,8 @@ const EncuestaPartido = () => {
                     teamA={finalTeams.teamA}
                     teamB={finalTeams.teamB}
                     playersByKey={playersByKey}
+                    teamALabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamA : 'Equipo A'}
+                    teamBLabel={isTeamChallengeSurvey ? challengeSurveyTeamLabels.teamB : 'Equipo B'}
                     selectedWinner={shouldShowWinnerSelectionInOrganizeStep ? formData.ganador : ''}
                     onWinnerChange={(winner) => {
                       if (!shouldShowWinnerSelectionInOrganizeStep) return;
