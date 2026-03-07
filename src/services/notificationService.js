@@ -91,7 +91,7 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
       .from('notifications')
       .select('id')
       .or(orExpr)
-      .in('type', ['survey_start', 'post_match_survey', 'survey_reminder'])
+      .in('type', ['survey_start', 'post_match_survey', 'survey_reminder', 'survey_reminder_12h'])
       .limit(1);
 
     if (existingError) {

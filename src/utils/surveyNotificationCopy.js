@@ -44,7 +44,7 @@ export const resolveSurveyDeadlineAt = (source = {}) => {
 export const getSurveyRemainingLabel = (deadlineAt, now = new Date()) => {
   const deadlineDate = toDate(deadlineAt);
   if (!deadlineDate) {
-    return `Tenés ${SURVEY_WINDOW_HOURS} horas para completar la encuesta.`;
+    return `Te quedan ${SURVEY_WINDOW_HOURS} horas para completar la encuesta.`;
   }
 
   const nowDate = toDate(now) || new Date();
@@ -57,13 +57,13 @@ export const getSurveyRemainingLabel = (deadlineAt, now = new Date()) => {
   if (msLeft >= HOUR_MS) {
     const hoursLeft = Math.ceil(msLeft / HOUR_MS);
     return hoursLeft === 1
-      ? 'Queda 1 hora para completar la encuesta.'
-      : `Quedan ${hoursLeft} horas para completar la encuesta.`;
+      ? 'Te queda 1 hora para completar la encuesta.'
+      : `Te quedan ${hoursLeft} horas para completar la encuesta.`;
   }
 
   const minutesLeft = Math.ceil(msLeft / MINUTE_MS);
   if (minutesLeft <= 1) return 'Queda menos de 1 minuto para completar la encuesta.';
-  return `Quedan ${minutesLeft} minutos para completar la encuesta.`;
+  return `Te quedan ${minutesLeft} minutos para completar la encuesta.`;
 };
 
 export const isSurveyDeadlinePassed = (deadlineAt, now = new Date()) => {
@@ -79,11 +79,27 @@ export const isSurveyNotificationClosed = (source = {}, now = new Date()) => {
   return isSurveyDeadlinePassed(deadlineAt, now);
 };
 
-export const getSurveyStartMessage = ({ matchName = 'este partido' } = {}) => {
-  return `Ya está disponible la encuesta del partido ${quoteMatchName(matchName, 'este partido')}.`;
+export const getSurveyStartMessage = ({ source = {}, matchName = 'este partido', now = new Date() } = {}) => {
+  const deadlineAt = resolveSurveyDeadlineAt(source);
+  const remainingLabel = getSurveyRemainingLabel(deadlineAt, now);
+  return `Ya está disponible la encuesta del partido ${quoteMatchName(matchName, 'este partido')}. ${remainingLabel}`;
 };
 
 export const getSurveyReminderMessage = ({ source = {}, matchName = 'este partido', now = new Date() } = {}) => {
+  const reminderType = (
+    source?.data?.reminder_type
+    || source?.data?.reminderType
+    || source?.reminder_type
+    || source?.reminderType
+    || ''
+  );
+  if (reminderType === '12h_before_deadline') {
+    return `Recordatorio: te quedan 12 horas para completar la encuesta del partido ${quoteMatchName(matchName, 'este partido')}.`;
+  }
+  if (reminderType === '1h_before_deadline') {
+    return `Recordatorio: te queda 1 hora para completar la encuesta del partido ${quoteMatchName(matchName, 'este partido')}.`;
+  }
+
   const deadlineAt = resolveSurveyDeadlineAt(source);
   const deadlineDate = toDate(deadlineAt);
   if (!deadlineDate) {

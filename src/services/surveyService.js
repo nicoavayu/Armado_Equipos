@@ -1,7 +1,11 @@
 import { supabase } from '../supabase';
 import { getResultsUrl } from '../utils/routes';
 import { toBigIntId } from '../utils';
-import { SURVEY_FINALIZE_DELAY_MS, SURVEY_REMINDER_LEAD_MS } from '../config/surveyConfig';
+import {
+  SURVEY_FINALIZE_DELAY_MS,
+  SURVEY_REMINDER_12H_LEAD_MS,
+  SURVEY_REMINDER_1H_LEAD_MS,
+} from '../config/surveyConfig';
 import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 
 /**
@@ -36,7 +40,8 @@ export const createPostMatchSurveyNotifications = async (partido) => {
     // Create notifications for all players
     const nowIso = new Date().toISOString();
     const surveyDeadlineAt = new Date(new Date(nowIso).getTime() + SURVEY_FINALIZE_DELAY_MS).toISOString();
-    const reminderSendAt = new Date(new Date(surveyDeadlineAt).getTime() - SURVEY_REMINDER_LEAD_MS).toISOString();
+    const reminder12hSendAt = new Date(new Date(surveyDeadlineAt).getTime() - SURVEY_REMINDER_12H_LEAD_MS).toISOString();
+    const reminder1hSendAt = new Date(new Date(surveyDeadlineAt).getTime() - SURVEY_REMINDER_1H_LEAD_MS).toISOString();
 
     const startNotifications = userIds.map((userId) => ({
       user_id: userId,
@@ -63,32 +68,60 @@ export const createPostMatchSurveyNotifications = async (partido) => {
       send_at: nowIso,
     }));
 
-    const reminderNotifications = userIds.map((userId) => ({
-      user_id: userId,
-      type: 'survey_reminder',
-      title: 'Recordatorio de encuesta',
-      message: getSurveyReminderMessage({
-        source: { created_at: nowIso, data: { survey_deadline_at: surveyDeadlineAt } },
-        matchName: partido.nombre || 'reciente',
-        now: new Date(reminderSendAt),
-      }),
-      partido_id: Number(partido.id),
-      match_ref: Number(partido.id),
-      data: {
-        match_id: String(partido.id),
-        matchId: Number(partido.id),
-        matchCode: partido.codigo,
-        matchDate: partido.fecha,
-        matchTime: partido.hora,
-        matchVenue: partido.sede,
-        survey_deadline_at: surveyDeadlineAt,
-        reminder_send_at: reminderSendAt,
-        reminder_type: '1h_before_deadline',
+    const reminderNotifications = userIds.flatMap((userId) => ([
+      {
+        user_id: userId,
+        type: 'survey_reminder_12h',
+        title: 'Recordatorio de encuesta',
+        message: getSurveyReminderMessage({
+          source: { created_at: nowIso, data: { survey_deadline_at: surveyDeadlineAt, reminder_type: '12h_before_deadline' } },
+          matchName: partido.nombre || 'reciente',
+          now: new Date(reminder12hSendAt),
+        }),
+        partido_id: Number(partido.id),
+        match_ref: Number(partido.id),
+        data: {
+          match_id: String(partido.id),
+          matchId: Number(partido.id),
+          matchCode: partido.codigo,
+          matchDate: partido.fecha,
+          matchTime: partido.hora,
+          matchVenue: partido.sede,
+          survey_deadline_at: surveyDeadlineAt,
+          reminder_send_at: reminder12hSendAt,
+          reminder_type: '12h_before_deadline',
+        },
+        read: false,
+        created_at: nowIso,
+        send_at: reminder12hSendAt,
       },
-      read: false,
-      created_at: nowIso,
-      send_at: reminderSendAt,
-    }));
+      {
+        user_id: userId,
+        type: 'survey_reminder',
+        title: 'Recordatorio de encuesta',
+        message: getSurveyReminderMessage({
+          source: { created_at: nowIso, data: { survey_deadline_at: surveyDeadlineAt, reminder_type: '1h_before_deadline' } },
+          matchName: partido.nombre || 'reciente',
+          now: new Date(reminder1hSendAt),
+        }),
+        partido_id: Number(partido.id),
+        match_ref: Number(partido.id),
+        data: {
+          match_id: String(partido.id),
+          matchId: Number(partido.id),
+          matchCode: partido.codigo,
+          matchDate: partido.fecha,
+          matchTime: partido.hora,
+          matchVenue: partido.sede,
+          survey_deadline_at: surveyDeadlineAt,
+          reminder_send_at: reminder1hSendAt,
+          reminder_type: '1h_before_deadline',
+        },
+        read: false,
+        created_at: nowIso,
+        send_at: reminder1hSendAt,
+      },
+    ]));
 
     // Insert notifications into the database
     const { data, error } = await supabase
