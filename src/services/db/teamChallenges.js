@@ -332,27 +332,6 @@ const uniqueValues = (values) => Array.from(new Set(values.filter(Boolean)));
 
 const normalizeMessage = (error) => String(error?.message || error?.details || '').toLowerCase();
 
-const toFriendlyTeamMatchCancelErrorMessage = (
-  error,
-  fallbackMessage = 'No se pudo cancelar el partido',
-) => {
-  const normalized = normalizeMessage(error);
-  if (
-    normalized.includes('match_full_with_substitutes')
-    || normalized.includes('no hay mas cupos')
-    || normalized.includes('no hay más cupos')
-  ) {
-    return 'No pudimos sincronizar los cupos del partido al cancelar. Reintentá en unos segundos.';
-  }
-  if (
-    normalized.includes('challenge_id debe estar aceptado para registrar team_match')
-    || normalized.includes('challenge_id debe estar confirmado para registrar team_match')
-  ) {
-    return 'Este desafío quedó en un estado inconsistente. Reintentá en unos segundos.';
-  }
-  return error?.message || fallbackMessage;
-};
-
 const isMissingColumnError = (error, columnName) => {
   const message = normalizeMessage(error);
   return message.includes(String(columnName).toLowerCase())
@@ -1152,12 +1131,7 @@ const cancelPendingTeamMatchesForTeam = async (teamId) => {
     }
 
     if (cancelResponse.error) {
-      throw new Error(
-        toFriendlyTeamMatchCancelErrorMessage(
-          cancelResponse.error,
-          'No se pudieron cancelar los partidos pendientes del equipo',
-        ),
-      );
+      throw new Error(cancelResponse.error.message || 'No se pudieron cancelar los partidos pendientes del equipo');
     }
 
     canceledCount += 1;
@@ -3078,12 +3052,7 @@ export const cancelTeamMatch = async (matchId) => {
   });
 
   if (response.error) {
-    throw new Error(
-      toFriendlyTeamMatchCancelErrorMessage(
-        response.error,
-        'No se pudo cancelar el partido',
-      ),
-    );
+    throw new Error(response.error.message || 'No se pudo cancelar el partido');
   }
 
   return withTeamMatchCompatibility(response.data);

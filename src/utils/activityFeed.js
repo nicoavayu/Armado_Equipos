@@ -24,6 +24,7 @@ const RELEVANT_TYPES = new Set([
   'call_to_vote',
   'survey_results_ready',
   'awards_ready',
+  'match_cancelled',
   'match_join_request',
   'match_join_approved',
   'match_invite',
@@ -42,6 +43,7 @@ const FEED_TEMPLATE_TYPES = new Set([
   'survey_start',
   'call_to_vote',
   'awards_ready',
+  'match_cancelled',
   'match_join_request',
   'match_join_approved',
   'match_invite',
@@ -59,6 +61,7 @@ const PRIORITY = {
   survey_start: 10,
   call_to_vote: 10,
   awards_ready: 12,
+  match_cancelled: 13,
   match_join_request: 14,
   match_today: 16,
   falta_jugadores: 18,
@@ -79,7 +82,7 @@ const PRIORITY = {
 
 const severityForType = (type) => {
   if (['match_today', 'falta_jugadores', 'call_to_vote', 'survey_start'].includes(type)) return 'urgent';
-  if (['match_join_request', 'match_invite', 'team_invite', 'match_player_joined', 'match_player_left', 'friend_request', 'match_tomorrow', 'challenge_accepted', 'team_match_created', 'challenge_squad_open'].includes(type)) return 'warning';
+  if (['match_cancelled', 'match_join_request', 'match_invite', 'team_invite', 'match_player_joined', 'match_player_left', 'friend_request', 'match_tomorrow', 'challenge_accepted', 'team_match_created', 'challenge_squad_open'].includes(type)) return 'warning';
   if (['awards_ready', 'match_complete', 'match_join_approved', 'friend_accepted'].includes(type)) return 'success';
   return 'neutral';
 };
@@ -839,6 +842,30 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     };
   }
 
+  if (type === 'match_cancelled') {
+    const cancelledByTeam = compactText(
+      notification?.data?.cancelled_by_team_name
+      || notification?.data?.team_name
+      || '',
+      28,
+      '',
+    );
+    const teamAName = compactText(notification?.data?.team_a_name || '', 22, '');
+    const teamBName = compactText(notification?.data?.team_b_name || '', 22, '');
+    const matchupLabel = [teamAName, teamBName].filter(Boolean).join(' vs ');
+    const subtitleFromMessage = normalizeSpaces(stripEmojis(notification?.message || ''));
+    const subtitle = cancelledByTeam
+      ? `El capitán de ${quoteMatchName(cancelledByTeam, 'un equipo')} canceló ${matchupLabel || 'el partido'}`
+      : (subtitleFromMessage || matchupLabel || fallbackSubtitle || 'Partido cancelado');
+    return {
+      ...base,
+      icon: 'AlertTriangle',
+      title: 'Partido cancelado',
+      subtitle,
+      route: teamMatchId ? `/desafios/equipos/partidos/${teamMatchId}` : (matchRoute || '/notifications'),
+    };
+  }
+
   if (type === 'match_join_request') {
     const requestTitle = quotedMatchName
       ? `Solicitud pendiente para ${quotedMatchName}`
@@ -1089,7 +1116,8 @@ const groupNotifications = (notifications = []) => {
     const createdAtTs = getNotificationTimestampMs(notification);
     const matchId = resolveNotificationMatchId(notification);
     const teamMatchId = extractNotificationTeamMatchId(notification);
-    const groupKey = `${type}::${matchId ?? 'none'}`;
+    const groupIdentity = matchId ?? teamMatchId ?? notification?.id ?? 'none';
+    const groupKey = `${type}::${groupIdentity}`;
     const current = groups.get(groupKey);
     if (!current) {
       groups.set(groupKey, {
