@@ -765,14 +765,17 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     const surveyTitle = surveyClosed
       ? (quotedMatchName ? `Encuesta finalizada para ${quotedMatchName}` : 'Encuesta finalizada')
       : (quotedMatchName ? `Encuesta disponible para ${quotedMatchName}` : 'Encuesta disponible');
+    const surveyRoute = (
+      !surveyClosed && partidoId
+        ? `/encuesta/${partidoId}`
+        : null
+    );
     return {
       ...base,
       icon: 'ClipboardList',
       title: surveyTitle,
       subtitle: compactText(surveySubtitle || matchName, 46, 'Completá tu encuesta'),
-      route: partidoId
-        ? (surveyClosed ? null : `/encuesta/${partidoId}`)
-        : '/notifications',
+      route: surveyRoute,
     };
   }
 
