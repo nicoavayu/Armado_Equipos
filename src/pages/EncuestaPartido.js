@@ -1812,6 +1812,7 @@ const EncuestaPartido = () => {
   const optionBtnSelectedClass = 'bg-white/[0.26] border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_16px_30px_rgba(22,29,98,0.42)]';
   const compactPrimaryBtnClass = `${btnClass} !w-auto !min-w-[146px] sm:!min-w-[176px] !px-5 sm:!px-6`;
   const compactSecondaryBtnClass = `${optionBtnClass} !w-full !min-h-[50px] !py-2 !px-4 bg-white/[0.07] border-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_16px_rgba(7,10,35,0.22)]`;
+  const resultSecondaryBtnClass = `${optionBtnClass} !w-auto !min-h-[48px] !py-2 !px-5 sm:!px-6`;
   const compactButtonRowClass = 'w-full max-w-[760px] mx-auto flex items-center justify-center';
   const compactDualButtonRowClass = 'w-full max-w-[760px] mx-auto flex items-center justify-center gap-2.5 sm:gap-3';
   const gridClass = 'grid grid-cols-2 gap-3 w-full max-w-[920px] mx-auto';
@@ -2418,6 +2419,9 @@ const EncuestaPartido = () => {
                   <div className={titleClass}>
                     ¿QUIÉN GANÓ?
                   </div>
+                  <div className="mx-auto mt-2 max-w-[720px] text-center font-oswald text-[13px] leading-snug text-white/85 md:text-[14px]">
+                    Completar la encuesta con seriedad y veracidad hace una comunidad más justa y limpia. ¡Viva el fútbol!
+                  </div>
                   {!shouldDisableTeamReorganization && (
                     <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
                       {teamsContextLabel}
@@ -2450,10 +2454,10 @@ const EncuestaPartido = () => {
                     <div className="h-[2px] w-full" />
                   )}
 
-                  <div className="mt-3 grid grid-cols-1 gap-2.5">
+                  <div className="mt-6 sm:mt-7 flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
                     <button
                       type="button"
-                      className={`${optionBtnClass} ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
+                      className={`${resultSecondaryBtnClass} ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
                       onClick={() => {
                         handleInputChange('ganador', 'empate');
                         handleInputChange('se_jugo', true);
@@ -2464,7 +2468,7 @@ const EncuestaPartido = () => {
                     </button>
                     <button
                       type="button"
-                      className={`${optionBtnClass} ${formData.ganador === 'no_jugado' ? optionBtnSelectedClass : ''}`}
+                      className={`${resultSecondaryBtnClass} ${formData.ganador === 'no_jugado' ? optionBtnSelectedClass : ''}`}
                       onClick={() => {
                         handleInputChange('ganador', 'no_jugado');
                         handleInputChange('se_jugo', false);
