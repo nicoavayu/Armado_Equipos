@@ -10,20 +10,41 @@ import {
   resolveTeamChallengeRouteFromMatchId,
 } from './notificationRoutes';
 
+const isSafeInternalPath = (path) => typeof path === 'string' && path.startsWith('/') && !path.startsWith('//');
+const isSurveyPath = (path) => /^\/encuesta\/[^/?#]+(?:\?.*)?$/i.test(path);
+const isLegacySurveyPath = (path) => /^\/partidos\/([^/]+)\/encuesta(\?.*)?$/i.test(path);
+
 const normalizeSurveyLink = (rawLink, matchId) => {
   const fallback = matchId ? `/encuesta/${matchId}` : null;
   if (!rawLink) return fallback;
 
   const link = String(rawLink || '').trim();
   if (!link) return fallback;
+  if (!isSafeInternalPath(link)) return fallback;
+  if (isSurveyPath(link)) return link;
 
   // Legacy routes used /partidos/:id/encuesta; app route is /encuesta/:id.
-  const normalized = link.replace(
-    /^\/partidos\/([^/]+)\/encuesta(\?.*)?$/i,
-    '/encuesta/$1$2',
-  );
+  if (isLegacySurveyPath(link)) {
+    const normalized = link.replace(
+      /^\/partidos\/([^/]+)\/encuesta(\?.*)?$/i,
+      '/encuesta/$1$2',
+    );
+    return normalized || fallback;
+  }
 
-  return normalized || fallback;
+  return fallback;
+};
+
+export const resolveSurveyNotificationRoute = (notification = {}) => {
+  const matchId = extractNotificationMatchId(notification);
+  const deepLink = notification?.deep_link
+    || notification?.deepLink
+    || notification?.data?.deep_link
+    || notification?.data?.deepLink
+    || notification?.data?.link
+    || null;
+
+  return normalizeSurveyLink(deepLink, matchId);
 };
 
 const SURVEY_NOTIFICATION_TYPES = new Set([
@@ -78,7 +99,7 @@ export async function openNotification(n, navigate) {
         return;
       }
 
-      const surveyLink = normalizeSurveyLink(deepLink, matchId);
+      const surveyLink = resolveSurveyNotificationRoute(n);
       console.debug('[openNotification] navigating to survey link', { surveyLink });
       if (surveyLink) navigate(surveyLink);
       return;

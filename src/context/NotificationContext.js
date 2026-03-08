@@ -50,6 +50,38 @@ export const NotificationProvider = ({ children }) => {
   const resolveNotificationMatchId = useCallback((notification) => {
     if (!notification) return null;
     const data = notification.data || {};
+    const type = String(notification?.type || '').trim().toLowerCase();
+    const isSurveyLike = (
+      type === 'survey'
+      || type === 'survey_start'
+      || type === 'post_match_survey'
+      || type === 'survey_reminder'
+      || type === 'survey_reminder_12h'
+      || type === 'survey_results_ready'
+      || type === 'awards_ready'
+      || type === 'award_won'
+      || type === 'survey_finished'
+    );
+
+    if (isSurveyLike) {
+      const surveyCandidate = (
+        notification.partido_id
+        ?? data.partido_id
+        ?? data.partidoId
+        ?? data.match_id
+        ?? data.matchId
+        ?? notification.match_ref
+        ?? null
+      );
+      if (surveyCandidate !== null && surveyCandidate !== undefined && String(surveyCandidate).trim() !== '') {
+        return String(surveyCandidate);
+      }
+
+      const surveyLink = data.link || data.resultsUrl || '';
+      const surveyMatch = String(surveyLink).match(/\/(?:encuesta|resultados-encuesta)\/(\d+)/);
+      return surveyMatch?.[1] || null;
+    }
+
     if (isTeamChallengeNotification(notification)) {
       const challengeId = data.challenge_id ?? data.challengeId ?? null;
       if (challengeId !== null && challengeId !== undefined && String(challengeId).trim() !== '') {

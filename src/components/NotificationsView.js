@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, CalendarClock, CheckCircle, ChevronDown, ChevronUp, ClipboardList, Trophy, UserPlus, Users, Vote, XCircle } from 'lucide-react';
 import { toBigIntId } from '../utils';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
+import { resolveSurveyNotificationRoute } from '../utils/notificationRouter';
 import { useNotifications } from '../context/NotificationContext';
 import { useAmigos } from '../hooks/useAmigos';
 import { useAuth } from './AuthProvider';
@@ -134,8 +135,9 @@ const NotificationsView = () => {
           return;
         }
       }
-      if (link) {
-        safeNavigate(notification, link, { replace: false });
+      const surveyRoute = resolveSurveyNotificationRoute(notification);
+      if (surveyRoute) {
+        safeNavigate(notification, surveyRoute, { replace: false });
       } else if (matchId) {
         safeNavigate(notification, `/encuesta/${toBigIntId(matchId)}`, { replace: false });
       } else {

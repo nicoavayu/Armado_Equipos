@@ -6,6 +6,7 @@ import supabase from '../supabase';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
 import { openNotification } from '../utils/notificationRouter';
+import { resolveSurveyNotificationRoute } from '../utils/notificationRouter';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyStateCard from './EmptyStateCard';
@@ -125,7 +126,6 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     }
 
     if (notification.type === 'survey_start' || notification.type === 'post_match_survey') {
-      const link = notification?.data?.link;
       const matchId = extractNotificationMatchId(notification);
 
       if (matchId && isSurveyNotificationClosed(notification)) {
@@ -144,8 +144,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         }
       }
 
-      if (link) {
-        safeNavigate(notification, link);
+      const surveyRoute = resolveSurveyNotificationRoute(notification);
+      if (surveyRoute) {
+        safeNavigate(notification, surveyRoute);
       } else if (matchId) {
         const url = `/encuesta/${matchId}`;
         safeNavigate(notification, url);

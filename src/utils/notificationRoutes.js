@@ -1,5 +1,32 @@
 export const extractNotificationMatchId = (notification = {}) => {
   const data = notification?.data || {};
+  const type = String(notification?.type || '').trim().toLowerCase();
+  const isSurveyLike = (
+    type === 'survey'
+    || type === 'survey_start'
+    || type === 'post_match_survey'
+    || type === 'survey_reminder'
+    || type === 'survey_reminder_12h'
+    || type === 'survey_results_ready'
+    || type === 'awards_ready'
+    || type === 'award_won'
+    || type === 'survey_finished'
+  );
+
+  if (isSurveyLike) {
+    return (
+      notification?.partido_id
+      || data?.partido_id
+      || data?.partidoId
+      || data?.match_id
+      || data?.matchId
+      || notification?.match_id
+      || notification?.match_ref
+      || notification?.target_params?.partido_id
+      || null
+    );
+  }
+
   return (
     data?.team_match_id
     || data?.teamMatchId
