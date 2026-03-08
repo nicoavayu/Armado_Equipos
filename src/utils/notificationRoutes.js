@@ -74,3 +74,28 @@ export const buildNotificationFallbackRoute = (notification = {}, idMapper = (va
   }
   return `/partido-publico/${idMapper(matchId)}`;
 };
+
+export const resolveTeamChallengeRouteFromMatchId = async ({
+  supabaseClient,
+  matchId,
+} = {}) => {
+  const normalizedMatchId = String(matchId ?? '').trim();
+  if (!supabaseClient || !normalizedMatchId) return null;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('team_matches')
+      .select('id')
+      .eq('partido_id', normalizedMatchId)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (error) return null;
+
+    const teamMatchId = data?.[0]?.id || null;
+    if (!teamMatchId) return null;
+    return `/desafios/equipos/partidos/${teamMatchId}`;
+  } catch (_error) {
+    return null;
+  }
+};

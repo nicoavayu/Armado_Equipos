@@ -59,6 +59,10 @@ const MatchCard = ({
         || normalizeToken(partido?.origin_type || '') === 'challenge'
         || /^desaf[ií]o\s*:/.test(matchName.toLowerCase())
     );
+    const hasChallengeOrigin = (
+        isChallengeLikeOrigin
+        || Boolean(partido?.challenge_id || partido?.challengeId)
+    );
     const isTeamMatch = partido?.source_type === 'team_match';
     const useTeamMatchPresentation = isTeamMatch || isChallengeLikeOrigin;
     const showMenu = (userJoined || userRole === 'admin' || isFinished) && (onAbandon || onCancel || onClear);
@@ -85,8 +89,8 @@ const MatchCard = ({
     const timeLabel = partido?.hora || '';
     const originBadgeLabel = useTeamMatchPresentation
         ? (partido?.origin_badge
-            || (partido?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso'))
-        : (isChallengeLikeOrigin ? 'Desafio' : 'Amistoso');
+            || (hasChallengeOrigin ? 'Desafio' : 'Amistoso'))
+        : (hasChallengeOrigin ? 'Desafio' : 'Amistoso');
     const isChallengeCard = String(originBadgeLabel || '').toLowerCase().includes('desafio');
     const cardToneClass = isChallengeCard
         ? 'bg-[#262e44]/94 border-[#4b5563]'

@@ -7,6 +7,7 @@ import {
   buildTeamChallengeRoute,
   extractNotificationMatchId,
   isTeamChallengeNotification,
+  resolveTeamChallengeRouteFromMatchId,
 } from './notificationRoutes';
 
 const normalizeSurveyLink = (rawLink, matchId) => {
@@ -135,6 +136,16 @@ export async function openNotification(n, navigate) {
       if (inviteStatus !== 'pending' || n?.read === true) {
         return;
       }
+
+      const challengeRouteFromMatchId = await resolveTeamChallengeRouteFromMatchId({
+        supabaseClient: supabase,
+        matchId,
+      });
+      if (challengeRouteFromMatchId) {
+        navigate(challengeRouteFromMatchId);
+        return;
+      }
+
       const inviteRoute = resolveMatchInviteRoute(n);
       if (inviteRoute) {
         navigate(inviteRoute);

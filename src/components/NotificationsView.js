@@ -25,6 +25,7 @@ import {
   buildTeamChallengeRoute,
   extractNotificationMatchId,
   isTeamChallengeNotification,
+  resolveTeamChallengeRouteFromMatchId,
 } from '../utils/notificationRoutes';
 import { groupNotificationsByMatch } from '../utils/notificationGrouping';
 import { filterNotificationsForInbox } from '../utils/notificationInviteState';
@@ -225,6 +226,16 @@ const NotificationsView = () => {
           console.info('Esta invitación ya no está activa');
           break;
         }
+
+        const challengeRoute = await resolveTeamChallengeRouteFromMatchId({
+          supabaseClient: supabase,
+          matchId,
+        });
+        if (challengeRoute) {
+          safeNavigate(notification, challengeRoute);
+          break;
+        }
+
         const inviteRoute = resolveMatchInviteRoute(notification);
         if (inviteRoute) {
           safeNavigate(notification, inviteRoute);

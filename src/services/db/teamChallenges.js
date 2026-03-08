@@ -650,15 +650,23 @@ const withChallengeCompatibility = (row) => ({
   squad_closed_at: row?.squad_closed_at ?? null,
 });
 
-const withTeamMatchCompatibility = (row) => ({
-  ...row,
-  partido_id: row?.partido_id ?? null,
-  status: resolveChallengeMatchStatus(row, row?.status),
-  origin_type: row?.origin_type || (row?.challenge_id ? 'challenge' : 'individual'),
-  location: row?.location ?? row?.location_name ?? null,
-  cancha_cost: row?.cancha_cost ?? null,
-  is_format_combined: Boolean(row?.is_format_combined),
-});
+const withTeamMatchCompatibility = (row) => {
+  const normalizedOriginType = String(row?.origin_type || '').trim().toLowerCase();
+  const hasChallengeLink = Boolean(row?.challenge_id);
+  const resolvedOriginType = hasChallengeLink
+    ? 'challenge'
+    : (normalizedOriginType || 'individual');
+
+  return {
+    ...row,
+    partido_id: row?.partido_id ?? null,
+    status: resolveChallengeMatchStatus(row, row?.status),
+    origin_type: resolvedOriginType,
+    location: row?.location ?? row?.location_name ?? null,
+    cancha_cost: row?.cancha_cost ?? null,
+    is_format_combined: Boolean(row?.is_format_combined),
+  };
+};
 
 const withTeamCompatibility = (row) => ({
   ...row,

@@ -36,6 +36,8 @@ const normalizeTextToken = (value) => String(value || '')
   .toLowerCase()
   .trim();
 
+const isChallengeLikeName = (matchName = '') => /^desafio\s*:/.test(normalizeTextToken(matchName));
+
 const isTeamMatchNavigationTarget = (partido = {}) => {
   if (!partido || typeof partido !== 'object') return false;
 
@@ -44,6 +46,9 @@ const isTeamMatchNavigationTarget = (partido = {}) => {
 
   const originType = normalizeTextToken(partido?.origin_type || partido?.originType);
   if (originType === 'challenge') return true;
+
+  const matchName = partido?.nombre || partido?.titulo || partido?.name || '';
+  if (isChallengeLikeName(matchName)) return true;
 
   return Boolean(
     partido?.team_match_id
@@ -309,6 +314,10 @@ const ProximosPartidos = ({ onClose }) => {
       const teamMatchesEnriquecidos = (teamMatches || []).map((match) => {
         const { fecha, hora } = toLocalDateParts(match?.scheduled_at);
         const formatNumber = Number(match?.format);
+        const isChallengeOrigin = (
+          normalizeTextToken(match?.origin_type || '') === 'challenge'
+          || Boolean(match?.challenge_id)
+        );
         const expectedPlayers = Number.isFinite(formatNumber) && formatNumber > 0
           ? formatNumber * 2
           : null;
@@ -325,10 +334,10 @@ const ProximosPartidos = ({ onClose }) => {
           team_match_id: match.id,
           partido_id: hasLinkedPartidoId ? linkedPartidoId : null,
           source_type: 'team_match',
-          origin_type: match.origin_type || 'challenge',
+          origin_type: isChallengeOrigin ? 'challenge' : (match.origin_type || 'individual'),
           challenge_id: match.challenge_id || null,
           modalidad: `F${match?.format || '-'}`,
-          origin_badge: match?.origin_type === 'challenge' ? 'Desafio' : 'Amistoso',
+          origin_badge: isChallengeOrigin ? 'Desafio' : 'Amistoso',
           genero_partido: String(match?.mode || '').trim() || 'Masculino',
           fecha,
           hora,
@@ -347,11 +356,65 @@ const ProximosPartidos = ({ onClose }) => {
         };
       }).filter(Boolean);
 
-      const teamMatchByPartidoId = new Map(
-        teamMatchesEnriquecidos
-          .filter((match) => match?.partido_id)
-          .map((match) => [String(match.partido_id), match]),
-      );
+      const partidoIdsForBridgeLookup = partidosEnriquecidosBase
+        .map((partido) => Number(partido?.id || 0))
+        .filter((partidoId, idx, arr) => Number.isFinite(partidoId) && partidoId > 0 && arr.indexOf(partidoId) === idx);
+
+      let teamMatchBridgeRows = [];
+      if (partidoIdsForBridgeLookup.length > 0) {
+        const { data: bridgeData, error: bridgeError } = await supabase
+          .from('team_matches')
+          .select('id, partido_id, origin_type, challenge_id, status, scheduled_at, location, location_name, cancha_cost, format, mode')
+          .in('partido_id', partidoIdsForBridgeLookup);
+
+        if (bridgeError) {
+          console.warn('[PROXIMOS] team_matches bridge lookup failed', {
+            code: bridgeError?.code,
+            message: bridgeError?.message,
+          });
+        } else {
+          teamMatchBridgeRows = bridgeData || [];
+        }
+      }
+
+      const teamMatchByPartidoId = new Map();
+
+      teamMatchBridgeRows.forEach((row) => {
+        const partidoId = Number(row?.partido_id);
+        if (!Number.isFinite(partidoId) || partidoId <= 0) return;
+
+        const rowFormat = Number(row?.format);
+        const expectedPlayers = Number.isFinite(rowFormat) && rowFormat > 0
+          ? rowFormat * 2
+          : null;
+        const isChallengeOrigin = (
+          normalizeTextToken(row?.origin_type || '') === 'challenge'
+          || Boolean(row?.challenge_id)
+        );
+
+        teamMatchByPartidoId.set(String(partidoId), {
+          id: row?.id || null,
+          team_match_id: row?.id || null,
+          partido_id: partidoId,
+          source_type: 'team_match',
+          origin_type: isChallengeOrigin ? 'challenge' : (row?.origin_type || 'individual'),
+          challenge_id: row?.challenge_id || null,
+          modalidad: `F${row?.format || '-'}`,
+          origin_badge: isChallengeOrigin ? 'Desafio' : 'Amistoso',
+          genero_partido: String(row?.mode || '').trim() || 'Masculino',
+          scheduled_at: row?.scheduled_at || null,
+          sede: row?.location || row?.location_name || '',
+          precio_cancha_por_persona: row?.cancha_cost ?? null,
+          cupo_jugadores: expectedPlayers,
+          team_match_status: row?.status || 'pending',
+        });
+      });
+
+      teamMatchesEnriquecidos
+        .filter((match) => match?.partido_id)
+        .forEach((match) => {
+          teamMatchByPartidoId.set(String(match.partido_id), match);
+        });
 
       const teamMatchBySignature = new Map();
       teamMatchesEnriquecidos.forEach((match) => {
@@ -371,8 +434,10 @@ const ProximosPartidos = ({ onClose }) => {
       const partidosEnriquecidos = partidosEnriquecidosBase.map((partido) => {
         const partidoIdKey = String(partido?.id || '');
         const linkedByPartidoId = teamMatchByPartidoId.get(partidoIdKey) || null;
+        const matchName = partido?.nombre || partido?.titulo || partido?.name || '';
+        const hasChallengeLikeName = isChallengeLikeName(matchName);
 
-        const parsedTeams = parseChallengeTeamsFromName(partido?.nombre || partido?.titulo || partido?.name || '');
+        const parsedTeams = parseChallengeTeamsFromName(matchName);
         const parsedTeamsKey = buildTeamsKey(parsedTeams?.teamA, parsedTeams?.teamB);
         const dateHourKey = buildDateHourKey(partido?.fecha, partido?.hora);
         const linkedBySignature = parsedTeamsKey
@@ -390,6 +455,7 @@ const ProximosPartidos = ({ onClose }) => {
           || partido?.teamMatchId
           || partido?.challenge_id
           || partido?.challengeId
+          || hasChallengeLikeName
           || normalizeTextToken(partido?.origin_type || partido?.originType) === 'challenge'
           || normalizeTextToken(partido?.source_type || partido?.sourceType) === 'team_match'
         );
@@ -403,21 +469,28 @@ const ProximosPartidos = ({ onClose }) => {
 
         const teamAName = linkedTeamMatch?.team_a?.name || parsedTeams?.teamA || '';
         const teamBName = linkedTeamMatch?.team_b?.name || parsedTeams?.teamB || '';
+        const hasChallengeOrigin = (
+          normalizeTextToken(linkedTeamMatch?.origin_type || linkedTeamMatch?.originType || partido?.origin_type || partido?.originType) === 'challenge'
+          || Boolean(linkedTeamMatch?.challenge_id || partido?.challenge_id || partido?.challengeId)
+          || hasChallengeLikeName
+        );
 
         return {
           ...partido,
           source_type: 'team_match',
-          origin_type: 'challenge',
-          origin_badge: 'Desafio',
-          team_match_id: linkedTeamMatch?.team_match_id || linkedTeamMatch?.id || null,
+          origin_type: hasChallengeOrigin ? 'challenge' : 'individual',
+          origin_badge: hasChallengeOrigin ? 'Desafio' : 'Amistoso',
+          team_match_id: linkedTeamMatch?.team_match_id || linkedTeamMatch?.id || partido?.team_match_id || partido?.teamMatchId || null,
           challenge_id: linkedTeamMatch?.challenge_id || partido?.challenge_id || null,
           modalidad: linkedTeamMatch?.modalidad || partido?.modalidad || 'F5',
           genero_partido: linkedTeamMatch?.genero_partido || partido?.tipo_partido || 'Masculino',
+          sede: linkedTeamMatch?.sede || partido?.sede || '',
+          precio_cancha_por_persona: linkedTeamMatch?.precio_cancha_por_persona ?? partido?.precio_cancha_por_persona ?? null,
           cupo_jugadores: resolvedCupo,
           team_a: linkedTeamMatch?.team_a || (teamAName ? { name: teamAName } : null),
           team_b: linkedTeamMatch?.team_b || (teamBName ? { name: teamBName } : null),
           can_manage: Boolean(linkedTeamMatch?.can_manage),
-          team_match_status: linkedTeamMatch?.team_match_status || 'confirmed',
+          team_match_status: linkedTeamMatch?.team_match_status || linkedTeamMatch?.status || 'confirmed',
           userRole: linkedTeamMatch?.userRole || partido.userRole,
         };
       });
@@ -516,7 +589,13 @@ const ProximosPartidos = ({ onClose }) => {
       if (teamMatchId) {
         navigate(`/desafios/equipos/partidos/${teamMatchId}`);
       } else {
+        const matchName = partido?.nombre || partido?.titulo || partido?.name || '';
         const fallbackPartidoId = Number(partido?.partido_id || partido?.id || 0);
+        if (isChallengeLikeName(matchName)) {
+          notifyBlockingError('No se pudo resolver este desafío. Te llevamos a Desafíos.');
+          navigate('/desafios');
+          return;
+        }
         if (Number.isFinite(fallbackPartidoId) && fallbackPartidoId > 0) {
           notifyBlockingError('No se pudo resolver el detalle de desafío. Abrimos el detalle del partido.');
           navigate(`/admin/${fallbackPartidoId}`);
