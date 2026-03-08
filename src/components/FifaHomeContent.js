@@ -735,7 +735,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
                             >
                               {item.title}
                             </div>
-                            <div className="text-white/58 text-[12px] leading-4 mt-1 truncate">
+                            <div className="text-white/58 text-[12px] leading-4 mt-1 whitespace-pre-line break-words">
                               {subtitleText}
                             </div>
                           </div>

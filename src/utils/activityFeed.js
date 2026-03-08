@@ -314,20 +314,52 @@ const resolveChallengeTeamNames = (notification) => {
 const resolveChallengeTeamsLabelForFeed = (notification) => {
   const data = notification?.data || {};
   const fromResolved = resolveChallengeTeamNames(notification);
-  const rawTeamA = String(
+  const rawTeamA = normalizeTeamLabel(
     fromResolved.teamA
     || data?.team_a_name
     || data?.challenger_team_name
-    || 'Equipo A',
-  ).trim() || 'Equipo A';
-  const rawTeamB = String(
+    || '',
+  );
+  const rawTeamB = normalizeTeamLabel(
     fromResolved.teamB
     || data?.team_b_name
     || data?.accepted_team_name
-    || 'Equipo B',
-  ).trim() || 'Equipo B';
+    || '',
+  );
 
-  return `${compactText(rawTeamA, 20, rawTeamA)} vs ${compactText(rawTeamB, 20, rawTeamB)}`;
+  if (rawTeamA && rawTeamB) return `${rawTeamA} vs ${rawTeamB}`;
+  if (rawTeamA) return rawTeamA;
+  if (rawTeamB) return rawTeamB;
+  return '';
+};
+
+const resolveChallengePrimaryLineForFeed = (notification, { challengeVerb = false } = {}) => {
+  const data = notification?.data || {};
+  const fromResolved = resolveChallengeTeamNames(notification);
+  const teamA = normalizeTeamLabel(
+    fromResolved.teamA
+    || data?.team_a_name
+    || data?.challenger_team_name
+    || '',
+  );
+  const teamB = normalizeTeamLabel(
+    fromResolved.teamB
+    || data?.team_b_name
+    || data?.accepted_team_name
+    || '',
+  );
+
+  if (teamA && teamB) {
+    return challengeVerb ? `${teamA} desafió a ${teamB}` : `${teamA} vs ${teamB}`;
+  }
+  if (teamA) {
+    return challengeVerb ? `${teamA} planteó un desafío` : teamA;
+  }
+  if (teamB) {
+    return challengeVerb ? `Desafío contra ${teamB}` : teamB;
+  }
+
+  return '';
 };
 
 const resolveChallengePendingLabelForFeed = (notification) => {
@@ -878,19 +910,25 @@ const toActivityFromNotification = (group, match, currentUserId) => {
 
   if (type === 'challenge_accepted' || type === 'team_match_created' || type === 'challenge_squad_open') {
     const teamsLabel = resolveChallengeTeamsLabelForFeed(notification);
+    const primaryLine = resolveChallengePrimaryLineForFeed(notification, {
+      challengeVerb: type === 'challenge_squad_open',
+    });
     const challengeDateLabel = resolveChallengeDateLabel(notification, match);
-    const subtitleFromMessage = compactText(notification?.message || '', 56, '');
+    const subtitleFromMessage = normalizeSpaces(stripEmojis(notification?.message || ''));
     const isSquadOpen = type === 'challenge_squad_open';
     const pendingLabel = isSquadOpen ? resolveChallengePendingLabelForFeed(notification) : '';
-    const subtitle = [teamsLabel, pendingLabel, challengeDateLabel].filter(Boolean).join(' · ')
-      || subtitleFromMessage
-      || fallbackSubtitle;
+    const subtitle = isSquadOpen
+      ? [primaryLine || teamsLabel, pendingLabel].filter(Boolean).join('\n')
+      : [primaryLine || teamsLabel, challengeDateLabel].filter(Boolean).join('\n');
+    const fallbackChallengeSubtitle = isSquadOpen
+      ? `${primaryLine || teamsLabel || 'Desafío entre equipos'}\n${pendingLabel || 'Revisá disponibilidad de tu equipo'}`
+      : (primaryLine || teamsLabel || 'Desafío entre equipos');
 
     return {
       ...base,
       icon: 'CalendarClock',
       title: isSquadOpen ? 'Desafío planteado' : 'Desafío aceptado!',
-      subtitle: compactText(subtitle, 72, isSquadOpen ? 'Desafío entre equipos confirmado' : 'Desafío aceptado'),
+      subtitle: subtitle || subtitleFromMessage || fallbackChallengeSubtitle || fallbackSubtitle,
       route: teamMatchId ? `/desafios/equipos/partidos/${teamMatchId}` : (matchRoute || '/desafios'),
     };
   }
