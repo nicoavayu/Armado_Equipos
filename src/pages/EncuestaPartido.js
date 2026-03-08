@@ -2248,6 +2248,16 @@ const EncuestaPartido = () => {
                   </button>
                 </div>
               </div>
+              <div className="w-full shrink-0 pt-3 sm:pt-4">
+                <div className="mx-auto w-full max-w-[920px] rounded-[8px] border border-white/18 bg-white/[0.06] px-3.5 py-2.5 sm:px-4 sm:py-3">
+                  <div className="text-center font-bebas text-[16px] tracking-[0.08em] text-[#9EE7FF] sm:text-[17px]">
+                    IMPORTANTE
+                  </div>
+                  <div className="mt-0.5 text-center font-oswald text-[13px] leading-snug text-white/86 sm:text-[14px]">
+                    Completar la encuesta con seriedad y veracidad hace una comunidad más justa y limpia. ¡Viva el fútbol!
+                  </div>
+                </div>
+              </div>
               <div className={logoRowClass}>
                 <SurveyFooterLogo />
               </div>
@@ -2418,9 +2428,6 @@ const EncuestaPartido = () => {
                 <div className="w-full">
                   <div className={titleClass}>
                     ¿QUIÉN GANÓ?
-                  </div>
-                  <div className="mx-auto mt-2 max-w-[720px] text-center font-oswald text-[13px] leading-snug text-white/85 md:text-[14px]">
-                    Completar la encuesta con seriedad y veracidad hace una comunidad más justa y limpia. ¡Viva el fútbol!
                   </div>
                   {!shouldDisableTeamReorganization && (
                     <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
