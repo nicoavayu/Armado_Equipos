@@ -398,6 +398,37 @@ export const NotificationProvider = ({ children }) => {
 
   // Deduplicate notifications per user+partido, preferring survey-related types
   const dedupeNotificationsForDisplay = (notifs = []) => {
+    const normalizeToken = (value) => String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+
+    const buildSurveyReminderSignature = (notification) => {
+      if (!notification) return '';
+      const type = String(notification?.type || '').trim().toLowerCase();
+      if (type !== 'survey_reminder' && type !== 'survey_reminder_12h') return '';
+
+      const data = notification?.data || {};
+      const reminderType = String(
+        data?.reminder_type
+        || data?.reminderType
+        || (type === 'survey_reminder_12h' ? '12h_before_deadline' : '1h_before_deadline')
+        || '',
+      ).trim().toLowerCase();
+
+      const matchName = normalizeToken(resolveNotificationMatchName(notification, ''));
+      const matchDate = String(data?.match_date || data?.fecha || '').trim();
+      const matchTime = String(data?.match_time || data?.hora || '').trim();
+      const deadline = String(data?.survey_deadline_at || data?.surveyDeadlineAt || '').trim();
+
+      const signature = [matchName, matchDate, matchTime, deadline, reminderType]
+        .filter(Boolean)
+        .join('|');
+
+      return signature || '';
+    };
+
     // Ensure awards_ready is considered a survey-related notification and gets proper priority
     const preferredOrder = [
       'survey_finished',
@@ -440,7 +471,10 @@ export const NotificationProvider = ({ children }) => {
                 ? 'team_challenge_accepted'
                 : String(n.type || 'default')
       );
-      const key = `${n.user_id}::${String(pid)}::${surveyGroup}`;
+      const reminderSignature = buildSurveyReminderSignature(n);
+      const key = reminderSignature
+        ? `${n.user_id}::${surveyGroup}::sig:${reminderSignature}`
+        : `${n.user_id}::${String(pid)}::${surveyGroup}`;
       const existing = keepMap.get(key);
       if (!existing) {
         keepMap.set(key, n);
