@@ -2248,7 +2248,7 @@ const EncuestaPartido = () => {
                   </button>
                 </div>
               </div>
-              <div className="w-full shrink-0 pt-7 sm:pt-8">
+              <div className="w-full shrink-0 pt-10">
                 <div className="mx-auto w-full max-w-[920px] rounded-[8px] border border-white/18 bg-white/[0.06] px-3.5 py-2.5 sm:px-4 sm:py-3">
                   <div className="text-center font-bebas text-[16px] tracking-[0.08em] text-[#9EE7FF] sm:text-[17px]">
                     IMPORTANTE
