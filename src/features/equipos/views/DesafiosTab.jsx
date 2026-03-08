@@ -452,7 +452,7 @@ const DesafiosTab = ({
         }}
         onCancel={() => setCancelConfirmChallenge(null)}
         isDeleting={isSubmitting}
-        confirmText="Cancelar desafío"
+        confirmText="Aceptar"
         cancelText="Volver"
         danger
       />
