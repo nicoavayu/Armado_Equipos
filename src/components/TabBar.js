@@ -20,6 +20,7 @@ const TabBar = ({ activeTab, onTabChange }) => {
     {
       key: 'quiero-jugar',
       label: 'Quiero Jugar',
+      shortLabel: 'Jugar',
       href: '/quiero-jugar',
       ActiveIcon: IoFootball,
       InactiveIcon: IoFootballOutline,
@@ -96,11 +97,18 @@ const TabBar = ({ activeTab, onTabChange }) => {
                 <IconComponent {...iconProps} />
               </span>
               <span
-                className={`mt-1.5 text-[12px] font-sans tracking-wide transition-[opacity,color,font-weight] duration-200 ${
+                className={`mt-1.5 whitespace-nowrap text-[12px] font-sans tracking-wide transition-[opacity,color,font-weight] duration-200 ${
                   isActive ? 'font-bold text-white opacity-100' : 'font-semibold text-white/75 opacity-60'
                 }`}
               >
-                {tab.label}
+                {tab.shortLabel ? (
+                  <>
+                    <span className="sm:hidden">{tab.shortLabel}</span>
+                    <span className="hidden sm:inline">{tab.label}</span>
+                  </>
+                ) : (
+                  tab.label
+                )}
               </span>
             </button>
           );
