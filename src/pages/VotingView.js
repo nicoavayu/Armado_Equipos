@@ -704,9 +704,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <div className="text-[18px] text-white/70 text-center mb-1 font-oswald">
             Sacá una foto para que los demás jugadores te reconozcan al votar.
           </div>
-          <div className="text-[13px] text-white/55 text-center mb-5 font-oswald">
-            Las fotos ayudan a que las votaciones sean más justas.
-          </div>
 
           <div className="w-full flex flex-col gap-2 mt-2">
             <button
@@ -726,7 +723,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               Continuar sin foto
             </button>
             <SurveyImportantDisclaimer
-              className="mt-1"
+              className="mt-8"
               title="Importante"
               message="Votá con seriedad y objetividad. Esto ayuda a armar equipos parejos y mejorar el partido para todos."
             />
