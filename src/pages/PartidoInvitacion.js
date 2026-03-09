@@ -1752,14 +1752,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           >
             {submitting ? 'Sumándote...' : 'Entrar al partido'}
           </button>
-
-          <button
-            onClick={() => navigate('/')}
-            disabled={submitting}
-            className="w-full text-white/70 text-sm hover:text-white transition-all py-2"
-          >
-            ← Volver
-          </button>
           </div>
         </div>
       </div>
