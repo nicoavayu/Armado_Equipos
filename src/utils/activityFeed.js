@@ -871,7 +871,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
       icon: 'AlertTriangle',
       title: 'Partido cancelado',
       subtitle,
-      route: teamMatchId ? `/desafios/equipos/partidos/${teamMatchId}` : (matchRoute || '/notifications'),
+      route: '/desafios',
     };
   }
 

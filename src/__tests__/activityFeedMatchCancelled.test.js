@@ -40,6 +40,6 @@ describe('buildActivityFeed match_cancelled', () => {
     expect(items[0].title).toBe('Partido cancelado');
     expect(items[0].subtitle).toContain('Sardinitis');
     expect(items[0].subtitle).toContain('Equipo 1 vs Deportivo Saque');
-    expect(items[0].route).toBe('/desafios/equipos/partidos/tm-200');
+    expect(items[0].route).toBe('/desafios');
   });
 });

@@ -146,6 +146,11 @@ const getPlayerAvatar = (member) => (
   || null
 );
 
+const isCancelledTeamMatchStatus = (statusValue) => {
+  const normalized = String(statusValue || '').trim().toLowerCase();
+  return normalized === 'cancelled' || normalized === 'canceled' || normalized === 'cancelado';
+};
+
 const modalActionButtonBaseClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !font-bebas !text-base !tracking-[0.01em] !normal-case sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
 const modalActionPrimaryClass = `${modalActionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
 const modalActionSecondaryClass = `${modalActionButtonBaseClass} !border !border-[rgba(98,117,184,0.58)] !bg-[rgba(20,31,70,0.82)] !text-white/92 hover:!bg-[rgba(30,45,94,0.95)]`;
@@ -305,6 +310,7 @@ const TeamMatchDetailPage = () => {
   const [ambiguousTeamDecision, setAmbiguousTeamDecision] = useState(null);
   const [ambiguousTeamModalOpen, setAmbiguousTeamModalOpen] = useState(false);
   const actionsMenuButtonRef = useRef(null);
+  const cancelledRedirectRef = useRef(false);
 
   useEffect(() => {
     if (!inlineNotice?.message) return undefined;
@@ -403,6 +409,17 @@ const TeamMatchDetailPage = () => {
     () => String(match?.type || match?.origin_type || '').toLowerCase() === 'challenge' || Boolean(match?.challenge_id),
     [match?.challenge_id, match?.origin_type, match?.type],
   );
+  const isCancelledMatch = useMemo(
+    () => isCancelledTeamMatchStatus(match?.status),
+    [match?.status],
+  );
+
+  useEffect(() => {
+    if (loading || !match || !isCancelledMatch || cancelledRedirectRef.current) return;
+    cancelledRedirectRef.current = true;
+    notifyBlockingError('Este partido fue cancelado y ya no está disponible.');
+    navigate('/desafios', { replace: true });
+  }, [isCancelledMatch, loading, match, navigate]);
 
   useEffect(() => {
     let ignore = false;
@@ -1204,7 +1221,7 @@ const TeamMatchDetailPage = () => {
             </div>
           ) : null}
 
-          {!loading && match ? (
+          {!loading && match && !isCancelledMatch ? (
             <>
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
@@ -1586,6 +1603,12 @@ const TeamMatchDetailPage = () => {
 
             </>
           ) : null}
+
+          {!loading && match && isCancelledMatch ? (
+            <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-center text-white/70">
+              Este partido fue cancelado y ya no está disponible.
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -1781,7 +1804,7 @@ const TeamMatchDetailPage = () => {
       </Modal>
 
       <ChatButton
-        partidoId={match?.id || null}
+        partidoId={!isCancelledMatch ? (match?.id || null) : null}
         isOpen={isChatOpen}
         onOpenChange={setIsChatOpen}
         onUnreadCountChange={setChatUnreadCount}
