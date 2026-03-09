@@ -28,6 +28,7 @@ import {
   buildTeamChallengeRoute,
   extractNotificationMatchId,
   isTeamChallengeNotification,
+  resolveAdminAwareMatchRoute,
   resolveTeamChallengeRouteFromMatchId,
 } from '../utils/notificationRoutes';
 import { filterNotificationsForInbox } from '../utils/notificationInviteState';
@@ -230,6 +231,18 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       return;
     }
 
+    if (notification.type === 'match_update') {
+      const matchId = extractNotificationMatchId(notification);
+      const route = await resolveAdminAwareMatchRoute({
+        notification,
+        matchId,
+        supabaseClient: supabase,
+        userId: user?.id,
+      });
+      safeNavigate(notification, route, {}, 'No encontramos el partido de esta notificación.');
+      return;
+    }
+
     if (notification.type === 'match_kicked') {
       console.info('Fuiste removido del partido');
       return;
@@ -389,6 +402,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       'awards_ready',
       'survey_finished',
       'award_won',
+      'match_update',
     ]);
     return clickableTypes.has(notification.type) || isTeamChallengeNotification(notification);
   };

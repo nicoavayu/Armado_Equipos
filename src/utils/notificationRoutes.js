@@ -42,6 +42,58 @@ export const extractNotificationMatchId = (notification = {}) => {
   );
 };
 
+const isSafeInternalPath = (path) => {
+  const raw = String(path || '').trim();
+  if (!raw) return false;
+  return raw.startsWith('/') && !raw.startsWith('//');
+};
+
+export const resolveAdminAwareMatchRoute = async ({
+  notification = {},
+  matchId = null,
+  supabaseClient = null,
+  userId = null,
+} = {}) => {
+  const data = notification?.data || {};
+  const normalizedMatchId = String(matchId ?? extractNotificationMatchId(notification) ?? '').trim();
+  const normalizedUserId = String(userId || '').trim();
+
+  const adminLinkCandidate = data?.admin_link || data?.adminLink || null;
+  if (isSafeInternalPath(adminLinkCandidate)) {
+    return String(adminLinkCandidate).trim();
+  }
+
+  const linkCandidate = data?.link || notification?.deep_link || notification?.deepLink || null;
+  const safeLink = isSafeInternalPath(linkCandidate) ? String(linkCandidate).trim() : null;
+
+  if (!normalizedMatchId) {
+    return safeLink;
+  }
+
+  const adminRoute = `/admin/${normalizedMatchId}`;
+  const publicRoute = `/partido-publico/${normalizedMatchId}`;
+
+  if (!supabaseClient || !normalizedUserId) {
+    return safeLink || publicRoute;
+  }
+
+  try {
+    const { data: matchRow, error } = await supabaseClient
+      .from('partidos')
+      .select('creado_por')
+      .eq('id', normalizedMatchId)
+      .maybeSingle();
+
+    if (!error && String(matchRow?.creado_por || '').trim() === normalizedUserId) {
+      return adminRoute;
+    }
+  } catch (_error) {
+    // Best-effort lookup: fall through to default routes.
+  }
+
+  return safeLink || publicRoute;
+};
+
 export const isTeamChallengeNotification = (notification = {}) => {
   const type = String(notification?.type || '').trim().toLowerCase();
   const data = notification?.data || {};

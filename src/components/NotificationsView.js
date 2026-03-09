@@ -26,6 +26,7 @@ import {
   buildTeamChallengeRoute,
   extractNotificationMatchId,
   isTeamChallengeNotification,
+  resolveAdminAwareMatchRoute,
   resolveTeamChallengeRouteFromMatchId,
 } from '../utils/notificationRoutes';
 import { groupNotificationsByMatch } from '../utils/notificationGrouping';
@@ -202,7 +203,12 @@ const NotificationsView = () => {
       return;
     }
 
-    if (data.matchId && notification?.type !== 'match_invite' && notification?.type !== 'match_kicked') {
+    if (
+      data.matchId
+      && notification?.type !== 'match_invite'
+      && notification?.type !== 'match_kicked'
+      && notification?.type !== 'match_update'
+    ) {
       safeNavigate(notification, `/partido/${toBigIntId(data.matchId)}`);
       return;
     }
@@ -343,6 +349,16 @@ const NotificationsView = () => {
           fallbackToNotificationRoute(notification, 'No encontramos la solicitud de ingreso de este partido.');
         }
         break;
+      case 'match_update': {
+        const matchRoute = await resolveAdminAwareMatchRoute({
+          notification,
+          matchId,
+          supabaseClient: supabase,
+          userId: user?.id,
+        });
+        safeNavigate(notification, matchRoute, {}, 'No encontramos el partido de esta notificación.');
+        break;
+      }
       case 'survey_finished': {
         // Robust matchId resolution
         const finalMatchId = notification.match_ref || notification.partido_id || data.match_id || data.matchId || data.partidoId;
@@ -517,6 +533,7 @@ const NotificationsView = () => {
       'awards_ready',
       'survey_finished',
       'award_won',
+      'match_update',
     ]);
     return clickableTypes.has(notification.type) || isTeamChallengeNotification(notification);
   };
