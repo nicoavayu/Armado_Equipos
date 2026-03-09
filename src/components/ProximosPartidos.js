@@ -93,6 +93,11 @@ const isCancelledTeamMatchStatus = (statusValue) => {
   return normalized === 'cancelled' || normalized === 'canceled' || normalized === 'cancelado';
 };
 
+const isCancelledChallengeStatus = (statusValue) => {
+  const normalized = normalizeTextToken(statusValue);
+  return normalized === 'canceled' || normalized === 'cancelled' || normalized === 'cancelado';
+};
+
 const ProximosPartidos = ({ onClose }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -488,6 +493,55 @@ const ProximosPartidos = ({ onClose }) => {
         }
       }
 
+      const challengeIdsForStatusCheck = Array.from(
+        new Set([
+          ...explicitChallengeIdsForBridgeLookup,
+          ...teamMatchBridgeRows.map((row) => normalizeIdToken(row?.challenge_id || null)),
+          ...teamMatchRowsByExplicitId.map((row) => normalizeIdToken(row?.challenge_id || null)),
+          ...teamMatchRowsByChallengeId.map((row) => normalizeIdToken(row?.challenge_id || null)),
+        ].filter(Boolean)),
+      );
+      if (challengeIdsForStatusCheck.length > 0) {
+        try {
+          const { data: challengeStatusRows, error: challengeStatusError } = await supabase
+            .from('challenges')
+            .select('id, status')
+            .in('id', challengeIdsForStatusCheck);
+
+          if (challengeStatusError) throw challengeStatusError;
+
+          const cancelledChallengeStatusIds = new Set(
+            (challengeStatusRows || [])
+              .filter((row) => isCancelledChallengeStatus(row?.status))
+              .map((row) => normalizeIdToken(row?.id))
+              .filter(Boolean),
+          );
+
+          cancelledChallengeStatusIds.forEach((challengeId) => cancelledBridgeChallengeIds.add(challengeId));
+
+          const allTeamMatchRows = [
+            ...teamMatchBridgeRows,
+            ...teamMatchRowsByExplicitId,
+            ...teamMatchRowsByChallengeId,
+          ];
+
+          allTeamMatchRows.forEach((row) => {
+            const rowChallengeId = normalizeIdToken(row?.challenge_id || null);
+            if (!rowChallengeId || !cancelledChallengeStatusIds.has(rowChallengeId)) return;
+
+            const partidoId = String(row?.partido_id || '').trim();
+            if (partidoId) cancelledBridgePartidoIds.add(partidoId);
+
+            const teamMatchId = normalizeIdToken(row?.id || null);
+            if (teamMatchId) cancelledBridgeTeamMatchIds.add(teamMatchId);
+          });
+        } catch (challengeStatusLookupError) {
+          console.warn('[PROXIMOS] challenge status lookup failed', {
+            message: challengeStatusLookupError?.message || String(challengeStatusLookupError),
+          });
+        }
+      }
+
       const partidosEnriquecidosBase = partidosFiltrados
         .filter((partido) => {
           const partidoIdKey = String(partido?.id || '');
@@ -514,12 +568,15 @@ const ProximosPartidos = ({ onClose }) => {
 
       const appendTeamMatchMaps = (row) => {
         if (!row) return;
+        const rowChallengeId = normalizeIdToken(row?.challenge_id || row?.challengeId || null);
+        if (rowChallengeId && cancelledBridgeChallengeIds.has(rowChallengeId)) return;
+
         const idKey = normalizeIdToken(row?.id || null);
         if (idKey && !isCancelledTeamMatchStatus(row?.status || row?.team_match_status)) {
           teamMatchById.set(idKey, row);
         }
 
-        const challengeIdKey = normalizeIdToken(row?.challenge_id || row?.challengeId || null);
+        const challengeIdKey = rowChallengeId;
         if (challengeIdKey && !isCancelledTeamMatchStatus(row?.status || row?.team_match_status)) {
           const existing = teamMatchByChallengeId.get(challengeIdKey) || null;
           const existingTs = new Date(existing?.scheduled_at || 0).getTime();
@@ -531,7 +588,8 @@ const ProximosPartidos = ({ onClose }) => {
       };
 
       teamMatchBridgeRows.forEach((row) => {
-        if (isCancelledTeamMatchStatus(row?.status)) return;
+        const rowChallengeId = normalizeIdToken(row?.challenge_id || null);
+        if (isCancelledTeamMatchStatus(row?.status) || (rowChallengeId && cancelledBridgeChallengeIds.has(rowChallengeId))) return;
 
         const partidoId = Number(row?.partido_id);
         if (!Number.isFinite(partidoId) || partidoId <= 0) return;

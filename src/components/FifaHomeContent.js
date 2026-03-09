@@ -54,6 +54,11 @@ const isCancelledTeamMatchStatus = (statusValue) => {
   return normalized === 'cancelled' || normalized === 'canceled' || normalized === 'cancelado';
 };
 
+const isCancelledChallengeStatus = (statusValue) => {
+  const normalized = normalizeStatusToken(statusValue);
+  return normalized === 'canceled' || normalized === 'cancelled' || normalized === 'cancelado';
+};
+
 const hasAnyAwardsWinner = (row) => Boolean(
   row?.mvp
   || row?.golden_glove
@@ -400,14 +405,40 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         try {
           const { data: bridgeRows, error: bridgeError } = await supabase
             .from('team_matches')
-            .select('partido_id, status')
+            .select('partido_id, status, challenge_id')
             .in('partido_id', partidosIdsForBridgeLookup);
 
           if (bridgeError) throw bridgeError;
 
+          let cancelledChallengeIds = new Set();
+          const challengeIds = Array.from(
+            new Set(
+              (bridgeRows || [])
+                .map((row) => String(row?.challenge_id || '').trim())
+                .filter(Boolean),
+            ),
+          );
+
+          if (challengeIds.length > 0) {
+            const { data: challengeStatusRows, error: challengeStatusError } = await supabase
+              .from('challenges')
+              .select('id, status')
+              .in('id', challengeIds);
+            if (challengeStatusError) throw challengeStatusError;
+            cancelledChallengeIds = new Set(
+              (challengeStatusRows || [])
+                .filter((row) => isCancelledChallengeStatus(row?.status))
+                .map((row) => String(row?.id || '').trim())
+                .filter(Boolean),
+            );
+          }
+
           cancelledBridgePartidoIds = new Set(
             (bridgeRows || [])
-              .filter((row) => isCancelledTeamMatchStatus(row?.status))
+              .filter((row) => (
+                isCancelledTeamMatchStatus(row?.status)
+                || cancelledChallengeIds.has(String(row?.challenge_id || '').trim())
+              ))
               .map((row) => String(row?.partido_id || ''))
               .filter(Boolean),
           );
