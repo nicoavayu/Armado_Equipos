@@ -253,7 +253,11 @@ const PlayersSection = ({
     if (!playerToRemove?.id) return;
     setIsRemovingPlayer(true);
     try {
-      await eliminarJugador(playerToRemove.id, true);
+      const removed = await eliminarJugador(playerToRemove.id, true);
+      if (!removed) {
+        setPlayerToRemove(null);
+        return;
+      }
       console.info(`${playerToRemove.nombre || 'Jugador'} fue expulsado del partido`);
       setPlayerToRemove(null);
     } catch (error) {
@@ -486,6 +490,7 @@ const PlayersSection = ({
                   e.stopPropagation();
                   setPlayerToRemove({ id: j.id, nombre: j.nombre, isOwnPlayer: false });
                 }}
+                data-prevent-profile-open="true"
                 type="button"
                 aria-label="Eliminar jugador"
                 disabled={isClosing}
@@ -571,6 +576,7 @@ const PlayersSection = ({
                   e.stopPropagation();
                   setPlayerToRemove({ id: player.id, nombre: player.nombre, isOwnPlayer: false });
                 }}
+                data-prevent-profile-open="true"
                 type="button"
                 aria-label="Eliminar jugador"
                 disabled={isClosing}

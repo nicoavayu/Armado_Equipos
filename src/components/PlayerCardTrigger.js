@@ -15,8 +15,13 @@ export const TeamDisplayContext = React.createContext(false);
 const PlayerCardTrigger = ({ profile, children, partidoActual, onMakeAdmin }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const isInTeamDisplay = useContext(TeamDisplayContext);
+  const shouldIgnoreOpen = (target) => {
+    if (!(target instanceof Element)) return false;
+    return Boolean(target.closest('button, a, input, textarea, select, [data-prevent-profile-open="true"]'));
+  };
 
   const handleOpenModal = (e) => {
+    if (shouldIgnoreOpen(e?.target)) return;
     e.stopPropagation(); // Prevent event from bubbling up to parent elements
 
     // Don't open profile card if we're in TeamDisplay
@@ -39,6 +44,12 @@ const PlayerCardTrigger = ({ profile, children, partidoActual, onMakeAdmin }) =>
       <div
         className="cursor-pointer transition-transform duration-200 ease-ease relative w-full h-full hover:-translate-y-0.5 active:translate-y-0 focus:outline-none focus-visible:outline-2 focus-visible:outline-white/50 focus-visible:outline-offset-2"
         onClick={handleOpenModal}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleOpenModal(e);
+          }
+        }}
         role="button"
         tabIndex={0}
         aria-label={`Ver perfil de ${profile?.nombre || 'jugador'}`}

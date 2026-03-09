@@ -378,31 +378,41 @@ export const useAdminPanelState = ({
   }, [partidoActual?.id, faltanJugadoresState, partidoActual?.falta_jugadores]);
 
   const agregarJugador = async (e) => {
-    e.preventDefault();
+    if (typeof e?.preventDefault === 'function') {
+      e.preventDefault();
+    }
 
     if (!isAdmin) {
-      setInlineNotice('warning', 'Solo el admin puede agregar jugadores');
-      return;
+      const message = 'Solo el admin puede agregar jugadores';
+      setInlineNotice('warning', message);
+      notifyBlockingError(message);
+      return false;
     }
 
     if (isRosterFull) {
-      setInlineNotice('warning', 'Cupo completo: titulares + suplentes');
-      return;
+      const message = 'Cupo completo: titulares + suplentes';
+      setInlineNotice('warning', message);
+      notifyBlockingError(message);
+      return false;
     }
 
     const nombre = nuevoNombre.trim();
-    if (!nombre) return;
+    if (!nombre) return false;
 
     const nombreExiste = jugadoresActuales.some((j) => j.nombre.toLowerCase() === nombre.toLowerCase());
     if (nombreExiste) {
-      setInlineNotice('warning', 'Ya existe un jugador con ese nombre');
-      return;
+      const message = 'Ya existe un jugador con ese nombre';
+      setInlineNotice('warning', message);
+      notifyBlockingError(message);
+      return false;
     }
 
     const matchHasVotes = await hasRecordedVotes(partidoActual.id);
     if (matchHasVotes) {
-      setInlineNotice('warning', 'Ya hay votos registrados. Para editar el plantel, primero reseteá la votación.');
-      return;
+      const message = 'Ya hay votos registrados. Para editar el plantel, primero reseteá la votación.';
+      setInlineNotice('warning', message);
+      notifyBlockingError(message);
+      return false;
     }
 
     setLoading(true);
@@ -456,6 +466,7 @@ export const useAdminPanelState = ({
           inputRef.current.focus();
         }
       }, 50);
+      return true;
     } catch (error) {
       const errorMessage = String(error?.message || '');
       const errorHint = String(error?.hint || '');
@@ -474,28 +485,36 @@ export const useAdminPanelState = ({
         } catch (_refreshError) {
           // Best-effort refresh only.
         }
-        return;
+        return false;
       }
 
       notifyBlockingError('Error agregando jugador: ' + error.message);
+      return false;
     } finally {
       setLoading(false);
     }
   };
 
   const eliminarJugador = async (jugadorId, _esExpulsion = false) => {
-    const jugadorAEliminar = jugadores.find((j) => j.id === jugadorId);
+    const roster = Array.isArray(jugadoresActuales)
+      ? jugadoresActuales
+      : (Array.isArray(jugadores) ? jugadores : []);
+    const jugadorAEliminar = roster.find((j) => j.id === jugadorId);
 
     if (!isAdmin && jugadorAEliminar?.usuario_id !== user?.id) {
-      setInlineNotice('warning', 'Solo podés eliminarte a vos mismo o ser admin');
-      return;
+      const message = 'Solo podés eliminarte a vos mismo o ser admin';
+      setInlineNotice('warning', message);
+      notifyBlockingError(message);
+      return false;
     }
 
     if (isAdmin && jugadorAEliminar?.usuario_id === user?.id) {
-      const otrosJugadoresConCuenta = jugadores.filter((j) => j.usuario_id && j.usuario_id !== user?.id);
+      const otrosJugadoresConCuenta = roster.filter((j) => j.usuario_id && j.usuario_id !== user?.id);
       if (otrosJugadoresConCuenta.length === 0) {
-        setInlineNotice('warning', 'Para salir, primero transferí admin a otro jugador con cuenta');
-        return;
+        const message = 'Para salir, primero transferí admin a otro jugador con cuenta';
+        setInlineNotice('warning', message);
+        notifyBlockingError(message);
+        return false;
       }
     }
 
@@ -503,8 +522,10 @@ export const useAdminPanelState = ({
 
     const matchHasVotes = await hasRecordedVotes(partidoActual.id);
     if (matchHasVotes) {
-      setInlineNotice('warning', 'Ya hay votos registrados. Para editar el plantel, primero reseteá la votación.');
-      return;
+      const message = 'Ya hay votos registrados. Para editar el plantel, primero reseteá la votación.';
+      setInlineNotice('warning', message);
+      notifyBlockingError(message);
+      return false;
     }
 
     setLoading(true);
@@ -695,9 +716,11 @@ export const useAdminPanelState = ({
         setVotantesConNombres(votantesNombres || []);
         onJugadoresChange(jugadoresPartido);
       }
+      return true;
     } catch (error) {
       console.error('[LEAVE_MATCH] Unexpected error:', error);
       notifyBlockingError('Error eliminando jugador: ' + error.message);
+      return false;
     } finally {
       setLoading(false);
     }
