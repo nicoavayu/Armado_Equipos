@@ -14,6 +14,22 @@ export async function computeAwardsForMatch(partidoId) {
 export async function ensureAwards(partidoId) {
   try {
     const id = Number(partidoId);
+    const normalizeToken = (value) => String(value || '').trim().toLowerCase();
+    const normalizeSurveyStatus = (value) => {
+      const token = normalizeToken(value);
+      if (token === 'closed' || token === 'cerrada') return 'closed';
+      if (token === 'open' || token === 'abierta') return 'open';
+      return null;
+    };
+    const normalizeResultStatus = (value) => {
+      const token = normalizeToken(value);
+      if (!token) return null;
+      if (token === 'finished' || token === 'played') return 'finished';
+      if (token === 'draw' || token === 'empate') return 'draw';
+      if (token === 'not_played' || token === 'cancelled' || token === 'cancelado') return 'not_played';
+      if (token === 'pending' || token === 'pendiente') return 'pending';
+      return null;
+    };
     const hasAnyAwardData = (row) => Boolean(
       row?.mvp ||
       row?.golden_glove ||
@@ -43,7 +59,7 @@ export async function ensureAwards(partidoId) {
     // Gate: never force awards while the survey window is still open.
     let finalizeGate = null;
     try {
-      finalizeGate = await finalizeIfComplete(id, { skipSideEffects: true });
+      finalizeGate = await finalizeIfComplete(id);
     } catch (_) {
       finalizeGate = null;
     }
@@ -61,6 +77,31 @@ export async function ensureAwards(partidoId) {
         waiting: true,
         deadlineAt: finalizeGate?.deadlineAt || null,
       };
+    }
+
+    // Guardrail: if finalize gate failed or is inconclusive, don't compute awards while survey is still open.
+    if (!finalizeGate || finalizeGate?.done !== true) {
+      try {
+        const { data: matchLifecycle, error: lifecycleErr } = await supabase
+          .from('partidos')
+          .select('survey_status, result_status')
+          .eq('id', id)
+          .maybeSingle();
+        if (!lifecycleErr && matchLifecycle) {
+          const surveyStatus = normalizeSurveyStatus(matchLifecycle.survey_status);
+          const resultStatus = normalizeResultStatus(matchLifecycle.result_status);
+          if (surveyStatus === 'open' || resultStatus === 'pending') {
+            return {
+              ok: true,
+              row: after || null,
+              applied: false,
+              waiting: true,
+            };
+          }
+        }
+      } catch (_) {
+        // Non-blocking.
+      }
     }
 
     if (finalizeGate?.awardsSkipped) {

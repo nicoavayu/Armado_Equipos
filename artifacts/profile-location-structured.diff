@@ -1,0 +1,831 @@
+diff --git a/src/components/ProfileEditor.js b/src/components/ProfileEditor.js
+index 99fa7f5..db5646a 100644
+--- a/src/components/ProfileEditor.js
++++ b/src/components/ProfileEditor.js
+@@ -6,51 +6,19 @@ import ProfileCard from './ProfileCard';
+ import ConfirmModal from './ConfirmModal';
+ import InlineNotice from './ui/InlineNotice';
+ import { notifyBlockingError } from 'utils/notifyBlockingError';
++import {
++  LOCATION_SIGNIFICANT_MOVE_M,
++  buildLabel,
++  distanceInMeters,
++  getCurrentPosition,
++  isPermissionDeniedError,
++  reverseGeocode,
++  shouldRefresh,
++} from '../services/locationService';
+ 
+ const GEO_LOG_PREFIX = '[PROFILE_GEO]';
+-
+-const extractCityFromGeocodeResults = (results = []) => {
+-  if (!Array.isArray(results) || results.length === 0) return null;
+-
+-  const priorityTypes = [
+-    'locality',
+-    'administrative_area_level_2',
+-    'administrative_area_level_1',
+-    'sublocality',
+-    'neighborhood',
+-  ];
+-
+-  for (const geocodeResult of results) {
+-    const components = Array.isArray(geocodeResult?.address_components) ? geocodeResult.address_components : [];
+-    for (const type of priorityTypes) {
+-      const match = components.find((component) => Array.isArray(component?.types) && component.types.includes(type));
+-      if (match?.long_name) return match.long_name;
+-    }
+-  }
+-
+-  return null;
+-};
+-
+-const reverseGeocodeCity = async (latitude, longitude) => {
+-  if (typeof window === 'undefined' || !window.google?.maps?.Geocoder) {
+-    return null;
+-  }
+-
+-  const geocoder = new window.google.maps.Geocoder();
+-
+-  const results = await new Promise((resolve, reject) => {
+-    geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (geocodeResults, status) => {
+-      if (status === 'OK') {
+-        resolve(geocodeResults || []);
+-        return;
+-      }
+-
+-      reject(new Error(`Google Geocoder status: ${status}`));
+-    });
+-  });
+-
+-  return extractCityFromGeocodeResults(results);
+-};
++const LOCATION_DISABLED_LABEL = 'Ubicación desactivada';
++const normalizeLocationToken = (value) => String(value || '').trim().toLowerCase();
+ 
+ // Form Component
+ const ProfileEditorForm = ({
+@@ -77,6 +45,10 @@ const ProfileEditorForm = ({
+   handleDeleteAccount,
+   inlineNotice,
+   onClearInlineNotice,
++  locationDisplayValue,
++  locationInputReadOnly,
++  locationLoading,
++  locationDisabled,
+ }) => {
+   return (
+     <div className="mx-auto w-full max-w-[720px] px-4 pb-32 pt-3 flex flex-col gap-2 min-w-0">
+@@ -206,17 +178,22 @@ const ProfileEditorForm = ({
+             <input
+               className={`${inputClass} flex-1`}
+               type="text"
+-              value={formData.localidad}
+-              onChange={(e) => handleInputChange('localidad', e.target.value)}
+-              placeholder="Tu ciudad"
++              value={locationDisplayValue}
++              onChange={(e) => {
++                if (!locationInputReadOnly) {
++                  handleInputChange('localidad', e.target.value);
++                }
++              }}
++              placeholder={locationLoading ? 'Detectando…' : 'Tu ciudad'}
++              readOnly={locationInputReadOnly}
+             />
+             <button
+               className="h-[44px] min-w-[44px] px-3 rounded-none border border-[#f4d03f] bg-[#f4d03f]/15 text-[#f4d03f] text-base cursor-pointer transition-all hover:bg-[#f4d03f]/25 flex items-center justify-center"
+               onClick={handleGeolocation}
+               type="button"
+-              title="Obtener ubicación actual"
++              title={locationDisabled ? 'Habilitar ubicación' : 'Actualizar ubicación'}
+             >
+-              📍
++              {locationLoading ? '…' : '📍'}
+             </button>
+           </div>
+         </div>
+@@ -435,8 +412,11 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
+   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+   const [deleteAccountConfirmation, setDeleteAccountConfirmation] = useState('');
+   const [inlineNotice, setInlineNotice] = useState(null);
++  const [locationLoading, setLocationLoading] = useState(false);
++  const [locationDisabled, setLocationDisabled] = useState(false);
+   const fileInputRef = useRef(null);
+   const noticeRef = useRef({ type: '', message: '', ts: 0 });
++  const initialAutoLocationRefreshDoneRef = useRef(false);
+ 
+   const cleanDate = (dateString) => dateString ? dateString.split('T')[0] : null;
+ 
+@@ -453,6 +433,12 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
+     localidad: '',
+     latitud: null,
+     longitud: null,
++    location_accuracy_m: null,
++    location_updated_at: null,
++    location_label: '',
++    location_city: '',
++    location_state: '',
++    location_country: '',
+     partidos_jugados: 0,
+     partidos_abandonados: 0,
+     ranking: 5,
+@@ -482,6 +468,14 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
+         return parsed;
+       };
+ 
++      const normalizedLocationLabel = profile.location_label
++        || buildLabel({
++          city: profile.location_city,
++          state: profile.location_state,
++        })
++        || profile.localidad
++        || '';
++
+       const newFormData = {
+         nombre: profile.nombre || '',
+         email: profile.email || user?.email || '',
+@@ -492,9 +486,15 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
+         pierna_habil: ['right', 'left', 'both'].includes(profile.pierna_habil) ? profile.pierna_habil : '',
+         nivel: parseLevel(profile.nivel),
+         fecha_nacimiento: cleanDate(profile.fecha_nacimiento),
+-        localidad: profile.localidad || '',
++        localidad: normalizedLocationLabel,
+         latitud: profile.latitud || null,
+         longitud: profile.longitud || null,
++        location_accuracy_m: profile.location_accuracy_m || null,
++        location_updated_at: profile.location_updated_at || null,
++        location_label: normalizedLocationLabel,
++        location_city: profile.location_city || '',
++        location_state: profile.location_state || '',
++        location_country: profile.location_country || '',
+         partidos_jugados: profile.partidos_jugados || 0,
+         partidos_abandonados: profile.partidos_abandonados || 0,
+         ranking: profile.ranking || profile.calificacion || 5,
+@@ -510,9 +510,14 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
+         user: user,
+       });
+       setHasChanges(false);
++      setLocationDisabled(false);
+     }
+   }, [profile, user, refreshProfile, isLocalDevSession]);
+ 
++  useEffect(() => {
++    initialAutoLocationRefreshDoneRef.current = false;
++  }, [user?.id]);
++
+   const MAX_NOMBRE = 12;
+ 
+   const showInlineNotice = useCallback((type, message) => {
+@@ -533,6 +538,148 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
+     setLiveProfile((prev) => ({ ...(prev || {}), [field]: value }));
+   }, [setFormData, setHasChanges, setLiveProfile]);
+ 
++  const applyLocationPatch = useCallback((patch) => {
++    setFormData((prev) => ({ ...prev, ...patch }));
++    setLiveProfile((prev) => ({ ...(prev || {}), ...patch }));
++  }, []);
++
++  const persistLocationPatch = useCallback(async (patch) => {
++    if (!user?.id) return null;
++
++    if (isLocalDevSession) {
++      updateLocalProfile(patch);
++      return patch;
++    }
++
++    const updated = await updateProfile(user.id, patch);
++    if (updated?.error) {
++      throw new Error(updated.error.message || 'No se pudo actualizar la ubicación.');
++    }
++    return updated;
++  }, [isLocalDevSession, updateLocalProfile, user?.id]);
++
++  const refreshProfileLocation = useCallback(async ({
++    force = false,
++    showSuccessNotice = false,
++  } = {}) => {
++    if (!user?.id) return;
++
++    setLocationLoading(true);
++
++    try {
++      console.debug(`${GEO_LOG_PREFIX} requesting current position`, { force });
++
++      const currentPosition = await getCurrentPosition({
++        enableHighAccuracy: false,
++        timeout: 15000,
++        maximumAge: 600000,
++      });
++
++      const previousLocation = {
++        lat: formData.latitud ?? profile?.latitud,
++        lng: formData.longitud ?? profile?.longitud,
++        updated_at: formData.location_updated_at || profile?.location_updated_at || null,
++        city: formData.location_city || profile?.location_city || null,
++        label: formData.location_label || formData.localidad || profile?.location_label || profile?.localidad || null,
++      };
++
++      const needsRefresh = force || shouldRefresh({
++        lastLocation: previousLocation,
++        nextPosition: {
++          lat: currentPosition.lat,
++          lng: currentPosition.lng,
++        },
++      });
++
++      if (!needsRefresh) {
++        setLocationDisabled(false);
++        if (showSuccessNotice) {
++          showInlineNotice('success', 'Ubicación al día.');
++        }
++        return;
++      }
++
++      let geocodedLocation = {};
++      try {
++        geocodedLocation = await reverseGeocode(currentPosition.lat, currentPosition.lng);
++      } catch (reverseError) {
++        console.warn(`${GEO_LOG_PREFIX} reverse geocode failed`, reverseError);
++      }
++
++      const label = buildLabel(geocodedLocation)
++        || previousLocation.label
++        || '';
++
++      const locationPatch = {
++        latitud: currentPosition.lat,
++        longitud: currentPosition.lng,
++        localidad: label,
++        location_label: label,
++        location_accuracy_m: currentPosition.accuracy_m,
++        location_updated_at: currentPosition.timestamp,
++        location_city: geocodedLocation?.city || null,
++        location_state: geocodedLocation?.state || null,
++        location_country: geocodedLocation?.country || null,
++      };
++
++      applyLocationPatch(locationPatch);
++      setLocationDisabled(false);
++
++      const movedDistanceM = distanceInMeters(
++        previousLocation.lat,
++        previousLocation.lng,
++        currentPosition.lat,
++        currentPosition.lng,
++      );
++      const movedSignificantly = !Number.isFinite(movedDistanceM) || movedDistanceM > LOCATION_SIGNIFICANT_MOVE_M;
++      const cityChanged = normalizeLocationToken(previousLocation.city) !== normalizeLocationToken(geocodedLocation?.city);
++      const shouldPersistUpdate = !previousLocation.updated_at
++        || !normalizeLocationToken(previousLocation.label)
++        || movedSignificantly
++        || cityChanged;
++
++      if (shouldPersistUpdate) {
++        await persistLocationPatch(locationPatch);
++      }
++
++      if (showSuccessNotice) {
++        showInlineNotice('success', 'Ubicación actualizada correctamente.');
++      }
++    } catch (error) {
++      console.warn(`${GEO_LOG_PREFIX} geolocation error`, error);
++      if (isPermissionDeniedError(error)) {
++        setLocationDisabled(true);
++        if (showSuccessNotice) {
++          showInlineNotice('warning', 'Ubicación desactivada. Habilitá el permiso para actualizarla.');
++        }
++        return;
++      }
++
++      if (showSuccessNotice) {
++        showInlineNotice('warning', error?.message || 'Error obteniendo ubicación.');
++      }
++    } finally {
++      setLocationLoading(false);
++    }
++  }, [
++    applyLocationPatch,
++    formData.latitud,
++    formData.localidad,
++    formData.location_city,
++    formData.location_label,
++    formData.location_updated_at,
++    formData.longitud,
++    persistLocationPatch,
++    profile?.latitud,
++    profile?.localidad,
++    profile?.location_city,
++    profile?.location_label,
++    profile?.location_updated_at,
++    profile?.longitud,
++    showInlineNotice,
++    user?.id,
++  ]);
++
+   const handlePhotoChange = useCallback(async (e) => {
+     const file = e.target.files[0];
+     if (!file) return;
+@@ -732,58 +879,22 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
+   }, [deleteAccountConfirmation, navigate, onClose, showInlineNotice]);
+ 
+   const handleGeolocation = useCallback(() => {
+-    if (!navigator.geolocation) {
+-      showInlineNotice('warning', 'Geolocalización no disponible en este dispositivo.');
++    if (locationLoading) return;
++    refreshProfileLocation({ force: true, showSuccessNotice: true });
++  }, [locationLoading, refreshProfileLocation]);
++
++  useEffect(() => {
++    if (!isOpen) {
++      initialAutoLocationRefreshDoneRef.current = false;
+       return;
+     }
+ 
+-    console.debug(`${GEO_LOG_PREFIX} requesting current position`);
+-
+-    navigator.geolocation.getCurrentPosition(
+-      async (position) => {
+-        const latitude = Number(position.coords.latitude);
+-        const longitude = Number(position.coords.longitude);
+-
+-        console.debug(`${GEO_LOG_PREFIX} coordinates resolved`, { latitude, longitude });
+-
+-        handleInputChange('latitud', latitude);
+-        handleInputChange('longitud', longitude);
++    if (!profile || !user?.id) return;
++    if (initialAutoLocationRefreshDoneRef.current) return;
+ 
+-        try {
+-          const city = await reverseGeocodeCity(latitude, longitude);
+-          if (city) {
+-            handleInputChange('localidad', city);
+-            console.debug(`${GEO_LOG_PREFIX} city resolved`, { city });
+-          } else {
+-            console.warn(`${GEO_LOG_PREFIX} city could not be resolved from coordinates`);
+-          }
+-        } catch (reverseError) {
+-          console.warn(`${GEO_LOG_PREFIX} reverse geocode failed`, reverseError);
+-        }
+-
+-        showInlineNotice('success', 'Ubicación obtenida correctamente.');
+-      },
+-      (error) => {
+-        let errorMessage = 'Error obteniendo ubicación';
+-        console.warn(`${GEO_LOG_PREFIX} geolocation error`, error);
+-        switch (error.code) {
+-          case error.PERMISSION_DENIED:
+-            errorMessage = 'Permiso denegado. Habilita la ubicación en tu dispositivo.';
+-            break;
+-          case error.POSITION_UNAVAILABLE:
+-            errorMessage = 'Ubicación no disponible.';
+-            break;
+-          case error.TIMEOUT:
+-            errorMessage = 'Tiempo agotado.';
+-            break;
+-          default:
+-            break;
+-        }
+-        showInlineNotice('warning', errorMessage);
+-      },
+-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 },
+-    );
+-  }, [handleInputChange, showInlineNotice]);
++    initialAutoLocationRefreshDoneRef.current = true;
++    refreshProfileLocation({ force: false, showSuccessNotice: false });
++  }, [isOpen, profile, refreshProfileLocation, user?.id]);
+ 
+   const positions = useMemo(() => [
+     { key: 'ARQ', label: 'ARQ' },
+@@ -913,6 +1024,10 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
+   const inputClass = 'w-full bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white px-4 py-3 rounded-none text-base transition-all focus:outline-none focus:border-[#7f8dff] focus:bg-[rgba(62,67,114,0.95)] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 read-only:opacity-70 read-only:cursor-not-allowed shadow-inner backdrop-blur-sm';
+   const labelClass = 'text-white/90 text-sm font-bold mb-2 block uppercase tracking-wider';
+   const formGroupClass = 'flex flex-col w-full';
++  const locationDisplayValue = locationLoading
++    ? 'Detectando…'
++    : (locationDisabled ? LOCATION_DISABLED_LABEL : (formData.location_label || formData.localidad || ''));
++  const locationInputReadOnly = true;
+ 
+   if (isEmbedded) {
+     return (
+@@ -941,6 +1056,10 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
+           handleDeleteAccount={handleDeleteAccount}
+           inlineNotice={inlineNotice}
+           onClearInlineNotice={clearInlineNotice}
++          locationDisplayValue={locationDisplayValue}
++          locationInputReadOnly={locationInputReadOnly}
++          locationLoading={locationLoading}
++          locationDisabled={locationDisabled}
+         />
+         <DeleteAccountModal
+           isOpen={showDeleteAccountModal}
+@@ -1105,17 +1224,22 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
+                 <input
+                   className={`${inputClass} flex-1`}
+                   type="text"
+-                  value={formData.localidad}
+-                  onChange={(e) => handleInputChange('localidad', e.target.value)}
+-                  placeholder="Tu ciudad"
++                  value={locationDisplayValue}
++                  onChange={(e) => {
++                    if (!locationInputReadOnly) {
++                      handleInputChange('localidad', e.target.value);
++                    }
++                  }}
++                  placeholder={locationLoading ? 'Detectando…' : 'Tu ciudad'}
++                  readOnly={locationInputReadOnly}
+                 />
+                 <button
+                   className="h-[44px] min-w-[44px] px-3 rounded-none border border-[#f4d03f] bg-[#f4d03f]/15 text-[#f4d03f] text-base cursor-pointer transition-all hover:bg-[#f4d03f]/25 flex items-center justify-center"
+                   onClick={handleGeolocation}
+                   type="button"
+-                  title="Obtener ubicación actual"
++                  title={locationDisabled ? 'Habilitar ubicación' : 'Actualizar ubicación'}
+                 >
+-                  📍
++                  {locationLoading ? '…' : '📍'}
+                 </button>
+               </div>
+             </div>
+diff --git a/src/services/db/profiles.js b/src/services/db/profiles.js
+index 18d065f..9c0eacb 100644
+--- a/src/services/db/profiles.js
++++ b/src/services/db/profiles.js
+@@ -302,6 +302,8 @@ export const updateProfile = async (userId, profileData) => {
+     'latitud', 'longitud', 'fecha_nacimiento', 'partidos_abandonados',
+     'numero', 'telefono', 'mvps', 'tarjetas_rojas', 'rating', 'updated_at',
+     'lesion_activa', 'card_frame_color', 'pierna_habil', 'nivel',
++    'location_accuracy_m', 'location_updated_at', 'location_label',
++    'location_city', 'location_state', 'location_country',
+   ];
+ 
+   // Field mapping for frontend to database
+@@ -321,6 +323,8 @@ export const updateProfile = async (userId, profileData) => {
+     'number': 'numero',
+     'playerNumber': 'numero',
+     'player_number': 'numero',
++    'lat': 'latitud',
++    'lng': 'longitud',
+   };
+ 
+   // Filter and map fields
+@@ -513,6 +517,12 @@ export const createOrUpdateProfile = async (user) => {
+     nacionalidad: defaultNationality,
+     latitud: null,
+     longitud: null,
++    location_accuracy_m: null,
++    location_updated_at: null,
++    location_label: null,
++    location_city: null,
++    location_state: null,
++    location_country: null,
+     fecha_nacimiento: null,
+     partidos_abandonados: 0,
+     numero: null,
+--- /dev/null	2026-03-04 13:36:10
++++ src/services/locationService.js	2026-03-04 13:30:13
+@@ -0,0 +1,301 @@
++import { Capacitor } from '@capacitor/core';
++import { Geolocation as CapacitorGeolocation } from '@capacitor/geolocation';
++
++export const LOCATION_REFRESH_MAX_AGE_MS = 15 * 60 * 1000;
++export const LOCATION_SIGNIFICANT_MOVE_M = 500;
++
++const ALLOWED_SHORT_LOCATION_CODES = new Set(['CABA']);
++const LOCATION_ERROR_MESSAGES = {
++  PERMISSION_DENIED: 'Permiso denegado',
++  POSITION_UNAVAILABLE: 'Ubicación no disponible',
++  TIMEOUT: 'Tiempo agotado',
++  UNAVAILABLE: 'Geolocalización no disponible',
++};
++
++const normalizeNumber = (value) => {
++  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
++  if (typeof value === 'string') {
++    const parsed = Number(value.trim().replace(',', '.'));
++    return Number.isFinite(parsed) ? parsed : null;
++  }
++  return null;
++};
++
++const isValidCoordinates = (lat, lng) => (
++  Number.isFinite(lat)
++  && Number.isFinite(lng)
++  && lat >= -90
++  && lat <= 90
++  && lng >= -180
++  && lng <= 180
++  && !(Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001)
++);
++
++const sanitizeToken = (value) => {
++  if (value === null || value === undefined) return null;
++
++  const cleaned = String(value)
++    .replace(/\bCP\s*[A-Z]?\d{4,}[A-Z0-9-]*\b/gi, '')
++    .replace(/\s{2,}/g, ' ')
++    .replace(/(^[\s,.-]+|[\s,.-]+$)/g, '')
++    .trim();
++
++  if (!cleaned) return null;
++  if (cleaned.toLowerCase() === 'argentina') return null;
++
++  const lettersOnly = cleaned.replace(/[^A-Za-zÁÉÍÓÚÜÑ]/g, '');
++  if (/^[A-Z]{2,4}$/.test(lettersOnly) && !ALLOWED_SHORT_LOCATION_CODES.has(lettersOnly)) {
++    return null;
++  }
++
++  return cleaned;
++};
++
++const normalizeState = (value) => {
++  const safeValue = sanitizeToken(value);
++  if (!safeValue) return null;
++
++  const normalized = safeValue.toLowerCase();
++  if (normalized === 'ciudad autónoma de buenos aires' || normalized === 'autonomous city of buenos aires') {
++    return 'CABA';
++  }
++
++  return safeValue;
++};
++
++const getAddressComponent = (components, preferredTypes = []) => {
++  for (const component of components) {
++    const types = Array.isArray(component?.types) ? component.types : [];
++    if (preferredTypes.some((type) => types.includes(type))) {
++      return sanitizeToken(component?.long_name) || sanitizeToken(component?.short_name) || null;
++    }
++  }
++
++  return null;
++};
++
++const normalizeLocationError = (error) => {
++  if (!error) {
++    const genericError = new Error(LOCATION_ERROR_MESSAGES.UNAVAILABLE);
++    genericError.code = 'UNAVAILABLE';
++    return genericError;
++  }
++
++  if (error.code === 1 || error.code === 'PERMISSION_DENIED' || error?.message?.toLowerCase?.().includes('denied')) {
++    const permissionError = new Error(LOCATION_ERROR_MESSAGES.PERMISSION_DENIED);
++    permissionError.code = 'PERMISSION_DENIED';
++    return permissionError;
++  }
++
++  if (error.code === 2 || error.code === 'POSITION_UNAVAILABLE') {
++    const unavailableError = new Error(LOCATION_ERROR_MESSAGES.POSITION_UNAVAILABLE);
++    unavailableError.code = 'POSITION_UNAVAILABLE';
++    return unavailableError;
++  }
++
++  if (error.code === 3 || error.code === 'TIMEOUT') {
++    const timeoutError = new Error(LOCATION_ERROR_MESSAGES.TIMEOUT);
++    timeoutError.code = 'TIMEOUT';
++    return timeoutError;
++  }
++
++  const fallbackError = new Error(error.message || LOCATION_ERROR_MESSAGES.UNAVAILABLE);
++  fallbackError.code = error.code || 'UNAVAILABLE';
++  return fallbackError;
++};
++
++const toLocationResult = (position, source) => {
++  const lat = normalizeNumber(position?.coords?.latitude);
++  const lng = normalizeNumber(position?.coords?.longitude);
++  const accuracy = normalizeNumber(position?.coords?.accuracy);
++  const timestamp = normalizeNumber(position?.timestamp) || Date.now();
++
++  if (!isValidCoordinates(lat, lng)) {
++    throw normalizeLocationError({ code: 'POSITION_UNAVAILABLE' });
++  }
++
++  return {
++    lat,
++    lng,
++    accuracy_m: accuracy,
++    timestamp: new Date(timestamp).toISOString(),
++    source,
++  };
++};
++
++const getWebPosition = (options) => new Promise((resolve, reject) => {
++  if (typeof navigator === 'undefined' || !navigator.geolocation) {
++    reject(normalizeLocationError({ code: 'UNAVAILABLE' }));
++    return;
++  }
++
++  navigator.geolocation.getCurrentPosition(
++    (position) => {
++      try {
++        resolve(toLocationResult(position, 'web'));
++      } catch (error) {
++        reject(normalizeLocationError(error));
++      }
++    },
++    (error) => reject(normalizeLocationError(error)),
++    options,
++  );
++});
++
++const getNativePosition = async (options) => {
++  if (!Capacitor?.isNativePlatform?.() || !CapacitorGeolocation?.getCurrentPosition) return null;
++
++  if (CapacitorGeolocation?.requestPermissions) {
++    const permission = await CapacitorGeolocation.requestPermissions();
++    if (permission?.location === 'denied' || permission?.coarseLocation === 'denied') {
++      throw normalizeLocationError({ code: 'PERMISSION_DENIED' });
++    }
++  }
++
++  const position = await CapacitorGeolocation.getCurrentPosition(options);
++  return toLocationResult(position, 'capacitor');
++};
++
++const toRadians = (value) => value * (Math.PI / 180);
++
++export const distanceInMeters = (fromLat, fromLng, toLat, toLng) => {
++  const lat1 = normalizeNumber(fromLat);
++  const lng1 = normalizeNumber(fromLng);
++  const lat2 = normalizeNumber(toLat);
++  const lng2 = normalizeNumber(toLng);
++
++  if (!isValidCoordinates(lat1, lng1) || !isValidCoordinates(lat2, lng2)) return null;
++
++  const earthRadiusM = 6371000;
++  const dLat = toRadians(lat2 - lat1);
++  const dLng = toRadians(lng2 - lng1);
++  const a = Math.sin(dLat / 2) ** 2
++    + Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) ** 2;
++  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
++  return earthRadiusM * c;
++};
++
++export const getCurrentPosition = async (options = {}) => {
++  const resolvedOptions = {
++    enableHighAccuracy: false,
++    timeout: 15000,
++    maximumAge: 0,
++    ...options,
++  };
++
++  try {
++    const nativePosition = await getNativePosition(resolvedOptions);
++    if (nativePosition) return nativePosition;
++  } catch (error) {
++    throw normalizeLocationError(error);
++  }
++
++  return getWebPosition(resolvedOptions);
++};
++
++export const reverseGeocode = async (lat, lng) => {
++  const latitude = normalizeNumber(lat);
++  const longitude = normalizeNumber(lng);
++
++  if (!isValidCoordinates(latitude, longitude)) {
++    throw new Error('Coordenadas inválidas para reverse geocoding');
++  }
++
++  if (typeof window === 'undefined' || !window.google?.maps?.Geocoder) {
++    throw new Error('Google Maps Geocoder no disponible');
++  }
++
++  const geocoder = new window.google.maps.Geocoder();
++  const results = await new Promise((resolve, reject) => {
++    geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (geocodeResults, status) => {
++      if (status === 'OK') {
++        resolve(Array.isArray(geocodeResults) ? geocodeResults : []);
++        return;
++      }
++      reject(new Error(`Google Geocoder status: ${status}`));
++    });
++  });
++
++  const addressComponents = results
++    .flatMap((result) => (Array.isArray(result?.address_components) ? result.address_components : []));
++
++  const neighborhood = getAddressComponent(addressComponents, [
++    'neighborhood',
++    'sublocality_level_1',
++    'sublocality',
++    'administrative_area_level_3',
++  ]);
++
++  const city = getAddressComponent(addressComponents, [
++    'locality',
++    'administrative_area_level_2',
++  ]);
++
++  const state = normalizeState(getAddressComponent(addressComponents, [
++    'administrative_area_level_1',
++  ]));
++
++  const country = getAddressComponent(addressComponents, ['country']);
++
++  return {
++    neighborhood: sanitizeToken(neighborhood),
++    city: sanitizeToken(city),
++    state: sanitizeToken(state),
++    country: sanitizeToken(country),
++  };
++};
++
++export const buildLabel = (location = {}) => {
++  const neighborhood = sanitizeToken(location?.neighborhood || location?.barrio);
++  const city = sanitizeToken(location?.city || location?.ciudad);
++  const state = normalizeState(location?.state || location?.provincia);
++
++  let secondary = city || state || null;
++  if (state === 'CABA' && city && city.toLowerCase().includes('buenos aires')) {
++    secondary = 'CABA';
++  }
++
++  if (neighborhood) {
++    if (secondary && secondary.toLowerCase() !== neighborhood.toLowerCase()) {
++      return `${neighborhood}, ${secondary}`;
++    }
++    return neighborhood;
++  }
++
++  return city || state || null;
++};
++
++export const shouldRefresh = ({
++  lastLocation = {},
++  nextPosition = null,
++  now = Date.now(),
++  maxAgeMs = LOCATION_REFRESH_MAX_AGE_MS,
++  minDistanceM = LOCATION_SIGNIFICANT_MOVE_M,
++} = {}) => {
++  const previousLat = normalizeNumber(lastLocation?.lat ?? lastLocation?.latitud);
++  const previousLng = normalizeNumber(lastLocation?.lng ?? lastLocation?.longitud);
++  const previousUpdatedAt = lastLocation?.updated_at || lastLocation?.location_updated_at || null;
++
++  if (!isValidCoordinates(previousLat, previousLng)) return true;
++  if (!previousUpdatedAt) return true;
++
++  const previousTimestamp = new Date(previousUpdatedAt).getTime();
++  if (!Number.isFinite(previousTimestamp)) return true;
++  if ((Number(now) - previousTimestamp) > maxAgeMs) return true;
++
++  const nextLat = normalizeNumber(nextPosition?.lat);
++  const nextLng = normalizeNumber(nextPosition?.lng);
++  if (!isValidCoordinates(nextLat, nextLng)) return false;
++
++  const distanceM = distanceInMeters(previousLat, previousLng, nextLat, nextLng);
++  if (!Number.isFinite(distanceM)) return true;
++
++  return distanceM > minDistanceM;
++};
++
++export const isPermissionDeniedError = (error) => (
++  error?.code === 'PERMISSION_DENIED'
++  || error?.code === 1
++  || String(error?.message || '').toLowerCase().includes('permiso denegado')
++  || String(error?.message || '').toLowerCase().includes('permission denied')
++);
+--- /dev/null	2026-03-04 13:36:10
++++ supabase/migrations/20260304160000_add_structured_user_location_fields.sql	2026-03-04 13:30:33
+@@ -0,0 +1,41 @@
++-- ============================================================================
++-- MIGRATION: Add structured location fields to public.usuarios
++-- Date: 2026-03-04
++-- Purpose:
++--   1) Persist user location metadata for proximity filtering
++--   2) Keep backward compatibility with existing localidad/latitud/longitud
++-- ============================================================================
++
++BEGIN;
++
++DO $$
++BEGIN
++  IF to_regclass('public.usuarios') IS NULL THEN
++    RETURN;
++  END IF;
++
++  ALTER TABLE public.usuarios
++    ADD COLUMN IF NOT EXISTS location_accuracy_m double precision NULL,
++    ADD COLUMN IF NOT EXISTS location_updated_at timestamptz NULL,
++    ADD COLUMN IF NOT EXISTS location_label text NULL,
++    ADD COLUMN IF NOT EXISTS location_city text NULL,
++    ADD COLUMN IF NOT EXISTS location_state text NULL,
++    ADD COLUMN IF NOT EXISTS location_country text NULL;
++
++  UPDATE public.usuarios
++  SET location_label = NULLIF(btrim(localidad), '')
++  WHERE location_label IS NULL
++    AND NULLIF(btrim(localidad), '') IS NOT NULL;
++END
++$$;
++
++COMMENT ON COLUMN public.usuarios.location_accuracy_m IS 'GPS accuracy in meters for latest profile location.';
++COMMENT ON COLUMN public.usuarios.location_updated_at IS 'Timestamp when profile location metadata was last refreshed.';
++COMMENT ON COLUMN public.usuarios.location_label IS 'Short UI label for profile location (e.g. Palermo, CABA).';
++COMMENT ON COLUMN public.usuarios.location_city IS 'Resolved city/locality from reverse geocoding.';
++COMMENT ON COLUMN public.usuarios.location_state IS 'Resolved state/province from reverse geocoding.';
++COMMENT ON COLUMN public.usuarios.location_country IS 'Resolved country from reverse geocoding.';
++
++NOTIFY pgrst, 'reload schema';
++
++COMMIT;

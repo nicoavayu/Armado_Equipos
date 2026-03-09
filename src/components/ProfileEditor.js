@@ -6,51 +6,19 @@ import ProfileCard from './ProfileCard';
 import ConfirmModal from './ConfirmModal';
 import InlineNotice from './ui/InlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import {
+  LOCATION_SIGNIFICANT_MOVE_M,
+  buildLabel,
+  distanceInMeters,
+  getCurrentPosition,
+  isPermissionDeniedError,
+  reverseGeocode,
+  shouldRefresh,
+} from '../services/locationService';
 
 const GEO_LOG_PREFIX = '[PROFILE_GEO]';
-
-const extractCityFromGeocodeResults = (results = []) => {
-  if (!Array.isArray(results) || results.length === 0) return null;
-
-  const priorityTypes = [
-    'locality',
-    'administrative_area_level_2',
-    'administrative_area_level_1',
-    'sublocality',
-    'neighborhood',
-  ];
-
-  for (const geocodeResult of results) {
-    const components = Array.isArray(geocodeResult?.address_components) ? geocodeResult.address_components : [];
-    for (const type of priorityTypes) {
-      const match = components.find((component) => Array.isArray(component?.types) && component.types.includes(type));
-      if (match?.long_name) return match.long_name;
-    }
-  }
-
-  return null;
-};
-
-const reverseGeocodeCity = async (latitude, longitude) => {
-  if (typeof window === 'undefined' || !window.google?.maps?.Geocoder) {
-    return null;
-  }
-
-  const geocoder = new window.google.maps.Geocoder();
-
-  const results = await new Promise((resolve, reject) => {
-    geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (geocodeResults, status) => {
-      if (status === 'OK') {
-        resolve(geocodeResults || []);
-        return;
-      }
-
-      reject(new Error(`Google Geocoder status: ${status}`));
-    });
-  });
-
-  return extractCityFromGeocodeResults(results);
-};
+const LOCATION_DISABLED_LABEL = 'Ubicación desactivada';
+const normalizeLocationToken = (value) => String(value || '').trim().toLowerCase();
 
 // Form Component
 const ProfileEditorForm = ({
@@ -77,6 +45,10 @@ const ProfileEditorForm = ({
   handleDeleteAccount,
   inlineNotice,
   onClearInlineNotice,
+  locationDisplayValue,
+  locationInputReadOnly,
+  locationLoading,
+  locationDisabled,
 }) => {
   return (
     <div className="mx-auto w-full max-w-[720px] px-4 pb-32 pt-3 flex flex-col gap-2 min-w-0">
@@ -206,17 +178,22 @@ const ProfileEditorForm = ({
             <input
               className={`${inputClass} flex-1`}
               type="text"
-              value={formData.localidad}
-              onChange={(e) => handleInputChange('localidad', e.target.value)}
-              placeholder="Tu ciudad"
+              value={locationDisplayValue}
+              onChange={(e) => {
+                if (!locationInputReadOnly) {
+                  handleInputChange('localidad', e.target.value);
+                }
+              }}
+              placeholder={locationLoading ? 'Detectando…' : 'Tu ciudad'}
+              readOnly={locationInputReadOnly}
             />
             <button
               className="h-[44px] min-w-[44px] px-3 rounded-none border border-[#f4d03f] bg-[#f4d03f]/15 text-[#f4d03f] text-base cursor-pointer transition-all hover:bg-[#f4d03f]/25 flex items-center justify-center"
               onClick={handleGeolocation}
               type="button"
-              title="Obtener ubicación actual"
+              title={locationDisabled ? 'Habilitar ubicación' : 'Actualizar ubicación'}
             >
-              📍
+              {locationLoading ? '…' : '📍'}
             </button>
           </div>
         </div>
@@ -435,8 +412,11 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [deleteAccountConfirmation, setDeleteAccountConfirmation] = useState('');
   const [inlineNotice, setInlineNotice] = useState(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationDisabled, setLocationDisabled] = useState(false);
   const fileInputRef = useRef(null);
   const noticeRef = useRef({ type: '', message: '', ts: 0 });
+  const initialAutoLocationRefreshDoneRef = useRef(false);
 
   const cleanDate = (dateString) => dateString ? dateString.split('T')[0] : null;
 
@@ -453,6 +433,12 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     localidad: '',
     latitud: null,
     longitud: null,
+    location_accuracy_m: null,
+    location_updated_at: null,
+    location_label: '',
+    location_city: '',
+    location_state: '',
+    location_country: '',
     partidos_jugados: 0,
     partidos_abandonados: 0,
     ranking: 5,
@@ -482,6 +468,14 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         return parsed;
       };
 
+      const normalizedLocationLabel = profile.location_label
+        || buildLabel({
+          city: profile.location_city,
+          state: profile.location_state,
+        })
+        || profile.localidad
+        || '';
+
       const newFormData = {
         nombre: profile.nombre || '',
         email: profile.email || user?.email || '',
@@ -492,9 +486,15 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         pierna_habil: ['right', 'left', 'both'].includes(profile.pierna_habil) ? profile.pierna_habil : '',
         nivel: parseLevel(profile.nivel),
         fecha_nacimiento: cleanDate(profile.fecha_nacimiento),
-        localidad: profile.localidad || '',
+        localidad: normalizedLocationLabel,
         latitud: profile.latitud || null,
         longitud: profile.longitud || null,
+        location_accuracy_m: profile.location_accuracy_m || null,
+        location_updated_at: profile.location_updated_at || null,
+        location_label: normalizedLocationLabel,
+        location_city: profile.location_city || '',
+        location_state: profile.location_state || '',
+        location_country: profile.location_country || '',
         partidos_jugados: profile.partidos_jugados || 0,
         partidos_abandonados: profile.partidos_abandonados || 0,
         ranking: profile.ranking || profile.calificacion || 5,
@@ -510,8 +510,13 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
         user: user,
       });
       setHasChanges(false);
+      setLocationDisabled(false);
     }
   }, [profile, user, refreshProfile, isLocalDevSession]);
+
+  useEffect(() => {
+    initialAutoLocationRefreshDoneRef.current = false;
+  }, [user?.id]);
 
   const MAX_NOMBRE = 12;
 
@@ -532,6 +537,148 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
     setHasChanges(true);
     setLiveProfile((prev) => ({ ...(prev || {}), [field]: value }));
   }, [setFormData, setHasChanges, setLiveProfile]);
+
+  const applyLocationPatch = useCallback((patch) => {
+    setFormData((prev) => ({ ...prev, ...patch }));
+    setLiveProfile((prev) => ({ ...(prev || {}), ...patch }));
+  }, []);
+
+  const persistLocationPatch = useCallback(async (patch) => {
+    if (!user?.id) return null;
+
+    if (isLocalDevSession) {
+      updateLocalProfile(patch);
+      return patch;
+    }
+
+    const updated = await updateProfile(user.id, patch);
+    if (updated?.error) {
+      throw new Error(updated.error.message || 'No se pudo actualizar la ubicación.');
+    }
+    return updated;
+  }, [isLocalDevSession, updateLocalProfile, user?.id]);
+
+  const refreshProfileLocation = useCallback(async ({
+    force = false,
+    showSuccessNotice = false,
+  } = {}) => {
+    if (!user?.id) return;
+
+    setLocationLoading(true);
+
+    try {
+      console.debug(`${GEO_LOG_PREFIX} requesting current position`, { force });
+
+      const currentPosition = await getCurrentPosition({
+        enableHighAccuracy: false,
+        timeout: 15000,
+        maximumAge: 600000,
+      });
+
+      const previousLocation = {
+        lat: formData.latitud ?? profile?.latitud,
+        lng: formData.longitud ?? profile?.longitud,
+        updated_at: formData.location_updated_at || profile?.location_updated_at || null,
+        city: formData.location_city || profile?.location_city || null,
+        label: formData.location_label || formData.localidad || profile?.location_label || profile?.localidad || null,
+      };
+
+      const needsRefresh = force || shouldRefresh({
+        lastLocation: previousLocation,
+        nextPosition: {
+          lat: currentPosition.lat,
+          lng: currentPosition.lng,
+        },
+      });
+
+      if (!needsRefresh) {
+        setLocationDisabled(false);
+        if (showSuccessNotice) {
+          showInlineNotice('success', 'Ubicación al día.');
+        }
+        return;
+      }
+
+      let geocodedLocation = {};
+      try {
+        geocodedLocation = await reverseGeocode(currentPosition.lat, currentPosition.lng);
+      } catch (reverseError) {
+        console.warn(`${GEO_LOG_PREFIX} reverse geocode failed`, reverseError);
+      }
+
+      const label = buildLabel(geocodedLocation)
+        || previousLocation.label
+        || '';
+
+      const locationPatch = {
+        latitud: currentPosition.lat,
+        longitud: currentPosition.lng,
+        localidad: label,
+        location_label: label,
+        location_accuracy_m: currentPosition.accuracy_m,
+        location_updated_at: currentPosition.timestamp,
+        location_city: geocodedLocation?.city || null,
+        location_state: geocodedLocation?.state || null,
+        location_country: geocodedLocation?.country || null,
+      };
+
+      applyLocationPatch(locationPatch);
+      setLocationDisabled(false);
+
+      const movedDistanceM = distanceInMeters(
+        previousLocation.lat,
+        previousLocation.lng,
+        currentPosition.lat,
+        currentPosition.lng,
+      );
+      const movedSignificantly = !Number.isFinite(movedDistanceM) || movedDistanceM > LOCATION_SIGNIFICANT_MOVE_M;
+      const cityChanged = normalizeLocationToken(previousLocation.city) !== normalizeLocationToken(geocodedLocation?.city);
+      const shouldPersistUpdate = !previousLocation.updated_at
+        || !normalizeLocationToken(previousLocation.label)
+        || movedSignificantly
+        || cityChanged;
+
+      if (shouldPersistUpdate) {
+        await persistLocationPatch(locationPatch);
+      }
+
+      if (showSuccessNotice) {
+        showInlineNotice('success', 'Ubicación actualizada correctamente.');
+      }
+    } catch (error) {
+      console.warn(`${GEO_LOG_PREFIX} geolocation error`, error);
+      if (isPermissionDeniedError(error)) {
+        setLocationDisabled(true);
+        if (showSuccessNotice) {
+          showInlineNotice('warning', 'Ubicación desactivada. Habilitá el permiso para actualizarla.');
+        }
+        return;
+      }
+
+      if (showSuccessNotice) {
+        showInlineNotice('warning', error?.message || 'Error obteniendo ubicación.');
+      }
+    } finally {
+      setLocationLoading(false);
+    }
+  }, [
+    applyLocationPatch,
+    formData.latitud,
+    formData.localidad,
+    formData.location_city,
+    formData.location_label,
+    formData.location_updated_at,
+    formData.longitud,
+    persistLocationPatch,
+    profile?.latitud,
+    profile?.localidad,
+    profile?.location_city,
+    profile?.location_label,
+    profile?.location_updated_at,
+    profile?.longitud,
+    showInlineNotice,
+    user?.id,
+  ]);
 
   const handlePhotoChange = useCallback(async (e) => {
     const file = e.target.files[0];
@@ -732,58 +879,22 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   }, [deleteAccountConfirmation, navigate, onClose, showInlineNotice]);
 
   const handleGeolocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      showInlineNotice('warning', 'Geolocalización no disponible en este dispositivo.');
+    if (locationLoading) return;
+    refreshProfileLocation({ force: true, showSuccessNotice: true });
+  }, [locationLoading, refreshProfileLocation]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      initialAutoLocationRefreshDoneRef.current = false;
       return;
     }
 
-    console.debug(`${GEO_LOG_PREFIX} requesting current position`);
+    if (!profile || !user?.id) return;
+    if (initialAutoLocationRefreshDoneRef.current) return;
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const latitude = Number(position.coords.latitude);
-        const longitude = Number(position.coords.longitude);
-
-        console.debug(`${GEO_LOG_PREFIX} coordinates resolved`, { latitude, longitude });
-
-        handleInputChange('latitud', latitude);
-        handleInputChange('longitud', longitude);
-
-        try {
-          const city = await reverseGeocodeCity(latitude, longitude);
-          if (city) {
-            handleInputChange('localidad', city);
-            console.debug(`${GEO_LOG_PREFIX} city resolved`, { city });
-          } else {
-            console.warn(`${GEO_LOG_PREFIX} city could not be resolved from coordinates`);
-          }
-        } catch (reverseError) {
-          console.warn(`${GEO_LOG_PREFIX} reverse geocode failed`, reverseError);
-        }
-
-        showInlineNotice('success', 'Ubicación obtenida correctamente.');
-      },
-      (error) => {
-        let errorMessage = 'Error obteniendo ubicación';
-        console.warn(`${GEO_LOG_PREFIX} geolocation error`, error);
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage = 'Permiso denegado. Habilita la ubicación en tu dispositivo.';
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Ubicación no disponible.';
-            break;
-          case error.TIMEOUT:
-            errorMessage = 'Tiempo agotado.';
-            break;
-          default:
-            break;
-        }
-        showInlineNotice('warning', errorMessage);
-      },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 },
-    );
-  }, [handleInputChange, showInlineNotice]);
+    initialAutoLocationRefreshDoneRef.current = true;
+    refreshProfileLocation({ force: false, showSuccessNotice: false });
+  }, [isOpen, profile, refreshProfileLocation, user?.id]);
 
   const positions = useMemo(() => [
     { key: 'ARQ', label: 'ARQ' },
@@ -913,6 +1024,10 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const inputClass = 'w-full bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white px-4 py-3 rounded-none text-base transition-all focus:outline-none focus:border-[#7f8dff] focus:bg-[rgba(62,67,114,0.95)] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 read-only:opacity-70 read-only:cursor-not-allowed shadow-inner backdrop-blur-sm';
   const labelClass = 'text-white/90 text-sm font-bold mb-2 block uppercase tracking-wider';
   const formGroupClass = 'flex flex-col w-full';
+  const locationDisplayValue = locationLoading
+    ? 'Detectando…'
+    : (locationDisabled ? LOCATION_DISABLED_LABEL : (formData.location_label || formData.localidad || ''));
+  const locationInputReadOnly = true;
 
   if (isEmbedded) {
     return (
@@ -941,6 +1056,10 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           handleDeleteAccount={handleDeleteAccount}
           inlineNotice={inlineNotice}
           onClearInlineNotice={clearInlineNotice}
+          locationDisplayValue={locationDisplayValue}
+          locationInputReadOnly={locationInputReadOnly}
+          locationLoading={locationLoading}
+          locationDisabled={locationDisabled}
         />
         <DeleteAccountModal
           isOpen={showDeleteAccountModal}
@@ -1105,17 +1224,22 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 <input
                   className={`${inputClass} flex-1`}
                   type="text"
-                  value={formData.localidad}
-                  onChange={(e) => handleInputChange('localidad', e.target.value)}
-                  placeholder="Tu ciudad"
+                  value={locationDisplayValue}
+                  onChange={(e) => {
+                    if (!locationInputReadOnly) {
+                      handleInputChange('localidad', e.target.value);
+                    }
+                  }}
+                  placeholder={locationLoading ? 'Detectando…' : 'Tu ciudad'}
+                  readOnly={locationInputReadOnly}
                 />
                 <button
                   className="h-[44px] min-w-[44px] px-3 rounded-none border border-[#f4d03f] bg-[#f4d03f]/15 text-[#f4d03f] text-base cursor-pointer transition-all hover:bg-[#f4d03f]/25 flex items-center justify-center"
                   onClick={handleGeolocation}
                   type="button"
-                  title="Obtener ubicación actual"
+                  title={locationDisabled ? 'Habilitar ubicación' : 'Actualizar ubicación'}
                 >
-                  📍
+                  {locationLoading ? '…' : '📍'}
                 </button>
               </div>
             </div>

@@ -302,6 +302,8 @@ export const updateProfile = async (userId, profileData) => {
     'latitud', 'longitud', 'fecha_nacimiento', 'partidos_abandonados',
     'numero', 'telefono', 'mvps', 'tarjetas_rojas', 'rating', 'updated_at',
     'lesion_activa', 'card_frame_color', 'pierna_habil', 'nivel',
+    'location_accuracy_m', 'location_updated_at', 'location_label',
+    'location_city', 'location_state', 'location_country',
   ];
 
   // Field mapping for frontend to database
@@ -321,6 +323,8 @@ export const updateProfile = async (userId, profileData) => {
     'number': 'numero',
     'playerNumber': 'numero',
     'player_number': 'numero',
+    'lat': 'latitud',
+    'lng': 'longitud',
   };
 
   // Filter and map fields
@@ -513,6 +517,12 @@ export const createOrUpdateProfile = async (user) => {
     nacionalidad: defaultNationality,
     latitud: null,
     longitud: null,
+    location_accuracy_m: null,
+    location_updated_at: null,
+    location_label: null,
+    location_city: null,
+    location_state: null,
+    location_country: null,
     fecha_nacimiento: null,
     partidos_abandonados: 0,
     numero: null,

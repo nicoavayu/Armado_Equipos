@@ -28,7 +28,7 @@ async function getSurveyResultsRow(partidoId) {
   try {
     const { data, error } = await supabase
       .from('survey_results')
-      .select('partido_id, snapshot_participantes_listo, snapshot_participantes, snapshot_equipos, resultados_encuesta_listos, snapshot_resultados_encuesta, encuesta_cerrada_at, mvp, golden_glove, red_cards, winner_team, scoreline, awards')
+      .select('partido_id, snapshot_participantes_listo, snapshot_participantes, snapshot_equipos, resultados_encuesta_listos, snapshot_resultados_encuesta, encuesta_cerrada_at, mvp, golden_glove, red_cards, winner_team, scoreline, result_status, finished_at, awards')
       .eq('partido_id', partidoId)
       .maybeSingle();
 
@@ -95,7 +95,8 @@ export async function ensureParticipantsSnapshot(partidoId) {
 
     let participantsSnapshot = buildParticipantsSnapshot(players || []);
     let equiposSnapshot = null;
-    let finalTeamsSnapshot = null;
+    let surveyTeamsSnapshot = null;
+    let partidosRow = null;
 
     // Prefer confirmed snapshot if available.
     try {
@@ -123,34 +124,59 @@ export async function ensureParticipantsSnapshot(partidoId) {
       // Optional table/columns on older environments.
     }
 
-    // Prefer persisted final teams when available.
+    // Prefer survey-defined teams when match teams were not confirmed beforehand.
     try {
-      const { data: finalTeamsRow, error: finalTeamsError } = await supabase
+      const { data, error } = await supabase
         .from('partidos')
-        .select('final_team_a, final_team_b, final_teams_updated_at, final_teams_updated_by')
+        .select('teams_confirmed, teams_source, survey_team_a, survey_team_b, teams_locked_by_user_id, teams_locked_at, final_team_a, final_team_b, final_teams_updated_at, final_teams_updated_by')
         .eq('id', id)
         .maybeSingle();
 
-      if (!finalTeamsError && finalTeamsRow) {
-        const finalA = isArray(finalTeamsRow.final_team_a) ? finalTeamsRow.final_team_a : [];
-        const finalB = isArray(finalTeamsRow.final_team_b) ? finalTeamsRow.final_team_b : [];
-        if (finalA.length > 0 && finalB.length > 0) {
-          finalTeamsSnapshot = {
-            team_a: finalA,
-            team_b: finalB,
-            teams_json: null,
-            confirmed_at: finalTeamsRow.final_teams_updated_at || null,
-            source: 'partidos.final_teams',
-            updated_by: finalTeamsRow.final_teams_updated_by || null,
-          };
-        }
+      if (!error) {
+        partidosRow = data || null;
       }
     } catch (_error) {
       // Optional columns on older environments.
     }
 
-    if (finalTeamsSnapshot) {
-      equiposSnapshot = finalTeamsSnapshot;
+    if (partidosRow?.teams_confirmed !== true) {
+      const surveyA = isArray(partidosRow?.survey_team_a) ? partidosRow.survey_team_a : [];
+      const surveyB = isArray(partidosRow?.survey_team_b) ? partidosRow.survey_team_b : [];
+      if (surveyA.length > 0 && surveyB.length > 0) {
+        surveyTeamsSnapshot = {
+          team_a: surveyA,
+          team_b: surveyB,
+          teams_json: null,
+          confirmed_at: partidosRow?.teams_locked_at || partidosRow?.final_teams_updated_at || null,
+          source: partidosRow?.teams_source || 'partidos.survey_teams',
+          updated_by: partidosRow?.teams_locked_by_user_id || partidosRow?.final_teams_updated_by || null,
+        };
+      } else {
+        const finalA = isArray(partidosRow?.final_team_a) ? partidosRow.final_team_a : [];
+        const finalB = isArray(partidosRow?.final_team_b) ? partidosRow.final_team_b : [];
+        if (finalA.length > 0 && finalB.length > 0) {
+          surveyTeamsSnapshot = {
+            team_a: finalA,
+            team_b: finalB,
+            teams_json: null,
+            confirmed_at: partidosRow?.final_teams_updated_at || null,
+            source: partidosRow?.teams_source || 'partidos.final_teams',
+            updated_by: partidosRow?.final_teams_updated_by || null,
+          };
+        }
+      }
+    }
+
+    if (partidosRow?.teams_confirmed === true) {
+      // Keep the admin-confirmed snapshot as source of truth.
+      if (equiposSnapshot) {
+        equiposSnapshot = {
+          ...equiposSnapshot,
+          source: 'admin',
+        };
+      }
+    } else if (surveyTeamsSnapshot) {
+      equiposSnapshot = surveyTeamsSnapshot;
     }
 
     const payload = {
@@ -214,6 +240,8 @@ export async function ensureSurveyResultsSnapshot(partidoId, meta = {}) {
       golden_glove: existing?.golden_glove ?? existing?.awards?.best_gk ?? null,
       winner_team: existing?.winner_team || null,
       scoreline: existing?.scoreline || null,
+      result_status: existing?.result_status || null,
+      finished_at: existing?.finished_at || null,
       total_surveys: (surveys || []).length,
       encuesta_cerrada_at: meta?.encuestaCerradaAt || new Date().toISOString(),
       closed_reason: meta?.closedReason || null,

@@ -1,0 +1,4110 @@
+diff --git a/src/components/StatsView.js b/src/components/StatsView.js
+index 24270ed..5bd73a5 100644
+--- a/src/components/StatsView.js
++++ b/src/components/StatsView.js
+@@ -342,6 +342,25 @@ const StatsView = ({ onVolver }) => {
+     return normalizeIdentity(entry);
+   };
+ 
++  const normalizeSurveyWinner = (value) => {
++    const token = normalizeIdentity(value);
++    if (!token) return null;
++    if (token === 'equipo_a' || token === 'a' || token === 'team_a') return 'equipo_a';
++    if (token === 'equipo_b' || token === 'b' || token === 'team_b') return 'equipo_b';
++    if (token === 'empate' || token === 'draw') return 'empate';
++    return null;
++  };
++
++  const normalizeSurveyResultStatus = (value) => {
++    const token = normalizeIdentity(value);
++    if (!token) return null;
++    if (token === 'finished' || token === 'played') return 'finished';
++    if (token === 'draw' || token === 'empate') return 'draw';
++    if (token === 'not_played' || token === 'cancelled' || token === 'cancelado') return 'not_played';
++    if (token === 'pending' || token === 'pendiente') return 'pending';
++    return null;
++  };
++
+   const resolveUserTeam = ({ participants, teamA, teamB }) => {
+     const teamARefs = new Set((Array.isArray(teamA) ? teamA : []).map(normalizeTeamEntry).filter(Boolean));
+     const teamBRefs = new Set((Array.isArray(teamB) ? teamB : []).map(normalizeTeamEntry).filter(Boolean));
+@@ -394,14 +413,14 @@ const StatsView = ({ onVolver }) => {
+     try {
+       let query = await supabase
+         .from('survey_results')
+-        .select('partido_id, winner_team, snapshot_equipos, snapshot_participantes')
++        .select('partido_id, winner_team, result_status, snapshot_equipos, snapshot_participantes')
+         .in('partido_id', matchIds);
+ 
+       if (query.error) {
+         // Backward-compatible fallback for environments without snapshot columns.
+         query = await supabase
+           .from('survey_results')
+-          .select('partido_id, winner_team')
++          .select('partido_id, winner_team, result_status')
+           .in('partido_id', matchIds);
+       }
+ 
+@@ -467,9 +486,14 @@ const StatsView = ({ onVolver }) => {
+         source: 'encuesta',
+       };
+ 
+-      const winner = normalizeIdentity(survey?.winner_team);
++      const resultStatus = normalizeSurveyResultStatus(survey?.result_status);
++      const winner = normalizeSurveyWinner(survey?.winner_team);
+       const hasWinner = winner === 'equipo_a' || winner === 'equipo_b' || winner === 'empate';
+ 
++      if (resultStatus === 'not_played') {
++        return;
++      }
++
+       const snapshotTeams = survey?.snapshot_equipos || null;
+       const participants = Array.isArray(survey?.snapshot_participantes)
+         ? survey.snapshot_participantes
+@@ -481,18 +505,24 @@ const StatsView = ({ onVolver }) => {
+         ? snapshotTeams.team_b
+         : (Array.isArray(finalTeams?.final_team_b) ? finalTeams.final_team_b : (Array.isArray(teamConfirm?.team_b) ? teamConfirm.team_b : []));
+ 
+-      if (!hasWinner) {
++      if (resultStatus === 'pending' || (!resultStatus && !hasWinner)) {
+         pendientes += 1;
+         recientes.push({ ...baseRecap, resultKey: 'pendiente', label: 'Pendiente' });
+         return;
+       }
+ 
+-      if (winner === 'empate') {
++      if (resultStatus === 'draw' || winner === 'empate') {
+         empatados += 1;
+         recientes.push({ ...baseRecap, resultKey: 'empate', label: 'Empate' });
+         return;
+       }
+ 
++      if (!hasWinner) {
++        pendientes += 1;
++        recientes.push({ ...baseRecap, resultKey: 'pendiente', label: 'Pendiente' });
++        return;
++      }
++
+       const userTeam = resolveUserTeam({ participants, teamA, teamB });
+       if (!userTeam) {
+         sinEquipoDetectado += 1;
+diff --git a/src/components/TeamsDnDEditor.jsx b/src/components/TeamsDnDEditor.jsx
+index 0c299c4..c902a94 100644
+--- a/src/components/TeamsDnDEditor.jsx
++++ b/src/components/TeamsDnDEditor.jsx
+@@ -14,13 +14,21 @@ const reorder = (list, startIndex, endIndex) => {
+ const resolveName = (player) => player?.nombre || player?.name || 'Jugador';
+ const resolveAvatar = (player) => player?.avatar_url || player?.foto_url || null;
+ 
+-const PlayerChip = ({ player, provided, snapshot, isReplacementTarget = false }) => {
++const PlayerChip = ({
++  player,
++  provided,
++  snapshot,
++  isReplacementTarget = false,
++  disabled = false,
++}) => {
+   const avatar = resolveAvatar(player);
++  const dragProps = disabled ? {} : provided.draggableProps;
++  const dragHandleProps = disabled ? {} : provided.dragHandleProps;
+   return (
+     <div
+       ref={provided.innerRef}
+-      {...provided.draggableProps}
+-      {...provided.dragHandleProps}
++      {...dragProps}
++      {...dragHandleProps}
+       className={`group flex items-center gap-2 rounded-xl border border-white/20 bg-white/[0.10] px-2.5 py-2 text-left transition-all duration-150 ease-out
+         ${snapshot.isDragging ? 'scale-[1.02] border-[#128BE9]/65 bg-[#128BE9]/18 shadow-[0_8px_24px_rgba(18,139,233,0.35)]' : 'hover:bg-white/[0.14]'}
+         ${isReplacementTarget ? 'ring-2 ring-[#0EA9C6]/80 border-[#0EA9C6]/70 bg-[#0EA9C6]/15' : ''}`}
+@@ -51,24 +59,26 @@ const TeamColumn = ({
+   isDragging = false,
+   dragTarget = null,
+   sourceTeamId = null,
++  disabled = false,
+ }) => {
+   return (
+     <button
+       type="button"
+       onClick={() => {
+-        if (!isDragging) onSelect?.();
++        if (disabled || isDragging) return;
++        onSelect?.();
+       }}
+       className={`min-w-0 rounded-2xl border p-2.5 text-left backdrop-blur-md transition-all duration-150 ease-out ${
+         selected
+           ? 'border-[#73bcff]/70 bg-[#128BE9]/18 shadow-[0_0_0_1px_rgba(115,188,255,0.35),0_12px_26px_rgba(18,139,233,0.28)]'
+           : 'border-white/15 bg-white/[0.06]'
+-      }`}
++      } ${disabled ? 'cursor-default' : ''}`}
+     >
+       <div className="mb-2 px-0.5">
+         <div className="font-bebas text-[22px] leading-none tracking-wide text-white/95">{title}</div>
+         <div className="mt-1 text-[12px] font-oswald text-white/70">{playerKeys.length} jugadores</div>
+       </div>
+-      <Droppable droppableId={droppableId}>
++      <Droppable droppableId={droppableId} isDropDisabled={disabled}>
+         {(dropProvided, dropSnapshot) => (
+           <div
+             ref={dropProvided.innerRef}
+@@ -84,13 +94,19 @@ const TeamColumn = ({
+                 dragTarget.teamId === droppableId &&
+                 dragTarget.index === index;
+               return (
+-                <Draggable key={draggableId} draggableId={draggableId} index={index}>
++                <Draggable
++                  key={draggableId}
++                  draggableId={draggableId}
++                  index={index}
++                  isDragDisabled={disabled}
++                >
+                   {(dragProvided, dragSnapshot) => (
+                     <PlayerChip
+                       player={player}
+                       provided={dragProvided}
+                       snapshot={dragSnapshot}
+                       isReplacementTarget={isReplacementTarget}
++                      disabled={disabled}
+                     />
+                   )}
+                 </Draggable>
+@@ -215,6 +231,7 @@ export default function TeamsDnDEditor({
+   return (
+     <DragDropContext
+       onDragStart={() => {
++        if (disabled) return;
+         suppressSelectRef.current = true;
+         setIsDragging(true);
+       }}
+@@ -231,6 +248,7 @@ export default function TeamsDnDEditor({
+           isDragging={isDragging}
+           dragTarget={dragTarget}
+           sourceTeamId={dragTarget?.sourceTeamId || null}
++          disabled={disabled}
+           onSelect={() => {
+             if (suppressSelectRef.current) return;
+             onWinnerChange?.('equipo_a');
+@@ -245,6 +263,7 @@ export default function TeamsDnDEditor({
+           isDragging={isDragging}
+           dragTarget={dragTarget}
+           sourceTeamId={dragTarget?.sourceTeamId || null}
++          disabled={disabled}
+           onSelect={() => {
+             if (suppressSelectRef.current) return;
+             onWinnerChange?.('equipo_b');
+diff --git a/src/components/historial/TemplateStatsModal.jsx b/src/components/historial/TemplateStatsModal.jsx
+index 923da29..98ea2cc 100644
+--- a/src/components/historial/TemplateStatsModal.jsx
++++ b/src/components/historial/TemplateStatsModal.jsx
+@@ -32,9 +32,10 @@ function ResultPill({ winnerTeam, scoreline, resultsReady = false }) {
+   }
+ 
+   let label = 'Sin resultado';
+-  if (winnerTeam === 'equipo_a') label = 'Ganó A';
+-  if (winnerTeam === 'equipo_b') label = 'Ganó B';
+-  if (winnerTeam === 'empate') label = 'Empate';
++  const normalized = String(winnerTeam || '').trim().toLowerCase();
++  if (normalized === 'equipo_a' || normalized === 'a' || normalized === 'team_a') label = 'Ganó A';
++  if (normalized === 'equipo_b' || normalized === 'b' || normalized === 'team_b') label = 'Ganó B';
++  if (normalized === 'empate' || normalized === 'draw') label = 'Empate';
+   const sub = scoreline ? String(scoreline).trim() : '';
+ 
+   return (
+@@ -47,6 +48,33 @@ function ResultPill({ winnerTeam, scoreline, resultsReady = false }) {
+   );
+ }
+ 
++const normalizeResultStatus = (value) => {
++  const normalized = String(value || '').trim().toLowerCase();
++  if (!normalized) return null;
++  if (normalized === 'finished' || normalized === 'played') return 'finished';
++  if (normalized === 'draw' || normalized === 'empate') return 'draw';
++  if (normalized === 'not_played' || normalized === 'cancelled' || normalized === 'cancelado') return 'not_played';
++  if (normalized === 'pending' || normalized === 'pendiente') return 'pending';
++  return null;
++};
++
++const normalizeWinnerTeam = (value) => {
++  const normalized = String(value || '').trim().toLowerCase();
++  if (!normalized) return null;
++  if (normalized === 'equipo_a' || normalized === 'a' || normalized === 'team_a') return 'equipo_a';
++  if (normalized === 'equipo_b' || normalized === 'b' || normalized === 'team_b') return 'equipo_b';
++  if (normalized === 'empate' || normalized === 'draw') return 'empate';
++  return null;
++};
++
++const isClosedHistoryResult = (row) => {
++  const status = normalizeResultStatus(row?.result_status);
++  if (status === 'pending' || status === 'not_played') return false;
++  if (status === 'finished' || status === 'draw') return true;
++  const winner = normalizeWinnerTeam(row?.winner_team);
++  return winner === 'equipo_a' || winner === 'equipo_b' || winner === 'empate';
++};
++
+ function MatchDetailsModal({ open, match, snapshot, resultRow, onClose }) {
+   const participants = Array.isArray(snapshot?.participants) ? snapshot.participants : [];
+   const teamA = Array.isArray(snapshot?.team_a) ? snapshot.team_a : [];
+@@ -253,7 +281,7 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
+         if (matchIds.length > 0) {
+           const { data: resRows } = await supabase
+             .from('survey_results')
+-            .select('partido_id, winner_team, scoreline, results_ready, resultados_encuesta_listos, snapshot_participantes, snapshot_equipos, snapshot_resultados_encuesta')
++            .select('partido_id, winner_team, scoreline, result_status, results_ready, resultados_encuesta_listos, snapshot_participantes, snapshot_equipos, snapshot_resultados_encuesta')
+             .in('partido_id', matchIds);
+           (resRows || []).forEach((r) => resMap.set(Number(r.partido_id), r));
+         }
+@@ -287,8 +315,13 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
+           });
+         });
+ 
++        const closedMatches = (partidos || []).filter((match) => {
++          const resultRow = resMap.get(Number(match.id));
++          return isClosedHistoryResult(resultRow);
++        });
++
+         if (!alive) return;
+-        setMatches(partidos || []);
++        setMatches(closedMatches);
+         setSnapshots(mergedSnapshots);
+         setResults(resMap);
+         setCounts(cntMap);
+diff --git a/src/pages/EncuestaPartido.js b/src/pages/EncuestaPartido.js
+index 169eb5e..159bbf9 100644
+--- a/src/pages/EncuestaPartido.js
++++ b/src/pages/EncuestaPartido.js
+@@ -8,12 +8,25 @@ import PageLoadingState from '../components/PageLoadingState';
+ import PageTransition from '../components/PageTransition';
+ import InlineNotice from '../components/ui/InlineNotice';
+ import TeamsDnDEditor from '../components/TeamsDnDEditor';
+-import { finalizeIfComplete } from '../services/surveyCompletionService';
++import { ensureSurveyWindowOpen, finalizeIfComplete } from '../services/surveyCompletionService';
+ import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
+ import { clearMatchFromList } from '../services/matchFinishService';
+ import useInlineNotice from '../hooks/useInlineNotice';
+ import { notifyBlockingError } from 'utils/notifyBlockingError';
+ import { SURVEY_WINDOW_HOURS } from '../utils/surveyNotificationCopy';
++import {
++  buildPlayerRefToKeyMap,
++  buildSeededInitialTeams,
++  lockSurveyTeamsOnce,
++  resolvePersistRef,
++  resolvePlayerKey,
++  toPlayerKeysFromRefs,
++} from '../services/surveyTeamsService';
++import {
++  buildSurveyFlowSteps,
++  resolveNextResultGateStep,
++  SURVEY_STEPS,
++} from '../utils/surveyFlow';
+ 
+ // Styles are now directly in Tailwind
+ // import './LegacyVoting.css'; // Removed
+@@ -23,6 +36,20 @@ const Utils_formatTime = (iso) => {
+   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+ };
+ 
++const DEFAULT_FORM_DATA = {
++  se_jugo: true,
++  partido_limpio: true,
++  asistieron_todos: true,
++  jugadores_ausentes: [],
++  jugadores_violentos: [],
++  mvp_id: '',
++  arquero_id: '',
++  sin_arquero_fijo: false,
++  motivo_no_jugado: '',
++  ganador: '',
++  resultado: '',
++};
++
+ const EncuestaPartido = () => {
+   const { partidoId, matchId } = useParams();
+   const id = partidoId ?? matchId;
+@@ -37,22 +64,14 @@ const EncuestaPartido = () => {
+   const [teamsConfirmed, setTeamsConfirmed] = useState(false);
+   const [confirmedTeams, setConfirmedTeams] = useState({ teamA: [], teamB: [] });
+   const [finalTeams, setFinalTeams] = useState({ teamA: [], teamB: [] });
++  const [teamsLocked, setTeamsLocked] = useState(false);
++  const [teamsSource, setTeamsSource] = useState(null);
++  const [teamsLockedByUserId, setTeamsLockedByUserId] = useState(null);
++  const [teamsLockedAt, setTeamsLockedAt] = useState(null);
+   const [currentStep, setCurrentStep] = useState(0);
+   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+ 
+-  const [formData, setFormData] = useState({
+-    se_jugo: true,
+-    partido_limpio: true,
+-    asistieron_todos: true,
+-    jugadores_ausentes: [],
+-    jugadores_violentos: [],
+-    mvp_id: '',
+-    arquero_id: '',
+-    sin_arquero_fijo: false,
+-    motivo_no_jugado: '',
+-    ganador: '',
+-    resultado: '',
+-  });
++  const [formData, setFormData] = useState(DEFAULT_FORM_DATA);
+   const [jugadores, setJugadores] = useState([]);
+   const [yaCalificado, _setYaCalificado] = useState(false);
+   const [encuestaFinalizada, setEncuestaFinalizada] = useState(false);
+@@ -73,36 +92,72 @@ const EncuestaPartido = () => {
+   }, []);
+ 
+   useEffect(() => {
++    let cancelled = false;
++
++    const resetSurveyState = () => {
++      clearInlineNotice();
++      setPartido(null);
++      setJugadores([]);
++      setAlreadySubmitted(false);
++      setEncuestaFinalizada(false);
++      setTeamsConfirmed(false);
++      setConfirmedTeams({ teamA: [], teamB: [] });
++      setFinalTeams({ teamA: [], teamB: [] });
++      setTeamsLocked(false);
++      setTeamsSource(null);
++      setTeamsLockedByUserId(null);
++      setTeamsLockedAt(null);
++      setCurrentStep(SURVEY_STEPS.PLAYED);
++      setFormData({ ...DEFAULT_FORM_DATA });
++    };
++
+     const fetchPartidoData = async () => {
+       try {
+         if (!id || !user) {
+-          navigate('/');
++          if (!cancelled) navigate('/');
+           return;
+         }
+ 
++        const matchIdNum = Number(id);
++        if (!Number.isFinite(matchIdNum) || matchIdNum <= 0) {
++          throw new AppError('Partido inválido', ERROR_CODES.VALIDATION_ERROR);
++        }
++
+         setLoading(true);
+ 
+         // Check if user already submitted survey
+-        const currentUserPlayer = await supabase
++        const { data: currentUserPlayer, error: currentPlayerErr } = await supabase
+           .from('jugadores')
+           .select('id')
+           .eq('partido_id', id)
+           .eq('usuario_id', user.id)
+-          .single();
++          .maybeSingle();
++
++        if (currentPlayerErr && currentPlayerErr.code !== 'PGRST116') {
++          throw currentPlayerErr;
++        }
++
++        if (cancelled) return;
+ 
+-        if (currentUserPlayer.data?.id) {
+-          const { data: existingSurvey } = await supabase
++        let hasSubmitted = false;
++        if (currentUserPlayer?.id) {
++          const { data: existingSurvey, error: existingSurveyErr } = await supabase
+             .from('post_match_surveys')
+             .select('id')
+             .eq('partido_id', parseInt(id))
+-            .eq('votante_id', currentUserPlayer.data.id)
+-            .single();
++            .eq('votante_id', currentUserPlayer.id)
++            .maybeSingle();
+ 
+-          if (existingSurvey) {
+-            setAlreadySubmitted(true);
++          if (existingSurveyErr && existingSurveyErr.code !== 'PGRST116') {
++            throw existingSurveyErr;
+           }
++
++          hasSubmitted = Boolean(existingSurvey?.id);
+         }
+ 
++        if (cancelled) return;
++        setAlreadySubmitted(hasSubmitted);
++
+         const { data: partidoData, error: partidoError } = await supabase
+           .from('partidos_view')
+           .select('*')
+@@ -114,21 +169,52 @@ const EncuestaPartido = () => {
+           throw new AppError('Partido no encontrado', ERROR_CODES.NOT_FOUND);
+         }
+ 
+-        // teams_confirmed may come from partidos_view or public.partidos depending on environment
++        // Survey lifecycle is initialized by match ID (no stale/cached match context).
++        try {
++          await ensureSurveyWindowOpen(matchIdNum);
++        } catch (_surveyWindowError) {
++          // Non-blocking fallback.
++        }
++
++        if (cancelled) return;
++
++        // teams_* metadata may come from partidos_view or public.partidos depending on environment.
+         let teamsConfirmedValue = Boolean(partidoData?.teams_confirmed);
++        let teamsLockedValue = false;
++        let teamsSourceValue = teamsConfirmedValue ? 'admin' : null;
++        let teamsLockedByValue = null;
++        let teamsLockedAtValue = null;
++        let persistedSurveyTeamA = [];
++        let persistedSurveyTeamB = [];
+         try {
+           const { data: pRow, error: pErr } = await supabase
+             .from('partidos')
+-            .select('teams_confirmed')
+-            .eq('id', Number(id))
++            .select(
++              'teams_confirmed, teams_locked, teams_source, teams_locked_by_user_id, teams_locked_at, survey_team_a, survey_team_b, final_team_a, final_team_b',
++            )
++            .eq('id', matchIdNum)
+             .maybeSingle();
+-          if (!pErr && pRow && typeof pRow.teams_confirmed === 'boolean') {
+-            teamsConfirmedValue = pRow.teams_confirmed;
++          if (!pErr && pRow) {
++            if (typeof pRow.teams_confirmed === 'boolean') {
++              teamsConfirmedValue = pRow.teams_confirmed;
++            }
++            teamsLockedValue = Boolean(pRow.teams_locked);
++            teamsSourceValue = pRow.teams_source || (teamsConfirmedValue ? 'admin' : null);
++            teamsLockedByValue = pRow.teams_locked_by_user_id || null;
++            teamsLockedAtValue = pRow.teams_locked_at || null;
++            persistedSurveyTeamA = Array.isArray(pRow.survey_team_a)
++              ? pRow.survey_team_a
++              : (Array.isArray(pRow.final_team_a) ? pRow.final_team_a : []);
++            persistedSurveyTeamB = Array.isArray(pRow.survey_team_b)
++              ? pRow.survey_team_b
++              : (Array.isArray(pRow.final_team_b) ? pRow.final_team_b : []);
+           }
+         } catch (_e) {
+-          // non-blocking
++          // Non-blocking fallback.
+         }
+ 
++        if (cancelled) return;
++
+         setTeamsConfirmed(teamsConfirmedValue);
+         setPartido({ ...partidoData, teams_confirmed: teamsConfirmedValue });
+ 
+@@ -137,60 +223,107 @@ const EncuestaPartido = () => {
+           : [];
+         setJugadores(jugadoresPartido);
+ 
++        const playerRefToKey = buildPlayerRefToKeyMap(jugadoresPartido);
+         let resolvedTeamA = [];
+         let resolvedTeamB = [];
+ 
+         if (teamsConfirmedValue) {
+           try {
+-            const normalizeRef = (value) => String(value || '').trim().toLowerCase();
+             const { data: confirmationRow, error: confirmationError } = await supabase
+               .from('partido_team_confirmations')
+               .select('team_a, team_b')
+-              .eq('partido_id', Number(id))
++              .eq('partido_id', matchIdNum)
+               .maybeSingle();
+             if (!confirmationError && confirmationRow) {
+-              const toKeyMap = new Map();
+-              jugadoresPartido.forEach((player) => {
+-                const key = String(player.uuid || player.usuario_id || player.id || '').trim();
+-                if (!key) return;
+-                [player.uuid, player.usuario_id, player.id, key]
+-                  .map((ref) => normalizeRef(ref))
+-                  .filter(Boolean)
+-                  .forEach((ref) => toKeyMap.set(ref, key));
++              resolvedTeamA = toPlayerKeysFromRefs({
++                refs: Array.isArray(confirmationRow.team_a) ? confirmationRow.team_a : [],
++                refToKeyMap: playerRefToKey,
++              });
++              resolvedTeamB = toPlayerKeysFromRefs({
++                refs: Array.isArray(confirmationRow.team_b) ? confirmationRow.team_b : [],
++                refToKeyMap: playerRefToKey,
+               });
+-
+-              resolvedTeamA = (Array.isArray(confirmationRow.team_a) ? confirmationRow.team_a : [])
+-                .map((ref) => toKeyMap.get(normalizeRef(ref)))
+-                .filter(Boolean);
+-              resolvedTeamB = (Array.isArray(confirmationRow.team_b) ? confirmationRow.team_b : [])
+-                .map((ref) => toKeyMap.get(normalizeRef(ref)))
+-                .filter(Boolean);
+             }
+           } catch (_confirmationFetchError) {
+             // Non-blocking fallback.
+           }
+         }
+ 
++        if (cancelled) return;
++
+         if (resolvedTeamA.length > 0 && resolvedTeamB.length > 0) {
+           setConfirmedTeams({ teamA: resolvedTeamA, teamB: resolvedTeamB });
+           setFinalTeams({ teamA: resolvedTeamA, teamB: resolvedTeamB });
++          setTeamsSource('admin');
++          setTeamsLocked(true);
++          setTeamsLockedByUserId(null);
++          setTeamsLockedAt(null);
+         } else {
+           setConfirmedTeams({ teamA: [], teamB: [] });
+-          setFinalTeams({ teamA: [], teamB: [] });
++
++          if (!teamsConfirmedValue && teamsLockedValue) {
++            const lockedTeamA = toPlayerKeysFromRefs({
++              refs: persistedSurveyTeamA,
++              refToKeyMap: playerRefToKey,
++            });
++            const lockedTeamB = toPlayerKeysFromRefs({
++              refs: persistedSurveyTeamB,
++              refToKeyMap: playerRefToKey,
++            });
++
++            if (lockedTeamA.length > 0 && lockedTeamB.length > 0) {
++              setFinalTeams({ teamA: lockedTeamA, teamB: lockedTeamB });
++              setTeamsLocked(true);
++              setTeamsSource(teamsSourceValue || 'survey');
++              setTeamsLockedByUserId(teamsLockedByValue);
++              setTeamsLockedAt(teamsLockedAtValue);
++            } else {
++              const initialTeams = buildSeededInitialTeams({
++                playerKeys: jugadoresPartido.map((player) => resolvePlayerKey(player)).filter(Boolean),
++                seed: matchIdNum,
++              });
++              setFinalTeams(initialTeams);
++              setTeamsLocked(true);
++              setTeamsSource(teamsSourceValue || 'survey');
++              setTeamsLockedByUserId(teamsLockedByValue);
++              setTeamsLockedAt(teamsLockedAtValue);
++            }
++          } else {
++            const initialTeams = buildSeededInitialTeams({
++              playerKeys: jugadoresPartido.map((player) => resolvePlayerKey(player)).filter(Boolean),
++              seed: matchIdNum,
++            });
++            setFinalTeams(initialTeams);
++            setTeamsLocked(teamsConfirmedValue);
++            setTeamsSource(teamsConfirmedValue ? 'admin' : teamsSourceValue || 'survey');
++            setTeamsLockedByUserId(teamsConfirmedValue ? null : teamsLockedByValue);
++            setTeamsLockedAt(teamsConfirmedValue ? null : teamsLockedAtValue);
++          }
+         }
+ 
+       } catch (error) {
+-        handleError(error, { showToast: true, onError: () => { } });
+-        navigate('/');
++        if (!cancelled) {
++          handleError(error, { showToast: true, onError: () => { } });
++          navigate('/');
++        }
+       } finally {
+-        setLoading(false);
++        if (!cancelled) {
++          setLoading(false);
++        }
+       }
+     };
+ 
++    resetSurveyState();
+     if (id && user) {
+       fetchPartidoData();
++    } else {
++      setLoading(false);
+     }
+-  }, [id, user, navigate]);
++
++    return () => {
++      cancelled = true;
++    };
++  }, [id, user, navigate, clearInlineNotice]);
+ 
+   // Mark survey related notifications as read when entering survey page
+   useEffect(() => {
+@@ -261,14 +394,6 @@ const EncuestaPartido = () => {
+     });
+   };
+ 
+-  const resolvePlayerKey = (player) => {
+-    if (!player) return null;
+-    return String(player.uuid || player.usuario_id || player.id || '').trim() || null;
+-  };
+-  const resolvePersistRef = (player) => (
+-    String(player?.uuid || player?.usuario_id || player?.id || '').trim() || null
+-  );
+-
+   const playersByKey = useMemo(() => {
+     const map = {};
+     (jugadores || []).forEach((player) => {
+@@ -279,13 +404,28 @@ const EncuestaPartido = () => {
+     return map;
+   }, [jugadores]);
+ 
++  const allPlayerKeys = useMemo(() => (
++    Object.keys(playersByKey)
++  ), [playersByKey]);
++  const playerRefToKeyMap = useMemo(() => buildPlayerRefToKeyMap(jugadores), [jugadores]);
++
+   const hasConfirmedTeams = teamsConfirmed && confirmedTeams.teamA.length > 0 && confirmedTeams.teamB.length > 0;
++  const teamsContextLabel = useMemo(() => {
++    if (hasConfirmedTeams || teamsSource === 'admin') {
++      return 'Equipos confirmados';
++    }
++    if (teamsLockedByUserId || teamsLockedAt || teamsLocked || teamsSource === 'survey') {
++      return 'Equipos definidos por el primer votante';
++    }
++    return 'Equipos a definir en encuesta';
++  }, [hasConfirmedTeams, teamsLocked, teamsLockedAt, teamsLockedByUserId, teamsSource]);
+ 
+   const finalTeamsValidation = useMemo(() => {
+-    if (!hasConfirmedTeams) return { ok: false, message: 'Para registrar resultado, primero deben estar confirmados los equipos.' };
+-
+     const teamA = Array.isArray(finalTeams?.teamA) ? finalTeams.teamA : [];
+     const teamB = Array.isArray(finalTeams?.teamB) ? finalTeams.teamB : [];
++    const expectedKeys = hasConfirmedTeams
++      ? new Set([...(confirmedTeams.teamA || []), ...(confirmedTeams.teamB || [])])
++      : new Set(allPlayerKeys);
+ 
+     if (teamA.length === 0 || teamB.length === 0) {
+       return { ok: false, message: 'Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.' };
+@@ -296,24 +436,34 @@ const EncuestaPartido = () => {
+       return { ok: false, message: 'Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.' };
+     }
+ 
+-    const confirmedSet = new Set([...(confirmedTeams.teamA || []), ...(confirmedTeams.teamB || [])]);
+-    if (uniqueFinal.size !== confirmedSet.size) {
++    if (expectedKeys.size > 0 && uniqueFinal.size !== expectedKeys.size) {
+       return { ok: false, message: 'Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.' };
+     }
+ 
+     for (const key of uniqueFinal) {
+-      if (!confirmedSet.has(key)) {
++      if (expectedKeys.size > 0 && !expectedKeys.has(key)) {
+         return { ok: false, message: 'Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.' };
+       }
+     }
+ 
+     return { ok: true, message: '' };
+-  }, [finalTeams, confirmedTeams, hasConfirmedTeams]);
++  }, [allPlayerKeys, confirmedTeams, finalTeams, hasConfirmedTeams]);
++
++  const hydrateTeamsFromRefs = ({ teamARefs = [], teamBRefs = [] }) => {
++    const teamA = toPlayerKeysFromRefs({ refs: teamARefs, refToKeyMap: playerRefToKeyMap });
++    const teamB = toPlayerKeysFromRefs({ refs: teamBRefs, refToKeyMap: playerRefToKeyMap });
++    if (teamA.length > 0 && teamB.length > 0) {
++      setFinalTeams({ teamA, teamB });
++      return true;
++    }
++    return false;
++  };
+ 
+-  const persistFinalTeams = async () => {
+-    if (!hasConfirmedTeams) {
+-      return { ok: false, message: 'Para registrar resultado, primero deben estar confirmados los equipos.' };
++  const persistSurveyTeamsDefinition = async () => {
++    if (hasConfirmedTeams || teamsLocked) {
++      return { ok: true, message: '' };
+     }
++
+     if (!finalTeamsValidation.ok) {
+       return { ok: false, message: finalTeamsValidation.message };
+     }
+@@ -325,20 +475,63 @@ const EncuestaPartido = () => {
+       .map((key) => resolvePersistRef(playersByKey[key]))
+       .filter(Boolean);
+ 
+-    const { data: rpcData, error: rpcError } = await supabase.rpc('save_match_final_teams', {
+-      p_partido_id: Number(id),
+-      p_final_team_a: teamARefs,
+-      p_final_team_b: teamBRefs,
+-    });
++    if (teamARefs.length === 0 || teamBRefs.length === 0) {
++      return { ok: false, message: 'No se pudieron guardar los equipos finales. Intentá nuevamente.' };
++    }
+ 
+-    if (rpcError) {
++    let lockResult;
++    try {
++      lockResult = await lockSurveyTeamsOnce({
++        matchId: Number(id),
++        teamARefs,
++        teamBRefs,
++      });
++    } catch (_rpcError) {
+       return { ok: false, message: 'No se pudieron guardar los equipos finales. Intentá nuevamente.' };
+     }
+-    if (rpcData?.success === false) {
+-      return { ok: false, message: 'Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.' };
++
++    if (!lockResult.ok) {
++      return { ok: false, message: 'No se pudieron guardar los equipos finales. Intentá nuevamente.' };
+     }
+ 
+-    return { ok: true, message: '' };
++    setTeamsLocked(lockResult.teamsLocked || lockResult.alreadyLocked || lockResult.success);
++    setTeamsSource(lockResult.teamsSource || 'survey');
++    setTeamsLockedByUserId(lockResult.teamsLockedByUserId || null);
++    setTeamsLockedAt(lockResult.teamsLockedAt || null);
++
++    if (lockResult.teamARefs.length > 0 && lockResult.teamBRefs.length > 0) {
++      hydrateTeamsFromRefs({
++        teamARefs: lockResult.teamARefs,
++        teamBRefs: lockResult.teamBRefs,
++      });
++    }
++
++    return {
++      ok: true,
++      message: '',
++      alreadyLocked: lockResult.alreadyLocked,
++      lockedByOther: lockResult.lockedByOther,
++    };
++  };
++
++  const resolveSurveyOutcome = () => {
++    const winner = String(formData.ganador || '').trim();
++    if (winner === 'equipo_a') {
++      return { seJugo: true, ganador: 'A', resultado: 'finished' };
++    }
++    if (winner === 'equipo_b') {
++      return { seJugo: true, ganador: 'B', resultado: 'finished' };
++    }
++    if (winner === 'empate') {
++      return { seJugo: true, ganador: 'DRAW', resultado: 'draw' };
++    }
++    if (winner === 'no_jugado') {
++      return { seJugo: false, ganador: 'NOT_PLAYED', resultado: 'not_played' };
++    }
++    if (formData.se_jugo === false) {
++      return { seJugo: false, ganador: 'NOT_PLAYED', resultado: 'not_played' };
++    }
++    return { seJugo: true, ganador: null, resultado: 'pending' };
+   };
+ 
+   const continueSubmitFlow = async () => {
+@@ -348,23 +541,44 @@ const EncuestaPartido = () => {
+         return;
+       }
+ 
+-      if (formData.se_jugo) {
+-        const persistResult = await persistFinalTeams();
++      const outcome = resolveSurveyOutcome();
++      if (outcome.seJugo && !teamsConfirmed && !teamsLocked) {
++        const persistResult = await persistSurveyTeamsDefinition();
+         if (!persistResult.ok) {
+           showInlineNotice({
+             key: 'survey_final_teams_save_error',
+             type: 'warning',
+-            message: `${persistResult.message} Vamos a guardar la encuesta igual.`,
++            message: persistResult.message,
++          });
++          return;
++        }
++        if (persistResult.alreadyLocked) {
++          showInlineNotice({
++            key: 'survey_teams_already_locked',
++            type: 'success',
++            message: 'Los equipos ya habían sido definidos por otro votante. Vamos a usar esa versión.',
+           });
+         }
+       }
+ 
+-      const mvpPlayer = formData.mvp_id ? jugadores.find((j) => j.uuid === formData.mvp_id) : null;
+-      const arqueroPlayer = formData.arquero_id ? jugadores.find((j) => j.uuid === formData.arquero_id) : null;
++      const mvpPlayer = outcome.seJugo && formData.mvp_id
++        ? jugadores.find((j) => j.uuid === formData.mvp_id)
++        : null;
++      const arqueroPlayer = outcome.seJugo && formData.arquero_id
++        ? jugadores.find((j) => j.uuid === formData.arquero_id)
++        : null;
+       const currentUserPlayer = jugadores.find((j) => j.usuario_id === user.id);
++      if (!currentUserPlayer?.id) {
++        showInlineNotice({
++          key: 'survey_user_not_eligible',
++          type: 'warning',
++          message: 'Solo jugadores con cuenta registrada pueden completar esta encuesta.',
++        });
++        return;
++      }
+ 
+       const uuidToId = new Map(jugadores.map((j) => [j.uuid, j.id]));
+-      const violentosIds = (formData.jugadores_violentos || [])
++      const violentosIds = (outcome.seJugo ? formData.jugadores_violentos : [])
+         .map((u) => uuidToId.get(u))
+         .filter(Boolean);
+       const ausentesIds = (formData.jugadores_ausentes || [])
+@@ -373,17 +587,17 @@ const EncuestaPartido = () => {
+ 
+       const surveyData = {
+         partido_id: parseInt(id),
+-        votante_id: currentUserPlayer?.id || null,
+-        se_jugo: formData.se_jugo,
+-        motivo_no_jugado: formData.motivo_no_jugado || null,
++        votante_id: currentUserPlayer.id,
++        se_jugo: outcome.seJugo,
++        motivo_no_jugado: outcome.seJugo ? null : (formData.motivo_no_jugado || null),
+         asistieron_todos: formData.asistieron_todos,
+         jugadores_ausentes: ausentesIds,
+-        partido_limpio: formData.partido_limpio,
++        partido_limpio: outcome.seJugo ? formData.partido_limpio : true,
+         jugadores_violentos: violentosIds,
+         mejor_jugador_eq_a: mvpPlayer?.id || null,
+         mejor_jugador_eq_b: arqueroPlayer?.id || null, // Usamos este campo para el arquero
+-        ganador: formData.ganador || null,
+-        resultado: formData.resultado || null,
++        ganador: outcome.ganador,
++        resultado: outcome.resultado || null,
+         created_at: new Date().toISOString(),
+       };
+ 
+@@ -429,12 +643,6 @@ const EncuestaPartido = () => {
+     }
+   };
+ 
+-  const submitSurveyFromCurrentStep = async () => {
+-    if (submitting || encuestaFinalizada || alreadySubmitted) return;
+-    setSubmitting(true);
+-    await continueSubmitFlow();
+-  };
+-
+   const handleSubmit = async (e) => {
+     e.preventDefault();
+ 
+@@ -452,21 +660,14 @@ const EncuestaPartido = () => {
+       showInlineNotice({
+         key: 'survey_missing_winner',
+         type: 'warning',
+-        message: 'Elegí el resultado: Equipo A, Equipo B o Empate.',
++        message: 'Elegí el resultado: Equipo A, Equipo B, Empate o No jugado.',
+       });
+       return;
+     }
+ 
+-    if (currentStep === 5 && !hasConfirmedTeams) {
+-      showInlineNotice({
+-        key: 'survey_missing_confirmed_teams',
+-        type: 'warning',
+-        message: 'Para registrar resultado, primero deben estar confirmados los equipos',
+-      });
+-      return;
+-    }
+-
+-    if (currentStep === 5 && !finalTeamsValidation.ok) {
++    const needsValidTeamsForResult = currentStep === 5
++      && (formData.ganador === 'equipo_a' || formData.ganador === 'equipo_b');
++    if (needsValidTeamsForResult && !finalTeamsValidation.ok) {
+       showInlineNotice({
+         key: 'survey_invalid_final_teams',
+         type: 'warning',
+@@ -483,6 +684,46 @@ const EncuestaPartido = () => {
+     await continueSubmitFlow();
+   };
+ 
++  const handleLockTeamsAndContinue = async () => {
++    if (submitting || encuestaFinalizada || alreadySubmitted) return;
++
++    if (teamsConfirmed || teamsLocked) {
++      setCurrentStep(SURVEY_STEPS.RESULT);
++      return;
++    }
++
++    setSubmitting(true);
++    try {
++      const persistResult = await persistSurveyTeamsDefinition();
++      if (!persistResult.ok) {
++        showInlineNotice({
++          key: 'survey_final_teams_save_error',
++          type: 'warning',
++          message: persistResult.message,
++        });
++        return;
++      }
++
++      if (persistResult.alreadyLocked) {
++        showInlineNotice({
++          key: 'survey_teams_already_locked',
++          type: 'success',
++          message: 'Los equipos ya habían sido definidos por otro votante. Vamos a usar esa versión.',
++        });
++      } else {
++        showInlineNotice({
++          key: 'survey_teams_locked',
++          type: 'success',
++          message: 'Equipos guardados. Continuemos con el resultado final.',
++        });
++      }
++
++      setCurrentStep(SURVEY_STEPS.RESULT);
++    } finally {
++      setSubmitting(false);
++    }
++  };
++
+   const formatFecha = (fechaStr) => {
+     try {
+       const fecha = new Date(fechaStr);
+@@ -535,40 +776,20 @@ const EncuestaPartido = () => {
+ 
+   const SurveyFooterLogo = () => null;
+ 
+-  const flowSteps = useMemo(() => {
+-    const resolvedSteps = [0];
+-
+-    if (currentStep === 10 || currentStep === 11 || formData.se_jugo === false) {
+-      resolvedSteps.push(10);
+-      if (currentStep === 11) {
+-        resolvedSteps.push(11);
+-      }
+-      return resolvedSteps;
+-    }
+-
+-    resolvedSteps.push(1);
+-
+-    if (currentStep === 12 || formData.asistieron_todos === false) {
+-      resolvedSteps.push(12);
+-    }
+-
+-    resolvedSteps.push(2, 3, 4);
+-
+-    if (currentStep === 6 || formData.partido_limpio === false) {
+-      resolvedSteps.push(6);
+-    }
+-
+-    if (hasConfirmedTeams) {
+-      resolvedSteps.push(5);
+-    }
+-
+-    return resolvedSteps;
+-  }, [
++  const flowSteps = useMemo(() => buildSurveyFlowSteps({
++    currentStep,
++    seJugo: formData.se_jugo,
++    asistieronTodos: formData.asistieron_todos,
++    partidoLimpio: formData.partido_limpio,
++    teamsConfirmed,
++    teamsLocked,
++  }), [
+     currentStep,
+     formData.se_jugo,
+     formData.asistieron_todos,
+     formData.partido_limpio,
+-    hasConfirmedTeams,
++    teamsConfirmed,
++    teamsLocked,
+   ]);
+ 
+   const progressTotalSteps = Math.max(flowSteps.length, 1);
+@@ -860,7 +1081,10 @@ const EncuestaPartido = () => {
+                     className={`${optionBtnClass} ${formData.se_jugo ? optionBtnSelectedClass : ''}`}
+                     onClick={() => {
+                       handleInputChange('se_jugo', true);
+-                      setCurrentStep(1);
++                      if (formData.ganador === 'no_jugado') {
++                        handleInputChange('ganador', '');
++                      }
++                      setCurrentStep(SURVEY_STEPS.ATTENDANCE);
+                     }}
+                     type="button"
+                   >
+@@ -870,7 +1094,8 @@ const EncuestaPartido = () => {
+                     className={`${optionBtnClass} ${!formData.se_jugo ? optionBtnSelectedClass : ''}`}
+                     onClick={() => {
+                       handleInputChange('se_jugo', false);
+-                      setCurrentStep(10);
++                      handleInputChange('ganador', 'no_jugado');
++                      setCurrentStep(SURVEY_STEPS.NOT_PLAYED_REASON);
+                     }}
+                     type="button"
+                   >
+@@ -898,7 +1123,7 @@ const EncuestaPartido = () => {
+                     className={optionBtnClass}
+                     onClick={() => {
+                       handleInputChange('asistieron_todos', true);
+-                      setCurrentStep(2);
++                      setCurrentStep(SURVEY_STEPS.MVP);
+                     }}
+                     type="button"
+                   >
+@@ -908,7 +1133,7 @@ const EncuestaPartido = () => {
+                     className={optionBtnClass}
+                     onClick={() => {
+                       handleInputChange('asistieron_todos', false);
+-                      setCurrentStep(12);
++                      setCurrentStep(SURVEY_STEPS.ABSENTS);
+                     }}
+                     type="button"
+                   >
+@@ -940,7 +1165,7 @@ const EncuestaPartido = () => {
+                 <div className={compactButtonRowClass}>
+                   <button
+                     className={compactPrimaryBtnClass}
+-                    onClick={() => setCurrentStep(3)}
++                    onClick={() => setCurrentStep(SURVEY_STEPS.GOALKEEPER)}
+                     disabled={!formData.mvp_id}
+                   >
+                     SIGUIENTE
+@@ -978,14 +1203,14 @@ const EncuestaPartido = () => {
+                     onClick={() => {
+                       handleInputChange('arquero_id', '');
+                       handleInputChange('sin_arquero_fijo', true);
+-                      setCurrentStep(4);
++                      setCurrentStep(SURVEY_STEPS.CLEAN_MATCH);
+                     }}
+                   >
+                     NO HUBO
+                   </button>
+                   <button
+                     className={compactPrimaryBtnClass}
+-                    onClick={() => setCurrentStep(4)}
++                    onClick={() => setCurrentStep(SURVEY_STEPS.CLEAN_MATCH)}
+                     disabled={!formData.arquero_id && !formData.sin_arquero_fijo}
+                   >
+                     SIGUIENTE
+@@ -1010,13 +1235,12 @@ const EncuestaPartido = () => {
+                 <div className={gridClass}>
+                   <button
+                     className={`${optionBtnClass} ${formData.partido_limpio ? optionBtnSelectedClass : ''}`}
+-                    onClick={async () => {
++                    onClick={() => {
+                       handleInputChange('partido_limpio', true);
+-                      if (!hasConfirmedTeams) {
+-                        await submitSurveyFromCurrentStep();
+-                        return;
+-                      }
+-                      setCurrentStep(5);
++                      setCurrentStep(resolveNextResultGateStep({
++                        teamsConfirmed,
++                        teamsLocked,
++                      }));
+                     }}
+                     type="button"
+                   >
+@@ -1026,7 +1250,7 @@ const EncuestaPartido = () => {
+                     className={`${optionBtnClass} ${!formData.partido_limpio ? optionBtnSelectedClass : ''}`}
+                     onClick={() => {
+                       handleInputChange('partido_limpio', false);
+-                      setCurrentStep(6);
++                      setCurrentStep(SURVEY_STEPS.DIRTY_PLAYERS);
+                     }}
+                     type="button"
+                   >
+@@ -1049,27 +1273,23 @@ const EncuestaPartido = () => {
+                     ¿QUIÉN GANÓ?
+                   </div>
+                   <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
+-                    Si hubo algún cambio de último momento en la cancha, podés ajustar los equipos acá.
++                    {teamsContextLabel}
++                    {teamsSource === 'survey' ? ' · Primera respuesta define equipos.' : ''}
+                   </div>
+                 </div>
+               </div>
+               <div className={`${contentRowClass} items-start`}>
+                 <div className="w-full max-w-[760px] mx-auto">
+-                  {hasConfirmedTeams ? (
++                  {finalTeams.teamA.length > 0 && finalTeams.teamB.length > 0 ? (
+                     <div className="w-full space-y-3">
+                       <TeamsDnDEditor
+                         teamA={finalTeams.teamA}
+                         teamB={finalTeams.teamB}
+                         playersByKey={playersByKey}
+-                        selectedWinner={formData.ganador}
+-                        onWinnerChange={(winner) => {
+-                          handleInputChange('ganador', winner);
+-                          clearInlineNotice();
+-                        }}
+-                        onChange={(next) => {
+-                          setFinalTeams(next);
+-                          clearInlineNotice();
+-                        }}
++                        disabled={true}
++                        selectedWinner=""
++                        onWinnerChange={() => {}}
++                        onChange={() => {}}
+                       />
+ 
+                       {!finalTeamsValidation.ok ? (
+@@ -1077,25 +1297,63 @@ const EncuestaPartido = () => {
+                           Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.
+                         </div>
+                       ) : null}
+-
+-                      <button
+-                        type="button"
+-                        className={`${optionBtnClass} normal-case ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
+-                        onClick={() => {
+-                          handleInputChange('ganador', 'empate');
+-                          clearInlineNotice();
+-                        }}
+-                      >
+-                        Empate
+-                      </button>
+                     </div>
+                   ) : (
+                     <div className="rounded-2xl border border-amber-300/35 bg-amber-400/10 p-4 text-center text-white/90">
+                       <div className="font-oswald text-[16px] leading-snug">
+-                        Para registrar resultado, primero deben estar confirmados los equipos
++                        No pudimos resolver los equipos para cerrar el partido.
+                       </div>
+                     </div>
+                   )}
++
++                  <div className="mt-3 grid grid-cols-1 gap-2.5">
++                    <button
++                      type="button"
++                      className={`${optionBtnClass} ${formData.ganador === 'equipo_a' ? optionBtnSelectedClass : ''}`}
++                      onClick={() => {
++                        handleInputChange('ganador', 'equipo_a');
++                        handleInputChange('se_jugo', true);
++                        clearInlineNotice();
++                      }}
++                      disabled={!finalTeamsValidation.ok}
++                    >
++                      GANÓ EQUIPO A
++                    </button>
++                    <button
++                      type="button"
++                      className={`${optionBtnClass} ${formData.ganador === 'equipo_b' ? optionBtnSelectedClass : ''}`}
++                      onClick={() => {
++                        handleInputChange('ganador', 'equipo_b');
++                        handleInputChange('se_jugo', true);
++                        clearInlineNotice();
++                      }}
++                      disabled={!finalTeamsValidation.ok}
++                    >
++                      GANÓ EQUIPO B
++                    </button>
++                    <button
++                      type="button"
++                      className={`${optionBtnClass} ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
++                      onClick={() => {
++                        handleInputChange('ganador', 'empate');
++                        handleInputChange('se_jugo', true);
++                        clearInlineNotice();
++                      }}
++                    >
++                      EMPATE
++                    </button>
++                    <button
++                      type="button"
++                      className={`${optionBtnClass} ${formData.ganador === 'no_jugado' ? optionBtnSelectedClass : ''}`}
++                      onClick={() => {
++                        handleInputChange('ganador', 'no_jugado');
++                        handleInputChange('se_jugo', false);
++                        clearInlineNotice();
++                      }}
++                    >
++                      NO JUGADO / CANCELADO
++                    </button>
++                  </div>
+                 </div>
+               </div>
+               <div className={actionRowClass}>
+@@ -1133,12 +1391,11 @@ const EncuestaPartido = () => {
+                 <div className={compactButtonRowClass}>
+                   <button
+                     className={compactPrimaryBtnClass}
+-                    onClick={async () => {
+-                      if (!hasConfirmedTeams) {
+-                        await submitSurveyFromCurrentStep();
+-                        return;
+-                      }
+-                      setCurrentStep(5);
++                    onClick={() => {
++                      setCurrentStep(resolveNextResultGateStep({
++                        teamsConfirmed,
++                        teamsLocked,
++                      }));
+                     }}
+                     disabled={formData.jugadores_violentos.length === 0}
+                   >
+@@ -1152,6 +1409,58 @@ const EncuestaPartido = () => {
+             </div>
+           )}
+ 
++          {/* STEP 7: ORGANIZAR EQUIPOS (solo si no estaban confirmados) */}
++          {currentStep === SURVEY_STEPS.ORGANIZE_TEAMS && (
++            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
++              <div className={questionRowClass}>
++                <div className="w-full">
++                  <div className={titleClass}>
++                    ORGANIZÁ LOS EQUIPOS COMO SE JUGÓ
++                  </div>
++                  <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
++                    El primer votante que guarda esta pantalla define los equipos para todos.
++                  </div>
++                </div>
++              </div>
++              <div className={`${contentRowClass} items-start`}>
++                <div className="w-full max-w-[760px] mx-auto space-y-3">
++                  <TeamsDnDEditor
++                    teamA={finalTeams.teamA}
++                    teamB={finalTeams.teamB}
++                    playersByKey={playersByKey}
++                    selectedWinner=""
++                    onWinnerChange={() => {}}
++                    onChange={(next) => {
++                      setFinalTeams(next);
++                      clearInlineNotice();
++                    }}
++                    disabled={teamsLocked}
++                  />
++
++                  {!finalTeamsValidation.ok ? (
++                    <div className="rounded-xl border border-rose-300/35 bg-rose-400/10 px-3 py-2 text-sm font-oswald text-rose-100">
++                      Los equipos deben quedar consistentes antes de continuar.
++                    </div>
++                  ) : null}
++                </div>
++              </div>
++              <div className={actionRowClass}>
++                <div className={actionDockClass}>
++                  <button
++                    className={btnClass}
++                    onClick={handleLockTeamsAndContinue}
++                    disabled={submitting || encuestaFinalizada}
++                  >
++                    GUARDAR EQUIPOS Y CONTINUAR
++                  </button>
++                </div>
++              </div>
++              <div className={logoRowClass}>
++                <SurveyFooterLogo />
++              </div>
++            </div>
++          )}
++
+           {/* STEP 10: MOTIVO NO JUGADO */}
+           {currentStep === 10 && (
+             <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+@@ -1174,13 +1483,17 @@ const EncuestaPartido = () => {
+                 <div className={actionDockClass}>
+                   <button
+                     className={btnClass}
+-                    onClick={() => setCurrentStep(11)}
++                    onClick={() => setCurrentStep(SURVEY_STEPS.NOT_PLAYED_ABSENTS)}
+                   >
+                     AUSENCIA SIN AVISO
+                   </button>
+                   <button
+                     className={btnClass}
+-                    onClick={continueSubmitFlow}
++                    onClick={() => {
++                      if (submitting || encuestaFinalizada) return;
++                      setSubmitting(true);
++                      continueSubmitFlow();
++                    }}
+                   >
+                     FINALIZAR
+                   </button>
+@@ -1241,7 +1554,7 @@ const EncuestaPartido = () => {
+                 <div className={compactButtonRowClass}>
+                   <button
+                     className={compactPrimaryBtnClass}
+-                    onClick={() => setCurrentStep(2)}
++                    onClick={() => setCurrentStep(SURVEY_STEPS.MVP)}
+                     disabled={formData.jugadores_ausentes.length === 0}
+                   >
+                     SIGUIENTE
+diff --git a/src/pages/ResultadosEncuestaView.js b/src/pages/ResultadosEncuestaView.js
+index 681cf86..27303cd 100644
+--- a/src/pages/ResultadosEncuestaView.js
++++ b/src/pages/ResultadosEncuestaView.js
+@@ -1,4 +1,4 @@
+-import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
++import React, { useCallback, useEffect, useRef, useState, createContext, useContext } from 'react';
+ import { useParams, useNavigate, useLocation } from 'react-router-dom';
+ import { supabase } from '../supabase';
+ import { db } from '../api/supabaseWrapper';
+@@ -36,11 +36,6 @@ const ResultadosEncuestaView = () => {
+   const { user } = useAuth();
+   const navigate = useNavigate();
+   const location = useLocation();
+-  const fallbackMatchName =
+-    location?.state?.matchName ||
+-    location?.state?.partidoNombre ||
+-    location?.state?.partido_nombre ||
+-    'Partido';
+   const searchParams = new URLSearchParams(location.search);
+   const forceAwardsMode =
+     Boolean(location?.state?.forceAwards) ||
+@@ -52,6 +47,13 @@ const ResultadosEncuestaView = () => {
+   const [partido, setPartido] = useState(null);
+   const [results, setResults] = useState(null);
+   const [jugadores, setJugadores] = useState([]);
++  const [surveyProgress, setSurveyProgress] = useState({
++    surveyStatus: 'open',
++    expectedVoters: 0,
++    submissionsCount: 0,
++    remainingVotes: 0,
++    deadlineAt: null,
++  });
+   const [showingBadgeAnimations, setShowingBadgeAnimations] = useState(false);
+   const [autoOpeningAwards, setAutoOpeningAwards] = useState(false);
+   const [awardsSkippedByEnsure, setAwardsSkippedByEnsure] = useState(false);
+@@ -172,6 +174,67 @@ const ResultadosEncuestaView = () => {
+     };
+   };
+ 
++  const computeSurveyProgress = useCallback(async ({ matchIdNum, partidoRow, rosterRows = [] }) => {
++    let roster = Array.isArray(rosterRows) ? rosterRows : [];
++    if (roster.length === 0) {
++      const { data: rosterData, error: rosterError } = await supabase
++        .from('jugadores')
++        .select('id, usuario_id')
++        .eq('partido_id', matchIdNum);
++      if (!rosterError) {
++        roster = rosterData || [];
++      }
++    }
++
++    const eligibleByPlayerId = new Map();
++    const eligibleUserIds = new Set();
++    (roster || []).forEach((row) => {
++      const playerId = Number(row?.id);
++      const userId = row?.usuario_id || null;
++      if (!Number.isFinite(playerId) || !userId) return;
++      eligibleByPlayerId.set(playerId, String(userId));
++      eligibleUserIds.add(String(userId));
++    });
++
++    const expectedFromPartido = Number(partidoRow?.survey_expected_voters);
++    const expectedVoters = Number.isFinite(expectedFromPartido) && expectedFromPartido >= 0
++      ? expectedFromPartido
++      : eligibleUserIds.size;
++
++    let submissionsCount = 0;
++    try {
++      const { data: surveysRows, error: surveysErr } = await supabase
++        .from('post_match_surveys')
++        .select('votante_id')
++        .eq('partido_id', matchIdNum);
++      if (!surveysErr) {
++        const submittedUsers = new Set();
++        (surveysRows || []).forEach((row) => {
++          const voterId = Number(row?.votante_id);
++          if (!Number.isFinite(voterId)) return;
++          const userId = eligibleByPlayerId.get(voterId);
++          if (!userId) return;
++          submittedUsers.add(String(userId));
++        });
++        submissionsCount = submittedUsers.size;
++      }
++    } catch (_progressErr) {
++      submissionsCount = 0;
++    }
++
++    const surveyStatus = String(partidoRow?.survey_status || '').toLowerCase() === 'closed'
++      ? 'closed'
++      : 'open';
++
++    return {
++      surveyStatus,
++      expectedVoters,
++      submissionsCount,
++      remainingVotes: Math.max(expectedVoters - submissionsCount, 0),
++      deadlineAt: partidoRow?.survey_closes_at || null,
++    };
++  }, []);
++
+   const applyLiveAward = (type, playerId) => {
+     const key = `${type}-${playerId}`;
+     if (liveApplied.current.has(key) || badgesApplied.current.has(key)) {
+@@ -534,7 +597,7 @@ const ResultadosEncuestaView = () => {
+     if (!currentResults) return [];
+ 
+     const roster = ensurePlayersList(currentPlayers);
+-    const matchInfo = partido || { nombre: fallbackMatchName, fecha: new Date().toISOString(), awards_status: 'ready' };
++    const matchInfo = partido || { nombre: `Partido ${partidoId}`, fecha: new Date().toISOString(), awards_status: 'ready' };
+ 
+     const findP = (id) => {
+       if (!id) return null;
+@@ -585,7 +648,7 @@ const ResultadosEncuestaView = () => {
+               DEL PARTIDO
+             </div>
+             <div className="text-[#0EA9C6] text-lg md:text-xl font-bold" style={{ textShadow: '0 0 18px rgba(14,169,198,0.55)' }}>
+-              {matchInfo.nombre || matchInfo.titulo || fallbackMatchName}
++              {matchInfo.nombre || matchInfo.titulo || `Partido ${partidoId}`}
+             </div>
+           </div>
+ 
+@@ -861,7 +924,7 @@ const ResultadosEncuestaView = () => {
+   };
+ 
+   const prepareForceFallbackSlides = () => {
+-    const matchInfo = partido || { nombre: fallbackMatchName };
++    const matchInfo = partido || { nombre: `Partido ${partidoId}` };
+     return [{
+       key: 'awards-pending',
+       duration: 3200,
+@@ -882,7 +945,7 @@ const ResultadosEncuestaView = () => {
+             DEL PARTIDO
+           </div>
+           <div className="text-[#0EA9C6] text-lg md:text-xl font-bold mb-2">
+-            {matchInfo.nombre || matchInfo.titulo || fallbackMatchName}
++            {matchInfo.nombre || matchInfo.titulo || `Partido ${partidoId}`}
+           </div>
+           <div className="text-white/80 text-base md:text-lg">
+             {hasInsufficientVotesForAwards
+@@ -910,43 +973,76 @@ const ResultadosEncuestaView = () => {
+   // }, [slideStages, previewPlayers]);
+ 
+   useEffect(() => {
++    let alive = true;
++
+     const fetchResultsData = async () => {
+       if (!partidoId) {
+-        setLoading(false);
++        if (alive) {
++          setPartido(null);
++          setResults(null);
++          setJugadores([]);
++          setLoading(false);
++        }
+         return;
+       }
+ 
+       if (!user) {
+-        setLoading(false);
++        if (alive) {
++          setPartido(null);
++          setResults(null);
++          setJugadores([]);
++          setLoading(false);
++        }
+         return;
+       }
+ 
+       try {
+-        setLoading(true);
+-        setAwardsSkippedByEnsure(false);
++        if (alive) {
++          setLoading(true);
++          setAwardsSkippedByEnsure(false);
++          setPartido(null);
++          setResults(null);
++          setJugadores([]);
++          setSurveyProgress({
++            surveyStatus: 'open',
++            expectedVoters: 0,
++            submissionsCount: 0,
++            remainingVotes: 0,
++            deadlineAt: null,
++          });
++        }
++
++        const matchIdNum = Number(partidoId);
+ 
+         let partidoData;
+         try {
+-          partidoData = await db.fetchOne('partidos', { id: Number(partidoId) });
++          partidoData = await db.fetchOne('partidos', { id: matchIdNum });
+         } catch (error) {
+-          notifyBlockingError('Partido no encontrado');
+-          navigate('/');
++          if (alive) {
++            notifyBlockingError('Partido no encontrado');
++            navigate('/');
++          }
+           return;
+         }
+ 
+         if (!partidoData) {
+-          notifyBlockingError('Partido no encontrado');
+-          setLoading(false);
++          if (alive) {
++            notifyBlockingError('Partido no encontrado');
++            setLoading(false);
++          }
+           return;
+         }
+ 
++        if (!alive) return;
+         setPartido(partidoData);
+ 
+         // Fetch players explicitly
+         const { data: playersData } = await supabase
+           .from('jugadores')
+           .select('*')
+-          .eq('partido_id', Number(partidoId));
++          .eq('partido_id', matchIdNum);
++
++        if (!alive) return;
+ 
+         if (playersData) {
+           setJugadores(playersData);
+@@ -954,19 +1050,35 @@ const ResultadosEncuestaView = () => {
+           partidoData.jugadores = playersData;
+         }
+ 
++        const progress = await computeSurveyProgress({
++          matchIdNum,
++          partidoRow: partidoData,
++          rosterRows: playersData || [],
++        });
++        if (alive) {
++          setSurveyProgress(progress);
++        }
++
+         const { data: resultsData, error: resultsError } = await supabase
+           .from('survey_results')
+           .select('*')
+-          .eq('partido_id', Number(partidoId))
++          .eq('partido_id', matchIdNum)
+           .single();
+ 
+         if (resultsError && resultsError.code !== 'PGRST116') {
+           throw resultsError;
+         }
+ 
++        if (!alive) return;
++
+         // Logic fix: rely on resultsData existence and results_ready flag, ignoring missing awards_status column
+         if (resultsData && resultsData.results_ready) {
+           setResults(resultsData);
++          setSurveyProgress((prev) => ({
++            ...prev,
++            surveyStatus: 'closed',
++            remainingVotes: 0,
++          }));
+         } else {
+           setResults(null);
+         }
+@@ -1011,15 +1123,22 @@ const ResultadosEncuestaView = () => {
+ 
+         setBadgeAnimations(animations);
+       } catch (error) {
+-        console.error('Error fetching results data:', error);
+-        notifyBlockingError('Error al cargar los resultados');
++        if (alive) {
++          console.error('Error fetching results data:', error);
++          notifyBlockingError('Error al cargar los resultados');
++        }
+       } finally {
+-        setLoading(false);
++        if (alive) {
++          setLoading(false);
++        }
+       }
+     };
+ 
+     fetchResultsData();
+-  }, [partidoId, user, navigate, location.search]);
++    return () => {
++      alive = false;
++    };
++  }, [partidoId, user, navigate, location.search, computeSurveyProgress]);
+ 
+   // Realtime updates
+   useEffect(() => {
+@@ -1229,19 +1348,38 @@ const ResultadosEncuestaView = () => {
+   const handleRetry = async () => {
+     setLoading(true);
+     try {
+-      const { data: resultsData, error: resultsError } = await supabase
+-        .from('survey_results')
+-        .select('*')
+-        .eq('partido_id', partidoId)
+-        .single();
+-
+-      if (resultsError) throw resultsError;
++      const matchIdNum = Number(partidoId);
++      const [{ data: partidoData, error: partidoErr }, { data: playersData, error: playersErr }, { data: resultsData, error: resultsError }] = await Promise.all([
++        supabase.from('partidos').select('*').eq('id', matchIdNum).maybeSingle(),
++        supabase.from('jugadores').select('*').eq('partido_id', matchIdNum),
++        supabase.from('survey_results').select('*').eq('partido_id', matchIdNum).maybeSingle(),
++      ]);
++
++      if (partidoErr) throw partidoErr;
++      if (playersErr) throw playersErr;
++      if (resultsError && resultsError.code !== 'PGRST116') throw resultsError;
++
++      if (partidoData) setPartido(partidoData);
++      if (Array.isArray(playersData)) setJugadores(playersData);
++
++      const progress = await computeSurveyProgress({
++        matchIdNum,
++        partidoRow: partidoData || partido,
++        rosterRows: playersData || [],
++      });
++      setSurveyProgress(progress);
+ 
+-      if (resultsData) setResults(resultsData);
++      if (resultsData?.results_ready) {
++        setResults(resultsData);
++        setSurveyProgress((prev) => ({ ...prev, surveyStatus: 'closed', remainingVotes: 0 }));
++      } else {
++        setResults(null);
++      }
+ 
+       // Re-prepare animations
+       const animations = [];
+       const addedPlayers = new Set();
++      const roster = Array.isArray(playersData) ? playersData : (partido?.jugadores || []);
+ 
+       // Similar logic as useEffect... (abridged for brevity, assuming state updates work)
+       // Note: In a full refactor, this logic should be extracted to a helper function.
+@@ -1249,7 +1387,7 @@ const ResultadosEncuestaView = () => {
+       // MVP
+       if (resultsData?.mvp) {
+         const mvpVal = resultsData.mvp;
+-        const player = partido.jugadores.find((j) => j.uuid === mvpVal || j.usuario_id === mvpVal);
++        const player = roster.find((j) => j.uuid === mvpVal || j.usuario_id === mvpVal);
+         if (player && !addedPlayers.has(player.uuid + '_mvp')) {
+           animations.push({
+             playerName: player.nombre,
+@@ -1266,7 +1404,7 @@ const ResultadosEncuestaView = () => {
+       // Glove
+       if (resultsData?.golden_glove) {
+         const goldenGloveVal = resultsData.golden_glove;
+-        const player = partido.jugadores.find((j) => j.uuid === goldenGloveVal || j.usuario_id === goldenGloveVal);
++        const player = roster.find((j) => j.uuid === goldenGloveVal || j.usuario_id === goldenGloveVal);
+         if (player && !addedPlayers.has(player.uuid + '_golden_glove')) {
+           animations.push({
+             playerName: player.nombre,
+@@ -1312,6 +1450,10 @@ const ResultadosEncuestaView = () => {
+   const awardsStatus = hasInsufficientVotesForAwards
+     ? 'insufficient'
+     : (partido.awards_status || results?.awards_status || null);
++  const isSurveyClosed = surveyProgress.surveyStatus === 'closed' || Boolean(results?.results_ready);
++  const remainingVotes = Number.isFinite(Number(surveyProgress.remainingVotes))
++    ? Math.max(0, Number(surveyProgress.remainingVotes))
++    : 0;
+ 
+   // OVERLAY ANIMATION RENDER
+   // Carousel state
+@@ -1418,17 +1560,30 @@ const ResultadosEncuestaView = () => {
+         {/* Partido Info */}
+         <div className="bg-white/5 rounded-xl p-5 mb-6 border border-white/10 text-center">
+           <h2 className="text-xl md:text-2xl text-[#0EA9C6] mb-3 tracking-[0.01em] font-oswald font-semibold">
+-            {partido.nombre || partido.titulo || fallbackMatchName}
++            {partido.nombre || partido.titulo || `Partido ${partidoId}`}
+           </h2>
+           <p className="text-gray-300  text-lg mb-1">
+             {new Date(partido.fecha).toLocaleString('es-ES', { dateStyle: 'full', timeStyle: 'short' })}
+           </p>
+           <p className="text-sm tracking-[0.01em] mt-3">
+-            <span className="text-gray-400">Estado de los Premios: </span>
+-            <span className={`${awardsStatus === 'ready' ? 'text-green-400' : 'text-yellow-400'} font-bold`}>
+-              {awardsStatus === 'ready' ? 'Listos para ver' : awardsStatus === 'insufficient' ? 'No suficientes votos' : 'En progreso'}
++            <span className="text-gray-400">Estado de la encuesta: </span>
++            <span className={`${isSurveyClosed ? 'text-green-400' : 'text-yellow-400'} font-bold`}>
++              {isSurveyClosed ? 'Cerrada' : 'Abierta'}
+             </span>
+           </p>
++          {!isSurveyClosed && (
++            <p className="text-sm tracking-[0.01em] mt-2 text-yellow-200">
++              Esperando {remainingVotes} voto{remainingVotes === 1 ? '' : 's'} más ({surveyProgress.submissionsCount}/{surveyProgress.expectedVoters}).
++            </p>
++          )}
++          {isSurveyClosed && (
++            <p className="text-sm tracking-[0.01em] mt-2">
++              <span className="text-gray-400">Estado de los Premios: </span>
++              <span className={`${awardsStatus === 'ready' ? 'text-green-400' : 'text-yellow-400'} font-bold`}>
++                {awardsStatus === 'ready' ? 'Listos para ver' : awardsStatus === 'insufficient' ? 'No suficientes votos' : 'En progreso'}
++              </span>
++            </p>
++          )}
+         </div>
+ 
+         {/* Results Summary */}
+@@ -1475,7 +1630,9 @@ const ResultadosEncuestaView = () => {
+               description={
+                 results
+                   ? 'Los resultados todavía se están calculando. Volvé a intentar en unos minutos.'
+-                  : 'No encontramos resultados para este partido por ahora.'
++                  : (isSurveyClosed
++                    ? 'No encontramos resultados finales para este partido por ahora.'
++                    : `La encuesta sigue abierta. Faltan ${remainingVotes} voto${remainingVotes === 1 ? '' : 's'} para cerrar.`)
+               }
+               className="my-0 max-w-[620px]"
+             />
+diff --git a/src/pages/TemplateHistoryPage.js b/src/pages/TemplateHistoryPage.js
+index f1b8745..0d5a87c 100644
+--- a/src/pages/TemplateHistoryPage.js
++++ b/src/pages/TemplateHistoryPage.js
+@@ -40,12 +40,40 @@ const formatSentenceCase = (value, fallback = '') => {
+ 
+ const winnerLabel = (winnerTeam) => {
+   if (!winnerTeam) return 'Sin definir';
+-  if (winnerTeam === 'equipo_a') return 'Ganó Equipo A';
+-  if (winnerTeam === 'equipo_b') return 'Ganó Equipo B';
+-  if (winnerTeam === 'empate') return 'Empate';
++  const normalized = String(winnerTeam).trim().toLowerCase();
++  if (normalized === 'equipo_a' || normalized === 'a' || normalized === 'team_a') return 'Ganó Equipo A';
++  if (normalized === 'equipo_b' || normalized === 'b' || normalized === 'team_b') return 'Ganó Equipo B';
++  if (normalized === 'empate' || normalized === 'draw') return 'Empate';
+   return String(winnerTeam);
+ };
+ 
++const normalizeResultStatus = (value) => {
++  const normalized = String(value || '').trim().toLowerCase();
++  if (!normalized) return null;
++  if (normalized === 'finished' || normalized === 'played') return 'finished';
++  if (normalized === 'draw' || normalized === 'empate') return 'draw';
++  if (normalized === 'not_played' || normalized === 'cancelled' || normalized === 'cancelado') return 'not_played';
++  if (normalized === 'pending' || normalized === 'pendiente') return 'pending';
++  return null;
++};
++
++const normalizeWinnerTeam = (value) => {
++  const normalized = String(value || '').trim().toLowerCase();
++  if (!normalized) return null;
++  if (normalized === 'equipo_a' || normalized === 'a' || normalized === 'team_a') return 'equipo_a';
++  if (normalized === 'equipo_b' || normalized === 'b' || normalized === 'team_b') return 'equipo_b';
++  if (normalized === 'empate' || normalized === 'draw') return 'empate';
++  return null;
++};
++
++const isClosedHistoryResult = (row) => {
++  const status = normalizeResultStatus(row?.result_status);
++  if (status === 'pending' || status === 'not_played') return false;
++  if (status === 'finished' || status === 'draw') return true;
++  const winner = normalizeWinnerTeam(row?.winner_team);
++  return winner === 'equipo_a' || winner === 'equipo_b' || winner === 'empate';
++};
++
+ const resolveSnapshotPlayer = (value, resolveName) => {
+   if (!value) return 'Sin dato';
+   if (typeof value === 'object') {
+@@ -202,7 +230,7 @@ const TemplateHistoryPage = () => {
+         if (matchIds.length > 0) {
+           const { data: resRows } = await supabase
+             .from('survey_results')
+-            .select('partido_id, winner_team, scoreline, resultados_encuesta_listos, snapshot_participantes, snapshot_equipos, snapshot_resultados_encuesta')
++            .select('partido_id, winner_team, scoreline, result_status, resultados_encuesta_listos, snapshot_participantes, snapshot_equipos, snapshot_resultados_encuesta')
+             .in('partido_id', matchIds);
+           (resRows || []).forEach((r) => resMap.set(Number(r.partido_id), r));
+         }
+@@ -236,6 +264,7 @@ const TemplateHistoryPage = () => {
+                 partido_id: Number(id),
+                 winner_team: null,
+                 scoreline: null,
++                result_status: 'finished',
+                 resultados_encuesta_listos: true,
+                 snapshot_participantes: null,
+                 snapshot_equipos: null,
+@@ -281,8 +310,13 @@ const TemplateHistoryPage = () => {
+           });
+         });
+ 
++        const closedMatches = (partidos || []).filter((match) => {
++          const resultRow = resMap.get(Number(match.id));
++          return isClosedHistoryResult(resultRow);
++        });
++
+         if (!alive) return;
+-        setMatches(partidos);
++        setMatches(closedMatches);
+         setResults(resMap);
+         setSnapshots(mergedSnapshots);
+         setCounts(cntMap);
+diff --git a/src/services/awardsService.js b/src/services/awardsService.js
+index 31bfcf5..34ae374 100644
+--- a/src/services/awardsService.js
++++ b/src/services/awardsService.js
+@@ -14,6 +14,22 @@ export async function computeAwardsForMatch(partidoId) {
+ export async function ensureAwards(partidoId) {
+   try {
+     const id = Number(partidoId);
++    const normalizeToken = (value) => String(value || '').trim().toLowerCase();
++    const normalizeSurveyStatus = (value) => {
++      const token = normalizeToken(value);
++      if (token === 'closed' || token === 'cerrada') return 'closed';
++      if (token === 'open' || token === 'abierta') return 'open';
++      return null;
++    };
++    const normalizeResultStatus = (value) => {
++      const token = normalizeToken(value);
++      if (!token) return null;
++      if (token === 'finished' || token === 'played') return 'finished';
++      if (token === 'draw' || token === 'empate') return 'draw';
++      if (token === 'not_played' || token === 'cancelled' || token === 'cancelado') return 'not_played';
++      if (token === 'pending' || token === 'pendiente') return 'pending';
++      return null;
++    };
+     const hasAnyAwardData = (row) => Boolean(
+       row?.mvp ||
+       row?.golden_glove ||
+@@ -43,7 +59,7 @@ export async function ensureAwards(partidoId) {
+     // Gate: never force awards while the survey window is still open.
+     let finalizeGate = null;
+     try {
+-      finalizeGate = await finalizeIfComplete(id, { skipSideEffects: true });
++      finalizeGate = await finalizeIfComplete(id);
+     } catch (_) {
+       finalizeGate = null;
+     }
+@@ -63,6 +79,31 @@ export async function ensureAwards(partidoId) {
+       };
+     }
+ 
++    // Guardrail: if finalize gate failed or is inconclusive, don't compute awards while survey is still open.
++    if (!finalizeGate || finalizeGate?.done !== true) {
++      try {
++        const { data: matchLifecycle, error: lifecycleErr } = await supabase
++          .from('partidos')
++          .select('survey_status, result_status')
++          .eq('id', id)
++          .maybeSingle();
++        if (!lifecycleErr && matchLifecycle) {
++          const surveyStatus = normalizeSurveyStatus(matchLifecycle.survey_status);
++          const resultStatus = normalizeResultStatus(matchLifecycle.result_status);
++          if (surveyStatus === 'open' || resultStatus === 'pending') {
++            return {
++              ok: true,
++              row: after || null,
++              applied: false,
++              waiting: true,
++            };
++          }
++        }
++      } catch (_) {
++        // Non-blocking.
++      }
++    }
++
+     if (finalizeGate?.awardsSkipped) {
+       return {
+         ok: true,
+diff --git a/src/services/db/awards.js b/src/services/db/awards.js
+index a7b444b..60b306a 100644
+--- a/src/services/db/awards.js
++++ b/src/services/db/awards.js
+@@ -161,36 +161,31 @@ export async function grantAwardsForMatch(matchId, awards) {
+         continue;
+       }
+ 
+-      // Insert award record
+-      // Check for existing award (manual dedupe to avoid missing unique constraint error)
+-      const { data: existingAward } = await supabase
++      // Atomic insert: relies on UNIQUE(partido_id, award_type) and ON CONFLICT DO NOTHING.
++      const { data: insertedAwards, error: insertError } = await supabase
+         .from('player_awards')
+-        .select('id')
+-        .eq('partido_id', matchId)
+-        .eq('award_type', awardType)
+-        .maybeSingle();
+-
+-      if (existingAward) {
+-        skipped.push(`${awardType} (already granted)`);
+-        continue;
+-      }
+-
+-      // Insert award record (using insert instead of upsert)
+-      const { error: insertError } = await supabase
+-        .from('player_awards')
+-        .insert({
++        .upsert([{
+           partido_id: matchId,
+           jugador_id: playerInfo.uuid,
+           award_type: awardType,
+           created_at: new Date().toISOString(),
+-        });
++        }], {
++          onConflict: 'partido_id,award_type',
++          ignoreDuplicates: true,
++        })
++        .select('id');
+ 
+       if (insertError) {
+-        console.error(`Error inserting ${awardType} award:`, insertError);
++        console.error(`Error inserting ${awardType} award (ON CONFLICT):`, insertError);
+         skipped.push(`${awardType} (database error)`);
+         continue;
+       }
+ 
++      if (!Array.isArray(insertedAwards) || insertedAwards.length === 0) {
++        skipped.push(`${awardType} (already granted)`);
++        continue;
++      }
++
+       // Increment canonical counters on usuarios.
+       const counterField = awardType === 'mvp' ? 'mvps'
+         : awardType === 'best_gk' ? 'guantes_dorados'
+diff --git a/src/services/historySnapshotService.js b/src/services/historySnapshotService.js
+index 38e2d81..4d7a84e 100644
+--- a/src/services/historySnapshotService.js
++++ b/src/services/historySnapshotService.js
+@@ -28,7 +28,7 @@ async function getSurveyResultsRow(partidoId) {
+   try {
+     const { data, error } = await supabase
+       .from('survey_results')
+-      .select('partido_id, snapshot_participantes_listo, snapshot_participantes, snapshot_equipos, resultados_encuesta_listos, snapshot_resultados_encuesta, encuesta_cerrada_at, mvp, golden_glove, red_cards, winner_team, scoreline, awards')
++      .select('partido_id, snapshot_participantes_listo, snapshot_participantes, snapshot_equipos, resultados_encuesta_listos, snapshot_resultados_encuesta, encuesta_cerrada_at, mvp, golden_glove, red_cards, winner_team, scoreline, result_status, finished_at, awards')
+       .eq('partido_id', partidoId)
+       .maybeSingle();
+ 
+@@ -95,7 +95,8 @@ export async function ensureParticipantsSnapshot(partidoId) {
+ 
+     let participantsSnapshot = buildParticipantsSnapshot(players || []);
+     let equiposSnapshot = null;
+-    let finalTeamsSnapshot = null;
++    let surveyTeamsSnapshot = null;
++    let partidosRow = null;
+ 
+     // Prefer confirmed snapshot if available.
+     try {
+@@ -123,34 +124,59 @@ export async function ensureParticipantsSnapshot(partidoId) {
+       // Optional table/columns on older environments.
+     }
+ 
+-    // Prefer persisted final teams when available.
++    // Prefer survey-defined teams when match teams were not confirmed beforehand.
+     try {
+-      const { data: finalTeamsRow, error: finalTeamsError } = await supabase
++      const { data, error } = await supabase
+         .from('partidos')
+-        .select('final_team_a, final_team_b, final_teams_updated_at, final_teams_updated_by')
++        .select('teams_confirmed, teams_source, survey_team_a, survey_team_b, teams_locked_by_user_id, teams_locked_at, final_team_a, final_team_b, final_teams_updated_at, final_teams_updated_by')
+         .eq('id', id)
+         .maybeSingle();
+ 
+-      if (!finalTeamsError && finalTeamsRow) {
+-        const finalA = isArray(finalTeamsRow.final_team_a) ? finalTeamsRow.final_team_a : [];
+-        const finalB = isArray(finalTeamsRow.final_team_b) ? finalTeamsRow.final_team_b : [];
++      if (!error) {
++        partidosRow = data || null;
++      }
++    } catch (_error) {
++      // Optional columns on older environments.
++    }
++
++    if (partidosRow?.teams_confirmed !== true) {
++      const surveyA = isArray(partidosRow?.survey_team_a) ? partidosRow.survey_team_a : [];
++      const surveyB = isArray(partidosRow?.survey_team_b) ? partidosRow.survey_team_b : [];
++      if (surveyA.length > 0 && surveyB.length > 0) {
++        surveyTeamsSnapshot = {
++          team_a: surveyA,
++          team_b: surveyB,
++          teams_json: null,
++          confirmed_at: partidosRow?.teams_locked_at || partidosRow?.final_teams_updated_at || null,
++          source: partidosRow?.teams_source || 'partidos.survey_teams',
++          updated_by: partidosRow?.teams_locked_by_user_id || partidosRow?.final_teams_updated_by || null,
++        };
++      } else {
++        const finalA = isArray(partidosRow?.final_team_a) ? partidosRow.final_team_a : [];
++        const finalB = isArray(partidosRow?.final_team_b) ? partidosRow.final_team_b : [];
+         if (finalA.length > 0 && finalB.length > 0) {
+-          finalTeamsSnapshot = {
++          surveyTeamsSnapshot = {
+             team_a: finalA,
+             team_b: finalB,
+             teams_json: null,
+-            confirmed_at: finalTeamsRow.final_teams_updated_at || null,
+-            source: 'partidos.final_teams',
+-            updated_by: finalTeamsRow.final_teams_updated_by || null,
++            confirmed_at: partidosRow?.final_teams_updated_at || null,
++            source: partidosRow?.teams_source || 'partidos.final_teams',
++            updated_by: partidosRow?.final_teams_updated_by || null,
+           };
+         }
+       }
+-    } catch (_error) {
+-      // Optional columns on older environments.
+     }
+ 
+-    if (finalTeamsSnapshot) {
+-      equiposSnapshot = finalTeamsSnapshot;
++    if (partidosRow?.teams_confirmed === true) {
++      // Keep the admin-confirmed snapshot as source of truth.
++      if (equiposSnapshot) {
++        equiposSnapshot = {
++          ...equiposSnapshot,
++          source: 'admin',
++        };
++      }
++    } else if (surveyTeamsSnapshot) {
++      equiposSnapshot = surveyTeamsSnapshot;
+     }
+ 
+     const payload = {
+@@ -214,6 +240,8 @@ export async function ensureSurveyResultsSnapshot(partidoId, meta = {}) {
+       golden_glove: existing?.golden_glove ?? existing?.awards?.best_gk ?? null,
+       winner_team: existing?.winner_team || null,
+       scoreline: existing?.scoreline || null,
++      result_status: existing?.result_status || null,
++      finished_at: existing?.finished_at || null,
+       total_surveys: (surveys || []).length,
+       encuesta_cerrada_at: meta?.encuestaCerradaAt || new Date().toISOString(),
+       closed_reason: meta?.closedReason || null,
+diff --git a/src/services/surveyCompletionService.js b/src/services/surveyCompletionService.js
+index 54af26f..e89ebdc 100644
+--- a/src/services/surveyCompletionService.js
++++ b/src/services/surveyCompletionService.js
+@@ -7,12 +7,151 @@ import { ensureParticipantsSnapshot, ensureSurveyResultsSnapshot } from './histo
+ 
+ import {
+   SURVEY_FINALIZE_DELAY_MS,
+-  SURVEY_MIN_VOTERS_FOR_AWARDS,
+ } from '../config/surveyConfig';
+ import { getSurveyResultsReadyMessage } from '../utils/surveyNotificationCopy';
++
++const RESULT_STATUS_FINISHED = 'finished';
++const RESULT_STATUS_DRAW = 'draw';
++const RESULT_STATUS_NOT_PLAYED = 'not_played';
++const RESULT_STATUS_PENDING = 'pending';
++const SURVEY_STATUS_OPEN = 'open';
++const SURVEY_STATUS_CLOSED = 'closed';
++
++const normalizeRef = (value) => String(value || '').trim().toLowerCase();
++
++export const normalizeWinnerTeamValue = (value) => {
++  const token = normalizeRef(value);
++  if (!token) return null;
++  if (['a', 'equipo_a', 'team_a', 'gano_a', 'winner_a'].includes(token)) return 'A';
++  if (['b', 'equipo_b', 'team_b', 'gano_b', 'winner_b'].includes(token)) return 'B';
++  return null;
++};
++
++export const normalizeResultStatusValue = (value) => {
++  const token = normalizeRef(value);
++  if (!token) return null;
++
++  if ([
++    RESULT_STATUS_FINISHED,
++    'played',
++    'jugo',
++    'jugado',
++    'se_jugo',
++  ].includes(token)) return RESULT_STATUS_FINISHED;
++  if ([RESULT_STATUS_DRAW, 'empate', 'drawn', 'tie'].includes(token)) return RESULT_STATUS_DRAW;
++  if ([
++    RESULT_STATUS_NOT_PLAYED,
++    'cancelled',
++    'canceled',
++    'cancelado',
++    'no_jugado',
++    'not_played',
++    'notplayed',
++  ].includes(token)) return RESULT_STATUS_NOT_PLAYED;
++  if ([RESULT_STATUS_PENDING, 'pendiente'].includes(token)) return RESULT_STATUS_PENDING;
++
++  return null;
++};
++
++export const normalizeSurveyStatusValue = (value) => {
++  const token = normalizeRef(value);
++  if (!token) return null;
++  if (token === SURVEY_STATUS_OPEN || token === 'abierta') return SURVEY_STATUS_OPEN;
++  if (token === SURVEY_STATUS_CLOSED || token === 'cerrada') return SURVEY_STATUS_CLOSED;
++  return null;
++};
++
++export const resolveMvpTieBreakWinner = ({
++  candidateIds = [],
++  resultStatus = RESULT_STATUS_PENDING,
++  winnerTeam = null,
++  teamAIds = new Set(),
++  teamBIds = new Set(),
++}) => {
++  const normalizedCandidates = [...new Set(
++    (candidateIds || [])
++      .map((value) => Number(value))
++      .filter((id) => Number.isFinite(id)),
++  )].sort((a, b) => a - b);
++
++  if (normalizedCandidates.length === 0) return null;
++  if (resultStatus === RESULT_STATUS_NOT_PLAYED) return null;
++  if (normalizedCandidates.length === 1) return normalizedCandidates[0];
++
++  if (resultStatus === RESULT_STATUS_FINISHED) {
++    const winningTeamSet = winnerTeam === 'A'
++      ? teamAIds
++      : winnerTeam === 'B'
++        ? teamBIds
++        : null;
++
++    if (winningTeamSet && winningTeamSet.size > 0) {
++      const fromWinningTeam = normalizedCandidates.filter((id) => winningTeamSet.has(id));
++      if (fromWinningTeam.length > 0) return fromWinningTeam[0];
++    }
++  }
++
++  // Draw and any fallback path use deterministic lowest jugador_id.
++  return normalizedCandidates[0];
++};
++
++export const aggregateSurveyResult = (surveys = []) => {
++  const statusCount = new Map();
++  const winnerCount = new Map();
++  const statusPriority = [
++    RESULT_STATUS_FINISHED,
++    RESULT_STATUS_DRAW,
++    RESULT_STATUS_NOT_PLAYED,
++    RESULT_STATUS_PENDING,
++  ];
++
++  (surveys || []).forEach((survey) => {
++    const normalizedStatusFromResult = normalizeResultStatusValue(survey?.resultado);
++    const normalizedWinner = normalizeWinnerTeamValue(survey?.ganador);
++
++    let status = normalizedStatusFromResult;
++    if (!status) {
++      if (normalizedWinner) status = RESULT_STATUS_FINISHED;
++      else if (normalizeRef(survey?.ganador) === 'draw' || normalizeRef(survey?.ganador) === 'empate') status = RESULT_STATUS_DRAW;
++      else if (normalizeRef(survey?.ganador) === 'not_played' || normalizeRef(survey?.ganador) === 'no_jugado' || normalizeRef(survey?.ganador) === 'cancelled') status = RESULT_STATUS_NOT_PLAYED;
++      else if (survey?.se_jugo === false) status = RESULT_STATUS_NOT_PLAYED;
++      else status = RESULT_STATUS_PENDING;
++    }
++
++    statusCount.set(status, (statusCount.get(status) || 0) + 1);
++
++    if (status === RESULT_STATUS_FINISHED && normalizedWinner) {
++      winnerCount.set(normalizedWinner, (winnerCount.get(normalizedWinner) || 0) + 1);
++    }
++  });
++
++  let resultStatus = RESULT_STATUS_PENDING;
++  let statusBest = -1;
++  statusPriority.forEach((status) => {
++    const cnt = statusCount.get(status) || 0;
++    if (cnt > statusBest) {
++      statusBest = cnt;
++      resultStatus = status;
++    }
++  });
++
++  let winnerTeam = null;
++  if (resultStatus === RESULT_STATUS_FINISHED) {
++    const countA = winnerCount.get('A') || 0;
++    const countB = winnerCount.get('B') || 0;
++    if (countA > 0 || countB > 0) {
++      winnerTeam = countA >= countB ? 'A' : 'B';
++    }
++  }
++
++  return { resultStatus, winnerTeam };
++};
+ // Calcula y persiste premios (MVP, Mejor Arquero y Tarjeta Roja) en survey_results.awards
+-export async function computeAndPersistAwards(partidoId) {
++export async function computeAndPersistAwards(partidoId, options = {}) {
+   const idNum = Number(partidoId);
++  const mvpOverridePlayerId = Number(options?.mvpOverridePlayerId);
++  const shouldOverrideMvp = Number.isFinite(mvpOverridePlayerId) && mvpOverridePlayerId > 0;
++  const skipMvp = options?.skipMvp === true;
+   let surveys;
+   try {
+     surveys = await db.fetchMany('post_match_surveys', { partido_id: idNum });
+@@ -66,6 +205,24 @@ export async function computeAndPersistAwards(partidoId) {
+     },
+   };
+ 
++  if (skipMvp) {
++    awards.mvp = null;
++  } else if (shouldOverrideMvp) {
++    const mvpKey = String(mvpOverridePlayerId);
++    const votesFromMap = Number(mvpMap[mvpKey] || 0);
++    const totalVotes = Number(awards?.totals?.mvp || 0);
++    const fallbackVotes = Math.max(...Object.values(mvpMap).map((v) => Number(v) || 0), 0);
++    const resolvedVotes = votesFromMap > 0 ? votesFromMap : fallbackVotes;
++    const denominator = totalVotes > 0 ? totalVotes : Math.max(resolvedVotes, 1);
++
++    awards.mvp = {
++      player_id: mvpOverridePlayerId,
++      votes: resolvedVotes,
++      pct: Math.round((resolvedVotes * 100) / denominator),
++      total: denominator,
++    };
++  }
++
+   try {
+     // Persist survey_results awards and mark results_ready true
+     // Use direct supabase update to avoid .single() error if row doesn't exist
+@@ -79,22 +236,10 @@ export async function computeAndPersistAwards(partidoId) {
+     handleError(upErr, { showToast: false, onError: () => { } });
+   }
+ 
+-  // Grant awards to registered players only
++  // Grant awards to registered players only.
++  // Idempotency is enforced at DB level via UNIQUE(partido_id, award_type) + ON CONFLICT DO NOTHING.
+   try {
+-    // Idempotency guard: if player_awards already exist for this partido, skip awarding to avoid double increments
+-    let existingAwards = [];
+-    try {
+-      existingAwards = await db.fetchMany('player_awards', { partido_id: idNum });
+-    } catch (e) {
+-      // if this check fails, continue to attempt granting (best effort)
+-      console.warn('[AWARDS] could not check existing player_awards, will attempt grant', e?.message || e);
+-    }
+-
+-    if (existingAwards && existingAwards.length > 0) {
+-      console.log('[AWARDS] player_awards already exist for partido, skipping grantAwardsForMatch to avoid double application', { partidoId: idNum });
+-    } else {
+-      await grantAwardsForMatch(idNum, awards);
+-    }
++    await grantAwardsForMatch(idNum, awards);
+   } catch (awardError) {
+     handleError(awardError, { showToast: false, onError: () => { } });
+   }
+@@ -121,455 +266,734 @@ export async function computeAndPersistAwards(partidoId) {
+   return awards;
+ }
+ 
+-export async function finalizeIfComplete(partidoId, options = {}) {
+-  const SKIP_SIDE_EFFECTS = options.skipSideEffects === true;
+-  // ensure we have an anchored now for survey timing
+-  const now = new Date();
+-  const nowIso = now.toISOString();
+-  let partidoNombre = `partido ${partidoId}`;
++const toNumericIdFromRef = (value, refToIdMap) => {
++  if (value == null) return null;
++  if (typeof value === 'number' && Number.isFinite(value)) return value;
+ 
++  const token = String(value).trim();
++  if (!token) return null;
++  if (/^\d+$/.test(token)) return Number(token);
++
++  const mapped = refToIdMap.get(normalizeRef(token));
++  return Number.isFinite(mapped) ? mapped : null;
++};
++
++const resolveScorelineFromSurveys = (surveys = []) => {
++  const scorelineCount = new Map();
++  (surveys || []).forEach((survey) => {
++    const token = String(survey?.resultado || '').trim();
++    if (!/^\d+\s*-\s*\d+$/.test(token)) return;
++    scorelineCount.set(token, (scorelineCount.get(token) || 0) + 1);
++  });
++
++  let winner = null;
++  let best = -1;
++  Array.from(scorelineCount.entries()).forEach(([scoreline, count]) => {
++    if (count > best) {
++      winner = scoreline;
++      best = count;
++    }
++  });
++
++  return winner;
++};
++
++const buildPlayerIdentityMapsForMatch = async (partidoId) => {
++  const { data: rows, error } = await supabase
++    .from('jugadores')
++    .select('id, uuid, usuario_id')
++    .eq('partido_id', partidoId);
++
++  if (error) throw error;
++
++  const refToIdMap = new Map();
++  const idToPlayerRef = new Map();
++  (rows || []).forEach((row) => {
++    const id = Number(row?.id);
++    if (!Number.isFinite(id)) return;
++
++    const stableRef = row?.uuid || row?.usuario_id || String(id);
++    idToPlayerRef.set(id, stableRef);
++
++    [row?.uuid, row?.usuario_id, row?.id, stableRef]
++      .map((value) => normalizeRef(value))
++      .filter(Boolean)
++      .forEach((ref) => refToIdMap.set(ref, id));
++  });
++
++  return { refToIdMap, idToPlayerRef };
++};
++
++const mapTeamRefsToIdSet = (refs = [], refToIdMap) => {
++  const ids = new Set();
++
++  (Array.isArray(refs) ? refs : []).forEach((value) => {
++    const id = toNumericIdFromRef(value, refToIdMap);
++    if (Number.isFinite(id)) ids.add(id);
++  });
++
++  return ids;
++};
++
++const resolveEffectiveTeamIdSets = async (partidoId, refToIdMap) => {
++  let matchRow = null;
+   try {
+-    const { data: partidoMeta } = await supabase
++    const { data, error } = await supabase
+       .from('partidos')
+-      .select('nombre')
++      .select('teams_confirmed, survey_team_a, survey_team_b, final_team_a, final_team_b')
+       .eq('id', partidoId)
+       .maybeSingle();
+-    if (partidoMeta?.nombre) {
+-      partidoNombre = partidoMeta.nombre;
++    if (!error) {
++      matchRow = data || null;
+     }
+-  } catch (_partidoMetaError) {
+-    // Non-blocking: fallback to generic label if metadata fetch fails.
++  } catch (_error) {
++    matchRow = null;
+   }
+ 
+-  // Upsert minimal survey_results to record existence (anchors created_at)
+-  let existingSurvey = null;
+-  try {
+-    let res = await supabase
+-      .from('survey_results')
+-      .select('created_at, encuesta_cerrada_at')
+-      .eq('partido_id', partidoId)
+-      .maybeSingle();
+-    if (res.error) {
+-      const msg = String(res.error?.message || '').toLowerCase();
+-      const missingClosedAt = msg.includes('encuesta_cerrada_at') && msg.includes('does not exist');
+-      if (!missingClosedAt) throw res.error;
+-
+-      res = await supabase
+-        .from('survey_results')
+-        .select('created_at')
++  let source = 'survey';
++  let teamARefs = [];
++  let teamBRefs = [];
++
++  if (matchRow?.teams_confirmed === true) {
++    source = 'admin';
++    try {
++      const { data: confirmationRow, error: confirmationError } = await supabase
++        .from('partido_team_confirmations')
++        .select('team_a, team_b')
+         .eq('partido_id', partidoId)
+         .maybeSingle();
+-      if (res.error) throw res.error;
++      if (!confirmationError && confirmationRow) {
++        teamARefs = Array.isArray(confirmationRow.team_a) ? confirmationRow.team_a : [];
++        teamBRefs = Array.isArray(confirmationRow.team_b) ? confirmationRow.team_b : [];
++      }
++    } catch (_error) {
++      // Non-blocking fallback.
++    }
++  } else {
++    teamARefs = Array.isArray(matchRow?.survey_team_a) ? matchRow.survey_team_a : [];
++    teamBRefs = Array.isArray(matchRow?.survey_team_b) ? matchRow.survey_team_b : [];
++
++    if (teamARefs.length === 0 || teamBRefs.length === 0) {
++      teamARefs = Array.isArray(matchRow?.final_team_a) ? matchRow.final_team_a : [];
++      teamBRefs = Array.isArray(matchRow?.final_team_b) ? matchRow.final_team_b : [];
+     }
+-    existingSurvey = res.data || null;
+-  } catch (e) {
+-    console.error('[FINALIZE] error fetching survey_results', { partidoId, e });
+-    existingSurvey = null;
+   }
+ 
+-  // Use created_at as the anchor for the deadline
+-  const surveyOpenedAt = existingSurvey?.created_at || nowIso;
+-  const computedDeadline = new Date(new Date(surveyOpenedAt).getTime() + SURVEY_FINALIZE_DELAY_MS).toISOString();
++  return {
++    source,
++    teamAIds: mapTeamRefsToIdSet(teamARefs, refToIdMap),
++    teamBIds: mapTeamRefsToIdSet(teamBRefs, refToIdMap),
++  };
++};
+ 
+-  // Phase 1 snapshot (best-effort): keep historical participants/equipos frozen as early as possible.
+-  try {
+-    await ensureParticipantsSnapshot(partidoId);
+-  } catch (_snapshotError) {
+-    // non-blocking
+-  }
++const resolvePlayerIdFromStableRef = async (partidoId, stableRef) => {
++  const token = normalizeRef(stableRef);
++  if (!token) return null;
+ 
+-  // We no longer rely on 'meta' column which seems to be missing in DB
+-  try {
+-    // Determine what to upsert.
+-    // If it doesn't exist, we insert id and updated_at (created_at is auto or we let it be)
+-    // Actually, to ensure we catch 'created_at' for next time if it didn't exist, we rely on the DB setting created_at on insert,
+-    // OR we explicitly set it if we can.
+-    // For now, minimal upsert to ensure row exists.
+-    const payload = { partido_id: partidoId };
+-
+-    // Warning: if we don't return 'created_at' from the upsert, we might miss it if we just created it.
+-    // But we calculated computedDeadline above using 'nowIso' if it didn't exist.
+-    // The strict deadline logic relies on the row persisting.
+-
+-    const { error: upsertErr } = await supabase
+-      .from('survey_results')
+-      .upsert(payload);
++  const { data: rows, error } = await supabase
++    .from('jugadores')
++    .select('id, uuid, usuario_id')
++    .eq('partido_id', partidoId);
+ 
+-    if (upsertErr) throw upsertErr;
+-  } catch (e) {
+-    console.error('[FINALIZE] error upserting survey_results', { partidoId, e });
+-    // If error is strictly about missing column, we might suppress it, but better minimal payload
+-    // If even this fails, logic might degrade to sliding deadline, but "meta" error should be gone.
+-    console.warn('[FINALIZE] continuing despite upsert error (best effort for deadline)');
++  if (error) throw error;
++
++  for (const row of (rows || [])) {
++    const id = Number(row?.id);
++    if (!Number.isFinite(id)) continue;
++    const refs = [
++      row?.uuid,
++      row?.usuario_id,
++      row?.id,
++      row?.uuid || row?.usuario_id || String(id),
++    ].map((value) => normalizeRef(value));
++    if (refs.includes(token)) return id;
+   }
+ 
+-  // Re-calculate deadline for return
+-  // If we just created it (existingSurvey is null), use current calculated deadline.
+-  const deadlineReached = new Date() >= new Date(computedDeadline);
+-
+-  // 1) jugadores logueados del partido (solo ellos pueden votar encuesta)
+-  const { count: playersCount, error: playersErr } = await supabase
+-    .from('jugadores')
+-    .select('id', { count: 'exact', head: true })
+-    .eq('partido_id', partidoId)
+-    .not('usuario_id', 'is', null);
+-  if (playersErr) {
+-    console.error('[FINALIZE] error fetching playersCount', { partidoId, playersErr });
+-    throw playersErr;
++  return null;
++};
++
++const toSafeInt = (value, fallback = 0) => {
++  const parsed = Number(value);
++  if (!Number.isFinite(parsed)) return fallback;
++  return Math.max(0, Math.trunc(parsed));
++};
++
++const addDurationMs = (isoString, durationMs) => {
++  const baseTime = new Date(isoString).getTime();
++  if (!Number.isFinite(baseTime)) return new Date(Date.now() + durationMs).toISOString();
++  return new Date(baseTime + durationMs).toISOString();
++};
++
++const isMissingColumnError = (error, columns = []) => {
++  const message = String(error?.message || '').toLowerCase();
++  if (!message) return false;
++  if (columns.length === 0) {
++    return message.includes('does not exist') || String(error?.code || '') === '42703';
+   }
++  return columns.some((column) => message.includes(String(column).toLowerCase()));
++};
++
++const buildEligibleRosterMap = (rows = []) => {
++  const byPlayerId = new Map();
++  const eligibleUserIds = new Set();
++
++  (rows || []).forEach((row) => {
++    const playerId = Number(row?.id);
++    const userId = row?.usuario_id || null;
++    if (!Number.isFinite(playerId) || !userId) return;
++    byPlayerId.set(playerId, userId);
++    eligibleUserIds.add(String(userId));
++  });
++
++  return {
++    byPlayerId,
++    expectedVoters: eligibleUserIds.size,
++  };
++};
+ 
+-  // 2) encuestas distintas por votante
++const getDistinctSubmittedEligibleVoters = async (partidoId, eligibleByPlayerId = new Map()) => {
+   const { data: surveysRows, error: surveysErr } = await supabase
+     .from('post_match_surveys')
+     .select('votante_id')
+     .eq('partido_id', partidoId);
++
+   if (surveysErr) {
+     console.error('[FINALIZE] error fetching surveysRows', { partidoId, surveysErr });
+     throw surveysErr;
+   }
+-  const distinctVoters = new Set(
+-    (surveysRows || [])
+-      .map((r) => r.votante_id)
+-      .filter((id) => id != null),
+-  );
+-  const surveysCount = distinctVoters.size;
+ 
+-  // Log counts and sample voter ids
+-  const voterIds = Array.from(distinctVoters);
+-  console.log('[FINALIZE] counts', { partidoId, playersCount, surveysCount, voterIdsSample: voterIds.slice(0, 10) });
++  const submittedUsers = new Set();
++  (surveysRows || []).forEach((row) => {
++    const voterId = Number(row?.votante_id);
++    if (!Number.isFinite(voterId)) return;
++    const userId = eligibleByPlayerId.get(voterId);
++    if (!userId) return;
++    submittedUsers.add(String(userId));
++  });
++
++  return submittedUsers;
++};
+ 
+-  // determine completion by votes OR by deadline
+-  const allVoted = Boolean(playersCount) && surveysCount >= playersCount;
+-  const alreadyClosedAt = existingSurvey?.encuesta_cerrada_at || null;
+-  // deadlineReached was calculated earlier (line 169)
++const fetchSurveyLifecycleRow = async (partidoId) => {
++  try {
++    const { data, error } = await supabase
++      .from('partidos')
++      .select('survey_status, survey_opened_at, survey_closes_at, survey_expected_voters, result_status, winner_team, finished_at')
++      .eq('id', partidoId)
++      .maybeSingle();
++    if (error) throw error;
++    return data || null;
++  } catch (error) {
++    if (isMissingColumnError(error, ['survey_status', 'survey_opened_at', 'survey_closes_at', 'survey_expected_voters'])) {
++      return null;
++    }
++    throw error;
++  }
++};
+ 
+-  if (alreadyClosedAt) {
+-    console.log('[FINALIZE] already closed, skipping side effects', { partidoId, alreadyClosedAt });
+-    return { done: true, playersCount, surveysCount, alreadyClosed: true, closedAt: alreadyClosedAt };
++export async function ensureSurveyWindowOpen(partidoId, options = {}) {
++  const idNum = Number(partidoId);
++  if (!Number.isFinite(idNum) || idNum <= 0) {
++    return {
++      openedAt: null,
++      closesAt: null,
++      expectedVoters: 0,
++      submittedVoters: 0,
++      remainingVotes: 0,
++      surveyStatus: SURVEY_STATUS_OPEN,
++      eligibleByPlayerId: new Map(),
++      deadlineReached: false,
++      allEligibleVoted: true,
++    };
+   }
+ 
++  const nowIso = options?.nowIso || new Date().toISOString();
++  const { data: rosterRows, error: rosterErr } = await supabase
++    .from('jugadores')
++    .select('id, usuario_id')
++    .eq('partido_id', idNum);
+ 
+-  if (!allVoted && !deadlineReached) {
+-    const msLeft = new Date(computedDeadline).getTime() - Date.now();
+-    console.log('[FINALIZE] waiting', { partidoId, playersCount, surveysCount, deadlineAt: computedDeadline, msLeft });
+-    return { done: false, playersCount, surveysCount, deadlineAt: computedDeadline };
++  if (rosterErr) {
++    console.error('[FINALIZE] error fetching roster rows', { partidoId: idNum, rosterErr });
++    throw rosterErr;
+   }
+ 
+-  console.log('[FINALIZE] proceeding to compute results and schedule notifications (allVoted || deadlineReached)', {
+-    partidoId,
+-    allVoted,
+-    deadlineReached,
+-  });
+-  // Always attempt to apply no-show penalties when finalizing (idempotent implementation should guard double application)
+-  if (!SKIP_SIDE_EFFECTS) {
++  const eligibleRoster = buildEligibleRosterMap(rosterRows || []);
++  const lifecycleRow = await fetchSurveyLifecycleRow(idNum);
++  const normalizedStatus = normalizeSurveyStatusValue(lifecycleRow?.survey_status);
++
++  const openedAt = lifecycleRow?.survey_opened_at || nowIso;
++  const closesAt = lifecycleRow?.survey_closes_at || addDurationMs(openedAt, SURVEY_FINALIZE_DELAY_MS);
++  const expectedVoters = Number.isFinite(Number(lifecycleRow?.survey_expected_voters))
++    ? toSafeInt(lifecycleRow.survey_expected_voters, eligibleRoster.expectedVoters)
++    : eligibleRoster.expectedVoters;
++
++  // Initialize survey metadata once at survey start.
++  const shouldPersistOpenWindow = normalizeSurveyStatusValue(lifecycleRow?.survey_status) !== SURVEY_STATUS_CLOSED
++    && (
++      !lifecycleRow
++      || !lifecycleRow?.survey_opened_at
++      || !lifecycleRow?.survey_closes_at
++      || !Number.isFinite(Number(lifecycleRow?.survey_expected_voters))
++      || !normalizeSurveyStatusValue(lifecycleRow?.survey_status)
++    );
++
++  if (shouldPersistOpenWindow) {
+     try {
+-      console.log('[FINALIZE] applying no-show penalties', { partidoId });
+-      const penaltiesResult = await applyNoShowPenalties(partidoId);
+-      if (penaltiesResult?.error) {
+-        throw penaltiesResult.error;
+-      }
+-    } catch (penErr) {
+-      console.error('[FINALIZE] applyNoShowPenalties error', { partidoId, penErr });
+-    }
+-    // Always attempt to run no-show recovery processing as well (non-blocking)
+-    try {
+-      console.log('[FINALIZE] running no-show recoveries', { partidoId });
+-      const recoveriesResult = await applyNoShowRecoveries(partidoId);
+-      if (recoveriesResult?.error) {
+-        throw recoveriesResult.error;
+-      }
+-    } catch (recErr) {
+-      console.error('[NO_SHOW_RECOVERY] error', recErr);
++      await supabase
++        .from('partidos')
++        .update({
++          survey_status: SURVEY_STATUS_OPEN,
++          survey_opened_at: openedAt,
++          survey_closes_at: closesAt,
++          survey_expected_voters: expectedVoters,
++        })
++        .eq('id', idNum)
++        .neq('survey_status', SURVEY_STATUS_CLOSED);
++    } catch (_persistError) {
++      // Non-blocking fallback for environments that don't have survey lifecycle columns yet.
+     }
+   }
+ 
+-  // --- Create survey_finished notifications for all players immediately ---
+-  if (!SKIP_SIDE_EFFECTS) try {
+-    let jugadoresForNotifs = await db.fetchMany('jugadores', { partido_id: partidoId });
+-    jugadoresForNotifs = (jugadoresForNotifs || []).filter((j) => j.usuario_id != null);
++  const submittedUsers = await getDistinctSubmittedEligibleVoters(idNum, eligibleRoster.byPlayerId);
++  const submittedVoters = submittedUsers.size;
++  const remainingVotes = Math.max(expectedVoters - submittedVoters, 0);
++  const deadlineReached = Date.now() >= new Date(closesAt).getTime();
++  const allEligibleVoted = submittedVoters >= expectedVoters;
+ 
+-    // Strict dedupe: fetch existing 'survey_finished' notifications for this match
+-    // Filters based on match_ref to ensure robustness
+-    let existingNotifs = [];
+-    try {
+-      existingNotifs = await db.fetchMany('notifications', { partido_id: Number(partidoId), type: 'survey_finished' });
+-    } catch (e) {
+-      console.warn('[DEBUG] could not fetch existing survey_finished notifications', e?.message || e);
+-      existingNotifs = [];
+-    }
++  return {
++    openedAt,
++    closesAt,
++    expectedVoters,
++    submittedVoters,
++    remainingVotes,
++    surveyStatus: normalizedStatus || SURVEY_STATUS_OPEN,
++    eligibleByPlayerId: eligibleRoster.byPlayerId,
++    deadlineReached,
++    allEligibleVoted,
++  };
++}
+ 
+-    const alreadyNotifiedUserIds = new Set((existingNotifs || []).map((n) => n.user_id).filter(Boolean));
+-    const jugadoresToInsert = (jugadoresForNotifs || []).filter((j) => !alreadyNotifiedUserIds.has(j.usuario_id));
+-
+-    if (jugadoresToInsert && jugadoresToInsert.length > 0) {
+-      // Immediate sending (no delay)
+-      const notificationPayloads = jugadoresToInsert.map((j) => ({
+-        user_id: j.usuario_id,
+-        type: 'survey_finished',
+-        title: 'Encuesta finalizada',
+-        message: getSurveyResultsReadyMessage({ matchName: partidoNombre }),
+-        // match_ref: Number(partidoId), // Generated column, cannot insert manually
+-        partido_id: Number(partidoId),
+-        // Canonical data format
+-        data: {
+-          match_id: String(partidoId),
+-          match_name: partidoNombre,
+-          partido_nombre: partidoNombre,
+-          link: `/resultados-encuesta/${partidoId}`,
+-          resultsUrl: `/resultados-encuesta/${partidoId}?showAwards=1`,
+-        },
+-        read: false,
+-        created_at: nowIso,
+-      }));
+-
+-      console.log('[FINALIZE] inserting survey_finished notifications', { count: notificationPayloads.length });
++export async function finalizeIfComplete(partidoId, options = {}) {
++  const SKIP_SIDE_EFFECTS = options.skipSideEffects === true;
++  const idNum = Number(partidoId);
++  if (!Number.isFinite(idNum) || idNum <= 0) {
++    throw new Error('invalid_partido_id');
++  }
+ 
+-      try {
+-        // Use supabase directly to support bulk insert (db.insert uses .single())
+-        const { data: insertRes, error: notifErr } = await supabase
+-          .from('notifications')
+-          .insert(notificationPayloads)
+-          .select(); // legitimate usage for bulk
++  const nowIso = new Date().toISOString();
++  let partidoNombre = `partido ${idNum}`;
+ 
+-        if (notifErr) throw notifErr;
+-        console.log('[FINALIZE] insert success', insertRes?.length);
+-      } catch (notifErr) {
+-        console.error('[FINALIZE] insert error', notifErr);
+-        handleError(notifErr, { showToast: false, onError: () => { } });
+-      }
+-    } else {
+-      console.log('[FINALIZE] no new notifications to insert (dedupe active)', { partidoId });
++  try {
++    const { data: partidoMeta } = await supabase
++      .from('partidos')
++      .select('nombre')
++      .eq('id', idNum)
++      .maybeSingle();
++    if (partidoMeta?.nombre) {
++      partidoNombre = partidoMeta.nombre;
+     }
+-  } catch (e) {
+-    console.error('[FINALIZE] error processing survey_finished notifications', { partidoId, e });
++  } catch (_partidoMetaError) {
++    // Non-blocking fallback.
+   }
+ 
+-  // Determine whether we have enough voters to compute and award prizes
+-  const hasEnoughVotesForAwards = surveysCount >= SURVEY_MIN_VOTERS_FOR_AWARDS;
++  // Phase 1 snapshot (best-effort): keep historical participants/equipos frozen as early as possible.
++  try {
++    await ensureParticipantsSnapshot(idNum);
++  } catch (_snapshotError) {
++    // Non-blocking.
++  }
+ 
+-  if (!hasEnoughVotesForAwards) {
+-    console.log('[FINALIZE] awards skipped: not enough votes', { partidoId, surveysCount });
+-    try {
+-      await ensureSurveyResultsSnapshot(partidoId, {
+-        encuestaCerradaAt: nowIso,
+-        closedReason: allVoted ? 'all_voted' : 'deadline',
+-      });
+-    } catch (_snapshotError) {
+-      // non-blocking
+-    }
+-    return { done: true, playersCount, surveysCount, awardsSkipped: true };
++  const surveyWindow = await ensureSurveyWindowOpen(idNum, { nowIso });
++  const {
++    openedAt,
++    closesAt,
++    expectedVoters,
++    submittedVoters,
++    remainingVotes,
++    surveyStatus,
++    deadlineReached,
++    allEligibleVoted,
++  } = surveyWindow;
++
++  if (surveyStatus === SURVEY_STATUS_CLOSED) {
++    const lifecycle = await fetchSurveyLifecycleRow(idNum);
++    return {
++      done: true,
++      alreadyClosed: true,
++      expectedVoters,
++      submissionsCount: submittedVoters,
++      remainingVotes: 0,
++      deadlineAt: closesAt,
++      closedAt: lifecycle?.finished_at || null,
++      result_status: normalizeResultStatusValue(lifecycle?.result_status) || RESULT_STATUS_PENDING,
++      winner_team: normalizeWinnerTeamValue(lifecycle?.winner_team) || null,
++      survey_status: SURVEY_STATUS_CLOSED,
++    };
++  }
++
++  if (!allEligibleVoted && !deadlineReached) {
++    return {
++      done: false,
++      expectedVoters,
++      submissionsCount: submittedVoters,
++      remainingVotes,
++      deadlineAt: closesAt,
++      survey_status: SURVEY_STATUS_OPEN,
++    };
+   }
+ 
+-  // We have enough votes: compute and persist awards (this function is idempotent)
++  const results = await computeResultsAverages(idNum);
++  const computedStatus = normalizeResultStatusValue(results?.result_status) || RESULT_STATUS_PENDING;
++  const computedWinner = normalizeWinnerTeamValue(results?.winner_team) || null;
++  const computedFinishedAt = computedStatus === RESULT_STATUS_PENDING
++    ? null
++    : (results?.finished_at || nowIso);
++
++  let closedByThisCall = false;
+   try {
+-    console.log('[FINALIZE] computing and persisting awards', { partidoId });
+-    await computeAndPersistAwards(partidoId);
+-  } catch (awardErr) {
+-    console.error('[FINALIZE] computeAndPersistAwards error', { partidoId, awardErr });
+-    handleError(awardErr, { showToast: false, onError: () => { } });
++    const closePayload = {
++      survey_status: SURVEY_STATUS_CLOSED,
++      survey_opened_at: openedAt || nowIso,
++      survey_closes_at: closesAt || addDurationMs(nowIso, SURVEY_FINALIZE_DELAY_MS),
++      survey_expected_voters: expectedVoters,
++      result_status: computedStatus,
++      winner_team: computedWinner,
++      finished_at: computedFinishedAt,
++    };
++
++    const { data: closeRow, error: closeErr } = await supabase
++      .from('partidos')
++      .update(closePayload)
++      .eq('id', idNum)
++      .eq('survey_status', SURVEY_STATUS_OPEN)
++      .select('id')
++      .maybeSingle();
++
++    if (closeErr) {
++      const missingLifecycleCols = isMissingColumnError(closeErr, [
++        'survey_status',
++        'survey_opened_at',
++        'survey_closes_at',
++        'survey_expected_voters',
++      ]);
++      if (!missingLifecycleCols) throw closeErr;
++
++      // Legacy fallback (non-atomic): keep closure fields coherent where new columns are unavailable.
++      const { error: legacyCloseErr } = await supabase
++        .from('partidos')
++        .update({
++          result_status: computedStatus,
++          winner_team: computedWinner,
++          finished_at: computedFinishedAt,
++        })
++        .eq('id', idNum)
++        .is('finished_at', null);
++      if (legacyCloseErr && !isMissingColumnError(legacyCloseErr, ['result_status', 'winner_team', 'finished_at'])) {
++        throw legacyCloseErr;
++      }
++      closedByThisCall = true;
++    } else {
++      closedByThisCall = Boolean(closeRow?.id);
++    }
++  } catch (error) {
++    console.error('[FINALIZE] close guard failed', { partidoId: idNum, error });
++    throw error;
+   }
+ 
+-  // 3) calcular resultados (stub o real)
+-  const results = await computeResultsAverages(partidoId);
++  if (!closedByThisCall) {
++    const lifecycle = await fetchSurveyLifecycleRow(idNum);
++    const latestStatus = normalizeSurveyStatusValue(lifecycle?.survey_status);
++    if (latestStatus === SURVEY_STATUS_CLOSED) {
++      return {
++        done: true,
++        alreadyClosed: true,
++        expectedVoters,
++        submissionsCount: submittedVoters,
++        remainingVotes: 0,
++        deadlineAt: closesAt,
++        closedAt: lifecycle?.finished_at || null,
++        result_status: normalizeResultStatusValue(lifecycle?.result_status) || RESULT_STATUS_PENDING,
++        winner_team: normalizeWinnerTeamValue(lifecycle?.winner_team) || null,
++        survey_status: SURVEY_STATUS_CLOSED,
++      };
++    }
++
++    return {
++      done: false,
++      expectedVoters,
++      submissionsCount: submittedVoters,
++      remainingVotes,
++      deadlineAt: closesAt,
++      survey_status: SURVEY_STATUS_OPEN,
++    };
++  }
+ 
+-  // 4) upsert survey_results with awards pending state
+-  // We keep ready_at for compatibility but effective immediately
++  // Persist survey_results closure payload after atomic close is won.
+   const basePayload = {
+-    partido_id: partidoId,
+-    ...results,
++    partido_id: idNum,
++    mvp: results?.mvp ?? null,
++    golden_glove: results?.golden_glove ?? null,
++    red_cards: Array.isArray(results?.red_cards) ? results.red_cards : [],
++    winner_team: computedWinner,
++    scoreline: results?.scoreline ?? null,
++    result_status: computedStatus,
++    finished_at: computedFinishedAt,
+     results_ready: true,
+   };
++
+   const safeUpsert = async (payload) => {
+-    let res = await supabase.from('survey_results').upsert(payload, { onConflict: 'partido_id' });
+-    if (res.error && /winner_team|scoreline/i.test(res.error.message || '')) {
+-      const legacyPayload = { ...payload };
++    const firstTry = await supabase.from('survey_results').upsert(payload, { onConflict: 'partido_id' });
++    if (!firstTry.error) return firstTry;
++
++    const message = String(firstTry.error?.message || '');
++    const legacyPayload = { ...payload };
++    if (/winner_team|scoreline/i.test(message)) {
+       delete legacyPayload.winner_team;
+       delete legacyPayload.scoreline;
+-      res = await supabase.from('survey_results').upsert(legacyPayload, { onConflict: 'partido_id' });
+     }
+-    return res;
++    if (/result_status/i.test(message)) {
++      delete legacyPayload.result_status;
++    }
++    if (/finished_at/i.test(message)) {
++      delete legacyPayload.finished_at;
++    }
++
++    const removedColumns = Object.keys(payload).length !== Object.keys(legacyPayload).length;
++    if (!removedColumns) return firstTry;
++    return supabase.from('survey_results').upsert(legacyPayload, { onConflict: 'partido_id' });
+   };
+ 
+-  let upsertRes = await safeUpsert(basePayload);
+-  if (upsertRes.error) {
+-    upsertRes = await safeUpsert({
+-      partido_id: partidoId,
++  const payloadVariants = [
++    basePayload,
++    {
++      partido_id: idNum,
+       mvp: results?.mvp ?? null,
+       golden_glove: results?.golden_glove ?? null,
+-      red_cards: Array.isArray(results?.red_cards) ? results.red_cards : [],
+-      winner_team: results?.winner_team ?? null,
+-      scoreline: results?.scoreline ?? null,
++      winner_team: computedWinner,
++      result_status: computedStatus,
++      finished_at: computedFinishedAt,
+       results_ready: true,
+-    });
+-  }
+-  if (upsertRes.error) {
+-    upsertRes = await safeUpsert({
+-      partido_id: partidoId,
+-      mvp: results?.mvp ?? null,
+-      golden_glove: results?.golden_glove ?? null,
+-      winner_team: results?.winner_team ?? null,
+-      scoreline: results?.scoreline ?? null,
++    },
++    {
++      partido_id: idNum,
++      winner_team: computedWinner,
++      result_status: computedStatus,
++      finished_at: computedFinishedAt,
+       results_ready: true,
+-    });
+-  }
+-  if (upsertRes.error) {
+-    upsertRes = await safeUpsert({
+-      partido_id: partidoId,
+-      winner_team: results?.winner_team ?? null,
+-      scoreline: results?.scoreline ?? null,
++    },
++    {
++      partido_id: idNum,
++      result_status: computedStatus,
++      finished_at: computedFinishedAt,
+       results_ready: true,
+-    });
++    },
++    { partido_id: idNum, results_ready: true },
++  ];
++
++  let upsertRes = null;
++  for (const payload of payloadVariants) {
++    upsertRes = await safeUpsert(payload);
++    if (!upsertRes.error) break;
++  }
++  if (upsertRes?.error) throw upsertRes.error;
++
++  // Side effects run only for the process that successfully closed the survey.
++  if (!SKIP_SIDE_EFFECTS) {
++    try {
++      const penaltiesResult = await applyNoShowPenalties(idNum);
++      if (penaltiesResult?.error) throw penaltiesResult.error;
++    } catch (penErr) {
++      console.error('[FINALIZE] applyNoShowPenalties error', { partidoId: idNum, penErr });
++    }
++
++    try {
++      const recoveriesResult = await applyNoShowRecoveries(idNum);
++      if (recoveriesResult?.error) throw recoveriesResult.error;
++    } catch (recErr) {
++      console.error('[NO_SHOW_RECOVERY] error', recErr);
++    }
++  }
++
++  let awardsSkipped = computedStatus === RESULT_STATUS_NOT_PLAYED;
++  if (!awardsSkipped) {
++    try {
++      const mvpOverridePlayerId = await resolvePlayerIdFromStableRef(idNum, results?.mvp);
++      await computeAndPersistAwards(idNum, {
++        mvpOverridePlayerId,
++        skipMvp: computedStatus === RESULT_STATUS_NOT_PLAYED,
++      });
++    } catch (awardErr) {
++      console.error('[FINALIZE] computeAndPersistAwards error', { partidoId: idNum, awardErr });
++      handleError(awardErr, { showToast: false, onError: () => { } });
++      awardsSkipped = true;
++    }
++  }
++
++  if (!SKIP_SIDE_EFFECTS) {
++    try {
++      let jugadoresForNotifs = await db.fetchMany('jugadores', { partido_id: idNum });
++      jugadoresForNotifs = (jugadoresForNotifs || []).filter((j) => j.usuario_id != null);
++
++      let existingNotifs = [];
++      try {
++        existingNotifs = await db.fetchMany('notifications', { partido_id: idNum, type: 'survey_finished' });
++      } catch (_notifReadErr) {
++        existingNotifs = [];
++      }
++
++      const alreadyNotifiedUserIds = new Set((existingNotifs || []).map((n) => n.user_id).filter(Boolean));
++      const jugadoresToInsert = (jugadoresForNotifs || []).filter((j) => !alreadyNotifiedUserIds.has(j.usuario_id));
++
++      if (jugadoresToInsert.length > 0) {
++        const notificationPayloads = jugadoresToInsert.map((j) => ({
++          user_id: j.usuario_id,
++          type: 'survey_finished',
++          title: 'Encuesta finalizada',
++          message: getSurveyResultsReadyMessage({ matchName: partidoNombre }),
++          partido_id: idNum,
++          data: {
++            match_id: String(idNum),
++            match_name: partidoNombre,
++            partido_nombre: partidoNombre,
++            link: `/resultados-encuesta/${idNum}`,
++            resultsUrl: `/resultados-encuesta/${idNum}?showAwards=1`,
++          },
++          read: false,
++          created_at: nowIso,
++        }));
++
++        const { error: notifErr } = await supabase
++          .from('notifications')
++          .insert(notificationPayloads);
++        if (notifErr) throw notifErr;
++      }
++    } catch (notifErr) {
++      console.error('[FINALIZE] notification side effects error', { partidoId: idNum, notifErr });
++    }
+   }
+-  if (upsertRes.error) throw upsertRes.error;
+ 
+   try {
+-    await ensureSurveyResultsSnapshot(partidoId, {
++    await ensureSurveyResultsSnapshot(idNum, {
+       encuestaCerradaAt: nowIso,
+-      closedReason: allVoted ? 'all_voted' : 'deadline',
++      closedReason: allEligibleVoted ? 'all_voted' : 'deadline',
+     });
+   } catch (_snapshotError) {
+-    // non-blocking
++    // Non-blocking.
+   }
+ 
+-  return { done: true, playersCount, surveysCount };
++  return {
++    done: true,
++    expectedVoters,
++    submissionsCount: submittedVoters,
++    remainingVotes: 0,
++    deadlineAt: closesAt,
++    awardsSkipped,
++    result_status: computedStatus,
++    winner_team: computedWinner,
++    survey_status: SURVEY_STATUS_CLOSED,
++  };
+ }
+ 
+-// Mantener / completar esta función con tu lógica real
+ export async function computeResultsAverages(partidoId) {
+-  // 1) encuestas
+-  let surveys = null;
++  let surveys = [];
+   try {
+     const { data, error } = await supabase
+       .from('post_match_surveys')
+-      .select('votante_id, mejor_jugador_eq_a, mejor_jugador_eq_b, jugadores_violentos, ganador, resultado')
++      .select('votante_id, se_jugo, mejor_jugador_eq_a, mejor_jugador_eq_b, jugadores_violentos, ganador, resultado')
+       .eq('partido_id', partidoId);
+     if (error) throw error;
+     surveys = data || [];
+-  } catch (e) {
+-    // Backward-compatible fallback if ganador/resultado columns don't exist yet
++  } catch (_error) {
+     const { data, error } = await supabase
+       .from('post_match_surveys')
+-      .select('votante_id, mejor_jugador_eq_a, mejor_jugador_eq_b, jugadores_violentos')
++      .select('votante_id, se_jugo, mejor_jugador_eq_a, mejor_jugador_eq_b, jugadores_violentos, ganador')
+       .eq('partido_id', partidoId);
+     if (error) throw error;
+     surveys = data || [];
+   }
+-  const totalVotantes = new Set((surveys || []).map((s) => s.votante_id)).size || 0;
+ 
+-  // 2) recolectar UUIDs para mapear
+-  const uuidSet = new Set();
+-  for (const s of (surveys || [])) {
+-    if (s.mejor_jugador_eq_a && typeof s.mejor_jugador_eq_a === 'string' && !/^\d+$/.test(s.mejor_jugador_eq_a)) {
+-      uuidSet.add(s.mejor_jugador_eq_a);
+-    }
+-    if (s.mejor_jugador_eq_b && typeof s.mejor_jugador_eq_b === 'string' && !/^\d+$/.test(s.mejor_jugador_eq_b)) {
+-      uuidSet.add(s.mejor_jugador_eq_b);
+-    }
+-    (s.jugadores_violentos || []).forEach((val) => {
+-      if (val && typeof val === 'string' && !/^\d+$/.test(val)) {
+-        uuidSet.add(val);
+-      }
+-    });
+-  }
++  const totalVotantes = new Set((surveys || []).map((row) => row?.votante_id).filter(Boolean)).size || 0;
++  const { resultStatus, winnerTeam } = aggregateSurveyResult(surveys);
+ 
+-  let uuidToId = new Map();
+-  if (uuidSet.size) {
+-    const { data: mapRows } = await supabase
+-      .from('jugadores')
+-      .select('id, uuid')
+-      .in('uuid', Array.from(uuidSet));
+-    mapRows?.forEach((r) => uuidToId.set(r.uuid, r.id));
+-  }
++  const { refToIdMap, idToPlayerRef } = await buildPlayerIdentityMapsForMatch(partidoId);
++  const { teamAIds, teamBIds } = await resolveEffectiveTeamIdSets(partidoId, refToIdMap);
+ 
+-  // 3) helpers de normalización
+-  const toNumId = (val) => {
+-    if (val == null) return null;
+-    if (typeof val === 'number' && Number.isFinite(val)) return val;
+-    if (typeof val === 'string') {
+-      if (/^\d+$/.test(val)) return parseInt(val, 10);
+-      return uuidToId.get(val) ?? null;
+-    }
+-    return null;
+-  };
+-  const normalizeIdArray = (arr = []) =>
+-    arr.map(toNumId).filter((n) => typeof n === 'number' && Number.isFinite(n));
++  const toNumId = (value) => toNumericIdFromRef(value, refToIdMap);
++  const normalizeIdArray = (values = []) => (
++    (Array.isArray(values) ? values : [])
++      .map((value) => toNumId(value))
++      .filter((id) => Number.isFinite(id))
++  );
+ 
+-  // 4) contadores por jugadorId NUMÉRICO
+   const mvpCount = new Map();
+   const gkCount = new Map();
+   const violentCount = new Map();
+ 
+-  for (const s of (surveys || [])) {
+-    const mvpId = toNumId(s.mejor_jugador_eq_a);
+-    if (mvpId) mvpCount.set(mvpId, (mvpCount.get(mvpId) || 0) + 1);
+-    const gkId = toNumId(s.mejor_jugador_eq_b);
+-    if (gkId) gkCount.set(gkId, (gkCount.get(gkId) || 0) + 1);
+-    const violentNums = normalizeIdArray(s.jugadores_violentos || []);
+-    violentNums.forEach((id) => violentCount.set(id, (violentCount.get(id) || 0) + 1));
+-  }
++  for (const survey of (surveys || [])) {
++    const surveySaysNotPlayed = survey?.se_jugo === false
++      || normalizeResultStatusValue(survey?.resultado) === RESULT_STATUS_NOT_PLAYED;
++    if (surveySaysNotPlayed) continue;
+ 
+-  // 5) helper para elegir ganador
+-  const pickWinner = (map) => {
+-    let winner = null, best = -1;
+-    // Use Array.from to avoid downlevelIteration TS issues
+-    Array.from(map.entries()).forEach(([id, cnt]) => {
+-      if (cnt > best) { best = cnt; winner = id; }
++    const mvpId = toNumId(survey?.mejor_jugador_eq_a);
++    if (Number.isFinite(mvpId)) {
++      mvpCount.set(mvpId, (mvpCount.get(mvpId) || 0) + 1);
++    }
++
++    const gkId = toNumId(survey?.mejor_jugador_eq_b);
++    if (Number.isFinite(gkId)) {
++      gkCount.set(gkId, (gkCount.get(gkId) || 0) + 1);
++    }
++
++    normalizeIdArray(survey?.jugadores_violentos || []).forEach((id) => {
++      violentCount.set(id, (violentCount.get(id) || 0) + 1);
+     });
+-    return winner;
++  }
++
++  const getTopCandidates = (map) => {
++    const entries = Array.from(map.entries());
++    if (entries.length === 0) return [];
++    const maxVotes = Math.max(...entries.map(([, votes]) => Number(votes) || 0));
++    return entries
++      .filter(([, votes]) => Number(votes) === maxVotes)
++      .map(([id]) => Number(id))
++      .filter((id) => Number.isFinite(id))
++      .sort((a, b) => a - b);
+   };
+ 
+-  const mvpIdNum = pickWinner(mvpCount);
+-  const gkIdNum = pickWinner(gkCount);
++  const topMvpCandidates = getTopCandidates(mvpCount);
++  const topGkCandidates = getTopCandidates(gkCount);
+ 
+-  // 6) umbral tarjetas rojas (>=25% de votantes)
+-  const threshold = totalVotantes > 0 ? Math.ceil(totalVotantes * 0.25) : Infinity;
+-  const redIdsNum = [];
+-  Array.from(violentCount.entries()).forEach(([id, cnt]) => {
+-    if (cnt >= threshold) redIdsNum.push(id);
++  const mvpIdNum = resolveMvpTieBreakWinner({
++    candidateIds: topMvpCandidates,
++    resultStatus,
++    winnerTeam,
++    teamAIds,
++    teamBIds,
+   });
+ 
+-  // 7) mapear NUM -> identificador estable del jugador
+-  // Preferencia: uuid -> usuario_id -> id (string)
+-  const idsToFetch = Array.from(new Set([mvpIdNum, gkIdNum, ...redIdsNum]
+-    .filter((n) => typeof n === 'number' && Number.isFinite(n))));
+-  let idToPlayerRef = new Map();
+-  if (idsToFetch.length) {
+-    const { data: jugRows, error: jErr } = await supabase
+-      .from('jugadores')
+-      .select('id, uuid, usuario_id')
+-      .in('id', idsToFetch);
+-    if (jErr) throw jErr;
+-    jugRows?.forEach((j) => {
+-      const playerRef = j.uuid || j.usuario_id || String(j.id);
+-      idToPlayerRef.set(j.id, playerRef);
+-    });
+-  }
++  const gkIdNum = resultStatus === RESULT_STATUS_NOT_PLAYED
++    ? null
++    : (topGkCandidates[0] || null);
+ 
+-  // 8) ganador + resultado por mayoría (cuando exista)
+-  const ganadorCount = new Map();
+-  const resultadoCount = new Map();
+-  (surveys || []).forEach((s) => {
+-    const g = typeof s?.ganador === 'string' ? s.ganador.trim() : '';
+-    if (g) ganadorCount.set(g, (ganadorCount.get(g) || 0) + 1);
+-    const r = typeof s?.resultado === 'string' ? s.resultado.trim() : '';
+-    if (r) resultadoCount.set(r, (resultadoCount.get(r) || 0) + 1);
+-  });
+-  const pickStringWinner = (map) => {
+-    let winner = null;
+-    let best = -1;
+-    Array.from(map.entries()).forEach(([k, cnt]) => {
+-      if (cnt > best) { best = cnt; winner = k; }
+-    });
+-    return winner;
+-  };
+-  const winner_team = pickStringWinner(ganadorCount);
+-  const scoreline = pickStringWinner(resultadoCount);
++  const threshold = totalVotantes > 0 ? Math.ceil(totalVotantes * 0.25) : Infinity;
++  const redIdsNum = resultStatus === RESULT_STATUS_NOT_PLAYED
++    ? []
++    : Array.from(violentCount.entries())
++      .filter(([, count]) => Number(count) >= threshold)
++      .map(([id]) => Number(id))
++      .filter((id) => Number.isFinite(id))
++      .sort((a, b) => a - b);
++
++  const finishedAt = resultStatus === RESULT_STATUS_PENDING ? null : new Date().toISOString();
+ 
+   return {
+     mvp: mvpIdNum ? idToPlayerRef.get(mvpIdNum) || String(mvpIdNum) : null,
+     golden_glove: gkIdNum ? idToPlayerRef.get(gkIdNum) || String(gkIdNum) : null,
+     red_cards: redIdsNum.map((id) => idToPlayerRef.get(id) || String(id)).filter(Boolean),
+-    winner_team: winner_team || null,
+-    scoreline: scoreline || null,
++    winner_team: winnerTeam || null,
++    scoreline: resolveScorelineFromSurveys(surveys),
++    result_status: resultStatus,
++    finished_at: finishedAt,
+   };
+ }
+diff --git a/src/services/surveyTeamsService.js b/src/services/surveyTeamsService.js
+new file mode 100644
+index 0000000..3c56000
+--- /dev/null
++++ b/src/services/surveyTeamsService.js
+@@ -0,0 +1,118 @@
++import { supabase } from '../supabase';
++
++export const normalizeIdentityRef = (value) => String(value || '').trim().toLowerCase();
++
++export const resolvePlayerKey = (player) => {
++  if (!player) return null;
++  return String(player.uuid || player.usuario_id || player.id || '').trim() || null;
++};
++
++export const resolvePersistRef = (player) => (
++  String(player?.uuid || player?.usuario_id || player?.id || '').trim() || null
++);
++
++export const buildPlayerRefToKeyMap = (players = []) => {
++  const map = new Map();
++
++  (players || []).forEach((player) => {
++    const key = resolvePlayerKey(player);
++    if (!key) return;
++
++    [player.uuid, player.usuario_id, player.id, key]
++      .map((ref) => normalizeIdentityRef(ref))
++      .filter(Boolean)
++      .forEach((ref) => map.set(ref, key));
++  });
++
++  return map;
++};
++
++export const toPlayerKeysFromRefs = ({ refs = [], refToKeyMap }) => {
++  const keys = [];
++
++  (Array.isArray(refs) ? refs : []).forEach((ref) => {
++    const key = refToKeyMap.get(normalizeIdentityRef(ref));
++    if (key) keys.push(key);
++  });
++
++  return keys;
++};
++
++export const sanitizeTeamRefs = (refs = []) => (
++  (Array.isArray(refs) ? refs : [])
++    .map((ref) => String(ref || '').trim())
++    .filter(Boolean)
++);
++
++export const buildSeededInitialTeams = ({ playerKeys = [], seed = 0 }) => {
++  const keys = Array.from(new Set((playerKeys || []).filter(Boolean)));
++  const seedBase = Number(seed) || 0;
++
++  const scoreFor = (key) => {
++    const source = `${seedBase}:${String(key)}`;
++    let hash = 2166136261;
++    for (let i = 0; i < source.length; i += 1) {
++      hash ^= source.charCodeAt(i);
++      hash = Math.imul(hash, 16777619);
++    }
++    return hash >>> 0;
++  };
++
++  const shuffled = keys
++    .map((key) => ({ key, score: scoreFor(key) }))
++    .sort((a, b) => a.score - b.score || String(a.key).localeCompare(String(b.key)))
++    .map((entry) => entry.key);
++
++  const teamA = [];
++  const teamB = [];
++
++  shuffled.forEach((key, index) => {
++    if (index % 2 === 0) teamA.push(key);
++    else teamB.push(key);
++  });
++
++  if (teamB.length === 0 && teamA.length > 1) {
++    teamB.push(teamA.pop());
++  }
++
++  return { teamA, teamB };
++};
++
++export const parseSaveMatchFinalTeamsResponse = (rpcData) => {
++  const payload = rpcData && typeof rpcData === 'object' ? rpcData : {};
++  const success = payload.success === true;
++  const alreadyLocked = payload.reason === 'already_locked';
++
++  return {
++    ok: success || alreadyLocked,
++    success,
++    alreadyLocked,
++    reason: String(payload.reason || ''),
++    lockedByOther: payload.locked_by_other === true,
++    teamsSource: payload.teams_source ? String(payload.teams_source) : null,
++    teamARefs: sanitizeTeamRefs(payload.team_a),
++    teamBRefs: sanitizeTeamRefs(payload.team_b),
++    teamsLocked: payload.teams_locked === true,
++    teamsLockedByUserId: payload.teams_locked_by_user_id || null,
++    teamsLockedAt: payload.teams_locked_at || null,
++  };
++};
++
++export async function lockSurveyTeamsOnce({ matchId, teamARefs, teamBRefs }) {
++  const matchIdNum = Number(matchId);
++  if (!Number.isFinite(matchIdNum) || matchIdNum <= 0) {
++    throw new Error('invalid_match_id');
++  }
++
++  const { data, error } = await supabase.rpc('save_match_final_teams', {
++    p_partido_id: matchIdNum,
++    p_final_team_a: sanitizeTeamRefs(teamARefs),
++    p_final_team_b: sanitizeTeamRefs(teamBRefs),
++  });
++
++  if (error) {
++    throw error;
++  }
++
++  return parseSaveMatchFinalTeamsResponse(data);
++}
+diff --git a/src/utils/surveyFlow.js b/src/utils/surveyFlow.js
+new file mode 100644
+index 0000000..d0e9102
+--- /dev/null
++++ b/src/utils/surveyFlow.js
+@@ -0,0 +1,68 @@
++export const SURVEY_STEPS = {
++  PLAYED: 0,
++  ATTENDANCE: 1,
++  MVP: 2,
++  GOALKEEPER: 3,
++  CLEAN_MATCH: 4,
++  RESULT: 5,
++  DIRTY_PLAYERS: 6,
++  ORGANIZE_TEAMS: 7,
++  NOT_PLAYED_REASON: 10,
++  NOT_PLAYED_ABSENTS: 11,
++  ABSENTS: 12,
++  DONE: 99,
++};
++
++export const shouldUseTeamsSetupStep = ({ teamsConfirmed, teamsLocked }) => (
++  !teamsConfirmed && !teamsLocked
++);
++
++export const resolveNextResultGateStep = ({ teamsConfirmed, teamsLocked }) => (
++  shouldUseTeamsSetupStep({ teamsConfirmed, teamsLocked })
++    ? SURVEY_STEPS.ORGANIZE_TEAMS
++    : SURVEY_STEPS.RESULT
++);
++
++export const buildSurveyFlowSteps = ({
++  currentStep,
++  seJugo,
++  asistieronTodos,
++  partidoLimpio,
++  teamsConfirmed,
++  teamsLocked,
++}) => {
++  const resolvedSteps = [SURVEY_STEPS.PLAYED];
++
++  if (currentStep === SURVEY_STEPS.NOT_PLAYED_REASON || currentStep === SURVEY_STEPS.NOT_PLAYED_ABSENTS) {
++    resolvedSteps.push(SURVEY_STEPS.NOT_PLAYED_REASON);
++    if (currentStep === SURVEY_STEPS.NOT_PLAYED_ABSENTS) {
++      resolvedSteps.push(SURVEY_STEPS.NOT_PLAYED_ABSENTS);
++    }
++    return resolvedSteps;
++  }
++
++  if (seJugo === false && currentStep !== SURVEY_STEPS.RESULT && currentStep !== SURVEY_STEPS.ORGANIZE_TEAMS) {
++    resolvedSteps.push(SURVEY_STEPS.NOT_PLAYED_REASON);
++    return resolvedSteps;
++  }
++
++  resolvedSteps.push(SURVEY_STEPS.ATTENDANCE);
++
++  if (currentStep === SURVEY_STEPS.ABSENTS || asistieronTodos === false) {
++    resolvedSteps.push(SURVEY_STEPS.ABSENTS);
++  }
++
++  resolvedSteps.push(SURVEY_STEPS.MVP, SURVEY_STEPS.GOALKEEPER, SURVEY_STEPS.CLEAN_MATCH);
++
++  if (currentStep === SURVEY_STEPS.DIRTY_PLAYERS || partidoLimpio === false) {
++    resolvedSteps.push(SURVEY_STEPS.DIRTY_PLAYERS);
++  }
++
++  if (shouldUseTeamsSetupStep({ teamsConfirmed, teamsLocked })) {
++    resolvedSteps.push(SURVEY_STEPS.ORGANIZE_TEAMS);
++  }
++
++  resolvedSteps.push(SURVEY_STEPS.RESULT);
++
++  return resolvedSteps;
++};
+diff --git a/src/__tests__/surveyFlow.test.js b/src/__tests__/surveyFlow.test.js
+new file mode 100644
+index 0000000..3985dc2
+--- /dev/null
++++ b/src/__tests__/surveyFlow.test.js
+@@ -0,0 +1,29 @@
++import {
++  buildSurveyFlowSteps,
++  resolveNextResultGateStep,
++  SURVEY_STEPS,
++} from '../utils/surveyFlow';
++
++describe('survey flow for unconfirmed teams', () => {
++  test('routes to team organization first and then reaches result step', () => {
++    expect(resolveNextResultGateStep({ teamsConfirmed: false, teamsLocked: false }))
++      .toBe(SURVEY_STEPS.ORGANIZE_TEAMS);
++
++    expect(resolveNextResultGateStep({ teamsConfirmed: false, teamsLocked: true }))
++      .toBe(SURVEY_STEPS.RESULT);
++  });
++
++  test('flow includes result question even when teams are not pre-confirmed', () => {
++    const steps = buildSurveyFlowSteps({
++      currentStep: SURVEY_STEPS.CLEAN_MATCH,
++      seJugo: true,
++      asistieronTodos: true,
++      partidoLimpio: true,
++      teamsConfirmed: false,
++      teamsLocked: false,
++    });
++
++    expect(steps).toContain(SURVEY_STEPS.ORGANIZE_TEAMS);
++    expect(steps).toContain(SURVEY_STEPS.RESULT);
++  });
++});
+diff --git a/src/__tests__/surveyMvpTieBreak.test.js b/src/__tests__/surveyMvpTieBreak.test.js
+new file mode 100644
+index 0000000..3d2106d
+--- /dev/null
++++ b/src/__tests__/surveyMvpTieBreak.test.js
+@@ -0,0 +1,32 @@
++jest.mock('../config/surveyConfig', () => ({
++  SURVEY_FINALIZE_DELAY_MS: 12 * 60 * 60 * 1000,
++  SURVEY_MIN_VOTERS_FOR_AWARDS: 4,
++}));
++
++import { resolveMvpTieBreakWinner } from '../services/surveyCompletionService';
++
++describe('MVP tie-break', () => {
++  test('picks MVP from winning team when votes are tied', () => {
++    const winner = resolveMvpTieBreakWinner({
++      candidateIds: [12, 42],
++      resultStatus: 'finished',
++      winnerTeam: 'B',
++      teamAIds: new Set([12]),
++      teamBIds: new Set([42]),
++    });
++
++    expect(winner).toBe(42);
++  });
++
++  test('uses deterministic fallback on draw (lowest jugador_id)', () => {
++    const winner = resolveMvpTieBreakWinner({
++      candidateIds: [42, 12],
++      resultStatus: 'draw',
++      winnerTeam: null,
++      teamAIds: new Set([12]),
++      teamBIds: new Set([42]),
++    });
++
++    expect(winner).toBe(12);
++  });
++});
+diff --git a/src/__tests__/surveyTeamsService.test.js b/src/__tests__/surveyTeamsService.test.js
+new file mode 100644
+index 0000000..690f73f
+--- /dev/null
++++ b/src/__tests__/surveyTeamsService.test.js
+@@ -0,0 +1,61 @@
++import { lockSurveyTeamsOnce } from '../services/surveyTeamsService';
++import { supabase } from '../supabase';
++
++jest.mock('../supabase', () => ({
++  supabase: {
++    rpc: jest.fn(),
++  },
++}));
++
++describe('survey team locking (first writer wins)', () => {
++  afterEach(() => {
++    jest.clearAllMocks();
++  });
++
++  test('first voter locks teams and second voter cannot overwrite them', async () => {
++    supabase.rpc
++      .mockResolvedValueOnce({
++        data: {
++          success: true,
++          reason: 'locked',
++          teams_source: 'survey',
++          teams_locked: true,
++          team_a: ['p1', 'p2'],
++          team_b: ['p3', 'p4'],
++        },
++        error: null,
++      })
++      .mockResolvedValueOnce({
++        data: {
++          success: false,
++          reason: 'already_locked',
++          locked_by_other: true,
++          teams_source: 'survey',
++          teams_locked: true,
++          team_a: ['p1', 'p2'],
++          team_b: ['p3', 'p4'],
++        },
++        error: null,
++      });
++
++    const firstResult = await lockSurveyTeamsOnce({
++      matchId: 101,
++      teamARefs: ['p1', 'p2'],
++      teamBRefs: ['p3', 'p4'],
++    });
++    const secondResult = await lockSurveyTeamsOnce({
++      matchId: 101,
++      teamARefs: ['x1', 'x2'],
++      teamBRefs: ['x3', 'x4'],
++    });
++
++    expect(firstResult.success).toBe(true);
++    expect(firstResult.alreadyLocked).toBe(false);
++
++    expect(secondResult.ok).toBe(true);
++    expect(secondResult.alreadyLocked).toBe(true);
++    expect(secondResult.lockedByOther).toBe(true);
++    expect(secondResult.teamARefs).toEqual(['p1', 'p2']);
++    expect(secondResult.teamBRefs).toEqual(['p3', 'p4']);
++  });
++});
+diff --git a/supabase/migrations/20260227102000_survey_team_lock_and_result_status.sql b/supabase/migrations/20260227102000_survey_team_lock_and_result_status.sql
+new file mode 100644
+index 0000000..e120285
+--- /dev/null
++++ b/supabase/migrations/20260227102000_survey_team_lock_and_result_status.sql
+@@ -0,0 +1,330 @@
++BEGIN;
++
++ALTER TABLE public.partidos
++  ADD COLUMN IF NOT EXISTS survey_team_a jsonb,
++  ADD COLUMN IF NOT EXISTS survey_team_b jsonb,
++  ADD COLUMN IF NOT EXISTS teams_source text,
++  ADD COLUMN IF NOT EXISTS teams_locked boolean NOT NULL DEFAULT false,
++  ADD COLUMN IF NOT EXISTS teams_locked_by_user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
++  ADD COLUMN IF NOT EXISTS teams_locked_at timestamptz,
++  ADD COLUMN IF NOT EXISTS result_status text NOT NULL DEFAULT 'pending',
++  ADD COLUMN IF NOT EXISTS winner_team text,
++  ADD COLUMN IF NOT EXISTS finished_at timestamptz;
++
++DO $$
++BEGIN
++  IF NOT EXISTS (
++    SELECT 1
++    FROM pg_constraint
++    WHERE conname = 'partidos_teams_source_check'
++      AND conrelid = 'public.partidos'::regclass
++  ) THEN
++    ALTER TABLE public.partidos
++      ADD CONSTRAINT partidos_teams_source_check
++      CHECK (teams_source IS NULL OR teams_source IN ('admin', 'survey'));
++  END IF;
++END;
++$$;
++
++DO $$
++BEGIN
++  IF NOT EXISTS (
++    SELECT 1
++    FROM pg_constraint
++    WHERE conname = 'partidos_result_status_check'
++      AND conrelid = 'public.partidos'::regclass
++  ) THEN
++    ALTER TABLE public.partidos
++      ADD CONSTRAINT partidos_result_status_check
++      CHECK (result_status IN ('finished', 'draw', 'not_played', 'pending'));
++  END IF;
++END;
++$$;
++
++ALTER TABLE public.survey_results
++  ADD COLUMN IF NOT EXISTS result_status text NOT NULL DEFAULT 'pending',
++  ADD COLUMN IF NOT EXISTS finished_at timestamptz;
++
++DO $$
++BEGIN
++  IF NOT EXISTS (
++    SELECT 1
++    FROM pg_constraint
++    WHERE conname = 'survey_results_result_status_check'
++      AND conrelid = 'public.survey_results'::regclass
++  ) THEN
++    ALTER TABLE public.survey_results
++      ADD CONSTRAINT survey_results_result_status_check
++      CHECK (result_status IN ('finished', 'draw', 'not_played', 'pending'));
++  END IF;
++END;
++$$;
++
++-- Backfill teams_source when the source is already obvious.
++UPDATE public.partidos
++SET teams_source = 'admin'
++WHERE teams_source IS NULL
++  AND COALESCE(teams_confirmed, false) = true;
++
++UPDATE public.partidos
++SET teams_source = 'survey'
++WHERE teams_source IS NULL
++  AND COALESCE(teams_locked, false) = true;
++
++-- Backfill survey_team_* from previous final_team_* fields for unconfirmed matches.
++UPDATE public.partidos
++SET
++  survey_team_a = final_team_a,
++  survey_team_b = final_team_b,
++  teams_locked = true,
++  teams_locked_at = COALESCE(teams_locked_at, final_teams_updated_at, now()),
++  teams_locked_by_user_id = COALESCE(teams_locked_by_user_id, final_teams_updated_by),
++  teams_source = COALESCE(teams_source, 'survey')
++WHERE COALESCE(teams_confirmed, false) = false
++  AND (survey_team_a IS NULL OR survey_team_b IS NULL)
++  AND jsonb_typeof(COALESCE(final_team_a, 'null'::jsonb)) = 'array'
++  AND jsonb_typeof(COALESCE(final_team_b, 'null'::jsonb)) = 'array'
++  AND jsonb_array_length(COALESCE(final_team_a, '[]'::jsonb)) > 0
++  AND jsonb_array_length(COALESCE(final_team_b, '[]'::jsonb)) > 0;
++
++CREATE OR REPLACE FUNCTION public.save_match_final_teams(
++  p_partido_id bigint,
++  p_final_team_a jsonb,
++  p_final_team_b jsonb
++) RETURNS jsonb
++LANGUAGE plpgsql
++SECURITY DEFINER
++SET search_path = public
++AS $$
++DECLARE
++  v_user_id uuid := auth.uid();
++  v_is_creator boolean := false;
++  v_is_player boolean := false;
++  v_match record;
++  v_team_a text[] := ARRAY[]::text[];
++  v_team_b text[] := ARRAY[]::text[];
++  v_roster_count int := 0;
++  v_final_count int := 0;
++  v_invalid_count int := 0;
++  v_rows_affected int := 0;
++  v_locked_row record;
++  v_locked_by_other boolean := false;
++BEGIN
++  IF p_partido_id IS NULL OR p_partido_id <= 0 THEN
++    RETURN jsonb_build_object('success', false, 'reason', 'invalid_match_id');
++  END IF;
++
++  IF v_user_id IS NULL THEN
++    RETURN jsonb_build_object('success', false, 'reason', 'not_authenticated');
++  END IF;
++
++  SELECT EXISTS (
++    SELECT 1 FROM public.partidos p
++    WHERE p.id = p_partido_id
++      AND p.creado_por = v_user_id
++  ) INTO v_is_creator;
++
++  SELECT EXISTS (
++    SELECT 1 FROM public.jugadores j
++    WHERE j.partido_id = p_partido_id
++      AND j.usuario_id = v_user_id
++  ) INTO v_is_player;
++
++  IF NOT v_is_creator AND NOT v_is_player THEN
++    RETURN jsonb_build_object('success', false, 'reason', 'forbidden');
++  END IF;
++
++  SELECT
++    p.id,
++    COALESCE(p.teams_confirmed, false) AS teams_confirmed,
++    COALESCE(p.teams_locked, false) AS teams_locked,
++    p.survey_team_a,
++    p.survey_team_b,
++    p.teams_source,
++    p.teams_locked_by_user_id,
++    p.teams_locked_at
++  INTO v_match
++  FROM public.partidos p
++  WHERE p.id = p_partido_id;
++
++  IF NOT FOUND THEN
++    RETURN jsonb_build_object('success', false, 'reason', 'match_not_found');
++  END IF;
++
++  IF jsonb_typeof(COALESCE(p_final_team_a, 'null'::jsonb)) <> 'array'
++     OR jsonb_typeof(COALESCE(p_final_team_b, 'null'::jsonb)) <> 'array' THEN
++    RETURN jsonb_build_object('success', false, 'reason', 'invalid_payload');
++  END IF;
++
++  SELECT COALESCE(array_agg(value), ARRAY[]::text[])
++  INTO v_team_a
++  FROM jsonb_array_elements_text(p_final_team_a) value;
++
++  SELECT COALESCE(array_agg(value), ARRAY[]::text[])
++  INTO v_team_b
++  FROM jsonb_array_elements_text(p_final_team_b) value;
++
++  IF COALESCE(array_length(v_team_a, 1), 0) = 0 OR COALESCE(array_length(v_team_b, 1), 0) = 0 THEN
++    RETURN jsonb_build_object('success', false, 'reason', 'empty_team');
++  END IF;
++
++  IF (SELECT COUNT(*) FROM unnest(v_team_a) x) <> (SELECT COUNT(DISTINCT lower(trim(x))) FROM unnest(v_team_a) x)
++     OR (SELECT COUNT(*) FROM unnest(v_team_b) x) <> (SELECT COUNT(DISTINCT lower(trim(x))) FROM unnest(v_team_b) x) THEN
++    RETURN jsonb_build_object('success', false, 'reason', 'duplicate_player');
++  END IF;
++
++  IF EXISTS (
++    SELECT 1
++    FROM unnest(v_team_a) a
++    JOIN unnest(v_team_b) b ON lower(trim(a)) = lower(trim(b))
++  ) THEN
++    RETURN jsonb_build_object('success', false, 'reason', 'player_in_both_teams');
++  END IF;
++
++  WITH roster_refs AS (
++    SELECT DISTINCT lower(trim(ref)) AS ref
++    FROM (
++      SELECT j.uuid::text AS ref
++      FROM public.jugadores j
++      WHERE j.partido_id = p_partido_id
++        AND j.uuid IS NOT NULL
++      UNION ALL
++      SELECT j.usuario_id::text AS ref
++      FROM public.jugadores j
++      WHERE j.partido_id = p_partido_id
++        AND j.usuario_id IS NOT NULL
++      UNION ALL
++      SELECT j.id::text AS ref
++      FROM public.jugadores j
++      WHERE j.partido_id = p_partido_id
++    ) refs
++    WHERE trim(ref) <> ''
++  ), final_refs AS (
++    SELECT DISTINCT lower(trim(ref)) AS ref
++    FROM (
++      SELECT unnest(v_team_a) AS ref
++      UNION ALL
++      SELECT unnest(v_team_b) AS ref
++    ) f
++    WHERE trim(ref) <> ''
++  )
++  SELECT
++    (SELECT COUNT(*) FROM roster_refs),
++    (SELECT COUNT(*) FROM final_refs),
++    (
++      SELECT COUNT(*)
++      FROM final_refs f
++      WHERE NOT EXISTS (
++        SELECT 1
++        FROM roster_refs r
++        WHERE r.ref = f.ref
++      )
++    )
++  INTO v_roster_count, v_final_count, v_invalid_count;
++
++  IF v_roster_count = 0 THEN
++    RETURN jsonb_build_object('success', false, 'reason', 'empty_roster');
++  END IF;
++
++  IF v_final_count <> v_roster_count THEN
++    RETURN jsonb_build_object('success', false, 'reason', 'inconsistent_roster_count');
++  END IF;
++
++  IF v_invalid_count > 0 THEN
++    RETURN jsonb_build_object('success', false, 'reason', 'inconsistent_roster_members');
++  END IF;
++
++  -- Confirmed teams path: keep source as admin, allow storing final teams for backwards compatibility.
++  IF v_match.teams_confirmed THEN
++    UPDATE public.partidos p
++    SET
++      final_team_a = to_jsonb(v_team_a),
++      final_team_b = to_jsonb(v_team_b),
++      final_teams_updated_at = now(),
++      final_teams_updated_by = v_user_id,
++      teams_source = 'admin'
++    WHERE p.id = p_partido_id;
++
++    RETURN jsonb_build_object(
++      'success', true,
++      'reason', 'confirmed_teams',
++      'locked_by_other', false,
++      'teams_source', 'admin',
++      'team_a', to_jsonb(v_team_a),
++      'team_b', to_jsonb(v_team_b),
++      'teams_locked', true,
++      'teams_locked_by_user_id', NULL,
++      'teams_locked_at', NULL
++    );
++  END IF;
++
++  -- Unconfirmed teams: first writer wins lock.
++  UPDATE public.partidos p
++  SET
++    survey_team_a = to_jsonb(v_team_a),
++    survey_team_b = to_jsonb(v_team_b),
++    final_team_a = to_jsonb(v_team_a),
++    final_team_b = to_jsonb(v_team_b),
++    final_teams_updated_at = now(),
++    final_teams_updated_by = v_user_id,
++    teams_locked = true,
++    teams_locked_by_user_id = v_user_id,
++    teams_locked_at = now(),
++    teams_source = 'survey'
++  WHERE p.id = p_partido_id
++    AND COALESCE(p.teams_locked, false) = false;
++
++  GET DIAGNOSTICS v_rows_affected = ROW_COUNT;
++
++  IF v_rows_affected = 0 THEN
++    SELECT
++      COALESCE(p.survey_team_a, p.final_team_a, '[]'::jsonb) AS team_a,
++      COALESCE(p.survey_team_b, p.final_team_b, '[]'::jsonb) AS team_b,
++      p.teams_source,
++      COALESCE(p.teams_locked, false) AS teams_locked,
++      p.teams_locked_by_user_id,
++      p.teams_locked_at
++    INTO v_locked_row
++    FROM public.partidos p
++    WHERE p.id = p_partido_id;
++
++    v_locked_by_other := v_locked_row.teams_locked_by_user_id IS NOT NULL
++      AND v_locked_row.teams_locked_by_user_id <> v_user_id;
++
++    RETURN jsonb_build_object(
++      'success', false,
++      'reason', 'already_locked',
++      'locked_by_other', v_locked_by_other,
++      'teams_source', COALESCE(v_locked_row.teams_source, 'survey'),
++      'team_a', COALESCE(v_locked_row.team_a, '[]'::jsonb),
++      'team_b', COALESCE(v_locked_row.team_b, '[]'::jsonb),
++      'teams_locked', COALESCE(v_locked_row.teams_locked, true),
++      'teams_locked_by_user_id', v_locked_row.teams_locked_by_user_id,
++      'teams_locked_at', v_locked_row.teams_locked_at
++    );
++  END IF;
++
++  RETURN jsonb_build_object(
++    'success', true,
++    'reason', 'locked',
++    'locked_by_other', false,
++    'teams_source', 'survey',
++    'team_a', to_jsonb(v_team_a),
++    'team_b', to_jsonb(v_team_b),
++    'teams_locked', true,
++    'teams_locked_by_user_id', v_user_id,
++    'teams_locked_at', now()
++  );
++END;
++$$;
++
++GRANT EXECUTE ON FUNCTION public.save_match_final_teams(bigint, jsonb, jsonb) TO authenticated;
++DO $$
++BEGIN
++  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
++    GRANT EXECUTE ON FUNCTION public.save_match_final_teams(bigint, jsonb, jsonb) TO service_role;
++  END IF;
++END;
++$$;
++
++COMMIT;
+diff --git a/supabase/migrations/20260227153000_survey_closure_stabilization.sql b/supabase/migrations/20260227153000_survey_closure_stabilization.sql
+new file mode 100644
+index 0000000..5e69c67
+--- /dev/null
++++ b/supabase/migrations/20260227153000_survey_closure_stabilization.sql
+@@ -0,0 +1,121 @@
++BEGIN;
++
++ALTER TABLE public.partidos
++  ADD COLUMN IF NOT EXISTS survey_opened_at timestamptz,
++  ADD COLUMN IF NOT EXISTS survey_closes_at timestamptz,
++  ADD COLUMN IF NOT EXISTS survey_expected_voters integer NOT NULL DEFAULT 0,
++  ADD COLUMN IF NOT EXISTS survey_status text NOT NULL DEFAULT 'open';
++
++DO $$
++BEGIN
++  IF NOT EXISTS (
++    SELECT 1
++    FROM pg_constraint
++    WHERE conname = 'partidos_survey_status_check'
++      AND conrelid = 'public.partidos'::regclass
++  ) THEN
++    ALTER TABLE public.partidos
++      ADD CONSTRAINT partidos_survey_status_check
++      CHECK (survey_status IN ('open', 'closed'));
++  END IF;
++END;
++$$;
++
++WITH eligible AS (
++  SELECT
++    p.id AS partido_id,
++    COUNT(DISTINCT j.usuario_id)::int AS expected_voters
++  FROM public.partidos p
++  LEFT JOIN public.jugadores j
++    ON j.partido_id = p.id
++   AND j.usuario_id IS NOT NULL
++  GROUP BY p.id
++)
++UPDATE public.partidos p
++SET
++  survey_opened_at = COALESCE(p.survey_opened_at, p.finished_at, now()),
++  survey_closes_at = COALESCE(
++    p.survey_closes_at,
++    COALESCE(p.survey_opened_at, p.finished_at, now()) + interval '12 hours'
++  ),
++  survey_expected_voters = CASE
++    WHEN p.survey_expected_voters IS NULL OR p.survey_expected_voters < 0 THEN COALESCE(e.expected_voters, 0)
++    WHEN p.survey_expected_voters = 0 AND COALESCE(e.expected_voters, 0) > 0 THEN e.expected_voters
++    ELSE p.survey_expected_voters
++  END,
++  survey_status = CASE
++    WHEN COALESCE(p.result_status, 'pending') IN ('finished', 'draw', 'not_played') THEN 'closed'
++    ELSE COALESCE(p.survey_status, 'open')
++  END
++FROM eligible e
++WHERE e.partido_id = p.id;
++
++-- Backfill result_status from legacy winner fields on partidos.
++UPDATE public.partidos p
++SET result_status = CASE
++  WHEN lower(COALESCE(p.winner_team, '')) IN ('a', 'equipo_a', 'team_a', 'b', 'equipo_b', 'team_b') THEN 'finished'
++  WHEN lower(COALESCE(p.winner_team, '')) IN ('draw', 'empate') THEN 'draw'
++  WHEN lower(COALESCE(p.winner_team, '')) IN ('not_played', 'cancelled', 'cancelado') THEN 'not_played'
++  ELSE p.result_status
++END
++WHERE p.result_status = 'pending'
++  AND p.winner_team IS NOT NULL;
++
++-- Backfill result_status from survey_results legacy winner fields where partidos is still pending.
++UPDATE public.partidos p
++SET result_status = CASE
++  WHEN lower(COALESCE(sr.winner_team, '')) IN ('a', 'equipo_a', 'team_a', 'b', 'equipo_b', 'team_b') THEN 'finished'
++  WHEN lower(COALESCE(sr.winner_team, '')) IN ('draw', 'empate') THEN 'draw'
++  WHEN lower(COALESCE(sr.winner_team, '')) IN ('not_played', 'cancelled', 'cancelado') THEN 'not_played'
++  ELSE p.result_status
++END
++FROM public.survey_results sr
++WHERE sr.partido_id = p.id
++  AND p.result_status = 'pending'
++  AND sr.winner_team IS NOT NULL;
++
++UPDATE public.survey_results sr
++SET result_status = CASE
++  WHEN lower(COALESCE(sr.winner_team, '')) IN ('a', 'equipo_a', 'team_a', 'b', 'equipo_b', 'team_b') THEN 'finished'
++  WHEN lower(COALESCE(sr.winner_team, '')) IN ('draw', 'empate') THEN 'draw'
++  WHEN lower(COALESCE(sr.winner_team, '')) IN ('not_played', 'cancelled', 'cancelado') THEN 'not_played'
++  ELSE sr.result_status
++END
++WHERE sr.result_status = 'pending'
++  AND sr.winner_team IS NOT NULL;
++
++UPDATE public.survey_results sr
++SET finished_at = COALESCE(sr.finished_at, sr.encuesta_cerrada_at, now())
++WHERE sr.result_status IN ('finished', 'draw')
++  AND sr.finished_at IS NULL;
++
++UPDATE public.partidos p
++SET finished_at = COALESCE(p.finished_at, sr.finished_at, sr.encuesta_cerrada_at, now())
++FROM public.survey_results sr
++WHERE sr.partido_id = p.id
++  AND p.result_status IN ('finished', 'draw')
++  AND p.finished_at IS NULL;
++
++UPDATE public.partidos
++SET survey_status = 'closed'
++WHERE result_status IN ('finished', 'draw', 'not_played');
++
++-- Keep one award record per (partido, award_type) before adding unique key.
++WITH ranked AS (
++  SELECT
++    id,
++    ROW_NUMBER() OVER (
++      PARTITION BY partido_id, award_type
++      ORDER BY created_at ASC NULLS LAST, id ASC
++    ) AS rn
++  FROM public.player_awards
++)
++DELETE FROM public.player_awards pa
++USING ranked r
++WHERE pa.id = r.id
++  AND r.rn > 1;
++
++CREATE UNIQUE INDEX IF NOT EXISTS player_awards_partido_award_type_uidx
++  ON public.player_awards (partido_id, award_type);
++
++COMMIT;

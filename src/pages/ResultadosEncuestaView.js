@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
+import React, { useCallback, useEffect, useRef, useState, createContext, useContext } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { db } from '../api/supabaseWrapper';
@@ -36,11 +36,6 @@ const ResultadosEncuestaView = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const fallbackMatchName =
-    location?.state?.matchName ||
-    location?.state?.partidoNombre ||
-    location?.state?.partido_nombre ||
-    'Partido';
   const searchParams = new URLSearchParams(location.search);
   const forceAwardsMode =
     Boolean(location?.state?.forceAwards) ||
@@ -52,6 +47,14 @@ const ResultadosEncuestaView = () => {
   const [partido, setPartido] = useState(null);
   const [results, setResults] = useState(null);
   const [jugadores, setJugadores] = useState([]);
+  const [surveyProgress, setSurveyProgress] = useState({
+    surveyStatus: 'open',
+    hasSurveyStatus: false,
+    expectedVoters: 0,
+    submissionsCount: 0,
+    remainingVotes: 0,
+    deadlineAt: null,
+  });
   const [showingBadgeAnimations, setShowingBadgeAnimations] = useState(false);
   const [autoOpeningAwards, setAutoOpeningAwards] = useState(false);
   const [awardsSkippedByEnsure, setAwardsSkippedByEnsure] = useState(false);
@@ -171,6 +174,70 @@ const ResultadosEncuestaView = () => {
       tarjetas_rojas: p.tarjetas_rojas ?? p.red_badges ?? 0,
     };
   };
+
+  const computeSurveyProgress = useCallback(async ({ matchIdNum, partidoRow, rosterRows = [] }) => {
+    let roster = Array.isArray(rosterRows) ? rosterRows : [];
+    if (roster.length === 0) {
+      const { data: rosterData, error: rosterError } = await supabase
+        .from('jugadores')
+        .select('id, usuario_id')
+        .eq('partido_id', matchIdNum);
+      if (!rosterError) {
+        roster = rosterData || [];
+      }
+    }
+
+    const eligibleByPlayerId = new Map();
+    const eligibleUserIds = new Set();
+    (roster || []).forEach((row) => {
+      const playerId = Number(row?.id);
+      const userId = row?.usuario_id || null;
+      if (!Number.isFinite(playerId) || !userId) return;
+      eligibleByPlayerId.set(playerId, String(userId));
+      eligibleUserIds.add(String(userId));
+    });
+
+    const expectedFromPartido = Number(partidoRow?.survey_expected_voters);
+    const expectedVoters = Number.isFinite(expectedFromPartido) && expectedFromPartido >= 0
+      ? Math.max(expectedFromPartido, eligibleUserIds.size)
+      : eligibleUserIds.size;
+
+    let submissionsCount = 0;
+    try {
+      const { data: surveysRows, error: surveysErr } = await supabase
+        .from('post_match_surveys')
+        .select('votante_id')
+        .eq('partido_id', matchIdNum);
+      if (!surveysErr) {
+        const submittedUsers = new Set();
+        (surveysRows || []).forEach((row) => {
+          const voterId = Number(row?.votante_id);
+          if (!Number.isFinite(voterId)) return;
+          const userId = eligibleByPlayerId.get(voterId);
+          if (!userId) return;
+          submittedUsers.add(String(userId));
+        });
+        submissionsCount = submittedUsers.size;
+      }
+    } catch (_progressErr) {
+      submissionsCount = 0;
+    }
+
+    const surveyStatusToken = String(partidoRow?.survey_status || '').trim().toLowerCase();
+    const hasSurveyStatus = surveyStatusToken === 'open' || surveyStatusToken === 'closed';
+    const surveyStatus = hasSurveyStatus
+      ? surveyStatusToken
+      : 'open';
+
+    return {
+      surveyStatus,
+      hasSurveyStatus,
+      expectedVoters,
+      submissionsCount,
+      remainingVotes: Math.max(expectedVoters - submissionsCount, 0),
+      deadlineAt: partidoRow?.survey_closes_at || null,
+    };
+  }, []);
 
   const applyLiveAward = (type, playerId) => {
     const key = `${type}-${playerId}`;
@@ -534,7 +601,7 @@ const ResultadosEncuestaView = () => {
     if (!currentResults) return [];
 
     const roster = ensurePlayersList(currentPlayers);
-    const matchInfo = partido || { nombre: fallbackMatchName, fecha: new Date().toISOString(), awards_status: 'ready' };
+    const matchInfo = partido || { nombre: `Partido ${partidoId}`, fecha: new Date().toISOString(), awards_status: 'ready' };
 
     const findP = (id) => {
       if (!id) return null;
@@ -585,7 +652,7 @@ const ResultadosEncuestaView = () => {
               DEL PARTIDO
             </div>
             <div className="text-[#0EA9C6] text-lg md:text-xl font-bold" style={{ textShadow: '0 0 18px rgba(14,169,198,0.55)' }}>
-              {matchInfo.nombre || matchInfo.titulo || fallbackMatchName}
+              {matchInfo.nombre || matchInfo.titulo || `Partido ${partidoId}`}
             </div>
           </div>
 
@@ -861,7 +928,7 @@ const ResultadosEncuestaView = () => {
   };
 
   const prepareForceFallbackSlides = () => {
-    const matchInfo = partido || { nombre: fallbackMatchName };
+    const matchInfo = partido || { nombre: `Partido ${partidoId}` };
     return [{
       key: 'awards-pending',
       duration: 3200,
@@ -882,7 +949,7 @@ const ResultadosEncuestaView = () => {
             DEL PARTIDO
           </div>
           <div className="text-[#0EA9C6] text-lg md:text-xl font-bold mb-2">
-            {matchInfo.nombre || matchInfo.titulo || fallbackMatchName}
+            {matchInfo.nombre || matchInfo.titulo || `Partido ${partidoId}`}
           </div>
           <div className="text-white/80 text-base md:text-lg">
             {hasInsufficientVotesForAwards
@@ -910,43 +977,77 @@ const ResultadosEncuestaView = () => {
   // }, [slideStages, previewPlayers]);
 
   useEffect(() => {
+    let alive = true;
+
     const fetchResultsData = async () => {
       if (!partidoId) {
-        setLoading(false);
+        if (alive) {
+          setPartido(null);
+          setResults(null);
+          setJugadores([]);
+          setLoading(false);
+        }
         return;
       }
 
       if (!user) {
-        setLoading(false);
+        if (alive) {
+          setPartido(null);
+          setResults(null);
+          setJugadores([]);
+          setLoading(false);
+        }
         return;
       }
 
       try {
-        setLoading(true);
-        setAwardsSkippedByEnsure(false);
+        if (alive) {
+          setLoading(true);
+          setAwardsSkippedByEnsure(false);
+          setPartido(null);
+          setResults(null);
+          setJugadores([]);
+          setSurveyProgress({
+            surveyStatus: 'open',
+            hasSurveyStatus: false,
+            expectedVoters: 0,
+            submissionsCount: 0,
+            remainingVotes: 0,
+            deadlineAt: null,
+          });
+        }
+
+        const matchIdNum = Number(partidoId);
 
         let partidoData;
         try {
-          partidoData = await db.fetchOne('partidos', { id: Number(partidoId) });
+          partidoData = await db.fetchOne('partidos', { id: matchIdNum });
         } catch (error) {
-          notifyBlockingError('Partido no encontrado');
-          navigate('/');
+          if (alive) {
+            notifyBlockingError('Partido no encontrado');
+            navigate('/');
+          }
           return;
         }
 
         if (!partidoData) {
-          notifyBlockingError('Partido no encontrado');
-          setLoading(false);
+          if (alive) {
+            notifyBlockingError('Partido no encontrado');
+            setLoading(false);
+          }
           return;
         }
 
+        if (!alive) return;
         setPartido(partidoData);
 
         // Fetch players explicitly
         const { data: playersData } = await supabase
           .from('jugadores')
           .select('*')
-          .eq('partido_id', Number(partidoId));
+          .eq('partido_id', matchIdNum);
+
+        if (!alive) return;
 
         if (playersData) {
           setJugadores(playersData);
@@ -954,19 +1055,39 @@ const ResultadosEncuestaView = () => {
           partidoData.jugadores = playersData;
         }
 
+        const progress = await computeSurveyProgress({
+          matchIdNum,
+          partidoRow: partidoData,
+          rosterRows: playersData || [],
+        });
+        if (alive) {
+          setSurveyProgress(progress);
+        }
+
         const { data: resultsData, error: resultsError } = await supabase
           .from('survey_results')
           .select('*')
-          .eq('partido_id', Number(partidoId))
+          .eq('partido_id', matchIdNum)
           .single();
 
         if (resultsError && resultsError.code !== 'PGRST116') {
           throw resultsError;
         }
 
-        // Logic fix: rely on resultsData existence and results_ready flag, ignoring missing awards_status column
-        if (resultsData && resultsData.results_ready) {
+        if (!alive) return;
+
+        // If partidos.survey_status exists, closure is driven only by that field.
+        const shouldUseResults = Boolean(resultsData?.results_ready)
+          && (!progress?.hasSurveyStatus || progress?.surveyStatus === 'closed');
+        if (shouldUseResults) {
           setResults(resultsData);
+          if (!progress?.hasSurveyStatus) {
+            setSurveyProgress((prev) => ({
+              ...prev,
+              surveyStatus: 'closed',
+              remainingVotes: 0,
+            }));
+          }
         } else {
           setResults(null);
         }
@@ -1011,15 +1132,22 @@ const ResultadosEncuestaView = () => {
 
         setBadgeAnimations(animations);
       } catch (error) {
-        console.error('Error fetching results data:', error);
-        notifyBlockingError('Error al cargar los resultados');
+        if (alive) {
+          console.error('Error fetching results data:', error);
+          notifyBlockingError('Error al cargar los resultados');
+        }
       } finally {
-        setLoading(false);
+        if (alive) {
+          setLoading(false);
+        }
       }
     };
 
     fetchResultsData();
-  }, [partidoId, user, navigate, location.search]);
+    return () => {
+      alive = false;
+    };
+  }, [partidoId, user, navigate, location.search, computeSurveyProgress]);
 
   // Realtime updates
   useEffect(() => {
@@ -1229,19 +1357,42 @@ const ResultadosEncuestaView = () => {
   const handleRetry = async () => {
     setLoading(true);
     try {
-      const { data: resultsData, error: resultsError } = await supabase
-        .from('survey_results')
-        .select('*')
-        .eq('partido_id', partidoId)
-        .single();
+      const matchIdNum = Number(partidoId);
+      const [{ data: partidoData, error: partidoErr }, { data: playersData, error: playersErr }, { data: resultsData, error: resultsError }] = await Promise.all([
+        supabase.from('partidos').select('*').eq('id', matchIdNum).maybeSingle(),
+        supabase.from('jugadores').select('*').eq('partido_id', matchIdNum),
+        supabase.from('survey_results').select('*').eq('partido_id', matchIdNum).maybeSingle(),
+      ]);
 
-      if (resultsError) throw resultsError;
+      if (partidoErr) throw partidoErr;
+      if (playersErr) throw playersErr;
+      if (resultsError && resultsError.code !== 'PGRST116') throw resultsError;
 
-      if (resultsData) setResults(resultsData);
+      if (partidoData) setPartido(partidoData);
+      if (Array.isArray(playersData)) setJugadores(playersData);
+
+      const progress = await computeSurveyProgress({
+        matchIdNum,
+        partidoRow: partidoData || partido,
+        rosterRows: playersData || [],
+      });
+      setSurveyProgress(progress);
+
+      const shouldUseResults = Boolean(resultsData?.results_ready)
+        && (!progress?.hasSurveyStatus || progress?.surveyStatus === 'closed');
+      if (shouldUseResults) {
+        setResults(resultsData);
+        if (!progress?.hasSurveyStatus) {
+          setSurveyProgress((prev) => ({ ...prev, surveyStatus: 'closed', remainingVotes: 0 }));
+        }
+      } else {
+        setResults(null);
+      }
 
       // Re-prepare animations
       const animations = [];
       const addedPlayers = new Set();
+      const roster = Array.isArray(playersData) ? playersData : (partido?.jugadores || []);
 
       // Similar logic as useEffect... (abridged for brevity, assuming state updates work)
       // Note: In a full refactor, this logic should be extracted to a helper function.
@@ -1249,7 +1400,7 @@ const ResultadosEncuestaView = () => {
       // MVP
       if (resultsData?.mvp) {
         const mvpVal = resultsData.mvp;
-        const player = partido.jugadores.find((j) => j.uuid === mvpVal || j.usuario_id === mvpVal);
+        const player = roster.find((j) => j.uuid === mvpVal || j.usuario_id === mvpVal);
         if (player && !addedPlayers.has(player.uuid + '_mvp')) {
           animations.push({
             playerName: player.nombre,
@@ -1266,7 +1417,7 @@ const ResultadosEncuestaView = () => {
       // Glove
       if (resultsData?.golden_glove) {
         const goldenGloveVal = resultsData.golden_glove;
-        const player = partido.jugadores.find((j) => j.uuid === goldenGloveVal || j.usuario_id === goldenGloveVal);
+        const player = roster.find((j) => j.uuid === goldenGloveVal || j.usuario_id === goldenGloveVal);
         if (player && !addedPlayers.has(player.uuid + '_golden_glove')) {
           animations.push({
             playerName: player.nombre,
@@ -1312,6 +1463,12 @@ const ResultadosEncuestaView = () => {
   const awardsStatus = hasInsufficientVotesForAwards
     ? 'insufficient'
     : (partido.awards_status || results?.awards_status || null);
+  const isSurveyClosed = surveyProgress.hasSurveyStatus
+    ? surveyProgress.surveyStatus === 'closed'
+    : Boolean(results?.results_ready);
+  const remainingVotes = Number.isFinite(Number(surveyProgress.remainingVotes))
+    ? Math.max(0, Number(surveyProgress.remainingVotes))
+    : 0;
 
   // OVERLAY ANIMATION RENDER
   // Carousel state
@@ -1403,7 +1560,7 @@ const ResultadosEncuestaView = () => {
   if (forceAwardsMode && !showingBadgeAnimations) {
     return (
       <div className="min-h-[100dvh] w-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
-        <LoadingSpinner size="large" />
+        <LoadingSpinner size="large" fullScreen />
       </div>
     );
   }
@@ -1418,17 +1575,30 @@ const ResultadosEncuestaView = () => {
         {/* Partido Info */}
         <div className="bg-white/5 rounded-xl p-5 mb-6 border border-white/10 text-center">
           <h2 className="text-xl md:text-2xl text-[#0EA9C6] mb-3 tracking-[0.01em] font-oswald font-semibold">
-            {partido.nombre || partido.titulo || fallbackMatchName}
+            {partido.nombre || partido.titulo || `Partido ${partidoId}`}
           </h2>
           <p className="text-gray-300  text-lg mb-1">
             {new Date(partido.fecha).toLocaleString('es-ES', { dateStyle: 'full', timeStyle: 'short' })}
           </p>
           <p className="text-sm tracking-[0.01em] mt-3">
-            <span className="text-gray-400">Estado de los Premios: </span>
-            <span className={`${awardsStatus === 'ready' ? 'text-green-400' : 'text-yellow-400'} font-bold`}>
-              {awardsStatus === 'ready' ? 'Listos para ver' : awardsStatus === 'insufficient' ? 'No suficientes votos' : 'En progreso'}
+            <span className="text-gray-400">Estado de la encuesta: </span>
+            <span className={`${isSurveyClosed ? 'text-green-400' : 'text-yellow-400'} font-bold`}>
+              {isSurveyClosed ? 'Cerrada' : 'Abierta'}
             </span>
           </p>
+          {!isSurveyClosed && (
+            <p className="text-sm tracking-[0.01em] mt-2 text-yellow-200">
+              Esperando {remainingVotes} voto{remainingVotes === 1 ? '' : 's'} más ({surveyProgress.submissionsCount}/{surveyProgress.expectedVoters}).
+            </p>
+          )}
+          {isSurveyClosed && (
+            <p className="text-sm tracking-[0.01em] mt-2">
+              <span className="text-gray-400">Estado de los Premios: </span>
+              <span className={`${awardsStatus === 'ready' ? 'text-green-400' : 'text-yellow-400'} font-bold`}>
+                {awardsStatus === 'ready' ? 'Listos para ver' : awardsStatus === 'insufficient' ? 'No suficientes votos' : 'En progreso'}
+              </span>
+            </p>
+          )}
         </div>
 
         {/* Results Summary */}
@@ -1475,7 +1645,9 @@ const ResultadosEncuestaView = () => {
               description={
                 results
                   ? 'Los resultados todavía se están calculando. Volvé a intentar en unos minutos.'
-                  : 'No encontramos resultados para este partido por ahora.'
+                  : (isSurveyClosed
+                    ? 'No encontramos resultados finales para este partido por ahora.'
+                    : `La encuesta sigue abierta. Faltan ${remainingVotes} voto${remainingVotes === 1 ? '' : 's'} para cerrar.`)
               }
               className="my-0 max-w-[620px]"
             />

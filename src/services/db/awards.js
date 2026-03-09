@@ -161,33 +161,28 @@ export async function grantAwardsForMatch(matchId, awards) {
         continue;
       }
 
-      // Insert award record
-      // Check for existing award (manual dedupe to avoid missing unique constraint error)
-      const { data: existingAward } = await supabase
+      // Atomic insert: relies on UNIQUE(partido_id, award_type) and ON CONFLICT DO NOTHING.
+      const { data: insertedAwards, error: insertError } = await supabase
         .from('player_awards')
-        .select('id')
-        .eq('partido_id', matchId)
-        .eq('award_type', awardType)
-        .maybeSingle();
-
-      if (existingAward) {
-        skipped.push(`${awardType} (already granted)`);
-        continue;
-      }
-
-      // Insert award record (using insert instead of upsert)
-      const { error: insertError } = await supabase
-        .from('player_awards')
-        .insert({
+        .upsert([{
           partido_id: matchId,
           jugador_id: playerInfo.uuid,
           award_type: awardType,
           created_at: new Date().toISOString(),
-        });
+        }], {
+          onConflict: 'partido_id,award_type',
+          ignoreDuplicates: true,
+        })
+        .select('id');
 
       if (insertError) {
-        console.error(`Error inserting ${awardType} award:`, insertError);
+        console.error(`Error inserting ${awardType} award (ON CONFLICT):`, insertError);
         skipped.push(`${awardType} (database error)`);
+        continue;
+      }
+
+      if (!Array.isArray(insertedAwards) || insertedAwards.length === 0) {
+        skipped.push(`${awardType} (already granted)`);
         continue;
       }
 
