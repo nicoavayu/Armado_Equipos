@@ -2250,7 +2250,7 @@ const EncuestaPartido = () => {
                 </div>
               </div>
               <div className="w-full shrink-0 pt-10">
-                <SurveyImportantDisclaimer className="mx-auto w-full max-w-[920px]" />
+                <SurveyImportantDisclaimer className="mx-auto mt-[30px] w-full max-w-[820px]" />
               </div>
               <div className={logoRowClass}>
                 <SurveyFooterLogo />

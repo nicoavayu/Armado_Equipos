@@ -758,14 +758,30 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   Continuar sin foto
                 </button>
                 <SurveyImportantDisclaimer
-                  className="mt-8"
+                  className="mt-14"
                   title="Importante"
                   message="Votá con seriedad y objetividad. Esto ayuda a armar equipos parejos y mejorar el partido para todos."
                 />
               </div>
             </>
           ) : (
-            <div className="w-full flex flex-col gap-2 mt-2">
+            <>
+              <div className="flex flex-col items-center mb-6">
+                <div
+                  className="w-64 h-64 md:w-[320px] md:h-[320px] border rounded-none flex items-center justify-center relative overflow-hidden mx-auto mt-4"
+                  style={voteCardBodyStyle}
+                >
+                  <img
+                    src={fotoPreview}
+                    alt="foto del jugador"
+                    className="w-full h-full object-cover bg-transparent"
+                  />
+                </div>
+              </div>
+              <div className="text-[18px] text-white/70 text-center mb-1 font-oswald">
+                Sacá una foto para que los demás jugadores te reconozcan al votar.
+              </div>
+              <div className="w-full flex flex-col gap-2 mt-2">
               <button
                 className={`${primaryVoteButtonClass} !mt-0`}
                 style={primaryVoteButtonStyle}
@@ -774,11 +790,12 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                 Continuar
               </button>
               <SurveyImportantDisclaimer
-                className="mt-8"
+                className="mt-14"
                 title="Importante"
                 message="Votá con seriedad y objetividad. Esto ayuda a armar equipos parejos y mejorar el partido para todos."
               />
-            </div>
+              </div>
+            </>
           )}
         </div>
       </div>
