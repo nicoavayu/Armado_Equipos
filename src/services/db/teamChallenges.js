@@ -3089,6 +3089,7 @@ export const listMyTeamMatches = async (userId, options = {}) => {
   const normalizedStatuses = Array.isArray(options?.statuses)
     ? options.statuses.map((status) => normalizeTeamMatchStatus(status))
     : ['pending', 'confirmed'];
+  const requestedStatusSet = new Set(normalizedStatuses.filter(Boolean));
   const statusFilters = resolveTeamMatchStatusFilters(normalizedStatuses);
 
   const teams = await listAccessibleTeams(userId);
@@ -3187,6 +3188,11 @@ export const listMyTeamMatches = async (userId, options = {}) => {
   );
 
   return hydratedMatches
+    .filter((match) => {
+      if (requestedStatusSet.size === 0) return true;
+      const normalizedMatchStatus = normalizeTeamMatchStatus(match?.status);
+      return requestedStatusSet.has(normalizedMatchStatus);
+    })
     .map((match) => {
       const canManage = adminTeamIds.has(match?.team_a_id)
         || adminTeamIds.has(match?.team_b_id);

@@ -88,6 +88,11 @@ const normalizeIdToken = (value) => {
   return String(value).trim();
 };
 
+const isCancelledTeamMatchStatus = (statusValue) => {
+  const normalized = normalizeTextToken(statusValue);
+  return normalized === 'cancelled' || normalized === 'canceled' || normalized === 'cancelado';
+};
+
 const ProximosPartidos = ({ onClose }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -312,6 +317,10 @@ const ProximosPartidos = ({ onClose }) => {
       });
 
       const teamMatchesEnriquecidos = (teamMatches || []).map((match) => {
+        if (isCancelledTeamMatchStatus(match?.status)) {
+          return null;
+        }
+
         const { fecha, hora } = toLocalDateParts(match?.scheduled_at);
         const formatNumber = Number(match?.format);
         const isChallengeOrigin = (
@@ -380,6 +389,8 @@ const ProximosPartidos = ({ onClose }) => {
       const teamMatchByPartidoId = new Map();
 
       teamMatchBridgeRows.forEach((row) => {
+        if (isCancelledTeamMatchStatus(row?.status)) return;
+
         const partidoId = Number(row?.partido_id);
         if (!Number.isFinite(partidoId) || partidoId <= 0) return;
 
@@ -449,6 +460,9 @@ const ProximosPartidos = ({ onClose }) => {
           : null;
 
         const linkedTeamMatch = linkedByPartidoId || linkedBySignature || null;
+        if (isCancelledTeamMatchStatus(linkedTeamMatch?.team_match_status || linkedTeamMatch?.status)) {
+          return null;
+        }
         const shouldTreatAsChallenge = Boolean(
           linkedTeamMatch
           || partido?.team_match_id
@@ -493,7 +507,7 @@ const ProximosPartidos = ({ onClose }) => {
           team_match_status: linkedTeamMatch?.team_match_status || linkedTeamMatch?.status || 'confirmed',
           userRole: linkedTeamMatch?.userRole || partido.userRole,
         };
-      });
+      }).filter(Boolean);
 
       const linkedPartidoIds = new Set(
         teamMatchesEnriquecidos
@@ -728,6 +742,7 @@ const ProximosPartidos = ({ onClose }) => {
   const isMatchFinished = (partido) => {
     if (partido?.source_type === 'team_match') {
       const status = String(partido?.team_match_status || '').toLowerCase();
+      if (isCancelledTeamMatchStatus(status)) return true;
       if (status === 'played') return true;
       const scheduledAt = partido?.scheduled_at ? new Date(partido.scheduled_at) : null;
       if (scheduledAt && !Number.isNaN(scheduledAt.getTime())) {

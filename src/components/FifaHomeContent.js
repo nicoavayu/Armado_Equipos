@@ -43,6 +43,17 @@ const resolveNotificationMatchId = (notification) => (
   ?? null
 );
 
+const normalizeStatusToken = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .trim();
+
+const isCancelledTeamMatchStatus = (statusValue) => {
+  const normalized = normalizeStatusToken(statusValue);
+  return normalized === 'cancelled' || normalized === 'canceled' || normalized === 'cancelado';
+};
+
 const hasAnyAwardsWinner = (row) => Boolean(
   row?.mvp
   || row?.golden_glove
@@ -386,6 +397,10 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
       });
 
       const teamMatchesEnriquecidos = (teamMatches || []).map((match) => {
+        if (isCancelledTeamMatchStatus(match?.status)) {
+          return null;
+        }
+
         const scheduledDate = match?.scheduled_at ? new Date(match.scheduled_at) : null;
         const year = scheduledDate ? scheduledDate.getFullYear() : null;
         const month = scheduledDate ? String(scheduledDate.getMonth() + 1).padStart(2, '0') : null;
