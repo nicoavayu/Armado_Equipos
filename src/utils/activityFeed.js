@@ -439,6 +439,15 @@ const routeForMatch = ({ matchId, matchCode, currentUserId, match, teamMatchId =
   return `/partido-publico/${matchId}`;
 };
 
+const isAdminMatchRoute = (route) => /^\/admin\/\d+(?:[/?#].*)?$/i.test(String(route || '').trim());
+const isPublicMatchRoute = (route) => /^\/(?:partido-publico|partido)\/\d+(?:[/?#].*)?$/i.test(String(route || '').trim());
+const resolvePreferredMatchUpdateRoute = ({ notificationLink = null, matchRoute = null }) => {
+  if (isAdminMatchRoute(matchRoute) && (!notificationLink || isPublicMatchRoute(notificationLink))) {
+    return matchRoute;
+  }
+  return notificationLink || matchRoute || '/notifications';
+};
+
 const INSIGHT_STORAGE_KEY = 'activity_insight_weekly_matches_v1';
 const stripEmojis = (text = '') => String(text).replace(/[\p{Extended_Pictographic}\u2600-\u27BF]/gu, '').trim();
 
@@ -931,7 +940,10 @@ const toActivityFromNotification = (group, match, currentUserId) => {
       icon: 'Users',
       title: homeCopy.title,
       subtitle: homeCopy.subtitle,
-      route: notificationLink || matchRoute || '/notifications',
+      route: resolvePreferredMatchUpdateRoute({
+        notificationLink,
+        matchRoute,
+      }),
     };
   }
 
