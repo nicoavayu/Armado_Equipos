@@ -564,8 +564,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   });
   const [inlineNotice, setInlineNotice] = useState(null);
   const pendingContinueRef = useRef(null);
-  const guestGalleryInputRef = useRef(null);
-  const guestCameraInputRef = useRef(null);
+  const guestPhotoInputRef = useRef(null);
 
   const showInlineNotice = (type, message) => {
     setInlineNotice({ type, message, ts: Date.now() });
@@ -649,12 +648,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     }
   };
 
-  const openGuestGalleryPicker = () => {
-    guestGalleryInputRef.current?.click();
-  };
-
-  const openGuestCameraPicker = () => {
-    guestCameraInputRef.current?.click();
+  const openGuestPhotoPicker = () => {
+    guestPhotoInputRef.current?.click();
   };
 
   // Anti-race condition: track request ID
@@ -1713,29 +1708,14 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={openGuestCameraPicker}
+                  onClick={openGuestPhotoPicker}
                   className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/20 bg-white/5 text-white/85 text-sm cursor-pointer hover:bg-white/10 transition-colors"
                 >
                   <Camera size={16} />
-                  {guestPhotoDataUrl ? 'Cambiar (cámara)' : 'Abrir cámara'}
-                </button>
-                <button
-                  type="button"
-                  onClick={openGuestGalleryPicker}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/20 bg-white/5 text-white/85 text-sm cursor-pointer hover:bg-white/10 transition-colors"
-                >
-                  {guestPhotoDataUrl ? 'Cambiar (galería)' : 'Elegir de galería'}
+                  {guestPhotoDataUrl ? 'Cambiar foto' : 'Subir foto'}
                 </button>
                 <input
-                  ref={guestCameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="user"
-                  onChange={handleGuestPhotoChange}
-                  className="hidden"
-                />
-                <input
-                  ref={guestGalleryInputRef}
+                  ref={guestPhotoInputRef}
                   type="file"
                   accept="image/*"
                   onChange={handleGuestPhotoChange}
