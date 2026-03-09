@@ -4,6 +4,12 @@ import TabBar from './TabBar';
 
 const MainLayout = () => {
   const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const isVotingShellRoute = (location.pathname === '/' || location.pathname === '/home')
+    && (searchParams.has('codigo') || searchParams.has('partidoId'));
+  const mainPaddingBottomClass = isVotingShellRoute
+    ? 'pb-[env(safe-area-inset-bottom)] md:pb-[env(safe-area-inset-bottom)]'
+    : 'pb-[calc(env(safe-area-inset-bottom)+96px)] md:pb-[calc(env(safe-area-inset-bottom)+104px)]';
 
   // Determine active tab based on current route
   const getActiveTab = () => {
@@ -26,14 +32,16 @@ const MainLayout = () => {
   return (
     <div className="flex flex-col min-h-[100dvh]">
       {/* App Shell / Main Content Container */}
-      <main className="flex-1 flex flex-col pt-[var(--safe-top,0px)] pb-[calc(env(safe-area-inset-bottom)+96px)] md:pb-[calc(env(safe-area-inset-bottom)+104px)] overflow-x-hidden">
+      <main className={`flex-1 flex flex-col pt-[var(--safe-top,0px)] ${mainPaddingBottomClass} overflow-x-hidden`}>
         <Outlet />
       </main>
 
-      <TabBar
-        activeTab={getActiveTab()}
-        onTabChange={handleTabChange}
-      />
+      {!isVotingShellRoute && (
+        <TabBar
+          activeTab={getActiveTab()}
+          onTabChange={handleTabChange}
+        />
+      )}
     </div>
   );
 };

@@ -13,9 +13,6 @@ import DOMPurify from 'dompurify';
 import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
 import { db } from '../api/supabaseWrapper';
 import { resolveMatchIdFromQueryParams } from '../utils/matchResolver';
-import PageTitle from '../components/PageTitle';
-import MatchInfoSection from '../components/MatchInfoSection';
-import normalizePartidoForHeader from '../utils/normalizePartidoForHeader';
 import StarRating from '../components/StarRating';
 import { AvatarFallback } from '../components/ProfileComponents';
 import EmptyStateCard from '../components/EmptyStateCard';
@@ -65,6 +62,9 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   // Foto
   const [fotoPreview, setFotoPreview] = useState(null);
   const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const [authenticatedUserId, setAuthenticatedUserId] = useState(null);
+  const [authenticatedAvatarUrl, setAuthenticatedAvatarUrl] = useState(null);
+  const [authenticatedMatchPlayerName, setAuthenticatedMatchPlayerName] = useState(null);
   const fotoInputRef = useRef(null);
   const localPreviewObjectUrlRef = useRef(null);
 
@@ -162,9 +162,28 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         let matchPlayer = null;
         let isCreator = false;
 
+        let resolvedAuthAvatarUrl = null;
         if (user?.id) {
           userId = user.id;
+          setAuthenticatedUserId(user.id);
+          const metadataAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+          if (typeof metadataAvatar === 'string' && metadataAvatar.trim() !== '') {
+            resolvedAuthAvatarUrl = metadataAvatar.trim();
+          }
           try {
+            const { data: profileData, error: profileError } = await supabase
+              .from('usuarios')
+              .select('avatar_url')
+              .eq('id', user.id)
+              .maybeSingle();
+
+            if (!profileError) {
+              const profileAvatar = profileData?.avatar_url;
+              if (typeof profileAvatar === 'string' && profileAvatar.trim() !== '') {
+                resolvedAuthAvatarUrl = profileAvatar.trim();
+              }
+            }
+
             // Check if user is match creator
             const { data: partidoData, error: partidoError } = await supabase
               .from('partidos')
@@ -179,7 +198,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             // Check if user is in match roster
             const { data: jugadoresPartido, error: jugadoresError } = await supabase
               .from('jugadores')
-              .select('id, uuid, usuario_id, nombre')
+              .select('id, uuid, usuario_id, nombre, avatar_url')
               .eq('partido_id', partidoId);
 
             if (!jugadoresError) {
@@ -188,6 +207,14 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           } catch (err) {
             console.warn('[VOTING] Check roster failed', err);
           }
+        } else {
+          setAuthenticatedUserId(null);
+          setAuthenticatedAvatarUrl(null);
+          setAuthenticatedMatchPlayerName(null);
+        }
+
+        if (user?.id) {
+          setAuthenticatedAvatarUrl(resolvedAuthAvatarUrl || null);
         }
 
         // If user is recognized as player or creator, use authenticated logic
@@ -195,9 +222,11 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           setHasAccess(true);
           setIsAdmin(isCreator);
           setUseAuthenticatedSubmit(true);
+          setAuthenticatedMatchPlayerName(matchPlayer?.nombre || null);
 
           if (matchPlayer) {
             setNombre(matchPlayer.nombre);
+            setFotoPreview(matchPlayer.avatar_url || resolvedAuthAvatarUrl || null);
             setStep(1); // Skip identification step
           }
         } else if (isPublicVoting) {
@@ -205,6 +234,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           setHasAccess(true);
           setIsAdmin(false);
           setUseAuthenticatedSubmit(false);
+          setAuthenticatedMatchPlayerName(null);
           // If logged in but not in match, treat as guest (or should we use their auth ID for guest voting? 
           // Requirements imply guests select name from list. Let's keep guest ID logic unless they are in roster)
 
@@ -282,8 +312,29 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     const j = jugadores.find((j) => j.nombre === nombre);
     setJugador(j || null);
     clearLocalPreviewObjectUrl();
-    setFotoPreview(j?.avatar_url || null);
-  }, [clearLocalPreviewObjectUrl, nombre, jugadores]);
+    if (!j) {
+      if (useAuthenticatedSubmit && authenticatedAvatarUrl) {
+        setFotoPreview(authenticatedAvatarUrl);
+      } else {
+        setFotoPreview(null);
+      }
+      return;
+    }
+
+    const belongsToAuthenticatedPlayer = Boolean(useAuthenticatedSubmit) && (
+      (authenticatedUserId && j.usuario_id === authenticatedUserId) ||
+      (authenticatedMatchPlayerName && j.nombre === authenticatedMatchPlayerName)
+    );
+    setFotoPreview(j.avatar_url || (belongsToAuthenticatedPlayer ? authenticatedAvatarUrl : null) || null);
+  }, [
+    authenticatedAvatarUrl,
+    authenticatedMatchPlayerName,
+    authenticatedUserId,
+    clearLocalPreviewObjectUrl,
+    nombre,
+    jugadores,
+    useAuthenticatedSubmit,
+  ]);
 
   // Modo público: precargar nombre desde localStorage si existe
   useEffect(() => {
@@ -395,8 +446,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     if (DEBUG) console.debug('[Guard] Rendering final screen - voter locked or already voted', { publicAlreadyVoted, usuarioYaVoto, finalizado, locked: lockedRef.current });
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
-        <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         {noticeSlot}
         <div className={cardClass}>
           <div className={titleClass}>
@@ -422,8 +471,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     if (DEBUG) console.debug('[Guard] Rendering final screen', { publicAlreadyVoted, usuarioYaVoto, finalizado });
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
-        <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         {noticeSlot}
         <div className={cardClass}>
           <div className={titleClass}>
@@ -546,8 +593,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (hasAccess === false && !isPublicVoting) {
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
-        <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         {noticeSlot}
         <div className={cardClass}>
           <div className={titleClass}>
@@ -575,8 +620,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (usuarioYaVoto) {
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
-        <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         <div className={cardClass}>
           <div className={titleClass}>
             ¡YA VOTASTE!
@@ -593,8 +636,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (step === 0) {
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
-        <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         <div className={cardClass}>
           <div className={titleClass}>¿QUIÉN SOS?</div>
           {jugadoresIdentificacion.length === 0 ? (
@@ -668,66 +709,77 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       }
     };
 
+    const needsPhotoPrompt = !fotoPreview;
+
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
-        <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         {noticeSlot}
         <div className={cardClass}>
           <div className={titleClass}>¡HOLA, {clean(nombre)}!</div>
-          <div className="flex flex-col items-center mb-6">
-            <div
-              className={'w-64 h-64 md:w-[320px] md:h-[320px] border rounded-none flex items-center justify-center relative overflow-hidden mx-auto mt-4 cursor-pointer transition-all hover:brightness-105'}
-              style={voteCardBodyStyle}
-              onClick={() => fotoInputRef.current?.click()}
-              title={fotoPreview ? 'Cambiar foto' : 'Agregar foto'}
-            >
-              {fotoPreview ? (
-                <img
-                  src={fotoPreview}
-                  alt="foto"
-                  className="w-full h-full object-cover bg-transparent"
+          {needsPhotoPrompt ? (
+            <>
+              <div className="flex flex-col items-center mb-6">
+                <div
+                  className={'w-64 h-64 md:w-[320px] md:h-[320px] border rounded-none flex items-center justify-center relative overflow-hidden mx-auto mt-4 cursor-pointer transition-all hover:brightness-105'}
+                  style={voteCardBodyStyle}
+                  onClick={() => fotoInputRef.current?.click()}
+                  title="Agregar foto"
+                >
+                  <span className="text-white text-[60px] md:text-[82px] font-normal leading-none opacity-50 select-none pointer-events-none">+</span>
+                  <input
+                    id="foto-input"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    ref={fotoInputRef}
+                    onChange={handleFile}
+                  />
+                </div>
+              </div>
+              <div className="text-[18px] text-white/70 text-center mb-1 font-oswald">
+                Sacá una foto para que los demás jugadores te reconozcan al votar.
+              </div>
+
+              <div className="w-full flex flex-col gap-2 mt-2">
+                <button
+                  className={`${primaryVoteButtonClass} !mt-0`}
+                  style={primaryVoteButtonStyle}
+                  onClick={() => fotoInputRef.current?.click()}
+                  disabled={subiendoFoto}
+                >
+                  {subiendoFoto ? 'Subiendo foto...' : 'Sacarme una foto'}
+                </button>
+                <button
+                  type="button"
+                  className="w-full bg-transparent border-0 p-0 py-1 text-center font-oswald text-[18px] text-white/74 hover:text-white transition-all"
+                  onClick={() => setStep(2)}
+                  disabled={subiendoFoto}
+                >
+                  Continuar sin foto
+                </button>
+                <SurveyImportantDisclaimer
+                  className="mt-8"
+                  title="Importante"
+                  message="Votá con seriedad y objetividad. Esto ayuda a armar equipos parejos y mejorar el partido para todos."
                 />
-              ) : (
-                <span className="text-white text-[60px] md:text-[82px] font-normal leading-none opacity-50 select-none pointer-events-none">+</span>
-              )}
-              <input
-                id="foto-input"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                ref={fotoInputRef}
-                onChange={handleFile}
+              </div>
+            </>
+          ) : (
+            <div className="w-full flex flex-col gap-2 mt-2">
+              <button
+                className={`${primaryVoteButtonClass} !mt-0`}
+                style={primaryVoteButtonStyle}
+                onClick={() => setStep(2)}
+              >
+                Continuar
+              </button>
+              <SurveyImportantDisclaimer
+                className="mt-8"
+                title="Importante"
+                message="Votá con seriedad y objetividad. Esto ayuda a armar equipos parejos y mejorar el partido para todos."
               />
             </div>
-          </div>
-          <div className="text-[18px] text-white/70 text-center mb-1 font-oswald">
-            Sacá una foto para que los demás jugadores te reconozcan al votar.
-          </div>
-
-          <div className="w-full flex flex-col gap-2 mt-2">
-            <button
-              className={`${primaryVoteButtonClass} !mt-0`}
-              style={primaryVoteButtonStyle}
-              onClick={() => fotoInputRef.current?.click()}
-              disabled={subiendoFoto}
-            >
-              {subiendoFoto ? 'Subiendo foto...' : 'Sacarme una foto'}
-            </button>
-            <button
-              type="button"
-              className="w-full bg-transparent border-0 p-0 py-1 text-center font-oswald text-[18px] text-white/74 hover:text-white transition-all"
-              onClick={() => setStep(2)}
-              disabled={subiendoFoto}
-            >
-              Continuar sin foto
-            </button>
-            <SurveyImportantDisclaimer
-              className="mt-8"
-              title="Importante"
-              message="Votá con seriedad y objetividad. Esto ayuda a armar equipos parejos y mejorar el partido para todos."
-            />
-          </div>
+          )}
         </div>
       </div>
     );
@@ -739,8 +791,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     if (index >= jugadoresParaVotar.length) {
       return (
         <div className={wrapperClass}>
-          <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
-          <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
           {noticeSlot}
           <div className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center justify-center py-4">
             <div className="text-white/85 font-oswald text-lg">Votación completada</div>
@@ -753,8 +803,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
-        <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         {noticeSlot}
         <div className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center justify-center py-4">
           <div className={`w-full transition-transform duration-200 ease-out ${animating ? '-translate-x-full opacity-0' : 'translate-x-0 opacity-100'}`}>
@@ -846,7 +894,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (step === 3 && !finalizado) {
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CONFIRMÁ TUS CALIFICACIONES" onBack={onReset}>CONFIRMÁ TUS CALIFICACIONES</PageTitle>
         <div className="w-[90vw] max-w-[520px] mx-auto mt-20 flex flex-col items-center p-3 pb-8">
           <div className="w-full max-w-full mx-auto mb-4 p-0 list-none">
             {jugadoresParaVotar.map((j, idx) => (
@@ -1202,8 +1249,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (finalizado) {
     return (
       <div className={wrapperClass}>
-        <PageTitle title="CALIFICÁ" onBack={onReset}>CALIFICÁ</PageTitle>
-        <div className="text-white/70 text-sm md:text-base font-oswald text-center mt-1">Calificá de forma justa para armar equipos equilibrados.</div>
         <div className={cardClass}>
           <div className={titleClass}>
             {publicAlreadyVoted ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
