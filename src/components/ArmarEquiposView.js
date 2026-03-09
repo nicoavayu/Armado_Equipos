@@ -1084,7 +1084,7 @@ export default function ArmarEquiposView({
             handleCallToVote();
           }}
           onCancel={() => setConfirmConfig({ open: false, action: null })}
-          confirmText={'Notificar y votar'}
+          confirmText={'Aceptar'}
           cancelText={'Cancelar'}
           isDeleting={calling}
           actionsAlign="center"

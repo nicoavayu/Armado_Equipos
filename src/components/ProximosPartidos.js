@@ -886,7 +886,7 @@ const ProximosPartidos = ({ onClose }) => {
         onCancel={() => setShowConfirm(false)}
         isDeleting={isProcessing}
         confirmText={
-          actionType === 'cancel' ? 'Cancelar partido' :
+          actionType === 'cancel' ? 'Aceptar' :
             actionType === 'clean' ? 'Limpiar partido' :
               'Abandonar partido'
         }
