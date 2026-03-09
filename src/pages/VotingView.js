@@ -21,6 +21,7 @@ import { AvatarFallback } from '../components/ProfileComponents';
 import EmptyStateCard from '../components/EmptyStateCard';
 import PageLoadingState from '../components/PageLoadingState';
 import InlineNotice from '../components/ui/InlineNotice';
+import SurveyImportantDisclaimer from '../components/survey/SurveyImportantDisclaimer';
 
 // Styles are now handled via Tailwind CSS
 // Legacy styles: src/pages/LegacyVoting.css (for other components)
@@ -62,7 +63,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const [animating, setAnimating] = useState(false);
 
   // Foto
-  const [file, setFile] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const fotoInputRef = useRef(null);
@@ -275,14 +275,12 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   useEffect(() => {
     if (!nombre) {
       setJugador(null);
-      setFile(null);
       clearLocalPreviewObjectUrl();
       setFotoPreview(null);
       return;
     }
     const j = jugadores.find((j) => j.nombre === nombre);
     setJugador(j || null);
-    setFile(null);
     clearLocalPreviewObjectUrl();
     setFotoPreview(j?.avatar_url || null);
   }, [clearLocalPreviewObjectUrl, nombre, jugadores]);
@@ -647,30 +645,26 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
   // Paso 1: Subir foto (opcional)
   if (step === 1) {
-    const handleFile = (e) => {
-      if (e.target.files && e.target.files[0]) {
-        const selectedFile = e.target.files[0];
-        clearLocalPreviewObjectUrl();
-        const nextPreview = URL.createObjectURL(selectedFile);
-        localPreviewObjectUrlRef.current = nextPreview;
-        setFile(selectedFile);
-        setFotoPreview(nextPreview);
-      }
-    };
+    const handleFile = async (e) => {
+      const selectedFile = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+      if (!selectedFile || !jugador) return;
 
-    const handleFotoUpload = async () => {
-      if (!file || !jugador) return;
+      clearLocalPreviewObjectUrl();
+      const nextPreview = URL.createObjectURL(selectedFile);
+      localPreviewObjectUrlRef.current = nextPreview;
+      setFotoPreview(nextPreview);
       setSubiendoFoto(true);
+
       try {
-        const fotoUrl = await uploadFoto(file, jugador);
+        const fotoUrl = await uploadFoto(selectedFile, jugador);
         clearLocalPreviewObjectUrl();
         setFotoPreview(fotoUrl);
-        setFile(null);
         showInlineNotice('success', 'Foto cargada.');
       } catch (error) {
         notifyBlockingError('Error al subir la foto: ' + error.message);
       } finally {
         setSubiendoFoto(false);
+        e.target.value = '';
       }
     };
 
@@ -707,30 +701,35 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               />
             </div>
           </div>
-          {!fotoPreview && (
-            <div className="text-[18px] text-white/70 text-center mb-6 font-oswald">
-              Sacá tu foto para que te reconozcan al votar. <br />
-            </div>
-          )}
+          <div className="text-[18px] text-white/70 text-center mb-1 font-oswald">
+            Sacá una foto para que los demás jugadores te reconozcan al votar.
+          </div>
+          <div className="text-[13px] text-white/55 text-center mb-5 font-oswald">
+            Las fotos ayudan a que las votaciones sean más justas.
+          </div>
 
-          <div className="w-full flex flex-col gap-3 mt-2">
-            {file && (
-              <button
-                className={`${primaryVoteButtonClass} !mt-0`}
-                style={neutralVoteButtonStyle}
-                disabled={subiendoFoto}
-                onClick={handleFotoUpload}
-              >
-                {subiendoFoto ? 'Subiendo...' : 'Guardar foto'}
-              </button>
-            )}
+          <div className="w-full flex flex-col gap-2 mt-2">
             <button
               className={`${primaryVoteButtonClass} !mt-0`}
               style={primaryVoteButtonStyle}
-              onClick={() => setStep(2)}
+              onClick={() => fotoInputRef.current?.click()}
+              disabled={subiendoFoto}
             >
-              {fotoPreview ? 'Continuar' : 'Continuar sin foto'}
+              {subiendoFoto ? 'Subiendo foto...' : 'Sacarme una foto'}
             </button>
+            <button
+              type="button"
+              className="w-full bg-transparent border-0 p-0 py-1 text-center font-oswald text-[18px] text-white/74 hover:text-white transition-all"
+              onClick={() => setStep(2)}
+              disabled={subiendoFoto}
+            >
+              Continuar sin foto
+            </button>
+            <SurveyImportantDisclaimer
+              className="mt-1"
+              title="Importante"
+              message="Votá con seriedad y objetividad. Esto ayuda a armar equipos parejos y mejorar el partido para todos."
+            />
           </div>
         </div>
       </div>
