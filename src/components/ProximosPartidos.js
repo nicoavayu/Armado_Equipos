@@ -309,8 +309,36 @@ const ProximosPartidos = ({ onClose }) => {
         statuses: ['pending', 'confirmed'],
       });
 
+      const teamMatchIdsForStatusCheck = Array.from(
+        new Set(
+          (teamMatches || [])
+            .map((match) => normalizeIdToken(match?.id || null))
+            .filter(Boolean),
+        ),
+      );
+      let cancelledLiveTeamMatchIds = new Set();
+      if (teamMatchIdsForStatusCheck.length > 0) {
+        try {
+          const { data: statusRows, error: statusError } = await supabase
+            .from('team_matches')
+            .select('id, status')
+            .in('id', teamMatchIdsForStatusCheck);
+          if (statusError) throw statusError;
+          cancelledLiveTeamMatchIds = new Set(
+            (statusRows || [])
+              .filter((row) => isCancelledTeamMatchStatus(row?.status))
+              .map((row) => normalizeIdToken(row?.id))
+              .filter(Boolean),
+          );
+        } catch (statusLookupError) {
+          console.warn('[PROXIMOS] team_matches live status lookup failed', {
+            message: statusLookupError?.message || String(statusLookupError),
+          });
+        }
+      }
+
       const teamMatchesEnriquecidos = (teamMatches || []).map((match) => {
-        if (isCancelledTeamMatchStatus(match?.status)) {
+        if (isCancelledTeamMatchStatus(match?.status) || cancelledLiveTeamMatchIds.has(normalizeIdToken(match?.id || null))) {
           return null;
         }
 
@@ -361,9 +389,27 @@ const ProximosPartidos = ({ onClose }) => {
       const partidoIdsForBridgeLookup = partidosFiltrados
         .map((partido) => Number(partido?.id || 0))
         .filter((partidoId, idx, arr) => Number.isFinite(partidoId) && partidoId > 0 && arr.indexOf(partidoId) === idx);
+      const explicitTeamMatchIdsForBridgeLookup = Array.from(
+        new Set(
+          partidosFiltrados
+            .map((partido) => normalizeIdToken(partido?.team_match_id || partido?.teamMatchId || null))
+            .filter(Boolean),
+        ),
+      );
+      const explicitChallengeIdsForBridgeLookup = Array.from(
+        new Set(
+          partidosFiltrados
+            .map((partido) => normalizeIdToken(partido?.challenge_id || partido?.challengeId || null))
+            .filter(Boolean),
+        ),
+      );
 
       let teamMatchBridgeRows = [];
       let cancelledBridgePartidoIds = new Set();
+      let cancelledBridgeTeamMatchIds = new Set();
+      let cancelledBridgeChallengeIds = new Set();
+      let teamMatchRowsByExplicitId = [];
+      let teamMatchRowsByChallengeId = [];
       if (partidoIdsForBridgeLookup.length > 0) {
         const { data: bridgeData, error: bridgeError } = await supabase
           .from('team_matches')
@@ -386,8 +432,75 @@ const ProximosPartidos = ({ onClose }) => {
         }
       }
 
+      if (explicitTeamMatchIdsForBridgeLookup.length > 0) {
+        const { data: explicitIdRows, error: explicitIdError } = await supabase
+          .from('team_matches')
+          .select('id, partido_id, origin_type, challenge_id, status, scheduled_at, location, location_name, cancha_cost, format, mode')
+          .in('id', explicitTeamMatchIdsForBridgeLookup);
+
+        if (explicitIdError) {
+          console.warn('[PROXIMOS] team_matches explicit-id lookup failed', {
+            code: explicitIdError?.code,
+            message: explicitIdError?.message,
+          });
+        } else {
+          teamMatchRowsByExplicitId = explicitIdRows || [];
+          cancelledBridgeTeamMatchIds = new Set(
+            teamMatchRowsByExplicitId
+              .filter((row) => isCancelledTeamMatchStatus(row?.status))
+              .map((row) => normalizeIdToken(row?.id))
+              .filter(Boolean),
+          );
+          teamMatchRowsByExplicitId
+            .filter((row) => isCancelledTeamMatchStatus(row?.status))
+            .forEach((row) => {
+              const partidoId = String(row?.partido_id || '').trim();
+              if (partidoId) cancelledBridgePartidoIds.add(partidoId);
+            });
+        }
+      }
+
+      if (explicitChallengeIdsForBridgeLookup.length > 0) {
+        const { data: challengeRows, error: challengeRowsError } = await supabase
+          .from('team_matches')
+          .select('id, partido_id, origin_type, challenge_id, status, scheduled_at, location, location_name, cancha_cost, format, mode')
+          .in('challenge_id', explicitChallengeIdsForBridgeLookup);
+
+        if (challengeRowsError) {
+          console.warn('[PROXIMOS] team_matches challenge-id lookup failed', {
+            code: challengeRowsError?.code,
+            message: challengeRowsError?.message,
+          });
+        } else {
+          teamMatchRowsByChallengeId = challengeRows || [];
+          cancelledBridgeChallengeIds = new Set(
+            teamMatchRowsByChallengeId
+              .filter((row) => isCancelledTeamMatchStatus(row?.status))
+              .map((row) => normalizeIdToken(row?.challenge_id))
+              .filter(Boolean),
+          );
+          teamMatchRowsByChallengeId
+            .filter((row) => isCancelledTeamMatchStatus(row?.status))
+            .forEach((row) => {
+              const partidoId = String(row?.partido_id || '').trim();
+              if (partidoId) cancelledBridgePartidoIds.add(partidoId);
+            });
+        }
+      }
+
       const partidosEnriquecidosBase = partidosFiltrados
-        .filter((partido) => !cancelledBridgePartidoIds.has(String(partido?.id || '')))
+        .filter((partido) => {
+          const partidoIdKey = String(partido?.id || '');
+          if (cancelledBridgePartidoIds.has(partidoIdKey)) return false;
+
+          const explicitTeamMatchId = normalizeIdToken(partido?.team_match_id || partido?.teamMatchId || null);
+          if (explicitTeamMatchId && cancelledBridgeTeamMatchIds.has(explicitTeamMatchId)) return false;
+
+          const explicitChallengeId = normalizeIdToken(partido?.challenge_id || partido?.challengeId || null);
+          if (explicitChallengeId && cancelledBridgeChallengeIds.has(explicitChallengeId)) return false;
+
+          return true;
+        })
         .map((partido) => ({
           ...partido,
           userRole: partidosAdminIds.includes(partido.id) ? 'admin' : 'player',
@@ -396,6 +509,26 @@ const ProximosPartidos = ({ onClose }) => {
         }));
 
       const teamMatchByPartidoId = new Map();
+      const teamMatchById = new Map();
+      const teamMatchByChallengeId = new Map();
+
+      const appendTeamMatchMaps = (row) => {
+        if (!row) return;
+        const idKey = normalizeIdToken(row?.id || null);
+        if (idKey && !isCancelledTeamMatchStatus(row?.status || row?.team_match_status)) {
+          teamMatchById.set(idKey, row);
+        }
+
+        const challengeIdKey = normalizeIdToken(row?.challenge_id || row?.challengeId || null);
+        if (challengeIdKey && !isCancelledTeamMatchStatus(row?.status || row?.team_match_status)) {
+          const existing = teamMatchByChallengeId.get(challengeIdKey) || null;
+          const existingTs = new Date(existing?.scheduled_at || 0).getTime();
+          const nextTs = new Date(row?.scheduled_at || 0).getTime();
+          if (!existing || nextTs >= existingTs) {
+            teamMatchByChallengeId.set(challengeIdKey, row);
+          }
+        }
+      };
 
       teamMatchBridgeRows.forEach((row) => {
         if (isCancelledTeamMatchStatus(row?.status)) return;
@@ -428,12 +561,18 @@ const ProximosPartidos = ({ onClose }) => {
           cupo_jugadores: expectedPlayers,
           team_match_status: row?.status || 'pending',
         });
+
+        appendTeamMatchMaps(row);
       });
+
+      teamMatchRowsByExplicitId.forEach(appendTeamMatchMaps);
+      teamMatchRowsByChallengeId.forEach(appendTeamMatchMaps);
 
       teamMatchesEnriquecidos
         .filter((match) => match?.partido_id)
         .forEach((match) => {
           teamMatchByPartidoId.set(String(match.partido_id), match);
+          appendTeamMatchMaps(match);
         });
 
       const teamMatchBySignature = new Map();
@@ -454,6 +593,10 @@ const ProximosPartidos = ({ onClose }) => {
       const partidosEnriquecidos = partidosEnriquecidosBase.map((partido) => {
         const partidoIdKey = String(partido?.id || '');
         const linkedByPartidoId = teamMatchByPartidoId.get(partidoIdKey) || null;
+        const explicitTeamMatchId = normalizeIdToken(partido?.team_match_id || partido?.teamMatchId || null);
+        const linkedByExplicitId = explicitTeamMatchId ? (teamMatchById.get(explicitTeamMatchId) || null) : null;
+        const explicitChallengeId = normalizeIdToken(partido?.challenge_id || partido?.challengeId || null);
+        const linkedByChallengeId = explicitChallengeId ? (teamMatchByChallengeId.get(explicitChallengeId) || null) : null;
         const matchName = partido?.nombre || partido?.titulo || partido?.name || '';
         const hasChallengeLikeName = isChallengeLikeName(matchName);
 
@@ -468,7 +611,7 @@ const ProximosPartidos = ({ onClose }) => {
           )
           : null;
 
-        const linkedTeamMatch = linkedByPartidoId || linkedBySignature || null;
+        const linkedTeamMatch = linkedByPartidoId || linkedByExplicitId || linkedByChallengeId || linkedBySignature || null;
         if (isCancelledTeamMatchStatus(linkedTeamMatch?.team_match_status || linkedTeamMatch?.status)) {
           return null;
         }
