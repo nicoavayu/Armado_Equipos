@@ -305,13 +305,6 @@ const ProximosPartidos = ({ onClose }) => {
         }
       });
 
-      const partidosEnriquecidosBase = partidosFiltrados.map((partido) => ({
-        ...partido,
-        userRole: partidosAdminIds.includes(partido.id) ? 'admin' : 'player',
-        userJoined: partidosComoJugador.includes(partido.id),
-        hasCompletedSurvey: localCompletedSurveys.has(String(partido.id)),
-      }));
-
       const teamMatches = await listMyTeamMatches(user.id, {
         statuses: ['pending', 'confirmed'],
       });
@@ -365,11 +358,12 @@ const ProximosPartidos = ({ onClose }) => {
         };
       }).filter(Boolean);
 
-      const partidoIdsForBridgeLookup = partidosEnriquecidosBase
+      const partidoIdsForBridgeLookup = partidosFiltrados
         .map((partido) => Number(partido?.id || 0))
         .filter((partidoId, idx, arr) => Number.isFinite(partidoId) && partidoId > 0 && arr.indexOf(partidoId) === idx);
 
       let teamMatchBridgeRows = [];
+      let cancelledBridgePartidoIds = new Set();
       if (partidoIdsForBridgeLookup.length > 0) {
         const { data: bridgeData, error: bridgeError } = await supabase
           .from('team_matches')
@@ -383,8 +377,23 @@ const ProximosPartidos = ({ onClose }) => {
           });
         } else {
           teamMatchBridgeRows = bridgeData || [];
+          cancelledBridgePartidoIds = new Set(
+            teamMatchBridgeRows
+              .filter((row) => isCancelledTeamMatchStatus(row?.status))
+              .map((row) => String(row?.partido_id || ''))
+              .filter(Boolean),
+          );
         }
       }
+
+      const partidosEnriquecidosBase = partidosFiltrados
+        .filter((partido) => !cancelledBridgePartidoIds.has(String(partido?.id || '')))
+        .map((partido) => ({
+          ...partido,
+          userRole: partidosAdminIds.includes(partido.id) ? 'admin' : 'player',
+          userJoined: partidosComoJugador.includes(partido.id),
+          hasCompletedSurvey: localCompletedSurveys.has(String(partido.id)),
+        }));
 
       const teamMatchByPartidoId = new Map();
 

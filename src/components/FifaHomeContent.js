@@ -391,6 +391,35 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         }
       }) || [];
 
+      let cancelledBridgePartidoIds = new Set();
+      const partidosIdsForBridgeLookup = partidosFiltrados
+        .map((partido) => Number(partido?.id || 0))
+        .filter((partidoId, idx, arr) => Number.isFinite(partidoId) && partidoId > 0 && arr.indexOf(partidoId) === idx);
+
+      if (partidosIdsForBridgeLookup.length > 0) {
+        try {
+          const { data: bridgeRows, error: bridgeError } = await supabase
+            .from('team_matches')
+            .select('partido_id, status')
+            .in('partido_id', partidosIdsForBridgeLookup);
+
+          if (bridgeError) throw bridgeError;
+
+          cancelledBridgePartidoIds = new Set(
+            (bridgeRows || [])
+              .filter((row) => isCancelledTeamMatchStatus(row?.status))
+              .map((row) => String(row?.partido_id || ''))
+              .filter(Boolean),
+          );
+        } catch (bridgeLookupError) {
+          console.warn('[HOME] team_matches cancellation bridge lookup failed:', bridgeLookupError);
+        }
+      }
+
+      const partidosFiltradosActivos = partidosFiltrados.filter(
+        (partido) => !cancelledBridgePartidoIds.has(String(partido?.id || '')),
+      );
+
 
       const teamMatches = await listMyTeamMatches(user.id, {
         statuses: ['pending', 'confirmed'],
@@ -431,11 +460,11 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
           .filter(Boolean),
       );
 
-      const partidosFiltradosSinDuplicados = partidosFiltrados.filter(
+      const partidosFiltradosActivosSinDuplicados = partidosFiltradosActivos.filter(
         (partido) => !linkedPartidoIds.has(String(partido?.id || '')),
       );
 
-      setActiveMatches([...partidosFiltradosSinDuplicados, ...teamMatchesEnriquecidos]);
+      setActiveMatches([...partidosFiltradosActivosSinDuplicados, ...teamMatchesEnriquecidos]);
     } catch (error) {
       console.error('Error fetching active matches:', error);
     } finally {
