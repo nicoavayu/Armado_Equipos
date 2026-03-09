@@ -1,7 +1,12 @@
 import { parseLocalDateTime } from './dateLocal';
 import { SURVEY_START_DELAY_MS } from '../config/surveyConfig';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
-import { quoteMatchName, resolveNotificationTeamName, resolveTeamInviteActorName } from './notificationText';
+import {
+  formatMatchCancelledMessage,
+  quoteMatchName,
+  resolveNotificationTeamName,
+  resolveTeamInviteActorName,
+} from './notificationText';
 import {
   getSurveyRemainingLabel,
   isSurveyNotificationClosed,
@@ -9,10 +14,13 @@ import {
 } from './surveyNotificationCopy';
 import { formatVenueShort } from './venueFormat';
 import {
+  buildLatestCancellationTsByMatch,
   buildLatestKickTsByMatch,
   getNotificationTimestampMs,
   isInviteInvalidatedByKick,
+  isNotificationSuppressedByCancellation,
   isPendingMatchInviteNotification,
+  MATCH_CANCELLATION_KEEP_ALIVE_MS,
 } from './notificationInviteState';
 
 const ACTIVITY_MAX_ITEMS = 5;
@@ -852,20 +860,19 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   }
 
   if (type === 'match_cancelled') {
-    const cancelledByTeam = compactText(
-      notification?.data?.cancelled_by_team_name
-      || notification?.data?.team_name
-      || '',
-      28,
-      '',
-    );
     const teamAName = compactText(notification?.data?.team_a_name || '', 22, '');
     const teamBName = compactText(notification?.data?.team_b_name || '', 22, '');
     const matchupLabel = [teamAName, teamBName].filter(Boolean).join(' vs ');
-    const subtitleFromMessage = normalizeSpaces(stripEmojis(notification?.message || ''));
-    const subtitle = cancelledByTeam
-      ? `El capitán de ${quoteMatchName(cancelledByTeam, 'un equipo')} canceló ${matchupLabel || 'el partido'}`
-      : (subtitleFromMessage || matchupLabel || fallbackSubtitle || 'Partido cancelado');
+    const resolvedMatchId = String(partidoId || '').trim();
+    const matchIdentity = (
+      matchupLabel
+      || getQuotedMatchLabel(resolveHomeMatchName(notification, match))
+      || (resolvedMatchId ? `el partido #${resolvedMatchId}` : null)
+      || 'el partido'
+    );
+    const subtitle = formatMatchCancelledMessage(notification, {
+      fallbackLabel: matchIdentity,
+    });
     return {
       ...base,
       icon: 'AlertTriangle',
@@ -1109,6 +1116,10 @@ const shouldIncludeNotification = (notification, normalizedType) => {
     return ageMs <= 72 * 60 * 60 * 1000;
   }
 
+  if (normalizedType === 'match_cancelled') {
+    return ageMs <= MATCH_CANCELLATION_KEEP_ALIVE_MS;
+  }
+
   // For other activity types, allow read rows too but only for a short window
   // so the card doesn't stay empty and still stays current.
   return ageMs <= 48 * 60 * 60 * 1000;
@@ -1116,6 +1127,7 @@ const shouldIncludeNotification = (notification, normalizedType) => {
 
 const groupNotifications = (notifications = []) => {
   const latestKickTsByMatch = buildLatestKickTsByMatch(notifications);
+  const latestCancellationTsByMatch = buildLatestCancellationTsByMatch(notifications);
   const groups = new Map();
   for (const notification of notifications) {
     if (!RELEVANT_TYPES.has(notification?.type)) continue;
@@ -1123,6 +1135,7 @@ const groupNotifications = (notifications = []) => {
     const type = normalizeType(notification.type, notification.message);
     if (!type || !FEED_TEMPLATE_TYPES.has(type)) continue;
     if (!shouldIncludeNotification(notification, type)) continue;
+    if (isNotificationSuppressedByCancellation(notification, latestCancellationTsByMatch)) continue;
     if (type === 'match_invite' && isInviteInvalidatedByKick(notification, latestKickTsByMatch)) continue;
 
     const createdAtTs = getNotificationTimestampMs(notification);

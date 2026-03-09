@@ -75,3 +75,38 @@ export const formatTeamInviteMessage = (notification) => {
 
   return `Te invitaron al equipo ${quotedTeamName}`;
 };
+
+const normalizeLabel = (value) => String(value || '').trim();
+
+export const resolveMatchCancellationLabel = (notification, fallback = '') => {
+  const data = notification?.data || {};
+  const teamAName = normalizeLabel(data?.team_a_name || data?.teamAName || data?.equipo_a_name);
+  const teamBName = normalizeLabel(data?.team_b_name || data?.teamBName || data?.equipo_b_name);
+  if (teamAName && teamBName) {
+    return `${teamAName} vs ${teamBName}`;
+  }
+
+  const matchName = normalizeLabel(resolveNotificationMatchName(notification, ''));
+  if (matchName) {
+    return quoteMatchName(matchName, 'este partido');
+  }
+
+  return normalizeLabel(fallback);
+};
+
+export const formatMatchCancelledMessage = (notification, { fallbackLabel = 'el partido' } = {}) => {
+  const data = notification?.data || {};
+  const cancelledByTeam = normalizeLabel(
+    data?.cancelled_by_team_name
+    || data?.cancelledByTeamName
+    || data?.team_name
+    || data?.teamName
+    || '',
+  );
+  const targetLabel = resolveMatchCancellationLabel(notification, fallbackLabel) || fallbackLabel;
+
+  if (cancelledByTeam) {
+    return `El capitán de ${quoteMatchName(cancelledByTeam, 'un equipo')} canceló ${targetLabel}.`;
+  }
+  return `${targetLabel} fue cancelado por el administrador.`;
+};

@@ -18,6 +18,7 @@ import {
 } from '../utils/surveyNotificationCopy';
 import {
   applyMatchNameQuotes,
+  formatMatchCancelledMessage,
   formatTeamInviteMessage,
   quoteMatchName,
   resolveNotificationMatchName,
@@ -534,15 +535,23 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                 const isSurveyReminder = notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h';
                 const isSurveyResults = notification.type === 'survey_results_ready';
                 const isTeamInvite = notification.type === 'team_invite';
+                const isMatchCancelled = notification.type === 'match_cancelled';
                 const isTeamChallengeAccepted = isTeamChallengeNotification(notification);
                 const matchName = resolveNotificationMatchName(notification, 'este partido');
                 const quotedMatchName = quoteMatchName(matchName, 'este partido');
+                const matchFallbackLabel = (() => {
+                  const matchId = String(extractNotificationMatchId(notification) || '').trim();
+                  if (matchId) return `el partido #${matchId}`;
+                  return quotedMatchName;
+                })();
                 const displayTitle = isSurveyStartLike
                   ? '¡Encuesta lista!'
                   : isSurveyReminder
                     ? 'Recordatorio de encuesta'
                     : isSurveyResults
                       ? 'Resultados de encuesta listos'
+                      : isMatchCancelled
+                        ? 'Partido cancelado'
                       : isTeamChallengeAccepted
                         ? 'Desafío aceptado!'
                       : isTeamInvite
@@ -551,12 +560,14 @@ const NotificationsModal = ({ isOpen, onClose }) => {
                 const displayMessage = isSurveyStartLike
                   ? getSurveyStartMessage({ source: notification, matchName: quotedMatchName })
                   : isSurveyReminder
-                    ? getSurveyReminderMessage({ source: notification, matchName: quotedMatchName })
-                    : isSurveyResults
-                      ? getSurveyResultsReadyMessage({ matchName: quotedMatchName })
-                      : isTeamInvite
-                        ? formatTeamInviteMessage(notification)
-                      : applyMatchNameQuotes(notification.message || '', matchName);
+                  ? getSurveyReminderMessage({ source: notification, matchName: quotedMatchName })
+                  : isSurveyResults
+                    ? getSurveyResultsReadyMessage({ matchName: quotedMatchName })
+                    : isMatchCancelled
+                      ? formatMatchCancelledMessage(notification, { fallbackLabel: matchFallbackLabel })
+                    : isTeamInvite
+                      ? formatTeamInviteMessage(notification)
+                    : applyMatchNameQuotes(notification.message || '', matchName);
 
                 const notificationContent = (
                   <>
