@@ -52,6 +52,7 @@ const CLOSED_MATCH_STATUSES = new Set(['cancelado', 'deleted', 'finalizado']);
 const GUEST_SELF_JOIN_ENABLED = true;
 const MAX_SUBSTITUTES = 4;
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
+const INVITE_ACCEPT_BUTTON_VIOLET_DARK = '#4e2fd3';
 const isMatchClosed = (match) => {
   const estado = String(match?.estado || '').toLowerCase();
   return CLOSED_MATCH_STATUSES.has(estado);
@@ -563,6 +564,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   });
   const [inlineNotice, setInlineNotice] = useState(null);
   const pendingContinueRef = useRef(null);
+  const guestGalleryInputRef = useRef(null);
+  const guestCameraInputRef = useRef(null);
 
   const showInlineNotice = (type, message) => {
     setInlineNotice({ type, message, ts: Date.now() });
@@ -644,6 +647,14 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     } finally {
       event.target.value = '';
     }
+  };
+
+  const openGuestGalleryPicker = () => {
+    guestGalleryInputRef.current?.click();
+  };
+
+  const openGuestCameraPicker = () => {
+    guestCameraInputRef.current?.click();
   };
 
   // Anti-race condition: track request ID
@@ -1699,17 +1710,38 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
                   <UserRound size={24} className="text-white/50" />
                 )}
               </div>
-              <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/20 bg-white/5 text-white/85 text-sm cursor-pointer hover:bg-white/10 transition-colors">
-                <Camera size={16} />
-                {guestPhotoDataUrl ? 'Cambiar foto' : 'Subir foto'}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={openGuestCameraPicker}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/20 bg-white/5 text-white/85 text-sm cursor-pointer hover:bg-white/10 transition-colors"
+                >
+                  <Camera size={16} />
+                  {guestPhotoDataUrl ? 'Cambiar (cámara)' : 'Abrir cámara'}
+                </button>
+                <button
+                  type="button"
+                  onClick={openGuestGalleryPicker}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/20 bg-white/5 text-white/85 text-sm cursor-pointer hover:bg-white/10 transition-colors"
+                >
+                  {guestPhotoDataUrl ? 'Cambiar (galería)' : 'Elegir de galería'}
+                </button>
                 <input
+                  ref={guestCameraInputRef}
                   type="file"
                   accept="image/*"
                   capture="user"
                   onChange={handleGuestPhotoChange}
                   className="hidden"
                 />
-              </label>
+                <input
+                  ref={guestGalleryInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleGuestPhotoChange}
+                  className="hidden"
+                />
+              </div>
             </div>
           </div>
 
@@ -1732,7 +1764,11 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           <button
             onClick={handleSumarseComoInvitado}
             disabled={!guestName.trim() || submitting}
-            className="w-full bg-primary text-white px-6 py-4 rounded-xl font-bold text-lg hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+            className="w-full text-white px-6 py-4 rounded-xl font-oswald font-semibold text-[18px] tracking-[0.01em] hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed mb-3 border shadow-[0_8px_24px_rgba(100,77,255,0.35)]"
+            style={{
+              background: INVITE_ACCEPT_BUTTON_VIOLET,
+              borderColor: INVITE_ACCEPT_BUTTON_VIOLET_DARK,
+            }}
           >
             {submitting ? 'Sumándote...' : 'Entrar al partido'}
           </button>
