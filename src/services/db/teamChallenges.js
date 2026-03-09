@@ -1074,6 +1074,35 @@ const cancelPendingChallengesForTeam = async (teamId) => {
   if (!normalizedTeamId) return 0;
 
   const nowIso = new Date().toISOString();
+  const applyChallengeCancelByIds = async (challengeIds = []) => {
+    const normalizedChallengeIds = uniqueValues(
+      (challengeIds || []).map((value) => String(value || '').trim()).filter(Boolean),
+    );
+    if (normalizedChallengeIds.length === 0) return 0;
+
+    let byIdsResponse = await supabase
+      .from('challenges')
+      .update({ status: 'canceled', updated_at: nowIso })
+      .in('id', normalizedChallengeIds)
+      .in('status', ['open', 'accepted', 'confirmed'])
+      .select('id');
+
+    if (byIdsResponse.error && isMissingColumnError(byIdsResponse.error, 'updated_at')) {
+      byIdsResponse = await supabase
+        .from('challenges')
+        .update({ status: 'canceled' })
+        .in('id', normalizedChallengeIds)
+        .in('status', ['open', 'accepted', 'confirmed'])
+        .select('id');
+    }
+
+    if (byIdsResponse.error) {
+      throw new Error(byIdsResponse.error.message || 'No se pudieron cancelar los desafios pendientes del equipo');
+    }
+
+    return Array.isArray(byIdsResponse.data) ? byIdsResponse.data.length : 0;
+  };
+
   let response = await supabase
     .from('challenges')
     .update({ status: 'canceled', updated_at: nowIso })
@@ -1088,6 +1117,33 @@ const cancelPendingChallengesForTeam = async (teamId) => {
       .or(`challenger_team_id.eq.${normalizedTeamId},accepted_team_id.eq.${normalizedTeamId}`)
       .in('status', ['open', 'accepted', 'confirmed'])
       .select('id');
+  }
+
+  const missingTeamChallengeColumns = response.error && (
+    isMissingColumnError(response.error, 'challenger_team_id')
+    || isMissingColumnError(response.error, 'accepted_team_id')
+  );
+
+  if (missingTeamChallengeColumns) {
+    const teamMatchChallenges = await supabase
+      .from('team_matches')
+      .select('challenge_id')
+      .or(`team_a_id.eq.${normalizedTeamId},team_b_id.eq.${normalizedTeamId}`)
+      .not('challenge_id', 'is', null);
+
+    if (teamMatchChallenges.error) {
+      console.warn('[TEAM_CHALLENGES] No se pudieron cargar challenge_id desde team_matches en cleanup de equipo:', teamMatchChallenges.error);
+      return 0;
+    }
+
+    try {
+      return await applyChallengeCancelByIds(
+        (teamMatchChallenges.data || []).map((row) => row?.challenge_id),
+      );
+    } catch (error) {
+      console.warn('[TEAM_CHALLENGES] Fallback de cancelacion de desafios por challenge_id fallo; se continua con borrado de equipo:', error);
+      return 0;
+    }
   }
 
   if (response.error) {
