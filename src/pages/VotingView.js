@@ -710,6 +710,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     };
 
     const needsPhotoPrompt = !fotoPreview;
+    const showGuestPhotoExplanation = needsPhotoPrompt && isPublicVoting && !useAuthenticatedSubmit;
 
     return (
       <div className={wrapperClass}>
@@ -736,9 +737,11 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                   />
                 </div>
               </div>
-              <div className="text-[18px] text-white/70 text-center mb-1 font-oswald">
-                Sacá una foto para que los demás jugadores te reconozcan al votar.
-              </div>
+              {showGuestPhotoExplanation && (
+                <div className="text-[18px] text-white/70 text-center mb-1 font-oswald">
+                  Sacá una foto para que los demás jugadores te reconozcan al votar.
+                </div>
+              )}
 
               <div className="w-full flex flex-col gap-2 mt-2">
                 <button
@@ -777,9 +780,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                     className="w-full h-full object-cover bg-transparent"
                   />
                 </div>
-              </div>
-              <div className="text-[18px] text-white/70 text-center mb-1 font-oswald">
-                Sacá una foto para que los demás jugadores te reconozcan al votar.
               </div>
               <div className="w-full flex flex-col gap-2 mt-2">
               <button
