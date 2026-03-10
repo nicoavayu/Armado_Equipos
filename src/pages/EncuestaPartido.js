@@ -1644,6 +1644,48 @@ const EncuestaPartido = () => {
     }
 
     const matchIdNum = Number(id);
+    if (!Number.isFinite(matchIdNum) || matchIdNum <= 0) {
+      return {
+        ok: false,
+        message: 'No se pudieron guardar los equipos finales (partido inválido).',
+      };
+    }
+
+    try {
+      const { data: currentRow, error: currentError } = await supabase
+        .from('partidos')
+        .select('teams_locked, teams_source, teams_locked_by_user_id, teams_locked_at, survey_team_a, survey_team_b, final_team_a, final_team_b')
+        .eq('id', matchIdNum)
+        .maybeSingle();
+
+      if (!currentError && currentRow) {
+        const persistedA = Array.isArray(currentRow.survey_team_a) && currentRow.survey_team_a.length > 0
+          ? currentRow.survey_team_a
+          : (Array.isArray(currentRow.final_team_a) ? currentRow.final_team_a : []);
+        const persistedB = Array.isArray(currentRow.survey_team_b) && currentRow.survey_team_b.length > 0
+          ? currentRow.survey_team_b
+          : (Array.isArray(currentRow.final_team_b) ? currentRow.final_team_b : []);
+
+        if (persistedA.length > 0 && persistedB.length > 0) {
+          setTeamsLocked(Boolean(currentRow.teams_locked));
+          setTeamsSource(String(currentRow.teams_source || 'survey'));
+          setTeamsLockedByUserId(currentRow.teams_locked_by_user_id || null);
+          setTeamsLockedAt(currentRow.teams_locked_at || null);
+          setTeamsFinalizedBySurvey(true);
+          hydrateTeamsFromRefs({ teamARefs: persistedA, teamBRefs: persistedB });
+
+          return {
+            ok: true,
+            message: '',
+            alreadyLocked: true,
+            lockedByOther: Boolean(currentRow.teams_locked_by_user_id && currentRow.teams_locked_by_user_id !== user?.id),
+          };
+        }
+      }
+    } catch (_preflightReadError) {
+      // Non-blocking: continue with lock RPC.
+    }
+
     let lockResult;
     try {
       lockResult = await lockSurveyTeamsOnce({
