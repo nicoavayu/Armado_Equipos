@@ -1408,7 +1408,7 @@ const EncuestaPartido = () => {
   const compactFlowMode = loggedRosterCount > 0 && loggedRosterCount < 3;
   const shouldDisableTeamReorganization = isTeamChallengeSurvey;
   const shouldForceOrganizeTeamsStep = compactFlowMode && !shouldDisableTeamReorganization;
-  const shouldShowWinnerSelectionInOrganizeStep = compactFlowMode || shouldDisableTeamReorganization;
+  const shouldShowWinnerSelectionInOrganizeStep = !shouldDisableTeamReorganization;
 
   const hasConfirmedTeams = teamsConfirmed && confirmedTeams.teamA.length > 0 && confirmedTeams.teamB.length > 0;
   const teamsContextLabel = useMemo(() => {
@@ -1433,7 +1433,7 @@ const EncuestaPartido = () => {
     }
     return 'Armá o ajustá los equipos finales según cómo se jugó realmente el partido.';
   }, [hasConfirmedTeams, shouldDisableTeamReorganization, teamsSource]);
-  const compactWinnerSelectionHelperText = 'En caso de que haya habido algún cambio de último minuto, podés rearmar los equipos de la manera en la que finalmente se jugó. Para elegir al ganador, seleccioná la lista del equipo ganador y presioná continuar.';
+  const friendlyOrganizeAndResultHelperText = 'Ajustá los equipos si hubo cambios: arrastrá jugadores entre equipos para reflejar cómo se jugó realmente.';
 
   const finalTeamsValidation = useMemo(() => {
     const teamA = Array.isArray(finalTeams?.teamA) ? finalTeams.teamA : [];
@@ -1737,7 +1737,7 @@ const EncuestaPartido = () => {
     if (submitting || encuestaFinalizada || alreadySubmitted) return;
 
     if (shouldShowWinnerSelectionInOrganizeStep && !['equipo_a', 'equipo_b', 'empate'].includes(formData.ganador)) {
-      openSurveyModal('Elegí quién ganó o marcá empate para continuar.', 'Falta seleccionar resultado');
+      openSurveyModal('Elegí quién ganó o marcá empate para finalizar la encuesta.', 'Falta seleccionar resultado');
       return;
     }
 
@@ -2544,15 +2544,15 @@ const EncuestaPartido = () => {
               <div className={questionRowClass}>
                 <div className="w-full">
                   <div className={titleClass}>
-                    {shouldShowWinnerSelectionInOrganizeStep ? '¿QUIÉN GANÓ?' : 'ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ'}
+                    {shouldShowWinnerSelectionInOrganizeStep ? 'Quién ganó el partido' : 'ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ'}
                   </div>
                   <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
-                    {shouldShowWinnerSelectionInOrganizeStep ? compactWinnerSelectionHelperText : organizeTeamsHelperText}
+                    {shouldShowWinnerSelectionInOrganizeStep ? friendlyOrganizeAndResultHelperText : organizeTeamsHelperText}
                   </div>
                 </div>
               </div>
-              <div className="w-full shrink-0 pt-1.5">
-                <div className="w-full max-w-[760px] mx-auto space-y-3">
+              <div className="w-full flex-1 min-h-0 flex items-center justify-center pt-2 sm:pt-3">
+                <div className="w-full max-w-[760px] mx-auto">
                   <TeamsDnDEditor
                     teamA={finalTeams.teamA}
                     teamB={finalTeams.teamB}
@@ -2575,23 +2575,23 @@ const EncuestaPartido = () => {
                   />
 
                   {shouldShowWinnerSelectionInOrganizeStep ? (
-                    <div className="w-full pt-2.5">
+                    <div className="w-full pt-4 sm:pt-5 flex items-center justify-center">
                       <button
                         type="button"
-                        className={`${optionBtnClass} ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
+                        className={`${resultSecondaryBtnClass} !min-w-[170px] ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
                         onClick={() => {
                           handleInputChange('ganador', 'empate');
                           handleInputChange('se_jugo', true);
                           closeSurveyModal();
                         }}
                       >
-                        EMPATE
+                        Empate
                       </button>
                     </div>
                   ) : null}
                 </div>
               </div>
-              <div className={`w-full shrink-0 flex items-center justify-center ${shouldShowWinnerSelectionInOrganizeStep ? 'pt-5 sm:pt-6' : 'pt-2 sm:pt-3'}`}>
+              <div className={`w-full shrink-0 flex items-center justify-center pb-[max(8px,env(safe-area-inset-bottom))] ${shouldShowWinnerSelectionInOrganizeStep ? 'pt-8 sm:pt-10' : 'pt-2 sm:pt-3'}`}>
                 <div className={actionDockClass}>
                   <button
                     className={btnClass}

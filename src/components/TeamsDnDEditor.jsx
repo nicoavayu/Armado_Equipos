@@ -65,6 +65,7 @@ const TeamColumn = ({
   return (
     <button
       type="button"
+      aria-pressed={selected}
       onClick={() => {
         if (isDragging) return;
         if (disabled && !allowWinnerSelectionWhenDisabled) return;
@@ -72,7 +73,7 @@ const TeamColumn = ({
       }}
       className={`min-w-0 rounded-[5px] border p-2.5 text-left backdrop-blur-md transition-all duration-150 ease-out ${
         selected
-          ? 'border-[#73bcff]/70 bg-[#128BE9]/18 shadow-[0_0_0_1px_rgba(115,188,255,0.35),0_12px_26px_rgba(18,139,233,0.28)]'
+          ? 'border-[#85CCFF]/85 bg-[linear-gradient(160deg,rgba(29,134,224,0.26)_0%,rgba(16,46,112,0.24)_100%)] shadow-[0_0_0_1px_rgba(133,204,255,0.52),0_0_24px_rgba(49,153,241,0.42),0_14px_30px_rgba(13,40,106,0.38)] ring-1 ring-[#a6dcff]/45'
           : 'border-white/15 bg-white/[0.06]'
       } ${disabled && !allowWinnerSelectionWhenDisabled ? 'cursor-default' : 'cursor-pointer'}`}
     >
