@@ -1495,7 +1495,16 @@ const EncuestaPartido = () => {
       .filter(Boolean);
 
     if (teamARefs.length === 0 || teamBRefs.length === 0) {
-      return { ok: false, message: 'No se pudieron guardar los equipos finales. Intentá nuevamente.' };
+      console.warn('[SURVEY_TEAMS] Persist skipped: missing refs', {
+        matchId: Number(id),
+        teamARefsCount: teamARefs.length,
+        teamBRefsCount: teamBRefs.length,
+      });
+      return {
+        ok: true,
+        message: '',
+        warning: 'missing_refs',
+      };
     }
 
     let lockResult;
@@ -1505,12 +1514,27 @@ const EncuestaPartido = () => {
         teamARefs,
         teamBRefs,
       });
-    } catch (_rpcError) {
-      return { ok: false, message: 'No se pudieron guardar los equipos finales. Intentá nuevamente.' };
+    } catch (rpcError) {
+      console.error('[SURVEY_TEAMS] save_match_final_teams RPC error', {
+        code: rpcError?.code || null,
+        message: rpcError?.message || null,
+        details: rpcError?.details || null,
+        hint: rpcError?.hint || null,
+      });
+      return {
+        ok: true,
+        message: '',
+        warning: 'rpc_error',
+      };
     }
 
     if (!lockResult.ok) {
-      return { ok: false, message: 'No se pudieron guardar los equipos finales. Intentá nuevamente.' };
+      console.warn('[SURVEY_TEAMS] save_match_final_teams non-ok response', lockResult);
+      return {
+        ok: true,
+        message: '',
+        warning: lockResult?.reason || 'non_ok',
+      };
     }
 
     setTeamsLocked(lockResult.teamsLocked || lockResult.alreadyLocked || lockResult.success);
