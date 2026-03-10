@@ -389,8 +389,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         try {
           const partidoDateTime = parseLocalDateTime(partido.fecha, partido.hora);
           if (!partidoDateTime) return true;
-          const partidoMasUnaHora = new Date(partidoDateTime.getTime() + 60 * 60 * 1000);
-          return now <= partidoMasUnaHora;
+          return now < partidoDateTime;
         } catch {
           return true;
         }
@@ -462,6 +461,9 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         }
 
         const scheduledDate = match?.scheduled_at ? new Date(match.scheduled_at) : null;
+        if (scheduledDate && !Number.isNaN(scheduledDate.getTime()) && now >= scheduledDate) {
+          return null;
+        }
         const year = scheduledDate ? scheduledDate.getFullYear() : null;
         const month = scheduledDate ? String(scheduledDate.getMonth() + 1).padStart(2, '0') : null;
         const day = scheduledDate ? String(scheduledDate.getDate()).padStart(2, '0') : null;
@@ -495,7 +497,28 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
         (partido) => !linkedPartidoIds.has(String(partido?.id || '')),
       );
 
-      setActiveMatches([...partidosFiltradosActivosSinDuplicados, ...teamMatchesEnriquecidos]);
+      const mergedMatches = [...partidosFiltradosActivosSinDuplicados, ...teamMatchesEnriquecidos];
+      const visibleMatches = mergedMatches.filter((partido) => {
+        if (partido?.source_type === 'team_match') {
+          const status = String(partido?.team_match_status || '').toLowerCase();
+          if (isCancelledTeamMatchStatus(status) || status === 'played') return false;
+          const scheduledAt = partido?.scheduled_at ? new Date(partido.scheduled_at) : null;
+          if (scheduledAt && !Number.isNaN(scheduledAt.getTime())) {
+            return new Date() < scheduledAt;
+          }
+          if (!partido?.fecha || !partido?.hora) return true;
+          const parsed = parseLocalDateTime(partido.fecha, partido.hora);
+          if (!parsed) return true;
+          return new Date() < parsed;
+        }
+
+        if (!partido?.fecha || !partido?.hora) return true;
+        const parsed = parseLocalDateTime(partido.fecha, partido.hora);
+        if (!parsed) return true;
+        return new Date() < parsed;
+      });
+
+      setActiveMatches(visibleMatches);
     } catch (error) {
       console.error('Error fetching active matches:', error);
     } finally {
