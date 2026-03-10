@@ -10,6 +10,58 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const PRIMARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed';
 const SECONDARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed';
+const normalizeInviteStatus = (value) => String(value || 'pending').trim().toLowerCase();
+const REINVITABLE_INVITE_STATUSES = new Set([
+    'declined',
+    'rejected',
+    'kicked',
+    'revoked',
+    'expired',
+    'cancelled',
+    'canceled',
+]);
+
+const getInviteTimestampMs = (row) => {
+    const raw = row?.send_at || row?.created_at || null;
+    const parsed = Date.parse(raw || '');
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const resolveInviteMatchId = (row) => String(
+    row?.match_id_text
+    ?? row?.partido_id
+    ?? row?.match_ref
+    ?? row?.data?.match_id
+    ?? row?.data?.matchId
+    ?? '',
+).trim();
+
+const shouldBlockInvitationForStatus = (statusValue) => {
+    const status = normalizeInviteStatus(statusValue);
+    return !REINVITABLE_INVITE_STATUSES.has(status);
+};
+
+const collectBlockedInviteMatchIds = (rows = [], allowedMatchIds = new Set()) => {
+    const latestByMatch = new Map();
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+        const matchId = resolveInviteMatchId(row);
+        if (!matchId) return;
+        if (allowedMatchIds.size > 0 && !allowedMatchIds.has(matchId)) return;
+        const ts = getInviteTimestampMs(row);
+        const current = latestByMatch.get(matchId);
+        if (!current || ts >= current.ts) {
+            latestByMatch.set(matchId, { row, ts });
+        }
+    });
+
+    const blocked = new Set();
+    latestByMatch.forEach(({ row }, matchId) => {
+        if (shouldBlockInvitationForStatus(row?.data?.status)) {
+            blocked.add(matchId);
+        }
+    });
+    return blocked;
+};
 
 const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
     const [matches, setMatches] = useState([]);
@@ -31,6 +83,11 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
         setLoading(true);
         setSelectedMatchId(null);
         try {
+            if (!targetUserId) {
+                setMatches([]);
+                return;
+            }
+
             const { data: myPlayerRows, error: myPlayerRowsError } = await supabase
                 .from('jugadores')
                 .select('partido_id')
@@ -63,7 +120,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
 
             const { data: partidosData, error: partidosError } = await supabase
                 .from('partidos')
-                .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido, creado_por, precio_cancha_por_persona, estado, deleted_at')
+                .select('id, nombre, fecha, hora, sede, modalidad, cupo_jugadores, tipo_partido, creado_por, precio_cancha_por_persona, estado, deleted_at, codigo')
                 .in('id', myMatchIds)
                 .order('fecha', { ascending: true })
                 .order('hora', { ascending: true });
@@ -84,6 +141,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             }
 
             const dedupedMatchIds = dedupedMatches.map((m) => m.id);
+            const dedupedMatchIdTexts = new Set(dedupedMatchIds.map((id) => String(id)));
             const { data: jugadoresData, error: jugadoresError } = await supabase
                 .from('jugadores')
                 .select('id, partido_id, usuario_id')
@@ -91,24 +149,27 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
 
             if (jugadoresError) throw jugadoresError;
 
-            const { data: pendingInviteRows, error: pendingInviteRowsError } = await supabase
-                .from('notifications')
-                .select('match_ref, data')
+            const { data: extInviteRows, error: extInviteError } = await supabase
+                .from('notifications_ext')
+                .select('match_id_text, data, send_at, created_at')
                 .eq('user_id', targetUserId)
                 .eq('type', 'match_invite')
-                .eq('read', false);
+                .in('match_id_text', Array.from(dedupedMatchIdTexts));
 
-            if (pendingInviteRowsError) throw pendingInviteRowsError;
+            if (extInviteError && extInviteError.code !== '42P01') throw extInviteError;
 
-            const pendingInviteMatchIds = new Set(
-                (pendingInviteRows || [])
-                    .map((row) => {
-                        const fromRef = row?.match_ref;
-                        const fromData = row?.data?.matchId;
-                        return String(fromRef ?? fromData ?? '').trim();
-                    })
-                    .filter(Boolean)
-            );
+            let inviteRows = extInviteRows || [];
+            if (extInviteError && extInviteError.code === '42P01') {
+                const { data: fallbackInviteRows, error: fallbackInviteError } = await supabase
+                    .from('notifications')
+                    .select('partido_id, match_ref, data, send_at, created_at')
+                    .eq('user_id', targetUserId)
+                    .eq('type', 'match_invite');
+                if (fallbackInviteError) throw fallbackInviteError;
+                inviteRows = fallbackInviteRows || [];
+            }
+
+            const blockedInviteMatchIds = collectBlockedInviteMatchIds(inviteRows, dedupedMatchIdTexts);
 
             const now = new Date();
             const matchesWithStatus = dedupedMatches
@@ -132,7 +193,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                 .map((match) => {
                     const playersInMatch = (jugadoresData || []).filter((j) => j.partido_id === match.id);
                     const isParticipating = playersInMatch.some((j) => j.usuario_id === targetUserId);
-                    const hasInvitation = pendingInviteMatchIds.has(String(match.id));
+                    const hasInvitation = blockedInviteMatchIds.has(String(match.id));
                     const starterCapacity = Number(match.cupo_jugadores || 20);
                     const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 4 : 0;
                     const isRosterFull = maxRosterSlots > 0 && playersInMatch.length >= maxRosterSlots;
@@ -217,6 +278,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                 title: 'Invitación a partido',
                 message: `${currentUser?.nombre || 'Alguien'} te invitó a jugar el ${match.fecha_display} a las ${match.hora}`,
                 data: {
+                    match_id: toBigIntId(match.id),
                     matchId: toBigIntId(match.id),
                     matchName: match.nombre,
                     matchDate: match.fecha,
@@ -224,6 +286,11 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                     matchLocation: match.sede,
                     inviterId: currentUserId,
                     inviterName: currentUser?.nombre || 'Alguien',
+                    status: 'pending',
+                    invite_mode: 'direct',
+                    link: match?.codigo
+                        ? `/partido/${toBigIntId(match.id)}/invitacion?codigo=${encodeURIComponent(match.codigo)}`
+                        : `/partido/${toBigIntId(match.id)}/invitacion`,
                 },
                 read: false,
             };
