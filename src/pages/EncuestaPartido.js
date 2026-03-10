@@ -1474,6 +1474,99 @@ const EncuestaPartido = () => {
     return false;
   };
 
+  const persistTeamsDirectFallback = async ({ matchIdNum, teamARefs, teamBRefs }) => {
+    const lockTimestamp = new Date().toISOString();
+    const updatePayload = {
+      survey_team_a: teamARefs,
+      survey_team_b: teamBRefs,
+      final_team_a: teamARefs,
+      final_team_b: teamBRefs,
+      teams_locked: true,
+      teams_source: 'survey',
+      teams_locked_by_user_id: user?.id || null,
+      teams_locked_at: lockTimestamp,
+    };
+
+    try {
+      const { data: updatedRow, error: updateError } = await supabase
+        .from('partidos')
+        .update(updatePayload)
+        .eq('id', matchIdNum)
+        .or('teams_locked.is.null,teams_locked.eq.false')
+        .select('teams_locked, teams_source, teams_locked_by_user_id, teams_locked_at, survey_team_a, survey_team_b, final_team_a, final_team_b')
+        .maybeSingle();
+
+      if (!updateError && updatedRow) {
+        const savedA = Array.isArray(updatedRow.survey_team_a) && updatedRow.survey_team_a.length > 0
+          ? updatedRow.survey_team_a
+          : (Array.isArray(updatedRow.final_team_a) ? updatedRow.final_team_a : []);
+        const savedB = Array.isArray(updatedRow.survey_team_b) && updatedRow.survey_team_b.length > 0
+          ? updatedRow.survey_team_b
+          : (Array.isArray(updatedRow.final_team_b) ? updatedRow.final_team_b : []);
+
+        return {
+          ok: savedA.length > 0 && savedB.length > 0,
+          alreadyLocked: false,
+          lockedByOther: false,
+          teamsLocked: Boolean(updatedRow.teams_locked),
+          teamsSource: String(updatedRow.teams_source || 'survey'),
+          teamsLockedByUserId: updatedRow.teams_locked_by_user_id || null,
+          teamsLockedAt: updatedRow.teams_locked_at || lockTimestamp,
+          teamARefs: savedA,
+          teamBRefs: savedB,
+          reason: 'direct_update',
+        };
+      }
+
+      if (updateError) {
+        console.error('[SURVEY_TEAMS] Direct update fallback failed', {
+          code: updateError?.code || null,
+          message: updateError?.message || null,
+          details: updateError?.details || null,
+          hint: updateError?.hint || null,
+        });
+      }
+    } catch (fallbackUpdateError) {
+      console.error('[SURVEY_TEAMS] Direct update fallback exception', fallbackUpdateError);
+    }
+
+    try {
+      const { data: currentRow, error: currentError } = await supabase
+        .from('partidos')
+        .select('teams_locked, teams_source, teams_locked_by_user_id, teams_locked_at, survey_team_a, survey_team_b, final_team_a, final_team_b')
+        .eq('id', matchIdNum)
+        .maybeSingle();
+
+      if (!currentError && currentRow) {
+        const persistedA = Array.isArray(currentRow.survey_team_a) && currentRow.survey_team_a.length > 0
+          ? currentRow.survey_team_a
+          : (Array.isArray(currentRow.final_team_a) ? currentRow.final_team_a : []);
+        const persistedB = Array.isArray(currentRow.survey_team_b) && currentRow.survey_team_b.length > 0
+          ? currentRow.survey_team_b
+          : (Array.isArray(currentRow.final_team_b) ? currentRow.final_team_b : []);
+
+        if (persistedA.length > 0 && persistedB.length > 0) {
+          return {
+            ok: true,
+            alreadyLocked: true,
+            lockedByOther: true,
+            teamsLocked: Boolean(currentRow.teams_locked),
+            teamsSource: String(currentRow.teams_source || 'survey'),
+            teamsLockedByUserId: currentRow.teams_locked_by_user_id || null,
+            teamsLockedAt: currentRow.teams_locked_at || null,
+            teamARefs: persistedA,
+            teamBRefs: persistedB,
+            reason: 'already_persisted',
+          };
+        }
+      }
+    } catch (fallbackReadError) {
+      console.error('[SURVEY_TEAMS] Fallback read check failed', fallbackReadError);
+    }
+
+    return { ok: false, reason: 'direct_fallback_failed' };
+  };
+
   const persistSurveyTeamsDefinition = async () => {
     if (shouldDisableTeamReorganization) {
       return { ok: true, message: '' };
@@ -1495,22 +1588,22 @@ const EncuestaPartido = () => {
       .filter(Boolean);
 
     if (teamARefs.length === 0 || teamBRefs.length === 0) {
-      console.warn('[SURVEY_TEAMS] Persist skipped: missing refs', {
+      console.warn('[SURVEY_TEAMS] Persist blocked: missing refs', {
         matchId: Number(id),
         teamARefsCount: teamARefs.length,
         teamBRefsCount: teamBRefs.length,
       });
       return {
-        ok: true,
-        message: '',
-        warning: 'missing_refs',
+        ok: false,
+        message: 'No se pudieron guardar los equipos finales (faltan referencias de jugadores).',
       };
     }
 
+    const matchIdNum = Number(id);
     let lockResult;
     try {
       lockResult = await lockSurveyTeamsOnce({
-        matchId: Number(id),
+        matchId: matchIdNum,
         teamARefs,
         teamBRefs,
       });
@@ -1521,20 +1614,20 @@ const EncuestaPartido = () => {
         details: rpcError?.details || null,
         hint: rpcError?.hint || null,
       });
-      return {
-        ok: true,
-        message: '',
-        warning: 'rpc_error',
-      };
+      lockResult = { ok: false, reason: rpcError?.message || 'rpc_error' };
     }
 
     if (!lockResult.ok) {
       console.warn('[SURVEY_TEAMS] save_match_final_teams non-ok response', lockResult);
-      return {
-        ok: true,
-        message: '',
-        warning: lockResult?.reason || 'non_ok',
-      };
+      const fallbackResult = await persistTeamsDirectFallback({ matchIdNum, teamARefs, teamBRefs });
+      if (!fallbackResult.ok) {
+        const reason = String(lockResult?.reason || fallbackResult?.reason || 'desconocido');
+        return {
+          ok: false,
+          message: `No se pudieron guardar los equipos finales. Motivo: ${reason}.`,
+        };
+      }
+      lockResult = fallbackResult;
     }
 
     setTeamsLocked(lockResult.teamsLocked || lockResult.alreadyLocked || lockResult.success);
