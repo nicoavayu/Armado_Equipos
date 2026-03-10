@@ -9,6 +9,7 @@ import { supabase, updateProfile, addFreePlayer, removeFreePlayer } from '../sup
 import { listMyTeamMatches } from '../services/db/teamChallenges';
 import { parseLocalDateTime } from '../utils/dateLocal';
 import { buildActivityFeed } from '../utils/activityFeed';
+import { isAwardsTrulyReady } from '../utils/awardsReadiness';
 import ProximosPartidos from './ProximosPartidos';
 import NotificationsBell from './NotificationsBell';
 
@@ -59,26 +60,7 @@ const isCancelledChallengeStatus = (statusValue) => {
   return normalized === 'canceled' || normalized === 'cancelled' || normalized === 'cancelado';
 };
 
-const hasAnyAwardsWinner = (row) => Boolean(
-  row?.mvp
-  || row?.golden_glove
-  || row?.dirty_player
-  || (Array.isArray(row?.red_cards) && row.red_cards.length > 0)
-  || row?.awards?.mvp?.player_id
-  || row?.awards?.best_gk?.player_id
-  || row?.awards?.red_card?.player_id
-);
-
-const isAwardsInsufficientOrSkipped = (row) => {
-  const awardsStatus = String(row?.awards_status || '').toLowerCase();
-  return awardsStatus.includes('insufficient') || awardsStatus.includes('skip');
-};
-
-const isAwardsReadyAndVisible = (row) => (
-  Boolean(row?.results_ready)
-  && !isAwardsInsufficientOrSkipped(row)
-  && hasAnyAwardsWinner(row)
-);
+const isAwardsReadyAndVisible = (row) => isAwardsTrulyReady(row);
 
 const extractWinnerIds = (row) => {
   const awards = row?.awards || {};

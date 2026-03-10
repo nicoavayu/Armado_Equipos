@@ -12,21 +12,12 @@ import { subscribeToMatchUpdates } from '../services/realtimeService';
 import EmptyStateCard from '../components/EmptyStateCard';
 import Logo from '../Logo.png';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { hasAnyAwardData } from '../utils/awardsReadiness';
 
 const ensurePlayersList = (players) => {
   if (players && players.length > 0) return players;
   return [];
 };
-
-const hasAnyAwardData = (row) => Boolean(
-  row?.mvp ||
-  row?.golden_glove ||
-  row?.dirty_player ||
-  (Array.isArray(row?.red_cards) && row.red_cards.length > 0) ||
-  row?.awards?.mvp?.player_id ||
-  row?.awards?.best_gk?.player_id ||
-  row?.awards?.red_card?.player_id
-);
 
 // Context to broadcast live previewPlayers without recreating slides
 const PreviewPlayersContext = createContext([]);

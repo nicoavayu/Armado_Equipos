@@ -13,6 +13,7 @@ import {
 } from '../utils/notificationText';
 import { isTeamChallengeNotification } from '../utils/notificationRoutes';
 import { filterNotificationsForInbox } from '../utils/notificationInviteState';
+import { AWARDS_READY_NOTIFICATION_TYPES, isAwardsTrulyReady, toNumericMatchId } from '../utils/awardsReadiness';
 
 const NotificationContext = createContext();
 const DEBUG_NOTIFICATIONS = process.env.NODE_ENV !== 'production';
@@ -110,6 +111,64 @@ export const NotificationProvider = ({ children }) => {
     const match = String(link).match(/\/(?:encuesta|resultados-encuesta)\/(\d+)/);
     return match?.[1] || null;
   }, []);
+  const isAwardsReadyNotificationType = useCallback((notificationType) => (
+    AWARDS_READY_NOTIFICATION_TYPES.has(String(notificationType || '').trim().toLowerCase())
+  ), []);
+
+  const fetchAwardsReadinessByMatchIds = useCallback(async (matchIds = []) => {
+    const normalizedIds = [...new Set(
+      (Array.isArray(matchIds) ? matchIds : [])
+        .map((value) => toNumericMatchId(value))
+        .filter((value) => value != null),
+    )];
+
+    const readinessByMatchId = new Map();
+    if (normalizedIds.length === 0) return readinessByMatchId;
+
+    const { data, error } = await supabase
+      .from('survey_results')
+      .select('partido_id, results_ready, awards_status, mvp, golden_glove, dirty_player, red_cards, awards')
+      .in('partido_id', normalizedIds);
+
+    if (error) throw error;
+
+    (data || []).forEach((row) => {
+      const partidoId = toNumericMatchId(row?.partido_id);
+      if (partidoId == null) return;
+      readinessByMatchId.set(partidoId, isAwardsTrulyReady(row));
+    });
+
+    return readinessByMatchId;
+  }, []);
+
+  const filterPrematureAwardsNotifications = useCallback(async (notificationsList = []) => {
+    const rows = Array.isArray(notificationsList) ? notificationsList : [];
+    const candidateRows = rows.filter((notification) => isAwardsReadyNotificationType(notification?.type));
+    if (candidateRows.length === 0) return rows;
+
+    const candidateMatchIds = [...new Set(
+      candidateRows
+        .map((notification) => toNumericMatchId(resolveNotificationMatchId(notification)))
+        .filter((value) => value != null),
+    )];
+
+    if (candidateMatchIds.length === 0) {
+      return rows.filter((notification) => !isAwardsReadyNotificationType(notification?.type));
+    }
+
+    try {
+      const readinessByMatchId = await fetchAwardsReadinessByMatchIds(candidateMatchIds);
+      return rows.filter((notification) => {
+        if (!isAwardsReadyNotificationType(notification?.type)) return true;
+        const matchId = toNumericMatchId(resolveNotificationMatchId(notification));
+        if (matchId == null) return false;
+        return readinessByMatchId.get(matchId) === true;
+      });
+    } catch (error) {
+      logger.warn('[NOTIFICATIONS] Could not validate awards-ready notifications. Hiding them to avoid false positives.', error);
+      return rows.filter((notification) => !isAwardsReadyNotificationType(notification?.type));
+    }
+  }, [fetchAwardsReadinessByMatchIds, isAwardsReadyNotificationType, resolveNotificationMatchId]);
   // Umbral para ignorar eventos realtime con created_at <= al último clear
   const ignoreBeforeRef = useRef(null);
 
@@ -218,7 +277,7 @@ export const NotificationProvider = ({ children }) => {
 
       unsubscribe();
     };
-  }, [currentUserId, resolveNotificationMatchId]);
+  }, [currentUserId, resolveNotificationMatchId, fetchAwardsReadinessByMatchIds, isAwardsReadyNotificationType]);
 
   // Fetch all notifications for the current user
   const fetchNotifications = useCallback(async () => {
@@ -379,8 +438,11 @@ export const NotificationProvider = ({ children }) => {
 
       logger.log('[NOTIFICATIONS] Visible fetched:', visibleRaw.length, 'Scheduled fetched:', scheduledRaw.length);
 
+      // Hide stale/false-positive awards-ready notifications unless awards are truly persisted.
+      const visibleAwardsValidated = await filterPrematureAwardsNotifications(visibleRaw);
+
       // Hide stale invite/kick rows before dedupe so lists stay actionable.
-      const visibleForDisplay = filterNotificationsForInbox(visibleRaw);
+      const visibleForDisplay = filterNotificationsForInbox(visibleAwardsValidated);
 
       // Deduplicate only the visible notifications for display
       const dedupedVisible = dedupeNotificationsForDisplay(visibleForDisplay);
@@ -394,7 +456,7 @@ export const NotificationProvider = ({ children }) => {
       }
       handleError(error, { showToast: false, onError: () => { } });
     }
-  }, [currentUserId]);
+  }, [currentUserId, filterPrematureAwardsNotifications]);
 
   // Deduplicate notifications per user+partido, preferring survey-related types
   const dedupeNotificationsForDisplay = (notifs = []) => {
@@ -545,7 +607,7 @@ export const NotificationProvider = ({ children }) => {
   };
 
   // Handle new notification
-  const handleNewNotification = (notification) => {
+  const handleNewNotification = async (notification) => {
     logger.log('[NOTIFICATIONS] New realtime notification:', {
       id: notification.id,
       type: notification.type,
@@ -588,6 +650,28 @@ export const NotificationProvider = ({ children }) => {
       }
     } catch (e) {
       logger.warn('[NOTIFICATIONS] Error comparing timestamps:', e);
+    }
+
+    if (isAwardsReadyNotificationType(notification?.type)) {
+      try {
+        const matchId = toNumericMatchId(resolveNotificationMatchId(notification));
+        if (matchId == null) {
+          logger.log('[NOTIFICATIONS] Dropping awards-ready notification without valid match id:', notification?.id);
+          return;
+        }
+        const readinessByMatchId = await fetchAwardsReadinessByMatchIds([matchId]);
+        if (readinessByMatchId.get(matchId) !== true) {
+          logger.log('[NOTIFICATIONS] Suppressing premature awards-ready notification:', {
+            notificationId: notification?.id,
+            matchId,
+            type: notification?.type,
+          });
+          return;
+        }
+      } catch (error) {
+        logger.warn('[NOTIFICATIONS] Failed to validate awards-ready realtime notification. Hiding it to avoid false positives.', error);
+        return;
+      }
     }
 
     // If the user is currently on the survey page for the same partido, or viewing the partido page,

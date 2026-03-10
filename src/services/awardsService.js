@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { finalizeIfComplete, computeResultsAverages } from './surveyCompletionService';
+import { hasAnyAwardData } from '../utils/awardsReadiness';
 
 export async function computeAwardsForMatch(partidoId) {
   try {
@@ -30,16 +31,6 @@ export async function ensureAwards(partidoId) {
       if (token === 'pending' || token === 'pendiente') return 'pending';
       return null;
     };
-    const hasAnyAwardData = (row) => Boolean(
-      row?.mvp ||
-      row?.golden_glove ||
-      row?.dirty_player ||
-      (Array.isArray(row?.red_cards) && row.red_cards.length > 0) ||
-      row?.awards?.mvp?.player_id ||
-      row?.awards?.best_gk?.player_id ||
-      row?.awards?.red_card?.player_id,
-    );
-
     const withTimeout = async (promise, ms) => {
       return Promise.race([
         promise,
