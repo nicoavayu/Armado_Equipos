@@ -391,7 +391,7 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     if (relationshipStatus.status === 'accepted') {
       return (
         <button className={`${PROFILE_ACTION_BUTTON_BASE} bg-[rgba(22,90,46,0.45)] border-[rgba(34,197,94,0.58)] text-[#dcfce7] cursor-not-allowed`} disabled>
-          <span>✓ Amigos</span>
+          <span>Ya son amigos</span>
         </button>
       );
     }
