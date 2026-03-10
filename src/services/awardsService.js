@@ -1,6 +1,6 @@
 import { supabase } from '../supabase';
-import { finalizeIfComplete, computeResultsAverages } from './surveyCompletionService';
-import { hasAnyAwardData } from '../utils/awardsReadiness';
+import { finalizeIfComplete, computeAndPersistAwards, computeResultsAverages, setMatchAwardsStatus } from './surveyCompletionService';
+import { hasAnyAwardData, isAwardsTrulyReady } from '../utils/awardsReadiness';
 
 export async function computeAwardsForMatch(partidoId) {
   try {
@@ -38,13 +38,22 @@ export async function ensureAwards(partidoId) {
       ]);
     };
 
+    const isPendingRetryStatus = (row) => String(row?.awards_status || '').trim().toLowerCase() === 'pending_retry';
+
     const fetchSurveyResultsRow = async () => {
       const res = await supabase
         .from('survey_results')
         .select('*')
         .eq('partido_id', id)
-        .single();
+        .maybeSingle();
       return { row: res.data || null, error: res.error || null };
+    };
+
+    const persistAwardsStatus = async (status) => {
+      const statusRes = await setMatchAwardsStatus(id, status);
+      if (!statusRes?.ok && !statusRes?.unsupported) {
+        console.warn('[AWARDS] could not persist awards status', { partidoId: id, status, statusRes });
+      }
     };
 
     // Gate: never force awards while the survey window is still open.
@@ -104,8 +113,52 @@ export async function ensureAwards(partidoId) {
       };
     }
 
-    if (after?.results_ready && hasAnyAwardData(after)) {
+    if (after?.results_ready && isAwardsTrulyReady(after)) {
+      if (isPendingRetryStatus(after)) {
+        await persistAwardsStatus('ready');
+        const refetchReady = await fetchSurveyResultsRow();
+        after = refetchReady.row || after;
+      }
       return { ok: true, row: after, applied: true };
+    }
+
+    let retryResult = null;
+    const shouldRetryLocally = (
+      isPendingRetryStatus(after)
+      || (after?.results_ready && !isAwardsTrulyReady(after))
+      || (!after && finalizeGate?.done === true)
+    );
+
+    if (shouldRetryLocally) {
+      try {
+        retryResult = await computeAndPersistAwards(id);
+      } catch (retryErr) {
+        retryResult = {
+          persisted: false,
+          reason: 'retry_exception',
+          awardsCount: 0,
+          error: retryErr,
+        };
+      }
+
+      const refetchAfterRetry = await fetchSurveyResultsRow();
+      after = refetchAfterRetry.row || after;
+      afterErr = refetchAfterRetry.error;
+      if (afterErr && afterErr.code !== 'PGRST116') {
+        return { ok: false, error: afterErr };
+      }
+
+      if (after?.results_ready && isAwardsTrulyReady(after)) {
+        await persistAwardsStatus('ready');
+        const refetchReady = await fetchSurveyResultsRow();
+        return {
+          ok: true,
+          row: refetchReady.row || after,
+          applied: true,
+          retried: true,
+          retryResult,
+        };
+      }
     }
 
     // Call server RPC if available (some environments don't have this function deployed).
@@ -132,7 +185,7 @@ export async function ensureAwards(partidoId) {
     }
 
     // Last-resort local recompute path for stale/inconsistent rows.
-    if (after?.results_ready && !hasAnyAwardData(after)) {
+    if (after?.results_ready && !isAwardsTrulyReady(after)) {
       try {
         const computed = await computeResultsAverages(id);
         if (hasAnyAwardData(computed)) {
@@ -163,11 +216,41 @@ export async function ensureAwards(partidoId) {
       }
     }
 
+    if (after?.results_ready && isAwardsTrulyReady(after)) {
+      await persistAwardsStatus('ready');
+      const refetchReady = await fetchSurveyResultsRow();
+      return {
+        ok: true,
+        row: refetchReady.row || after,
+        applied: true,
+        retried: Boolean(retryResult),
+        retryResult,
+      };
+    }
+
+    if (after?.results_ready && !isAwardsTrulyReady(after)) {
+      await persistAwardsStatus('pending_retry');
+      return {
+        ok: true,
+        row: after || null,
+        applied: false,
+        pendingRetry: true,
+        retried: Boolean(retryResult),
+        retryResult,
+      };
+    }
+
     if (rpcErr && !after?.results_ready) {
       return { ok: false, error: rpcErr };
     }
 
-    return { ok: true, row: after || null, applied: true };
+    return {
+      ok: true,
+      row: after || null,
+      applied: false,
+      retried: Boolean(retryResult),
+      retryResult,
+    };
   } catch (err) {
     return { ok: false, error: err };
   }

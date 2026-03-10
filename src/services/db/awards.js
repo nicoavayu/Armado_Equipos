@@ -139,7 +139,13 @@ async function getMatchPlayersMap(matchId) {
  */
 export async function grantAwardsForMatch(matchId, awards) {
   if (!awards || typeof awards !== 'object') {
-    return { granted: [], skipped: [], error: 'No awards provided' };
+    return {
+      granted: [],
+      skipped: [],
+      error: 'No awards provided',
+      expectedRegisteredAwards: 0,
+      persistedRegisteredAwards: 0,
+    };
   }
 
   try {
@@ -148,6 +154,8 @@ export async function grantAwardsForMatch(matchId, awards) {
     const playersMap = await getMatchPlayersMap(matchId);
     const granted = [];
     const skipped = [];
+    let expectedRegisteredAwards = 0;
+    let persistedRegisteredAwards = 0;
 
     // Process each award type
     for (const [awardType, awardData] of Object.entries(awards)) {
@@ -160,6 +168,7 @@ export async function grantAwardsForMatch(matchId, awards) {
         skipped.push(`${awardType} (guest player)`);
         continue;
       }
+      expectedRegisteredAwards += 1;
 
       // Atomic insert: relies on UNIQUE(partido_id, award_type) and ON CONFLICT DO NOTHING.
       const { data: insertedAwards, error: insertError } = await supabase
@@ -183,6 +192,7 @@ export async function grantAwardsForMatch(matchId, awards) {
 
       if (!Array.isArray(insertedAwards) || insertedAwards.length === 0) {
         skipped.push(`${awardType} (already granted)`);
+        persistedRegisteredAwards += 1;
         continue;
       }
 
@@ -214,11 +224,18 @@ export async function grantAwardsForMatch(matchId, awards) {
       }
 
       granted.push(awardType);
+      persistedRegisteredAwards += 1;
     }
 
-    return { granted, skipped, error: null };
+    return { granted, skipped, error: null, expectedRegisteredAwards, persistedRegisteredAwards };
   } catch (error) {
     console.error('Error granting awards:', error);
-    return { granted: [], skipped: [], error: error.message };
+    return {
+      granted: [],
+      skipped: [],
+      error: error.message,
+      expectedRegisteredAwards: 0,
+      persistedRegisteredAwards: 0,
+    };
   }
 }

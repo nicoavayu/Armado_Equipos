@@ -9,6 +9,7 @@ import {
   SURVEY_FINALIZE_DELAY_MS,
 } from '../config/surveyConfig';
 import { getSurveyResultsReadyMessage } from '../utils/surveyNotificationCopy';
+import { hasAnyAwardData, isAwardsTrulyReady } from '../utils/awardsReadiness';
 
 const RESULT_STATUS_FINISHED = 'finished';
 const RESULT_STATUS_DRAW = 'draw';
@@ -178,9 +179,83 @@ export const aggregateSurveyResult = (surveys = []) => {
 
   return { resultStatus, winnerTeam };
 };
+
+const extractAwardEntries = (awards) => (
+  [
+    ['mvp', awards?.mvp],
+    ['best_gk', awards?.best_gk],
+    ['red_card', awards?.red_card],
+  ].filter(([, award]) => Number.isFinite(Number(award?.player_id)))
+);
+
+const fetchSurveyResultsRowForMatch = async (partidoId) => {
+  const idNum = Number(partidoId);
+  if (!Number.isFinite(idNum) || idNum <= 0) return null;
+
+  const { data, error } = await supabase
+    .from('survey_results')
+    .select('*')
+    .eq('partido_id', idNum)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+};
+
+export async function setMatchAwardsStatus(partidoId, status) {
+  const idNum = Number(partidoId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    return { ok: false, reason: 'invalid_partido_id' };
+  }
+
+  const normalizedStatus = String(status || '').trim();
+  if (!normalizedStatus) {
+    return { ok: false, reason: 'invalid_status' };
+  }
+
+  try {
+    const { error: surveyResultsError } = await supabase
+      .from('survey_results')
+      .update({ awards_status: normalizedStatus })
+      .eq('partido_id', idNum);
+
+    if (surveyResultsError) {
+      if (isMissingColumnError(surveyResultsError, ['awards_status'])) {
+        return { ok: false, reason: 'missing_awards_status_column', unsupported: true };
+      }
+      throw surveyResultsError;
+    }
+  } catch (error) {
+    return { ok: false, reason: 'survey_results_update_failed', error };
+  }
+
+  // Best-effort mirror for any codepath still reading partidos.awards_status.
+  try {
+    const { error: partidoError } = await supabase
+      .from('partidos')
+      .update({ awards_status: normalizedStatus })
+      .eq('id', idNum);
+
+    if (partidoError && !isMissingColumnError(partidoError, ['awards_status'])) {
+      console.warn('[AWARDS_STATUS] could not mirror status into partidos', { partidoId: idNum, normalizedStatus, partidoError });
+    }
+  } catch (partidoMirrorErr) {
+    console.warn('[AWARDS_STATUS] partidos mirror failed', { partidoId: idNum, normalizedStatus, partidoMirrorErr });
+  }
+
+  return { ok: true };
+}
 // Calcula y persiste premios (MVP, Mejor Arquero y Tarjeta Roja) en survey_results.awards
 export async function computeAndPersistAwards(partidoId, options = {}) {
   const idNum = Number(partidoId);
+  if (!Number.isFinite(idNum) || idNum <= 0) {
+    return {
+      persisted: false,
+      reason: 'invalid_partido_id',
+      awardsCount: 0,
+    };
+  }
+
   const mvpOverridePlayerId = Number(options?.mvpOverridePlayerId);
   const shouldOverrideMvp = Number.isFinite(mvpOverridePlayerId) && mvpOverridePlayerId > 0;
   const skipMvp = options?.skipMvp === true;
@@ -189,7 +264,12 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
     surveys = await db.fetchMany('post_match_surveys', { partido_id: idNum });
   } catch (error) {
     handleError(error, { showToast: false, onError: () => { } });
-    return null;
+    return {
+      persisted: false,
+      reason: 'surveys_fetch_failed',
+      awardsCount: 0,
+      error,
+    };
   }
 
   const count = (arr, key) => arr.reduce((m, v) => {
@@ -255,25 +335,86 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
     };
   }
 
+  const awardEntries = extractAwardEntries(awards);
+  const awardsCount = awardEntries.length;
+  let surveyResultsUpdated = false;
+
   try {
     // Persist survey_results awards and mark results_ready true
-    // Use direct supabase update to avoid .single() error if row doesn't exist
-    const { error: upErr } = await supabase
+    // and verify that at least one row was affected.
+    const { data: updatedRows, error: upErr } = await supabase
       .from('survey_results')
       .update({ awards, results_ready: true, updated_at: new Date().toISOString() })
-      .eq('partido_id', idNum);
+      .eq('partido_id', idNum)
+      .select('partido_id');
 
     if (upErr) throw upErr;
+    if (!Array.isArray(updatedRows) || updatedRows.length === 0) {
+      throw new Error('survey_results_row_not_updated');
+    }
+    surveyResultsUpdated = true;
   } catch (upErr) {
     handleError(upErr, { showToast: false, onError: () => { } });
+    return {
+      persisted: false,
+      reason: 'survey_results_update_failed',
+      awardsCount,
+      surveyResultsUpdated: false,
+      playerAwardsPersisted: false,
+      error: upErr,
+      awards,
+    };
   }
 
+  if (awardsCount === 0 || !hasAnyAwardData(awards)) {
+    return {
+      persisted: false,
+      reason: 'no_valid_awards_generated',
+      awardsCount,
+      surveyResultsUpdated,
+      playerAwardsPersisted: false,
+      awards,
+    };
+  }
+
+  let grantResult = null;
   // Grant awards to registered players only.
   // Idempotency is enforced at DB level via UNIQUE(partido_id, award_type) + ON CONFLICT DO NOTHING.
   try {
-    await grantAwardsForMatch(idNum, awards);
+    grantResult = await grantAwardsForMatch(idNum, awards);
   } catch (awardError) {
     handleError(awardError, { showToast: false, onError: () => { } });
+    return {
+      persisted: false,
+      reason: 'player_awards_persist_failed',
+      awardsCount,
+      surveyResultsUpdated,
+      playerAwardsPersisted: false,
+      error: awardError,
+      awards,
+    };
+  }
+
+  const expectedRegisteredAwards = Number(grantResult?.expectedRegisteredAwards || 0);
+  const persistedRegisteredAwards = Number(grantResult?.persistedRegisteredAwards || 0);
+  const skippedReasons = Array.isArray(grantResult?.skipped) ? grantResult.skipped : [];
+  const hasHardPersistError = Boolean(grantResult?.error)
+    || skippedReasons.some((reason) => String(reason || '').toLowerCase().includes('database error'));
+  const playerAwardsPersisted = expectedRegisteredAwards === 0
+    || (!hasHardPersistError && persistedRegisteredAwards >= expectedRegisteredAwards);
+
+  if (!playerAwardsPersisted) {
+    return {
+      persisted: false,
+      reason: 'player_awards_incomplete',
+      awardsCount,
+      surveyResultsUpdated,
+      playerAwardsPersisted: false,
+      expectedRegisteredAwards,
+      persistedRegisteredAwards,
+      grantResult,
+      awards,
+    };
   }
 
   // Apply no-show penalties to registered players - REMOVED from here to avoid double application
@@ -295,7 +436,17 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
   }
   */
 
-  return awards;
+  return {
+    persisted: true,
+    reason: 'ok',
+    awardsCount,
+    surveyResultsUpdated,
+    playerAwardsPersisted: true,
+    expectedRegisteredAwards,
+    persistedRegisteredAwards,
+    grantResult,
+    awards,
+  };
 }
 
 const toNumericIdFromRef = (value, refToIdMap) => {
@@ -881,17 +1032,61 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   }
 
   let awardsSkipped = computedStatus === RESULT_STATUS_NOT_PLAYED;
-  if (!awardsSkipped) {
+  let awardsPendingRetry = false;
+  let awardsPersistResult = null;
+  let finalAwardsStatus = null;
+
+  if (computedStatus === RESULT_STATUS_NOT_PLAYED) {
+    finalAwardsStatus = 'skipped_not_played';
+    const statusRes = await setMatchAwardsStatus(idNum, finalAwardsStatus);
+    if (!statusRes?.ok && !statusRes?.unsupported) {
+      console.warn('[FINALIZE] failed to persist skipped_not_played awards status', { partidoId: idNum, statusRes });
+    }
+  } else {
     try {
       const mvpOverridePlayerId = await resolvePlayerIdFromStableRef(idNum, results?.mvp);
-      await computeAndPersistAwards(idNum, {
+      awardsPersistResult = await computeAndPersistAwards(idNum, {
         mvpOverridePlayerId,
-        skipMvp: computedStatus === RESULT_STATUS_NOT_PLAYED,
+        skipMvp: false,
       });
+      if (awardsPersistResult?.persisted !== true) {
+        console.error('[FINALIZE] computeAndPersistAwards returned non-persisted result', {
+          partidoId: idNum,
+          awardsPersistResult,
+        });
+      }
     } catch (awardErr) {
-      console.error('[FINALIZE] computeAndPersistAwards error', { partidoId: idNum, awardErr });
+      console.error('[FINALIZE] computeAndPersistAwards exception', { partidoId: idNum, awardErr });
       handleError(awardErr, { showToast: false, onError: () => { } });
-      awardsSkipped = true;
+      awardsPersistResult = {
+        persisted: false,
+        reason: 'compute_exception',
+        awardsCount: 0,
+      };
+    }
+
+    let awardsRow = null;
+    try {
+      awardsRow = await fetchSurveyResultsRowForMatch(idNum);
+    } catch (awardsRowErr) {
+      console.error('[FINALIZE] could not refetch survey_results for awards validation', { partidoId: idNum, awardsRowErr });
+    }
+
+    const awardsReadyNow = isAwardsTrulyReady(awardsRow);
+    if (awardsReadyNow) {
+      finalAwardsStatus = 'ready';
+    } else {
+      finalAwardsStatus = 'pending_retry';
+      awardsPendingRetry = true;
+      console.warn('[FINALIZE] awards not ready after close; pending retry', {
+        partidoId: idNum,
+        persistResult: awardsPersistResult,
+      });
+    }
+
+    const statusRes = await setMatchAwardsStatus(idNum, finalAwardsStatus);
+    if (!statusRes?.ok && !statusRes?.unsupported) {
+      console.warn('[FINALIZE] failed to persist awards status', { partidoId: idNum, finalAwardsStatus, statusRes });
     }
   }
 
@@ -954,6 +1149,10 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     remainingVotes: 0,
     deadlineAt: closesAt,
     awardsSkipped,
+    awardsPendingRetry,
+    awards_status: finalAwardsStatus,
+    awardsPersisted: Boolean(awardsPersistResult?.persisted),
+    awardsPersistReason: awardsPersistResult?.reason || null,
     result_status: computedStatus,
     winner_team: computedWinner,
     survey_status: SURVEY_STATUS_CLOSED,

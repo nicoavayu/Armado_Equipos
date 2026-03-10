@@ -62,6 +62,7 @@ const ResultadosEncuestaView = () => {
   const badgeTimers = useRef([]);
   const forceStoryOpenedRef = useRef(null);
   const autoOpenGuardRef = useRef(null);
+  const pendingRetryAttemptedRef = useRef(new Set());
   const normalizedPartidoAwardsStatus = String(partido?.awards_status || '').toLowerCase();
   const normalizedResultsAwardsStatus = String(results?.awards_status || '').toLowerCase();
   const hasInsufficientVotesForAwards = (
@@ -1207,9 +1208,10 @@ const ResultadosEncuestaView = () => {
       }, 3200);
       try {
         let row = results;
+        const isPendingRetryStatus = (candidate) => String(candidate?.awards_status || '').trim().toLowerCase() === 'pending_retry';
 
         // If results are missing/not ready, ask backend once.
-        if (!row || !row.results_ready || !hasAnyAwardData(row)) {
+        if (!row || !row.results_ready || !hasAnyAwardData(row) || isPendingRetryStatus(row)) {
           if (!cancelled) {
             setAwardsSkippedByEnsure(false);
           }
@@ -1292,6 +1294,34 @@ const ResultadosEncuestaView = () => {
       clearAutoOpenGuard();
     };
   }, []);
+
+  useEffect(() => {
+    const matchKey = String(partidoId || '').trim();
+    if (!matchKey) return;
+    if (!results?.results_ready) return;
+    const awardsStatusToken = String(results?.awards_status || '').trim().toLowerCase();
+    if (awardsStatusToken !== 'pending_retry') return;
+    if (pendingRetryAttemptedRef.current.has(matchKey)) return;
+    pendingRetryAttemptedRef.current.add(matchKey);
+
+    let cancelled = false;
+    const runPendingRetry = async () => {
+      try {
+        const res = await ensureAwards(partidoId);
+        if (cancelled) return;
+        if (res?.ok && res?.row) {
+          setResults(res.row);
+        }
+      } catch (retryErr) {
+        console.error('[RESULTADOS] pending_retry ensureAwards failed', retryErr);
+      }
+    };
+
+    runPendingRetry();
+    return () => {
+      cancelled = true;
+    };
+  }, [partidoId, results?.awards_status, results?.results_ready]);
 
   // If we entered in forced story mode and initially showed "awards-pending",
   // upgrade to real award slides as soon as results/roster become available.
