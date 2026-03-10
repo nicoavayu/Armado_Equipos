@@ -1580,12 +1580,20 @@ const EncuestaPartido = () => {
       return { ok: false, message: finalTeamsValidation.message };
     }
 
-    const teamARefs = (finalTeams.teamA || [])
-      .map((key) => resolvePersistRef(playersByKey[key]))
-      .filter(Boolean);
-    const teamBRefs = (finalTeams.teamB || [])
-      .map((key) => resolvePersistRef(playersByKey[key]))
-      .filter(Boolean);
+    const buildPersistRefs = (teamKeys = []) => {
+      const refs = (teamKeys || [])
+        .map((key) => {
+          const player = playersByKey[key];
+          if (!player) return null;
+          const preferred = player?.id ?? player?.uuid ?? player?.usuario_id ?? resolvePersistRef(player);
+          return String(preferred || '').trim() || null;
+        })
+        .filter(Boolean);
+      return Array.from(new Set(refs));
+    };
+
+    const teamARefs = buildPersistRefs(finalTeams.teamA);
+    const teamBRefs = buildPersistRefs(finalTeams.teamB);
 
     if (teamARefs.length === 0 || teamBRefs.length === 0) {
       console.warn('[SURVEY_TEAMS] Persist blocked: missing refs', {
