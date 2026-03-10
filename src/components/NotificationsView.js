@@ -148,7 +148,7 @@ const NotificationsView = () => {
       return;
     }
 
-    if (!notification.read) {
+    if (notification?.type !== 'match_invite' && !notification.read) {
       markAsRead(notification.id);
     }
 
@@ -231,7 +231,7 @@ const NotificationsView = () => {
       case 'match_invite':
       {
         const inviteStatus = String(data?.status || 'pending').trim().toLowerCase();
-        if (inviteStatus !== 'pending' || notification?.read === true) {
+        if (inviteStatus !== 'pending') {
           console.info('Esta invitación ya no está activa');
           break;
         }
@@ -542,7 +542,9 @@ const NotificationsView = () => {
   const handleGroupedNotificationClick = async (group, e) => {
     const notification = group?.latest;
     if (!isNotificationInteractive(notification)) return;
-    await markGroupAsRead(group);
+    if (notification?.type !== 'match_invite') {
+      await markGroupAsRead(group);
+    }
     await handleNotificationClick(notification, e);
   };
 

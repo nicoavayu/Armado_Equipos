@@ -1,5 +1,7 @@
 const {
   filterNotificationsForInbox,
+  hasPendingMatchInviteStatus,
+  isPendingMatchInviteNotification,
   MATCH_CANCELLATION_KEEP_ALIVE_MS,
 } = require('../utils/notificationInviteState');
 
@@ -71,5 +73,17 @@ describe('filterNotificationsForInbox cancellation handling', () => {
 
     const filtered = filterNotificationsForInbox(rows);
     expect(filtered).toHaveLength(0);
+  });
+
+  test('keeps invite status pending even when read is true, but hides it from inbox pending filter', () => {
+    const readPendingInvite = {
+      id: 'invite-read-pending',
+      type: 'match_invite',
+      read: true,
+      data: { status: 'pending', match_id: 712 },
+    };
+
+    expect(hasPendingMatchInviteStatus(readPendingInvite)).toBe(true);
+    expect(isPendingMatchInviteNotification(readPendingInvite)).toBe(false);
   });
 });

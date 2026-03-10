@@ -115,10 +115,13 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   const handleNotificationClick = async (notification) => {
     console.log('[NOTIFICATION_CLICK] START', { type: notification.type, data: notification.data });
 
-    try {
-      await markAsRead(notification.id);
-    } catch (e) {
-      console.error('[NOTIFICATION_CLICK] markAsRead error at start:', e);
+    const isMatchInvite = notification?.type === 'match_invite';
+    if (!isMatchInvite) {
+      try {
+        await markAsRead(notification.id);
+      } catch (e) {
+        console.error('[NOTIFICATION_CLICK] markAsRead error at start:', e);
+      }
     }
 
     try {
@@ -176,7 +179,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
     if (notification.type === 'match_invite') {
       const inviteStatus = String(notification?.data?.status || 'pending').trim().toLowerCase();
-      if (inviteStatus !== 'pending' || notification?.read === true) {
+      if (inviteStatus !== 'pending') {
         console.info('Esta invitación ya no está activa');
         return;
       }

@@ -20,7 +20,7 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { buildMatchCalendarIcs, shareOrDownloadCalendarIcs } from '../utils/calendarInvite';
 import {
   getNotificationTimestampMs,
-  isPendingMatchInviteNotification,
+  hasPendingMatchInviteStatus,
 } from '../utils/notificationInviteState';
 
 /**
@@ -119,7 +119,7 @@ async function fetchInviteAccessState({ userId, matchId }) {
 
   const latestKick = rows.find((row) => row?.type === 'match_kicked') || null;
   const latestPendingInvite = rows.find(
-    (row) => row?.type === 'match_invite' && isPendingMatchInviteNotification(row),
+    (row) => row?.type === 'match_invite' && hasPendingMatchInviteStatus(row),
   ) || null;
 
   const kickTs = getNotificationTimestampMs(latestKick);

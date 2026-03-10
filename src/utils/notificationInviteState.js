@@ -18,10 +18,15 @@ export const getNotificationMatchIdText = (notification) => {
   return text || null;
 };
 
-export const isPendingMatchInviteNotification = (notification) => {
+export const hasPendingMatchInviteStatus = (notification) => {
   if (notification?.type !== 'match_invite') return false;
-  if (notification?.read === true) return false;
   return isPendingInviteStatus(notification?.data?.status);
+};
+
+export const isPendingMatchInviteNotification = (notification) => {
+  if (!hasPendingMatchInviteStatus(notification)) return false;
+  if (notification?.read === true) return false;
+  return true;
 };
 
 export const buildLatestKickTsByMatch = (notifications = []) => {
