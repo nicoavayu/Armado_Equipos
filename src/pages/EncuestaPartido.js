@@ -1432,7 +1432,7 @@ const EncuestaPartido = () => {
       return 'Equipos fijos del desafío';
     }
     if (teamsFinalizedBySurvey) {
-      return 'Equipos finales definidos por el primer voto';
+      return 'Estos son los equipos finales del partido. Solo falta confirmar el resultado.';
     }
     if (hasConfirmedTeams || teamsSource === 'admin') {
       return 'Equipos confirmados (podés corregirlos si hubo cambios de último momento)';
