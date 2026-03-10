@@ -1435,7 +1435,7 @@ const EncuestaPartido = () => {
       return 'Equipos finales definidos por el primer voto';
     }
     if (hasConfirmedTeams || teamsSource === 'admin') {
-      return 'Equipos confirmados';
+      return 'Equipos confirmados (podés corregirlos si hubo cambios de último momento)';
     }
     if (teamsLockedByUserId || teamsLockedAt || teamsLocked || teamsSource === 'survey') {
       return 'Equipos finales cargados por jugadores (editable)';
