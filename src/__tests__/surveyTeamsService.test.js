@@ -85,4 +85,29 @@ describe('survey team locking (first writer wins)', () => {
     expect(result.teamARefs).toEqual(['p1', 'p2']);
     expect(result.teamBRefs).toEqual(['p3', 'p4']);
   });
+
+  test('supports RPC payload returned as array row', async () => {
+    supabase.rpc.mockResolvedValueOnce({
+      data: [{
+        success: true,
+        reason: 'locked',
+        teams_source: 'survey',
+        teams_locked: true,
+        team_a: ['p1', 'p2'],
+        team_b: ['p3', 'p4'],
+      }],
+      error: null,
+    });
+
+    const result = await lockSurveyTeamsOnce({
+      matchId: 101,
+      teamARefs: ['p1', 'p2'],
+      teamBRefs: ['p3', 'p4'],
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.success).toBe(true);
+    expect(result.teamARefs).toEqual(['p1', 'p2']);
+    expect(result.teamBRefs).toEqual(['p3', 'p4']);
+  });
 });

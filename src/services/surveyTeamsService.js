@@ -79,22 +79,30 @@ export const buildSeededInitialTeams = ({ playerKeys = [], seed = 0 }) => {
 };
 
 export const parseSaveMatchFinalTeamsResponse = (rpcData) => {
-  const payload = rpcData && typeof rpcData === 'object' ? rpcData : {};
-  const success = payload.success === true;
+  const payload = Array.isArray(rpcData)
+    ? (rpcData[0] && typeof rpcData[0] === 'object' ? rpcData[0] : {})
+    : (rpcData && typeof rpcData === 'object' ? rpcData : {});
   const reason = String(payload.reason || '').trim().toLowerCase();
+  const successByFlag = payload.success === true || payload.ok === true;
+  const successByReason = ['locked', 'saved', 'ok', 'success'].includes(reason);
+  const success = successByFlag || successByReason;
   const alreadyLocked = reason === 'already_locked' || reason === 'locked_by_other';
   const lockedByOther = payload.locked_by_other === true || reason === 'locked_by_other';
+  const teamARefs = sanitizeTeamRefs(payload.team_a ?? payload.final_team_a ?? payload.survey_team_a);
+  const teamBRefs = sanitizeTeamRefs(payload.team_b ?? payload.final_team_b ?? payload.survey_team_b);
+  const teamsLocked = payload.teams_locked === true || payload.locked === true || success || alreadyLocked;
+  const hasPersistedTeams = teamARefs.length > 0 && teamBRefs.length > 0;
 
   return {
-    ok: success || alreadyLocked,
+    ok: success || alreadyLocked || (teamsLocked && hasPersistedTeams),
     success,
     alreadyLocked,
     reason: String(payload.reason || ''),
     lockedByOther,
     teamsSource: payload.teams_source ? String(payload.teams_source) : null,
-    teamARefs: sanitizeTeamRefs(payload.team_a),
-    teamBRefs: sanitizeTeamRefs(payload.team_b),
-    teamsLocked: payload.teams_locked === true,
+    teamARefs,
+    teamBRefs,
+    teamsLocked,
     teamsLockedByUserId: payload.teams_locked_by_user_id || null,
     teamsLockedAt: payload.teams_locked_at || null,
   };
