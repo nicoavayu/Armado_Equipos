@@ -667,6 +667,7 @@ const EncuestaPartido = () => {
   const [teamsSource, setTeamsSource] = useState(null);
   const [teamsLockedByUserId, setTeamsLockedByUserId] = useState(null);
   const [teamsLockedAt, setTeamsLockedAt] = useState(null);
+  const [teamsFinalizedBySurvey, setTeamsFinalizedBySurvey] = useState(false);
   const [isTeamChallengeSurvey, setIsTeamChallengeSurvey] = useState(false);
   const [challengeSurveyName, setChallengeSurveyName] = useState('');
   const [challengeSurveyTeamLabels, setChallengeSurveyTeamLabels] = useState({ teamA: 'Equipo A', teamB: 'Equipo B' });
@@ -766,6 +767,7 @@ const EncuestaPartido = () => {
       setTeamsSource(null);
       setTeamsLockedByUserId(null);
       setTeamsLockedAt(null);
+      setTeamsFinalizedBySurvey(false);
       setIsTeamChallengeSurvey(false);
       setChallengeSurveyName('');
       setChallengeSurveyTeamLabels({ teamA: 'Equipo A', teamB: 'Equipo B' });
@@ -1252,6 +1254,7 @@ const EncuestaPartido = () => {
           refToKeyMap: playerRefToKey,
         });
         const resolvedLockedTeams = lockedTeamA.length > 0 && lockedTeamB.length > 0;
+        const hasPersistedSurveyLockedTeams = !isTeamChallengeValue && resolvedLockedTeams;
         const initialTeams = buildSeededInitialTeams({
           playerKeys: jugadoresPartido.map((player) => resolvePlayerKey(player)).filter(Boolean),
           seed: matchIdNum,
@@ -1261,11 +1264,21 @@ const EncuestaPartido = () => {
           setTeamsConfirmed(true);
           setPartido({ ...partidoData, teams_confirmed: true });
           setConfirmedTeams({ teamA: resolvedTeamA, teamB: resolvedTeamB });
-          setFinalTeams({ teamA: resolvedTeamA, teamB: resolvedTeamB });
-          setTeamsSource(isTeamChallengeValue ? 'team_challenge' : 'admin');
-          setTeamsLocked(true);
-          setTeamsLockedByUserId(null);
-          setTeamsLockedAt(null);
+          if (hasPersistedSurveyLockedTeams) {
+            setFinalTeams({ teamA: lockedTeamA, teamB: lockedTeamB });
+            setTeamsSource(teamsSourceValue || 'survey');
+            setTeamsLocked(true);
+            setTeamsLockedByUserId(teamsLockedByValue || null);
+            setTeamsLockedAt(teamsLockedAtValue || null);
+            setTeamsFinalizedBySurvey(true);
+          } else {
+            setFinalTeams({ teamA: resolvedTeamA, teamB: resolvedTeamB });
+            setTeamsSource(isTeamChallengeValue ? 'team_challenge' : 'admin');
+            setTeamsLocked(true);
+            setTeamsLockedByUserId(null);
+            setTeamsLockedAt(null);
+            setTeamsFinalizedBySurvey(false);
+          }
         } else {
           setConfirmedTeams({ teamA: [], teamB: [] });
 
@@ -1279,6 +1292,7 @@ const EncuestaPartido = () => {
             setTeamsSource(teamsSourceValue || 'survey');
             setTeamsLockedByUserId(teamsLockedByValue);
             setTeamsLockedAt(teamsLockedAtValue);
+            setTeamsFinalizedBySurvey(!isTeamChallengeValue);
           } else if (shouldAllowManualRecovery) {
             setTeamsConfirmed(false);
             setPartido({ ...partidoData, teams_confirmed: false });
@@ -1287,6 +1301,7 @@ const EncuestaPartido = () => {
             setTeamsSource('survey');
             setTeamsLockedByUserId(null);
             setTeamsLockedAt(null);
+            setTeamsFinalizedBySurvey(false);
           } else {
             setTeamsConfirmed(false);
             setPartido({ ...partidoData, teams_confirmed: false });
@@ -1295,6 +1310,7 @@ const EncuestaPartido = () => {
             setTeamsSource('survey');
             setTeamsLockedByUserId(null);
             setTeamsLockedAt(null);
+            setTeamsFinalizedBySurvey(false);
           }
         }
 
@@ -1406,14 +1422,17 @@ const EncuestaPartido = () => {
   ), [playersByKey]);
   const playerRefToKeyMap = useMemo(() => buildPlayerRefToKeyMap(jugadores), [jugadores]);
   const compactFlowMode = loggedRosterCount > 0 && loggedRosterCount < 3;
-  const shouldDisableTeamReorganization = isTeamChallengeSurvey;
+  const shouldDisableTeamReorganization = isTeamChallengeSurvey || teamsFinalizedBySurvey;
   const shouldForceOrganizeTeamsStep = !shouldDisableTeamReorganization;
   const shouldShowWinnerSelectionInOrganizeStep = !shouldDisableTeamReorganization;
 
   const hasConfirmedTeams = teamsConfirmed && confirmedTeams.teamA.length > 0 && confirmedTeams.teamB.length > 0;
   const teamsContextLabel = useMemo(() => {
-    if (shouldDisableTeamReorganization) {
+    if (isTeamChallengeSurvey) {
       return 'Equipos fijos del desafío';
+    }
+    if (teamsFinalizedBySurvey) {
+      return 'Equipos finales definidos por el primer voto';
     }
     if (hasConfirmedTeams || teamsSource === 'admin') {
       return 'Equipos confirmados';
@@ -1422,17 +1441,20 @@ const EncuestaPartido = () => {
       return 'Equipos finales cargados por jugadores (editable)';
     }
     return 'Equipos a definir en encuesta';
-  }, [hasConfirmedTeams, shouldDisableTeamReorganization, teamsLocked, teamsLockedAt, teamsLockedByUserId, teamsSource]);
+  }, [hasConfirmedTeams, isTeamChallengeSurvey, teamsFinalizedBySurvey, teamsLocked, teamsLockedAt, teamsLockedByUserId, teamsSource]);
 
   const organizeTeamsHelperText = useMemo(() => {
-    if (shouldDisableTeamReorganization) {
+    if (isTeamChallengeSurvey) {
       return 'Los equipos del desafío son fijos. Elegí quién ganó o marcá empate para continuar.';
+    }
+    if (teamsFinalizedBySurvey) {
+      return 'Los equipos ya fueron definidos por el primer jugador que respondió la encuesta.';
     }
     if (hasConfirmedTeams || teamsSource === 'admin') {
       return 'Armá los equipos finales como finalmente se jugó el partido.';
     }
     return 'Armá o ajustá los equipos finales según cómo se jugó realmente el partido.';
-  }, [hasConfirmedTeams, shouldDisableTeamReorganization, teamsSource]);
+  }, [hasConfirmedTeams, isTeamChallengeSurvey, teamsFinalizedBySurvey, teamsSource]);
   const friendlyOrganizeAndResultHelperText = 'Ajustá los equipos si hubo cambios de último momento: arrastrá jugadores entre equipos para reflejar cómo se jugó realmente.';
 
   const finalTeamsValidation = useMemo(() => {
@@ -1683,6 +1705,7 @@ const EncuestaPartido = () => {
     setTeamsSource(lockResult.teamsSource || 'survey');
     setTeamsLockedByUserId(lockResult.teamsLockedByUserId || null);
     setTeamsLockedAt(lockResult.teamsLockedAt || null);
+    setTeamsFinalizedBySurvey(true);
 
     if (lockResult.teamARefs.length > 0 && lockResult.teamBRefs.length > 0) {
       hydrateTeamsFromRefs({
@@ -2581,7 +2604,7 @@ const EncuestaPartido = () => {
                   <div className={titleClass}>
                     ¿QUIÉN GANÓ?
                   </div>
-                  {!shouldDisableTeamReorganization && (
+                  {!isTeamChallengeSurvey && (
                     <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
                       {teamsContextLabel}
                     </div>
