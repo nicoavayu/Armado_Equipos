@@ -711,92 +711,92 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
     const needsPhotoPrompt = !fotoPreview;
     const showGuestPhotoExplanation = needsPhotoPrompt && isPublicVoting && !useAuthenticatedSubmit;
+    const voteDisclaimerMessage = 'Votá con seriedad y objetividad. Esto ayuda a armar equipos parejos y mejorar el partido para todos.';
 
     return (
       <div className={wrapperClass}>
         {noticeSlot}
-        <div className={cardClass}>
+        <div className={`${cardClass} !justify-start pb-[max(10px,env(safe-area-inset-bottom))]`}>
           <div className={titleClass}>¡HOLA, {clean(nombre)}!</div>
-          {needsPhotoPrompt ? (
-            <>
-              <div className="flex flex-col items-center mb-6">
-                <div
-                  className={'w-64 h-64 md:w-[320px] md:h-[320px] border rounded-none flex items-center justify-center relative overflow-hidden mx-auto mt-4 cursor-pointer transition-all hover:brightness-105'}
-                  style={voteCardBodyStyle}
-                  onClick={() => fotoInputRef.current?.click()}
-                  title="Agregar foto"
-                >
-                  <span className="text-white text-[60px] md:text-[82px] font-normal leading-none opacity-50 select-none pointer-events-none">+</span>
-                  <input
-                    id="foto-input"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    ref={fotoInputRef}
-                    onChange={handleFile}
-                  />
+          <div className="w-full flex-1 min-h-0 flex flex-col items-center justify-center">
+            {needsPhotoPrompt ? (
+              <>
+                <div className="flex flex-col items-center mb-6">
+                  <div
+                    className={'w-64 h-64 md:w-[320px] md:h-[320px] border rounded-none flex items-center justify-center relative overflow-hidden mx-auto mt-4 cursor-pointer transition-all hover:brightness-105'}
+                    style={voteCardBodyStyle}
+                    onClick={() => fotoInputRef.current?.click()}
+                    title="Agregar foto"
+                  >
+                    <span className="text-white text-[60px] md:text-[82px] font-normal leading-none opacity-50 select-none pointer-events-none">+</span>
+                    <input
+                      id="foto-input"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      ref={fotoInputRef}
+                      onChange={handleFile}
+                    />
+                  </div>
                 </div>
-              </div>
-              {showGuestPhotoExplanation && (
-                <div className="text-[18px] text-white/70 text-center mb-1 font-oswald">
-                  Sacá una foto para que los demás jugadores te reconozcan al votar.
-                </div>
-              )}
+                {showGuestPhotoExplanation && (
+                  <div className="text-[18px] text-white/70 text-center mb-1 font-oswald">
+                    Sacá una foto para que los demás jugadores te reconozcan al votar.
+                  </div>
+                )}
 
-              <div className="w-full flex flex-col gap-2 mt-2">
-                <button
-                  className={`${primaryVoteButtonClass} !mt-0`}
-                  style={primaryVoteButtonStyle}
-                  onClick={() => fotoInputRef.current?.click()}
-                  disabled={subiendoFoto}
-                >
-                  {subiendoFoto ? 'Subiendo foto...' : 'Sacarme una foto'}
-                </button>
-                <button
-                  type="button"
-                  className="w-full bg-transparent border-0 p-0 py-1 text-center font-oswald text-[18px] text-white/74 hover:text-white transition-all"
-                  onClick={() => setStep(2)}
-                  disabled={subiendoFoto}
-                >
-                  Continuar sin foto
-                </button>
-                <SurveyImportantDisclaimer
-                  className="mt-14"
-                  title="Importante"
-                  message="Votá con seriedad y objetividad. Esto ayuda a armar equipos parejos y mejorar el partido para todos."
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex flex-col items-center mb-6">
-                <div
-                  className="w-64 h-64 md:w-[320px] md:h-[320px] border rounded-none flex items-center justify-center relative overflow-hidden mx-auto mt-4"
-                  style={voteCardBodyStyle}
-                >
-                  <img
-                    src={fotoPreview}
-                    alt="foto del jugador"
-                    className="w-full h-full object-cover bg-transparent"
-                  />
+                <div className="w-full flex flex-col gap-2 mt-2">
+                  <button
+                    className={`${primaryVoteButtonClass} !mt-0`}
+                    style={primaryVoteButtonStyle}
+                    onClick={() => fotoInputRef.current?.click()}
+                    disabled={subiendoFoto}
+                  >
+                    {subiendoFoto ? 'Subiendo foto...' : 'Sacarme una foto'}
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full bg-transparent border-0 p-0 py-1 text-center font-oswald text-[18px] text-white/74 hover:text-white transition-all"
+                    onClick={() => setStep(2)}
+                    disabled={subiendoFoto}
+                  >
+                    Continuar sin foto
+                  </button>
                 </div>
-              </div>
-              <div className="w-full flex flex-col gap-2 mt-2">
-              <button
-                className={`${primaryVoteButtonClass} !mt-0`}
-                style={primaryVoteButtonStyle}
-                onClick={() => setStep(2)}
-              >
-                Continuar
-              </button>
-              <SurveyImportantDisclaimer
-                className="mt-14"
-                title="Importante"
-                message="Votá con seriedad y objetividad. Esto ayuda a armar equipos parejos y mejorar el partido para todos."
-              />
-              </div>
-            </>
-          )}
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col items-center mb-6">
+                  <div
+                    className="w-64 h-64 md:w-[320px] md:h-[320px] border rounded-none flex items-center justify-center relative overflow-hidden mx-auto mt-4"
+                    style={voteCardBodyStyle}
+                  >
+                    <img
+                      src={fotoPreview}
+                      alt="foto del jugador"
+                      className="w-full h-full object-cover bg-transparent"
+                    />
+                  </div>
+                </div>
+                <div className="w-full flex flex-col gap-2 mt-2">
+                  <button
+                    className={`${primaryVoteButtonClass} !mt-0`}
+                    style={primaryVoteButtonStyle}
+                    onClick={() => setStep(2)}
+                  >
+                    Continuar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          <div className="w-full shrink-0 pt-[clamp(16px,6vh,72px)]">
+            <SurveyImportantDisclaimer
+              className="w-full"
+              title="IMPORTANTE"
+              message={voteDisclaimerMessage}
+            />
+          </div>
         </div>
       </div>
     );

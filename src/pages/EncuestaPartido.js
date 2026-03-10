@@ -2195,62 +2195,64 @@ const EncuestaPartido = () => {
             <div className={progressGapClass} />
           {/* STEP 0: ¿SE JUGÓ? */}
           {currentStep === SURVEY_STEPS.PLAYED && (
-            <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
-              <div className={questionRowClass}>
-                <div className="w-full">
-                  <div className={titleClass}>
-                    ¿SE JUGÓ EL PARTIDO?
-                  </div>
-                  {isTeamChallengeSurvey && challengeSurveyName ? (
-                    <div className="mt-1.5 text-center font-oswald text-[18px] leading-tight text-white md:text-[21px]">
-                      Desafío: {challengeSurveyName}
+            <div className={`${stepClass} !justify-start animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+              <div className="w-full flex-1 min-h-0 flex flex-col items-center justify-center">
+                <div className={questionRowClass}>
+                  <div className="w-full">
+                    <div className={titleClass}>
+                      ¿SE JUGÓ EL PARTIDO?
                     </div>
-                  ) : null}
-                  <div className="text-white text-[17px] md:text-[20px] font-oswald text-center font-normal tracking-wide mt-2">
-                    {formatFecha(partido.fecha)}<br />
-                    {partido.hora && `${partido.hora} - `}{partido.sede ? partido.sede.split(/[,(]/)[0].trim() : 'Sin ubicación'}
+                    {isTeamChallengeSurvey && challengeSurveyName ? (
+                      <div className="mt-1.5 text-center font-oswald text-[18px] leading-tight text-white md:text-[21px]">
+                        Desafío: {challengeSurveyName}
+                      </div>
+                    ) : null}
+                    <div className="text-white text-[17px] md:text-[20px] font-oswald text-center font-normal tracking-wide mt-2">
+                      {formatFecha(partido.fecha)}<br />
+                      {partido.hora && `${partido.hora} - `}{partido.sede ? partido.sede.split(/[,(]/)[0].trim() : 'Sin ubicación'}
+                    </div>
+                  </div>
+                </div>
+                <div className={actionRowClass}>
+                  <div className={gridClass}>
+                    <button
+                      className={`${optionBtnClass} ${formData.se_jugo ? optionBtnSelectedClass : ''}`}
+                      onClick={() => {
+                        handleInputChange('se_jugo', true);
+                        if (formData.ganador === 'no_jugado') {
+                          handleInputChange('ganador', '');
+                        }
+                        setCurrentStep(
+                          compactFlowMode
+                            ? resolveNextResultGateStep({
+                              teamsConfirmed,
+                              teamsLocked,
+                              forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
+                              disableOrganizeTeamsStep: shouldDisableTeamReorganization,
+                            })
+                            : SURVEY_STEPS.ATTENDANCE,
+                        );
+                      }}
+                      type="button"
+                    >
+                      SÍ
+                    </button>
+                    <button
+                      className={`${optionBtnClass} ${!formData.se_jugo ? optionBtnSelectedClass : ''}`}
+                      onClick={() => {
+                        handleInputChange('se_jugo', false);
+                        handleInputChange('ganador', 'no_jugado');
+                        setCurrentStep(SURVEY_STEPS.NOT_PLAYED_REASON);
+                      }}
+                      type="button"
+                    >
+                      NO
+                    </button>
                   </div>
                 </div>
               </div>
-              <div className={actionRowClass}>
-                <div className={gridClass}>
-                  <button
-                    className={`${optionBtnClass} ${formData.se_jugo ? optionBtnSelectedClass : ''}`}
-                    onClick={() => {
-                      handleInputChange('se_jugo', true);
-                      if (formData.ganador === 'no_jugado') {
-                        handleInputChange('ganador', '');
-                      }
-                      setCurrentStep(
-                        compactFlowMode
-                          ? resolveNextResultGateStep({
-                            teamsConfirmed,
-                            teamsLocked,
-                            forceOrganizeTeamsStep: shouldForceOrganizeTeamsStep,
-                            disableOrganizeTeamsStep: shouldDisableTeamReorganization,
-                          })
-                          : SURVEY_STEPS.ATTENDANCE,
-                      );
-                    }}
-                    type="button"
-                  >
-                    SÍ
-                  </button>
-                  <button
-                    className={`${optionBtnClass} ${!formData.se_jugo ? optionBtnSelectedClass : ''}`}
-                    onClick={() => {
-                      handleInputChange('se_jugo', false);
-                      handleInputChange('ganador', 'no_jugado');
-                      setCurrentStep(SURVEY_STEPS.NOT_PLAYED_REASON);
-                    }}
-                    type="button"
-                  >
-                    NO
-                  </button>
-                </div>
-              </div>
-              <div className="w-full shrink-0 pt-10">
-                <SurveyImportantDisclaimer className="mx-auto mt-[30px] w-full max-w-[820px]" />
+              <div className="w-full shrink-0 pt-3 sm:pt-4 pb-[max(8px,env(safe-area-inset-bottom))]">
+                <SurveyImportantDisclaimer className="mx-auto w-full max-w-[820px]" />
               </div>
               <div className={logoRowClass}>
                 <SurveyFooterLogo />
