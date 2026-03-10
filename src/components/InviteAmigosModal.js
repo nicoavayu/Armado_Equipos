@@ -10,6 +10,8 @@ const normalizeInviteMode = (value) => {
   return normalized === 'request_join' ? 'request_join' : 'direct';
 };
 
+const INVITE_CACHE_PREFIX = 'match_pending_invites_v1';
+
 const normalizeInviteStatus = (value) => String(value || 'pending').trim().toLowerCase();
 const REINVITABLE_INVITE_STATUSES = new Set([
   'declined',
@@ -30,6 +32,39 @@ const getInviteTimestampMs = (row) => {
 const shouldBlockInvitationForStatus = (statusValue) => {
   const status = normalizeInviteStatus(statusValue);
   return !REINVITABLE_INVITE_STATUSES.has(status);
+};
+
+const buildInviteCacheKey = (matchId) => `${INVITE_CACHE_PREFIX}:${String(matchId || '').trim()}`;
+
+const readCachedInvitedFriendIds = (matchId) => {
+  const matchIdText = String(matchId || '').trim();
+  if (!matchIdText) return new Set();
+  try {
+    const raw = localStorage.getItem(buildInviteCacheKey(matchIdText));
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(
+      parsed
+        .map((value) => String(value || '').trim())
+        .filter(Boolean),
+    );
+  } catch (_error) {
+    return new Set();
+  }
+};
+
+const writeCachedInvitedFriendIds = (matchId, friendIds = []) => {
+  const matchIdText = String(matchId || '').trim();
+  if (!matchIdText) return;
+  try {
+    const normalized = Array.from(friendIds || [])
+      .map((value) => String(value || '').trim())
+      .filter(Boolean);
+    localStorage.setItem(buildInviteCacheKey(matchIdText), JSON.stringify(normalized));
+  } catch (_error) {
+    // Ignore localStorage failures (private mode / quota).
+  }
 };
 
 const collectBlockedInviteUserIds = (rows = []) => {
@@ -71,7 +106,7 @@ const InviteAmigosModal = ({
   const isRequestJoinMode = inviteMode === 'request_join';
 
   const visibleFriends = useMemo(
-    () => amigos.filter((amigo) => !invitedFriends.has(amigo.id)),
+    () => amigos.filter((amigo) => !invitedFriends.has(String(amigo.id || '').trim())),
     [amigos, invitedFriends],
   );
 
@@ -118,7 +153,15 @@ const InviteAmigosModal = ({
       });
 
       setAmigos(filteredFriends);
+      const friendIds = filteredFriends
+        .map((friend) => String(friend.id || '').trim())
+        .filter(Boolean);
+      const friendIdSet = new Set(friendIds);
+      const cachedBlockedIds = new Set(
+        Array.from(readCachedInvitedFriendIds(partidoActual?.id)).filter((id) => friendIdSet.has(id)),
+      );
       if (filteredFriends.length === 0) {
+        writeCachedInvitedFriendIds(partidoActual?.id, []);
         setInvitedFriends(new Set());
         return;
       }
@@ -126,40 +169,62 @@ const InviteAmigosModal = ({
       if (partidoActual?.id) {
         if (partidoActual.id === 'undefined' || partidoActual.id === 'null') {
           console.warn('[MODAL_AMIGOS] Invalid partidoActual.id, skipping invitation check');
-          setInvitedFriends(new Set());
+          setInvitedFriends(cachedBlockedIds);
+          writeCachedInvitedFriendIds(partidoActual?.id, cachedBlockedIds);
         } else {
-          const friendIds = filteredFriends.map((friend) => friend.id);
-          const { data: extData, error: extError } = await supabase
-            .from('notifications_ext')
-            .select('id, user_id, data, send_at, created_at')
-            .eq('type', 'match_invite')
-            .eq('match_id_text', partidoActual.id.toString())
-            .in('user_id', friendIds);
+          let blockedFromDb = new Set();
 
-          if (extError && extError.code !== '42P01') {
-            throw extError;
-          }
+          const { data: inviteStateRows, error: inviteStateError } = await supabase.rpc('get_match_invite_states', {
+            p_partido_id: Number(partidoActual.id),
+            p_user_ids: friendIds,
+          });
 
-          if (!extError) {
-            setInvitedFriends(collectBlockedInviteUserIds(extData || []));
+          if (!inviteStateError) {
+            blockedFromDb = new Set(
+              (inviteStateRows || [])
+                .filter((row) => shouldBlockInvitationForStatus(row?.invite_status))
+                .map((row) => String(row?.user_id || '').trim())
+                .filter(Boolean),
+            );
           } else {
-            const { data: fallbackRows, error: fallbackError } = await supabase
-              .from('notifications')
-              .select('id, user_id, data, send_at, created_at, partido_id, match_ref')
+            const { data: extData, error: extError } = await supabase
+              .from('notifications_ext')
+              .select('id, user_id, data, send_at, created_at')
               .eq('type', 'match_invite')
-              .eq('partido_id', Number(partidoActual.id))
+              .eq('match_id_text', partidoActual.id.toString())
               .in('user_id', friendIds);
-            if (fallbackError) throw fallbackError;
-            setInvitedFriends(collectBlockedInviteUserIds(fallbackRows || []));
+
+            if (extError && extError.code !== '42P01') {
+              throw extError;
+            }
+
+            if (!extError) {
+              blockedFromDb = collectBlockedInviteUserIds(extData || []);
+            } else {
+              const { data: fallbackRows, error: fallbackError } = await supabase
+                .from('notifications')
+                .select('id, user_id, data, send_at, created_at, partido_id, match_ref')
+                .eq('type', 'match_invite')
+                .eq('partido_id', Number(partidoActual.id))
+                .in('user_id', friendIds);
+              if (fallbackError) throw fallbackError;
+              blockedFromDb = collectBlockedInviteUserIds(fallbackRows || []);
+            }
           }
+
+          const mergedBlocked = new Set([...cachedBlockedIds, ...blockedFromDb]);
+          setInvitedFriends(mergedBlocked);
+          writeCachedInvitedFriendIds(partidoActual?.id, mergedBlocked);
         }
       } else {
-        setInvitedFriends(new Set());
+        setInvitedFriends(cachedBlockedIds);
+        writeCachedInvitedFriendIds(partidoActual?.id, cachedBlockedIds);
       }
     } catch (error) {
       console.error('[MODAL_AMIGOS] Error fetching friends:', error);
       setAmigos([]);
-      setInvitedFriends(new Set());
+      const cachedBlockedIds = readCachedInvitedFriendIds(partidoActual?.id);
+      setInvitedFriends(cachedBlockedIds);
     } finally {
       setLoading(false);
     }
@@ -207,6 +272,10 @@ const InviteAmigosModal = ({
   const sendInviteToFriend = async (amigo, inviteContext) => {
     if (!partidoActual?.id) {
       throw new Error('No hay partido seleccionado');
+    }
+    const friendIdText = String(amigo?.id || '').trim();
+    if (friendIdText && invitedFriends.has(friendIdText)) {
+      return { status: 'already_invited' };
     }
 
     const { data: existingRows, error: existingError } = await supabase
@@ -308,9 +377,15 @@ const InviteAmigosModal = ({
     try {
       const inviteContext = await getInviteContext();
       const result = await sendInviteToFriend(amigo, inviteContext);
+      const friendIdText = String(amigo?.id || '').trim();
 
       if (result.status === 'already_invited') {
-        setInvitedFriends((prev) => new Set([...prev, amigo.id]));
+        setInvitedFriends((prev) => {
+          const next = new Set(prev);
+          if (friendIdText) next.add(friendIdText);
+          writeCachedInvitedFriendIds(partidoActual?.id, next);
+          return next;
+        });
         return;
       }
 
@@ -318,7 +393,12 @@ const InviteAmigosModal = ({
         return;
       }
 
-      setInvitedFriends((prev) => new Set([...prev, amigo.id]));
+      setInvitedFriends((prev) => {
+        const next = new Set(prev);
+        if (friendIdText) next.add(friendIdText);
+        writeCachedInvitedFriendIds(partidoActual?.id, next);
+        return next;
+      });
     } catch (error) {
       console.error('[MODAL_AMIGOS] Error sending invite:', error);
       handleInviteError(error);
@@ -369,7 +449,15 @@ const InviteAmigosModal = ({
       }
 
       if (sentIds.length > 0 || alreadyInvitedIds.length > 0) {
-        setInvitedFriends((prev) => new Set([...prev, ...sentIds, ...alreadyInvitedIds]));
+        setInvitedFriends((prev) => {
+          const next = new Set(prev);
+          [...sentIds, ...alreadyInvitedIds]
+            .map((value) => String(value || '').trim())
+            .filter(Boolean)
+            .forEach((id) => next.add(id));
+          writeCachedInvitedFriendIds(partidoActual?.id, next);
+          return next;
+        });
       }
       setSelectedFriendIds(new Set());
     } catch (error) {
