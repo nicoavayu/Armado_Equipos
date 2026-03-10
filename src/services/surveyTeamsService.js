@@ -29,10 +29,14 @@ export const buildPlayerRefToKeyMap = (players = []) => {
 
 export const toPlayerKeysFromRefs = ({ refs = [], refToKeyMap }) => {
   const keys = [];
+  const seen = new Set();
 
   (Array.isArray(refs) ? refs : []).forEach((ref) => {
     const key = refToKeyMap.get(normalizeIdentityRef(ref));
-    if (key) keys.push(key);
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      keys.push(key);
+    }
   });
 
   return keys;

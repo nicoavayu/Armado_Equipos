@@ -1407,7 +1407,7 @@ const EncuestaPartido = () => {
   const playerRefToKeyMap = useMemo(() => buildPlayerRefToKeyMap(jugadores), [jugadores]);
   const compactFlowMode = loggedRosterCount > 0 && loggedRosterCount < 3;
   const shouldDisableTeamReorganization = isTeamChallengeSurvey;
-  const shouldForceOrganizeTeamsStep = compactFlowMode && !shouldDisableTeamReorganization;
+  const shouldForceOrganizeTeamsStep = !shouldDisableTeamReorganization;
   const shouldShowWinnerSelectionInOrganizeStep = !shouldDisableTeamReorganization;
 
   const hasConfirmedTeams = teamsConfirmed && confirmedTeams.teamA.length > 0 && confirmedTeams.teamB.length > 0;
@@ -1433,14 +1433,12 @@ const EncuestaPartido = () => {
     }
     return 'Armá o ajustá los equipos finales según cómo se jugó realmente el partido.';
   }, [hasConfirmedTeams, shouldDisableTeamReorganization, teamsSource]);
-  const friendlyOrganizeAndResultHelperText = 'Ajustá los equipos si hubo cambios: arrastrá jugadores entre equipos para reflejar cómo se jugó realmente.';
+  const friendlyOrganizeAndResultHelperText = 'Ajustá los equipos si hubo cambios de último momento: arrastrá jugadores entre equipos para reflejar cómo se jugó realmente.';
 
   const finalTeamsValidation = useMemo(() => {
     const teamA = Array.isArray(finalTeams?.teamA) ? finalTeams.teamA : [];
     const teamB = Array.isArray(finalTeams?.teamB) ? finalTeams.teamB : [];
-    const expectedKeys = hasConfirmedTeams
-      ? new Set([...(confirmedTeams.teamA || []), ...(confirmedTeams.teamB || [])])
-      : new Set(allPlayerKeys);
+    const expectedKeys = new Set(allPlayerKeys);
 
     if (teamA.length === 0 || teamB.length === 0) {
       return { ok: false, message: 'Los equipos finales quedaron inconsistentes. Revisá que todos los jugadores estén en un equipo.' };
@@ -1462,7 +1460,7 @@ const EncuestaPartido = () => {
     }
 
     return { ok: true, message: '' };
-  }, [allPlayerKeys, confirmedTeams, finalTeams, hasConfirmedTeams]);
+  }, [allPlayerKeys, finalTeams]);
 
   const hydrateTeamsFromRefs = ({ teamARefs = [], teamBRefs = [] }) => {
     const teamA = toPlayerKeysFromRefs({ refs: teamARefs, refToKeyMap: playerRefToKeyMap });
@@ -1572,28 +1570,44 @@ const EncuestaPartido = () => {
       return { ok: true, message: '' };
     }
 
-    if (hasConfirmedTeams || teamsSource === 'admin') {
-      return { ok: true, message: '' };
-    }
-
     if (!finalTeamsValidation.ok) {
       return { ok: false, message: finalTeamsValidation.message };
     }
 
-    const buildPersistRefs = (teamKeys = []) => {
-      const refs = (teamKeys || [])
-        .map((key) => {
-          const player = playersByKey[key];
-          if (!player) return null;
-          const preferred = player?.id ?? player?.uuid ?? player?.usuario_id ?? resolvePersistRef(player);
-          return String(preferred || '').trim() || null;
-        })
-        .filter(Boolean);
-      return Array.from(new Set(refs));
+    const buildPersistRefs = (teamKeys = [], options = {}) => {
+      const includeAliases = options?.includeAliases === true;
+      const refs = [];
+      const seen = new Set();
+      const pushRef = (value) => {
+        const ref = String(value || '').trim();
+        if (!ref) return;
+        const token = ref.toLowerCase();
+        if (seen.has(token)) return;
+        seen.add(token);
+        refs.push(ref);
+      };
+
+      (teamKeys || []).forEach((key) => {
+        const player = playersByKey[key];
+        if (!player) return;
+
+        const preferred = player?.id ?? player?.uuid ?? player?.usuario_id ?? resolvePersistRef(player);
+        pushRef(preferred);
+
+        if (includeAliases) {
+          pushRef(player?.id);
+          pushRef(player?.uuid);
+          pushRef(player?.usuario_id);
+        }
+      });
+
+      return refs;
     };
 
     const teamARefs = buildPersistRefs(finalTeams.teamA);
     const teamBRefs = buildPersistRefs(finalTeams.teamB);
+    const teamACompatRefs = buildPersistRefs(finalTeams.teamA, { includeAliases: true });
+    const teamBCompatRefs = buildPersistRefs(finalTeams.teamB, { includeAliases: true });
 
     if (teamARefs.length === 0 || teamBRefs.length === 0) {
       console.warn('[SURVEY_TEAMS] Persist blocked: missing refs', {
@@ -1623,6 +1637,33 @@ const EncuestaPartido = () => {
         hint: rpcError?.hint || null,
       });
       lockResult = { ok: false, reason: rpcError?.message || 'rpc_error' };
+    }
+
+    const initialLockReason = String(lockResult?.reason || '').trim().toLowerCase();
+    if (
+      !lockResult.ok
+      && initialLockReason === 'inconsistent_roster_count'
+      && (teamACompatRefs.length !== teamARefs.length || teamBCompatRefs.length !== teamBRefs.length)
+    ) {
+      try {
+        const retryLockResult = await lockSurveyTeamsOnce({
+          matchId: matchIdNum,
+          teamARefs: teamACompatRefs,
+          teamBRefs: teamBCompatRefs,
+        });
+        if (retryLockResult.ok) {
+          lockResult = retryLockResult;
+        } else {
+          console.warn('[SURVEY_TEAMS] save_match_final_teams compat retry non-ok response', retryLockResult);
+        }
+      } catch (retryRpcError) {
+        console.error('[SURVEY_TEAMS] save_match_final_teams compat retry RPC error', {
+          code: retryRpcError?.code || null,
+          message: retryRpcError?.message || null,
+          details: retryRpcError?.details || null,
+          hint: retryRpcError?.hint || null,
+        });
+      }
     }
 
     if (!lockResult.ok) {
@@ -1730,7 +1771,7 @@ const EncuestaPartido = () => {
       }
 
       const outcome = resolveSurveyOutcome();
-      if (outcome.seJugo && !skipPersistTeams && !teamsConfirmed && teamsSource !== 'admin' && !shouldDisableTeamReorganization) {
+      if (outcome.seJugo && !skipPersistTeams && !shouldDisableTeamReorganization) {
         const persistResult = await persistSurveyTeamsDefinition();
         if (!persistResult.ok) {
           openSurveyModal(persistResult.message, 'No se pudieron guardar los equipos');
@@ -1839,7 +1880,7 @@ const EncuestaPartido = () => {
     }
 
     if (currentStep === SURVEY_STEPS.RESULT && !formData.ganador) {
-      openSurveyModal('Elegí el resultado: Equipo A, Equipo B, Empate o No jugado.', 'Falta seleccionar resultado');
+      openSurveyModal('Elegí el resultado: Equipo A, Equipo B o Empate.', 'Falta seleccionar resultado');
       return;
     }
 
@@ -1867,16 +1908,6 @@ const EncuestaPartido = () => {
     }
 
     const shouldSubmitFromHere = shouldShowWinnerSelectionInOrganizeStep;
-
-    if (teamsConfirmed || teamsSource === 'admin') {
-      if (shouldSubmitFromHere) {
-        setSubmitting(true);
-        await continueSubmitFlow();
-        return;
-      }
-      setCurrentStep(SURVEY_STEPS.RESULT);
-      return;
-    }
 
     setSubmitting(true);
     try {
@@ -2594,17 +2625,6 @@ const EncuestaPartido = () => {
                     >
                       EMPATE
                     </button>
-                    <button
-                      type="button"
-                      className={`${resultSecondaryBtnClass} ${formData.ganador === 'no_jugado' ? optionBtnSelectedClass : ''}`}
-                      onClick={() => {
-                        handleInputChange('ganador', 'no_jugado');
-                        handleInputChange('se_jugo', false);
-                        closeSurveyModal();
-                      }}
-                    >
-                      NO JUGADO / CANCELADO
-                    </button>
                   </div>
                 </div>
               </div>
@@ -2663,7 +2683,7 @@ const EncuestaPartido = () => {
             </div>
           )}
 
-          {/* STEP 7: ORGANIZAR EQUIPOS (solo si no estaban confirmados) */}
+          {/* STEP 7: ORGANIZAR EQUIPOS */}
           {currentStep === SURVEY_STEPS.ORGANIZE_TEAMS && (
             <div className={`${stepClass} !justify-start pt-2 sm:pt-4 animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
@@ -2696,7 +2716,7 @@ const EncuestaPartido = () => {
                       setFinalTeams(next);
                       closeSurveyModal();
                     }}
-                    disabled={hasConfirmedTeams || teamsSource === 'admin' || shouldDisableTeamReorganization}
+                    disabled={shouldDisableTeamReorganization}
                   />
 
                   {shouldShowWinnerSelectionInOrganizeStep ? (

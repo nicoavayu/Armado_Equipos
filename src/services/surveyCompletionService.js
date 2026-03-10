@@ -372,7 +372,7 @@ const resolveEffectiveTeamIdSets = async (partidoId, refToIdMap) => {
   try {
     const { data, error } = await supabase
       .from('partidos')
-      .select('teams_confirmed, survey_team_a, survey_team_b, final_team_a, final_team_b')
+      .select('teams_confirmed, teams_source, survey_team_a, survey_team_b, final_team_a, final_team_b')
       .eq('id', partidoId)
       .maybeSingle();
     if (!error) {
@@ -386,7 +386,20 @@ const resolveEffectiveTeamIdSets = async (partidoId, refToIdMap) => {
   let teamARefs = [];
   let teamBRefs = [];
 
-  if (matchRow?.teams_confirmed === true) {
+  const surveyTeamA = Array.isArray(matchRow?.survey_team_a) ? matchRow.survey_team_a : [];
+  const surveyTeamB = Array.isArray(matchRow?.survey_team_b) ? matchRow.survey_team_b : [];
+  const finalTeamA = Array.isArray(matchRow?.final_team_a) ? matchRow.final_team_a : [];
+  const finalTeamB = Array.isArray(matchRow?.final_team_b) ? matchRow.final_team_b : [];
+
+  if (surveyTeamA.length > 0 && surveyTeamB.length > 0) {
+    source = String(matchRow?.teams_source || 'survey');
+    teamARefs = surveyTeamA;
+    teamBRefs = surveyTeamB;
+  } else if (finalTeamA.length > 0 && finalTeamB.length > 0) {
+    source = 'final';
+    teamARefs = finalTeamA;
+    teamBRefs = finalTeamB;
+  } else if (matchRow?.teams_confirmed === true) {
     source = 'admin';
     try {
       const { data: confirmationRow, error: confirmationError } = await supabase
@@ -400,14 +413,6 @@ const resolveEffectiveTeamIdSets = async (partidoId, refToIdMap) => {
       }
     } catch (_error) {
       // Non-blocking fallback.
-    }
-  } else {
-    teamARefs = Array.isArray(matchRow?.survey_team_a) ? matchRow.survey_team_a : [];
-    teamBRefs = Array.isArray(matchRow?.survey_team_b) ? matchRow.survey_team_b : [];
-
-    if (teamARefs.length === 0 || teamBRefs.length === 0) {
-      teamARefs = Array.isArray(matchRow?.final_team_a) ? matchRow.final_team_a : [];
-      teamBRefs = Array.isArray(matchRow?.final_team_b) ? matchRow.final_team_b : [];
     }
   }
 

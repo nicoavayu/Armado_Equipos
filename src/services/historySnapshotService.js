@@ -139,44 +139,39 @@ export async function ensureParticipantsSnapshot(partidoId) {
       // Optional columns on older environments.
     }
 
-    if (partidosRow?.teams_confirmed !== true) {
-      const surveyA = isArray(partidosRow?.survey_team_a) ? partidosRow.survey_team_a : [];
-      const surveyB = isArray(partidosRow?.survey_team_b) ? partidosRow.survey_team_b : [];
-      if (surveyA.length > 0 && surveyB.length > 0) {
+    const surveyA = isArray(partidosRow?.survey_team_a) ? partidosRow.survey_team_a : [];
+    const surveyB = isArray(partidosRow?.survey_team_b) ? partidosRow.survey_team_b : [];
+    if (surveyA.length > 0 && surveyB.length > 0) {
+      surveyTeamsSnapshot = {
+        team_a: surveyA,
+        team_b: surveyB,
+        teams_json: null,
+        confirmed_at: partidosRow?.teams_locked_at || partidosRow?.final_teams_updated_at || null,
+        source: partidosRow?.teams_source || 'partidos.survey_teams',
+        updated_by: partidosRow?.teams_locked_by_user_id || partidosRow?.final_teams_updated_by || null,
+      };
+    } else {
+      const finalA = isArray(partidosRow?.final_team_a) ? partidosRow.final_team_a : [];
+      const finalB = isArray(partidosRow?.final_team_b) ? partidosRow.final_team_b : [];
+      if (finalA.length > 0 && finalB.length > 0) {
         surveyTeamsSnapshot = {
-          team_a: surveyA,
-          team_b: surveyB,
+          team_a: finalA,
+          team_b: finalB,
           teams_json: null,
-          confirmed_at: partidosRow?.teams_locked_at || partidosRow?.final_teams_updated_at || null,
-          source: partidosRow?.teams_source || 'partidos.survey_teams',
-          updated_by: partidosRow?.teams_locked_by_user_id || partidosRow?.final_teams_updated_by || null,
+          confirmed_at: partidosRow?.final_teams_updated_at || null,
+          source: partidosRow?.teams_source || 'partidos.final_teams',
+          updated_by: partidosRow?.final_teams_updated_by || null,
         };
-      } else {
-        const finalA = isArray(partidosRow?.final_team_a) ? partidosRow.final_team_a : [];
-        const finalB = isArray(partidosRow?.final_team_b) ? partidosRow.final_team_b : [];
-        if (finalA.length > 0 && finalB.length > 0) {
-          surveyTeamsSnapshot = {
-            team_a: finalA,
-            team_b: finalB,
-            teams_json: null,
-            confirmed_at: partidosRow?.final_teams_updated_at || null,
-            source: partidosRow?.teams_source || 'partidos.final_teams',
-            updated_by: partidosRow?.final_teams_updated_by || null,
-          };
-        }
       }
     }
 
-    if (partidosRow?.teams_confirmed === true) {
-      // Keep the admin-confirmed snapshot as source of truth.
-      if (equiposSnapshot) {
-        equiposSnapshot = {
-          ...equiposSnapshot,
-          source: 'admin',
-        };
-      }
-    } else if (surveyTeamsSnapshot) {
+    if (surveyTeamsSnapshot) {
       equiposSnapshot = surveyTeamsSnapshot;
+    } else if (partidosRow?.teams_confirmed === true && equiposSnapshot) {
+      equiposSnapshot = {
+        ...equiposSnapshot,
+        source: 'admin',
+      };
     }
 
     const payload = {
