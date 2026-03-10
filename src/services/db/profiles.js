@@ -129,37 +129,73 @@ export const getProfile = async (userId) => {
     throw error;
   }
 
-  // Get badge counts from player_awards table
+  // Get badge counts from player_awards table.
+  // Keep compatibility with legacy award_type values and never override non-zero
+  // counters from usuarios with lower derived values.
   if (data) {
+    const parseCounter = (value) => {
+      const parsed = Number.parseInt(value, 10);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    };
+    const normalizeAwardType = (value) => {
+      const token = String(value || '').trim().toLowerCase();
+      if (token === 'mvp') return 'mvp';
+      if (token === 'best_gk' || token === 'guante_dorado' || token === 'goalkeeper' || token === 'golden_glove') return 'gk';
+      if (token === 'red_card' || token === 'tarjeta_roja' || token === 'negative_fair_play') return 'red';
+      return null;
+    };
+
+    const baseBadgeCounts = {
+      mvps: parseCounter(data.mvps ?? data.mvp_badges),
+      guantes_dorados: parseCounter(data.guantes_dorados ?? data.gk_badges),
+      tarjetas_rojas: parseCounter(data.tarjetas_rojas ?? data.red_badges),
+    };
+
+    const derivedBadgeCounts = {
+      mvps: 0,
+      guantes_dorados: 0,
+      tarjetas_rojas: 0,
+    };
+
     try {
       const { data: badges, error: badgesError } = await supabase
         .from('player_awards')
         .select('award_type')
         .eq('jugador_id', userId);
 
-      if (!badgesError && badges) {
-        const badgeCounts = {
-          mvps: 0,
-          guantes_dorados: 0,
-          tarjetas_rojas: 0,
-        };
-
+      if (badgesError) {
+        console.warn('[GET_PROFILE] Could not fetch player_awards counters:', badgesError);
+      } else if (Array.isArray(badges)) {
         badges.forEach((badge) => {
-          if (badge.award_type === 'mvp') badgeCounts.mvps++;
-          if (badge.award_type === 'best_gk') badgeCounts.guantes_dorados++;
-          if (badge.award_type === 'red_card') badgeCounts.tarjetas_rojas++;
+          const normalizedType = normalizeAwardType(badge?.award_type);
+          if (normalizedType === 'mvp') derivedBadgeCounts.mvps += 1;
+          if (normalizedType === 'gk') derivedBadgeCounts.guantes_dorados += 1;
+          if (normalizedType === 'red') derivedBadgeCounts.tarjetas_rojas += 1;
         });
-
-        data.mvps = badgeCounts.mvps;
-        data.guantes_dorados = badgeCounts.guantes_dorados;
-        data.tarjetas_rojas = badgeCounts.tarjetas_rojas;
-
-        logger.log('[GET_PROFILE] Badge counts added:', badgeCounts);
       }
     } catch (badgeError) {
       console.error('[GET_PROFILE] Error fetching badges:', badgeError);
-      // Continue without badges if there's an error
+      // Continue using usuarios counters if there's an error
     }
+
+    const mergedBadgeCounts = {
+      mvps: Math.max(baseBadgeCounts.mvps, derivedBadgeCounts.mvps),
+      guantes_dorados: Math.max(baseBadgeCounts.guantes_dorados, derivedBadgeCounts.guantes_dorados),
+      tarjetas_rojas: Math.max(baseBadgeCounts.tarjetas_rojas, derivedBadgeCounts.tarjetas_rojas),
+    };
+
+    data.mvps = mergedBadgeCounts.mvps;
+    data.mvp_badges = mergedBadgeCounts.mvps;
+    data.guantes_dorados = mergedBadgeCounts.guantes_dorados;
+    data.gk_badges = mergedBadgeCounts.guantes_dorados;
+    data.tarjetas_rojas = mergedBadgeCounts.tarjetas_rojas;
+    data.red_badges = mergedBadgeCounts.tarjetas_rojas;
+
+    logger.log('[GET_PROFILE] Badge counts resolved:', {
+      base: baseBadgeCounts,
+      derived: derivedBadgeCounts,
+      merged: mergedBadgeCounts,
+    });
   }
 
   // Recalculate partidos_jugados from real activity:
