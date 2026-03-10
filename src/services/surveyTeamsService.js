@@ -81,14 +81,16 @@ export const buildSeededInitialTeams = ({ playerKeys = [], seed = 0 }) => {
 export const parseSaveMatchFinalTeamsResponse = (rpcData) => {
   const payload = rpcData && typeof rpcData === 'object' ? rpcData : {};
   const success = payload.success === true;
-  const alreadyLocked = payload.reason === 'already_locked';
+  const reason = String(payload.reason || '').trim().toLowerCase();
+  const alreadyLocked = reason === 'already_locked' || reason === 'locked_by_other';
+  const lockedByOther = payload.locked_by_other === true || reason === 'locked_by_other';
 
   return {
     ok: success || alreadyLocked,
     success,
     alreadyLocked,
     reason: String(payload.reason || ''),
-    lockedByOther: payload.locked_by_other === true,
+    lockedByOther,
     teamsSource: payload.teams_source ? String(payload.teams_source) : null,
     teamARefs: sanitizeTeamRefs(payload.team_a),
     teamBRefs: sanitizeTeamRefs(payload.team_b),
