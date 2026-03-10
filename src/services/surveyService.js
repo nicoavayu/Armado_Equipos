@@ -1,12 +1,12 @@
 import { supabase } from '../supabase';
-import { getResultsUrl } from '../utils/routes';
-import { toBigIntId } from '../utils';
 import {
   SURVEY_FINALIZE_DELAY_MS,
   SURVEY_REMINDER_12H_LEAD_MS,
   SURVEY_REMINDER_1H_LEAD_MS,
 } from '../config/surveyConfig';
-import { getSurveyReminderMessage, getSurveyResultsReadyMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
+import { getSurveyReminderMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
+import { finalizeIfComplete } from './surveyCompletionService';
+import { ensureAwards } from './awardsService';
 
 /**
  * Creates post-match survey notifications for all players in a match
@@ -205,195 +205,39 @@ export const checkPendingSurveys = async (userId) => {
 };
 
 /**
- * Processes survey results and updates player awards and scores
+ * DEPRECATED compatibility wrapper.
+ * Canonical closure flow:
+ * EncuestaPartido -> finalizeIfComplete -> computeAndPersistAwards -> ensureAwards.
+ *
+ * This wrapper intentionally does not emit legacy survey_results_ready notifications.
  * @param {number} partidoId - The match ID
  */
 export const processSurveyResults = async (partidoId) => {
-  if (!partidoId) return;
+  const idNum = Number(partidoId);
+  if (!Number.isFinite(idNum) || idNum <= 0) return false;
 
   try {
-    // Get all surveys for this match
-    const { data: surveys, error } = await supabase
-      .from('post_match_surveys')
-      .select('*')
-      .eq('partido_id', partidoId);
+    const finalizeRes = await finalizeIfComplete(idNum);
+    if (!finalizeRes?.done) {
+      return false;
+    }
 
-    if (error) throw error;
-    if (!surveys || !surveys.length) return;
+    if (finalizeRes?.awardsSkipped) {
+      return true;
+    }
 
-    // Count votes for each category
-    const mvpVotes = {};
-    const goalkeeperVotes = {};
-    const fairplayNegativeVotes = {};
-    const absentPlayers = new Set();
-
-    // Process each survey
-    surveys.forEach((survey) => {
-      // Count MVP votes (single best player)
-      if (survey.mejor_jugador) {
-        mvpVotes[survey.mejor_jugador] = (mvpVotes[survey.mejor_jugador] || 0) + 1;
-      }
-
-      // Count goalkeeper votes
-      if (survey.mejor_arquero) {
-        goalkeeperVotes[survey.mejor_arquero] = (goalkeeperVotes[survey.mejor_arquero] || 0) + 1;
-      }
-
-      // Count negative fair play votes
-      if (survey.jugadores_violentos && Array.isArray(survey.jugadores_violentos)) {
-        survey.jugadores_violentos.forEach((playerId) => {
-          fairplayNegativeVotes[playerId] = (fairplayNegativeVotes[playerId] || 0) + 1;
-        });
-      }
-
-      // Track absent players
-      if (!survey.asistieron_todos && survey.jugadores_ausentes && Array.isArray(survey.jugadores_ausentes)) {
-        survey.jugadores_ausentes.forEach((playerId) => {
-          absentPlayers.add(playerId);
-        });
-      }
-    });
-
-    // Find the winners in each category
-    const findWinner = (votes) => {
-      let maxVotes = 0;
-      let winnerId = null;
-
-      Object.entries(votes).forEach(([playerId, voteCount]) => {
-        if (voteCount > maxVotes) {
-          maxVotes = voteCount;
-          winnerId = playerId;
-        }
+    const ensureRes = await ensureAwards(idNum);
+    if (!ensureRes?.ok) {
+      console.warn('[SURVEY_SERVICE] ensureAwards failed after finalizeIfComplete', {
+        partidoId: idNum,
+        ensureRes,
       });
-
-      return { winnerId, voteCount: maxVotes };
-    };
-
-    const mvpWinner = findWinner(mvpVotes);
-    const bestGoalkeeper = findWinner(goalkeeperVotes);
-
-    // Find players with significant negative fair play votes (more than 25% of surveys)
-    const negativeThreshold = Math.ceil(surveys.length * 0.25);
-    const negativePlayersIds = Object.entries(fairplayNegativeVotes)
-      .filter(([_, voteCount]) => voteCount >= negativeThreshold)
-      .map(([playerId]) => playerId);
-
-    // Create awards
-    const awards = [];
-
-    // MVP award (only one per match)
-    if (mvpWinner.winnerId && mvpWinner.voteCount > 0) {
-      awards.push({
-        jugador_id: mvpWinner.winnerId,
-        award_type: 'mvp',
-        partido_id: partidoId,
-      });
+      return false;
     }
 
-    // Goalkeeper award (Guante Dorado)
-    if (bestGoalkeeper.winnerId && bestGoalkeeper.voteCount > 0) {
-      awards.push({
-        jugador_id: bestGoalkeeper.winnerId,
-        award_type: 'guante_dorado',
-        partido_id: partidoId,
-      });
-    }
-
-    // Negative fair play awards (Tarjeta Roja)
-    negativePlayersIds.forEach((playerId) => {
-      awards.push({
-        jugador_id: playerId,
-        award_type: 'tarjeta_roja',
-        partido_id: partidoId,
-      });
-    });
-
-    // Insert awards
-    if (awards.length > 0) {
-      const { error: awardsError } = await supabase
-        .from('player_awards')
-        .insert(awards);
-
-      if (awardsError) throw awardsError;
-    }
-
-    // Update player ratings for absent players (-0.5)
-    if (absentPlayers.size > 0) {
-      for (const playerId of Array.from(absentPlayers)) {
-        const { data: player, error: playerError } = await supabase
-          .from('usuarios')
-          .select('rating')
-          .eq('id', playerId)
-          .single();
-
-        if (playerError) continue;
-
-        const currentRating = player?.rating || 5;
-        const newRating = Math.max(1, currentRating - 0.5); // Decrease by 0.5, minimum 1
-
-        await supabase
-          .from('usuarios')
-          .update({ rating: newRating })
-          .eq('id', playerId);
-      }
-    }
-
-    // === Programar notificación "resultados listos" (TEST: +1 minuto) ===
-    const scheduledFor = new Date(Date.now() + 1 * 60 * 1000).toISOString(); // luego cambiar a +6h
-
-    // Jugadores (usuarios) del partido
-    const { data: jugadoresPartido, error: jugadoresErr } = await supabase
-      .from('jugadores')
-      .select('usuario_id')
-      .eq('partido_id', partidoId)
-      .not('usuario_id', 'is', null);
-    if (jugadoresErr) throw jugadoresErr;
-
-    const { data: partidoMeta } = await supabase
-      .from('partidos')
-      .select('nombre')
-      .eq('id', partidoId)
-      .maybeSingle();
-    const partidoNombre = partidoMeta?.nombre || `partido ${partidoId}`;
-
-    // Evitar duplicados: borrar pendientes previas de este partido
-    // IMPORTANT: Cannot DELETE from notifications_ext (it's a VIEW)
-    // Use base notifications table with JSONB query instead
-    await supabase
-      .from('notifications')
-      .delete()
-      .eq('type', 'survey_results_ready')
-      .eq('read', false)
-      .eq('data->>matchId', String(partidoId));
-
-    const idNum = toBigIntId(partidoId);
-    const perUserNotifs = (jugadoresPartido || []).map((j) => ({
-      user_id: j.usuario_id,
-      type: 'survey_results_ready',
-      title: 'Resultados listos',
-      message: getSurveyResultsReadyMessage({ matchName: partidoNombre }),
-      partido_id: partidoId,
-      data: {
-        match_id: String(partidoId),
-        matchId: idNum,
-        match_name: partidoNombre,
-        partido_nombre: partidoNombre,
-        resultsUrl: getResultsUrl(idNum),
-        scheduled_for: scheduledFor,
-      },
-      read: false,
-    }));
-
-    if (perUserNotifs.length) {
-      const { error: insertNotifErr } = await supabase
-        .from('notifications')
-        .insert(perUserNotifs);
-      if (insertNotifErr) throw insertNotifErr;
-    }
-
-    return true;
+    return Boolean(ensureRes?.applied || ensureRes?.row?.results_ready);
   } catch (error) {
-    console.error('Error processing survey results:', error);
+    console.error('[SURVEY_SERVICE] processSurveyResults compatibility flow failed:', error);
     return false;
   }
 };

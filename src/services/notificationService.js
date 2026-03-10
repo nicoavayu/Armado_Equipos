@@ -185,24 +185,6 @@ export async function schedulePostMatchNotification(matchId) {
  * Fuerza resultados de encuesta ahora (para testing)
  */
 export async function forceSurveyResultsNow(matchId) {
-  try {
-    const pidNumber = Number(matchId);
-    const { data, error } = await supabase
-      .from('notifications')
-      .insert({
-        type: 'survey_results_ready',
-        partido_id: pidNumber,
-        match_ref: pidNumber,
-        status: 'pending',
-        send_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  } catch (err) {
-    console.error('[Notify] forceSurveyResultsNow failed', err);
-    throw err;
-  }
+  logger.warn('[Notify] forceSurveyResultsNow is disabled to prevent premature readiness notifications', { matchId });
+  return { skipped: true, reason: 'disabled_premature_readiness_signal' };
 }

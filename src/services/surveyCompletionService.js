@@ -621,6 +621,76 @@ const isMissingColumnError = (error, columns = []) => {
   return columns.some((column) => message.includes(String(column).toLowerCase()));
 };
 
+const isMissingRpcFunctionError = (error, fnName) => {
+  const token = String(fnName || '').trim().toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+  const details = String(error?.details || '').toLowerCase();
+  const hint = String(error?.hint || '').toLowerCase();
+  const code = String(error?.code || '').toUpperCase();
+  const combined = `${message} ${details} ${hint}`;
+
+  if (code === 'PGRST202' || code === '42883') return true;
+  if (!token) return combined.includes('could not find the function') || combined.includes('does not exist');
+  return (
+    combined.includes('could not find the function')
+    || combined.includes('does not exist')
+    || combined.includes(token)
+  );
+};
+
+const closeSurveyLifecycleViaRpc = async ({
+  partidoId,
+  openedAt,
+  closesAt,
+  expectedVoters,
+  resultStatus,
+  winnerTeam,
+  finishedAt,
+}) => {
+  const rpcName = 'finalize_match_survey_closure';
+  const { data, error } = await supabase.rpc(rpcName, {
+    p_partido_id: partidoId,
+    p_opened_at: openedAt || null,
+    p_closes_at: closesAt || null,
+    p_expected_voters: Number.isFinite(Number(expectedVoters))
+      ? Math.max(0, Math.trunc(Number(expectedVoters)))
+      : 0,
+    p_result_status: resultStatus || RESULT_STATUS_PENDING,
+    p_winner_team: winnerTeam || null,
+    p_finished_at: finishedAt || null,
+  });
+
+  if (error) {
+    if (isMissingRpcFunctionError(error, rpcName)) {
+      return { supported: false, reason: 'missing_rpc_function', error };
+    }
+    throw error;
+  }
+
+  const payload = (data && typeof data === 'object') ? data : {};
+  if (payload.success !== true) {
+    return {
+      supported: true,
+      success: false,
+      reason: payload.reason || 'rpc_failed',
+      payload,
+    };
+  }
+
+  return {
+    supported: true,
+    success: true,
+    closedByThisCall: payload.closed_by_this_call === true,
+    alreadyClosed: payload.already_closed === true,
+    lifecycle: {
+      survey_status: payload.survey_status || null,
+      result_status: payload.result_status || null,
+      winner_team: payload.winner_team || null,
+      finished_at: payload.finished_at || null,
+    },
+  };
+};
+
 const buildEligibleRosterMap = (rows = []) => {
   const byPlayerId = new Map();
   const eligibleUserIds = new Set();
@@ -867,50 +937,69 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     : (results?.finished_at || nowIso);
 
   let closedByThisCall = false;
+  let lifecycleAfterClose = null;
   try {
-    const closePayload = {
-      survey_status: SURVEY_STATUS_CLOSED,
-      survey_opened_at: openedAt || nowIso,
-      survey_closes_at: closesAt || addDurationMs(nowIso, SURVEY_FINALIZE_DELAY_MS),
-      survey_expected_voters: expectedVoters,
-      result_status: computedStatus,
-      winner_team: computedWinner,
-      finished_at: computedFinishedAt,
-    };
+    const rpcClose = await closeSurveyLifecycleViaRpc({
+      partidoId: idNum,
+      openedAt: openedAt || nowIso,
+      closesAt: closesAt || addDurationMs(nowIso, SURVEY_FINALIZE_DELAY_MS),
+      expectedVoters,
+      resultStatus: computedStatus,
+      winnerTeam: computedWinner,
+      finishedAt: computedFinishedAt,
+    });
 
-    const { data: closeRow, error: closeErr } = await supabase
-      .from('partidos')
-      .update(closePayload)
-      .eq('id', idNum)
-      .eq('survey_status', SURVEY_STATUS_OPEN)
-      .select('id')
-      .maybeSingle();
-
-    if (closeErr) {
-      const missingLifecycleCols = isMissingColumnError(closeErr, [
-        'survey_status',
-        'survey_opened_at',
-        'survey_closes_at',
-        'survey_expected_voters',
-      ]);
-      if (!missingLifecycleCols) throw closeErr;
-
-      // Legacy fallback (non-atomic): keep closure fields coherent where new columns are unavailable.
-      const { error: legacyCloseErr } = await supabase
-        .from('partidos')
-        .update({
-          result_status: computedStatus,
-          winner_team: computedWinner,
-          finished_at: computedFinishedAt,
-        })
-        .eq('id', idNum)
-        .is('finished_at', null);
-      if (legacyCloseErr && !isMissingColumnError(legacyCloseErr, ['result_status', 'winner_team', 'finished_at'])) {
-        throw legacyCloseErr;
+    if (rpcClose?.supported === true) {
+      if (rpcClose?.success !== true) {
+        throw new Error(`finalize_match_survey_closure_failed:${rpcClose?.reason || 'unknown'}`);
       }
-      closedByThisCall = true;
+      closedByThisCall = rpcClose.closedByThisCall === true;
+      lifecycleAfterClose = rpcClose.lifecycle || null;
     } else {
-      closedByThisCall = Boolean(closeRow?.id);
+      const closePayload = {
+        survey_status: SURVEY_STATUS_CLOSED,
+        survey_opened_at: openedAt || nowIso,
+        survey_closes_at: closesAt || addDurationMs(nowIso, SURVEY_FINALIZE_DELAY_MS),
+        survey_expected_voters: expectedVoters,
+        result_status: computedStatus,
+        winner_team: computedWinner,
+        finished_at: computedFinishedAt,
+      };
+
+      const { data: closeRow, error: closeErr } = await supabase
+        .from('partidos')
+        .update(closePayload)
+        .eq('id', idNum)
+        .eq('survey_status', SURVEY_STATUS_OPEN)
+        .select('id')
+        .maybeSingle();
+
+      if (closeErr) {
+        const missingLifecycleCols = isMissingColumnError(closeErr, [
+          'survey_status',
+          'survey_opened_at',
+          'survey_closes_at',
+          'survey_expected_voters',
+        ]);
+        if (!missingLifecycleCols) throw closeErr;
+
+        // Legacy fallback (non-atomic): keep closure fields coherent where new columns are unavailable.
+        const { error: legacyCloseErr } = await supabase
+          .from('partidos')
+          .update({
+            result_status: computedStatus,
+            winner_team: computedWinner,
+            finished_at: computedFinishedAt,
+          })
+          .eq('id', idNum)
+          .is('finished_at', null);
+        if (legacyCloseErr && !isMissingColumnError(legacyCloseErr, ['result_status', 'winner_team', 'finished_at'])) {
+          throw legacyCloseErr;
+        }
+        closedByThisCall = true;
+      } else {
+        closedByThisCall = Boolean(closeRow?.id);
+      }
     }
   } catch (error) {
     console.error('[FINALIZE] close guard failed', { partidoId: idNum, error });
@@ -918,7 +1007,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   }
 
   if (!closedByThisCall) {
-    const lifecycle = await fetchSurveyLifecycleRow(idNum);
+    const lifecycle = lifecycleAfterClose || await fetchSurveyLifecycleRow(idNum);
     const latestStatus = normalizeSurveyStatusValue(lifecycle?.survey_status);
     if (latestStatus === SURVEY_STATUS_CLOSED) {
       return {
