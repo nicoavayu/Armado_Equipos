@@ -127,7 +127,7 @@ export const NotificationProvider = ({ children }) => {
 
     const { data, error } = await supabase
       .from('survey_results')
-      .select('partido_id, results_ready, awards_status, mvp, golden_glove, dirty_player, red_cards, awards')
+      .select('partido_id, results_ready, mvp, golden_glove, red_cards, awards')
       .in('partido_id', normalizedIds);
 
     if (error) throw error;

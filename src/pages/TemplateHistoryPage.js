@@ -224,19 +224,6 @@ const TemplateHistoryPage = () => {
           }
         } else {
           partidos = byTemplate || [];
-          const { data: byLegacy, error: byLegacyErr } = await supabase
-            .from('partidos')
-            .select('id, nombre, fecha, hora, sede, estado')
-            .eq('from_frequent_match_id', String(templateId))
-            .order('fecha', { ascending: false })
-            .limit(80);
-          if (byLegacyErr) {
-            const legacyMsg = String(byLegacyErr?.message || '').toLowerCase();
-            const missingLegacy = legacyMsg.includes('from_frequent_match_id') && legacyMsg.includes('does not exist');
-            if (!missingLegacy) throw byLegacyErr;
-          }
-          const seen = new Set(partidos.map((p) => p.id));
-          ((byLegacyErr ? [] : byLegacy) || []).forEach((p) => { if (!seen.has(p.id)) partidos.push(p); });
           partidos.sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')) || String(b.hora || '').localeCompare(String(a.hora || '')));
         }
 

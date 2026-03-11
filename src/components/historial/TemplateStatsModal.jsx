@@ -238,20 +238,6 @@ export default function TemplateStatsModal({ isOpen, template, onClose }) {
           }
         } else {
           partidos = byTemplate || [];
-          // Add legacy matches too (if any) without duplicates
-          const { data: byLegacy, error: byLegacyErr } = await supabase
-            .from('partidos')
-            .select('id, nombre, fecha, hora, sede, estado')
-            .eq('from_frequent_match_id', templateId)
-            .order('fecha', { ascending: false })
-            .limit(80);
-          if (byLegacyErr) {
-            const fallbackMsg = String(byLegacyErr?.message || '').toLowerCase();
-            const missingLegacy = fallbackMsg.includes('from_frequent_match_id') && fallbackMsg.includes('does not exist');
-            if (!missingLegacy) throw byLegacyErr;
-          }
-          const seen = new Set(partidos.map((p) => p.id));
-          ((byLegacyErr ? [] : byLegacy) || []).forEach((p) => { if (!seen.has(p.id)) partidos.push(p); });
           partidos.sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')) || String(b.hora || '').localeCompare(String(a.hora || '')));
         }
 
