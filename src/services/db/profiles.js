@@ -1,6 +1,24 @@
 import { supabase } from '../../lib/supabaseClient';
 import logger from '../../utils/logger';
 
+const normalizeToken = (value) => String(value || '').trim().toLowerCase();
+
+const isTraditionalMatchCountable = (matchRow) => {
+  const estado = normalizeToken(matchRow?.estado);
+  const surveyStatus = normalizeToken(matchRow?.survey_status);
+  const resultStatus = normalizeToken(matchRow?.result_status);
+  const hasFinishedAt = Boolean(matchRow?.finished_at);
+
+  if (['cancelado', 'cancelled', 'deleted'].includes(estado)) return false;
+  if (resultStatus === 'not_played') return false;
+
+  if (['finalizado', 'finished', 'completed'].includes(estado)) return true;
+  if (resultStatus === 'finished' || resultStatus === 'draw') return true;
+  if (surveyStatus === 'closed' && hasFinishedAt) return true;
+
+  return false;
+};
+
 /**
  * Compress image to reduce file size
  * @param {File} file - Image file
@@ -214,13 +232,12 @@ export const getProfile = async (userId) => {
 
       const partidoIds = [...new Set((jugadorRows || []).map((r) => r?.partido_id).filter(Boolean))];
       if (partidoIds.length > 0) {
-        const { data: finishedMatches, error: finishedError } = await supabase
+        const { data: matchRows, error: finishedError } = await supabase
           .from('partidos')
-          .select('id')
-          .in('id', partidoIds)
-          .eq('estado', 'finalizado');
+          .select('id, estado, survey_status, result_status, finished_at')
+          .in('id', partidoIds);
         if (finishedError) throw finishedError;
-        realMatchesCount = (finishedMatches || []).length;
+        realMatchesCount = (matchRows || []).filter((row) => isTraditionalMatchCountable(row)).length;
       }
 
       const { count: manualCount, error: manualCountError } = await supabase

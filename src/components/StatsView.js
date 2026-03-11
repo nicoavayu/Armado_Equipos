@@ -213,6 +213,22 @@ const StatsView = ({ onVolver }) => {
     return 'amistoso';
   };
 
+  const isMatchClosedForStats = (match) => {
+    const estado = normalizeIdentity(match?.estado);
+    const surveyStatus = normalizeIdentity(match?.survey_status);
+    const resultStatus = normalizeSurveyResultStatus(match?.result_status);
+    const hasFinishedAt = Boolean(match?.finished_at);
+
+    if (['cancelado', 'cancelled', 'deleted'].includes(estado)) return false;
+    if (resultStatus === 'not_played' || isNotPlayedOutcomeToken(match?.winner_team)) return false;
+
+    if (['finalizado', 'finished', 'completed'].includes(estado)) return true;
+    if (resultStatus === 'finished' || resultStatus === 'draw') return true;
+    if (surveyStatus === 'closed' && hasFinishedAt) return true;
+
+    return false;
+  };
+
   useEffect(() => {
     if (user) {
       loadStats();
@@ -335,12 +351,12 @@ const StatsView = ({ onVolver }) => {
       .from('partidos_view')
       .select('*')
       .gte('fecha', dateRange.start.split('T')[0])
-      .lte('fecha', dateRange.end.split('T')[0])
-      .eq('estado', 'finalizado');
+      .lte('fecha', dateRange.end.split('T')[0]);
 
     if (error) throw error;
 
-    const userPartidos = partidos.filter((partido) =>
+    const closedMatches = (partidos || []).filter((partido) => isMatchClosedForStats(partido));
+    const userPartidos = closedMatches.filter((partido) =>
       partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
     );
 
@@ -351,7 +367,7 @@ const StatsView = ({ onVolver }) => {
     const promedioRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
 
     const chartData = generateChartData(userPartidos, period);
-    const logros = await calculateLogros(partidos);
+    const logros = await calculateLogros(closedMatches);
     const surveyOutcomes = await getSurveyOutcomeStats(userPartidos);
     const amistosos = userPartidos.filter((match) => resolveMatchType(match) === 'amistoso').length;
     const torneos = userPartidos.filter((match) => resolveMatchType(match) === 'torneo').length;
@@ -627,12 +643,12 @@ const StatsView = ({ onVolver }) => {
       .from('partidos_view')
       .select('*')
       .gte('fecha', dateRange.start.split('T')[0])
-      .lte('fecha', dateRange.end.split('T')[0])
-      .eq('estado', 'finalizado');
+      .lte('fecha', dateRange.end.split('T')[0]);
 
     if (error) throw error;
 
-    const userPartidos = partidos.filter((partido) =>
+    const closedMatches = (partidos || []).filter((partido) => isMatchClosedForStats(partido));
+    const userPartidos = closedMatches.filter((partido) =>
       partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
     );
 
@@ -699,9 +715,8 @@ const StatsView = ({ onVolver }) => {
         .from('partidos_view')
         .select('*')
         .gte('fecha', yearStart)
-        .lte('fecha', yearEnd)
-        .eq('estado', 'finalizado'),
-      supabase.from('partidos_view').select('id, jugadores').eq('estado', 'finalizado'),
+        .lte('fecha', yearEnd),
+      supabase.from('partidos_view').select('*'),
       supabase.from('partidos_manuales').select('*').eq('usuario_id', user.id),
     ]);
 
@@ -709,12 +724,14 @@ const StatsView = ({ onVolver }) => {
       const date = new Date(`${String(match?.fecha || '')}T00:00:00`);
       return !Number.isNaN(date.getTime()) && date.getFullYear() === selectedYear;
     });
-    const yearMatchesData = yearMatchesRes.error ? fallbackYearMatches : (yearMatchesRes.data || []);
+    const rawYearMatches = yearMatchesRes.error ? fallbackYearMatches : (yearMatchesRes.data || []);
+    const yearMatchesData = rawYearMatches.filter((match) => isMatchClosedForStats(match));
     const userYearPartidos = yearMatchesData.filter((partido) =>
       partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
     );
 
-    const totalPartidosNormales = (allMatchesRes.data || []).filter((partido) =>
+    const closedHistoricalMatches = (allMatchesRes.data || []).filter((partido) => isMatchClosedForStats(partido));
+    const totalPartidosNormales = closedHistoricalMatches.filter((partido) =>
       partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
     ).length;
     const totalPartidosManuales = manualHistoryRes.error ? 0 : (manualHistoryRes.data?.length || 0);
@@ -1068,8 +1085,7 @@ const StatsView = ({ onVolver }) => {
         .from('partidos_view')
         .select('*')
         .gte('fecha', start)
-        .lte('fecha', end)
-        .eq('estado', 'finalizado'),
+        .lte('fecha', end),
       supabase
         .from('partidos_manuales')
         .select('*')
@@ -1081,7 +1097,8 @@ const StatsView = ({ onVolver }) => {
     if (realRes.error) throw realRes.error;
     if (manualRes.error) throw manualRes.error;
 
-    const userRealMatches = (realRes.data || []).filter((partido) =>
+    const closedRealMatches = (realRes.data || []).filter((partido) => isMatchClosedForStats(partido));
+    const userRealMatches = closedRealMatches.filter((partido) =>
       partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
     );
 

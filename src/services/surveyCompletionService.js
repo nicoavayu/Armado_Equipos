@@ -17,6 +17,9 @@ const RESULT_STATUS_NOT_PLAYED = 'not_played';
 const RESULT_STATUS_PENDING = 'pending';
 const SURVEY_STATUS_OPEN = 'open';
 const SURVEY_STATUS_CLOSED = 'closed';
+const MATCH_STATE_ACTIVE = 'active';
+const MATCH_STATE_FINISHED = 'finalizado';
+const MATCH_STATE_CANCELLED = 'cancelado';
 
 const normalizeRef = (value) => String(value || '').trim().toLowerCase();
 
@@ -60,6 +63,17 @@ export const normalizeSurveyStatusValue = (value) => {
   if (token === SURVEY_STATUS_OPEN || token === 'abierta') return SURVEY_STATUS_OPEN;
   if (token === SURVEY_STATUS_CLOSED || token === 'cerrada') return SURVEY_STATUS_CLOSED;
   return null;
+};
+
+export const resolveMatchStateFromResultStatus = (value, fallback = MATCH_STATE_ACTIVE) => {
+  const normalizedStatus = normalizeResultStatusValue(value);
+  if (normalizedStatus === RESULT_STATUS_FINISHED || normalizedStatus === RESULT_STATUS_DRAW) {
+    return MATCH_STATE_FINISHED;
+  }
+  if (normalizedStatus === RESULT_STATUS_NOT_PLAYED) {
+    return MATCH_STATE_CANCELLED;
+  }
+  return String(fallback || MATCH_STATE_ACTIVE);
 };
 
 export const resolveMonotonicExpectedVoters = ({
@@ -957,6 +971,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
       lifecycleAfterClose = rpcClose.lifecycle || null;
     } else {
       const closePayload = {
+        estado: resolveMatchStateFromResultStatus(computedStatus),
         survey_status: SURVEY_STATUS_CLOSED,
         survey_opened_at: openedAt || nowIso,
         survey_closes_at: closesAt || addDurationMs(nowIso, SURVEY_FINALIZE_DELAY_MS),
@@ -987,6 +1002,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
         const { error: legacyCloseErr } = await supabase
           .from('partidos')
           .update({
+            estado: resolveMatchStateFromResultStatus(computedStatus),
             result_status: computedStatus,
             winner_team: computedWinner,
             finished_at: computedFinishedAt,
