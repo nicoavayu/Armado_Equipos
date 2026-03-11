@@ -392,22 +392,63 @@ const StatsView = ({ onVolver }) => {
     return normalizeIdentity(entry);
   };
 
-  const hasTeamPair = (teamA = [], teamB = []) => (
-    Array.isArray(teamA)
-    && Array.isArray(teamB)
-    && teamA.length > 0
-    && teamB.length > 0
+  const toNormalizedTeamRefs = (team = []) => (
+    [...new Set(
+      (Array.isArray(team) ? team : [])
+        .map(normalizeTeamEntry)
+        .filter(Boolean),
+    )]
   );
 
-  const selectBestTeamPair = (candidates = []) => {
+  const getStableMatchPlayerRef = (player) => normalizeIdentity(
+    player?.uuid || player?.usuario_id || player?.id || '',
+  );
+
+  const evaluateTeamPairQuality = ({ teamA = [], teamB = [], expectedRosterRefs = new Set() }) => {
+    const normalizedA = toNormalizedTeamRefs(teamA);
+    const normalizedB = toNormalizedTeamRefs(teamB);
+    if (normalizedA.length === 0 || normalizedB.length === 0) return null;
+
+    const teamBSet = new Set(normalizedB);
+    const overlap = normalizedA.filter((ref) => teamBSet.has(ref)).length;
+    const union = new Set([...normalizedA, ...normalizedB]);
+    const expectedSize = Math.max(0, Number(expectedRosterRefs?.size || 0));
+    const coverage = expectedSize > 0 ? (union.size / expectedSize) : 1;
+    const isComplete = expectedSize > 0
+      ? (union.size >= expectedSize && overlap === 0)
+      : overlap === 0;
+
+    // Prioritize coverage/no-overlap to avoid selecting partial or inconsistent sources.
+    const score = (coverage * 1000) - (overlap * 100) + union.size;
+
+    return {
+      teamA: normalizedA,
+      teamB: normalizedB,
+      overlap,
+      unionSize: union.size,
+      coverage,
+      isComplete,
+      score,
+    };
+  };
+
+  const selectBestTeamPair = ({ candidates = [], expectedRosterRefs = new Set() }) => {
+    let best = null;
     for (const candidate of candidates) {
-      const teamA = Array.isArray(candidate?.teamA) ? candidate.teamA : [];
-      const teamB = Array.isArray(candidate?.teamB) ? candidate.teamB : [];
-      if (hasTeamPair(teamA, teamB)) {
-        return { teamA, teamB };
+      const quality = evaluateTeamPairQuality({
+        teamA: candidate?.teamA,
+        teamB: candidate?.teamB,
+        expectedRosterRefs,
+      });
+      if (!quality) continue;
+      if (quality.isComplete) {
+        return { teamA: quality.teamA, teamB: quality.teamB };
+      }
+      if (!best || quality.score > best.score) {
+        best = quality;
       }
     }
-    return { teamA: [], teamB: [] };
+    return best ? { teamA: best.teamA, teamB: best.teamB } : { teamA: [], teamB: [] };
   };
 
   const normalizeSurveyWinner = (value) => {
@@ -510,9 +551,9 @@ const StatsView = ({ onVolver }) => {
   };
 
   const getSurveyOutcomeStats = async (userPartidos = []) => {
-    const matchIds = userPartidos
+    const matchIds = [...new Set(userPartidos
       .map((p) => Number(p?.id))
-      .filter((id) => Number.isFinite(id));
+      .filter((id) => Number.isFinite(id)))];
 
     const empty = {
       ganados: 0,
@@ -633,24 +674,37 @@ const StatsView = ({ onVolver }) => {
         ? survey.snapshot_participantes
         : (Array.isArray(teamConfirm?.participants) ? teamConfirm.participants : []);
 
-      const selectedTeams = selectBestTeamPair([
-        {
-          teamA: Array.isArray(snapshotTeams?.team_a) ? snapshotTeams.team_a : [],
-          teamB: Array.isArray(snapshotTeams?.team_b) ? snapshotTeams.team_b : [],
-        },
-        {
-          teamA: Array.isArray(lifecycle?.survey_team_a) ? lifecycle.survey_team_a : [],
-          teamB: Array.isArray(lifecycle?.survey_team_b) ? lifecycle.survey_team_b : [],
-        },
-        {
-          teamA: Array.isArray(lifecycle?.final_team_a) ? lifecycle.final_team_a : [],
-          teamB: Array.isArray(lifecycle?.final_team_b) ? lifecycle.final_team_b : [],
-        },
-        {
-          teamA: Array.isArray(teamConfirm?.team_a) ? teamConfirm.team_a : [],
-          teamB: Array.isArray(teamConfirm?.team_b) ? teamConfirm.team_b : [],
-        },
-      ]);
+      const expectedRosterRefs = new Set();
+      (Array.isArray(participants) ? participants : []).forEach((participant) => {
+        const ref = normalizeTeamEntry(participant);
+        if (ref) expectedRosterRefs.add(ref);
+      });
+      (Array.isArray(match?.jugadores) ? match.jugadores : []).forEach((player) => {
+        const ref = getStableMatchPlayerRef(player);
+        if (ref) expectedRosterRefs.add(ref);
+      });
+
+      const selectedTeams = selectBestTeamPair({
+        candidates: [
+          {
+            teamA: Array.isArray(snapshotTeams?.team_a) ? snapshotTeams.team_a : [],
+            teamB: Array.isArray(snapshotTeams?.team_b) ? snapshotTeams.team_b : [],
+          },
+          {
+            teamA: Array.isArray(lifecycle?.survey_team_a) ? lifecycle.survey_team_a : [],
+            teamB: Array.isArray(lifecycle?.survey_team_b) ? lifecycle.survey_team_b : [],
+          },
+          {
+            teamA: Array.isArray(lifecycle?.final_team_a) ? lifecycle.final_team_a : [],
+            teamB: Array.isArray(lifecycle?.final_team_b) ? lifecycle.final_team_b : [],
+          },
+          {
+            teamA: Array.isArray(teamConfirm?.team_a) ? teamConfirm.team_a : [],
+            teamB: Array.isArray(teamConfirm?.team_b) ? teamConfirm.team_b : [],
+          },
+        ],
+        expectedRosterRefs,
+      });
       const teamA = selectedTeams.teamA;
       const teamB = selectedTeams.teamB;
 
