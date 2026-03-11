@@ -563,8 +563,8 @@ const TemplateHistoryPage = () => {
                     ) : (
                       <div className="flex flex-col gap-2">
                         <AwardRow title="MVP" icon="/mvp.png" playerName={resolveSnapshotPlayer(resultSnapshot?.mvp, resolveName)} />
-                        <AwardRow title="Guante" icon="/glove.png" playerName={resolveSnapshotPlayer(resultSnapshot?.golden_glove, resolveName)} />
-                        <AwardRow title="Roja" icon="/red_card.png" playerName={resolveSnapshotPlayer(resultSnapshot?.mas_sucio, resolveName)} />
+                        <AwardRow title="Mejor arquero" icon="/glove.png" playerName={resolveSnapshotPlayer(resultSnapshot?.golden_glove, resolveName)} />
+                        <AwardRow title="Más sucio" icon="/red_card.png" playerName={resolveSnapshotPlayer(resultSnapshot?.mas_sucio, resolveName)} />
                       </div>
                     )}
                   </div>
