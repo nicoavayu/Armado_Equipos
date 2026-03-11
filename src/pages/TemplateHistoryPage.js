@@ -38,6 +38,15 @@ const formatSentenceCase = (value, fallback = '') => {
   return lower.charAt(0).toUpperCase() + lower.slice(1);
 };
 
+const compactVenueLabel = (venue) => {
+  const text = String(venue || '').trim();
+  if (!text) return 'Sin dato';
+
+  const firstChunk = text.split(',')[0]?.trim() || text;
+  const beforeDash = firstChunk.split(' - ')[0]?.trim() || firstChunk;
+  return formatSentenceCase(beforeDash, 'Sin dato');
+};
+
 const winnerLabel = (winnerTeam) => {
   if (!winnerTeam) return 'Sin definir';
   const normalized = String(winnerTeam).trim().toLowerCase();
@@ -499,6 +508,9 @@ const TemplateHistoryPage = () => {
                   <div className="min-w-0 w-full">
                     <div className="font-bebas text-[21px] leading-6 text-white uppercase tracking-wide whitespace-nowrap">
                       {fmtDateLong(selectedMatch?.fecha)} · {fmtTime(selectedMatch?.hora)}
+                    </div>
+                    <div className="mt-0.5 text-white/70 text-[12px] font-oswald truncate normal-case">
+                      Sede: {compactVenueLabel(selectedMatch?.sede)}
                     </div>
                   </div>
                 </div>
