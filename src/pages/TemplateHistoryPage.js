@@ -142,6 +142,7 @@ const TemplateHistoryPage = () => {
   const [matches, setMatches] = useState([]);
   const [snapshots, setSnapshots] = useState(new Map());
   const [results, setResults] = useState(new Map());
+  const [fallbackAbsentCountByMatch, setFallbackAbsentCountByMatch] = useState(new Map());
   const [counts, setCounts] = useState(new Map());
   const [selectedId, setSelectedId] = useState(null);
 
@@ -294,6 +295,34 @@ const TemplateHistoryPage = () => {
           });
         }
 
+        const absentCountMap = new Map();
+        if (matchIds.length > 0) {
+          try {
+            const { data: surveyRows, error: surveyRowsErr } = await supabase
+              .from('post_match_surveys')
+              .select('partido_id, jugadores_ausentes')
+              .in('partido_id', matchIds);
+
+            if (!surveyRowsErr) {
+              const byMatch = new Map();
+              (surveyRows || []).forEach((row) => {
+                const mid = Number(row?.partido_id);
+                if (!Number.isFinite(mid)) return;
+
+                const absents = Array.isArray(row?.jugadores_ausentes) ? row.jugadores_ausentes : [];
+                if (absents.length === 0) return;
+
+                if (!byMatch.has(mid)) byMatch.set(mid, new Set());
+                const set = byMatch.get(mid);
+                absents.forEach((id) => set.add(String(id)));
+              });
+              byMatch.forEach((set, mid) => absentCountMap.set(mid, set.size));
+            }
+          } catch (_error) {
+            // Non-blocking fallback.
+          }
+        }
+
         const mergedSnapshots = new Map();
         matchIds.forEach((id) => {
           const teamSnap = snapMap.get(Number(id));
@@ -319,6 +348,7 @@ const TemplateHistoryPage = () => {
         setMatches(closedMatches);
         setResults(resMap);
         setSnapshots(mergedSnapshots);
+        setFallbackAbsentCountByMatch(absentCountMap);
         setCounts(cntMap);
       } catch (error) {
         console.error('[TemplateHistoryPage] load error', error);
@@ -326,6 +356,7 @@ const TemplateHistoryPage = () => {
         setMatches([]);
         setResults(new Map());
         setSnapshots(new Map());
+        setFallbackAbsentCountByMatch(new Map());
         setCounts(new Map());
       } finally {
         if (alive) setLoading(false);
@@ -376,7 +407,13 @@ const TemplateHistoryPage = () => {
     if (found) return found;
     return { nombre: resolveName(ref), avatar_url: null };
   };
-  const redCards = Array.isArray(resultSnapshot?.red_cards) ? resultSnapshot.red_cards : [];
+  const rawScoreline = selectedResult?.scoreline ?? resultSnapshot?.scoreline ?? null;
+  const normalizedScoreline = typeof rawScoreline === 'string' ? rawScoreline.trim() : rawScoreline;
+  const hasScoreline = Boolean(normalizedScoreline);
+  const snapshotAusentesCount = Array.isArray(resultSnapshot?.ausentes) ? resultSnapshot.ausentes.length : null;
+  const selectedMatchId = Number(selectedMatch?.id);
+  const fallbackAusentesCount = Number.isFinite(selectedMatchId) ? (fallbackAbsentCountByMatch.get(selectedMatchId) || 0) : 0;
+  const ausentesCount = snapshotAusentesCount ?? fallbackAusentesCount;
 
   const isDetail = Boolean(selectedMatch);
 
@@ -477,8 +514,8 @@ const TemplateHistoryPage = () => {
                     ) : (
                       <div className="grid grid-cols-1 gap-1 text-xs font-oswald text-white/80">
                         <div>Ganador: {winnerLabel(selectedResult?.winner_team || resultSnapshot?.winner_team)}</div>
-                        <div>Marcador: {selectedResult?.scoreline || resultSnapshot?.scoreline || 'Sin dato'}</div>
-                        <div>Ausentes: {Array.isArray(resultSnapshot?.ausentes) ? resultSnapshot.ausentes.length : 0}</div>
+                        {hasScoreline ? <div>Marcador: {normalizedScoreline}</div> : null}
+                        <div>Ausentes: {ausentesCount}</div>
                       </div>
                     )}
                   </div>
@@ -492,9 +529,6 @@ const TemplateHistoryPage = () => {
                         <AwardRow title="MVP" icon="/mvp.png" playerName={resolveSnapshotPlayer(resultSnapshot?.mvp, resolveName)} />
                         <AwardRow title="Guante" icon="/glove.png" playerName={resolveSnapshotPlayer(resultSnapshot?.golden_glove, resolveName)} />
                         <AwardRow title="Roja" icon="/red_card.png" playerName={resolveSnapshotPlayer(resultSnapshot?.mas_sucio, resolveName)} />
-                        <div className="text-[11px] font-oswald text-white/70 break-words">
-                          Rojas: {redCards.length > 0 ? redCards.map((r) => resolveSnapshotPlayer(r, resolveName)).join(', ') : 'Sin dato'}
-                        </div>
                       </div>
                     )}
                   </div>
