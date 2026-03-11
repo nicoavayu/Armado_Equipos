@@ -258,7 +258,6 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
         .from('partidos')
         .update({
           template_id: partidoFrecuente?.id || null,
-          frequent_match_name: partidoFrecuente?.nombre || null,
         })
         .eq('id', partidoId);
 
@@ -267,15 +266,7 @@ export const crearPartidoDesdeFrec = async (partidoFrecuente, fecha, modalidad =
           .from('partidos')
           .update({
             from_frequent_match_id: partidoFrecuente?.id || null,
-            frequent_match_name: partidoFrecuente?.nombre || null,
           })
-          .eq('id', partidoId);
-      }
-
-      if (res?.error && /from_frequent_match_id/i.test(String(res.error.message || ''))) {
-        res = await supabase
-          .from('partidos')
-          .update({ frequent_match_name: partidoFrecuente?.nombre || null })
           .eq('id', partidoId);
       }
 
@@ -638,7 +629,6 @@ export const insertPartidoFrecuenteFromPartido = async (partidoRef) => {
         .from('partidos')
         .update({
           template_id: templateRow.id,
-          frequent_match_name: templateRow.nombre,
         })
         .eq('id', partidoId);
 
@@ -647,15 +637,7 @@ export const insertPartidoFrecuenteFromPartido = async (partidoRef) => {
           .from('partidos')
           .update({
             from_frequent_match_id: templateRow.id,
-            frequent_match_name: templateRow.nombre,
           })
-          .eq('id', partidoId);
-      }
-
-      if (res?.error && /from_frequent_match_id/i.test(String(res.error.message || ''))) {
-        res = await supabase
-          .from('partidos')
-          .update({ frequent_match_name: templateRow.nombre })
           .eq('id', partidoId);
       }
 

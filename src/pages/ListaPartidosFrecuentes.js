@@ -101,11 +101,8 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
         cupo_jugadores: Number(cupo) || 10,
         falta_jugadores: false,
         tipo_partido: template.tipo_partido || 'Masculino',
-        // New linkage (safe if column exists)
+        // Link via modern column when available.
         template_id: template.id,
-        // Legacy linkage kept for backward compatibility
-        from_frequent_match_id: template.id,
-        frequent_match_name: template.nombre,
       };
 
       let partido = null;
@@ -113,12 +110,21 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
         partido = await crearPartido(payload);
       } catch (e) {
         // Backward-compatible fallback if DB doesn't have template_id yet.
-        if (/template_id/i.test(e?.message || '')) {
-          const legacyPayload = { ...payload };
-          delete legacyPayload.template_id;
+        if (!/template_id/i.test(e?.message || '')) throw e;
+
+        const legacyPayload = { ...payload };
+        delete legacyPayload.template_id;
+        legacyPayload.from_frequent_match_id = template.id;
+
+        try {
           partido = await crearPartido(legacyPayload);
-        } else {
-          throw e;
+        } catch (legacyErr) {
+          // Some older schemas may not have from_frequent_match_id either.
+          if (!/from_frequent_match_id/i.test(legacyErr?.message || '')) throw legacyErr;
+
+          const minimalPayload = { ...payload };
+          delete minimalPayload.template_id;
+          partido = await crearPartido(minimalPayload);
         }
       }
       if (!partido) throw new Error('No match returned');
