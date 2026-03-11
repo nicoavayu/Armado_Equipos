@@ -328,7 +328,7 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
   };
 
   return (
-    <div className="bg-transparent w-full px-5 flex flex-col items-center justify-start font-oswald box-border pb-24 pt-24">
+    <div className="bg-transparent w-full px-5 flex flex-col items-center justify-start font-oswald box-border pb-[calc(env(safe-area-inset-bottom)+12px)] pt-24">
       <PageTitle title="EDITAR" onBack={onVolver}>EDITAR</PageTitle>
       <div className="w-full max-w-[520px] flex flex-col gap-5 mt-6">
 
@@ -474,14 +474,16 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
         >
           {loading ? 'Guardando...' : 'Guardar cambios'}
         </button>
-        <div className="min-h-[52px]">
-          <InlineNotice
-            type={notice?.type}
-            message={notice?.message}
-            autoHideMs={notice?.type === 'warning' ? null : 3000}
-            onClose={clearInlineNotice}
-          />
-        </div>
+        {notice ? (
+          <div className="min-h-[52px]">
+            <InlineNotice
+              type={notice?.type}
+              message={notice?.message}
+              autoHideMs={notice?.type === 'warning' ? null : 3000}
+              onClose={clearInlineNotice}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );

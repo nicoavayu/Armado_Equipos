@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MoreVertical } from 'lucide-react';
 
 const normalizeToken = (value) => String(value || '')
@@ -76,6 +76,11 @@ const HistoryTemplateCard = ({
   onEdit,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+  const templateImageUrl = String(template?.imagen_url || '').trim();
+  useEffect(() => {
+    setImageFailed(false);
+  }, [templateImageUrl]);
   if (!template) return null;
 
   const modalidad = template.modalidad || 'F5';
@@ -104,9 +109,19 @@ const HistoryTemplateCard = ({
       {/* Header */}
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-2.5 min-w-0">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="currentColor" className="text-white/90 shrink-0">
-            <path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z" />
-          </svg>
+          {templateImageUrl && !imageFailed ? (
+            <img
+              src={templateImageUrl}
+              alt={`Foto de ${template.nombre || 'partido frecuente'}`}
+              className="w-11 h-11 object-cover rounded-md border border-white/20 shadow-[0_6px_14px_rgba(0,0,0,0.32)] shrink-0"
+              loading="lazy"
+              onError={() => setImageFailed(true)}
+            />
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="currentColor" className="text-white/90 shrink-0">
+              <path d="M224 64C206.3 64 192 78.3 192 96L192 128L160 128C124.7 128 96 156.7 96 192L96 240L544 240L544 192C544 156.7 515.3 128 480 128L448 128L448 96C448 78.3 433.7 64 416 64C398.3 64 384 78.3 384 96L384 128L256 128L256 96C256 78.3 241.7 64 224 64zM96 288L96 480C96 515.3 124.7 544 160 544L480 544C515.3 544 544 515.3 544 480L544 288L96 288z" />
+            </svg>
+          )}
           <div className="flex flex-col min-w-0">
             <div className="font-bebas text-[20px] leading-5 text-white uppercase tracking-wide truncate drop-shadow-sm">
               {template.nombre || 'Partido frecuente'}

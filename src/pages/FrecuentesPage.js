@@ -259,7 +259,7 @@ const FrecuentesPage = () => {
   if (step === 'edit' && partidoFrecuenteEditando) {
     return (
       <PageTransition>
-        <div className="pb-24 w-full flex flex-col items-center">
+        <div className="w-full flex flex-col items-center">
           <EditarPartidoFrecuente
             partido={partidoFrecuenteEditando}
             onGuardado={() => {
