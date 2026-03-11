@@ -340,7 +340,11 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
               title={fotoPreview ? 'Cambiar foto' : 'Agregar foto'}
             >
               {fotoPreview ? (
-                <img src={fotoPreview} alt="foto partido" className="w-full h-full object-cover" />
+                <img
+                  src={fotoPreview}
+                  alt="foto partido"
+                  className="w-full h-full object-contain p-1 bg-[rgba(14,24,61,0.6)]"
+                />
               ) : (
                 <span className="text-white text-3xl font-light">+</span>
               )}

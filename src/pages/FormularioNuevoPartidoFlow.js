@@ -349,7 +349,18 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                   title={fotoPreview ? 'Cambiar imagen' : 'Agregar imagen'}
                 >
                   {fotoPreview ? (
-                    <img src={fotoPreview} alt="foto partido" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    <img
+                      src={fotoPreview}
+                      alt="foto partido"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        display: 'block',
+                        padding: '2px',
+                        background: 'rgba(14,24,61,0.6)',
+                      }}
+                    />
                   ) : (
                     <Camera size={18} className="text-white/65" strokeWidth={2} />
                   )}
@@ -693,9 +704,11 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                   style={{
                     width: 120,
                     height: 120,
-                    objectFit: 'cover',
+                    objectFit: 'contain',
                     borderRadius: 0,
                     border: '2px solid rgba(255,255,255,0.3)',
+                    background: 'rgba(14,24,61,0.6)',
+                    padding: '4px',
                   }}
                 />
               </div>
