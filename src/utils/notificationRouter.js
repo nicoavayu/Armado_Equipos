@@ -152,6 +152,11 @@ export async function openNotification(n, navigate) {
       return;
     }
 
+    if (type === 'match_cancelled') {
+      // Informative only.
+      return;
+    }
+
     if (type === 'match_invite') {
       const inviteStatus = String(n?.data?.status || 'pending').trim().toLowerCase();
       if (inviteStatus !== 'pending' || n?.read === true) {

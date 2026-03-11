@@ -107,6 +107,11 @@ const NotificationsView = () => {
   const handleNotificationClick = async (notification, e) => {
     if (e) { e.preventDefault?.(); e.stopPropagation?.(); }
 
+    if (notification?.type === 'match_cancelled') {
+      // Informative only.
+      return;
+    }
+
     const link = notification?.data?.link;
     const matchId = extractNotificationMatchId(notification);
 

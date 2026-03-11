@@ -897,7 +897,8 @@ const toActivityFromNotification = (group, match, currentUserId) => {
       icon: 'AlertTriangle',
       title: 'Partido cancelado',
       subtitle,
-      route: '/desafios',
+      // Informative only: cancelled matches should not trigger navigation.
+      route: null,
     };
   }
 
@@ -1418,7 +1419,7 @@ export const buildActivityFeed = async (notifications = [], options = {}) => {
       return toActivityFromNotification(group, match, currentUserId);
     })
     .filter(Boolean)
-    .filter((item) => Boolean(item.route));
+    .filter((item) => Boolean(item.route) || item.type === 'match_cancelled');
 
   const weeklyInsight = await buildWeeklyInsightItem({ currentUserId, supabaseClient });
 
