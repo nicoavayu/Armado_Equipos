@@ -113,7 +113,7 @@ const HistoryTemplateCard = ({
             <img
               src={templateImageUrl}
               alt={`Foto de ${template.nombre || 'partido frecuente'}`}
-              className="w-11 h-11 object-cover rounded-md border border-white/20 shadow-[0_6px_14px_rgba(0,0,0,0.32)] shrink-0"
+              className="w-11 h-11 object-contain p-1 bg-[rgba(14,24,61,0.6)] rounded-md border border-white/20 shadow-[0_6px_14px_rgba(0,0,0,0.32)] shrink-0"
               loading="lazy"
               onError={() => setImageFailed(true)}
             />
