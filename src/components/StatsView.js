@@ -177,6 +177,17 @@ const StatsView = ({ onVolver }) => {
       .map(normalizeIdentity)
       .filter(Boolean);
   };
+
+  const dedupeMatchesById = (matches = []) => {
+    const byId = new Map();
+    (Array.isArray(matches) ? matches : []).forEach((match) => {
+      const id = Number(match?.id);
+      if (!Number.isFinite(id)) return;
+      if (!byId.has(id)) byId.set(id, match);
+    });
+    return Array.from(byId.values());
+  };
+
   const isCurrentUserPlayer = (jugador) => {
     const userRefs = getUserIdentitySet();
     const candidates = getPlayerIdentityCandidates(jugador);
@@ -355,10 +366,10 @@ const StatsView = ({ onVolver }) => {
 
     if (error) throw error;
 
-    const closedMatches = (partidos || []).filter((partido) => isMatchClosedForStats(partido));
-    const userPartidos = closedMatches.filter((partido) =>
+    const closedMatches = dedupeMatchesById((partidos || []).filter((partido) => isMatchClosedForStats(partido)));
+    const userPartidos = dedupeMatchesById(closedMatches.filter((partido) =>
       partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
-    );
+    ));
 
     const ratings = userPartidos.map((p) => {
       const userPlayer = p.jugadores?.find((j) => isCurrentUserPlayer(j));
@@ -761,10 +772,10 @@ const StatsView = ({ onVolver }) => {
 
     if (error) throw error;
 
-    const closedMatches = (partidos || []).filter((partido) => isMatchClosedForStats(partido));
-    const userPartidos = closedMatches.filter((partido) =>
+    const closedMatches = dedupeMatchesById((partidos || []).filter((partido) => isMatchClosedForStats(partido)));
+    const userPartidos = dedupeMatchesById(closedMatches.filter((partido) =>
       partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
-    );
+    ));
 
     const amigosCount = {};
     const amigosInfo = {};
@@ -839,15 +850,15 @@ const StatsView = ({ onVolver }) => {
       return !Number.isNaN(date.getTime()) && date.getFullYear() === selectedYear;
     });
     const rawYearMatches = yearMatchesRes.error ? fallbackYearMatches : (yearMatchesRes.data || []);
-    const yearMatchesData = rawYearMatches.filter((match) => isMatchClosedForStats(match));
-    const userYearPartidos = yearMatchesData.filter((partido) =>
+    const yearMatchesData = dedupeMatchesById(rawYearMatches.filter((match) => isMatchClosedForStats(match)));
+    const userYearPartidos = dedupeMatchesById(yearMatchesData.filter((partido) =>
       partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
-    );
+    ));
 
-    const closedHistoricalMatches = (allMatchesRes.data || []).filter((partido) => isMatchClosedForStats(partido));
-    const totalPartidosNormales = closedHistoricalMatches.filter((partido) =>
+    const closedHistoricalMatches = dedupeMatchesById((allMatchesRes.data || []).filter((partido) => isMatchClosedForStats(partido)));
+    const totalPartidosNormales = dedupeMatchesById(closedHistoricalMatches.filter((partido) =>
       partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
-    ).length;
+    )).length;
     const totalPartidosManuales = manualHistoryRes.error ? 0 : (manualHistoryRes.data?.length || 0);
     const totalHistorico = totalPartidosNormales + totalPartidosManuales;
 
@@ -1211,10 +1222,10 @@ const StatsView = ({ onVolver }) => {
     if (realRes.error) throw realRes.error;
     if (manualRes.error) throw manualRes.error;
 
-    const closedRealMatches = (realRes.data || []).filter((partido) => isMatchClosedForStats(partido));
-    const userRealMatches = closedRealMatches.filter((partido) =>
+    const closedRealMatches = dedupeMatchesById((realRes.data || []).filter((partido) => isMatchClosedForStats(partido)));
+    const userRealMatches = dedupeMatchesById(closedRealMatches.filter((partido) =>
       partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
-    );
+    ));
 
     return {
       real: userRealMatches,
