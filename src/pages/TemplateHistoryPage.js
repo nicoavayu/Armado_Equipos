@@ -41,10 +41,26 @@ const formatSentenceCase = (value, fallback = '') => {
 const winnerLabel = (winnerTeam) => {
   if (!winnerTeam) return 'Sin definir';
   const normalized = String(winnerTeam).trim().toLowerCase();
-  if (normalized === 'equipo_a' || normalized === 'a' || normalized === 'team_a') return 'Ganó Equipo A';
-  if (normalized === 'equipo_b' || normalized === 'b' || normalized === 'team_b') return 'Ganó Equipo B';
+  if (normalized === 'equipo_a' || normalized === 'a' || normalized === 'team_a') return 'Equipo A';
+  if (normalized === 'equipo_b' || normalized === 'b' || normalized === 'team_b') return 'Equipo B';
   if (normalized === 'empate' || normalized === 'draw') return 'Empate';
   return String(winnerTeam);
+};
+
+const matchStateLabel = (estado, resultStatus) => {
+  const normalizedEstado = String(estado || '').trim().toLowerCase();
+  if (normalizedEstado === 'finalizado' || normalizedEstado === 'finished') return 'Finalizado';
+  if (normalizedEstado === 'active' || normalizedEstado === 'activo') return 'Activo';
+  if (normalizedEstado === 'cancelado' || normalizedEstado === 'cancelled') return 'Cancelado';
+  if (normalizedEstado === 'pendiente' || normalizedEstado === 'pending') return 'Pendiente';
+
+  const normalizedResult = normalizeResultStatus(resultStatus);
+  if (normalizedResult === 'finished') return 'Finalizado';
+  if (normalizedResult === 'draw') return 'Empatado';
+  if (normalizedResult === 'not_played') return 'No jugado';
+  if (normalizedResult === 'pending') return 'Pendiente';
+
+  return formatSentenceCase(estado || resultStatus, 'Pendiente');
 };
 
 const normalizeResultStatus = (value) => {
@@ -414,6 +430,10 @@ const TemplateHistoryPage = () => {
   const selectedMatchId = Number(selectedMatch?.id);
   const fallbackAusentesCount = Number.isFinite(selectedMatchId) ? (fallbackAbsentCountByMatch.get(selectedMatchId) || 0) : 0;
   const ausentesCount = snapshotAusentesCount ?? fallbackAusentesCount;
+  const displayMatchState = matchStateLabel(
+    selectedMatch?.estado,
+    selectedResult?.result_status || resultSnapshot?.result_status,
+  );
 
   const isDetail = Boolean(selectedMatch);
 
@@ -506,13 +526,17 @@ const TemplateHistoryPage = () => {
                   </>
                 )}
 
-                <div className="grid grid-cols-2 gap-2 items-stretch">
-                  <div className="bg-black/20 border border-white/10 rounded-none p-2.5">
+                <div className="grid grid-cols-2 gap-2 items-start">
+                  <div className="bg-black/20 border border-white/10 rounded-none p-2.5 self-start">
                     <div className="font-bebas text-base text-white uppercase tracking-wider mb-1.5">Resultado</div>
                     {!resultsReady ? (
-                      <div className="text-white/60 text-xs font-oswald">Pendiente hasta cierre de encuesta.</div>
+                      <div className="grid grid-cols-1 gap-1 text-xs font-oswald text-white/80">
+                        <div>Estado: {displayMatchState}</div>
+                        <div className="text-white/60">Pendiente hasta cierre de encuesta.</div>
+                      </div>
                     ) : (
                       <div className="grid grid-cols-1 gap-1 text-xs font-oswald text-white/80">
+                        <div>Estado: {displayMatchState}</div>
                         <div>Ganador: {winnerLabel(selectedResult?.winner_team || resultSnapshot?.winner_team)}</div>
                         {hasScoreline ? <div>Marcador: {normalizedScoreline}</div> : null}
                         <div>Ausentes: {ausentesCount}</div>
