@@ -1587,7 +1587,7 @@ const EncuestaPartido = () => {
     return { ok: false, reason: 'direct_fallback_failed' };
   };
 
-  const persistSurveyTeamsDefinition = async () => {
+  const persistSurveyTeamsDefinition = async ({ deferTeamsFinalizedUi = false } = {}) => {
     if (shouldDisableTeamReorganization) {
       return { ok: true, message: '' };
     }
@@ -1671,7 +1671,9 @@ const EncuestaPartido = () => {
           setTeamsSource(String(currentRow.teams_source || 'survey'));
           setTeamsLockedByUserId(currentRow.teams_locked_by_user_id || null);
           setTeamsLockedAt(currentRow.teams_locked_at || null);
-          setTeamsFinalizedBySurvey(true);
+          if (!deferTeamsFinalizedUi) {
+            setTeamsFinalizedBySurvey(true);
+          }
           hydrateTeamsFromRefs({ teamARefs: persistedA, teamBRefs: persistedB });
 
           return {
@@ -1747,7 +1749,9 @@ const EncuestaPartido = () => {
     setTeamsSource(lockResult.teamsSource || 'survey');
     setTeamsLockedByUserId(lockResult.teamsLockedByUserId || null);
     setTeamsLockedAt(lockResult.teamsLockedAt || null);
-    setTeamsFinalizedBySurvey(true);
+    if (!deferTeamsFinalizedUi) {
+      setTeamsFinalizedBySurvey(true);
+    }
 
     if (lockResult.teamARefs.length > 0 && lockResult.teamBRefs.length > 0) {
       hydrateTeamsFromRefs({
@@ -1976,7 +1980,9 @@ const EncuestaPartido = () => {
 
     setSubmitting(true);
     try {
-      const persistResult = await persistSurveyTeamsDefinition();
+      const persistResult = await persistSurveyTeamsDefinition({
+        deferTeamsFinalizedUi: shouldSubmitFromHere,
+      });
       if (!persistResult.ok) {
         openSurveyModal(persistResult.message, 'No se pudieron guardar los equipos');
         return;
@@ -2754,7 +2760,7 @@ const EncuestaPartido = () => {
               <div className={questionRowClass}>
                 <div className="w-full">
                   <div className={titleClass}>
-                    {shouldShowWinnerSelectionInOrganizeStep ? 'Quién ganó el partido' : 'ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ'}
+                    {shouldShowWinnerSelectionInOrganizeStep ? '¿Quién ganó el partido?' : 'ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ'}
                   </div>
                   <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
                     {shouldShowWinnerSelectionInOrganizeStep ? friendlyOrganizeAndResultHelperText : organizeTeamsHelperText}
