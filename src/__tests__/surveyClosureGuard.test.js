@@ -32,6 +32,14 @@ describe('survey closure guard rails', () => {
     })).toBe(true);
   });
 
+  test('finalize runs by quorum before unanimity (3/5)', () => {
+    expect(shouldFinalizeSurveyClosure({
+      submissionsCount: 3,
+      expectedVoters: 5,
+      deadlineReached: false,
+    })).toBe(true);
+  });
+
   test('finalize still waits when quorum is not met and deadline not reached (2/4)', () => {
     expect(shouldFinalizeSurveyClosure({
       submissionsCount: 2,

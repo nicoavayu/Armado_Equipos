@@ -5,6 +5,13 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGri
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { getPointsEfficiencySummary } from 'utils/statsSummary';
 import {
+  buildSurveyOutcomeStats,
+  dedupeMatchesById,
+  isClosedPlayedSurveyOutcome,
+  isNotPlayedOutcomeToken,
+  normalizeSurveyResultStatus,
+} from '../utils/statsOutcomeAssignment';
+import {
   Activity,
   AlertCircle,
   CalendarDays,
@@ -30,6 +37,7 @@ import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import ManualMatchModal from './ManualMatchModal';
 import InjuryModal from './InjuryModal';
+import StatsDebugPanel from './stats/StatsDebugPanel';
 
 const StatsView = ({ onVolver }) => {
   const { user } = useAuth();
@@ -43,6 +51,11 @@ const StatsView = ({ onVolver }) => {
   const [showManualMatchModal, setShowManualMatchModal] = useState(false);
   const [showInjuryModal, setShowInjuryModal] = useState(false);
   const [showLesionesDetalle, setShowLesionesDetalle] = useState(false);
+  const statsDebugEnabled = (
+    process.env.NODE_ENV !== 'production'
+    || String(process.env.REACT_APP_ENABLE_STATS_DEBUG || '').trim().toLowerCase() === 'true'
+  );
+  const [statsDebugEntries, setStatsDebugEntries] = useState([]);
   const periodSelectorRef = useRef(null);
   const [stats, setStats] = useState({
     partidosJugados: 0,
@@ -176,16 +189,6 @@ const StatsView = ({ onVolver }) => {
     ]
       .map(normalizeIdentity)
       .filter(Boolean);
-  };
-
-  const dedupeMatchesById = (matches = []) => {
-    const byId = new Map();
-    (Array.isArray(matches) ? matches : []).forEach((match) => {
-      const id = Number(match?.id);
-      if (!Number.isFinite(id)) return;
-      if (!byId.has(id)) byId.set(id, match);
-    });
-    return Array.from(byId.values());
   };
 
   const isCurrentUserPlayer = (jugador) => {
@@ -325,6 +328,11 @@ const StatsView = ({ onVolver }) => {
         rankingTimeline: extendedStats.rankingTimeline,
         consistencia: extendedStats.consistencia,
       });
+      setStatsDebugEntries(
+        statsDebugEnabled
+          ? (Array.isArray(partidosData.statsDebugEntries) ? partidosData.statsDebugEntries : [])
+          : [],
+      );
     } catch (error) {
       console.error('Error loading stats:', error);
     } finally {
@@ -366,10 +374,12 @@ const StatsView = ({ onVolver }) => {
 
     if (error) throw error;
 
-    const closedMatches = dedupeMatchesById((partidos || []).filter((partido) => isMatchClosedForStats(partido)));
-    const userPartidos = dedupeMatchesById(closedMatches.filter((partido) =>
+    const rawClosedMatches = (partidos || []).filter((partido) => isMatchClosedForStats(partido));
+    const closedMatches = dedupeMatchesById(rawClosedMatches);
+    const rawUserPartidos = rawClosedMatches.filter((partido) =>
       partido.jugadores?.some((j) => isCurrentUserPlayer(j)),
-    ));
+    );
+    const userPartidos = dedupeMatchesById(rawUserPartidos);
 
     const ratings = userPartidos.map((p) => {
       const userPlayer = p.jugadores?.find((j) => isCurrentUserPlayer(j));
@@ -379,7 +389,15 @@ const StatsView = ({ onVolver }) => {
 
     const chartData = generateChartData(userPartidos, period);
     const logros = await calculateLogros(closedMatches);
-    const surveyOutcomes = await getSurveyOutcomeStats(userPartidos);
+    const surveyOutcomesResult = await getSurveyOutcomeStats(rawUserPartidos);
+    const surveyOutcomes = {
+      ganados: Number(surveyOutcomesResult?.ganados || 0),
+      empatados: Number(surveyOutcomesResult?.empatados || 0),
+      perdidos: Number(surveyOutcomesResult?.perdidos || 0),
+      pendientes: Number(surveyOutcomesResult?.pendientes || 0),
+      sinEquipoDetectado: Number(surveyOutcomesResult?.sinEquipoDetectado || 0),
+      recientes: Array.isArray(surveyOutcomesResult?.recientes) ? surveyOutcomesResult.recientes : [],
+    };
     const amistosos = userPartidos.filter((match) => resolveMatchType(match) === 'amistoso').length;
     const torneos = userPartidos.filter((match) => resolveMatchType(match) === 'torneo').length;
 
@@ -392,206 +410,44 @@ const StatsView = ({ onVolver }) => {
       torneos,
       logros,
       surveyOutcomes,
+      statsDebugEntries: Array.isArray(surveyOutcomesResult?.debugEntries) ? surveyOutcomesResult.debugEntries : [],
       partidos: userPartidos,
     };
   };
 
-  const normalizeTeamEntry = (entry) => {
-    if (entry && typeof entry === 'object') {
-      return normalizeIdentity(entry.ref || entry.uuid || entry.usuario_id || entry.id || '');
+  const getSurveyOutcomeStats = async (rawUserMatches = []) => {
+    const normalizedRawMatches = Array.isArray(rawUserMatches) ? rawUserMatches : [];
+    const uniqueMatchIds = [...new Set(
+      normalizedRawMatches
+        .map((match) => Number(match?.id))
+        .filter((id) => Number.isFinite(id)),
+    )];
+
+    if (uniqueMatchIds.length === 0) {
+      return {
+        ganados: 0,
+        empatados: 0,
+        perdidos: 0,
+        pendientes: 0,
+        sinEquipoDetectado: 0,
+        recientes: [],
+        debugEntries: [],
+      };
     }
-    return normalizeIdentity(entry);
-  };
-
-  const toNormalizedTeamRefs = (team = []) => (
-    [...new Set(
-      (Array.isArray(team) ? team : [])
-        .map(normalizeTeamEntry)
-        .filter(Boolean),
-    )]
-  );
-
-  const getStableMatchPlayerRef = (player) => normalizeIdentity(
-    player?.uuid || player?.usuario_id || player?.id || '',
-  );
-
-  const evaluateTeamPairQuality = ({ teamA = [], teamB = [], expectedRosterRefs = new Set() }) => {
-    const normalizedA = toNormalizedTeamRefs(teamA);
-    const normalizedB = toNormalizedTeamRefs(teamB);
-    if (normalizedA.length === 0 || normalizedB.length === 0) return null;
-
-    const teamBSet = new Set(normalizedB);
-    const overlap = normalizedA.filter((ref) => teamBSet.has(ref)).length;
-    const union = new Set([...normalizedA, ...normalizedB]);
-    const expectedSize = Math.max(0, Number(expectedRosterRefs?.size || 0));
-    const coverage = expectedSize > 0 ? (union.size / expectedSize) : 1;
-    const isComplete = expectedSize > 0
-      ? (union.size >= expectedSize && overlap === 0)
-      : overlap === 0;
-
-    // Prioritize coverage/no-overlap to avoid selecting partial or inconsistent sources.
-    const score = (coverage * 1000) - (overlap * 100) + union.size;
-
-    return {
-      teamA: normalizedA,
-      teamB: normalizedB,
-      overlap,
-      unionSize: union.size,
-      coverage,
-      isComplete,
-      score,
-    };
-  };
-
-  const selectBestTeamPair = ({ candidates = [], expectedRosterRefs = new Set() }) => {
-    let best = null;
-    for (const candidate of candidates) {
-      const quality = evaluateTeamPairQuality({
-        teamA: candidate?.teamA,
-        teamB: candidate?.teamB,
-        expectedRosterRefs,
-      });
-      if (!quality) continue;
-      if (quality.isComplete) {
-        return { teamA: quality.teamA, teamB: quality.teamB };
-      }
-      if (!best || quality.score > best.score) {
-        best = quality;
-      }
-    }
-    return best ? { teamA: best.teamA, teamB: best.teamB } : { teamA: [], teamB: [] };
-  };
-
-  const normalizeSurveyWinner = (value) => {
-    const token = normalizeIdentity(value);
-    if (!token) return null;
-    if (token === 'equipo_a' || token === 'a' || token === 'team_a') return 'equipo_a';
-    if (token === 'equipo_b' || token === 'b' || token === 'team_b') return 'equipo_b';
-    if (token === 'empate' || token === 'draw') return 'empate';
-    return null;
-  };
-
-  const normalizeSurveyResultStatus = (value) => {
-    const token = normalizeIdentity(value);
-    if (!token) return null;
-    if (token === 'finished' || token === 'played') return 'finished';
-    if (token === 'draw' || token === 'empate') return 'draw';
-    if (token === 'not_played' || token === 'cancelled' || token === 'cancelado') return 'not_played';
-    if (token === 'pending' || token === 'pendiente') return 'pending';
-    return null;
-  };
-
-  const isNotPlayedOutcomeToken = (value) => {
-    const token = normalizeIdentity(value);
-    if (!token) return false;
-    return (
-      token === 'not_played'
-      || token === 'cancelled'
-      || token === 'cancelado'
-      || token === 'no_jugado'
-      || token === 'notplayed'
-    );
-  };
-
-  const isClosedPlayedSurveyOutcome = ({ resultStatus, winnerTeam, finishedAt }) => {
-    const normalizedStatus = normalizeSurveyResultStatus(resultStatus);
-    const normalizedWinner = normalizeSurveyWinner(winnerTeam);
-
-    if (normalizedStatus === 'not_played' || isNotPlayedOutcomeToken(winnerTeam)) {
-      return false;
-    }
-
-    if (normalizedStatus === 'finished' || normalizedStatus === 'draw') {
-      return true;
-    }
-
-    if (normalizedWinner === 'equipo_a' || normalizedWinner === 'equipo_b' || normalizedWinner === 'empate') {
-      return true;
-    }
-
-    if (finishedAt && normalizedStatus !== 'pending') {
-      return true;
-    }
-
-    return false;
-  };
-
-  const resolveUserTeam = ({ participants, teamA, teamB, matchPlayers = [] }) => {
-    const teamARefs = new Set((Array.isArray(teamA) ? teamA : []).map(normalizeTeamEntry).filter(Boolean));
-    const teamBRefs = new Set((Array.isArray(teamB) ? teamB : []).map(normalizeTeamEntry).filter(Boolean));
-    if (teamARefs.size === 0 && teamBRefs.size === 0) return null;
-
-    const userRefs = getUserIdentitySet();
-    const candidateRefs = new Set([...userRefs]);
-
-    (Array.isArray(participants) ? participants : []).forEach((p) => {
-      const refs = [
-        p?.ref,
-        p?.uuid,
-        p?.usuario_id,
-        p?.id,
-        p?.email,
-        p?.nombre,
-      ]
-        .map(normalizeIdentity)
-        .filter(Boolean);
-
-      if (refs.some((ref) => userRefs.has(ref))) {
-        refs.forEach((ref) => candidateRefs.add(ref));
-      }
-    });
-
-    let hasCurrentUserMatchPlayer = false;
-    (Array.isArray(matchPlayers) ? matchPlayers : [])
-      .forEach((player) => {
-        if (!isCurrentUserPlayer(player)) return;
-        hasCurrentUserMatchPlayer = true;
-        getPlayerIdentityCandidates(player).forEach((ref) => candidateRefs.add(ref));
-      });
-
-    const isInTeamA = [...candidateRefs].some((ref) => teamARefs.has(ref));
-    if (isInTeamA) return 'equipo_a';
-    const isInTeamB = [...candidateRefs].some((ref) => teamBRefs.has(ref));
-    if (isInTeamB) return 'equipo_b';
-
-    // Last-resort fallback: if we cannot map refs but this match clearly contains the user,
-    // avoid "Sin equipo detectado" by inferring from explicit team sizes only when one side is empty.
-    if (hasCurrentUserMatchPlayer && teamARefs.size > 0 && teamBRefs.size === 0) return 'equipo_a';
-    if (hasCurrentUserMatchPlayer && teamBRefs.size > 0 && teamARefs.size === 0) return 'equipo_b';
-    return null;
-  };
-
-  const getSurveyOutcomeStats = async (userPartidos = []) => {
-    const matchIds = [...new Set(userPartidos
-      .map((p) => Number(p?.id))
-      .filter((id) => Number.isFinite(id)))];
-
-    const empty = {
-      ganados: 0,
-      empatados: 0,
-      perdidos: 0,
-      pendientes: 0,
-      sinEquipoDetectado: 0,
-      recientes: [],
-    };
-
-    if (matchIds.length === 0) return empty;
 
     let surveyRows = [];
     try {
       let query = await supabase
         .from('survey_results')
         .select('partido_id, winner_team, result_status, finished_at, snapshot_equipos, snapshot_participantes')
-        .in('partido_id', matchIds);
+        .in('partido_id', uniqueMatchIds);
 
       if (query.error) {
-        // Backward-compatible fallback for environments without snapshot columns.
         query = await supabase
           .from('survey_results')
           .select('partido_id, winner_team, result_status, finished_at')
-          .in('partido_id', matchIds);
+          .in('partido_id', uniqueMatchIds);
       }
-
       if (query.error) throw query.error;
       surveyRows = query.data || [];
     } catch (error) {
@@ -604,163 +460,52 @@ const StatsView = ({ onVolver }) => {
       const teamsRes = await supabase
         .from('partido_team_confirmations')
         .select('partido_id, participants, team_a, team_b')
-        .in('partido_id', matchIds);
+        .in('partido_id', uniqueMatchIds);
       if (!teamsRes.error) {
         teamRows = teamsRes.data || [];
       }
     } catch (_error) {
-      // Non-blocking fallback.
+      teamRows = [];
     }
 
     let lifecycleRows = [];
     try {
       let lifecycleRes = await supabase
         .from('partidos')
-        .select('id, winner_team, result_status, finished_at, survey_team_a, survey_team_b, final_team_a, final_team_b')
-        .in('id', matchIds);
+        .select('id, winner_team, result_status, finished_at, survey_team_a, survey_team_b, final_team_a, final_team_b, survey_status')
+        .in('id', uniqueMatchIds);
 
       if (lifecycleRes.error) {
         lifecycleRes = await supabase
           .from('partidos')
-          .select('id, winner_team, result_status, finished_at, final_team_a, final_team_b')
-          .in('id', matchIds);
+          .select('id, winner_team, result_status, finished_at, final_team_a, final_team_b, survey_status')
+          .in('id', uniqueMatchIds);
       }
 
       if (lifecycleRes.error) {
         lifecycleRes = await supabase
           .from('partidos')
-          .select('id, winner_team, result_status, finished_at')
-          .in('id', matchIds);
+          .select('id, winner_team, result_status, finished_at, survey_status')
+          .in('id', uniqueMatchIds);
       }
 
       if (!lifecycleRes.error) {
         lifecycleRows = lifecycleRes.data || [];
       }
     } catch (_error) {
-      // Non-blocking fallback.
+      lifecycleRows = [];
     }
 
-    const bySurvey = new Map((surveyRows || []).map((row) => [Number(row.partido_id), row]));
-    const byTeams = new Map((teamRows || []).map((row) => [Number(row.partido_id), row]));
-    const byLifecycle = new Map((lifecycleRows || []).map((row) => [Number(row.id), row]));
-    const byMatch = new Map((userPartidos || []).map((p) => [Number(p.id), p]));
-
-    let ganados = 0;
-    let empatados = 0;
-    let perdidos = 0;
-    let pendientes = 0;
-    let sinEquipoDetectado = 0;
-    const recientes = [];
-
-    matchIds.forEach((matchId) => {
-      const survey = bySurvey.get(matchId);
-      const teamConfirm = byTeams.get(matchId);
-      const lifecycle = byLifecycle.get(matchId);
-      const match = byMatch.get(matchId);
-      const ts = match?.fecha
-        ? new Date(`${match.fecha}T${String(match?.hora || '00:00').slice(0, 5)}`).getTime()
-        : 0;
-      const baseRecap = {
-        id: `survey-${matchId}`,
-        ts: Number.isFinite(ts) ? ts : 0,
-        fecha: match?.fecha || null,
-        tipoLabel: match?.tipo_partido || match?.modalidad || 'Partido',
-        nombre: match?.nombre || 'Partido',
-        source: 'encuesta',
-      };
-
-      const winnerRaw = survey?.winner_team ?? lifecycle?.winner_team ?? match?.winner_team ?? null;
-      const resultStatus = normalizeSurveyResultStatus(
-        survey?.result_status ?? lifecycle?.result_status ?? match?.result_status,
-      );
-      const winner = normalizeSurveyWinner(winnerRaw);
-      const hasWinner = winner === 'equipo_a' || winner === 'equipo_b' || winner === 'empate';
-
-      if (resultStatus === 'not_played' || isNotPlayedOutcomeToken(winnerRaw)) {
-        return;
-      }
-
-      const snapshotTeams = survey?.snapshot_equipos || null;
-      const participants = Array.isArray(survey?.snapshot_participantes)
-        ? survey.snapshot_participantes
-        : (Array.isArray(teamConfirm?.participants) ? teamConfirm.participants : []);
-
-      const expectedRosterRefs = new Set();
-      (Array.isArray(participants) ? participants : []).forEach((participant) => {
-        const ref = normalizeTeamEntry(participant);
-        if (ref) expectedRosterRefs.add(ref);
-      });
-      (Array.isArray(match?.jugadores) ? match.jugadores : []).forEach((player) => {
-        const ref = getStableMatchPlayerRef(player);
-        if (ref) expectedRosterRefs.add(ref);
-      });
-
-      const selectedTeams = selectBestTeamPair({
-        candidates: [
-          {
-            teamA: Array.isArray(snapshotTeams?.team_a) ? snapshotTeams.team_a : [],
-            teamB: Array.isArray(snapshotTeams?.team_b) ? snapshotTeams.team_b : [],
-          },
-          {
-            teamA: Array.isArray(lifecycle?.survey_team_a) ? lifecycle.survey_team_a : [],
-            teamB: Array.isArray(lifecycle?.survey_team_b) ? lifecycle.survey_team_b : [],
-          },
-          {
-            teamA: Array.isArray(lifecycle?.final_team_a) ? lifecycle.final_team_a : [],
-            teamB: Array.isArray(lifecycle?.final_team_b) ? lifecycle.final_team_b : [],
-          },
-          {
-            teamA: Array.isArray(teamConfirm?.team_a) ? teamConfirm.team_a : [],
-            teamB: Array.isArray(teamConfirm?.team_b) ? teamConfirm.team_b : [],
-          },
-        ],
-        expectedRosterRefs,
-      });
-      const teamA = selectedTeams.teamA;
-      const teamB = selectedTeams.teamB;
-
-      const finishedAt = survey?.finished_at ?? lifecycle?.finished_at ?? match?.finished_at ?? null;
-
-      if (!isClosedPlayedSurveyOutcome({ resultStatus, winnerTeam: winnerRaw, finishedAt }) && !hasWinner) {
-        pendientes += 1;
-        recientes.push({ ...baseRecap, resultKey: 'pendiente', label: 'Pendiente' });
-        return;
-      }
-
-      if (resultStatus === 'draw' || winner === 'empate') {
-        empatados += 1;
-        recientes.push({ ...baseRecap, resultKey: 'empate', label: 'Empate' });
-        return;
-      }
-
-      if (!hasWinner) {
-        pendientes += 1;
-        recientes.push({ ...baseRecap, resultKey: 'pendiente', label: 'Pendiente' });
-        return;
-      }
-
-      const userTeam = resolveUserTeam({
-        participants,
-        teamA,
-        teamB,
-        matchPlayers: match?.jugadores || [],
-      });
-      if (!userTeam) {
-        sinEquipoDetectado += 1;
-        recientes.push({ ...baseRecap, resultKey: 'sin_equipo', label: 'Sin equipo detectado' });
-        return;
-      }
-
-      if (winner === userTeam) {
-        ganados += 1;
-        recientes.push({ ...baseRecap, resultKey: 'ganaste', label: 'Ganaste' });
-      } else {
-        perdidos += 1;
-        recientes.push({ ...baseRecap, resultKey: 'perdiste', label: 'Perdiste' });
-      }
+    return buildSurveyOutcomeStats({
+      rawUserMatches: normalizedRawMatches,
+      surveyRows,
+      teamRows,
+      lifecycleRows,
+      userIdentitySet: getUserIdentitySet(),
+      isCurrentUserPlayer,
+      getPlayerIdentityCandidates,
+      includeDebug: statsDebugEnabled,
     });
-
-    return { ganados, empatados, perdidos, pendientes, sinEquipoDetectado, recientes };
   };
 
   const getAmigosStats = async (dateRange) => {
@@ -2041,6 +1786,11 @@ const StatsView = ({ onVolver }) => {
             ))}
           </div>
         </motion.div>
+
+        <StatsDebugPanel
+          enabled={statsDebugEnabled}
+          entries={statsDebugEntries}
+        />
 
         <div className="grid grid-cols-2 gap-3 mb-6 relative z-10">
           {[
