@@ -24,20 +24,20 @@ describe('survey closure guard rails', () => {
     })).toBe(true);
   });
 
-  test('finalize runs when immediate quorum is met (3/4)', () => {
+  test('finalize does not run on partial quorum before deadline (3/4)', () => {
     expect(shouldFinalizeSurveyClosure({
       submissionsCount: 3,
       expectedVoters: 4,
       deadlineReached: false,
-    })).toBe(true);
+    })).toBe(false);
   });
 
-  test('finalize runs by quorum before unanimity (3/5)', () => {
+  test('finalize does not run on partial quorum before deadline (3/5)', () => {
     expect(shouldFinalizeSurveyClosure({
       submissionsCount: 3,
       expectedVoters: 5,
       deadlineReached: false,
-    })).toBe(true);
+    })).toBe(false);
   });
 
   test('finalize still waits when quorum is not met and deadline not reached (2/4)', () => {
@@ -48,7 +48,7 @@ describe('survey closure guard rails', () => {
     })).toBe(false);
   });
 
-  test('finalize runs at 4/4, 1/2, or when deadline is reached', () => {
+  test('finalize runs at unanimity or when deadline is reached', () => {
     expect(shouldFinalizeSurveyClosure({
       submissionsCount: 4,
       expectedVoters: 4,
@@ -59,12 +59,20 @@ describe('survey closure guard rails', () => {
       submissionsCount: 1,
       expectedVoters: 2,
       deadlineReached: false,
-    })).toBe(true);
+    })).toBe(false);
 
     expect(shouldFinalizeSurveyClosure({
       submissionsCount: 3,
       expectedVoters: 4,
       deadlineReached: true,
     })).toBe(true);
+  });
+
+  test('does not finalize immediately when expected voters is zero and deadline is pending', () => {
+    expect(shouldFinalizeSurveyClosure({
+      submissionsCount: 0,
+      expectedVoters: 0,
+      deadlineReached: false,
+    })).toBe(false);
   });
 });

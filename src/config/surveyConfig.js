@@ -1,6 +1,6 @@
 const HOUR_MS = 60 * 60 * 1000;
 
-// Product requirement: all surveys close exactly 24h after opening.
+// Product requirement: surveys stay open up to 24h after opening.
 export const SURVEY_FINALIZE_DELAY_MS = 24 * HOUR_MS;
 export const SURVEY_START_DELAY_MS = Number(import.meta.env.VITE_SURVEY_START_DELAY_MS) || 60 * 60 * 1000;
 export const SURVEY_REMINDER_12H_LEAD_MS = 12 * HOUR_MS;

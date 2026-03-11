@@ -133,6 +133,23 @@ const normalizeType = (type, message = '') => {
   return type;
 };
 
+const normalizeSurveyStatusToken = (value) => String(value || '').trim().toLowerCase();
+
+const isMatchSurveyClosed = (match = null) => {
+  if (!match || typeof match !== 'object') return false;
+
+  const surveyStatus = normalizeSurveyStatusToken(match?.survey_status);
+  if (surveyStatus === 'closed' || surveyStatus === 'cerrada') return true;
+
+  const resultStatus = normalizeSurveyStatusToken(match?.result_status);
+  if (['finished', 'draw', 'not_played'].includes(resultStatus)) return true;
+
+  const estado = normalizeSurveyStatusToken(match?.estado);
+  if (['finalizado', 'cancelado', 'finished', 'cancelled'].includes(estado)) return true;
+
+  return Boolean(match?.finished_at);
+};
+
 export const resolveNotificationMatchId = (notification) => (
   notification?.partido_id
   ?? notification?.data?.match_id
@@ -812,8 +829,10 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   };
 
   if (type === 'survey_start') {
-    const surveyClosed = isSurveyNotificationClosed(notification);
-    const surveySubtitle = getSurveyRemainingLabel(resolveSurveyDeadlineAt(notification));
+    const surveyClosed = isSurveyNotificationClosed(notification) || isMatchSurveyClosed(match);
+    const surveySubtitle = surveyClosed
+      ? 'La encuesta ya finalizó.'
+      : getSurveyRemainingLabel(resolveSurveyDeadlineAt(notification));
     const surveyTitle = surveyClosed
       ? (quotedMatchName ? `Encuesta finalizada para ${quotedMatchName}` : 'Encuesta finalizada')
       : (quotedMatchName ? `Encuesta disponible para ${quotedMatchName}` : 'Encuesta disponible');
@@ -1175,7 +1194,7 @@ const fetchMissingMatches = async ({ groups, activeMatchMap, supabaseClient }) =
   try {
     const { data, error } = await supabaseClient
       .from('partidos')
-      .select('id,nombre,fecha,hora,sede,creado_por,cupo_jugadores,estado')
+      .select('id,nombre,fecha,hora,sede,creado_por,cupo_jugadores,estado,survey_status,result_status,finished_at')
       .in('id', missingIds);
     if (error) throw error;
 
