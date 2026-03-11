@@ -7,6 +7,7 @@ import { ensureParticipantsSnapshot, ensureSurveyResultsSnapshot } from './histo
 
 import {
   SURVEY_FINALIZE_DELAY_MS,
+  SURVEY_MIN_VOTERS_IMMEDIATE_FINALIZE,
 } from '../config/surveyConfig';
 import { getSurveyResultsReadyMessage } from '../utils/surveyNotificationCopy';
 import { hasAnyAwardData, isAwardsTrulyReady } from '../utils/awardsReadiness';
@@ -105,7 +106,15 @@ export const shouldFinalizeSurveyClosure = ({
 }) => {
   const submissions = Math.max(0, Math.trunc(Number(submissionsCount) || 0));
   const expected = Math.max(0, Math.trunc(Number(expectedVoters) || 0));
-  return submissions >= expected || deadlineReached === true;
+  const configuredImmediateThreshold = Math.max(
+    1,
+    Math.trunc(Number(SURVEY_MIN_VOTERS_IMMEDIATE_FINALIZE) || 1),
+  );
+  // Friendly surveys should not require unanimity: close once a minimum quorum is reached.
+  const immediateThreshold = expected <= 1
+    ? 1
+    : Math.min(configuredImmediateThreshold, Math.max(expected - 1, 1));
+  return submissions >= immediateThreshold || submissions >= expected || deadlineReached === true;
 };
 
 export const resolveMvpTieBreakWinner = ({
