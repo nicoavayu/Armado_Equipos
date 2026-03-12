@@ -24,6 +24,7 @@ import {
 } from '../utils/notificationInviteState';
 import {
   buildPlayerRefToKeyMap,
+  normalizeIdentityRef,
   resolvePlayerKey,
   toPlayerKeysFromRefs,
 } from '../services/surveyTeamsService';
@@ -217,17 +218,78 @@ const PLACEHOLDER_NUMBER_STYLE = {
   lineHeight: 1,
 };
 
+const TEAM_REF_CANDIDATE_FIELDS = [
+  'ref',
+  'persist_ref',
+  'player_ref',
+  'playerRef',
+  'playerKey',
+  'key',
+  'usuario_id',
+  'user_id',
+  'uuid',
+  'auth_id',
+  'player_id',
+  'jugador_id',
+  'id',
+  'value',
+];
+
+const TEAM_REF_LABEL_FIELDS = ['nombre', 'name', 'label'];
+
+const getTeamRefCandidates = (ref) => {
+  if (ref === null || ref === undefined) return [];
+  if (typeof ref === 'string' || typeof ref === 'number' || typeof ref === 'boolean') {
+    return [String(ref).trim()].filter(Boolean);
+  }
+  if (typeof ref !== 'object') return [];
+
+  return TEAM_REF_CANDIDATE_FIELDS
+    .map((field) => String(ref?.[field] || '').trim())
+    .filter(Boolean);
+};
+
+const getTeamRefLabel = (ref) => {
+  if (!ref || typeof ref !== 'object') return '';
+  return TEAM_REF_LABEL_FIELDS
+    .map((field) => String(ref?.[field] || '').trim())
+    .find(Boolean) || '';
+};
+
 const normalizeTeamRefs = (value) => (
   (Array.isArray(value) ? value : [])
-    .map((ref) => String(ref || '').trim())
+    .map((ref) => getTeamRefCandidates(ref)[0] || '')
     .filter(Boolean)
 );
 
-const mapTeamRefsToPlayers = ({ refs = [], refToKeyMap, keyToPlayerMap }) => {
+const buildFallbackPlayersFromRefs = ({ rawRefs = [], normalizedRefs = [] }) => {
+  const seen = new Set();
+  return (Array.isArray(rawRefs) ? rawRefs : [])
+    .map((rawRef, index) => {
+      const label = getTeamRefLabel(rawRef) || String(normalizedRefs[index] || '').trim();
+      if (!label) return null;
+      const dedupeKey = normalizeIdentityRef(label);
+      if (seen.has(dedupeKey)) return null;
+      seen.add(dedupeKey);
+      return {
+        id: `guest-team-ref-${index}-${dedupeKey || index}`,
+        nombre: label,
+      };
+    })
+    .filter(Boolean);
+};
+
+const mapTeamRefsToPlayers = ({ refs = [], rawRefs = [], refToKeyMap, keyToPlayerMap }) => {
   const keys = toPlayerKeysFromRefs({ refs, refToKeyMap });
-  return keys
+  const resolvedPlayers = keys
     .map((key) => keyToPlayerMap.get(String(key).trim()))
     .filter(Boolean);
+
+  if (resolvedPlayers.length > 0) {
+    return resolvedPlayers;
+  }
+
+  return buildFallbackPlayersFromRefs({ rawRefs, normalizedRefs: refs });
 };
 
 function PlayersReadOnly({ jugadores, partido, mode }) {
@@ -1131,49 +1193,68 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       try {
         const matchIdNum = Number(partidoId);
         const matchIdFilter = Number.isFinite(matchIdNum) ? matchIdNum : partidoId;
-        const { data: partidoRow, error: partidoError } = await supabase
-          .from('partidos')
-          .select('teams_confirmed, survey_team_a, survey_team_b, final_team_a, final_team_b')
-          .eq('id', matchIdFilter)
-          .maybeSingle();
+
+        let partidoRow = null;
+        try {
+          const { data: partidoData, error: partidoError } = await supabase
+            .from('partidos')
+            .select('teams_confirmed, teams_locked, survey_team_a, survey_team_b, final_team_a, final_team_b')
+            .eq('id', matchIdFilter)
+            .maybeSingle();
+          if (!partidoError) {
+            partidoRow = partidoData || null;
+          }
+        } catch (_partidoFetchError) {
+          partidoRow = null;
+        }
 
         if (isCancelled) return;
-        if (partidoError) {
-          clearConfirmedTeams();
-          return;
-        }
 
-        const isConfirmedByAdmin = Boolean(partidoRow?.teams_confirmed ?? partido?.teams_confirmed);
-        if (!isConfirmedByAdmin) {
-          clearConfirmedTeams();
-          return;
-        }
-
-        let teamARefs = normalizeTeamRefs(partidoRow?.survey_team_a);
-        let teamBRefs = normalizeTeamRefs(partidoRow?.survey_team_b);
+        const sourcePartido = partidoRow || partido || {};
+        let teamARawRefs = Array.isArray(sourcePartido?.survey_team_a) ? sourcePartido.survey_team_a : [];
+        let teamBRawRefs = Array.isArray(sourcePartido?.survey_team_b) ? sourcePartido.survey_team_b : [];
+        let teamARefs = normalizeTeamRefs(teamARawRefs);
+        let teamBRefs = normalizeTeamRefs(teamBRawRefs);
         if (teamARefs.length === 0 || teamBRefs.length === 0) {
-          teamARefs = normalizeTeamRefs(partidoRow?.final_team_a);
-          teamBRefs = normalizeTeamRefs(partidoRow?.final_team_b);
+          teamARawRefs = Array.isArray(sourcePartido?.final_team_a) ? sourcePartido.final_team_a : [];
+          teamBRawRefs = Array.isArray(sourcePartido?.final_team_b) ? sourcePartido.final_team_b : [];
+          teamARefs = normalizeTeamRefs(teamARawRefs);
+          teamBRefs = normalizeTeamRefs(teamBRawRefs);
         }
 
         if (teamARefs.length === 0 || teamBRefs.length === 0) {
-          const { data: confirmationRow } = await supabase
-            .from('partido_team_confirmations')
-            .select('team_a, team_b')
-            .eq('partido_id', matchIdFilter)
-            .order('confirmed_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+          try {
+            const { data: confirmationRow } = await supabase
+              .from('partido_team_confirmations')
+              .select('team_a, team_b')
+              .eq('partido_id', matchIdFilter)
+              .order('confirmed_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
 
-          if (isCancelled) return;
+            if (isCancelled) return;
 
-          if (confirmationRow) {
-            teamARefs = normalizeTeamRefs(confirmationRow.team_a);
-            teamBRefs = normalizeTeamRefs(confirmationRow.team_b);
+            if (confirmationRow) {
+              teamARawRefs = Array.isArray(confirmationRow.team_a) ? confirmationRow.team_a : [];
+              teamBRawRefs = Array.isArray(confirmationRow.team_b) ? confirmationRow.team_b : [];
+              teamARefs = normalizeTeamRefs(teamARawRefs);
+              teamBRefs = normalizeTeamRefs(teamBRawRefs);
+            }
+          } catch (_confirmationFetchError) {
+            // Non-blocking fallback: if this lookup fails, keep current refs.
           }
         }
 
-        if (teamARefs.length === 0 || teamBRefs.length === 0) {
+        const hasPersistedTeams = teamARefs.length > 0 && teamBRefs.length > 0;
+        const hasConfirmedFlag = Boolean(
+          partidoRow?.teams_confirmed
+          ?? partido?.teams_confirmed
+          ?? partidoRow?.teams_locked
+          ?? partido?.teams_locked,
+        );
+        const shouldExposeGuestTeams = hasConfirmedFlag || hasPersistedTeams;
+
+        if (!shouldExposeGuestTeams || !hasPersistedTeams) {
           clearConfirmedTeams();
           return;
         }
@@ -1182,12 +1263,22 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         const keyToPlayerMap = new Map(
           jugadores.map((player) => [String(resolvePlayerKey(player) || '').trim(), player]).filter(([key]) => key),
         );
-        const teamAPlayers = mapTeamRefsToPlayers({ refs: teamARefs, refToKeyMap, keyToPlayerMap });
-        const teamBPlayers = mapTeamRefsToPlayers({ refs: teamBRefs, refToKeyMap, keyToPlayerMap });
-        const hasResolvedTeams = teamAPlayers.length > 0 && teamBPlayers.length > 0;
+        const teamAPlayers = mapTeamRefsToPlayers({
+          refs: teamARefs,
+          rawRefs: teamARawRefs,
+          refToKeyMap,
+          keyToPlayerMap,
+        });
+        const teamBPlayers = mapTeamRefsToPlayers({
+          refs: teamBRefs,
+          rawRefs: teamBRawRefs,
+          refToKeyMap,
+          keyToPlayerMap,
+        });
+        const hasDisplayableTeams = teamAPlayers.length > 0 && teamBPlayers.length > 0;
 
         if (isCancelled) return;
-        if (!hasResolvedTeams) {
+        if (!hasDisplayableTeams) {
           clearConfirmedTeams();
           return;
         }
