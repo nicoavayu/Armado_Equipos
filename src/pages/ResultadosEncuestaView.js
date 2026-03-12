@@ -557,12 +557,12 @@ const ResultadosEncuestaView = () => {
     const storyLayoutOverrides = React.useMemo(() => {
       if (isShortHeight) {
         return {
-          nameTop: '14.1%',
+          nameTop: '15.1%',
           nameMargin: '0px',
           photoTop: '18.7%',
           photoOffsetY: '4px',
           photoSize: '51%',
-          rightStatsRight: '20.2%',
+          rightStatsRight: '23.6%',
           rightStatsTranslateY: '68.8%',
           leftMetaLeft: '6%',
           leftMetaTranslateY: '81%',
@@ -572,12 +572,12 @@ const ResultadosEncuestaView = () => {
       }
       if (isCompactHeight) {
         return {
-          nameTop: '13.9%',
+          nameTop: '14.9%',
           nameMargin: '0px',
           photoTop: '18.8%',
           photoOffsetY: '4px',
           photoSize: '51.2%',
-          rightStatsRight: '19.6%',
+          rightStatsRight: '23%',
           rightStatsTranslateY: '69.2%',
           leftMetaLeft: '6%',
           leftMetaTranslateY: '82%',
@@ -586,12 +586,12 @@ const ResultadosEncuestaView = () => {
         };
       }
       return {
-        nameTop: '13.7%',
+        nameTop: '14.7%',
         nameMargin: '0px',
         photoTop: '18.9%',
         photoOffsetY: '4px',
         photoSize: '51.5%',
-        rightStatsRight: '19%',
+        rightStatsRight: '22.4%',
         rightStatsTranslateY: '69.5%',
         leftMetaLeft: '5.8%',
         leftMetaTranslateY: '82.5%',
