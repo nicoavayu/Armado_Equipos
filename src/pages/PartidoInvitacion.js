@@ -720,14 +720,6 @@ function SharedInviteLayout({
   const isApproved = joinStatus === 'approved';
   const isPendingSync = joinStatus === 'approved_pending_sync';
   const isSending = submitting && joinStatus === 'none';
-  console.debug('[GUEST_CTA_LAYOUT]', {
-    mode,
-    ctaVariant,
-    joinStatus,
-    isApproved,
-    showViewTeamsButton,
-    usingJoinedBlock: isApproved,
-  });
   const matchPrimaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-[5px] cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] disabled:opacity-60 disabled:cursor-not-allowed';
   const matchSecondaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[rgba(88,107,170,0.46)] rounded-[5px] cursor-pointer transition-all text-[rgba(242,246,255,0.9)] min-h-[44px] flex items-center justify-center text-center bg-[rgba(23,35,74,0.72)] hover:bg-[rgba(31,45,91,0.82)] disabled:opacity-60 disabled:cursor-not-allowed';
   const publicCtaBaseClass = 'w-full font-bebas text-base px-4 py-2.5 border rounded-[5px] transition-all min-h-[44px] flex items-center justify-center text-center disabled:opacity-100';
@@ -1527,17 +1519,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           ?? partido?.teams_locked,
         );
         const shouldExposeGuestTeams = hasConfirmedFlag || hasPersistedTeams || normalizeTeamsPayload(sourcePartido?.equipos_json ?? sourcePartido?.equipos).length > 0;
-        console.debug('[GUEST_TEAMS] resolve', {
-          matchId: matchIdFilter,
-          mode,
-          hasConfirmedFlag,
-          hasPersistedTeams,
-          shouldExposeGuestTeams,
-          hasEquiposJson: normalizeTeamsPayload(sourcePartido?.equipos_json ?? sourcePartido?.equipos).length > 0,
-          teamARefsCount: teamARefs.length,
-          teamBRefsCount: teamBRefs.length,
-          codigoFromInvite: inviteCode || null,
-        });
 
         if (!shouldExposeGuestTeams) {
           clearConfirmedTeams();
@@ -2129,26 +2110,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
         || guestConfirmedTeams.hasConfirmedFlag
         || Boolean(partido?.teams_confirmed)
         || normalizeTeamsPayload(partido?.equipos_json ?? partido?.equipos).length > 0
-        || joinStatus === 'approved'
       );
-    console.debug('[GUEST_CTA_RENDER]', {
-      mode,
-      step,
-      joinStatus,
-      isPublic,
-      partidoId,
-      teamsConfirmedFlag: Boolean(partido?.teams_confirmed),
-      equiposJsonCount: normalizeTeamsPayload(partido?.equipos_json ?? partido?.equipos).length,
-      guestConfirmedTeams,
-      guestIsAvailable: guestConfirmedTeams.isAvailable,
-      guestHasConfirmedFlag: guestConfirmedTeams.hasConfirmedFlag,
-      forcedByApprovedFallback: joinStatus === 'approved'
-        && !guestConfirmedTeams.isAvailable
-        && !guestConfirmedTeams.hasConfirmedFlag
-        && !Boolean(partido?.teams_confirmed)
-        && normalizeTeamsPayload(partido?.equipos_json ?? partido?.equipos).length === 0,
-      showViewTeamsButton,
-    });
     return (
       <>
         <SharedInviteLayout
