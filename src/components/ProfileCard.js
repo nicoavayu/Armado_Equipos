@@ -152,6 +152,7 @@ const ProfileCardComponent = ({
   screenMode = false,
   awardsLayout = 'adaptive',
   layoutOverrides = null,
+  photoObjectPosition = 'center 40%',
 }) => {
   const wrapRef = useRef(null);
   const cardRef = useRef(null);
@@ -941,6 +942,7 @@ const ProfileCardComponent = ({
                           alt={vm.name}
                           loading="eager"
                           crossOrigin="anonymous"
+                          style={{ objectPosition: photoObjectPosition }}
                         />
                       ) : (
                         <div className="pc-photo-fallback">👤</div>

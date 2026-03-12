@@ -219,14 +219,21 @@ const ResultadosEncuestaView = () => {
     const roster = (Array.isArray(players) ? players : []).map(normalizeBadges);
     if (roster.length === 0) return [];
 
-    const userIds = Array.from(
+    const isUuidLike = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+
+    const profileIds = Array.from(
       new Set(
-        roster
-          .map((player) => String(player?.usuario_id || '').trim())
-          .filter(Boolean),
+        roster.flatMap((player) => {
+          const ids = [];
+          const userId = String(player?.usuario_id || '').trim();
+          if (userId) ids.push(userId);
+          const uuid = String(player?.uuid || '').trim();
+          if (uuid && isUuidLike(uuid)) ids.push(uuid);
+          return ids;
+        }),
       ),
     );
-    if (userIds.length === 0) return roster;
+    if (profileIds.length === 0) return roster;
 
     try {
       const { data: usersData, error: usersError } = await supabase
@@ -252,7 +259,7 @@ const ResultadosEncuestaView = () => {
           gk_badges,
           red_badges
         `)
-        .in('id', userIds);
+        .in('id', profileIds);
 
       if (usersError || !Array.isArray(usersData) || usersData.length === 0) {
         return roster;
@@ -261,7 +268,8 @@ const ResultadosEncuestaView = () => {
       const usersById = new Map(usersData.map((row) => [String(row?.id), row]));
       return roster.map((player) => {
         const userId = String(player?.usuario_id || '').trim();
-        const userRow = usersById.get(userId);
+        const uuid = String(player?.uuid || '').trim();
+        const userRow = usersById.get(userId) || usersById.get(uuid);
         return userRow ? mergeRosterPlayerWithUser(player, userRow) : player;
       });
     } catch (_enrichError) {
@@ -546,9 +554,55 @@ const ResultadosEncuestaView = () => {
     );
     const storyCardMaxWidth = Math.min(maxWidthByScreen, maxWidthByHeight);
     const storyCardHeight = Math.round(storyCardMaxWidth / CARD_FRAME_RATIO);
+    const storyLayoutOverrides = React.useMemo(() => {
+      if (isShortHeight) {
+        return {
+          nameTop: '11.3%',
+          nameMargin: '0px',
+          photoTop: '18.1%',
+          photoOffsetY: '4px',
+          photoSize: '51.4%',
+          rightStatsRight: '8%',
+          rightStatsTranslateY: '66.5%',
+          leftMetaLeft: '6%',
+          leftMetaTranslateY: '79%',
+          centerTop: '55.1%',
+          ratingMarginTop: 'clamp(7px, 2.2vw, 11px)',
+        };
+      }
+      if (isCompactHeight) {
+        return {
+          nameTop: '11.1%',
+          nameMargin: '0px',
+          photoTop: '18.3%',
+          photoOffsetY: '4px',
+          photoSize: '51.7%',
+          rightStatsRight: '8%',
+          rightStatsTranslateY: '67%',
+          leftMetaLeft: '6%',
+          leftMetaTranslateY: '80%',
+          centerTop: '55.4%',
+          ratingMarginTop: 'clamp(8px, 2.4vw, 12px)',
+        };
+      }
+      return {
+        nameTop: '11%',
+        nameMargin: '0px',
+        photoTop: '18.5%',
+        photoOffsetY: '4px',
+        photoSize: '52%',
+        rightStatsRight: '7.5%',
+        rightStatsTranslateY: '67.5%',
+        leftMetaLeft: '5.8%',
+        leftMetaTranslateY: '81%',
+        centerTop: '55.6%',
+        ratingMarginTop: 'clamp(8px, 2.5vw, 12px)',
+      };
+    }, [isCompactHeight, isShortHeight]);
     const footerMinHeight = kind === 'penalty'
       ? (isShortHeight ? 48 : 56)
       : (isShortHeight ? 40 : 46);
+    const footerLift = isShortHeight ? 18 : 24;
 
     return (
       <div
@@ -626,6 +680,8 @@ const ResultadosEncuestaView = () => {
                 disableInternalMotion={true}
                 awardsLayout="none"
                 cardMaxWidth={storyCardMaxWidth}
+                layoutOverrides={storyLayoutOverrides}
+                photoObjectPosition="center center"
               />
             </div>
           )}
@@ -687,7 +743,10 @@ const ResultadosEncuestaView = () => {
         </div>
 
         {/* Footer */}
-        <div className="relative z-10 w-full flex flex-col items-center justify-center gap-2" style={{ minHeight: footerMinHeight }}>
+        <div
+          className="relative z-10 w-full flex flex-col items-center justify-center gap-2"
+          style={{ minHeight: footerMinHeight, marginBottom: footerLift }}
+        >
           {stage >= 1 && (
             <>
               {kind === 'penalty' && penaltyNow != null && penaltyTo != null && (
@@ -706,11 +765,11 @@ const ResultadosEncuestaView = () => {
 
               {kind !== 'penalty' && stage >= 4 && (
                 <div
-                  className="px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full text-white font-bold text-xs sm:text-sm md:text-base flex items-center gap-1.5 sm:gap-2"
+                  className="px-4.5 sm:px-5 py-1.5 sm:py-2 rounded-full text-white font-bold text-sm sm:text-base flex items-center gap-2 sm:gap-2.5"
                   style={{
                     background: 'rgba(0,0,0,0.5)',
                     border: `1px solid ${accent}`,
-                    boxShadow: `0 0 16px ${accent}`,
+                    boxShadow: `0 0 20px ${accent}`,
                     backdropFilter: 'blur(10px)',
                     animation: 'eaWinnerChipIn 420ms ease-out both',
                   }}
@@ -719,8 +778,8 @@ const ResultadosEncuestaView = () => {
                     <img
                       src={icon}
                       alt="premio ganador"
-                      width={20}
-                      height={20}
+                      width={24}
+                      height={24}
                       draggable={false}
                       style={{ filter: `drop-shadow(0 0 8px ${accent})` }}
                     />
