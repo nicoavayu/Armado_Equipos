@@ -93,26 +93,26 @@ const ResultadosEncuestaView = () => {
 
     if (slideType === 'mvp' && results?.mvp) {
       setPreviewPlayers((prev) => prev.map((p) =>
-        (p.uuid === results.mvp || p.usuario_id === results.mvp)
+        sharesIdentity(p, results.mvp)
           ? { ...p, mvp_badges: (p.mvp_badges || 0) + 1 }
           : p,
       ));
     } else if (slideType === 'glove' && results?.golden_glove) {
       setPreviewPlayers((prev) => prev.map((p) =>
-        (p.uuid === results.golden_glove || p.usuario_id === results.golden_glove)
+        sharesIdentity(p, results.golden_glove)
           ? { ...p, gk_badges: (p.gk_badges || 0) + 1 }
           : p,
       ));
     } else if (slideType === 'dirty' && results?.dirty_player) {
       setPreviewPlayers((prev) => prev.map((p) =>
-        (p.uuid === results.dirty_player || p.usuario_id === results.dirty_player)
+        sharesIdentity(p, results.dirty_player)
           ? { ...p, red_badges: (p.red_badges || 0) + 1 }
           : p,
       ));
     } else if (slideType === 'penalty' && penaltyListRef.current.length > 0) {
-      const ids = new Set(penaltyListRef.current.map((p) => p.playerId));
+      const ids = penaltyListRef.current.map((p) => p.playerId).filter(Boolean);
       setPreviewPlayers((prev) => prev.map((p) => {
-        if (!ids.has(p.uuid) && !ids.has(p.usuario_id) && !ids.has(String(p.id))) return p;
+        if (!ids.some((candidate) => sharesIdentity(p, candidate))) return p;
         const current = parseFloat(p.ranking || p.calificacion || 5.0) || 0;
         const next = Math.max(0, current - 0.5);
         return { ...p, ranking: next.toFixed(1) };
@@ -169,6 +169,42 @@ const ResultadosEncuestaView = () => {
 
   const pickDefined = (...values) => values.find((value) => value !== undefined && value !== null);
   const pickText = (...values) => values.find((value) => typeof value === 'string' && value.trim().length > 0);
+  const IDENTITY_KEYS_BY_PRIORITY = ['usuario_id', 'user_id', 'uuid', 'auth_id', 'player_id', 'id'];
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const normalizeIdentityToken = (value) => {
+    if (value === undefined || value === null) return null;
+    const token = String(value).trim();
+    if (!token) return null;
+    return token.toLowerCase();
+  };
+  const getIdentityTokens = (valueOrEntity) => {
+    if (valueOrEntity === undefined || valueOrEntity === null) return [];
+    if (typeof valueOrEntity !== 'object') {
+      const token = normalizeIdentityToken(valueOrEntity);
+      return token ? [token] : [];
+    }
+    const tokens = IDENTITY_KEYS_BY_PRIORITY
+      .map((key) => normalizeIdentityToken(valueOrEntity?.[key]))
+      .filter(Boolean);
+    return Array.from(new Set(tokens));
+  };
+  const getPrimaryIdentity = (entity) => getIdentityTokens(entity)[0] || null;
+  const sharesIdentity = (entityA, entityBOrValue) => {
+    const left = new Set(getIdentityTokens(entityA));
+    const right = getIdentityTokens(entityBOrValue);
+    return right.some((token) => left.has(token));
+  };
+  const collectProfileIdsForLookup = (players = []) => {
+    const ids = [];
+    (Array.isArray(players) ? players : []).forEach((player) => {
+      const candidateValues = IDENTITY_KEYS_BY_PRIORITY.map((key) => player?.[key]);
+      candidateValues.forEach((value) => {
+        const token = String(value || '').trim();
+        if (token && UUID_REGEX.test(token)) ids.push(token);
+      });
+    });
+    return Array.from(new Set(ids));
+  };
   const normalizeCountryCode = (value) => {
     const token = String(value || '').trim().toUpperCase();
     if (!token) return null;
@@ -204,6 +240,10 @@ const ResultadosEncuestaView = () => {
 
     return normalizeBadges({
       ...player,
+      usuario_id: pickText(userRow?.id, player?.usuario_id, player?.user_id, player?.auth_id) || null,
+      user_id: pickText(player?.user_id, userRow?.id, player?.usuario_id, player?.auth_id) || null,
+      auth_id: pickText(player?.auth_id, userRow?.id, player?.usuario_id, player?.user_id) || null,
+      uuid: pickText(player?.uuid, player?.usuario_id, player?.user_id, userRow?.id) || null,
       nombre: pickText(userRow?.nombre, player?.nombre) || 'Jugador',
       avatar_url: pickText(userRow?.avatar_url, player?.avatar_url, player?.foto_url) || null,
       posicion: pickText(
@@ -246,51 +286,15 @@ const ResultadosEncuestaView = () => {
     const roster = (Array.isArray(players) ? players : []).map(normalizeBadges);
     if (roster.length === 0) return [];
 
-    const isUuidLike = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
-
-    const profileIds = Array.from(
-      new Set(
-        roster.flatMap((player) => {
-          const ids = [];
-          const userId = String(player?.usuario_id || '').trim();
-          if (userId) ids.push(userId);
-          const uuid = String(player?.uuid || '').trim();
-          if (uuid && isUuidLike(uuid)) ids.push(uuid);
-          return ids;
-        }),
-      ),
-    );
+    const profileIds = collectProfileIdsForLookup(roster);
     if (profileIds.length === 0) return roster;
 
     try {
       const { data: usersData, error: usersError } = await supabase
         .from('usuarios')
-        .select(`
-          id,
-          nombre,
-          avatar_url,
-          posicion,
-          posicion_favorita,
-          rol_favorito,
-          ranking,
-          partidos_jugados,
-          partidos_abandonados,
-          pais_codigo,
-          pierna_habil,
-          nivel,
-          acepta_invitaciones,
-          mvps,
-          guantes_dorados,
-          tarjetas_rojas,
-          mvp_badges,
-          gk_badges,
-          red_badges
-        `)
+        .select('*')
         .in('id', profileIds);
-
-      if (usersError) {
-        return roster;
-      }
+      const safeUsers = usersError ? [] : (Array.isArray(usersData) ? usersData : []);
 
       let profilesData = [];
       try {
@@ -307,14 +311,13 @@ const ResultadosEncuestaView = () => {
         return roster;
       }
 
-      const usersById = new Map((usersData || []).map((row) => [String(row?.id), row]));
+      const usersById = new Map((safeUsers || []).map((row) => [String(row?.id), row]));
       const profilesById = new Map((profilesData || []).map((row) => [String(row?.id), row]));
       return roster.map((player) => {
-        const userId = String(player?.usuario_id || '').trim();
-        const uuid = String(player?.uuid || '').trim();
-        const userRow = usersById.get(userId) || usersById.get(uuid);
-        const profileRow = profilesById.get(userId) || profilesById.get(uuid);
-        const mergedProfile = userRow || profileRow
+        const playerIds = collectProfileIdsForLookup([player]);
+        const userRow = playerIds.map((id) => usersById.get(id)).find(Boolean) || null;
+        const profileRow = playerIds.map((id) => profilesById.get(id)).find(Boolean) || null;
+        const mergedProfile = (userRow || profileRow)
           ? { ...(profileRow || {}), ...(userRow || {}) }
           : null;
         return mergedProfile ? mergeRosterPlayerWithUser(player, mergedProfile) : player;
@@ -389,7 +392,7 @@ const ResultadosEncuestaView = () => {
   }, []);
 
   const applyLiveAward = (type, playerId) => {
-    const key = `${type}-${playerId}`;
+    const key = `${type}-${normalizeIdentityToken(playerId) || String(playerId || '')}`;
     if (liveApplied.current.has(key) || badgesApplied.current.has(key)) {
       return;
     }
@@ -398,8 +401,7 @@ const ResultadosEncuestaView = () => {
     console.log(`🎬 applyLiveAward called: type=${type}, playerId=${playerId}`);
     setPreviewPlayers((prev) => {
       const updated = prev.map((p) => {
-        const pid = p.uuid || p.usuario_id || p.id;
-        if (String(pid) !== String(playerId)) return p;
+        if (!sharesIdentity(p, playerId)) return p;
 
         if (type === 'mvp') {
           const current = p.mvp_badges ?? p.mvps ?? 0;
@@ -454,12 +456,9 @@ const ResultadosEncuestaView = () => {
 
     // Resolve live player from previewPlayers to reflect real-time award impacts
     const resolvedPlayer = React.useMemo(() => {
-      const pid = playerId || player?.uuid || player?.usuario_id || player?.id;
+      const pid = playerId || getPrimaryIdentity(player);
       if (!pid) return normalizeBadges(player);
-      const pidStr = String(pid);
-      const found = previewPlayers.find((j) =>
-        String(j.uuid) === pidStr || String(j.usuario_id) === pidStr || String(j.id) === pidStr,
-      );
+      const found = previewPlayers.find((j) => sharesIdentity(j, pid));
       const result = normalizeBadges(found || player);
       console.log(`🔍 resolvedPlayer updated: mvp=${result.mvp_badges}, gk=${result.gk_badges}, red=${result.red_badges}`);
       return result;
@@ -914,12 +913,7 @@ const ResultadosEncuestaView = () => {
 
     const findP = (id) => {
       if (!id) return null;
-      return roster.find((j) =>
-        j.uuid === id ||
-        j.usuario_id === id ||
-        String(j.id) === String(id) ||
-        (j.uuid && id && String(j.uuid).toLowerCase() === String(id).toLowerCase()),
-      );
+      return roster.find((j) => sharesIdentity(j, id));
     };
 
     const slides = [];
@@ -988,7 +982,7 @@ const ResultadosEncuestaView = () => {
     if (mvpWinnerId) {
       const p = findP(mvpWinnerId);
       if (p) {
-        const pid = p.uuid || p.usuario_id || p.id;
+        const pid = getPrimaryIdentity(p);
         slides.push({
           key: 'mvp',
           duration: 4500,
@@ -1014,7 +1008,7 @@ const ResultadosEncuestaView = () => {
     if (gloveWinnerId) {
       const p = findP(gloveWinnerId);
       if (p) {
-        const pid = p.uuid || p.usuario_id || p.id;
+        const pid = getPrimaryIdentity(p);
         slides.push({
           key: 'glove',
           duration: 4500,
@@ -1043,7 +1037,7 @@ const ResultadosEncuestaView = () => {
     if (dirtyId) {
       const p = findP(dirtyId);
       if (p) {
-        const pid = p.uuid || p.usuario_id || p.id;
+        const pid = getPrimaryIdentity(p);
         slides.push({
           key: 'dirty',
           duration: 4500,
@@ -1070,7 +1064,7 @@ const ResultadosEncuestaView = () => {
       const punished = absences.filter((a) => a.absencePenalty || a.ineligible);
       if (punished?.length) {
         const first = punished[0];
-        const pid = first.uuid || first.usuario_id || first.id;
+        const pid = getPrimaryIdentity(first);
         return { player: first, playerId: pid };
       }
       return null;
@@ -1411,7 +1405,7 @@ const ResultadosEncuestaView = () => {
         if (finalResults) {
           if (finalResults.mvp) {
             const mvpVal = finalResults.mvp;
-            const player = partidoData.jugadores.find((j) => j.uuid === mvpVal || j.usuario_id === mvpVal || String(j.uuid) === String(mvpVal));
+            const player = partidoData.jugadores.find((j) => sharesIdentity(j, mvpVal));
             if (player && !addedPlayers.has(player.uuid + '_mvp')) {
               animations.push({
                 playerName: player.nombre,
@@ -1427,7 +1421,7 @@ const ResultadosEncuestaView = () => {
 
           if (finalResults.golden_glove) {
             const goldenGloveVal = finalResults.golden_glove;
-            const player = partidoData.jugadores.find((j) => j.uuid === goldenGloveVal || j.usuario_id === goldenGloveVal || String(j.uuid) === String(goldenGloveVal));
+            const player = partidoData.jugadores.find((j) => sharesIdentity(j, goldenGloveVal));
             if (player && !addedPlayers.has(player.uuid + '_golden_glove')) {
               animations.push({
                 playerName: player.nombre,
@@ -1743,7 +1737,7 @@ const ResultadosEncuestaView = () => {
       // MVP
       if (resultsData?.mvp) {
         const mvpVal = resultsData.mvp;
-        const player = roster.find((j) => j.uuid === mvpVal || j.usuario_id === mvpVal);
+        const player = roster.find((j) => sharesIdentity(j, mvpVal));
         if (player && !addedPlayers.has(player.uuid + '_mvp')) {
           animations.push({
             playerName: player.nombre,
@@ -1760,7 +1754,7 @@ const ResultadosEncuestaView = () => {
       // Glove
       if (resultsData?.golden_glove) {
         const goldenGloveVal = resultsData.golden_glove;
-        const player = roster.find((j) => j.uuid === goldenGloveVal || j.usuario_id === goldenGloveVal);
+        const player = roster.find((j) => sharesIdentity(j, goldenGloveVal));
         if (player && !addedPlayers.has(player.uuid + '_golden_glove')) {
           animations.push({
             playerName: player.nombre,
