@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
 import ConfirmModal from './ConfirmModal';
 import ProfileCard from './ProfileCard';
+import WhatsappIcon from './WhatsappIcon';
 import { useAmigos } from '../hooks/useAmigos';
 import { supabase } from '../supabase';
 import { Phone, PhoneOff } from 'lucide-react';
@@ -494,8 +495,15 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
                       </span>
                     </div>
                     <div className="flex items-center">
-                      <a href={`https://wa.me/${playerPhone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="bg-[#4CAF50] text-white py-2.5 px-4 rounded-lg font-semibold text-sm transition-all shadow-[0_2px_8px_rgba(76,175,80,0.3)] hover:bg-[#45a049] hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(76,175,80,0.4)] hover:text-white no-underline">
-                        WhatsApp
+                      <a
+                        href={`https://wa.me/${playerPhone.replace(/[^0-9]/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Abrir WhatsApp"
+                        title="Abrir WhatsApp"
+                        className="bg-[#4CAF50] text-white py-2.5 px-4 rounded-lg font-semibold text-sm transition-all shadow-[0_2px_8px_rgba(76,175,80,0.3)] hover:bg-[#45a049] hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(76,175,80,0.4)] hover:text-white no-underline inline-flex items-center justify-center"
+                      >
+                        <WhatsappIcon size={18} color="white" />
                       </a>
                     </div>
                   </div>
