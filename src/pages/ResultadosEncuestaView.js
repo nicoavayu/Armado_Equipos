@@ -169,6 +169,31 @@ const ResultadosEncuestaView = () => {
 
   const pickDefined = (...values) => values.find((value) => value !== undefined && value !== null);
   const pickText = (...values) => values.find((value) => typeof value === 'string' && value.trim().length > 0);
+  const normalizeCountryCode = (value) => {
+    const token = String(value || '').trim().toUpperCase();
+    if (!token) return null;
+    if (token.length === 2) return token;
+    const from3 = {
+      ARG: 'AR',
+      BRA: 'BR',
+      URY: 'UY',
+      CHL: 'CL',
+      COL: 'CO',
+      PER: 'PE',
+    };
+    if (from3[token]) return from3[token];
+    const fromName = {
+      ARGENTINA: 'AR',
+      BRASIL: 'BR',
+      BRAZIL: 'BR',
+      URUGUAY: 'UY',
+      CHILE: 'CL',
+      COLOMBIA: 'CO',
+      PERU: 'PE',
+      PERÚ: 'PE',
+    };
+    return fromName[token] || null;
+  };
 
   const mergeRosterPlayerWithUser = (player, userRow) => {
     if (!player || !userRow) return normalizeBadges(player);
@@ -179,33 +204,35 @@ const ResultadosEncuestaView = () => {
 
     return normalizeBadges({
       ...player,
-      nombre: pickText(player?.nombre, userRow?.nombre) || 'Jugador',
-      avatar_url: pickText(player?.avatar_url, player?.foto_url, userRow?.avatar_url) || null,
+      nombre: pickText(userRow?.nombre, player?.nombre) || 'Jugador',
+      avatar_url: pickText(userRow?.avatar_url, player?.avatar_url, player?.foto_url) || null,
       posicion: pickText(
-        player?.posicion,
-        player?.rol_favorito,
         userRow?.posicion,
         userRow?.posicion_favorita,
         userRow?.rol_favorito,
+        player?.posicion,
+        player?.rol_favorito,
       ) || null,
       rol_favorito: pickText(
-        player?.rol_favorito,
-        player?.posicion,
         userRow?.rol_favorito,
         userRow?.posicion_favorita,
         userRow?.posicion,
+        player?.rol_favorito,
+        player?.posicion,
       ) || null,
-      partidos_jugados: Number.isFinite(playerPj) && playerPj > 0
-        ? playerPj
-        : (Number.isFinite(userPj) ? userPj : (Number.isFinite(playerPj) ? playerPj : 0)),
-      partidos_abandonados: Number.isFinite(playerPa) && playerPa > 0
-        ? playerPa
-        : (Number.isFinite(userPa) ? userPa : (Number.isFinite(playerPa) ? playerPa : 0)),
-      ranking: pickDefined(player?.ranking, player?.calificacion, userRow?.ranking),
-      pais_codigo: pickText(player?.pais_codigo, userRow?.pais_codigo) || null,
-      pierna_habil: pickText(player?.pierna_habil, userRow?.pierna_habil) || null,
-      nivel: pickDefined(player?.nivel, userRow?.nivel),
-      acepta_invitaciones: pickDefined(player?.acepta_invitaciones, userRow?.acepta_invitaciones),
+      partidos_jugados: Number.isFinite(userPj)
+        ? userPj
+        : (Number.isFinite(playerPj) ? playerPj : 0),
+      partidos_abandonados: Number.isFinite(userPa)
+        ? userPa
+        : (Number.isFinite(playerPa) ? playerPa : 0),
+      ranking: pickDefined(userRow?.ranking, player?.ranking, player?.calificacion),
+      pais_codigo: normalizeCountryCode(
+        pickText(userRow?.pais_codigo, userRow?.nacionalidad, player?.pais_codigo),
+      ) || 'AR',
+      pierna_habil: pickText(userRow?.pierna_habil, player?.pierna_habil) || null,
+      nivel: pickDefined(userRow?.nivel, player?.nivel),
+      acepta_invitaciones: pickDefined(userRow?.acepta_invitaciones, player?.acepta_invitaciones),
       mvp_badges: pickDefined(player?.mvp_badges, player?.mvps, userRow?.mvp_badges, userRow?.mvps, 0),
       gk_badges: pickDefined(player?.gk_badges, player?.guantes_dorados, userRow?.gk_badges, userRow?.guantes_dorados, 0),
       red_badges: pickDefined(player?.red_badges, player?.tarjetas_rojas, userRow?.red_badges, userRow?.tarjetas_rojas, 0),
@@ -261,16 +288,36 @@ const ResultadosEncuestaView = () => {
         `)
         .in('id', profileIds);
 
-      if (usersError || !Array.isArray(usersData) || usersData.length === 0) {
+      if (usersError) {
         return roster;
       }
 
-      const usersById = new Map(usersData.map((row) => [String(row?.id), row]));
+      let profilesData = [];
+      try {
+        const { data: profilesRows } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', profileIds);
+        profilesData = Array.isArray(profilesRows) ? profilesRows : [];
+      } catch (_profilesFallbackErr) {
+        profilesData = [];
+      }
+
+      if ((!Array.isArray(usersData) || usersData.length === 0) && profilesData.length === 0) {
+        return roster;
+      }
+
+      const usersById = new Map((usersData || []).map((row) => [String(row?.id), row]));
+      const profilesById = new Map((profilesData || []).map((row) => [String(row?.id), row]));
       return roster.map((player) => {
         const userId = String(player?.usuario_id || '').trim();
         const uuid = String(player?.uuid || '').trim();
         const userRow = usersById.get(userId) || usersById.get(uuid);
-        return userRow ? mergeRosterPlayerWithUser(player, userRow) : player;
+        const profileRow = profilesById.get(userId) || profilesById.get(uuid);
+        const mergedProfile = userRow || profileRow
+          ? { ...(profileRow || {}), ...(userRow || {}) }
+          : null;
+        return mergedProfile ? mergeRosterPlayerWithUser(player, mergedProfile) : player;
       });
     } catch (_enrichError) {
       return roster;
@@ -557,12 +604,12 @@ const ResultadosEncuestaView = () => {
     const storyLayoutOverrides = React.useMemo(() => {
       if (isShortHeight) {
         return {
-          nameTop: '15.1%',
+          nameTop: '15.8%',
           nameMargin: '0px',
           photoTop: '18.7%',
           photoOffsetY: '4px',
           photoSize: '51%',
-          rightStatsRight: '23.6%',
+          rightStatsRight: '22%',
           rightStatsTranslateY: '68.8%',
           leftMetaLeft: '6%',
           leftMetaTranslateY: '81%',
@@ -572,12 +619,12 @@ const ResultadosEncuestaView = () => {
       }
       if (isCompactHeight) {
         return {
-          nameTop: '14.9%',
+          nameTop: '15.6%',
           nameMargin: '0px',
           photoTop: '18.8%',
           photoOffsetY: '4px',
           photoSize: '51.2%',
-          rightStatsRight: '23%',
+          rightStatsRight: '21.4%',
           rightStatsTranslateY: '69.2%',
           leftMetaLeft: '6%',
           leftMetaTranslateY: '82%',
@@ -586,12 +633,12 @@ const ResultadosEncuestaView = () => {
         };
       }
       return {
-        nameTop: '14.7%',
+        nameTop: '15.4%',
         nameMargin: '0px',
         photoTop: '18.9%',
         photoOffsetY: '4px',
         photoSize: '51.5%',
-        rightStatsRight: '22.4%',
+        rightStatsRight: '20.8%',
         rightStatsTranslateY: '69.5%',
         leftMetaLeft: '5.8%',
         leftMetaTranslateY: '82.5%',
