@@ -430,7 +430,12 @@ const ResultadosEncuestaView = () => {
         profilesData = [];
       }
 
-      const liveProfilesResolved = await Promise.all(profileIds.map(async (profileId) => {
+      const liveProfileIds = Array.from(new Set(
+        (safeUsers || [])
+          .map((row) => String(row?.id || '').trim())
+          .filter(Boolean),
+      ));
+      const liveProfilesResolved = await Promise.all(liveProfileIds.map(async (profileId) => {
         try {
           const liveProfile = await getLiveProfile(profileId);
           return liveProfile ? [String(profileId), liveProfile] : null;
