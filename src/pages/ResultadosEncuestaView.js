@@ -468,31 +468,6 @@ const ResultadosEncuestaView = () => {
     const [penaltyFrom, setPenaltyFrom] = React.useState(null);
     const [penaltyTo, setPenaltyTo] = React.useState(null);
     const [penaltyNow, setPenaltyNow] = React.useState(null);
-    const CARD_FRAME_RATIO = 758 / 1246;
-    const readViewport = React.useCallback(() => {
-      if (typeof window === 'undefined') {
-        return { width: 390, height: 844 };
-      }
-      const vv = window.visualViewport;
-      const width = Math.round(vv?.width || window.innerWidth || 390);
-      const height = Math.round(vv?.height || window.innerHeight || 844);
-      return { width, height };
-    }, []);
-    const [viewport, setViewport] = React.useState(() => readViewport());
-
-    React.useEffect(() => {
-      if (typeof window === 'undefined') return undefined;
-      const updateViewport = () => setViewport(readViewport());
-      updateViewport();
-      window.addEventListener('resize', updateViewport);
-      window.addEventListener('orientationchange', updateViewport);
-      window.visualViewport?.addEventListener('resize', updateViewport);
-      return () => {
-        window.removeEventListener('resize', updateViewport);
-        window.removeEventListener('orientationchange', updateViewport);
-        window.visualViewport?.removeEventListener('resize', updateViewport);
-      };
-    }, [readViewport]);
 
     React.useEffect(() => {
       // Reset stage solo cuando cambia la slide (tipo o identidad), no por cambios de conteo
@@ -586,26 +561,9 @@ const ResultadosEncuestaView = () => {
       };
     }, [stage, kind, penaltyFrom, penaltyTo]);
 
-    const isCompactHeight = viewport.height < 760;
-    const isShortHeight = viewport.height < 680;
-    const titleFontSize = isShortHeight
-      ? 'clamp(40px, 13vw, 54px)'
-      : isCompactHeight
-        ? 'clamp(46px, 12.5vw, 62px)'
-        : 'clamp(52px, 11vw, 78px)';
-    const maxWidthByScreen = Math.floor(Math.min(430, viewport.width * 0.92));
-    const reservedHeight = isShortHeight ? 184 : isCompactHeight ? 198 : 220;
-    const maxWidthByHeight = Math.floor(
-      Math.max(260, (viewport.height - reservedHeight) * CARD_FRAME_RATIO),
-    );
-    const storyCardMaxWidth = Math.min(maxWidthByScreen, maxWidthByHeight);
-    const storyCardHeight = Math.round(storyCardMaxWidth / CARD_FRAME_RATIO);
-    const footerMinHeight = kind === 'penalty'
-      ? (isShortHeight ? 48 : 56)
-      : (isShortHeight ? 40 : 46);
-    const footerLift = isShortHeight ? 72 : 80;
-    const winnerIconSize = isShortHeight ? 68 : 76;
-    const winnerPlusSize = isShortHeight ? 22 : 25;
+    const titleFontSize = 'clamp(48px, 12vw, 78px)';
+    const winnerIconSize = 76;
+    const winnerPlusSize = 25;
 
     return (
       <div
@@ -619,9 +577,9 @@ const ResultadosEncuestaView = () => {
                 : kind === 'dirty'
                   ? 'linear-gradient(135deg,#12060B 0%,#3A0A18 42%,#12060B 100%)'
                   : 'linear-gradient(135deg,#0B0F16 0%,#1B2432 45%,#0B0F16 100%)',
-          gap: isShortHeight ? 8 : isCompactHeight ? 12 : 16,
-          paddingTop: `max(${isShortHeight ? 40 : isCompactHeight ? 46 : 54}px, calc(env(safe-area-inset-top) + 32px))`,
-          paddingBottom: `max(${isShortHeight ? 8 : 12}px, calc(env(safe-area-inset-bottom) + 6px))`,
+          gap: 14,
+          paddingTop: 'max(52px, calc(env(safe-area-inset-top) + 30px))',
+          paddingBottom: 'max(16px, calc(env(safe-area-inset-bottom) + 12px))',
           paddingLeft: 'clamp(10px, 3vw, 24px)',
           paddingRight: 'clamp(10px, 3vw, 24px)',
         }}
@@ -658,20 +616,13 @@ const ResultadosEncuestaView = () => {
         </div>
 
         {/* Acto 2: card */}
-        <div
-          className="relative z-10 w-full flex-1 min-h-0 flex items-center justify-center"
-          style={{ minHeight: storyCardHeight }}
-        >
-          {stage < 1 && (
-            <div
-              aria-hidden="true"
-              style={{ width: storyCardMaxWidth, height: storyCardHeight, opacity: 0 }}
-            />
-          )}
-          {stage >= 1 && resolvedPlayer && (
+        <div className="relative z-10 w-full flex-1 min-h-0 flex items-center justify-center">
+          {resolvedPlayer && (
             <div
               className="w-full flex items-center justify-center"
               style={{
+                opacity: stage >= 1 ? 1 : 0,
+                visibility: stage >= 1 ? 'visible' : 'hidden',
                 animation: stage === 1 ? 'eaCardIn 520ms ease-out both' : 'none',
               }}
             >
@@ -682,7 +633,6 @@ const ResultadosEncuestaView = () => {
                 enableTilt={false}
                 disableInternalMotion={true}
                 awardsLayout="none"
-                cardMaxWidth={storyCardMaxWidth}
               />
             </div>
           )}
@@ -746,7 +696,7 @@ const ResultadosEncuestaView = () => {
         {/* Footer */}
         <div
           className="relative z-10 w-full flex flex-col items-center justify-center gap-2"
-          style={{ minHeight: footerMinHeight, marginBottom: footerLift }}
+          style={{ marginTop: 4 }}
         >
           {stage >= 1 && (
             <>
