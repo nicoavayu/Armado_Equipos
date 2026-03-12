@@ -407,7 +407,7 @@ const ResultadosEncuestaView = () => {
 
     return (
       <div
-        className="relative w-full h-full flex flex-col items-center justify-start py-10 md:py-14 gap-8"
+        className="relative w-full h-full flex flex-col items-center justify-center py-10 md:py-14 gap-6"
         style={{
           background:
             kind === 'mvp'
@@ -461,6 +461,18 @@ const ResultadosEncuestaView = () => {
                 profile={resolvedPlayer}
                 isVisible={true}
                 ratingOverride={kind === 'penalty' ? penaltyNow : null}
+                enableTilt={false}
+                disableInternalMotion={true}
+                awardsLayout="none"
+                cardMaxWidth={340}
+                layoutOverrides={{
+                  nameTop: '10.9%',
+                  photoTop: '20.4%',
+                  photoSize: '52%',
+                  rightStatsTranslateY: '69%',
+                  leftMetaTranslateY: '84%',
+                  centerTop: '57.8%',
+                }}
               />
             </div>
           )}
@@ -522,27 +534,54 @@ const ResultadosEncuestaView = () => {
         </div>
 
         {/* Footer */}
-        {bottomLabel && stage >= 1 && (
-          <div className="relative z-10 pb-4 md:pb-6">
-            <div
-              className="px-5 py-2 rounded-full text-white/85 text-sm md:text-base"
-              style={{
-                background: 'rgba(0,0,0,0.45)',
-                border: '1px solid rgba(255,255,255,0.14)',
-                backdropFilter: 'blur(10px)',
-                opacity: 1,
-                transform: 'translateY(0)',
-                animation: 'eaFooterIn 520ms ease-out both',
-              }}
-            >
-              {kind === 'penalty' && penaltyNow != null && penaltyTo != null ? (
-                <span>
-                  Rating: {fmt1(penaltyFrom ?? penaltyNow)} → {fmt1(penaltyNow)}
-                </span>
-              ) : (
-                bottomLabel
-              )}
-            </div>
+        {stage >= 1 && (
+          <div className="relative z-10 pb-3 md:pb-5 flex flex-col items-center gap-2">
+            {kind === 'penalty' && penaltyNow != null && penaltyTo != null && (
+              <div
+                className="px-5 py-2 rounded-full text-white/85 text-sm md:text-base"
+                style={{
+                  background: 'rgba(0,0,0,0.45)',
+                  border: '1px solid rgba(255,255,255,0.14)',
+                  backdropFilter: 'blur(10px)',
+                  animation: 'eaFooterIn 520ms ease-out both',
+                }}
+              >
+                Rating: {fmt1(penaltyFrom ?? penaltyNow)} → {fmt1(penaltyNow)}
+              </div>
+            )}
+
+            {kind !== 'penalty' && stage >= 4 && (
+              <div
+                className="px-4 py-1.5 rounded-full text-white font-bold text-sm md:text-base flex items-center gap-2"
+                style={{
+                  background: 'rgba(0,0,0,0.5)',
+                  border: `1px solid ${accent}`,
+                  boxShadow: `0 0 16px ${accent}`,
+                  backdropFilter: 'blur(10px)',
+                  animation: 'eaWinnerChipIn 420ms ease-out both',
+                }}
+              >
+                {typeof icon === 'string' && icon.startsWith('/') ? (
+                  <img
+                    src={icon}
+                    alt="premio ganador"
+                    width={20}
+                    height={20}
+                    draggable={false}
+                    style={{ filter: `drop-shadow(0 0 8px ${accent})` }}
+                  />
+                ) : (
+                  <span style={{ filter: `drop-shadow(0 0 8px ${accent})` }}>{icon}</span>
+                )}
+                <span>+1</span>
+              </div>
+            )}
+
+            {bottomLabel && stage >= 4 && kind === 'penalty' && (
+              <div className="text-white/70 text-xs md:text-sm text-center">
+                {bottomLabel}
+              </div>
+            )}
           </div>
         )}
 
@@ -568,6 +607,10 @@ const ResultadosEncuestaView = () => {
           @keyframes eaFooterIn {
             0% { opacity:0; transform: translateY(12px); }
             100% { opacity:1; transform: translateY(0); }
+          }
+          @keyframes eaWinnerChipIn {
+            0% { opacity:0; transform: translateY(8px) scale(0.92); }
+            100% { opacity:1; transform: translateY(0) scale(1); }
           }
           @keyframes eaTokenAppear {
             0% { opacity:0; transform: scale(0.5) translateY(-10px); }

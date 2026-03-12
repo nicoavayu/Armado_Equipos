@@ -34,7 +34,7 @@ const severityIconClass = {
 };
 
 const AWARDS_RING_WINDOW_MS = 24 * 60 * 60 * 1000;
-const AWARDS_RING_NOTIFICATION_TYPES = new Set(['survey_results_ready', 'awards_ready']);
+const AWARDS_RING_NOTIFICATION_TYPES = new Set(['survey_results_ready', 'awards_ready', 'award_won']);
 
 const resolveNotificationMatchId = (notification) => (
   notification?.partido_id

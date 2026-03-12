@@ -32,6 +32,7 @@ const RELEVANT_TYPES = new Set([
   'call_to_vote',
   'survey_results_ready',
   'awards_ready',
+  'award_won',
   'match_cancelled',
   'match_join_request',
   'match_join_approved',
@@ -128,7 +129,7 @@ const resolveMatchUpdateTemplateType = (message = '') => {
 
 const normalizeType = (type, message = '') => {
   if (type === 'survey_start' || type === 'post_match_survey') return 'survey_start';
-  if (type === 'survey_results_ready' || type === 'awards_ready') return 'awards_ready';
+  if (type === 'survey_results_ready' || type === 'awards_ready' || type === 'award_won') return 'awards_ready';
   if (type === 'match_update') return resolveMatchUpdateTemplateType(message);
   return type;
 };
@@ -786,6 +787,8 @@ const buildWeeklyInsightItem = async ({ currentUserId, supabaseClient }) => {
       count: 1,
       priority: PRIORITY.insight_weekly_matches,
       severity: severityForType('insight_weekly_matches'),
+      source: 'insight',
+      unread: false,
     };
   } catch (error) {
     console.error('[ACTIVITY_FEED] weekly insight failed:', error);
@@ -826,6 +829,8 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     subtitle: fallbackSubtitle,
     priority: PRIORITY[type] ?? 99,
     severity: severityForType(type),
+    source: 'notification',
+    unread: notification?.read !== true,
   };
 
   if (type === 'survey_start') {
@@ -866,9 +871,10 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   }
 
   if (type === 'awards_ready') {
-    const awardsTitle = quotedMatchName
-      ? `Premiación lista para ${quotedMatchName}`
-      : 'Premiación lista';
+    const isAwardWonNotification = String(notification?.type || '').trim().toLowerCase() === 'award_won';
+    const awardsTitle = isAwardWonNotification
+      ? (quotedMatchName ? `Ganaste un premio en ${quotedMatchName}` : 'Ganaste un premio')
+      : (quotedMatchName ? `Premiación lista para ${quotedMatchName}` : 'Premiación lista');
     return {
       ...base,
       icon: 'Trophy',
@@ -1060,6 +1066,8 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
       count: 1,
       priority: isToday ? PRIORITY.match_today : PRIORITY.match_tomorrow,
       severity: severityForType(scheduleType),
+      source: 'active',
+      unread: false,
     });
 
     if (missing > 0) {
@@ -1081,6 +1089,8 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
         count: 1,
         priority: PRIORITY.falta_jugadores,
         severity: severityForType('falta_jugadores'),
+        source: 'active',
+        unread: false,
       });
     } else {
       const completeCopy = buildHomeNotificationText({ type: 'match_complete', data: {} }, match);
@@ -1098,6 +1108,8 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
         count: 1,
         priority: PRIORITY.match_complete,
         severity: severityForType('match_complete'),
+        source: 'active',
+        unread: false,
       });
     }
 
@@ -1424,10 +1436,20 @@ export const buildActivityFeed = async (notifications = [], options = {}) => {
   const weeklyInsight = await buildWeeklyInsightItem({ currentUserId, supabaseClient });
 
   const merged = [...activeMatchItems, ...notificationItems, ...(weeklyInsight ? [weeklyInsight] : [])];
+  const sourceRank = (item) => {
+    if (item?.source === 'notification' && item?.unread) return 0;
+    if (item?.source === 'notification') return 1;
+    if (item?.source === 'active') return 2;
+    if (item?.source === 'insight') return 3;
+    return 4;
+  };
   merged.sort((a, b) => {
+    const rankDiff = sourceRank(a) - sourceRank(b);
+    if (rankDiff !== 0) return rankDiff;
     const aTs = new Date(a?.createdAt || 0).getTime();
     const bTs = new Date(b?.createdAt || 0).getTime();
-    return bTs - aTs;
+    if (aTs !== bTs) return bTs - aTs;
+    return (a?.priority ?? 99) - (b?.priority ?? 99);
   });
 
   const seen = new Set();
