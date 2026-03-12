@@ -437,59 +437,19 @@ const ResultadosEncuestaView = () => {
       : isCompactHeight
         ? 'clamp(46px, 12.5vw, 62px)'
         : 'clamp(52px, 11vw, 78px)';
-    const maxWidthByScreen = viewport.width >= 1400
-      ? 392
-      : viewport.width >= 1100
-        ? 374
-        : viewport.width >= 900
-          ? 356
-          : viewport.width >= 768
-            ? 340
-            : viewport.width >= 430
-              ? 322
-              : 304;
-    const reservedHeight = isShortHeight ? 252 : isCompactHeight ? 286 : 308;
+    const maxWidthByScreen = Math.floor(Math.min(430, viewport.width * 0.92));
+    const reservedHeight = isShortHeight ? 184 : isCompactHeight ? 198 : 220;
     const maxWidthByHeight = Math.floor(
-      Math.max(240, (viewport.height - reservedHeight) * CARD_FRAME_RATIO),
+      Math.max(260, (viewport.height - reservedHeight) * CARD_FRAME_RATIO),
     );
-    const storyCardMaxWidth = Math.max(248, Math.min(maxWidthByScreen, maxWidthByHeight));
-    const storyLayoutOverrides = React.useMemo(() => {
-      if (isShortHeight) {
-        return {
-          nameTop: '10.2%',
-          photoTop: '19.4%',
-          photoSize: '50.4%',
-          rightStatsTranslateY: '67%',
-          leftMetaTranslateY: '82%',
-          centerTop: '56.9%',
-        };
-      }
-      if (isCompactHeight) {
-        return {
-          nameTop: '10.5%',
-          photoTop: '19.9%',
-          photoSize: '51.2%',
-          rightStatsTranslateY: '68%',
-          leftMetaTranslateY: '83%',
-          centerTop: '57.2%',
-        };
-      }
-      return {
-        nameTop: '10.9%',
-        photoTop: '20.4%',
-        photoSize: '52%',
-        rightStatsTranslateY: '69%',
-        leftMetaTranslateY: '84%',
-        centerTop: '57.8%',
-      };
-    }, [isCompactHeight, isShortHeight]);
+    const storyCardMaxWidth = Math.min(maxWidthByScreen, maxWidthByHeight);
     const footerMinHeight = kind === 'penalty'
       ? (isShortHeight ? 48 : 56)
       : (isShortHeight ? 40 : 46);
 
     return (
       <div
-        className="relative w-full h-full grid grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden"
+        className="relative w-full h-full grid grid-rows-[auto_auto_auto] content-center justify-items-center overflow-hidden"
         style={{
           background:
             kind === 'mvp'
@@ -499,9 +459,9 @@ const ResultadosEncuestaView = () => {
                 : kind === 'dirty'
                   ? 'linear-gradient(135deg,#12060B 0%,#3A0A18 42%,#12060B 100%)'
                   : 'linear-gradient(135deg,#0B0F16 0%,#1B2432 45%,#0B0F16 100%)',
-          gap: isShortHeight ? 10 : isCompactHeight ? 14 : 18,
-          paddingTop: `max(${isShortHeight ? 52 : isCompactHeight ? 58 : 64}px, calc(env(safe-area-inset-top) + 44px))`,
-          paddingBottom: `max(${isShortHeight ? 10 : 14}px, calc(env(safe-area-inset-bottom) + 8px))`,
+          gap: isShortHeight ? 8 : isCompactHeight ? 12 : 16,
+          paddingTop: `max(${isShortHeight ? 40 : isCompactHeight ? 46 : 54}px, calc(env(safe-area-inset-top) + 32px))`,
+          paddingBottom: `max(${isShortHeight ? 8 : 12}px, calc(env(safe-area-inset-bottom) + 6px))`,
           paddingLeft: 'clamp(10px, 3vw, 24px)',
           paddingRight: 'clamp(10px, 3vw, 24px)',
         }}
@@ -554,7 +514,6 @@ const ResultadosEncuestaView = () => {
                 disableInternalMotion={true}
                 awardsLayout="none"
                 cardMaxWidth={storyCardMaxWidth}
-                layoutOverrides={storyLayoutOverrides}
               />
             </div>
           )}
@@ -803,7 +762,7 @@ const ResultadosEncuestaView = () => {
           content: (
             <AwardStory
               kind="mvp"
-              icon="/mvp.png"
+              icon="/mvp_award.png"
               title="MVP"
               subtitle={null}
               accent="rgba(255,215,0,0.65)"
@@ -829,7 +788,7 @@ const ResultadosEncuestaView = () => {
           content: (
             <AwardStory
               kind="glove"
-              icon="/glove.png"
+              icon="/goalkeeper_award.png"
               title="MEJOR ARQUERO"
               subtitle={null}
               accent="rgba(34,211,238,0.55)"
@@ -858,7 +817,7 @@ const ResultadosEncuestaView = () => {
           content: (
             <AwardStory
               kind="dirty"
-              icon="/red_card.png"
+              icon="/redcard_award.png"
               title="MÁS SUCIO"
               subtitle={null}
               accent="rgba(248,113,113,0.55)"
@@ -915,7 +874,7 @@ const ResultadosEncuestaView = () => {
       summaryAwards.push({
         awardName: 'MVP',
         playerName: mvpPlayer.nombre,
-        icon: '/mvp.png',
+        icon: '/mvp_award.png',
         color: '#FFD700',
       });
     }
@@ -925,7 +884,7 @@ const ResultadosEncuestaView = () => {
       summaryAwards.push({
         awardName: 'MEJOR ARQUERO',
         playerName: glovePlayer.nombre,
-        icon: '/glove.png',
+        icon: '/goalkeeper_award.png',
         color: '#22d3ee',
       });
     }
@@ -935,7 +894,7 @@ const ResultadosEncuestaView = () => {
       summaryAwards.push({
         awardName: 'MÁS SUCIO',
         playerName: dirtyPlayer.nombre,
-        icon: '/red_card.png',
+        icon: '/redcard_award.png',
         color: '#f87171',
       });
     }
