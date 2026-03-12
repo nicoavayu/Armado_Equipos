@@ -169,6 +169,19 @@ const ResultadosEncuestaView = () => {
 
   const pickDefined = (...values) => values.find((value) => value !== undefined && value !== null);
   const pickText = (...values) => values.find((value) => typeof value === 'string' && value.trim().length > 0);
+  const pickPresent = (...values) => values.find((value) => (
+    value !== undefined
+    && value !== null
+    && !(typeof value === 'string' && value.trim().length === 0)
+  ));
+  const pickFiniteNumber = (...values) => {
+    for (const value of values) {
+      if (value === undefined || value === null || value === '') continue;
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return null;
+  };
   const IDENTITY_KEYS_BY_PRIORITY = ['usuario_id', 'user_id', 'uuid', 'auth_id', 'player_id', 'id'];
   const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   const normalizeIdentityToken = (value) => {
@@ -231,54 +244,104 @@ const ResultadosEncuestaView = () => {
     return fromName[token] || null;
   };
 
-  const mergeRosterPlayerWithUser = (player, userRow) => {
-    if (!player || !userRow) return normalizeBadges(player);
-    const playerPj = Number(player?.partidos_jugados);
-    const userPj = Number(userRow?.partidos_jugados);
-    const playerPa = Number(player?.partidos_abandonados);
-    const userPa = Number(userRow?.partidos_abandonados);
+  const mergeRosterPlayerWithUser = (player, userRow, profileRow) => {
+    if (!player) return normalizeBadges(player);
+    if (!userRow && !profileRow) return normalizeBadges(player);
+
+    const liveUserId = pickText(userRow?.id, profileRow?.id);
+    const liveName = pickText(userRow?.nombre, profileRow?.nombre);
+    const liveAvatarUrl = pickText(
+      userRow?.avatar_url,
+      profileRow?.avatar_url,
+      userRow?.foto_url,
+      profileRow?.foto_url,
+    );
+    const livePos = pickText(
+      userRow?.posicion,
+      userRow?.posicion_favorita,
+      userRow?.rol_favorito,
+      profileRow?.posicion,
+      profileRow?.posicion_favorita,
+      profileRow?.rol_favorito,
+    );
+    const liveRol = pickText(
+      userRow?.rol_favorito,
+      userRow?.posicion_favorita,
+      userRow?.posicion,
+      profileRow?.rol_favorito,
+      profileRow?.posicion_favorita,
+      profileRow?.posicion,
+    );
+    const livePj = pickFiniteNumber(
+      userRow?.partidos_jugados,
+      userRow?.pj,
+      profileRow?.partidos_jugados,
+      profileRow?.pj,
+    );
+    const livePa = pickFiniteNumber(
+      userRow?.partidos_abandonados,
+      userRow?.pa,
+      profileRow?.partidos_abandonados,
+      profileRow?.pa,
+    );
+    const liveRanking = pickPresent(
+      userRow?.ranking,
+      userRow?.calificacion,
+      profileRow?.ranking,
+      profileRow?.calificacion,
+      player?.ranking,
+      player?.calificacion,
+    );
+    const liveCountry = normalizeCountryCode(
+      pickText(
+        userRow?.pais_codigo,
+        userRow?.nacionalidad,
+        profileRow?.pais_codigo,
+        profileRow?.nacionalidad,
+      ),
+    ) || 'AR';
+    const liveFoot = pickText(userRow?.pierna_habil, profileRow?.pierna_habil) || null;
+    const liveLevel = pickPresent(
+      userRow?.nivel,
+      userRow?.nivel_autopercibido,
+      profileRow?.nivel,
+      profileRow?.nivel_autopercibido,
+    );
+    const liveAcceptsInvites = pickDefined(userRow?.acepta_invitaciones, profileRow?.acepta_invitaciones);
+    const liveMvp = pickDefined(userRow?.mvp_badges, userRow?.mvps, profileRow?.mvp_badges, profileRow?.mvps, 0);
+    const liveGk = pickDefined(userRow?.gk_badges, userRow?.guantes_dorados, profileRow?.gk_badges, profileRow?.guantes_dorados, 0);
+    const liveRed = pickDefined(userRow?.red_badges, userRow?.tarjetas_rojas, profileRow?.red_badges, profileRow?.tarjetas_rojas, 0);
 
     return normalizeBadges({
       ...player,
-      usuario_id: pickText(userRow?.id, player?.usuario_id, player?.user_id, player?.auth_id) || null,
-      user_id: pickText(player?.user_id, userRow?.id, player?.usuario_id, player?.auth_id) || null,
-      auth_id: pickText(player?.auth_id, userRow?.id, player?.usuario_id, player?.user_id) || null,
-      uuid: pickText(player?.uuid, player?.usuario_id, player?.user_id, userRow?.id) || null,
-      nombre: pickText(userRow?.nombre, player?.nombre) || 'Jugador',
-      avatar_url: pickText(userRow?.avatar_url, player?.avatar_url, player?.foto_url) || null,
+      usuario_id: pickText(liveUserId, player?.usuario_id, player?.user_id, player?.auth_id) || null,
+      user_id: pickText(player?.user_id, liveUserId, player?.usuario_id, player?.auth_id) || null,
+      auth_id: pickText(player?.auth_id, liveUserId, player?.usuario_id, player?.user_id) || null,
+      uuid: pickText(player?.uuid, player?.usuario_id, player?.user_id, liveUserId) || null,
+      nombre: liveName || 'Jugador',
+      avatar_url: liveAvatarUrl || null,
+      foto_url: liveAvatarUrl || null,
       posicion: pickText(
-        userRow?.posicion,
-        userRow?.posicion_favorita,
-        userRow?.rol_favorito,
-        player?.posicion,
-        player?.rol_favorito,
+        livePos,
+        liveRol,
       ) || null,
       rol_favorito: pickText(
-        userRow?.rol_favorito,
-        userRow?.posicion_favorita,
-        userRow?.posicion,
-        player?.rol_favorito,
-        player?.posicion,
+        liveRol,
+        livePos,
       ) || null,
-      partidos_jugados: Number.isFinite(userPj)
-        ? userPj
-        : (Number.isFinite(playerPj) ? playerPj : 0),
-      partidos_abandonados: Number.isFinite(userPa)
-        ? userPa
-        : (Number.isFinite(playerPa) ? playerPa : 0),
-      ranking: pickDefined(userRow?.ranking, player?.ranking, player?.calificacion),
-      pais_codigo: normalizeCountryCode(
-        pickText(userRow?.pais_codigo, userRow?.nacionalidad, player?.pais_codigo),
-      ) || 'AR',
-      pierna_habil: pickText(userRow?.pierna_habil, player?.pierna_habil) || null,
-      nivel: pickDefined(userRow?.nivel, player?.nivel),
-      acepta_invitaciones: pickDefined(userRow?.acepta_invitaciones, player?.acepta_invitaciones),
-      mvp_badges: pickDefined(player?.mvp_badges, player?.mvps, userRow?.mvp_badges, userRow?.mvps, 0),
-      gk_badges: pickDefined(player?.gk_badges, player?.guantes_dorados, userRow?.gk_badges, userRow?.guantes_dorados, 0),
-      red_badges: pickDefined(player?.red_badges, player?.tarjetas_rojas, userRow?.red_badges, userRow?.tarjetas_rojas, 0),
-      mvps: pickDefined(player?.mvps, player?.mvp_badges, userRow?.mvps, userRow?.mvp_badges, 0),
-      guantes_dorados: pickDefined(player?.guantes_dorados, player?.gk_badges, userRow?.guantes_dorados, userRow?.gk_badges, 0),
-      tarjetas_rojas: pickDefined(player?.tarjetas_rojas, player?.red_badges, userRow?.tarjetas_rojas, userRow?.red_badges, 0),
+      partidos_jugados: livePj ?? 0,
+      partidos_abandonados: livePa ?? 0,
+      ranking: liveRanking ?? 5.0,
+      pais_codigo: liveCountry,
+      pierna_habil: liveFoot,
+      nivel: liveLevel ?? null,
+      acepta_invitaciones: pickDefined(liveAcceptsInvites, player?.acepta_invitaciones),
+      mvp_badges: pickDefined(player?.mvp_badges, player?.mvps, liveMvp, 0),
+      gk_badges: pickDefined(player?.gk_badges, player?.guantes_dorados, liveGk, 0),
+      red_badges: pickDefined(player?.red_badges, player?.tarjetas_rojas, liveRed, 0),
+      mvps: pickDefined(player?.mvps, player?.mvp_badges, liveMvp, 0),
+      guantes_dorados: pickDefined(player?.guantes_dorados, player?.gk_badges, liveGk, 0),
+      tarjetas_rojas: pickDefined(player?.tarjetas_rojas, player?.red_badges, liveRed, 0),
     });
   };
 
@@ -317,10 +380,7 @@ const ResultadosEncuestaView = () => {
         const playerIds = collectProfileIdsForLookup([player]);
         const userRow = playerIds.map((id) => usersById.get(id)).find(Boolean) || null;
         const profileRow = playerIds.map((id) => profilesById.get(id)).find(Boolean) || null;
-        const mergedProfile = (userRow || profileRow)
-          ? { ...(profileRow || {}), ...(userRow || {}) }
-          : null;
-        return mergedProfile ? mergeRosterPlayerWithUser(player, mergedProfile) : player;
+        return mergeRosterPlayerWithUser(player, userRow, profileRow);
       });
     } catch (_enrichError) {
       return roster;
@@ -636,6 +696,7 @@ const ResultadosEncuestaView = () => {
                 enableTilt={false}
                 disableInternalMotion={true}
                 awardsLayout="space-left"
+                showSideAwards={false}
               />
             </div>
           )}

@@ -171,6 +171,7 @@ const ProfileCardComponent = ({
   cardMaxWidth = 430,
   screenMode = false,
   awardsLayout = 'adaptive',
+  showSideAwards = true,
   layoutOverrides = null,
   photoObjectPosition = 'center 40%',
 }) => {
@@ -289,7 +290,7 @@ const ProfileCardComponent = ({
   const normalizedCardMaxWidth = Number(cardMaxWidth) > 0 ? Number(cardMaxWidth) : 430;
   const forceSideAwards = awardsLayout === 'side';
   const reserveLeftAwardsSpace = awardsLayout === 'space-left';
-  const showAwardsRail = awardsLayout !== 'none' && !reserveLeftAwardsSpace;
+  const showAwardsRail = showSideAwards && awardsLayout !== 'none' && !reserveLeftAwardsSpace;
   const resolvedCardWidth = reserveLeftAwardsSpace
     ? `min(82vw, ${Math.round(normalizedCardMaxWidth * 1.2)}px)`
     : `min(92vw, ${normalizedCardMaxWidth}px)`;
@@ -929,7 +930,7 @@ const ProfileCardComponent = ({
 
             <div className="pc-main-column">
               <div className="pc-stage">
-                {reserveLeftAwardsSpace && sideAwards.length > 0 && (
+                {showSideAwards && reserveLeftAwardsSpace && sideAwards.length > 0 && (
                   <aside className="pc-awards-side-rail" aria-hidden="true">
                     {sideAwards.map((award) => (
                       <span key={award.key} className="pc-awards-side-card">
