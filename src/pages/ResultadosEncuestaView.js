@@ -564,6 +564,9 @@ const ResultadosEncuestaView = () => {
     const titleFontSize = 'clamp(48px, 12vw, 78px)';
     const winnerIconSize = 76;
     const winnerPlusSize = 25;
+    const awardSlotHeight = kind === 'penalty'
+      ? 'clamp(86px, 14vh, 112px)'
+      : 'clamp(108px, 18vh, 140px)';
 
     return (
       <div
@@ -632,7 +635,7 @@ const ResultadosEncuestaView = () => {
                 ratingOverride={kind === 'penalty' ? penaltyNow : null}
                 enableTilt={false}
                 disableInternalMotion={true}
-                awardsLayout="none"
+                awardsLayout="space-left"
               />
             </div>
           )}
@@ -696,68 +699,83 @@ const ResultadosEncuestaView = () => {
         {/* Footer */}
         <div
           className="relative z-10 w-full flex flex-col items-center justify-center gap-2"
-          style={{ marginTop: 4 }}
+          style={{ marginTop: 4, minHeight: awardSlotHeight, height: awardSlotHeight }}
         >
-          {stage >= 1 && (
-            <>
-              {kind === 'penalty' && penaltyNow != null && penaltyTo != null && (
+          {kind === 'penalty' && (
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-start gap-2 pt-1"
+              style={{
+                opacity: stage >= 1 ? 1 : 0,
+                transform: stage >= 1 ? 'translateY(0)' : 'translateY(8px)',
+                transition: 'opacity 260ms ease, transform 320ms ease',
+              }}
+            >
+              {penaltyNow != null && penaltyTo != null && (
                 <div
                   className="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-white/85 text-xs sm:text-sm md:text-base"
                   style={{
                     background: 'rgba(0,0,0,0.45)',
                     border: '1px solid rgba(255,255,255,0.14)',
                     backdropFilter: 'blur(10px)',
-                    animation: 'eaFooterIn 520ms ease-out both',
+                    animation: stage === 1 ? 'eaFooterIn 520ms ease-out both' : 'none',
                   }}
                 >
                   Rating: {fmt1(penaltyFrom ?? penaltyNow)} → {fmt1(penaltyNow)}
                 </div>
               )}
-
-              {kind !== 'penalty' && stage >= 4 && (
-                <div
-                  className="text-white font-black flex items-center justify-center"
-                  style={{
-                    animation: 'eaWinnerChipIn 420ms ease-out both',
-                    textShadow: `0 0 14px ${accent}`,
-                  }}
-                >
-                  <div className="relative" style={{ width: winnerIconSize, height: winnerIconSize }}>
-                    {typeof icon === 'string' && icon.startsWith('/') ? (
-                      <img
-                        src={icon}
-                        alt="premio ganador"
-                        width={winnerIconSize}
-                        height={winnerIconSize}
-                        draggable={false}
-                        style={{ filter: `drop-shadow(0 0 16px ${accent})` }}
-                      />
-                    ) : (
-                      <span style={{ filter: `drop-shadow(0 0 16px ${accent})` }}>{icon}</span>
-                    )}
-                    <span
-                      style={{
-                        position: 'absolute',
-                        left: '100%',
-                        top: '50%',
-                        transform: 'translate(6px, -48%)',
-                        fontSize: winnerPlusSize,
-                        lineHeight: 1,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      +1
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {bottomLabel && stage >= 4 && kind === 'penalty' && (
+              {bottomLabel && stage >= 4 && (
                 <div className="text-white/70 text-xs md:text-sm text-center">
                   {bottomLabel}
                 </div>
               )}
-            </>
+            </div>
+          )}
+
+          {kind !== 'penalty' && (
+            <div
+              className="absolute inset-0 flex items-start justify-center pt-1 pointer-events-none"
+              style={{
+                opacity: stage >= 4 ? 1 : 0,
+                transform: stage >= 4 ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.94)',
+                transition: 'opacity 260ms ease, transform 340ms ease',
+              }}
+            >
+              <div
+                className="text-white font-black flex items-center justify-center"
+                style={{
+                  animation: stage === 4 ? 'eaWinnerChipIn 420ms ease-out both' : 'none',
+                  textShadow: `0 0 14px ${accent}`,
+                }}
+              >
+                <div className="relative" style={{ width: winnerIconSize, height: winnerIconSize }}>
+                  {typeof icon === 'string' && icon.startsWith('/') ? (
+                    <img
+                      src={icon}
+                      alt="premio ganador"
+                      width={winnerIconSize}
+                      height={winnerIconSize}
+                      draggable={false}
+                      style={{ filter: `drop-shadow(0 0 16px ${accent})` }}
+                    />
+                  ) : (
+                    <span style={{ filter: `drop-shadow(0 0 16px ${accent})` }}>{icon}</span>
+                  )}
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: '100%',
+                      top: '50%',
+                      transform: 'translate(6px, -48%)',
+                      fontSize: winnerPlusSize,
+                      lineHeight: 1,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    +1
+                  </span>
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
