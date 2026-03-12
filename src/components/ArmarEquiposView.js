@@ -9,7 +9,7 @@ import {
   getVotantesConNombres,
   getJugadoresDelPartido,
   getTeamsFromDatabase,
-  hasRecordedVotes,
+  removePlayerVotesFromMatch,
   resetVotacion,
   clearGuestSession,
   supabase,
@@ -788,14 +788,14 @@ export default function ArmarEquiposView({
 
     if (!jugadorAEliminar) return;
 
-    const matchHasVotes = await hasRecordedVotes(partidoActual.id);
-    if (matchHasVotes) {
-      showInlineNotice('warning', 'Ya hay votos registrados. Para editar el plantel, primero reseteá la votación.');
-      return;
-    }
-
     setLoading(true);
     try {
+      try {
+        await removePlayerVotesFromMatch(partidoActual.id, jugadorAEliminar);
+      } catch (cleanupError) {
+        console.warn('[Teams] remove player vote cleanup failed (non-blocking)', cleanupError);
+      }
+
       const { error } = await supabase
         .from('jugadores')
         .delete()

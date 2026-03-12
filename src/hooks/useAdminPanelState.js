@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getVotantesIds, getVotantesConNombres, getJugadoresDelPartido, hasRecordedVotes, supabase } from '../supabase';
+import { getVotantesIds, getVotantesConNombres, getJugadoresDelPartido, hasRecordedVotes, removePlayerVotesFromMatch, supabase } from '../supabase';
 import { toBigIntId } from '../utils';
 import { incrementMatchesAbandoned, canAbandonWithoutPenalty } from '../utils/matchStatsManager';
 import { autoCleanupDuplicates } from '../utils/duplicateCleanup';
@@ -520,14 +520,6 @@ export const useAdminPanelState = ({
 
     const esAutoEliminacion = jugadorAEliminar?.usuario_id === user?.id;
 
-    const matchHasVotes = await hasRecordedVotes(partidoActual.id);
-    if (matchHasVotes) {
-      const message = 'Ya hay votos registrados. Para editar el plantel, primero reseteá la votación.';
-      setInlineNotice('warning', message);
-      notifyBlockingError(message);
-      return false;
-    }
-
     setLoading(true);
     try {
       console.log('[LEAVE_MATCH] Deleting player from match:', {
@@ -535,6 +527,16 @@ export const useAdminPanelState = ({
         jugadorId: jugadorId,
         isSelfRemoval: esAutoEliminacion
       });
+
+      // Targeted cleanup: remove only votes linked to this player so we avoid
+      // forcing a global voting reset when expelling someone.
+      if (jugadorAEliminar) {
+        try {
+          await removePlayerVotesFromMatch(partidoActual.id, jugadorAEliminar);
+        } catch (cleanupError) {
+          console.warn('[LEAVE_MATCH] vote cleanup failed (non-blocking)', cleanupError);
+        }
+      }
 
       // Use jugador.id (BIGINT) as source of truth - works for ALL players
       const { error } = await supabase

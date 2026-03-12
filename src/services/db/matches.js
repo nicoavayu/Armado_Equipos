@@ -553,6 +553,105 @@ export const hasRecordedVotes = async (partidoId) => {
   }
 };
 
+const isMissingColumnError = (error) => {
+  const code = String(error?.code || '').trim();
+  if (code === '42703') return true;
+  const message = String(error?.message || '').toLowerCase();
+  return message.includes('column') && (message.includes('does not exist') || message.includes('no existe'));
+};
+
+const runVoteCleanupDelete = async ({ table, column, values, partidoId }) => {
+  const normalizedValues = Array.from(new Set((values || [])
+    .map((value) => normalizeIdentityValue(value))
+    .filter(Boolean)));
+  if (normalizedValues.length === 0) return { deleted: 0, skipped: true };
+
+  const { error } = await supabase
+    .from(table)
+    .delete()
+    .eq('partido_id', Number(partidoId))
+    .in(column, normalizedValues);
+
+  if (error) {
+    if (isMissingColumnError(error)) {
+      return { deleted: 0, skipped: true };
+    }
+    throw error;
+  }
+
+  return { deleted: normalizedValues.length, skipped: false };
+};
+
+/**
+ * Remove votes associated with a player that is being removed from a match.
+ * This is a targeted cleanup (no global reset): only votes cast by or for that player.
+ *
+ * @param {number} partidoId
+ * @param {Object} jugador - Player row from `jugadores`
+ * @returns {Promise<{ok: boolean, deletedApprox: number, warnings: string[]}>}
+ */
+export const removePlayerVotesFromMatch = async (partidoId, jugador = {}) => {
+  const pid = Number(partidoId);
+  if (!pid || Number.isNaN(pid)) {
+    return { ok: false, deletedApprox: 0, warnings: ['invalid_partido_id'] };
+  }
+
+  const idCandidates = Array.from(new Set([
+    normalizeIdentityValue(jugador?.usuario_id),
+    normalizeIdentityValue(jugador?.uuid),
+    normalizeIdentityValue(jugador?.id),
+  ].filter(Boolean)));
+
+  const numericId = Number(jugador?.id);
+  const numericCandidates = Number.isFinite(numericId) && numericId > 0
+    ? [String(numericId), numericId]
+    : [];
+
+  const warnings = [];
+  let deletedApprox = 0;
+
+  const cleanupOps = [
+    { table: 'votos', column: 'votante_id', values: idCandidates },
+    { table: 'votos', column: 'votado_id', values: idCandidates },
+    { table: 'votos_publicos', column: 'votado_id', values: idCandidates },
+    { table: 'votos_publicos', column: 'votado_uuid', values: idCandidates },
+    { table: 'votos_publicos', column: 'votado_usuario_id', values: idCandidates },
+    { table: 'votos_publicos', column: 'jugador_uuid', values: idCandidates },
+    { table: 'votos_publicos', column: 'player_uuid', values: idCandidates },
+    { table: 'votos_publicos', column: 'votado_jugador_id', values: numericCandidates },
+    { table: 'votos_publicos', column: 'votado_player_id', values: numericCandidates },
+    { table: 'votos_publicos', column: 'player_id', values: numericCandidates },
+  ];
+
+  for (const op of cleanupOps) {
+    try {
+      const result = await runVoteCleanupDelete({
+        table: op.table,
+        column: op.column,
+        values: op.values,
+        partidoId: pid,
+      });
+      if (!result.skipped) {
+        deletedApprox += result.deleted;
+      }
+    } catch (error) {
+      warnings.push(`${op.table}.${op.column}`);
+      console.warn('[removePlayerVotesFromMatch] targeted cleanup failed', {
+        partidoId: pid,
+        table: op.table,
+        column: op.column,
+        error,
+      });
+    }
+  }
+
+  return {
+    ok: warnings.length === 0,
+    deletedApprox,
+    warnings,
+  };
+};
+
 /**
  * Check if user has already voted in a match
  * @param {string} votanteId - Voter ID
