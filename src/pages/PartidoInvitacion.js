@@ -735,6 +735,11 @@ function SharedInviteLayout({
 
   const renderJoinedBlock = () => (
     <div className="flex flex-col gap-2 w-full">
+      {mode === 'invite' && (
+        <div className="w-full rounded-[6px] border-2 border-yellow-300 bg-red-600 px-3 py-2 text-center font-oswald text-sm font-bold text-white tracking-wide">
+          TEST VIEW TEAMS · mode={mode} · CTA={String(showViewTeamsButton)}
+        </div>
+      )}
       {showViewTeamsButton && (
         <button
           onClick={onViewTeams}
