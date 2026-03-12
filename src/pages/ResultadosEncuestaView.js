@@ -9,6 +9,7 @@ import ProfileCard from '../components/ProfileCard';
 import StoryLikeCarousel from '../components/StoryLikeCarousel';
 import { ensureAwards } from '../services/awardsService';
 import { subscribeToMatchUpdates } from '../services/realtimeService';
+import { getProfile as getLiveProfile } from '../services/db/profiles';
 import EmptyStateCard from '../components/EmptyStateCard';
 import Logo from '../Logo.png';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
@@ -244,19 +245,26 @@ const ResultadosEncuestaView = () => {
     return fromName[token] || null;
   };
 
-  const mergeRosterPlayerWithUser = (player, userRow, profileRow) => {
+  const mergeRosterPlayerWithUser = (player, userRow, profileRow, liveProfileRow = null) => {
     if (!player) return normalizeBadges(player);
-    if (!userRow && !profileRow) return normalizeBadges(player);
+    if (!liveProfileRow && !userRow && !profileRow) return normalizeBadges(player);
 
-    const liveUserId = pickText(userRow?.id, profileRow?.id);
-    const liveName = pickText(userRow?.nombre, profileRow?.nombre);
+    const canonicalProfile = liveProfileRow || userRow || profileRow || {};
+
+    const liveUserId = pickText(canonicalProfile?.id, userRow?.id, profileRow?.id);
+    const liveName = pickText(canonicalProfile?.nombre, userRow?.nombre, profileRow?.nombre);
     const liveAvatarUrl = pickText(
+      canonicalProfile?.avatar_url,
+      canonicalProfile?.foto_url,
       userRow?.avatar_url,
       profileRow?.avatar_url,
       userRow?.foto_url,
       profileRow?.foto_url,
     );
     const livePos = pickText(
+      canonicalProfile?.posicion,
+      canonicalProfile?.posicion_favorita,
+      canonicalProfile?.rol_favorito,
       userRow?.posicion,
       userRow?.posicion_favorita,
       userRow?.rol_favorito,
@@ -265,6 +273,9 @@ const ResultadosEncuestaView = () => {
       profileRow?.rol_favorito,
     );
     const liveRol = pickText(
+      canonicalProfile?.rol_favorito,
+      canonicalProfile?.posicion_favorita,
+      canonicalProfile?.posicion,
       userRow?.rol_favorito,
       userRow?.posicion_favorita,
       userRow?.posicion,
@@ -273,18 +284,26 @@ const ResultadosEncuestaView = () => {
       profileRow?.posicion,
     );
     const livePj = pickFiniteNumber(
+      canonicalProfile?.partidos_jugados,
+      canonicalProfile?.pj,
+      canonicalProfile?.played_matches,
       userRow?.partidos_jugados,
       userRow?.pj,
       profileRow?.partidos_jugados,
       profileRow?.pj,
     );
     const livePa = pickFiniteNumber(
+      canonicalProfile?.partidos_abandonados,
+      canonicalProfile?.pa,
       userRow?.partidos_abandonados,
       userRow?.pa,
       profileRow?.partidos_abandonados,
       profileRow?.pa,
     );
     const liveRanking = pickPresent(
+      canonicalProfile?.ranking,
+      canonicalProfile?.calificacion,
+      canonicalProfile?.rating,
       userRow?.ranking,
       userRow?.calificacion,
       profileRow?.ranking,
@@ -294,23 +313,64 @@ const ResultadosEncuestaView = () => {
     );
     const liveCountry = normalizeCountryCode(
       pickText(
+        canonicalProfile?.pais_codigo,
+        canonicalProfile?.nacionalidad,
+        canonicalProfile?.country_code,
+        canonicalProfile?.pais,
         userRow?.pais_codigo,
         userRow?.nacionalidad,
         profileRow?.pais_codigo,
         profileRow?.nacionalidad,
       ),
     ) || 'AR';
-    const liveFoot = pickText(userRow?.pierna_habil, profileRow?.pierna_habil) || null;
+    const liveFoot = pickText(
+      canonicalProfile?.pierna_habil,
+      canonicalProfile?.pierna_hábil,
+      canonicalProfile?.foot,
+      userRow?.pierna_habil,
+      profileRow?.pierna_habil,
+    ) || null;
     const liveLevel = pickPresent(
+      canonicalProfile?.nivel,
+      canonicalProfile?.nivel_autopercibido,
+      canonicalProfile?.self_perceived_level,
       userRow?.nivel,
       userRow?.nivel_autopercibido,
       profileRow?.nivel,
       profileRow?.nivel_autopercibido,
     );
-    const liveAcceptsInvites = pickDefined(userRow?.acepta_invitaciones, profileRow?.acepta_invitaciones);
-    const liveMvp = pickDefined(userRow?.mvp_badges, userRow?.mvps, profileRow?.mvp_badges, profileRow?.mvps, 0);
-    const liveGk = pickDefined(userRow?.gk_badges, userRow?.guantes_dorados, profileRow?.gk_badges, profileRow?.guantes_dorados, 0);
-    const liveRed = pickDefined(userRow?.red_badges, userRow?.tarjetas_rojas, profileRow?.red_badges, profileRow?.tarjetas_rojas, 0);
+    const liveAcceptsInvites = pickDefined(
+      canonicalProfile?.acepta_invitaciones,
+      userRow?.acepta_invitaciones,
+      profileRow?.acepta_invitaciones,
+    );
+    const liveMvp = pickDefined(
+      canonicalProfile?.mvp_badges,
+      canonicalProfile?.mvps,
+      userRow?.mvp_badges,
+      userRow?.mvps,
+      profileRow?.mvp_badges,
+      profileRow?.mvps,
+      0,
+    );
+    const liveGk = pickDefined(
+      canonicalProfile?.gk_badges,
+      canonicalProfile?.guantes_dorados,
+      userRow?.gk_badges,
+      userRow?.guantes_dorados,
+      profileRow?.gk_badges,
+      profileRow?.guantes_dorados,
+      0,
+    );
+    const liveRed = pickDefined(
+      canonicalProfile?.red_badges,
+      canonicalProfile?.tarjetas_rojas,
+      userRow?.red_badges,
+      userRow?.tarjetas_rojas,
+      profileRow?.red_badges,
+      profileRow?.tarjetas_rojas,
+      0,
+    );
 
     return normalizeBadges({
       ...player,
@@ -370,7 +430,21 @@ const ResultadosEncuestaView = () => {
         profilesData = [];
       }
 
-      if ((!Array.isArray(usersData) || usersData.length === 0) && profilesData.length === 0) {
+      const liveProfilesResolved = await Promise.all(profileIds.map(async (profileId) => {
+        try {
+          const liveProfile = await getLiveProfile(profileId);
+          return liveProfile ? [String(profileId), liveProfile] : null;
+        } catch (_liveProfileErr) {
+          return null;
+        }
+      }));
+      const liveProfilesById = new Map(liveProfilesResolved.filter(Boolean));
+
+      if (
+        (!Array.isArray(usersData) || usersData.length === 0)
+        && profilesData.length === 0
+        && liveProfilesById.size === 0
+      ) {
         return roster;
       }
 
@@ -380,7 +454,8 @@ const ResultadosEncuestaView = () => {
         const playerIds = collectProfileIdsForLookup([player]);
         const userRow = playerIds.map((id) => usersById.get(id)).find(Boolean) || null;
         const profileRow = playerIds.map((id) => profilesById.get(id)).find(Boolean) || null;
-        return mergeRosterPlayerWithUser(player, userRow, profileRow);
+        const liveProfileRow = playerIds.map((id) => liveProfilesById.get(id)).find(Boolean) || null;
+        return mergeRosterPlayerWithUser(player, userRow, profileRow, liveProfileRow);
       });
     } catch (_enrichError) {
       return roster;
