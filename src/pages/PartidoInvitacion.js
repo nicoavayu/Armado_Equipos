@@ -355,6 +355,52 @@ const resolveBalanceMeta = (diffValue) => {
   return TEAM_BALANCE_SCALE.find((entry) => diff <= entry.maxDiff) || TEAM_BALANCE_SCALE[TEAM_BALANCE_SCALE.length - 1];
 };
 
+const pickTeamsFieldsSnapshot = (value) => {
+  if (!value || typeof value !== 'object') return null;
+  const snapshot = {
+    teams_confirmed: value?.teams_confirmed,
+    teams_locked: value?.teams_locked,
+    equipos_json: value?.equipos_json,
+    equipos: value?.equipos,
+    survey_team_a: value?.survey_team_a,
+    survey_team_b: value?.survey_team_b,
+    final_team_a: value?.final_team_a,
+    final_team_b: value?.final_team_b,
+  };
+  const hasAnyField = Object.values(snapshot).some((fieldValue) => fieldValue !== null && fieldValue !== undefined);
+  return hasAnyField ? snapshot : null;
+};
+
+const fetchGuestMatchSnapshotWithAnon = async ({ matchId, codigo }) => {
+  const supabaseUrl = String(process.env.REACT_APP_SUPABASE_URL || '').trim();
+  const anonKey = String(process.env.REACT_APP_SUPABASE_ANON_KEY || '').trim();
+  const normalizedMatchId = Number(matchId);
+  if (!supabaseUrl || !anonKey || !Number.isFinite(normalizedMatchId) || normalizedMatchId <= 0) {
+    return null;
+  }
+
+  const params = new URLSearchParams();
+  params.set('select', 'teams_confirmed,teams_locked,equipos_json,equipos,survey_team_a,survey_team_b,final_team_a,final_team_b');
+  params.set('id', `eq.${normalizedMatchId}`);
+  if (codigo) {
+    params.set('codigo', `eq.${String(codigo).trim()}`);
+  }
+
+  const response = await fetch(`${supabaseUrl}/rest/v1/partidos?${params.toString()}`, {
+    method: 'GET',
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) return null;
+  const rows = await response.json();
+  if (!Array.isArray(rows) || !rows[0]) return null;
+  return pickTeamsFieldsSnapshot(rows[0]);
+};
+
 function PlayersReadOnly({ jugadores, partido, mode }) {
   const requiredSlots = resolveSlotsFromMatchType(partido);
   const displayCount = jugadores?.length ?? 0;
@@ -829,6 +875,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const [guestTeamsModalOpen, setGuestTeamsModalOpen] = useState(false);
   const [guestConfirmedTeams, setGuestConfirmedTeams] = useState({
     isAvailable: false,
+    hasConfirmedFlag: false,
     teamAName: 'Equipo A',
     teamBName: 'Equipo B',
     teamAPlayers: [],
@@ -1287,6 +1334,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       if (isCancelled) return;
       setGuestConfirmedTeams({
         isAvailable: false,
+        hasConfirmedFlag: false,
         teamAName: 'Equipo A',
         teamBName: 'Equipo B',
         teamAPlayers: [],
@@ -1329,16 +1377,28 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           partidoRow = null;
         }
 
-        if (!partidoRow && codigoParam) {
+        const inviteCode = String(codigoParam || partido?.codigo || '').trim();
+        if (!partidoRow && inviteCode) {
           try {
             const { data: rpcRows, error: rpcError } = await supabase.rpc('get_partido_by_invite', {
               p_partido_id: Number.isFinite(matchIdNum) ? matchIdNum : Number(matchIdFilter),
-              p_codigo: codigoParam,
+              p_codigo: inviteCode,
             });
             if (!rpcError && Array.isArray(rpcRows) && rpcRows[0]) {
-              partidoRow = rpcRows[0];
+              partidoRow = pickTeamsFieldsSnapshot(rpcRows[0]);
             }
           } catch (_rpcFetchError) {
+            partidoRow = null;
+          }
+        }
+
+        if (!partidoRow) {
+          try {
+            partidoRow = await fetchGuestMatchSnapshotWithAnon({
+              matchId: matchIdFilter,
+              codigo: inviteCode || null,
+            });
+          } catch (_anonFetchError) {
             partidoRow = null;
           }
         }
@@ -1414,9 +1474,20 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           ?? partidoRow?.teams_locked
           ?? partido?.teams_locked,
         );
-        const shouldExposeGuestTeams = hasConfirmedFlag || hasPersistedTeams;
+        const shouldExposeGuestTeams = hasConfirmedFlag || hasPersistedTeams || normalizeTeamsPayload(sourcePartido?.equipos_json ?? sourcePartido?.equipos).length > 0;
+        console.debug('[GUEST_TEAMS] resolve', {
+          matchId: matchIdFilter,
+          mode,
+          hasConfirmedFlag,
+          hasPersistedTeams,
+          shouldExposeGuestTeams,
+          hasEquiposJson: normalizeTeamsPayload(sourcePartido?.equipos_json ?? sourcePartido?.equipos).length > 0,
+          teamARefsCount: teamARefs.length,
+          teamBRefsCount: teamBRefs.length,
+          codigoFromInvite: inviteCode || null,
+        });
 
-        if (!shouldExposeGuestTeams || !hasPersistedTeams) {
+        if (!shouldExposeGuestTeams) {
           clearConfirmedTeams();
           return;
         }
@@ -1441,7 +1512,19 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
         if (isCancelled) return;
         if (!hasDisplayableTeams) {
-          clearConfirmedTeams();
+          setGuestConfirmedTeams({
+            isAvailable: true,
+            hasConfirmedFlag: true,
+            teamAName,
+            teamBName,
+            teamAPlayers,
+            teamBPlayers,
+            teamAScore: 0,
+            teamBScore: 0,
+            balanceDiff: 0,
+            balanceLabel: 'MUY PAREJO',
+            balanceColor: '#10B981',
+          });
           return;
         }
 
@@ -1452,6 +1535,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
         setGuestConfirmedTeams({
           isAvailable: true,
+          hasConfirmedFlag: true,
           teamAName,
           teamBName,
           teamAPlayers,
@@ -2006,7 +2090,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           inlineNotice={inlineNotice}
           onClearInlineNotice={() => setInlineNotice(null)}
           onAddToCalendar={handleAddToCalendar}
-          showViewTeamsButton={mode === 'invite' && guestConfirmedTeams.isAvailable}
+          showViewTeamsButton={mode === 'invite' && (guestConfirmedTeams.isAvailable || guestConfirmedTeams.hasConfirmedFlag)}
           onViewTeams={() => setGuestTeamsModalOpen(true)}
           showBottomNav={showBottomNav}
         />
