@@ -941,10 +941,26 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       publicVotersCount: publicVotersCount || 0,
     });
 
-    const { data: jugadores, error: playerError } = await supabase
+    let jugadores = null;
+    let playerError = null;
+    ({
+      data: jugadores,
+      error: playerError,
+    } = await supabase
       .from('jugadores')
-      .select('id, uuid, usuario_id, nombre, is_goalkeeper')
-      .eq('partido_id', partidoId);
+      .select('id, uuid, usuario_id, nombre, is_goalkeeper, is_substitute')
+      .eq('partido_id', partidoId));
+
+    if (playerError && isMissingColumnError(playerError)) {
+      ({
+        data: jugadores,
+        error: playerError,
+      } = await supabase
+        .from('jugadores')
+        .select('id, uuid, usuario_id, nombre, is_goalkeeper')
+        .eq('partido_id', partidoId));
+      jugadores = (jugadores || []).map((jugador) => ({ ...jugador, is_substitute: false }));
+    }
 
     if (playerError) {
       console.error('❌ SUPABASE: Error fetching players:', playerError);
@@ -961,6 +977,8 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       return { message: 'No hay jugadores para actualizar.' };
     }
 
+    const titulares = (jugadores || []).filter((jugador) => jugador?.is_substitute !== true);
+    const jugadoresComputables = titulares.length > 0 ? titulares : (jugadores || []);
     const votesByPlayer = {};
     const goalkeepers = new Set();
     let totalValidVotes = 0;
@@ -969,11 +987,63 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     let unresolvedPublicTargets = 0;
     let invalidAuthScores = 0;
     let invalidPublicScores = 0;
-    const identityMaps = buildMatchPlayerIdentityMaps(jugadores || []);
+    let ignoredAuthByNonStarter = 0;
+    let ignoredPublicByNonStarter = 0;
+    let relevantAuthRows = 0;
+    let relevantPublicRows = 0;
+    const identityMaps = buildMatchPlayerIdentityMaps(jugadoresComputables || []);
+
+    const normalizeRosterName = (value) => String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+
+    const starterIdentityRefs = new Set();
+    const starterNameRefs = new Set();
+    for (const jugador of jugadoresComputables || []) {
+      const userId = normalizeIdentityValue(jugador?.usuario_id);
+      const uuid = normalizeIdentityValue(jugador?.uuid);
+      const numericId = normalizeIdentityValue(jugador?.id);
+      const normalizedName = normalizeRosterName(jugador?.nombre);
+      if (userId) starterIdentityRefs.add(userId);
+      if (uuid) starterIdentityRefs.add(uuid);
+      if (numericId) starterIdentityRefs.add(numericId);
+      if (normalizedName) starterNameRefs.add(normalizedName);
+    }
+
+    const isEligibleAuthenticatedVoter = (rawVoterId) => {
+      const voterId = normalizeIdentityValue(rawVoterId);
+      if (!voterId) return false;
+      if (starterIdentityRefs.has(voterId)) return true;
+      if (identityMaps.byUuid.has(voterId)) return true;
+      if (identityMaps.byUserId.has(voterId)) return true;
+      const numericId = Number(voterId);
+      if (Number.isFinite(numericId) && identityMaps.byNumericId.has(numericId)) return true;
+      return false;
+    };
+
+    const isEligiblePublicVoter = (publicVoteRow) => {
+      const normalizedName = normalizeRosterName(
+        publicVoteRow?.votante_nombre
+        || publicVoteRow?.voter_name
+        || publicVoteRow?.jugador_nombre
+        || publicVoteRow?.nombre
+        || '',
+      );
+      if (!normalizedName) return true;
+      return starterNameRefs.has(normalizedName);
+    };
 
     // Process regular votes (uuid/user-id based)
     if (votos && votos.length > 0) {
       for (const voto of votos) {
+        if (!isEligibleAuthenticatedVoter(voto?.votante_id)) {
+          ignoredAuthByNonStarter++;
+          continue;
+        }
+        relevantAuthRows++;
+
         const targetUuid = resolveTargetPlayerUuid(voto, identityMaps);
         if (!targetUuid) {
           unresolvedAuthTargets++;
@@ -1002,6 +1072,12 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     // Process public votes (id/uuid/user-id correlation)
     if (publicVotes && publicVotes.length > 0) {
       for (const pv of publicVotes) {
+        if (!isEligiblePublicVoter(pv)) {
+          ignoredPublicByNonStarter++;
+          continue;
+        }
+        relevantPublicRows++;
+
         const playerUuid = resolveTargetPlayerUuid(pv, identityMaps);
         if (!playerUuid) {
           unresolvedPublicTargets++;
@@ -1040,6 +1116,10 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
       unresolvedPublicTargets,
       invalidAuthScores,
       invalidPublicScores,
+      ignoredAuthByNonStarter,
+      ignoredPublicByNonStarter,
+      relevantAuthRows,
+      relevantPublicRows,
       playersWithVotes: Object.keys(votesByPlayer).length,
       voteDistribution: Object.entries(votesByPlayer).map(([playerId, votes]) => ({
         playerId,
@@ -1051,6 +1131,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     const unresolvedTargets = unresolvedAuthTargets + unresolvedPublicTargets;
     const corruptedVotes = invalidAuthScores + invalidPublicScores;
     const totalPersistedRows = regularRowsCount + publicRowsCount;
+    const totalRelevantPersistedRows = relevantAuthRows + relevantPublicRows;
 
     // Keep strict logging for diagnostics, but don't block close when there are valid votes.
     // Legacy/partial rows may coexist with valid data and should not brick the admin flow.
@@ -1062,18 +1143,21 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
           unresolvedPublicTargets,
           invalidAuthScores,
           invalidPublicScores,
+          ignoredAuthByNonStarter,
+          ignoredPublicByNonStarter,
           regularRowsCount,
           publicRowsCount,
+          totalRelevantPersistedRows,
           totalValidVotes,
         },
       );
     }
 
-    // Hard guard: if there are persisted vote rows but none can be processed into valid scores, abort.
-    if (totalPersistedRows > 0 && totalValidVotes <= 0) {
+    // Hard guard: only rows emitted by current starters are considered for blocking closure.
+    if (totalRelevantPersistedRows > 0 && totalValidVotes <= 0) {
       throw new Error(
         `No hay votos válidos guardados para cerrar la votación. ` +
-        `(auth_rows=${regularRowsCount}, public_rows=${publicRowsCount}, ` +
+        `(auth_rows=${regularRowsCount}, public_rows=${publicRowsCount}, relevant_rows=${totalRelevantPersistedRows}, ` +
         `auth_voters=${authVotersCount}, public_voters=${publicVotersCount || 0})`
       );
     }
@@ -1081,7 +1165,7 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     const updates = [];
     const scoreUpdates = [];
 
-    for (const jugador of jugadores) {
+    for (const jugador of jugadoresComputables) {
       const playerVotes = votesByPlayer[jugador.uuid] || [];
       const isGoalkeeper = goalkeepers.has(jugador.uuid);
 
@@ -1146,9 +1230,9 @@ export const closeVotingAndCalculateScores = async (partidoId) => {
     console.log('📊 SUPABASE: Step 5 - Preserving votes for audit + voter tracking:', partidoId);
 
     const result = {
-      message: `Votación cerrada. Se actualizaron los puntajes de ${successfulUpdates.length}/${jugadores.length} jugadores.`,
+      message: `Votación cerrada. Se actualizaron los puntajes de ${successfulUpdates.length}/${jugadoresComputables.length} jugadores.`,
       playersUpdated: successfulUpdates.length,
-      playersTotal: jugadores.length,
+      playersTotal: jugadoresComputables.length,
       updateErrors: updateErrors.length,
       votesProcessed: totalValidVotes,
       votesCleared: 0,

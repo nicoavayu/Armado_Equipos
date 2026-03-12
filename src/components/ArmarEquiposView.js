@@ -715,8 +715,11 @@ export default function ArmarEquiposView({
         throw new Error('No se pudieron obtener los jugadores actualizados');
       }
 
+      const starterPlayers = (matchPlayers || []).filter((player) => player?.is_substitute !== true);
+      const playersForTeams = starterPlayers.length > 0 ? starterPlayers : matchPlayers;
+
       // Crear equipos balanceados
-      const teams = armarEquipos(matchPlayers);
+      const teams = armarEquipos(playersForTeams);
 
       if (!teams || teams.length !== 2) {
         throw new Error('Error al crear los equipos');
@@ -751,7 +754,7 @@ export default function ArmarEquiposView({
       setEstadoOverride('equipos_formados');
 
       // Redirigir a vista de equipos
-      onTeamsFormed(teams, matchPlayers);
+      onTeamsFormed(teams, playersForTeams);
 
     } catch (error) {
       let errorMessage = 'Error al cerrar la votación';
