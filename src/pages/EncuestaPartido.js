@@ -1614,11 +1614,11 @@ const EncuestaPartido = () => {
 
         const orderedRefs = [
           player?.usuario_id,
-          player?.user_id,
           player?.uuid,
+          player?.id,
+          player?.user_id,
           player?.auth_id,
           player?.player_id,
-          player?.id,
           player?.email,
           normalizeIdentityToken(player?.nombre),
           resolvePersistRef(player),

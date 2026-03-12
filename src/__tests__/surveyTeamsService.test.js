@@ -1,4 +1,4 @@
-import { lockSurveyTeamsOnce } from '../services/surveyTeamsService';
+import { lockSurveyTeamsOnce, resolvePersistRef } from '../services/surveyTeamsService';
 import { supabase } from '../supabase';
 
 jest.mock('../supabase', () => ({
@@ -109,5 +109,15 @@ describe('survey team locking (first writer wins)', () => {
     expect(result.success).toBe(true);
     expect(result.teamARefs).toEqual(['p1', 'p2']);
     expect(result.teamBRefs).toEqual(['p3', 'p4']);
+  });
+
+  test('prioritizes roster-compatible identifiers when resolving persist ref', () => {
+    const ref = resolvePersistRef({
+      user_id: 'legacy-user-ref',
+      uuid: 'player-uuid',
+      id: 42,
+    });
+
+    expect(ref).toBe('player-uuid');
   });
 });
