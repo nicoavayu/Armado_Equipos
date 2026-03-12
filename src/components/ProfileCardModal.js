@@ -501,9 +501,9 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
                         rel="noopener noreferrer"
                         aria-label="Abrir WhatsApp"
                         title="Abrir WhatsApp"
-                        className="bg-[#4CAF50] text-white h-11 w-[74px] px-4 rounded-xl font-semibold text-sm transition-all shadow-[0_2px_8px_rgba(76,175,80,0.3)] hover:bg-[#45a049] hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(76,175,80,0.4)] hover:text-white no-underline inline-flex items-center justify-center"
+                        className="bg-[#4CAF50] text-white h-11 w-[74px] px-4 rounded-[0.5rem] font-semibold text-sm transition-all shadow-[0_2px_8px_rgba(76,175,80,0.3)] hover:bg-[#45a049] hover:-translate-y-px hover:shadow-[0_4px_12px_rgba(76,175,80,0.4)] hover:text-white no-underline inline-flex items-center justify-center"
                       >
-                        <WhatsappIcon size={21} color="white" />
+                        <WhatsappIcon size={23} color="white" />
                       </a>
                     </div>
                   </div>
