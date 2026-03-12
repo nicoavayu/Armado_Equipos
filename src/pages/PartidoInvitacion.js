@@ -127,13 +127,20 @@ async function fetchInviteAccessState({ userId, matchId }) {
   const latestPendingInvite = rows.find(
     (row) => row?.type === 'match_invite' && hasPendingMatchInviteStatus(row),
   ) || null;
+  const inviteCode = String(
+    latestPendingInvite?.data?.codigo
+    ?? latestPendingInvite?.data?.matchCode
+    ?? latestPendingInvite?.data?.code
+    ?? latestPendingInvite?.data?.match_code
+    ?? '',
+  ).trim();
 
   const kickTs = getNotificationTimestampMs(latestKick);
   const inviteTs = getNotificationTimestampMs(latestPendingInvite);
   const hasActiveInvite = Boolean(latestPendingInvite) && (kickTs === 0 || inviteTs > kickTs);
   const blockedByKick = Boolean(latestKick) && !hasActiveInvite;
 
-  return { hasActiveInvite, blockedByKick };
+  return { hasActiveInvite, blockedByKick, inviteCode: inviteCode || null };
 }
 
 async function markOwnMatchInviteAs({ userId, matchId, status }) {
@@ -399,6 +406,20 @@ const fetchGuestMatchSnapshotWithAnon = async ({ matchId, codigo }) => {
   const rows = await response.json();
   if (!Array.isArray(rows) || !rows[0]) return null;
   return pickTeamsFieldsSnapshot(rows[0]);
+};
+
+const mergePartidoWithTeamsSnapshot = async ({ partidoBase, matchId, codigo }) => {
+  const base = partidoBase && typeof partidoBase === 'object' ? partidoBase : {};
+  try {
+    const snapshot = await fetchGuestMatchSnapshotWithAnon({
+      matchId,
+      codigo: codigo || null,
+    });
+    if (!snapshot) return base;
+    return { ...base, ...snapshot };
+  } catch (_snapshotError) {
+    return base;
+  }
 };
 
 function PlayersReadOnly({ jugadores, partido, mode }) {
@@ -699,6 +720,14 @@ function SharedInviteLayout({
   const isApproved = joinStatus === 'approved';
   const isPendingSync = joinStatus === 'approved_pending_sync';
   const isSending = submitting && joinStatus === 'none';
+  console.debug('[GUEST_CTA_LAYOUT]', {
+    mode,
+    ctaVariant,
+    joinStatus,
+    isApproved,
+    showViewTeamsButton,
+    usingJoinedBlock: isApproved,
+  });
   const matchPrimaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[#7d5aff] rounded-[5px] cursor-pointer transition-all text-white min-h-[44px] flex items-center justify-center text-center bg-[#6a43ff] shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] disabled:opacity-60 disabled:cursor-not-allowed';
   const matchSecondaryButtonClass = 'w-full font-bebas text-base px-4 py-2.5 border border-[rgba(88,107,170,0.46)] rounded-[5px] cursor-pointer transition-all text-[rgba(242,246,255,0.9)] min-h-[44px] flex items-center justify-center text-center bg-[rgba(23,35,74,0.72)] hover:bg-[rgba(31,45,91,0.82)] disabled:opacity-60 disabled:cursor-not-allowed';
   const publicCtaBaseClass = 'w-full font-bebas text-base px-4 py-2.5 border rounded-[5px] transition-all min-h-[44px] flex items-center justify-center text-center disabled:opacity-100';
@@ -1154,6 +1183,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             userId: user.id,
             matchId: partidoId,
           });
+          const inviteCodeFromNotification = String(inviteAccess?.inviteCode || '').trim();
 
           if (reqId !== reqIdRef.current) {
             console.log('[LOAD_PARTIDO] Aborting stale request (invite no-code)', { reqId, current: reqIdRef.current });
@@ -1201,7 +1231,18 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             return;
           }
 
-          setPartido({ ...partidoData, jugadoresCount: count || 0 });
+          const enrichedPartidoData = await mergePartidoWithTeamsSnapshot({
+            partidoBase: partidoData,
+            matchId: partidoId,
+            codigo: partidoData?.codigo || codigoParam || inviteCodeFromNotification || null,
+          });
+
+          if (reqId !== reqIdRef.current) {
+            console.log('[LOAD_PARTIDO] Aborting stale request (invite no-code enrich fetch)', { reqId, current: reqIdRef.current });
+            return;
+          }
+
+          setPartido({ ...enrichedPartidoData, jugadoresCount: count || 0 });
           setJugadores(jugadoresData || []);
           setInviteValidatedByNotification(true);
 
@@ -1279,7 +1320,18 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           .eq('partido_id', partidoId);
 
         if (reqId === reqIdRef.current) {
-          setPartido({ ...partidoData, jugadoresCount: count || 0 });
+          const enrichedPartidoData = await mergePartidoWithTeamsSnapshot({
+            partidoBase: partidoData,
+            matchId: partidoId,
+            codigo: codigoParam || partidoData?.codigo || null,
+          });
+
+          if (reqId !== reqIdRef.current) {
+            console.log('[LOAD_PARTIDO] Aborting stale request (invite mode enrich fetch)', { reqId, current: reqIdRef.current });
+            return;
+          }
+
+          setPartido({ ...enrichedPartidoData, jugadoresCount: count || 0 });
           setJugadores(jugadoresData || []);
           // UX: for invite links, unauthenticated users go straight to "Sumarte rápido".
           if (!user && mode === 'invite') {
@@ -2071,6 +2123,32 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   if (step === 'invitation') {
     const isPublic = mode === 'public';
     const showBottomNav = !isPublic && !!user;
+    const showViewTeamsButton = mode === 'invite'
+      && (
+        guestConfirmedTeams.isAvailable
+        || guestConfirmedTeams.hasConfirmedFlag
+        || Boolean(partido?.teams_confirmed)
+        || normalizeTeamsPayload(partido?.equipos_json ?? partido?.equipos).length > 0
+        || joinStatus === 'approved'
+      );
+    console.debug('[GUEST_CTA_RENDER]', {
+      mode,
+      step,
+      joinStatus,
+      isPublic,
+      partidoId,
+      teamsConfirmedFlag: Boolean(partido?.teams_confirmed),
+      equiposJsonCount: normalizeTeamsPayload(partido?.equipos_json ?? partido?.equipos).length,
+      guestConfirmedTeams,
+      guestIsAvailable: guestConfirmedTeams.isAvailable,
+      guestHasConfirmedFlag: guestConfirmedTeams.hasConfirmedFlag,
+      forcedByApprovedFallback: joinStatus === 'approved'
+        && !guestConfirmedTeams.isAvailable
+        && !guestConfirmedTeams.hasConfirmedFlag
+        && !Boolean(partido?.teams_confirmed)
+        && normalizeTeamsPayload(partido?.equipos_json ?? partido?.equipos).length === 0,
+      showViewTeamsButton,
+    });
     return (
       <>
         <SharedInviteLayout
@@ -2090,7 +2168,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           inlineNotice={inlineNotice}
           onClearInlineNotice={() => setInlineNotice(null)}
           onAddToCalendar={handleAddToCalendar}
-          showViewTeamsButton={mode === 'invite' && (guestConfirmedTeams.isAvailable || guestConfirmedTeams.hasConfirmedFlag)}
+          showViewTeamsButton={showViewTeamsButton}
           onViewTeams={() => setGuestTeamsModalOpen(true)}
           showBottomNav={showBottomNav}
         />
