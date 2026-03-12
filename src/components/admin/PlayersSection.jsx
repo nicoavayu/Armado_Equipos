@@ -7,6 +7,13 @@ import ConfirmModal from '../ConfirmModal';
 import { MoreVertical, LogOut, Share2, UserPlus } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { buildMatchCalendarIcs, shareOrDownloadCalendarIcs } from '../../utils/calendarInvite';
+import { supabase } from '../../supabase';
+import {
+  buildPlayerRefToKeyMap,
+  normalizeIdentityRef,
+  resolvePlayerKey,
+  toPlayerKeysFromRefs,
+} from '../../services/surveyTeamsService';
 
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const SLOT_SKEW_X = 0;
@@ -75,6 +82,255 @@ const resolveSlotsFromMatchType = (match = {}) => {
   };
 
   return fallbackByType[normalized] || 10;
+};
+
+const TEAM_REF_CANDIDATE_FIELDS = [
+  'ref',
+  'persist_ref',
+  'player_ref',
+  'playerRef',
+  'playerKey',
+  'key',
+  'usuario_id',
+  'user_id',
+  'uuid',
+  'auth_id',
+  'player_id',
+  'jugador_id',
+  'id',
+  'value',
+];
+
+const TEAM_REF_LABEL_FIELDS = ['nombre', 'name', 'label'];
+
+const TEAM_BALANCE_SCALE = [
+  { maxDiff: 0, label: 'MATCH PERFECTO', color: '#10B981' },
+  { maxDiff: 2, label: 'MUY PAREJO', color: '#10B981' },
+  { maxDiff: 5, label: 'PAREJO', color: '#84CC16' },
+  { maxDiff: 8, label: 'DESBALANCEADO', color: '#F59E0B' },
+  { maxDiff: Number.POSITIVE_INFINITY, label: 'MUY DESBALANCEADO', color: '#EF4444' },
+];
+
+const createEmptyGuestTeamsState = () => ({
+  isAvailable: false,
+  hasConfirmedFlag: false,
+  teamAName: 'Equipo A',
+  teamBName: 'Equipo B',
+  teamAPlayers: [],
+  teamBPlayers: [],
+  teamAScore: 0,
+  teamBScore: 0,
+  balanceDiff: 0,
+  balanceLabel: 'MUY PAREJO',
+  balanceColor: '#10B981',
+});
+
+const toFiniteNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const normalizeTeamsPayload = (value) => {
+  const raw = typeof value === 'string' ? (() => {
+    try {
+      return JSON.parse(value);
+    } catch (_error) {
+      return null;
+    }
+  })() : value;
+
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  if (raw && typeof raw === 'object' && Array.isArray(raw.teams)) return raw.teams.filter(Boolean);
+  return [];
+};
+
+const normalizeTeamToken = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const pickOrderedTeamsFromPayload = (teamsPayload = []) => {
+  const teams = Array.isArray(teamsPayload) ? teamsPayload.filter(Boolean) : [];
+  if (teams.length === 0) return [null, null];
+
+  const findByToken = (candidates = []) => teams.find((team) => candidates.includes(normalizeTeamToken(team?.id)));
+  const teamA = findByToken(['equipoa', 'teama', 'a']) || teams[0] || null;
+  const teamB = findByToken(['equipob', 'teamb', 'b']) || teams.find((team) => team !== teamA) || teams[1] || null;
+  return [teamA, teamB];
+};
+
+const resolveTeamPlayerRefsFromPayload = (teamPayload) => {
+  if (!teamPayload || typeof teamPayload !== 'object') return [];
+  return ['players', 'jugadores', 'members']
+    .map((field) => (Array.isArray(teamPayload?.[field]) ? teamPayload[field] : []))
+    .find((refs) => refs.length > 0) || [];
+};
+
+const getTeamRefCandidates = (ref) => {
+  if (ref === null || ref === undefined) return [];
+  if (typeof ref === 'string' || typeof ref === 'number' || typeof ref === 'boolean') {
+    return [String(ref).trim()].filter(Boolean);
+  }
+  if (typeof ref !== 'object') return [];
+
+  return TEAM_REF_CANDIDATE_FIELDS
+    .map((field) => String(ref?.[field] || '').trim())
+    .filter(Boolean);
+};
+
+const getTeamRefLabel = (ref) => {
+  if (!ref || typeof ref !== 'object') return '';
+  return TEAM_REF_LABEL_FIELDS
+    .map((field) => String(ref?.[field] || '').trim())
+    .find(Boolean) || '';
+};
+
+const normalizeTeamRefs = (value) => (
+  (Array.isArray(value) ? value : [])
+    .map((ref) => getTeamRefCandidates(ref)[0] || '')
+    .filter(Boolean)
+);
+
+const buildFallbackPlayersFromRefs = ({ rawRefs = [], normalizedRefs = [] }) => {
+  const seen = new Set();
+  return (Array.isArray(rawRefs) ? rawRefs : [])
+    .map((rawRef, index) => {
+      const label = getTeamRefLabel(rawRef) || String(normalizedRefs[index] || '').trim();
+      if (!label) return null;
+      const dedupeKey = normalizeIdentityRef(label);
+      if (seen.has(dedupeKey)) return null;
+      seen.add(dedupeKey);
+      return {
+        id: `guest-team-ref-${index}-${dedupeKey || index}`,
+        nombre: label,
+      };
+    })
+    .filter(Boolean);
+};
+
+const mapTeamRefsToPlayers = ({ refs = [], rawRefs = [], refToKeyMap, keyToPlayerMap }) => {
+  const keys = toPlayerKeysFromRefs({ refs, refToKeyMap });
+  const resolvedPlayers = keys
+    .map((key) => keyToPlayerMap.get(String(key).trim()))
+    .filter(Boolean);
+
+  if (resolvedPlayers.length > 0) {
+    return resolvedPlayers;
+  }
+
+  return buildFallbackPlayersFromRefs({ rawRefs, normalizedRefs: refs });
+};
+
+const computeTeamScore = ({ explicitScore, players = [] }) => {
+  const fromPayload = toFiniteNumber(explicitScore);
+  if (fromPayload !== null) return fromPayload;
+
+  const sum = (Array.isArray(players) ? players : []).reduce((acc, player) => {
+    const candidate = toFiniteNumber(player?.score ?? player?.promedio ?? player?.rating);
+    return acc + (candidate ?? 0);
+  }, 0);
+  return Number(sum.toFixed(1));
+};
+
+const resolveBalanceMeta = (diffValue) => {
+  const diff = Number.isFinite(Number(diffValue)) ? Number(diffValue) : 0;
+  return TEAM_BALANCE_SCALE.find((entry) => diff <= entry.maxDiff) || TEAM_BALANCE_SCALE[TEAM_BALANCE_SCALE.length - 1];
+};
+
+const GuestTeamsReadOnlyModal = ({
+  isOpen,
+  onClose,
+  teamAName,
+  teamBName,
+  teamAPlayers,
+  teamBPlayers,
+  teamAScore,
+  teamBScore,
+  balanceDiff,
+  balanceLabel,
+  balanceColor,
+}) => {
+  if (!isOpen) return null;
+
+  const renderTeamPlayerRow = (player, teamToken, index) => {
+    const avatarUrl = player?.foto_url || player?.avatar_url || '';
+    const key = `${teamToken}-${resolvePlayerKey(player) || player?.usuario_id || player?.id || player?.nombre || index}`;
+    return (
+      <div
+        key={key}
+        className="flex items-center gap-2 bg-[#07163b] border border-[rgba(41,170,255,0.86)] rounded-[6px] px-2.5 py-2 min-h-[44px]"
+      >
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt={player?.nombre || 'Jugador'}
+            className="w-7 h-7 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+          />
+        ) : (
+          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
+            {getInitials(player?.nombre || 'Jugador')}
+          </div>
+        )}
+        <span className="font-oswald text-[22px] leading-none text-white truncate">{player?.nombre || 'Jugador'}</span>
+      </div>
+    );
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[10050] bg-black/70 flex items-center justify-center px-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-[760px] rounded-[8px] border border-white/20 bg-[#181d48] shadow-[0_20px_60px_rgba(0,0,0,0.55)] p-4 sm:p-5"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-[#1b214e] border border-white/10 rounded-[6px] p-3">
+            <div className="font-bebas text-[36px] leading-none text-white uppercase tracking-[0.04em] text-center mb-2">{teamAName}</div>
+            <div className="flex flex-col gap-1.5">
+              {teamAPlayers.length > 0 ? teamAPlayers.map((player, index) => renderTeamPlayerRow(player, 'team-a', index)) : (
+                <div className="text-white/55 text-sm font-oswald text-center py-2">Sin jugadores</div>
+              )}
+            </div>
+            <div className="relative text-center w-full box-border mt-2 h-[74px] overflow-hidden rounded-[6px] border border-[#19d7b6cc] bg-[#07163b]">
+              <div className="w-full h-full flex flex-col items-center justify-center px-2">
+                <div className="text-white/75 text-[11px] font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
+                <div className="text-white font-bebas text-[48px] leading-none font-bold">{Number(teamAScore || 0).toFixed(1)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-[#1b214e] border border-white/10 rounded-[6px] p-3">
+            <div className="font-bebas text-[36px] leading-none text-white uppercase tracking-[0.04em] text-center mb-2">{teamBName}</div>
+            <div className="flex flex-col gap-1.5">
+              {teamBPlayers.length > 0 ? teamBPlayers.map((player, index) => renderTeamPlayerRow(player, 'team-b', index)) : (
+                <div className="text-white/55 text-sm font-oswald text-center py-2">Sin jugadores</div>
+              )}
+            </div>
+            <div className="relative text-center w-full box-border mt-2 h-[74px] overflow-hidden rounded-[6px] border border-[#19d7b6cc] bg-[#07163b]">
+              <div className="w-full h-full flex flex-col items-center justify-center px-2">
+                <div className="text-white/75 text-[11px] font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
+                <div className="text-white font-bebas text-[48px] leading-none font-bold">{Number(teamBScore || 0).toFixed(1)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="w-full border px-4 py-3 mt-3 rounded-[6px]"
+          style={{
+            borderColor: `${balanceColor}cc`,
+            background: 'linear-gradient(180deg, rgba(7,22,59,0.96) 0%, rgba(9,20,58,0.88) 100%)',
+            boxShadow: '0 0 10px rgba(41, 170, 255, 0.16)',
+          }}
+        >
+          <div className="text-center">
+            <div className="font-bebas text-base text-white/90 tracking-wider mb-0.5">BALANCE DEL PARTIDO</div>
+            <div className="font-bebas text-2xl text-white font-bold mb-0.5">DIF: {Number(balanceDiff || 0).toFixed(1)}</div>
+            <div className="font-oswald text-xs font-semibold tracking-wide" style={{ color: balanceColor }}>{balanceLabel}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 /**
@@ -148,6 +404,8 @@ const PlayersSection = ({
   const [isTitularesView, setIsTitularesView] = useState(true);
   const [animateCompletionTick, setAnimateCompletionTick] = useState(false);
   const [joinSuccessModalOpen, setJoinSuccessModalOpen] = useState(false);
+  const [guestTeamsModalOpen, setGuestTeamsModalOpen] = useState(false);
+  const [guestConfirmedTeams, setGuestConfirmedTeams] = useState(createEmptyGuestTeamsState);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const menuButtonRef = useRef(null);
   const adminMenuButtonRef = useRef(null);
@@ -168,6 +426,8 @@ const PlayersSection = ({
   const previousCompleteRef = useRef(isTitularesComplete);
   const showInviteStylePostJoin = !isAdmin && isPlayerInMatch;
   const showInviteStyleRoster = !isAdmin;
+  const showViewTeamsButton = showInviteStylePostJoin
+    && Boolean(guestConfirmedTeams.isAvailable || guestConfirmedTeams.hasConfirmedFlag);
   const hasActivePendingInvite = pendingInvitation && invitationStatus === 'pending';
   const inviteRequiredSlots = resolveSlotsFromMatchType(partidoActual);
   const inviteDisplayCount = jugadores?.length ?? 0;
@@ -236,6 +496,173 @@ const PlayersSection = ({
       }, 850);
     }
   }, [isTitularesComplete]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const clearGuestTeams = () => {
+      if (isCancelled) return;
+      setGuestConfirmedTeams(createEmptyGuestTeamsState());
+      setGuestTeamsModalOpen(false);
+    };
+
+    const loadGuestConfirmedTeams = async () => {
+      if (isAdmin || !showInviteStylePostJoin || !partidoActual?.id || !Array.isArray(jugadores) || jugadores.length === 0) {
+        clearGuestTeams();
+        return;
+      }
+
+      try {
+        let sourceMatch = partidoActual || {};
+        const matchIdNumber = Number(partidoActual?.id);
+        const matchIdFilter = Number.isFinite(matchIdNumber) ? matchIdNumber : partidoActual?.id;
+        let confirmationRow = null;
+
+        let persistedTeamsPayload = normalizeTeamsPayload(sourceMatch?.equipos_json ?? sourceMatch?.equipos);
+        let [teamPayloadA, teamPayloadB] = pickOrderedTeamsFromPayload(persistedTeamsPayload);
+        let payloadARefs = resolveTeamPlayerRefsFromPayload(teamPayloadA);
+        let payloadBRefs = resolveTeamPlayerRefsFromPayload(teamPayloadB);
+        let teamARawRefs = payloadARefs;
+        let teamBRawRefs = payloadBRefs;
+        let teamARefs = normalizeTeamRefs(teamARawRefs);
+        let teamBRefs = normalizeTeamRefs(teamBRawRefs);
+        let teamAName = String(teamPayloadA?.name || 'Equipo A').trim() || 'Equipo A';
+        let teamBName = String(teamPayloadB?.name || 'Equipo B').trim() || 'Equipo B';
+        let teamAScoreFromPayload = toFiniteNumber(teamPayloadA?.score);
+        let teamBScoreFromPayload = toFiniteNumber(teamPayloadB?.score);
+
+        if (teamARefs.length === 0 || teamBRefs.length === 0) {
+          teamARawRefs = Array.isArray(sourceMatch?.survey_team_a) ? sourceMatch.survey_team_a : [];
+          teamBRawRefs = Array.isArray(sourceMatch?.survey_team_b) ? sourceMatch.survey_team_b : [];
+          teamARefs = normalizeTeamRefs(teamARawRefs);
+          teamBRefs = normalizeTeamRefs(teamBRawRefs);
+        }
+
+        if (teamARefs.length === 0 || teamBRefs.length === 0) {
+          teamARawRefs = Array.isArray(sourceMatch?.final_team_a) ? sourceMatch.final_team_a : [];
+          teamBRawRefs = Array.isArray(sourceMatch?.final_team_b) ? sourceMatch.final_team_b : [];
+          teamARefs = normalizeTeamRefs(teamARawRefs);
+          teamBRefs = normalizeTeamRefs(teamBRawRefs);
+        }
+
+        if (teamARefs.length === 0 || teamBRefs.length === 0 || persistedTeamsPayload.length === 0) {
+          const { data: latestConfirmation, error: confirmationError } = await supabase
+            .from('partido_team_confirmations')
+            .select('team_a, team_b, teams_json')
+            .eq('partido_id', matchIdFilter)
+            .order('confirmed_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (!confirmationError && latestConfirmation) {
+            confirmationRow = latestConfirmation;
+          }
+        }
+
+        if (isCancelled) return;
+
+        if (confirmationRow) {
+          const confirmationPayload = normalizeTeamsPayload(confirmationRow?.teams_json);
+          if ((persistedTeamsPayload.length === 0 || teamARefs.length === 0 || teamBRefs.length === 0) && confirmationPayload.length > 0) {
+            persistedTeamsPayload = confirmationPayload;
+            [teamPayloadA, teamPayloadB] = pickOrderedTeamsFromPayload(persistedTeamsPayload);
+            payloadARefs = resolveTeamPlayerRefsFromPayload(teamPayloadA);
+            payloadBRefs = resolveTeamPlayerRefsFromPayload(teamPayloadB);
+            teamARawRefs = payloadARefs;
+            teamBRawRefs = payloadBRefs;
+            teamARefs = normalizeTeamRefs(teamARawRefs);
+            teamBRefs = normalizeTeamRefs(teamBRawRefs);
+            teamAName = String(teamPayloadA?.name || teamAName || 'Equipo A').trim() || 'Equipo A';
+            teamBName = String(teamPayloadB?.name || teamBName || 'Equipo B').trim() || 'Equipo B';
+            teamAScoreFromPayload = toFiniteNumber(teamPayloadA?.score) ?? teamAScoreFromPayload;
+            teamBScoreFromPayload = toFiniteNumber(teamPayloadB?.score) ?? teamBScoreFromPayload;
+          }
+
+          if (teamARefs.length === 0 || teamBRefs.length === 0) {
+            teamARawRefs = Array.isArray(confirmationRow?.team_a) ? confirmationRow.team_a : [];
+            teamBRawRefs = Array.isArray(confirmationRow?.team_b) ? confirmationRow.team_b : [];
+            teamARefs = normalizeTeamRefs(teamARawRefs);
+            teamBRefs = normalizeTeamRefs(teamBRawRefs);
+          }
+        }
+
+        const hasPersistedTeams = teamARefs.length > 0 && teamBRefs.length > 0;
+        const hasConfirmedFlag = Boolean(
+          sourceMatch?.teams_confirmed
+          ?? sourceMatch?.teams_locked
+          ?? confirmationRow,
+        );
+        const shouldExposeGuestTeams = hasConfirmedFlag || hasPersistedTeams || persistedTeamsPayload.length > 0;
+
+        if (!shouldExposeGuestTeams) {
+          clearGuestTeams();
+          return;
+        }
+
+        const refToKeyMap = buildPlayerRefToKeyMap(jugadores);
+        const keyToPlayerMap = new Map(
+          jugadores.map((player) => [String(resolvePlayerKey(player) || '').trim(), player]).filter(([key]) => key),
+        );
+        const teamAPlayers = mapTeamRefsToPlayers({
+          refs: teamARefs,
+          rawRefs: teamARawRefs,
+          refToKeyMap,
+          keyToPlayerMap,
+        });
+        const teamBPlayers = mapTeamRefsToPlayers({
+          refs: teamBRefs,
+          rawRefs: teamBRawRefs,
+          refToKeyMap,
+          keyToPlayerMap,
+        });
+        const hasDisplayableTeams = teamAPlayers.length > 0 && teamBPlayers.length > 0;
+
+        if (!hasDisplayableTeams) {
+          setGuestConfirmedTeams({
+            isAvailable: false,
+            hasConfirmedFlag,
+            teamAName,
+            teamBName,
+            teamAPlayers,
+            teamBPlayers,
+            teamAScore: 0,
+            teamBScore: 0,
+            balanceDiff: 0,
+            balanceLabel: 'MUY PAREJO',
+            balanceColor: '#10B981',
+          });
+          return;
+        }
+
+        const teamAScore = computeTeamScore({ explicitScore: teamAScoreFromPayload, players: teamAPlayers });
+        const teamBScore = computeTeamScore({ explicitScore: teamBScoreFromPayload, players: teamBPlayers });
+        const balanceDiff = Number(Math.abs(teamAScore - teamBScore).toFixed(1));
+        const balanceMeta = resolveBalanceMeta(balanceDiff);
+
+        setGuestConfirmedTeams({
+          isAvailable: true,
+          hasConfirmedFlag,
+          teamAName,
+          teamBName,
+          teamAPlayers,
+          teamBPlayers,
+          teamAScore,
+          teamBScore,
+          balanceDiff,
+          balanceLabel: balanceMeta.label,
+          balanceColor: balanceMeta.color,
+        });
+      } catch (_error) {
+        clearGuestTeams();
+      }
+    };
+
+    loadGuestConfirmedTeams();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isAdmin, showInviteStylePostJoin, partidoActual, jugadores]);
 
   const getSafeMenuPosition = (rect) => {
     const menuWidth = 192; // w-48
@@ -1035,8 +1462,16 @@ const PlayersSection = ({
             {showInviteStylePostJoin ? (
               <div className="w-full max-w-[340px] mx-auto px-2 sm:px-0 flex flex-col gap-2">
                 <div className="w-full border-t border-white/15 mb-1" aria-hidden="true" />
+                {showViewTeamsButton && (
+                  <button
+                    className={matchPrimaryButtonClass}
+                    onClick={() => setGuestTeamsModalOpen(true)}
+                  >
+                    <span>Ver equipos</span>
+                  </button>
+                )}
                 <button
-                  className={matchPrimaryButtonClass}
+                  className={showViewTeamsButton ? matchSecondaryButtonClass : matchPrimaryButtonClass}
                   onClick={handleAddToCalendar}
                 >
                   <span>Agregar al calendario</span>
@@ -1108,6 +1543,19 @@ const PlayersSection = ({
           singleButton={true}
           onConfirm={() => setJoinSuccessModalOpen(false)}
           onCancel={() => setJoinSuccessModalOpen(false)}
+        />
+        <GuestTeamsReadOnlyModal
+          isOpen={guestTeamsModalOpen}
+          onClose={() => setGuestTeamsModalOpen(false)}
+          teamAName={guestConfirmedTeams.teamAName}
+          teamBName={guestConfirmedTeams.teamBName}
+          teamAPlayers={guestConfirmedTeams.teamAPlayers}
+          teamBPlayers={guestConfirmedTeams.teamBPlayers}
+          teamAScore={guestConfirmedTeams.teamAScore}
+          teamBScore={guestConfirmedTeams.teamBScore}
+          balanceDiff={guestConfirmedTeams.balanceDiff}
+          balanceLabel={guestConfirmedTeams.balanceLabel}
+          balanceColor={guestConfirmedTeams.balanceColor}
         />
       </>
     );
