@@ -22,6 +22,11 @@ import {
   getNotificationTimestampMs,
   hasPendingMatchInviteStatus,
 } from '../utils/notificationInviteState';
+import {
+  buildPlayerRefToKeyMap,
+  resolvePlayerKey,
+  toPlayerKeysFromRefs,
+} from '../services/surveyTeamsService';
 
 /**
  * Pantalla pública de invitación a un partido
@@ -212,6 +217,19 @@ const PLACEHOLDER_NUMBER_STYLE = {
   lineHeight: 1,
 };
 
+const normalizeTeamRefs = (value) => (
+  (Array.isArray(value) ? value : [])
+    .map((ref) => String(ref || '').trim())
+    .filter(Boolean)
+);
+
+const mapTeamRefsToPlayers = ({ refs = [], refToKeyMap, keyToPlayerMap }) => {
+  const keys = toPlayerKeysFromRefs({ refs, refToKeyMap });
+  return keys
+    .map((key) => keyToPlayerMap.get(String(key).trim()))
+    .filter(Boolean);
+};
+
 function PlayersReadOnly({ jugadores, partido, mode }) {
   const requiredSlots = resolveSlotsFromMatchType(partido);
   const displayCount = jugadores?.length ?? 0;
@@ -374,6 +392,73 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   );
 }
 
+function GuestTeamsModal({
+  isOpen,
+  onClose,
+  teamAPlayers = [],
+  teamBPlayers = [],
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[10050] bg-black/70 flex items-center justify-center px-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-[760px] rounded-2xl border border-white/20 bg-[#0f1736] shadow-[0_20px_60px_rgba(0,0,0,0.55)] p-4 sm:p-5"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-bebas text-white text-[28px] leading-none tracking-[0.02em]">Equipos confirmados</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-white/80 hover:text-white text-2xl leading-none px-2 py-1 rounded-full hover:bg-white/10 transition-colors"
+            aria-label="Cerrar"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/5 p-3">
+            <div className="font-oswald text-cyan-200 text-sm tracking-[0.08em] uppercase mb-2">Equipo 1</div>
+            <div className="flex flex-col gap-1.5">
+              {teamAPlayers.length > 0 ? teamAPlayers.map((player) => (
+                <div
+                  key={`team-a-${resolvePlayerKey(player) || player?.usuario_id || player?.id || player?.nombre}`}
+                  className="text-white/90 text-sm font-oswald truncate"
+                >
+                  {player?.nombre || 'Jugador'}
+                </div>
+              )) : (
+                <div className="text-white/55 text-sm font-oswald">Sin jugadores</div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-fuchsia-400/25 bg-fuchsia-500/5 p-3">
+            <div className="font-oswald text-fuchsia-200 text-sm tracking-[0.08em] uppercase mb-2">Equipo 2</div>
+            <div className="flex flex-col gap-1.5">
+              {teamBPlayers.length > 0 ? teamBPlayers.map((player) => (
+                <div
+                  key={`team-b-${resolvePlayerKey(player) || player?.usuario_id || player?.id || player?.nombre}`}
+                  className="text-white/90 text-sm font-oswald truncate"
+                >
+                  {player?.nombre || 'Jugador'}
+                </div>
+              )) : (
+                <div className="text-white/55 text-sm font-oswald">Sin jugadores</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SharedInviteLayout({
   partido,
   jugadores,
@@ -391,6 +476,8 @@ function SharedInviteLayout({
   inlineNotice,
   onClearInlineNotice,
   onAddToCalendar,
+  showViewTeamsButton = false,
+  onViewTeams,
   showBottomNav = false,
 }) {
   const isSent = joinStatus === 'pending';
@@ -412,9 +499,17 @@ function SharedInviteLayout({
 
   const renderJoinedBlock = () => (
     <div className="flex flex-col gap-2 w-full">
+      {showViewTeamsButton && (
+        <button
+          onClick={onViewTeams}
+          className={matchPrimaryButtonClass}
+        >
+          Ver equipos
+        </button>
+      )}
       <button
         onClick={onAddToCalendar}
-        className={matchPrimaryButtonClass}
+        className={showViewTeamsButton ? matchSecondaryButtonClass : matchPrimaryButtonClass}
       >
         Agregar al calendario
       </button>
@@ -562,6 +657,12 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     afterConfirm: null,
   });
   const [inlineNotice, setInlineNotice] = useState(null);
+  const [guestTeamsModalOpen, setGuestTeamsModalOpen] = useState(false);
+  const [guestConfirmedTeams, setGuestConfirmedTeams] = useState({
+    isAvailable: false,
+    teamAPlayers: [],
+    teamBPlayers: [],
+  });
   const pendingContinueRef = useRef(null);
   const guestPhotoInputRef = useRef(null);
 
@@ -1002,6 +1103,111 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       supabase.removeChannel(channel);
     };
   }, [mode, user?.id, partidoId, navigate]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const clearConfirmedTeams = () => {
+      if (isCancelled) return;
+      setGuestConfirmedTeams({
+        isAvailable: false,
+        teamAPlayers: [],
+        teamBPlayers: [],
+      });
+      setGuestTeamsModalOpen(false);
+    };
+
+    const loadGuestConfirmedTeams = async () => {
+      if (mode !== 'invite') {
+        clearConfirmedTeams();
+        return;
+      }
+
+      if (!partidoId || !partido || !Array.isArray(jugadores) || jugadores.length === 0) {
+        clearConfirmedTeams();
+        return;
+      }
+
+      try {
+        const matchIdNum = Number(partidoId);
+        const matchIdFilter = Number.isFinite(matchIdNum) ? matchIdNum : partidoId;
+        const { data: partidoRow, error: partidoError } = await supabase
+          .from('partidos')
+          .select('teams_confirmed, survey_team_a, survey_team_b, final_team_a, final_team_b')
+          .eq('id', matchIdFilter)
+          .maybeSingle();
+
+        if (isCancelled) return;
+        if (partidoError) {
+          clearConfirmedTeams();
+          return;
+        }
+
+        const isConfirmedByAdmin = Boolean(partidoRow?.teams_confirmed ?? partido?.teams_confirmed);
+        if (!isConfirmedByAdmin) {
+          clearConfirmedTeams();
+          return;
+        }
+
+        let teamARefs = normalizeTeamRefs(partidoRow?.survey_team_a);
+        let teamBRefs = normalizeTeamRefs(partidoRow?.survey_team_b);
+        if (teamARefs.length === 0 || teamBRefs.length === 0) {
+          teamARefs = normalizeTeamRefs(partidoRow?.final_team_a);
+          teamBRefs = normalizeTeamRefs(partidoRow?.final_team_b);
+        }
+
+        if (teamARefs.length === 0 || teamBRefs.length === 0) {
+          const { data: confirmationRow } = await supabase
+            .from('partido_team_confirmations')
+            .select('team_a, team_b')
+            .eq('partido_id', matchIdFilter)
+            .order('confirmed_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (isCancelled) return;
+
+          if (confirmationRow) {
+            teamARefs = normalizeTeamRefs(confirmationRow.team_a);
+            teamBRefs = normalizeTeamRefs(confirmationRow.team_b);
+          }
+        }
+
+        if (teamARefs.length === 0 || teamBRefs.length === 0) {
+          clearConfirmedTeams();
+          return;
+        }
+
+        const refToKeyMap = buildPlayerRefToKeyMap(jugadores);
+        const keyToPlayerMap = new Map(
+          jugadores.map((player) => [String(resolvePlayerKey(player) || '').trim(), player]).filter(([key]) => key),
+        );
+        const teamAPlayers = mapTeamRefsToPlayers({ refs: teamARefs, refToKeyMap, keyToPlayerMap });
+        const teamBPlayers = mapTeamRefsToPlayers({ refs: teamBRefs, refToKeyMap, keyToPlayerMap });
+        const hasResolvedTeams = teamAPlayers.length > 0 && teamBPlayers.length > 0;
+
+        if (isCancelled) return;
+        if (!hasResolvedTeams) {
+          clearConfirmedTeams();
+          return;
+        }
+
+        setGuestConfirmedTeams({
+          isAvailable: true,
+          teamAPlayers,
+          teamBPlayers,
+        });
+      } catch (_guestTeamsError) {
+        clearConfirmedTeams();
+      }
+    };
+
+    loadGuestConfirmedTeams();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [mode, partidoId, partido, jugadores]);
 
   // Recheck membership for approved_pending_sync state
   async function recheckMembership(userUuid, matchId, originalReqId, attempt = 1) {
@@ -1535,8 +1741,18 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           inlineNotice={inlineNotice}
           onClearInlineNotice={() => setInlineNotice(null)}
           onAddToCalendar={handleAddToCalendar}
+          showViewTeamsButton={mode === 'invite' && guestConfirmedTeams.isAvailable}
+          onViewTeams={() => setGuestTeamsModalOpen(true)}
           showBottomNav={showBottomNav}
         />
+        {mode === 'invite' && (
+          <GuestTeamsModal
+            isOpen={guestTeamsModalOpen}
+            onClose={() => setGuestTeamsModalOpen(false)}
+            teamAPlayers={guestConfirmedTeams.teamAPlayers}
+            teamBPlayers={guestConfirmedTeams.teamBPlayers}
+          />
+        )}
         <ConfirmModal
           isOpen={scheduleWarning.isOpen}
           title="Conflicto de horario"
