@@ -1425,21 +1425,18 @@ export const buildActivityFeed = async (notifications = [], options = {}) => {
 
   const merged = [...activeMatchItems, ...notificationItems, ...(weeklyInsight ? [weeklyInsight] : [])];
   merged.sort((a, b) => {
-    const byPriority = (a.priority ?? 99) - (b.priority ?? 99);
-    if (byPriority !== 0) return byPriority;
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    const aTs = new Date(a?.createdAt || 0).getTime();
+    const bTs = new Date(b?.createdAt || 0).getTime();
+    return bTs - aTs;
   });
 
   const seen = new Set();
   const deduped = [];
-  let lastType = null;
   for (const item of merged) {
     const key = `${item.type}::${item.partidoId ?? item.route}`;
     if (seen.has(key)) continue;
-    if (lastType === item.type) continue;
     seen.add(key);
     deduped.push(item);
-    lastType = item.type;
     if (deduped.length >= ACTIVITY_MAX_ITEMS) break;
   }
 
