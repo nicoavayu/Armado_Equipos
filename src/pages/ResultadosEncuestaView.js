@@ -750,8 +750,9 @@ const ResultadosEncuestaView = () => {
             style={{
               fontSize: titleFontSize,
               color: border,
+              letterSpacing: '0.02em',
               textShadow: `0 0 22px ${accent}`,
-              animation: stage === 0 ? 'eaTitleIn 760ms cubic-bezier(.2,.9,.2,1) 80ms both' : 'none',
+              animation: 'eaTitleIn 760ms cubic-bezier(.2,.9,.2,1) 80ms both',
             }}
           >
             {title}
@@ -927,8 +928,8 @@ const ResultadosEncuestaView = () => {
             100% { opacity:1; transform: translateY(0px) scale(1); }
           }
           @keyframes eaTitleIn {
-            0% { opacity:0; transform: translateY(18px) scale(0.98); letter-spacing: .2em; }
-            100% { opacity:1; transform: translateY(0px) scale(1); letter-spacing: .02em; }
+            0% { opacity:0; transform: translateY(14px) scale(0.99); }
+            100% { opacity:1; transform: translateY(0px) scale(1); }
           }
           @keyframes eaSubIn {
             0% { opacity:0; transform: translateY(10px); }
