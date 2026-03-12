@@ -600,51 +600,6 @@ const ResultadosEncuestaView = () => {
     );
     const storyCardMaxWidth = Math.min(maxWidthByScreen, maxWidthByHeight);
     const storyCardHeight = Math.round(storyCardMaxWidth / CARD_FRAME_RATIO);
-    const storyLayoutOverrides = React.useMemo(() => {
-      if (isShortHeight) {
-        return {
-          nameTop: '15.8%',
-          nameMargin: '0px',
-          photoTop: '18.7%',
-          photoOffsetY: '4px',
-          photoSize: '51%',
-          rightStatsRight: '22%',
-          rightStatsTranslateY: '68.8%',
-          leftMetaLeft: '6%',
-          leftMetaTranslateY: '81%',
-          centerTop: '54.1%',
-          ratingMarginTop: 'clamp(14px, 3vw, 18px)',
-        };
-      }
-      if (isCompactHeight) {
-        return {
-          nameTop: '15.6%',
-          nameMargin: '0px',
-          photoTop: '18.8%',
-          photoOffsetY: '4px',
-          photoSize: '51.2%',
-          rightStatsRight: '21.4%',
-          rightStatsTranslateY: '69.2%',
-          leftMetaLeft: '6%',
-          leftMetaTranslateY: '82%',
-          centerTop: '54.3%',
-          ratingMarginTop: 'clamp(14px, 3vw, 18px)',
-        };
-      }
-      return {
-        nameTop: '15.4%',
-        nameMargin: '0px',
-        photoTop: '18.9%',
-        photoOffsetY: '4px',
-        photoSize: '51.5%',
-        rightStatsRight: '20.8%',
-        rightStatsTranslateY: '69.5%',
-        leftMetaLeft: '5.8%',
-        leftMetaTranslateY: '82.5%',
-        centerTop: '54.5%',
-        ratingMarginTop: 'clamp(14px, 3vw, 18px)',
-      };
-    }, [isCompactHeight, isShortHeight]);
     const footerMinHeight = kind === 'penalty'
       ? (isShortHeight ? 48 : 56)
       : (isShortHeight ? 40 : 46);
@@ -728,8 +683,6 @@ const ResultadosEncuestaView = () => {
                 disableInternalMotion={true}
                 awardsLayout="none"
                 cardMaxWidth={storyCardMaxWidth}
-                layoutOverrides={storyLayoutOverrides}
-                photoObjectPosition="center center"
               />
             </div>
           )}
