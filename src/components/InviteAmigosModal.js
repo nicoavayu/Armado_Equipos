@@ -174,42 +174,28 @@ const InviteAmigosModal = ({
         } else {
           let blockedFromDb = new Set();
 
-          const { data: inviteStateRows, error: inviteStateError } = await supabase.rpc('get_match_invite_states', {
-            p_partido_id: Number(partidoActual.id),
-            p_user_ids: friendIds,
-          });
+          const { data: extData, error: extError } = await supabase
+            .from('notifications_ext')
+            .select('id, user_id, data, send_at, created_at')
+            .eq('type', 'match_invite')
+            .eq('match_id_text', partidoActual.id.toString())
+            .in('user_id', friendIds);
 
-          if (!inviteStateError) {
-            blockedFromDb = new Set(
-              (inviteStateRows || [])
-                .filter((row) => shouldBlockInvitationForStatus(row?.invite_status))
-                .map((row) => String(row?.user_id || '').trim())
-                .filter(Boolean),
-            );
+          if (extError && extError.code !== '42P01') {
+            throw extError;
+          }
+
+          if (!extError) {
+            blockedFromDb = collectBlockedInviteUserIds(extData || []);
           } else {
-            const { data: extData, error: extError } = await supabase
-              .from('notifications_ext')
-              .select('id, user_id, data, send_at, created_at')
+            const { data: fallbackRows, error: fallbackError } = await supabase
+              .from('notifications')
+              .select('id, user_id, data, send_at, created_at, partido_id, match_ref')
               .eq('type', 'match_invite')
-              .eq('match_id_text', partidoActual.id.toString())
+              .eq('partido_id', Number(partidoActual.id))
               .in('user_id', friendIds);
-
-            if (extError && extError.code !== '42P01') {
-              throw extError;
-            }
-
-            if (!extError) {
-              blockedFromDb = collectBlockedInviteUserIds(extData || []);
-            } else {
-              const { data: fallbackRows, error: fallbackError } = await supabase
-                .from('notifications')
-                .select('id, user_id, data, send_at, created_at, partido_id, match_ref')
-                .eq('type', 'match_invite')
-                .eq('partido_id', Number(partidoActual.id))
-                .in('user_id', friendIds);
-              if (fallbackError) throw fallbackError;
-              blockedFromDb = collectBlockedInviteUserIds(fallbackRows || []);
-            }
+            if (fallbackError) throw fallbackError;
+            blockedFromDb = collectBlockedInviteUserIds(fallbackRows || []);
           }
 
           const mergedBlocked = new Set([...cachedBlockedIds, ...blockedFromDb]);
