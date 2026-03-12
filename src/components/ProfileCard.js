@@ -21,14 +21,23 @@ const getCountry = (c) => {
   return map[c] || c?.toUpperCase() || 'ARG';
 };
 
+const normalizeFootToken = (foot) => {
+  const value = String(foot || '').trim().toLowerCase();
+  if (!value) return null;
+  if (['right', 'derecha', 'der', 'diestro', 'diestra', 'r'].includes(value)) return 'right';
+  if (['left', 'izquierda', 'izq', 'zurdo', 'zurda', 'l'].includes(value)) return 'left';
+  if (['both', 'ambas', 'ambos', 'ambidiestro', 'ambidiesta', 'amb', 'a'].includes(value)) return 'both';
+  return value;
+};
+
 const getFootAbbr = (foot) => {
   const map = { right: 'DER', left: 'IZQ', both: 'AMB' };
   if (!foot) return null;
-  return map[String(foot).toLowerCase()] || null;
+  return map[normalizeFootToken(foot)] || null;
 };
 
 const getFootBadgeStyle = (foot) => {
-  const value = String(foot || '').toLowerCase();
+  const value = normalizeFootToken(foot);
   if (value === 'right') {
     return {
       borderColor: '#38BDF8',
@@ -63,6 +72,17 @@ const getFootBadgeStyle = (foot) => {
 
 const getLevelValue = (nivel) => {
   if (nivel === null || nivel === undefined || nivel === '') return null;
+  const label = String(nivel).trim().toLowerCase();
+  const byLabel = {
+    recreativo: 1,
+    amateur: 2,
+    intermedio: 3,
+    competitivo: 4,
+    avanzado: 5,
+  };
+  if (Object.prototype.hasOwnProperty.call(byLabel, label)) {
+    return byLabel[label];
+  }
   const parsed = Number.parseInt(nivel, 10);
   if (Number.isNaN(parsed)) return null;
   return Math.min(5, Math.max(1, parsed));

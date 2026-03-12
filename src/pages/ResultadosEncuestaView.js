@@ -557,52 +557,54 @@ const ResultadosEncuestaView = () => {
     const storyLayoutOverrides = React.useMemo(() => {
       if (isShortHeight) {
         return {
-          nameTop: '11.3%',
+          nameTop: '12.5%',
           nameMargin: '0px',
-          photoTop: '18.1%',
+          photoTop: '18.7%',
           photoOffsetY: '4px',
-          photoSize: '51.4%',
-          rightStatsRight: '8%',
-          rightStatsTranslateY: '66.5%',
+          photoSize: '51%',
+          rightStatsRight: '13.8%',
+          rightStatsTranslateY: '68.8%',
           leftMetaLeft: '6%',
-          leftMetaTranslateY: '79%',
-          centerTop: '55.1%',
-          ratingMarginTop: 'clamp(7px, 2.2vw, 11px)',
+          leftMetaTranslateY: '81%',
+          centerTop: '54.1%',
+          ratingMarginTop: 'clamp(6px, 2vw, 10px)',
         };
       }
       if (isCompactHeight) {
         return {
-          nameTop: '11.1%',
+          nameTop: '12.3%',
           nameMargin: '0px',
-          photoTop: '18.3%',
+          photoTop: '18.8%',
           photoOffsetY: '4px',
-          photoSize: '51.7%',
-          rightStatsRight: '8%',
-          rightStatsTranslateY: '67%',
+          photoSize: '51.2%',
+          rightStatsRight: '13.2%',
+          rightStatsTranslateY: '69.2%',
           leftMetaLeft: '6%',
-          leftMetaTranslateY: '80%',
-          centerTop: '55.4%',
-          ratingMarginTop: 'clamp(8px, 2.4vw, 12px)',
+          leftMetaTranslateY: '82%',
+          centerTop: '54.3%',
+          ratingMarginTop: 'clamp(6px, 2.1vw, 11px)',
         };
       }
       return {
-        nameTop: '11%',
+        nameTop: '12%',
         nameMargin: '0px',
-        photoTop: '18.5%',
+        photoTop: '18.9%',
         photoOffsetY: '4px',
-        photoSize: '52%',
-        rightStatsRight: '7.5%',
-        rightStatsTranslateY: '67.5%',
+        photoSize: '51.5%',
+        rightStatsRight: '12.8%',
+        rightStatsTranslateY: '69.5%',
         leftMetaLeft: '5.8%',
-        leftMetaTranslateY: '81%',
-        centerTop: '55.6%',
-        ratingMarginTop: 'clamp(8px, 2.5vw, 12px)',
+        leftMetaTranslateY: '82.5%',
+        centerTop: '54.5%',
+        ratingMarginTop: 'clamp(6px, 2.2vw, 11px)',
       };
     }, [isCompactHeight, isShortHeight]);
     const footerMinHeight = kind === 'penalty'
       ? (isShortHeight ? 48 : 56)
       : (isShortHeight ? 40 : 46);
-    const footerLift = isShortHeight ? 18 : 24;
+    const footerLift = isShortHeight ? 44 : 52;
+    const winnerIconSize = isShortHeight ? 68 : 76;
+    const winnerPlusSize = isShortHeight ? 30 : 34;
 
     return (
       <div
@@ -765,28 +767,25 @@ const ResultadosEncuestaView = () => {
 
               {kind !== 'penalty' && stage >= 4 && (
                 <div
-                  className="px-4.5 sm:px-5 py-1.5 sm:py-2 rounded-full text-white font-bold text-sm sm:text-base flex items-center gap-2 sm:gap-2.5"
+                  className="text-white font-black flex items-end gap-2"
                   style={{
-                    background: 'rgba(0,0,0,0.5)',
-                    border: `1px solid ${accent}`,
-                    boxShadow: `0 0 20px ${accent}`,
-                    backdropFilter: 'blur(10px)',
                     animation: 'eaWinnerChipIn 420ms ease-out both',
+                    textShadow: `0 0 16px ${accent}`,
                   }}
                 >
                   {typeof icon === 'string' && icon.startsWith('/') ? (
                     <img
                       src={icon}
                       alt="premio ganador"
-                      width={24}
-                      height={24}
+                      width={winnerIconSize}
+                      height={winnerIconSize}
                       draggable={false}
-                      style={{ filter: `drop-shadow(0 0 8px ${accent})` }}
+                      style={{ filter: `drop-shadow(0 0 16px ${accent})` }}
                     />
                   ) : (
-                    <span style={{ filter: `drop-shadow(0 0 8px ${accent})` }}>{icon}</span>
+                    <span style={{ filter: `drop-shadow(0 0 16px ${accent})` }}>{icon}</span>
                   )}
-                  <span>+1</span>
+                  <span style={{ fontSize: winnerPlusSize, lineHeight: 1 }}>+1</span>
                 </div>
               )}
 
