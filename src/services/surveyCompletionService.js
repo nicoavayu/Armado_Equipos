@@ -219,6 +219,10 @@ const fetchSurveyResultsRowForMatch = async (partidoId) => {
   return data || null;
 };
 
+const hasSurveyResultsAwardsStatusColumn = (row) => (
+  Boolean(row) && Object.prototype.hasOwnProperty.call(row, 'awards_status')
+);
+
 export async function setMatchAwardsStatus(partidoId, status) {
   const idNum = Number(partidoId);
   if (!Number.isFinite(idNum) || idNum <= 0) {
@@ -1146,9 +1150,23 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 
   if (computedStatus === RESULT_STATUS_NOT_PLAYED) {
     finalAwardsStatus = 'skipped_not_played';
-    const statusRes = await setMatchAwardsStatus(idNum, finalAwardsStatus);
-    if (!statusRes?.ok && !statusRes?.unsupported) {
-      console.warn('[FINALIZE] failed to persist skipped_not_played awards status', { partidoId: idNum, statusRes });
+    let surveyResultsRow = null;
+    try {
+      surveyResultsRow = await fetchSurveyResultsRowForMatch(idNum);
+    } catch (surveyResultsReadErr) {
+      console.warn('[FINALIZE] could not read survey_results before awards status write', {
+        partidoId: idNum,
+        surveyResultsReadErr,
+      });
+    }
+
+    if (hasSurveyResultsAwardsStatusColumn(surveyResultsRow)) {
+      const statusRes = await setMatchAwardsStatus(idNum, finalAwardsStatus);
+      if (!statusRes?.ok && !statusRes?.unsupported) {
+        console.warn('[FINALIZE] failed to persist skipped_not_played awards status', { partidoId: idNum, statusRes });
+      }
+    } else if (surveyResultsRow) {
+      console.info('[FINALIZE] skipping awards_status write because column is not available in survey_results');
     }
   } else {
     try {
@@ -1192,9 +1210,13 @@ export async function finalizeIfComplete(partidoId, options = {}) {
       });
     }
 
-    const statusRes = await setMatchAwardsStatus(idNum, finalAwardsStatus);
-    if (!statusRes?.ok && !statusRes?.unsupported) {
-      console.warn('[FINALIZE] failed to persist awards status', { partidoId: idNum, finalAwardsStatus, statusRes });
+    if (hasSurveyResultsAwardsStatusColumn(awardsRow)) {
+      const statusRes = await setMatchAwardsStatus(idNum, finalAwardsStatus);
+      if (!statusRes?.ok && !statusRes?.unsupported) {
+        console.warn('[FINALIZE] failed to persist awards status', { partidoId: idNum, finalAwardsStatus, statusRes });
+      }
+    } else if (awardsRow) {
+      console.info('[FINALIZE] skipping awards_status write because column is not available in survey_results');
     }
   }
 
