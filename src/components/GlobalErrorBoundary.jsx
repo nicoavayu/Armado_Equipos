@@ -20,6 +20,10 @@ class GlobalErrorBoundary extends React.Component {
   }
 
   handleRetry = () => {
+    if (isChunkLoadError(this.state.error)) {
+      const recovered = recoverFromChunkLoadError({ force: true });
+      if (recovered) return;
+    }
     window.location.reload();
   };
 

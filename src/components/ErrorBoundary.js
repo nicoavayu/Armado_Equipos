@@ -33,7 +33,10 @@ class ErrorBoundary extends React.Component {
           <button onClick={() => {
             try {
               if (chunkError) {
-                window.location.reload();
+                const recovered = recoverFromChunkLoadError({ force: true });
+                if (!recovered) {
+                  window.location.reload();
+                }
                 return;
               }
 
