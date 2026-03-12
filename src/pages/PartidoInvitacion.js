@@ -22,12 +22,6 @@ import {
   getNotificationTimestampMs,
   hasPendingMatchInviteStatus,
 } from '../utils/notificationInviteState';
-import {
-  buildPlayerRefToKeyMap,
-  normalizeIdentityRef,
-  resolvePlayerKey,
-  toPlayerKeysFromRefs,
-} from '../services/surveyTeamsService';
 
 /**
  * Pantalla pública de invitación a un partido
@@ -225,203 +219,6 @@ const PLACEHOLDER_NUMBER_STYLE = {
   lineHeight: 1,
 };
 
-const TEAM_REF_CANDIDATE_FIELDS = [
-  'ref',
-  'persist_ref',
-  'player_ref',
-  'playerRef',
-  'playerKey',
-  'key',
-  'usuario_id',
-  'user_id',
-  'uuid',
-  'auth_id',
-  'player_id',
-  'jugador_id',
-  'id',
-  'value',
-];
-
-const TEAM_REF_LABEL_FIELDS = ['nombre', 'name', 'label'];
-
-const getTeamRefCandidates = (ref) => {
-  if (ref === null || ref === undefined) return [];
-  if (typeof ref === 'string' || typeof ref === 'number' || typeof ref === 'boolean') {
-    return [String(ref).trim()].filter(Boolean);
-  }
-  if (typeof ref !== 'object') return [];
-
-  return TEAM_REF_CANDIDATE_FIELDS
-    .map((field) => String(ref?.[field] || '').trim())
-    .filter(Boolean);
-};
-
-const getTeamRefLabel = (ref) => {
-  if (!ref || typeof ref !== 'object') return '';
-  return TEAM_REF_LABEL_FIELDS
-    .map((field) => String(ref?.[field] || '').trim())
-    .find(Boolean) || '';
-};
-
-const normalizeTeamRefs = (value) => (
-  (Array.isArray(value) ? value : [])
-    .map((ref) => getTeamRefCandidates(ref)[0] || '')
-    .filter(Boolean)
-);
-
-const buildFallbackPlayersFromRefs = ({ rawRefs = [], normalizedRefs = [] }) => {
-  const seen = new Set();
-  return (Array.isArray(rawRefs) ? rawRefs : [])
-    .map((rawRef, index) => {
-      const label = getTeamRefLabel(rawRef) || String(normalizedRefs[index] || '').trim();
-      if (!label) return null;
-      const dedupeKey = normalizeIdentityRef(label);
-      if (seen.has(dedupeKey)) return null;
-      seen.add(dedupeKey);
-      return {
-        id: `guest-team-ref-${index}-${dedupeKey || index}`,
-        nombre: label,
-      };
-    })
-    .filter(Boolean);
-};
-
-const mapTeamRefsToPlayers = ({ refs = [], rawRefs = [], refToKeyMap, keyToPlayerMap }) => {
-  const keys = toPlayerKeysFromRefs({ refs, refToKeyMap });
-  const resolvedPlayers = keys
-    .map((key) => keyToPlayerMap.get(String(key).trim()))
-    .filter(Boolean);
-
-  if (resolvedPlayers.length > 0) {
-    return resolvedPlayers;
-  }
-
-  return buildFallbackPlayersFromRefs({ rawRefs, normalizedRefs: refs });
-};
-
-const TEAM_BALANCE_SCALE = [
-  { maxDiff: 0, label: 'MATCH PERFECTO', color: '#10B981' },
-  { maxDiff: 2, label: 'MUY PAREJO', color: '#10B981' },
-  { maxDiff: 5, label: 'PAREJO', color: '#84CC16' },
-  { maxDiff: 8, label: 'DESBALANCEADO', color: '#F59E0B' },
-  { maxDiff: Number.POSITIVE_INFINITY, label: 'MUY DESBALANCEADO', color: '#EF4444' },
-];
-
-const toFiniteNumber = (value) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const normalizeTeamsPayload = (value) => {
-  const raw = typeof value === 'string' ? (() => {
-    try {
-      return JSON.parse(value);
-    } catch (_error) {
-      return null;
-    }
-  })() : value;
-
-  if (Array.isArray(raw)) return raw.filter(Boolean);
-  if (raw && typeof raw === 'object' && Array.isArray(raw.teams)) return raw.teams.filter(Boolean);
-  return [];
-};
-
-const normalizeTeamToken = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-
-const pickOrderedTeamsFromPayload = (teamsPayload = []) => {
-  const teams = Array.isArray(teamsPayload) ? teamsPayload.filter(Boolean) : [];
-  if (teams.length === 0) return [null, null];
-
-  const findByToken = (candidates = []) => teams.find((team) => candidates.includes(normalizeTeamToken(team?.id)));
-  const teamA = findByToken(['equipoa', 'teama', 'a']) || teams[0] || null;
-  const teamB = findByToken(['equipob', 'teamb', 'b']) || teams.find((team) => team !== teamA) || teams[1] || null;
-  return [teamA, teamB];
-};
-
-const resolveTeamPlayerRefsFromPayload = (teamPayload) => {
-  if (!teamPayload || typeof teamPayload !== 'object') return [];
-  const rawRefs = ['players', 'jugadores', 'members']
-    .map((field) => (Array.isArray(teamPayload?.[field]) ? teamPayload[field] : []))
-    .find((arr) => arr.length > 0) || [];
-  return rawRefs;
-};
-
-const computeTeamScore = ({ explicitScore, players = [] }) => {
-  const fromPayload = toFiniteNumber(explicitScore);
-  if (fromPayload !== null) return fromPayload;
-
-  const sum = (Array.isArray(players) ? players : []).reduce((acc, player) => {
-    const candidate = toFiniteNumber(player?.score ?? player?.promedio ?? player?.rating);
-    return acc + (candidate ?? 0);
-  }, 0);
-  return Number(sum.toFixed(1));
-};
-
-const resolveBalanceMeta = (diffValue) => {
-  const diff = Number.isFinite(Number(diffValue)) ? Number(diffValue) : 0;
-  return TEAM_BALANCE_SCALE.find((entry) => diff <= entry.maxDiff) || TEAM_BALANCE_SCALE[TEAM_BALANCE_SCALE.length - 1];
-};
-
-const pickTeamsFieldsSnapshot = (value) => {
-  if (!value || typeof value !== 'object') return null;
-  const snapshot = {
-    teams_confirmed: value?.teams_confirmed,
-    teams_locked: value?.teams_locked,
-    equipos_json: value?.equipos_json,
-    equipos: value?.equipos,
-    survey_team_a: value?.survey_team_a,
-    survey_team_b: value?.survey_team_b,
-    final_team_a: value?.final_team_a,
-    final_team_b: value?.final_team_b,
-  };
-  const hasAnyField = Object.values(snapshot).some((fieldValue) => fieldValue !== null && fieldValue !== undefined);
-  return hasAnyField ? snapshot : null;
-};
-
-const fetchGuestMatchSnapshotWithAnon = async ({ matchId, codigo }) => {
-  const supabaseUrl = String(process.env.REACT_APP_SUPABASE_URL || '').trim();
-  const anonKey = String(process.env.REACT_APP_SUPABASE_ANON_KEY || '').trim();
-  const normalizedMatchId = Number(matchId);
-  if (!supabaseUrl || !anonKey || !Number.isFinite(normalizedMatchId) || normalizedMatchId <= 0) {
-    return null;
-  }
-
-  const params = new URLSearchParams();
-  params.set('select', 'teams_confirmed,teams_locked,equipos_json,equipos,survey_team_a,survey_team_b,final_team_a,final_team_b');
-  params.set('id', `eq.${normalizedMatchId}`);
-  if (codigo) {
-    params.set('codigo', `eq.${String(codigo).trim()}`);
-  }
-
-  const response = await fetch(`${supabaseUrl}/rest/v1/partidos?${params.toString()}`, {
-    method: 'GET',
-    headers: {
-      apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`,
-      Accept: 'application/json',
-    },
-  });
-
-  if (!response.ok) return null;
-  const rows = await response.json();
-  if (!Array.isArray(rows) || !rows[0]) return null;
-  return pickTeamsFieldsSnapshot(rows[0]);
-};
-
-const mergePartidoWithTeamsSnapshot = async ({ partidoBase, matchId, codigo }) => {
-  const base = partidoBase && typeof partidoBase === 'object' ? partidoBase : {};
-  try {
-    const snapshot = await fetchGuestMatchSnapshotWithAnon({
-      matchId,
-      codigo: codigo || null,
-    });
-    if (!snapshot) return base;
-    return { ...base, ...snapshot };
-  } catch (_snapshotError) {
-    return base;
-  }
-};
-
 function PlayersReadOnly({ jugadores, partido, mode }) {
   const requiredSlots = resolveSlotsFromMatchType(partido);
   const displayCount = jugadores?.length ?? 0;
@@ -584,117 +381,6 @@ function PlayersReadOnly({ jugadores, partido, mode }) {
   );
 }
 
-function GuestTeamsModal({
-  isOpen,
-  onClose,
-  teamAName = 'Equipo A',
-  teamBName = 'Equipo B',
-  teamAPlayers = [],
-  teamBPlayers = [],
-  teamAScore = 0,
-  teamBScore = 0,
-  balanceDiff = 0,
-  balanceLabel = 'MUY PAREJO',
-  balanceColor = '#10B981',
-}) {
-  if (!isOpen) return null;
-
-  const renderTeamPlayerRow = (player, teamToken, index) => {
-    const avatarUrl = player?.foto_url || player?.avatar_url || '';
-    const key = `${teamToken}-${resolvePlayerKey(player) || player?.usuario_id || player?.id || player?.nombre || index}`;
-    return (
-      <div
-        key={key}
-        className="flex items-center gap-2 bg-[#07163b] border border-[rgba(41,170,255,0.86)] rounded-[6px] px-2.5 py-2 min-h-[44px]"
-      >
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt={player?.nombre || 'Jugador'}
-            className="w-7 h-7 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
-          />
-        ) : (
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
-            {getInitials(player?.nombre || 'Jugador')}
-          </div>
-        )}
-        <span className="font-oswald text-[22px] leading-none text-white truncate">{player?.nombre || 'Jugador'}</span>
-      </div>
-    );
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-[10050] bg-black/70 flex items-center justify-center px-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-[760px] rounded-[8px] border border-white/20 bg-[#181d48] shadow-[0_20px_60px_rgba(0,0,0,0.55)] p-4 sm:p-5"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bebas text-white text-[28px] leading-none tracking-[0.02em]">Equipos confirmados</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-white/80 hover:text-white text-2xl leading-none px-2 py-1 rounded-full hover:bg-white/10 transition-colors"
-            aria-label="Cerrar"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-[#1b214e] border border-white/10 rounded-[6px] p-3">
-            <div className="font-bebas text-[36px] leading-none text-white uppercase tracking-[0.04em] text-center mb-2">{teamAName}</div>
-            <div className="flex flex-col gap-1.5">
-              {teamAPlayers.length > 0 ? teamAPlayers.map((player, index) => renderTeamPlayerRow(player, 'team-a', index)) : (
-                <div className="text-white/55 text-sm font-oswald text-center py-2">Sin jugadores</div>
-              )}
-            </div>
-            <div className="relative text-center w-full box-border mt-2 h-[74px] overflow-hidden rounded-[6px] border border-[#19d7b6cc] bg-[#07163b]">
-              <div className="w-full h-full flex flex-col items-center justify-center px-2">
-                <div className="text-white/75 text-[11px] font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
-                <div className="text-white font-bebas text-[48px] leading-none font-bold">{Number(teamAScore || 0).toFixed(1)}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-[#1b214e] border border-white/10 rounded-[6px] p-3">
-            <div className="font-bebas text-[36px] leading-none text-white uppercase tracking-[0.04em] text-center mb-2">{teamBName}</div>
-            <div className="flex flex-col gap-1.5">
-              {teamBPlayers.length > 0 ? teamBPlayers.map((player, index) => renderTeamPlayerRow(player, 'team-b', index)) : (
-                <div className="text-white/55 text-sm font-oswald text-center py-2">Sin jugadores</div>
-              )}
-            </div>
-            <div className="relative text-center w-full box-border mt-2 h-[74px] overflow-hidden rounded-[6px] border border-[#19d7b6cc] bg-[#07163b]">
-              <div className="w-full h-full flex flex-col items-center justify-center px-2">
-                <div className="text-white/75 text-[11px] font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
-                <div className="text-white font-bebas text-[48px] leading-none font-bold">{Number(teamBScore || 0).toFixed(1)}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div
-          className="w-full border px-4 py-3 mt-3 rounded-[6px]"
-          style={{
-            borderColor: `${balanceColor}cc`,
-            background: 'linear-gradient(180deg, rgba(7,22,59,0.96) 0%, rgba(9,20,58,0.88) 100%)',
-            boxShadow: '0 0 10px rgba(41, 170, 255, 0.16)',
-          }}
-        >
-          <div className="text-center">
-            <div className="font-bebas text-base text-white/90 tracking-wider mb-0.5">BALANCE DEL PARTIDO</div>
-            <div className="font-bebas text-2xl text-white font-bold mb-0.5">DIF: {Number(balanceDiff || 0).toFixed(1)}</div>
-            <div className="font-oswald text-xs font-semibold tracking-wide" style={{ color: balanceColor }}>{balanceLabel}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function SharedInviteLayout({
   partido,
   jugadores,
@@ -712,8 +398,6 @@ function SharedInviteLayout({
   inlineNotice,
   onClearInlineNotice,
   onAddToCalendar,
-  showViewTeamsButton = false,
-  onViewTeams,
   showBottomNav = false,
 }) {
   const isSent = joinStatus === 'pending';
@@ -735,17 +419,9 @@ function SharedInviteLayout({
 
   const renderJoinedBlock = () => (
     <div className="flex flex-col gap-2 w-full">
-      {showViewTeamsButton && (
-        <button
-          onClick={onViewTeams}
-          className={matchPrimaryButtonClass}
-        >
-          Ver equipos
-        </button>
-      )}
       <button
         onClick={onAddToCalendar}
-        className={showViewTeamsButton ? matchSecondaryButtonClass : matchPrimaryButtonClass}
+        className={matchPrimaryButtonClass}
       >
         Agregar al calendario
       </button>
@@ -893,20 +569,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
     afterConfirm: null,
   });
   const [inlineNotice, setInlineNotice] = useState(null);
-  const [guestTeamsModalOpen, setGuestTeamsModalOpen] = useState(false);
-  const [guestConfirmedTeams, setGuestConfirmedTeams] = useState({
-    isAvailable: false,
-    hasConfirmedFlag: false,
-    teamAName: 'Equipo A',
-    teamBName: 'Equipo B',
-    teamAPlayers: [],
-    teamBPlayers: [],
-    teamAScore: 0,
-    teamBScore: 0,
-    balanceDiff: 0,
-    balanceLabel: 'MUY PAREJO',
-    balanceColor: '#10B981',
-  });
   const pendingContinueRef = useRef(null);
   const guestPhotoInputRef = useRef(null);
 
@@ -1223,18 +885,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
             return;
           }
 
-          const enrichedPartidoData = await mergePartidoWithTeamsSnapshot({
-            partidoBase: partidoData,
-            matchId: partidoId,
-            codigo: partidoData?.codigo || codigoParam || inviteCodeFromNotification || null,
-          });
-
-          if (reqId !== reqIdRef.current) {
-            console.log('[LOAD_PARTIDO] Aborting stale request (invite no-code enrich fetch)', { reqId, current: reqIdRef.current });
-            return;
-          }
-
-          setPartido({ ...enrichedPartidoData, jugadoresCount: count || 0 });
+          setPartido({ ...partidoData, jugadoresCount: count || 0 });
           setJugadores(jugadoresData || []);
           setInviteValidatedByNotification(true);
 
@@ -1312,18 +963,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           .eq('partido_id', partidoId);
 
         if (reqId === reqIdRef.current) {
-          const enrichedPartidoData = await mergePartidoWithTeamsSnapshot({
-            partidoBase: partidoData,
-            matchId: partidoId,
-            codigo: codigoParam || partidoData?.codigo || null,
-          });
-
-          if (reqId !== reqIdRef.current) {
-            console.log('[LOAD_PARTIDO] Aborting stale request (invite mode enrich fetch)', { reqId, current: reqIdRef.current });
-            return;
-          }
-
-          setPartido({ ...enrichedPartidoData, jugadoresCount: count || 0 });
+          setPartido({ ...partidoData, jugadoresCount: count || 0 });
           setJugadores(jugadoresData || []);
           // UX: for invite links, unauthenticated users go straight to "Sumarte rápido".
           if (!user && mode === 'invite') {
@@ -1370,226 +1010,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
       supabase.removeChannel(channel);
     };
   }, [mode, user?.id, partidoId, navigate]);
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    const clearConfirmedTeams = () => {
-      if (isCancelled) return;
-      setGuestConfirmedTeams({
-        isAvailable: false,
-        hasConfirmedFlag: false,
-        teamAName: 'Equipo A',
-        teamBName: 'Equipo B',
-        teamAPlayers: [],
-        teamBPlayers: [],
-        teamAScore: 0,
-        teamBScore: 0,
-        balanceDiff: 0,
-        balanceLabel: 'MUY PAREJO',
-        balanceColor: '#10B981',
-      });
-      setGuestTeamsModalOpen(false);
-    };
-
-    const loadGuestConfirmedTeams = async () => {
-      if (mode !== 'invite') {
-        clearConfirmedTeams();
-        return;
-      }
-
-      if (!partidoId || !partido || !Array.isArray(jugadores) || jugadores.length === 0) {
-        clearConfirmedTeams();
-        return;
-      }
-
-      try {
-        const matchIdNum = Number(partidoId);
-        const matchIdFilter = Number.isFinite(matchIdNum) ? matchIdNum : partidoId;
-
-        let partidoRow = null;
-        try {
-          const { data: partidoData, error: partidoError } = await supabase
-            .from('partidos')
-            .select('teams_confirmed, teams_locked, equipos_json, equipos, survey_team_a, survey_team_b, final_team_a, final_team_b')
-            .eq('id', matchIdFilter)
-            .maybeSingle();
-          if (!partidoError) {
-            partidoRow = partidoData || null;
-          }
-        } catch (_partidoFetchError) {
-          partidoRow = null;
-        }
-
-        const inviteCode = String(codigoParam || partido?.codigo || '').trim();
-        if (!partidoRow && inviteCode) {
-          try {
-            const { data: rpcRows, error: rpcError } = await supabase.rpc('get_partido_by_invite', {
-              p_partido_id: Number.isFinite(matchIdNum) ? matchIdNum : Number(matchIdFilter),
-              p_codigo: inviteCode,
-            });
-            if (!rpcError && Array.isArray(rpcRows) && rpcRows[0]) {
-              partidoRow = pickTeamsFieldsSnapshot(rpcRows[0]);
-            }
-          } catch (_rpcFetchError) {
-            partidoRow = null;
-          }
-        }
-
-        if (!partidoRow) {
-          try {
-            partidoRow = await fetchGuestMatchSnapshotWithAnon({
-              matchId: matchIdFilter,
-              codigo: inviteCode || null,
-            });
-          } catch (_anonFetchError) {
-            partidoRow = null;
-          }
-        }
-
-        if (isCancelled) return;
-
-        const sourcePartido = partidoRow || partido || {};
-        let teamAName = 'Equipo A';
-        let teamBName = 'Equipo B';
-        let teamAScoreFromPayload = null;
-        let teamBScoreFromPayload = null;
-        let teamARawRefs = [];
-        let teamBRawRefs = [];
-        let teamARefs = [];
-        let teamBRefs = [];
-
-        const persistedTeamsPayload = normalizeTeamsPayload(sourcePartido?.equipos_json ?? sourcePartido?.equipos);
-        const [teamPayloadA, teamPayloadB] = pickOrderedTeamsFromPayload(persistedTeamsPayload);
-        const payloadARefs = resolveTeamPlayerRefsFromPayload(teamPayloadA);
-        const payloadBRefs = resolveTeamPlayerRefsFromPayload(teamPayloadB);
-        if (payloadARefs.length > 0 && payloadBRefs.length > 0) {
-          teamARawRefs = payloadARefs;
-          teamBRawRefs = payloadBRefs;
-          teamARefs = normalizeTeamRefs(teamARawRefs);
-          teamBRefs = normalizeTeamRefs(teamBRawRefs);
-          teamAName = String(teamPayloadA?.name || 'Equipo A').trim() || 'Equipo A';
-          teamBName = String(teamPayloadB?.name || 'Equipo B').trim() || 'Equipo B';
-          teamAScoreFromPayload = toFiniteNumber(teamPayloadA?.score);
-          teamBScoreFromPayload = toFiniteNumber(teamPayloadB?.score);
-        }
-
-        if (teamARefs.length === 0 || teamBRefs.length === 0) {
-          teamARawRefs = Array.isArray(sourcePartido?.survey_team_a) ? sourcePartido.survey_team_a : [];
-          teamBRawRefs = Array.isArray(sourcePartido?.survey_team_b) ? sourcePartido.survey_team_b : [];
-          teamARefs = normalizeTeamRefs(teamARawRefs);
-          teamBRefs = normalizeTeamRefs(teamBRawRefs);
-        }
-
-        if (teamARefs.length === 0 || teamBRefs.length === 0) {
-          teamARawRefs = Array.isArray(sourcePartido?.final_team_a) ? sourcePartido.final_team_a : [];
-          teamBRawRefs = Array.isArray(sourcePartido?.final_team_b) ? sourcePartido.final_team_b : [];
-          teamARefs = normalizeTeamRefs(teamARawRefs);
-          teamBRefs = normalizeTeamRefs(teamBRawRefs);
-        }
-
-        if (teamARefs.length === 0 || teamBRefs.length === 0) {
-          try {
-            const { data: confirmationRow } = await supabase
-              .from('partido_team_confirmations')
-              .select('team_a, team_b')
-              .eq('partido_id', matchIdFilter)
-              .order('confirmed_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
-
-            if (isCancelled) return;
-
-            if (confirmationRow) {
-              teamARawRefs = Array.isArray(confirmationRow.team_a) ? confirmationRow.team_a : [];
-              teamBRawRefs = Array.isArray(confirmationRow.team_b) ? confirmationRow.team_b : [];
-              teamARefs = normalizeTeamRefs(teamARawRefs);
-              teamBRefs = normalizeTeamRefs(teamBRawRefs);
-            }
-          } catch (_confirmationFetchError) {
-            // Non-blocking fallback: if this lookup fails, keep current refs.
-          }
-        }
-
-        const hasPersistedTeams = teamARefs.length > 0 && teamBRefs.length > 0;
-        const hasConfirmedFlag = Boolean(
-          partidoRow?.teams_confirmed
-          ?? partido?.teams_confirmed
-          ?? partidoRow?.teams_locked
-          ?? partido?.teams_locked,
-        );
-        const shouldExposeGuestTeams = hasConfirmedFlag || hasPersistedTeams || normalizeTeamsPayload(sourcePartido?.equipos_json ?? sourcePartido?.equipos).length > 0;
-
-        if (!shouldExposeGuestTeams) {
-          clearConfirmedTeams();
-          return;
-        }
-
-        const refToKeyMap = buildPlayerRefToKeyMap(jugadores);
-        const keyToPlayerMap = new Map(
-          jugadores.map((player) => [String(resolvePlayerKey(player) || '').trim(), player]).filter(([key]) => key),
-        );
-        const teamAPlayers = mapTeamRefsToPlayers({
-          refs: teamARefs,
-          rawRefs: teamARawRefs,
-          refToKeyMap,
-          keyToPlayerMap,
-        });
-        const teamBPlayers = mapTeamRefsToPlayers({
-          refs: teamBRefs,
-          rawRefs: teamBRawRefs,
-          refToKeyMap,
-          keyToPlayerMap,
-        });
-        const hasDisplayableTeams = teamAPlayers.length > 0 && teamBPlayers.length > 0;
-
-        if (isCancelled) return;
-        if (!hasDisplayableTeams) {
-          setGuestConfirmedTeams({
-            isAvailable: true,
-            hasConfirmedFlag: true,
-            teamAName,
-            teamBName,
-            teamAPlayers,
-            teamBPlayers,
-            teamAScore: 0,
-            teamBScore: 0,
-            balanceDiff: 0,
-            balanceLabel: 'MUY PAREJO',
-            balanceColor: '#10B981',
-          });
-          return;
-        }
-
-        const teamAScore = computeTeamScore({ explicitScore: teamAScoreFromPayload, players: teamAPlayers });
-        const teamBScore = computeTeamScore({ explicitScore: teamBScoreFromPayload, players: teamBPlayers });
-        const balanceDiff = Number(Math.abs(teamAScore - teamBScore).toFixed(1));
-        const balanceMeta = resolveBalanceMeta(balanceDiff);
-
-        setGuestConfirmedTeams({
-          isAvailable: true,
-          hasConfirmedFlag: true,
-          teamAName,
-          teamBName,
-          teamAPlayers,
-          teamBPlayers,
-          teamAScore,
-          teamBScore,
-          balanceDiff,
-          balanceLabel: balanceMeta.label,
-          balanceColor: balanceMeta.color,
-        });
-      } catch (_guestTeamsError) {
-        clearConfirmedTeams();
-      }
-    };
-
-    loadGuestConfirmedTeams();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [mode, partidoId, partido, jugadores, codigoParam]);
 
   // Recheck membership for approved_pending_sync state
   async function recheckMembership(userUuid, matchId, originalReqId, attempt = 1) {
@@ -2104,13 +1524,6 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   if (step === 'invitation') {
     const isPublic = mode === 'public';
     const showBottomNav = !isPublic && !!user;
-    const showViewTeamsButton = mode === 'invite'
-      && (
-        guestConfirmedTeams.isAvailable
-        || guestConfirmedTeams.hasConfirmedFlag
-        || Boolean(partido?.teams_confirmed)
-        || normalizeTeamsPayload(partido?.equipos_json ?? partido?.equipos).length > 0
-      );
     return (
       <>
         <SharedInviteLayout
@@ -2130,25 +1543,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
           inlineNotice={inlineNotice}
           onClearInlineNotice={() => setInlineNotice(null)}
           onAddToCalendar={handleAddToCalendar}
-          showViewTeamsButton={showViewTeamsButton}
-          onViewTeams={() => setGuestTeamsModalOpen(true)}
           showBottomNav={showBottomNav}
         />
-        {mode === 'invite' && (
-          <GuestTeamsModal
-            isOpen={guestTeamsModalOpen}
-            onClose={() => setGuestTeamsModalOpen(false)}
-            teamAName={guestConfirmedTeams.teamAName}
-            teamBName={guestConfirmedTeams.teamBName}
-            teamAPlayers={guestConfirmedTeams.teamAPlayers}
-            teamBPlayers={guestConfirmedTeams.teamBPlayers}
-            teamAScore={guestConfirmedTeams.teamAScore}
-            teamBScore={guestConfirmedTeams.teamBScore}
-            balanceDiff={guestConfirmedTeams.balanceDiff}
-            balanceLabel={guestConfirmedTeams.balanceLabel}
-            balanceColor={guestConfirmedTeams.balanceColor}
-          />
-        )}
         <ConfirmModal
           isOpen={scheduleWarning.isOpen}
           title="Conflicto de horario"
