@@ -557,52 +557,52 @@ const ResultadosEncuestaView = () => {
     const storyLayoutOverrides = React.useMemo(() => {
       if (isShortHeight) {
         return {
-          nameTop: '13.3%',
+          nameTop: '14.1%',
           nameMargin: '0px',
           photoTop: '18.7%',
           photoOffsetY: '4px',
           photoSize: '51%',
-          rightStatsRight: '17.2%',
+          rightStatsRight: '20.2%',
           rightStatsTranslateY: '68.8%',
           leftMetaLeft: '6%',
           leftMetaTranslateY: '81%',
           centerTop: '54.1%',
-          ratingMarginTop: 'clamp(6px, 2vw, 10px)',
+          ratingMarginTop: 'clamp(14px, 3vw, 18px)',
         };
       }
       if (isCompactHeight) {
         return {
-          nameTop: '13.1%',
+          nameTop: '13.9%',
           nameMargin: '0px',
           photoTop: '18.8%',
           photoOffsetY: '4px',
           photoSize: '51.2%',
-          rightStatsRight: '16.6%',
+          rightStatsRight: '19.6%',
           rightStatsTranslateY: '69.2%',
           leftMetaLeft: '6%',
           leftMetaTranslateY: '82%',
           centerTop: '54.3%',
-          ratingMarginTop: 'clamp(6px, 2.1vw, 11px)',
+          ratingMarginTop: 'clamp(14px, 3vw, 18px)',
         };
       }
       return {
-        nameTop: '12.9%',
+        nameTop: '13.7%',
         nameMargin: '0px',
         photoTop: '18.9%',
         photoOffsetY: '4px',
         photoSize: '51.5%',
-        rightStatsRight: '16.1%',
+        rightStatsRight: '19%',
         rightStatsTranslateY: '69.5%',
         leftMetaLeft: '5.8%',
         leftMetaTranslateY: '82.5%',
         centerTop: '54.5%',
-        ratingMarginTop: 'clamp(6px, 2.2vw, 11px)',
+        ratingMarginTop: 'clamp(14px, 3vw, 18px)',
       };
     }, [isCompactHeight, isShortHeight]);
     const footerMinHeight = kind === 'penalty'
       ? (isShortHeight ? 48 : 56)
       : (isShortHeight ? 40 : 46);
-    const footerLift = isShortHeight ? 52 : 60;
+    const footerLift = isShortHeight ? 72 : 80;
     const winnerIconSize = isShortHeight ? 68 : 76;
     const winnerPlusSize = isShortHeight ? 22 : 25;
 
