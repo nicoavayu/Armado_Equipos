@@ -167,6 +167,108 @@ const ResultadosEncuestaView = () => {
     };
   };
 
+  const pickDefined = (...values) => values.find((value) => value !== undefined && value !== null);
+  const pickText = (...values) => values.find((value) => typeof value === 'string' && value.trim().length > 0);
+
+  const mergeRosterPlayerWithUser = (player, userRow) => {
+    if (!player || !userRow) return normalizeBadges(player);
+    const playerPj = Number(player?.partidos_jugados);
+    const userPj = Number(userRow?.partidos_jugados);
+    const playerPa = Number(player?.partidos_abandonados);
+    const userPa = Number(userRow?.partidos_abandonados);
+
+    return normalizeBadges({
+      ...player,
+      nombre: pickText(player?.nombre, userRow?.nombre) || 'Jugador',
+      avatar_url: pickText(player?.avatar_url, player?.foto_url, userRow?.avatar_url) || null,
+      posicion: pickText(
+        player?.posicion,
+        player?.rol_favorito,
+        userRow?.posicion,
+        userRow?.posicion_favorita,
+        userRow?.rol_favorito,
+      ) || null,
+      rol_favorito: pickText(
+        player?.rol_favorito,
+        player?.posicion,
+        userRow?.rol_favorito,
+        userRow?.posicion_favorita,
+        userRow?.posicion,
+      ) || null,
+      partidos_jugados: Number.isFinite(playerPj) && playerPj > 0
+        ? playerPj
+        : (Number.isFinite(userPj) ? userPj : (Number.isFinite(playerPj) ? playerPj : 0)),
+      partidos_abandonados: Number.isFinite(playerPa) && playerPa > 0
+        ? playerPa
+        : (Number.isFinite(userPa) ? userPa : (Number.isFinite(playerPa) ? playerPa : 0)),
+      ranking: pickDefined(player?.ranking, player?.calificacion, userRow?.ranking),
+      pais_codigo: pickText(player?.pais_codigo, userRow?.pais_codigo) || null,
+      pierna_habil: pickText(player?.pierna_habil, userRow?.pierna_habil) || null,
+      nivel: pickDefined(player?.nivel, userRow?.nivel),
+      acepta_invitaciones: pickDefined(player?.acepta_invitaciones, userRow?.acepta_invitaciones),
+      mvp_badges: pickDefined(player?.mvp_badges, player?.mvps, userRow?.mvp_badges, userRow?.mvps, 0),
+      gk_badges: pickDefined(player?.gk_badges, player?.guantes_dorados, userRow?.gk_badges, userRow?.guantes_dorados, 0),
+      red_badges: pickDefined(player?.red_badges, player?.tarjetas_rojas, userRow?.red_badges, userRow?.tarjetas_rojas, 0),
+      mvps: pickDefined(player?.mvps, player?.mvp_badges, userRow?.mvps, userRow?.mvp_badges, 0),
+      guantes_dorados: pickDefined(player?.guantes_dorados, player?.gk_badges, userRow?.guantes_dorados, userRow?.gk_badges, 0),
+      tarjetas_rojas: pickDefined(player?.tarjetas_rojas, player?.red_badges, userRow?.tarjetas_rojas, userRow?.red_badges, 0),
+    });
+  };
+
+  const enrichRosterWithUserProfiles = useCallback(async (players = []) => {
+    const roster = (Array.isArray(players) ? players : []).map(normalizeBadges);
+    if (roster.length === 0) return [];
+
+    const userIds = Array.from(
+      new Set(
+        roster
+          .map((player) => String(player?.usuario_id || '').trim())
+          .filter(Boolean),
+      ),
+    );
+    if (userIds.length === 0) return roster;
+
+    try {
+      const { data: usersData, error: usersError } = await supabase
+        .from('usuarios')
+        .select(`
+          id,
+          nombre,
+          avatar_url,
+          posicion,
+          posicion_favorita,
+          rol_favorito,
+          ranking,
+          partidos_jugados,
+          partidos_abandonados,
+          pais_codigo,
+          pierna_habil,
+          nivel,
+          acepta_invitaciones,
+          mvps,
+          guantes_dorados,
+          tarjetas_rojas,
+          mvp_badges,
+          gk_badges,
+          red_badges
+        `)
+        .in('id', userIds);
+
+      if (usersError || !Array.isArray(usersData) || usersData.length === 0) {
+        return roster;
+      }
+
+      const usersById = new Map(usersData.map((row) => [String(row?.id), row]));
+      return roster.map((player) => {
+        const userId = String(player?.usuario_id || '').trim();
+        const userRow = usersById.get(userId);
+        return userRow ? mergeRosterPlayerWithUser(player, userRow) : player;
+      });
+    } catch (_enrichError) {
+      return roster;
+    }
+  }, []);
+
   const computeSurveyProgress = useCallback(async ({ matchIdNum, partidoRow, rosterRows = [] }) => {
     let roster = Array.isArray(rosterRows) ? rosterRows : [];
     if (roster.length === 0) {
@@ -443,13 +545,14 @@ const ResultadosEncuestaView = () => {
       Math.max(260, (viewport.height - reservedHeight) * CARD_FRAME_RATIO),
     );
     const storyCardMaxWidth = Math.min(maxWidthByScreen, maxWidthByHeight);
+    const storyCardHeight = Math.round(storyCardMaxWidth / CARD_FRAME_RATIO);
     const footerMinHeight = kind === 'penalty'
       ? (isShortHeight ? 48 : 56)
       : (isShortHeight ? 40 : 46);
 
     return (
       <div
-        className="relative w-full h-full grid grid-rows-[auto_auto_auto] content-center justify-items-center overflow-hidden"
+        className="relative w-full h-full flex flex-col items-center overflow-hidden"
         style={{
           background:
             kind === 'mvp'
@@ -498,7 +601,16 @@ const ResultadosEncuestaView = () => {
         </div>
 
         {/* Acto 2: card */}
-        <div className="relative z-10 w-full min-h-0 flex items-center justify-center">
+        <div
+          className="relative z-10 w-full flex-1 min-h-0 flex items-center justify-center"
+          style={{ minHeight: storyCardHeight }}
+        >
+          {stage < 1 && (
+            <div
+              aria-hidden="true"
+              style={{ width: storyCardMaxWidth, height: storyCardHeight, opacity: 0 }}
+            />
+          )}
           {stage >= 1 && resolvedPlayer && (
             <div
               className="w-full flex items-center justify-center"
@@ -575,56 +687,58 @@ const ResultadosEncuestaView = () => {
         </div>
 
         {/* Footer */}
-        {stage >= 1 && (
-          <div className="relative z-10 w-full flex flex-col items-center justify-center gap-2" style={{ minHeight: footerMinHeight }}>
-            {kind === 'penalty' && penaltyNow != null && penaltyTo != null && (
-              <div
-                className="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-white/85 text-xs sm:text-sm md:text-base"
-                style={{
-                  background: 'rgba(0,0,0,0.45)',
-                  border: '1px solid rgba(255,255,255,0.14)',
-                  backdropFilter: 'blur(10px)',
-                  animation: 'eaFooterIn 520ms ease-out both',
-                }}
-              >
-                Rating: {fmt1(penaltyFrom ?? penaltyNow)} → {fmt1(penaltyNow)}
-              </div>
-            )}
+        <div className="relative z-10 w-full flex flex-col items-center justify-center gap-2" style={{ minHeight: footerMinHeight }}>
+          {stage >= 1 && (
+            <>
+              {kind === 'penalty' && penaltyNow != null && penaltyTo != null && (
+                <div
+                  className="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-white/85 text-xs sm:text-sm md:text-base"
+                  style={{
+                    background: 'rgba(0,0,0,0.45)',
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    backdropFilter: 'blur(10px)',
+                    animation: 'eaFooterIn 520ms ease-out both',
+                  }}
+                >
+                  Rating: {fmt1(penaltyFrom ?? penaltyNow)} → {fmt1(penaltyNow)}
+                </div>
+              )}
 
-            {kind !== 'penalty' && stage >= 4 && (
-              <div
-                className="px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full text-white font-bold text-xs sm:text-sm md:text-base flex items-center gap-1.5 sm:gap-2"
-                style={{
-                  background: 'rgba(0,0,0,0.5)',
-                  border: `1px solid ${accent}`,
-                  boxShadow: `0 0 16px ${accent}`,
-                  backdropFilter: 'blur(10px)',
-                  animation: 'eaWinnerChipIn 420ms ease-out both',
-                }}
-              >
-                {typeof icon === 'string' && icon.startsWith('/') ? (
-                  <img
-                    src={icon}
-                    alt="premio ganador"
-                    width={20}
-                    height={20}
-                    draggable={false}
-                    style={{ filter: `drop-shadow(0 0 8px ${accent})` }}
-                  />
-                ) : (
-                  <span style={{ filter: `drop-shadow(0 0 8px ${accent})` }}>{icon}</span>
-                )}
-                <span>+1</span>
-              </div>
-            )}
+              {kind !== 'penalty' && stage >= 4 && (
+                <div
+                  className="px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full text-white font-bold text-xs sm:text-sm md:text-base flex items-center gap-1.5 sm:gap-2"
+                  style={{
+                    background: 'rgba(0,0,0,0.5)',
+                    border: `1px solid ${accent}`,
+                    boxShadow: `0 0 16px ${accent}`,
+                    backdropFilter: 'blur(10px)',
+                    animation: 'eaWinnerChipIn 420ms ease-out both',
+                  }}
+                >
+                  {typeof icon === 'string' && icon.startsWith('/') ? (
+                    <img
+                      src={icon}
+                      alt="premio ganador"
+                      width={20}
+                      height={20}
+                      draggable={false}
+                      style={{ filter: `drop-shadow(0 0 8px ${accent})` }}
+                    />
+                  ) : (
+                    <span style={{ filter: `drop-shadow(0 0 8px ${accent})` }}>{icon}</span>
+                  )}
+                  <span>+1</span>
+                </div>
+              )}
 
-            {bottomLabel && stage >= 4 && kind === 'penalty' && (
-              <div className="text-white/70 text-xs md:text-sm text-center">
-                {bottomLabel}
-              </div>
-            )}
-          </div>
-        )}
+              {bottomLabel && stage >= 4 && kind === 'penalty' && (
+                <div className="text-white/70 text-xs md:text-sm text-center">
+                  {bottomLabel}
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
         <style>{`
           @keyframes eaAwardIn {
@@ -1125,16 +1239,19 @@ const ResultadosEncuestaView = () => {
 
         if (!alive) return;
 
-        if (playersData) {
-          setJugadores(playersData);
+        const rosterPlayers = await enrichRosterWithUserProfiles(playersData || []);
+        if (!alive) return;
+
+        if (rosterPlayers.length > 0) {
+          setJugadores(rosterPlayers);
           // Patch partidoData to include players for compatibility with existing code if needed
-          partidoData.jugadores = playersData;
+          partidoData.jugadores = rosterPlayers;
         }
 
         const progress = await computeSurveyProgress({
           matchIdNum,
           partidoRow: partidoData,
-          rosterRows: playersData || [],
+          rosterRows: rosterPlayers,
         });
         if (alive) {
           setSurveyProgress(progress);
@@ -1318,9 +1435,9 @@ const ResultadosEncuestaView = () => {
             .select('*')
             .eq('partido_id', Number(partidoId));
           if (!playersError && Array.isArray(playersData)) {
-            roster = playersData;
+            roster = await enrichRosterWithUserProfiles(playersData);
             if (!cancelled) {
-              setJugadores(playersData);
+              setJugadores(roster);
             }
           }
         }
@@ -1473,13 +1590,15 @@ const ResultadosEncuestaView = () => {
       if (playersErr) throw playersErr;
       if (resultsError && resultsError.code !== 'PGRST116') throw resultsError;
 
+      const rosterPlayers = await enrichRosterWithUserProfiles(playersData || []);
+
       if (partidoData) setPartido(partidoData);
-      if (Array.isArray(playersData)) setJugadores(playersData);
+      if (rosterPlayers.length > 0) setJugadores(rosterPlayers);
 
       const progress = await computeSurveyProgress({
         matchIdNum,
         partidoRow: partidoData || partido,
-        rosterRows: playersData || [],
+        rosterRows: rosterPlayers,
       });
       setSurveyProgress(progress);
 
@@ -1497,7 +1616,7 @@ const ResultadosEncuestaView = () => {
       // Re-prepare animations
       const animations = [];
       const addedPlayers = new Set();
-      const roster = Array.isArray(playersData) ? playersData : (partido?.jugadores || []);
+      const roster = rosterPlayers.length > 0 ? rosterPlayers : (partido?.jugadores || []);
 
       // Similar logic as useEffect... (abridged for brevity, assuming state updates work)
       // Note: In a full refactor, this logic should be extracted to a helper function.
