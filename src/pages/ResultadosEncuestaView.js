@@ -557,12 +557,12 @@ const ResultadosEncuestaView = () => {
     const storyLayoutOverrides = React.useMemo(() => {
       if (isShortHeight) {
         return {
-          nameTop: '12.5%',
+          nameTop: '13.3%',
           nameMargin: '0px',
           photoTop: '18.7%',
           photoOffsetY: '4px',
           photoSize: '51%',
-          rightStatsRight: '13.8%',
+          rightStatsRight: '17.2%',
           rightStatsTranslateY: '68.8%',
           leftMetaLeft: '6%',
           leftMetaTranslateY: '81%',
@@ -572,12 +572,12 @@ const ResultadosEncuestaView = () => {
       }
       if (isCompactHeight) {
         return {
-          nameTop: '12.3%',
+          nameTop: '13.1%',
           nameMargin: '0px',
           photoTop: '18.8%',
           photoOffsetY: '4px',
           photoSize: '51.2%',
-          rightStatsRight: '13.2%',
+          rightStatsRight: '16.6%',
           rightStatsTranslateY: '69.2%',
           leftMetaLeft: '6%',
           leftMetaTranslateY: '82%',
@@ -586,12 +586,12 @@ const ResultadosEncuestaView = () => {
         };
       }
       return {
-        nameTop: '12%',
+        nameTop: '12.9%',
         nameMargin: '0px',
         photoTop: '18.9%',
         photoOffsetY: '4px',
         photoSize: '51.5%',
-        rightStatsRight: '12.8%',
+        rightStatsRight: '16.1%',
         rightStatsTranslateY: '69.5%',
         leftMetaLeft: '5.8%',
         leftMetaTranslateY: '82.5%',
@@ -602,9 +602,9 @@ const ResultadosEncuestaView = () => {
     const footerMinHeight = kind === 'penalty'
       ? (isShortHeight ? 48 : 56)
       : (isShortHeight ? 40 : 46);
-    const footerLift = isShortHeight ? 44 : 52;
+    const footerLift = isShortHeight ? 52 : 60;
     const winnerIconSize = isShortHeight ? 68 : 76;
-    const winnerPlusSize = isShortHeight ? 30 : 34;
+    const winnerPlusSize = isShortHeight ? 22 : 25;
 
     return (
       <div
@@ -767,25 +767,39 @@ const ResultadosEncuestaView = () => {
 
               {kind !== 'penalty' && stage >= 4 && (
                 <div
-                  className="text-white font-black flex items-end gap-2"
+                  className="text-white font-black flex items-center justify-center"
                   style={{
                     animation: 'eaWinnerChipIn 420ms ease-out both',
-                    textShadow: `0 0 16px ${accent}`,
+                    textShadow: `0 0 14px ${accent}`,
                   }}
                 >
-                  {typeof icon === 'string' && icon.startsWith('/') ? (
-                    <img
-                      src={icon}
-                      alt="premio ganador"
-                      width={winnerIconSize}
-                      height={winnerIconSize}
-                      draggable={false}
-                      style={{ filter: `drop-shadow(0 0 16px ${accent})` }}
-                    />
-                  ) : (
-                    <span style={{ filter: `drop-shadow(0 0 16px ${accent})` }}>{icon}</span>
-                  )}
-                  <span style={{ fontSize: winnerPlusSize, lineHeight: 1 }}>+1</span>
+                  <div className="relative" style={{ width: winnerIconSize, height: winnerIconSize }}>
+                    {typeof icon === 'string' && icon.startsWith('/') ? (
+                      <img
+                        src={icon}
+                        alt="premio ganador"
+                        width={winnerIconSize}
+                        height={winnerIconSize}
+                        draggable={false}
+                        style={{ filter: `drop-shadow(0 0 16px ${accent})` }}
+                      />
+                    ) : (
+                      <span style={{ filter: `drop-shadow(0 0 16px ${accent})` }}>{icon}</span>
+                    )}
+                    <span
+                      style={{
+                        position: 'absolute',
+                        left: '100%',
+                        top: '50%',
+                        transform: 'translate(6px, -48%)',
+                        fontSize: winnerPlusSize,
+                        lineHeight: 1,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      +1
+                    </span>
+                  </div>
                 </div>
               )}
 
