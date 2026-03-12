@@ -312,6 +312,31 @@ const ResultadosEncuestaView = () => {
     const [penaltyFrom, setPenaltyFrom] = React.useState(null);
     const [penaltyTo, setPenaltyTo] = React.useState(null);
     const [penaltyNow, setPenaltyNow] = React.useState(null);
+    const CARD_FRAME_RATIO = 758 / 1246;
+    const readViewport = React.useCallback(() => {
+      if (typeof window === 'undefined') {
+        return { width: 390, height: 844 };
+      }
+      const vv = window.visualViewport;
+      const width = Math.round(vv?.width || window.innerWidth || 390);
+      const height = Math.round(vv?.height || window.innerHeight || 844);
+      return { width, height };
+    }, []);
+    const [viewport, setViewport] = React.useState(() => readViewport());
+
+    React.useEffect(() => {
+      if (typeof window === 'undefined') return undefined;
+      const updateViewport = () => setViewport(readViewport());
+      updateViewport();
+      window.addEventListener('resize', updateViewport);
+      window.addEventListener('orientationchange', updateViewport);
+      window.visualViewport?.addEventListener('resize', updateViewport);
+      return () => {
+        window.removeEventListener('resize', updateViewport);
+        window.removeEventListener('orientationchange', updateViewport);
+        window.visualViewport?.removeEventListener('resize', updateViewport);
+      };
+    }, [readViewport]);
 
     React.useEffect(() => {
       // Reset stage solo cuando cambia la slide (tipo o identidad), no por cambios de conteo
@@ -405,9 +430,66 @@ const ResultadosEncuestaView = () => {
       };
     }, [stage, kind, penaltyFrom, penaltyTo]);
 
+    const isCompactHeight = viewport.height < 760;
+    const isShortHeight = viewport.height < 680;
+    const titleFontSize = isShortHeight
+      ? 'clamp(40px, 13vw, 54px)'
+      : isCompactHeight
+        ? 'clamp(46px, 12.5vw, 62px)'
+        : 'clamp(52px, 11vw, 78px)';
+    const maxWidthByScreen = viewport.width >= 1400
+      ? 392
+      : viewport.width >= 1100
+        ? 374
+        : viewport.width >= 900
+          ? 356
+          : viewport.width >= 768
+            ? 340
+            : viewport.width >= 430
+              ? 322
+              : 304;
+    const reservedHeight = isShortHeight ? 252 : isCompactHeight ? 286 : 308;
+    const maxWidthByHeight = Math.floor(
+      Math.max(240, (viewport.height - reservedHeight) * CARD_FRAME_RATIO),
+    );
+    const storyCardMaxWidth = Math.max(248, Math.min(maxWidthByScreen, maxWidthByHeight));
+    const storyLayoutOverrides = React.useMemo(() => {
+      if (isShortHeight) {
+        return {
+          nameTop: '10.2%',
+          photoTop: '19.4%',
+          photoSize: '50.4%',
+          rightStatsTranslateY: '67%',
+          leftMetaTranslateY: '82%',
+          centerTop: '56.9%',
+        };
+      }
+      if (isCompactHeight) {
+        return {
+          nameTop: '10.5%',
+          photoTop: '19.9%',
+          photoSize: '51.2%',
+          rightStatsTranslateY: '68%',
+          leftMetaTranslateY: '83%',
+          centerTop: '57.2%',
+        };
+      }
+      return {
+        nameTop: '10.9%',
+        photoTop: '20.4%',
+        photoSize: '52%',
+        rightStatsTranslateY: '69%',
+        leftMetaTranslateY: '84%',
+        centerTop: '57.8%',
+      };
+    }, [isCompactHeight, isShortHeight]);
+    const footerMinHeight = kind === 'penalty'
+      ? (isShortHeight ? 48 : 56)
+      : (isShortHeight ? 40 : 46);
+
     return (
       <div
-        className="relative w-full h-full flex flex-col items-center justify-center py-10 md:py-14 gap-6"
+        className="relative w-full h-full grid grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden"
         style={{
           background:
             kind === 'mvp'
@@ -417,6 +499,11 @@ const ResultadosEncuestaView = () => {
                 : kind === 'dirty'
                   ? 'linear-gradient(135deg,#12060B 0%,#3A0A18 42%,#12060B 100%)'
                   : 'linear-gradient(135deg,#0B0F16 0%,#1B2432 45%,#0B0F16 100%)',
+          gap: isShortHeight ? 10 : isCompactHeight ? 14 : 18,
+          paddingTop: `max(${isShortHeight ? 52 : isCompactHeight ? 58 : 64}px, calc(env(safe-area-inset-top) + 44px))`,
+          paddingBottom: `max(${isShortHeight ? 10 : 14}px, calc(env(safe-area-inset-bottom) + 8px))`,
+          paddingLeft: 'clamp(10px, 3vw, 24px)',
+          paddingRight: 'clamp(10px, 3vw, 24px)',
         }}
       >
         {/* glow */}
@@ -430,16 +517,17 @@ const ResultadosEncuestaView = () => {
         />
 
         {/* Acto 1: award */}
-        <div className="relative z-10 text-center" style={{ paddingTop: 10 }}>
+        <div className="relative z-10 text-center px-2">
           {subtitle && (
-            <div className="text-white/70 tracking-[0.35em] text-xs md:text-sm mb-2" style={{ animation: 'eaSubIn 740ms ease-out 120ms both' }}>
+            <div className="text-white/70 tracking-[0.32em] text-[10px] sm:text-xs md:text-sm mb-1 sm:mb-2" style={{ animation: 'eaSubIn 740ms ease-out 120ms both' }}>
               {subtitle}
             </div>
           )}
 
           <div
-            className="font-bebas-real text-[56px] md:text-[78px] leading-[0.9]"
+            className="font-bebas-real leading-[0.9]"
             style={{
+              fontSize: titleFontSize,
               color: border,
               textShadow: `0 0 22px ${accent}`,
               animation: stage === 0 ? 'eaTitleIn 760ms cubic-bezier(.2,.9,.2,1) 80ms both' : 'none',
@@ -450,9 +538,10 @@ const ResultadosEncuestaView = () => {
         </div>
 
         {/* Acto 2: card */}
-        <div className="relative z-10 w-full h-full flex items-center justify-center">
+        <div className="relative z-10 w-full min-h-0 flex items-center justify-center">
           {stage >= 1 && resolvedPlayer && (
             <div
+              className="w-full flex items-center justify-center"
               style={{
                 animation: stage === 1 ? 'eaCardIn 520ms ease-out both' : 'none',
               }}
@@ -464,15 +553,8 @@ const ResultadosEncuestaView = () => {
                 enableTilt={false}
                 disableInternalMotion={true}
                 awardsLayout="none"
-                cardMaxWidth={340}
-                layoutOverrides={{
-                  nameTop: '10.9%',
-                  photoTop: '20.4%',
-                  photoSize: '52%',
-                  rightStatsTranslateY: '69%',
-                  leftMetaTranslateY: '84%',
-                  centerTop: '57.8%',
-                }}
+                cardMaxWidth={storyCardMaxWidth}
+                layoutOverrides={storyLayoutOverrides}
               />
             </div>
           )}
@@ -535,10 +617,10 @@ const ResultadosEncuestaView = () => {
 
         {/* Footer */}
         {stage >= 1 && (
-          <div className="relative z-10 pb-3 md:pb-5 flex flex-col items-center gap-2">
+          <div className="relative z-10 w-full flex flex-col items-center justify-center gap-2" style={{ minHeight: footerMinHeight }}>
             {kind === 'penalty' && penaltyNow != null && penaltyTo != null && (
               <div
-                className="px-5 py-2 rounded-full text-white/85 text-sm md:text-base"
+                className="px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-white/85 text-xs sm:text-sm md:text-base"
                 style={{
                   background: 'rgba(0,0,0,0.45)',
                   border: '1px solid rgba(255,255,255,0.14)',
@@ -552,7 +634,7 @@ const ResultadosEncuestaView = () => {
 
             {kind !== 'penalty' && stage >= 4 && (
               <div
-                className="px-4 py-1.5 rounded-full text-white font-bold text-sm md:text-base flex items-center gap-2"
+                className="px-3.5 sm:px-4 py-1 sm:py-1.5 rounded-full text-white font-bold text-xs sm:text-sm md:text-base flex items-center gap-1.5 sm:gap-2"
                 style={{
                   background: 'rgba(0,0,0,0.5)',
                   border: `1px solid ${accent}`,
