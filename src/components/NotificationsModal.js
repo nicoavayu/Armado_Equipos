@@ -88,10 +88,9 @@ const NotificationsModal = ({ isOpen, onClose }) => {
 
     setLoading(true);
     try {
-      const nowIso = new Date().toISOString();
       const { error: markErr } = await supabase
         .from('notifications')
-        .update({ read: true, read_at: nowIso, status: 'sent' })
+        .update({ read: true, status: 'sent' })
         .eq('user_id', user.id)
         .eq('read', false);
 

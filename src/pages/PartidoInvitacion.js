@@ -162,7 +162,6 @@ async function markOwnMatchInviteAs({ userId, matchId, status }) {
         .from('notifications')
         .update({
           read: true,
-          read_at: nowIso,
           data: {
             ...(row?.data || {}),
             status: statusToken,

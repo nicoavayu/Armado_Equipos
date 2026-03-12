@@ -631,7 +631,6 @@ export const useAdminPanelState = ({
                   .from('notifications')
                   .update({
                     read: true,
-                    read_at: kickedAt,
                     status: 'kicked',
                     data: {
                       ...(inviteRow?.data || {}),
@@ -686,7 +685,6 @@ export const useAdminPanelState = ({
                   title: payload.title,
                   message: payload.message,
                   read: false,
-                  read_at: null,
                   send_at: kickedAt,
                   data: payload.data,
                 })
@@ -889,15 +887,14 @@ export const useAdminPanelState = ({
       if (matchedInviteRows.length > 0) {
         const markResults = await Promise.all(
           matchedInviteRows.map((row) =>
-            supabase
-              .from('notifications')
-              .update({
-                read: true,
-                read_at: acceptedAt,
-                data: {
-                  ...(row?.data || {}),
-                  status: 'accepted',
-                  accepted_at: acceptedAt,
+              supabase
+                .from('notifications')
+                .update({
+                  read: true,
+                  data: {
+                    ...(row?.data || {}),
+                    status: 'accepted',
+                    accepted_at: acceptedAt,
                 },
               })
               .eq('id', row.id),
@@ -1009,15 +1006,14 @@ export const useAdminPanelState = ({
       if (matchedInviteRows.length > 0) {
         const markResults = await Promise.all(
           matchedInviteRows.map((row) =>
-            supabase
-              .from('notifications')
-              .update({
-                read: true,
-                read_at: declinedAt,
-                data: {
-                  ...(row?.data || {}),
-                  status: 'declined',
-                  declined_at: declinedAt,
+              supabase
+                .from('notifications')
+                .update({
+                  read: true,
+                  data: {
+                    ...(row?.data || {}),
+                    status: 'declined',
+                    declined_at: declinedAt,
                 },
               })
               .eq('id', row.id),

@@ -1343,18 +1343,17 @@ const EncuestaPartido = () => {
     const markNotificationRead = async () => {
       if (!id || !user?.id) return;
       try {
-        const nowIso = new Date().toISOString();
         const partidoIdNum = Number(id);
 
         await Promise.all([
           supabase.from('notifications')
-            .update({ read: true, read_at: nowIso })
+            .update({ read: true })
             .eq('user_id', user.id)
             .in('type', ['survey_start', 'post_match_survey'])
             .eq('partido_id', partidoIdNum),
 
           supabase.from('notifications')
-            .update({ read: true, read_at: nowIso })
+            .update({ read: true })
             .eq('user_id', user.id)
             .in('type', ['survey_start', 'post_match_survey'])
             .contains('data', { match_id: String(id) }),
