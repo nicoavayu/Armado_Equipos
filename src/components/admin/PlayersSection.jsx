@@ -255,23 +255,60 @@ const GuestTeamsReadOnlyModal = ({
     return (
       <div
         key={key}
-        className="flex items-center gap-2 bg-[#07163b] border border-[rgba(41,170,255,0.86)] rounded-[6px] px-2.5 py-2 min-h-[44px]"
+        className="border p-0 flex items-center gap-1.5 text-white h-12 relative w-full box-border overflow-visible select-none rounded-[4px]"
+        style={{
+          backgroundColor: '#07163b',
+          borderColor: 'rgba(41, 170, 255, 0.9)',
+          boxShadow: '0 0 9px rgba(41, 170, 255, 0.24)',
+        }}
       >
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt={player?.nombre || 'Jugador'}
-            className="w-7 h-7 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
-          />
-        ) : (
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
-            {getInitials(player?.nombre || 'Jugador')}
-          </div>
-        )}
-        <span className="font-oswald text-[22px] leading-none text-white truncate">{player?.nombre || 'Jugador'}</span>
+        <div className="flex items-center gap-1.5 w-full h-full min-w-0 p-1.5">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={player?.nombre || 'Jugador'}
+              className="w-8 h-8 rounded-full object-cover border border-slate-700 bg-slate-800 shrink-0"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 border border-slate-700 flex items-center justify-center text-xs font-bold shrink-0 text-white">
+              {getInitials(player?.nombre || 'Jugador')}
+            </div>
+          )}
+          <span className="font-oswald text-sm font-semibold text-white flex-1 tracking-wide min-w-0 leading-tight pr-1 overflow-hidden text-ellipsis whitespace-nowrap">
+            {player?.nombre || 'Jugador'}
+          </span>
+        </div>
       </div>
     );
   };
+
+  const renderTeamColumn = (teamName, players, score, token) => (
+    <div className="bg-[#1b214e] border border-white/10 rounded-[6px] p-2.5">
+      <div className="font-bebas text-xl leading-tight text-white uppercase tracking-[0.04em] text-center mb-2">
+        {teamName}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {players.length > 0 ? players.map((player, index) => renderTeamPlayerRow(player, token, index)) : (
+          <div className="text-white/55 text-sm font-oswald text-center py-2">Sin jugadores</div>
+        )}
+      </div>
+      <div
+        className="relative text-center w-full box-border mt-2 h-[58px] overflow-hidden rounded-[4px]"
+        style={{
+          borderWidth: '1.5px',
+          borderStyle: 'solid',
+          borderColor: '#19d7b6cc',
+          background: '#07163b',
+          boxShadow: '0 0 9px rgba(41, 170, 255, 0.24)',
+        }}
+      >
+        <div className="w-full h-full flex flex-col items-center justify-center px-2">
+          <div className="text-white/75 text-[11px] font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
+          <div className="text-white font-bebas text-[32px] leading-none font-bold">{Number(score || 0).toFixed(1)}</div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -283,39 +320,12 @@ const GuestTeamsReadOnlyModal = ({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-[#1b214e] border border-white/10 rounded-[6px] p-3">
-            <div className="font-bebas text-[36px] leading-none text-white uppercase tracking-[0.04em] text-center mb-2">{teamAName}</div>
-            <div className="flex flex-col gap-1.5">
-              {teamAPlayers.length > 0 ? teamAPlayers.map((player, index) => renderTeamPlayerRow(player, 'team-a', index)) : (
-                <div className="text-white/55 text-sm font-oswald text-center py-2">Sin jugadores</div>
-              )}
-            </div>
-            <div className="relative text-center w-full box-border mt-2 h-[74px] overflow-hidden rounded-[6px] border border-[#19d7b6cc] bg-[#07163b]">
-              <div className="w-full h-full flex flex-col items-center justify-center px-2">
-                <div className="text-white/75 text-[11px] font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
-                <div className="text-white font-bebas text-[48px] leading-none font-bold">{Number(teamAScore || 0).toFixed(1)}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-[#1b214e] border border-white/10 rounded-[6px] p-3">
-            <div className="font-bebas text-[36px] leading-none text-white uppercase tracking-[0.04em] text-center mb-2">{teamBName}</div>
-            <div className="flex flex-col gap-1.5">
-              {teamBPlayers.length > 0 ? teamBPlayers.map((player, index) => renderTeamPlayerRow(player, 'team-b', index)) : (
-                <div className="text-white/55 text-sm font-oswald text-center py-2">Sin jugadores</div>
-              )}
-            </div>
-            <div className="relative text-center w-full box-border mt-2 h-[74px] overflow-hidden rounded-[6px] border border-[#19d7b6cc] bg-[#07163b]">
-              <div className="w-full h-full flex flex-col items-center justify-center px-2">
-                <div className="text-white/75 text-[11px] font-oswald uppercase tracking-wide mb-0.5">PUNTAJE</div>
-                <div className="text-white font-bebas text-[48px] leading-none font-bold">{Number(teamBScore || 0).toFixed(1)}</div>
-              </div>
-            </div>
-          </div>
+          {renderTeamColumn(teamAName, teamAPlayers, teamAScore, 'team-a')}
+          {renderTeamColumn(teamBName, teamBPlayers, teamBScore, 'team-b')}
         </div>
 
         <div
-          className="w-full border px-4 py-3 mt-3 rounded-[6px]"
+          className="w-full border px-4 py-3 mt-2 rounded-[6px]"
           style={{
             borderColor: `${balanceColor}cc`,
             background: 'linear-gradient(180deg, rgba(7,22,59,0.96) 0%, rgba(9,20,58,0.88) 100%)',
