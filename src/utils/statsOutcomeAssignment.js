@@ -1,5 +1,42 @@
 export const normalizeIdentity = (value) => String(value || '').trim().toLowerCase();
 
+const STRONG_IDENTITY_FIELDS = ['ref', 'usuario_id', 'user_id', 'uuid', 'auth_id', 'player_id', 'id', 'email'];
+const WEAK_IDENTITY_FIELDS = ['nombre'];
+
+const dedupeIdentityRefs = (refs = []) => [...new Set((Array.isArray(refs) ? refs : []).filter(Boolean))];
+
+const collectRefsByFields = (entry, fields = []) => (
+  (Array.isArray(fields) ? fields : [])
+    .map((field) => normalizeIdentity(entry?.[field]))
+    .filter(Boolean)
+);
+
+const collectIdentityRefsByStrength = (entry) => {
+  if (!entry || typeof entry !== 'object') {
+    return { strongRefs: [], weakRefs: [] };
+  }
+
+  const player = entry?.jugador && typeof entry.jugador === 'object'
+    ? entry.jugador
+    : null;
+
+  const strongRefs = dedupeIdentityRefs([
+    ...collectRefsByFields(entry, STRONG_IDENTITY_FIELDS),
+    ...collectRefsByFields(player, STRONG_IDENTITY_FIELDS),
+  ]);
+  const weakRefs = dedupeIdentityRefs([
+    ...collectRefsByFields(entry, WEAK_IDENTITY_FIELDS),
+    ...collectRefsByFields(player, WEAK_IDENTITY_FIELDS),
+  ]);
+
+  return { strongRefs, weakRefs };
+};
+
+const collectIdentityRefs = (entry) => {
+  const { strongRefs, weakRefs } = collectIdentityRefsByStrength(entry);
+  return [...strongRefs, ...weakRefs];
+};
+
 export const dedupeMatchesById = (matches = []) => {
   const byId = new Map();
   (Array.isArray(matches) ? matches : []).forEach((match) => {
@@ -44,7 +81,8 @@ export const dedupeMatchesWithDebug = (matches = []) => {
 
 export const normalizeTeamEntry = (entry) => {
   if (entry && typeof entry === 'object') {
-    return normalizeIdentity(entry.ref || entry.uuid || entry.usuario_id || entry.id || '');
+    const refs = collectIdentityRefs(entry);
+    return refs[0] || '';
   }
   return normalizeIdentity(entry);
 };
@@ -111,9 +149,10 @@ const toNormalizedTeamRefs = (team = []) => (
   )]
 );
 
-const getStableMatchPlayerRef = (player) => normalizeIdentity(
-  player?.uuid || player?.usuario_id || player?.id || '',
-);
+const getStableMatchPlayerRef = (player) => {
+  const { strongRefs, weakRefs } = collectIdentityRefsByStrength(player);
+  return strongRefs[0] || weakRefs[0] || '';
+};
 
 export const evaluateTeamPairQuality = ({ teamA = [], teamB = [], expectedRosterRefs = new Set(), source = 'unknown' }) => {
   const normalizedA = toNormalizedTeamRefs(teamA);
@@ -234,36 +273,71 @@ export const resolveUserTeam = ({
     return { resolvedTeam: null, foundInFinalRoster: false };
   }
 
-  const candidateRefs = new Set(Array.from(userIdentitySet || []));
+  const candidateStrongRefs = new Set(
+    Array.from(userIdentitySet || [])
+      .map(normalizeIdentity)
+      .filter(Boolean),
+  );
+  const candidateWeakRefs = new Set();
+  const addStrongRef = (ref) => {
+    const normalizedRef = normalizeIdentity(ref);
+    if (!normalizedRef || candidateWeakRefs.has(normalizedRef)) return;
+    candidateStrongRefs.add(normalizedRef);
+  };
+  const addWeakRef = (ref) => {
+    const normalizedRef = normalizeIdentity(ref);
+    if (!normalizedRef) return;
+    candidateStrongRefs.delete(normalizedRef);
+    candidateWeakRefs.add(normalizedRef);
+  };
 
   (Array.isArray(participants) ? participants : []).forEach((participant) => {
-    const refs = [
-      participant?.ref,
-      participant?.uuid,
-      participant?.usuario_id,
-      participant?.id,
-      participant?.email,
-      participant?.nombre,
-    ]
-      .map(normalizeIdentity)
-      .filter(Boolean);
+    const { strongRefs, weakRefs } = participant && typeof participant === 'object'
+      ? collectIdentityRefsByStrength(participant)
+      : {
+          strongRefs: [normalizeTeamEntry(participant)].filter(Boolean),
+          weakRefs: [],
+        };
 
-    if (refs.some((ref) => candidateRefs.has(ref))) {
-      refs.forEach((ref) => candidateRefs.add(ref));
-    }
+    const hasStrongRefs = strongRefs.length > 0;
+    const matchesStrong = strongRefs.some((ref) => candidateStrongRefs.has(ref));
+    const matchesWeakOnly = !hasStrongRefs && weakRefs.some((ref) => candidateWeakRefs.has(ref));
+    const matchesWeakFromStrongSeed = !hasStrongRefs && weakRefs.some((ref) => candidateStrongRefs.has(ref));
+    if (!matchesStrong && !matchesWeakOnly && !matchesWeakFromStrongSeed) return;
+
+    strongRefs.forEach((ref) => addStrongRef(ref));
+    weakRefs.forEach((ref) => addWeakRef(ref));
   });
 
   let hasCurrentUserMatchPlayer = false;
   (Array.isArray(matchPlayers) ? matchPlayers : []).forEach((player) => {
     if (!isCurrentUserPlayer(player)) return;
     hasCurrentUserMatchPlayer = true;
-    (getPlayerIdentityCandidates(player) || []).forEach((ref) => candidateRefs.add(normalizeIdentity(ref)));
+    const { strongRefs, weakRefs } = collectIdentityRefsByStrength(player);
+    strongRefs.forEach((ref) => addStrongRef(ref));
+    weakRefs.forEach((ref) => addWeakRef(ref));
+
+    const normalizedPlayerName = normalizeIdentity(player?.nombre);
+    (getPlayerIdentityCandidates(player) || []).forEach((ref) => {
+      const normalizedRef = normalizeIdentity(ref);
+      if (!normalizedRef) return;
+      if (normalizedPlayerName && normalizedRef === normalizedPlayerName) {
+        addWeakRef(normalizedRef);
+        return;
+      }
+      addStrongRef(normalizedRef);
+    });
   });
 
-  const inA = [...candidateRefs].some((ref) => teamARefs.has(ref));
-  if (inA) return { resolvedTeam: 'equipo_a', foundInFinalRoster: true };
-  const inB = [...candidateRefs].some((ref) => teamBRefs.has(ref));
-  if (inB) return { resolvedTeam: 'equipo_b', foundInFinalRoster: true };
+  const inAStrong = [...candidateStrongRefs].some((ref) => teamARefs.has(ref));
+  if (inAStrong) return { resolvedTeam: 'equipo_a', foundInFinalRoster: true };
+  const inBStrong = [...candidateStrongRefs].some((ref) => teamBRefs.has(ref));
+  if (inBStrong) return { resolvedTeam: 'equipo_b', foundInFinalRoster: true };
+
+  const inAWeak = [...candidateWeakRefs].some((ref) => teamARefs.has(ref));
+  const inBWeak = [...candidateWeakRefs].some((ref) => teamBRefs.has(ref));
+  if (inAWeak && !inBWeak) return { resolvedTeam: 'equipo_a', foundInFinalRoster: true };
+  if (inBWeak && !inAWeak) return { resolvedTeam: 'equipo_b', foundInFinalRoster: true };
 
   if (hasCurrentUserMatchPlayer && teamARefs.size > 0 && teamBRefs.size === 0) {
     return { resolvedTeam: 'equipo_a', foundInFinalRoster: false };
@@ -336,39 +410,99 @@ export const buildSurveyOutcomeStats = ({
 
     const expectedRosterRefs = new Set();
     (Array.isArray(participants) ? participants : []).forEach((participant) => {
-      const ref = normalizeTeamEntry(participant);
-      if (ref) expectedRosterRefs.add(ref);
+      const refs = participant && typeof participant === 'object'
+        ? collectIdentityRefs(participant)
+        : [normalizeTeamEntry(participant)];
+      refs.forEach((ref) => {
+        if (ref) expectedRosterRefs.add(ref);
+      });
     });
     (Array.isArray(match?.jugadores) ? match.jugadores : []).forEach((player) => {
       const ref = getStableMatchPlayerRef(player);
       if (ref) expectedRosterRefs.add(ref);
     });
 
-    const selectedTeams = selectBestTeamPair({
-      candidates: [
-        {
-          source: 'snapshot_equipos',
-          teamA: Array.isArray(snapshotTeams?.team_a) ? snapshotTeams.team_a : [],
-          teamB: Array.isArray(snapshotTeams?.team_b) ? snapshotTeams.team_b : [],
-        },
-        {
-          source: 'survey_team',
-          teamA: Array.isArray(lifecycle?.survey_team_a) ? lifecycle.survey_team_a : [],
-          teamB: Array.isArray(lifecycle?.survey_team_b) ? lifecycle.survey_team_b : [],
-        },
-        {
-          source: 'final_team',
-          teamA: Array.isArray(lifecycle?.final_team_a) ? lifecycle.final_team_a : [],
-          teamB: Array.isArray(lifecycle?.final_team_b) ? lifecycle.final_team_b : [],
-        },
-        {
-          source: 'team_confirmations',
-          teamA: Array.isArray(teamConfirm?.team_a) ? teamConfirm.team_a : [],
-          teamB: Array.isArray(teamConfirm?.team_b) ? teamConfirm.team_b : [],
-        },
-      ],
+    const teamCandidates = [
+      {
+        source: 'snapshot_equipos',
+        teamA: Array.isArray(snapshotTeams?.team_a) ? snapshotTeams.team_a : [],
+        teamB: Array.isArray(snapshotTeams?.team_b) ? snapshotTeams.team_b : [],
+      },
+      {
+        source: 'survey_team',
+        teamA: Array.isArray(lifecycle?.survey_team_a) ? lifecycle.survey_team_a : [],
+        teamB: Array.isArray(lifecycle?.survey_team_b) ? lifecycle.survey_team_b : [],
+      },
+      {
+        source: 'final_team',
+        teamA: Array.isArray(lifecycle?.final_team_a) ? lifecycle.final_team_a : [],
+        teamB: Array.isArray(lifecycle?.final_team_b) ? lifecycle.final_team_b : [],
+      },
+      {
+        source: 'team_confirmations',
+        teamA: Array.isArray(teamConfirm?.team_a) ? teamConfirm.team_a : [],
+        teamB: Array.isArray(teamConfirm?.team_b) ? teamConfirm.team_b : [],
+      },
+    ];
+
+    const evaluatedCandidates = teamCandidates.map((candidate) => (
+      evaluateTeamPairQuality({
+        teamA: candidate?.teamA,
+        teamB: candidate?.teamB,
+        expectedRosterRefs,
+        source: String(candidate?.source || 'unknown'),
+      })
+    ));
+
+    const evaluations = evaluatedCandidates.map((quality) => ({
+      source: quality.source,
+      valid_pair: quality.valid_pair,
+      team_a_count: quality.team_a_count,
+      team_b_count: quality.team_b_count,
+      overlap: quality.overlap,
+      union_size: quality.union_size,
+      expected_roster_size: quality.expected_roster_size,
+      coverage: quality.coverage,
+      is_complete: quality.is_complete,
+      score: quality.score,
+    }));
+
+    const fallbackTeams = selectBestTeamPair({
+      candidates: teamCandidates,
       expectedRosterRefs,
     });
+    let selectedTeams = {
+      ...fallbackTeams,
+      evaluations,
+    };
+
+    const userResolvedSourcePriority = ['final_team', 'survey_team', 'team_confirmations', 'snapshot_equipos'];
+    const evaluatedBySource = new Map(evaluatedCandidates.map((quality) => [quality.source, quality]));
+
+    for (const source of userResolvedSourcePriority) {
+      const quality = evaluatedBySource.get(source);
+      if (!quality?.valid_pair) continue;
+      const userTeamFromSource = resolveUserTeam({
+        participants,
+        teamA: quality.teamA,
+        teamB: quality.teamB,
+        matchPlayers: match?.jugadores || [],
+        userIdentitySet,
+        isCurrentUserPlayer,
+        getPlayerIdentityCandidates,
+      });
+      if (!userTeamFromSource.resolvedTeam) continue;
+
+      selectedTeams = {
+        teamA: quality.teamA,
+        teamB: quality.teamB,
+        source: quality.source,
+        reason: 'user_resolved',
+        evaluations,
+      };
+      break;
+    }
+
     const teamA = selectedTeams.teamA;
     const teamB = selectedTeams.teamB;
     const finishedAt = survey?.finished_at ?? lifecycle?.finished_at ?? match?.finished_at ?? null;

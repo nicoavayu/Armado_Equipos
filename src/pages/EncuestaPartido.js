@@ -1587,7 +1587,7 @@ const EncuestaPartido = () => {
   };
 
   const persistSurveyTeamsDefinition = async ({ deferTeamsFinalizedUi = false } = {}) => {
-    if (shouldDisableTeamReorganization) {
+    if (shouldDisableTeamReorganization && !isTeamChallengeSurvey) {
       return { ok: true, message: '' };
     }
 
@@ -1612,13 +1612,22 @@ const EncuestaPartido = () => {
         const player = playersByKey[key];
         if (!player) return;
 
-        const preferred = player?.id ?? player?.uuid ?? player?.usuario_id ?? resolvePersistRef(player);
-        pushRef(preferred);
+        const orderedRefs = [
+          player?.usuario_id,
+          player?.user_id,
+          player?.uuid,
+          player?.auth_id,
+          player?.player_id,
+          player?.id,
+          player?.email,
+          normalizeIdentityToken(player?.nombre),
+          resolvePersistRef(player),
+        ];
 
         if (includeAliases) {
-          pushRef(player?.id);
-          pushRef(player?.uuid);
-          pushRef(player?.usuario_id);
+          orderedRefs.forEach(pushRef);
+        } else {
+          pushRef(orderedRefs.find((ref) => String(ref || '').trim().length > 0) || null);
         }
       });
 
@@ -1839,7 +1848,7 @@ const EncuestaPartido = () => {
       }
 
       const outcome = resolveSurveyOutcome();
-      if (outcome.seJugo && !skipPersistTeams && !shouldDisableTeamReorganization) {
+      if (outcome.seJugo && !skipPersistTeams && (!shouldDisableTeamReorganization || isTeamChallengeSurvey)) {
         const persistResult = await persistSurveyTeamsDefinition();
         if (!persistResult.ok) {
           openSurveyModal(persistResult.message, 'No se pudieron guardar los equipos');

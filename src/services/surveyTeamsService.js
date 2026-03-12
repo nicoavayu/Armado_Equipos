@@ -2,14 +2,36 @@ import { supabase } from '../supabase';
 
 export const normalizeIdentityRef = (value) => String(value || '').trim().toLowerCase();
 
+const normalizePersistNameRef = (value) => {
+  const token = normalizeIdentityRef(value);
+  return token || null;
+};
+
+const getOrderedPlayerPersistRefs = (player) => {
+  if (!player || typeof player !== 'object') return [];
+  return [
+    player?.usuario_id,
+    player?.user_id,
+    player?.uuid,
+    player?.auth_id,
+    player?.player_id,
+    player?.id,
+    player?.email,
+    normalizePersistNameRef(player?.nombre),
+  ]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+};
+
 export const resolvePlayerKey = (player) => {
   if (!player) return null;
   return String(player.uuid || player.usuario_id || player.id || '').trim() || null;
 };
 
-export const resolvePersistRef = (player) => (
-  String(player?.uuid || player?.usuario_id || player?.id || '').trim() || null
-);
+export const resolvePersistRef = (player) => {
+  const [preferred] = getOrderedPlayerPersistRefs(player);
+  return preferred || null;
+};
 
 export const buildPlayerRefToKeyMap = (players = []) => {
   const map = new Map();
@@ -18,7 +40,10 @@ export const buildPlayerRefToKeyMap = (players = []) => {
     const key = resolvePlayerKey(player);
     if (!key) return;
 
-    [player.uuid, player.usuario_id, player.id, key]
+    [
+      ...getOrderedPlayerPersistRefs(player),
+      key,
+    ]
       .map((ref) => normalizeIdentityRef(ref))
       .filter(Boolean)
       .forEach((ref) => map.set(ref, key));

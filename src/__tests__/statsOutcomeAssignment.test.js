@@ -218,6 +218,315 @@ describe('stats outcome assignment', () => {
     expect(result.debugEntries.filter((entry) => entry?.result_application?.excluded_reason === 'duplicate_match')).toHaveLength(1);
   });
 
+  test('challenge fixed teams persisted count match outcome correctly', () => {
+    const rawUserMatches = [
+      makeMatch({
+        id: 107,
+        jugadores: [
+          { id: 31, usuario_id: 'user-a' },
+          { id: 32, uuid: 'guest-player' },
+          { id: 33, usuario_id: 'user-c' },
+          { id: 34, usuario_id: 'user-d' },
+        ],
+        result_status: 'finished',
+      }),
+    ];
+    const surveyRows = [{
+      partido_id: 107,
+      result_status: 'finished',
+      winner_team: 'equipo_a',
+      finished_at: '2026-03-11T21:00:00Z',
+    }];
+    const teamRows = [{
+      partido_id: 107,
+      participants: [
+        { id: '31', user_id: 'user-a', nombre: 'User A' },
+        { id: '32', uuid: 'guest-player', nombre: 'Invitado' },
+        { id: '33', user_id: 'user-c', nombre: 'User C' },
+        { id: '34', user_id: 'user-d', nombre: 'User D' },
+      ],
+      team_a: ['31', 'guest-player'],
+      team_b: ['33', '34'],
+    }];
+    const lifecycleRows = [{
+      id: 107,
+      result_status: 'finished',
+      winner_team: 'equipo_a',
+      survey_team_a: ['31', 'guest-player'],
+      survey_team_b: ['33', '34'],
+      final_team_a: ['31', 'guest-player'],
+      final_team_b: ['33', '34'],
+      finished_at: '2026-03-11T21:00:00Z',
+    }];
+
+    const result = buildSurveyOutcomeStats({
+      rawUserMatches,
+      surveyRows,
+      teamRows,
+      lifecycleRows,
+      ...makeUserContext('user-a'),
+    });
+
+    expect(result.ganados).toBe(1);
+    expect(result.empatados).toBe(0);
+    expect(result.perdidos).toBe(0);
+    expect(result.sinEquipoDetectado).toBe(0);
+  });
+
+  test('prefers latest source that resolves user when snapshot teams are stale', () => {
+    const rawUserMatches = [
+      makeMatch({
+        id: 108,
+        jugadores: [{ id: 12, usuario_id: 'user-new' }, { id: 13, usuario_id: 'user-rival' }],
+        result_status: 'finished',
+      }),
+    ];
+    const surveyRows = [{
+      partido_id: 108,
+      result_status: 'finished',
+      winner_team: 'equipo_a',
+      finished_at: '2026-03-11T21:00:00Z',
+      snapshot_equipos: {
+        team_a: ['legacy-a'],
+        team_b: ['legacy-b'],
+      },
+      snapshot_participantes: [
+        { ref: 'legacy-a', nombre: 'Legacy A' },
+        { ref: 'legacy-b', nombre: 'Legacy B' },
+      ],
+    }];
+    const lifecycleRows = [{
+      id: 108,
+      result_status: 'finished',
+      winner_team: 'equipo_a',
+      final_team_a: ['user-new'],
+      final_team_b: ['user-rival'],
+      finished_at: '2026-03-11T21:00:00Z',
+    }];
+
+    const result = buildSurveyOutcomeStats({
+      rawUserMatches,
+      surveyRows,
+      teamRows: [],
+      lifecycleRows,
+      includeDebug: true,
+      ...makeUserContext('user-new'),
+    });
+
+    expect(result.ganados).toBe(1);
+    expect(result.sinEquipoDetectado).toBe(0);
+    expect(result.debugEntries[0]?.team_selection?.selected_source).toBe('final_team');
+    expect(result.debugEntries[0]?.team_selection?.selected_reason).toBe('user_resolved');
+  });
+
+  test('prefers final_team over snapshot when both resolve current user', () => {
+    const rawUserMatches = [
+      makeMatch({
+        id: 111,
+        jugadores: [{ id: 41, usuario_id: 'user-a' }, { id: 42, usuario_id: 'user-b' }],
+        result_status: 'finished',
+      }),
+    ];
+    const surveyRows = [{
+      partido_id: 111,
+      result_status: 'finished',
+      winner_team: 'equipo_a',
+      finished_at: '2026-03-11T21:00:00Z',
+      snapshot_equipos: {
+        team_a: ['user-a'],
+        team_b: ['user-b'],
+      },
+      snapshot_participantes: [
+        { user_id: 'user-a', nombre: 'User A' },
+        { user_id: 'user-b', nombre: 'User B' },
+      ],
+    }];
+    const lifecycleRows = [{
+      id: 111,
+      result_status: 'finished',
+      winner_team: 'equipo_a',
+      final_team_a: ['user-b'],
+      final_team_b: ['user-a'],
+      finished_at: '2026-03-11T21:00:00Z',
+    }];
+
+    const result = buildSurveyOutcomeStats({
+      rawUserMatches,
+      surveyRows,
+      teamRows: [],
+      lifecycleRows,
+      includeDebug: true,
+      ...makeUserContext('user-a'),
+    });
+
+    expect(result.ganados).toBe(0);
+    expect(result.perdidos).toBe(1);
+    expect(result.sinEquipoDetectado).toBe(0);
+    expect(result.debugEntries[0]?.team_selection?.selected_source).toBe('final_team');
+  });
+
+  test('keeps snapshot resolution when snapshot is the only available team source', () => {
+    const rawUserMatches = [
+      makeMatch({
+        id: 112,
+        jugadores: [{ id: 51, usuario_id: 'user-a' }, { id: 52, usuario_id: 'user-b' }],
+        result_status: 'finished',
+      }),
+    ];
+    const surveyRows = [{
+      partido_id: 112,
+      result_status: 'finished',
+      winner_team: 'equipo_b',
+      finished_at: '2026-03-11T21:00:00Z',
+      snapshot_equipos: {
+        team_a: ['user-a'],
+        team_b: ['user-b'],
+      },
+      snapshot_participantes: [
+        { user_id: 'user-a', nombre: 'User A' },
+        { user_id: 'user-b', nombre: 'User B' },
+      ],
+    }];
+
+    const result = buildSurveyOutcomeStats({
+      rawUserMatches,
+      surveyRows,
+      teamRows: [],
+      lifecycleRows: [],
+      includeDebug: true,
+      ...makeUserContext('user-b'),
+    });
+
+    expect(result.ganados).toBe(1);
+    expect(result.perdidos).toBe(0);
+    expect(result.sinEquipoDetectado).toBe(0);
+    expect(result.debugEntries[0]?.team_selection?.selected_source).toBe('snapshot_equipos');
+  });
+
+  test('prioritizes strong identity over nombre fallback when names collide', () => {
+    const rawUserMatches = [
+      makeMatch({
+        id: 113,
+        jugadores: [
+          { id: 61, usuario_id: 'user-strong', nombre: 'Alex' },
+          { id: 62, usuario_id: 'other-user', nombre: 'Alex' },
+        ],
+        result_status: 'finished',
+      }),
+    ];
+    const surveyRows = [{
+      partido_id: 113,
+      result_status: 'finished',
+      winner_team: 'equipo_b',
+      finished_at: '2026-03-11T21:00:00Z',
+    }];
+    const lifecycleRows = [{
+      id: 113,
+      result_status: 'finished',
+      winner_team: 'equipo_b',
+      final_team_a: ['alex'],
+      final_team_b: ['user-strong'],
+      finished_at: '2026-03-11T21:00:00Z',
+    }];
+
+    const result = buildSurveyOutcomeStats({
+      rawUserMatches,
+      surveyRows,
+      teamRows: [],
+      lifecycleRows,
+      includeDebug: true,
+      ...makeUserContext('user-strong'),
+    });
+
+    expect(result.ganados).toBe(1);
+    expect(result.perdidos).toBe(0);
+    expect(result.sinEquipoDetectado).toBe(0);
+    expect(result.debugEntries[0]?.team_selection?.selected_source).toBe('final_team');
+  });
+
+  test('handles invited to registered identity transition without sin equipo', () => {
+    const rawUserMatches = [
+      makeMatch({
+        id: 109,
+        jugadores: [{ id: 501, usuario_id: 'registered-user' }, { id: 502, usuario_id: 'other-user' }],
+        result_status: 'finished',
+      }),
+    ];
+    const surveyRows = [{
+      partido_id: 109,
+      result_status: 'finished',
+      winner_team: 'equipo_a',
+      finished_at: '2026-03-11T21:00:00Z',
+    }];
+    const teamRows = [{
+      partido_id: 109,
+      participants: [
+        {
+          player_id: '501',
+          user_id: 'registered-user',
+          jugador: { id: '501', usuario_id: 'registered-user', nombre: 'Registered User' },
+        },
+        {
+          player_id: '502',
+          user_id: 'other-user',
+          jugador: { id: '502', usuario_id: 'other-user', nombre: 'Other User' },
+        },
+      ],
+      team_a: ['501'],
+      team_b: ['502'],
+    }];
+
+    const result = buildSurveyOutcomeStats({
+      rawUserMatches,
+      surveyRows,
+      teamRows,
+      lifecycleRows: [],
+      ...makeUserContext('registered-user'),
+    });
+
+    expect(result.ganados).toBe(1);
+    expect(result.sinEquipoDetectado).toBe(0);
+  });
+
+  test('keeps excluded sin equipo when user cannot be resolved', () => {
+    const rawUserMatches = [
+      makeMatch({
+        id: 110,
+        jugadores: [{ id: 17, usuario_id: 'user-a' }],
+        result_status: 'finished',
+      }),
+    ];
+    const surveyRows = [{
+      partido_id: 110,
+      result_status: 'finished',
+      winner_team: 'equipo_a',
+      finished_at: '2026-03-11T21:00:00Z',
+    }];
+    const lifecycleRows = [{
+      id: 110,
+      result_status: 'finished',
+      winner_team: 'equipo_a',
+      final_team_a: ['other-a'],
+      final_team_b: ['other-b'],
+      finished_at: '2026-03-11T21:00:00Z',
+    }];
+
+    const result = buildSurveyOutcomeStats({
+      rawUserMatches,
+      surveyRows,
+      teamRows: [],
+      lifecycleRows,
+      includeDebug: true,
+      ...makeUserContext('user-a'),
+    });
+
+    expect(result.ganados).toBe(0);
+    expect(result.empatados).toBe(0);
+    expect(result.perdidos).toBe(0);
+    expect(result.sinEquipoDetectado).toBe(1);
+    expect(result.debugEntries[0]?.result_application?.excluded_reason).toBe('user_not_in_final_roster');
+  });
+
   test('not_played is excluded from W/D/L outcome assignment', () => {
     const rawUserMatches = [
       makeMatch({
