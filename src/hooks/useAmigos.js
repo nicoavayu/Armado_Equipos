@@ -259,39 +259,8 @@ export const useAmigos = (currentUserId) => {
 
       console.log('[AMIGOS] Friend request created successfully:', data);
 
-      // Create notification for the friend
-      try {
-        // Get sender's profile to include in notification
-        const { data: senderProfile } = await supabase
-          .from('usuarios')
-          .select('nombre')
-          .eq('id', currentUserId)
-          .single();
-
-        // Create notification in the database for the recipient
-        const notificationResult = await supabase
-          .from('notifications')
-          .insert([{
-            user_id: friendId,
-            type: 'friend_request',
-            title: 'Nueva solicitud de amistad',
-            message: `${senderProfile?.nombre || 'Alguien'} te ha enviado una solicitud de amistad`,
-            data: {
-              requestId: data.id,
-              senderId: currentUserId,
-              senderName: senderProfile?.nombre || 'Alguien',
-            },
-            read: false,
-            created_at: new Date().toISOString(),
-          }])
-          .select()
-          .single();
-
-        console.log('[AMIGOS] Notification created:', notificationResult.data);
-      } catch (notifError) {
-        console.error('[AMIGOS] Error creating notification:', notifError);
-        // Continue even if notification creation fails
-      }
+      // Canonical friend_request notifications are created in DB trigger
+      // (on public.amigos) to guarantee enqueue/push traceability.
 
       return { success: true, data };
     } catch (err) {
