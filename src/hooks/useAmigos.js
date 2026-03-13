@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, getAmigos as getAmigosFromSupabase } from '../supabase';
 import { useNotifications } from '../context/NotificationContext';
+import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 
 /**
  * Validate if a string is a valid UUID format
@@ -261,6 +262,12 @@ export const useAmigos = (currentUserId) => {
 
       // Canonical friend_request notifications are created in DB trigger
       // (on public.amigos) to guarantee enqueue/push traceability.
+      requestImmediatePushDispatchSafe({
+        eventType: 'friend_request',
+        requestId: data?.id,
+        recipientUserId: friendId,
+        limit: 20,
+      });
 
       return { success: true, data };
     } catch (err) {

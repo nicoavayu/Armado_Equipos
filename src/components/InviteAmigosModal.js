@@ -4,6 +4,7 @@ import { getAmigos, supabase } from '../supabase';
 import LoadingSpinner from './LoadingSpinner';
 import { formatLocalDateShort } from '../utils/dateLocal';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 
 const normalizeInviteMode = (value) => {
   const normalized = String(value || '').trim().toLowerCase();
@@ -379,6 +380,15 @@ const InviteAmigosModal = ({
         return;
       }
 
+      if (result.status === 'sent') {
+        requestImmediatePushDispatchSafe({
+          eventType: 'match_invite',
+          matchId: Number(partidoActual?.id),
+          recipientUserId: amigo?.id,
+          limit: 20,
+        });
+      }
+
       setInvitedFriends((prev) => {
         const next = new Set(prev);
         if (friendIdText) next.add(friendIdText);
@@ -445,6 +455,15 @@ const InviteAmigosModal = ({
           return next;
         });
       }
+
+      if (sentIds.length > 0) {
+        requestImmediatePushDispatchSafe({
+          eventType: 'match_invite',
+          matchId: Number(partidoActual?.id),
+          limit: Math.max(20, Math.min(60, sentIds.length * 10)),
+        });
+      }
+
       setSelectedFriendIds(new Set());
     } catch (error) {
       console.error('[MODAL_AMIGOS] Error sending selected invites:', error);

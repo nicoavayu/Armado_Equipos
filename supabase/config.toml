@@ -9,3 +9,6 @@ verify_jwt = true
 
 [functions.push-sender]
 verify_jwt = true
+
+[functions.push-dispatch-now]
+verify_jwt = true
