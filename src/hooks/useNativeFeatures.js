@@ -13,6 +13,7 @@ import {
   getLastKnownNativePushToken,
   syncNativePushToken,
 } from '../services/pushTokenService';
+import { track } from '../utils/monitoring/analytics';
 
 let pushBootstrapPromise = null;
 let pushListenersAttached = false;
@@ -26,6 +27,34 @@ export const initNativePushNotifications = async () => {
       ensurePushTokenAuthSync();
 
       if (!pushListenersAttached) {
+        await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+          const data = action?.notification?.data || action?.notification?.extra || {};
+          const notificationType = String(
+            data?.notificationType
+            || data?.notification_type
+            || data?.type
+            || action?.actionId
+            || action?.notification?.title
+            || '',
+          ).trim();
+
+          const route = String(
+            data?.route
+            || data?.url
+            || data?.link
+            || data?.target_route
+            || data?.targetUrl
+            || '',
+          ).trim();
+
+          track('push_opened', {
+            notification_type: notificationType || undefined,
+            route: route || undefined,
+            opened_from_push: true,
+            source: 'capacitor_push',
+          });
+        });
+
         await PushNotifications.addListener('registration', async (token) => {
           const currentToken = String(token?.value || '').trim();
           if (!currentToken) return;

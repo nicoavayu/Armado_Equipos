@@ -35,6 +35,7 @@ import {
 import { filterNotificationsForInbox } from '../utils/notificationInviteState';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { resolveSurveyAccess } from '../utils/surveyAccess';
+import { track } from '../utils/monitoring/analytics';
 
 const NotificationsModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
@@ -114,6 +115,16 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   const handleNotificationClick = async (notification) => {
     console.log('[NOTIFICATION_CLICK] START', { type: notification.type, data: notification.data });
 
+    const trackOpened = (notificationItem) => {
+      if (notificationItem?.type === 'match_invite') {
+        track('match_invite_opened', {
+          notification_id: String(notificationItem?.id || '').trim() || undefined,
+          match_id: String(extractNotificationMatchId(notificationItem) || '').trim() || undefined,
+          source: 'notifications_modal',
+        });
+      }
+    };
+
     const isMatchInvite = notification?.type === 'match_invite';
     if (!isMatchInvite) {
       try {
@@ -182,6 +193,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
         console.info('Esta invitación ya no está activa');
         return;
       }
+      trackOpened(notification);
 
       const matchId = extractNotificationMatchId(notification);
       const challengeRoute = isTeamChallengeNotification(notification)

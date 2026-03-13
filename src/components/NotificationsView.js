@@ -35,6 +35,7 @@ import { filterNotificationsForInbox } from '../utils/notificationInviteState';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import supabase from '../supabase';
 import { resolveSurveyAccess } from '../utils/surveyAccess';
+import { track } from '../utils/monitoring/analytics';
 
 
 const NotificationsView = () => {
@@ -101,6 +102,30 @@ const NotificationsView = () => {
       console.error('[NOTIFICATION_CLICK] navigation error', { route, error });
       fallbackToNotificationRoute(notification, message);
       return false;
+    }
+  };
+
+  const trackNotificationOpened = (notification) => {
+    const type = String(notification?.type || '').trim();
+    if (!type) return;
+
+    if (type === 'friend_request') {
+      track('friend_request_opened', {
+        request_id: String(notification?.data?.requestId || '').trim() || undefined,
+        sender_user_id: String(notification?.data?.senderId || '').trim() || undefined,
+        source: 'notifications_view',
+        notification_id: String(notification?.id || '').trim() || undefined,
+      });
+      return;
+    }
+
+    if (type === 'match_invite') {
+      const resolvedMatchId = extractNotificationMatchId(notification);
+      track('match_invite_opened', {
+        notification_id: String(notification?.id || '').trim() || undefined,
+        match_id: String(resolvedMatchId || '').trim() || undefined,
+        source: 'notifications_view',
+      });
     }
   };
 
@@ -220,8 +245,6 @@ const NotificationsView = () => {
     }
 
     switch (notification.type) {
-      case 'friend_request':
-        break;
       case 'friend_accepted':
         safeNavigate(notification, '/amigos');
         break;
@@ -240,6 +263,7 @@ const NotificationsView = () => {
           console.info('Esta invitación ya no está activa');
           break;
         }
+        trackNotificationOpened(notification);
 
         const challengeRoute = await resolveTeamChallengeRouteFromMatchId({
           supabaseClient: supabase,
@@ -385,6 +409,7 @@ const NotificationsView = () => {
   const handleAcceptFriend = async (notification) => {
     const requestId = notification.data?.requestId;
     if (!requestId) return;
+    trackNotificationOpened(notification);
 
     setProcessingRequests((prev) => {
       const newSet = new Set(prev);
@@ -415,6 +440,7 @@ const NotificationsView = () => {
   const handleRejectFriend = async (notification) => {
     const requestId = notification.data?.requestId;
     if (!requestId) return;
+    trackNotificationOpened(notification);
 
     setProcessingRequests((prev) => {
       const newSet = new Set(prev);
