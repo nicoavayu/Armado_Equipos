@@ -1,0 +1,146 @@
+name: Push Sender Dispatch
+
+on:
+  schedule:
+    # GitHub Actions cron minimum interval is 5 minutes.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: Batch limit for this run (1-500)
+        required: false
+        default: '120'
+      dry_run:
+        description: Dry run mode (no provider send)
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions: {}
+
+concurrency:
+  group: push-sender-dispatch
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PUSH_SENDER_URL: ${{ secrets.SUPABASE_PUSH_SENDER_URL }}
+      SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PUSH_SENDER_SECRET: ${{ secrets.PUSH_SENDER_SECRET }}
+      DEFAULT_BATCH_LIMIT: ${{ vars.PUSH_SENDER_BATCH_LIMIT }}
+    steps:
+      - name: Validate required secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=0
+          for key in PUSH_SENDER_URL SERVICE_ROLE_KEY PUSH_SENDER_SECRET; do
+            if [ -z "${!key:-}" ]; then
+              echo "::error title=Missing GitHub secret::${key} is not configured"
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Invoke push-sender
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          limit="${DEFAULT_BATCH_LIMIT:-120}"
+          dry_run="false"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            limit="${{ inputs.limit }}"
+            dry_run="${{ inputs.dry_run }}"
+          fi
+
+          if ! [[ "$limit" =~ ^[0-9]+$ ]]; then
+            echo "::error title=Invalid input::limit must be an integer"
+            exit 1
+          fi
+
+          if [ "$limit" -lt 1 ] || [ "$limit" -gt 500 ]; then
+            echo "::error title=Invalid input::limit must be between 1 and 500"
+            exit 1
+          fi
+
+          if [ "$dry_run" != "true" ] && [ "$dry_run" != "false" ]; then
+            echo "::error title=Invalid input::dry_run must be true/false"
+            exit 1
+          fi
+
+          payload=$(jq -cn \
+            --arg worker_id "github_actions_push_sender" \
+            --argjson limit "$limit" \
+            --argjson dry_run "$dry_run" \
+            '{worker_id:$worker_id, limit:$limit, dry_run:$dry_run}')
+
+          response_file="$(mktemp)"
+          http_code=$(curl --silent --show-error \
+            --request POST "$PUSH_SENDER_URL" \
+            --header "Content-Type: application/json" \
+            --header "Authorization: Bearer $SERVICE_ROLE_KEY" \
+            --header "apikey: $SERVICE_ROLE_KEY" \
+            --header "x-push-sender-secret: $PUSH_SENDER_SECRET" \
+            --data "$payload" \
+            --output "$response_file" \
+            --write-out "%{http_code}")
+
+          response_body=$(cat "$response_file")
+          rm -f "$response_file"
+
+          echo "HTTP status: $http_code"
+
+          json_valid="false"
+          if echo "$response_body" | jq -e . >/dev/null 2>&1; then
+            json_valid="true"
+          fi
+
+          ok="false"
+          reason="non_json_response"
+          sender_status=""
+          processed="0"
+          sent="0"
+          failed="0"
+          retryable_failed="0"
+
+          if [ "$json_valid" = "true" ]; then
+            ok=$(echo "$response_body" | jq -r '.ok // false')
+            reason=$(echo "$response_body" | jq -r '.reason // ""')
+            sender_status=$(echo "$response_body" | jq -r '.status // ""')
+            processed=$(echo "$response_body" | jq -r '.processed // 0')
+            sent=$(echo "$response_body" | jq -r '.sent // 0')
+            failed=$(echo "$response_body" | jq -r '.failed // 0')
+            retryable_failed=$(echo "$response_body" | jq -r '.retryable_failed // 0')
+            if [ -z "$reason" ] || [ "$reason" = "null" ]; then
+              reason="unknown"
+            fi
+          fi
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "::error title=push-sender HTTP error::status=$http_code reason=$reason sender_status=${sender_status:-n/a} processed=$processed sent=$sent failed=$failed retryable_failed=$retryable_failed"
+            exit 1
+          fi
+
+          if [ "$json_valid" != "true" ]; then
+            echo "::error title=Invalid JSON response::status=$http_code reason=non_json_response"
+            exit 1
+          fi
+
+          echo "ok=$ok reason=$reason sender_status=${sender_status:-n/a} processed=$processed sent=$sent failed=$failed retryable_failed=$retryable_failed"
+
+          if [ "$ok" != "true" ]; then
+            echo "::error title=push-sender rejected::reason=$reason sender_status=${sender_status:-n/a} processed=$processed sent=$sent failed=$failed retryable_failed=$retryable_failed"
+            exit 1
+          fi
