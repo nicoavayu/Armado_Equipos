@@ -7,33 +7,88 @@ import { Geolocation } from '@capacitor/geolocation';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Network } from '@capacitor/network';
 import { PushNotifications } from '@capacitor/push-notifications';
+import {
+  ensurePushTokenAuthSync,
+  flushPendingPushToken,
+  getLastKnownNativePushToken,
+  syncNativePushToken,
+} from '../services/pushTokenService';
+
+let pushBootstrapPromise = null;
+let pushListenersAttached = false;
+let lastRegistrationToken = '';
+
+export const initNativePushNotifications = async () => {
+  if (!Capacitor.isNativePlatform()) return;
+
+  if (!pushBootstrapPromise) {
+    pushBootstrapPromise = (async () => {
+      ensurePushTokenAuthSync();
+
+      if (!pushListenersAttached) {
+        await PushNotifications.addListener('registration', async (token) => {
+          const currentToken = String(token?.value || '').trim();
+          if (!currentToken) return;
+
+          try {
+            const previousToken = lastRegistrationToken || await getLastKnownNativePushToken();
+            lastRegistrationToken = currentToken;
+            await syncNativePushToken(currentToken, { previousToken });
+          } catch (error) {
+            console.warn('[PUSH] Failed to sync native registration token', error);
+          }
+        });
+
+        await PushNotifications.addListener('registrationError', (error) => {
+          console.warn('[PUSH] Native registration error', error);
+        });
+
+        pushListenersAttached = true;
+      }
+
+      const permission = await PushNotifications.requestPermissions();
+      if (permission.receive !== 'granted') {
+        console.info('[PUSH] Permission not granted');
+        return;
+      }
+
+      await PushNotifications.register();
+      await flushPendingPushToken();
+    })().catch((error) => {
+      console.warn('[PUSH] bootstrapNativePush failed', error);
+    });
+  }
+
+  await pushBootstrapPromise;
+};
 
 export const useNativeFeatures = () => {
   const [isNative] = useState(Capacitor.isNativePlatform());
   const [networkStatus, setNetworkStatus] = useState({ connected: true });
 
   useEffect(() => {
-    if (isNative) {
-      // Monitor network status
-      Network.addListener('networkStatusChange', (status) => {
-        setNetworkStatus(status);
+    if (!isNative) return undefined;
+
+    let networkListenerHandle = null;
+
+    Network.addListener('networkStatusChange', (status) => {
+      setNetworkStatus(status);
+    })
+      .then((handle) => {
+        networkListenerHandle = handle;
+      })
+      .catch((error) => {
+        console.warn('[NATIVE] Failed to attach network listener', error);
       });
 
-      // Initialize push notifications
-      initPushNotifications();
-    }
-  }, [isNative]);
+    initNativePushNotifications();
 
-  const initPushNotifications = async () => {
-    try {
-      const permission = await PushNotifications.requestPermissions();
-      if (permission.receive === 'granted') {
-        await PushNotifications.register();
+    return () => {
+      if (networkListenerHandle?.remove) {
+        networkListenerHandle.remove().catch(() => null);
       }
-    } catch (error) {
-      console.log('Push notifications not available');
-    }
-  };
+    };
+  }, [isNative]);
 
   const shareContent = async (title, text, url) => {
     try {
@@ -93,8 +148,8 @@ export const useNativeFeatures = () => {
 
   const vibrate = async (type = 'light') => {
     try {
-      const style = type === 'heavy' ? ImpactStyle.Heavy : 
-        type === 'medium' ? ImpactStyle.Medium : ImpactStyle.Light;
+      const style = type === 'heavy' ? ImpactStyle.Heavy
+        : type === 'medium' ? ImpactStyle.Medium : ImpactStyle.Light;
       await Haptics.impact({ style });
     } catch (error) {
       // Fallback to web vibration
@@ -117,6 +172,7 @@ export const useNativeFeatures = () => {
     } catch (error) {
       // Fallback to web notification
       if ('Notification' in window && Notification.permission === 'granted') {
+        // eslint-disable-next-line no-new
         new Notification(title, { body });
       }
     }

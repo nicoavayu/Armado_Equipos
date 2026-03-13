@@ -15,6 +15,10 @@ import {
   reverseGeocode,
   shouldRefresh,
 } from '../services/locationService';
+import {
+  getLogoutErrorMessage,
+  signOutWithPushDeactivation,
+} from '../services/authLogoutService';
 
 const GEO_LOG_PREFIX = '[PROFILE_GEO]';
 const LOCATION_DISABLED_LABEL = 'Ubicación desactivada';
@@ -803,10 +807,48 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       navigate('/', { replace: true });
       return;
     }
-    await supabase.auth.signOut();
-    onClose();
-    navigate('/login', { replace: true });
-  }, [onClose, navigate, isLocalDevSession]);
+    setLoading(true);
+    try {
+      const firstAttempt = await signOutWithPushDeactivation({
+        reason: 'user_logout',
+        maxDeactivateAttempts: 3,
+      });
+
+      if (!firstAttempt.success && firstAttempt.reason === 'push_cleanup_failed') {
+        const forceLogout = window.confirm(
+          'No se pudo desactivar el token push de este dispositivo. '
+          + 'Si cerrás sesión igual, este teléfono podría seguir recibiendo notificaciones del usuario anterior. '
+          + '¿Querés cerrar sesión de todos modos?',
+        );
+
+        if (!forceLogout) {
+          showInlineNotice('warning', 'No se cerró sesión. Reintentá cuando puedas desactivar push.');
+          return;
+        }
+
+        const forcedAttempt = await signOutWithPushDeactivation({
+          reason: 'user_logout',
+          force: true,
+          maxDeactivateAttempts: 1,
+        });
+
+        if (!forcedAttempt.success) {
+          throw new Error(getLogoutErrorMessage(forcedAttempt));
+        }
+
+        showInlineNotice('warning', 'Sesión cerrada sin confirmar desactivación push. Al iniciar con otra cuenta se reasignará el token.');
+      } else if (!firstAttempt.success) {
+        throw new Error(getLogoutErrorMessage(firstAttempt));
+      }
+
+      onClose();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      notifyBlockingError(`Error cerrando sesión: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [getLogoutErrorMessage, isLocalDevSession, navigate, onClose, showInlineNotice]);
 
   const handleLogout = useCallback(() => {
     if (loading) return;
@@ -868,7 +910,14 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
       setDeleteAccountConfirmation('');
       setShowLogoutConfirmModal(false);
       showInlineNotice('success', 'Cuenta eliminada correctamente.');
-      await supabase.auth.signOut();
+      const logoutResult = await signOutWithPushDeactivation({
+        reason: 'account_deleted',
+        force: true,
+        maxDeactivateAttempts: 2,
+      });
+      if (!logoutResult.success) {
+        throw new Error(getLogoutErrorMessage(logoutResult));
+      }
       onClose();
       navigate('/login', { replace: true });
     } catch (error) {

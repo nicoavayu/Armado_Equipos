@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
@@ -113,12 +115,32 @@ export default function InviteLanding() {
   }, [user, authLoading, inviteData, token, navigate, accepting]);
 
   const goGoogle = async () => {
-    setAuthReturnTo(returnTo);
-    const redirectTo = getAuthRedirectUrl();
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: redirectTo ? { redirectTo } : undefined,
-    });
+    try {
+      setAuthReturnTo(returnTo);
+      const redirectTo = getAuthRedirectUrl();
+      const isNativeIos = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+      const options = redirectTo ? { redirectTo } : {};
+      if (isNativeIos) {
+        options.skipBrowserRedirect = true;
+      }
+      const oauthOptions = Object.keys(options).length > 0 ? options : undefined;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: oauthOptions,
+      });
+
+      if (error) throw error;
+
+      if (isNativeIos) {
+        const authUrl = data?.url;
+        if (!authUrl) {
+          throw new Error('No se recibió URL de autenticación.');
+        }
+        await Browser.open({ url: authUrl });
+      }
+    } catch (err) {
+      setInviteError(err?.message || 'No pudimos iniciar sesión con Google.');
+    }
   };
 
   const goEmail = () => {

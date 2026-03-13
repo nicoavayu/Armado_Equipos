@@ -9,6 +9,10 @@ import { addFreePlayer, removeFreePlayer } from '../services';
 import InlineNotice from './ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import {
+  getLogoutErrorMessage,
+  signOutWithPushDeactivation,
+} from '../services/authLogoutService';
 
 export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
   const navigate = useNavigate();
@@ -26,6 +30,7 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
     bio: '',
   });
   const [hasChanges, setHasChanges] = useState(false);
+  const [logoutInFlight, setLogoutInFlight] = useState(false);
   const { notice, showInlineNotice, clearInlineNotice } = useInlineNotice();
   const fileInputRef = useRef(null);
 
@@ -197,9 +202,59 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
       navigate('/', { replace: true });
       return;
     }
-    await supabase.auth.signOut();
-    onClose();
-    navigate('/login', { replace: true });
+    if (logoutInFlight) return;
+
+    setLogoutInFlight(true);
+    try {
+      const firstAttempt = await signOutWithPushDeactivation({
+        reason: 'user_logout',
+        maxDeactivateAttempts: 3,
+      });
+
+      if (!firstAttempt.success && firstAttempt.reason === 'push_cleanup_failed') {
+        const forceLogout = window.confirm(
+          'No se pudo desactivar el token push de este dispositivo. '
+          + 'Si cerrás sesión igual, este teléfono podría seguir recibiendo notificaciones del usuario anterior. '
+          + '¿Querés cerrar sesión de todos modos?',
+        );
+
+        if (!forceLogout) {
+          showInlineNotice({
+            key: 'logout_push_cleanup_retry_cancelled',
+            type: 'warning',
+            message: 'No se cerró sesión. Reintentá cuando tengas mejor conexión para desactivar push.',
+          });
+          return;
+        }
+
+        const forcedAttempt = await signOutWithPushDeactivation({
+          reason: 'user_logout',
+          force: true,
+          maxDeactivateAttempts: 1,
+        });
+
+        if (!forcedAttempt.success) {
+          notifyBlockingError(getLogoutErrorMessage(forcedAttempt));
+          return;
+        }
+
+        showInlineNotice({
+          key: 'logout_push_cleanup_forced',
+          type: 'warning',
+          message: 'Sesión cerrada sin confirmar desactivación push. Al iniciar con otra cuenta se reasignará el token.',
+        });
+      } else if (!firstAttempt.success) {
+        notifyBlockingError(getLogoutErrorMessage(firstAttempt));
+        return;
+      }
+
+      onClose();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      notifyBlockingError(`Error cerrando sesión: ${error?.message || 'desconocido'}`);
+    } finally {
+      setLogoutInFlight(false);
+    }
   };
 
   const positions = [
@@ -384,9 +439,9 @@ export default function ProfileMenu({ isOpen, onClose, onProfileChange }) {
           <button
             className="w-full bg-[#dc3545]/80 border border-[#dc3545] text-white p-3 rounded-lg text-sm font-semibold font-[Oswald,Arial,sans-serif] cursor-pointer transition-all duration-200 mt-2 hover:not-disabled:bg-[#dc3545]"
             onClick={handleLogout}
-            disabled={loading}
+            disabled={loading || logoutInFlight}
           >
-            Cerrar Sesión
+            {logoutInFlight ? 'Cerrando sesión...' : 'Cerrar Sesión'}
           </button>
         </div>
       </div>

@@ -1,6 +1,9 @@
 // import './HomeStyleKit.css'; // Removed in Tailwind migration
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams, Outlet } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
@@ -10,6 +13,7 @@ import GlobalNoticeModal from './components/GlobalNoticeModal';
 // NotificationsDebugPanel removed
 
 import MainLayout from './components/MainLayout';
+import { initNativePushNotifications } from './hooks/useNativeFeatures';
 import { setAuthReturnTo } from './utils/authReturnTo';
 import { track } from './utils/monitoring/analytics';
 
@@ -67,6 +71,8 @@ export default function App() {
           <BadgeProvider>
             <NotificationProvider>
               <Router>
+                <NativePushBootstrap />
+                <NativeAuthDeepLinkBootstrap />
                 <ScrollToTop />
                 <RouteAnalyticsTracker />
                 <Routes>
@@ -244,6 +250,83 @@ export default function App() {
       </ErrorBoundary>
     </GlobalErrorBoundary>
   );
+}
+
+function NativePushBootstrap() {
+  useEffect(() => {
+    initNativePushNotifications().catch((error) => {
+      console.warn('[PUSH] NativePushBootstrap init failed', error);
+    });
+  }, []);
+
+  return null;
+}
+
+function NativeAuthDeepLinkBootstrap() {
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined;
+
+    let isDisposed = false;
+    let listenerHandle = null;
+    const handledUrls = new Set();
+
+    const handleUrl = (incomingUrl) => {
+      const rawUrl = String(incomingUrl || '').trim();
+      if (!rawUrl || handledUrls.has(rawUrl)) return;
+
+      let parsed;
+      try {
+        parsed = new URL(rawUrl);
+      } catch {
+        return;
+      }
+
+      const isOauthCallback = (
+        parsed.protocol === 'com.teambalancer.app:'
+        && parsed.hostname === 'auth'
+        && parsed.pathname === '/callback'
+      );
+
+      if (!isOauthCallback) return;
+
+      handledUrls.add(rawUrl);
+      Browser.close().catch(() => {});
+      const callbackRoute = `/auth/callback${parsed.search || ''}${parsed.hash || ''}`;
+      const currentRoute = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (currentRoute !== callbackRoute) {
+        window.location.replace(callbackRoute);
+      }
+    };
+
+    (async () => {
+      try {
+        listenerHandle = await CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+          if (isDisposed) return;
+          handleUrl(url);
+        });
+      } catch (error) {
+        console.warn('[AUTH] Could not register appUrlOpen listener:', error);
+      }
+
+      try {
+        const launch = await CapacitorApp.getLaunchUrl();
+        if (!isDisposed && launch?.url) {
+          handleUrl(launch.url);
+        }
+      } catch (error) {
+        console.warn('[AUTH] Could not read launch URL:', error);
+      }
+    })();
+
+    return () => {
+      isDisposed = true;
+      if (listenerHandle?.remove) {
+        listenerHandle.remove();
+      }
+    };
+  }, []);
+
+  return null;
 }
 
 // Wrapper para controlar la autenticación en la ruta principal
