@@ -1030,7 +1030,14 @@ const ProximosPartidos = ({ onClose }) => {
 
 
   return (
-    <div className="fixed top-0 left-0 w-screen h-[100dvh] text-white flex flex-col overflow-hidden z-[1000]">
+    <div
+      className="fixed left-0 w-screen text-white flex flex-col overflow-hidden z-[1000]"
+      style={{
+        top: 'var(--safe-top, 0px)',
+        height: 'calc(100dvh - var(--safe-top, 0px))',
+        transform: 'translateZ(0)',
+      }}
+    >
       <PageTitle onBack={onClose} title="MIS PARTIDOS">MIS PARTIDOS</PageTitle>
 
       <div className="flex-1 pt-[96px] px-4 pb-[100px] overflow-y-auto w-full box-border sm:pt-[96px] sm:px-4 sm:pb-[100px]">

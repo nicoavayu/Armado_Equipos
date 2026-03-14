@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { consumeAuthReturnTo } from '../utils/authReturnTo';
+import { track } from '../utils/monitoring/analytics';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -36,6 +37,12 @@ export default function AuthCallback() {
         const { data, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
         if (!data?.session) throw new Error('No se pudo restaurar la sesión.');
+
+        track('login_success', {
+          provider: 'google',
+          user_id: data.session.user?.id,
+          method: 'oauth_callback',
+        });
 
         const target = consumeAuthReturnTo('/home');
         navigate(target, { replace: true });

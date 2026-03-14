@@ -27,10 +27,22 @@ const ALLOWED_EVENT_TYPES = new Set<KickEventType>(["match_invite", "friend_requ
 
 function buildCorsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
+  const reqHeaders = req.headers.get("access-control-request-headers") ?? "";
+  const required = ["content-type", "authorization", "apikey", "x-client-info"];
+  const allowHeaders = Array.from(
+    new Set(
+      reqHeaders
+        .split(",")
+        .map((h) => h.trim().toLowerCase())
+        .filter(Boolean)
+        .concat(required),
+    ),
+  ).join(", ");
+
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST,OPTIONS",
-    "Access-Control-Allow-Headers": "content-type,authorization,apikey",
+    "Access-Control-Allow-Headers": allowHeaders,
     "Access-Control-Max-Age": "86400",
     Vary: "Origin, Access-Control-Request-Headers",
   };

@@ -79,11 +79,16 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
     console.log('[DEBUG] Template match validation:', debugInfo);
     
     if (isBlockedInDebug(selectedDate, timeToUse)) {
-      showInlineNotice({
-        key: 'use_template_past_date',
-        type: 'warning',
-        message: 'No podés crear un partido en el pasado.',
-      });
+      notifyBlockingError(
+        'La fecha y hora elegidas ya pasaron. Elegí un día y horario posteriores al momento actual para crear el partido.',
+        {
+          title: 'Fecha y hora inválidas',
+          confirmText: 'Aceptar',
+          key: 'use_template_past_date_modal',
+          screen: 'use_template_modal',
+          action: 'validate_datetime',
+        },
+      );
       return;
     }
     setCreating(true);

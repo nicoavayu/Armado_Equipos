@@ -5,6 +5,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { formatLocalDateShort } from '../utils/dateLocal';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
+import { track } from '../utils/monitoring/analytics';
 
 const normalizeInviteMode = (value) => {
   const normalized = String(value || '').trim().toLowerCase();
@@ -387,6 +388,11 @@ const InviteAmigosModal = ({
           recipientUserId: amigo?.id,
           limit: 20,
         });
+        track('match_invite_sent', {
+          match_id: Number(partidoActual?.id),
+          recipient_user_id: String(amigo?.id || '').trim() || undefined,
+          source: 'invite_amigos_modal',
+        });
       }
 
       setInvitedFriends((prev) => {
@@ -445,6 +451,16 @@ const InviteAmigosModal = ({
       }
 
       if (sentIds.length > 0 || alreadyInvitedIds.length > 0) {
+        sentIds.forEach((friendId) => {
+          const parsedFriendId = String(friendId || '').trim();
+          if (!parsedFriendId) return;
+          track('match_invite_sent', {
+            match_id: Number(partidoActual?.id),
+            recipient_user_id: parsedFriendId,
+            source: 'invite_amigos_modal_bulk',
+          });
+        });
+
         setInvitedFriends((prev) => {
           const next = new Set(prev);
           [...sentIds, ...alreadyInvitedIds]

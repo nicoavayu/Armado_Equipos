@@ -404,6 +404,12 @@ export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }
             <AutocompleteSede
               dense
               value={sede}
+              onChange={(nextValue) => {
+                setSede(nextValue);
+                if (!nextValue.trim()) {
+                  setSedeInfo(null);
+                }
+              }}
               onSelect={(info) => {
                 setSede(info.description);
                 setSedeInfo(info);

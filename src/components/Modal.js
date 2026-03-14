@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-
+import { useKeyboard } from '../hooks/useKeyboard';
 
 const Modal = ({
   isOpen,
@@ -15,24 +15,36 @@ const Modal = ({
   showCloseButton = false,
 }) => {
   const modalRef = useRef(null);
+  const { keyboardHeight, isKeyboardOpen } = useKeyboard();
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-    } else {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-    }
+    if (!isOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    const previousOverscrollBehavior = document.body.style.overscrollBehavior;
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
 
     return () => {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
+      document.body.style.overflow = previousOverflow;
+      document.body.style.overscrollBehavior = previousOverscrollBehavior;
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !isKeyboardOpen) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      const activeElement = document.activeElement;
+      if (!(activeElement instanceof HTMLElement)) return;
+      if (!modalRef.current || !modalRef.current.contains(activeElement)) return;
+      activeElement.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+    }, 90);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isKeyboardOpen, isOpen, keyboardHeight]);
 
   useEffect(() => {
     const handleEscape = (e) => {
@@ -58,16 +70,21 @@ const Modal = ({
 
   if (!isOpen) return null;
   const hasHeader = Boolean(title) || showCloseButton;
+  const keyboardInsetPx = Math.max(0, keyboardHeight || 0);
 
   const modalContent = (
     <div
       data-modal-root="true"
-      className="fixed inset-0 bg-black/75 backdrop-blur-[4px] z-[10001] flex items-center justify-center animate-[fadeIn_0.2s_ease-out]"
+      className="fixed inset-0 bg-black/75 backdrop-blur-[4px] z-[10001] flex justify-center animate-[fadeIn_0.2s_ease-out] overflow-y-auto"
       style={{
+        alignItems: isKeyboardOpen ? 'flex-start' : 'center',
         paddingTop: 'max(1.25rem, env(safe-area-inset-top))',
         paddingRight: 'max(1.25rem, env(safe-area-inset-right))',
-        paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))',
+        paddingBottom: isKeyboardOpen
+          ? `calc(max(0.75rem, env(safe-area-inset-bottom)) + ${keyboardInsetPx}px)`
+          : 'max(1.25rem, env(safe-area-inset-bottom))',
         paddingLeft: 'max(1.25rem, env(safe-area-inset-left))',
+        transition: 'padding-bottom 140ms ease-out',
       }}
       onClick={handleBackdropClick}
     >

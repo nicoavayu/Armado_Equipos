@@ -16,6 +16,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>com.teambalancer.app</string>
+				<string>teambalancer-crash-test</string>
 			</array>
 		</dict>
 	</array>

@@ -1,13 +1,22 @@
 import UIKit
 import Capacitor
+import FirebaseCore
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
+    private let crashTestPrefKey = "ios.crashlytics.testOnNextLaunch"
+    private let crashTestScheme = "teambalancer-crash-test"
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        FirebaseApp.configure()
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: crashTestPrefKey) {
+            UserDefaults.standard.set(false, forKey: crashTestPrefKey)
+            fatalError("Firebase Crashlytics test crash")
+        }
+        #endif
         return true
     }
 
@@ -36,6 +45,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
         // Called when the app was launched with a url. Feel free to add additional processing here,
         // but if you want the App API to support tracking app url opens, make sure to keep this call
+        #if DEBUG
+        if let scheme = url.scheme?.lowercased(), scheme == crashTestScheme {
+            UserDefaults.standard.set(true, forKey: crashTestPrefKey)
+            return true
+        }
+        #endif
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
     }
 

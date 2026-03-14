@@ -9,14 +9,28 @@ import { toSentenceCase } from '../utils/textCase';
  * @param {boolean} [props.showChatButton] - Mostrar botón de chat en el header
  * @param {() => void} [props.onChatClick] - Handler para abrir chat
  * @param {number} [props.unreadCount] - Contador de mensajes sin leer
+ * @param {number} [props.contentOffsetY] - Desplazamiento vertical interno del contenido (px)
  */
-const PageTitle = ({ children, title, onBack, showChatButton, onChatClick, unreadCount = 0 }) => {
+const PageTitle = ({
+  children,
+  title,
+  onBack,
+  showChatButton,
+  onChatClick,
+  unreadCount = 0,
+  contentOffsetY = 0,
+}) => {
   const titleText = children ?? title;
   const normalizedTitle = toSentenceCase(titleText);
 
   return (
     <div className="fixed top-0 left-0 right-0 z-[1000] p-[18px_16px] box-border shrink-0 bg-black/40 backdrop-blur-xl border-b border-white/10 md:p-[14px_12px]">
-      <div className="relative w-full min-h-[44px]">
+      <div
+        className="relative w-full min-h-[44px]"
+        style={{
+          transform: contentOffsetY ? `translateY(${contentOffsetY}px)` : undefined,
+        }}
+      >
         {onBack && (
           <button
             className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/5 border border-white/10 text-white cursor-pointer py-2 px-3 rounded-2xl transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-white/15 hover:scale-105 active:scale-95 group"

@@ -14,6 +14,7 @@ import {
 import { isTeamChallengeNotification } from '../utils/notificationRoutes';
 import { filterNotificationsForInbox } from '../utils/notificationInviteState';
 import { AWARDS_READY_NOTIFICATION_TYPES, isAwardsTrulyReady, toNumericMatchId } from '../utils/awardsReadiness';
+import { track } from '../utils/monitoring/analytics';
 
 const NotificationContext = createContext();
 const DEBUG_NOTIFICATIONS = process.env.NODE_ENV !== 'production';
@@ -619,6 +620,14 @@ export const NotificationProvider = ({ children }) => {
       logger.warn('[NOTIFICATIONS] Notification not for current user, ignoring');
       return;
     }
+
+    const notificationType = String(notification?.type || '').trim();
+    track('push_received', {
+      notification_type: notificationType || undefined,
+      match_id: resolveNotificationMatchId(notification) || undefined,
+      notification_id: String(notification?.id || '').trim() || undefined,
+      source: 'notification_realtime',
+    });
 
     // If notification is scheduled for the future, keep it in scheduledNotifications and don't show it yet
     try {

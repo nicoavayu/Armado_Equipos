@@ -434,7 +434,10 @@ const TemplateHistoryPage = () => {
   const isDetail = Boolean(selectedMatch);
 
   return (
-    <div className="w-full max-w-[650px] mx-auto flex flex-col items-center pt-24 pb-32 px-4 box-border">
+    <div
+      className="w-full max-w-[650px] mx-auto flex flex-col items-center pt-24 pb-32 px-4 box-border"
+      style={{ transform: 'translateZ(0)' }}
+    >
       <PageTitle title="HISTORIAL" onBack={() => {
         if (isDetail) {
           setSelectedId(null);

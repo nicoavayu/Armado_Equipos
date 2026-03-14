@@ -8,6 +8,7 @@ import MatchSelectionCard from './MatchSelectionCard';
 import { CalendarDays, UserPlus, X } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
+import { track } from '../utils/monitoring/analytics';
 
 const PRIMARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed';
 const SECONDARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed';
@@ -316,6 +317,11 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                 matchId: Number(match.id),
                 recipientUserId: targetUserId,
                 limit: 20,
+            });
+            track('match_invite_sent', {
+                match_id: Number(match.id),
+                recipient_user_id: String(targetUserId || '').trim() || undefined,
+                source: 'invite_to_match_modal',
             });
 
             console.info(`Invitación enviada a ${targetName}`);

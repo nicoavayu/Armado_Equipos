@@ -6,21 +6,20 @@ import NotificationsView from '../components/NotificationsView';
 
 const NotificationsPage = () => {
   const { navigateWithAnimation } = useAnimatedNavigation();
+
   return (
-    <>
-      <PageTitle onBack={() => navigateWithAnimation('/', 'back')}>NOTIFICACIONES</PageTitle>
-      <PageTransition>
-        <div
-          className="min-h-[100dvh] w-full overflow-y-auto"
-          style={{
-            paddingTop: 'calc(64px + 10px - var(--safe-top, 0px))',
-            paddingBottom: 'env(safe-area-inset-bottom)',
-          }}
-        >
-          <NotificationsView />
+    <PageTransition>
+      <div className="min-h-[100dvh] pt-[80px]">
+        <PageTitle onBack={() => navigateWithAnimation('/', 'back')}>
+          NOTIFICACIONES
+        </PageTitle>
+        <div className="w-full flex flex-col items-center px-4 pt-0">
+          <div className="w-full max-w-[600px]">
+            <NotificationsView />
+          </div>
         </div>
-      </PageTransition>
-    </>
+      </div>
+    </PageTransition>
   );
 };
 

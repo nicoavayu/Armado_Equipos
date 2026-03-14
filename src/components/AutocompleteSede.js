@@ -1,8 +1,24 @@
 // src/AutocompleteSede.js
-import React from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import usePlacesAutocomplete, { getGeocode, getLatLng } from 'use-places-autocomplete';
 
-export default function AutocompleteSede({ value, onSelect, dense = false, rectangular = false }) {
+const MIN_AUTOCOMPLETE_CHARS = 1;
+
+const isPlacesApiReady = () => (
+  typeof window !== 'undefined'
+  && Boolean(window.google?.maps?.places?.AutocompleteService)
+);
+
+export default function AutocompleteSede({
+  value,
+  onSelect,
+  onChange,
+  dense = false,
+  rectangular = false,
+}) {
+  const placesServiceRef = useRef(null);
+  const [serviceSuggestions, setServiceSuggestions] = useState([]);
+
   const {
     ready,
     value: inputValue,
@@ -17,6 +33,97 @@ export default function AutocompleteSede({ value, onSelect, dense = false, recta
     },
   });
 
+  const initPlacesService = useCallback(() => {
+    if (!isPlacesApiReady()) return false;
+    if (placesServiceRef.current) return true;
+
+    try {
+      placesServiceRef.current = new window.google.maps.places.AutocompleteService();
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const runPlacesProbe = useCallback((rawQuery) => {
+    const query = String(rawQuery || '').trim();
+    if (query.length < MIN_AUTOCOMPLETE_CHARS) {
+      setServiceSuggestions([]);
+      return;
+    }
+
+    if (!initPlacesService() || !placesServiceRef.current) {
+      setServiceSuggestions([]);
+      return;
+    }
+
+    const runRequest = (requestOptions, stage = 'primary') => {
+      placesServiceRef.current.getPlacePredictions(
+        requestOptions,
+        (predictions, serviceStatus) => {
+          const normalizedStatus = String(serviceStatus || 'UNKNOWN');
+          const safePredictions = Array.isArray(predictions) ? predictions : [];
+
+          if (stage === 'primary' && normalizedStatus === 'ZERO_RESULTS') {
+            runRequest({ input: query }, 'relaxed');
+            return;
+          }
+
+          setServiceSuggestions(safePredictions);
+        },
+      );
+    };
+
+    runRequest(
+      {
+        input: query,
+        componentRestrictions: { country: 'ar' },
+      },
+      'primary',
+    );
+  }, [initPlacesService]);
+
+  useEffect(() => {
+    const externalValue = String(value || '');
+    const internalValue = String(inputValue || '');
+    if (externalValue !== internalValue) {
+      setValue(externalValue, false);
+    }
+  }, [inputValue, setValue, value]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    initPlacesService();
+    const intervalId = window.setInterval(() => {
+      if (!placesServiceRef.current) {
+        initPlacesService();
+      }
+    }, 1500);
+    return () => window.clearInterval(intervalId);
+  }, [initPlacesService]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const timeoutId = window.setTimeout(() => {
+      runPlacesProbe(inputValue);
+    }, 260);
+    return () => window.clearTimeout(timeoutId);
+  }, [inputValue, runPlacesProbe]);
+
+  const hookSuggestions = useMemo(
+    () => (status === 'OK'
+      ? data.filter((s) => String(s?.description || '').trim().length > 0)
+      : []),
+    [data, status],
+  );
+
+  const suggestions = useMemo(
+    () => (hookSuggestions.length > 0
+      ? hookSuggestions
+      : serviceSuggestions.filter((s) => String(s?.description || '').trim().length > 0)),
+    [hookSuggestions, serviceSuggestions],
+  );
+
   const containerMarginBottom = dense ? 8 : 24;
   const inputMarginBottomClass = dense ? 'mb-1' : 'mb-2';
   const inputClassName = rectangular
@@ -28,18 +135,24 @@ export default function AutocompleteSede({ value, onSelect, dense = false, recta
       <input
         className={inputClassName}
         type="text"
-        placeholder="Sede, club o dirección"
+        placeholder={ready ? 'Sede, club o direccion' : 'Sede, club o direccion (cargando sugerencias...)'}
         value={inputValue}
-        onChange={(e) => setValue(e.target.value)}
-        disabled={!ready}
+        onChange={(e) => {
+          const nextValue = e.target.value;
+          setValue(nextValue);
+          onChange?.(nextValue);
+        }}
+        onBlur={() => {
+          window.setTimeout(() => clearSuggestions(), 120);
+        }}
         style={{ width: '100%', boxSizing: 'border-box' }}
       />
-      {status === 'OK' && (
+      {suggestions.length > 0 && (
         <div
           style={{
             position: 'absolute',
             background: rectangular ? 'rgba(13,22,53,0.98)' : '#fff',
-            zIndex: 50,
+            zIndex: 120,
             left: 0,
             right: 0,
             boxShadow: rectangular ? '0 8px 22px rgba(0,0,0,0.38)' : '0 2px 8px 0 #0001',
@@ -53,45 +166,41 @@ export default function AutocompleteSede({ value, onSelect, dense = false, recta
             boxSizing: 'border-box',
           }}
         >
-          {data
-            .filter(
-              (s) =>
-                s.description &&
-                s.description.toLowerCase().includes('argentina'),
-            )
-            .map((s) => (
-              <div
-                key={s.place_id}
-                onClick={async () => {
-                  setValue(s.description, false);
-                  clearSuggestions();
-                  const results = await getGeocode({ address: s.description });
-                  const { lat, lng } = await getLatLng(results[0]);
-                  onSelect({ description: s.description, place_id: s.place_id, lat, lng });
-                }}
-                style={{
-                  padding: '8px 18px',
-                  cursor: 'pointer',
-                  fontSize: 18,
-                  borderBottom: rectangular ? '1px solid rgba(101,122,192,0.35)' : '1px solid #eceaf1',
-                  background: rectangular ? 'rgba(17,30,66,0.86)' : '#fff',
-                  display: 'flex',
-                  flexDirection: 'column',
-                }}
-              >
-                <span style={{ fontWeight: 700, color: rectangular ? 'rgba(248,250,255,0.94)' : '#2a2a2a', fontSize: 18 }}>
-                  {s.structured_formatting?.main_text || s.description}
-                </span>
-                {/* 
-                  // Si algún día querés mostrar la dirección abajo:
-                  {s.structured_formatting?.secondary_text && (
-                    <span style={{ color: '#bbb', fontSize: 13, fontWeight: 400 }}>
-                      {s.structured_formatting.secondary_text}
-                    </span>
-                  )}
-                */}
-              </div>
-            ))}
+          {suggestions.map((s) => (
+            <div
+              key={s.place_id}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={async () => {
+                const description = String(s.description || '').trim();
+                setValue(description, false);
+                clearSuggestions();
+                onChange?.(description);
+
+                try {
+                  const results = await getGeocode({ placeId: s.place_id });
+                  const firstResult = Array.isArray(results) ? results[0] : null;
+                  if (!firstResult) throw new Error('Missing geocode result');
+                  const { lat, lng } = await getLatLng(firstResult);
+                  onSelect({ description, place_id: s.place_id, lat, lng });
+                } catch {
+                  onSelect({ description, place_id: s.place_id, lat: null, lng: null });
+                }
+              }}
+              style={{
+                padding: '8px 18px',
+                cursor: 'pointer',
+                fontSize: 18,
+                borderBottom: rectangular ? '1px solid rgba(101,122,192,0.35)' : '1px solid #eceaf1',
+                background: rectangular ? 'rgba(17,30,66,0.86)' : '#fff',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <span style={{ fontWeight: 700, color: rectangular ? 'rgba(248,250,255,0.94)' : '#2a2a2a', fontSize: 18 }}>
+                {s.structured_formatting?.main_text || s.description}
+              </span>
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -3,7 +3,19 @@ import posthog from 'posthog-js';
 const isBrowser = typeof window !== 'undefined';
 const isDev = process.env.NODE_ENV !== 'production';
 const isDebug = isDev && String(process.env.REACT_APP_ANALYTICS_DEBUG || '').toLowerCase() === 'true';
-const ALLOWED_EVENTS = new Set(['app_open', 'view_match', 'blocking_error']);
+const ALLOWED_EVENTS = new Set([
+  'app_open',
+  'view_match',
+  'blocking_error',
+  'login_started',
+  'login_success',
+  'friend_request_sent',
+  'match_invite_sent',
+  'push_received',
+  'push_opened',
+  'friend_request_opened',
+  'match_invite_opened',
+]);
 
 let posthogClient = null;
 let initialized = false;

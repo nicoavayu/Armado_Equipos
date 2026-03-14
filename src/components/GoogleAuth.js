@@ -4,12 +4,18 @@ import { Browser } from '@capacitor/browser';
 import { supabase } from '../supabase';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { getAuthRedirectUrl } from '../utils/authRedirectUrl';
+import { track } from '../utils/monitoring/analytics';
 
 const GoogleAuth = ({ user, className, disabled = false, loading = false, onStart, onEnd }) => {
   const signInWithGoogle = async () => {
     if (disabled) return;
 
     if (typeof onStart === 'function') onStart();
+    track('login_started', {
+      method: 'google',
+      source: 'auth_button',
+    });
+
     try {
       const redirectTo = getAuthRedirectUrl();
       const isNativeIos = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';

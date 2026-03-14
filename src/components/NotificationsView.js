@@ -634,6 +634,7 @@ const NotificationsView = () => {
 
   return (
     <div
+      data-notifications-root="true"
       className="w-full h-full px-4"
       style={{
         paddingTop: '16px',
@@ -642,7 +643,7 @@ const NotificationsView = () => {
     >
       <div className="w-full max-w-[600px] mx-auto">
         {hasAnyNotifications && (
-          <div className="mb-3 flex items-center justify-between gap-3">
+          <div data-notifications-first-block="true" className="mt-4 mb-3 flex items-center justify-between gap-3">
             <div className="inline-flex items-center gap-2 rounded-none border border-[rgba(106,126,202,0.45)] bg-[rgba(17,26,59,0.96)] px-2.5 py-1.5">
               <span className="text-[10px] leading-none uppercase tracking-[0.08em] font-oswald text-white/60">
                 No leídas

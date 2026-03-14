@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toBigIntId } from '../utils';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import { isPendingMatchInviteNotification } from '../utils/notificationInviteState';
+import { track } from '../utils/monitoring/analytics';
 
 /**
  * Hook para manejar redirecciones desde notificaciones push
@@ -14,6 +15,19 @@ export const useNotificationRedirect = () => {
     // Listener para mensajes del Service Worker
     const handleMessage = (event) => {
       if (event.data?.type === 'NAVIGATE_TO' && event.data?.url) {
+        const notificationType = String(
+          event.data?.notificationType
+          || event.data?.notification_type
+          || event.data?.data?.type
+          || event.data?.data?.notification_type
+          || '',
+        ).trim();
+        track('push_opened', {
+          notification_type: notificationType || undefined,
+          route: event.data?.url,
+          opened_from_push: true,
+          source: 'service_worker',
+        });
         console.log('Redirecting from push notification to:', event.data.url);
         navigate(event.data.url);
       }
@@ -30,6 +44,16 @@ export const useNotificationRedirect = () => {
 
   // Función para manejar notificaciones cuando la app está abierta
   const handleForegroundNotification = (notification) => {
+    const notificationType = String(notification?.type || notification?.data?.type || '').trim();
+
+    if (notificationType) {
+      track('push_opened', {
+        notification_type: notificationType || undefined,
+        opened_from_push: true,
+        source: 'in_app_push',
+      });
+    }
+
     if (notification.data?.type === 'match_invite') {
       const invitePayload = {
         ...notification,

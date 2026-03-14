@@ -10,6 +10,7 @@ const MainLayout = () => {
   const mainPaddingBottomClass = isVotingShellRoute
     ? 'pb-[env(safe-area-inset-bottom)] md:pb-[env(safe-area-inset-bottom)]'
     : 'pb-[calc(env(safe-area-inset-bottom)+96px)] md:pb-[calc(env(safe-area-inset-bottom)+104px)]';
+  const mainPaddingTopClass = 'pt-[var(--safe-top,0px)]';
 
   // Determine active tab based on current route
   const getActiveTab = () => {
@@ -32,7 +33,7 @@ const MainLayout = () => {
   return (
     <div className="flex flex-col min-h-[100dvh]">
       {/* App Shell / Main Content Container */}
-      <main className={`flex-1 flex flex-col pt-[var(--safe-top,0px)] ${mainPaddingBottomClass} overflow-x-hidden`}>
+      <main className={`flex-1 flex flex-col ${mainPaddingTopClass} ${mainPaddingBottomClass} overflow-x-hidden`}>
         <Outlet />
       </main>
 

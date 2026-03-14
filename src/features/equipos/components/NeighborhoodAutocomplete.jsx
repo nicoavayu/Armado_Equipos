@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import usePlacesAutocomplete, { getGeocode } from 'use-places-autocomplete';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 
+const MIN_AUTOCOMPLETE_CHARS = 1;
 const NEIGHBORHOOD_TYPE_PRIORITY = [
   'neighborhood',
   'sublocality_level_1',
@@ -57,6 +58,41 @@ const isSuggestionForArgentina = (suggestion) => {
   return text.includes('argentina');
 };
 
+const isPlacesApiReady = () => (
+  typeof window !== 'undefined'
+  && Boolean(window.google?.maps?.places?.AutocompleteService)
+);
+
+const normalizePredictions = (predictions = [], limit = 8, query = '') => {
+  const seen = new Set();
+  const normalizedQuery = sanitizeNeighborhoodText(query).toLowerCase();
+
+  return predictions
+    .map((item) => ({ ...item, label: mapSuggestionToLabel(item) }))
+    .filter((item) => item.label)
+    .filter((item) => isSuggestionForArgentina(item))
+    .filter((item) => (
+      !normalizedQuery
+      || item.label.toLowerCase().includes(normalizedQuery)
+      || String(item?.description || '').toLowerCase().includes(normalizedQuery)
+    ))
+    .filter((item) => {
+      const key = item.label.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => {
+      const aLabel = String(a.label || '').toLowerCase();
+      const bLabel = String(b.label || '').toLowerCase();
+      const aStarts = normalizedQuery && aLabel.startsWith(normalizedQuery) ? 1 : 0;
+      const bStarts = normalizedQuery && bLabel.startsWith(normalizedQuery) ? 1 : 0;
+      if (aStarts !== bStarts) return bStarts - aStarts;
+      return aLabel.localeCompare(bLabel, 'es');
+    })
+    .slice(0, limit);
+};
+
 const NeighborhoodAutocomplete = ({
   value,
   onChange,
@@ -66,6 +102,9 @@ const NeighborhoodAutocomplete = ({
   itemClassName = '',
   limit = 8,
 }) => {
+  const placesServiceRef = useRef(null);
+  const [serviceSuggestions, setServiceSuggestions] = useState([]);
+
   const {
     ready,
     value: query,
@@ -77,36 +116,114 @@ const NeighborhoodAutocomplete = ({
     defaultValue: value || '',
     requestOptions: {
       componentRestrictions: { country: 'ar' },
-      types: ['(regions)'],
     },
   });
 
+  const initPlacesService = useCallback(() => {
+    if (!isPlacesApiReady()) return false;
+    if (placesServiceRef.current) return true;
+
+    try {
+      placesServiceRef.current = new window.google.maps.places.AutocompleteService();
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const runPlacesProbe = useCallback((rawQuery) => {
+    const nextQuery = String(rawQuery || '').trim();
+    if (nextQuery.length < MIN_AUTOCOMPLETE_CHARS) {
+      setServiceSuggestions([]);
+      return;
+    }
+
+    if (!initPlacesService() || !placesServiceRef.current) {
+      setServiceSuggestions([]);
+      return;
+    }
+
+    const runRequest = (requestOptions, stage = 'primary') => {
+      placesServiceRef.current.getPlacePredictions(
+        requestOptions,
+        (predictions, serviceStatus) => {
+          const normalizedStatus = String(serviceStatus || 'UNKNOWN');
+          const safePredictions = Array.isArray(predictions) ? predictions : [];
+
+          if (stage === 'primary' && normalizedStatus === 'ZERO_RESULTS') {
+            runRequest({ input: nextQuery }, 'relaxed');
+            return;
+          }
+
+          setServiceSuggestions(safePredictions);
+        },
+      );
+    };
+
+    runRequest(
+      {
+        input: nextQuery,
+        componentRestrictions: { country: 'ar' },
+      },
+      'primary',
+    );
+  }, [initPlacesService]);
+
   useEffect(() => {
-    setValue(value || '', false);
-  }, [value, setValue]);
+    const externalValue = String(value || '');
+    const internalValue = String(query || '');
+    if (externalValue !== internalValue) {
+      setValue(externalValue, false);
+    }
+  }, [query, setValue, value]);
 
-  const suggestions = useMemo(() => {
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    initPlacesService();
+    const intervalId = window.setInterval(() => {
+      if (!placesServiceRef.current) {
+        initPlacesService();
+      }
+    }, 1500);
+    return () => window.clearInterval(intervalId);
+  }, [initPlacesService]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const timeoutId = window.setTimeout(() => {
+      runPlacesProbe(query);
+    }, 260);
+    return () => window.clearTimeout(timeoutId);
+  }, [query, runPlacesProbe]);
+
+  const hookSuggestions = useMemo(() => {
     if (status !== 'OK') return [];
+    return normalizePredictions(data, limit, query);
+  }, [data, limit, query, status]);
 
-    const seen = new Set();
-    return data
+  const serviceMappedSuggestions = useMemo(() => {
+    if (!Array.isArray(serviceSuggestions) || serviceSuggestions.length === 0) return [];
+
+    const mapped = normalizePredictions(serviceSuggestions, limit, query);
+    if (mapped.length > 0) return mapped;
+
+    return serviceSuggestions
       .map((item) => ({ ...item, label: mapSuggestionToLabel(item) }))
-      .filter((item) => isNeighborhoodLabel(item.label))
-      .filter((item) => isSuggestionForArgentina(item))
-      .filter((item) => {
-        const key = item.label.toLowerCase();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
+      .filter((item) => item.label)
       .slice(0, limit);
-  }, [data, limit, status]);
+  }, [limit, query, serviceSuggestions]);
+
+  const suggestions = useMemo(
+    () => (hookSuggestions.length > 0 ? hookSuggestions : serviceMappedSuggestions),
+    [hookSuggestions, serviceMappedSuggestions],
+  );
 
   const handleSelect = async (suggestion) => {
+    const fallbackNeighborhood = sanitizeNeighborhoodText(suggestion?.label || mapSuggestionToLabel(suggestion));
+
     try {
       const results = await getGeocode({ placeId: suggestion.place_id });
       const extractedNeighborhood = extractNeighborhoodFromGeocode(results);
-      const fallbackNeighborhood = mapSuggestionToLabel(suggestion);
       const neighborhood = sanitizeNeighborhoodText(extractedNeighborhood || fallbackNeighborhood);
 
       if (!isNeighborhoodLabel(neighborhood)) {
@@ -117,7 +234,13 @@ const NeighborhoodAutocomplete = ({
       setValue(neighborhood, false);
       clearSuggestions();
       onChange(neighborhood);
-    } catch (error) {
+    } catch {
+      if (isNeighborhoodLabel(fallbackNeighborhood)) {
+        setValue(fallbackNeighborhood, false);
+        clearSuggestions();
+        onChange(fallbackNeighborhood);
+        return;
+      }
       notifyBlockingError('No pudimos validar ese barrio en Google Maps.');
     }
   };
@@ -135,7 +258,8 @@ const NeighborhoodAutocomplete = ({
       }
 
       if (currentQuery !== currentValue) {
-        setValue(currentValue, false);
+        onChange(currentQuery);
+        setValue(currentQuery, false);
       }
 
       clearSuggestions();
@@ -150,17 +274,14 @@ const NeighborhoodAutocomplete = ({
         onChange={(event) => {
           const nextValue = event.target.value;
           setValue(nextValue);
-          if (!nextValue.trim()) {
-            onChange('');
-          }
+          onChange(nextValue);
         }}
         onBlur={handleBlur}
-        placeholder={ready ? placeholder : 'Cargando barrios...'}
-        disabled={!ready}
+        placeholder={ready ? placeholder : 'Cargando barrios... (podes escribir manual)'}
         className={inputClassName}
       />
 
-      {status === 'OK' && suggestions.length > 0 ? (
+      {suggestions.length > 0 ? (
         <div className={`absolute left-0 right-0 top-[calc(100%+6px)] z-40 rounded-xl border border-white/15 bg-[#0f172a] shadow-[0_12px_30px_rgba(0,0,0,0.45)] max-h-56 overflow-y-auto ${panelClassName}`}>
           {suggestions.map((item) => (
             <button

@@ -39,6 +39,7 @@ const STEP_TITLE_STYLE = {
   width: '100%',
   display: 'block',
 };
+const FLOW_STEP_ROOT_STYLE = { transform: 'translateZ(0)' };
 
 export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   const { user, profile } = useAuth();
@@ -317,7 +318,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // ------ Paso 1: NOMBRE ------
   if (step === STEPS.NAME) {
     return (
-      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]" style={FLOW_STEP_ROOT_STYLE}>
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4">
@@ -500,7 +501,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // ------ Paso 2: FECHA/HORA ------
   if (step === STEPS.WHEN) {
     return (
-      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]" style={FLOW_STEP_ROOT_STYLE}>
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4 flex flex-col h-full">
@@ -568,11 +569,16 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
                   console.log('[DEBUG] Match validation:', debugInfo);
 
                   if (isBlockedInDebug(fecha, hora)) {
-                    showInlineNotice({
-                      key: 'new_match_past_datetime',
-                      type: 'warning',
-                      message: 'No podés crear un partido en el pasado.',
-                    });
+                    notifyBlockingError(
+                      'La fecha y hora elegidas ya pasaron. Elegí un día y horario posteriores al momento actual para crear el partido.',
+                      {
+                        title: 'Fecha y hora inválidas',
+                        confirmText: 'Aceptar',
+                        key: 'new_match_past_datetime_modal',
+                        screen: 'new_match_flow',
+                        action: 'validate_datetime',
+                      },
+                    );
                     return;
                   }
                   editMode ? saveAndReturn() : nextStep();
@@ -606,7 +612,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // ------ Paso 3: SEDE ------
   if (step === STEPS.WHERE) {
     return (
-      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]" style={FLOW_STEP_ROOT_STYLE}>
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4 flex flex-col h-full">
@@ -618,6 +624,12 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
               </div>
               <AutocompleteSede
                 value={sede}
+                onChange={(nextValue) => {
+                  setSede(nextValue);
+                  if (!nextValue.trim()) {
+                    setSedeInfo(null);
+                  }
+                }}
                 onSelect={(info) => {
                   setSede(info.description);
                   setSedeInfo(info);
@@ -691,7 +703,7 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // ------ Paso 4: CONFIRMAR ------
   if (step === STEPS.CONFIRM) {
     return (
-      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]">
+      <div className="min-h-[100dvh] w-full max-w-full overflow-x-hidden pt-[110px]" style={FLOW_STEP_ROOT_STYLE}>
         <PageTitle title="NUEVO PARTIDO" onBack={onVolver}>NUEVO PARTIDO</PageTitle>
         <div className="w-full flex flex-col items-center pb-10">
           <div className="w-full max-w-[440px] px-4">
