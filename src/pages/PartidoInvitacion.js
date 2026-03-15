@@ -437,6 +437,7 @@ function SharedInviteLayout({
           showChatButton={showChatIcon}
           onChatClick={() => {}}
           respectSafeArea
+          contentOffsetY={10}
         />
 
         <MatchInfoSection
@@ -447,7 +448,7 @@ function SharedInviteLayout({
           modalidad={partido?.modalidad}
           tipo={partido?.tipo_partido}
           precio={partido?.precio || partido?.valor_cancha || partido?.valor}
-          topOffsetStyle={{ marginTop: 'calc(var(--safe-top, 0px) + 76px)' }}
+          topOffsetStyle={{ marginTop: 'calc(var(--safe-top, 0px) + 92px)' }}
         />
 
         <main className="pt-0">
