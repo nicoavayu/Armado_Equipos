@@ -729,23 +729,6 @@ const StatsView = ({ onVolver }) => {
       icono: 'Trophy',
     });
 
-    // Mejor rating (siempre mostrar)
-    let mejorRating = 0;
-    if (userYearPartidos.length > 0) {
-      const ratings = userYearPartidos.map((p) => {
-        const userPlayer = p.jugadores?.find((j) => isCurrentUserPlayer(j));
-        return userPlayer?.score || 5;
-      });
-      mejorRating = Math.max(...ratings);
-    }
-
-    annualLogros.push({
-      titulo: 'Mejor Rating',
-      valor: mejorRating > 0 ? mejorRating.toFixed(1) : '0.0',
-      detalle: mejorRating > 0 ? 'En un partido' : 'Sin partidos aún',
-      icono: 'Star',
-    });
-
     // MVP (siempre mostrar)
     annualLogros.push({
       titulo: 'MVP del Partido',
@@ -754,17 +737,17 @@ const StatsView = ({ onVolver }) => {
       icono: 'Medal',
     });
 
-    // Guante Dorado (siempre mostrar)
+    // Mejor arquero (siempre mostrar)
     annualLogros.push({
-      titulo: 'Guante Dorado',
+      titulo: 'Mejor Arquero',
       valor: `${guanteDoradoCount} ${guanteDoradoCount === 1 ? 'vez' : 'veces'}`,
       detalle: `En ${selectedYear}`,
       icono: 'Hand',
     });
 
-    // Tarjeta Roja (siempre mostrar)
+    // Mas sucio (siempre mostrar)
     annualLogros.push({
-      titulo: 'Tarjeta Roja',
+      titulo: 'Más Sucio',
       valor: `${tarjetaRojaCount} ${tarjetaRojaCount === 1 ? 'vez' : 'veces'}`,
       detalle: `En ${selectedYear}`,
       icono: 'ShieldAlert',
