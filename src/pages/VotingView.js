@@ -925,7 +925,17 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (step === 3 && !finalizado) {
     return (
       <div className={wrapperClass}>
-        <div className="w-[90vw] max-w-[520px] mx-auto mt-20 flex flex-col items-center p-3 pb-8">
+        {noticeSlot}
+        <div
+          className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center p-3"
+          style={{
+            paddingTop: 'max(26px, calc(env(safe-area-inset-top) + 28px))',
+            paddingBottom: 'max(16px, calc(env(safe-area-inset-bottom) + 12px))',
+          }}
+        >
+          <div className="w-full mb-6 text-center font-bebas text-[34px] md:text-[56px] leading-[0.98] tracking-[0.06em] text-white uppercase drop-shadow-lg">
+            Confirma tus votos
+          </div>
           <div className="w-full max-w-full mx-auto mb-4 p-0 list-none">
             {jugadoresParaVotar.map((j, idx) => (
               <div
@@ -959,7 +969,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             </div>
           )}
           <button
-            className={`${primaryVoteButtonClass} mt-4`}
+            className={`${primaryVoteButtonClass} mt-auto`}
             style={primaryVoteButtonStyle}
             disabled={isSubmitting || hasAccess === false || hasAccess === null}
             onClick={async () => {
