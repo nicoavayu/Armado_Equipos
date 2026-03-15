@@ -29,6 +29,30 @@ describe('notificationRoutes', () => {
     expect(buildNotificationFallbackRoute({ type: 'friend_accepted' })).toBe('/amigos');
   });
 
+  test('builds fallback invite route for match invites with code', () => {
+    const route = buildNotificationFallbackRoute({
+      type: 'match_invite',
+      partido_id: 355,
+      data: {
+        matchCode: 'ABC123',
+      },
+    });
+
+    expect(route).toBe('/partido/355/invitacion?codigo=ABC123');
+  });
+
+  test('builds fallback public join route for request-join match invites', () => {
+    const route = buildNotificationFallbackRoute({
+      type: 'match_invite',
+      partido_id: 412,
+      data: {
+        invite_mode: 'request_join',
+      },
+    });
+
+    expect(route).toBe('/partido-publico/412');
+  });
+
   test('builds fallback route to desafios for team notifications without ids', () => {
     const route = buildNotificationFallbackRoute({ type: 'team_invite' });
     expect(route).toBe('/desafios');

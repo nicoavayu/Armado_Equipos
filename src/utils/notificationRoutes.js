@@ -1,3 +1,5 @@
+import { resolveMatchInviteRoute } from './matchInviteRoute';
+
 export const extractNotificationMatchId = (notification = {}) => {
   const data = notification?.data || {};
   const type = String(notification?.type || '').trim().toLowerCase();
@@ -137,6 +139,11 @@ export const buildNotificationFallbackRoute = (notification = {}, idMapper = (va
 
   if (isTeamChallengeNotification(notification)) {
     return buildTeamChallengeRoute(notification);
+  }
+
+  if (type === 'match_invite') {
+    const inviteRoute = resolveMatchInviteRoute(notification);
+    if (inviteRoute) return inviteRoute;
   }
 
   if (type === 'friend_request' || type === 'friend_accepted' || type === 'friend_rejected') {
