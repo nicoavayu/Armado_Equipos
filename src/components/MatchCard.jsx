@@ -152,13 +152,13 @@ const MatchCard = ({
                             </button>
                             {isMenuOpen && (
                                 <div
-                                    className="absolute right-0 mt-2 w-48 rounded-none border border-slate-700 bg-slate-900 shadow-lg z-10"
+                                    className="admin-action-menu absolute right-0 mt-2 w-48 z-10"
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <div className="py-1">
                                         {userJoined && onAbandon && (
                                             <button
-                                                className="w-full h-[42px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800"
+                                                className="admin-action-menu-item admin-action-menu-item--danger"
                                                 onClick={(e) => { e.stopPropagation(); onAbandon(partido); }}
                                             >
                                                 <LogOut size={16} />
@@ -167,7 +167,7 @@ const MatchCard = ({
                                         )}
                                         {userRole === 'admin' && onCancel && (
                                             <button
-                                                className="w-full h-[42px] px-3 flex items-center gap-2 text-left text-red-200 hover:bg-slate-800"
+                                                className="admin-action-menu-item admin-action-menu-item--danger"
                                                 onClick={(e) => { e.stopPropagation(); onCancel(partido); }}
                                             >
                                                 <XCircle size={16} />
@@ -176,7 +176,7 @@ const MatchCard = ({
                                         )}
                                         {isFinished && onClear && (
                                             <button
-                                                className="w-full h-[42px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800"
+                                                className="admin-action-menu-item"
                                                 onClick={(e) => { e.stopPropagation(); onClear(partido); }}
                                             >
                                                 <XCircle size={16} />

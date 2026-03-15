@@ -919,10 +919,10 @@ export default function ArmarEquiposView({
                         <MoreVertical size={15} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
                       </button>
                       {actionsMenuOpen && (
-                        <div className="absolute top-full right-0 mt-1 w-48 border bg-slate-900/98 shadow-lg z-10 overflow-hidden transition-all duration-200 ease-out" style={{ borderColor: 'rgba(88, 107, 170, 0.46)', borderRadius: 0, transform: `skewX(-${SLOT_SKEW_X}deg)` }}>
+                        <div className="admin-action-menu absolute top-full right-0 mt-1 w-48 z-10 overflow-hidden transition-all duration-200 ease-out" style={{ transform: `skewX(-${SLOT_SKEW_X}deg)` }}>
                           <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
                             <button
-                              className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 hover:bg-slate-800 transition-colors text-sm font-medium"
+                              className="admin-action-menu-item"
                               onClick={() => {
                                 setActionsMenuOpen(false);
                                 setConfirmConfig({ open: true, action: 'reset' });

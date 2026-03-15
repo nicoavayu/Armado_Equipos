@@ -121,6 +121,51 @@ body {
   cursor: not-allowed;
 }
 
+.admin-action-menu {
+  border: 1px solid rgba(88, 107, 170, 0.46);
+  border-radius: 0;
+  background: rgba(15, 23, 42, 0.98);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.admin-action-menu-item {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 500;
+  color: #f1f5f9;
+  background: rgba(2, 6, 23, 0.42);
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.admin-action-menu-item:hover:not(:disabled) {
+  background: rgba(30, 41, 59, 0.92);
+}
+
+.admin-action-menu-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-action-menu-item--danger {
+  color: #fecaca;
+  background: rgba(69, 10, 10, 0.26);
+}
+
+.admin-action-menu-item--danger:hover:not(:disabled) {
+  color: #fee2e2;
+  background: rgba(127, 29, 29, 0.5);
+}
+
 #root {
   position: relative;
   overflow-x: hidden;

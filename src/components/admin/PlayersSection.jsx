@@ -768,7 +768,7 @@ const PlayersSection = ({
               <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
                 <div className="py-1 bg-transparent">
                   <button
-                    className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 bg-transparent hover:bg-slate-800/90 transition-colors text-sm font-medium"
+                    className="admin-action-menu-item admin-action-menu-item--danger"
                     onClick={() => {
                       setLocalMenuOpen(false);
                       setConfirmConfig({ open: true, type: 'abandon' });
@@ -1329,16 +1329,12 @@ const PlayersSection = ({
                     onClick={() => setMenuOpen(false)}
                   />
                   <div
-                    className="fixed w-48 border shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out backdrop-blur-sm"
+                    className="admin-action-menu fixed w-48 z-[9999] overflow-hidden transition-all duration-200 ease-out"
                     style={{
                       top: `${menuPosition.top}px`,
                       left: `${menuPosition.left}px`,
                       opacity: menuOpen ? 1 : 0,
                       transform: menuOpen ? `skewX(-${SLOT_SKEW_X}deg) scale(1)` : `skewX(-${SLOT_SKEW_X}deg) scale(0.95)`,
-                      borderColor: 'rgba(88, 107, 170, 0.46)',
-                      borderRadius: 0,
-                      backgroundColor: 'rgba(15, 23, 42, 0.98)',
-                      boxShadow: '0 12px 28px rgba(0, 0, 0, 0.45)',
                     }}
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -1346,7 +1342,7 @@ const PlayersSection = ({
                       <div className="py-1 bg-transparent">
                         {isPlayerInMatch ? (
                           <button
-                            className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 bg-transparent hover:bg-slate-800/90 transition-colors text-sm font-medium"
+                            className="admin-action-menu-item admin-action-menu-item--danger"
                             onClick={() => {
                               setMenuOpen(false);
                               setConfirmConfig({ open: true, type: 'abandon' });
@@ -1358,7 +1354,7 @@ const PlayersSection = ({
                           </button>
                         ) : (
                           <button
-                            className="w-full h-[46px] px-3 flex items-center gap-2 text-left text-slate-100 bg-transparent hover:bg-slate-800/90 transition-colors text-sm font-medium disabled:opacity-45 disabled:cursor-not-allowed"
+                            className="admin-action-menu-item"
                             onClick={() => {
                               setMenuOpen(false);
                               unirseAlPartido?.();
