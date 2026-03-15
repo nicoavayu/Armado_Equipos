@@ -430,16 +430,15 @@ function SharedInviteLayout({
 
   return (
     <div className={`min-h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient ${showBottomNav ? 'pb-[calc(var(--safe-bottom,0px)+78px)] md:pb-[calc(var(--safe-bottom,0px)+88px)]' : ''}`}>
+      <PageTitle
+        title={title}
+        onBack={onNavigateBack}
+        showChatButton={showChatIcon}
+        onChatClick={() => {}}
+        position="sticky"
+        respectSafeArea
+      />
       <div className="mx-auto w-[90vw] max-w-[650px] pt-0 shadow-none">
-        <PageTitle
-          title={title}
-          onBack={onNavigateBack}
-          showChatButton={showChatIcon}
-          onChatClick={() => {}}
-          position="sticky"
-          respectSafeArea
-        />
-
         <MatchInfoSection
           partido={normalizePartidoForHeader(partido)}
           fecha={partido?.fecha}
