@@ -18,6 +18,7 @@ export default function AutocompleteSede({
 }) {
   const placesServiceRef = useRef(null);
   const [serviceSuggestions, setServiceSuggestions] = useState([]);
+  const [hasUserEdited, setHasUserEdited] = useState(false);
 
   const {
     ready,
@@ -104,11 +105,16 @@ export default function AutocompleteSede({
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
+    if (!hasUserEdited) {
+      clearSuggestions();
+      setServiceSuggestions([]);
+      return undefined;
+    }
     const timeoutId = window.setTimeout(() => {
       runPlacesProbe(inputValue);
     }, 260);
     return () => window.clearTimeout(timeoutId);
-  }, [inputValue, runPlacesProbe]);
+  }, [clearSuggestions, hasUserEdited, inputValue, runPlacesProbe]);
 
   const hookSuggestions = useMemo(
     () => (status === 'OK'
@@ -139,6 +145,7 @@ export default function AutocompleteSede({
         value={inputValue}
         onChange={(e) => {
           const nextValue = e.target.value;
+          setHasUserEdited(true);
           setValue(nextValue);
           onChange?.(nextValue);
         }}
@@ -172,8 +179,10 @@ export default function AutocompleteSede({
               onMouseDown={(event) => event.preventDefault()}
               onClick={async () => {
                 const description = String(s.description || '').trim();
+                setHasUserEdited(false);
                 setValue(description, false);
                 clearSuggestions();
+                setServiceSuggestions([]);
                 onChange?.(description);
 
                 try {
