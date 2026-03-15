@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { requestImmediatePushDispatchSafe } from './pushDispatchService';
 
 const normalizeName = (value, fallback = 'Un jugador') => {
   const raw = String(value || '').trim();
@@ -317,7 +318,7 @@ export const notifyAdminJoinRequest = async ({
   const matchIdNumber = toMatchId(matchId);
   if (!matchIdNumber) return { ok: false, reason: 'invalid_match_id' };
 
-  return enqueueAdminNotification({
+  const result = await enqueueAdminNotification({
     matchId: matchIdNumber,
     type: 'match_join_request',
     title: 'Nueva solicitud para unirse',
@@ -332,6 +333,18 @@ export const notifyAdminJoinRequest = async ({
     },
     adminUserId,
   });
+
+  if (result.ok) {
+    requestImmediatePushDispatchSafe({
+      eventType: 'match_join_request',
+      matchId: matchIdNumber,
+      requestId: requestId || null,
+      recipientUserId: adminUserId || null,
+      limit: 20,
+    });
+  }
+
+  return result;
 };
 
 export const notifyAdminPlayerJoined = async ({

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-type KickEventType = "match_invite" | "friend_request";
+type KickEventType = "match_invite" | "friend_request" | "match_join_request";
 
 type KickBody = {
   event_type?: unknown;
@@ -23,7 +23,7 @@ type DeliveryLogRow = {
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 const DEFAULT_WINDOW_SECONDS = 180;
-const ALLOWED_EVENT_TYPES = new Set<KickEventType>(["match_invite", "friend_request"]);
+const ALLOWED_EVENT_TYPES = new Set<KickEventType>(["match_invite", "friend_request", "match_join_request"]);
 
 function buildCorsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -154,6 +154,14 @@ function isEligibleRow(
     return true;
   }
 
+  if (eventType === "match_join_request") {
+    const requesterId = readPayloadString(payload, "request_user_id", "requester_user_id", "senderId", "sender_id");
+    const payloadRequestId = readPayloadString(payload, "requestId", "request_id");
+    if (!requesterId || requesterId !== actorUserId) return false;
+    if (requestId && payloadRequestId !== requestId) return false;
+    return true;
+  }
+
   const inviterId = readPayloadString(payload, "inviter_id", "inviterId", "senderId", "sender_id");
   if (!inviterId || inviterId !== actorUserId) return false;
   return true;
@@ -216,7 +224,7 @@ serve(async (req) => {
   if (recipientUserId) {
     query = query.eq("user_id", recipientUserId);
   }
-  if (eventType === "match_invite" && matchId !== null) {
+  if ((eventType === "match_invite" || eventType === "match_join_request") && matchId !== null) {
     query = query.eq("partido_id", matchId);
   }
 
