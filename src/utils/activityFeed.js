@@ -24,7 +24,6 @@ import {
 } from './notificationInviteState';
 
 const ACTIVITY_MAX_ITEMS = 5;
-const INSIGHT_TTL_MS = 24 * 60 * 60 * 1000;
 
 const RELEVANT_TYPES = new Set([
   'survey_start',
@@ -725,6 +724,18 @@ const buildWeeklyInsightItem = async ({ currentUserId, supabaseClient }) => {
   if (!currentUserId || !supabaseClient || typeof window === 'undefined') return null;
 
   const now = Date.now();
+  const currentDate = new Date(now);
+  if (currentDate.getDay() !== 6) {
+    try { localStorage.removeItem(INSIGHT_STORAGE_KEY); } catch (_) { /* ignore */ }
+    return null;
+  }
+
+  const saturdayStart = new Date(currentDate);
+  saturdayStart.setHours(0, 0, 0, 0);
+  const saturdayEnd = new Date(saturdayStart);
+  saturdayEnd.setDate(saturdayEnd.getDate() + 1);
+  const saturdayKey = saturdayStart.toISOString().split('T')[0];
+
   let stored = null;
   try {
     stored = JSON.parse(localStorage.getItem(INSIGHT_STORAGE_KEY) || 'null');
@@ -760,13 +771,19 @@ const buildWeeklyInsightItem = async ({ currentUserId, supabaseClient }) => {
     const weeklyCount = (partidosRows || []).length;
     if (weeklyCount <= 0) return null;
 
-    const hasValidStored = stored && stored.expiresAt && new Date(stored.expiresAt).getTime() > now;
+    const hasValidStored = stored
+      && stored.expiresAt
+      && new Date(stored.expiresAt).getTime() > now
+      && stored.weekStart === weekStart
+      && stored.saturdayKey === saturdayKey;
     const shouldRefresh = !hasValidStored || Number(stored.weeklyCount || 0) !== weeklyCount;
     const payload = shouldRefresh
       ? {
         weeklyCount,
         createdAt: new Date().toISOString(),
-        expiresAt: new Date(now + INSIGHT_TTL_MS).toISOString(),
+        expiresAt: saturdayEnd.toISOString(),
+        weekStart,
+        saturdayKey,
       }
       : stored;
 
