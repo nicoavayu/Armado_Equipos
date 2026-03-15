@@ -132,11 +132,15 @@ export const buildTeamChallengeRoute = (notification = {}) => {
 
 export const buildNotificationFallbackRoute = (notification = {}, idMapper = (value) => value) => {
   const data = notification?.data || {};
-  const type = notification?.type || '';
+  const type = String(notification?.type || '').trim().toLowerCase();
   const teamId = data?.team_id || data?.teamId || null;
 
   if (isTeamChallengeNotification(notification)) {
     return buildTeamChallengeRoute(notification);
+  }
+
+  if (type === 'friend_request' || type === 'friend_accepted' || type === 'friend_rejected') {
+    return '/amigos';
   }
 
   if ((type === 'team_captain_transfer' || type === 'team_invite') && teamId) {

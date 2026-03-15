@@ -7,6 +7,7 @@ import { Geolocation } from '@capacitor/geolocation';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Network } from '@capacitor/network';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { buildNotificationFallbackRoute } from '../utils/notificationRoutes';
 import {
   ensurePushTokenAuthSync,
   flushPendingPushToken,
@@ -18,6 +19,50 @@ import { track } from '../utils/monitoring/analytics';
 let pushBootstrapPromise = null;
 let pushListenersAttached = false;
 let lastRegistrationToken = '';
+const NATIVE_PUSH_REDIRECT_EVENT = 'native-push-redirect';
+const PENDING_NATIVE_PUSH_REDIRECT_KEY = 'pending_native_push_redirect';
+
+const isSafeInternalPath = (path) => typeof path === 'string' && path.startsWith('/') && !path.startsWith('//');
+
+const queueNativePushRedirect = ({ route, notificationType }) => {
+  const normalizedRoute = String(route || '').trim();
+  if (!normalizedRoute || typeof window === 'undefined') return;
+
+  const detail = {
+    route: normalizedRoute,
+    notificationType: String(notificationType || '').trim(),
+  };
+
+  try {
+    window.sessionStorage.setItem(PENDING_NATIVE_PUSH_REDIRECT_KEY, JSON.stringify(detail));
+  } catch (_error) {
+    // Ignore storage errors and still dispatch the in-memory event.
+  }
+
+  window.dispatchEvent(new CustomEvent(NATIVE_PUSH_REDIRECT_EVENT, { detail }));
+};
+
+export const consumePendingNativePushRedirect = () => {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(PENDING_NATIVE_PUSH_REDIRECT_KEY);
+    if (!raw) return null;
+
+    window.sessionStorage.removeItem(PENDING_NATIVE_PUSH_REDIRECT_KEY);
+    const parsed = JSON.parse(raw);
+    const route = String(parsed?.route || '').trim();
+    if (!route) return null;
+    return {
+      route,
+      notificationType: String(parsed?.notificationType || '').trim(),
+    };
+  } catch (_error) {
+    return null;
+  }
+};
+
+export const getNativePushRedirectEventName = () => NATIVE_PUSH_REDIRECT_EVENT;
 
 export const initNativePushNotifications = async () => {
   if (!Capacitor.isNativePlatform()) return;
@@ -53,6 +98,20 @@ export const initNativePushNotifications = async () => {
             opened_from_push: true,
             source: 'capacitor_push',
           });
+
+          const resolvedRoute = isSafeInternalPath(route)
+            ? route
+            : buildNotificationFallbackRoute({
+              type: notificationType,
+              data,
+            });
+
+          if (isSafeInternalPath(resolvedRoute)) {
+            queueNativePushRedirect({
+              route: resolvedRoute,
+              notificationType,
+            });
+          }
         });
 
         await PushNotifications.addListener('registration', async (token) => {

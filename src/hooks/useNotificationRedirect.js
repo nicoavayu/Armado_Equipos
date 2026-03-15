@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toBigIntId } from '../utils';
+import {
+  consumePendingNativePushRedirect,
+  getNativePushRedirectEventName,
+} from './useNativeFeatures';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import { isPendingMatchInviteNotification } from '../utils/notificationInviteState';
 import { track } from '../utils/monitoring/analytics';
@@ -12,6 +16,22 @@ export const useNotificationRedirect = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const nativePushRedirectEventName = getNativePushRedirectEventName();
+
+    const handleNativePushRedirect = (payload) => {
+      const route = String(payload?.route || '').trim();
+      if (!route) return;
+
+      const notificationType = String(payload?.notificationType || '').trim();
+      track('push_opened', {
+        notification_type: notificationType || undefined,
+        route,
+        opened_from_push: true,
+        source: 'native_push_redirect',
+      });
+      navigate(route);
+    };
+
     // Listener para mensajes del Service Worker
     const handleMessage = (event) => {
       if (event.data?.type === 'NAVIGATE_TO' && event.data?.url) {
@@ -33,12 +53,23 @@ export const useNotificationRedirect = () => {
       }
     };
 
+    const handleWindowNativePushRedirect = (event) => {
+      handleNativePushRedirect(event?.detail || {});
+    };
+
+    const pendingNativePushRedirect = consumePendingNativePushRedirect();
+    if (pendingNativePushRedirect?.route) {
+      handleNativePushRedirect(pendingNativePushRedirect);
+    }
+
     // Agregar listener
     navigator.serviceWorker?.addEventListener('message', handleMessage);
+    window.addEventListener(nativePushRedirectEventName, handleWindowNativePushRedirect);
 
     // Cleanup
     return () => {
       navigator.serviceWorker?.removeEventListener('message', handleMessage);
+      window.removeEventListener(nativePushRedirectEventName, handleWindowNativePushRedirect);
     };
   }, [navigate]);
 

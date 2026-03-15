@@ -24,6 +24,11 @@ describe('notificationRoutes', () => {
     expect(route).toBe('/quiero-jugar');
   });
 
+  test('builds fallback route to amigos for friend notifications', () => {
+    expect(buildNotificationFallbackRoute({ type: 'friend_request' })).toBe('/amigos');
+    expect(buildNotificationFallbackRoute({ type: 'friend_accepted' })).toBe('/amigos');
+  });
+
   test('builds fallback route to desafios for team notifications without ids', () => {
     const route = buildNotificationFallbackRoute({ type: 'team_invite' });
     expect(route).toBe('/desafios');
