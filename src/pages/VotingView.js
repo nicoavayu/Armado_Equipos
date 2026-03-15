@@ -389,7 +389,6 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const cardClass = 'w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100dvh-120px)] p-5';
   const titleClass = 'font-bebas text-[40px] md:text-[64px] text-white tracking-[0.08em] font-bold mb-10 text-center leading-[0.98] uppercase drop-shadow-lg';
   const sectionTitleClass = 'font-bebas text-[31px] md:text-[46px] text-white tracking-[0.055em] font-bold text-center leading-[0.96] drop-shadow-lg';
-  const introLabelClass = 'font-oswald text-[18px] md:text-[20px] text-white/76 text-center leading-[1.2] tracking-[0.025em]';
   const sectionSubtitleClass = 'font-oswald text-[18px] md:text-[21px] text-white/82 text-center leading-[1.22] tracking-[0.02em]';
   const primaryVoteButtonClass = 'w-full h-[60px] min-h-[60px] px-4 border text-white font-oswald text-[20px] md:text-[22px] font-semibold tracking-[0.01em] normal-case rounded-none cursor-pointer transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center';
   const primaryVoteButtonStyle = {
@@ -847,12 +846,9 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         >
           <div className={`w-full transition-transform duration-200 ease-out ${animating ? '-translate-x-full opacity-0' : 'translate-x-0 opacity-100'}`}>
             <div className="w-full px-2 text-center mb-5 md:mb-6">
-              <div className={introLabelClass} style={{ marginBottom: 'clamp(6px, 1.6vh, 12px)' }}>
-                Hola, {clean(nombre)}
-              </div>
               <div className="max-w-[360px] mx-auto">
                 <div className={sectionTitleClass}>
-                  Votá a tus compañeros
+                  VOTÁ A TUS COMPAÑEROS
                 </div>
               </div>
             </div>
@@ -955,7 +951,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <div className="w-full mb-5 px-2 text-center">
             <div className="max-w-[370px] mx-auto">
               <div className={sectionTitleClass}>
-                Confirmá tus votos
+                CONFIRMÁ TUS VOTOS
               </div>
               <div className={`${sectionSubtitleClass} mt-2`}>
                 Revisá los puntajes antes de enviarlos.
