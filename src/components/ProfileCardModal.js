@@ -434,6 +434,9 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
   const modalCardLayoutOverrides = hasAwards
     ? { leftAwardsShiftRight: '42px' }
     : null;
+  const modalCardShellStyle = hasAwards
+    ? { transform: 'translateX(4px)' }
+    : undefined;
   const actionColsClass = actionButtons.length === 1
     ? 'grid-cols-1'
     : actionButtons.length === 2
@@ -444,15 +447,23 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      className="w-[calc(100vw-1.5rem)] max-w-[360px] max-h-[calc(100vh-1.5rem)]"
-      classNameContent="p-3 sm:p-4 overflow-x-hidden"
+      className="relative w-[calc(100vw-1.5rem)] max-w-[360px] max-h-[calc(100vh-1.5rem)]"
+      classNameContent="relative p-3 sm:p-4 overflow-x-hidden"
       closeOnBackdrop={true}
       closeOnEscape={true}
       title=""
-      showCloseButton={true}
+      showCloseButton={false}
     >
-      <div className="flex flex-col items-center gap-4">
-        <div className="flex justify-center items-center">
+      <div className="relative flex flex-col items-center gap-4 pt-6">
+        <button
+          className="absolute right-0 top-0 z-20 bg-transparent border-none text-[#999] text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded-[var(--radius-standard)] transition-all duration-200 hover:text-white hover:bg-white/10 focus:outline-none focus:text-white focus:bg-white/10"
+          onClick={onClose}
+          aria-label="Cerrar modal"
+          type="button"
+        >
+          ×
+        </button>
+        <div className="flex w-full justify-center items-center" style={modalCardShellStyle}>
           <ProfileCard
             profile={modalProfile}
             isVisible={true}
