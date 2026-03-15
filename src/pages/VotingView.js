@@ -386,7 +386,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
   // Common wrapper styles
   const wrapperClass = 'notranslate min-h-[100dvh] w-screen p-0 flex flex-col';
-  const cardClass = 'w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-5';
+  const cardClass = 'w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100dvh-120px)] p-5';
   // Updated title class to match Legacy 'voting-title-modern' but with Tailwind
   const titleClass = 'font-bebas text-[40px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-lg';
   const primaryVoteButtonClass = 'w-full h-[60px] min-h-[60px] px-4 border text-white font-oswald text-[20px] md:text-[22px] font-semibold tracking-[0.01em] normal-case rounded-none cursor-pointer transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center';
@@ -716,8 +716,19 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     return (
       <div className={wrapperClass}>
         {noticeSlot}
-        <div className={`${cardClass} !justify-start pb-[max(10px,env(safe-area-inset-bottom))]`}>
-          <div className={titleClass}>¡HOLA, {clean(nombre)}!</div>
+        <div
+          className={`${cardClass} !justify-start`}
+          style={{
+            paddingTop: 'max(22px, calc(env(safe-area-inset-top) + 22px))',
+            paddingBottom: 'max(10px, calc(env(safe-area-inset-bottom) + 12px))',
+          }}
+        >
+          <div
+            className={titleClass}
+            style={{ marginBottom: 'clamp(28px, 5vh, 48px)' }}
+          >
+            ¡HOLA, {clean(nombre)}!
+          </div>
           <div className="w-full flex-1 min-h-0 flex flex-col items-center justify-center">
             {needsPhotoPrompt ? (
               <>
@@ -790,7 +801,10 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
               </>
             )}
           </div>
-          <div className="w-full shrink-0 pt-[clamp(16px,6vh,72px)]">
+          <div
+            className="w-full shrink-0 mt-auto"
+            style={{ paddingTop: 'clamp(24px, 8vh, 84px)' }}
+          >
             <SurveyImportantDisclaimer
               className="w-full"
               title="IMPORTANTE"
