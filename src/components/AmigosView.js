@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAmigos } from '../hooks/useAmigos';
 import { PlayerCardTrigger } from './ProfileComponents';
 import MiniFriendCard from './MiniFriendCard';
@@ -85,13 +86,25 @@ const PRIMARY_TOGGLE_CONTAINER_CLASS = 'flex h-[44px] w-full overflow-hidden bor
 const PRIMARY_TOGGLE_ACTIVE_CLASS = 'z-[2] border-[rgba(132,112,255,0.64)] bg-[#31239f] text-white shadow-[inset_0_0_0_1px_rgba(160,142,255,0.26)]';
 const PRIMARY_TOGGLE_INACTIVE_CLASS = 'z-[1] border-[rgba(106,126,202,0.40)] bg-[rgba(17,26,59,0.96)] text-white/65 hover:text-white/88 hover:bg-[rgba(26,37,83,0.98)]';
 const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[clamp(18px,5.6vw,22px)] font-semibold leading-tight text-white';
+const normalizeAmigosTab = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'discover' || normalized === 'community' || normalized === 'comunidad' || normalized === 'requests') {
+    return 'discover';
+  }
+  return 'friends';
+};
 
 const AmigosView = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [currentUserId, setCurrentUserId] = useState(null);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const [activeTab, setActiveTab] = useState('friends');
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return normalizeAmigosTab(params.get('tab'));
+  });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -163,6 +176,30 @@ const AmigosView = () => {
       noticeTimerRef.current = null;
     }
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const nextTab = normalizeAmigosTab(params.get('tab'));
+    setActiveTab((prev) => (prev === nextTab ? prev : nextTab));
+  }, [location.search]);
+
+  const handleTabChange = useCallback((nextTab) => {
+    const normalizedTab = normalizeAmigosTab(nextTab);
+    setActiveTab(normalizedTab);
+
+    const params = new URLSearchParams(location.search);
+    if (normalizedTab === 'discover') {
+      params.set('tab', 'discover');
+    } else {
+      params.delete('tab');
+    }
+
+    const nextSearch = params.toString();
+    navigate({
+      pathname: location.pathname,
+      search: nextSearch ? `?${nextSearch}` : '',
+    }, { replace: true });
+  }, [location.pathname, location.search, navigate]);
 
   const {
     amigos,
@@ -578,7 +615,7 @@ const AmigosView = () => {
           <div className={PRIMARY_TOGGLE_CONTAINER_CLASS}>
             <button
               type="button"
-              onClick={() => setActiveTab('friends')}
+              onClick={() => handleTabChange('friends')}
               className={`relative flex-1 min-w-0 border px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
                 activeTab === 'friends'
                   ? PRIMARY_TOGGLE_ACTIVE_CLASS
@@ -592,7 +629,7 @@ const AmigosView = () => {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('discover')}
+              onClick={() => handleTabChange('discover')}
               className={`relative flex-1 min-w-0 border border-l-0 px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
                 activeTab === 'discover'
                   ? PRIMARY_TOGGLE_ACTIVE_CLASS

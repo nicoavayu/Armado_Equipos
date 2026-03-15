@@ -25,7 +25,7 @@ describe('notificationRoutes', () => {
   });
 
   test('builds fallback route to amigos for friend notifications', () => {
-    expect(buildNotificationFallbackRoute({ type: 'friend_request' })).toBe('/amigos');
+    expect(buildNotificationFallbackRoute({ type: 'friend_request' })).toBe('/amigos?tab=discover');
     expect(buildNotificationFallbackRoute({ type: 'friend_accepted' })).toBe('/amigos');
   });
 

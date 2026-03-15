@@ -160,7 +160,11 @@ export const buildNotificationFallbackRoute = (notification = {}, idMapper = (va
     return '/notifications';
   }
 
-  if (type === 'friend_request' || type === 'friend_accepted' || type === 'friend_rejected') {
+  if (type === 'friend_request') {
+    return '/amigos?tab=discover';
+  }
+
+  if (type === 'friend_accepted' || type === 'friend_rejected') {
     return '/amigos';
   }
 
