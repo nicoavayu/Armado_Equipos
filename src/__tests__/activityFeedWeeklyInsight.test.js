@@ -48,8 +48,8 @@ describe('buildActivityFeed weekly insight scheduling', () => {
     window.localStorage.clear();
   });
 
-  test('shows weekly insight on saturday when the user played this week', async () => {
-    jest.setSystemTime(new Date('2026-03-14T12:00:00.000Z'));
+  test('shows weekly insight on sunday when the user played this week', async () => {
+    jest.setSystemTime(new Date('2026-03-15T12:00:00.000Z'));
 
     const items = await buildActivityFeed([], {
       activeMatches: [],
@@ -60,8 +60,8 @@ describe('buildActivityFeed weekly insight scheduling', () => {
     expect(items.some((item) => item.type === 'insight_weekly_matches')).toBe(true);
   });
 
-  test('does not show weekly insight outside saturday', async () => {
-    jest.setSystemTime(new Date('2026-03-13T12:00:00.000Z'));
+  test('does not show weekly insight outside sunday', async () => {
+    jest.setSystemTime(new Date('2026-03-14T12:00:00.000Z'));
 
     const items = await buildActivityFeed([], {
       activeMatches: [],

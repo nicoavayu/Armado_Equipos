@@ -725,16 +725,16 @@ const buildWeeklyInsightItem = async ({ currentUserId, supabaseClient }) => {
 
   const now = Date.now();
   const currentDate = new Date(now);
-  if (currentDate.getDay() !== 6) {
+  if (currentDate.getDay() !== 0) {
     try { localStorage.removeItem(INSIGHT_STORAGE_KEY); } catch (_) { /* ignore */ }
     return null;
   }
 
-  const saturdayStart = new Date(currentDate);
-  saturdayStart.setHours(0, 0, 0, 0);
-  const saturdayEnd = new Date(saturdayStart);
-  saturdayEnd.setDate(saturdayEnd.getDate() + 1);
-  const saturdayKey = saturdayStart.toISOString().split('T')[0];
+  const sundayStart = new Date(currentDate);
+  sundayStart.setHours(0, 0, 0, 0);
+  const sundayEnd = new Date(sundayStart);
+  sundayEnd.setDate(sundayEnd.getDate() + 1);
+  const sundayKey = sundayStart.toISOString().split('T')[0];
 
   let stored = null;
   try {
@@ -775,15 +775,15 @@ const buildWeeklyInsightItem = async ({ currentUserId, supabaseClient }) => {
       && stored.expiresAt
       && new Date(stored.expiresAt).getTime() > now
       && stored.weekStart === weekStart
-      && stored.saturdayKey === saturdayKey;
+      && stored.sundayKey === sundayKey;
     const shouldRefresh = !hasValidStored || Number(stored.weeklyCount || 0) !== weeklyCount;
     const payload = shouldRefresh
       ? {
         weeklyCount,
         createdAt: new Date().toISOString(),
-        expiresAt: saturdayEnd.toISOString(),
+        expiresAt: sundayEnd.toISOString(),
         weekStart,
-        saturdayKey,
+        sundayKey,
       }
       : stored;
 
