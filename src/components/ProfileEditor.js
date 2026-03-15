@@ -53,9 +53,15 @@ const ProfileEditorForm = ({
   locationInputReadOnly,
   locationLoading,
   locationDisabled,
+  isEmbedded = false,
 }) => {
+  const formBottomPaddingClass = isEmbedded
+    ? 'pb-[calc(env(safe-area-inset-bottom)+68px)]'
+    : 'pb-32';
+  const actionButtonsBottomPaddingClass = isEmbedded ? 'pb-0' : 'pb-16';
+
   return (
-    <div className="mx-auto w-full max-w-[720px] px-4 pb-32 pt-3 flex flex-col gap-2 min-w-0">
+    <div className={`mx-auto w-full max-w-[720px] px-4 pt-3 flex flex-col gap-2 min-w-0 ${formBottomPaddingClass}`}>
       <InlineNotice
         type={inlineNotice?.type}
         message={inlineNotice?.message}
@@ -283,7 +289,7 @@ const ProfileEditorForm = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-4 mt-8 pt-10 border-t border-white/10 w-full min-w-0 pb-16">
+        <div className={`grid grid-cols-2 gap-4 mt-8 pt-10 border-t border-white/10 w-full min-w-0 ${actionButtonsBottomPaddingClass}`}>
           <button
             className={`
               col-span-2 w-full h-[54px] rounded-none border text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all flex items-center justify-center
@@ -1109,6 +1115,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           locationInputReadOnly={locationInputReadOnly}
           locationLoading={locationLoading}
           locationDisabled={locationDisabled}
+          isEmbedded={true}
         />
         <DeleteAccountModal
           isOpen={showDeleteAccountModal}
