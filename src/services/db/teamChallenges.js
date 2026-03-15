@@ -1880,7 +1880,17 @@ export const sendTeamInvitation = async ({ teamId, invitedUserId }) => {
     throw new Error(response.error.message || 'No se pudo enviar la invitacion');
   }
 
-  return response.data;
+  const invitation = response.data || null;
+  if (invitation?.id && invitedUserId) {
+    requestImmediatePushDispatchSafe({
+      eventType: 'team_invite',
+      invitationId: invitation.id,
+      recipientUserId: invitedUserId,
+      limit: 20,
+    });
+  }
+
+  return invitation;
 };
 
 export const acceptTeamInvitation = async (invitationId) => {

@@ -168,11 +168,15 @@ export const buildNotificationFallbackRoute = (notification = {}, idMapper = (va
     return '/amigos';
   }
 
-  if ((type === 'team_captain_transfer' || type === 'team_invite') && teamId) {
+  if (type === 'team_invite') {
+    return '/desafios?tab=mis-equipos';
+  }
+
+  if (type === 'team_captain_transfer' && teamId) {
     return `/desafios/equipos/${teamId}`;
   }
 
-  if (type === 'team_invite' || type === 'team_captain_transfer' || type === 'challenge_accepted' || type === 'team_match_created' || type === 'challenge_squad_open') {
+  if (type === 'team_captain_transfer' || type === 'challenge_accepted' || type === 'team_match_created' || type === 'challenge_squad_open') {
     return '/desafios';
   }
 

@@ -182,7 +182,7 @@ export async function openNotification(n, navigate) {
     }
 
     if (type === 'team_invite') {
-      navigate('/desafios');
+      navigate('/desafios?tab=mis-equipos');
       return;
     }
 

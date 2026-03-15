@@ -11,6 +11,10 @@ const SUBTABS = [
   { key: 'mis-equipos', label: 'MIS EQUIPOS' },
 ];
 
+const normalizeEquiposSubtab = (value) => (
+  SUBTABS.some((tab) => tab.key === value) ? value : null
+);
+
 const QuieroJugarEquipos = ({
   pageTitle = 'DESAFIOS',
   secondaryTabsTop = 80,
@@ -22,6 +26,8 @@ const QuieroJugarEquipos = ({
   const { user } = useAuth();
 
   const [activeSubtab, setActiveSubtab] = useState(() => {
+    const queryTab = normalizeEquiposSubtab(new URLSearchParams(location.search).get('tab'));
+    if (queryTab) return queryTab;
     const stored = sessionStorage.getItem(QUIERO_JUGAR_EQUIPOS_SUBTAB_STORAGE_KEY);
     return SUBTABS.some((tab) => tab.key === stored) ? stored : 'desafios';
   });
@@ -34,11 +40,18 @@ const QuieroJugarEquipos = ({
   }, [activeSubtab]);
 
   useEffect(() => {
+    const queryTab = normalizeEquiposSubtab(new URLSearchParams(location.search).get('tab'));
+    if (queryTab) {
+      setActiveSubtab(queryTab);
+    }
+  }, [location.search]);
+
+  useEffect(() => {
     const state = location.state || {};
     const nextSubtab = state.equiposSubtab;
     const nextPrefilledTeamId = state.prefilledTeamId;
 
-    if (SUBTABS.some((tab) => tab.key === nextSubtab)) {
+    if (normalizeEquiposSubtab(nextSubtab)) {
       setActiveSubtab(nextSubtab);
     }
 

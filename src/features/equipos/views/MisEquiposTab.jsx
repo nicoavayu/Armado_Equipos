@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { MoreVertical, Shield, Trash2, Users } from 'lucide-react';
+import { Check, Loader2, MoreVertical, Shield, Trash2, Users, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import TeamCard from '../components/TeamCard';
 import TeamFormModal from '../components/TeamFormModal';
@@ -21,9 +21,8 @@ import { uploadTeamCrest } from '../../../services/storage/teamCrests';
 import { notifyBlockingError } from '../../../utils/notifyBlockingError';
 
 const createTeamButtonClass = '!w-full !h-auto !min-h-[44px] !px-4 !py-2.5 !rounded-none !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !font-bebas !text-base !tracking-[0.01em] !normal-case !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff] sm:!text-[13px] sm:!px-3 sm:!py-2 sm:!min-h-[36px]';
-const invitationActionButtonBaseClass = '!h-10 !rounded-none !px-3 !text-[15px] !font-bebas !tracking-[0.01em] !normal-case';
-const invitationAcceptButtonClass = `${invitationActionButtonBaseClass} !border !border-[#7d5aff] !bg-[#6a43ff] !text-white !shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:!bg-[#7550ff]`;
-const invitationRejectButtonClass = `${invitationActionButtonBaseClass} !border !border-[rgba(98,117,184,0.58)] !bg-[rgba(20,31,70,0.82)] !text-white/92 hover:!bg-[rgba(30,45,94,0.95)]`;
+const invitationAcceptIconButtonClass = 'h-11 w-11 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] transition-all hover:bg-[#7550ff] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center';
+const invitationRejectIconButtonClass = 'h-11 w-11 rounded-none border border-[rgba(88,107,170,0.46)] bg-[rgba(23,35,74,0.72)] text-[rgba(242,246,255,0.9)] transition-all hover:bg-[rgba(31,45,91,0.82)] hover:-translate-y-[1px] active:translate-y-0 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center';
 
 const MisEquiposTab = ({ userId }) => {
   const navigate = useNavigate();
@@ -220,9 +219,12 @@ const MisEquiposTab = ({ userId }) => {
                 const inviterName = invitation?.invited_by_user?.nombre || invitation?.invited_by_name || invitation?.invitedByName || 'Un usuario';
 
                 return (
-                  <div key={invitation.id} className="rounded-xl border border-white/15 bg-white/5 p-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-10 w-10 rounded-lg overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0">
+                  <div
+                    key={invitation.id}
+                    className="flex items-center gap-3 p-4 rounded-none bg-[rgba(4,31,89,0.95)] border border-[#12b5ff]/80 mb-3 w-full box-border min-h-[64px] transition-all duration-200 shadow-[0_0_0_1px_rgba(52,167,255,0.16),0_10px_22px_rgba(2,10,34,0.45)] hover:border-[#56d1ff] sm:p-3"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-11 h-11 rounded-none overflow-hidden border border-white/20 bg-black/20 flex items-center justify-center shrink-0 sm:w-10 sm:h-10">
                         {teamCrestUrl ? (
                           <img src={teamCrestUrl} alt={`Escudo ${teamName}`} className="h-full w-full object-cover" />
                         ) : (
@@ -230,33 +232,41 @@ const MisEquiposTab = ({ userId }) => {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-white font-oswald text-[16px] truncate">{teamName}</p>
+                        <p className="text-white font-oswald text-[16px] truncate sm:text-base">{teamName}</p>
                         <p className="text-[11px] text-white/65 truncate">
                           {`${inviterName} te invito a formar parte del equipo`}
                         </p>
                       </div>
                     </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <Button
+                    <div className="flex gap-2 shrink-0">
+                      <button
                         type="button"
                         onClick={() => handleAcceptIncomingInvitation(invitation.id)}
-                        className={invitationAcceptButtonClass}
-                        loading={isSaving}
+                        className={invitationAcceptIconButtonClass}
                         disabled={isSaving}
-                        data-preserve-button-case="true"
+                        aria-label={isSaving ? 'Aceptando invitacion' : 'Aceptar invitacion'}
+                        title={isSaving ? 'Aceptando invitacion...' : 'Aceptar invitacion'}
                       >
-                        Aceptar
-                      </Button>
-                      <Button
+                        {isSaving ? (
+                          <Loader2 size={18} className="animate-spin" />
+                        ) : (
+                          <Check size={19} strokeWidth={3} />
+                        )}
+                      </button>
+                      <button
                         type="button"
-                        variant="secondary"
-                        className={invitationRejectButtonClass}
+                        className={invitationRejectIconButtonClass}
                         onClick={() => handleRejectIncomingInvitation(invitation.id)}
                         disabled={isSaving}
-                        data-preserve-button-case="true"
+                        aria-label={isSaving ? 'Rechazando invitacion' : 'Rechazar invitacion'}
+                        title={isSaving ? 'Rechazando invitacion...' : 'Rechazar invitacion'}
                       >
-                        Rechazar
-                      </Button>
+                        {isSaving ? (
+                          <Loader2 size={18} className="animate-spin" />
+                        ) : (
+                          <X size={19} strokeWidth={3} />
+                        )}
+                      </button>
                     </div>
                   </div>
                 );

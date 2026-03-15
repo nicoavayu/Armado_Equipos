@@ -23,6 +23,7 @@ export const requestImmediatePushDispatch = async ({
   eventType,
   matchId = null,
   challengeId = null,
+  invitationId = null,
   requestId = null,
   recipientUserId = null,
   limit = DEFAULT_LIMIT,
@@ -45,6 +46,11 @@ export const requestImmediatePushDispatch = async ({
   const normalizedChallengeId = normalizeId(challengeId);
   if (normalizedChallengeId) {
     payload.challenge_id = normalizedChallengeId;
+  }
+
+  const normalizedInvitationId = normalizeId(invitationId);
+  if (normalizedInvitationId) {
+    payload.invitation_id = normalizedInvitationId;
   }
 
   const normalizedRequestId = normalizeId(requestId);

@@ -75,9 +75,9 @@ describe('notificationRoutes', () => {
     expect(route).toBe('/votar-equipos?partidoId=398');
   });
 
-  test('builds fallback route to desafios for team notifications without ids', () => {
+  test('builds fallback route to mis equipos for team invites', () => {
     const route = buildNotificationFallbackRoute({ type: 'team_invite' });
-    expect(route).toBe('/desafios');
+    expect(route).toBe('/desafios?tab=mis-equipos');
   });
 
   test('builds fallback route to team detail for captain transfer with team id', () => {

@@ -1,12 +1,13 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-type KickEventType = "match_invite" | "friend_request" | "match_join_request" | "challenge_accepted";
+type KickEventType = "match_invite" | "friend_request" | "match_join_request" | "challenge_accepted" | "team_invite";
 
 type KickBody = {
   event_type?: unknown;
   match_id?: unknown;
   challenge_id?: unknown;
+  invitation_id?: unknown;
   request_id?: unknown;
   recipient_user_id?: unknown;
   limit?: unknown;
@@ -35,7 +36,7 @@ type NotificationRow = {
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 const DEFAULT_WINDOW_SECONDS = 180;
-const ALLOWED_EVENT_TYPES = new Set<KickEventType>(["match_invite", "friend_request", "match_join_request", "challenge_accepted"]);
+const ALLOWED_EVENT_TYPES = new Set<KickEventType>(["match_invite", "friend_request", "match_join_request", "challenge_accepted", "team_invite"]);
 
 function buildCorsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "*";
@@ -170,6 +171,34 @@ async function isAuthorizedChallengeActor(
   }
 
   return data === true;
+}
+
+async function isAuthorizedTeamInviteActor(
+  supabase: ReturnType<typeof createClient>,
+  invitationId: string,
+  actorUserId: string,
+  recipientUserId: string | null,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("team_invitations")
+    .select("invited_by_user_id, invited_user_id")
+    .eq("id", invitationId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[push-dispatch-now] team invite actor authorization failed", {
+      invitationId,
+      actorUserId,
+      message: error.message,
+    });
+    return false;
+  }
+
+  const inviterId = normalizeOptionalString(data?.invited_by_user_id);
+  const invitedUserId = normalizeOptionalString(data?.invited_user_id);
+  if (!inviterId || inviterId !== actorUserId) return false;
+  if (recipientUserId && invitedUserId && invitedUserId !== recipientUserId) return false;
+  return true;
 }
 
 async function fetchQueuedCandidateRows(
@@ -312,12 +341,117 @@ async function enqueueChallengeAcceptedRows(
   return { inserted: rowsToInsert.length, error: null };
 }
 
+async function enqueueTeamInviteRows(
+  supabase: ReturnType<typeof createClient>,
+  {
+    invitationId,
+    recipientUserId,
+    windowStartIso,
+  }: {
+    invitationId: string;
+    recipientUserId: string | null;
+    windowStartIso: string;
+  },
+): Promise<{ inserted: number; error: { message: string } | null }> {
+  let notificationsQuery = supabase
+    .from("notifications")
+    .select("id, user_id, partido_id, type, title, message, data, created_at")
+    .eq("type", "team_invite")
+    .gte("created_at", windowStartIso)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (recipientUserId) {
+    notificationsQuery = notificationsQuery.eq("user_id", recipientUserId);
+  }
+
+  const { data: notificationRows, error: notificationsError } = await notificationsQuery;
+  if (notificationsError) {
+    return { inserted: 0, error: { message: notificationsError.message } };
+  }
+
+  const matchingNotifications = ((notificationRows ?? []) as NotificationRow[])
+    .filter((row) => readPayloadString(row.data, "invitation_id", "invitationId") === invitationId);
+
+  if (matchingNotifications.length === 0) {
+    return { inserted: 0, error: null };
+  }
+
+  const recipientIds = Array.from(new Set(
+    matchingNotifications.map((row) => normalizeOptionalString(row.user_id)).filter(Boolean),
+  ));
+
+  let existingLogs: DeliveryLogRow[] = [];
+  if (recipientIds.length > 0) {
+    const existingQuery = supabase
+      .from("notification_delivery_log")
+      .select("id, notification_type, user_id, partido_id, created_at, payload_json")
+      .eq("channel", "push")
+      .eq("notification_type", "team_invite")
+      .gte("created_at", windowStartIso)
+      .in("user_id", recipientIds)
+      .limit(50);
+
+    const { data: existingData, error: existingError } = await existingQuery;
+    if (existingError) {
+      return { inserted: 0, error: { message: existingError.message } };
+    }
+    existingLogs = (existingData ?? []) as DeliveryLogRow[];
+  }
+
+  const existingNotificationIds = new Set(
+    existingLogs
+      .map((row) => readPayloadString(row.payload_json, "notification_id"))
+      .filter(Boolean),
+  );
+
+  const rowsToInsert = matchingNotifications
+    .filter((row) => !existingNotificationIds.has(row.id))
+    .map((row) => {
+      const payload = row.data && typeof row.data === "object" ? row.data : {};
+      return {
+        partido_id: row.partido_id,
+        user_id: row.user_id,
+        notification_type: row.type,
+        payload_json: {
+          ...payload,
+          event_channel: "INVITATION",
+          notification_id: row.id,
+          notification_type: row.type,
+          title: row.title ?? "Invitacion de equipo",
+          message: row.message ?? "Te invitaron a formar parte de un equipo.",
+          partido_id: row.partido_id,
+          link: "/desafios?tab=mis-equipos",
+          route: "/desafios?tab=mis-equipos",
+          source: "push_dispatch_now_backfill",
+        },
+        channel: "push",
+        status: "queued",
+      };
+    });
+
+  if (rowsToInsert.length === 0) {
+    return { inserted: 0, error: null };
+  }
+
+  const { error: insertError } = await supabase
+    .from("notification_delivery_log")
+    .insert(rowsToInsert);
+
+  if (insertError) {
+    return { inserted: 0, error: { message: insertError.message } };
+  }
+
+  return { inserted: rowsToInsert.length, error: null };
+}
+
 function isEligibleRow(
   row: DeliveryLogRow,
   actorUserId: string,
   eventType: KickEventType,
   requestId: string | null,
   challengeId: string | null,
+  invitationId: string | null,
 ): boolean {
   const payload = row.payload_json ?? {};
 
@@ -325,6 +459,12 @@ function isEligibleRow(
     if (!challengeId) return false;
     const payloadChallengeId = readPayloadString(payload, "challenge_id", "challengeId");
     return Boolean(payloadChallengeId && payloadChallengeId === challengeId);
+  }
+
+  if (eventType === "team_invite") {
+    if (!invitationId) return false;
+    const payloadInvitationId = readPayloadString(payload, "invitation_id", "invitationId");
+    return Boolean(payloadInvitationId && payloadInvitationId === invitationId);
   }
 
   if (eventType === "friend_request") {
@@ -380,6 +520,7 @@ serve(async (req) => {
 
   const requestId = normalizeOptionalString((body as KickBody).request_id);
   const challengeId = normalizeOptionalString((body as KickBody).challenge_id);
+  const invitationId = normalizeOptionalString((body as KickBody).invitation_id);
   const recipientUserId = normalizeOptionalString((body as KickBody).recipient_user_id);
   const matchId = normalizeOptionalInt((body as KickBody).match_id);
   const dispatchLimit = coerceDispatchLimit((body as KickBody).limit);
@@ -404,6 +545,17 @@ serve(async (req) => {
     }
   }
 
+  if (eventType === "team_invite") {
+    if (!invitationId) {
+      return jsonResponse({ ok: false, reason: "invalid_invitation_id" }, 400, cors);
+    }
+
+    const isAllowedActor = await isAuthorizedTeamInviteActor(supabase, invitationId, actorUserId, recipientUserId);
+    if (!isAllowedActor) {
+      return jsonResponse({ ok: false, reason: "forbidden" }, 403, cors);
+    }
+  }
+
   let { data: candidateRows, error: candidateError } = await fetchQueuedCandidateRows(supabase, {
     eventType,
     recipientUserId,
@@ -420,12 +572,19 @@ serve(async (req) => {
   }
 
   let candidates = candidateRows;
-  if (eventType === "challenge_accepted" && candidates.length === 0 && challengeId) {
-    const backfillResult = await enqueueChallengeAcceptedRows(supabase, {
-      challengeId,
-      recipientUserId,
-      windowStartIso,
-    });
+  if ((eventType === "challenge_accepted" && candidates.length === 0 && challengeId)
+    || (eventType === "team_invite" && candidates.length === 0 && invitationId)) {
+    const backfillResult = eventType === "team_invite"
+      ? await enqueueTeamInviteRows(supabase, {
+        invitationId: invitationId as string,
+        recipientUserId,
+        windowStartIso,
+      })
+      : await enqueueChallengeAcceptedRows(supabase, {
+        challengeId: challengeId as string,
+        recipientUserId,
+        windowStartIso,
+      });
 
     if (backfillResult.error) {
       return jsonResponse(
@@ -458,7 +617,7 @@ serve(async (req) => {
   }
 
   const eligibleRows = candidates.filter((row) => (
-    isEligibleRow(row, actorUserId, eventType, requestId, challengeId)
+    isEligibleRow(row, actorUserId, eventType, requestId, challengeId, invitationId)
   ));
 
   if (eligibleRows.length === 0) {
