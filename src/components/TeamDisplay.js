@@ -1275,7 +1275,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                     Recalcula los equipos para dejarlos lo más parejos posible.
                   </div>
                   <div className="text-white/55 text-xs font-oswald text-center leading-tight px-1 min-h-[36px] flex items-start justify-center">
-                    Mirá los promedios y métricas usadas para armar los equipos.
+                    Mirá los promedios usados para armar los equipos.
                   </div>
                 </div>
 
