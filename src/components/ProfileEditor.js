@@ -47,6 +47,7 @@ const ProfileEditorForm = ({
   handleSave,
   handleLogout,
   handleDeleteAccount,
+  singleLineFieldClass,
   inlineNotice,
   onClearInlineNotice,
   locationDisplayValue,
@@ -110,9 +111,9 @@ const ProfileEditorForm = ({
 
           {/* Name Column (Integrated in row) */}
           <div className="flex-1 flex flex-col gap-0.5 min-w-0 justify-center">
-            <label className={labelClass + ' !mb-0 !text-[11px]'}>Nombre Completo *</label>
+            <label className={labelClass + ' !mb-0 !text-[11px]'}>Nombre</label>
             <input
-              className={`${inputClass} w-full min-w-0 !py-2 !h-[40px] !text-sm`}
+              className={`${singleLineFieldClass} w-full min-w-0`}
               type="text"
               value={formData.nombre}
               maxLength={MAX_NOMBRE}
@@ -136,7 +137,7 @@ const ProfileEditorForm = ({
         <div className={formGroupClass}>
           <label className={labelClass}>Email</label>
           <input
-            className={inputClass}
+            className={singleLineFieldClass}
             type="email"
             value={user?.email || formData.email || ''}
             readOnly
@@ -148,7 +149,7 @@ const ProfileEditorForm = ({
         <div className={formGroupClass}>
           <label className={labelClass}>Teléfono <span className="text-xs opacity-70">(solo visible para admins)</span></label>
           <input
-            className={inputClass}
+            className={singleLineFieldClass}
             type="tel"
             value={formData.telefono}
             onChange={(e) => handleInputChange('telefono', e.target.value)}
@@ -160,7 +161,7 @@ const ProfileEditorForm = ({
         <div className={formGroupClass}>
           <label className={labelClass}>Nacionalidad</label>
           <select
-            className={inputClass}
+            className={singleLineFieldClass}
             value={formData.pais_codigo}
             onChange={(e) => {
               const country = countries.find((c) => c.key === e.target.value);
@@ -1077,6 +1078,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
   // Shared classes
   const inputClass = 'w-full bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white px-4 py-3 rounded-none text-base transition-all focus:outline-none focus:border-[#7f8dff] focus:bg-[rgba(62,67,114,0.95)] focus:ring-2 focus:ring-[#6f7dff]/30 placeholder:text-white/45 read-only:opacity-70 read-only:cursor-not-allowed shadow-inner backdrop-blur-sm';
+  const singleLineFieldClass = `${inputClass} h-[54px] py-0`;
   const labelClass = 'text-white/90 text-sm font-bold mb-2 block uppercase tracking-wider';
   const formGroupClass = 'flex flex-col w-full';
   const locationDisplayValue = locationLoading
@@ -1109,6 +1111,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           handleSave={handleSave}
           handleLogout={handleLogout}
           handleDeleteAccount={handleDeleteAccount}
+          singleLineFieldClass={singleLineFieldClass}
           inlineNotice={inlineNotice}
           onClearInlineNotice={clearInlineNotice}
           locationDisplayValue={locationDisplayValue}
@@ -1206,9 +1209,9 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <label className={labelClass}>Nombre *</label>
+                  <label className={labelClass}>Nombre</label>
                   <input
-                    className={`${inputClass} !py-3`}
+                    className={singleLineFieldClass}
                     type="text"
                     value={formData.nombre}
                     maxLength={MAX_NOMBRE}
@@ -1231,7 +1234,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
             <div className={formGroupClass}>
               <label className={labelClass}>Email</label>
               <input
-                className={inputClass}
+                className={singleLineFieldClass}
                 type="email"
                 value={user?.email || formData.email || ''}
                 readOnly
@@ -1242,7 +1245,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
             <div className={formGroupClass}>
               <label className={labelClass}>Teléfono <span className="text-xs opacity-70">(solo visible para admins)</span></label>
               <input
-                className={inputClass}
+                className={singleLineFieldClass}
                 type="tel"
                 value={formData.telefono}
                 onChange={(e) => handleInputChange('telefono', e.target.value)}
@@ -1253,7 +1256,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
             <div className={formGroupClass}>
               <label className={labelClass}>Nacionalidad</label>
               <select
-                className={inputClass}
+                className={singleLineFieldClass}
                 value={formData.pais_codigo}
                 onChange={(e) => {
                   const country = countries.find((c) => c.key === e.target.value);
