@@ -88,7 +88,16 @@ function sedeUnaPalabra(sede) {
 
 export default function MatchInfoSection(props) {
   // Keep named props for compatibility
-  const { fecha, hora, sede, modalidad, tipo, rightActions, topOffsetClassName } = props;
+  const {
+    fecha,
+    hora,
+    sede,
+    modalidad,
+    tipo,
+    rightActions,
+    topOffsetClassName,
+    topOffsetStyle,
+  } = props;
   const partidoObj = props.partido || {};
 
   const fechaRaw = partidoObj?.fecha ?? fecha;
@@ -127,12 +136,15 @@ export default function MatchInfoSection(props) {
     ? 'A definir'
     : (precioFieldExists && precioNumber !== null ? formatPriceCompact(precioNumber) : 'A definir');
 
-  const topOffset = topOffsetClassName || 'mt-[76px] sm:mt-[70px]';
+  const topOffset = topOffsetClassName || (!topOffsetStyle ? 'mt-[76px] sm:mt-[70px]' : '');
 
   return (
     <div className="relative left-1/2 -translate-x-1/2 w-screen max-w-[100vw] px-0 mx-0 overflow-hidden box-border">
       <div className="relative w-full flex justify-center items-start m-0 p-0">
-        <div className={`${topOffset} mb-0 p-3 relative w-full max-w-none box-border bg-white/[0.04] rounded-none ui-flat flex justify-center sm:max-w-full sm:p-[8px_10px] border-t border-b border-white/[0.08]`}>
+        <div
+          className={`${topOffset} mb-0 p-3 relative w-full max-w-none box-border bg-white/[0.04] rounded-none ui-flat flex justify-center sm:max-w-full sm:p-[8px_10px] border-t border-b border-white/[0.08]`}
+          style={topOffsetStyle}
+        >
           <div
             className="flex items-center w-full overflow-hidden flex-nowrap"
             style={{

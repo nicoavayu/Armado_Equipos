@@ -10,6 +10,7 @@ import { toSentenceCase } from '../utils/textCase';
  * @param {() => void} [props.onChatClick] - Handler para abrir chat
  * @param {number} [props.unreadCount] - Contador de mensajes sin leer
  * @param {number} [props.contentOffsetY] - Desplazamiento vertical interno del contenido (px)
+ * @param {boolean} [props.respectSafeArea] - Empuja el contenido del header debajo de la safe area
  */
 const PageTitle = ({
   children,
@@ -19,12 +20,24 @@ const PageTitle = ({
   onChatClick,
   unreadCount = 0,
   contentOffsetY = 0,
+  respectSafeArea = false,
 }) => {
   const titleText = children ?? title;
   const normalizedTitle = toSentenceCase(titleText);
+  const containerStyle = respectSafeArea
+    ? {
+      paddingTop: 'max(18px, calc(var(--safe-top, 0px) + 12px))',
+      paddingRight: 'max(16px, calc(var(--safe-right, 0px) + 16px))',
+      paddingBottom: '18px',
+      paddingLeft: 'max(16px, calc(var(--safe-left, 0px) + 16px))',
+    }
+    : undefined;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[1000] p-[18px_16px] box-border shrink-0 bg-black/40 backdrop-blur-xl border-b border-white/10 md:p-[14px_12px]">
+    <div
+      className="fixed top-0 left-0 right-0 z-[1000] p-[18px_16px] box-border shrink-0 bg-black/40 backdrop-blur-xl border-b border-white/10 md:p-[14px_12px]"
+      style={containerStyle}
+    >
       <div
         className="relative w-full min-h-[44px]"
         style={{
