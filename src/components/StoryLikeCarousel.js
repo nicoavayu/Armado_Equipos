@@ -83,6 +83,9 @@ const StoryLikeCarousel = ({
     typeof currentSlide.content === 'function'
       ? currentSlide.content()
       : currentSlide.content;
+  const topChromeInset = 'max(10px, calc(env(safe-area-inset-top) + 10px))';
+  const horizontalChromeInset = 'max(12px, calc(env(safe-area-inset-left) + 12px))';
+  const rightChromeInset = 'max(12px, calc(env(safe-area-inset-right) + 12px))';
 
   return (
     <div className="fixed inset-0 z-[9999] bg-black">
@@ -94,7 +97,14 @@ const StoryLikeCarousel = ({
       </div>
 
       {/* Progress Bars */}
-      <div className="absolute top-3 left-0 w-full px-3 flex gap-1 z-50">
+      <div
+        className="absolute left-0 w-full flex gap-1 z-50"
+        style={{
+          top: topChromeInset,
+          paddingLeft: horizontalChromeInset,
+          paddingRight: rightChromeInset,
+        }}
+      >
         {safeSlides.map((s, idx) => {
           const isPast = idx < currentIndex;
           const isNow = idx === currentIndex;
@@ -115,7 +125,11 @@ const StoryLikeCarousel = ({
       {/* Close */}
       <button
         onClick={onClose}
-        className="absolute top-6 right-4 z-50 text-white/80 hover:text-white px-3 py-2 rounded-full bg-white/10 hover:bg-white/15 backdrop-blur"
+        className="absolute z-50 text-white/80 hover:text-white px-3 py-2 rounded-full bg-white/10 hover:bg-white/15 backdrop-blur"
+        style={{
+          top: 'max(18px, calc(env(safe-area-inset-top) + 18px))',
+          right: rightChromeInset,
+        }}
         aria-label="Cerrar"
       >
         ✕
