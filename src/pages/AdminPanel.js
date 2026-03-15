@@ -500,7 +500,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                           <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)' }}>Abrir a la comunidad</span>
                         </div>
                         <div className="text-[11px] text-white/60 leading-snug text-center">
-                          Permite que otros jugadores envíen solicitud para sumarse; el admin debe aprobarla.
+                          Permite que otros jugadores envíen solicitud para sumarse.
                         </div>
                       </div>
                     )}
