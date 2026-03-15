@@ -146,6 +146,20 @@ export const buildNotificationFallbackRoute = (notification = {}, idMapper = (va
     if (inviteRoute) return inviteRoute;
   }
 
+  if (type === 'call_to_vote' || type === 'pre_match_vote') {
+    const matchCode = String(data?.matchCode || data?.match_code || '').trim();
+    if (matchCode) {
+      return `/votar-equipos?codigo=${encodeURIComponent(matchCode)}`;
+    }
+
+    const matchId = extractNotificationMatchId(notification);
+    if (matchId !== null && matchId !== undefined && String(matchId).trim() !== '') {
+      return `/votar-equipos?partidoId=${idMapper(matchId)}`;
+    }
+
+    return '/notifications';
+  }
+
   if (type === 'friend_request' || type === 'friend_accepted' || type === 'friend_rejected') {
     return '/amigos';
   }

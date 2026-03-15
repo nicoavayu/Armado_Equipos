@@ -53,6 +53,28 @@ describe('notificationRoutes', () => {
     expect(route).toBe('/partido-publico/412');
   });
 
+  test('builds voting route with code for call_to_vote notifications', () => {
+    const route = buildNotificationFallbackRoute({
+      type: 'call_to_vote',
+      data: {
+        matchCode: 'QT97MX',
+      },
+    });
+
+    expect(route).toBe('/votar-equipos?codigo=QT97MX');
+  });
+
+  test('builds voting route with partido id when call_to_vote has no code', () => {
+    const route = buildNotificationFallbackRoute({
+      type: 'call_to_vote',
+      data: {
+        matchId: 398,
+      },
+    });
+
+    expect(route).toBe('/votar-equipos?partidoId=398');
+  });
+
   test('builds fallback route to desafios for team notifications without ids', () => {
     const route = buildNotificationFallbackRoute({ type: 'team_invite' });
     expect(route).toBe('/desafios');
