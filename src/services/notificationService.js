@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { handleError } from '../lib/errorHandler';
+import { requestImmediatePushDispatchSafe } from './pushDispatchService';
 import logger from '../utils/logger';
 
 /**
@@ -121,6 +122,11 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
           partidoId,
           error: rpcError,
         });
+        requestImmediatePushDispatchSafe({
+          eventType: 'call_to_vote',
+          matchId: Number(partidoId),
+          limit: 50,
+        });
         return { inserted: 0, alreadyExists: true };
       }
       console.error('[Notifications] RPC error', rpcError);
@@ -131,6 +137,11 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
 
     // Normalize RPC result to expected format
     if (rpcResult && rpcResult.success) {
+      requestImmediatePushDispatchSafe({
+        eventType: 'call_to_vote',
+        matchId: Number(partidoId),
+        limit: 50,
+      });
       return { inserted: rpcResult.inserted };
     } else {
       // Handle cases where RPC returns success: false (e.g. survey already exists)
