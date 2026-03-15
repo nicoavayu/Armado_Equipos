@@ -5,6 +5,7 @@ import ReactDOM from 'react-dom';
 import { supabase } from '../supabase';
 import { useAuth } from './AuthProvider';
 import { subscribeToMatchChat } from '../services/realtimeService';
+import { useKeyboard } from '../hooks/useKeyboard';
 // import './MatchChat.css'; // REMOVED
 
 const AUTHOR_COLORS = [
@@ -18,6 +19,7 @@ const normalizeAuthorKey = (value) => String(value || '').trim().toLowerCase();
 
 export default function MatchChat({ partidoId, isOpen, onClose }) {
   const { user, profile } = useAuth();
+  const { keyboardHeight, isKeyboardOpen } = useKeyboard();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -125,21 +127,24 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
     const syncViewport = () => {
       const fallbackHeight = window.innerHeight || document.documentElement.clientHeight || 0;
       const vv = window.visualViewport;
+      const viewportTop = Math.max(0, vv?.offsetTop || 0);
+      const viewportHeight = Math.max(280, vv?.height || fallbackHeight);
+      const keyboardAdjustedHeight = isCompactLayout && isKeyboardOpen && keyboardHeight > 0
+        ? Math.max(280, fallbackHeight - keyboardHeight)
+        : viewportHeight;
+      const resolvedHeight = Math.min(viewportHeight, keyboardAdjustedHeight);
 
       if (!vv) {
         setViewportStyle({
           top: '0px',
-          height: `${fallbackHeight}px`,
+          height: `${keyboardAdjustedHeight}px`,
         });
         return;
       }
 
-      const top = Math.max(0, vv.offsetTop || 0);
-      const height = Math.max(280, vv.height || fallbackHeight);
-
       setViewportStyle({
-        top: `${top}px`,
-        height: `${height}px`,
+        top: `${viewportTop}px`,
+        height: `${resolvedHeight}px`,
       });
     };
 
@@ -157,7 +162,22 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       window.removeEventListener('resize', syncViewport);
       window.removeEventListener('orientationchange', syncViewport);
     };
-  }, [isOpen]);
+  }, [isCompactLayout, isKeyboardOpen, isOpen, keyboardHeight]);
+
+  useEffect(() => {
+    if (!isOpen || !isCompactLayout || !isKeyboardOpen) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      try {
+        inputRef.current?.scrollIntoView({ block: 'end', inline: 'nearest', behavior: 'smooth' });
+      } catch (_) {
+        inputRef.current?.scrollIntoView();
+      }
+      messagesEndRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    }, 120);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isCompactLayout, isKeyboardOpen, isOpen, keyboardHeight]);
 
   useEffect(() => {
     let active = true;
@@ -405,6 +425,16 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
 
   if (!isOpen) return null;
 
+  const mobileHeaderStyle = isCompactLayout
+    ? {
+      paddingTop: 'max(10px, calc(var(--safe-top, 0px) + 10px))',
+      paddingRight: 'max(20px, calc(var(--safe-right, 0px) + 16px))',
+      paddingBottom: '12px',
+      paddingLeft: 'max(20px, calc(var(--safe-left, 0px) + 16px))',
+      minHeight: 'calc(54px + var(--safe-top, 0px))',
+    }
+    : undefined;
+
   const chatModal = (
     <div
       data-modal-root="true"
@@ -416,8 +446,11 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
       className="bg-slate-900 border-x border-t border-white/20 w-full h-full min-h-0 max-h-none rounded-none flex flex-col shadow-[0_30px_120px_rgba(0,0,0,0.55)] overflow-hidden sm:border-2 sm:max-w-[500px] sm:h-[75vh] sm:max-h-[600px] sm:rounded-xl"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex flex-col px-5 py-3 border-b border-white/10 bg-slate-800 sm:px-4 sm:py-2.5 sm:shrink-0">
-          <div className="flex justify-between items-center">
+      <div
+        className="flex flex-col px-5 py-3 border-b border-white/10 bg-slate-800 sm:px-4 sm:py-2.5 sm:shrink-0"
+        style={mobileHeaderStyle}
+      >
+          <div className="flex justify-between items-center gap-3">
             <h3 className="m-0 font-oswald text-xl font-semibold text-white tracking-[0.01em]">Chat del partido</h3>
             <button
               className="bg-transparent border-none text-white/70 text-2xl cursor-pointer p-0 w-8 h-8 flex items-center justify-center rounded-full transition-colors hover:bg-white/10 hover:text-white"
@@ -458,6 +491,11 @@ export default function MatchChat({ partidoId, isOpen, onClose }) {
             placeholder="Escribí un mensaje…"
             className="flex-1 py-3 px-4 border border-slate-700 rounded-xl outline-none font-oswald text-base transition-all focus:border-[#0EA9C6] focus:ring-2 focus:ring-[#0EA9C6]/20 sm:text-base sm:relative sm:z-20 bg-slate-900 text-white placeholder:text-white/40"
             onKeyPress={(e) => e.key === 'Enter' && !loading && newMessage.trim() && handleSendMessage()}
+            onFocus={() => {
+              window.setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+              }, 120);
+            }}
             disabled={loading}
             ref={inputRef}
           />
