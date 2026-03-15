@@ -387,8 +387,10 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   // Common wrapper styles
   const wrapperClass = 'notranslate min-h-[100dvh] w-screen p-0 flex flex-col';
   const cardClass = 'w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100dvh-120px)] p-5';
-  // Updated title class to match Legacy 'voting-title-modern' but with Tailwind
-  const titleClass = 'font-bebas text-[40px] md:text-[64px] text-white tracking-widest font-bold mb-10 text-center leading-[1.1] uppercase drop-shadow-lg';
+  const titleClass = 'font-bebas text-[40px] md:text-[64px] text-white tracking-[0.08em] font-bold mb-10 text-center leading-[0.98] uppercase drop-shadow-lg';
+  const sectionTitleClass = 'font-bebas text-[31px] md:text-[46px] text-white tracking-[0.055em] font-bold text-center leading-[0.96] drop-shadow-lg';
+  const introLabelClass = 'font-oswald text-[18px] md:text-[20px] text-white/76 text-center leading-[1.2] tracking-[0.025em]';
+  const sectionSubtitleClass = 'font-oswald text-[18px] md:text-[21px] text-white/82 text-center leading-[1.22] tracking-[0.02em]';
   const primaryVoteButtonClass = 'w-full h-[60px] min-h-[60px] px-4 border text-white font-oswald text-[20px] md:text-[22px] font-semibold tracking-[0.01em] normal-case rounded-none cursor-pointer transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center';
   const primaryVoteButtonStyle = {
     background: 'linear-gradient(132deg, #291686 0%, #3f24ba 48%, #5638e6 100%)',
@@ -411,7 +413,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     borderColor: VOTE_CARD_STROKE_BLUE,
     boxShadow: VOTE_CARD_GLOW_BLUE,
   };
-  const textClass = 'text-white text-[21px] md:text-[26px] font-oswald text-center mb-[30px] tracking-wide';
+  const textClass = 'text-white text-[21px] md:text-[25px] font-oswald text-center mb-[30px] leading-[1.25] tracking-[0.02em]';
+  const finalMessageClass = `${textClass} text-[22px] md:text-[25px] mb-[27px]`;
   const noticeSlot = (
     <div className="w-[90vw] max-w-[520px] mx-auto mt-3">
       <InlineNotice
@@ -451,7 +454,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <div className={titleClass}>
             {publicAlreadyVoted ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
           </div>
-          <div className={`${textClass} text-[22px] md:text-[25px] leading-[1.25] mb-[27px] tracking-[0.8px]`}>
+          <div className={finalMessageClass}>
             {publicAlreadyVoted
               ? 'Tus votos ya fueron registrados ✅'
               : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
@@ -476,7 +479,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <div className={titleClass}>
             {publicAlreadyVoted || usuarioYaVoto ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
           </div>
-          <div className={`${textClass} text-[22px] md:text-[25px] leading-[1.25] mb-[27px] tracking-[0.8px]`}>
+          <div className={finalMessageClass}>
             {publicAlreadyVoted || usuarioYaVoto
               ? 'Tus votos ya fueron registrados ✅'
               : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
@@ -835,10 +838,26 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     return (
       <div className={wrapperClass}>
         {noticeSlot}
-        <div className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center justify-center py-4">
+        <div
+          className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center justify-start overflow-y-auto"
+          style={{
+            paddingTop: 'max(18px, calc(env(safe-area-inset-top) + 12px))',
+            paddingBottom: 'max(16px, calc(env(safe-area-inset-bottom) + 12px))',
+          }}
+        >
           <div className={`w-full transition-transform duration-200 ease-out ${animating ? '-translate-x-full opacity-0' : 'translate-x-0 opacity-100'}`}>
+            <div className="w-full px-2 text-center mb-5 md:mb-6">
+              <div className={introLabelClass} style={{ marginBottom: 'clamp(6px, 1.6vh, 12px)' }}>
+                Hola, {clean(nombre)}
+              </div>
+              <div className="max-w-[360px] mx-auto">
+                <div className={sectionTitleClass}>
+                  Votá a tus compañeros
+                </div>
+              </div>
+            </div>
             <div
-              className="w-[80vw] md:w-[320px] mx-auto border rounded-none text-white font-bebas font-normal text-center uppercase text-[1.3rem] md:text-[2.1rem] tracking-wider py-2 mt-3 mb-0"
+              className="w-[80vw] md:w-[320px] mx-auto border rounded-none text-white font-bebas font-normal text-center uppercase text-[1.3rem] md:text-[2.1rem] tracking-wider py-2 mt-0 mb-0"
               style={voteCardHeaderStyle}
             >
               {clean(jugadorVotar.nombre)}
@@ -853,7 +872,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                 <AvatarFallback name={jugadorVotar.nombre} size="w-full h-full" className="rounded-none text-[80px]" />
               )}
             </div>
-            <div className="w-full flex flex-col items-center mt-12 select-none px-0">
+            <div className="w-full flex flex-col items-center mt-10 select-none px-0">
               <StarRating
                 value={valor}
                 onChange={(valor) => {
@@ -894,7 +913,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
             </div>
 
             <button
-              className={`${primaryVoteButtonClass} mt-10 mb-0 mx-auto !w-[80vw] md:!w-[320px]`}
+              className={`${primaryVoteButtonClass} mt-8 mb-0 mx-auto !w-[80vw] md:!w-[320px]`}
               onClick={() => {
                 if (animating) return;
                 setAnimating(true);
@@ -927,14 +946,21 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       <div className={wrapperClass}>
         {noticeSlot}
         <div
-          className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center p-3"
+          className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center overflow-y-auto px-3 pb-3"
           style={{
             paddingTop: 'max(26px, calc(env(safe-area-inset-top) + 28px))',
             paddingBottom: 'max(16px, calc(env(safe-area-inset-bottom) + 12px))',
           }}
         >
-          <div className="w-full mb-6 text-center font-bebas text-[34px] md:text-[56px] leading-[0.98] tracking-[0.06em] text-white uppercase drop-shadow-lg">
-            Confirma tus votos
+          <div className="w-full mb-5 px-2 text-center">
+            <div className="max-w-[370px] mx-auto">
+              <div className={sectionTitleClass}>
+                Confirmá tus votos
+              </div>
+              <div className={`${sectionSubtitleClass} mt-2`}>
+                Revisá los puntajes antes de enviarlos.
+              </div>
+            </div>
           </div>
           <div className="w-full max-w-full mx-auto mb-4 p-0 list-none">
             {jugadoresParaVotar.map((j, idx) => (
@@ -1294,7 +1320,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
           <div className={titleClass}>
             {publicAlreadyVoted ? '¡YA VOTASTE!' : '¡GRACIAS POR VOTAR!'}
           </div>
-          <div className={`${textClass} text-[22px] md:text-[25px] leading-[1.25] mb-[27px] tracking-[0.8px]`}>
+          <div className={finalMessageClass}>
             {publicAlreadyVoted
               ? 'Tus votos ya fueron registrados ✅'
               : <>Tus votos fueron registrados.<br />Podés cerrar esta ventana.</>}
