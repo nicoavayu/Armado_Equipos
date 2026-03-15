@@ -94,6 +94,7 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
   const [dragTarget, setDragTarget] = useState(null);
   const [activeDragId, setActiveDragId] = useState(null);
   const [showShareRequiresConfirmModal, setShowShareRequiresConfirmModal] = useState(false);
+  const [showTeamsConfirmedModal, setShowTeamsConfirmedModal] = useState(false);
   const [votantes, setVotantes] = useState([]);
   const [votantesConNombres, setVotantesConNombres] = useState([]);
   const lastDragEndAtRef = useRef(0);
@@ -619,12 +620,9 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       // Persist confirmed flag for future loads and survey flow.
       await persistMatchTeamsConfirmedState({ partidoId, confirmed: true });
 
+      clearInlineNotice();
       setTeamsConfirmed(true);
-      showInlineNotice({
-        key: 'teams_confirmed_success',
-        type: 'success',
-        message: 'Equipos confirmados.',
-      });
+      setShowTeamsConfirmedModal(true);
     } catch (e) {
       console.error('[TEAMS_CONFIRM] confirmTeams error', e);
       notifyBlockingError('No se pudieron confirmar los equipos');
@@ -654,12 +652,8 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
       // Persist unconfirmed flag.
       await persistMatchTeamsConfirmedState({ partidoId, confirmed: false });
 
+      clearInlineNotice();
       setTeamsConfirmed(false);
-      showInlineNotice({
-        key: 'teams_unconfirmed_info',
-        type: 'info',
-        message: 'Equipos desconfirmados.',
-      });
     } catch (e) {
       console.error('[TEAMS_CONFIRM] unconfirmTeams error', e);
       notifyBlockingError('No se pudo desconfirmar');
@@ -1237,14 +1231,16 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
 
         {/* Botones de acción con helper copy (mobile-first) */}
         <div className="w-full mt-0.5 box-border flex flex-col gap-2">
-          <div className={`w-full ${notice?.message ? 'min-h-[52px]' : 'min-h-0'}`}>
-            <InlineNotice
-              type={notice?.type}
-              message={notice?.message}
-              autoHideMs={notice?.type === 'warning' ? null : 3000}
-              onClose={clearInlineNotice}
-            />
-          </div>
+          {notice?.message ? (
+            <div className="w-full">
+              <InlineNotice
+                type={notice?.type}
+                message={notice?.message}
+                autoHideMs={notice?.type === 'warning' ? null : 3000}
+                onClose={clearInlineNotice}
+              />
+            </div>
+          ) : null}
           {isAdmin && (
             <>
               <div className="flex flex-col gap-3">
@@ -1298,9 +1294,11 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
                   >
                     <span>{teamsConfirmed ? (unconfirming ? 'Desconfirmando…' : 'Editar equipos') : (confirming ? 'Confirmando…' : 'Confirmar equipos')}</span>
                   </button>
-                  <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1 min-h-[18px] w-[90%] mx-auto">
-                    {teamsConfirmed ? 'Los equipos están confirmados.' : 'Guarda los equipos de este partido y bloquea cambios.'}
-                  </div>
+                  {!teamsConfirmed ? (
+                    <div className="text-white/50 text-xs font-oswald text-center leading-tight px-1 min-h-[18px] w-[90%] mx-auto">
+                      Guarda los equipos de este partido y bloquea cambios.
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </>
@@ -1337,6 +1335,15 @@ const TeamDisplay = ({ teams, players, onTeamsChange, onBackToHome, isAdmin = fa
         confirmText="Entendido"
         onConfirm={() => setShowShareRequiresConfirmModal(false)}
         onCancel={() => setShowShareRequiresConfirmModal(false)}
+      />
+      <ConfirmModal
+        isOpen={showTeamsConfirmedModal}
+        title="Equipos confirmados"
+        message="Los equipos quedaron guardados y bloqueados."
+        singleButton
+        confirmText="Aceptar"
+        onConfirm={() => setShowTeamsConfirmedModal(false)}
+        onCancel={() => setShowTeamsConfirmedModal(false)}
       />
     </SafeTeamDisplayContext.Provider>
   );
