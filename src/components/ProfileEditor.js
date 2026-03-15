@@ -57,7 +57,7 @@ const ProfileEditorForm = ({
   isEmbedded = false,
 }) => {
   const formBottomPaddingClass = isEmbedded
-    ? 'pb-[calc(env(safe-area-inset-bottom)+68px)]'
+    ? 'pb-[calc(env(safe-area-inset-bottom)+32px)]'
     : 'pb-32';
   const actionButtonsBottomPaddingClass = isEmbedded ? 'pb-0' : 'pb-16';
 
@@ -275,18 +275,6 @@ const ProfileEditorForm = ({
               );
             })}
           </div>
-        </div>
-
-        {/* Bio Field */}
-        <div className={formGroupClass}>
-          <label className={labelClass}>Bio</label>
-          <textarea
-            className={inputClass}
-            value={formData.bio}
-            onChange={(e) => handleInputChange('bio', e.target.value)}
-            placeholder="Contanos algo sobre vos..."
-            rows={3}
-          />
         </div>
 
         {/* Action Buttons */}
@@ -1368,17 +1356,6 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
                   );
                 })}
               </div>
-            </div>
-
-            <div className={formGroupClass}>
-              <label className={labelClass}>Bio</label>
-              <textarea
-                className={inputClass}
-                value={formData.bio}
-                onChange={(e) => handleInputChange('bio', e.target.value)}
-                placeholder="Contanos algo sobre vos..."
-                rows={3}
-              />
             </div>
 
             <div className="grid grid-cols-2 gap-3 mt-5 pt-5 border-t border-white/20 w-full relative pb-5 md:pb-0">
