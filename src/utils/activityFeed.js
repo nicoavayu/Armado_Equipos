@@ -361,7 +361,10 @@ const resolveChallengeTeamsLabelForFeed = (notification) => {
   return '';
 };
 
-const resolveChallengePrimaryLineForFeed = (notification, { challengeVerb = false } = {}) => {
+const resolveChallengePrimaryLineForFeed = (
+  notification,
+  { challengeVerb = false, acceptanceVerb = false } = {},
+) => {
   const data = notification?.data || {};
   const fromResolved = resolveChallengeTeamNames(notification);
   const teamA = normalizeTeamLabel(
@@ -378,12 +381,15 @@ const resolveChallengePrimaryLineForFeed = (notification, { challengeVerb = fals
   );
 
   if (teamA && teamB) {
+    if (acceptanceVerb) return `${teamB} aceptó el desafío de ${teamA}`;
     return challengeVerb ? `${teamA} desafió a ${teamB}` : `${teamA} vs ${teamB}`;
   }
   if (teamA) {
+    if (acceptanceVerb) return `Aceptaron el desafío de ${teamA}`;
     return challengeVerb ? `${teamA} planteó un desafío` : teamA;
   }
   if (teamB) {
+    if (acceptanceVerb) return `${teamB} aceptó el desafío`;
     return challengeVerb ? `Desafío contra ${teamB}` : teamB;
   }
 
@@ -1000,7 +1006,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
   if (type === 'challenge_accepted' || type === 'team_match_created' || type === 'challenge_squad_open') {
     const teamsLabel = resolveChallengeTeamsLabelForFeed(notification);
     const primaryLine = resolveChallengePrimaryLineForFeed(notification, {
-      challengeVerb: type === 'challenge_squad_open',
+      acceptanceVerb: type === 'challenge_squad_open',
     });
     const challengeDateLabel = resolveChallengeDateLabel(notification, match);
     const subtitleFromMessage = normalizeSpaces(stripEmojis(notification?.message || ''));
@@ -1016,7 +1022,7 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     return {
       ...base,
       icon: 'CalendarClock',
-      title: isSquadOpen ? 'Desafío planteado' : 'Desafío aceptado!',
+      title: 'Desafío aceptado!',
       subtitle: subtitle || subtitleFromMessage || fallbackChallengeSubtitle || fallbackSubtitle,
       route: teamMatchId ? `/desafios/equipos/partidos/${teamMatchId}` : (matchRoute || '/desafios'),
     };

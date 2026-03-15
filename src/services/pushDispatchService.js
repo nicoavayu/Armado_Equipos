@@ -22,6 +22,7 @@ const normalizeLimit = (value) => {
 export const requestImmediatePushDispatch = async ({
   eventType,
   matchId = null,
+  challengeId = null,
   requestId = null,
   recipientUserId = null,
   limit = DEFAULT_LIMIT,
@@ -39,6 +40,11 @@ export const requestImmediatePushDispatch = async ({
   const normalizedMatchId = normalizeOptionalInt(matchId);
   if (normalizedMatchId !== null) {
     payload.match_id = normalizedMatchId;
+  }
+
+  const normalizedChallengeId = normalizeId(challengeId);
+  if (normalizedChallengeId) {
+    payload.challenge_id = normalizedChallengeId;
   }
 
   const normalizedRequestId = normalizeId(requestId);

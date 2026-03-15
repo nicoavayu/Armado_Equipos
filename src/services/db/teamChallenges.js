@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
+import { requestImmediatePushDispatchSafe } from '../pushDispatchService';
 import {
   normalizeTeamMode,
   normalizeTeamSkillLevel,
@@ -2489,6 +2490,15 @@ export const acceptChallenge = async (challengeId, acceptedTeamId, _options = {}
     console.warn('[TEAM_CHALLENGES] prepare_challenge_team_squad after accept failed', {
       challengeId,
       message: error?.message || String(error),
+    });
+  }
+
+  if (challenge?.id && challenge?.created_by_user_id) {
+    requestImmediatePushDispatchSafe({
+      eventType: 'challenge_accepted',
+      challengeId: challenge.id,
+      recipientUserId: challenge.created_by_user_id,
+      limit: 20,
     });
   }
 

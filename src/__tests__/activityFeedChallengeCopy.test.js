@@ -35,8 +35,8 @@ describe('buildActivityFeed challenge copy', () => {
     });
 
     expect(items).toHaveLength(1);
-    expect(items[0].title).toBe('Desafío planteado');
-    expect(items[0].subtitle).toContain('Napoli desafió a Maturana');
+    expect(items[0].title).toBe('Desafío aceptado!');
+    expect(items[0].subtitle).toContain('Maturana aceptó el desafío de Napoli');
     expect(items[0].subtitle).toContain('Revisá disponibilidad de tu equipo');
     expect(items[0].subtitle).toContain('\n');
   });
