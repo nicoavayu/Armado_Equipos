@@ -430,7 +430,7 @@ function SharedInviteLayout({
 
   return (
     <div className={`min-h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient ${showBottomNav ? 'pb-[calc(var(--safe-bottom,0px)+78px)] md:pb-[calc(var(--safe-bottom,0px)+88px)]' : ''}`}>
-      <div className="mx-auto w-[90vw] max-w-[650px] pt-5 shadow-none">
+      <div className="mx-auto w-[90vw] max-w-[650px] pt-0 shadow-none">
         <PageTitle
           title={title}
           onBack={onNavigateBack}
@@ -447,7 +447,7 @@ function SharedInviteLayout({
           modalidad={partido?.modalidad}
           tipo={partido?.tipo_partido}
           precio={partido?.precio || partido?.valor_cancha || partido?.valor}
-          topOffsetStyle={{ marginTop: 'calc(var(--safe-top, 0px) + 96px)' }}
+          topOffsetStyle={{ marginTop: 'calc(var(--safe-top, 0px) + 80px)' }}
         />
 
         <main className="pt-0">
