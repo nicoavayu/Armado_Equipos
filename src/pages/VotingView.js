@@ -388,7 +388,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const wrapperClass = 'notranslate min-h-[100dvh] w-screen p-0 flex flex-col';
   const cardClass = 'w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100dvh-120px)] p-5';
   const titleClass = 'font-bebas text-[40px] md:text-[64px] text-white tracking-[0.08em] font-bold mb-10 text-center leading-[0.98] uppercase drop-shadow-lg';
-  const sectionTitleClass = 'font-bebas text-[31px] md:text-[46px] text-white tracking-[0.055em] font-bold text-center leading-[0.96] drop-shadow-lg';
+  const sectionTitleClass = 'font-bebas text-[31px] md:text-[46px] text-white tracking-[0.055em] font-bold text-center leading-[1.06] md:leading-[0.98] drop-shadow-lg';
   const sectionSubtitleClass = 'font-oswald text-[18px] md:text-[21px] text-white/82 text-center leading-[1.22] tracking-[0.02em]';
   const primaryVoteButtonClass = 'w-full h-[60px] min-h-[60px] px-4 border text-white font-oswald text-[20px] md:text-[22px] font-semibold tracking-[0.01em] normal-case rounded-none cursor-pointer transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center';
   const primaryVoteButtonStyle = {
