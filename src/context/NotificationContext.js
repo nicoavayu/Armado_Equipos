@@ -12,7 +12,10 @@ import {
   resolveNotificationMatchName,
 } from '../utils/notificationText';
 import { isTeamChallengeNotification } from '../utils/notificationRoutes';
-import { filterNotificationsForInbox } from '../utils/notificationInviteState';
+import {
+  filterNotificationsForInbox,
+  isPlayerJoinedMatchUpdateNotification,
+} from '../utils/notificationInviteState';
 import { AWARDS_READY_NOTIFICATION_TYPES, isAwardsTrulyReady, toNumericMatchId } from '../utils/awardsReadiness';
 import { track } from '../utils/monitoring/analytics';
 
@@ -778,6 +781,14 @@ export const NotificationProvider = ({ children }) => {
       case 'call_to_vote':
         console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
+      case 'match_update':
+        if (isPlayerJoinedMatchUpdateNotification(notification)) {
+          console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
+        }
+        break;
+      case 'match_kicked':
+        console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
+        break;
       case 'survey_start':
       case 'post_match_survey': {
         const surveyMessage = getSurveyStartMessage({
@@ -819,6 +830,8 @@ export const NotificationProvider = ({ children }) => {
     const unread = notifs.filter((n) => !n.read);
     const friendRequests = unread.filter((n) => n.type === 'friend_request').length;
     const matchInvites = unread.filter((n) => n.type === 'match_invite').length;
+    const matchUpdates = unread.filter((n) => n.type === 'match_update').length;
+    const matchKicked = unread.filter((n) => n.type === 'match_kicked').length;
     const teamInvites = unread.filter((n) => n.type === 'team_invite').length;
     const captainTransfers = unread.filter((n) => n.type === 'team_captain_transfer').length;
     const matchJoinRequests = unread.filter((n) => n.type === 'match_join_request').length;
@@ -839,7 +852,7 @@ export const NotificationProvider = ({ children }) => {
 
     setUnreadCount({
       friends: friendRequests,
-      matches: matchInvites + teamInvites + captainTransfers + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyReminders + surveyResults + awardsReady + awardWon + surveyFinished + noShowPenalty + noShowRecovery + challengeAccepted + teamMatchCreated + challengeSquadOpen,
+      matches: matchInvites + matchUpdates + matchKicked + teamInvites + captainTransfers + matchJoinRequests + matchJoinApproved + callToVote + surveyStarts + postMatchSurveys + surveyReminders + surveyResults + awardsReady + awardWon + surveyFinished + noShowPenalty + noShowRecovery + challengeAccepted + teamMatchCreated + challengeSquadOpen,
       total: unread.length,
     });
   };

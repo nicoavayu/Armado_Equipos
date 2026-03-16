@@ -1,6 +1,8 @@
 import { extractNotificationMatchId } from './notificationRoutes';
 
 export const normalizeInviteStatus = (status) => String(status || 'pending').trim().toLowerCase();
+const normalizeNotificationType = (notification) => String(notification?.type || '').trim().toLowerCase();
+const normalizeNotificationText = (value) => String(value || '').trim().toLowerCase();
 
 export const isPendingInviteStatus = (status) => normalizeInviteStatus(status) === 'pending';
 export const MATCH_CANCELLATION_KEEP_ALIVE_MS = 72 * 60 * 60 * 1000;
@@ -65,8 +67,29 @@ export const buildLatestCancellationTsByMatch = (notifications = []) => {
 };
 
 export const isMatchCancellationNotification = (notification) => {
-  const type = String(notification?.type || '').trim().toLowerCase();
-  return MATCH_CANCELLATION_TYPES.has(type);
+  return MATCH_CANCELLATION_TYPES.has(normalizeNotificationType(notification));
+};
+
+export const isMatchKickedNotification = (notification) => normalizeNotificationType(notification) === 'match_kicked';
+
+export const isPlayerJoinedMatchUpdateNotification = (notification) => {
+  if (normalizeNotificationType(notification) !== 'match_update') return false;
+
+  const data = notification?.data || {};
+  if (
+    data?.player_name
+    || data?.playerName
+    || data?.player_user_id
+    || data?.playerUserId
+    || data?.joined_via
+    || data?.joinedVia
+  ) {
+    return true;
+  }
+
+  const title = normalizeNotificationText(notification?.title);
+  const message = normalizeNotificationText(notification?.message);
+  return title.includes('nuevo jugador en el partido') || message.includes('se sumó al partido');
 };
 
 export const isCancellationNotificationAlive = (
@@ -108,8 +131,8 @@ export const filterNotificationsForInbox = (notifications = []) => {
 
     const matchId = getNotificationMatchIdText(notification);
 
-    if (notification.type === 'match_kicked') {
-      return false;
+    if (isMatchKickedNotification(notification)) {
+      return true;
     }
 
     if (isMatchCancellationNotification(notification)) {

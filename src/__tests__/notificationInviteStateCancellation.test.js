@@ -2,6 +2,7 @@ const {
   filterNotificationsForInbox,
   hasPendingMatchInviteStatus,
   isPendingMatchInviteNotification,
+  isPlayerJoinedMatchUpdateNotification,
   MATCH_CANCELLATION_KEEP_ALIVE_MS,
 } = require('../utils/notificationInviteState');
 
@@ -85,5 +86,63 @@ describe('filterNotificationsForInbox cancellation handling', () => {
 
     expect(hasPendingMatchInviteStatus(readPendingInvite)).toBe(true);
     expect(isPendingMatchInviteNotification(readPendingInvite)).toBe(false);
+  });
+
+  test('keeps latest kick visible while invalidating older invite for the same match', () => {
+    const rows = [
+      {
+        id: 'invite-before-kick',
+        type: 'match_invite',
+        read: false,
+        created_at: '2026-03-09T18:00:00.000Z',
+        data: { status: 'pending', match_id: 404 },
+      },
+      {
+        id: 'kick-visible',
+        type: 'match_kicked',
+        read: false,
+        created_at: '2026-03-09T19:00:00.000Z',
+        data: { match_id: 404 },
+      },
+      {
+        id: 'invite-other-match',
+        type: 'match_invite',
+        read: false,
+        created_at: '2026-03-09T19:10:00.000Z',
+        data: { status: 'pending', match_id: 777 },
+      },
+    ];
+
+    const filtered = filterNotificationsForInbox(rows);
+    const ids = filtered.map((row) => row.id);
+
+    expect(ids).toContain('kick-visible');
+    expect(ids).toContain('invite-other-match');
+    expect(ids).not.toContain('invite-before-kick');
+  });
+
+  test('detects player joined match updates from payload and copy', () => {
+    expect(isPlayerJoinedMatchUpdateNotification({
+      type: 'match_update',
+      data: {
+        match_id: 384,
+        player_user_id: '44106956-4db3-4087-b721-a9463233dca5',
+        joined_via: 'invite_link',
+      },
+    })).toBe(true);
+
+    expect(isPlayerJoinedMatchUpdateNotification({
+      type: 'match_update',
+      title: 'Nuevo jugador en el partido',
+      message: 'Nico se sumó al partido.',
+      data: { match_id: 384 },
+    })).toBe(true);
+
+    expect(isPlayerJoinedMatchUpdateNotification({
+      type: 'match_update',
+      title: 'Desafío aceptado',
+      message: 'Tu desafío fue aceptado.',
+      data: { match_id: 384, source: 'team_challenge' },
+    })).toBe(false);
   });
 });
