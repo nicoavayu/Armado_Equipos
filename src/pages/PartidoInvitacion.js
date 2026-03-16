@@ -400,6 +400,7 @@ function SharedInviteLayout({
   onAddToCalendar,
   showBottomNav = false,
 }) {
+  const isEmbeddedInMainLayout = mode === 'public';
   const isSent = joinStatus === 'pending';
   const isApproved = joinStatus === 'approved';
   const isPendingSync = joinStatus === 'approved_pending_sync';
@@ -429,16 +430,18 @@ function SharedInviteLayout({
   );
 
   return (
-    <div className={`min-h-[100dvh] w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient ${showBottomNav ? 'pb-[calc(var(--safe-bottom,0px)+78px)] md:pb-[calc(var(--safe-bottom,0px)+88px)]' : ''}`}>
+    <div
+      className={`w-screen max-w-[100vw] overflow-x-hidden bg-fifa-gradient flex flex-col ${isEmbeddedInMainLayout ? 'min-h-0' : 'min-h-[100dvh]'} ${showBottomNav ? 'pb-[calc(var(--safe-bottom,0px)+78px)] md:pb-[calc(var(--safe-bottom,0px)+88px)]' : ''}`}
+    >
       <PageTitle
         title={title}
         onBack={onNavigateBack}
         showChatButton={showChatIcon}
         onChatClick={() => {}}
         position="sticky"
-        respectSafeArea
+        respectSafeArea={!isEmbeddedInMainLayout}
       />
-      <div className="mx-auto w-[90vw] max-w-[650px] pt-0 shadow-none">
+      <div className={`mx-auto w-[90vw] max-w-[650px] pt-0 shadow-none ${isEmbeddedInMainLayout ? 'pb-2' : ''}`}>
         <MatchInfoSection
           partido={normalizePartidoForHeader(partido)}
           fecha={partido?.fecha}
