@@ -1436,11 +1436,6 @@ const EquipoDetalleView = ({ teamId, userId }) => {
                         ranking: friend?.ranking ?? 5,
                       }}
                       variant="friend"
-                      metaBadge={isSelected ? (
-                        <span className="inline-flex items-center rounded-md border border-[#9ED3FF]/45 bg-[#128BE9]/22 px-1.5 py-0.5 text-[10px] font-semibold text-[#D4EBFF]">
-                          Seleccionado
-                        </span>
-                      ) : null}
                     />
                   </button>
                 );
