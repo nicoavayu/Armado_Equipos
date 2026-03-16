@@ -12,7 +12,7 @@ import { toSentenceCase } from '../utils/textCase';
  * @param {number} [props.contentOffsetY] - Desplazamiento vertical interno del contenido (px)
  * @param {boolean} [props.respectSafeArea] - Empuja el contenido del header debajo de la safe area
  * @param {string} [props.topOffset] - Desplazamiento superior del contenedor fijo
- * @param {'fixed'|'sticky'} [props.position] - Estrategia de posicionamiento del header
+ * @param {'fixed'|'sticky'|'static'} [props.position] - Estrategia de posicionamiento del header
  */
 const PageTitle = ({
   children,
@@ -42,7 +42,7 @@ const PageTitle = ({
 
   return (
     <div
-      className={`${position === 'sticky' ? 'sticky' : 'fixed'} top-0 left-0 right-0 z-[1000] p-[18px_16px] box-border shrink-0 bg-black/40 backdrop-blur-xl border-b border-white/10 md:p-[14px_12px]`}
+      className={`${position === 'sticky' ? 'sticky' : position === 'static' ? 'relative' : 'fixed'} top-0 left-0 right-0 z-[1000] p-[18px_16px] box-border shrink-0 bg-black/40 backdrop-blur-xl border-b border-white/10 md:p-[14px_12px]`}
       style={Object.keys(containerStyle).length > 0 ? containerStyle : undefined}
     >
       <div

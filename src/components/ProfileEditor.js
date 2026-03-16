@@ -54,6 +54,7 @@ const ProfileEditorForm = ({
   locationInputReadOnly,
   locationLoading,
   locationDisabled,
+  isLocalDevSession = false,
   isEmbedded = false,
 }) => {
   const formBottomPaddingClass = isEmbedded
@@ -277,37 +278,15 @@ const ProfileEditorForm = ({
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className={`grid grid-cols-2 gap-4 mt-8 pt-10 border-t border-white/10 w-full min-w-0 ${actionButtonsBottomPaddingClass}`}>
-          <button
-            className={`
-              col-span-2 w-full h-[54px] rounded-none border text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all flex items-center justify-center
-              ${hasChanges
-                ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95'
-                : 'bg-[rgba(26,35,76,0.58)] border-[rgba(84,97,151,0.35)] text-white/30 cursor-not-allowed'}
-            `}
-            onClick={handleSave}
-            disabled={loading || !hasChanges}
-          >
-            {loading ? 'Procesando...' : 'Guardar Cambios'}
-          </button>
-
-          <button
-            className="col-span-2 h-[50px] rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/90 text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(30,45,94,0.95)] hover:text-white active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
-            onClick={handleLogout}
-            disabled={loading}
-          >
-            Cerrar sesión
-          </button>
-
-          <button
-            className="col-span-2 h-[50px] rounded-none border border-[rgba(241,104,141,0.58)] bg-[rgba(78,23,49,0.55)] text-[#ffd7df] text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(97,29,60,0.7)] hover:text-white active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
-            onClick={handleDeleteAccount}
-            disabled={loading}
-          >
-            Eliminar cuenta
-          </button>
-        </div>
+        <ProfileActionSection
+          hasChanges={hasChanges}
+          loading={loading}
+          handleSave={handleSave}
+          handleLogout={handleLogout}
+          handleDeleteAccount={handleDeleteAccount}
+          deleteAccountDisabled={loading || isLocalDevSession}
+          bottomPaddingClass={actionButtonsBottomPaddingClass}
+        />
       </div>
     </div>
   );
@@ -399,6 +378,60 @@ const DeleteAccountModal = ({
     </div>
   );
 };
+
+const ProfileActionSection = ({
+  hasChanges,
+  loading,
+  handleSave,
+  handleLogout,
+  handleDeleteAccount,
+  deleteAccountDisabled,
+  bottomPaddingClass = '',
+}) => (
+  <div className={`w-full mt-10 flex flex-col gap-3 ${bottomPaddingClass}`}>
+    <button
+      className={`
+        w-full h-[54px] rounded-none border text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all flex items-center justify-center
+        ${hasChanges
+          ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95'
+          : 'bg-[rgba(26,35,76,0.58)] border-[rgba(84,97,151,0.35)] text-white/30 cursor-not-allowed'}
+      `}
+      onClick={handleSave}
+      disabled={loading || !hasChanges}
+    >
+      {loading ? 'Procesando...' : 'Guardar Cambios'}
+    </button>
+
+    <button
+      className="w-full h-[50px] rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/90 text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(30,45,94,0.95)] hover:text-white active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+      onClick={handleLogout}
+      disabled={loading}
+    >
+      Cerrar sesión
+    </button>
+
+    <section className="w-full mt-5 border border-[rgba(239,68,68,0.18)] bg-[rgba(84,20,40,0.14)] px-4 py-4 sm:px-5">
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <span className="font-bebas text-[1.02rem] tracking-[0.06em] uppercase text-red-200/90">
+            Zona peligrosa
+          </span>
+          <p className="text-sm font-oswald leading-relaxed text-white/72">
+            Eliminar tu cuenta es permanente y no se puede deshacer.
+          </p>
+        </div>
+
+        <button
+          className="w-full h-[48px] rounded-none border border-[rgba(248,113,113,0.42)] bg-transparent text-red-200/78 text-[15px] font-oswald font-semibold tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(220,38,38,0.12)] hover:text-red-100 active:opacity-95 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+          onClick={handleDeleteAccount}
+          disabled={deleteAccountDisabled}
+        >
+          Eliminar cuenta
+        </button>
+      </div>
+    </section>
+  </div>
+);
 
 function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
   const navigate = useNavigate();
@@ -1106,6 +1139,7 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
           locationInputReadOnly={locationInputReadOnly}
           locationLoading={locationLoading}
           locationDisabled={locationDisabled}
+          isLocalDevSession={isLocalDevSession}
           isEmbedded={true}
         />
         <DeleteAccountModal
@@ -1358,37 +1392,15 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mt-5 pt-5 border-t border-white/20 w-full relative pb-5 md:pb-0">
-              <button
-                className={`
-                      col-span-2 w-full h-[54px] rounded-none border text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all backdrop-blur-md flex items-center justify-center
-                      ${hasChanges
-                        ? 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95'
-                        : 'bg-[rgba(26,35,76,0.58)] border-[rgba(84,97,151,0.35)] text-white/30 cursor-not-allowed'}
-                      disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none
-                    `}
-                onClick={handleSave}
-                disabled={loading || !hasChanges}
-              >
-                {loading ? 'Procesando...' : 'Guardar Cambios'}
-              </button>
-
-              <button
-                className="col-span-2 h-[50px] rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/90 text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(30,45,94,0.95)] hover:text-white active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
-                onClick={handleLogout}
-                disabled={loading}
-              >
-                Cerrar sesión
-              </button>
-
-              <button
-                className="col-span-2 h-[50px] rounded-none border border-[rgba(241,104,141,0.58)] bg-[rgba(78,23,49,0.55)] text-[#ffd7df] text-base font-bebas tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(97,29,60,0.7)] hover:text-white active:opacity-95 flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
-                onClick={handleDeleteAccount}
-                disabled={loading}
-              >
-                Eliminar cuenta
-              </button>
-            </div>
+            <ProfileActionSection
+              hasChanges={hasChanges}
+              loading={loading}
+              handleSave={handleSave}
+              handleLogout={handleLogout}
+              handleDeleteAccount={handleDeleteAccount}
+              deleteAccountDisabled={loading || isLocalDevSession}
+              bottomPaddingClass="pb-5 md:pb-0"
+            />
           </div>
         </div>
         <DeleteAccountModal
