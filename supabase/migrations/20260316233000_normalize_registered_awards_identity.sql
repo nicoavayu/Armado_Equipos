@@ -38,10 +38,10 @@ from public.jugadores j
 where j.partido_id = pa.partido_id
   and j.usuario_id is not null
   and (
-    j.uuid::text = pa.jugador_id
-    or j.id::text = pa.jugador_id
+    j.uuid::text = pa.jugador_id::text
+    or j.id::text = pa.jugador_id::text
   )
-  and pa.jugador_id is distinct from j.usuario_id::text;
+  and pa.jugador_id::text is distinct from j.usuario_id::text;
 
 update public.survey_results sr
 set
@@ -259,7 +259,7 @@ with award_counts as (
     coalesce(sum(case when lower(coalesce(pa.award_type, '')) in ('red_card', 'red card', 'red_cards', 'tarjeta_roja', 'tarjeta roja', 'tarjetas_rojas', 'tarjetas rojas', 'negative_fair_play', 'dirty_player', 'dirty player', 'player_dirty', 'mas_sucio', 'mas sucio', 'sucio') then 1 else 0 end), 0) as tarjetas_rojas
   from public.usuarios u
   left join public.player_awards pa
-    on pa.jugador_id = u.id::text
+    on pa.jugador_id::text = u.id::text
   group by u.id
 )
 update public.usuarios u
