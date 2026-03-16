@@ -525,7 +525,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
       title="Cancelar votación"
       message="Si salís ahora, tus votos no se van a guardar y cuando vuelvas vas a tener que empezar desde cero."
       confirmText="Salir"
-      cancelText="Seguir votando"
+      cancelText="Cancelar"
       danger
       onConfirm={handleCancelVoting}
       onCancel={() => setShowCancelConfirm(false)}

@@ -3,6 +3,40 @@ import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { supabase } from '../supabase';
 
 const IS_DEV = process.env.NODE_ENV === 'development';
+const isMissingColumnError = (error) => {
+    const code = String(error?.code || '').trim();
+    if (code === '42703') return true;
+    const message = String(error?.message || '').toLowerCase();
+    return message.includes('column') && (message.includes('does not exist') || message.includes('no existe'));
+};
+
+const fetchMatchPlayers = async (partidoId) => {
+    const candidateSelects = [
+        'id, uuid, nombre, avatar_url, usuario_id, score, is_goalkeeper, is_substitute',
+        'id, uuid, nombre, avatar_url, usuario_id, score, is_goalkeeper',
+        'id, uuid, nombre, avatar_url, usuario_id',
+    ];
+
+    let lastError = null;
+
+    for (const selectClause of candidateSelects) {
+        const { data, error } = await supabase
+            .from('jugadores')
+            .select(selectClause)
+            .eq('partido_id', partidoId);
+
+        if (!error) {
+            return { data: data || [], error: null };
+        }
+
+        lastError = error;
+        if (!isMissingColumnError(error)) {
+            return { data: null, error };
+        }
+    }
+
+    return { data: null, error: lastError };
+};
 
 /**
  * Resolves match ID from query parameters
@@ -142,10 +176,7 @@ export async function fetchMatchById(partidoId) {
         }
 
         // Ensure voting flow always has numeric player IDs (required by public vote RPCs)
-        const { data: jugadoresData, error: jugadoresError } = await supabase
-            .from('jugadores')
-            .select('id, uuid, nombre, avatar_url, foto_url, usuario_id, score, is_goalkeeper, is_substitute')
-            .eq('partido_id', partidoId);
+        const { data: jugadoresData, error: jugadoresError } = await fetchMatchPlayers(partidoId);
 
         if (jugadoresError) {
             console.warn('[VOTING] Could not fetch jugadores table for match:', {
