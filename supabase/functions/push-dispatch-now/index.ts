@@ -185,6 +185,15 @@ function buildVoteRoute(payload: Record<string, unknown> | null, matchId: number
   return "/votar-equipos";
 }
 
+function shouldTreatSkippedVoteRequestRowAsHandled(row: DeliveryLogRow): boolean {
+  if (row.status !== "skipped") return false;
+
+  const reason = String(row.error_text ?? "").trim().toLowerCase();
+  return reason === "user_active_on_match"
+    || reason === "push_disabled"
+    || reason === "not_match_admin";
+}
+
 async function isAuthorizedMatchAdmin(
   supabase: ReturnType<typeof createClient>,
   matchId: number,
@@ -570,7 +579,7 @@ async function enqueueCallToVoteRows(
 
   const existingNotificationIds = new Set(
     existingLogs
-      .filter((row) => row.status !== "skipped")
+      .filter((row) => row.status !== "skipped" || shouldTreatSkippedVoteRequestRowAsHandled(row))
       .map((row) => readPayloadString(row.payload_json, "notification_id"))
       .filter(Boolean),
   );
