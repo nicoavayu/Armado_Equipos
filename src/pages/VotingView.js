@@ -390,6 +390,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const cardClass = 'w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100dvh-120px)] p-5';
   const titleClass = 'font-bebas text-[40px] md:text-[64px] text-white tracking-[0.08em] font-bold mb-10 text-center leading-[0.98] uppercase drop-shadow-lg';
   const sectionTitleClass = 'font-bebas text-[31px] md:text-[46px] text-white tracking-[0.055em] font-bold text-center leading-[1.06] md:leading-[0.98] drop-shadow-lg';
+  const voteStageTitleClass = 'font-bebas text-[clamp(2.5rem,11vw,3.9rem)] md:text-[46px] text-white tracking-[0.05em] font-bold text-center leading-[1.02] md:leading-[0.98] drop-shadow-lg';
   const sectionSubtitleClass = 'font-oswald text-[18px] md:text-[21px] text-white/82 text-center leading-[1.22] tracking-[0.02em]';
   const primaryVoteButtonClass = 'w-full h-[60px] min-h-[60px] px-4 border text-white font-oswald text-[20px] md:text-[22px] font-semibold tracking-[0.01em] normal-case rounded-none cursor-pointer transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center';
   const primaryVoteButtonStyle = {
@@ -415,6 +416,13 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   };
   const textClass = 'text-white text-[21px] md:text-[25px] font-oswald text-center mb-[30px] leading-[1.25] tracking-[0.02em]';
   const finalMessageClass = `${textClass} text-[22px] md:text-[25px] mb-[27px]`;
+  const voteStageCardSizeStyle = {
+    width: 'min(78vw, 320px, 38dvh)',
+    height: 'min(78vw, 320px, 38dvh)',
+  };
+  const voteStageCardHeaderSizeStyle = {
+    width: 'min(78vw, 320px, 38dvh)',
+  };
   const noticeSlot = (
     <div className="w-[90vw] max-w-[520px] mx-auto mt-3">
       <InlineNotice
@@ -874,37 +882,39 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
         {cancelVoteButton}
         {noticeSlot}
         <div
-          className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center justify-start overflow-y-auto"
+          className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center justify-between overflow-hidden"
           style={{
-            paddingTop: 'max(18px, calc(env(safe-area-inset-top) + 12px))',
-            paddingBottom: 'max(16px, calc(env(safe-area-inset-bottom) + 12px))',
+            paddingTop: 'calc(env(safe-area-inset-top) + clamp(22px, 4vh, 30px))',
+            paddingBottom: 'calc(env(safe-area-inset-bottom) + clamp(12px, 2vh, 18px))',
           }}
         >
-          <div className={`w-full transition-transform duration-200 ease-out ${animating ? '-translate-x-full opacity-0' : 'translate-x-0 opacity-100'}`}>
-            <div className="w-full px-2 text-center mb-5 md:mb-6">
+          <div className={`w-full h-full min-h-0 transition-transform duration-200 ease-out flex flex-col items-center justify-between ${animating ? '-translate-x-full opacity-0' : 'translate-x-0 opacity-100'}`}>
+            <div className="w-full px-2 text-center mb-3 md:mb-5 shrink-0">
               <div className="max-w-[360px] mx-auto">
-                <div className={sectionTitleClass}>
+                <div className={voteStageTitleClass}>
                   VOTÁ A TUS COMPAÑEROS
                 </div>
               </div>
             </div>
-            <div
-              className="w-[80vw] md:w-[320px] mx-auto border rounded-none text-white font-bebas font-normal text-center uppercase text-[1.3rem] md:text-[2.1rem] tracking-wider py-2 mt-0 mb-0"
-              style={voteCardHeaderStyle}
-            >
-              {clean(jugadorVotar.nombre)}
+            <div className="w-full flex-1 min-h-0 flex flex-col items-center justify-center">
+              <div
+                className="mx-auto border rounded-none text-white font-bebas font-normal text-center uppercase text-[1.3rem] md:text-[2.1rem] tracking-wider py-2 mt-0 mb-0"
+                style={{ ...voteCardHeaderStyle, ...voteStageCardHeaderSizeStyle }}
+              >
+                {clean(jugadorVotar.nombre)}
+              </div>
+              <div
+                className="border border-t-0 rounded-none flex items-center justify-center relative overflow-hidden mx-auto mt-0 mb-0"
+                style={{ ...voteCardBodyStyle, ...voteStageCardSizeStyle }}
+              >
+                {jugadorVotar.avatar_url ? (
+                  <img src={jugadorVotar.avatar_url} alt="foto" className="w-full h-full object-cover" />
+                ) : (
+                  <AvatarFallback name={jugadorVotar.nombre} size="w-full h-full" className="rounded-none text-[80px]" />
+                )}
+              </div>
             </div>
-            <div
-              className="w-[80vw] h-[80vw] md:w-[320px] md:h-[320px] border border-t-0 rounded-none flex items-center justify-center relative overflow-hidden mx-auto mt-0 mb-0"
-              style={voteCardBodyStyle}
-            >
-              {jugadorVotar.avatar_url ? (
-                <img src={jugadorVotar.avatar_url} alt="foto" className="w-full h-full object-cover" />
-              ) : (
-                <AvatarFallback name={jugadorVotar.nombre} size="w-full h-full" className="rounded-none text-[80px]" />
-              )}
-            </div>
-            <div className="w-full flex flex-col items-center mt-10 select-none px-0">
+            <div className="w-full shrink-0 flex flex-col items-center mt-5 md:mt-8 select-none px-0">
               <StarRating
                 value={valor}
                 onChange={(valor) => {
@@ -942,30 +952,30 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
                 hovered={hovered}
                 setHovered={setHovered}
               />
+
+              <button
+                className={`${primaryVoteButtonClass} mt-5 md:mt-8 mb-0 mx-auto !w-[80vw] md:!w-[320px]`}
+                onClick={() => {
+                  if (animating) return;
+                  setAnimating(true);
+                  setVotos((prev) => ({ ...prev, [jugadorVotar.uuid]: undefined }));
+
+                  setTimeout(() => {
+                    if (editandoIdx !== null) {
+                      setEditandoIdx(null);
+                      setStep(3);
+                    } else {
+                      setCurrent((cur) => cur + 1);
+                    }
+                    setHovered(null);
+                    setAnimating(false);
+                  }, 200);
+                }}
+                style={neutralVoteButtonStyle}
+              >
+                No lo conozco
+              </button>
             </div>
-
-            <button
-              className={`${primaryVoteButtonClass} mt-8 mb-0 mx-auto !w-[80vw] md:!w-[320px]`}
-              onClick={() => {
-                if (animating) return;
-                setAnimating(true);
-                setVotos((prev) => ({ ...prev, [jugadorVotar.uuid]: undefined }));
-
-                setTimeout(() => {
-                  if (editandoIdx !== null) {
-                    setEditandoIdx(null);
-                    setStep(3);
-                  } else {
-                    setCurrent((cur) => cur + 1);
-                  }
-                  setHovered(null);
-                  setAnimating(false);
-                }, 200);
-              }}
-              style={neutralVoteButtonStyle}
-            >
-              No lo conozco
-            </button>
           </div>
         </div>
       </div>
