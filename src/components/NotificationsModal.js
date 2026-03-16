@@ -5,8 +5,7 @@ import { Bell, CalendarClock, CheckCircle, ClipboardList, ShieldAlert, Trophy, U
 import supabase from '../supabase';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
-import { openNotification } from '../utils/notificationRouter';
-import { resolveSurveyNotificationRoute } from '../utils/notificationRouter';
+import { resolveSurveyNotificationNavigation } from '../utils/notificationRouter';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyStateCard from './EmptyStateCard';
@@ -28,13 +27,13 @@ import {
   buildNotificationFallbackRoute,
   buildTeamChallengeRoute,
   extractNotificationMatchId,
+  isSurveyFormNotificationType,
   isTeamChallengeNotification,
   resolveAdminAwareMatchRoute,
   resolveTeamChallengeRouteFromMatchId,
 } from '../utils/notificationRoutes';
 import { filterNotificationsForInbox } from '../utils/notificationInviteState';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
-import { resolveSurveyAccess } from '../utils/surveyAccess';
 import { track } from '../utils/monitoring/analytics';
 
 const NotificationsModal = ({ isOpen, onClose }) => {
@@ -140,34 +139,21 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       console.warn('[NOTIFICATION_CLICK] onClose threw:', e);
     }
 
-    if (notification.type === 'survey_start' || notification.type === 'post_match_survey') {
-      const matchId = extractNotificationMatchId(notification);
+    if (isSurveyFormNotificationType(notification)) {
+      const surveyNavigation = await resolveSurveyNotificationNavigation({
+        notification,
+        supabaseClient: supabase,
+        userId: user?.id || '',
+      });
 
-      if (matchId && isSurveyNotificationClosed(notification)) {
+      if (!surveyNavigation.canNavigate) {
+        if (surveyNavigation.message) {
+          notifyBlockingError(surveyNavigation.message);
+        }
         return;
       }
 
-      if (matchId && user?.id) {
-        const access = await resolveSurveyAccess({
-          supabaseClient: supabase,
-          matchId,
-          userId: user.id,
-        });
-        if (!access.allowed) {
-          notifyBlockingError(access.message);
-          return;
-        }
-      }
-
-      const surveyRoute = resolveSurveyNotificationRoute(notification);
-      if (surveyRoute) {
-        safeNavigate(notification, surveyRoute);
-      } else if (matchId) {
-        const url = `/encuesta/${matchId}`;
-        safeNavigate(notification, url);
-      } else {
-        fallbackToNotificationRoute(notification, 'No encontramos la encuesta de esta notificación.');
-      }
+      safeNavigate(notification, surveyNavigation.route);
       return;
     }
 
@@ -263,35 +249,6 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h') {
-      const reminderMatchId = extractNotificationMatchId(notification);
-      if (reminderMatchId && isSurveyNotificationClosed(notification)) {
-        return;
-      }
-
-      if (reminderMatchId && user?.id) {
-        const access = await resolveSurveyAccess({
-          supabaseClient: supabase,
-          matchId: reminderMatchId,
-          userId: user.id,
-        });
-        if (!access.allowed) {
-          notifyBlockingError(access.message);
-          return;
-        }
-      }
-
-      try {
-        await openNotification(notification, navigate);
-      } catch (error) {
-        console.error('[NOTIFICATION_CLICK] survey_reminder openNotification error', error);
-      }
-      if (!reminderMatchId) {
-        fallbackToNotificationRoute(notification, 'No encontramos la encuesta que te queríamos recordar.');
-      }
-      return;
-    }
-
     if (notification.type === 'survey_results_ready' || notification.type === 'awards_ready' || notification.type === 'award_won') {
       try {
         const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId ?? null;
@@ -332,6 +289,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
     switch (type) {
       case 'match_invite': return CalendarClock;
       case 'call_to_vote': return Vote;
+      case 'survey': return ClipboardList;
       case 'survey_start': return ClipboardList;
       case 'post_match_survey': return ClipboardList;
       case 'survey_reminder': return ClipboardList;
@@ -394,10 +352,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
   };
 
   const isClosedSurveyNotification = (notification) => {
-    const type = notification?.type;
-    const isSurveyStartLike = type === 'survey_start' || type === 'post_match_survey';
-    const isSurveyReminder = type === 'survey_reminder' || type === 'survey_reminder_12h';
-    if (!isSurveyStartLike && !isSurveyReminder) return false;
+    if (!isSurveyFormNotificationType(notification)) return false;
     return isSurveyNotificationClosed(notification);
   };
 
@@ -409,6 +364,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       'team_invite',
       'team_captain_transfer',
       'call_to_vote',
+      'survey',
       'survey_start',
       'post_match_survey',
       'survey_reminder',
@@ -545,7 +501,7 @@ const NotificationsModal = ({ isOpen, onClose }) => {
               {filteredNotifications.map((notification) => {
                 const clickable = isNotificationInteractive(notification);
                 const Icon = getNotificationIcon(notification.type) || User;
-                const isSurveyStartLike = notification.type === 'survey_start' || notification.type === 'post_match_survey';
+                const isSurveyStartLike = notification.type === 'survey' || notification.type === 'survey_start' || notification.type === 'post_match_survey';
                 const isSurveyReminder = notification.type === 'survey_reminder' || notification.type === 'survey_reminder_12h';
                 const isSurveyResults = notification.type === 'survey_results_ready';
                 const isTeamInvite = notification.type === 'team_invite';

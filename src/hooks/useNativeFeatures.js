@@ -7,7 +7,9 @@ import { Geolocation } from '@capacitor/geolocation';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Network } from '@capacitor/network';
 import { PushNotifications } from '@capacitor/push-notifications';
-import { buildNotificationFallbackRoute } from '../utils/notificationRoutes';
+import { supabase } from '../supabase';
+import { resolveSurveyNotificationNavigation } from '../utils/notificationRouter';
+import { buildNotificationFallbackRoute, isSurveyFormNotificationType } from '../utils/notificationRoutes';
 import {
   ensurePushTokenAuthSync,
   flushPendingPushToken,
@@ -23,6 +25,45 @@ const NATIVE_PUSH_REDIRECT_EVENT = 'native-push-redirect';
 const PENDING_NATIVE_PUSH_REDIRECT_KEY = 'pending_native_push_redirect';
 
 const isSafeInternalPath = (path) => typeof path === 'string' && path.startsWith('/') && !path.startsWith('//');
+
+const buildNotificationFromPushData = ({ notificationType, data }) => ({
+  type: String(notificationType || '').trim(),
+  partido_id: data?.partido_id || data?.partidoId || data?.match_id || data?.matchId || null,
+  match_id: data?.match_id || data?.matchId || null,
+  match_ref: data?.match_ref || data?.matchRef || null,
+  data,
+});
+
+const resolvePushRedirectRoute = async ({ notificationType, data, route }) => {
+  if (isSafeInternalPath(route) && !isSurveyFormNotificationType(notificationType)) {
+    return route;
+  }
+
+  const notification = buildNotificationFromPushData({ notificationType, data });
+  if (isSurveyFormNotificationType(notificationType)) {
+    let userId = '';
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      userId = String(authData?.user?.id || '').trim();
+    } catch (_error) {
+      userId = '';
+    }
+
+    const surveyNavigation = await resolveSurveyNotificationNavigation({
+      notification,
+      supabaseClient: supabase,
+      userId,
+    });
+
+    return surveyNavigation.canNavigate ? surveyNavigation.route : null;
+  }
+
+  if (isSafeInternalPath(route)) {
+    return route;
+  }
+
+  return buildNotificationFallbackRoute(notification);
+};
 
 const queueNativePushRedirect = ({ route, notificationType }) => {
   const normalizedRoute = String(route || '').trim();
@@ -72,7 +113,7 @@ export const initNativePushNotifications = async () => {
       ensurePushTokenAuthSync();
 
       if (!pushListenersAttached) {
-        await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+        await PushNotifications.addListener('pushNotificationActionPerformed', async (action) => {
           const data = action?.notification?.data || action?.notification?.extra || {};
           const notificationType = String(
             data?.notificationType
@@ -99,12 +140,11 @@ export const initNativePushNotifications = async () => {
             source: 'capacitor_push',
           });
 
-          const resolvedRoute = isSafeInternalPath(route)
-            ? route
-            : buildNotificationFallbackRoute({
-              type: notificationType,
-              data,
-            });
+          const resolvedRoute = await resolvePushRedirectRoute({
+            notificationType,
+            data,
+            route,
+          });
 
           if (isSafeInternalPath(resolvedRoute)) {
             queueNativePushRedirect({

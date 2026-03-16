@@ -3,6 +3,28 @@ import { listTeamMatchMembers } from '../services/db/teamChallenges';
 import { parseLocalDateTime } from './dateLocal';
 
 const normalizeIdentityToken = (value) => String(value || '').trim().toLowerCase();
+const normalizeSurveyStatusToken = (value) => {
+  const token = normalizeIdentityToken(value);
+  if (!token) return null;
+  if (token === 'closed' || token === 'cerrada') return 'closed';
+  if (token === 'open' || token === 'abierta') return 'open';
+  return token;
+};
+
+const normalizeResultStatusToken = (value) => {
+  const token = normalizeIdentityToken(value);
+  if (!token) return null;
+  if (token === 'finished' || token === 'played') return 'finished';
+  if (token === 'draw' || token === 'empate') return 'draw';
+  if (token === 'not_played' || token === 'cancelled' || token === 'cancelado' || token === 'no_jugado') return 'not_played';
+  if (token === 'pending' || token === 'pendiente') return 'pending';
+  return token;
+};
+
+const toTimestamp = (value) => {
+  const parsed = value ? new Date(value).getTime() : NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+};
 
 const toReadableMatchDate = (startAt) => {
   if (!(startAt instanceof Date) || Number.isNaN(startAt.getTime())) return null;
@@ -35,6 +57,43 @@ const isChallengeLikeTeamMatch = (teamMatchRow) => {
   return originType === 'challenge' || Boolean(teamMatchRow?.challenge_id);
 };
 
+export const resolveSurveyLifecycleBlock = ({ partidoRow = null, now = Date.now() } = {}) => {
+  const estado = normalizeIdentityToken(partidoRow?.estado);
+  const surveyStatus = normalizeSurveyStatusToken(partidoRow?.survey_status);
+  const resultStatus = normalizeResultStatusToken(partidoRow?.result_status);
+  const closesAtMs = toTimestamp(partidoRow?.survey_closes_at);
+  const finishedAtMs = toTimestamp(partidoRow?.finished_at);
+  const deadlineReached = closesAtMs !== null && now >= closesAtMs;
+  const isMatchUnavailable = ['cancelado', 'cancelled', 'deleted'].includes(estado);
+  const hasClosedResult = resultStatus === 'finished' || resultStatus === 'draw' || resultStatus === 'not_played';
+  const hasClosedState = ['finalizado', 'finished', 'completed'].includes(estado);
+
+  if (isMatchUnavailable) {
+    return {
+      blocked: true,
+      title: 'Encuesta no disponible',
+      message: 'Este partido ya no está disponible.',
+      reason: 'match_unavailable',
+    };
+  }
+
+  if (surveyStatus === 'closed' || hasClosedResult || hasClosedState || deadlineReached || finishedAtMs !== null) {
+    return {
+      blocked: true,
+      title: 'Encuesta finalizada',
+      message: 'Esta encuesta ya cerró y no acepta más respuestas.',
+      reason: 'survey_closed',
+    };
+  }
+
+  return {
+    blocked: false,
+    title: '',
+    message: '',
+    reason: 'ok',
+  };
+};
+
 export const resolveSurveyAccess = async ({ supabaseClient, matchId, userId }) => {
   const matchIdNum = Number(matchId);
   if (!supabaseClient || !Number.isFinite(matchIdNum) || matchIdNum <= 0 || !userId) {
@@ -51,7 +110,7 @@ export const resolveSurveyAccess = async ({ supabaseClient, matchId, userId }) =
     try {
       const { data } = await supabaseClient
         .from('partidos')
-        .select('id, fecha, hora')
+        .select('id, fecha, hora, estado, survey_status, survey_closes_at, result_status, finished_at')
         .eq('id', matchIdNum)
         .maybeSingle();
       partidoRow = data || null;
@@ -69,6 +128,16 @@ export const resolveSurveyAccess = async ({ supabaseClient, matchId, userId }) =
       teamMatchRow = data || null;
     } catch (_teamMatchError) {
       teamMatchRow = null;
+    }
+
+    const lifecycleBlock = resolveSurveyLifecycleBlock({ partidoRow, now: Date.now() });
+    if (lifecycleBlock.blocked) {
+      return {
+        allowed: false,
+        title: lifecycleBlock.title,
+        message: lifecycleBlock.message,
+        reason: lifecycleBlock.reason,
+      };
     }
 
     const matchStartAt = resolveMatchStartAt({ partidoRow, teamMatchRow });

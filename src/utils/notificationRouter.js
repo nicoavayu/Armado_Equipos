@@ -3,9 +3,11 @@ import { logger } from '../lib/logger';
 import { getResultsUrl } from './routes';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
 import { isSurveyNotificationClosed } from './surveyNotificationCopy';
+import { resolveSurveyAccess } from './surveyAccess';
 import {
   buildTeamChallengeRoute,
   extractNotificationMatchId,
+  isSurveyFormNotificationType,
   isTeamChallengeNotification,
   resolveTeamChallengeRouteFromMatchId,
 } from './notificationRoutes';
@@ -47,14 +49,6 @@ export const resolveSurveyNotificationRoute = (notification = {}) => {
   return normalizeSurveyLink(deepLink, matchId);
 };
 
-const SURVEY_NOTIFICATION_TYPES = new Set([
-  'survey',
-  'survey_start',
-  'post_match_survey',
-  'survey_reminder',
-  'survey_reminder_12h',
-]);
-
 const RESULTS_NOTIFICATION_TYPES = new Set([
   'survey_results',
   'survey_results_ready',
@@ -62,7 +56,76 @@ const RESULTS_NOTIFICATION_TYPES = new Set([
   'award_won',
 ]);
 
-export async function openNotification(n, navigate) {
+export const resolveSurveyNotificationNavigation = async ({
+  notification = {},
+  supabaseClient = supabase,
+  userId = '',
+} = {}) => {
+  if (!isSurveyFormNotificationType(notification)) {
+    return {
+      canNavigate: false,
+      route: null,
+      reason: 'not_survey_notification',
+      message: '',
+    };
+  }
+
+  const matchId = extractNotificationMatchId(notification);
+  if (!matchId) {
+    return {
+      canNavigate: false,
+      route: null,
+      reason: 'missing_match_id',
+      message: 'No encontramos la encuesta de esta notificación.',
+    };
+  }
+
+  if (isSurveyNotificationClosed(notification)) {
+    return {
+      canNavigate: false,
+      route: null,
+      reason: 'survey_closed',
+      message: 'Esta encuesta ya cerró y no acepta más respuestas.',
+    };
+  }
+
+  const normalizedUserId = String(userId || '').trim();
+  if (supabaseClient && normalizedUserId) {
+    const access = await resolveSurveyAccess({
+      supabaseClient,
+      matchId,
+      userId: normalizedUserId,
+    });
+
+    if (!access.allowed) {
+      return {
+        canNavigate: false,
+        route: null,
+        reason: access.reason,
+        message: access.message,
+      };
+    }
+  }
+
+  const route = resolveSurveyNotificationRoute(notification) || `/encuesta/${matchId}`;
+  if (!route) {
+    return {
+      canNavigate: false,
+      route: null,
+      reason: 'missing_route',
+      message: 'No encontramos la encuesta de esta notificación.',
+    };
+  }
+
+  return {
+    canNavigate: true,
+    route,
+    reason: 'ok',
+    message: '',
+  };
+};
+
+export async function openNotification(n, navigate, options = {}) {
   try {
     const type = n?.type;
     const matchId = extractNotificationMatchId(n);
@@ -93,15 +156,24 @@ export async function openNotification(n, navigate) {
       return;
     }
 
-    if (SURVEY_NOTIFICATION_TYPES.has(type)) {
-      if (matchId && isSurveyNotificationClosed(n)) {
-        console.debug('[openNotification] survey closed, skip navigation', { matchId, notificationId: n?.id });
+    if (isSurveyFormNotificationType(type)) {
+      const surveyNavigation = await resolveSurveyNotificationNavigation({
+        notification: n,
+        supabaseClient: options?.supabaseClient || supabase,
+        userId: options?.userId || '',
+      });
+
+      if (!surveyNavigation.canNavigate) {
+        console.debug('[openNotification] survey navigation blocked', {
+          matchId,
+          notificationId: n?.id,
+          reason: surveyNavigation.reason,
+        });
         return;
       }
 
-      const surveyLink = resolveSurveyNotificationRoute(n);
-      console.debug('[openNotification] navigating to survey link', { surveyLink });
-      if (surveyLink) navigate(surveyLink);
+      console.debug('[openNotification] navigating to survey link', { surveyLink: surveyNavigation.route });
+      if (surveyNavigation.route) navigate(surveyNavigation.route);
       return;
     }
 

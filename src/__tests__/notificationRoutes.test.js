@@ -19,6 +19,16 @@ describe('notificationRoutes', () => {
     expect(route).toBe('/partido-publico/42');
   });
 
+  test('builds canonical survey route for survey-form notifications', () => {
+    const route = buildNotificationFallbackRoute({
+      type: 'survey_reminder_12h',
+      partido_id: 812,
+      data: { matchId: 812 },
+    });
+
+    expect(route).toBe('/encuesta/812');
+  });
+
   test('builds fallback route to activity feed when id is missing', () => {
     const route = buildNotificationFallbackRoute({});
     expect(route).toBe('/quiero-jugar');

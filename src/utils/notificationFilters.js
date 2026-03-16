@@ -24,6 +24,7 @@ const MATCH_TYPES = new Set([
 ]);
 
 const SURVEY_TYPES = new Set([
+  'survey',
   'survey_start',
   'post_match_survey',
   'survey_reminder',

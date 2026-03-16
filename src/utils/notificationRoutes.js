@@ -1,21 +1,41 @@
 import { resolveMatchInviteRoute } from './matchInviteRoute';
 
+const SURVEY_FORM_NOTIFICATION_TYPES = new Set([
+  'survey',
+  'survey_start',
+  'post_match_survey',
+  'survey_reminder',
+  'survey_reminder_12h',
+]);
+
+const SURVEY_RELATED_NOTIFICATION_TYPES = new Set([
+  ...SURVEY_FORM_NOTIFICATION_TYPES,
+  'survey_results_ready',
+  'awards_ready',
+  'award_won',
+  'survey_finished',
+]);
+
+const normalizeNotificationType = (notificationOrType = {}) => {
+  if (typeof notificationOrType === 'string') {
+    return String(notificationOrType || '').trim().toLowerCase();
+  }
+
+  return String(notificationOrType?.type || '').trim().toLowerCase();
+};
+
+export const isSurveyFormNotificationType = (notificationOrType = {}) => (
+  SURVEY_FORM_NOTIFICATION_TYPES.has(normalizeNotificationType(notificationOrType))
+);
+
+export const isSurveyRelatedNotificationType = (notificationOrType = {}) => (
+  SURVEY_RELATED_NOTIFICATION_TYPES.has(normalizeNotificationType(notificationOrType))
+);
+
 export const extractNotificationMatchId = (notification = {}) => {
   const data = notification?.data || {};
-  const type = String(notification?.type || '').trim().toLowerCase();
-  const isSurveyLike = (
-    type === 'survey'
-    || type === 'survey_start'
-    || type === 'post_match_survey'
-    || type === 'survey_reminder'
-    || type === 'survey_reminder_12h'
-    || type === 'survey_results_ready'
-    || type === 'awards_ready'
-    || type === 'award_won'
-    || type === 'survey_finished'
-  );
 
-  if (isSurveyLike) {
+  if (isSurveyRelatedNotificationType(notification)) {
     return (
       notification?.partido_id
       || data?.partido_id
@@ -136,6 +156,14 @@ export const buildNotificationFallbackRoute = (notification = {}, idMapper = (va
   const data = notification?.data || {};
   const type = String(notification?.type || '').trim().toLowerCase();
   const teamId = data?.team_id || data?.teamId || null;
+
+  if (isSurveyFormNotificationType(type)) {
+    const matchId = extractNotificationMatchId(notification);
+    if (matchId === null || matchId === undefined || String(matchId).trim() === '') {
+      return '/notifications';
+    }
+    return `/encuesta/${idMapper(matchId)}`;
+  }
 
   if (isTeamChallengeNotification(notification)) {
     return buildTeamChallengeRoute(notification);
