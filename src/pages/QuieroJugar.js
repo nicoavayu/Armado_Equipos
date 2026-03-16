@@ -80,7 +80,7 @@ const hasValidCoordinates = (lat, lng) => {
 
 const MATCH_DISTANCE_STORAGE_KEY = 'quiero-jugar-match-distance-km';
 const MIN_MATCH_DISTANCE_KM = 1;
-const MAX_MATCH_DISTANCE_KM = 50;
+const MAX_MATCH_DISTANCE_KM = 30;
 const DEFAULT_MATCH_DISTANCE_KM = 30;
 
 const clampMatchDistanceKm = (value) => {
@@ -209,6 +209,10 @@ const QuieroJugar = ({
   const geocodedMatchIdsRef = useRef(new Set());
   const geocoderCacheRef = useRef(new Map());
   const { getRelationshipStatus, sendFriendRequest } = useAmigos(user?.id || null);
+
+  const handleMatchDistanceChange = (event) => {
+    setMaxMatchDistanceKm(clampMatchDistanceKm(Number(event.target.value)));
+  };
 
   useEffect(() => {
     fetchPartidosAbiertos();
@@ -677,13 +681,17 @@ const QuieroJugar = ({
                   </div>
 
                   <input
+                    data-allow-horizontal-scroll="true"
                     type="range"
                     min={MIN_MATCH_DISTANCE_KM}
                     max={MAX_MATCH_DISTANCE_KM}
                     step={1}
                     value={maxMatchDistanceKm}
-                    onChange={(e) => setMaxMatchDistanceKm(clampMatchDistanceKm(Number(e.target.value)))}
-                    className="w-full accent-[#6a43ff]"
+                    onInput={handleMatchDistanceChange}
+                    onChange={handleMatchDistanceChange}
+                    className="w-full cursor-pointer accent-[#6a43ff]"
+                    style={{ touchAction: 'pan-x' }}
+                    aria-label="Distancia maxima de partidos"
                   />
 
                   <p className="mt-2 text-[11px] font-oswald text-white/55">
