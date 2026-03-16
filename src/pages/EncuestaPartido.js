@@ -53,6 +53,18 @@ const DEFAULT_FORM_DATA = {
   resultado: '',
 };
 
+const getViewportMetrics = () => {
+  if (typeof window === 'undefined') {
+    return { width: 390, height: 844 };
+  }
+
+  const visualViewport = window.visualViewport;
+  return {
+    width: Math.max(Math.round(visualViewport?.width || window.innerWidth || 390), 1),
+    height: Math.max(Math.round(visualViewport?.height || window.innerHeight || 844), 1),
+  };
+};
+
 const normalizeIdentityToken = (value) => String(value || '').trim().toLowerCase();
 
 const normalizeRosterRef = (value) => String(value || '').trim().toLowerCase();
@@ -688,10 +700,9 @@ const EncuestaPartido = () => {
     message: '',
   });
   const [surveyExitRoute, setSurveyExitRoute] = useState(null);
-  const [viewportRatio, setViewportRatio] = useState(() => {
-    if (typeof window === 'undefined') return 0.6;
-    return window.innerWidth / Math.max(window.innerHeight, 1);
-  });
+  const [viewportMetrics, setViewportMetrics] = useState(getViewportMetrics);
+  const viewportRatio = viewportMetrics.width / Math.max(viewportMetrics.height, 1);
+  const viewportHeight = viewportMetrics.height;
   const closeSurveyModal = () => {
     setSurveyModal({ isOpen: false, title: '', message: '' });
     const routeToExit = surveyExitRoute;
@@ -742,13 +753,18 @@ const EncuestaPartido = () => {
   };
 
   useEffect(() => {
-    const updateViewportRatio = () => {
-      setViewportRatio(window.innerWidth / Math.max(window.innerHeight, 1));
+    const updateViewportMetrics = () => {
+      setViewportMetrics(getViewportMetrics());
     };
 
-    updateViewportRatio();
-    window.addEventListener('resize', updateViewportRatio);
-    return () => window.removeEventListener('resize', updateViewportRatio);
+    updateViewportMetrics();
+    window.addEventListener('resize', updateViewportMetrics);
+    window.visualViewport?.addEventListener('resize', updateViewportMetrics);
+
+    return () => {
+      window.removeEventListener('resize', updateViewportMetrics);
+      window.visualViewport?.removeEventListener('resize', updateViewportMetrics);
+    };
   }, []);
 
   useEffect(() => {
@@ -2026,37 +2042,40 @@ const EncuestaPartido = () => {
     background:
       'radial-gradient(circle at 50% -12%, rgba(94,128,255,0.34) 0%, rgba(36,30,128,0) 46%), radial-gradient(circle at 50% 50%, rgba(60,112,255,0.2) 0%, rgba(11,14,54,0) 60%), linear-gradient(160deg, #1f1c77 0%, #241466 38%, #19134f 100%)',
   };
+  const isCompressedLayout = viewportHeight <= 860 || (viewportRatio >= 0.95 && viewportHeight <= 720);
+  const isTightLayout = viewportHeight <= 760 || (viewportRatio >= 0.95 && viewportHeight <= 640);
   const safeAreaStyle = {
-    paddingTop: 'env(safe-area-inset-top)',
-    paddingBottom: 'env(safe-area-inset-bottom)',
+    paddingTop: 'max(env(safe-area-inset-top), 0px)',
+    paddingBottom: 'max(env(safe-area-inset-bottom), 0px)',
+    boxSizing: 'border-box',
   };
-  const cardClass = 'w-full max-w-[1180px] mx-auto h-[100dvh] px-2.5 sm:px-4 pb-5 sm:pb-6 flex flex-col overflow-visible';
-  const stepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-2 sm:gap-3 pb-1.5 sm:pb-2';
-  const playerStepClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-between gap-0 pb-1 sm:pb-1.5';
+  const cardClass = `w-full max-w-[1180px] mx-auto h-full min-h-0 px-2.5 sm:px-4 ${isCompressedLayout ? 'pb-3 sm:pb-4' : 'pb-5 sm:pb-6'} flex flex-col overflow-hidden`;
+  const stepClass = `w-full flex-1 min-h-0 flex flex-col items-center justify-center ${isTightLayout ? 'gap-1 sm:gap-1.5 pb-0 sm:pb-0.5' : isCompressedLayout ? 'gap-1.5 sm:gap-2 pb-1 sm:pb-1.5' : 'gap-2 sm:gap-3 pb-1.5 sm:pb-2'}`;
+  const playerStepClass = `w-full flex-1 min-h-0 flex flex-col items-center justify-between gap-0 ${isCompressedLayout ? 'pb-0 sm:pb-1' : 'pb-1 sm:pb-1.5'}`;
   const questionRowClass = 'w-full shrink-0 flex items-center justify-center pt-0';
-  const progressRowClass = 'sticky top-0 z-40 w-full shrink-0 pt-1.5 sm:pt-2';
-  const progressGapClass = 'w-full shrink-0 h-7 sm:h-8';
+  const progressRowClass = `sticky top-0 z-40 w-full shrink-0 ${isCompressedLayout ? 'pt-1 sm:pt-1.5' : 'pt-1.5 sm:pt-2'}`;
+  const progressGapClass = `w-full shrink-0 ${isTightLayout ? 'h-4 sm:h-5' : isCompressedLayout ? 'h-5 sm:h-6' : 'h-7 sm:h-8'}`;
   const contentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-visible';
-  const playerContentRowClass = 'w-full flex-1 min-h-0 flex items-center justify-center overflow-visible pt-5 sm:pt-6 pb-3 sm:pb-4';
-  const actionRowClass = 'w-full shrink-0 flex items-center justify-center pt-3 sm:pt-4';
-  const playerActionRowClass = 'w-full shrink-0 flex items-center justify-center pt-2.5 sm:pt-3.5';
+  const playerContentRowClass = `w-full flex-1 min-h-0 flex items-center justify-center overflow-visible ${isTightLayout ? 'pt-2 sm:pt-3 pb-1 sm:pb-1.5' : isCompressedLayout ? 'pt-3 sm:pt-4 pb-2 sm:pb-3' : 'pt-5 sm:pt-6 pb-3 sm:pb-4'}`;
+  const actionRowClass = `w-full shrink-0 flex items-center justify-center ${isTightLayout ? 'pt-1.5 sm:pt-2' : isCompressedLayout ? 'pt-2 sm:pt-3' : 'pt-3 sm:pt-4'}`;
+  const playerActionRowClass = `w-full shrink-0 flex items-center justify-center ${isTightLayout ? 'pt-1.5 sm:pt-2' : isCompressedLayout ? 'pt-2 sm:pt-2.5' : 'pt-2.5 sm:pt-3.5'}`;
   const logoRowClass = 'hidden';
-  const titleClass = 'font-bebas text-[clamp(30px,6.2vw,74px)] text-white tracking-[0.055em] font-bold text-center leading-[0.92] uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1';
-  const surveyBtnBaseClass = 'w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-[20px] sm:text-[24px] py-2.5 text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.16] flex items-center justify-center min-h-[52px] rounded-[5px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed';
+  const titleClass = `font-bebas text-white font-bold text-center uppercase drop-shadow-[0_8px_18px_rgba(6,9,36,0.42)] break-words w-full px-1 ${isTightLayout ? 'text-[clamp(24px,5.6vw,52px)] tracking-[0.04em] leading-[0.88]' : isCompressedLayout ? 'text-[clamp(28px,6vw,62px)] tracking-[0.048em] leading-[0.9]' : 'text-[clamp(30px,6.2vw,74px)] tracking-[0.055em] leading-[0.92]'}`;
+  const surveyBtnBaseClass = `w-full border border-white/35 bg-white/[0.10] text-white font-bebas text-center cursor-pointer transition-[opacity,background-color,border-color] duration-220 ease-out hover:bg-white/[0.16] flex items-center justify-center rounded-[5px] tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(10,10,45,0.28)] disabled:opacity-55 disabled:cursor-not-allowed ${isTightLayout ? 'text-[18px] sm:text-[20px] py-2 min-h-[46px]' : isCompressedLayout ? 'text-[19px] sm:text-[22px] py-2 min-h-[48px]' : 'text-[20px] sm:text-[24px] py-2.5 min-h-[52px]'}`;
   const btnClass = `${surveyBtnBaseClass} font-bold uppercase`;
   const optionBtnClass = `${surveyBtnBaseClass} uppercase`;
   const optionBtnSelectedClass = 'bg-white/[0.26] border-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_16px_30px_rgba(22,29,98,0.42)]';
-  const compactPrimaryBtnClass = `${btnClass} !w-auto !min-w-[146px] sm:!min-w-[176px] !px-5 sm:!px-6`;
+  const compactPrimaryBtnClass = `${btnClass} !w-auto ${isTightLayout ? '!min-w-[128px] sm:!min-w-[150px] !px-4 sm:!px-5' : isCompressedLayout ? '!min-w-[136px] sm:!min-w-[160px] !px-4 sm:!px-5' : '!min-w-[146px] sm:!min-w-[176px] !px-5 sm:!px-6'}`;
   const compactSecondaryBtnClass = `${optionBtnClass} !w-full !min-h-[50px] !py-2 !px-4 bg-white/[0.07] border-white/24 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_16px_rgba(7,10,35,0.22)]`;
-  const resultSecondaryBtnClass = `${optionBtnClass} !w-auto !min-h-[48px] !py-2 !px-5 sm:!px-6`;
+  const resultSecondaryBtnClass = `${optionBtnClass} !w-auto ${isTightLayout ? '!min-h-[44px] !py-1.5 !px-4 sm:!px-5' : isCompressedLayout ? '!min-h-[46px] !py-2 !px-4 sm:!px-5' : '!min-h-[48px] !py-2 !px-5 sm:!px-6'}`;
   const compactButtonRowClass = 'w-full max-w-[760px] mx-auto flex items-center justify-center';
-  const compactDualButtonRowClass = 'w-full max-w-[760px] mx-auto flex items-center justify-center gap-2.5 sm:gap-3';
-  const gridClass = 'grid grid-cols-2 gap-3 w-full max-w-[920px] mx-auto';
-  const textClass = 'text-white text-[18px] md:text-[20px] font-oswald text-center font-normal tracking-wide';
+  const compactDualButtonRowClass = `w-full max-w-[760px] mx-auto flex items-center justify-center ${isCompressedLayout ? 'gap-2 sm:gap-2.5' : 'gap-2.5 sm:gap-3'}`;
+  const gridClass = `grid grid-cols-2 w-full max-w-[920px] mx-auto ${isCompressedLayout ? 'gap-2 sm:gap-2.5' : 'gap-3'}`;
+  const textClass = `text-white font-oswald text-center font-normal tracking-wide ${isCompressedLayout ? 'text-[16px] md:text-[18px]' : 'text-[18px] md:text-[20px]'}`;
   const actionDockClass = 'w-full max-w-[980px] mx-auto flex flex-col gap-1';
-  const centeredSummaryStackClass = 'w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-5 sm:gap-6';
+  const centeredSummaryStackClass = `w-full flex-1 min-h-0 flex flex-col items-center justify-center ${isCompressedLayout ? 'gap-4 sm:gap-5' : 'gap-5 sm:gap-6'}`;
   const centeredSummaryButtonWrapClass = 'w-full max-w-[460px] sm:max-w-[500px] mx-auto';
-  const miniCardsStageClass = 'w-full h-full min-h-0 overflow-visible px-2 sm:px-3 pb-2 sm:pb-3 flex items-center justify-center';
+  const miniCardsStageClass = `w-full h-full min-h-0 overflow-visible flex items-center justify-center ${isTightLayout ? 'px-1.5 sm:px-2 pb-1 sm:pb-1.5' : isCompressedLayout ? 'px-2 sm:px-2.5 pb-1.5 sm:pb-2' : 'px-2 sm:px-3 pb-2 sm:pb-3'}`;
 
   const SurveyFooterLogo = () => null;
 
@@ -2117,23 +2136,38 @@ const EncuestaPartido = () => {
     </div>
   );
 
-  const resolveAdaptiveGridConfig = (playerCount, ratio) => {
+  const resolveAdaptiveGridConfig = (playerCount, ratio, height) => {
     const safeCount = Math.max(playerCount || 1, 1);
+    const safeHeight = Math.max(height || 0, 1);
     const isWideViewport = ratio >= 0.95;
+    const isShortViewport = safeHeight <= 860;
+    const isVeryShortViewport = safeHeight <= 760;
     let columns;
     let rows;
 
     if (safeCount <= 10) {
       columns = isWideViewport ? 4 : 3;
+      if (!isWideViewport && isShortViewport && safeCount >= 8) {
+        columns += 1;
+      }
       rows = Math.ceil(safeCount / columns);
     } else if (safeCount <= 14) {
       columns = isWideViewport ? 5 : 4;
-      rows = Math.max(3, Math.ceil(safeCount / columns));
+      if (!isWideViewport && isShortViewport) {
+        columns += 1;
+      }
+      rows = Math.max(isVeryShortViewport ? 2 : 3, Math.ceil(safeCount / columns));
     } else if (safeCount <= 22) {
       columns = isWideViewport ? 6 : 5;
-      rows = Math.max(4, Math.ceil(safeCount / columns));
+      if (!isWideViewport && isShortViewport) {
+        columns += 1;
+      }
+      rows = Math.max(isVeryShortViewport ? 3 : 4, Math.ceil(safeCount / columns));
     } else {
       columns = isWideViewport ? 7 : 6;
+      if (!isWideViewport && isVeryShortViewport) {
+        columns += 1;
+      }
       rows = Math.ceil(safeCount / columns);
     }
 
@@ -2141,22 +2175,27 @@ const EncuestaPartido = () => {
       rows += 1;
     }
 
-    const gap = safeCount >= 22 ? 6 : safeCount >= 14 ? 8 : 9;
-    const nameSizeClass = safeCount >= 22
-      ? 'text-[9px] sm:text-[10px]'
-      : safeCount >= 14
-        ? 'text-[10px] sm:text-[11px]'
+    const gap = isVeryShortViewport
+      ? safeCount >= 22 ? 4 : safeCount >= 14 ? 5 : 6
+      : isShortViewport
+        ? safeCount >= 22 ? 5 : safeCount >= 14 ? 6 : 7
+        : safeCount >= 22 ? 6 : safeCount >= 14 ? 8 : 9;
+    const nameSizeClass = safeCount >= 22 || isVeryShortViewport
+      ? 'text-[8px] sm:text-[9px]'
+      : safeCount >= 14 || isShortViewport
+        ? 'text-[9px] sm:text-[10px]'
         : 'text-[11px] sm:text-[12px]';
-    const silhouetteSizeClass = safeCount >= 22
-      ? 'h-[42%] w-[42%]'
-      : safeCount >= 14
-        ? 'h-[48%] w-[48%]'
+    const silhouetteSizeClass = safeCount >= 22 || isVeryShortViewport
+      ? 'h-[38%] w-[38%]'
+      : safeCount >= 14 || isShortViewport
+        ? 'h-[44%] w-[44%]'
         : 'h-[54%] w-[54%]';
     const gridMaxWidth = safeCount <= 10
-      ? (isWideViewport ? 980 : 760)
+      ? (isWideViewport ? 980 : isShortViewport ? 860 : 760)
       : safeCount <= 14
-        ? (isWideViewport ? 1060 : 840)
-        : (isWideViewport ? 1160 : 920);
+        ? (isWideViewport ? 1060 : isShortViewport ? 940 : 840)
+        : (isWideViewport ? 1160 : isShortViewport ? 1020 : 920);
+    const gridPadding = isVeryShortViewport ? '2px' : isShortViewport ? '3px 2px' : '4px 3px';
 
     return {
       rows,
@@ -2165,6 +2204,7 @@ const EncuestaPartido = () => {
       nameSizeClass,
       silhouetteSizeClass,
       gridMaxWidth,
+      gridPadding,
     };
   };
 
@@ -2189,7 +2229,7 @@ const EncuestaPartido = () => {
     onSelect,
   }) => {
     const playerCount = jugadores.length;
-    const adaptiveGrid = resolveAdaptiveGridConfig(playerCount, viewportRatio);
+    const adaptiveGrid = resolveAdaptiveGridConfig(playerCount, viewportRatio, viewportHeight);
     const hasSelection = jugadores.some((candidate) => isSelected(candidate.uuid));
 
     return (
@@ -2201,9 +2241,9 @@ const EncuestaPartido = () => {
             gridTemplateRows: `repeat(${adaptiveGrid.rows}, minmax(0, 1fr))`,
             gap: `${adaptiveGrid.gap}px`,
             maxWidth: `${adaptiveGrid.gridMaxWidth}px`,
-            maxHeight: '95%',
-            minHeight: '64%',
-            padding: '4px 3px',
+            maxHeight: '100%',
+            minHeight: 0,
+            padding: adaptiveGrid.gridPadding,
           }}
         >
           {jugadores.map((jugador, index) => {
@@ -2216,7 +2256,7 @@ const EncuestaPartido = () => {
                 onClick={() => onSelect(jugador.uuid)}
                 className={`group relative h-full min-h-0 min-w-0 transform-gpu overflow-visible rounded-[8px] border bg-[linear-gradient(168deg,rgba(58,84,196,0.28),rgba(16,20,73,0.9))] transition-[transform,opacity,filter] duration-[260ms] ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 will-change-transform ${
                   selected
-                    ? 'z-20 -translate-y-[2px] scale-[1.035]'
+                    ? `z-20 -translate-y-[2px] ${isTightLayout ? 'scale-[1.015]' : isCompressedLayout ? 'scale-[1.022]' : 'scale-[1.035]'}`
                     : 'z-10 translate-y-0 scale-100'
                 } ${
                   hasSelection && !selected ? 'saturate-[0.74]' : ''
@@ -2285,9 +2325,9 @@ const EncuestaPartido = () => {
   if (loading) {
     return (
       <PageTransition>
-        <div className="relative h-[100dvh] w-full overflow-visible">
+        <div className="relative h-[100dvh] w-full overflow-hidden">
           <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
-          <div className="relative z-[1] h-full w-full overflow-visible" style={safeAreaStyle}>
+          <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
             <div className={cardClass}>
               <div className="flex h-full flex-col items-center justify-center gap-5">
                 <PageLoadingState
@@ -2306,9 +2346,9 @@ const EncuestaPartido = () => {
   if (surveyClosed && !alreadySubmitted) {
     return (
       <PageTransition>
-        <div className="relative h-[100dvh] w-full overflow-visible">
+        <div className="relative h-[100dvh] w-full overflow-hidden">
           <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
-          <div className="relative z-[1] h-full w-full overflow-visible" style={safeAreaStyle}>
+          <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
             <div className={cardClass}>
               <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
                 <div className="w-full">
@@ -2348,9 +2388,9 @@ const EncuestaPartido = () => {
   if (yaCalificado || alreadySubmitted) {
     return (
       <PageTransition>
-        <div className="relative h-[100dvh] w-full overflow-visible">
+        <div className="relative h-[100dvh] w-full overflow-hidden">
           <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
-          <div className="relative z-[1] h-full w-full overflow-visible" style={safeAreaStyle}>
+          <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
             <div className={cardClass}>
               <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
                 <div className="w-full">
@@ -2380,9 +2420,9 @@ const EncuestaPartido = () => {
   if (!partido) {
     return (
       <PageTransition>
-        <div className="relative h-[100dvh] w-full overflow-visible">
+        <div className="relative h-[100dvh] w-full overflow-hidden">
           <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
-          <div className="relative z-[1] h-full w-full overflow-visible" style={safeAreaStyle}>
+          <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
             <div className={cardClass}>
               <div className={`${centeredSummaryStackClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
                 <div className="w-full">
@@ -2421,9 +2461,9 @@ const EncuestaPartido = () => {
 
   return (
     <PageTransition>
-      <div className="relative h-[100dvh] w-full overflow-visible">
+      <div className="relative h-[100dvh] w-full overflow-hidden">
         <div className="absolute inset-0 overflow-hidden" style={screenBackgroundStyle} />
-        <div className="relative z-[1] h-full w-full overflow-visible" style={safeAreaStyle}>
+        <div className="relative z-[1] h-full w-full overflow-hidden" style={safeAreaStyle}>
           <style>{animationStyle}</style>
           <div className={cardClass}>
             {renderStepProgress()}
@@ -2438,11 +2478,11 @@ const EncuestaPartido = () => {
                       ¿SE JUGÓ EL PARTIDO?
                     </div>
                     {isTeamChallengeSurvey && challengeSurveyName ? (
-                      <div className="mt-1.5 text-center font-oswald text-[18px] leading-tight text-white md:text-[21px]">
+                      <div className={`text-center font-oswald leading-tight text-white ${isCompressedLayout ? 'mt-1 text-[16px] md:text-[18px]' : 'mt-1.5 text-[18px] md:text-[21px]'}`}>
                         Desafío: {challengeSurveyName}
                       </div>
                     ) : null}
-                    <div className="text-white text-[17px] md:text-[20px] font-oswald text-center font-normal tracking-wide mt-2">
+                    <div className={`text-white font-oswald text-center font-normal tracking-wide ${isCompressedLayout ? 'mt-1.5 text-[15px] md:text-[18px]' : 'mt-2 text-[17px] md:text-[20px]'}`}>
                       {formatFecha(partido.fecha)}<br />
                       {partido.hora && `${partido.hora} - `}{partido.sede ? partido.sede.split(/[,(]/)[0].trim() : 'Sin ubicación'}
                     </div>
@@ -2486,7 +2526,7 @@ const EncuestaPartido = () => {
                   </div>
                 </div>
               </div>
-              <div className="w-full shrink-0 pt-3 sm:pt-4 pb-[max(8px,env(safe-area-inset-bottom))]">
+              <div className={`w-full shrink-0 ${isCompressedLayout ? 'pt-2 sm:pt-3 pb-0.5 sm:pb-1' : 'pt-3 sm:pt-4 pb-1.5 sm:pb-2'}`}>
                 <SurveyImportantDisclaimer className="mx-auto w-full max-w-[820px]" />
               </div>
               <div className={logoRowClass}>
@@ -2764,18 +2804,18 @@ const EncuestaPartido = () => {
 
           {/* STEP 7: ORGANIZAR EQUIPOS */}
           {currentStep === SURVEY_STEPS.ORGANIZE_TEAMS && (
-            <div className={`${stepClass} !justify-start pt-2 sm:pt-4 animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
+            <div className={`${stepClass} !justify-start ${isCompressedLayout ? 'pt-1 sm:pt-2' : 'pt-2 sm:pt-4'} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
                 <div className="w-full">
                   <div className={titleClass}>
                     {shouldShowWinnerSelectionInOrganizeStep ? '¿Quién ganó el partido?' : 'ARMÁ LOS EQUIPOS COMO FINALMENTE SE JUGÓ'}
                   </div>
-                  <div className="mt-2 text-center font-oswald text-[13px] leading-snug text-white/75 md:text-[14px]">
+                  <div className={`text-center font-oswald leading-snug text-white/75 ${isCompressedLayout ? 'mt-1.5 text-[12px] md:text-[13px]' : 'mt-2 text-[13px] md:text-[14px]'}`}>
                     {shouldShowWinnerSelectionInOrganizeStep ? friendlyOrganizeAndResultHelperText : organizeTeamsHelperText}
                   </div>
                 </div>
               </div>
-              <div className="w-full flex-1 min-h-0 flex items-center justify-center pt-2 sm:pt-3">
+              <div className={`w-full flex-1 min-h-0 flex items-center justify-center ${isCompressedLayout ? 'pt-1.5 sm:pt-2' : 'pt-2 sm:pt-3'}`}>
                 <div className="w-full max-w-[760px] mx-auto">
                   <TeamsDnDEditor
                     teamA={finalTeams.teamA}
@@ -2799,7 +2839,7 @@ const EncuestaPartido = () => {
                   />
 
                   {shouldShowWinnerSelectionInOrganizeStep ? (
-                    <div className="w-full pt-4 sm:pt-5 flex items-center justify-center">
+                    <div className={`w-full flex items-center justify-center ${isCompressedLayout ? 'pt-3 sm:pt-4' : 'pt-4 sm:pt-5'}`}>
                       <button
                         type="button"
                         className={`${resultSecondaryBtnClass} !min-w-[170px] ${formData.ganador === 'empate' ? optionBtnSelectedClass : ''}`}
@@ -2815,7 +2855,7 @@ const EncuestaPartido = () => {
                   ) : null}
                 </div>
               </div>
-              <div className={`w-full shrink-0 flex items-center justify-center pb-[max(8px,env(safe-area-inset-bottom))] ${shouldShowWinnerSelectionInOrganizeStep ? 'pt-8 sm:pt-10' : 'pt-2 sm:pt-3'}`}>
+              <div className={`w-full shrink-0 flex items-center justify-center ${isCompressedLayout ? 'pb-1 sm:pb-1.5' : 'pb-2 sm:pb-2.5'} ${shouldShowWinnerSelectionInOrganizeStep ? (isCompressedLayout ? 'pt-5 sm:pt-6' : 'pt-8 sm:pt-10') : (isCompressedLayout ? 'pt-1.5 sm:pt-2' : 'pt-2 sm:pt-3')}`}>
                 <div className={actionDockClass}>
                   <button
                     className={btnClass}
