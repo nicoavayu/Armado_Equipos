@@ -392,7 +392,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
   const cardClass = 'w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100dvh-120px)] p-5';
   const titleClass = 'font-bebas text-[40px] md:text-[64px] text-white tracking-[0.08em] font-bold mb-10 text-center leading-[0.98] uppercase drop-shadow-lg';
   const sectionTitleClass = 'font-bebas text-[31px] md:text-[46px] text-white tracking-[0.055em] font-bold text-center leading-[1.06] md:leading-[0.98] drop-shadow-lg';
-  const voteStageTitleClass = 'font-bebas text-[clamp(2.5rem,11vw,3.9rem)] md:text-[46px] text-white tracking-[0.05em] font-bold text-center leading-[1.02] md:leading-[0.98] drop-shadow-lg';
+  const voteStageTitleClass = 'font-bebas text-[clamp(2rem,8.8vw,3.15rem)] md:text-[42px] lg:text-[46px] text-white tracking-[0.045em] font-bold text-center leading-[0.96] md:leading-[0.95] drop-shadow-lg';
   const sectionSubtitleClass = 'font-oswald text-[18px] md:text-[21px] text-white/82 text-center leading-[1.22] tracking-[0.02em]';
   const primaryVoteButtonClass = 'w-full h-[60px] min-h-[60px] px-4 border text-white font-oswald text-[20px] md:text-[22px] font-semibold tracking-[0.01em] normal-case rounded-none cursor-pointer transition-all duration-200 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center';
   const primaryVoteButtonStyle = {
@@ -435,15 +435,11 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
       />
     </div>
   );
-  const cancelVoteButtonClass = 'fixed z-[1200] h-12 w-12 rounded-[14px] border flex items-center justify-center text-white transition-all duration-200 hover:brightness-110 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed';
+  const cancelVoteButtonClass = 'fixed z-[1200] h-10 w-10 flex items-center justify-center text-white/92 transition-all duration-200 hover:scale-105 hover:text-white active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed';
   const cancelVoteButtonStyle = {
-    top: 'max(16px, calc(env(safe-area-inset-top) + 16px))',
-    right: 'max(16px, calc(env(safe-area-inset-right) + 16px))',
-    background: 'rgba(15, 24, 56, 0.94)',
-    borderColor: 'rgba(78, 196, 255, 0.42)',
-    boxShadow: '0 14px 32px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
-    backdropFilter: 'blur(12px)',
-    WebkitBackdropFilter: 'blur(12px)',
+    top: 'max(14px, calc(env(safe-area-inset-top) + 12px))',
+    right: 'max(14px, calc(env(safe-area-inset-right) + 12px))',
+    filter: 'drop-shadow(0 8px 18px rgba(0, 0, 0, 0.35))',
   };
 
   // Guard: Check if should show final screen (happy path or already voted)
@@ -515,7 +511,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
       onClick={requestCancelVoting}
       disabled={isSubmitting}
     >
-      <X size={24} strokeWidth={2.4} />
+      <X size={20} strokeWidth={2.35} />
     </button>
   );
   const cancelVoteDialog = (
@@ -815,8 +811,9 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
         {cancelVoteDialog}
         {noticeSlot}
         <div
-          className={`${cardClass} !justify-start`}
+          className={`${cardClass} !justify-start flex-1`}
           style={{
+            minHeight: 0,
             paddingTop: 'max(22px, calc(env(safe-area-inset-top) + 22px))',
             paddingBottom: 'max(10px, calc(env(safe-area-inset-bottom) + 12px))',
           }}
@@ -901,7 +898,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
           </div>
           <div
             className="w-full shrink-0 mt-auto"
-            style={{ paddingTop: 'clamp(24px, 8vh, 84px)' }}
+            style={{ paddingTop: 'clamp(28px, 8vh, 104px)' }}
           >
             <SurveyImportantDisclaimer
               className="w-full"
@@ -945,7 +942,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
           }}
         >
           <div className={`w-full h-full min-h-0 transition-transform duration-200 ease-out flex flex-col items-center justify-between ${animating ? '-translate-x-full opacity-0' : 'translate-x-0 opacity-100'}`}>
-            <div className="w-full px-2 text-center mb-3 md:mb-5 shrink-0">
+            <div className="w-full px-3 text-center pt-[clamp(12px,2.4vh,22px)] mb-3 md:mb-5 shrink-0">
               <div className="max-w-[360px] mx-auto">
                 <div className={voteStageTitleClass}>
                   VOTÁ A TUS COMPAÑEROS
