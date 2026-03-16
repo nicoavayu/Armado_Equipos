@@ -122,6 +122,10 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
           partidoId,
           error: rpcError,
         });
+        logger.log('[CallToVote] triggering immediate push dispatch after duplicate', {
+          partidoId,
+          eventType: 'call_to_vote',
+        });
         requestImmediatePushDispatchSafe({
           eventType: 'call_to_vote',
           matchId: Number(partidoId),
@@ -137,6 +141,10 @@ export async function sendVotingNotifications(partidoId, meta = {}) {
 
     // Normalize RPC result to expected format
     if (rpcResult && rpcResult.success) {
+      logger.log('[CallToVote] triggering immediate push dispatch', {
+        partidoId,
+        eventType: 'call_to_vote',
+      });
       requestImmediatePushDispatchSafe({
         eventType: 'call_to_vote',
         matchId: Number(partidoId),

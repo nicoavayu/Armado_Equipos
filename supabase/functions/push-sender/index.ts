@@ -232,6 +232,16 @@ function safeString(value: unknown, maxLen = 500): string {
   }
 }
 
+function normalizeUuidList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return Array.from(new Set(
+    value
+      .map((item) => String(item ?? "").trim())
+      .filter((item) => uuidPattern.test(item)),
+  ));
+}
+
 function defaultTitleForType(type: string): string {
   switch ((type || "").toLowerCase()) {
     case "match_invite":
@@ -759,24 +769,39 @@ serve(async (req) => {
   const body = await req.json().catch(() => ({} as Record<string, unknown>));
   const dryRun = Boolean(body?.dry_run === true);
   const workerId = String(body?.worker_id ?? "edge_push_sender").trim() || "edge_push_sender";
+  const targetedLogIds = normalizeUuidList(body?.log_ids);
   const config = getConfig(body as Record<string, unknown>);
 
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { data: claimedRows, error: claimError } = await supabase.rpc("claim_push_delivery_batch", {
-    p_limit: config.batchLimit,
-    p_worker_id: workerId,
-    p_max_attempts: config.maxAttempts,
-    p_processing_timeout_minutes: config.processingTimeoutMinutes,
-  });
+  const claimRpcName = targetedLogIds.length > 0
+    ? "claim_targeted_push_delivery_batch"
+    : "claim_push_delivery_batch";
+  const claimRpcArgs = targetedLogIds.length > 0
+    ? {
+      p_log_ids: targetedLogIds,
+      p_limit: config.batchLimit,
+      p_worker_id: workerId,
+      p_max_attempts: config.maxAttempts,
+      p_processing_timeout_minutes: config.processingTimeoutMinutes,
+    }
+    : {
+      p_limit: config.batchLimit,
+      p_worker_id: workerId,
+      p_max_attempts: config.maxAttempts,
+      p_processing_timeout_minutes: config.processingTimeoutMinutes,
+    };
+
+  const { data: claimedRows, error: claimError } = await supabase.rpc(claimRpcName, claimRpcArgs);
 
   if (claimError) {
     return jsonResponse(
       {
         ok: false,
         reason: "claim_failed",
+        claim_rpc: claimRpcName,
         details: claimError.message,
       },
       500,
@@ -794,6 +819,7 @@ serve(async (req) => {
         sent: 0,
         failed: 0,
         retryable_failed: 0,
+        targeted: targetedLogIds.length > 0,
       },
       200,
       cors,
@@ -1232,6 +1258,8 @@ serve(async (req) => {
     {
       ok: true,
       dry_run: dryRun,
+      targeted: targetedLogIds.length > 0,
+      targeted_log_ids: targetedLogIds,
       config,
       ...summary,
     },

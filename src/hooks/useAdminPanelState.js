@@ -4,6 +4,7 @@ import { toBigIntId } from '../utils';
 import { incrementMatchesAbandoned, canAbandonWithoutPenalty } from '../utils/matchStatsManager';
 import { autoCleanupDuplicates } from '../utils/duplicateCleanup';
 import { notifyAdminPlayerJoined } from '../services/matchJoinNotificationService';
+import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const BLOCKED_INVITE_STATUSES = new Set([
@@ -670,6 +671,7 @@ export const useAdminPanelState = ({
             read: false,
             send_at: kickedAt,
           };
+          let shouldKickPushImmediately = false;
           const { error: kickInsertError } = await supabase.from('notifications').insert([payload]);
           if (kickInsertError) {
             const rawKickError = String(kickInsertError?.message || '').toLowerCase();
@@ -698,10 +700,27 @@ export const useAdminPanelState = ({
               const { error: kickUpdateError } = await kickUpdateQuery;
               if (kickUpdateError) {
                 console.error('[LEAVE_MATCH] Error refreshing existing kick notification after duplicate conflict:', kickUpdateError);
+              } else {
+                shouldKickPushImmediately = true;
               }
             } else {
               console.error('[LEAVE_MATCH] Error creating kick notification:', kickInsertError);
             }
+          } else {
+            shouldKickPushImmediately = true;
+          }
+
+          if (shouldKickPushImmediately) {
+            console.log('[LEAVE_MATCH] Triggering immediate push dispatch for match_kicked', {
+              partidoId: Number(partidoActual.id),
+              removedUserId: jugadorAEliminar.usuario_id,
+            });
+            requestImmediatePushDispatchSafe({
+              eventType: 'match_kicked',
+              matchId: Number(partidoActual.id),
+              recipientUserId: jugadorAEliminar.usuario_id,
+              limit: 5,
+            });
           }
         } catch (notifError) {
           console.error('[LEAVE_MATCH] Error sending kick notification:', notifError);
