@@ -21,6 +21,7 @@ import PageLoadingState from '../components/PageLoadingState';
 import InlineNotice from '../components/ui/InlineNotice';
 import SurveyImportantDisclaimer from '../components/survey/SurveyImportantDisclaimer';
 import ConfirmModal from '../components/ConfirmModal';
+import { useScrollResetContainer, useScrollResetOnChange } from '../hooks/useScrollReset';
 
 // Styles are now handled via Tailwind CSS
 // Legacy styles: src/pages/LegacyVoting.css (for other components)
@@ -95,6 +96,10 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
   const [inlineNotice, setInlineNotice] = useState(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const inlineNoticeRef = useRef({ type: '', message: '', ts: 0 });
+  const summaryScrollResetRef = useScrollResetContainer();
+  const screenKey = editandoIdx !== null ? `edit-${editandoIdx}` : `step-${step}`;
+
+  useScrollResetOnChange(screenKey);
 
   const showInlineNotice = useCallback((type, message) => {
     const now = Date.now();
@@ -1043,6 +1048,7 @@ export default function VotingView({ onReset, onCancel, jugadores, partidoActual
         {cancelVoteDialog}
         {noticeSlot}
         <div
+          ref={summaryScrollResetRef}
           className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center overflow-y-auto px-3 pb-3"
           style={{
             paddingTop: 'max(26px, calc(env(safe-area-inset-top) + 28px))',

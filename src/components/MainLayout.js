@@ -1,9 +1,11 @@
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import TabBar from './TabBar';
+import { useScrollResetContainer } from '../hooks/useScrollReset';
 
 const MainLayout = () => {
   const location = useLocation();
+  const mainScrollResetRef = useScrollResetContainer();
   const searchParams = new URLSearchParams(location.search);
   const isVotingShellRoute = (location.pathname === '/' || location.pathname === '/home')
     && (searchParams.has('codigo') || searchParams.has('partidoId'));
@@ -33,7 +35,10 @@ const MainLayout = () => {
   return (
     <div className="flex flex-col min-h-[100dvh]">
       {/* App Shell / Main Content Container */}
-      <main className={`flex-1 flex flex-col ${mainPaddingTopClass} ${mainPaddingBottomClass} overflow-x-hidden`}>
+      <main
+        ref={mainScrollResetRef}
+        className={`flex-1 flex flex-col ${mainPaddingTopClass} ${mainPaddingBottomClass} overflow-x-hidden`}
+      >
         <Outlet />
       </main>
 

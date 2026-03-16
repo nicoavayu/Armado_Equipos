@@ -5,6 +5,7 @@ import { crearPartido, supabase } from '../supabase';
 import { insertPartidoFrecuenteFromPartido } from '../services/db/frequentMatches';
 import { formatLocalDateShort } from '../utils/dateLocal';
 import { useTimeout } from '../hooks/useTimeout';
+import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import { normalizeTimeHHmm, isBlockedInDebug, getDebugInfo } from '../lib/matchDateDebug';
 import { v4 as uuidv4 } from 'uuid';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
@@ -62,6 +63,8 @@ export default function FormularioNuevoPartidoFlow({ onConfirmar, onVolver }) {
   // New: toggle to save created party as frequent
   const [saveAsFrequent, setSaveAsFrequent] = useState(false);
   const [willPlay, setWillPlay] = useState(true);
+
+  useScrollResetOnChange(step);
 
   // Ensure toggles are reset when the flow component mounts (covers modal open case)
   useEffect(() => {

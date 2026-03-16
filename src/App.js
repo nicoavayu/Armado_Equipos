@@ -15,6 +15,7 @@ import GlobalNoticeModal from './components/GlobalNoticeModal';
 import MainLayout from './components/MainLayout';
 import { initNativePushNotifications } from './hooks/useNativeFeatures';
 import { useNotificationRedirect } from './hooks/useNotificationRedirect';
+import { useRouteScrollReset } from './hooks/useScrollReset';
 import { setAuthReturnTo } from './utils/authReturnTo';
 import { track } from './utils/monitoring/analytics';
 
@@ -457,18 +458,7 @@ function HealthRoute() {
 }
 
 function ScrollToTop() {
-  const location = useLocation();
-
-  React.useEffect(() => {
-    const reset = () => {
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    };
-
-    requestAnimationFrame(reset);
-  }, [location.pathname, location.search]);
-
+  useRouteScrollReset();
   return null;
 }
 

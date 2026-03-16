@@ -18,6 +18,7 @@ import { findUserScheduleConflicts } from '../services/db/matchScheduling';
 import { notifyAdminJoinRequest, notifyAdminPlayerJoined } from '../services/matchJoinNotificationService';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { openMatchCalendarInvite } from '../utils/calendarInvite';
+import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import {
   getNotificationTimestampMs,
   hasPendingMatchInviteStatus,
@@ -576,6 +577,8 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
   const [inlineNotice, setInlineNotice] = useState(null);
   const pendingContinueRef = useRef(null);
   const guestPhotoInputRef = useRef(null);
+
+  useScrollResetOnChange(step);
 
   const showInlineNotice = (type, message) => {
     setInlineNotice({ type, message, ts: Date.now() });

@@ -4,6 +4,7 @@ import { supabase } from '../supabase';
 import { useAuth } from '../components/AuthProvider';
 import { useInterval } from '../hooks/useInterval';
 import { useAmigos } from '../hooks/useAmigos';
+import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import PageTitle from '../components/PageTitle';
 import PageLoadingState from '../components/PageLoadingState';
 import InviteAmigosModal from '../components/InviteAmigosModal';
@@ -209,6 +210,8 @@ const QuieroJugar = ({
   const geocodedMatchIdsRef = useRef(new Set());
   const geocoderCacheRef = useRef(new Map());
   const { getRelationshipStatus, sendFriendRequest } = useAmigos(user?.id || null);
+
+  useScrollResetOnChange(activeTab);
 
   const handleMatchDistanceChange = (event) => {
     setMaxMatchDistanceKm(clampMatchDistanceKm(Number(event.target.value)));

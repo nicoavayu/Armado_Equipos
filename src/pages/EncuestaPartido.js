@@ -11,6 +11,7 @@ import TeamsDnDEditor from '../components/TeamsDnDEditor';
 import SurveyImportantDisclaimer from '../components/survey/SurveyImportantDisclaimer';
 import { finalizeIfComplete } from '../services/surveyCompletionService';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
+import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import { clearMatchFromList } from '../services/matchFinishService';
 import { listChallengeApprovedSquad, listTeamMatchMembers } from '../services/db/teamChallenges';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
@@ -703,6 +704,9 @@ const EncuestaPartido = () => {
   const [viewportMetrics, setViewportMetrics] = useState(getViewportMetrics);
   const viewportRatio = viewportMetrics.width / Math.max(viewportMetrics.height, 1);
   const viewportHeight = viewportMetrics.height;
+
+  useScrollResetOnChange(currentStep);
+
   const closeSurveyModal = () => {
     setSurveyModal({ isOpen: false, title: '', message: '' });
     const routeToExit = surveyExitRoute;

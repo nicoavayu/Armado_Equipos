@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useAnimatedNavigation } from '../hooks/useAnimatedNavigation';
+import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import PageTransition from '../components/PageTransition';
 import EditarPartidoFrecuente from './EditarPartidoFrecuente';
 import ListaPartidosFrecuentes from './ListaPartidosFrecuentes';
@@ -159,6 +160,8 @@ const FrecuentesPage = () => {
     singleButton: true,
   });
   const pendingContinueRef = useRef(null);
+
+  useScrollResetOnChange(step);
 
   const closeWarningModal = () => {
     setWarningModal((prev) => ({ ...prev, isOpen: false }));

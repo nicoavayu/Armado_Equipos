@@ -9,6 +9,7 @@ import LoadingSpinner from './LoadingSpinner';
 import { useNotifications } from '../context/NotificationContext';
 import { Check, Loader2, Users, X } from 'lucide-react';
 import InlineNotice from './ui/InlineNotice';
+import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import EmptyStateCard from './EmptyStateCard';
 
@@ -105,6 +106,7 @@ const AmigosView = () => {
     const params = new URLSearchParams(location.search);
     return normalizeAmigosTab(params.get('tab'));
   });
+  useScrollResetOnChange(activeTab);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);

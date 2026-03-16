@@ -5,6 +5,7 @@ import { useTeamFormation } from '../hooks/useTeamFormation';
 import { useSearchParams } from 'react-router-dom';
 import { usePendingRequestsCount } from '../hooks/usePendingRequestsCount';
 import { useNativeFeatures } from '../hooks/useNativeFeatures';
+import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import { supabase } from '../supabase';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
@@ -55,6 +56,8 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('jugadores');
+
+  useScrollResetOnChange(activeTab);
 
   // Get pending requests count with realtime updates
   const { count: pendingRequestsCount, refreshCount: refreshPendingRequestsCount } = usePendingRequestsCount(partidoActual?.id);
