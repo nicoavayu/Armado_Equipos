@@ -17,6 +17,29 @@ export const normalizeIdentityValue = (value) => {
   return normalized.length > 0 ? normalized : null;
 };
 
+export const isUuidLike = (value) => (
+  typeof value === 'string'
+  && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim())
+);
+
+export const buildJugadoresIdentityFilters = (identityValue) => {
+  const normalized = normalizeIdentityValue(identityValue);
+  if (!normalized) return [];
+
+  const filters = [];
+  if (isUuidLike(normalized)) {
+    filters.push(`usuario_id.eq.${normalized}`);
+    filters.push(`uuid.eq.${normalized}`);
+  }
+
+  const numericCandidate = Number(normalized);
+  if (Number.isFinite(numericCandidate) && numericCandidate > 0) {
+    filters.push(`id.eq.${numericCandidate}`);
+  }
+
+  return filters;
+};
+
 export const buildMatchPlayerIdentityMaps = (jugadores = []) => {
   const byUuid = new Map();
   const byUserId = new Map();
@@ -704,21 +727,18 @@ export const checkIfAlreadyVoted = async (votanteId, partidoId) => {
 
     // Is it a registered user?
     if (!isPublicIdentity) {
-      const numericCandidate = Number(normalizedVotanteId);
-      const identityFilters = [
-        `usuario_id.eq.${normalizedVotanteId}`,
-        `uuid.eq.${normalizedVotanteId}`,
-      ];
-      if (Number.isFinite(numericCandidate) && numericCandidate > 0) {
-        identityFilters.push(`id.eq.${numericCandidate}`);
-      }
+      const identityFilters = buildJugadoresIdentityFilters(normalizedVotanteId);
 
-      const { data: player } = await supabase
-        .from('jugadores')
-        .select('id, uuid, usuario_id, nombre')
-        .eq('partido_id', pid)
-        .or(identityFilters.join(','))
-        .maybeSingle();
+      let player = null;
+      if (identityFilters.length > 0) {
+        const { data } = await supabase
+          .from('jugadores')
+          .select('id, uuid, usuario_id, nombre')
+          .eq('partido_id', pid)
+          .or(identityFilters.join(','))
+          .maybeSingle();
+        player = data || null;
+      }
 
       if (player?.nombre) {
         voterName = player.nombre;

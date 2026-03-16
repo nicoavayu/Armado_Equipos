@@ -1,4 +1,5 @@
 import {
+  buildJugadoresIdentityFilters,
   buildMatchPlayerIdentityMaps,
   resolveTargetPlayerUuid,
 } from '../services/db/matches';
@@ -31,5 +32,16 @@ describe('vote target identity resolution', () => {
     const maps = buildMatchPlayerIdentityMaps(jugadores);
     const row = { votado_id: 'unknown-target' };
     expect(resolveTargetPlayerUuid(row, maps)).toBeNull();
+  });
+
+  test('builds only numeric jugador filter for numeric identities', () => {
+    expect(buildJugadoresIdentityFilters('1643')).toEqual(['id.eq.1643']);
+  });
+
+  test('builds uuid-safe filters for uuid identities', () => {
+    expect(buildJugadoresIdentityFilters('6ecdfeea-a005-4fdd-a80a-58c5974f0656')).toEqual([
+      'usuario_id.eq.6ecdfeea-a005-4fdd-a80a-58c5974f0656',
+      'uuid.eq.6ecdfeea-a005-4fdd-a80a-58c5974f0656',
+    ]);
   });
 });
