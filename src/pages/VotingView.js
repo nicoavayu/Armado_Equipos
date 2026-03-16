@@ -20,6 +20,7 @@ import EmptyStateCard from '../components/EmptyStateCard';
 import PageLoadingState from '../components/PageLoadingState';
 import InlineNotice from '../components/ui/InlineNotice';
 import SurveyImportantDisclaimer from '../components/survey/SurveyImportantDisclaimer';
+import ConfirmModal from '../components/ConfirmModal';
 
 // Styles are now handled via Tailwind CSS
 // Legacy styles: src/pages/LegacyVoting.css (for other components)
@@ -35,7 +36,7 @@ const VOTE_CARD_STROKE_BLUE = 'rgba(41, 170, 255, 0.9)';
 const VOTE_CARD_GLOW_BLUE = '0 0 9px rgba(41, 170, 255, 0.24)';
 
 
-export default function VotingView({ onReset, jugadores, partidoActual }) {
+export default function VotingView({ onReset, onCancel, jugadores, partidoActual }) {
   const urlParams = new URLSearchParams(window.location.search);
   const isPublicRoute = window.location.pathname.includes('/votar-equipos') || urlParams.has('codigo');
   const isPublicVoting = isPublicRoute;
@@ -92,6 +93,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [useAuthenticatedSubmit, setUseAuthenticatedSubmit] = useState(false);
   const [inlineNotice, setInlineNotice] = useState(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const inlineNoticeRef = useRef({ type: '', message: '', ts: 0 });
 
   const showInlineNotice = useCallback((type, message) => {
@@ -433,13 +435,13 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       />
     </div>
   );
-  const cancelVoteButtonClass = 'absolute z-20 h-12 w-12 border flex items-center justify-center text-white transition-all duration-200 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed';
+  const cancelVoteButtonClass = 'fixed z-[1200] h-12 w-12 rounded-[14px] border flex items-center justify-center text-white transition-all duration-200 hover:brightness-110 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed';
   const cancelVoteButtonStyle = {
-    top: 'max(14px, calc(env(safe-area-inset-top) + 12px))',
-    right: 'max(14px, calc(env(safe-area-inset-right) + 12px))',
-    background: 'rgba(28, 35, 67, 0.82)',
-    borderColor: 'rgba(123, 138, 197, 0.35)',
-    boxShadow: '0 12px 28px rgba(0, 0, 0, 0.24)',
+    top: 'max(16px, calc(env(safe-area-inset-top) + 16px))',
+    right: 'max(16px, calc(env(safe-area-inset-right) + 16px))',
+    background: 'rgba(15, 24, 56, 0.94)',
+    borderColor: 'rgba(78, 196, 255, 0.42)',
+    boxShadow: '0 14px 32px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
     backdropFilter: 'blur(12px)',
     WebkitBackdropFilter: 'blur(12px)',
   };
@@ -462,14 +464,47 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     }
   };
 
-  const handleCancelVoting = useCallback(() => {
+  const clearSavedVoterIdentity = () => {
+    const storageKey = resolvePublicStorageKey();
+    if (!storageKey) return;
+    try {
+      localStorage.removeItem(storageKey);
+    } catch (_error) {
+      // Ignore storage cleanup failures and continue exiting the survey.
+    }
+  };
+
+  const handleCancelVoting = () => {
     if (isSubmitting) return;
+    setShowCancelConfirm(false);
+    clearInlineNotice();
+    clearLocalPreviewObjectUrl();
+    clearSavedVoterIdentity();
+    setAnimating(false);
+    setNombre('');
+    setJugador(null);
+    setCurrent(0);
+    setVotos({});
+    setHovered(null);
+    setEditandoIdx(null);
+    setConfirmando(false);
+    setFotoPreview(null);
+    setStep(0);
+    if (typeof onCancel === 'function') {
+      onCancel();
+      return;
+    }
     if (typeof onReset === 'function') {
       onReset();
       return;
     }
-    window.history.back();
-  }, [isSubmitting, onReset]);
+    window.location.assign('/');
+  };
+
+  const requestCancelVoting = () => {
+    if (isSubmitting) return;
+    setShowCancelConfirm(true);
+  };
 
   const cancelVoteButton = (
     <button
@@ -477,11 +512,23 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       aria-label="Cerrar votación"
       className={cancelVoteButtonClass}
       style={cancelVoteButtonStyle}
-      onClick={handleCancelVoting}
+      onClick={requestCancelVoting}
       disabled={isSubmitting}
     >
       <X size={24} strokeWidth={2.4} />
     </button>
+  );
+  const cancelVoteDialog = (
+    <ConfirmModal
+      isOpen={showCancelConfirm}
+      title="Cancelar votación"
+      message="Si salís ahora, tus votos no se van a guardar y cuando vuelvas vas a tener que empezar desde cero."
+      confirmText="Salir"
+      cancelText="Seguir votando"
+      danger
+      onConfirm={handleCancelVoting}
+      onCancel={() => setShowCancelConfirm(false)}
+    />
   );
 
   // ============ EARLY GUARD: Return final screen if already voted ============
@@ -622,6 +669,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (cargandoVotoUsuario) {
     return (
       <div className={wrapperClass}>
+        {cancelVoteButton}
+        {cancelVoteDialog}
         <div className={cardClass}>
           <PageLoadingState
             title="VALIDANDO VOTACIÓN"
@@ -636,6 +685,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (hasAccess === false && !isPublicVoting) {
     return (
       <div className={wrapperClass}>
+        {cancelVoteButton}
+        {cancelVoteDialog}
         {noticeSlot}
         <div className={cardClass}>
           <div className={titleClass}>
@@ -680,6 +731,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     return (
       <div className={wrapperClass}>
         {cancelVoteButton}
+        {cancelVoteDialog}
         <div className={cardClass}>
           <div className={titleClass}>¿QUIÉN SOS?</div>
           {jugadoresIdentificacion.length === 0 ? (
@@ -760,6 +812,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     return (
       <div className={wrapperClass}>
         {cancelVoteButton}
+        {cancelVoteDialog}
         {noticeSlot}
         <div
           className={`${cardClass} !justify-start`}
@@ -867,6 +920,8 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     if (index >= jugadoresParaVotar.length) {
       return (
         <div className={wrapperClass}>
+          {cancelVoteButton}
+          {cancelVoteDialog}
           {noticeSlot}
           <div className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center justify-center py-4">
             <div className="text-white/85 font-oswald text-lg">Votación completada</div>
@@ -880,6 +935,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     return (
       <div className={wrapperClass}>
         {cancelVoteButton}
+        {cancelVoteDialog}
         {noticeSlot}
         <div
           className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center justify-between overflow-hidden"
@@ -987,6 +1043,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
     return (
       <div className={wrapperClass}>
         {cancelVoteButton}
+        {cancelVoteDialog}
         {noticeSlot}
         <div
           className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center overflow-y-auto px-3 pb-3"

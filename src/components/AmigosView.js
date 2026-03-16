@@ -816,11 +816,11 @@ const AmigosView = () => {
 
           {Array.isArray(amigos) && amigos.length > 0 ? (
             sortedFriends.length > 0 ? (
-              <div className="flex flex-col items-center mb-[350px] w-full max-w-[500px] mx-auto relative z-0">
+              <div className="flex flex-col items-center w-full max-w-[500px] mx-auto relative z-0">
                 <p className="w-full mb-2 px-1 text-[11px] uppercase tracking-wider text-white/55">
                   Ordenados por cercania
                 </p>
-                <div className="flex flex-col gap-2 w-full max-w-none overflow-visible sm:gap-1.5">
+                <div className="flex flex-col gap-2 w-full max-w-none overflow-visible pb-2 sm:gap-1.5 sm:pb-3">
                   {sortedFriends.map((amigo) => (
                     <MiniFriendCard
                       key={amigo.profile?.uuid || amigo.profile?.id || amigo.id}

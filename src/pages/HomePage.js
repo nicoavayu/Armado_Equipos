@@ -28,6 +28,13 @@ const HomePage = () => {
     return '/';
   };
 
+  const resetVotingShell = (targetRoute = resolveVotingExitRoute()) => {
+    setShowVotingView(false);
+    setPartidoActual(null);
+    lastSearchRef.current = '';
+    navigate(targetRoute, { replace: true });
+  };
+
   useEffect(() => {
     const currentSearch = location.search;
 
@@ -90,12 +97,8 @@ const HomePage = () => {
           jugadores={partidoActual ? partidoActual.jugadores : []}
           partidoActual={partidoActual}
           isLoading={isLoading}
-          onReset={() => {
-            setShowVotingView(false);
-            setPartidoActual(null);
-            lastSearchRef.current = ''; // Reset ref on manual reset
-            navigate(resolveVotingExitRoute(), { replace: true });
-          }}
+          onReset={() => resetVotingShell()}
+          onCancel={() => resetVotingShell('/')}
         />
       </div>
     );
