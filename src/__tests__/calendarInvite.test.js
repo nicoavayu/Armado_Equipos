@@ -1,4 +1,8 @@
-import { buildMatchCalendarIcs, DEFAULT_MATCH_DURATION_MIN } from '../utils/calendarInvite';
+import {
+  buildGoogleCalendarUrl,
+  buildMatchCalendarIcs,
+  DEFAULT_MATCH_DURATION_MIN,
+} from '../utils/calendarInvite';
 
 describe('calendarInvite', () => {
   test('builds an ics file with default duration and safe filename', () => {
@@ -30,5 +34,23 @@ describe('calendarInvite', () => {
 
     expect(content).toContain('SUMMARY:Partido\\, Semi\\;Final');
     expect(content).toContain('LOCATION:Cancha \\\\ Norte');
+  });
+
+  test('builds a Google Calendar URL with prefilled match data', () => {
+    const url = new URL(buildGoogleCalendarUrl({
+      id: 77,
+      nombre: 'Partido Premium',
+      fecha: '2026-03-21',
+      hora: '22:00',
+      sede: 'Ateneo, CABA, Argentina',
+    }));
+
+    expect(url.origin).toBe('https://calendar.google.com');
+    expect(url.pathname).toBe('/calendar/render');
+    expect(url.searchParams.get('action')).toBe('TEMPLATE');
+    expect(url.searchParams.get('text')).toBe('Partido Premium');
+    expect(url.searchParams.get('location')).toBe('Ateneo');
+    expect(url.searchParams.get('details')).toContain('Fecha: 2026-03-21');
+    expect(url.searchParams.get('dates')).toMatch(/^\d{8}T\d{6}Z\/\d{8}T\d{6}Z$/);
   });
 });

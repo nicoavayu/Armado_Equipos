@@ -6,7 +6,7 @@ import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
 import { MoreVertical, LogOut, Share2, UserPlus } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
-import { buildMatchCalendarIcs, shareOrDownloadCalendarIcs } from '../../utils/calendarInvite';
+import { openMatchCalendarInvite } from '../../utils/calendarInvite';
 import { supabase } from '../../supabase';
 import {
   buildPlayerRefToKeyMap,
@@ -713,12 +713,7 @@ const PlayersSection = ({
 
   const handleAddToCalendar = async () => {
     try {
-      const { content, fileName } = buildMatchCalendarIcs(partidoActual);
-      await shareOrDownloadCalendarIcs({
-        content,
-        fileName,
-        title: 'Agregar al calendario',
-      });
+      await openMatchCalendarInvite(partidoActual);
     } catch (error) {
       console.error('[CALENDAR_ICS] Error creating calendar file', error);
       notifyBlockingError('No se pudo agregar el partido al calendario');

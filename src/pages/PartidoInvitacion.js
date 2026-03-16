@@ -17,7 +17,7 @@ import Logo from '../Logo.png';
 import { findUserScheduleConflicts } from '../services/db/matchScheduling';
 import { notifyAdminJoinRequest, notifyAdminPlayerJoined } from '../services/matchJoinNotificationService';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
-import { buildMatchCalendarIcs, shareOrDownloadCalendarIcs } from '../utils/calendarInvite';
+import { openMatchCalendarInvite } from '../utils/calendarInvite';
 import {
   getNotificationTimestampMs,
   hasPendingMatchInviteStatus,
@@ -1113,12 +1113,7 @@ export default function PartidoInvitacion({ mode = 'invite' }) {
 
   const handleAddToCalendar = async () => {
     try {
-      const { content, fileName } = buildMatchCalendarIcs(partido);
-      await shareOrDownloadCalendarIcs({
-        content,
-        fileName,
-        title: 'Agregar al calendario',
-      });
+      await openMatchCalendarInvite(partido);
     } catch (error) {
       console.error('[CALENDAR_ICS] Error creating calendar file', error);
       notifyBlockingError('No se pudo agregar el partido al calendario');
