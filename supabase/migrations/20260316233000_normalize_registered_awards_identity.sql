@@ -32,16 +32,49 @@ as $$
   ) match_row on true
 $$;
 
-update public.player_awards pa
-set jugador_id = j.usuario_id::text
-from public.jugadores j
-where j.partido_id = pa.partido_id
-  and j.usuario_id is not null
-  and (
-    j.uuid::text = pa.jugador_id::text
-    or j.id::text = pa.jugador_id::text
-  )
-  and pa.jugador_id::text is distinct from j.usuario_id::text;
+do $$
+declare
+  jugador_id_type text;
+begin
+  select t.typname
+  into jugador_id_type
+  from pg_attribute a
+  join pg_class c on c.oid = a.attrelid
+  join pg_namespace n on n.oid = c.relnamespace
+  join pg_type t on t.oid = a.atttypid
+  where n.nspname = 'public'
+    and c.relname = 'player_awards'
+    and a.attname = 'jugador_id'
+    and not a.attisdropped;
+
+  if jugador_id_type = 'uuid' then
+    execute $sql$
+      update public.player_awards pa
+      set jugador_id = j.usuario_id
+      from public.jugadores j
+      where j.partido_id = pa.partido_id
+        and j.usuario_id is not null
+        and (
+          j.uuid = pa.jugador_id
+          or j.id::text = pa.jugador_id::text
+        )
+        and pa.jugador_id is distinct from j.usuario_id
+    $sql$;
+  else
+    execute $sql$
+      update public.player_awards pa
+      set jugador_id = j.usuario_id::text
+      from public.jugadores j
+      where j.partido_id = pa.partido_id
+        and j.usuario_id is not null
+        and (
+          j.uuid::text = pa.jugador_id::text
+          or j.id::text = pa.jugador_id::text
+        )
+        and pa.jugador_id::text is distinct from j.usuario_id::text
+    $sql$;
+  end if;
+end $$;
 
 update public.survey_results sr
 set
@@ -251,24 +284,65 @@ set snapshot_resultados_encuesta = (
 )
 where sr.snapshot_resultados_encuesta is not null;
 
-with award_counts as (
-  select
-    u.id as user_id,
-    coalesce(sum(case when lower(coalesce(pa.award_type, '')) = 'mvp' then 1 else 0 end), 0) as mvps,
-    coalesce(sum(case when lower(coalesce(pa.award_type, '')) in ('best_gk', 'guante_dorado', 'guante dorado', 'goalkeeper', 'golden_glove', 'golden glove', 'best_goalkeeper', 'best goalkeeper', 'mejor_arquero', 'mejor arquero') then 1 else 0 end), 0) as guantes_dorados,
-    coalesce(sum(case when lower(coalesce(pa.award_type, '')) in ('red_card', 'red card', 'red_cards', 'tarjeta_roja', 'tarjeta roja', 'tarjetas_rojas', 'tarjetas rojas', 'negative_fair_play', 'dirty_player', 'dirty player', 'player_dirty', 'mas_sucio', 'mas sucio', 'sucio') then 1 else 0 end), 0) as tarjetas_rojas
-  from public.usuarios u
-  left join public.player_awards pa
-    on pa.jugador_id::text = u.id::text
-  group by u.id
-)
-update public.usuarios u
-set
-  mvps = award_counts.mvps,
-  guantes_dorados = award_counts.guantes_dorados,
-  tarjetas_rojas = award_counts.tarjetas_rojas
-from award_counts
-where u.id = award_counts.user_id;
+do $$
+declare
+  jugador_id_type text;
+begin
+  select t.typname
+  into jugador_id_type
+  from pg_attribute a
+  join pg_class c on c.oid = a.attrelid
+  join pg_namespace n on n.oid = c.relnamespace
+  join pg_type t on t.oid = a.atttypid
+  where n.nspname = 'public'
+    and c.relname = 'player_awards'
+    and a.attname = 'jugador_id'
+    and not a.attisdropped;
+
+  if jugador_id_type = 'uuid' then
+    execute $sql$
+      with award_counts as (
+        select
+          u.id as user_id,
+          coalesce(sum(case when lower(coalesce(pa.award_type, '')) = 'mvp' then 1 else 0 end), 0) as mvps,
+          coalesce(sum(case when lower(coalesce(pa.award_type, '')) in ('best_gk', 'guante_dorado', 'guante dorado', 'goalkeeper', 'golden_glove', 'golden glove', 'best_goalkeeper', 'best goalkeeper', 'mejor_arquero', 'mejor arquero') then 1 else 0 end), 0) as guantes_dorados,
+          coalesce(sum(case when lower(coalesce(pa.award_type, '')) in ('red_card', 'red card', 'red_cards', 'tarjeta_roja', 'tarjeta roja', 'tarjetas_rojas', 'tarjetas rojas', 'negative_fair_play', 'dirty_player', 'dirty player', 'player_dirty', 'mas_sucio', 'mas sucio', 'sucio') then 1 else 0 end), 0) as tarjetas_rojas
+        from public.usuarios u
+        left join public.player_awards pa
+          on pa.jugador_id = u.id
+        group by u.id
+      )
+      update public.usuarios u
+      set
+        mvps = award_counts.mvps,
+        guantes_dorados = award_counts.guantes_dorados,
+        tarjetas_rojas = award_counts.tarjetas_rojas
+      from award_counts
+      where u.id = award_counts.user_id
+    $sql$;
+  else
+    execute $sql$
+      with award_counts as (
+        select
+          u.id as user_id,
+          coalesce(sum(case when lower(coalesce(pa.award_type, '')) = 'mvp' then 1 else 0 end), 0) as mvps,
+          coalesce(sum(case when lower(coalesce(pa.award_type, '')) in ('best_gk', 'guante_dorado', 'guante dorado', 'goalkeeper', 'golden_glove', 'golden glove', 'best_goalkeeper', 'best goalkeeper', 'mejor_arquero', 'mejor arquero') then 1 else 0 end), 0) as guantes_dorados,
+          coalesce(sum(case when lower(coalesce(pa.award_type, '')) in ('red_card', 'red card', 'red_cards', 'tarjeta_roja', 'tarjeta roja', 'tarjetas_rojas', 'tarjetas rojas', 'negative_fair_play', 'dirty_player', 'dirty player', 'player_dirty', 'mas_sucio', 'mas sucio', 'sucio') then 1 else 0 end), 0) as tarjetas_rojas
+        from public.usuarios u
+        left join public.player_awards pa
+          on pa.jugador_id::text = u.id::text
+        group by u.id
+      )
+      update public.usuarios u
+      set
+        mvps = award_counts.mvps,
+        guantes_dorados = award_counts.guantes_dorados,
+        tarjetas_rojas = award_counts.tarjetas_rojas
+      from award_counts
+      where u.id = award_counts.user_id
+    $sql$;
+  end if;
+end $$;
 
 with real_match_counts as (
   select
