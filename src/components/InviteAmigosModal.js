@@ -113,16 +113,8 @@ const showInviteNotice = (payload) => showGlobalNotice({
   ...payload,
 });
 
-const showDirectInviteResultNotice = ({ status, friendName, matchName }) => {
+const showDirectInviteBlockerNotice = ({ status, friendName, matchName }) => {
   const safeMatchName = matchName || 'este partido';
-
-  if (status === 'reinvited') {
-    showInviteNotice({
-      title: 'Reinvitación enviada',
-      message: `La reinvitación para ${friendName} a "${safeMatchName}" se envió correctamente.`,
-    });
-    return;
-  }
 
   if (status === 'already_pending') {
     showInviteNotice({
@@ -147,28 +139,11 @@ const showDirectInviteResultNotice = ({ status, friendName, matchName }) => {
     });
     return;
   }
-
-  showInviteNotice({
-    title: 'Invitación enviada',
-    message: `La invitación para ${friendName} a "${safeMatchName}" se envió correctamente.`,
-  });
 };
 
-const showBulkInviteResultNotice = ({
-  sentCount,
-  reinvitedCount,
-  pendingCount,
-  unavailableCount,
-  alreadyInMatchCount,
-}) => {
+const showBulkInviteBlockerNotice = ({ pendingCount, unavailableCount, alreadyInMatchCount }) => {
   const lines = [];
 
-  if (sentCount > 0) {
-    lines.push(`${sentCount} invitación${sentCount === 1 ? '' : 'es'} enviada${sentCount === 1 ? '' : 's'} correctamente.`);
-  }
-  if (reinvitedCount > 0) {
-    lines.push(`${reinvitedCount} reinvitación${reinvitedCount === 1 ? '' : 'es'} enviada${reinvitedCount === 1 ? '' : 's'} correctamente.`);
-  }
   if (pendingCount > 0) {
     lines.push(`${pendingCount} amigo${pendingCount === 1 ? '' : 's'} ya tenía${pendingCount === 1 ? '' : 'n'} una invitación pendiente.`);
   }
@@ -179,13 +154,7 @@ const showBulkInviteResultNotice = ({
     lines.push(`${unavailableCount} amigo${unavailableCount === 1 ? '' : 's'} tiene${unavailableCount === 1 ? '' : 'n'} las invitaciones desactivadas.`);
   }
 
-  if (lines.length === 0) {
-    showInviteNotice({
-      title: 'Sin cambios',
-      message: 'No se pudo enviar ninguna invitación.',
-    });
-    return;
-  }
+  if (lines.length === 0) return;
 
   showInviteNotice({
     title: 'Resultado de invitaciones',
@@ -493,11 +462,6 @@ const InviteAmigosModal = ({
           writeCachedInvitedFriendIds(partidoActual?.id, next);
           return next;
         });
-        showDirectInviteResultNotice({
-          status: resultStatus,
-          friendName: amigo?.nombre || 'este jugador',
-          matchName: partidoActual?.nombre,
-        });
         return;
       }
 
@@ -508,7 +472,7 @@ const InviteAmigosModal = ({
           writeCachedInvitedFriendIds(partidoActual?.id, next);
           return next;
         });
-        showDirectInviteResultNotice({
+        showDirectInviteBlockerNotice({
           status: resultStatus,
           friendName: amigo?.nombre || 'este jugador',
           matchName: partidoActual?.nombre,
@@ -523,7 +487,7 @@ const InviteAmigosModal = ({
           next.delete(recipientUserId);
           return next;
         });
-        showDirectInviteResultNotice({
+        showDirectInviteBlockerNotice({
           status: resultStatus,
           friendName: amigo?.nombre || 'este jugador',
           matchName: partidoActual?.nombre,
@@ -532,7 +496,7 @@ const InviteAmigosModal = ({
       }
 
       if (resultStatus === 'recipient_unavailable') {
-        showDirectInviteResultNotice({
+        showDirectInviteBlockerNotice({
           status: resultStatus,
           friendName: amigo?.nombre || 'este jugador',
           matchName: partidoActual?.nombre,
@@ -653,9 +617,7 @@ const InviteAmigosModal = ({
       }
 
       setSelectedFriendIds(new Set());
-      showBulkInviteResultNotice({
-        sentCount: sentIds.length,
-        reinvitedCount: reinvitedIds.length,
+      showBulkInviteBlockerNotice({
         pendingCount: alreadyPendingIds.length,
         unavailableCount: unavailableIds.length,
         alreadyInMatchCount: alreadyInMatchIds.length,

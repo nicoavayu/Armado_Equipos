@@ -37,6 +37,20 @@ const getOriginClass = (originLabel) => {
     return 'bg-[#334155] border border-[#64748B] text-white';
 };
 
+const INVITE_STATUS_META = {
+    available: null,
+    already_pending: {
+        label: 'Invitación pendiente',
+        tone: 'bg-[#4a3410] text-[#fde68a] border border-[#f59e0b]',
+        helper: 'Este jugador ya tiene una invitación pendiente para este partido.',
+    },
+    roster_full: {
+        label: 'Sin cupos',
+        tone: 'bg-slate-900 text-slate-300 border border-slate-700',
+        helper: 'La nómina del partido ya está completa.',
+    },
+};
+
 const MatchSelectionCard = ({
     match,
     isSelected = false,
@@ -51,6 +65,8 @@ const MatchSelectionCard = ({
     const tipoLabel = match.tipo_partido || 'Masculino';
     const dateLabel = match?.fecha_display || match?.fecha || 'A coordinar';
     const timeLabel = match?.hora || '';
+    const inviteStatusMeta = INVITE_STATUS_META[inviteStatus] || null;
+    const isInviteBlocked = inviteStatus !== 'available';
 
     // Título: Nombre del partido o Fecha + Hora
     const title = match.nombre || `${match.fecha_display || match.fecha} • ${match.hora}`;
@@ -81,9 +97,9 @@ const MatchSelectionCard = ({
             className={`relative bg-[#1e293b]/92 backdrop-blur-sm rounded-none p-4 min-h-[140px] border transition-all duration-200 cursor-pointer shadow-[0_10px_24px_rgba(0,0,0,0.28)]
                 ${isSelected
                     ? 'border-[#29aaff] ring-1 ring-[#29aaff]/55'
-                    : `${isComplete ? 'border-slate-700/70 opacity-80' : 'border-[rgba(88,107,170,0.46)] hover:brightness-[1.03] hover:border-[#4a7ed6]'}`
+                    : `${isComplete || isInviteBlocked ? 'border-slate-700/70 opacity-85' : 'border-[rgba(88,107,170,0.46)] hover:brightness-[1.03] hover:border-[#4a7ed6]'}`
                 }
-                ${inviteStatus !== 'available' && !isSelected ? 'active:scale-100' : 'active:scale-[0.99]'}`}
+                ${isInviteBlocked && !isSelected ? 'active:scale-100' : 'active:scale-[0.99]'}`}
         >
             {/* Header: fecha/hora + cupos */}
             <div className="flex justify-between items-start gap-3">
@@ -91,13 +107,20 @@ const MatchSelectionCard = ({
                     <Clock3 size={12} />
                     <span className="font-semibold">{dateLabel}{timeLabel ? ` • ${timeLabel}` : ''}</span>
                 </div>
-                <div className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-none text-[11px] font-semibold
-                    ${isComplete
-                        ? 'bg-slate-900 text-slate-300 border border-slate-700'
-                        : 'bg-[#165a2e] text-[#22c55e] border border-[#22c55e]'
-                    }`}>
-                    <Users size={12} className={isComplete ? 'opacity-55' : 'opacity-90'} />
-                    {jugadoresCount}/{cupoMaximo}
+                <div className="flex flex-col items-end gap-1.5">
+                    <div className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-none text-[11px] font-semibold
+                        ${isComplete
+                            ? 'bg-slate-900 text-slate-300 border border-slate-700'
+                            : 'bg-[#165a2e] text-[#22c55e] border border-[#22c55e]'
+                        }`}>
+                        <Users size={12} className={isComplete ? 'opacity-55' : 'opacity-90'} />
+                        {jugadoresCount}/{cupoMaximo}
+                    </div>
+                    {inviteStatusMeta ? (
+                        <div className={`shrink-0 px-2.5 py-1 rounded-none text-[10px] font-semibold tracking-[0.02em] ${inviteStatusMeta.tone}`}>
+                            {inviteStatusMeta.label}
+                        </div>
+                    ) : null}
                 </div>
             </div>
 
@@ -126,6 +149,12 @@ const MatchSelectionCard = ({
                     {address}
                 </p>
             </div>
+
+            {inviteStatusMeta ? (
+                <p className="mt-2 text-[12px] leading-snug text-white/65">
+                    {inviteStatusMeta.helper}
+                </p>
+            ) : null}
         </div>
     );
 };

@@ -1,68 +1,113 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
-import { toBigIntId } from '../utils';
 import { formatLocalDateShort, parseLocalDateTime } from '../utils/dateLocal';
 import Modal from './Modal';
 import LoadingSpinner from './LoadingSpinner';
 import MatchSelectionCard from './MatchSelectionCard';
 import { CalendarDays, UserPlus, X } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { showGlobalNotice } from '../utils/globalNoticeModal';
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import { track } from '../utils/monitoring/analytics';
+import {
+    buildInviteStateByMatch,
+    EMPTY_MATCH_INVITE_STATE,
+    normalizeSendMatchInviteResult,
+    resolveNotificationMatchIdText,
+} from '../utils/matchInviteState';
 
 const PRIMARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[#7d5aff] bg-[#6a43ff] text-white font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[#7550ff] active:opacity-95 shadow-[0_0_14px_rgba(106,67,255,0.3)] disabled:bg-[rgba(106,67,255,0.55)] disabled:border-[rgba(125,90,255,0.5)] disabled:text-white/40 disabled:shadow-none disabled:cursor-not-allowed';
 const SECONDARY_ACTION_BUTTON_CLASS = 'w-full min-h-[44px] px-4 py-2.5 rounded-none border border-[rgba(98,117,184,0.58)] bg-[rgba(20,31,70,0.82)] text-white/92 font-bebas text-base tracking-[0.01em] transition-all inline-flex items-center justify-center gap-2 hover:bg-[rgba(30,45,94,0.95)] active:opacity-95 disabled:opacity-50 disabled:cursor-not-allowed';
-const normalizeInviteStatus = (value) => String(value || 'pending').trim().toLowerCase();
-const REINVITABLE_INVITE_STATUSES = new Set([
-    'declined',
-    'rejected',
-    'kicked',
-    'revoked',
-    'expired',
-    'cancelled',
-    'canceled',
-]);
+const showInviteNotice = ({ title, message, confirmText = 'Entendido', danger = false }) => showGlobalNotice({
+    title,
+    message,
+    confirmText,
+    danger,
+});
 
-const getInviteTimestampMs = (row) => {
-    const raw = row?.send_at || row?.created_at || null;
-    const parsed = Date.parse(raw || '');
-    return Number.isFinite(parsed) ? parsed : 0;
+const showMatchAvailabilityNotice = (match, targetName) => {
+    if (match?.inviteStatus === 'already_pending') {
+        showInviteNotice({
+            title: 'Invitación pendiente',
+            message: `Este jugador ya tiene una invitación pendiente para "${match?.nombre || 'este partido'}".`,
+        });
+        return;
+    }
+
+    if (match?.inviteStatus === 'roster_full') {
+        showInviteNotice({
+            title: 'Partido sin cupos',
+            message: `Ya no hay cupos disponibles en "${match?.nombre || 'este partido'}".`,
+        });
+        return;
+    }
+
+    showInviteNotice({
+        title: 'Jugador ya en el partido',
+        message: `${targetName} ya forma parte de "${match?.nombre || 'este partido'}".`,
+    });
 };
 
-const resolveInviteMatchId = (row) => String(
-    row?.match_id_text
-    ?? row?.partido_id
-    ?? row?.match_ref
-    ?? row?.data?.match_id
-    ?? row?.data?.matchId
-    ?? '',
-).trim();
+const showInviteResultNotice = ({ status, targetName, matchName }) => {
+    const safeMatchName = matchName || 'este partido';
 
-const shouldBlockInvitationForStatus = (statusValue) => {
-    const status = normalizeInviteStatus(statusValue);
-    return !REINVITABLE_INVITE_STATUSES.has(status);
+    if (status === 'reinvited') {
+        showInviteNotice({
+            title: 'Reinvitación enviada',
+            message: `La reinvitación para ${targetName} a "${safeMatchName}" se envió correctamente.`,
+        });
+        return;
+    }
+
+    if (status === 'already_pending') {
+        showInviteNotice({
+            title: 'Invitación pendiente',
+            message: `Este jugador ya tiene una invitación pendiente para "${safeMatchName}".`,
+        });
+        return;
+    }
+
+    if (status === 'already_in_match') {
+        showInviteNotice({
+            title: 'Jugador ya en el partido',
+            message: `${targetName} ya forma parte de "${safeMatchName}".`,
+        });
+        return;
+    }
+
+    if (status === 'recipient_unavailable') {
+        showInviteNotice({
+            title: 'Invitaciones desactivadas',
+            message: `${targetName} no está recibiendo invitaciones en este momento.`,
+        });
+        return;
+    }
+
+    showInviteNotice({
+        title: 'Invitación enviada',
+        message: `La invitación para ${targetName} a "${safeMatchName}" se envió correctamente.`,
+    });
 };
 
-const collectBlockedInviteMatchIds = (rows = [], allowedMatchIds = new Set()) => {
-    const latestByMatch = new Map();
-    (Array.isArray(rows) ? rows : []).forEach((row) => {
-        const matchId = resolveInviteMatchId(row);
-        if (!matchId) return;
-        if (allowedMatchIds.size > 0 && !allowedMatchIds.has(matchId)) return;
-        const ts = getInviteTimestampMs(row);
-        const current = latestByMatch.get(matchId);
-        if (!current || ts >= current.ts) {
-            latestByMatch.set(matchId, { row, ts });
-        }
-    });
-
-    const blocked = new Set();
-    latestByMatch.forEach(({ row }, matchId) => {
-        if (shouldBlockInvitationForStatus(row?.data?.status)) {
-            blocked.add(matchId);
-        }
-    });
-    return blocked;
+const handleInviteRpcError = (error) => {
+    const rawMessage = String(error?.message || '').toLowerCase();
+    if (rawMessage.includes('invitations_closed')) {
+        notifyBlockingError('El partido no está abierto para invitaciones en este momento.');
+        return;
+    }
+    if (rawMessage.includes('guest_direct_invite_forbidden')) {
+        notifyBlockingError('Solo el organizador puede enviar esta invitación directa.');
+        return;
+    }
+    if (rawMessage.includes('actor_not_in_match')) {
+        notifyBlockingError('Debes formar parte del partido para invitar a este jugador.');
+        return;
+    }
+    if (rawMessage.includes('recipient_not_found')) {
+        notifyBlockingError('No se encontró al jugador que querés invitar.');
+        return;
+    }
+    notifyBlockingError('Error al procesar la invitación');
 };
 
 const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
@@ -153,9 +198,9 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
 
             const { data: extInviteRows, error: extInviteError } = await supabase
                 .from('notifications_ext')
-                .select('match_id_text, data, send_at, created_at')
+                .select('type, match_id_text, data, send_at, created_at')
                 .eq('user_id', targetUserId)
-                .eq('type', 'match_invite')
+                .in('type', ['match_invite', 'match_kicked'])
                 .in('match_id_text', Array.from(dedupedMatchIdTexts));
 
             if (extInviteError && extInviteError.code !== '42P01') throw extInviteError;
@@ -164,14 +209,16 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             if (extInviteError && extInviteError.code === '42P01') {
                 const { data: fallbackInviteRows, error: fallbackInviteError } = await supabase
                     .from('notifications')
-                    .select('partido_id, match_ref, data, send_at, created_at')
+                    .select('type, partido_id, match_ref, data, send_at, created_at')
                     .eq('user_id', targetUserId)
-                    .eq('type', 'match_invite');
+                    .in('type', ['match_invite', 'match_kicked']);
                 if (fallbackInviteError) throw fallbackInviteError;
                 inviteRows = fallbackInviteRows || [];
             }
 
-            const blockedInviteMatchIds = collectBlockedInviteMatchIds(inviteRows, dedupedMatchIdTexts);
+            const inviteStatesByMatch = buildInviteStateByMatch(
+                inviteRows.filter((row) => dedupedMatchIdTexts.has(resolveNotificationMatchIdText(row) || '')),
+            );
 
             const now = new Date();
             const matchesWithStatus = dedupedMatches
@@ -195,28 +242,38 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                 .map((match) => {
                     const playersInMatch = (jugadoresData || []).filter((j) => j.partido_id === match.id);
                     const isParticipating = playersInMatch.some((j) => j.usuario_id === targetUserId);
-                    const hasInvitation = blockedInviteMatchIds.has(String(match.id));
+                    if (isParticipating) return null;
+
+                    const inviteState = inviteStatesByMatch.get(String(match.id)) || EMPTY_MATCH_INVITE_STATE;
                     const starterCapacity = Number(match.cupo_jugadores || 20);
                     const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 4 : 0;
                     const isRosterFull = maxRosterSlots > 0 && playersInMatch.length >= maxRosterSlots;
+                    let inviteStatus = 'available';
+                    if (inviteState.hasPendingInvite) inviteStatus = 'already_pending';
+                    else if (isRosterFull) inviteStatus = 'roster_full';
 
                     return {
                         ...match,
                         jugadores_count: playersInMatch.length,
-                        isParticipating,
-                        hasInvitation,
+                        inviteState,
                         isRosterFull,
-                        canInvite: !isParticipating && !hasInvitation && !isRosterFull,
+                        inviteStatus,
+                        canInvite: inviteStatus === 'available',
                         fecha_display: formatLocalDateShort(match.fecha),
                     };
                 })
-                .filter((match) => match.canInvite);
+                .filter(Boolean)
+                .sort((left, right) => {
+                    if (left.canInvite === right.canInvite) return 0;
+                    return left.canInvite ? -1 : 1;
+                });
 
             setMatches(matchesWithStatus);
 
             // Auto-select if there is only 1 match
-            if (matchesWithStatus.length === 1 && matchesWithStatus[0].canInvite) {
-                setSelectedMatchId(matchesWithStatus[0].id);
+            const availableMatches = matchesWithStatus.filter((match) => match.canInvite);
+            if (availableMatches.length === 1) {
+                setSelectedMatchId(availableMatches[0].id);
             }
         } catch (error) {
             console.error('[INVITE_MODAL] Error fetching matches:', error);
@@ -234,7 +291,8 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
             return;
         }
         if (!match.canInvite) {
-            console.info('Ese partido ya no tiene cupos disponibles.');
+            showMatchAvailabilityNotice(match, targetName);
+            await fetchUserMatches();
             return;
         }
 
@@ -249,93 +307,70 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                     .eq('partido_id', match.id);
                 if (countError) throw countError;
                 if ((currentPlayersCount || 0) >= maxRosterSlots) {
-                    console.info('El partido ya está completo (titulares y suplentes).');
+                    showInviteNotice({
+                        title: 'Partido sin cupos',
+                        message: `Ya no hay cupos disponibles en "${match?.nombre || 'este partido'}".`,
+                    });
                     await fetchUserMatches();
                     return;
                 }
-            }
-
-            const { data: targetUserRow, error: targetUserError } = await supabase
-                .from('usuarios')
-                .select('acepta_invitaciones')
-                .eq('id', targetUserId)
-                .maybeSingle();
-
-            if (targetUserError) throw targetUserError;
-            if (targetUserRow?.acepta_invitaciones === false) {
-                console.info(`${targetName} está en no disponible y no recibe invitaciones.`);
-                return;
             }
 
             const { data: currentUser } = await supabase
                 .from('usuarios')
                 .select('nombre')
                 .eq('id', currentUserId)
-                .single();
+                .maybeSingle();
 
-            const notificationData = {
-                user_id: targetUserId,
-                type: 'match_invite',
-                partido_id: Number(match.id),
-                title: 'Invitación a partido',
-                message: `${currentUser?.nombre || 'Alguien'} te invitó a jugar el ${match.fecha_display} a las ${match.hora}`,
-                data: {
-                    match_id: toBigIntId(match.id),
-                    matchId: toBigIntId(match.id),
-                    matchName: match.nombre,
-                    matchDate: match.fecha,
-                    matchTime: match.hora,
-                    matchLocation: match.sede,
-                    inviterId: currentUserId,
-                    inviterName: currentUser?.nombre || 'Alguien',
-                    status: 'pending',
-                    invite_mode: 'direct',
-                    link: match?.codigo
-                        ? `/partido/${toBigIntId(match.id)}/invitacion?codigo=${encodeURIComponent(match.codigo)}`
-                        : `/partido/${toBigIntId(match.id)}/invitacion`,
-                },
-                read: false,
-            };
+            const { data, error } = await supabase.rpc('send_match_invite', {
+                p_user_id: targetUserId,
+                p_partido_id: Number(match.id),
+                p_title: 'Invitación a partido',
+                p_message: `${currentUser?.nombre || 'Alguien'} te invitó a jugar el ${match.fecha_display} a las ${match.hora}`,
+                p_invite_mode: 'direct',
+            });
 
-            const { error } = await supabase.from('notifications').insert([notificationData]);
+            if (error) throw error;
 
-            if (error) {
-                if (error.code === '23505') {
-                    console.log('[INVITE_DEBUG] 409 Conflict (Duplicate):', error.message);
-                    // Update local state to prevent further attempts
-                    setMatches(prev => prev.map(m =>
-                        m.id === selectedMatchId ? { ...m, hasInvitation: true, canInvite: false } : m
-                    ));
-                    console.info('La invitación ya había sido enviada');
-                    return;
-                }
-                throw error;
+            const inviteResult = normalizeSendMatchInviteResult(data);
+            if (inviteResult === 'sent' || inviteResult === 'reinvited') {
+                requestImmediatePushDispatchSafe({
+                    eventType: 'match_invite',
+                    matchId: Number(match.id),
+                    recipientUserId: targetUserId,
+                    limit: 20,
+                });
+                track('match_invite_sent', {
+                    match_id: Number(match.id),
+                    recipient_user_id: String(targetUserId || '').trim() || undefined,
+                    source: 'invite_to_match_modal',
+                    invite_result: inviteResult,
+                });
+                showInviteResultNotice({
+                    status: inviteResult,
+                    targetName,
+                    matchName: match?.nombre,
+                });
+                onClose();
+                return;
             }
 
-            requestImmediatePushDispatchSafe({
-                eventType: 'match_invite',
-                matchId: Number(match.id),
-                recipientUserId: targetUserId,
-                limit: 20,
+            showInviteResultNotice({
+                status: inviteResult,
+                targetName,
+                matchName: match?.nombre,
             });
-            track('match_invite_sent', {
-                match_id: Number(match.id),
-                recipient_user_id: String(targetUserId || '').trim() || undefined,
-                source: 'invite_to_match_modal',
-            });
-
-            console.info(`Invitación enviada a ${targetName}`);
-            onClose();
+            await fetchUserMatches();
         } catch (error) {
             console.error('[INVITE_MODAL] Error sending invitation:', error);
-            notifyBlockingError('Error al enviar la invitación');
+            handleInviteRpcError(error);
         } finally {
             setInviting(false);
         }
     };
 
     const selectedMatch = matches.find(m => m.id === selectedMatchId);
-    const canSubmit = Boolean(selectedMatchId) && !inviting;
+    const canSubmit = Boolean(selectedMatchId) && Boolean(selectedMatch?.canInvite) && !inviting;
 
 
     const footerContent = (
@@ -395,7 +430,7 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                     <p className="text-white/50 text-sm leading-relaxed mb-1">
                         No tenés partidos activos disponibles para invitar.
                     </p>
-                    <p className="text-white/35 text-xs">Solo se muestran tus partidos vigentes donde se puede invitar.</p>
+                    <p className="text-white/35 text-xs">No se muestran partidos vencidos ni partidos donde este jugador ya forma parte de la nómina.</p>
                 </div>
             ) : (
                 <div className="flex flex-col gap-2.5">
@@ -406,8 +441,15 @@ const InviteToMatchModal = ({ isOpen, onClose, friend, currentUserId }) => {
                                 key={match.id}
                                 match={match}
                                 isSelected={isSelected}
-                                onSelect={() => !inviting && setSelectedMatchId(match.id)}
-                                inviteStatus="available"
+                                onSelect={() => {
+                                    if (inviting) return;
+                                    if (match.canInvite) {
+                                        setSelectedMatchId(match.id);
+                                        return;
+                                    }
+                                    showMatchAvailabilityNotice(match, targetName);
+                                }}
+                                inviteStatus={match.inviteStatus}
                             />
                         );
                     })}
