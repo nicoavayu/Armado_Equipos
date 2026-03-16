@@ -5,6 +5,15 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGri
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { getPointsEfficiencySummary } from 'utils/statsSummary';
 import {
+  buildUserIdentityTokenSet,
+  entityMatchesIdentitySet,
+  getEntityIdentityValues,
+  isUuidLike,
+  listRegisteredUserIdentityRefs,
+  normalizeAwardType,
+  normalizeIdentityToken as normalizeIdentity,
+} from '../services/db/userIdentity';
+import {
   buildSurveyOutcomeStats,
   dedupeMatchesById,
   isClosedPlayedSurveyOutcome,
@@ -121,6 +130,7 @@ const StatsView = ({ onVolver }) => {
     },
   });
   const [loading, setLoading] = useState(true);
+  const [identityRefs, setIdentityRefs] = useState([]);
 
   const getDefaultExtendedStats = () => ({
     asistencia: {
@@ -162,39 +172,18 @@ const StatsView = ({ onVolver }) => {
     },
   });
 
-  const normalizeIdentity = (value) => String(value || '').trim().toLowerCase();
-  const isUuid = (v) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
-  const getUserIdentitySet = () => {
-    const refs = [
-      user?.id,
-      user?.email,
-      user?.user_metadata?.email,
-      user?.user_metadata?.name,
-      user?.user_metadata?.full_name,
-    ]
-      .map(normalizeIdentity)
-      .filter(Boolean);
-    return new Set(refs);
-  };
+  const getUserIdentitySet = () => buildUserIdentityTokenSet({
+    user,
+    aliasRefs: identityRefs,
+  });
   const getPlayerIdentityCandidates = (jugador) => {
-    if (!jugador) return [];
-    return [
-      jugador.usuario_id,
-      jugador.user_id,
-      jugador.uuid,
-      jugador.id,
-      jugador.auth_id,
-      jugador.email,
-      jugador.nombre,
-    ]
+    return getEntityIdentityValues(jugador)
       .map(normalizeIdentity)
       .filter(Boolean);
   };
 
   const isCurrentUserPlayer = (jugador) => {
-    const userRefs = getUserIdentitySet();
-    const candidates = getPlayerIdentityCandidates(jugador);
-    return candidates.some((c) => userRefs.has(c));
+    return entityMatchesIdentitySet(jugador, getUserIdentitySet());
   };
   const resolveMatchType = (match) => {
     const tokens = [
@@ -247,7 +236,32 @@ const StatsView = ({ onVolver }) => {
     if (user) {
       loadStats();
     }
-  }, [user, period, selectedYear, selectedMonth, selectedWeek]);
+  }, [user, identityRefs, period, selectedYear, selectedMonth, selectedWeek]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadIdentityRefs = async () => {
+      if (!user?.id) {
+        setIdentityRefs([]);
+        return;
+      }
+
+      try {
+        const refs = await listRegisteredUserIdentityRefs(user.id);
+        if (!cancelled) setIdentityRefs(refs);
+      } catch (error) {
+        console.warn('[STATS] Could not resolve historical identity aliases. Falling back to auth user.', error);
+        if (!cancelled) setIdentityRefs([user.id]);
+      }
+    };
+
+    loadIdentityRefs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     const hasOpenDropdown = showWeekDropdown || showMonthDropdown || showYearDropdown;
@@ -541,7 +555,7 @@ const StatsView = ({ onVolver }) => {
       });
     });
 
-    const userIds = [...new Set(Object.values(amigosInfo).map((a) => a.userId).filter((id) => isUuid(id)))];
+    const userIds = [...new Set(Object.values(amigosInfo).map((a) => a.userId).filter((id) => isUuidLike(id)))];
     if (userIds.length > 0) {
       const { data: profiles } = await supabase
         .from('usuarios')
@@ -607,13 +621,6 @@ const StatsView = ({ onVolver }) => {
     const totalPartidosManuales = manualHistoryRes.error ? 0 : (manualHistoryRes.data?.length || 0);
     const totalHistorico = totalPartidosNormales + totalPartidosManuales;
 
-    const normalizeAwardType = (value) => {
-      const token = normalizeIdentity(value);
-      if (token === 'mvp') return 'mvp';
-      if (token === 'best_gk' || token === 'guante_dorado' || token === 'golden_glove') return 'best_gk';
-      if (token === 'red_card' || token === 'tarjeta_roja') return 'red_card';
-      return null;
-    };
     const registerAwardIfUser = (awardType, candidateRef, userRefsSet, awardCounts) => {
       const normalizedType = normalizeAwardType(awardType);
       if (!normalizedType || !(userRefsSet instanceof Set) || userRefsSet.size === 0) return;

@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { resolveStablePlayerRef } from './db/userIdentity';
 
 const toIdNumber = (value) => {
   const num = Number(value);
@@ -8,7 +9,7 @@ const toIdNumber = (value) => {
 const isArray = (value) => Array.isArray(value);
 
 const stablePlayerRef = (player) => (
-  player?.uuid || player?.usuario_id || (player?.id != null ? String(player.id) : null)
+  resolveStablePlayerRef(player) || (player?.id != null ? String(player.id) : null)
 );
 
 const buildParticipantsSnapshot = (players = []) => {

@@ -4,6 +4,7 @@ import { grantAwardsForMatch } from './db/awards';
 import { applyNoShowPenalties, applyNoShowRecoveries } from './db/penalties';
 import { handleError } from '../lib/errorHandler';
 import { ensureParticipantsSnapshot, ensureSurveyResultsSnapshot } from './historySnapshotService';
+import { resolveStablePlayerRef } from './db/userIdentity';
 
 import {
   SURVEY_FINALIZE_DELAY_MS,
@@ -327,7 +328,7 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
     redMap = count(surveys, 'tarjeta_roja') || count(surveys, 'mas_sucio') || count(surveys, 'sucio') || count(surveys, 'player_dirty');
   }
 
-  const awards = {
+  const numericAwards = {
     mvp: pickWinner(mvpMap),
     best_gk: pickWinner(gkMap),
     red_card: pickWinner(redMap),
@@ -339,16 +340,16 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
   };
 
   if (skipMvp) {
-    awards.mvp = null;
+    numericAwards.mvp = null;
   } else if (shouldOverrideMvp) {
     const mvpKey = String(mvpOverridePlayerId);
     const votesFromMap = Number(mvpMap[mvpKey] || 0);
-    const totalVotes = Number(awards?.totals?.mvp || 0);
+    const totalVotes = Number(numericAwards?.totals?.mvp || 0);
     const fallbackVotes = Math.max(...Object.values(mvpMap).map((v) => Number(v) || 0), 0);
     const resolvedVotes = votesFromMap > 0 ? votesFromMap : fallbackVotes;
     const denominator = totalVotes > 0 ? totalVotes : Math.max(resolvedVotes, 1);
 
-    awards.mvp = {
+    numericAwards.mvp = {
       player_id: mvpOverridePlayerId,
       votes: resolvedVotes,
       pct: Math.round((resolvedVotes * 100) / denominator),
@@ -356,7 +357,24 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
     };
   }
 
-  const awardEntries = extractAwardEntries(awards);
+  const { idToPlayerRef } = await buildPlayerIdentityMapsForMatch(idNum);
+  const serializeAward = (award) => {
+    if (!award || !Number.isFinite(Number(award?.player_id))) return null;
+    const playerIdNum = Number(award.player_id);
+    return {
+      ...award,
+      player_id: idToPlayerRef.get(playerIdNum) || String(playerIdNum),
+    };
+  };
+
+  const awards = {
+    mvp: serializeAward(numericAwards.mvp),
+    best_gk: serializeAward(numericAwards.best_gk),
+    red_card: serializeAward(numericAwards.red_card),
+    totals: numericAwards.totals,
+  };
+
+  const awardEntries = extractAwardEntries(numericAwards);
   const awardsCount = awardEntries.length;
   let surveyResultsUpdated = false;
 
@@ -402,7 +420,7 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
   // Grant awards to registered players only.
   // Idempotency is enforced at DB level via UNIQUE(partido_id, award_type) + ON CONFLICT DO NOTHING.
   try {
-    grantResult = await grantAwardsForMatch(idNum, awards);
+    grantResult = await grantAwardsForMatch(idNum, numericAwards);
   } catch (awardError) {
     handleError(awardError, { showToast: false, onError: () => { } });
     return {
@@ -516,7 +534,7 @@ const buildPlayerIdentityMapsForMatch = async (partidoId) => {
     const id = Number(row?.id);
     if (!Number.isFinite(id)) return;
 
-    const stableRef = row?.uuid || row?.usuario_id || String(id);
+    const stableRef = resolveStablePlayerRef(row) || String(id);
     idToPlayerRef.set(id, stableRef);
 
     [row?.uuid, row?.usuario_id, row?.id, stableRef]
@@ -613,7 +631,7 @@ const resolvePlayerIdFromStableRef = async (partidoId, stableRef) => {
       row?.uuid,
       row?.usuario_id,
       row?.id,
-      row?.uuid || row?.usuario_id || String(id),
+      resolveStablePlayerRef(row) || String(id),
     ].map((value) => normalizeRef(value));
     if (refs.includes(token)) return id;
   }

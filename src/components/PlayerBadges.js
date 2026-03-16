@@ -1,30 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabase';
+import { fetchAwardCountsForPlayerRef, normalizeAwardType } from '../services/db/userIdentity';
 
 const PlayerBadges = ({ playerId, size = 'small' }) => {
-  const [badges, setBadges] = useState([]);
+  const [badges, setBadges] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchBadges = async () => {
-      if (!playerId) return;
-      
+      if (!playerId) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        const { data, error } = await supabase
-          .from('player_awards')
-          .select('award_type, created_at')
-          .eq('jugador_id', playerId)
-          .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        
-        // Contar badges por tipo
-        const badgeCounts = {};
-        data.forEach((award) => {
-          badgeCounts[award.award_type] = (badgeCounts[award.award_type] || 0) + 1;
+        const badgeCounts = await fetchAwardCountsForPlayerRef(playerId);
+        setBadges({
+          mvp: Number(badgeCounts?.mvps || 0),
+          best_gk: Number(badgeCounts?.guantes_dorados || 0),
+          red_card: Number(badgeCounts?.tarjetas_rojas || 0),
         });
-        
-        setBadges(badgeCounts);
       } catch (error) {
         console.error('Error fetching badges:', error);
       } finally {
@@ -40,29 +34,19 @@ const PlayerBadges = ({ playerId, size = 'small' }) => {
   }
 
   const getBadgeIcon = (type) => {
-    switch (type) {
-      case 'mvp':
-        return '🏆';
-      case 'goalkeeper':
-        return '🥅';
-      case 'negative_fair_play':
-        return '🟥';
-      default:
-        return '🏅';
-    }
+    const normalizedType = normalizeAwardType(type);
+    if (normalizedType === 'mvp') return '🏆';
+    if (normalizedType === 'best_gk') return '🥅';
+    if (normalizedType === 'red_card') return '🟥';
+    return '🏅';
   };
 
   const getBadgeColor = (type) => {
-    switch (type) {
-      case 'mvp':
-        return '#FFD700';
-      case 'goalkeeper':
-        return '#00D49B';
-      case 'negative_fair_play':
-        return '#DE1C49';
-      default:
-        return '#999';
-    }
+    const normalizedType = normalizeAwardType(type);
+    if (normalizedType === 'mvp') return '#FFD700';
+    if (normalizedType === 'best_gk') return '#00D49B';
+    if (normalizedType === 'red_card') return '#DE1C49';
+    return '#999';
   };
 
   const badgeSize = size === 'large' ? '24px' : '16px';

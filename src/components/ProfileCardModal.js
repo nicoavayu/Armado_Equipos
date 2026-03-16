@@ -7,6 +7,7 @@ import ProfileCard from './ProfileCard';
 import WhatsappIcon from './WhatsappIcon';
 import { useAmigos } from '../hooks/useAmigos';
 import { supabase } from '../supabase';
+import { getProfile } from '../services/db/profiles';
 import { Phone, PhoneOff } from 'lucide-react';
 // import './ProfileCardModal.css'; // REMOVED
 
@@ -83,14 +84,11 @@ const ProfileCardModal = ({ isOpen, onClose, profile, partidoActual, onMakeAdmin
         return;
       }
 
-      const { data: latestProfile, error } = await supabase
-        .from('usuarios')
-        .select('*')
-        .eq('id', registeredUserId)
-        .maybeSingle();
-
-      if (error) {
-        console.warn('[PROFILE_MODAL] Could not refresh latest profile from usuarios:', error);
+      let latestProfile = null;
+      try {
+        latestProfile = await getProfile(registeredUserId);
+      } catch (error) {
+        console.warn('[PROFILE_MODAL] Could not refresh latest profile from canonical resolver:', error);
         if (!isCancelled) setHasPersistedUserProfile(false);
         return;
       }

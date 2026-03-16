@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { normalizeAwardType } from './db/userIdentity';
 
 /**
  * Procesa notificaciones programadas que ya están listas para enviar
@@ -117,9 +118,9 @@ export const getMatchResults = async (partidoId) => {
     // Organizar resultados por tipo de premio
     const results = {
       partido: partido,
-      mvp: awards.find((a) => a.award_type === 'mvp'),
-      guante_dorado: awards.find((a) => a.award_type === 'guante_dorado'),
-      tarjetas_rojas: awards.filter((a) => a.award_type === 'tarjeta_roja'),
+      mvp: awards.find((a) => normalizeAwardType(a?.award_type) === 'mvp'),
+      guante_dorado: awards.find((a) => normalizeAwardType(a?.award_type) === 'best_gk'),
+      tarjetas_rojas: awards.filter((a) => normalizeAwardType(a?.award_type) === 'red_card'),
       total_awards: awards.length,
     };
 

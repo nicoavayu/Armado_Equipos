@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useBadges } from '../context/BadgeContext';
 import { useInterval } from '../hooks/useInterval';
+import { fetchAwardCountsForPlayerRef, normalizeAwardType } from '../services/db/userIdentity';
 import LoadingSpinner from './LoadingSpinner';
 
 // Test function for debugging
@@ -90,32 +91,12 @@ const PlayerAwards = ({ playerId }) => {
     console.log('[PLAYER_AWARDS] Fetching awards for playerId:', playerId);
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('player_awards')
-        .select('*')
-        .eq('jugador_id', playerId);
-
-      if (error) throw error;
-
-      console.log('[PLAYER_AWARDS] Raw data:', data);
-
-      // Count awards by type
+      const resolvedCounts = await fetchAwardCountsForPlayerRef(playerId);
       const counts = {
-        mvp: 0,
-        guante_dorado: 0,
-        tarjeta_roja: 0,
+        mvp: Number(resolvedCounts?.mvps || 0),
+        guante_dorado: Number(resolvedCounts?.guantes_dorados || 0),
+        tarjeta_roja: Number(resolvedCounts?.tarjetas_rojas || 0),
       };
-
-      data.forEach((award) => {
-        const type = String(award.award_type || '').toLowerCase();
-        if (type === 'mvp') counts.mvp++;
-        if (type === 'guante_dorado' || type === 'best_gk' || type === 'goalkeeper') {
-          counts.guante_dorado++;
-        }
-        if (type === 'tarjeta_roja' || type === 'red_card' || type === 'negative_fair_play') {
-          counts.tarjeta_roja++;
-        }
-      });
 
       console.log('[PLAYER_AWARDS] Counts:', counts);
       setAwards(counts);
@@ -174,7 +155,7 @@ const PlayerAwards = ({ playerId }) => {
                 console.log('🔥 No partidos found');
                 return;
               }
-              const badge = { jugador_id: user.id, partido_id: partidos[0].id, award_type: 'mvp' };
+              const badge = { jugador_id: user.id, partido_id: partidos[0].id, award_type: normalizeAwardType('mvp') };
               console.log('🔥 DIRECT INSERT:', badge);
               const { data, error } = await supabase.from('player_awards').insert([badge]).select();
               if (error) console.error('🔥 ERROR:', error);

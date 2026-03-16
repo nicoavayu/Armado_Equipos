@@ -34,7 +34,7 @@ export const processMatchStats = async (partidoId) => {
     // Get match players
     const { data: jugadores, error: playersError } = await supabase
       .from('jugadores')
-      .select('usuario_id, nombre')
+      .select('id, usuario_id, nombre')
       .eq('partido_id', partidoId)
       .not('usuario_id', 'is', null);
       
@@ -62,7 +62,7 @@ export const processMatchStats = async (partidoId) => {
     
     // Process each player
     for (const jugador of jugadores || []) {
-      const isAbsent = absentPlayersSet.has(jugador.usuario_id);
+      const isAbsent = absentPlayersSet.has(jugador.id);
       
       if (isAbsent) {
         // Player was absent - increment partidos_abandonados

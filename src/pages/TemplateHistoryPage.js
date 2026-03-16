@@ -4,6 +4,7 @@ import PageTitle from '../components/PageTitle';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { supabase } from '../supabase';
 import { ensureParticipantsSnapshot } from '../services/historySnapshotService';
+import { normalizeAwardType } from '../services/db/userIdentity';
 import AvatarFallback from '../components/AvatarFallback';
 
 const fmtDateShort = (ymd) => {
@@ -269,9 +270,9 @@ const TemplateHistoryPage = () => {
               const rows = byMatchAwards.get(Number(id)) || [];
               if (rows.length === 0) return;
 
-              const mvp = rows.find((r) => String(r.award_type) === 'mvp')?.jugador_id || null;
-              const gk = rows.find((r) => String(r.award_type) === 'goalkeeper')?.jugador_id || null;
-              const dirty = rows.find((r) => String(r.award_type) === 'negative_fair_play')?.jugador_id || null;
+              const mvp = rows.find((r) => normalizeAwardType(r?.award_type) === 'mvp')?.jugador_id || null;
+              const gk = rows.find((r) => normalizeAwardType(r?.award_type) === 'best_gk')?.jugador_id || null;
+              const dirty = rows.find((r) => normalizeAwardType(r?.award_type) === 'red_card')?.jugador_id || null;
 
               resMap.set(Number(id), {
                 partido_id: Number(id),

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
+import { normalizeAwardType } from '../../services/db/userIdentity';
 import LoadingSpinner from '../LoadingSpinner';
 import JugadorDestacadoCard from './JugadorDestacadoCard';
 import EstadisticasPartido from './EstadisticasPartido';
@@ -54,9 +55,9 @@ const FichaDePartido = ({ partido, onBack, onClose }) => {
         if (premiosError) throw premiosError;
 
         // Procesar datos de premios por categoría
-        const mvps = premiosData?.filter((p) => p.award_type === 'mvp') || [];
-        const arqueros = premiosData?.filter((p) => p.award_type === 'goalkeeper') || [];
-        const sucios = premiosData?.filter((p) => p.award_type === 'negative_fair_play') || [];
+        const mvps = premiosData?.filter((p) => normalizeAwardType(p?.award_type) === 'mvp') || [];
+        const arqueros = premiosData?.filter((p) => normalizeAwardType(p?.award_type) === 'best_gk') || [];
+        const sucios = premiosData?.filter((p) => normalizeAwardType(p?.award_type) === 'red_card') || [];
 
         // Recopilar IDs de jugadores ausentes de todas las encuestas
         const ausentesIds = new Set();

@@ -1,5 +1,8 @@
 import { supabase } from '../../lib/supabaseClient';
 import logger from '../../utils/logger';
+import {
+  fetchRegisteredUserAwardCounts,
+} from './userIdentity';
 
 const normalizeToken = (value) => String(value || '').trim().toLowerCase();
 
@@ -155,14 +158,6 @@ export const getProfile = async (userId) => {
       const parsed = Number.parseInt(value, 10);
       return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
     };
-    const normalizeAwardType = (value) => {
-      const token = String(value || '').trim().toLowerCase();
-      if (token === 'mvp') return 'mvp';
-      if (token === 'best_gk' || token === 'guante_dorado' || token === 'goalkeeper' || token === 'golden_glove') return 'gk';
-      if (token === 'red_card' || token === 'tarjeta_roja' || token === 'negative_fair_play') return 'red';
-      return null;
-    };
-
     const baseBadgeCounts = {
       mvps: parseCounter(data.mvps ?? data.mvp_badges),
       guantes_dorados: parseCounter(data.guantes_dorados ?? data.gk_badges),
@@ -176,21 +171,10 @@ export const getProfile = async (userId) => {
     };
 
     try {
-      const { data: badges, error: badgesError } = await supabase
-        .from('player_awards')
-        .select('award_type')
-        .eq('jugador_id', userId);
-
-      if (badgesError) {
-        console.warn('[GET_PROFILE] Could not fetch player_awards counters:', badgesError);
-      } else if (Array.isArray(badges)) {
-        badges.forEach((badge) => {
-          const normalizedType = normalizeAwardType(badge?.award_type);
-          if (normalizedType === 'mvp') derivedBadgeCounts.mvps += 1;
-          if (normalizedType === 'gk') derivedBadgeCounts.guantes_dorados += 1;
-          if (normalizedType === 'red') derivedBadgeCounts.tarjetas_rojas += 1;
-        });
-      }
+      const resolvedCounts = await fetchRegisteredUserAwardCounts(userId, supabase);
+      derivedBadgeCounts.mvps = Number(resolvedCounts?.mvps || 0);
+      derivedBadgeCounts.guantes_dorados = Number(resolvedCounts?.guantes_dorados || 0);
+      derivedBadgeCounts.tarjetas_rojas = Number(resolvedCounts?.tarjetas_rojas || 0);
     } catch (badgeError) {
       console.error('[GET_PROFILE] Error fetching badges:', badgeError);
       // Continue using usuarios counters if there's an error

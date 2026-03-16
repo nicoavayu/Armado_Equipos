@@ -22,17 +22,17 @@ export const incrementMatchesPlayed = async (partidoId) => {
 
     // Incrementar partidos_jugados para cada jugador
     for (const jugador of partido.jugadores) {
-      const userId = jugador.usuario_id || jugador.id;
-      if (userId) {
-        const { error } = await supabase.rpc('increment_matches_played', {
-          user_id: userId,
-        });
+      const userId = jugador.usuario_id || null;
+      if (!userId) continue;
 
-        if (error) {
-          logger.error('[MATCH_STATS] Error incrementing matches played for user:', { userId, error: encodeURIComponent(error?.message || '') });
-        } else {
-          logger.log('[MATCH_STATS] Incremented matches played for user:', { userId });
-        }
+      const { error } = await supabase.rpc('increment_matches_played', {
+        user_id: userId,
+      });
+
+      if (error) {
+        logger.error('[MATCH_STATS] Error incrementing matches played for user:', { userId, error: encodeURIComponent(error?.message || '') });
+      } else {
+        logger.log('[MATCH_STATS] Incremented matches played for user:', { userId });
       }
     }
   } catch (error) {

@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabaseClient';
+import { getAwardCounterField, resolveStablePlayerRef } from './userIdentity';
 
 const AWARD_WON_NOTIFICATION_TYPE = 'award_won';
 
@@ -171,12 +172,19 @@ export async function grantAwardsForMatch(matchId, awards) {
       expectedRegisteredAwards += 1;
 
       // Atomic insert: relies on UNIQUE(partido_id, award_type) and ON CONFLICT DO NOTHING.
+      const canonicalAwardType = awardType;
+      const stableAwardRef = resolveStablePlayerRef({
+        usuario_id: playerInfo.user_id,
+        uuid: playerInfo.uuid,
+        id: playerInfo.player_table_id,
+      });
+
       const { data: insertedAwards, error: insertError } = await supabase
         .from('player_awards')
         .upsert([{
           partido_id: matchId,
-          jugador_id: playerInfo.uuid,
-          award_type: awardType,
+          jugador_id: stableAwardRef,
+          award_type: canonicalAwardType,
           created_at: new Date().toISOString(),
         }], {
           onConflict: 'partido_id,award_type',
@@ -197,10 +205,7 @@ export async function grantAwardsForMatch(matchId, awards) {
       }
 
       // Increment canonical counters on usuarios.
-      const counterField = awardType === 'mvp' ? 'mvps'
-        : awardType === 'best_gk' ? 'guantes_dorados'
-          : awardType === 'red_card' ? 'tarjetas_rojas'
-            : null;
+      const counterField = getAwardCounterField(canonicalAwardType);
 
       if (counterField && playerInfo.user_id) {
         try {
