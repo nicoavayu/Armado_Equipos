@@ -11,7 +11,7 @@ as $$
   with normalized as (
     select nullif(btrim(p_ref), '') as ref
   )
-  select coalesce(match_row.usuario_id::text, match_row.uuid, normalized.ref)
+  select coalesce(match_row.usuario_id::text, match_row.uuid::text, normalized.ref)
   from normalized
   left join lateral (
     select j.usuario_id, j.uuid, j.id
@@ -19,12 +19,12 @@ as $$
     where j.partido_id = p_partido_id
       and (
         j.usuario_id::text = normalized.ref
-        or j.uuid = normalized.ref
+        or j.uuid::text = normalized.ref
         or j.id::text = normalized.ref
       )
     order by case
       when j.usuario_id::text = normalized.ref then 0
-      when j.uuid = normalized.ref then 1
+      when j.uuid::text = normalized.ref then 1
       when j.id::text = normalized.ref then 2
       else 3
     end
@@ -38,7 +38,7 @@ from public.jugadores j
 where j.partido_id = pa.partido_id
   and j.usuario_id is not null
   and (
-    j.uuid = pa.jugador_id
+    j.uuid::text = pa.jugador_id
     or j.id::text = pa.jugador_id
   )
   and pa.jugador_id is distinct from j.usuario_id::text;
