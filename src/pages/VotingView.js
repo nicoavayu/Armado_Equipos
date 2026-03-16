@@ -13,6 +13,7 @@ import DOMPurify from 'dompurify';
 import { handleError, AppError, ERROR_CODES } from '../lib/errorHandler';
 import { db } from '../api/supabaseWrapper';
 import { resolveMatchIdFromQueryParams } from '../utils/matchResolver';
+import { X } from 'lucide-react';
 import StarRating from '../components/StarRating';
 import { AvatarFallback } from '../components/ProfileComponents';
 import EmptyStateCard from '../components/EmptyStateCard';
@@ -385,7 +386,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   // -- FIN HOOKS --
 
   // Common wrapper styles
-  const wrapperClass = 'notranslate min-h-[100dvh] w-screen p-0 flex flex-col';
+  const wrapperClass = 'notranslate min-h-[100dvh] w-screen p-0 flex flex-col relative';
   const cardClass = 'w-[90vw] max-w-[520px] mx-auto flex flex-col items-center justify-center min-h-[calc(100dvh-120px)] p-5';
   const titleClass = 'font-bebas text-[40px] md:text-[64px] text-white tracking-[0.08em] font-bold mb-10 text-center leading-[0.98] uppercase drop-shadow-lg';
   const sectionTitleClass = 'font-bebas text-[31px] md:text-[46px] text-white tracking-[0.055em] font-bold text-center leading-[1.06] md:leading-[0.98] drop-shadow-lg';
@@ -424,6 +425,16 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       />
     </div>
   );
+  const cancelVoteButtonClass = 'absolute z-20 h-12 w-12 border flex items-center justify-center text-white transition-all duration-200 hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed';
+  const cancelVoteButtonStyle = {
+    top: 'max(14px, calc(env(safe-area-inset-top) + 12px))',
+    right: 'max(14px, calc(env(safe-area-inset-right) + 12px))',
+    background: 'rgba(28, 35, 67, 0.82)',
+    borderColor: 'rgba(123, 138, 197, 0.35)',
+    boxShadow: '0 12px 28px rgba(0, 0, 0, 0.24)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+  };
 
   // Guard: Check if should show final screen (happy path or already voted)
   const shouldShowFinal = publicAlreadyVoted || usuarioYaVoto || finalizado;
@@ -442,6 +453,28 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
       onReset();
     }
   };
+
+  const handleCancelVoting = useCallback(() => {
+    if (isSubmitting) return;
+    if (typeof onReset === 'function') {
+      onReset();
+      return;
+    }
+    window.history.back();
+  }, [isSubmitting, onReset]);
+
+  const cancelVoteButton = (
+    <button
+      type="button"
+      aria-label="Cerrar votación"
+      className={cancelVoteButtonClass}
+      style={cancelVoteButtonStyle}
+      onClick={handleCancelVoting}
+      disabled={isSubmitting}
+    >
+      <X size={24} strokeWidth={2.4} />
+    </button>
+  );
 
   // ============ EARLY GUARD: Return final screen if already voted ============
   if (lockedRef.current || publicAlreadyVoted || usuarioYaVoto || finalizado) {
@@ -638,6 +671,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (step === 0) {
     return (
       <div className={wrapperClass}>
+        {cancelVoteButton}
         <div className={cardClass}>
           <div className={titleClass}>¿QUIÉN SOS?</div>
           {jugadoresIdentificacion.length === 0 ? (
@@ -717,6 +751,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
     return (
       <div className={wrapperClass}>
+        {cancelVoteButton}
         {noticeSlot}
         <div
           className={`${cardClass} !justify-start`}
@@ -836,6 +871,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
 
     return (
       <div className={wrapperClass}>
+        {cancelVoteButton}
         {noticeSlot}
         <div
           className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center justify-start overflow-y-auto"
@@ -940,6 +976,7 @@ export default function VotingView({ onReset, jugadores, partidoActual }) {
   if (step === 3 && !finalizado) {
     return (
       <div className={wrapperClass}>
+        {cancelVoteButton}
         {noticeSlot}
         <div
           className="w-[90vw] max-w-[520px] mx-auto flex-1 min-h-0 flex flex-col items-center overflow-y-auto px-3 pb-3"
