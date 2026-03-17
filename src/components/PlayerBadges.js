@@ -29,7 +29,10 @@ const PlayerBadges = ({ playerId, size = 'small' }) => {
     fetchBadges();
   }, [playerId]);
 
-  if (loading || Object.keys(badges).length === 0) {
+  const visibleBadges = Object.entries(badges)
+    .filter(([, count]) => Number(count) > 0);
+
+  if (loading || visibleBadges.length === 0) {
     return null;
   }
 
@@ -59,7 +62,7 @@ const PlayerBadges = ({ playerId, size = 'small' }) => {
       alignItems: 'center',
       flexWrap: 'wrap',
     }}>
-      {Object.entries(badges).map(([type, count]) => (
+      {visibleBadges.map(([type, count]) => (
         <div
           key={type}
           style={{

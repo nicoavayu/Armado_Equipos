@@ -12,9 +12,10 @@ import InviteToMatchModal from '../components/InviteToMatchModal';
 import PlayerActionModal from '../components/PlayerActionModal';
 import ProfileCardModal from '../components/ProfileCardModal';
 import PlayerMiniCard from '../components/PlayerMiniCard';
+import PlayerBadges from '../components/PlayerBadges';
 import EmptyStateCard from '../components/EmptyStateCard';
 import { handleError } from '../lib/errorHandler';
-import { Calendar, Clock, MapPin, Star, Trophy, ListOrdered, Users, CalendarX2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, Star, ListOrdered, Users, CalendarX2 } from 'lucide-react';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
 const containerClass = 'flex flex-col items-center w-full pb-6 px-4 box-border font-oswald';
@@ -859,11 +860,7 @@ const QuieroJugar = ({
                         });
                         setActionPlayer(player);
                       }}
-                      metaBadge={(player.mvps > 0) ? (
-                        <span className="text-[9px] bg-yellow-500/10 text-yellow-500 px-1 py-0.5 rounded flex items-center gap-0.5 border border-yellow-500/20 font-bold">
-                          <Trophy size={10} /> {player.mvps}
-                        </span>
-                      ) : null}
+                      detailBadges={<PlayerBadges playerId={player.user_id || player.uuid || player.id} />}
                     />
                   ))}
                 </div>
