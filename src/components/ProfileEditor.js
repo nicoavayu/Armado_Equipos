@@ -410,9 +410,9 @@ const ProfileActionSection = ({
       Cerrar sesión
     </button>
 
-    <div className="flex flex-col items-center gap-1.5 pt-2">
+    <div className="flex flex-col items-center pt-2">
       <button
-        className="group inline-flex items-center justify-center text-[12px] font-oswald font-medium tracking-[0.08em] uppercase text-red-200/58 transition-all hover:text-red-100/90 disabled:opacity-35 disabled:cursor-not-allowed"
+        className="group inline-flex items-center justify-center text-[13px] font-oswald font-medium tracking-[0.01em] normal-case text-red-200/58 transition-all hover:text-red-100/90 disabled:opacity-35 disabled:cursor-not-allowed"
         onClick={handleDeleteAccount}
         disabled={deleteAccountDisabled}
       >
@@ -420,9 +420,6 @@ const ProfileActionSection = ({
           Eliminar cuenta
         </span>
       </button>
-      <p className="text-center text-[11px] font-oswald leading-none tracking-[0.04em] text-white/38">
-        Acción permanente
-      </p>
     </div>
   </div>
 );
@@ -1103,7 +1100,10 @@ function ProfileEditor({ isOpen, onClose, isEmbedded = false }) {
 
   if (isEmbedded) {
     return (
-      <div className="w-full relative bg-transparent overflow-x-hidden" style={{ overflowX: 'clip' }}>
+      <div
+        className="w-full relative overflow-x-hidden bg-[linear-gradient(180deg,rgba(18,26,60,0.16)_0%,rgba(18,26,60,0.1)_78%,rgba(18,26,60,0)_100%)]"
+        style={{ overflowX: 'clip' }}
+      >
         <ProfileEditorForm
           liveProfile={liveProfile}
           setLiveProfile={setLiveProfile}
