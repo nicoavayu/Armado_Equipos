@@ -410,26 +410,20 @@ const ProfileActionSection = ({
       Cerrar sesión
     </button>
 
-    <section className="w-full mt-5 border border-[rgba(239,68,68,0.18)] bg-[rgba(84,20,40,0.14)] px-4 py-4 sm:px-5">
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <span className="font-bebas text-[1.02rem] tracking-[0.06em] uppercase text-red-200/90">
-            Zona peligrosa
-          </span>
-          <p className="text-sm font-oswald leading-relaxed text-white/72">
-            Eliminar tu cuenta es permanente y no se puede deshacer.
-          </p>
-        </div>
-
-        <button
-          className="w-full h-[48px] rounded-none border border-[rgba(248,113,113,0.42)] bg-transparent text-red-200/78 text-[15px] font-oswald font-semibold tracking-[0.01em] normal-case cursor-pointer transition-all hover:bg-[rgba(220,38,38,0.12)] hover:text-red-100 active:opacity-95 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
-          onClick={handleDeleteAccount}
-          disabled={deleteAccountDisabled}
-        >
+    <div className="flex flex-col items-center gap-1.5 pt-2">
+      <button
+        className="group inline-flex items-center justify-center text-[12px] font-oswald font-medium tracking-[0.08em] uppercase text-red-200/58 transition-all hover:text-red-100/90 disabled:opacity-35 disabled:cursor-not-allowed"
+        onClick={handleDeleteAccount}
+        disabled={deleteAccountDisabled}
+      >
+        <span className="border-b border-transparent pb-0.5 transition-colors group-hover:border-red-200/45">
           Eliminar cuenta
-        </button>
-      </div>
-    </section>
+        </span>
+      </button>
+      <p className="text-center text-[11px] font-oswald leading-none tracking-[0.04em] text-white/38">
+        Acción permanente
+      </p>
+    </div>
   </div>
 );
 
