@@ -76,22 +76,61 @@ begin
   end if;
 end $$;
 
-update public.survey_results sr
-set
-  mvp = public._tmp_normalize_registered_player_ref(sr.partido_id, sr.mvp),
-  golden_glove = public._tmp_normalize_registered_player_ref(sr.partido_id, sr.golden_glove),
-  red_cards = (
-    select coalesce(array_agg(distinct normalized.ref), array[]::text[])
-    from (
-      select public._tmp_normalize_registered_player_ref(sr.partido_id, raw.ref) as ref
-      from unnest(coalesce(sr.red_cards, array[]::text[])) as raw(ref)
-      where nullif(btrim(raw.ref), '') is not null
-    ) normalized
-    where nullif(btrim(normalized.ref), '') is not null
-  )
-where sr.mvp is not null
-   or sr.golden_glove is not null
-   or coalesce(array_length(sr.red_cards, 1), 0) > 0;
+do $$
+declare
+  survey_mvp_type text;
+  survey_gk_type text;
+  survey_red_cards_type text;
+  mvp_assignment_sql text;
+  gk_assignment_sql text;
+  red_cards_assignment_sql text;
+begin
+  select
+    max(case when a.attname = 'mvp' then t.typname end),
+    max(case when a.attname = 'golden_glove' then t.typname end),
+    max(case when a.attname = 'red_cards' then t.typname end)
+  into survey_mvp_type, survey_gk_type, survey_red_cards_type
+  from pg_attribute a
+  join pg_class c on c.oid = a.attrelid
+  join pg_namespace n on n.oid = c.relnamespace
+  join pg_type t on t.oid = a.atttypid
+  where n.nspname = 'public'
+    and c.relname = 'survey_results'
+    and a.attname in ('mvp', 'golden_glove', 'red_cards')
+    and not a.attisdropped;
+
+  mvp_assignment_sql := case
+    when survey_mvp_type = 'uuid' then
+      'nullif(public._tmp_normalize_registered_player_ref(sr.partido_id, sr.mvp::text), '''')::uuid'
+    else
+      'public._tmp_normalize_registered_player_ref(sr.partido_id, sr.mvp::text)'
+  end;
+
+  gk_assignment_sql := case
+    when survey_gk_type = 'uuid' then
+      'nullif(public._tmp_normalize_registered_player_ref(sr.partido_id, sr.golden_glove::text), '''')::uuid'
+    else
+      'public._tmp_normalize_registered_player_ref(sr.partido_id, sr.golden_glove::text)'
+  end;
+
+  red_cards_assignment_sql := case
+    when survey_red_cards_type = '_uuid' then
+      '(select coalesce(array_agg(distinct nullif(btrim(normalized.ref), '''')::uuid), array[]::uuid[]) from (select public._tmp_normalize_registered_player_ref(sr.partido_id, raw.ref::text) as ref from unnest(coalesce(sr.red_cards, array[]::uuid[])) as raw(ref) where raw.ref is not null) normalized where nullif(btrim(normalized.ref), '''') is not null)'
+    else
+      '(select coalesce(array_agg(distinct normalized.ref), array[]::text[]) from (select public._tmp_normalize_registered_player_ref(sr.partido_id, raw.ref) as ref from unnest(coalesce(sr.red_cards, array[]::text[])) as raw(ref) where nullif(btrim(raw.ref), '''') is not null) normalized where nullif(btrim(normalized.ref), '''') is not null)'
+  end;
+
+  execute format($sql$
+    update public.survey_results sr
+    set
+      mvp = %s,
+      golden_glove = %s,
+      red_cards = %s
+    where sr.mvp is not null
+       or sr.golden_glove is not null
+       or coalesce(array_length(sr.red_cards, 1), 0) > 0
+  $sql$, mvp_assignment_sql, gk_assignment_sql, red_cards_assignment_sql);
+end $$;
 
 update public.survey_results sr
 set awards = (
