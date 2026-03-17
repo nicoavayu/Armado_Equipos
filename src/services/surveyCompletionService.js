@@ -1,7 +1,7 @@
 import { supabase } from '../supabase';
 import { db } from '../api/supabaseWrapper';
 import { grantAwardsForMatch } from './db/awards';
-import { applyNoShowPenalties, applyNoShowRecoveries } from './db/penalties';
+import { ensureNoShowRanking } from './db/penalties';
 import { handleError } from '../lib/errorHandler';
 import { ensureParticipantsSnapshot, ensureSurveyResultsSnapshot } from './historySnapshotService';
 import { resolveStablePlayerRef } from './db/userIdentity';
@@ -23,6 +23,21 @@ const MATCH_STATE_FINISHED = 'finalizado';
 const MATCH_STATE_CANCELLED = 'cancelado';
 
 const normalizeRef = (value) => String(value || '').trim().toLowerCase();
+
+const ensureNoShowRankingSafe = async (partidoId, options = {}) => {
+  try {
+    const ensureRes = await ensureNoShowRanking(partidoId, options);
+    if (ensureRes?.error) throw ensureRes.error;
+    return ensureRes;
+  } catch (error) {
+    console.error('[FINALIZE] ensureNoShowRanking error', {
+      partidoId: Number(partidoId),
+      replayMode: options.emitNotifications === false,
+      error,
+    });
+    return null;
+  }
+};
 
 export const normalizeWinnerTeamValue = (value) => {
   const token = normalizeRef(value);
@@ -938,6 +953,9 @@ export async function finalizeIfComplete(partidoId, options = {}) {
   } = surveyWindow;
 
   if (surveyStatus === SURVEY_STATUS_CLOSED) {
+    if (!SKIP_SIDE_EFFECTS) {
+      await ensureNoShowRankingSafe(idNum, { emitNotifications: false });
+    }
     const lifecycle = await fetchSurveyLifecycleRow(idNum);
     return {
       done: true,
@@ -1051,6 +1069,9 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     const lifecycle = lifecycleAfterClose || await fetchSurveyLifecycleRow(idNum);
     const latestStatus = normalizeSurveyStatusValue(lifecycle?.survey_status);
     if (latestStatus === SURVEY_STATUS_CLOSED) {
+      if (!SKIP_SIDE_EFFECTS) {
+        await ensureNoShowRankingSafe(idNum, { emitNotifications: false });
+      }
       return {
         done: true,
         alreadyClosed: true,
@@ -1146,19 +1167,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
 
   // Side effects run only for the process that successfully closed the survey.
   if (!SKIP_SIDE_EFFECTS) {
-    try {
-      const penaltiesResult = await applyNoShowPenalties(idNum);
-      if (penaltiesResult?.error) throw penaltiesResult.error;
-    } catch (penErr) {
-      console.error('[FINALIZE] applyNoShowPenalties error', { partidoId: idNum, penErr });
-    }
-
-    try {
-      const recoveriesResult = await applyNoShowRecoveries(idNum);
-      if (recoveriesResult?.error) throw recoveriesResult.error;
-    } catch (recErr) {
-      console.error('[NO_SHOW_RECOVERY] error', recErr);
-    }
+    await ensureNoShowRankingSafe(idNum, { emitNotifications: true });
   }
 
   let awardsSkipped = computedStatus === RESULT_STATUS_NOT_PLAYED;
