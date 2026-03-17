@@ -77,18 +77,26 @@ const toPlayerIdNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const isMatchPlayedFromSurveys = (surveys = []) => {
-  const playedVotes = (surveys || []).filter((survey) => survey?.se_jugo === true).length;
-  const notPlayedVotes = (surveys || []).filter((survey) => survey?.se_jugo === false).length;
-  if (playedVotes === 0 && notPlayedVotes > 0) return false;
-  return true;
-};
+const normalizeNoShowReasonToken = (value) => String(value || '').trim().toLowerCase();
+
+const isAbsenceWithoutNoticeReason = (value) => (
+  ['absence_without_notice', 'ausencia_sin_aviso'].includes(normalizeNoShowReasonToken(value))
+);
+
+const isSurveyEligibleForNoShowProcessing = (survey) => (
+  survey?.se_jugo === true
+  || (survey?.se_jugo === false && isAbsenceWithoutNoticeReason(survey?.motivo_no_jugado))
+);
+
+const isMatchEligibleForNoShowProcessing = (surveys = []) => (
+  (surveys || []).some((survey) => isSurveyEligibleForNoShowProcessing(survey))
+);
 
 const buildAbsentConfirmMap = (surveys = []) => {
   const confirmMap = new Map();
 
   for (const survey of (surveys || [])) {
-    if (survey?.se_jugo === false) continue;
+    if (!isSurveyEligibleForNoShowProcessing(survey)) continue;
 
     const voterId = survey?.votante_id;
     const absents = Array.isArray(survey?.jugadores_ausentes) ? survey.jugadores_ausentes : [];
@@ -148,11 +156,11 @@ export async function applyNoShowPenalties(matchId, options = {}) {
   // 1) read surveys for this match
   const { data: surveys, error: surveysErr } = await supabase
     .from('post_match_surveys')
-    .select('votante_id, se_jugo, jugadores_ausentes')
+    .select('votante_id, se_jugo, motivo_no_jugado, jugadores_ausentes')
     .eq('partido_id', id);
   if (surveysErr) return { data: [], error: surveysErr };
   if (!surveys || surveys.length === 0) return { data: [], error: null };
-  if (!isMatchPlayedFromSurveys(surveys)) return { data: [], error: null };
+  if (!isMatchEligibleForNoShowProcessing(surveys)) return { data: [], error: null };
 
   // 2) build confirm map: absentPlayerId -> Set of distinct votante_ids
   const confirmMap = buildAbsentConfirmMap(surveys);
@@ -301,13 +309,13 @@ export async function applyNoShowRecoveries(matchId, options = {}) {
   // 1) get all survey rows to derive played flag and confirmed absences
   const { data: surveyRows, error: surveyErr } = await supabase
     .from('post_match_surveys')
-    .select('votante_id, se_jugo, jugadores_ausentes')
+    .select('votante_id, se_jugo, motivo_no_jugado, jugadores_ausentes')
     .eq('partido_id', id);
   if (surveyErr) {
     return { data: [], error: surveyErr };
   }
   if (!surveyRows || surveyRows.length === 0) return { data: [], error: null };
-  if (!isMatchPlayedFromSurveys(surveyRows)) {
+  if (!isMatchEligibleForNoShowProcessing(surveyRows)) {
     // no action if match not played
     return { data: [], error: null };
   }
@@ -567,7 +575,7 @@ const buildCurrentRecoveryStates = async (userIds, adjustmentRows = []) => {
       .eq('results_ready', true),
     supabase
       .from('post_match_surveys')
-      .select('partido_id, votante_id, se_jugo, jugadores_ausentes')
+      .select('partido_id, votante_id, se_jugo, motivo_no_jugado, jugadores_ausentes')
       .in('partido_id', partidoIds),
   ]);
 
@@ -602,8 +610,10 @@ const buildCurrentRecoveryStates = async (userIds, adjustmentRows = []) => {
   });
 
   const absentUsersByMatch = new Map();
+  const eligibleMatchIds = new Set();
   for (const [partidoId, surveys] of surveysByMatch.entries()) {
-    if (!isMatchPlayedFromSurveys(surveys)) continue;
+    if (!isMatchEligibleForNoShowProcessing(surveys)) continue;
+    eligibleMatchIds.add(partidoId);
 
     const confirmedPlayerIds = new Set(
       Array.from(buildAbsentConfirmMap(surveys).entries())
@@ -640,7 +650,9 @@ const buildCurrentRecoveryStates = async (userIds, adjustmentRows = []) => {
     adjustmentsByUserAndMatch.set(userId, byMatch);
   });
 
-  const orderedClosedMatches = [...closedRows].sort((left, right) => {
+  const orderedClosedMatches = [...closedRows]
+    .filter((row) => eligibleMatchIds.has(Number(row?.partido_id)))
+    .sort((left, right) => {
     const leftAt = new Date(
       left?.encuesta_cerrada_at
       || left?.finished_at
@@ -658,7 +670,7 @@ const buildCurrentRecoveryStates = async (userIds, adjustmentRows = []) => {
 
     if (leftAt !== rightAt) return leftAt - rightAt;
     return Number(left?.partido_id || 0) - Number(right?.partido_id || 0);
-  });
+    });
 
   orderedClosedMatches.forEach((match) => {
     const partidoId = Number(match?.partido_id);

@@ -54,6 +54,24 @@ const DEFAULT_FORM_DATA = {
   resultado: '',
 };
 
+const NOT_PLAYED_REASON_OPTIONS = [
+  {
+    value: 'absence_without_notice',
+    label: 'Ausencia sin aviso',
+    description: 'Seleccioná quiénes faltaron y cerrá la encuesta.',
+  },
+  {
+    value: 'weather_or_pitch',
+    label: 'Clima / cancha',
+    description: 'Se suspende sin pasos extra ni penalizaciones.',
+  },
+  {
+    value: 'organization_issues',
+    label: 'Problemas de organización',
+    description: 'Cierra la encuesta sin continuar el flujo del partido jugado.',
+  },
+];
+
 const getViewportMetrics = () => {
   if (typeof window === 'undefined') {
     return { width: 390, height: 844 };
@@ -1426,6 +1444,15 @@ const EncuestaPartido = () => {
     });
   };
 
+  const handleNotPlayedReasonSelect = (reasonValue) => {
+    setFormData((prev) => ({
+      ...prev,
+      motivo_no_jugado: reasonValue,
+      asistieron_todos: reasonValue !== 'absence_without_notice',
+      jugadores_ausentes: reasonValue === 'absence_without_notice' ? prev.jugadores_ausentes : [],
+    }));
+  };
+
   const playersByKey = useMemo(() => {
     const map = {};
     (jugadores || []).forEach((player) => {
@@ -2027,6 +2054,18 @@ const EncuestaPartido = () => {
     }
   };
 
+  const handleNotPlayedPrimaryAction = async () => {
+    if (!selectedNotPlayedReason || submitting || encuestaFinalizada) return;
+
+    if (selectedNotPlayedReason.value === 'absence_without_notice') {
+      setCurrentStep(SURVEY_STEPS.NOT_PLAYED_ABSENTS);
+      return;
+    }
+
+    setSubmitting(true);
+    await continueSubmitFlow();
+  };
+
   const formatFecha = (fechaStr) => {
     try {
       const fecha = new Date(fechaStr);
@@ -2080,6 +2119,9 @@ const EncuestaPartido = () => {
   const centeredSummaryStackClass = `w-full flex-1 min-h-0 flex flex-col items-center justify-center ${isCompressedLayout ? 'gap-4 sm:gap-5' : 'gap-5 sm:gap-6'}`;
   const centeredSummaryButtonWrapClass = 'w-full max-w-[460px] sm:max-w-[500px] mx-auto';
   const miniCardsStageClass = `w-full h-full min-h-0 overflow-visible flex items-center justify-center ${isTightLayout ? 'px-1.5 sm:px-2 pb-1 sm:pb-1.5' : isCompressedLayout ? 'px-2 sm:px-2.5 pb-1.5 sm:pb-2' : 'px-2 sm:px-3 pb-2 sm:pb-3'}`;
+  const notPlayedReasonListClass = `w-full max-w-[760px] mx-auto flex flex-col ${isCompressedLayout ? 'gap-2 sm:gap-2.5' : 'gap-3 sm:gap-3.5'}`;
+  const selectedNotPlayedReason = NOT_PLAYED_REASON_OPTIONS.find((option) => option.value === formData.motivo_no_jugado) || null;
+  const notPlayedPrimaryButtonLabel = selectedNotPlayedReason?.value === 'absence_without_notice' ? 'Continuar' : 'Finalizar';
 
   const SurveyFooterLogo = () => null;
 
@@ -2498,6 +2540,7 @@ const EncuestaPartido = () => {
                       className={`${optionBtnClass} ${formData.se_jugo ? optionBtnSelectedClass : ''}`}
                       onClick={() => {
                         handleInputChange('se_jugo', true);
+                        handleInputChange('motivo_no_jugado', '');
                         if (formData.ganador === 'no_jugado') {
                           handleInputChange('ganador', '');
                         }
@@ -2521,6 +2564,8 @@ const EncuestaPartido = () => {
                       onClick={() => {
                         handleInputChange('se_jugo', false);
                         handleInputChange('ganador', 'no_jugado');
+                        handleInputChange('motivo_no_jugado', '');
+                        handleInputChange('jugadores_ausentes', []);
                         setCurrentStep(SURVEY_STEPS.NOT_PLAYED_REASON);
                       }}
                       type="button"
@@ -2884,37 +2929,57 @@ const EncuestaPartido = () => {
           {currentStep === SURVEY_STEPS.NOT_PLAYED_REASON && (
             <div className={`${stepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
-                <div className={titleClass}>
-                  ¿POR QUÉ NO SE JUGÓ?
+                <div className="w-full">
+                  <div className={titleClass}>
+                    ¿QUÉ PASÓ?
+                  </div>
+                  <div className={`${textClass} ${isCompressedLayout ? 'mt-2 sm:mt-2.5' : 'mt-2.5 sm:mt-3'} text-white/82`}>
+                    Elegí el motivo para cerrar la encuesta.
+                  </div>
                 </div>
               </div>
               <div className={contentRowClass}>
-                <div className="w-full max-w-[560px] mx-auto">
-                  <textarea
-                    className="w-full h-24 sm:h-28 p-4 text-left font-oswald text-[18px] sm:text-[20px] bg-white/90 border-[1.5px] border-[#eceaf1] rounded-xl text-[#333] outline-none transition-all placeholder:text-gray-500 focus:bg-white focus:border-[#0EA9C6] resize-none"
-                    value={formData.motivo_no_jugado || ''}
-                    onChange={(e) => handleInputChange('motivo_no_jugado', e.target.value)}
-                    placeholder="Explica por qué no se pudo jugar..."
-                  />
+                <div className={notPlayedReasonListClass}>
+                  {NOT_PLAYED_REASON_OPTIONS.map((option) => {
+                    const isSelected = selectedNotPlayedReason?.value === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={`
+                          w-full text-left rounded-[16px] border transition-all duration-200
+                          ${isCompressedLayout ? 'px-4 py-4 sm:px-5 sm:py-4.5' : 'px-5 py-5 sm:px-6 sm:py-5.5'}
+                          ${isSelected
+                            ? 'border-white/78 bg-white/[0.22] shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_16px_32px_rgba(17,22,86,0.32)]'
+                            : 'border-white/18 bg-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(8,10,42,0.2)] hover:bg-white/[0.13] hover:border-white/30'}
+                        `}
+                        onClick={() => handleNotPlayedReasonSelect(option.value)}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <div className={`font-bebas tracking-[0.05em] ${isCompressedLayout ? 'text-[24px] sm:text-[26px]' : 'text-[26px] sm:text-[30px]'} ${isSelected ? 'text-white' : 'text-white/92'}`}>
+                              {option.label}
+                            </div>
+                            <div className={`font-oswald leading-relaxed ${isCompressedLayout ? 'mt-1 text-[14px] sm:text-[15px]' : 'mt-1.5 text-[15px] sm:text-[16px]'} ${isSelected ? 'text-white/90' : 'text-white/68'}`}>
+                              {option.description}
+                            </div>
+                          </div>
+                          <div className={`mt-0.5 h-5 w-5 shrink-0 rounded-full border ${isSelected ? 'border-cyan-200 bg-cyan-200 shadow-[0_0_0_4px_rgba(103,232,249,0.12)]' : 'border-white/26 bg-transparent'}`} />
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div className={actionRowClass}>
                 <div className={actionDockClass}>
                   <button
                     className={btnClass}
-                    onClick={() => setCurrentStep(SURVEY_STEPS.NOT_PLAYED_ABSENTS)}
+                    type="button"
+                    onClick={handleNotPlayedPrimaryAction}
+                    disabled={!selectedNotPlayedReason || submitting || encuestaFinalizada}
                   >
-                    AUSENCIA SIN AVISO
-                  </button>
-                  <button
-                    className={btnClass}
-                    onClick={() => {
-                      if (submitting || encuestaFinalizada) return;
-                      setSubmitting(true);
-                      continueSubmitFlow();
-                    }}
-                  >
-                    FINALIZAR
+                    {notPlayedPrimaryButtonLabel}
                   </button>
                 </div>
               </div>
@@ -2928,8 +2993,13 @@ const EncuestaPartido = () => {
           {currentStep === SURVEY_STEPS.NOT_PLAYED_ABSENTS && (
             <div className={`${playerStepClass} animate-[slideIn_0.42s_cubic-bezier(0.22,1,0.36,1)_forwards]`}>
               <div className={questionRowClass}>
-                <div className={titleClass}>
-                  ¿QUIÉNES FALTARON?
+                <div className="w-full">
+                  <div className={titleClass}>
+                    ¿QUIÉNES FALTARON?
+                  </div>
+                  <div className={`${textClass} ${isCompressedLayout ? 'mt-2 sm:mt-2.5' : 'mt-2.5 sm:mt-3'} text-white/82`}>
+                    Marcá uno o varios ausentes sin aviso. Después de confirmar, la encuesta termina.
+                  </div>
                 </div>
               </div>
               <div className={playerContentRowClass}>
