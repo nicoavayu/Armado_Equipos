@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthProvider';
 import { updateProfile, calculateProfileCompletion, supabase } from '../supabase';
@@ -304,7 +305,7 @@ const DeleteAccountModal = ({
 
   const canConfirm = confirmationText.trim().toUpperCase() === 'ELIMINAR' && !loading;
 
-  return (
+  const modalContent = (
     <div data-modal-root="true" className="fixed inset-0 z-[20000] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
       <div className="w-full max-w-[500px] bg-white/5 backdrop-blur-2xl rounded-[var(--radius-standard)] p-6 border border-white/10 shadow-[0_32px_64px_rgba(0,0,0,0.5)]">
         <div className="flex items-start justify-between gap-4 mb-4">
@@ -377,6 +378,8 @@ const DeleteAccountModal = ({
       </div>
     </div>
   );
+
+  return ReactDOM.createPortal(modalContent, document.body);
 };
 
 const ProfileActionSection = ({
