@@ -59,7 +59,7 @@ const ProfileEditorForm = ({
   isEmbedded = false,
 }) => {
   const formBottomPaddingClass = isEmbedded
-    ? 'pb-[calc(env(safe-area-inset-bottom)+32px)]'
+    ? 'pb-2'
     : 'pb-32';
   const actionButtonsBottomPaddingClass = isEmbedded ? 'pb-0' : 'pb-16';
 
