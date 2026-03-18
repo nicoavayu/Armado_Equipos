@@ -9,7 +9,7 @@ import { supabase, updateProfile, addFreePlayer, removeFreePlayer } from '../sup
 import { listMyTeamMatches } from '../services/db/teamChallenges';
 import { parseLocalDateTime } from '../utils/dateLocal';
 import { buildActivityFeed } from '../utils/activityFeed';
-import { isAwardsTrulyReady } from '../utils/awardsReadiness';
+import { AWARDS_READY_NOTIFICATION_TYPES, isAwardsReadyStatus } from '../utils/awardsReadiness';
 import ProximosPartidos from './ProximosPartidos';
 import NotificationsBell from './NotificationsBell';
 
@@ -34,7 +34,9 @@ const severityIconClass = {
 };
 
 const AWARDS_RING_WINDOW_MS = 24 * 60 * 60 * 1000;
-const AWARDS_RING_NOTIFICATION_TYPES = new Set(['survey_results_ready', 'awards_ready', 'award_won']);
+export const isAwardsRingNotificationType = (notificationType) => (
+  AWARDS_READY_NOTIFICATION_TYPES.has(String(notificationType || '').trim().toLowerCase())
+);
 
 const resolveNotificationMatchId = (notification) => (
   notification?.partido_id
@@ -60,7 +62,7 @@ const isCancelledChallengeStatus = (statusValue) => {
   return normalized === 'canceled' || normalized === 'cancelled' || normalized === 'cancelado';
 };
 
-const isAwardsReadyAndVisible = (row) => isAwardsTrulyReady(row);
+const isAwardsReadyAndVisible = (row) => isAwardsReadyStatus(row);
 
 const extractWinnerIds = (row) => {
   const awards = row?.awards || {};
@@ -119,7 +121,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
 
   const nowTs = Date.now();
   const awardsCandidateNotifs = (notifications || [])
-    .filter((n) => AWARDS_RING_NOTIFICATION_TYPES.has(n.type))
+    .filter((n) => isAwardsRingNotificationType(n?.type))
     .filter((n) => {
       const createdTs = n?.created_at ? new Date(n.created_at).getTime() : 0;
       return createdTs > 0 && (nowTs - createdTs) <= AWARDS_RING_WINDOW_MS;
@@ -150,7 +152,7 @@ const FifaHomeContent = ({ _onCreateMatch, _onViewHistory, _onViewInvitations, _
     if (!notif?.read && notif?.id) {
       try { await markAsRead(notif.id); } catch (_) { /* non-blocking */ }
     }
-    const resultsUrl = notif?.data?.resultsUrl || `/resultados-encuesta/${matchId}?showAwards=1`;
+    const resultsUrl = notif?.data?.resultsUrl || `/resultados-encuesta/${matchId}`;
     navigate(resultsUrl, {
       state: {
         forceAwards: true,

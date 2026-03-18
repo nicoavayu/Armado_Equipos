@@ -49,6 +49,7 @@ const RELEVANT_TYPES = new Set([
 
 const FEED_TEMPLATE_TYPES = new Set([
   'survey_start',
+  'survey_results_ready',
   'call_to_vote',
   'awards_ready',
   'match_cancelled',
@@ -67,6 +68,7 @@ const FEED_TEMPLATE_TYPES = new Set([
 
 const PRIORITY = {
   survey_start: 10,
+  survey_results_ready: 11,
   call_to_vote: 10,
   awards_ready: 12,
   match_cancelled: 13,
@@ -91,7 +93,7 @@ const PRIORITY = {
 const severityForType = (type) => {
   if (['match_today', 'falta_jugadores', 'call_to_vote', 'survey_start'].includes(type)) return 'urgent';
   if (['match_cancelled', 'match_join_request', 'match_invite', 'team_invite', 'match_player_joined', 'match_player_left', 'friend_request', 'match_tomorrow', 'challenge_accepted', 'team_match_created', 'challenge_squad_open'].includes(type)) return 'warning';
-  if (['awards_ready', 'match_complete', 'match_join_approved', 'friend_accepted'].includes(type)) return 'success';
+  if (['survey_results_ready', 'awards_ready', 'match_complete', 'match_join_approved', 'friend_accepted'].includes(type)) return 'success';
   return 'neutral';
 };
 
@@ -128,7 +130,7 @@ const resolveMatchUpdateTemplateType = (message = '') => {
 
 const normalizeType = (type, message = '') => {
   if (type === 'survey_start' || type === 'post_match_survey') return 'survey_start';
-  if (type === 'survey_results_ready' || type === 'awards_ready' || type === 'award_won') return 'awards_ready';
+  if (type === 'awards_ready' || type === 'award_won') return 'awards_ready';
   if (type === 'match_update') return resolveMatchUpdateTemplateType(message);
   return type;
 };
@@ -259,6 +261,7 @@ const formatActivityDateTimeShort = (isoValue) => {
 };
 
 const PAST_MATCH_ALLOWED_NOTIFICATION_TYPES = new Set([
+  'survey_results_ready',
   'awards_ready',
 ]);
 
@@ -907,6 +910,19 @@ const toActivityFromNotification = (group, match, currentUserId) => {
     };
   }
 
+  if (type === 'survey_results_ready') {
+    const resultsTitle = quotedMatchName
+      ? `Resultados listos para ${quotedMatchName}`
+      : 'Resultados listos';
+    return {
+      ...base,
+      icon: 'Trophy',
+      title: resultsTitle,
+      subtitle: fallbackSubtitle,
+      route: partidoId ? `/resultados-encuesta/${partidoId}` : '/notifications',
+    };
+  }
+
   if (type === 'match_cancelled') {
     const teamAName = compactText(notification?.data?.team_a_name || '', 22, '');
     const teamBName = compactText(notification?.data?.team_b_name || '', 22, '');
@@ -1150,7 +1166,10 @@ const shouldIncludeNotification = (notification, normalizedType) => {
   }
 
   const ageMs = Date.now() - ts;
-  const isSurveyLike = normalizedType === 'survey_start' || normalizedType === 'call_to_vote' || normalizedType === 'awards_ready';
+  const isSurveyLike = normalizedType === 'survey_start'
+    || normalizedType === 'survey_results_ready'
+    || normalizedType === 'call_to_vote'
+    || normalizedType === 'awards_ready';
 
   if (isSurveyLike) {
     // For survey/premios, keep the feed actionable: show only unread and recent.

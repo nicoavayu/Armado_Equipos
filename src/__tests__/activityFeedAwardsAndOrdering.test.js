@@ -41,6 +41,30 @@ describe('buildActivityFeed awards + ordering', () => {
     expect(items[0].title.toLowerCase()).toContain('ganaste un premio');
   });
 
+  test('keeps survey_results_ready as normal results route without forcing awards', async () => {
+    const items = await buildActivityFeed([
+      {
+        id: 'notif-results-1',
+        type: 'survey_results_ready',
+        read: false,
+        created_at: '2026-03-12T17:56:00.000Z',
+        partido_id: 502,
+        data: {
+          match_id: '502',
+          match_name: 'Partido con resultados',
+        },
+      },
+    ], {
+      activeMatches: [],
+      currentUserId: 'user-1',
+      supabaseClient: null,
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0].type).toBe('survey_results_ready');
+    expect(items[0].route).toBe('/resultados-encuesta/502');
+  });
+
   test('keeps unread notifications first in activity feed', async () => {
     const items = await buildActivityFeed([
       {
