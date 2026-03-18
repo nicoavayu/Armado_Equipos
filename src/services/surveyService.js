@@ -7,6 +7,7 @@ import {
 import { getSurveyReminderMessage, getSurveyStartMessage } from '../utils/surveyNotificationCopy';
 import { finalizeIfComplete } from './surveyCompletionService';
 import { ensureAwards } from './awardsService';
+import { isAwardsNotEligibleStatus, isAwardsReadyStatus } from '../utils/awardsReadiness';
 
 /**
  * Creates post-match survey notifications for all players in a match
@@ -235,7 +236,9 @@ export const processSurveyResults = async (partidoId) => {
       return false;
     }
 
-    return Boolean(ensureRes?.applied || ensureRes?.row?.results_ready);
+    const awardsReady = isAwardsReadyStatus(ensureRes?.row) || ensureRes?.applied === true;
+    const awardsNotEligible = isAwardsNotEligibleStatus(ensureRes?.row) || ensureRes?.notEligible === true;
+    return Boolean(awardsReady || awardsNotEligible);
   } catch (error) {
     console.error('[SURVEY_SERVICE] processSurveyResults compatibility flow failed:', error);
     return false;

@@ -13,11 +13,42 @@ import { getProfile as getLiveProfile } from '../services/db/profiles';
 import EmptyStateCard from '../components/EmptyStateCard';
 import Logo from '../Logo.png';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
-import { hasAnyAwardData } from '../utils/awardsReadiness';
+import {
+  isAwardsNotEligibleStatus,
+  isAwardsReadyStatus,
+  normalizeAwardsStatus,
+} from '../utils/awardsReadiness';
 
 const ensurePlayersList = (players) => {
   if (players && players.length > 0) return players;
   return [];
+};
+
+export const deriveAwardsUiState = ({
+  results = null,
+  partido = null,
+  awardsSkippedByEnsure = false,
+} = {}) => {
+  const rawAwardsStatus = results?.awards_status ?? partido?.awards_status ?? null;
+  let awardsStatus = awardsSkippedByEnsure
+    ? 'not_eligible'
+    : (normalizeAwardsStatus(rawAwardsStatus) || 'pending');
+  if (
+    awardsStatus !== 'not_eligible'
+    && (isAwardsReadyStatus(results) || isAwardsReadyStatus(partido))
+  ) {
+    awardsStatus = 'ready';
+  }
+  const hasInsufficientVotesForAwards = awardsStatus === 'not_eligible';
+  const awardsReady = awardsStatus === 'ready';
+  const shouldShowPendingResultsCard = !results || (!awardsReady && !hasInsufficientVotesForAwards);
+
+  return {
+    awardsStatus,
+    awardsReady,
+    hasInsufficientVotesForAwards,
+    shouldShowPendingResultsCard,
+  };
 };
 
 // Context to broadcast live previewPlayers without recreating slides
@@ -64,13 +95,16 @@ const ResultadosEncuestaView = () => {
   const forceStoryOpenedRef = useRef(null);
   const autoOpenGuardRef = useRef(null);
   const pendingRetryAttemptedRef = useRef(new Set());
-  const normalizedPartidoAwardsStatus = String(partido?.awards_status || '').toLowerCase();
-  const normalizedResultsAwardsStatus = String(results?.awards_status || '').toLowerCase();
-  const hasInsufficientVotesForAwards = (
-    awardsSkippedByEnsure ||
-    normalizedPartidoAwardsStatus === 'insufficient' ||
-    normalizedResultsAwardsStatus === 'insufficient'
-  );
+  const {
+    awardsStatus,
+    awardsReady,
+    hasInsufficientVotesForAwards,
+    shouldShowPendingResultsCard,
+  } = deriveAwardsUiState({
+    results,
+    partido,
+    awardsSkippedByEnsure,
+  });
 
   const setStage = (key, stage) => {
     setSlideStages((prev) => ({ ...prev, [key]: stage }));
@@ -972,7 +1006,7 @@ const ResultadosEncuestaView = () => {
     if (!currentResults) return [];
 
     const roster = ensurePlayersList(currentPlayers);
-    const matchInfo = partido || { nombre: `Partido ${partidoId}`, fecha: new Date().toISOString(), awards_status: 'ready' };
+    const matchInfo = partido || { nombre: `Partido ${partidoId}`, fecha: new Date().toISOString(), awards_status: 'pending' };
 
     const findP = (id) => {
       if (!id) return null;
@@ -1293,7 +1327,7 @@ const ResultadosEncuestaView = () => {
     return slides;
   };
 
-  const prepareForceFallbackSlides = () => {
+  const prepareForceFallbackSlides = ({ notEligible = hasInsufficientVotesForAwards } = {}) => {
     const matchInfo = partido || { nombre: `Partido ${partidoId}` };
     return [{
       key: 'awards-pending',
@@ -1318,13 +1352,13 @@ const ResultadosEncuestaView = () => {
             {matchInfo.nombre || matchInfo.titulo || `Partido ${partidoId}`}
           </div>
           <div className="text-white/80 text-base md:text-lg">
-            {hasInsufficientVotesForAwards
-              ? 'No votó la cantidad mínima de jugadores para hacer la entrega de premios.'
+            {notEligible
+              ? 'No hubo suficientes votaciones para generar premios de este partido.'
               : 'Todavía no hay premios listos para mostrar.'}
           </div>
           <div className="text-white/60 text-sm mt-2">
-            {hasInsufficientVotesForAwards
-              ? 'Invitá a tus amigos a completar las encuestas para armar una comunidad más sana.'
+            {notEligible
+              ? 'Podés revisar el resultado del partido, pero esta vez no habrá premiación.'
               : 'Volvé en un momento.'}
           </div>
         </div>
@@ -1562,7 +1596,7 @@ const ResultadosEncuestaView = () => {
           // Last check before giving up loading. In forced mode, always open a story fallback.
           const roster = ensurePlayersList(jugadores);
           const row = results;
-          const maybeSlides = row ? prepareCarouselSlides(row, roster) : [];
+          const maybeSlides = row && isAwardsReadyStatus(row) ? prepareCarouselSlides(row, roster) : [];
           if (maybeSlides.length > 0) {
             setPreviewPlayers(JSON.parse(JSON.stringify(roster)));
             badgesApplied.current.clear();
@@ -1576,7 +1610,7 @@ const ResultadosEncuestaView = () => {
             badgesApplied.current.clear();
             liveApplied.current.clear();
             setSlideStages({});
-            setCarouselSlides(prepareForceFallbackSlides());
+            setCarouselSlides(prepareForceFallbackSlides({ notEligible: isAwardsNotEligibleStatus(row) }));
             setShowingBadgeAnimations(true);
             openedStory = true;
           }
@@ -1585,10 +1619,11 @@ const ResultadosEncuestaView = () => {
       }, 3200);
       try {
         let row = results;
-        const isPendingRetryStatus = (candidate) => String(candidate?.awards_status || '').trim().toLowerCase() === 'pending_retry';
+        const rowHasReadyAwards = (candidate) => isAwardsReadyStatus(candidate);
+        const rowIsNotEligible = (candidate) => isAwardsNotEligibleStatus(candidate);
 
-        // If results are missing/not ready, ask backend once.
-        if (!row || !row.results_ready || !hasAnyAwardData(row) || isPendingRetryStatus(row)) {
+        // If results are missing or awards are still pending, ask backend once.
+        if (!row || (!rowHasReadyAwards(row) && !rowIsNotEligible(row))) {
           if (!cancelled) {
             setAwardsSkippedByEnsure(false);
           }
@@ -1618,14 +1653,16 @@ const ResultadosEncuestaView = () => {
           }
         }
 
-        const slides = row ? prepareCarouselSlides(row, roster) : [];
+        const slides = row && rowHasReadyAwards(row) ? prepareCarouselSlides(row, roster) : [];
         if (slides.length === 0) {
           // Forced mode: always open story, even if awards are not ready yet.
           setPreviewPlayers([]);
           badgesApplied.current.clear();
           liveApplied.current.clear();
           setSlideStages({});
-          setCarouselSlides(prepareForceFallbackSlides());
+          setCarouselSlides(prepareForceFallbackSlides({
+            notEligible: rowIsNotEligible(row),
+          }));
           setShowingBadgeAnimations(true);
           openedStory = true;
           return;
@@ -1646,7 +1683,7 @@ const ResultadosEncuestaView = () => {
         badgesApplied.current.clear();
         liveApplied.current.clear();
         setSlideStages({});
-        setCarouselSlides(prepareForceFallbackSlides());
+        setCarouselSlides(prepareForceFallbackSlides({ notEligible: hasInsufficientVotesForAwards }));
         setShowingBadgeAnimations(true);
         openedStory = true;
       } finally {
@@ -1676,8 +1713,8 @@ const ResultadosEncuestaView = () => {
     const matchKey = String(partidoId || '').trim();
     if (!matchKey) return;
     if (!results?.results_ready) return;
-    const awardsStatusToken = String(results?.awards_status || '').trim().toLowerCase();
-    if (awardsStatusToken !== 'pending_retry') return;
+    const awardsStatusToken = normalizeAwardsStatus(results?.awards_status);
+    if (awardsStatusToken !== 'pending') return;
     if (pendingRetryAttemptedRef.current.has(matchKey)) return;
     pendingRetryAttemptedRef.current.add(matchKey);
 
@@ -1690,7 +1727,7 @@ const ResultadosEncuestaView = () => {
           setResults(res.row);
         }
       } catch (retryErr) {
-        console.error('[RESULTADOS] pending_retry ensureAwards failed', retryErr);
+        console.error('[RESULTADOS] pending awards ensureAwards failed', retryErr);
       }
     };
 
@@ -1707,7 +1744,7 @@ const ResultadosEncuestaView = () => {
     if (!showingBadgeAnimations) return;
     if (!Array.isArray(carouselSlides) || carouselSlides.length === 0) return;
     if (carouselSlides[0]?.key !== 'awards-pending') return;
-    if (!results || !results.results_ready) return;
+    if (!results || !isAwardsReadyStatus(results)) return;
 
     const roster = ensurePlayersList(jugadores);
     if (!roster.length) return;
@@ -1860,9 +1897,6 @@ const ResultadosEncuestaView = () => {
     return <div className="text-white text-center mt-20 text-xl">Partido no encontrado</div>;
   }
 
-  const awardsStatus = hasInsufficientVotesForAwards
-    ? 'insufficient'
-    : (partido.awards_status || results?.awards_status || null);
   const isSurveyClosed = surveyProgress.hasSurveyStatus
     ? surveyProgress.surveyStatus === 'closed'
     : Boolean(results?.results_ready);
@@ -1992,17 +2026,24 @@ const ResultadosEncuestaView = () => {
             </p>
           )}
           {isSurveyClosed && (
-            <p className="text-sm tracking-[0.01em] mt-2">
-              <span className="text-gray-400">Estado de los Premios: </span>
-              <span className={`${awardsStatus === 'ready' ? 'text-green-400' : 'text-yellow-400'} font-bold`}>
-                {awardsStatus === 'ready' ? 'Listos para ver' : awardsStatus === 'insufficient' ? 'No suficientes votos' : 'En progreso'}
-              </span>
-            </p>
+            <>
+              <p className="text-sm tracking-[0.01em] mt-2">
+                <span className="text-gray-400">Estado de los Premios: </span>
+                <span className={`${awardsStatus === 'ready' ? 'text-green-400' : 'text-yellow-400'} font-bold`}>
+                  {awardsStatus === 'ready' ? 'Listos para ver' : awardsStatus === 'not_eligible' ? 'No elegible para premios' : 'En progreso'}
+                </span>
+              </p>
+              {hasInsufficientVotesForAwards && (
+                <p className="text-orange-300 mt-2 font-semibold text-sm">
+                  No hubo suficientes votaciones para generar premios de este partido.
+                </p>
+              )}
+            </>
           )}
         </div>
 
         {/* Results Summary */}
-        {results && (
+        {results && awardsReady && (
           <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-xl p-5 mb-8 border border-white/10">
             <h3 className="text-xl text-white  mb-4 border-b border-white/10 pb-2">Destacados</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2038,24 +2079,19 @@ const ResultadosEncuestaView = () => {
         )}
 
         {/* No Results Message */}
-        {(!results || (results && results.estado !== 'finalizado')) && (
+        {shouldShowPendingResultsCard && (
           <div className="flex flex-col items-center mb-6">
             <EmptyStateCard
-              title={results ? 'RESULTADOS EN PROCESO' : 'SIN RESULTADOS DISPONIBLES'}
+              title={results ? 'PREMIOS EN PROCESO' : 'SIN RESULTADOS DISPONIBLES'}
               description={
                 results
-                  ? 'Los resultados todavía se están calculando. Volvé a intentar en unos minutos.'
+                  ? 'Los premios todavía se están procesando. Volvé a intentar en unos minutos.'
                   : (isSurveyClosed
                     ? 'No encontramos resultados finales para este partido por ahora.'
                     : `La encuesta sigue abierta. Faltan ${remainingVotes} voto${remainingVotes === 1 ? '' : 's'} para cerrar.`)
               }
               className="my-0 max-w-[620px]"
             />
-            {hasInsufficientVotesForAwards && (
-              <p className="text-orange-400 mt-3 font-bold text-center">
-                No votó la cantidad mínima de jugadores para hacer la entrega de premios. Invitá a tus amigos a completar las encuestas para armar una comunidad más sana.
-              </p>
-            )}
           </div>
         )}
 
@@ -2077,7 +2113,7 @@ const ResultadosEncuestaView = () => {
             </button>
           )}
 
-          {results && (
+          {results && awardsReady && (
             <button
               onClick={handleAnimateBadges}
               className="min-h-[52px] px-6 rounded-xl text-[18px] font-bebas tracking-[0.04em] uppercase text-black bg-[#FFD700] border border-[#ffe066] hover:bg-[#ffc800] transition-transform hover:scale-[1.03] shadow-[0_0_15px_rgba(255,215,0,0.4)] flex items-center justify-center gap-2"
@@ -2094,7 +2130,7 @@ const ResultadosEncuestaView = () => {
                   setAwardsSkippedByEnsure(false);
                   const res = await ensureAwards(partidoId);
                   setAwardsSkippedByEnsure(Boolean(res?.awardsSkipped));
-                  if (res?.ok && res.row && (res.row.mvp || res.row.golden_glove || res.row.dirty_player || (Array.isArray(res.row.red_cards) && res.row.red_cards.length > 0))) {
+                  if (res?.ok && res.row && isAwardsReadyStatus(res.row)) {
                     setResults(res.row);
                     setPreviewPlayers(JSON.parse(JSON.stringify(jugadores)));
                     badgesApplied.current.clear();

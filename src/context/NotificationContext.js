@@ -133,10 +133,19 @@ export const NotificationProvider = ({ children }) => {
     const readinessByMatchId = new Map();
     if (normalizedIds.length === 0) return readinessByMatchId;
 
-    const { data, error } = await supabase
+    let query = await supabase
       .from('survey_results')
-      .select('partido_id, results_ready, mvp, golden_glove, red_cards, awards')
+      .select('partido_id, results_ready, mvp, golden_glove, red_cards, awards, awards_status, awards_generated')
       .in('partido_id', normalizedIds);
+
+    if (query.error) {
+      query = await supabase
+        .from('survey_results')
+        .select('partido_id, results_ready, mvp, golden_glove, red_cards, awards, awards_generated')
+        .in('partido_id', normalizedIds);
+    }
+
+    const { data, error } = query;
 
     if (error) throw error;
 

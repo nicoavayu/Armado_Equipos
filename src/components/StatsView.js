@@ -20,6 +20,7 @@ import {
   isNotPlayedOutcomeToken,
   normalizeSurveyResultStatus,
 } from '../utils/statsOutcomeAssignment';
+import { isAwardsReadyStatus } from '../utils/awardsReadiness';
 import {
   Activity,
   AlertCircle,
@@ -47,6 +48,10 @@ import PageTitle from './PageTitle';
 import ManualMatchModal from './ManualMatchModal';
 import InjuryModal from './InjuryModal';
 import StatsDebugPanel from './stats/StatsDebugPanel';
+
+export const shouldIncludeSurveyResultForAwardsStats = (row) => (
+  isAwardsReadyStatus(row)
+);
 
 const StatsView = ({ onVolver }) => {
   const { user } = useAuth();
@@ -672,18 +677,26 @@ const StatsView = ({ onVolver }) => {
         try {
           let query = await supabase
             .from('survey_results')
-            .select('partido_id, mvp, golden_glove, red_cards, awards')
+            .select('partido_id, mvp, golden_glove, red_cards, awards, awards_status, awards_generated')
             .in('partido_id', yearMatchIds);
 
           if (query.error) {
             query = await supabase
               .from('survey_results')
-              .select('partido_id, mvp, golden_glove, red_cards')
+              .select('partido_id, mvp, golden_glove, red_cards, awards_status, awards_generated')
+              .in('partido_id', yearMatchIds);
+          }
+
+          if (query.error) {
+            query = await supabase
+              .from('survey_results')
+              .select('partido_id, mvp, golden_glove, red_cards, awards_generated')
               .in('partido_id', yearMatchIds);
           }
           if (query.error) throw query.error;
 
           (query.data || []).forEach((row) => {
+            if (!shouldIncludeSurveyResultForAwardsStats(row)) return;
             const refs = userRefsByMatchId.get(Number(row?.partido_id));
             if (!refs) return;
 

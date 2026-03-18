@@ -1,6 +1,14 @@
 import { supabase } from '../supabase';
 import { finalizeIfComplete, computeAndPersistAwards, computeResultsAverages, setMatchAwardsStatus } from './surveyCompletionService';
-import { hasAnyAwardData, isAwardsTrulyReady } from '../utils/awardsReadiness';
+import {
+  AWARDS_STATUS_NOT_ELIGIBLE,
+  AWARDS_STATUS_PENDING,
+  AWARDS_STATUS_READY,
+  hasAnyAwardData,
+  isAwardsNotEligibleStatus,
+  isAwardsReadyStatus,
+  normalizeAwardsStatus,
+} from '../utils/awardsReadiness';
 
 export async function computeAwardsForMatch(partidoId) {
   try {
@@ -38,7 +46,8 @@ export async function ensureAwards(partidoId) {
       ]);
     };
 
-    const isPendingRetryStatus = (row) => String(row?.awards_status || '').trim().toLowerCase() === 'pending_retry';
+    const resolveStatus = (row) => normalizeAwardsStatus(row?.awards_status);
+    const isPendingStatus = (row) => resolveStatus(row) === AWARDS_STATUS_PENDING;
 
     const fetchSurveyResultsRow = async () => {
       const res = await supabase
@@ -104,18 +113,41 @@ export async function ensureAwards(partidoId) {
       }
     }
 
-    if (finalizeGate?.awardsSkipped) {
+    if (finalizeGate?.awardsSkipped || normalizeAwardsStatus(finalizeGate?.awards_status) === AWARDS_STATUS_NOT_ELIGIBLE) {
+      await persistAwardsStatus(AWARDS_STATUS_NOT_ELIGIBLE);
+      const refetchNotEligible = await fetchSurveyResultsRow();
+      return {
+        ok: true,
+        row: refetchNotEligible.row || after || null,
+        applied: false,
+        awardsSkipped: true,
+        notEligible: true,
+      };
+    }
+
+    if (isAwardsNotEligibleStatus(after)) {
       return {
         ok: true,
         row: after || null,
         applied: false,
-        awardsSkipped: true,
+        notEligible: true,
       };
     }
 
-    if (after?.results_ready && isAwardsTrulyReady(after)) {
-      if (isPendingRetryStatus(after)) {
-        await persistAwardsStatus('ready');
+    const hasStructuredAwards = Boolean(
+      after?.awards?.mvp?.player_id
+      || after?.awards?.best_gk?.player_id
+      || after?.awards?.red_card?.player_id,
+    );
+    if (after?.results_ready && hasStructuredAwards && !isAwardsReadyStatus(after)) {
+      await persistAwardsStatus(AWARDS_STATUS_READY);
+      const refetchReady = await fetchSurveyResultsRow();
+      after = refetchReady.row || after;
+    }
+
+    if (after?.results_ready && isAwardsReadyStatus(after)) {
+      if (resolveStatus(after) !== AWARDS_STATUS_READY) {
+        await persistAwardsStatus(AWARDS_STATUS_READY);
         const refetchReady = await fetchSurveyResultsRow();
         after = refetchReady.row || after;
       }
@@ -124,8 +156,8 @@ export async function ensureAwards(partidoId) {
 
     let retryResult = null;
     const shouldRetryLocally = (
-      isPendingRetryStatus(after)
-      || (after?.results_ready && !isAwardsTrulyReady(after))
+      isPendingStatus(after)
+      || (!after?.results_ready && !isAwardsNotEligibleStatus(after))
       || (!after && finalizeGate?.done === true)
     );
 
@@ -148,13 +180,26 @@ export async function ensureAwards(partidoId) {
         return { ok: false, error: afterErr };
       }
 
-      if (after?.results_ready && isAwardsTrulyReady(after)) {
-        await persistAwardsStatus('ready');
+      if (after?.results_ready && isAwardsReadyStatus(after)) {
+        await persistAwardsStatus(AWARDS_STATUS_READY);
         const refetchReady = await fetchSurveyResultsRow();
         return {
           ok: true,
           row: refetchReady.row || after,
           applied: true,
+          retried: true,
+          retryResult,
+        };
+      }
+
+      if (after?.results_ready && !hasAnyAwardData(after)) {
+        await persistAwardsStatus(AWARDS_STATUS_NOT_ELIGIBLE);
+        const refetchNotEligible = await fetchSurveyResultsRow();
+        return {
+          ok: true,
+          row: refetchNotEligible.row || after || null,
+          applied: false,
+          notEligible: true,
           retried: true,
           retryResult,
         };
@@ -185,7 +230,7 @@ export async function ensureAwards(partidoId) {
     }
 
     // Last-resort local recompute path for stale/inconsistent rows.
-    if (after?.results_ready && !isAwardsTrulyReady(after)) {
+    if (after?.results_ready && !isAwardsReadyStatus(after) && !isAwardsNotEligibleStatus(after)) {
       try {
         const computed = await computeResultsAverages(id);
         if (hasAnyAwardData(computed)) {
@@ -216,8 +261,8 @@ export async function ensureAwards(partidoId) {
       }
     }
 
-    if (after?.results_ready && isAwardsTrulyReady(after)) {
-      await persistAwardsStatus('ready');
+    if (after?.results_ready && isAwardsReadyStatus(after)) {
+      await persistAwardsStatus(AWARDS_STATUS_READY);
       const refetchReady = await fetchSurveyResultsRow();
       return {
         ok: true,
@@ -228,13 +273,26 @@ export async function ensureAwards(partidoId) {
       };
     }
 
-    if (after?.results_ready && !isAwardsTrulyReady(after)) {
-      await persistAwardsStatus('pending_retry');
+    if (after?.results_ready && !hasAnyAwardData(after)) {
+      await persistAwardsStatus(AWARDS_STATUS_NOT_ELIGIBLE);
+      const refetchNotEligible = await fetchSurveyResultsRow();
+      return {
+        ok: true,
+        row: refetchNotEligible.row || after || null,
+        applied: false,
+        notEligible: true,
+        retried: Boolean(retryResult),
+        retryResult,
+      };
+    }
+
+    if (after?.results_ready && !isAwardsReadyStatus(after) && !isAwardsNotEligibleStatus(after)) {
+      await persistAwardsStatus(AWARDS_STATUS_PENDING);
       return {
         ok: true,
         row: after || null,
         applied: false,
-        pendingRetry: true,
+        pending: true,
         retried: Boolean(retryResult),
         retryResult,
       };

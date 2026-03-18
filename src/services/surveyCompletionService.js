@@ -8,9 +8,16 @@ import { resolveStablePlayerRef } from './db/userIdentity';
 
 import {
   SURVEY_FINALIZE_DELAY_MS,
+  SURVEY_MIN_VOTERS_FOR_AWARDS,
 } from '../config/surveyConfig';
 import { getSurveyResultsReadyMessage } from '../utils/surveyNotificationCopy';
-import { hasAnyAwardData, isAwardsTrulyReady } from '../utils/awardsReadiness';
+import {
+  AWARDS_STATUS_NOT_ELIGIBLE,
+  AWARDS_STATUS_PENDING,
+  AWARDS_STATUS_READY,
+  hasAnyAwardData,
+  normalizeAwardsStatus,
+} from '../utils/awardsReadiness';
 import {
   deriveSurveyWindowFromMatch,
   isSurveyWindowConsistentWithKickoff,
@@ -258,7 +265,7 @@ export async function setMatchAwardsStatus(partidoId, status) {
     return { ok: false, reason: 'invalid_partido_id' };
   }
 
-  const normalizedStatus = String(status || '').trim();
+  const normalizedStatus = normalizeAwardsStatus(status);
   if (!normalizedStatus) {
     return { ok: false, reason: 'invalid_status' };
   }
@@ -319,6 +326,23 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
       reason: 'surveys_fetch_failed',
       awardsCount: 0,
       error,
+    };
+  }
+  const uniqueVotersCount = new Set(
+    (surveys || [])
+      .map((survey) => Number(survey?.votante_id))
+      .filter((id) => Number.isFinite(id)),
+  ).size;
+  const minimumVotersForAwards = Math.max(1, Math.trunc(Number(SURVEY_MIN_VOTERS_FOR_AWARDS) || 1));
+  if (uniqueVotersCount < minimumVotersForAwards) {
+    return {
+      persisted: false,
+      reason: 'insufficient_voters',
+      awardsCount: 0,
+      surveyResultsUpdated: false,
+      playerAwardsPersisted: false,
+      uniqueVotersCount,
+      minimumVotersForAwards,
     };
   }
 
@@ -406,33 +430,6 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
   const awardsCount = awardEntries.length;
   let surveyResultsUpdated = false;
 
-  try {
-    // Persist survey_results awards and mark results_ready true
-    // and verify that at least one row was affected.
-    const { data: updatedRows, error: upErr } = await supabase
-      .from('survey_results')
-      .update({ awards, results_ready: true, updated_at: new Date().toISOString() })
-      .eq('partido_id', idNum)
-      .select('partido_id');
-
-    if (upErr) throw upErr;
-    if (!Array.isArray(updatedRows) || updatedRows.length === 0) {
-      throw new Error('survey_results_row_not_updated');
-    }
-    surveyResultsUpdated = true;
-  } catch (upErr) {
-    handleError(upErr, { showToast: false, onError: () => { } });
-    return {
-      persisted: false,
-      reason: 'survey_results_update_failed',
-      awardsCount,
-      surveyResultsUpdated: false,
-      playerAwardsPersisted: false,
-      error: upErr,
-      awards,
-    };
-  }
-
   if (awardsCount === 0 || !hasAnyAwardData(awards)) {
     return {
       persisted: false,
@@ -441,6 +438,8 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
       surveyResultsUpdated,
       playerAwardsPersisted: false,
       awards,
+      uniqueVotersCount,
+      minimumVotersForAwards,
     };
   }
 
@@ -459,6 +458,8 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
       playerAwardsPersisted: false,
       error: awardError,
       awards,
+      uniqueVotersCount,
+      minimumVotersForAwards,
     };
   }
 
@@ -481,6 +482,38 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
       persistedRegisteredAwards,
       grantResult,
       awards,
+      uniqueVotersCount,
+      minimumVotersForAwards,
+    };
+  }
+
+  try {
+    const { data: updatedRows, error: upErr } = await supabase
+      .from('survey_results')
+      .update({ awards, results_ready: true, updated_at: new Date().toISOString() })
+      .eq('partido_id', idNum)
+      .select('partido_id');
+
+    if (upErr) throw upErr;
+    if (!Array.isArray(updatedRows) || updatedRows.length === 0) {
+      throw new Error('survey_results_row_not_updated');
+    }
+    surveyResultsUpdated = true;
+  } catch (upErr) {
+    handleError(upErr, { showToast: false, onError: () => { } });
+    return {
+      persisted: false,
+      reason: 'survey_results_update_failed',
+      awardsCount,
+      surveyResultsUpdated: false,
+      playerAwardsPersisted: true,
+      expectedRegisteredAwards,
+      persistedRegisteredAwards,
+      grantResult,
+      error: upErr,
+      awards,
+      uniqueVotersCount,
+      minimumVotersForAwards,
     };
   }
 
@@ -513,6 +546,8 @@ export async function computeAndPersistAwards(partidoId, options = {}) {
     persistedRegisteredAwards,
     grantResult,
     awards,
+    uniqueVotersCount,
+    minimumVotersForAwards,
   };
 }
 
@@ -1232,13 +1267,29 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     await ensureNoShowRankingSafe(idNum, { emitNotifications: true });
   }
 
-  let awardsSkipped = computedStatus === RESULT_STATUS_NOT_PLAYED;
+  let awardsSkipped = false;
   let awardsPendingRetry = false;
   let awardsPersistResult = null;
-  let finalAwardsStatus = null;
+  let finalAwardsStatus = AWARDS_STATUS_PENDING;
+  const clearAwardArtifactsForNotEligible = async () => {
+    const clearPayloadVariants = [
+      { mvp: null, golden_glove: null, red_cards: [], awards: {}, updated_at: nowIso },
+      { mvp: null, golden_glove: null, red_cards: [], updated_at: nowIso },
+      { mvp: null, golden_glove: null, updated_at: nowIso },
+    ];
+
+    for (const payload of clearPayloadVariants) {
+      const { error } = await supabase
+        .from('survey_results')
+        .update(payload)
+        .eq('partido_id', idNum);
+      if (!error) return;
+    }
+  };
 
   if (computedStatus === RESULT_STATUS_NOT_PLAYED) {
-    finalAwardsStatus = 'skipped_not_played';
+    finalAwardsStatus = AWARDS_STATUS_NOT_ELIGIBLE;
+    awardsSkipped = true;
     let surveyResultsRow = null;
     try {
       surveyResultsRow = await fetchSurveyResultsRowForMatch(idNum);
@@ -1249,12 +1300,16 @@ export async function finalizeIfComplete(partidoId, options = {}) {
       });
     }
 
-    if (hasSurveyResultsAwardsStatusColumn(surveyResultsRow)) {
-      const statusRes = await setMatchAwardsStatus(idNum, finalAwardsStatus);
-      if (!statusRes?.ok && !statusRes?.unsupported) {
-        console.warn('[FINALIZE] failed to persist skipped_not_played awards status', { partidoId: idNum, statusRes });
-      }
-    } else if (surveyResultsRow) {
+    try {
+      await clearAwardArtifactsForNotEligible();
+    } catch (clearErr) {
+      console.warn('[FINALIZE] could not clear awards artifacts for not_eligible match', { partidoId: idNum, clearErr });
+    }
+
+    const statusRes = await setMatchAwardsStatus(idNum, finalAwardsStatus);
+    if (!statusRes?.ok && !statusRes?.unsupported) {
+      console.warn('[FINALIZE] failed to persist not_eligible awards status', { partidoId: idNum, statusRes });
+    } else if (statusRes?.unsupported || (surveyResultsRow && !hasSurveyResultsAwardsStatusColumn(surveyResultsRow))) {
       console.info('[FINALIZE] skipping awards_status write because column is not available in survey_results');
     }
   } else {
@@ -1287,24 +1342,38 @@ export async function finalizeIfComplete(partidoId, options = {}) {
       console.error('[FINALIZE] could not refetch survey_results for awards validation', { partidoId: idNum, awardsRowErr });
     }
 
-    const awardsReadyNow = isAwardsTrulyReady(awardsRow);
+    const awardsReadyNow = Boolean(
+      awardsPersistResult?.persisted === true
+      && awardsRow?.results_ready === true
+      && hasAnyAwardData(awardsRow),
+    );
+    const persistReason = String(awardsPersistResult?.reason || '').trim().toLowerCase();
+    const isNotEligibleReason = persistReason === 'insufficient_voters'
+      || persistReason === 'no_valid_awards_generated';
     if (awardsReadyNow) {
-      finalAwardsStatus = 'ready';
+      finalAwardsStatus = AWARDS_STATUS_READY;
+      awardsSkipped = false;
+    } else if (isNotEligibleReason) {
+      finalAwardsStatus = AWARDS_STATUS_NOT_ELIGIBLE;
+      awardsSkipped = true;
+      try {
+        await clearAwardArtifactsForNotEligible();
+      } catch (clearErr) {
+        console.warn('[FINALIZE] could not clear awards artifacts for not_eligible match', { partidoId: idNum, clearErr });
+      }
     } else {
-      finalAwardsStatus = 'pending_retry';
+      finalAwardsStatus = AWARDS_STATUS_PENDING;
       awardsPendingRetry = true;
-      console.warn('[FINALIZE] awards not ready after close; pending retry', {
+      console.warn('[FINALIZE] awards not ready after close; pending', {
         partidoId: idNum,
         persistResult: awardsPersistResult,
       });
     }
 
-    if (hasSurveyResultsAwardsStatusColumn(awardsRow)) {
-      const statusRes = await setMatchAwardsStatus(idNum, finalAwardsStatus);
-      if (!statusRes?.ok && !statusRes?.unsupported) {
-        console.warn('[FINALIZE] failed to persist awards status', { partidoId: idNum, finalAwardsStatus, statusRes });
-      }
-    } else if (awardsRow) {
+    const statusRes = await setMatchAwardsStatus(idNum, finalAwardsStatus);
+    if (!statusRes?.ok && !statusRes?.unsupported) {
+      console.warn('[FINALIZE] failed to persist awards status', { partidoId: idNum, finalAwardsStatus, statusRes });
+    } else if (statusRes?.unsupported || (awardsRow && !hasSurveyResultsAwardsStatusColumn(awardsRow))) {
       console.info('[FINALIZE] skipping awards_status write because column is not available in survey_results');
     }
   }
@@ -1336,7 +1405,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
             match_name: partidoNombre,
             partido_nombre: partidoNombre,
             link: `/resultados-encuesta/${idNum}`,
-            resultsUrl: `/resultados-encuesta/${idNum}?showAwards=1`,
+            resultsUrl: `/resultados-encuesta/${idNum}`,
           },
           read: false,
           created_at: nowIso,
@@ -1370,6 +1439,7 @@ export async function finalizeIfComplete(partidoId, options = {}) {
     awardsSkipped,
     awardsPendingRetry,
     awards_status: finalAwardsStatus,
+    awards_not_eligible: finalAwardsStatus === AWARDS_STATUS_NOT_ELIGIBLE,
     awardsPersisted: Boolean(awardsPersistResult?.persisted),
     awardsPersistReason: awardsPersistResult?.reason || null,
     result_status: computedStatus,

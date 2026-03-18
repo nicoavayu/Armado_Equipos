@@ -1,5 +1,6 @@
 import { finalizeIfComplete } from './surveyCompletionService';
 import { ensureAwards } from './awardsService';
+import { isAwardsNotEligibleStatus, isAwardsReadyStatus } from '../utils/awardsReadiness';
 
 /**
  * Legacy compatibility wrapper.
@@ -16,7 +17,9 @@ export const processSurveyResults = async (partidoId) => {
     if (finalizeRes?.awardsSkipped) return true;
 
     const ensureRes = await ensureAwards(idNum);
-    return Boolean(ensureRes?.ok && (ensureRes?.applied || ensureRes?.row?.results_ready));
+    const awardsReady = isAwardsReadyStatus(ensureRes?.row) || ensureRes?.applied === true;
+    const awardsNotEligible = isAwardsNotEligibleStatus(ensureRes?.row) || ensureRes?.notEligible === true;
+    return Boolean(ensureRes?.ok && (awardsReady || awardsNotEligible));
   } catch (error) {
     console.error('[SURVEY_RESULTS] compatibility processing failed:', error);
     return false;
