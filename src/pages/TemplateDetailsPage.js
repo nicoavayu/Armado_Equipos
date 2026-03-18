@@ -7,6 +7,7 @@ import { useAuth } from '../components/AuthProvider';
 import { crearPartidoDesdeFrec } from '../services/db/frequentMatches';
 import { findDuplicateTemplateMatch, findUserScheduleConflicts } from '../services/db/matchScheduling';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { resolveNextTemplateDate } from '../utils/frequentTemplateDate';
 
 const formatearSede = (sede = '') => {
   if (sede === 'La Terraza Fútbol 5, 8') return 'La Terraza Fútbol 5 y 8';
@@ -29,36 +30,6 @@ const inferCupoFromModalidad = (modalidad = '') => {
   if (m === 'F9') return 18;
   if (m === 'F11') return 22;
   return 10;
-};
-
-const nextYmdForWeekday = (weekday) => {
-  const target = Number(weekday);
-  if (!Number.isFinite(target) || target < 0 || target > 6) {
-    return new Date().toISOString().split('T')[0];
-  }
-
-  const now = new Date();
-  const current = now.getDay();
-  let delta = target - current;
-  if (delta < 0) delta += 7;
-
-  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + delta, 12, 0, 0, 0);
-  const y = next.getFullYear();
-  const m = String(next.getMonth() + 1).padStart(2, '0');
-  const d = String(next.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
-
-const normalizeYmd = (value) => {
-  if (!value) return '';
-  const raw = String(value).trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return '';
-  const y = parsed.getFullYear();
-  const m = String(parsed.getMonth() + 1).padStart(2, '0');
-  const d = String(parsed.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
 };
 
 const TemplateDetailsPage = () => {
@@ -134,7 +105,8 @@ const TemplateDetailsPage = () => {
   };
 
   const doCreateFromTemplate = async (templateData) => {
-    const fechaObjetivo = normalizeYmd(templateData?.fecha) || nextYmdForWeekday(templateData?.dia_semana);
+    const { targetDate } = resolveNextTemplateDate(templateData);
+    const fechaObjetivo = targetDate;
     const cupo = Number(templateData?.cupo_jugadores || templateData?.cupo || 0) || inferCupoFromModalidad(templateData?.modalidad);
     const partido = await crearPartidoDesdeFrec(
       templateData,
@@ -150,7 +122,8 @@ const TemplateDetailsPage = () => {
 
     setIsCreating(true);
     try {
-      const fechaObjetivo = normalizeYmd(template?.fecha) || nextYmdForWeekday(template?.dia_semana);
+      const { targetDate } = resolveNextTemplateDate(template);
+      const fechaObjetivo = targetDate;
       const horaObjetivo = template?.hora || '';
       const sedeObjetivo = template?.sede || template?.lugar || '';
 

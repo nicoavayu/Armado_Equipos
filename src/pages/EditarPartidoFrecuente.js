@@ -6,6 +6,7 @@ import { parseLocalDateTime, weekdayFromYMD } from '../utils/dateLocal';
 import InlineNotice from '../components/ui/InlineNotice';
 import useInlineNotice from '../hooks/useInlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { todayYmdLocal } from '../utils/frequentTemplateDate';
 
 const SECTION_LABEL_CLASS = 'text-white/60 font-medium block font-oswald text-xs uppercase tracking-widest pl-1 mb-2';
 const INPUT_CLASS = 'appearance-none bg-[rgba(53,58,102,0.88)] border border-[rgba(133,149,208,0.5)] text-white font-oswald text-lg px-4 py-3 rounded-none w-full box-border h-[52px] transition-all duration-300 focus:outline-none focus:border-[#7f8dff] focus:ring-2 focus:ring-[#6f7dff]/30 backdrop-blur-md placeholder:text-white/30';
@@ -14,7 +15,7 @@ const PRIMARY_NAV_BUTTON_CLASS = 'w-full min-h-[44px] mt-4 mb-0 px-4 py-2.5 roun
 export default function EditarPartidoFrecuente({ partido, onGuardado, onVolver }) {
   const [nombre, setNombre] = useState(partido.nombre);
   // Inicializar fecha desde partido.fecha (recortando ISO a YYYY-MM-DD si hace falta)
-  const initialFecha = partido && partido.fecha ? String(partido.fecha).split('T')[0] : new Date().toISOString().split('T')[0];
+  const initialFecha = partido && partido.fecha ? String(partido.fecha).split('T')[0] : todayYmdLocal();
   const [fecha, setFecha] = useState(initialFecha);
   const [hora, setHora] = useState(partido.hora);
   const [sede, setSede] = useState(partido.sede);

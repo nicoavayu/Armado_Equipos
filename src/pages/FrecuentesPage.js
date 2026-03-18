@@ -9,6 +9,12 @@ import { useAuth } from '../components/AuthProvider';
 import ConfirmModal from '../components/ConfirmModal';
 import { findDuplicateTemplateMatch, findUserScheduleConflicts } from '../services/db/matchScheduling';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import {
+  nextYmdForWeekday,
+  normalizeYmd,
+  parseYmdAsLocal,
+  resolveNextTemplateDate,
+} from '../utils/frequentTemplateDate';
 
 const inferCupoFromModalidad = (modalidad = '') => {
   const m = String(modalidad || '').toUpperCase().trim();
@@ -19,58 +25,6 @@ const inferCupoFromModalidad = (modalidad = '') => {
   if (m === 'F9') return 18;
   if (m === 'F11') return 22;
   return 10;
-};
-
-const toYmdLocal = (date) => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
-
-const parseYmdAsLocal = (ymd) => {
-  const raw = String(ymd || '').trim();
-  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return null;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  return new Date(year, month - 1, day, 12, 0, 0, 0);
-};
-
-const addDaysToYmd = (ymd, days) => {
-  const base = parseYmdAsLocal(ymd);
-  if (!base) return '';
-  const next = new Date(base.getFullYear(), base.getMonth(), base.getDate() + Number(days || 0), 12, 0, 0, 0);
-  return toYmdLocal(next);
-};
-
-const nextYmdForWeekday = (weekday) => {
-  const target = Number(weekday);
-  if (!Number.isFinite(target) || target < 0 || target > 6) {
-    return toYmdLocal(new Date());
-  }
-  const now = new Date();
-  const current = now.getDay();
-  let delta = target - current;
-  if (delta < 0) delta += 7;
-  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + delta, 12, 0, 0, 0);
-  const y = next.getFullYear();
-  const m = String(next.getMonth() + 1).padStart(2, '0');
-  const d = String(next.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-};
-
-const normalizeYmd = (value) => {
-  if (!value) return '';
-  const raw = String(value).trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return '';
-  const y = parsed.getFullYear();
-  const m = String(parsed.getMonth() + 1).padStart(2, '0');
-  const d = String(parsed.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
 };
 
 const formatYmdForHuman = (ymd) => {
@@ -89,32 +43,6 @@ const formatWeekdayForHuman = (ymd) => {
     .toLocaleDateString('es-AR', { weekday: 'long' })
     .replace('.', '')
     .toLowerCase();
-};
-
-const resolveNextTemplateDate = (partidoFrecuente) => {
-  const todayYmd = toYmdLocal(new Date());
-  const referenceDate = normalizeYmd(partidoFrecuente?.fecha);
-
-  if (referenceDate) {
-    let targetDate = addDaysToYmd(referenceDate, 7);
-    while (targetDate && targetDate <= todayYmd) {
-      targetDate = addDaysToYmd(targetDate, 7);
-    }
-    return {
-      referenceDate,
-      targetDate: targetDate || nextYmdForWeekday(partidoFrecuente?.dia_semana),
-    };
-  }
-
-  let targetDate = nextYmdForWeekday(partidoFrecuente?.dia_semana);
-  while (targetDate && targetDate <= todayYmd) {
-    targetDate = addDaysToYmd(targetDate, 7);
-  }
-
-  return {
-    referenceDate: '',
-    targetDate: targetDate || todayYmd,
-  };
 };
 
 const buildNextCreationPrompt = (partidoFrecuente) => {

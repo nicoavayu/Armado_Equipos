@@ -12,6 +12,7 @@ import { CalendarDays } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import useInlineNotice from '../hooks/useInlineNotice';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
+import { todayYmdLocal } from '../utils/frequentTemplateDate';
 
 function formatearSede(sede) {
   if (sede === 'La Terraza Fútbol 5, 8') return 'La Terraza Fútbol 5 y 8';
@@ -40,7 +41,7 @@ function UseTemplateModal({ isOpen, template, onCancel, onUse }) {
 
   useEffect(() => {
     if (!isOpen) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayYmdLocal();
     setSelectedDate(today);
     setSelectedTime(template?.hora || '');
     setEditTime(false);

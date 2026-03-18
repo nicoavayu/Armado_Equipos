@@ -11,6 +11,11 @@ import {
 } from '../config/surveyConfig';
 import { getSurveyResultsReadyMessage } from '../utils/surveyNotificationCopy';
 import { hasAnyAwardData, isAwardsTrulyReady } from '../utils/awardsReadiness';
+import {
+  deriveSurveyWindowFromMatch,
+  isSurveyWindowConsistentWithKickoff,
+  isSurveyWindowInvalidForKickoff,
+} from '../utils/surveyWindow';
 
 const RESULT_STATUS_FINISHED = 'finished';
 const RESULT_STATUS_DRAW = 'draw';
@@ -798,7 +803,7 @@ const fetchSurveyLifecycleRow = async (partidoId) => {
   try {
     const { data, error } = await supabase
       .from('partidos')
-      .select('survey_status, survey_opened_at, survey_closes_at, survey_expected_voters, result_status, winner_team, finished_at')
+      .select('survey_status, survey_opened_at, survey_closes_at, survey_expected_voters, result_status, winner_team, finished_at, fecha, hora')
       .eq('id', partidoId)
       .maybeSingle();
     if (error) throw error;
@@ -808,6 +813,22 @@ const fetchSurveyLifecycleRow = async (partidoId) => {
       return null;
     }
     throw error;
+  }
+};
+
+const fetchTeamMatchScheduledAt = async (partidoId) => {
+  try {
+    const { data, error } = await supabase
+      .from('team_matches')
+      .select('scheduled_at')
+      .eq('partido_id', partidoId)
+      .order('scheduled_at', { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data?.scheduled_at || null;
+  } catch (_error) {
+    return null;
   }
 };
 
@@ -841,9 +862,32 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
   const eligibleRoster = buildEligibleRosterMap(rosterRows || []);
   const lifecycleRow = await fetchSurveyLifecycleRow(idNum);
   const normalizedStatus = normalizeSurveyStatusValue(lifecycleRow?.survey_status);
+  const scheduledAt = await fetchTeamMatchScheduledAt(idNum);
 
-  const openedAt = lifecycleRow?.survey_opened_at || nowIso;
-  const closesAt = lifecycleRow?.survey_closes_at || addDurationMs(openedAt, SURVEY_FINALIZE_DELAY_MS);
+  const canonicalWindow = deriveSurveyWindowFromMatch({
+    fecha: lifecycleRow?.fecha || null,
+    hora: lifecycleRow?.hora || null,
+    scheduledAt,
+    fallbackNowIso: nowIso,
+  });
+  const expectedOpenedAt = canonicalWindow.openedAtIso;
+  const expectedClosesAt = canonicalWindow.closesAtIso;
+  const hasKickoffAnchor = canonicalWindow.source === 'kickoff';
+
+  const hasConsistentStoredWindow = hasKickoffAnchor && isSurveyWindowConsistentWithKickoff({
+    openedAt: lifecycleRow?.survey_opened_at,
+    closesAt: lifecycleRow?.survey_closes_at,
+    expectedOpenedAt,
+    expectedClosesAt,
+  });
+  const shouldRecalculateStaleWindow = hasKickoffAnchor && !hasConsistentStoredWindow;
+
+  const openedAt = shouldRecalculateStaleWindow
+    ? expectedOpenedAt
+    : (lifecycleRow?.survey_opened_at || expectedOpenedAt);
+  const closesAt = shouldRecalculateStaleWindow
+    ? expectedClosesAt
+    : (lifecycleRow?.survey_closes_at || expectedClosesAt);
   const storedExpectedVoters = Number.isFinite(Number(lifecycleRow?.survey_expected_voters))
     ? toSafeInt(lifecycleRow.survey_expected_voters, 0)
     : 0;
@@ -861,6 +905,7 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
       || !lifecycleRow?.survey_closes_at
       || !Number.isFinite(Number(lifecycleRow?.survey_expected_voters))
       || !normalizeSurveyStatusValue(lifecycleRow?.survey_status)
+      || shouldRecalculateStaleWindow
     );
 
   if (shouldPersistOpenWindow) {
@@ -902,7 +947,16 @@ export async function ensureSurveyWindowOpen(partidoId, options = {}) {
   const submittedUsers = await getDistinctSubmittedEligibleVoters(idNum, eligibleRoster.byPlayerId);
   const submittedVoters = submittedUsers.size;
   const remainingVotes = Math.max(expectedVoters - submittedVoters, 0);
-  const deadlineReached = Date.now() >= new Date(closesAt).getTime();
+  const closesAtMs = new Date(closesAt).getTime();
+  const closesAtIsValidForKickoff = hasKickoffAnchor
+    ? !isSurveyWindowInvalidForKickoff({
+      closesAt,
+      expectedOpenedAt,
+    })
+    : Number.isFinite(closesAtMs);
+  const deadlineReached = closesAtIsValidForKickoff
+    ? Date.now() >= closesAtMs
+    : false;
   const allEligibleVoted = submittedVoters >= expectedVoters;
 
   return {
