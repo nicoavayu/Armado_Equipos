@@ -49,4 +49,37 @@ describe('surveyAccess lifecycle guards', () => {
     expect(result.blocked).toBe(false);
     expect(result.reason).toBe('ok');
   });
+
+  test('does not close survey only because match is finished', () => {
+    const result = resolveSurveyLifecycleBlock({
+      partidoRow: {
+        estado: 'finalizado',
+        survey_status: 'open',
+        survey_closes_at: '2030-03-16T18:00:00.000Z',
+        result_status: 'pending',
+        finished_at: '2026-03-16T10:00:00.000Z',
+      },
+      now: new Date('2026-03-16T12:00:00.000Z').getTime(),
+    });
+
+    expect(result.blocked).toBe(false);
+    expect(result.reason).toBe('ok');
+  });
+
+  test('ignores stale survey_closes_at that predates the actual match start window', () => {
+    const result = resolveSurveyLifecycleBlock({
+      partidoRow: {
+        estado: 'pendiente',
+        survey_status: 'open',
+        survey_closes_at: '2026-03-14T05:12:35.170149Z',
+        result_status: 'pending',
+        finished_at: null,
+      },
+      matchStartAt: '2026-03-18T01:00:00.000Z',
+      now: new Date('2026-03-18T03:05:00.000Z').getTime(),
+    });
+
+    expect(result.blocked).toBe(false);
+    expect(result.reason).toBe('ok');
+  });
 });

@@ -5,6 +5,7 @@ jest.mock('../config/surveyConfig', () => ({
 }));
 
 import {
+  aggregateSurveyResult,
   resolveMonotonicExpectedVoters,
   shouldBumpExpectedVoters,
   shouldFinalizeSurveyClosure,
@@ -74,5 +75,12 @@ describe('survey closure guard rails', () => {
       expectedVoters: 0,
       deadlineReached: false,
     })).toBe(false);
+  });
+
+  test('keeps result status pending when there are no survey responses', () => {
+    expect(aggregateSurveyResult([])).toEqual({
+      resultStatus: 'pending',
+      winnerTeam: null,
+    });
   });
 });

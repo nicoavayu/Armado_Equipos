@@ -162,6 +162,14 @@ export const resolveMvpTieBreakWinner = ({
 };
 
 export const aggregateSurveyResult = (surveys = []) => {
+  const normalizedSurveys = Array.isArray(surveys) ? surveys : [];
+  if (normalizedSurveys.length === 0) {
+    return {
+      resultStatus: RESULT_STATUS_PENDING,
+      winnerTeam: null,
+    };
+  }
+
   const statusCount = new Map();
   const winnerCount = new Map();
   const statusPriority = [
@@ -171,7 +179,7 @@ export const aggregateSurveyResult = (surveys = []) => {
     RESULT_STATUS_PENDING,
   ];
 
-  (surveys || []).forEach((survey) => {
+  normalizedSurveys.forEach((survey) => {
     const normalizedStatusFromResult = normalizeResultStatusValue(survey?.resultado);
     const normalizedWinner = normalizeWinnerTeamValue(survey?.ganador);
 

@@ -106,17 +106,22 @@ const normalizeResultStatusToken = (value) => {
   return null;
 };
 
-const resolveSurveyClosedState = ({ surveyStatus, resultStatus, surveyClosesAt, finishedAt, now = Date.now() }) => {
+const resolveSurveyClosedState = ({ surveyStatus, resultStatus, surveyClosesAt, finishedAt, matchStartAt = null, now = Date.now() }) => {
   const normalizedSurveyStatus = normalizeSurveyStatusToken(surveyStatus);
   const normalizedResultStatus = normalizeResultStatusToken(resultStatus);
   const closesAtMs = surveyClosesAt ? new Date(surveyClosesAt).getTime() : NaN;
   const finishedAtMs = finishedAt ? new Date(finishedAt).getTime() : NaN;
-  const deadlineReached = Number.isFinite(closesAtMs) && now >= closesAtMs;
+  const matchStartMs = matchStartAt ? new Date(matchStartAt).getTime() : NaN;
+  const earliestValidCloseAtMs = Number.isFinite(matchStartMs) ? matchStartMs + SURVEY_START_DELAY_MS : NaN;
+  const hasStaleDeadline = Number.isFinite(closesAtMs)
+    && Number.isFinite(earliestValidCloseAtMs)
+    && closesAtMs <= earliestValidCloseAtMs;
+  const deadlineReached = Number.isFinite(closesAtMs) && !hasStaleDeadline && now >= closesAtMs;
   const hasClosedResult = normalizedResultStatus === 'finished'
     || normalizedResultStatus === 'draw'
     || normalizedResultStatus === 'not_played';
 
-  if (normalizedSurveyStatus === 'closed' || hasClosedResult || deadlineReached || Number.isFinite(finishedAtMs)) {
+  if (normalizedSurveyStatus === 'closed' || hasClosedResult || deadlineReached) {
     return {
       closed: true,
       normalizedSurveyStatus,
@@ -1163,6 +1168,7 @@ const EncuestaPartido = () => {
           resultStatus: resultStatusValue,
           surveyClosesAt: surveyClosesAtValue,
           finishedAt: finishedAtValue,
+          matchStartAt,
           now: Date.now(),
         });
 
@@ -1833,7 +1839,7 @@ const EncuestaPartido = () => {
     try {
       const { data, error } = await supabase
         .from('partidos')
-        .select('survey_status, survey_closes_at, result_status, finished_at')
+        .select('survey_status, survey_closes_at, result_status, finished_at, fecha, hora')
         .eq('id', matchIdNum)
         .maybeSingle();
       if (!error) lifecycleRow = data || null;
@@ -1841,11 +1847,17 @@ const EncuestaPartido = () => {
       lifecycleRow = null;
     }
 
+    const lifecycleMatchStartAt = resolveSurveyMatchStartAt({
+      partidoRow: lifecycleRow,
+      teamMatchRow: null,
+    });
+
     const closure = resolveSurveyClosedState({
       surveyStatus: lifecycleRow?.survey_status,
       resultStatus: lifecycleRow?.result_status,
       surveyClosesAt: lifecycleRow?.survey_closes_at,
       finishedAt: lifecycleRow?.finished_at,
+      matchStartAt: lifecycleMatchStartAt,
       now: Date.now(),
     });
 

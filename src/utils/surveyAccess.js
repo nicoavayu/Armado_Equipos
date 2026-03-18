@@ -57,16 +57,19 @@ const isChallengeLikeTeamMatch = (teamMatchRow) => {
   return originType === 'challenge' || Boolean(teamMatchRow?.challenge_id);
 };
 
-export const resolveSurveyLifecycleBlock = ({ partidoRow = null, now = Date.now() } = {}) => {
+export const resolveSurveyLifecycleBlock = ({ partidoRow = null, matchStartAt = null, now = Date.now() } = {}) => {
   const estado = normalizeIdentityToken(partidoRow?.estado);
   const surveyStatus = normalizeSurveyStatusToken(partidoRow?.survey_status);
   const resultStatus = normalizeResultStatusToken(partidoRow?.result_status);
   const closesAtMs = toTimestamp(partidoRow?.survey_closes_at);
-  const finishedAtMs = toTimestamp(partidoRow?.finished_at);
-  const deadlineReached = closesAtMs !== null && now >= closesAtMs;
+  const matchStartMs = toTimestamp(matchStartAt);
+  const earliestValidCloseAtMs = matchStartMs !== null ? matchStartMs + SURVEY_START_DELAY_MS : null;
+  const hasStaleDeadline = closesAtMs !== null
+    && earliestValidCloseAtMs !== null
+    && closesAtMs <= earliestValidCloseAtMs;
+  const deadlineReached = closesAtMs !== null && !hasStaleDeadline && now >= closesAtMs;
   const isMatchUnavailable = ['cancelado', 'cancelled', 'deleted'].includes(estado);
   const hasClosedResult = resultStatus === 'finished' || resultStatus === 'draw' || resultStatus === 'not_played';
-  const hasClosedState = ['finalizado', 'finished', 'completed'].includes(estado);
 
   if (isMatchUnavailable) {
     return {
@@ -77,7 +80,7 @@ export const resolveSurveyLifecycleBlock = ({ partidoRow = null, now = Date.now(
     };
   }
 
-  if (surveyStatus === 'closed' || hasClosedResult || hasClosedState || deadlineReached || finishedAtMs !== null) {
+  if (surveyStatus === 'closed' || hasClosedResult || deadlineReached) {
     return {
       blocked: true,
       title: 'Encuesta finalizada',
@@ -130,7 +133,13 @@ export const resolveSurveyAccess = async ({ supabaseClient, matchId, userId }) =
       teamMatchRow = null;
     }
 
-    const lifecycleBlock = resolveSurveyLifecycleBlock({ partidoRow, now: Date.now() });
+    const matchStartAt = resolveMatchStartAt({ partidoRow, teamMatchRow });
+
+    const lifecycleBlock = resolveSurveyLifecycleBlock({
+      partidoRow,
+      matchStartAt,
+      now: Date.now(),
+    });
     if (lifecycleBlock.blocked) {
       return {
         allowed: false,
@@ -140,7 +149,6 @@ export const resolveSurveyAccess = async ({ supabaseClient, matchId, userId }) =
       };
     }
 
-    const matchStartAt = resolveMatchStartAt({ partidoRow, teamMatchRow });
     if (matchStartAt) {
       const surveyOpenAtMs = matchStartAt.getTime() + SURVEY_START_DELAY_MS;
       if (Date.now() < surveyOpenAtMs) {

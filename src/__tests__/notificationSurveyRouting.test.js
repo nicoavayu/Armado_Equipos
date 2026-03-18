@@ -170,6 +170,41 @@ describe('survey notification routing', () => {
     });
   });
 
+  test('allows navigation when survey is still open even if match is finalizado', async () => {
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 446,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'finalizado',
+        survey_status: 'open',
+        survey_closes_at: '2030-01-02T20:00:00.000Z',
+        result_status: 'pending',
+        finished_at: '2025-01-01T23:30:00.000Z',
+      },
+      rosterRows: [{ usuario_id: 'user-1' }],
+    });
+
+    const result = await resolveSurveyNotificationNavigation({
+      notification: {
+        type: 'survey_reminder',
+        partido_id: 446,
+        data: {
+          link: '/encuesta/446',
+        },
+      },
+      supabaseClient: supabaseMock,
+      userId: 'user-1',
+    });
+
+    expect(result).toEqual({
+      canNavigate: true,
+      route: '/encuesta/446',
+      reason: 'ok',
+      message: '',
+    });
+  });
+
   test('blocks finalized survey reminders instead of navigating elsewhere', async () => {
     const supabaseMock = createSupabaseMock({
       partidoRow: {
