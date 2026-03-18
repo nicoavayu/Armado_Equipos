@@ -22,6 +22,12 @@ import {
   isPendingMatchInviteNotification,
   MATCH_CANCELLATION_KEEP_ALIVE_MS,
 } from './notificationInviteState';
+import {
+  activityWindowActionableReadMs,
+  activityWindowActionableUnreadMs,
+  activityWindowDefaultMs,
+  activityWindowSurveyLikeMs,
+} from './notificationRetentionPolicy';
 
 const ACTIVITY_MAX_ITEMS = 5;
 
@@ -1158,7 +1164,7 @@ const buildActiveMatchItems = (activeMatches = [], currentUserId) => {
 
 const shouldIncludeNotification = (notification, normalizedType) => {
   if (!notification) return false;
-  const ts = notification?.created_at ? new Date(notification.created_at).getTime() : 0;
+  const ts = getNotificationTimestampMs(notification);
   if (!ts) return false;
 
   if (normalizedType === 'match_invite' && !isPendingMatchInviteNotification(notification)) {
@@ -1174,20 +1180,19 @@ const shouldIncludeNotification = (notification, normalizedType) => {
   if (isSurveyLike) {
     // For survey/premios, keep the feed actionable: show only unread and recent.
     if (notification.read) return false;
-    return ageMs <= 24 * 60 * 60 * 1000;
+    return ageMs <= activityWindowSurveyLikeMs;
   }
 
   if (normalizedType === 'match_join_request') {
-    // Join requests are operationally important for admins.
-    // Keep unread requests visible for longer so they don't disappear from "Actividad reciente".
-    if (!notification.read) return ageMs <= 7 * 24 * 60 * 60 * 1000;
-    return ageMs <= 72 * 60 * 60 * 1000;
+    // Join requests are operationally important for admins and can stay a bit longer when unread.
+    if (!notification.read) return ageMs <= activityWindowActionableUnreadMs;
+    return ageMs <= activityWindowActionableReadMs;
   }
 
   if (normalizedType === 'team_invite') {
-    // Team invites are user-actionable and should remain visible longer while pending.
-    if (!notification.read) return ageMs <= 7 * 24 * 60 * 60 * 1000;
-    return ageMs <= 72 * 60 * 60 * 1000;
+    // Team invites are user-actionable and stay longer while unresolved.
+    if (!notification.read) return ageMs <= activityWindowActionableUnreadMs;
+    return ageMs <= activityWindowActionableReadMs;
   }
 
   if (normalizedType === 'match_cancelled') {
@@ -1196,7 +1201,7 @@ const shouldIncludeNotification = (notification, normalizedType) => {
 
   // For other activity types, allow read rows too but only for a short window
   // so the card doesn't stay empty and still stays current.
-  return ageMs <= 48 * 60 * 60 * 1000;
+  return ageMs <= activityWindowDefaultMs;
 };
 
 const groupNotifications = (notifications = []) => {

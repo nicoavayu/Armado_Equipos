@@ -17,6 +17,10 @@ import {
   isPlayerJoinedMatchUpdateNotification,
 } from '../utils/notificationInviteState';
 import { AWARDS_READY_NOTIFICATION_TYPES, isAwardsTrulyReady, toNumericMatchId } from '../utils/awardsReadiness';
+import {
+  getNotificationDisplayTimestampMs,
+  getNotificationsUiCutoffIso,
+} from '../utils/notificationRetentionPolicy';
 import { track } from '../utils/monitoring/analytics';
 
 const NotificationContext = createContext();
@@ -295,9 +299,8 @@ export const NotificationProvider = ({ children }) => {
       console.log('[NOTIFICATIONS] fetchNotifications START for user:', currentUserId);
     }
     try {
-      // Only fetch notifications from the last 5 days to keep the UI light
-      const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
-      const cutoffISO = fiveDaysAgo.toISOString();
+      // Only fetch notifications from the recent UI window to keep the inbox lightweight.
+      const cutoffISO = getNotificationsUiCutoffIso();
       if (DEBUG_NOTIFICATIONS) {
         console.log('[NOTIFICATIONS] fetch cutoffISO:', cutoffISO);
       }
@@ -602,11 +605,12 @@ export const NotificationProvider = ({ children }) => {
         }
         return true;
       })
-      .sort((a, b) => new Date(b.send_at || b.created_at).getTime() - new Date(a.send_at || a.created_at).getTime());
-    const deduped = Array.from(keepMap.values()).sort((a, b) => new Date(b.send_at || b.created_at).getTime() - new Date(a.send_at || a.created_at).getTime());
+      .sort((a, b) => getNotificationDisplayTimestampMs(b) - getNotificationDisplayTimestampMs(a));
+    const deduped = Array.from(keepMap.values())
+      .sort((a, b) => getNotificationDisplayTimestampMs(b) - getNotificationDisplayTimestampMs(a));
     // Merge and sort globally by send_at (or created_at) so updated rows keep expected order
     const merged = [...nonPartido, ...deduped];
-    merged.sort((a, b) => new Date(b.send_at || b.created_at).getTime() - new Date(a.send_at || a.created_at).getTime());
+    merged.sort((a, b) => getNotificationDisplayTimestampMs(b) - getNotificationDisplayTimestampMs(a));
     return merged;
   };
 
