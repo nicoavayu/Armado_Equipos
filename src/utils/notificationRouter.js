@@ -52,9 +52,24 @@ export const resolveSurveyNotificationRoute = (notification = {}) => {
 const RESULTS_NOTIFICATION_TYPES = new Set([
   'survey_results',
   'survey_results_ready',
+]);
+
+const AWARDS_NOTIFICATION_TYPES = new Set([
   'awards_ready',
   'award_won',
 ]);
+
+export const stripShowAwardsParam = (rawPath) => {
+  const path = String(rawPath || '').trim();
+  if (!path) return path;
+
+  // Use a dummy origin to parse internal routes safely.
+  const parsed = new URL(path, 'https://local.app');
+  parsed.searchParams.delete('showAwards');
+
+  const search = parsed.searchParams.toString();
+  return `${parsed.pathname}${search ? `?${search}` : ''}${parsed.hash || ''}`;
+};
 
 export const resolveSurveyNotificationNavigation = async ({
   notification = {},
@@ -180,6 +195,12 @@ export async function openNotification(n, navigate, options = {}) {
     if (!matchId) return;
 
     if (RESULTS_NOTIFICATION_TYPES.has(type)) {
+      const base = n?.data?.resultsUrl || n?.data?.link || getResultsUrl(Number(matchId)) || `/resultados-encuesta/${matchId}`;
+      navigate(stripShowAwardsParam(base));
+      return;
+    }
+
+    if (AWARDS_NOTIFICATION_TYPES.has(type)) {
       // Prefer explicit resultsUrl
       const base = n?.data?.resultsUrl || n?.data?.link || getResultsUrl(Number(matchId)) || `/resultados-encuesta/${matchId}`;
       // Ensure showAwards=1 is in query so legacy pages open awards section

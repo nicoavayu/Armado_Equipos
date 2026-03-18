@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, CalendarClock, CheckCircle, ChevronDown, ChevronUp, ClipboardList, Trophy, UserPlus, Users, Vote, XCircle } from 'lucide-react';
 import { toBigIntId } from '../utils';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
-import { resolveSurveyNotificationNavigation } from '../utils/notificationRouter';
+import { resolveSurveyNotificationNavigation, stripShowAwardsParam } from '../utils/notificationRouter';
 import { useNotifications } from '../context/NotificationContext';
 import { useAmigos } from '../hooks/useAmigos';
 import { useAuth } from './AuthProvider';
@@ -188,7 +188,7 @@ const NotificationsView = () => {
     }
 
     if (data.resultsUrl) {
-      const isAwardsNotif = ['survey_results', 'survey_results_ready', 'awards_ready', 'award_won'].includes(notification?.type);
+      const isAwardsNotif = ['awards_ready', 'award_won'].includes(notification?.type);
       if (isAwardsNotif) {
         safeNavigate(notification, data.resultsUrl, {
           state: {
@@ -198,7 +198,7 @@ const NotificationsView = () => {
           },
         });
       } else {
-        safeNavigate(notification, data.resultsUrl);
+        safeNavigate(notification, stripShowAwardsParam(data.resultsUrl));
       }
       return;
     }
@@ -304,7 +304,15 @@ const NotificationsView = () => {
         break;
       }
       case 'survey_results':
-      case 'survey_results_ready':
+      case 'survey_results_ready': {
+        const resultsMatchId = notification.partido_id || data.partido_id || data.match_id || data.matchId;
+        if (!resultsMatchId) {
+          fallbackToNotificationRoute(notification, 'No encontramos los resultados de esta notificación.');
+          break;
+        }
+        safeNavigate(notification, `/resultados-encuesta/${toBigIntId(resultsMatchId)}`);
+        break;
+      }
       case 'awards_ready':
       case 'award_won':
         if (data.resultsUrl) {

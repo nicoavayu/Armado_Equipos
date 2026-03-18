@@ -8,8 +8,10 @@ const {
   extractNotificationMatchId,
 } = require('../utils/notificationRoutes');
 const {
+  openNotification,
   resolveSurveyNotificationNavigation,
   resolveSurveyNotificationRoute,
+  stripShowAwardsParam,
 } = require('../utils/notificationRouter');
 
 const createSupabaseMock = ({
@@ -62,6 +64,12 @@ const createSupabaseMock = ({
 });
 
 describe('survey notification routing', () => {
+  test('stripShowAwardsParam elimina showAwards sin romper el resto del query', () => {
+    expect(stripShowAwardsParam('/resultados-encuesta/90?showAwards=1&foo=bar')).toBe('/resultados-encuesta/90?foo=bar');
+    expect(stripShowAwardsParam('/resultados-encuesta/90?foo=bar&showAwards=1')).toBe('/resultados-encuesta/90?foo=bar');
+    expect(stripShowAwardsParam('/resultados-encuesta/90?showAwards=1')).toBe('/resultados-encuesta/90');
+  });
+
   test('prefers partido_id over team_match_id for survey notifications', () => {
     const notification = {
       type: 'survey_reminder',
@@ -235,5 +243,38 @@ describe('survey notification routing', () => {
     expect(result.canNavigate).toBe(false);
     expect(result.route).toBeNull();
     expect(result.reason).toBe('survey_closed');
+  });
+
+  test('survey_results_ready navega sin forzar showAwards aunque venga en link legacy', async () => {
+    const navigate = jest.fn();
+    await openNotification({
+      type: 'survey_results_ready',
+      partido_id: 700,
+      data: {
+        resultsUrl: '/resultados-encuesta/700?showAwards=1&from=legacy',
+      },
+    }, navigate);
+
+    expect(navigate).toHaveBeenCalledWith('/resultados-encuesta/700?from=legacy');
+  });
+
+  test('awards_ready mantiene navegación forzada a premiación', async () => {
+    const navigate = jest.fn();
+    await openNotification({
+      type: 'awards_ready',
+      partido_id: 701,
+      data: {
+        resultsUrl: '/resultados-encuesta/701',
+      },
+    }, navigate);
+
+    expect(navigate).toHaveBeenCalledWith(
+      '/resultados-encuesta/701?showAwards=1',
+      expect.objectContaining({
+        state: expect.objectContaining({
+          forceAwards: true,
+        }),
+      }),
+    );
   });
 });

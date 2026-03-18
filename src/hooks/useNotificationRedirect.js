@@ -8,6 +8,7 @@ import {
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import { isPendingMatchInviteNotification } from '../utils/notificationInviteState';
 import { track } from '../utils/monitoring/analytics';
+import { stripShowAwardsParam } from '../utils/notificationRouter';
 
 /**
  * Hook para manejar redirecciones desde notificaciones push
@@ -101,9 +102,10 @@ export const useNotificationRedirect = () => {
         navigate(`/partido-publico/${fallbackMatchId}`);
       }
     } else if (notification.data?.type === 'survey_results_ready') {
-      const id = toBigIntId(notification.data?.matchId);
-      const url = notification.data?.resultsUrl || (id != null ? `/resultados/${id}` : null);
-      if (url) navigate(url);
+      const matchId = notification.data?.matchId ?? notification.data?.match_id ?? notification.data?.partido_id;
+      const id = toBigIntId(matchId);
+      const url = notification.data?.resultsUrl || (id != null ? `/resultados-encuesta/${id}` : null);
+      if (url) navigate(stripShowAwardsParam(url));
     }
   };
 

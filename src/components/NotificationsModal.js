@@ -249,7 +249,22 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       return;
     }
 
-    if (notification.type === 'survey_results_ready' || notification.type === 'awards_ready' || notification.type === 'award_won') {
+    if (notification.type === 'survey_results_ready') {
+      try {
+        const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId ?? null;
+        if (!matchId) {
+          fallbackToNotificationRoute(notification, 'No encontramos los resultados de esta notificación.');
+          return;
+        }
+        safeNavigate(notification, `/resultados-encuesta/${matchId}`, {}, 'No encontramos la vista de resultados de este partido.');
+      } catch (err) {
+        console.error('[NOTIFICATION_CLICK] survey_results unexpected error:', err);
+        fallbackToNotificationRoute(notification, 'No pudimos abrir los resultados de esta notificación.');
+      }
+      return;
+    }
+
+    if (notification.type === 'awards_ready' || notification.type === 'award_won') {
       try {
         const matchId = notification?.partido_id ?? notification?.data?.match_id ?? notification?.data?.matchId ?? null;
         if (!matchId) {
