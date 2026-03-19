@@ -270,6 +270,9 @@ export async function setMatchAwardsStatus(partidoId, status) {
     return { ok: false, reason: 'invalid_status' };
   }
 
+  let surveyResultsUpdated = false;
+  let surveyResultsUnsupported = false;
+
   try {
     const { error: surveyResultsError } = await supabase
       .from('survey_results')
@@ -278,13 +281,19 @@ export async function setMatchAwardsStatus(partidoId, status) {
 
     if (surveyResultsError) {
       if (isMissingColumnError(surveyResultsError, ['awards_status'])) {
-        return { ok: false, reason: 'missing_awards_status_column', unsupported: true };
+        surveyResultsUnsupported = true;
+      } else {
+        throw surveyResultsError;
       }
-      throw surveyResultsError;
+    } else {
+      surveyResultsUpdated = true;
     }
   } catch (error) {
     return { ok: false, reason: 'survey_results_update_failed', error };
   }
+
+  let partidosUpdated = false;
+  let partidosMirrorError = null;
 
   // Best-effort mirror for any codepath still reading partidos.awards_status.
   try {
@@ -293,14 +302,32 @@ export async function setMatchAwardsStatus(partidoId, status) {
       .update({ awards_status: normalizedStatus })
       .eq('id', idNum);
 
-    if (partidoError && !isMissingColumnError(partidoError, ['awards_status'])) {
+    if (!partidoError) {
+      partidosUpdated = true;
+    } else if (!isMissingColumnError(partidoError, ['awards_status'])) {
+      partidosMirrorError = partidoError;
       console.warn('[AWARDS_STATUS] could not mirror status into partidos', { partidoId: idNum, normalizedStatus, partidoError });
     }
   } catch (partidoMirrorErr) {
+    partidosMirrorError = partidoMirrorErr;
     console.warn('[AWARDS_STATUS] partidos mirror failed', { partidoId: idNum, normalizedStatus, partidoMirrorErr });
   }
 
-  return { ok: true };
+  if (!surveyResultsUpdated && surveyResultsUnsupported && !partidosUpdated) {
+    return {
+      ok: false,
+      reason: 'partidos_mirror_failed',
+      unsupported: true,
+      error: partidosMirrorError || null,
+    };
+  }
+
+  return {
+    ok: true,
+    unsupported: surveyResultsUnsupported,
+    surveyResultsUpdated,
+    partidosUpdated,
+  };
 }
 // Calcula y persiste premios (MVP, Mejor Arquero y Tarjeta Roja) en survey_results.awards
 export async function computeAndPersistAwards(partidoId, options = {}) {

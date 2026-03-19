@@ -14,10 +14,12 @@ import EmptyStateCard from '../components/EmptyStateCard';
 import Logo from '../Logo.png';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import {
+  hasAnyAwardData,
   isAwardsNotEligibleStatus,
   isAwardsReadyStatus,
   normalizeAwardsStatus,
 } from '../utils/awardsReadiness';
+import { SURVEY_MIN_VOTERS_FOR_AWARDS } from '../config/surveyConfig';
 
 const ensurePlayersList = (players) => {
   if (players && players.length > 0) return players;
@@ -28,11 +30,40 @@ export const deriveAwardsUiState = ({
   results = null,
   partido = null,
   awardsSkippedByEnsure = false,
+  surveyProgress = null,
 } = {}) => {
+  const toSafeCount = (value) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return null;
+    return Math.max(0, Math.trunc(parsed));
+  };
+
   const rawAwardsStatus = results?.awards_status ?? partido?.awards_status ?? null;
   let awardsStatus = awardsSkippedByEnsure
     ? 'not_eligible'
     : (normalizeAwardsStatus(rawAwardsStatus) || 'pending');
+
+  const surveyStatusToken = String(
+    surveyProgress?.surveyStatus
+      || partido?.survey_status
+      || '',
+  ).trim().toLowerCase();
+  const isSurveyClosed = surveyStatusToken === 'closed' || surveyStatusToken === 'cerrada';
+  const expectedVoters = toSafeCount(
+    surveyProgress?.expectedVoters ?? partido?.survey_expected_voters,
+  );
+  const submissionsCount = toSafeCount(surveyProgress?.submissionsCount);
+  const minimumVotersForAwards = Math.max(1, Math.trunc(Number(SURVEY_MIN_VOTERS_FOR_AWARDS) || 1));
+  const hasAwardsPayload = hasAnyAwardData(results) || hasAnyAwardData(partido);
+  const isClearlyNotEligibleByVotes = isSurveyClosed && (
+    (expectedVoters !== null && expectedVoters < minimumVotersForAwards)
+    || (submissionsCount !== null && submissionsCount < minimumVotersForAwards)
+  );
+
+  if (awardsStatus === 'pending' && isClearlyNotEligibleByVotes && !hasAwardsPayload) {
+    awardsStatus = 'not_eligible';
+  }
+
   if (
     awardsStatus !== 'not_eligible'
     && (isAwardsReadyStatus(results) || isAwardsReadyStatus(partido))
@@ -104,6 +135,7 @@ const ResultadosEncuestaView = () => {
     results,
     partido,
     awardsSkippedByEnsure,
+    surveyProgress,
   });
 
   const setStage = (key, stage) => {

@@ -1,5 +1,10 @@
 jest.mock('../supabase', () => ({ supabase: {} }));
 jest.mock('../api/supabaseWrapper', () => ({ db: {} }));
+jest.mock('../config/surveyConfig', () => ({
+  SURVEY_FINALIZE_DELAY_MS: 24 * 60 * 60 * 1000,
+  SURVEY_START_DELAY_MS: 60 * 60 * 1000,
+  SURVEY_MIN_VOTERS_FOR_AWARDS: 3,
+}));
 jest.mock('../components/AuthProvider', () => ({ useAuth: () => ({ user: null }) }));
 jest.mock('../components/LoadingSpinner', () => () => null);
 jest.mock('../components/PageLoadingState', () => () => null);
@@ -35,6 +40,32 @@ describe('Resultados awards UI state', () => {
     expect(uiState.awardsReady).toBe(false);
     expect(uiState.hasInsufficientVotesForAwards).toBe(false);
     expect(uiState.shouldShowPendingResultsCard).toBe(true);
+  });
+
+  test('stale pending in closed match with insufficient voters falls back to not_eligible', () => {
+    const uiState = deriveAwardsUiState({
+      results: {
+        awards_status: 'pending',
+        results_ready: true,
+        awards: { mvp: null, best_gk: null, red_card: null },
+      },
+      partido: {
+        awards_status: 'pending',
+        survey_status: 'closed',
+        survey_expected_voters: 1,
+      },
+      awardsSkippedByEnsure: false,
+      surveyProgress: {
+        surveyStatus: 'closed',
+        expectedVoters: 1,
+        submissionsCount: 1,
+      },
+    });
+
+    expect(uiState.awardsStatus).toBe('not_eligible');
+    expect(uiState.awardsReady).toBe(false);
+    expect(uiState.hasInsufficientVotesForAwards).toBe(true);
+    expect(uiState.shouldShowPendingResultsCard).toBe(false);
   });
 
   test('not_eligible awards hide awards section and pending card, showing non-eligibility state', () => {
