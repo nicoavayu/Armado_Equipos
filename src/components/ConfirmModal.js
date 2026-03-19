@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
+import { toSentenceCase } from '../utils/textCase';
 
 export default function ConfirmModal({
   isOpen,
@@ -131,17 +132,19 @@ export default function ConfirmModal({
           {!singleButton && (
             <button
               ref={cancelRef}
+              data-preserve-button-case="true"
               className="inline-flex h-[52px] min-w-[128px] items-center justify-center px-6 rounded-[var(--radius-standard)] text-center text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border bg-[rgba(23,35,74,0.72)] border-[rgba(88,107,170,0.46)] text-white hover:brightness-110 active:opacity-95 disabled:opacity-50 disabled:cursor-default transition-all"
               onMouseDown={handleCancelClick}
               onClick={handleCancelClick}
               disabled={false}
               aria-disabled={false}
             >
-              {cancelText}
+              {toSentenceCase(cancelText)}
             </button>
           )}
           <button
             ref={confirmRef}
+            data-preserve-button-case="true"
             className={`inline-flex h-[52px] min-w-[132px] items-center justify-center px-6 rounded-[var(--radius-standard)] text-center text-[16px] font-semibold tracking-[0.01em] font-oswald whitespace-nowrap cursor-pointer border text-white hover:brightness-110 active:opacity-95 disabled:opacity-50 disabled:cursor-default transition-all ${
               danger
                 ? 'bg-[linear-gradient(132deg,#b91c1c_0%,#dc2626_50%,#ef4444_100%)] border-red-300/40'
@@ -152,7 +155,7 @@ export default function ConfirmModal({
             disabled={isDeleting}
             aria-disabled={isDeleting}
           >
-            {isDeleting ? 'Procesando…' : confirmText}
+            {toSentenceCase(isDeleting ? 'Procesando…' : confirmText)}
           </button>
         </div>
       </div>

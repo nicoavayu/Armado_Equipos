@@ -4,7 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { PlayerCardTrigger } from '../ProfileComponents';
 import LoadingSpinner from '../LoadingSpinner';
 import ConfirmModal from '../ConfirmModal';
-import { MoreVertical, LogOut, Share2, UserPlus } from 'lucide-react';
+import { LogOut, MoreVertical, UserPlus } from 'lucide-react';
+import WhatsappIcon from '../WhatsappIcon';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import { openMatchCalendarInvite } from '../../utils/calendarInvite';
 import { supabase } from '../../supabase';
@@ -18,7 +19,7 @@ import {
 const INVITE_ACCEPT_BUTTON_VIOLET = '#644dff';
 const SLOT_SKEW_X = 0;
 const HEADER_ICON_COLOR = '#29aaff';
-const HEADER_ICON_GLOW = 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.78))';
+const HEADER_ICON_GLOW = 'none';
 const PLACEHOLDER_NUMBER_STYLE = {
   color: 'transparent',
   WebkitTextStroke: '2px rgba(104, 154, 255, 0.5)',
@@ -357,7 +358,7 @@ const EmptyPlayersState = ({ view = 'guest', onShareClick }) => {
           Todavía no hay jugadores.
         </div>
         <div className="text-white/40 font-oswald text-sm leading-relaxed mb-4">
-          Usá 'Invitar amigos', 'Agregar manualmente' o compartí el link para sumar jugadores.
+          Usá 'Invitar', 'Agregar manualmente' o compartí el link para sumar jugadores.
         </div>
       </div>
     );
@@ -675,7 +676,7 @@ const PlayersSection = ({
   }, [isAdmin, showInviteStylePostJoin, partidoActual, jugadores]);
 
   const getSafeMenuPosition = (rect) => {
-    const menuWidth = 192; // w-48
+    const menuWidth = 240; // w-60
     const margin = 12;
     const rawLeft = rect.right - menuWidth;
     const safeLeft = Math.min(
@@ -747,7 +748,7 @@ const PlayersSection = ({
               onClick={() => setLocalMenuOpen(false)}
             />
             <div
-              className="fixed w-48 border shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out backdrop-blur-sm"
+              className="fixed w-60 border shadow-lg z-[9999] overflow-hidden transition-all duration-200 ease-out backdrop-blur-sm"
               style={{
                 top: `${menuPosition.top}px`,
                 left: `${menuPosition.left}px`,
@@ -763,14 +764,14 @@ const PlayersSection = ({
               <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
                 <div className="py-1 bg-transparent">
                   <button
-                    className="admin-action-menu-item admin-action-menu-item--danger"
+                    className="admin-action-menu-item admin-action-menu-item--danger whitespace-nowrap"
                     onClick={() => {
                       setLocalMenuOpen(false);
                       setConfirmConfig({ open: true, type: 'abandon' });
                     }}
                     type="button"
                   >
-                    <LogOut size={16} />
+                    <LogOut size={14} />
                     <span>Abandonar partido</span>
                   </button>
                 </div>
@@ -1286,18 +1287,7 @@ const PlayersSection = ({
                 )}
               </button>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                className={headerActionIconButtonClass}
-                onClick={() => onShareRosterUpdate?.()}
-                disabled={!canShareRosterUpdate}
-                title="Compartir update por WhatsApp"
-                aria-label="Compartir update por WhatsApp"
-              >
-                <Share2 size={14} style={{ color: HEADER_ICON_COLOR, filter: HEADER_ICON_GLOW }} />
-              </button>
-
+            <div className="flex items-start gap-2 shrink-0">
               {isAdmin && (
                 <button
                   type="button"
@@ -1324,7 +1314,7 @@ const PlayersSection = ({
                     onClick={() => setMenuOpen(false)}
                   />
                   <div
-                    className="admin-action-menu fixed w-48 z-[9999] overflow-hidden transition-all duration-200 ease-out"
+                    className="admin-action-menu fixed w-60 z-[9999] overflow-hidden transition-all duration-200 ease-out"
                     style={{
                       top: `${menuPosition.top}px`,
                       left: `${menuPosition.left}px`,
@@ -1335,9 +1325,22 @@ const PlayersSection = ({
                   >
                     <div style={{ transform: `skewX(${SLOT_SKEW_X}deg)` }}>
                       <div className="py-1 bg-transparent">
+                        {canShareRosterUpdate && (
+                          <button
+                            className="admin-action-menu-item whitespace-nowrap"
+                            onClick={() => {
+                              setMenuOpen(false);
+                              onShareRosterUpdate?.();
+                            }}
+                            type="button"
+                          >
+                            <WhatsappIcon size={14} color="#25D366" />
+                            <span>Compartir por WhatsApp</span>
+                          </button>
+                        )}
                         {isPlayerInMatch ? (
                           <button
-                            className="admin-action-menu-item admin-action-menu-item--danger"
+                            className="admin-action-menu-item admin-action-menu-item--danger whitespace-nowrap"
                             onClick={() => {
                               setMenuOpen(false);
                               setConfirmConfig({ open: true, type: 'abandon' });
@@ -1424,7 +1427,7 @@ const PlayersSection = ({
                     type="button"
                     onClick={() => setShowInviteModal(true)}
                   >
-                    Invitar amigos
+                    Invitar
                   </button>
                   <button
                     className="w-full max-w-xs h-14 rounded-xl bg-slate-800 text-white font-oswald text-[18px] font-semibold tracking-[0.01em] border border-white/20 hover:bg-slate-700 active:scale-95 transition-all"

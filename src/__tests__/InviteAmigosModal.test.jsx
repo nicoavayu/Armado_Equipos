@@ -116,7 +116,7 @@ describe('InviteAmigosModal', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'GRUPOS' }));
     fireEvent.click(await screen.findByRole('button', { name: /Futbol 7/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Invitar grupos/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Invitar grupo/i }));
 
     await waitFor(() => {
       expect(mockResolveInviteRecipientsFromGroups).toHaveBeenCalledWith({
@@ -134,6 +134,69 @@ describe('InviteAmigosModal', () => {
     });
     expect(mockRpc).not.toHaveBeenCalled();
     expect(mockRequestImmediatePushDispatchSafe).not.toHaveBeenCalled();
+  });
+
+  test('hides a group after inviting it to the current match', async () => {
+    mockGetAmigos.mockResolvedValueOnce([]);
+    mockGetPrivateGroupsByOwner.mockResolvedValueOnce([
+      {
+        id: 'group-1',
+        name: 'Futbol 7',
+        member_count: 2,
+        members: [],
+      },
+    ]);
+    mockResolveInviteRecipientsFromGroups.mockResolvedValueOnce({
+      recipients: [{ user_id: FRIEND_USER_ID, id: FRIEND_USER_ID }],
+      skipped: {
+        already_in_match: [],
+        already_invited: [],
+        duplicate: [],
+        ineligible: [],
+      },
+    });
+
+    mockFrom.mockImplementation((table) => {
+      if (table === 'usuarios') {
+        return createQueryBuilder({
+          data: { nombre: 'Capitán' },
+          error: null,
+        });
+      }
+
+      throw new Error(`Unexpected table requested in InviteAmigosModal group test: ${table}`);
+    });
+
+    mockRpc.mockResolvedValueOnce({ data: { status: 'sent' }, error: null });
+
+    render(
+      <InviteAmigosModal
+        isOpen
+        onClose={jest.fn()}
+        currentUserId={OWNER_USER_ID}
+        partidoActual={{ id: 55, nombre: 'Partido test', fecha: '2026-03-20', hora: '20:00' }}
+        jugadores={[]}
+        mode="direct"
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'GRUPOS' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Futbol 7/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Invitar grupo/i }));
+
+    await waitFor(() => {
+      expect(mockRpc).toHaveBeenCalledWith('send_match_invite', expect.objectContaining({
+        p_user_id: FRIEND_USER_ID,
+        p_partido_id: 55,
+        p_invite_mode: 'direct',
+      }));
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /Futbol 7/i })).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Ya invitaste a todos tus grupos a este partido.')).toBeInTheDocument();
   });
 
   test('shows a load error instead of a false empty state when friends cannot be fetched', async () => {

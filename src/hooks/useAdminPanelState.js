@@ -3,7 +3,7 @@ import { getVotantesIds, getVotantesConNombres, getJugadoresDelPartido, hasRecor
 import { toBigIntId } from '../utils';
 import { incrementMatchesAbandoned, canAbandonWithoutPenalty } from '../utils/matchStatsManager';
 import { autoCleanupDuplicates } from '../utils/duplicateCleanup';
-import { notifyAdminPlayerJoined } from '../services/matchJoinNotificationService';
+import { notifyAdminPlayerJoined, notifyAdminPlayerLeft } from '../services/matchJoinNotificationService';
 import { requestImmediatePushDispatchSafe } from '../services/pushDispatchService';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 
@@ -51,6 +51,17 @@ const notificationBelongsToMatch = (notificationRow, matchId) => {
     ?? notificationRow?.data?.partidoId,
   );
   return rowMatchId === targetId;
+};
+
+const isMissingRpcFunctionError = (error) => {
+  const code = String(error?.code || '').trim();
+  const message = String(error?.message || '').trim();
+  return (
+    code === 'PGRST202'
+    || /send_match_kicked_notification/i.test(message)
+    || /Could not find the function/i.test(message)
+    || /function .* does not exist/i.test(message)
+  );
 };
 
 /**
@@ -573,6 +584,20 @@ export const useAdminPanelState = ({
       }
 
       if (esAutoEliminacion) {
+        if (jugadorAEliminar?.usuario_id && partidoActual?.creado_por && partidoActual.creado_por !== jugadorAEliminar.usuario_id) {
+          try {
+            await notifyAdminPlayerLeft({
+              matchId: partidoActual.id,
+              playerName: jugadorAEliminar?.nombre || user?.nombre || user?.email?.split('@')[0] || 'Un jugador',
+              playerUserId: jugadorAEliminar.usuario_id,
+              leftVia: 'self_leave',
+              adminUserId: partidoActual.creado_por,
+            });
+          } catch (leaveNotificationError) {
+            console.error('[LEAVE_MATCH] Error notifying admin about player leaving:', leaveNotificationError);
+          }
+        }
+
         setInlineNotice('success', 'Te eliminaste del partido');
         setTimeout(() => onBackToHome(), 1000);
       }
@@ -671,41 +696,30 @@ export const useAdminPanelState = ({
             read: false,
             send_at: kickedAt,
           };
+
           let shouldKickPushImmediately = false;
-          const { error: kickInsertError } = await supabase.from('notifications').insert([payload]);
-          if (kickInsertError) {
-            const rawKickError = String(kickInsertError?.message || '').toLowerCase();
-            const isDuplicateKick = kickInsertError.code === '23505'
-              || kickInsertError.status === 409
-              || rawKickError.includes('duplicate')
-              || rawKickError.includes('conflict');
+          const { data: kickNotificationResult, error: kickNotificationError } = await supabase.rpc(
+            'send_match_kicked_notification',
+            {
+              p_user_id: jugadorAEliminar.usuario_id,
+              p_partido_id: Number(partidoActual.id),
+              p_match_name: partidoActual.nombre || null,
+              p_kicked_by: user?.id || null,
+              p_kicked_at: kickedAt,
+            },
+          );
 
-            if (isDuplicateKick) {
-              let kickUpdateQuery = supabase
-                .from('notifications')
-                .update({
-                  title: payload.title,
-                  message: payload.message,
-                  read: false,
-                  send_at: kickedAt,
-                  data: payload.data,
-                })
-                .eq('user_id', jugadorAEliminar.usuario_id)
-                .eq('type', 'match_kicked');
-
-              if (matchNotificationFilter) {
-                kickUpdateQuery = kickUpdateQuery.or(matchNotificationFilter);
-              }
-
-              const { error: kickUpdateError } = await kickUpdateQuery;
-              if (kickUpdateError) {
-                console.error('[LEAVE_MATCH] Error refreshing existing kick notification after duplicate conflict:', kickUpdateError);
-              } else {
-                shouldKickPushImmediately = true;
-              }
+          if (kickNotificationError && isMissingRpcFunctionError(kickNotificationError)) {
+            const { error: fallbackInsertError } = await supabase.from('notifications').insert([payload]);
+            if (fallbackInsertError) {
+              console.error('[LEAVE_MATCH] Error creating kick notification:', fallbackInsertError);
             } else {
-              console.error('[LEAVE_MATCH] Error creating kick notification:', kickInsertError);
+              shouldKickPushImmediately = true;
             }
+          } else if (kickNotificationError) {
+            console.error('[LEAVE_MATCH] Error sending kick notification via RPC:', kickNotificationError);
+          } else if (kickNotificationResult?.success === false) {
+            console.error('[LEAVE_MATCH] Kick notification RPC returned failure:', kickNotificationResult);
           } else {
             shouldKickPushImmediately = true;
           }

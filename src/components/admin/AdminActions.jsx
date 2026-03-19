@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Keyboard } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Keyboard, UserPlus } from 'lucide-react';
 import LoadingSpinner from '../LoadingSpinner';
 import WhatsappIcon from '../WhatsappIcon';
 
@@ -26,18 +26,45 @@ const AdminActions = ({
   onShareClick,
 }) => {
   const iconAccent = '#29aaff';
-  const iconGlowFilter = 'drop-shadow(0 0 4px rgba(41, 170, 255, 0.78))';
+  const iconGlowFilter = 'none';
   const [isManualOpen, setIsManualOpen] = useState(Boolean(String(nuevoNombre || '').trim()));
+  const [showQuickActionsMenu, setShowQuickActionsMenu] = useState(false);
+  const quickActionsMenuRef = useRef(null);
   const starterCapacity = Number(partidoActual?.cupo_jugadores || 0);
   const maxRosterSlots = starterCapacity > 0 ? starterCapacity + 4 : 0;
   const playersCount = Array.isArray(jugadores) ? jugadores.length : 0;
   const isRosterFull = maxRosterSlots > 0 && playersCount >= maxRosterSlots;
+  const canShareInvite = typeof onShareClick === 'function' && !isRosterFull;
+  const canAddManual = !isRosterFull;
+  const canOpenQuickActions = canShareInvite || canAddManual;
 
   useEffect(() => {
     if (String(nuevoNombre || '').trim()) {
       setIsManualOpen(true);
     }
   }, [nuevoNombre]);
+
+  useEffect(() => {
+    if (!showQuickActionsMenu) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (quickActionsMenuRef.current?.contains(event.target)) return;
+      setShowQuickActionsMenu(false);
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setShowQuickActionsMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showQuickActionsMenu]);
 
   if (!isAdmin) return null;
 
@@ -80,16 +107,11 @@ const AdminActions = ({
           cursor: not-allowed;
         }
 
-        .admin-action-button-wrap {
-          display: inline-flex;
-          overflow: visible;
-        }
-
         .admin-action-skew {
           appearance: none;
           cursor: pointer;
-          width: 44px;
-          min-width: 44px;
+          width: 52px;
+          min-width: 0;
           height: 44px;
           border: 1.5px solid rgba(106, 67, 255, 0.46);
           background: rgba(17, 25, 54, 0.68);
@@ -118,8 +140,9 @@ const AdminActions = ({
           cursor: not-allowed;
         }
 
-        .admin-action-label {
-          display: none;
+        .admin-quick-actions-wrap {
+          position: relative;
+          flex: 0 0 auto;
         }
 
         .admin-manual-submit {
@@ -155,17 +178,56 @@ const AdminActions = ({
         .admin-invite-actions-row {
           width: 100%;
           display: flex;
-          align-items: stretch;
+          align-items: center;
           gap: 8px;
           padding-inline: 4px;
           box-sizing: border-box;
         }
 
-        .admin-quick-actions {
-          display: inline-flex;
-          align-items: stretch;
-          gap: 6px;
-          flex: 0 0 auto;
+        .admin-quick-actions-menu {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 0;
+          width: min(248px, calc(100vw - 48px));
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          border: 1.5px solid rgba(106, 67, 255, 0.46);
+          border-radius: var(--radius-standard, 5px);
+          background: rgba(17, 25, 54, 0.98);
+          box-shadow: 0 16px 32px rgba(0, 0, 0, 0.34);
+          z-index: 20;
+        }
+
+        .admin-quick-actions-item {
+          appearance: none;
+          width: 100%;
+          min-height: 46px;
+          padding: 11px 14px;
+          border: none;
+          border-bottom: 1px solid rgba(106, 126, 202, 0.18);
+          background: transparent;
+          color: rgba(255, 255, 255, 0.92);
+          text-align: left;
+          font-size: 0.95rem;
+          font-weight: 600;
+          letter-spacing: 0.01em;
+          cursor: pointer;
+          transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+        }
+
+        .admin-quick-actions-item:last-child {
+          border-bottom: none;
+        }
+
+        .admin-quick-actions-item:hover:not(:disabled) {
+          background: rgba(106, 67, 255, 0.16);
+          color: #fff;
+        }
+
+        .admin-quick-actions-item:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
       `}</style>
       {/* Add player section */}
@@ -180,54 +242,70 @@ const AdminActions = ({
                   setShowInviteModal(true);
                 }}
                 disabled={!partidoActual?.id || isRosterFull}
-                aria-label="Invitar amigos al partido"
+                aria-label="Invitar jugadores al partido"
               >
-                <span>Invitar amigos</span>
+                <span>Invitar al partido</span>
               </button>
 
-              <div className="admin-quick-actions">
-                <div className="admin-action-button-wrap">
-                  <button
-                    className="admin-action-skew"
-                    type="button"
-                    onClick={() => {
-                      onShareClick?.();
-                    }}
-                    disabled={typeof onShareClick !== 'function' || isRosterFull}
-                    aria-label="Enviar link de invitación por WhatsApp"
-                    title="Enviar link de invitación"
-                  >
-                    <span>
-                      <WhatsappIcon size={20} color={iconAccent} style={{ filter: iconGlowFilter }} />
-                    </span>
-                  </button>
-                  <p className="admin-action-label font-oswald">Enviar link de invitación</p>
-                </div>
+              <div className="admin-quick-actions-wrap" ref={quickActionsMenuRef}>
+                <button
+                  className={`admin-action-skew ${showQuickActionsMenu || isManualOpen ? 'is-active' : ''}`}
+                  type="button"
+                  onClick={() => {
+                    if (!canOpenQuickActions) return;
+                    setShowQuickActionsMenu((prev) => !prev);
+                  }}
+                  disabled={!canOpenQuickActions}
+                  aria-expanded={showQuickActionsMenu}
+                  aria-haspopup="menu"
+                  aria-label="Más opciones para invitar jugadores"
+                  title="Más opciones para invitar jugadores"
+                >
+                  <span>
+                    <UserPlus size={20} strokeWidth={2.05} style={{ color: iconAccent, filter: iconGlowFilter }} />
+                  </span>
+                </button>
 
-                <div className="admin-action-button-wrap">
+                {showQuickActionsMenu ? (
+                  <div className="admin-quick-actions-menu" role="menu" aria-label="Opciones para invitar jugadores">
+                    <button
+                      className="admin-quick-actions-item font-oswald"
+                      type="button"
+                      onClick={() => {
+                        setShowQuickActionsMenu(false);
+                        onShareClick?.();
+                      }}
+                      disabled={!canShareInvite}
+                      role="menuitem"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <WhatsappIcon size={14} color="#25D366" />
+                        <span>Invitar por WhatsApp</span>
+                      </span>
+                    </button>
+
                   <button
-                    className={`admin-action-skew ${isManualOpen ? 'is-active' : ''}`}
+                    className="admin-quick-actions-item font-oswald"
                     type="button"
                     onClick={() => {
+                      setShowQuickActionsMenu(false);
                       setIsManualOpen((prev) => {
-                        const next = !prev;
-                        if (next) {
+                        if (!prev) {
                           window.setTimeout(() => inputRef?.current?.focus(), 0);
                         }
-                        return next;
+                        return true;
                       });
                     }}
-                    disabled={isRosterFull}
-                    aria-expanded={isManualOpen}
-                    aria-label={isManualOpen ? 'Ocultar agregar manual' : 'Ingresar manualmente'}
-                    title={isManualOpen ? 'Ocultar agregar manual' : 'Ingresar manualmente'}
+                    disabled={!canAddManual}
+                    role="menuitem"
                   >
-                    <span>
-                      <Keyboard size={20} strokeWidth={2.05} style={{ color: iconAccent, filter: iconGlowFilter }} />
+                    <span className="inline-flex items-center gap-2">
+                      <Keyboard size={15} strokeWidth={2.05} style={{ color: iconAccent, filter: iconGlowFilter }} />
+                      <span>Agregar manualmente</span>
                     </span>
                   </button>
-                  <p className="admin-action-label font-oswald">Ingresar manualmente</p>
-                </div>
+                  </div>
+                ) : null}
               </div>
             </div>
 

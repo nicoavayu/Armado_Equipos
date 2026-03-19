@@ -366,6 +366,7 @@ export default function AdminPanel({ onBackToHome, jugadores, onJugadoresChange,
                 modalidad={partidoActual?.modalidad}
                 tipo={partidoActual?.tipo_partido}
                 precio={partidoActual?.valor_cancha || partidoActual?.valorCancha || partidoActual?.valor || partidoActual?.precio}
+                topOffsetClassName="mt-[62px] sm:mt-[58px]"
               />
             </div>
           )}

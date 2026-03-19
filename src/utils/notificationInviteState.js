@@ -92,6 +92,42 @@ export const isPlayerJoinedMatchUpdateNotification = (notification) => {
   return title.includes('nuevo jugador en el partido') || message.includes('se sumó al partido');
 };
 
+export const isPlayerLeftMatchUpdateNotification = (notification) => {
+  if (normalizeNotificationType(notification) !== 'match_update') return false;
+
+  const data = notification?.data || {};
+  if (
+    data?.player_name
+    || data?.playerName
+    || data?.player_user_id
+    || data?.playerUserId
+    || data?.left_via
+    || data?.leftVia
+  ) {
+    const message = normalizeNotificationText(notification?.message);
+    const title = normalizeNotificationText(notification?.title);
+    if (
+      title.includes('se bajó')
+      || title.includes('jugador se bajó')
+      || message.includes('se bajó del partido')
+      || message.includes('abandon')
+      || message.includes('salió del partido')
+    ) {
+      return true;
+    }
+  }
+
+  const title = normalizeNotificationText(notification?.title);
+  const message = normalizeNotificationText(notification?.message);
+  return (
+    title.includes('jugador se bajó del partido')
+    || title.includes('se bajó del partido')
+    || message.includes('se bajó del partido')
+    || message.includes('abandon')
+    || message.includes('salió del partido')
+  );
+};
+
 export const isCancellationNotificationAlive = (
   notification,
   { nowMs = Date.now(), keepAliveMs = MATCH_CANCELLATION_KEEP_ALIVE_MS } = {},

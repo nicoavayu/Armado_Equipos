@@ -377,7 +377,36 @@ export const notifyAdminPlayerJoined = async ({
   });
 };
 
+export const notifyAdminPlayerLeft = async ({
+  matchId,
+  playerName,
+  playerUserId = null,
+  leftVia = 'self_leave',
+  adminUserId = null,
+}) => {
+  const name = normalizeName(playerName, 'Un jugador');
+  const matchIdNumber = toMatchId(matchId);
+  if (!matchIdNumber) return { ok: false, reason: 'invalid_match_id' };
+
+  return enqueueAdminNotification({
+    matchId: matchIdNumber,
+    type: 'match_update',
+    title: 'Jugador se bajó del partido',
+    message: `${name} se bajó del partido.`,
+    payload: {
+      match_id: matchIdNumber,
+      matchId: matchIdNumber,
+      player_name: name,
+      player_user_id: playerUserId || null,
+      left_via: leftVia,
+      link: `/admin/${matchIdNumber}`,
+    },
+    adminUserId,
+  });
+};
+
 export default {
   notifyAdminJoinRequest,
   notifyAdminPlayerJoined,
+  notifyAdminPlayerLeft,
 };

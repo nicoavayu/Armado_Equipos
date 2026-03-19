@@ -8,6 +8,7 @@ import { cancelPartidoWithNotification } from '../services/db/matches';
 import { cancelTeamMatch, getTeamMatchByChallengeId, listMyTeamMatches } from '../services/db/teamChallenges';
 import { parseLocalDateTime, formatLocalDateShort } from '../utils/dateLocal';
 import { canAbandonWithoutPenalty, incrementMatchesAbandoned } from '../utils/matchStatsManager';
+import { notifyAdminPlayerLeft } from '../services/matchJoinNotificationService';
 import LoadingSpinner from './LoadingSpinner';
 import PageTitle from './PageTitle';
 import ConfirmModal from './ConfirmModal';
@@ -909,6 +910,20 @@ const ProximosPartidos = ({ onClose }) => {
         }
 
         console.log('[LEAVE_MATCH] Deleted successfully');
+
+        if (user?.id && partidoTarget?.creado_por && partidoTarget.creado_por !== user.id) {
+          try {
+            await notifyAdminPlayerLeft({
+              matchId: partidoTarget.id,
+              playerName: user?.nombre || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Un jugador',
+              playerUserId: user.id,
+              leftVia: 'self_leave',
+              adminUserId: partidoTarget.creado_por,
+            });
+          } catch (leaveNotificationError) {
+            console.error('[LEAVE_MATCH] Error notifying admin about player leaving:', leaveNotificationError);
+          }
+        }
 
         try {
           const canAbandonSafely = canAbandonWithoutPenalty(

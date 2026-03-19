@@ -15,6 +15,7 @@ import { isTeamChallengeNotification } from '../utils/notificationRoutes';
 import {
   filterNotificationsForInbox,
   isPlayerJoinedMatchUpdateNotification,
+  isPlayerLeftMatchUpdateNotification,
 } from '../utils/notificationInviteState';
 import { AWARDS_READY_NOTIFICATION_TYPES, isAwardsTrulyReady, toNumericMatchId } from '../utils/awardsReadiness';
 import {
@@ -133,26 +134,18 @@ export const NotificationProvider = ({ children }) => {
     const readinessByMatchId = new Map();
     if (normalizedIds.length === 0) return readinessByMatchId;
 
-    let query = await supabase
-      .from('survey_results')
-      .select('partido_id, results_ready, mvp, golden_glove, red_cards, awards, awards_status, awards_generated')
+    const { data, error } = await supabase
+      .from('player_awards')
+      .select('partido_id')
       .in('partido_id', normalizedIds);
-
-    if (query.error) {
-      query = await supabase
-        .from('survey_results')
-        .select('partido_id, results_ready, mvp, golden_glove, red_cards, awards, awards_generated')
-        .in('partido_id', normalizedIds);
-    }
-
-    const { data, error } = query;
 
     if (error) throw error;
 
+    normalizedIds.forEach((matchId) => readinessByMatchId.set(matchId, false));
     (data || []).forEach((row) => {
       const partidoId = toNumericMatchId(row?.partido_id);
       if (partidoId == null) return;
-      readinessByMatchId.set(partidoId, isAwardsTrulyReady(row));
+      readinessByMatchId.set(partidoId, true);
     });
 
     return readinessByMatchId;
@@ -795,7 +788,10 @@ export const NotificationProvider = ({ children }) => {
         console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
         break;
       case 'match_update':
-        if (isPlayerJoinedMatchUpdateNotification(notification)) {
+        if (
+          isPlayerJoinedMatchUpdateNotification(notification)
+          || isPlayerLeftMatchUpdateNotification(notification)
+        ) {
           console.info(`${toastTitle}: ${toastMessage}`, toastOptions);
         }
         break;

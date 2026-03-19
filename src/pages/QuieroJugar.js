@@ -554,7 +554,7 @@ const QuieroJugar = ({
 
         {/* Secondary tabs (contextual filter) */}
         <div
-          className="w-full mb-8 relative z-10 transition-[transform,opacity] duration-200 ease-out will-change-transform"
+          className={`w-full relative z-10 transition-[transform,opacity] duration-200 ease-out will-change-transform ${activeTab === 'matches' ? 'mb-0' : 'mb-8'}`}
           style={{
             transform: showSecondaryTabs
               ? 'translateX(0)'
@@ -674,7 +674,7 @@ const QuieroJugar = ({
 
             return (
               <>
-                <div className="w-full max-w-[500px] mb-4 border border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92 px-3 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
+                <div className="w-full max-w-[500px] mt-2 mb-4 border border-[rgba(88,107,170,0.46)] bg-[#1e293b]/92 px-3 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
                   <div className="flex items-center justify-between gap-2 mb-2.5">
                     <span className="font-bebas text-[0.9rem] uppercase tracking-[0.06em] text-white/85">
                       Distancia maxima de partidos
@@ -726,6 +726,7 @@ const QuieroJugar = ({
                       const titularesCount = Math.max(0, jugadoresCount - substitutesCount);
                       const titularesDisplayCount = Math.min(titularesCount, cupoMaximo);
                       const isComplete = titularesDisplayCount >= cupoMaximo;
+                      const isOwnerMatch = user?.id && String(partido?.creado_por || '') === String(user.id);
                       const locationLabel = buildMatchLocationLabel(partido);
                       const formattedDate = new Date(partido.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
                       const roundedDistanceKm = Number.isFinite(partido.distanceKm) ? Math.round(partido.distanceKm) : null;
@@ -745,7 +746,12 @@ const QuieroJugar = ({
                                 <span>{partido.hora} hs</span>
                               </div>
                             </div>
-                            <div className="shrink-0 flex items-center gap-2">
+                            <div className="shrink-0 flex items-center justify-end gap-2 flex-wrap">
+                              {isOwnerMatch ? (
+                                <span className="font-oswald px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap border border-[#8e7dff] bg-[rgba(106,67,255,0.18)] text-[#ddd7ff]">
+                                  Tu partido
+                                </span>
+                              ) : null}
                               {isComplete ? (
                                 <span className="px-2.5 py-1.5 rounded-none text-[11px] font-semibold shrink-0 whitespace-nowrap bg-[#165a2e] text-[#22c55e] border border-[#22c55e]">
                                   {titularesDisplayCount}/{cupoMaximo}

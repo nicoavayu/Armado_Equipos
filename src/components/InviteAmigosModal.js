@@ -17,6 +17,10 @@ import {
   buildMatchNotificationOrFilter,
   normalizeSendMatchInviteResult,
 } from '../utils/matchInviteState';
+import {
+  readCachedInvitedGroupIds,
+  rememberCachedInvitedGroupIds,
+} from '../utils/groupInviteCache';
 
 const isUuidLike = (value) => (
   typeof value === 'string'
@@ -260,6 +264,7 @@ const InviteAmigosModal = ({
   const [invitedFriends, setInvitedFriends] = useState(new Set());
   const [selectedFriendIds, setSelectedFriendIds] = useState(new Set());
   const [selectedGroupIds, setSelectedGroupIds] = useState(new Set());
+  const [blockedGroupIds, setBlockedGroupIds] = useState(new Set());
   const [inviteTab, setInviteTab] = useState('friends');
   const inviteMode = normalizeInviteMode(mode);
   const isRequestJoinMode = inviteMode === 'request_join';
@@ -268,6 +273,10 @@ const InviteAmigosModal = ({
   const visibleFriends = useMemo(
     () => amigos.filter((amigo) => !invitedFriends.has(String(amigo.id || '').trim())),
     [amigos, invitedFriends],
+  );
+  const visibleGroups = useMemo(
+    () => groups.filter((group) => !blockedGroupIds.has(String(group?.id || '').trim())),
+    [groups, blockedGroupIds],
   );
 
   useEffect(() => {
@@ -302,9 +311,15 @@ const InviteAmigosModal = ({
     if (!isOpen) {
       setSelectedFriendIds(new Set());
       setSelectedGroupIds(new Set());
+      setBlockedGroupIds(new Set());
       setInviteTab('friends');
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !canUseGroups) return;
+    setBlockedGroupIds(readCachedInvitedGroupIds(partidoActual?.id));
+  }, [canUseGroups, isOpen, partidoActual?.id]);
 
   const fetchAmigos = async () => {
     setLoading(true);
@@ -444,6 +459,18 @@ const InviteAmigosModal = ({
         .filter(Boolean)
         .forEach((id) => next.add(id));
       writeCachedInvitedFriendIds(partidoActual?.id, next);
+      return next;
+    });
+  };
+
+  const rememberBlockedGroupIds = (groupIds = []) => {
+    setBlockedGroupIds((prev) => {
+      const next = new Set(prev);
+      groupIds
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .forEach((groupId) => next.add(groupId));
+      rememberCachedInvitedGroupIds(partidoActual?.id, next);
       return next;
     });
   };
@@ -770,6 +797,14 @@ const InviteAmigosModal = ({
       const unavailableIds = [];
       const alreadyInMatchIds = (skipped?.already_in_match || []).map((entry) => entry?.user_id || entry?.id);
       const duplicateCount = Array.isArray(skipped?.duplicate) ? skipped.duplicate.length : 0;
+      const shouldBlockSelectedGroups = (
+        recipients.length > 0
+        || alreadyPendingIds.length > 0
+        || unavailableIds.length > 0
+        || alreadyInMatchIds.length > 0
+        || ineligibleIds.length > 0
+        || duplicateCount > 0
+      );
 
       if (recipients.length > 0) {
         const inviteContext = await getInviteContext();
@@ -817,6 +852,10 @@ const InviteAmigosModal = ({
           matchId: Number(partidoActual?.id),
           limit: Math.max(20, Math.min(80, (sentIds.length + reinvitedIds.length) * 10)),
         });
+      }
+
+      if (shouldBlockSelectedGroups) {
+        rememberBlockedGroupIds(groupIds);
       }
 
       setSelectedGroupIds(new Set());
@@ -877,6 +916,7 @@ const InviteAmigosModal = ({
             className="bg-transparent border-none text-white text-2xl cursor-pointer p-0 w-[30px] h-[30px] flex items-center justify-center rounded-full transition-colors duration-200 hover:bg-white/10"
             onClick={onClose}
             type="button"
+            data-preserve-button-case="true"
           >
             ×
           </button>
@@ -888,6 +928,7 @@ const InviteAmigosModal = ({
               <button
                 type="button"
                 onClick={() => setInviteTab('friends')}
+                data-preserve-button-case="true"
                 className={`flex-1 font-bebas text-sm tracking-[0.08em] transition-all ${
                   inviteTab === 'friends'
                     ? 'bg-[#31239f] text-white'
@@ -900,6 +941,7 @@ const InviteAmigosModal = ({
               <button
                 type="button"
                 onClick={() => setInviteTab('groups')}
+                data-preserve-button-case="true"
                 className={`flex-1 border-l border-[rgba(88,107,170,0.46)] font-bebas text-sm tracking-[0.08em] transition-all ${
                   inviteTab === 'groups'
                     ? 'bg-[#31239f] text-white'
@@ -939,9 +981,13 @@ const InviteAmigosModal = ({
               <div className="text-center text-white/70 py-10 px-5 text-base">
                 {emptyLabel}
               </div>
+            ) : visibleGroups.length === 0 ? (
+              <div className="text-center text-white/70 py-10 px-5 text-base">
+                Ya invitaste a todos tus grupos a este partido.
+              </div>
             ) : (
               <div className="flex flex-col gap-2">
-                {groups.map((group) => {
+                {visibleGroups.map((group) => {
                   const isSelected = selectedGroupIds.has(group.id);
                   const memberPreview = (group?.members || [])
                     .slice(0, 2)
@@ -953,6 +999,7 @@ const InviteAmigosModal = ({
                     <button
                       key={group.id}
                       type="button"
+                      data-preserve-button-case="true"
                       className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all duration-200 ${
                         isSelected
                           ? 'bg-[#2a3b57] border-[#5d83c6]'
@@ -1033,9 +1080,10 @@ const InviteAmigosModal = ({
                       ) : (
                         <button
                           onClick={() => handleInvitar(amigo)}
-                          className="border-none rounded-md px-4 py-2 text-sm font-semibold cursor-pointer transition-all duration-200 shrink-0 min-w-[80px] bg-[#007bff] text-white hover:bg-[#0056b3] hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
+                          className="shrink-0 min-w-[80px] rounded-none border border-[#7d5aff] bg-[#6a43ff] px-4 py-2 text-sm font-semibold text-white shadow-[0_0_14px_rgba(106,67,255,0.22)] transition-all duration-200 hover:bg-[#7550ff] hover:-translate-y-px disabled:cursor-not-allowed disabled:border-[rgba(125,90,255,0.45)] disabled:bg-[rgba(106,67,255,0.55)] disabled:text-white/45 disabled:shadow-none disabled:transform-none"
                           disabled={inviting}
                           type="button"
+                          data-preserve-button-case="true"
                         >
                           {inviting ? '...' : 'Invitar'}
                         </button>
@@ -1060,11 +1108,12 @@ const InviteAmigosModal = ({
               onClick={handleSendSelected}
               disabled={inviting || selectedCount === 0 || !invitationsOpen}
               className="w-full h-10 rounded-md border border-[#7d5aff] bg-[#6a43ff] text-white text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110"
+              data-preserve-button-case="true"
             >
               {inviting ? 'Enviando...' : 'Enviar sugerencia'}
             </button>
           </div>
-        ) : canUseGroups && inviteTab === 'groups' && groups.length > 0 ? (
+        ) : canUseGroups && inviteTab === 'groups' && visibleGroups.length > 0 ? (
           <div className="px-5 py-3 border-t border-[#333] bg-[#222]">
             <div className="text-[12px] text-white/70 mb-2">
               {selectedGroupCount > 0
@@ -1076,8 +1125,9 @@ const InviteAmigosModal = ({
               onClick={handleSendSelectedGroups}
               disabled={inviting || selectedGroupCount === 0}
               className="w-full h-10 rounded-md border border-[#7d5aff] bg-[#6a43ff] text-white text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110"
+              data-preserve-button-case="true"
             >
-              {inviting ? 'Enviando...' : 'Invitar grupos'}
+              {inviting ? 'Enviando...' : (selectedGroupCount === 1 ? 'Invitar grupo' : 'Invitar grupos')}
             </button>
           </div>
         ) : null}

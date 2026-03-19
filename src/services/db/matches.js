@@ -17,6 +17,8 @@ export const normalizeIdentityValue = (value) => {
   return normalized.length > 0 ? normalized : null;
 };
 
+const voteCleanupUnsupportedColumns = new Set();
+
 export const isUuidLike = (value) => (
   typeof value === 'string'
   && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim())
@@ -584,6 +586,11 @@ const isMissingColumnError = (error) => {
 };
 
 const runVoteCleanupDelete = async ({ table, column, values, partidoId }) => {
+  const compatibilityKey = `${table}.${column}`;
+  if (voteCleanupUnsupportedColumns.has(compatibilityKey)) {
+    return { deleted: 0, skipped: true };
+  }
+
   const normalizedValues = Array.from(new Set((values || [])
     .map((value) => normalizeIdentityValue(value))
     .filter(Boolean)));
@@ -597,6 +604,7 @@ const runVoteCleanupDelete = async ({ table, column, values, partidoId }) => {
 
   if (error) {
     if (isMissingColumnError(error)) {
+      voteCleanupUnsupportedColumns.add(compatibilityKey);
       return { deleted: 0, skipped: true };
     }
     throw error;
@@ -619,11 +627,12 @@ export const removePlayerVotesFromMatch = async (partidoId, jugador = {}) => {
     return { ok: false, deletedApprox: 0, warnings: ['invalid_partido_id'] };
   }
 
-  const idCandidates = Array.from(new Set([
+  const identityRefCandidates = Array.from(new Set([
     normalizeIdentityValue(jugador?.usuario_id),
     normalizeIdentityValue(jugador?.uuid),
-    normalizeIdentityValue(jugador?.id),
   ].filter(Boolean)));
+
+  const uuidCandidates = identityRefCandidates.filter((value) => isUuidLike(value));
 
   const numericId = Number(jugador?.id);
   const numericCandidates = Number.isFinite(numericId) && numericId > 0
@@ -634,17 +643,20 @@ export const removePlayerVotesFromMatch = async (partidoId, jugador = {}) => {
   let deletedApprox = 0;
 
   const cleanupOps = [
-    { table: 'votos', column: 'votante_id', values: idCandidates },
-    { table: 'votos', column: 'votado_id', values: idCandidates },
-    { table: 'votos_publicos', column: 'votado_id', values: idCandidates },
-    { table: 'votos_publicos', column: 'votado_uuid', values: idCandidates },
-    { table: 'votos_publicos', column: 'votado_usuario_id', values: idCandidates },
-    { table: 'votos_publicos', column: 'jugador_uuid', values: idCandidates },
-    { table: 'votos_publicos', column: 'player_uuid', values: idCandidates },
+    // Auth votes keep stable target refs in `votado_id` and may mirror usuario_id in `votado_usuario_id`.
+    { table: 'votos', column: 'votante_id', values: identityRefCandidates },
+    { table: 'votos', column: 'votado_id', values: identityRefCandidates },
+    { table: 'votos', column: 'votado_usuario_id', values: uuidCandidates },
+    // Public votes use canonical target fields from the public-votes migrations.
+    { table: 'votos_publicos', column: 'votado_uuid', values: uuidCandidates },
+    { table: 'votos_publicos', column: 'votado_usuario_id', values: uuidCandidates },
     { table: 'votos_publicos', column: 'votado_jugador_id', values: numericCandidates },
-    { table: 'votos_publicos', column: 'votado_player_id', values: numericCandidates },
-    { table: 'votos_publicos', column: 'player_id', values: numericCandidates },
   ];
+
+  if (uuidCandidates.length === 0 && identityRefCandidates.length > 0) {
+    // Legacy public rows may still target players via `votado_id` in older environments/tests.
+    cleanupOps.splice(3, 0, { table: 'votos_publicos', column: 'votado_id', values: identityRefCandidates });
+  }
 
   for (const op of cleanupOps) {
     try {

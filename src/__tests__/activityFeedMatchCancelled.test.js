@@ -39,7 +39,7 @@ describe('buildActivityFeed match_cancelled', () => {
     expect(items[0].type).toBe('match_cancelled');
     expect(items[0].title).toBe('Partido cancelado');
     expect(items[0].subtitle).toBe('El desafío de "Equipo 1 vs Deportivo Saque" fue cancelado por el administrador.');
-    expect(items[0].route).toBe('/desafios');
+    expect(items[0].route).toBeNull();
   });
 
   test('keeps only the cancellation item for a cancelled match and includes match identity', async () => {

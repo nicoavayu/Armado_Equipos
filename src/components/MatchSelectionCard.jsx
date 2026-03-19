@@ -44,6 +44,11 @@ const INVITE_STATUS_META = {
         tone: 'bg-[#4a3410] text-[#fde68a] border border-[#f59e0b]',
         helper: 'Este jugador ya tiene una invitación pendiente para este partido.',
     },
+    group_already_invited: {
+        label: 'Grupo invitado',
+        tone: 'bg-[#2b1d52] text-[#ddd6fe] border border-[#8b5cf6]',
+        helper: 'Este grupo ya fue invitado a este partido.',
+    },
     roster_full: {
         label: 'Sin cupos',
         tone: 'bg-slate-900 text-slate-300 border border-slate-700',

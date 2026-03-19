@@ -12,6 +12,7 @@ import InlineNotice from './ui/InlineNotice';
 import { useScrollResetOnChange } from '../hooks/useScrollReset';
 import { notifyBlockingError } from 'utils/notifyBlockingError';
 import EmptyStateCard from './EmptyStateCard';
+import PrivateGroupsTab from './friends/PrivateGroupsTab';
 
 const toCoordinateNumber = (value) => {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -89,6 +90,9 @@ const PRIMARY_TOGGLE_INACTIVE_CLASS = 'z-[1] border-[rgba(106,126,202,0.40)] bg-
 const EMPTY_STATE_TITLE_CLASS = 'font-oswald text-[clamp(18px,5.6vw,22px)] font-semibold leading-tight text-white';
 const normalizeAmigosTab = (value) => {
   const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'groups' || normalized === 'group' || normalized === 'grupos' || normalized === 'grupo') {
+    return 'groups';
+  }
   if (normalized === 'discover' || normalized === 'community' || normalized === 'comunidad' || normalized === 'requests') {
     return 'discover';
   }
@@ -192,6 +196,8 @@ const AmigosView = () => {
     const params = new URLSearchParams(location.search);
     if (normalizedTab === 'discover') {
       params.set('tab', 'discover');
+    } else if (normalizedTab === 'groups') {
+      params.set('tab', 'groups');
     } else {
       params.delete('tab');
     }
@@ -612,7 +618,7 @@ const AmigosView = () => {
         </div>
       )}
 
-      <div className="w-full mb-4">
+      <div className={`w-full ${activeTab === 'groups' ? 'mb-7' : 'mb-4'}`}>
         <div className="relative left-1/2 w-screen -translate-x-1/2">
           <div className={PRIMARY_TOGGLE_CONTAINER_CLASS}>
             <button
@@ -627,7 +633,21 @@ const AmigosView = () => {
               {activeTab === 'friends' ? (
                 <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
               ) : null}
-              MIS AMIGOS
+              AMIGOS
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTabChange('groups')}
+              className={`relative flex-1 min-w-0 border border-l-0 px-0 py-0 font-bebas text-[0.95rem] tracking-[0.04em] transition-[background-color,border-color,color] duration-150 ${
+                activeTab === 'groups'
+                  ? PRIMARY_TOGGLE_ACTIVE_CLASS
+                  : PRIMARY_TOGGLE_INACTIVE_CLASS
+              }`}
+            >
+              {activeTab === 'groups' ? (
+                <span className="pointer-events-none absolute left-0 top-0 h-[3px] w-full bg-[#644dff]" />
+              ) : null}
+              GRUPOS
             </button>
             <button
               type="button"
@@ -800,6 +820,12 @@ const AmigosView = () => {
             )}
           </div>
         </>
+      ) : activeTab === 'groups' ? (
+        <PrivateGroupsTab
+          currentUserId={currentUserId}
+          friends={amigos}
+          onInlineNotice={showInlineNotice}
+        />
       ) : (
         <>
           {/* Search friends */}

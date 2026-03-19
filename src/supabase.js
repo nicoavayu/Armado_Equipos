@@ -7,6 +7,7 @@ export * from './services/db/profiles';
 export { addFreePlayer, removeFreePlayer, getFreePlayerStatus } from './services/api/playerService';
 export * from './services/db/friends';
 export * from './services/db/frequentMatches';
+export * from './services/db/privateFriendGroups';
 export * from './services/db/realtime';
 export * from './services/db/teams';
 export * from './services/db/teamChallenges';

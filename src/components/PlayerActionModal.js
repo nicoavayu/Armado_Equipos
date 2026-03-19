@@ -23,7 +23,7 @@ const getPos = (p) => POS_MAP[p] || 'DEF';
 const getPosColor = (p) => POS_COLOR_MAP[p] || '#8178e5';
 
 const ACTION_BTN_BASE_CLASS = 'w-full min-w-0 h-[46px] px-4 rounded-none border font-bebas text-[15px] tracking-[0.01em] leading-tight transition-all inline-flex items-center justify-center text-center';
-const ACTION_BTN_COMPACT_CLASS = 'px-2 text-[14px] whitespace-normal break-words';
+const ACTION_BTN_COMPACT_CLASS = 'px-1.5 text-[13px] tracking-[0.005em] whitespace-nowrap';
 const ACTION_BTN_PRIMARY_CLASS = 'bg-[#6a43ff] border-[#7d5aff] text-white shadow-[0_0_14px_rgba(106,67,255,0.3)] hover:bg-[#7550ff] active:opacity-95';
 const ACTION_BTN_SECONDARY_CLASS = 'bg-[rgba(20,31,70,0.82)] border-[rgba(98,117,184,0.58)] text-white/92 hover:bg-[rgba(30,45,94,0.95)] hover:text-white active:opacity-95';
 
@@ -46,7 +46,7 @@ const getFriendButtonConfig = (status, isSubmitting) => {
 
   if (status === 'pending') {
     return {
-      label: 'Solicitud pendiente',
+      label: 'Pendiente',
       disabled: true,
       className: 'bg-[rgba(106,67,255,0.18)] border-[rgba(125,90,255,0.55)] text-[#cfc2ff] cursor-not-allowed',
     };
