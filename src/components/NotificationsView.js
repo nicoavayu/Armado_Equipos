@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, CalendarClock, CheckCircle, ChevronDown, ChevronUp, ClipboardList, Trophy, UserPlus, Users, Vote, XCircle } from 'lucide-react';
 import { toBigIntId } from '../utils';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
-import { resolveSurveyNotificationNavigation, stripShowAwardsParam } from '../utils/notificationRouter';
+import {
+  resolveNotificationActionability,
+  resolveSurveyNotificationNavigation,
+  stripShowAwardsParam,
+} from '../utils/notificationRouter';
 import { useNotifications } from '../context/NotificationContext';
 import { useAmigos } from '../hooks/useAmigos';
 import { useAuth } from './AuthProvider';
@@ -142,13 +146,6 @@ const NotificationsView = () => {
 
     console.debug('[NOTIFICATION_CLICK]', { id: notification?.id, type: notification?.type, link, matchId });
 
-    // Priority 1: Use link if available (for join requests and other notifications with direct links)
-    if (link && notification?.type === 'match_join_request') {
-      try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
-      safeNavigate(notification, link, { replace: false });
-      return;
-    }
-
     if (isSurveyFormNotificationType(notification)) {
       try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
 
@@ -166,6 +163,24 @@ const NotificationsView = () => {
       }
 
       safeNavigate(notification, surveyNavigation.route, { replace: false });
+      return;
+    }
+
+    const actionability = await resolveNotificationActionability({
+      notification,
+      supabaseClient: supabase,
+    });
+    if (!actionability.isActionable) {
+      if (actionability.message) {
+        notifyBlockingError(actionability.message);
+      }
+      return;
+    }
+
+    // Priority 1: Use link if available (for join requests and other notifications with direct links)
+    if (link && notification?.type === 'match_join_request') {
+      try { if (!notification.read) await markAsRead(notification.id); } catch (e) { /* Intentionally empty */ }
+      safeNavigate(notification, link, { replace: false });
       return;
     }
 

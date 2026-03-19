@@ -4,6 +4,7 @@ import { getResultsUrl } from './routes';
 import { resolveMatchInviteRoute } from './matchInviteRoute';
 import { isSurveyNotificationClosed } from './surveyNotificationCopy';
 import { resolveSurveyAccess } from './surveyAccess';
+import { parseLocalDateTime } from './dateLocal';
 import {
   buildTeamChallengeRoute,
   extractNotificationMatchId,
@@ -58,6 +59,270 @@ const AWARDS_NOTIFICATION_TYPES = new Set([
   'awards_ready',
   'award_won',
 ]);
+
+const CONSULTABLE_NOTIFICATION_TYPES = new Set([
+  ...RESULTS_NOTIFICATION_TYPES,
+  ...AWARDS_NOTIFICATION_TYPES,
+  'survey_finished',
+]);
+
+const MATCH_OPERATIONAL_NOTIFICATION_TYPES = new Set([
+  'call_to_vote',
+  'pre_match_vote',
+  'match_invite',
+  'match_join_request',
+  'match_join_approved',
+  'match_update',
+  'match_player_joined',
+  'match_player_left',
+  'match_today',
+  'match_tomorrow',
+  'falta_jugadores',
+]);
+
+const CLOSED_MATCH_STATUS_TOKENS = new Set([
+  'finalizado',
+  'finished',
+  'cancelado',
+  'cancelled',
+  'canceled',
+  'deleted',
+  'eliminado',
+  'suspendido',
+  'suspended',
+]);
+
+const CLOSED_RESULT_STATUS_TOKENS = new Set([
+  'finished',
+  'draw',
+  'not_played',
+  'cancelled',
+  'cancelado',
+  'no_jugado',
+  'walkover',
+  'forfeit',
+]);
+
+const OPERATIONAL_ACTION_EXPIRY_GRACE_MS = 6 * 60 * 60 * 1000;
+const LIFECYCLE_CACHE_TTL_MS = 60 * 1000;
+
+const lifecycleCacheByMatchId = new Map();
+
+const normalizeToken = (value) => String(value || '').trim().toLowerCase();
+
+const toMillis = (value) => {
+  const ms = value ? new Date(value).getTime() : NaN;
+  return Number.isFinite(ms) ? ms : null;
+};
+
+const parseIsoDateTimeCandidate = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const ms = Date.parse(raw);
+  if (!Number.isFinite(ms)) return null;
+  const date = new Date(ms);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const parseLocalDateTimeCandidate = (dateValue, timeValue) => {
+  const parsed = parseLocalDateTime(dateValue, timeValue);
+  if (!(parsed instanceof Date) || Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+};
+
+const extractMatchIdFromPath = (rawPath) => {
+  const path = String(rawPath || '').trim();
+  if (!path) return null;
+  const match = path.match(/\/(?:admin|partido-publico|partido|encuesta|resultados-encuesta|votar-equipos)\/(\d+)/i);
+  return match?.[1] || null;
+};
+
+const extractLifecycleMatchId = (notification = {}) => {
+  const data = notification?.data || {};
+  const candidate = (
+    notification?.partido_id
+    || data?.partido_id
+    || data?.partidoId
+    || data?.match_id
+    || data?.matchId
+    || notification?.match_id
+    || notification?.match_ref
+    || notification?.target_params?.partido_id
+    || extractMatchIdFromPath(data?.link || data?.resultsUrl || notification?.deep_link || notification?.deepLink || null)
+    || null
+  );
+  if (candidate === null || candidate === undefined) return null;
+  const normalized = String(candidate).trim();
+  if (!/^\d+$/.test(normalized)) return null;
+  return normalized;
+};
+
+const resolveOperationalReferenceStartAt = (notification = {}, partidoRow = null) => {
+  const rowLocal = parseLocalDateTimeCandidate(partidoRow?.fecha || null, partidoRow?.hora || null);
+  if (rowLocal) return rowLocal;
+
+  const data = notification?.data || {};
+  const localFromNotification = parseLocalDateTimeCandidate(
+    data?.fecha || data?.match_date || data?.partido_fecha || null,
+    data?.hora || data?.match_time || data?.partido_hora || null,
+  );
+  if (localFromNotification) return localFromNotification;
+
+  const isoCandidate = (
+    partidoRow?.scheduled_at
+    || partidoRow?.start_at
+    || data?.scheduled_at
+    || data?.match_start_at
+    || data?.match_starts_at
+    || data?.starts_at
+    || data?.start_at
+    || null
+  );
+  return parseIsoDateTimeCandidate(isoCandidate);
+};
+
+const getCachedLifecycleRow = (matchId, nowMs) => {
+  const cacheEntry = lifecycleCacheByMatchId.get(matchId);
+  if (!cacheEntry) return undefined;
+  if ((nowMs - cacheEntry.at) > LIFECYCLE_CACHE_TTL_MS) {
+    lifecycleCacheByMatchId.delete(matchId);
+    return undefined;
+  }
+  return cacheEntry.row || null;
+};
+
+const setCachedLifecycleRow = (matchId, row, nowMs) => {
+  lifecycleCacheByMatchId.set(matchId, {
+    row: row || null,
+    at: nowMs,
+  });
+};
+
+const fetchMatchLifecycleRow = async ({ supabaseClient, matchId, nowMs }) => {
+  if (!supabaseClient || !matchId) return null;
+  const cached = getCachedLifecycleRow(matchId, nowMs);
+  if (cached !== undefined) return cached;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('partidos')
+      .select('id, fecha, hora, estado, result_status, finished_at')
+      .eq('id', matchId)
+      .maybeSingle();
+    if (error) return null;
+    setCachedLifecycleRow(matchId, data || null, nowMs);
+    return data || null;
+  } catch (_error) {
+    return null;
+  }
+};
+
+export const isMatchOperationalNotificationType = (notificationOrType = {}) => {
+  const type = normalizeToken(
+    typeof notificationOrType === 'string'
+      ? notificationOrType
+      : notificationOrType?.type,
+  );
+  return MATCH_OPERATIONAL_NOTIFICATION_TYPES.has(type);
+};
+
+export const resolveNotificationActionability = async ({
+  notification = {},
+  supabaseClient = supabase,
+  nowMs = Date.now(),
+} = {}) => {
+  const type = normalizeToken(notification?.type);
+  if (!type) {
+    return {
+      isActionable: true,
+      reason: 'missing_type',
+      message: '',
+      matchId: null,
+    };
+  }
+
+  if (CONSULTABLE_NOTIFICATION_TYPES.has(type)) {
+    return {
+      isActionable: true,
+      reason: 'consultable_notification',
+      message: '',
+      matchId: extractLifecycleMatchId(notification),
+    };
+  }
+
+  if (!MATCH_OPERATIONAL_NOTIFICATION_TYPES.has(type)) {
+    return {
+      isActionable: true,
+      reason: 'non_operational_notification',
+      message: '',
+      matchId: extractLifecycleMatchId(notification),
+    };
+  }
+
+  const matchId = extractLifecycleMatchId(notification);
+  if (!matchId) {
+    return {
+      isActionable: true,
+      reason: 'missing_match_id',
+      message: '',
+      matchId: null,
+    };
+  }
+
+  const partidoRow = await fetchMatchLifecycleRow({
+    supabaseClient,
+    matchId,
+    nowMs,
+  });
+
+  const normalizedEstado = normalizeToken(partidoRow?.estado || notification?.data?.estado);
+  if (CLOSED_MATCH_STATUS_TOKENS.has(normalizedEstado)) {
+    return {
+      isActionable: false,
+      reason: 'match_finished',
+      message: 'Este partido ya terminó y esta notificación ya no tiene acciones disponibles.',
+      matchId,
+    };
+  }
+
+  const normalizedResultStatus = normalizeToken(partidoRow?.result_status || notification?.data?.result_status);
+  if (CLOSED_RESULT_STATUS_TOKENS.has(normalizedResultStatus)) {
+    return {
+      isActionable: false,
+      reason: 'match_result_closed',
+      message: 'Este partido ya terminó y esta notificación ya no tiene acciones disponibles.',
+      matchId,
+    };
+  }
+
+  const finishedAtMs = toMillis(partidoRow?.finished_at || notification?.data?.finished_at);
+  if (finishedAtMs !== null && finishedAtMs <= nowMs) {
+    return {
+      isActionable: false,
+      reason: 'match_finished_at',
+      message: 'Este partido ya terminó y esta notificación ya no tiene acciones disponibles.',
+      matchId,
+    };
+  }
+
+  const referenceStartAt = resolveOperationalReferenceStartAt(notification, partidoRow);
+  const referenceStartMs = toMillis(referenceStartAt);
+  if (referenceStartMs !== null && nowMs >= (referenceStartMs + OPERATIONAL_ACTION_EXPIRY_GRACE_MS)) {
+    return {
+      isActionable: false,
+      reason: 'operational_window_expired',
+      message: 'Esta notificación ya no tiene acciones disponibles.',
+      matchId,
+    };
+  }
+
+  return {
+    isActionable: true,
+    reason: 'ok',
+    message: '',
+    matchId,
+  };
+};
 
 export const stripShowAwardsParam = (rawPath) => {
   const path = String(rawPath || '').trim();
@@ -189,6 +454,15 @@ export async function openNotification(n, navigate, options = {}) {
 
       console.debug('[openNotification] navigating to survey link', { surveyLink: surveyNavigation.route });
       if (surveyNavigation.route) navigate(surveyNavigation.route);
+      return;
+    }
+
+    const actionability = await resolveNotificationActionability({
+      notification: n,
+      supabaseClient: options?.supabaseClient || supabase,
+    });
+    if (!actionability.isActionable) {
+      options?.onActionBlocked?.(actionability);
       return;
     }
 

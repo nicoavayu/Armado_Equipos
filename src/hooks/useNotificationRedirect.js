@@ -5,10 +5,58 @@ import {
   consumePendingNativePushRedirect,
   getNativePushRedirectEventName,
 } from './useNativeFeatures';
+import supabase from '../supabase';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import { isPendingMatchInviteNotification } from '../utils/notificationInviteState';
 import { track } from '../utils/monitoring/analytics';
-import { stripShowAwardsParam } from '../utils/notificationRouter';
+import {
+  resolveNotificationActionability,
+  stripShowAwardsParam,
+} from '../utils/notificationRouter';
+import { notifyBlockingError } from '../utils/notifyBlockingError';
+
+const extractMatchIdFromRoute = (route) => {
+  const raw = String(route || '').trim();
+  if (!raw) return null;
+  const match = raw.match(/\/(?:admin|partido-publico|partido|encuesta|resultados-encuesta)\/(\d+)/i);
+  return match?.[1] || null;
+};
+
+const resolveNotificationTypeToken = (payload = {}) => String(
+  payload?.notificationType
+  || payload?.notification_type
+  || payload?.type
+  || payload?.data?.type
+  || payload?.data?.notification_type
+  || '',
+).trim();
+
+const buildNotificationEnvelopeFromPayload = ({ payload = {}, route = '' } = {}) => {
+  const data = payload?.data && typeof payload.data === 'object' ? payload.data : {};
+  const type = resolveNotificationTypeToken(payload);
+  const matchId = (
+    payload?.matchId
+    || payload?.match_id
+    || payload?.partido_id
+    || data?.matchId
+    || data?.match_id
+    || data?.partido_id
+    || extractMatchIdFromRoute(route)
+    || null
+  );
+
+  return {
+    type,
+    partido_id: matchId || undefined,
+    data: {
+      ...data,
+      link: route || data?.link || null,
+      match_id: matchId || data?.match_id || undefined,
+      matchId: matchId || data?.matchId || undefined,
+      partido_id: matchId || data?.partido_id || undefined,
+    },
+  };
+};
 
 /**
  * Hook para manejar redirecciones desde notificaciones push
@@ -19,11 +67,21 @@ export const useNotificationRedirect = () => {
   useEffect(() => {
     const nativePushRedirectEventName = getNativePushRedirectEventName();
 
-    const handleNativePushRedirect = (payload) => {
+    const handleNativePushRedirect = async (payload) => {
       const route = String(payload?.route || '').trim();
       if (!route) return;
 
-      const notificationType = String(payload?.notificationType || '').trim();
+      const envelope = buildNotificationEnvelopeFromPayload({ payload, route });
+      const actionability = await resolveNotificationActionability({
+        notification: envelope,
+        supabaseClient: supabase,
+      });
+      if (!actionability.isActionable) {
+        if (actionability.message) notifyBlockingError(actionability.message);
+        return;
+      }
+
+      const notificationType = resolveNotificationTypeToken(payload);
       track('push_opened', {
         notification_type: notificationType || undefined,
         route,
@@ -34,15 +92,22 @@ export const useNotificationRedirect = () => {
     };
 
     // Listener para mensajes del Service Worker
-    const handleMessage = (event) => {
+    const handleMessage = async (event) => {
       if (event.data?.type === 'NAVIGATE_TO' && event.data?.url) {
-        const notificationType = String(
-          event.data?.notificationType
-          || event.data?.notification_type
-          || event.data?.data?.type
-          || event.data?.data?.notification_type
-          || '',
-        ).trim();
+        const envelope = buildNotificationEnvelopeFromPayload({
+          payload: event.data || {},
+          route: event.data?.url,
+        });
+        const actionability = await resolveNotificationActionability({
+          notification: envelope,
+          supabaseClient: supabase,
+        });
+        if (!actionability.isActionable) {
+          if (actionability.message) notifyBlockingError(actionability.message);
+          return;
+        }
+
+        const notificationType = resolveNotificationTypeToken(event.data || {});
         track('push_opened', {
           notification_type: notificationType || undefined,
           route: event.data?.url,
@@ -55,12 +120,12 @@ export const useNotificationRedirect = () => {
     };
 
     const handleWindowNativePushRedirect = (event) => {
-      handleNativePushRedirect(event?.detail || {});
+      void handleNativePushRedirect(event?.detail || {});
     };
 
     const pendingNativePushRedirect = consumePendingNativePushRedirect();
     if (pendingNativePushRedirect?.route) {
-      handleNativePushRedirect(pendingNativePushRedirect);
+      void handleNativePushRedirect(pendingNativePushRedirect);
     }
 
     // Agregar listener
@@ -75,8 +140,24 @@ export const useNotificationRedirect = () => {
   }, [navigate]);
 
   // Función para manejar notificaciones cuando la app está abierta
-  const handleForegroundNotification = (notification) => {
+  const handleForegroundNotification = async (notification) => {
     const notificationType = String(notification?.type || notification?.data?.type || '').trim();
+    const envelope = {
+      ...notification,
+      type: notificationType || notification?.type || '',
+      data: notification?.data && typeof notification.data === 'object'
+        ? notification.data
+        : {},
+    };
+
+    const actionability = await resolveNotificationActionability({
+      notification: envelope,
+      supabaseClient: supabase,
+    });
+    if (!actionability.isActionable) {
+      if (actionability.message) notifyBlockingError(actionability.message);
+      return;
+    }
 
     if (notificationType) {
       track('push_opened', {

@@ -5,7 +5,10 @@ import { Bell, CalendarClock, CheckCircle, ClipboardList, ShieldAlert, Trophy, U
 import supabase from '../supabase';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from '../context/NotificationContext';
-import { resolveSurveyNotificationNavigation } from '../utils/notificationRouter';
+import {
+  resolveNotificationActionability,
+  resolveSurveyNotificationNavigation,
+} from '../utils/notificationRouter';
 import { resolveMatchInviteRoute } from '../utils/matchInviteRoute';
 import LoadingSpinner from './LoadingSpinner';
 import EmptyStateCard from './EmptyStateCard';
@@ -154,6 +157,17 @@ const NotificationsModal = ({ isOpen, onClose }) => {
       }
 
       safeNavigate(notification, surveyNavigation.route);
+      return;
+    }
+
+    const actionability = await resolveNotificationActionability({
+      notification,
+      supabaseClient: supabase,
+    });
+    if (!actionability.isActionable) {
+      if (actionability.message) {
+        notifyBlockingError(actionability.message);
+      }
       return;
     }
 

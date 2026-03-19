@@ -9,6 +9,7 @@ const {
 } = require('../utils/notificationRoutes');
 const {
   openNotification,
+  resolveNotificationActionability,
   resolveSurveyNotificationNavigation,
   resolveSurveyNotificationRoute,
   stripShowAwardsParam,
@@ -276,5 +277,136 @@ describe('survey notification routing', () => {
         }),
       }),
     );
+  });
+
+  test('bloquea notificaciones operativas cuando el partido ya está finalizado', async () => {
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 810,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'finalizado',
+        result_status: 'finished',
+        finished_at: '2025-01-01T22:30:00.000Z',
+      },
+    });
+
+    const result = await resolveNotificationActionability({
+      notification: {
+        type: 'match_update',
+        partido_id: 810,
+      },
+      supabaseClient: supabaseMock,
+      nowMs: Date.parse('2025-01-02T12:00:00.000Z'),
+    });
+
+    expect(result.isActionable).toBe(false);
+    expect(result.reason).toBe('match_finished');
+  });
+
+  test('bloquea notificaciones operativas viejas aunque el estado quedó pendiente', async () => {
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 811,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'pendiente',
+        result_status: 'pending',
+        finished_at: null,
+      },
+    });
+
+    const result = await resolveNotificationActionability({
+      notification: {
+        type: 'match_join_request',
+        partido_id: 811,
+      },
+      supabaseClient: supabaseMock,
+      nowMs: Date.parse('2025-01-02T12:00:00.000Z'),
+    });
+
+    expect(result.isActionable).toBe(false);
+    expect(result.reason).toBe('operational_window_expired');
+  });
+
+  test('mantiene accionables notificaciones operativas de partido futuro o en curso', async () => {
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 812,
+        fecha: '2030-01-10',
+        hora: '21:00',
+        estado: 'pendiente',
+        result_status: 'pending',
+        finished_at: null,
+      },
+    });
+
+    const result = await resolveNotificationActionability({
+      notification: {
+        type: 'match_join_request',
+        partido_id: 812,
+      },
+      supabaseClient: supabaseMock,
+      nowMs: Date.parse('2030-01-10T18:00:00.000Z'),
+    });
+
+    expect(result.isActionable).toBe(true);
+    expect(result.reason).toBe('ok');
+  });
+
+  test('awards_ready sigue siendo consultable aunque el partido esté finalizado', async () => {
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 813,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'finalizado',
+        result_status: 'finished',
+        finished_at: '2025-01-01T22:30:00.000Z',
+      },
+    });
+
+    const result = await resolveNotificationActionability({
+      notification: {
+        type: 'awards_ready',
+        partido_id: 813,
+      },
+      supabaseClient: supabaseMock,
+      nowMs: Date.parse('2025-01-02T12:00:00.000Z'),
+    });
+
+    expect(result.isActionable).toBe(true);
+    expect(result.reason).toBe('consultable_notification');
+  });
+
+  test('openNotification no navega en notificación operativa expirada', async () => {
+    const navigate = jest.fn();
+    const onActionBlocked = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 814,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'finalizado',
+        result_status: 'finished',
+        finished_at: '2025-01-01T22:30:00.000Z',
+      },
+    });
+
+    await openNotification({
+      id: 'notif-814',
+      type: 'match_join_request',
+      partido_id: 814,
+      data: {},
+    }, navigate, {
+      supabaseClient: supabaseMock,
+      onActionBlocked,
+    });
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(onActionBlocked).toHaveBeenCalledWith(expect.objectContaining({
+      isActionable: false,
+      reason: 'match_finished',
+    }));
   });
 });
