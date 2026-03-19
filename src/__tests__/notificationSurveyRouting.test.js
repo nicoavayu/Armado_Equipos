@@ -329,6 +329,68 @@ describe('survey notification routing', () => {
     expect(navigate).toHaveBeenCalledWith('/resultados-encuesta/700?from=legacy');
   });
 
+  test('bloquea survey_finished cuando el partido quedó not_eligible para premios', async () => {
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 702,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'finalizado',
+        survey_status: 'closed',
+        survey_closes_at: '2025-01-02T20:00:00.000Z',
+        result_status: 'finished',
+        awards_status: 'not_eligible',
+        finished_at: '2025-01-02T20:00:00.000Z',
+      },
+    });
+
+    const result = await resolveNotificationActionability({
+      notification: {
+        type: 'survey_finished',
+        partido_id: 702,
+        data: {
+          resultsUrl: '/resultados-encuesta/702',
+        },
+      },
+      supabaseClient: supabaseMock,
+      nowMs: Date.parse('2025-01-03T12:00:00.000Z'),
+    });
+
+    expect(result.isActionable).toBe(false);
+    expect(result.reason).toBe('survey_results_not_eligible');
+  });
+
+  test('bloquea survey_results_ready cuando el partido quedó not_eligible para premios', async () => {
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 703,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'finalizado',
+        survey_status: 'closed',
+        survey_closes_at: '2025-01-02T20:00:00.000Z',
+        result_status: 'finished',
+        awards_status: 'not_eligible',
+        finished_at: '2025-01-02T20:00:00.000Z',
+      },
+    });
+
+    const result = await resolveNotificationActionability({
+      notification: {
+        type: 'survey_results_ready',
+        partido_id: 703,
+        data: {
+          resultsUrl: '/resultados-encuesta/703',
+        },
+      },
+      supabaseClient: supabaseMock,
+      nowMs: Date.parse('2025-01-03T12:00:00.000Z'),
+    });
+
+    expect(result.isActionable).toBe(false);
+    expect(result.reason).toBe('survey_results_not_eligible');
+  });
+
   test('awards_ready mantiene navegación forzada a premiación', async () => {
     const navigate = jest.fn();
     await openNotification({
@@ -514,5 +576,41 @@ describe('survey notification routing', () => {
 
     expect(navigate).not.toHaveBeenCalled();
     expect(onActionBlocked).not.toHaveBeenCalled();
+  });
+
+  test('openNotification no navega en survey_finished cuando el resultado quedó not_eligible', async () => {
+    const navigate = jest.fn();
+    const onActionBlocked = jest.fn();
+    const supabaseMock = createSupabaseMock({
+      partidoRow: {
+        id: 816,
+        fecha: '2025-01-01',
+        hora: '20:00',
+        estado: 'finalizado',
+        survey_status: 'closed',
+        survey_closes_at: '2025-01-02T20:00:00.000Z',
+        result_status: 'finished',
+        awards_status: 'not_eligible',
+        finished_at: '2025-01-02T20:00:00.000Z',
+      },
+    });
+
+    await openNotification({
+      id: 'notif-816',
+      type: 'survey_finished',
+      partido_id: 816,
+      data: {
+        resultsUrl: '/resultados-encuesta/816',
+      },
+    }, navigate, {
+      supabaseClient: supabaseMock,
+      onActionBlocked,
+    });
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(onActionBlocked).toHaveBeenCalledWith(expect.objectContaining({
+      isActionable: false,
+      reason: 'survey_results_not_eligible',
+    }));
   });
 });

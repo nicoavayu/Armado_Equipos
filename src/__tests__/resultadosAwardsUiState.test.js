@@ -29,6 +29,7 @@ jest.mock('react-router-dom', () => {
 const {
   deriveAwardsUiState,
   shouldShowAwardsRetryAction,
+  shouldShowSecondaryResultsSections,
 } = require('../pages/ResultadosEncuestaView');
 
 describe('Resultados awards UI state', () => {
@@ -139,5 +140,21 @@ describe('Resultados awards UI state', () => {
     });
 
     expect(shouldShowRetry).toBe(true);
+  });
+
+  test('secondary result sections stay hidden for not_eligible final state', () => {
+    const shouldShowSections = shouldShowSecondaryResultsSections({
+      awardsStatus: 'not_eligible',
+    });
+
+    expect(shouldShowSections).toBe(false);
+  });
+
+  test('secondary result sections stay available for ready awards', () => {
+    const shouldShowSections = shouldShowSecondaryResultsSections({
+      awardsStatus: 'ready',
+    });
+
+    expect(shouldShowSections).toBe(true);
   });
 });

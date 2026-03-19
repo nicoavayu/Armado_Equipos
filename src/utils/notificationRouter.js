@@ -6,6 +6,7 @@ import { isSurveyNotificationClosed } from './surveyNotificationCopy';
 import { resolveSurveyAccess } from './surveyAccess';
 import { parseLocalDateTime } from './dateLocal';
 import { isSurveyReminderActionRequired } from './surveyReminderEligibility';
+import { normalizeAwardsStatus } from './awardsReadiness';
 import {
   buildTeamChallengeRoute,
   extractNotificationMatchId,
@@ -120,6 +121,10 @@ const REMINDER_TYPE_TOKENS = new Set([
   '1h_before_deadline',
   '12h_before_deadline',
 ]);
+
+const isClosedSurveyResultsNotificationType = (type) => (
+  RESULTS_NOTIFICATION_TYPES.has(type) || type === 'survey_finished'
+);
 
 const toMillis = (value) => {
   const ms = value ? new Date(value).getTime() : NaN;
@@ -250,7 +255,7 @@ const fetchMatchLifecycleRow = async ({ supabaseClient, matchId, nowMs }) => {
   try {
     const { data, error } = await supabaseClient
       .from('partidos')
-      .select('id, fecha, hora, estado, survey_status, survey_closes_at, result_status, finished_at')
+      .select('id, fecha, hora, estado, survey_status, survey_closes_at, result_status, awards_status, finished_at')
       .eq('id', matchId)
       .maybeSingle();
     if (error) return null;
@@ -309,6 +314,23 @@ export const resolveNotificationActionability = async ({
         isActionable: false,
         reason: 'survey_reminder_stale',
         message: 'Esta encuesta ya cerró y esta notificación de recordatorio ya no tiene acciones disponibles.',
+        matchId,
+      };
+    }
+  }
+
+  if (isClosedSurveyResultsNotificationType(type)) {
+    const awardsStatus = normalizeAwardsStatus(
+      partidoRow?.awards_status
+      || notification?.data?.awards_status
+      || notification?.data?.awardsStatus,
+    );
+
+    if (awardsStatus === 'not_eligible') {
+      return {
+        isActionable: false,
+        reason: 'survey_results_not_eligible',
+        message: 'Esta encuesta cerró sin premios por falta de votos y esta notificación ya no tiene una vista disponible.',
         matchId,
       };
     }

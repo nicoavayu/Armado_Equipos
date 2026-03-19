@@ -91,6 +91,10 @@ export const shouldShowAwardsRetryAction = ({
   return Boolean(results) && Boolean(isSurveyClosed) && normalizedAwardsStatus === 'pending';
 };
 
+export const shouldShowSecondaryResultsSections = ({
+  awardsStatus = null,
+} = {}) => normalizeAwardsStatus(awardsStatus) !== 'not_eligible';
+
 // Context to broadcast live previewPlayers without recreating slides
 const PreviewPlayersContext = createContext([]);
 
@@ -1955,6 +1959,9 @@ const ResultadosEncuestaView = () => {
     awardsStatus,
     isSurveyClosed,
   });
+  const showSecondaryResultsSections = shouldShowSecondaryResultsSections({
+    awardsStatus,
+  });
 
   // OVERLAY ANIMATION RENDER
   // Carousel state
@@ -2217,7 +2224,7 @@ const ResultadosEncuestaView = () => {
         </div>
 
         {/* Absences Section */}
-        {absences.length > 0 && (
+        {showSecondaryResultsSections && absences.length > 0 && (
           <div className="mt-8 border-t border-white/10 pt-8">
             <h3 className="text-2xl text-white mb-2 pl-2 border-l-4 border-red-500">Información de Ausencias</h3>
             <p className="text-sm text-white/60 mb-5">
